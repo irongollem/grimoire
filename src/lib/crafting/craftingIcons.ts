@@ -4,7 +4,7 @@ import { CRAFTING_GLYPHS } from "@/lib/crafting/craftingGlyphs.generated";
 // Hand-drawn, vectorized icons for the Workshop's crafting disciplines, in the
 // same style as the nav glyphs. Source art is in the local art-src/ dump;
 // the pipeline is scripts/glyphs (the /glyph skill).
-// Wired into src/lib/crafting-disciplines.ts. Kept out of icons.ts so the
+// Wired into src/lib/crafting/disciplines.ts. Kept out of icons.ts so the
 // ~75KB of path data loads with the Workshop rather than with the app.
 export const IconCraftAlchemy = glyph(CRAFTING_GLYPHS.alchemy);
 export const IconCraftSmithing = glyph(CRAFTING_GLYPHS.smithing);

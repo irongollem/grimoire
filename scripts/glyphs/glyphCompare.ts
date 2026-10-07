@@ -69,6 +69,7 @@ export async function compareSets(
       if (d.pixels > worst[size].pixels) worst[size] = { name, ...d };
     }
   }
-  const largest = Math.max(...COMPARE_SIZES);
-  return { worst, ok: worst[largest].pixels <= MAX_DIFF_PIXELS };
+  // Every size we draw must pass, like optimizeGlyph's check: a glyph can hold
+  // at 96 px and still lose a stroke at 24.
+  return { worst, ok: COMPARE_SIZES.every((size) => worst[size].pixels <= MAX_DIFF_PIXELS) };
 }

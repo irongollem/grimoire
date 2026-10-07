@@ -228,7 +228,7 @@ import RecipeIngredientsPanel from "@/components/crafting/RecipeIngredientsPanel
 import {
   CRAFTING_DISCIPLINES,
   getDiscipline,
-} from "@/lib/crafting-disciplines";
+} from "@/lib/crafting/disciplines";
 import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
 import { useUiStore } from "@/stores/ui";
 import { markEdited } from "@/ai/provenance";

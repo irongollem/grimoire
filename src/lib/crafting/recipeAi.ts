@@ -1,6 +1,6 @@
 import type { AiProvenance } from "@/ai/provenance";
 import type { CraftingDiscipline } from "@/types/crafting.types";
-import { CRAFTING_DISCIPLINES } from "@/lib/crafting-disciplines";
+import { CRAFTING_DISCIPLINES } from "@/lib/crafting/disciplines";
 import {
   ITEM_RARITIES,
   ITEM_TYPES,

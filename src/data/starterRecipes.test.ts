@@ -3,7 +3,7 @@ import { STARTER_RECIPES } from "./starterRecipes";
 import { GEAR } from "./gear";
 import { PROVISIONS } from "./provisions";
 import { AMMUNITION } from "./ammunition";
-import { CRAFTING_DISCIPLINES } from "@/lib/crafting-disciplines";
+import { CRAFTING_DISCIPLINES } from "@/lib/crafting/disciplines";
 import { buildStarterRecipeChildRows } from "@/composables/crafting/useCrafting";
 import { WORKSHOP_LIBRARY_EQUIVALENTS } from "./workshopLibraryEquivalents";
 import { RULESET_KEYS } from "@/types/ruleset.types";

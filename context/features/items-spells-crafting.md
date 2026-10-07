@@ -466,7 +466,7 @@ The Workshop is where the DM creates crafting recipes and controls which players
 
 **List view** — tabbed by crafting discipline. All recipes are shown in an "All" tab; individual discipline tabs filter the list. Mobile-responsive cards truncate the name and collapse discipline/proficiency/tools badges to icons only. The list is paged in on scroll via `useInfiniteScroll` (48 at a time) with `useScrollRestore` keyed `crafting-recipes`, so returning from `/crafting/:id` lands where you left off.
 
-**Crafting disciplines** — defined in `src/lib/crafting-disciplines.ts`. Each discipline has:
+**Crafting disciplines** — defined in `src/lib/crafting/disciplines.ts`. Each discipline has:
 
 - An id, label, icon
 - The ability score used for the check (INT, WIS, DEX, etc.)

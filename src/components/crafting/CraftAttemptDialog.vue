@@ -194,7 +194,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import { IconCheckCircle, IconClose, IconCloseCircle, IconDiceRoll, IconWarning } from '@/lib/icons';
-import { getDiscipline } from "@/lib/crafting-disciplines";
+import { getDiscipline } from "@/lib/crafting/disciplines";
 import { useAttemptCraft } from "@/composables/crafting/useCrafting";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { revealInScrollParent } from "@/lib/motion";

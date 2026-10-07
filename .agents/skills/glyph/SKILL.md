@@ -24,7 +24,7 @@ damage types, standalone SVGs). The deterministic steps are `scripts/glyphs/cli.
 | ------------ | --------------------------------------------- | ------------------------------------------------------------------------- |
 | `nav`        | `src/lib/navGlyphs.generated.ts`              | `src/lib/icons.ts` `IconNav*`, consumed by `src/lib/nav.ts`               |
 | `nav-assets` | `src/lib/navGlyphs.assets.generated.ts`       | `src/lib/icons.ts`                                                        |
-| `crafting`   | `src/lib/crafting/craftingGlyphs.generated.ts`| `src/lib/crafting/craftingIcons.ts` `IconCraft*`, `src/lib/crafting-disciplines.ts` |
+| `crafting`   | `src/lib/crafting/craftingGlyphs.generated.ts`| `src/lib/crafting/craftingIcons.ts` `IconCraft*`, `src/lib/crafting/disciplines.ts` |
 | `dice`       | `src/lib/dice/diceGlyphs.generated.ts`        | `src/lib/dice/dieIcons.ts` `IconDie*` (d2-d12, d100), `DiceRoller.vue`, `QuickDiceWidget.vue` |
 | `dice-d20`   | `src/lib/diceGlyphs.d20.generated.ts`         | `src/lib/icons.ts` `IconDice` / `IconDiceRoll`; `dieIcons.ts` re-exports it as `IconDie20` |
 | damage types | `public/assets/damage-types/<type>.svg`       | `src/components/common/DamageIcon.vue`                                    |

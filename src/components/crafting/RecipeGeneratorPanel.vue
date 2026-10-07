@@ -107,7 +107,7 @@ import {
 } from "@/composables/crafting/useCrafting";
 import { useRecipeGeneration } from "@/ai/useRecipeGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
-import { CRAFTING_DISCIPLINES } from "@/lib/crafting-disciplines";
+import { CRAFTING_DISCIPLINES } from "@/lib/crafting/disciplines";
 import { isUuid } from "@/lib/library/contentIdentity";
 import {
   describeOutputResolution,

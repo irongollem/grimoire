@@ -127,7 +127,7 @@ import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue
 import AppButton from "@/components/common/AppButton.vue";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
-import { getDiscipline } from "@/lib/crafting-disciplines";
+import { getDiscipline } from "@/lib/crafting/disciplines";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import type { CraftingRecipe } from "@/types/crafting.types";
 

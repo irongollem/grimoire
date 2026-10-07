@@ -22,6 +22,16 @@ const budgets: Budgets = {
 };
 
 describe("checkBudgets", () => {
+  it("fails a budgeted step whose ceiling is missing or not a number", () => {
+    const broken = { journeys: { "dm-cold": { "dm-cold": { apiRequests: "41" } } } } as unknown as Budgets;
+    const report = checkBudgets(file([ok("dm-cold", "dm-cold", 41, 5)]), broken);
+    expect(report.missingSteps).toEqual([
+      "dm-cold dm-cold: no numeric apiRequests budget",
+      "dm-cold dm-cold: no numeric serialDepth budget",
+    ]);
+    expect(isFailure(report)).toBe(true);
+  });
+
   it("passes at exactly the budget", () => {
     const report = checkBudgets(file([ok("dm-cold", "dm-cold", 41, 5)]), budgets);
     expect(report.breaches).toEqual([]);

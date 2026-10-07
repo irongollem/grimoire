@@ -62,7 +62,14 @@ export function checkBudgets(results: ResultsFile, budgets: Budgets): BudgetRepo
           report.missingSteps.push(`${journeyName} ${stepLabel}: ${metric} was not measured`);
           continue;
         }
-        const row = { journey: journeyName, step: stepLabel, metric, budget: metrics[metric], actual };
+        const budget: unknown = metrics[metric];
+        // budgets.json is hand-edited: a missing or mistyped ceiling must fail
+        // loudly, not compare against undefined and pass every time.
+        if (typeof budget !== "number" || !Number.isFinite(budget)) {
+          report.missingSteps.push(`${journeyName} ${stepLabel}: no numeric ${metric} budget`);
+          continue;
+        }
+        const row = { journey: journeyName, step: stepLabel, metric, budget, actual };
         if (actual > row.budget) report.breaches.push(row);
         else if (actual < row.budget) report.improvements.push(row);
       }
