@@ -29,6 +29,16 @@
             :loading="move.isPending.value"
             @click="moveSelected"
           />
+          <span class="text-muted-foreground">or</span>
+          <!-- Each ticked row goes where its own picker points: the suggestion, unless the DM chose another. -->
+          <AppButton
+            variant="outline"
+            size="sm"
+            label="Follow suggestions"
+            :disabled="followable.length === 0"
+            :loading="move.isPending.value"
+            @click="moveFollowing"
+          />
         </div>
 
         <ul class="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
@@ -46,7 +56,7 @@
               </p>
             </div>
             <span class="w-44 shrink-0 text-caption text-muted-foreground">{{ row.when }}</span>
-            <div class="flex shrink-0 items-center gap-2">
+            <div class="flex min-w-0 max-w-full items-center gap-2">
               <LearnedSessionSelect v-model="row.target" aria-label="Session for this one" />
               <AppButton
                 variant="subtle"
@@ -82,8 +92,8 @@ import { formatSessionDay } from "@/lib/sessions/sessionPrefill";
 /**
  * Everything learned with no session (#985, "Learned outside any session"):
  * shared before the log existed, or while nothing was open. Each row carries a
- * suggested session; the DM moves rows one at a time or in bulk, and what is
- * left stays here.
+ * suggested session; the DM moves rows one at a time, ticks a few into one
+ * session, or ticks them and follows each row's own picker. What is left stays here.
  */
 const KIND_NAME: Record<LearnedKind, string> = {
   person: "Person",
@@ -141,6 +151,23 @@ async function run(moved: LearnedEntry[], target: string | null) {
 async function moveOne(entry: LearnedEntry, target: string | null | undefined) {
   if (target === undefined) return;
   await run([entry], target);
+}
+
+/** The ticked rows whose picker points somewhere: the suggestion, or the DM's own choice. */
+const followable = computed(() => {
+  const chosen = new Set(picked.value);
+  return rows.value.filter((r) => chosen.has(r.entry.key) && r.target !== undefined);
+});
+
+/** Moves each ticked row to its own picker's session, one write per destination. */
+async function moveFollowing() {
+  const byTarget = new Map<string | null, LearnedEntry[]>();
+  for (const row of followable.value) {
+    const target = row.target as string | null;
+    byTarget.set(target, [...(byTarget.get(target) ?? []), row.entry]);
+  }
+  for (const [target, moved] of byTarget) await run(moved, target);
+  picked.value = [];
 }
 
 async function moveSelected() {
