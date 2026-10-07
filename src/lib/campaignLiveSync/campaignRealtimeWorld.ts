@@ -157,7 +157,18 @@ function invalidateGlobalSearch(queryClient: QueryClient): void {
   invalidate(queryClient, (key) => key[0] === "global-search");
 }
 
-function applyNotes(queryClient: QueryClient, change: Change, _context: Context): void {
+/**
+ * The dashboard's narrow note reads (pinned, session links, one session's
+ * recap) are projections under `["notes", campaignId, ...]`: three or more
+ * segments, so the exact-row reducer below never reaches them. Any note change
+ * can alter them (a pin toggled, a note attached to a session), so they refetch.
+ */
+function invalidateNarrowNoteCaches(queryClient: QueryClient, campaignId: string): void {
+  invalidate(queryClient, (key) => key[0] === "notes" && key.length >= 3 && key[1] === campaignId);
+}
+
+function applyNotes(queryClient: QueryClient, change: Change, context: Context): void {
+  invalidateNarrowNoteCaches(queryClient, context.campaignId);
   applyRealtimeRow(queryClient, change, {
     rootKey: "notes",
     include: (key) => key.length === 2 && isString(key[1]),

@@ -27,6 +27,23 @@ function invalidated(qc: QueryClient, key: readonly unknown[]): boolean {
 }
 
 describe("applyCampaignRealtimeWorld", () => {
+  it("refetches the narrow note reads on any note change and leaves other campaigns alone", () => {
+    const qc = new QueryClient();
+    const keys = [
+      ["notes", "campaign-1", "pinned", 4],
+      ["notes", "campaign-1", "session-links"],
+      ["notes", "campaign-1", "session-recap", "s1"],
+      ["notes", "campaign-2", "pinned", 4],
+    ];
+    for (const key of keys) qc.setQueryData(key, []);
+
+    expect(applyCampaignRealtimeWorld(qc, "notes", change(row({ id: "n1" })), dm)).toBe(true);
+    expect(invalidated(qc, keys[0])).toBe(true);
+    expect(invalidated(qc, keys[1])).toBe(true);
+    expect(invalidated(qc, keys[2])).toBe(true);
+    expect(invalidated(qc, keys[3])).toBe(false);
+  });
+
   it("patches exact note list and detail caches in their fetch order", () => {
     const qc = new QueryClient();
     const older = row({ id: "older", updated_at: "2026-01-01T00:00:00.000Z" });

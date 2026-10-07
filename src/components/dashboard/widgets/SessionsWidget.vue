@@ -68,7 +68,7 @@ import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions"
 import { useUnsortedCount } from "@/composables/sessions/useSessionFacts";
 import { useSessionProposals } from "@/composables/calendar/useScheduling";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
-import { useNotes } from "@/composables/notes/useNotes";
+import { useSessionNoteLinks, useSessionRecap } from "@/composables/notes/useNotes";
 import { pickNextSession, sessionTimeRange } from "@/lib/calendar/nextSession";
 import { sessionLabel, sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { lastPlayedSession, nextSessionNumber } from "@/lib/sessions/sessionPrefill";
@@ -88,7 +88,7 @@ import { extractTiptapText } from "@/lib/utils";
  * no notes. The quick line beneath adds to the running session's note.
  */
 const { data: log } = useCampaignSessions();
-const { data: notes } = useNotes();
+const { data: noteLinks } = useSessionNoteLinks();
 const { data: proposals } = useSessionProposals();
 const { data: unsorted } = useUnsortedCount();
 const { pending, startSession, endSession } = useSessionActions();
@@ -102,7 +102,7 @@ const last = computed(() => lastPlayedSession(log.value ?? []));
 const target = computed(() => quickNoteTarget(log.value ?? []));
 const next = computed(() => pickNextSession(proposals.value ?? [], today.value));
 
-const noted = computed(() => new Set((notes.value ?? []).flatMap((n) => (n.session_id ? [n.session_id] : []))));
+const noted = computed(() => new Set((noteLinks.value ?? []).flatMap((n) => (n.session_id ? [n.session_id] : []))));
 const gaps = computed(() => sessionsWithoutNotes(log.value ?? [], noted.value).slice(0, 2));
 
 const elapsed = computed(() => formatSessionElapsed(running.value?.started_at ?? null, now.value.getTime()));
@@ -123,11 +123,9 @@ const nextWhen = computed(() => {
   return time ? `${day} · ${time}` : day;
 });
 
-const lastRecap = computed(() => {
-  const id = last.value?.id;
-  const note = id ? (notes.value ?? []).find((n) => n.session_id === id) : undefined;
-  return note ? extractTiptapText(note.content, 220) : "";
-});
+// Only the last session's recap is read, not every note's prose.
+const { data: recapNote } = useSessionRecap(computed(() => last.value?.id));
+const lastRecap = computed(() => (recapNote.value ? extractTiptapText(recapNote.value.content, 220) : ""));
 
 async function confirmStart(options: StartSessionOptions) {
   startOpen.value = false;
