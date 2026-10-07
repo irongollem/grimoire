@@ -93,7 +93,9 @@ export function useChroniclerTextGeneration() {
     // to the model, so read exactly those rows.
     const locationDescriptions = await fetchLocationDescriptions(mentionedLocationIds(rawText, locations ?? []));
     // The NPC list carries no prose either (#999): read the looks of the mentioned NPCs.
-    const npcAppearances = await fetchNpcAppearances(mentionedNpcIds(rawText, npcs ?? []));
+    const npcAppearances = await fetchNpcAppearances(mentionedNpcIds(rawText, npcs ?? []))
+      // Appearance is optional context; the parser still resolves NPC names if the read fails.
+      .catch(() => new Map<string, string | null>());
     // Likewise the monsters: the index has names only, so the mentioned ones are read by id.
     const mentionedIds = mentionedMonsterIds(rawText, monsterIndex ?? []);
     const mentionedRows = await fetchMentionedMonsters(mentionedIds);
