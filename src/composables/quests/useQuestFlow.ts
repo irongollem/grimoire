@@ -23,7 +23,8 @@ import type {
   QuestBeatAttachmentSummary,
   LootPlacement,
   LootPlacementInsert,
-  QuestConsequenceObjectiveStatus,
+  QuestGateMode,
+  QuestObjectiveStatus,
   CampaignLiveQuest,
   QuestRuntimeContext,
   QuestRuntimeJumpTarget,
@@ -644,17 +645,18 @@ export function useUpdateQuestBeatEdge() {
 }
 
 /**
- * Sets or replaces a route's gate. `edge_id` is the gate table's primary key,
- * so this is a plain upsert rather than an insert-then-update dance — editing
- * an already-gated route just overwrites the one row.
+ * A route's gate is any number of condition rows (#1011), one per objective
+ * (`unique (edge_id, objective_id)`), combined by the edge's `gate_mode`.
+ * Four writes cover every edit: add a condition, change which statuses one
+ * accepts, remove one, and set how they combine. "No gate" is simply no rows.
  */
-export function useSetQuestBeatEdgeGate() {
+export function useAddQuestBeatEdgeGateCondition() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { edgeId: string; questId: string; campaignId: string; objectiveId: string; status: QuestConsequenceObjectiveStatus }) => {
+    mutationFn: async (input: { edgeId: string; questId: string; campaignId: string; objectiveId: string; statuses: QuestObjectiveStatus[] }) => {
       const { data, error } = await supabase
         .from("quest_beat_edge_gates")
-        .upsert({ edge_id: input.edgeId, quest_id: input.questId, campaign_id: input.campaignId, objective_id: input.objectiveId, status: input.status })
+        .insert({ edge_id: input.edgeId, quest_id: input.questId, campaign_id: input.campaignId, objective_id: input.objectiveId, statuses: input.statuses })
         .select()
         .single();
       if (error) throw error;
@@ -666,20 +668,47 @@ export function useSetQuestBeatEdgeGate() {
   });
 }
 
-/**
- * Removes a route's gate so the route goes back to always open. This is a
- * distinct mutation from setting one — "no gate" is a real state to reach,
- * not the fallback you get from clearing a field back to empty.
- */
-export function useClearQuestBeatEdgeGate() {
+export function useUpdateQuestBeatEdgeGateCondition() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { edgeId: string; questId: string }) => {
-      const { error } = await supabase.from("quest_beat_edge_gates").delete().eq("edge_id", input.edgeId);
+    mutationFn: async (input: { id: string; questId: string; statuses: QuestObjectiveStatus[] }) => {
+      const { data, error } = await supabase
+        .from("quest_beat_edge_gates")
+        .update({ statuses: input.statuses })
+        .eq("id", input.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as QuestBeatEdgeGate;
+    },
+    onSuccess: (_data, input) => {
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
+    },
+  });
+}
+
+export function useRemoveQuestBeatEdgeGateCondition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; questId: string }) => {
+      const { error } = await supabase.from("quest_beat_edge_gates").delete().eq("id", input.id);
       if (error) throw error;
     },
     onSuccess: (_result, input) => {
       queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
+    },
+  });
+}
+
+export function useSetQuestBeatEdgeGateMode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { edgeId: string; questId: string; mode: QuestGateMode }) => {
+      const { error } = await supabase.from("quest_beat_edges").update({ gate_mode: input.mode }).eq("id", input.edgeId);
+      if (error) throw error;
+    },
+    onSettled: (_data, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
     },
   });
 }

@@ -1,4 +1,5 @@
 import type { AiProvenance } from "@/ai/provenance";
+import type { NpcRelationship } from "@/types/npc.types";
 
 export const FACTION_TYPES = [
   "Guild",
@@ -94,6 +95,12 @@ export interface Faction {
    * `check_quota` and `lib/settingContent`.
    */
   setting_source?: string | null;
+  /**
+   * The party's standing with this faction (#1011), on the same ladder as an
+   * NPC's `relationship`: `unknown` until the DM or a `shift_faction_standing`
+   * rule sets it. Players see it, as they see an NPC's relationship.
+   */
+  party_standing: NpcRelationship;
   created_at: string;
   updated_at: string;
 }
@@ -110,7 +117,9 @@ export interface Faction {
  * belongs to (the document importer, which stamps every imported row with the
  * campaign it was imported into) needs the field present.
  */
-export type FactionInsert = Omit<Faction, "id" | "user_id" | "created_at" | "updated_at">;
+export type FactionInsert = Omit<Faction, "id" | "user_id" | "created_at" | "updated_at" | "party_standing"> & {
+  party_standing?: NpcRelationship;
+};
 
 export interface FactionNpc {
   id: string;

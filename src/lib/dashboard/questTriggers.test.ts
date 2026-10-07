@@ -16,6 +16,7 @@ function pending(overrides: Partial<ConsequenceEventRow> & { id: string }): Cons
     action: "create_calendar_event",
     action_payload: { title: "The bridge collapses", event_type: "deadline", description: "No more crossing." },
     quest: { id: "quest-1", title: "The Sunken Keep" },
+    held_at: null,
     ...overrides,
   };
 }
@@ -102,5 +103,13 @@ describe("deriveDueConsequenceRows", () => {
     ];
     const result = deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY);
     expect(result.map((r) => r.eventId)).toEqual(["tie-a", "tie-b", "later"]);
+  });
+
+  it("never lists a held payoff, however late it is", () => {
+    const rows = [
+      pending({ id: "held", after_days: 0, held_at: "2026-01-01T00:00:00Z" }),
+      pending({ id: "free", after_days: 0 }),
+    ];
+    expect(deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY).map((r) => r.eventId)).toEqual(["free"]);
   });
 });

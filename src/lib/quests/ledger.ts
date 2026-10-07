@@ -6,7 +6,7 @@ import type {
   QuestRouteGate,
   QuestRuntimeChoice,
 } from "@/types/quest.types";
-import { QUEST_OBJECTIVE_STATUS_LABELS } from "./objectives";
+import { describeQuestRouteHeld, describeQuestRouteNeeds } from "./gates";
 
 /**
  * The ledger model, as the design canvas states it (`Main` board): *beats are
@@ -63,6 +63,13 @@ export function ledgerVerbOf(action: QuestConsequenceAction): LedgerVerb | null 
     case "owe_favor":
     case "award_milestone":
     case "give_handout":
+    // Engine state like the four verbs (it moves inside the transition and
+    // cascades), but it moves a clock, not an objective, so it is not one of
+    // the objective ledger's verbs.
+    case "tick_clock":
+    case "move_npc":
+    case "add_companion":
+    case "shift_faction_standing":
       return null;
     default: {
       const unhandled: never = action;
@@ -180,10 +187,9 @@ export interface RouteCondition {
 
 export function routeCondition(gate: QuestRouteGate | null | undefined): RouteCondition | null {
   if (!gate) return null;
-  const required = QUEST_OBJECTIVE_STATUS_LABELS[gate.required_status].toLowerCase();
   return gate.is_open
-    ? { open: true, text: `ready: “${gate.objective}” is ${required}` }
-    : { open: false, text: `needs “${gate.objective}” ${required}` };
+    ? { open: true, text: `ready: ${describeQuestRouteHeld(gate)}` }
+    : { open: false, text: describeQuestRouteNeeds(gate) };
 }
 
 /** How many outgoing routes the ledger has already settled, as the canvas's
@@ -304,8 +310,8 @@ export function storySpine(input: StorySpineInput): SpineEntry[] {
   return entries;
 }
 
-/** "if “the ledger” is complete" — the canvas's phrasing for a route not yet
+/** "if “the ledger” is complete" - the canvas's phrasing for a route not yet
  *  opened, read as a future rather than as a lack. */
 function describeGateAsIf(gate: QuestRouteGate): string {
-  return `“${gate.objective}” is ${QUEST_OBJECTIVE_STATUS_LABELS[gate.required_status].toLowerCase()}`;
+  return describeQuestRouteNeeds(gate).replace(/^needs /, "");
 }

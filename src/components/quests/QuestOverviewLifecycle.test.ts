@@ -1,5 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
+import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestOverviewLifecycle from "./QuestOverviewLifecycle.vue";
 import type { Quest, QuestObjective } from "@/types/quest.types";
@@ -60,11 +61,15 @@ function objective(overrides: Partial<QuestObjective> & { id: string }): QuestOb
     status: "pending",
     is_player_visible: false,
     sort_order: 0,
+    due_year: null,
+    due_month: null,
+    due_day: null,
     ...overrides,
   };
 }
 
 function mountLifecycle() {
+  setActivePinia(createPinia());
   return mount(QuestOverviewLifecycle, {
     props: { quest },
     global: {
@@ -74,6 +79,8 @@ function mountLifecycle() {
         // EntityCalendarSection have their own composables and their own test
         // files.
         QuestRulesPanel: true,
+        QuestClocksPanel: true,
+        QuestSettledPrompt: true,
         QuestBackfillPanel: true,
         EntityCalendarSection: true,
         QuestSidebarPanels: true,

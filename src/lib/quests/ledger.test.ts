@@ -13,7 +13,7 @@ import {
 import type { QuestConsequence, QuestObjective, QuestRouteGate, QuestRuntimeChoice } from "@/types/quest.types";
 
 const objective = (id: string, description: string, status: QuestObjective["status"] = "pending"): QuestObjective => ({
-  id, quest_id: "q1", description, status, is_player_visible: false, sort_order: 0,
+  id, quest_id: "q1", description, status, is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null,
 });
 
 const rule = (
@@ -23,7 +23,7 @@ const rule = (
   where: Partial<Pick<QuestConsequence, "on_beat_id" | "on_edge_id">>,
 ): QuestConsequence => ({
   id, quest_id: "q1", on_beat_id: null, on_edge_id: null, on_objective_id: null, on_objective_status: null,
-  on_quest_settled: false, on_location_id: null, on_location_fact: null, entry_beat_id: null, after_days: 0, action, target_objective_id: target, target_npc_id: null,
+  on_quest_settled: false, on_location_id: null, on_location_fact: null, on_clock_id: null, target_clock_id: null, target_location_id: null, target_faction_id: null, entry_beat_id: null, after_days: 0, action, target_objective_id: target, target_npc_id: null,
   target_quest_id: null, target_document_id: null, action_payload: {}, created_at: "", updated_at: "", ...where,
 });
 
@@ -31,9 +31,16 @@ const princess = objective("o1", "Save the princess");
 const whoTookHer = objective("o2", "Find out who took her", "complete");
 const ledger = objective("o3", "Recover the Baron's ledger");
 
-const gate = (overrides: Partial<QuestRouteGate> = {}): QuestRouteGate => ({
-  objective_id: "o3", objective: "Recover the Baron's ledger", required_status: "complete", current_status: "pending", is_open: false, ...overrides,
-});
+// A one-condition gate on the ledger objective; `is_open` drives both the gate
+// and its single condition so a test names only the thing it is about.
+const gate = (overrides: { is_open?: boolean; current_status?: QuestObjective["status"] } = {}): QuestRouteGate => {
+  const current_status = overrides.current_status ?? "pending";
+  const is_open = overrides.is_open ?? false;
+  return {
+    mode: "all", is_open,
+    conditions: [{ objective_id: "o3", objective: "Recover the Baron's ledger", statuses: ["complete"], current_status, met: is_open }],
+  };
+};
 
 const choice = (edgeId: string, beatId: string, title: string, g: QuestRouteGate | null = null): QuestRuntimeChoice => ({
   edge_id: edgeId, quest_id: "q1", beat_id: beatId, beat_title: title, beat_kind: "social", gate: g, effects: [],
@@ -125,6 +132,20 @@ describe("routeCondition", () => {
   });
 });
 
+describe("routeCondition with several conditions", () => {
+  it("joins them by the gate's mode", () => {
+    const two = (mode: "all" | "any"): QuestRouteGate => ({
+      mode, is_open: false,
+      conditions: [
+        { objective_id: "a", objective: "A", statuses: ["complete"], current_status: "pending", met: false },
+        { objective_id: "b", objective: "B", statuses: ["pending", "complete"], current_status: "failed", met: false },
+      ],
+    });
+    expect(routeCondition(two("all"))?.text).toBe("needs “A” completed and “B” open or completed");
+    expect(routeCondition(two("any"))?.text).toBe("needs “A” completed or “B” open or completed");
+  });
+});
+
 describe("describeForkState", () => {
   it("stays silent when no route is gated", () => {
     expect(describeForkState([choice("e1", "b4", "Confront the Baron")])).toBe("");
@@ -173,7 +194,7 @@ describe("storySpine", () => {
       ["played", "The King's plea", "raises 2 objectives"],
       ["played", "The ransom note", "achieves “Find out who took her”"],
       ["current", "At the Sunken Vault", "The Sunken Vault · 5 rooms"],
-      ["next", "Confront the Baron", "if “Recover the Baron's ledger” is completed"],
+      ["next", "Confront the Baron", "if “Recover the Baron's ledger” completed"],
     ]);
     expect(spine[3]).toMatchObject({ edgeId: "e1", open: false });
   });

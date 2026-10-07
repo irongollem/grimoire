@@ -47,6 +47,8 @@ export interface ConsequenceEventRow {
    *  away too, but a row fetched in the same request as its quest's delete can
    *  still race here, so the join is treated as possibly missing. */
   quest: { id: string; title: string } | null;
+  /** A held payoff waits for the DM's Fire button, so it is never "due". */
+  held_at: string | null;
 }
 
 export interface DueConsequenceRow {
@@ -97,6 +99,7 @@ export function deriveDueConsequenceRows(
   for (const row of rows) {
     const quest = row.quest;
     if (!quest) continue;
+    if (row.held_at !== null) continue;
 
     const fireDate = addDays(
       adapter,

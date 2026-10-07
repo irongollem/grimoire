@@ -18,6 +18,13 @@
           <span class="text-eyebrow font-semibold text-muted-foreground">Type</span>
           <p class="text-body text-foreground">{{ faction.faction_type }}</p>
         </div>
+        <div class="mt-2">
+          <span class="text-eyebrow font-semibold text-muted-foreground">Party standing</span>
+          <p class="mt-1">
+            <RelationshipMark v-if="faction.party_standing !== 'unknown'" :relationship="faction.party_standing" />
+            <span v-else class="text-body text-muted-foreground italic">Unknown</span>
+          </p>
+        </div>
         <div v-if="faction.alignment" class="mt-2">
           <span class="text-eyebrow font-semibold text-muted-foreground">Alignment</span>
           <p class="text-body text-foreground">{{ faction.alignment }}</p>
@@ -76,6 +83,7 @@ import { useDeleteFaction } from "@/composables/factions/useFactions";
 import type { Faction } from "@/types/faction.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RelationshipMark from "@/components/common/RelationshipMark.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import FactionDeitiesSection from "@/components/factions/FactionDeitiesSection.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";

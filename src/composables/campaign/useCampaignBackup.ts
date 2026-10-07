@@ -51,6 +51,10 @@ export interface GrimoireBackup {
   quests: Row[];
   quest_objectives: Row[];
   quest_refs: Row[];
+  /** The quest's progress clocks (#1011). Absent from a backup taken before
+   *  clocks existed. `filled` is not restorable: only the clock-ticking
+   *  functions may write it, so a restored clock starts empty. */
+  quest_clocks?: Row[];
   /**
    * The merged consequence rule table (#794). Excludes any rule conditioned on
    * a beat or edge (`on_beat_id` / `on_edge_id` non-null) — this backup format
@@ -248,6 +252,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     factionRelations,
     questObjectives,
     questRefs,
+    questClocks,
     questConsequences,
     recipeIngredients,
     recipeModifiers,
@@ -265,6 +270,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByIds("faction_relations", "faction_id", factionIds),
     qByIds("quest_objectives", "quest_id", questIds),
     qByIds("quest_refs", "quest_id", questIds),
+    qByIds("quest_clocks", "quest_id", questIds),
     qQuestConsequences(questIds),
     qByIds("crafting_recipe_ingredients", "recipe_id", recipeIds),
     qByIds("crafting_recipe_modifiers", "recipe_id", recipeIds),
@@ -348,6 +354,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     quests,
     quest_objectives: questObjectives,
     quest_refs: questRefs,
+    quest_clocks: questClocks,
     quest_consequences: questConsequences,
     encounters,
     discovered_monsters: discoveredMonsters,
@@ -418,6 +425,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.quests,
     backup.quest_objectives,
     backup.quest_refs,
+    backup.quest_clocks ?? [],
     backup.quest_consequences,
     backup.encounters,
     backup.discovered_monsters,
@@ -917,6 +925,21 @@ export async function executeImport(
           : (qr.ref_id as string),
       })),
     );
+    // Clocks go in before the rules that watch or tick them. The table's insert
+    // grant is column-limited (`filled` and `created_by` are not writable by a
+    // client), so only the authored columns are sent: a restored clock starts
+    // empty, and the database stamps its creator.
+    await batchInsert(
+      "quest_clocks",
+      (backup.quest_clocks ?? []).map((clock) => ({
+        id: r(clock.id, idMap),
+        campaign_id: newCampaignId,
+        quest_id: r(clock.quest_id, idMap),
+        label: clock.label,
+        segments: clock.segments,
+        sort_order: clock.sort_order,
+      })),
+    );
     // `quest_consequences` carries no `user_id` of its own — RLS gates through
     // the quest it belongs to. Beat/edge-scoped rules never reach this array
     // (see the field comment on `GrimoireBackup.quest_consequences`).
@@ -927,6 +950,13 @@ export async function executeImport(
         id: r(qc.id, idMap),
         quest_id: r(qc.quest_id, idMap),
         on_objective_id: r(qc.on_objective_id, idMap),
+        on_location_id: r(qc.on_location_id, idMap),
+        // #1011: a clock filling is a condition, and three new verbs name a
+        // clock, a place or a faction. All four are FKs into rows restored above.
+        on_clock_id: r(qc.on_clock_id, idMap),
+        target_clock_id: r(qc.target_clock_id, idMap),
+        target_location_id: r(qc.target_location_id, idMap),
+        target_faction_id: r(qc.target_faction_id, idMap),
         target_objective_id: r(qc.target_objective_id, idMap),
         // Added by #831 and #836 after this block was written, and both carry
         // a foreign key — so leaving them unremapped does not dangle quietly,

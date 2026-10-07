@@ -37,7 +37,7 @@
     </span>
 
     <span class="flex shrink-0 flex-col items-end gap-0.5 text-right">
-      <NpcRelationshipMark :relationship="npc.relationship" />
+      <RelationshipMark :relationship="npc.relationship" />
       <span v-if="status" class="text-caption italic text-muted-foreground">{{ status }}</span>
       <span
         v-if="rating > 0"
@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
-import NpcRelationshipMark from "@/components/play/people/NpcRelationshipMark.vue";
+import RelationshipMark from "@/components/common/RelationshipMark.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { IconUser } from "@/lib/icons";
 import {

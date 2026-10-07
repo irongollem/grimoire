@@ -18,9 +18,9 @@ Grimoire builds a quest as a **story flow**: a web of **beats** connected by **r
 | Route | A connection from one beat to another. Can be gated by an objective's status. |
 | Choice route | A route that moves the thread forward and strands every sibling choice: the normal fork. |
 | Parallel route | A route that opens a *second* thread at its target while the current thread stays exactly where it was. |
-| Gate | An optional condition on a route: it only opens while a named objective stands in a particular status. No gate = always open. |
+| Gate | An optional set of conditions on a route: it only opens while the objectives it names stand in the statuses you chose. You can add several conditions and choose whether all or any of them must hold. No gate = always open. |
 | Payoff | What a beat gives when the party arrives or takes a route: consequences (fire automatically) and loot (you hand over). |
-| Converge | How a beat with several incoming routes handles more than one thread arriving: "any" (the default) lets each proceed independently, "all" parks every arriving thread until they've all arrived, then merges them. |
+| Converge | How a beat with several incoming routes handles more than one thread arriving: "any" (the default) lets each proceed independently, "all" parks each arriving thread for as long as another open thread could still reach the beat, then merges them. |
 
 ## A worked example
 
@@ -45,11 +45,20 @@ Click a route on the canvas to open **Selected route** in the side rail:
 
 - **Route kind**: Choice or Parallel (Parallel is disabled here too until the beat has a choice route).
 - A **thread label** field, for a parallel route.
-- **Route gate**: **No gate (always open)** (the default, and what most routes should stay, since the fork is usually already decided at the table) or **Open while an objective is [Open / Completed / Failed]**, with an objective picker.
+- **Gate**: with no conditions the route is always open (the default, and what most routes should stay, since the fork is usually already decided at the table). **Add condition** to gate it. Each condition is an objective plus the statuses that satisfy it, ticked from **Not yet raised**, **Open**, **Completed** and **Failed** (up to three, since all four would mean no condition at all). Ticking several lets you say "unless her trust is broken" as Not yet raised, Open or Completed. With two or more conditions a switch appears: **All of these** (every condition must hold) or **Any of these** (one is enough). A line under the conditions reads the gate back in plain words. An objective can be a condition only once per route.
 - Any consequences already attached to this route, with an **Edit** shortcut into the beat page.
 - **Save route** / **Delete route**.
 
-A closed route (its gate condition isn't met) shows greyed out on the canvas, and in the Run cockpit its **Choose** button is disabled with the reason ("Closed: needs … to be …, currently …"). **Jump**, in the Run cockpit, still reaches a closed beat directly: the deliberate override for when the table decides something the story flow doesn't know about, and it always asks for a reason.
+A closed route (its gate condition isn't met) shows greyed out on the canvas, and in the Run cockpit its **Choose** button is disabled and the card says why ("needs “Rescue the merchant” completed and “Learn who took her” failed"). **Jump**, in the Run cockpit, still reaches a closed beat directly: the deliberate override for when the table decides something the story flow doesn't know about, and it always asks for a reason.
+
+## Several threads meeting at one beat
+
+When a quest has a parallel route and a beat has a way in, selecting that beat shows **When threads arrive** in the side rail, with two choices:
+
+- **Each runs on** (the default): every thread that arrives carries on by itself.
+- **Wait for the others**: a thread that arrives waits while any other open thread could still reach this beat. Once none can, the waiting threads merge into one and the beat's payoff fires once.
+
+Waiting only counts threads that are still open and could really get here. A side thread you never opened, one that has ended, or one that has gone somewhere this beat cannot be reached from never holds the others up. That also means alternative endings can all lead into a shared finale without a stand-in beat to funnel them. If the thread you were waiting on ends or wanders off, the waiting threads are released on their own.
 
 ## Threads
 
@@ -70,7 +79,7 @@ Click **Open beat** (or a beat on mobile) to reach its full page, with everythin
 - **Fill with AI**: with AI on for the campaign, a **Fill** control at the top of the beat's text fields drafts a title, read-aloud and DM lead. It reads the quest, the beats before and after this one, the objectives still open and the place the beat is staged at, so the draft continues your story rather than starting a new one. Add a steer if you like ("a tense negotiation"). It never overwrites without asking: if the beat already has read-aloud or DM lead text, you are asked before anything is spent, and the title is only replaced when it is still blank. Each fill costs credits, shown beside the button, and the draft is marked as AI-written until you edit it.
 - **Placements**: the material this beat needs: Encounter, NPC, Faction, Item, Monster, Sound, Audio scene, Playlist, Note, Handout, or a **Check** (a skill, a DC, an optional contested-by skill and note, prepared here and rolled at the table). Mark each **Needed** (flags a prep gap if it goes missing) or **Optional**.
 - **Routes out**: every outgoing route, with its kind, target, and a site chip if the destination is staged at a room-bearing site.
-- **Payoff**: one list combining this beat's consequences and loot, each tagged **auto** (fires by itself) or **you dispatch** (you hand it over). Eight quick-adds cover the common cases without opening a full condition form: **Item**, **Riches** (loot); **Influence**, **Knowledge**, **Quest**, **Favour**, **Milestone**, **Event** (consequences).
+- **Payoff**: one list combining this beat's consequences and loot, each tagged **auto** (fires by itself) or **you dispatch** (you hand it over). Quick-adds cover the common cases without opening a full condition form: **Item**, **Riches** (loot); **Influence**, **Knowledge**, **Quest**, **Favour**, **Milestone**, **Event**, **Handout**, **Tick clock**, **Move NPC**, **Companion**, **Standing** (consequences). **Move NPC** puts an NPC in another place, **Companion** brings an NPC into the party as an ally (with the hit points, armour class and speed from their stat block, unassigned until you give them an owner on the Party page), and **Standing** moves the party's standing with a faction up or down the same five-step ladder an NPC's stance uses. Each can be undone with Previous.
 - **Site**: see below.
 
 **Revealing a beat.** The action row (or the phone dock) carries **Reveal to players** (for a hidden beat) or **Reveal fully** (for a rumored one). Revealing is separate from advancing: moving a thread onto a beat doesn't reveal it by itself.
@@ -96,6 +105,7 @@ Nothing about a beat is visible until its **visibility** reaches at least "rumor
 
 - A parallel route can never be the only way out of a beat: add a choice route first.
 - **Kind** is a presentation hint only; it never restricts which attachments a beat can carry.
+- Settled is final: a rule that completes or fails an objective only touches one that is still open (Not yet raised or Open). An objective that is already Completed or Failed stays that way, and does not set off the rules watching it a second time. Your own assertions in the quest log and stepping back with Previous still change anything.
 - Prep gaps (shown as chips throughout Story Flow) flag missing required material, an unwritten guidance field, or an unready staged site: not a design defect, just something left to fill in before the table gets there.
 
 ## Related

@@ -10,7 +10,7 @@ const beat = {
 function mountPanel(staging: InstanceType<typeof QuestSelectedBeatPanel>["$props"]["staging"]) {
   return mount(QuestSelectedBeatPanel, {
     props: { beat, staging },
-    global: { stubs: { RouterLink: RouterLinkStub } },
+    global: { stubs: { RouterLink: RouterLinkStub, QuestConvergeControl: true } },
   });
 }
 

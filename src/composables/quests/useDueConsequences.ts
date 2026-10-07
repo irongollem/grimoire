@@ -10,10 +10,13 @@ const PENDING_KEY = "quest_consequence_events";
 async function fetchPending(campaignId: string): Promise<PendingConsequenceEvent[]> {
   const { data, error } = await supabase
     .from("quest_consequence_events")
-    .select("id, after_days, fires_on_year, fires_on_month, fires_on_day")
+    .select("id, after_days, fires_on_year, fires_on_month, fires_on_day, held_at")
     .eq("campaign_id", campaignId)
     .is("performed_at", null)
     .is("undone_at", null)
+    // A held payoff fires only from the Fire button (QuestRunHeldPayoff),
+    // whatever delay it also carries.
+    .is("held_at", null)
     .gt("after_days", 0);
   if (error) throw error;
   return (data ?? []) as PendingConsequenceEvent[];

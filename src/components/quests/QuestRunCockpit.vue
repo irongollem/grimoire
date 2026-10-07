@@ -12,6 +12,8 @@
 
     <QuestThreadBar :quest-id="anchorQuestId" :campaign-id="campaignId" :thread-id="threadId" @switch="switchThread" />
 
+    <QuestSettledPrompt :quest-id="anchorQuestId" />
+
     <div v-if="contextQuery.isLoading.value" class="flex justify-center py-16"><LoadingSpinner /></div>
     <div v-else-if="contextQuery.error.value" class="rounded-xl border border-destructive/40 p-4">
       <p class="text-body text-destructive">The session position could not be loaded. Nothing was changed.</p>
@@ -59,7 +61,7 @@
               @reveal="revealBeat(currentBeat.id)"
             />
             <!-- Below xl this folds (frame 1), absent when nothing is held. -->
-            <QuestRunHeldPayoff class="hidden xl:block" :campaign-id="campaignId" :loot="heldLoot" :held="context.held" />
+            <QuestRunHeldPayoff class="hidden xl:block" :campaign-id="campaignId" :quest-id="anchorQuestId" :loot="heldLoot" :held="context.held" />
             <QuestFoldRow
               v-if="heldLoot.length || context.held.length"
               v-model:open="heldPayoffOpen"
@@ -68,9 +70,11 @@
               :caption="heldPayoffCaption"
               :icon="IconPackage"
             >
-              <QuestRunHeldPayoff :campaign-id="campaignId" :loot="heldLoot" :held="context.held" />
+              <QuestRunHeldPayoff :campaign-id="campaignId" :quest-id="anchorQuestId" :loot="heldLoot" :held="context.held" />
             </QuestFoldRow>
           </template>
+          <!-- Below xl the rail does not mount, so the clocks ride in the main column. -->
+          <QuestRunClocks v-if="belowXl && !showSiteHandoff" :quest-id="anchorQuestId" />
           <QuestRunSessionPanel class="hidden xl:block" v-bind="sessionPanelProps" v-on="sessionPanelListeners" />
           <QuestFoldRow v-model:open="sessionOpen" class="xl:hidden" title="Session" caption="Previous · Jump · Pause · End" :icon="IconClock">
             <QuestRunSessionPanel v-bind="sessionPanelProps" headless v-on="sessionPanelListeners" />
@@ -100,6 +104,7 @@
              already mount inside the Prep sheet, so this doesn't mount at all. -->
         <div v-if="!belowXl && !showSiteHandoff" class="flex flex-col gap-3 min-h-0">
           <QuestRunObjectivesLedger :quest-id="anchorQuestId" :thread-id="threadId" :outgoing="context.outgoing" :threads="context.threads" />
+          <QuestRunClocks :quest-id="anchorQuestId" />
           <QuestRunStorySoFar
             :quest-id="anchorQuestId"
             :thread-id="threadId"
@@ -246,6 +251,8 @@ import QuestRunPrepSheet from "./QuestRunPrepSheet.vue";
 import QuestRunNextSheet from "./QuestRunNextSheet.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunObjectivesLedger from "./QuestRunObjectivesLedger.vue";
+import QuestRunClocks from "./QuestRunClocks.vue";
+import QuestSettledPrompt from "./QuestSettledPrompt.vue";
 import QuestRunStorySoFar from "./QuestRunStorySoFar.vue";
 import QuestRunOpenChains from "./QuestRunOpenChains.vue";
 import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";

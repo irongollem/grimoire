@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeQuestConsequenceAction, describeWorldConsequenceAction, isLedgerConsequenceAction, RELATIONSHIP_SHIFT_OPTIONS, relationshipShiftIsGain, relationshipShiftPayload } from "./consequences";
+import { delayPhrase, describeQuestConsequenceAction, describeWorldConsequenceAction, isLedgerConsequenceAction, isObjectiveConsequenceAction, isTargetedWorldVerb, worldVerbInsertFields, worldVerbReady, type WorldVerbDraft, RELATIONSHIP_SHIFT_OPTIONS, relationshipShiftIsGain, relationshipShiftPayload } from "./consequences";
 import type { QuestConsequence } from "@/types/quest.types";
 
 const row = (overrides: Partial<QuestConsequence>): Pick<QuestConsequence, "action" | "target_objective_id" | "action_payload"> => ({
@@ -90,9 +90,9 @@ describe("describeQuestConsequenceAction", () => {
     const give = row({ action: "give_handout", target_objective_id: null });
     const resolver = { documentLabel: (id: string | null) => (id === "doc-1" ? "The smuggler's map" : "") };
     expect(describeQuestConsequenceAction({ ...give, target_document_id: "doc-1" }, objectiveLabel, resolver))
-      .toBe('Gives a handout: "The smuggler\'s map"');
-    expect(describeQuestConsequenceAction({ ...give, target_document_id: "gone" }, objectiveLabel, resolver)).toBe("Gives a handout");
-    expect(describeQuestConsequenceAction(give, objectiveLabel)).toBe("Gives a handout");
+      .toBe('Give a handout: "The smuggler\'s map"');
+    expect(describeQuestConsequenceAction({ ...give, target_document_id: "gone" }, objectiveLabel, resolver)).toBe("Give a handout");
+    expect(describeQuestConsequenceAction(give, objectiveLabel)).toBe("Give a handout");
   });
 
   it("marks a missing text field on a payoff verb rather than rendering an empty one", () => {
@@ -181,5 +181,86 @@ describe("relationship shift options", () => {
     expect(relationshipShiftIsGain({ to: "friendly" })).toBe(true);
     expect(relationshipShiftIsGain({ to: "unfriendly" })).toBe(false);
     expect(relationshipShiftIsGain({ step: 2 })).toBe(true);
+  });
+});
+
+describe("the #1011 verbs", () => {
+  const objectiveLabel = () => "unused";
+  const resolver = {
+    clockLabel: (id: string | null) => (id === "clock-1" ? "The count" : null),
+    npcLabel: (id: string | null) => (id === "npc-1" ? "Scrim" : null),
+    locationLabel: (id: string | null) => (id === "loc-1" ? "The Roost" : null),
+    factionLabel: (id: string | null) => (id === "fac-1" ? "Understage Crew" : null),
+  };
+
+  it("tick_clock is engine state but not an objective verb", () => {
+    expect(isLedgerConsequenceAction("tick_clock")).toBe(true);
+    expect(isObjectiveConsequenceAction("tick_clock")).toBe(false);
+    expect(isObjectiveConsequenceAction("complete")).toBe(true);
+  });
+
+  it("names the clock, with the sign", () => {
+    const base = { action: "tick_clock" as const, target_objective_id: null, target_clock_id: "clock-1" };
+    expect(describeQuestConsequenceAction({ ...base, action_payload: { step: 1 } }, objectiveLabel, resolver)).toBe("The count ticks 1");
+    expect(describeQuestConsequenceAction({ ...base, action_payload: { step: -2 } }, objectiveLabel, resolver)).toBe("The count winds back 2");
+    expect(describeQuestConsequenceAction({ ...base, action_payload: { step: 1 } }, objectiveLabel)).toBe("A clock ticks 1");
+  });
+
+  it("names the NPC and the place, or reads generically without them", () => {
+    const move = { action: "move_npc" as const, target_objective_id: null, target_npc_id: "npc-1", target_location_id: "loc-1", action_payload: {} };
+    expect(describeQuestConsequenceAction(move, objectiveLabel, resolver)).toBe("Scrim moves to The Roost");
+    expect(describeQuestConsequenceAction(move, objectiveLabel)).toBe("An NPC moves to a place");
+    const join = { action: "add_companion" as const, target_objective_id: null, target_npc_id: "npc-1", action_payload: {} };
+    expect(describeQuestConsequenceAction(join, objectiveLabel, resolver)).toBe("Scrim joins the party");
+    expect(describeQuestConsequenceAction(join, objectiveLabel)).toBe("An NPC joins the party");
+  });
+
+  it("describes a faction standing shift in both forms", () => {
+    const shift = (payload: QuestConsequence["action_payload"]) => describeQuestConsequenceAction(
+      { action: "shift_faction_standing", target_objective_id: null, target_faction_id: "fac-1", action_payload: payload },
+      objectiveLabel,
+      resolver,
+    );
+    expect(shift({ to: "friendly" })).toBe("Understage Crew: standing becomes friendly");
+    expect(shift({ step: 1 })).toBe("Understage Crew: standing improves by 1");
+    expect(shift({ step: -2 })).toBe("Understage Crew: standing worsens by 2");
+    expect(describeWorldConsequenceAction("shift_faction_standing", { to: "hostile" })).toBe("A faction's standing becomes hostile");
+  });
+});
+
+describe("shared #1011 form helpers", () => {
+  const draft: WorldVerbDraft = { clockId: "", clockStep: 1, npcId: "", locationId: "", factionId: "", shiftKey: "to:friendly" };
+
+  it("phrases a delay once, singular and plural, and is empty without one", () => {
+    expect(delayPhrase(1)).toBe("in 1 day");
+    expect(delayPhrase(3)).toBe("in 3 days");
+    expect(delayPhrase(0)).toBe("");
+  });
+
+  it("knows exactly the four targeted world verbs", () => {
+    expect(["tick_clock", "move_npc", "add_companion", "shift_faction_standing"].every((a) => isTargetedWorldVerb(a as never))).toBe(true);
+    expect(isTargetedWorldVerb("shift_npc_relationship")).toBe(false);
+    expect(isTargetedWorldVerb("complete")).toBe(false);
+  });
+
+  it("is ready only when each verb's own targets are chosen", () => {
+    expect(worldVerbReady("tick_clock", draft)).toBe(false);
+    expect(worldVerbReady("tick_clock", { ...draft, clockId: "c" })).toBe(true);
+    expect(worldVerbReady("tick_clock", { ...draft, clockId: "c", clockStep: 0 })).toBe(false);
+    expect(worldVerbReady("tick_clock", { ...draft, clockId: "c", clockStep: 1.5 })).toBe(false);
+    expect(worldVerbReady("move_npc", { ...draft, npcId: "n" })).toBe(false);
+    expect(worldVerbReady("move_npc", { ...draft, npcId: "n", locationId: "l" })).toBe(true);
+    expect(worldVerbReady("add_companion", { ...draft, npcId: "n" })).toBe(true);
+    expect(worldVerbReady("shift_faction_standing", { ...draft, factionId: "f" })).toBe(true);
+    expect(worldVerbReady("shift_faction_standing", { ...draft, factionId: "f", shiftKey: "step:0" })).toBe(false);
+    expect(worldVerbReady("complete", draft)).toBe(false);
+  });
+
+  it("writes only the columns and payload its verb owns", () => {
+    const full = { ...draft, clockId: "c", clockStep: -2, npcId: "n", locationId: "l", factionId: "f", shiftKey: "step:-1" };
+    expect(worldVerbInsertFields("tick_clock", full)).toEqual({ target_clock_id: "c", target_npc_id: null, target_location_id: null, target_faction_id: null, action_payload: { step: -2 } });
+    expect(worldVerbInsertFields("move_npc", full)).toEqual({ target_clock_id: null, target_npc_id: "n", target_location_id: "l", target_faction_id: null, action_payload: {} });
+    expect(worldVerbInsertFields("add_companion", full)).toEqual({ target_clock_id: null, target_npc_id: "n", target_location_id: null, target_faction_id: null, action_payload: {} });
+    expect(worldVerbInsertFields("shift_faction_standing", full)).toEqual({ target_clock_id: null, target_npc_id: null, target_location_id: null, target_faction_id: "f", action_payload: { step: -1 } });
   });
 });

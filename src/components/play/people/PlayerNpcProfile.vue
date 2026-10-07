@@ -11,7 +11,7 @@
         <NpcRatingStars :npc-id="npc.id" size="lg" class="shrink-0 pt-1" />
       </div>
       <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-        <NpcRelationshipMark :relationship="npc.relationship" />
+        <RelationshipMark :relationship="npc.relationship" />
         <span v-if="status" class="text-caption italic text-muted-foreground">{{ status }}</span>
       </div>
       <p v-if="what" class="mt-1 text-body italic text-muted-foreground">{{ what }}</p>
@@ -48,7 +48,7 @@ import { computed } from "vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { formatMetDate } from "@/components/play/people/peopleParty";
-import NpcRelationshipMark from "@/components/play/people/NpcRelationshipMark.vue";
+import RelationshipMark from "@/components/common/RelationshipMark.vue";
 import NpcRatingStars from "@/components/play/NpcRatingStars.vue";
 import { useMyNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
 import { useMyNpcRevealMoments } from "@/composables/npcs/useNpcReveals";

@@ -210,8 +210,8 @@ function buildFixtureQuest(dbUrl: string, campaignId: string, ownerId: string): 
 
       -- The route into the vault stays shut until passage is secured -- a
       -- gated route visible without any prep beyond this seed.
-      insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, status)
-      values (v_edge_road_vault, v_quest_id, ${quote(campaignId)}, v_obj_passage, 'complete');
+      insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, statuses)
+      values (v_edge_road_vault, v_quest_id, ${quote(campaignId)}, v_obj_passage, array['complete']);
 
       -- Reaching the untaken branch is what wakes the dormant objective.
       insert into public.quest_consequences (quest_id, on_beat_id, action, target_objective_id)

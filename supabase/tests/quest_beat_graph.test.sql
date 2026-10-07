@@ -139,12 +139,12 @@ insert into public.quest_objectives (id, quest_id, description) values
   ('65800000-0000-4000-8000-000000000061', '65800000-0000-4000-8000-000000000031', 'Side objective');
 
 select throws_ok($$
-  insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, status)
-  values ('65800000-0000-4000-8000-000000000080', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000061', 'complete')
+  insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, statuses)
+  values ('65800000-0000-4000-8000-000000000080', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000061', array['complete'])
 $$, '23503', null, 'a gate cannot cross quests: an objective from another quest is rejected by the composite FK');
 
-insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, status)
-values ('65800000-0000-4000-8000-000000000080', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000060', 'complete');
+insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, statuses)
+values ('65800000-0000-4000-8000-000000000080', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000060', array['complete']);
 
 -- The whole reason the gate is a child table rather than two nullable columns
 -- on the edge: removing the gated objective must drop only the gate, not the

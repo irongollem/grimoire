@@ -480,7 +480,7 @@ Route: `/factions` (list), `/factions/new`, `/factions/:id`, `/factions/:id?edit
 
 **Faction editor** (`FactionEditor.vue`) — two-column layout:
 *Left column:* emblem image (square, click to upload, `faction-images` bucket), type selector (`EntityCombobox`), alignment selector (9 standard alignments), reveal control (`AudienceRevealControl`), tags (`TagInput`)
-*Right column:* name, description/notes (`RichTextEditor`, placeholder: "History, motives, known activities…"), Copy to campaign…/Delete/Cancel/Save buttons — "Copy to campaign…" (#885) only in edit mode (existing factions), via `useCopyEntityToCampaign`; `FactionSheet.vue` (read mode) does not offer it, matching `ItemDetail`'s edit-only placement. Its own dedicated `showPaywall` (distinct from the list's create-gate one) opens on a quota-exceeded copy.
+*Right column:* name, **Party standing** (#1011: the same five-wedge `RelationshipWheel` an NPC's stance uses, now in `components/common/`, bound to `factions.party_standing`; `unknown` is the unset state), description/notes (`RichTextEditor`, placeholder: "History, motives, known activities…"), Copy to campaign…/Delete/Cancel/Save buttons, "Copy to campaign…" (#885) only in edit mode (existing factions), via `useCopyEntityToCampaign`; `FactionSheet.vue` (read mode) does not offer it, matching `ItemDetail`'s edit-only placement. Its own dedicated `showPaywall` (distinct from the list's create-gate one) opens on a quota-exceeded copy.
 
 **Faction detail page** (`FactionDetailView.vue`)
 Shows the sheet or editor (via `?edit=true`), then below it always-visible sub-sections (rendered even in edit mode):
@@ -502,12 +502,13 @@ Route: `/play/factions` (embedded in player portal via `PlayerFactionsView.vue`)
 - In DM preview mode the client filters to the same criteria
 - Factions the player belongs to float to the top (sorted first), then alphabetical within each group; member factions get a green border highlight
 - Filter: text search on name, type, tags
-- Card grid (1–2 columns): emblem thumbnail, name, type, tags (up to 3)
+- Card grid (1–2 columns): emblem thumbnail, name, type, tags (up to 3), and the party's standing as a `RelationshipMark` when it is not `unknown`
 - Clicking a card opens the **detail modal** (fullscreen overlay)
 
 **Faction detail modal**
 
 - Header: emblem (larger), name, type · alignment
+- The party's standing with the faction (`RelationshipMark`), when set
 - About: faction description rendered via `RichTextViewer`
 - **Known Members** (only shown if the player is a member of this faction):
   - Heading includes the player's role ("Member", "Officer", etc.)
@@ -674,6 +675,7 @@ No migration reassigns the small number of locations that already carried a null
 | `alignment`         | string      | 9 standard alignments                                                                                |
 | `player_visible_to` | uuid[]      | Party member IDs; also shown if player is a faction member                                           |
 | `tags`              | string[]    |                                                                                                      |
+| `party_standing`    | `npc_relationship` | How the faction regards the party (#1011): the NPC ladder (`hostile` … `helpful`), default `unknown` (unset, not a rung). Players see it. |
 
 ### FactionNpc / FactionPartyMember (junction tables)
 
@@ -717,4 +719,4 @@ ship with the loose shape.
 
 ## Secret blocks in descriptions (#932)
 
-Location and faction descriptions can hold DM-only passages (`secretBlock`, see [campaign-notes-calendar.md](campaign-notes-calendar.md)). `get_player_visible_locations` strips them from `description`. Players no longer select `factions` (the `factions_member_select` policy is gone, `20261007092700`): they read `get_player_visible_factions(p_campaign_id, p_preview_member_id)`, which returns a faction shared with their character or one their character belongs to (`faction_party_members`), secrets stripped. `usePlayerVisibleFactions` keys on `[PLAYER_FACTIONS_KEY, campaignId, previewMemberId]` and `PlayerFactionsView` no longer filters a DM preview client-side. `usePartyMemberFactions` no longer embeds `factions`, which resolves to null for players.
+Location and faction descriptions can hold DM-only passages (`secretBlock`, see [campaign-notes-calendar.md](campaign-notes-calendar.md)). `get_player_visible_locations` strips them from `description`. Players no longer select `factions` (the `factions_member_select` policy is gone, `20261007092700`): they read `get_player_visible_factions(p_campaign_id, p_preview_member_id)`, which returns a faction shared with their character or one their character belongs to (`faction_party_members`), secrets stripped. Its projection returns `setof factions` positionally, so #1011's `party_standing` column had to be added to the function in the same migration (`20261007214426`) or players would never see the standing. `usePlayerVisibleFactions` keys on `[PLAYER_FACTIONS_KEY, campaignId, previewMemberId]` and `PlayerFactionsView` no longer filters a DM preview client-side. `usePartyMemberFactions` no longer embeds `factions`, which resolves to null for players.

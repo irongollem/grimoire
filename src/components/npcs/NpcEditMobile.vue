@@ -327,7 +327,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
 import NpcIdentitySection from "./NpcIdentitySection.vue";
-import RelationshipWheel from "./RelationshipWheel.vue";
+import RelationshipWheel from "@/components/common/RelationshipWheel.vue";
 import NpcLoreTab from "./NpcLoreTab.vue";
 import NpcRelationsSection from "./NpcRelationsSection.vue";
 import NpcAccordionSection from "./NpcAccordionSection.vue";

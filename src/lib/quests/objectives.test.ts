@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countObjectivesComplete, isObjectiveResolved, nextObjectiveStatus } from "./objectives";
+import { countObjectivesComplete, isLedgerSettled, isObjectiveResolved, nextObjectiveStatus } from "./objectives";
 
 describe("quest objective status", () => {
   it("cycles the manual control back to open rather than stranding it", () => {
@@ -33,5 +33,19 @@ describe("quest objective status", () => {
     // "pending", or a state added after this one silently mis-classifies.
     expect(isObjectiveResolved({ status: "dormant" })).toBe(false);
     expect(countObjectivesComplete([{ status: "dormant" as const }])).toBe(0);
+  });
+});
+
+describe("isLedgerSettled", () => {
+  it("is settled when something is live and nothing is pending", () => {
+    expect(isLedgerSettled([{ status: "complete" }, { status: "failed" }])).toBe(true);
+  });
+  it("is not settled while any objective is pending", () => {
+    expect(isLedgerSettled([{ status: "complete" }, { status: "pending" }])).toBe(false);
+  });
+  it("ignores dormant objectives but needs at least one live one", () => {
+    expect(isLedgerSettled([{ status: "complete" }, { status: "dormant" }])).toBe(true);
+    expect(isLedgerSettled([{ status: "dormant" }])).toBe(false);
+    expect(isLedgerSettled([])).toBe(false);
   });
 });

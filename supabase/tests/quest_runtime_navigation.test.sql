@@ -229,8 +229,8 @@ insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, 
 insert into public.quest_objectives (id, quest_id, description, status) values
   ('66800000-0000-4000-8000-000000000080', '66800000-0000-4000-8000-000000000050', 'Find the key', 'pending');
 
-insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, status) values
-  ('66800000-0000-4000-8000-000000000070', '66800000-0000-4000-8000-000000000050', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000080', 'complete');
+insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, statuses) values
+  ('66800000-0000-4000-8000-000000000070', '66800000-0000-4000-8000-000000000050', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000080', array['complete']);
 
 select is(
   public.transition_quest_runtime(
@@ -249,10 +249,10 @@ select ok(
   'outgoing routes no longer carry the free-text label'
 );
 select is(
-  (select elem -> 'gate' ->> 'required_status' from jsonb_array_elements(
+  (select elem -> 'gate' -> 'conditions' -> 0 -> 'statuses' ->> 0 from jsonb_array_elements(
     public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main')) -> 'outgoing'
   ) elem where elem ->> 'beat_id' = '66800000-0000-4000-8000-000000000061'),
-  'complete', 'a gated route in outgoing carries its required objective status'
+  'complete', 'a gated route in outgoing carries the objective status its condition needs'
 );
 select is(
   (select elem -> 'gate' ->> 'is_open' from jsonb_array_elements(

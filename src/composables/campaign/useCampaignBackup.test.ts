@@ -182,3 +182,49 @@ describe("executeImport session log", () => {
     expect(found.session_id).toBe(session.id);
   });
 });
+
+describe("executeImport quest clocks (#1011)", () => {
+  beforeEach(() => {
+    inserted.length = 0;
+  });
+
+  const clock = {
+    id: "clock-1", campaign_id: "old-camp", quest_id: "q-1", label: "The count", segments: 6,
+    filled: 4, sort_order: 0, created_by: "someone", created_at: "x", updated_at: "x",
+  };
+
+  it("restores a clock into the new quest with only the columns a client may write", async () => {
+    const backup = backupWith({ quests: [{ id: "q-1", campaign_id: "old-camp" }], quest_clocks: [clock] });
+    const campaign = await executeImport(backup, "Restored");
+    const quest = inserted.find((i) => i.table === "quests")!.rows[0];
+    const restored = inserted.find((i) => i.table === "quest_clocks")!.rows[0];
+    expect(restored.id).not.toBe("clock-1");
+    expect(restored.quest_id).toBe(quest.id);
+    expect(restored.campaign_id).toBe((campaign as { id: string }).id);
+    expect(Object.keys(restored).sort()).toEqual(["campaign_id", "id", "label", "quest_id", "segments", "sort_order"]);
+  });
+
+  it("remaps every clock, place and faction a consequence names, after the clock exists", async () => {
+    const backup = backupWith({
+      quests: [{ id: "q-1", campaign_id: "old-camp" }],
+      quest_clocks: [clock],
+      locations: [{ id: "loc-1", campaign_id: "old-camp" }],
+      factions: [{ id: "fac-1", campaign_id: "old-camp" }],
+      quest_consequences: [
+        { id: "qc-1", quest_id: "q-1", on_clock_id: "clock-1", on_location_id: null, action: "shift_faction_standing", target_faction_id: "fac-1", target_clock_id: null, target_location_id: null },
+        { id: "qc-2", quest_id: "q-1", on_clock_id: null, on_location_id: "loc-1", action: "tick_clock", target_clock_id: "clock-1", target_faction_id: null, target_location_id: null },
+      ],
+    });
+    await executeImport(backup, "Restored");
+    const tables = inserted.map((i) => i.table);
+    expect(tables.indexOf("quest_clocks")).toBeLessThan(tables.indexOf("quest_consequences"));
+    const newClock = inserted.find((i) => i.table === "quest_clocks")!.rows[0];
+    const newFaction = inserted.find((i) => i.table === "factions")!.rows[0];
+    const newLocation = inserted.find((i) => i.table === "locations")!.rows[0];
+    const [fill, tick] = inserted.find((i) => i.table === "quest_consequences")!.rows;
+    expect(fill.on_clock_id).toBe(newClock.id);
+    expect(fill.target_faction_id).toBe(newFaction.id);
+    expect(tick.target_clock_id).toBe(newClock.id);
+    expect(tick.on_location_id).toBe(newLocation.id);
+  });
+});

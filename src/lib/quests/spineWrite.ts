@@ -177,6 +177,10 @@ export async function writeQuestSpine(
     status: objectiveStatuses[i]!,
     is_player_visible: false,
     sort_order: i,
+    // A generated objective has no calendar deadline; the DM sets one.
+    due_year: null,
+    due_month: null,
+    due_day: null,
   }));
 
   // Routes and objectives depend only on the beats, not on each other.
@@ -205,6 +209,7 @@ export async function writeQuestSpine(
       on_quest_settled: false,
       on_location_id: null,
       on_location_fact: null,
+      on_clock_id: null,
       after_days: 0,
       action: "raise",
       target_objective_id: objectiveIdByIndex.get(entry.objectiveIndex)!,
@@ -216,6 +221,9 @@ export async function writeQuestSpine(
       target_npc_id: null,
       target_quest_id: null,
       target_document_id: null,
+      target_clock_id: null,
+      target_location_id: null,
+      target_faction_id: null,
       action_payload: {},
     }));
   await writeBatchIsolatingFailures(consequenceRows, deps.createConsequences);

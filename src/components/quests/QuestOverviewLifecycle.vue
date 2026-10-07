@@ -30,6 +30,7 @@
         </span>
       </div>
       <div class="p-2 flex flex-col gap-1">
+        <QuestSettledPrompt :quest-id="quest.id" compact />
         <div
           v-for="obj in objectives ?? []"
           :key="obj.id"
@@ -47,15 +48,18 @@
               <QuestObjectiveStatusMark :status="obj.status" />
             </template>
           </AppButton>
-          <span
-            class="text-body flex-1 leading-snug transition-colors"
-            :class="
-              obj.status === 'complete'
-                ? 'text-muted-foreground line-through'
-                : obj.status === 'failed' ? 'text-muted-foreground' : 'text-foreground'
-            "
-          >
-            {{ obj.description }}
+          <span class="min-w-0 flex-1">
+            <span
+              class="block text-body leading-snug transition-colors"
+              :class="
+                obj.status === 'complete'
+                  ? 'text-muted-foreground line-through'
+                  : obj.status === 'failed' ? 'text-muted-foreground' : 'text-foreground'
+              "
+            >
+              {{ obj.description }}
+            </span>
+            <QuestObjectiveDueDate :due="objectiveDueDate(obj)" @change="setDueDate(obj, $event)" />
           </span>
           <AppButton
             variant="ghost"
@@ -100,6 +104,7 @@
       </div>
     </section>
 
+    <QuestClocksPanel v-if="quest.campaign_id" :quest-id="quest.id" :campaign-id="quest.campaign_id" />
     <QuestRulesPanel :quest-id="quest.id" :campaign-id="quest.campaign_id" />
     <QuestBackfillPanel :quest="quest" />
     <QuestSidebarPanels
@@ -143,11 +148,16 @@ import {
 } from "@/composables/quests/useQuests";
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { countObjectivesComplete, nextObjectiveStatus, QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
+import { objectiveDueDate } from "@/lib/quests/deadlines";
+import type { CalendarDate } from "@/lib/calendar/dayMath";
 import { formatQuestForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 import QuestSidebarPanels from "./QuestSidebarPanels.vue";
+import QuestClocksPanel from "./QuestClocksPanel.vue";
+import QuestObjectiveDueDate from "./QuestObjectiveDueDate.vue";
+import QuestSettledPrompt from "./QuestSettledPrompt.vue";
 import QuestRulesPanel from "./QuestRulesPanel.vue";
 import QuestBackfillPanel from "./QuestBackfillPanel.vue";
 
@@ -194,7 +204,7 @@ function submitObjective() {
 }
 
 async function addObjective(description: string) {
-  await createObjective({ quest_id: props.quest.id, description, status: "pending", is_player_visible: false, sort_order: objectives.value?.length ?? 0 });
+  await createObjective({ quest_id: props.quest.id, description, status: "pending", is_player_visible: false, sort_order: objectives.value?.length ?? 0, due_year: null, due_month: null, due_day: null });
 }
 
 // Routed through the RPC, not a PATCH — see useAssertQuestObjectiveStatus.
@@ -218,6 +228,18 @@ function visibilityTooltip(objective: QuestObjective) {
 async function toggleObjectiveVisibility(objective: QuestObjective) {
   if (objective.status === "dormant") return;
   await updateObjective({ id: objective.id, questId: props.quest.id, update: { is_player_visible: !objective.is_player_visible } });
+}
+
+async function setDueDate(objective: QuestObjective, date: CalendarDate | null) {
+  try {
+    await updateObjective({
+      id: objective.id,
+      questId: props.quest.id,
+      update: { due_year: date ? date.year : null, due_month: date ? date.month : null, due_day: date ? date.day : null },
+    });
+  } catch (e: unknown) {
+    toast.error(toast.fromError(e));
+  }
 }
 
 async function removeObjective(objective: QuestObjective) {

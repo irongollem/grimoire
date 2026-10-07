@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deriveQuestConsistency, type QuestConsistencyInput } from "./consistency";
-import type { QuestConsequenceAction, QuestConsequenceObjectiveStatus, QuestObjectiveStatus } from "@/types/quest.types";
+import type { QuestConsequenceAction, QuestObjectiveStatus } from "@/types/quest.types";
 
 const beat = (id: string, over: { title?: string; kind?: string; is_improvised?: boolean } = {}) => ({
   id,
@@ -19,8 +19,8 @@ const rule = (
   on_objective_id: string | null = null,
 ) => ({ action, on_objective_id, target_objective_id });
 
-const gate = (edge_id: string, objective_id: string, status: QuestConsequenceObjectiveStatus) =>
-  ({ edge_id, objective_id, status });
+const gate = (edge_id: string, objective_id: string, ...statuses: QuestObjectiveStatus[]) =>
+  ({ edge_id, objective_id, statuses });
 
 const empty: QuestConsistencyInput = { beats: [], edges: [], objectives: [], consequences: [], gates: [] };
 const check = (over: Partial<QuestConsistencyInput>) => deriveQuestConsistency({ ...empty, ...over });
@@ -135,6 +135,40 @@ describe("deriveQuestConsistency", () => {
       expect(kinds(findings)).toContain("gate_never_opens");
     });
 
+    it("opens when any one accepted status can be produced", () => {
+      const findings = check({
+        objectives: [objective("o1", "pending")],
+        consequences: [rule("fail", "o1")],
+        gates: [gate("e1", "o1", "complete", "failed")],
+      });
+      expect(kinds(findings)).not.toContain("gate_never_opens");
+    });
+
+    it("cannot be satisfied by dormant once the objective has left it", () => {
+      const findings = check({ objectives: [objective("o1", "pending")], gates: [gate("e1", "o1", "dormant")] });
+      expect(kinds(findings)).toContain("gate_never_opens");
+    });
+
+    it("an all gate is shut when any one condition can never hold", () => {
+      const findings = check({
+        edges: [{ id: "e1", source_beat_id: "a", target_beat_id: "b", gate_mode: "all" }],
+        objectives: [objective("o1", "complete"), objective("o2", "pending")],
+        gates: [gate("e1", "o1", "complete"), gate("e1", "o2", "complete")],
+      });
+      const [finding] = findings.filter((f) => f.kind === "gate_never_opens");
+      expect(finding?.objectiveIds).toEqual(["o2"]);
+    });
+
+    it("an any gate is shut only when every condition can never hold", () => {
+      const base = {
+        edges: [{ id: "e1", source_beat_id: "a", target_beat_id: "b", gate_mode: "any" as const }],
+        objectives: [objective("o1", "complete"), objective("o2", "pending")],
+      };
+      expect(kinds(check({ ...base, gates: [gate("e1", "o1", "complete"), gate("e1", "o2", "complete")] }))).not.toContain("gate_never_opens");
+      const shut = check({ ...base, objectives: [objective("o1", "pending"), objective("o2", "pending")], gates: [gate("e1", "o1", "complete"), gate("e1", "o2", "complete")] });
+      expect(shut.filter((f) => f.kind === "gate_never_opens")).toHaveLength(1);
+    });
+
     it("leaves a gate on an unknown objective to the database's foreign key", () => {
       const findings = check({ objectives: [], gates: [gate("e1", "ghost", "complete")] });
       expect(kinds(findings)).not.toContain("gate_never_opens");
@@ -232,7 +266,7 @@ describe("cause suppresses symptom", () => {
     const findings = deriveQuestConsistency({
       beats: [], edges: [], consequences: [],
       objectives: [{ id: "o1", description: "Win them over", status: "pending" }],
-      gates: [{ edge_id: "e1", objective_id: "o1", status: "complete" }],
+      gates: [{ edge_id: "e1", objective_id: "o1", statuses: ["complete" as const] }],
     });
     expect(findings.map((f) => f.kind)).toEqual(["gate_never_opens"]);
   });

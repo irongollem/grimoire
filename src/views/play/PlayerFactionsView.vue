@@ -59,6 +59,7 @@
             <div class="flex-1 min-w-0">
               <h3 class="text-heading-xs font-bold text-foreground truncate">{{ faction.name }}</h3>
               <p v-if="faction.faction_type" class="text-caption text-muted-foreground italic">{{ faction.faction_type }}</p>
+              <RelationshipMark v-if="faction.party_standing !== 'unknown'" :relationship="faction.party_standing" class="mt-1" />
               <div v-if="faction.tags?.length" class="flex flex-wrap gap-1 mt-1">
                 <span
                   v-for="tag in faction.tags.slice(0, 3)"
@@ -93,6 +94,7 @@
               <p v-if="selected.faction_type || selected.alignment" class="text-caption text-muted-foreground italic">
                 {{ [selected.faction_type, selected.alignment].filter(Boolean).join(' · ') }}
               </p>
+              <RelationshipMark v-if="selected.party_standing !== 'unknown'" :relationship="selected.party_standing" class="mt-1" />
             </div>
             <AppButton
               variant="ghost"
@@ -178,6 +180,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import RelationshipMark from "@/components/common/RelationshipMark.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 

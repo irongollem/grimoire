@@ -1,15 +1,18 @@
 import type {
   BroadcastConsequencePayload,
+  ClockTickConsequencePayload,
   CalendarEventConsequencePayload,
   FavorConsequencePayload,
   KnowledgeConsequencePayload,
   MilestoneConsequencePayload,
   QuestConsequence,
   QuestConsequenceAction,
+  QuestConsequenceActionPayload,
   RelationshipShiftConsequencePayload,
 } from "@/types/quest.types";
 import { NPC_RELATIONSHIP_LADDER, QUEST_CONSEQUENCE_LEDGER_ACTIONS, type NpcStance } from "@/types/quest.types";
 import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
+import { pluralizeCount } from "@/lib/utils";
 
 export const QUEST_CONSEQUENCE_ACTION_LABELS: Record<QuestConsequenceAction, string> = {
   raise: "Raise",
@@ -23,11 +26,78 @@ export const QUEST_CONSEQUENCE_ACTION_LABELS: Record<QuestConsequenceAction, str
   grant_knowledge: "Grant knowledge",
   owe_favor: "Owe a favor",
   award_milestone: "Award a milestone",
-  give_handout: "Gives a handout",
+  give_handout: "Give a handout",
+  tick_clock: "Tick clock",
+  move_npc: "Move NPC",
+  add_companion: "Add companion",
+  shift_faction_standing: "Shift faction standing",
 };
 
 export function isLedgerConsequenceAction(action: QuestConsequenceAction): boolean {
   return QUEST_CONSEQUENCE_LEDGER_ACTIONS.includes(action);
+}
+
+/** A ledger verb that moves an *objective* (needs `target_objective_id`).
+ *  `tick_clock` is engine state like them, but its target is a clock. */
+export function isObjectiveConsequenceAction(action: QuestConsequenceAction): boolean {
+  return isLedgerConsequenceAction(action) && action !== "tick_clock";
+}
+
+/** The four verbs added in #1011 that name a clock, NPC, place or faction. */
+export const QUEST_TARGETED_WORLD_VERBS: readonly QuestConsequenceAction[] = ["tick_clock", "move_npc", "add_companion", "shift_faction_standing"];
+
+export function isTargetedWorldVerb(action: QuestConsequenceAction): boolean {
+  return QUEST_TARGETED_WORLD_VERBS.includes(action);
+}
+
+/** Shown wherever a clock picker finds the quest has none. Clocks are authored
+ *  in the quest overview; the run cockpit only ticks them. */
+export const NO_QUEST_CLOCKS_NOTE = "This quest has no clocks yet. Add one in the quest overview's Clocks section.";
+
+/** "in 1 day" / "in 3 days"; empty for no delay. */
+export function delayPhrase(days: number): string {
+  return days > 0 ? `in ${pluralizeCount(days, "day")}` : "";
+}
+
+/** The form state behind the four #1011 verbs, shared by both authoring panels. */
+export interface WorldVerbDraft {
+  clockId: string;
+  clockStep: number;
+  npcId: string;
+  locationId: string;
+  factionId: string;
+  shiftKey: string;
+}
+
+export function worldVerbReady(action: QuestConsequenceAction, draft: WorldVerbDraft): boolean {
+  switch (action) {
+    case "tick_clock": return !!draft.clockId && Number.isInteger(draft.clockStep) && draft.clockStep !== 0;
+    case "move_npc": return !!draft.npcId && !!draft.locationId;
+    case "add_companion": return !!draft.npcId;
+    case "shift_faction_standing": return !!draft.factionId && relationshipShiftPayload(draft.shiftKey) !== null;
+    default: return false;
+  }
+}
+
+/** The target columns and payload a #1011 verb writes; every other target stays null. */
+export function worldVerbInsertFields(action: QuestConsequenceAction, draft: WorldVerbDraft): {
+  target_clock_id: string | null;
+  target_npc_id: string | null;
+  target_location_id: string | null;
+  target_faction_id: string | null;
+  action_payload: QuestConsequenceActionPayload;
+} {
+  return {
+    target_clock_id: action === "tick_clock" ? draft.clockId : null,
+    target_npc_id: action === "move_npc" || action === "add_companion" ? draft.npcId : null,
+    target_location_id: action === "move_npc" ? draft.locationId : null,
+    target_faction_id: action === "shift_faction_standing" ? draft.factionId : null,
+    action_payload: action === "tick_clock"
+      ? { step: draft.clockStep }
+      : action === "shift_faction_standing"
+        ? relationshipShiftPayload(draft.shiftKey)!
+        : {},
+  };
 }
 
 /** What `describeQuestConsequenceAction` needs to name an unlock's target
@@ -40,6 +110,27 @@ export interface QuestConsequenceLabelResolver {
   beatLabel?: (id: string | null) => string;
   /** `give_handout` only: the Scriptorium document's title. */
   documentLabel?: (id: string | null) => string | null;
+  /** `tick_clock`: the clock's label. */
+  clockLabel?: (id: string | null) => string | null;
+  /** `move_npc` / `add_companion`: the NPC's name. */
+  npcLabel?: (id: string | null) => string | null;
+  /** `move_npc`: the destination's name. */
+  locationLabel?: (id: string | null) => string | null;
+  /** `shift_faction_standing`: the faction's name. */
+  factionLabel?: (id: string | null) => string | null;
+}
+
+/** `Tick clock` payload as a signed count: "ticks 1", "winds back 2". */
+function clockStepPhrase(step: number): string {
+  return `${step > 0 ? "ticks" : "winds back"} ${Math.abs(step)}`;
+}
+
+/** Shared by NPC and faction shifts: "becomes friendly" / "improves by 2". */
+function standingChangePhrase(payload: Partial<RelationshipShiftConsequencePayload>): string | null {
+  if ("to" in payload && typeof payload.to === "string") return `becomes ${NPC_RELATIONSHIP_LABELS[payload.to].toLowerCase()}`;
+  const step = "step" in payload ? payload.step : undefined;
+  if (typeof step !== "number" || step === 0) return null;
+  return `${step > 0 ? "improves" : "worsens"} by ${Math.abs(step)}`;
 }
 
 /**
@@ -60,11 +151,31 @@ export interface QuestConsequenceLabelResolver {
  */
 export function describeQuestConsequenceAction(
   row: Pick<QuestConsequence, "action" | "target_objective_id" | "action_payload">
-    & Partial<Pick<QuestConsequence, "target_quest_id" | "entry_beat_id" | "target_document_id">>,
+    & Partial<Pick<QuestConsequence, "target_quest_id" | "entry_beat_id" | "target_document_id" | "target_clock_id" | "target_npc_id" | "target_location_id" | "target_faction_id">>,
   objectiveLabel: (id: string | null) => string,
   resolver?: QuestConsequenceLabelResolver,
 ): string {
-  if (isLedgerConsequenceAction(row.action)) {
+  if (row.action === "tick_clock") {
+    const payload = row.action_payload as Partial<ClockTickConsequencePayload>;
+    const clock = resolver?.clockLabel?.(row.target_clock_id ?? null);
+    if (clock && typeof payload.step === "number" && payload.step !== 0) return `${clock} ${clockStepPhrase(payload.step)}`;
+    return describeWorldConsequenceAction(row.action, row.action_payload);
+  }
+  if (row.action === "move_npc") {
+    const npc = resolver?.npcLabel?.(row.target_npc_id ?? null);
+    const place = resolver?.locationLabel?.(row.target_location_id ?? null);
+    if (npc && place) return `${npc} moves to ${place}`;
+  }
+  if (row.action === "add_companion") {
+    const npc = resolver?.npcLabel?.(row.target_npc_id ?? null);
+    if (npc) return `${npc} joins the party`;
+  }
+  if (row.action === "shift_faction_standing") {
+    const faction = resolver?.factionLabel?.(row.target_faction_id ?? null);
+    const change = standingChangePhrase(row.action_payload as Partial<RelationshipShiftConsequencePayload>);
+    if (faction && change) return `${faction}: standing ${change}`;
+  }
+  if (isObjectiveConsequenceAction(row.action)) {
     return `${QUEST_CONSEQUENCE_ACTION_LABELS[row.action]} "${objectiveLabel(row.target_objective_id)}"`;
   }
   if (row.action === "unlock_quest" && resolver?.questLabel) {
@@ -132,6 +243,19 @@ export function describeWorldConsequenceAction(
       }
       const steps = Math.abs(step) === 1 ? "step" : "steps";
       return `${step > 0 ? "Improve" : "Worsen"} an NPC's disposition by ${Math.abs(step)} ${steps}`;
+    }
+    case "tick_clock": {
+      const payload = actionPayload as Partial<ClockTickConsequencePayload>;
+      if (typeof payload.step !== "number" || payload.step === 0) return `${QUEST_CONSEQUENCE_ACTION_LABELS[action]} (${UNKNOWN_PAYLOAD_FIELD})`;
+      return `A clock ${clockStepPhrase(payload.step)}`;
+    }
+    case "move_npc":
+      return "An NPC moves to a place";
+    case "add_companion":
+      return "An NPC joins the party";
+    case "shift_faction_standing": {
+      const change = standingChangePhrase(actionPayload as Partial<RelationshipShiftConsequencePayload>);
+      return change ? `A faction's standing ${change}` : `${QUEST_CONSEQUENCE_ACTION_LABELS[action]} (${UNKNOWN_PAYLOAD_FIELD})`;
     }
     case "grant_knowledge": {
       const payload = actionPayload as Partial<KnowledgeConsequencePayload>;

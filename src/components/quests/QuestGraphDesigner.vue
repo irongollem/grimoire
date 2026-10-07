@@ -99,8 +99,9 @@
           v-if="selectedEdge"
           v-model:route-kind="edgeRouteKind"
           v-model:thread-label="edgeThreadLabel"
-          v-model:gate-status="edgeGateStatus"
-          v-model:gate-objective-id="edgeGateObjectiveId"
+          v-model:gate-mode="edgeGateMode"
+          v-model:conditions="edgeGateConditions"
+          :gate-preview="edgeGatePreview"
           :source-title="beatTitle(selectedEdge.source_beat_id)"
           :target-title="beatTitle(selectedEdge.target_beat_id)"
           :objective-options="objectiveOptions"
@@ -157,7 +158,6 @@ import {
   useQuestBeatEdgeGates,
   useLootPlacements,
   useArchiveQuestBeat,
-  useClearQuestBeatEdgeGate,
   useCreateQuestBeatWithRoute,
   useCreateQuestBeatEdge,
   useDeleteQuestBeatEdge,
@@ -166,8 +166,11 @@ import {
   useQuestBeatTransitionsForQuest,
   useQuestConsequences,
   useQuestRuntimeContext,
-  useSetQuestBeatEdgeGate,
   useUpdateQuestBeatEdge,
+  useAddQuestBeatEdgeGateCondition,
+  useRemoveQuestBeatEdgeGateCondition,
+  useSetQuestBeatEdgeGateMode,
+  useUpdateQuestBeatEdgeGateCondition,
   useSetQuestBeatPositions,
 } from "@/composables/quests/useQuestFlow";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
@@ -178,7 +181,7 @@ import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
 import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import { deriveQuestBeatPresentations, presentableBeatOf, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput, type QuestBeatStaging } from "@/lib/quests/presentation";
-import { deriveQuestRouteGates } from "@/lib/quests/gates";
+import { deriveQuestRouteGates, draftRouteGate, planGateWrites, validateGateDrafts, type GateConditionDraft } from "@/lib/quests/gates";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { extractTiptapText } from "@/lib/utils";
@@ -189,7 +192,7 @@ import { defaultThreadId } from "@/lib/quests/threads";
 import { useCampaignStore } from "@/stores/campaign";
 import { useConfirm } from "@/composables/useConfirm";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { type QuestBeat, type QuestConsequenceObjectiveStatus, type QuestRouteEffect, type QuestRouteKind } from "@/types/quest.types";
+import { type QuestBeat, type QuestGateMode, type QuestRouteEffect, type QuestRouteKind } from "@/types/quest.types";
 import type { LocationSummary } from "@/types/location.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -241,8 +244,10 @@ const archiveBeat = useArchiveQuestBeat();
 const createEdge = useCreateQuestBeatEdge();
 const updateEdge = useUpdateQuestBeatEdge();
 const deleteEdge = useDeleteQuestBeatEdge();
-const setEdgeGate = useSetQuestBeatEdgeGate();
-const clearEdgeGate = useClearQuestBeatEdgeGate();
+const addGateCondition = useAddQuestBeatEdgeGateCondition();
+const updateGateCondition = useUpdateQuestBeatEdgeGateCondition();
+const removeGateCondition = useRemoveQuestBeatEdgeGateCondition();
+const setGateMode = useSetQuestBeatEdgeGateMode();
 const campaign = useCampaignStore();
 const { confirm } = useConfirm();
 
@@ -260,7 +265,7 @@ const objectiveDescriptionById = computed(() => new Map(objectives.value.map((ob
 // Joined here rather than server-side (unlike Run mode's `outgoing.gate`)
 // because Build mode edits the gate rather than only reading it — the pill
 // and the editor's pre-fill share this one derivation.
-const routeGates = computed(() => deriveQuestRouteGates(edgeGates.value, objectives.value));
+const routeGates = computed(() => deriveQuestRouteGates(edgeGates.value, objectives.value, edges.value));
 const attachments = computed(() => attachmentsQuery.data.value ?? []);
 const transitions = computed(() => transitionsQuery.data.value ?? []);
 const lootByBeat = computed(() => summarizeQuestBeatLoot(lootQuery.data.value ?? []));
@@ -383,8 +388,9 @@ const isLoading = computed(() => beatsQuery.isLoading.value || edgesQuery.isLoad
 const selectedEdge = computed(() => edges.value.find((edge) => edge.id === selectedEdgeId.value) ?? null);
 const edgeRouteKind = ref<QuestRouteKind>("choice");
 const edgeThreadLabel = ref("");
-const edgeGateStatus = ref<QuestConsequenceObjectiveStatus | "">("");
-const edgeGateObjectiveId = ref("");
+const edgeGateMode = ref<QuestGateMode>("all");
+const edgeGateConditions = ref<GateConditionDraft[]>([]);
+const edgeGatePreview = computed(() => draftRouteGate(edgeGateConditions.value, edgeGateMode.value, objectives.value));
 const edgeSaving = ref(false);
 const selectedEdgeEffects = computed<QuestRouteEffect[]>(() => {
   const edge = selectedEdge.value;
@@ -409,15 +415,10 @@ const canSelectedEdgeBeParallel = computed(() => {
 watch(selectedEdge, (edge) => {
   edgeRouteKind.value = edge?.route_kind ?? "choice";
   edgeThreadLabel.value = edge?.thread_label ?? "";
-  const gate = edge ? routeGates.value[edge.id] : undefined;
-  edgeGateStatus.value = gate?.required_status ?? "";
-  edgeGateObjectiveId.value = gate?.objective_id ?? "";
-});
-// Only "No gate" clears the objective. Moving between pending/complete/failed
-// keeps it — a DM adjusting when the same route opens should not have to
-// re-pick the objective every time.
-watch(edgeGateStatus, (status) => {
-  if (!status) edgeGateObjectiveId.value = "";
+  edgeGateMode.value = edge?.gate_mode ?? "all";
+  edgeGateConditions.value = edge
+    ? edgeGates.value.filter((gate) => gate.edge_id === edge.id).map((gate) => ({ key: gate.id, gateId: gate.id, objectiveId: gate.objective_id, statuses: [...gate.statuses] }))
+    : [];
 });
 
 const composer = ref<{ sourceBeatId?: string; parallel: boolean; x: number; y: number } | null>(null);
@@ -545,7 +546,8 @@ async function linkExisting(sourceBeatId: string, targetBeatId: string) {
 
 async function saveEdge() {
   if (!selectedEdge.value) return;
-  if (edgeGateStatus.value && !edgeGateObjectiveId.value) { mutationError.value = "Choose which objective gates this route, or set it back to No gate."; return; }
+  const gateProblem = validateGateDrafts(edgeGateConditions.value);
+  if (gateProblem) { mutationError.value = gateProblem; return; }
   if (edgeRouteKind.value === "parallel" && !edgeThreadLabel.value.trim()) { mutationError.value = "A parallel route needs a thread label. It is shown to the DM and on the player thread."; return; }
   if (edgeRouteKind.value === "parallel" && !canSelectedEdgeBeParallel.value) { mutationError.value = "This beat has no other choice route. Switching this one to parallel would leave its thread nowhere to go."; return; }
   const edge = selectedEdge.value;
@@ -553,13 +555,19 @@ async function saveEdge() {
   try {
     mutationError.value = "";
     await updateEdge.mutateAsync({ id: edge.id, questId, update: { route_kind: edgeRouteKind.value, thread_label: edgeRouteKind.value === "parallel" ? edgeThreadLabel.value.trim() : null } });
-    if (edgeGateStatus.value) {
-      await setEdgeGate.mutateAsync({ edgeId: edge.id, questId, campaignId: edge.campaign_id, objectiveId: edgeGateObjectiveId.value, status: edgeGateStatus.value });
-    } else {
-      // Clearing the gate is its own mutation, not the fallback of skipping
-      // the write — an emptied select means "no gate," not "leave it alone."
-      await clearEdgeGate.mutateAsync({ edgeId: edge.id, questId });
-    }
+    // Removes first: an objective swapped between conditions frees its
+    // (edge, objective) key before the add that takes it over.
+    const plan = planGateWrites(edgeGates.value.filter((gate) => gate.edge_id === edge.id), edgeGateConditions.value);
+    for (const id of plan.remove) await removeGateCondition.mutateAsync({ id, questId });
+    for (const change of plan.update) await updateGateCondition.mutateAsync({ id: change.id, questId, statuses: change.statuses });
+    for (const added of plan.add) await addGateCondition.mutateAsync({ edgeId: edge.id, questId, campaignId: edge.campaign_id, objectiveId: added.objectiveId, statuses: added.statuses });
+    if (edgeGateMode.value !== edge.gate_mode) await setGateMode.mutateAsync({ edgeId: edge.id, questId, mode: edgeGateMode.value });
+    // Re-read the stored rows before the editor can save again, so a condition
+    // just added is an update next time rather than a second insert.
+    await edgeGatesQuery.refetch();
+    edgeGateConditions.value = edgeGates.value
+      .filter((gate) => gate.edge_id === edge.id)
+      .map((gate) => ({ key: gate.id, gateId: gate.id, objectiveId: gate.objective_id, statuses: [...gate.statuses] }));
     retryMutation.value = null;
   }
   catch (error) { mutationError.value = error instanceof Error ? error.message : "Could not save route"; retryMutation.value = () => void saveEdge(); }

@@ -29,12 +29,14 @@
       <span v-if="presentation?.site?.emptyRoomLabel" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-ink-caution">{{ presentation.site.emptyRoomLabel }}</span>
       <span v-if="presentation?.unlocksQuest" class="rounded bg-muted px-1.5 py-0.5">unlocks a quest</span>
     </div>
+    <QuestConvergeControl :beat="beat" />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import QuestConvergeControl from "./QuestConvergeControl.vue";
 import { IconDungeon, IconReveal } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";

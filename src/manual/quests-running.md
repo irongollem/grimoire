@@ -17,6 +17,7 @@ The **Run** tab (one of a quest's three tabs, alongside Overview and Story Flow,
 | Thread bar | The row of pills across the top, one per thread the quest holds, for switching which one the cockpit is showing. |
 | Advance | Recording what happens next: the route taken, any parallel routes that open alongside it, and which payoff fires now versus later. |
 | Held payoff | A consequence or piece of loot that's already fired but is still waiting for you to hand it over or announce it. |
+| Clock | A progress clock with 2 to 12 segments that you tick at the table. When it fills, the rules watching it fire. |
 | Site handoff | What the cockpit shows instead of the beat card when the current beat is staged at a site with rooms. |
 
 ## Starting a run
@@ -47,9 +48,19 @@ The **thread bar** shows one pill per thread: live and waiting ones are clickabl
 
 The **Session** card carries the table-wide commands, independent of what the current beat offers: **Previous** (undo, truncating anything abandoned by moving forward again), **Jump…** (search for and jump straight to any beat, with a required reason: the deliberate override that ignores gates), **Pause** / **Resume**, and **End session** (pauses every running thread; a thread parked waiting for a converge stays waiting). Keyboard shortcuts: **Alt+←** previous, **Alt+→** advances when exactly one route is open, **J** opens Jump.
 
+## Clocks
+
+If the quest has progress clocks (you add them on the quest Overview), a **Clocks** card in the cockpit shows each one as a dial with a label and "2 of 6"-style progress. Use the **+** and **-** buttons to tick or untick it as the table makes progress. A clock never ticks on its own: only you do, or a payoff rule that ticks it. When a tick fills the last segment, the rules watching that clock fire at once and a toast tells you so. Unticking a full clock does not undo what it already did; use the quest log's Previous for that.
+
+Deadlines are the calendar's job instead. An objective with a **due date** shows it in the cockpit's objectives list ("due in 3 days", or "overdue" in red). When your campaign's date moves forward past that day, an objective that is still Open fails on its own, under "Deadline passed", and the rules watching it fire. See [Quest Log](#quest-log) for setting both.
+
+## When the last objective is resolved
+
+Once every objective is Completed or Failed, the cockpit shows a prompt at the top: **Every objective is resolved.** with **Mark completed**, **Mark failed** and **Keep running**. Grimoire never closes the quest for you; this is the nudge. **Keep running** hides the prompt until you reload.
+
 ## Held payoff
 
-Anything the quest has already fired but you haven't handed to the table yet, loot sitting unclaimed, or a consequence you held back in the Advance dialog, collects in **Held payoff**, quest-wide rather than tied to one beat. Each entry gets **Dispatch** (loot, drops it to chat) or **Fire now** (a held consequence, performs it).
+Anything the quest has already fired but you haven't handed to the table yet, loot sitting unclaimed, or a consequence you held back in the Advance dialog, collects in **Held payoff**, quest-wide rather than tied to one beat. Each entry gets **Dispatch** (loot, drops it to chat) or **Fire now** (a held consequence, performs it). A held consequence waits for you even if it also carries a delay: it never fires just because its day arrives.
 
 ## Running a beat staged at a site
 
@@ -64,7 +75,8 @@ The run cockpit itself (where each thread stands, the history of what's happened
 > **Jump** is the deliberate override: it reaches a closed or unconnected beat directly and always asks for a reason, because it means the table decided something the story flow's gates don't know about.
 
 - Reveal is separate from advancing. Moving a thread onto a beat never reveals it to players on its own: use the Reveal button when you're ready.
-- A converge-all beat parks every arriving thread until all its authored incoming routes have been walked, then merges them and fires its arrival rules once: you'll see the parked thread as "waiting" rather than live.
+- A beat set to **Wait for the others** parks each arriving thread while another open thread could still reach it, then merges them and fires its arrival rules once: you'll see the parked thread as "waiting" rather than live. Threads that never opened, have ended or have gone elsewhere do not hold it up, and a waiting thread is released as soon as nothing can reach the beat any more.
+- A route you cannot choose shows why on its card (for example "needs “Rescue the merchant” completed or “Bribe the guard” completed"), including parallel routes.
 
 ## Related
 

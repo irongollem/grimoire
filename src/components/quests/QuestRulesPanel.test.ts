@@ -41,6 +41,12 @@ vi.mock("@/composables/quests/useQuests", () => ({
     { id: "quest-live", title: "Already running", status: "active", entry_beat_id: null },
   ] } }),
 }));
+vi.mock("@/composables/quests/useQuestClocks", () => ({
+  useQuestClocks: () => ({ data: { value: [{ id: "clock-1", quest_id: "quest-1", label: "The count", segments: 6, filled: 2 }] } }),
+}));
+vi.mock("@/composables/factions/useFactions", () => ({
+  useAllFactions: () => ({ data: { value: [{ id: "fac-1", name: "Understage Crew" }] } }),
+}));
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useNpcs: () => ({ data: { value: [{ id: "npc-1", name: "Oarus Masthew" }] } }),
 }));
@@ -86,7 +92,7 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
     action: "complete",
     target_objective_id: null,
     target_npc_id: null,
-    target_quest_id: null, target_document_id: null,
+    target_quest_id: null, target_document_id: null, target_clock_id: null, target_location_id: null, target_faction_id: null, on_clock_id: null,
     action_payload: {},
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -104,7 +110,7 @@ describe("QuestRulesPanel", () => {
   it("defaults to the quest-settled condition and hides the objective picker", () => {
     const wrapper = mountPanel();
     const options = wrapper.findAll("select")[0]!.findAll("option");
-    expect(options.map((option) => option.attributes("value"))).toEqual(["settled", "objective", "location"]);
+    expect(options.map((option) => option.attributes("value"))).toEqual(["settled", "clock", "objective", "location"]);
     // Only the action's own target-objective combobox is offered yet.
     expect(comboboxes(wrapper)).toHaveLength(1);
   });
@@ -142,7 +148,7 @@ describe("QuestRulesPanel", () => {
       action: "create_calendar_event",
       target_objective_id: null,
       target_npc_id: null,
-      target_quest_id: null, target_document_id: null,
+      target_quest_id: null, target_document_id: null, target_clock_id: null, target_location_id: null, target_faction_id: null, on_clock_id: null,
       entry_beat_id: null,
       action_payload: { title: "The cult reveals itself", event_type: "quest" },
     });
@@ -177,6 +183,110 @@ describe("QuestRulesPanel", () => {
       action: "complete",
       target_objective_id: "obj-1",
     }));
+  });
+
+  it("authors a rule that ticks a clock when another clock fills", async () => {
+    const wrapper = mountPanel();
+    await wrapper.findAll("select")[0]!.setValue("clock");
+    comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "clock-1");
+    await wrapper.findAll("select")[1]!.setValue("tick_clock");
+    await flushPromises();
+    comboboxes(wrapper)[1]!.vm.$emit("update:modelValue", "clock-1");
+    await flushPromises();
+    await wrapper.find('input[aria-label="Segments to tick"]').setValue(2);
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      on_clock_id: "clock-1",
+      on_quest_settled: false,
+      action: "tick_clock",
+      target_clock_id: "clock-1",
+      target_objective_id: null,
+      action_payload: { step: 2 },
+    }));
+  });
+
+  it("will not add a clock tick of zero segments", async () => {
+    const wrapper = mountPanel();
+    await wrapper.findAll("select")[1]!.setValue("tick_clock");
+    await flushPromises();
+    comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "clock-1");
+    await wrapper.find('input[aria-label="Segments to tick"]').setValue(0);
+    await flushPromises();
+    expect(wrapper.findAll("button").find((button) => button.text() === "Add")!.attributes("disabled")).toBeDefined();
+  });
+
+  it("authors move_npc with its NPC and destination", async () => {
+    const wrapper = mountPanel();
+    await wrapper.findAll("select")[1]!.setValue("move_npc");
+    await flushPromises();
+    comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "npc-1");
+    comboboxes(wrapper)[1]!.vm.$emit("update:modelValue", "loc-vault");
+    await flushPromises();
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: "move_npc", target_npc_id: "npc-1", target_location_id: "loc-vault", target_clock_id: null, action_payload: {},
+    }));
+  });
+
+  it("authors add_companion with only the NPC", async () => {
+    const wrapper = mountPanel();
+    await wrapper.findAll("select")[1]!.setValue("add_companion");
+    await flushPromises();
+    comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "npc-1");
+    await flushPromises();
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: "add_companion", target_npc_id: "npc-1", target_location_id: null, target_faction_id: null, action_payload: {},
+    }));
+  });
+
+  it("authors shift_faction_standing with the NPC shift's payload shapes", async () => {
+    const wrapper = mountPanel();
+    await wrapper.findAll("select")[1]!.setValue("shift_faction_standing");
+    await flushPromises();
+    comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "fac-1");
+    await wrapper.findAll("select")[2]!.setValue("step:-1");
+    await flushPromises();
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: "shift_faction_standing", target_faction_id: "fac-1", target_npc_id: null, action_payload: { step: -1 },
+    }));
+  });
+
+  it("sends the calendar description only when one was typed", async () => {
+    const wrapper = mountPanel();
+    await wrapper.findAll("select")[1]!.setValue("create_calendar_event");
+    await wrapper.find('input[placeholder="Event title…"]').setValue("The count ends");
+    await wrapper.find('input[placeholder="Description (optional)…"]').setValue("The cult strikes at dawn.");
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      action_payload: { title: "The count ends", event_type: "quest", description: "The cult strikes at dawn." },
+    }));
+  });
+
+  it("names the clock, NPC, faction and place in existing rules", async () => {
+    mocks.rows = [
+      consequence({ id: "r-1", on_clock_id: "clock-1", action: "move_npc", target_npc_id: "npc-1", target_location_id: "loc-vault" }),
+      consequence({ id: "r-2", on_quest_settled: true, action: "shift_faction_standing", target_faction_id: "fac-1", action_payload: { to: "friendly" } }),
+      consequence({ id: "r-3", on_quest_settled: true, action: "tick_clock", target_clock_id: "clock-1", action_payload: { step: 1 } }),
+    ];
+    const wrapper = mountPanel();
+    await flushPromises();
+    const text = wrapper.findAll("ul li").map((li) => li.text());
+    expect(text[0]).toContain("Oarus Masthew moves to The Inner Vault");
+    expect(text[0]).toContain("when The count fills");
+    expect(text[1]).toContain("Understage Crew: standing becomes friendly");
+    expect(text[2]).toContain("The count ticks 1");
   });
 
   it("authors a quest-settled rule", async () => {
@@ -324,7 +434,7 @@ describe("QuestRulesPanel", () => {
     it("names the handout in an existing rule", () => {
       mocks.rows = [consequence({ id: "c-give", on_quest_settled: true, action: "give_handout", target_document_id: "doc-map" })];
       const wrapper = mountPanel();
-      expect(wrapper.findAll("ul li")[0]!.text()).toContain('Gives a handout: "The smuggler\'s map"');
+      expect(wrapper.findAll("ul li")[0]!.text()).toContain('Give a handout: "The smuggler\'s map"');
     });
   });
 });

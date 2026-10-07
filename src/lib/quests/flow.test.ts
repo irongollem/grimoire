@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyFlowPositions, moveBeatCommand, retainSelectedBeatId, toQuestFlowGraph } from "./flow";
-import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.types";
 import type { QuestBeatPresentation } from "./presentation";
 
 const beat = (id: string, x: number, y: number): QuestBeat => ({
@@ -36,7 +36,7 @@ describe("quest flow adapter", () => {
 
   it("marks a gated edge's class distinctly when the gate is closed", () => {
     const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b" }] as QuestBeatEdge[];
-    const closedGate = { objective_id: "o1", objective: "Save the princess", required_status: "complete", current_status: "pending", is_open: false } as const;
+    const closedGate = { mode: "all" as const, is_open: false, conditions: [{ objective_id: "o1", objective: "Save the princess", statuses: ["complete" as const], current_status: "pending" as const, met: false }] } satisfies QuestRouteGate;
     const graph = toQuestFlowGraph([beat("a", 0, 0), beat("b", 1, 1)], edges, {}, new Set(), { e: closedGate });
     expect(graph.edges[0]!.class).toBe("quest-flow-route is-closed");
     expect(graph.edges[0]!.data!.gate).toBe(closedGate);
@@ -72,7 +72,7 @@ describe("quest flow adapter", () => {
   it("flags an edge into a beat the run has cut off, and flags that beat as gated when a route in is closed", () => {
     const presentation = { isCurrent: false, isVisited: false, isReady: true, isDisconnected: false, reach: "stranded", prepGapCount: 0, prepGaps: [], handoutCount: 0, loot: { total: 0, undispatched: 0, unclaimed: 0 }, currentThreadIds: [], payoffCount: 0, unlocksQuest: false, convergeLabel: null, site: null } satisfies QuestBeatPresentation;
     const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", thread_label: null }] as QuestBeatEdge[];
-    const closedGate = { objective_id: "o1", objective: "Save the princess", required_status: "complete", current_status: "pending", is_open: false } as const;
+    const closedGate = { mode: "all" as const, is_open: false, conditions: [{ objective_id: "o1", objective: "Save the princess", statuses: ["complete" as const], current_status: "pending" as const, met: false }] } satisfies QuestRouteGate;
     const graph = toQuestFlowGraph([beat("a", 0, 0), beat("b", 1, 1)], edges, { b: presentation }, new Set(), { e: closedGate });
     expect(graph.edges[0]!.class).toBe("quest-flow-route is-closed is-stranded");
     expect(graph.edges[0]!.data).toMatchObject({ stranded: true });

@@ -10,6 +10,7 @@ function event(overrides: Partial<PendingConsequenceEvent> & { id: string }): Pe
     fires_on_year: TODAY.year,
     fires_on_month: TODAY.month,
     fires_on_day: TODAY.day,
+    held_at: null,
     ...overrides,
   };
 }
@@ -58,5 +59,10 @@ describe("dueConsequenceEvents", () => {
     const dueA = event({ id: "due-a", after_days: 0 });
     const dueB = event({ id: "due-b", fires_on_day: TODAY.day - 1, after_days: 0 });
     expect(dueConsequenceEvents(TEST_ADAPTER, [notYet, dueA, dueB], TODAY)).toEqual([dueA, dueB]);
+  });
+
+  it("never performs a held payoff, even when its delay has elapsed", () => {
+    const held = event({ id: "held", after_days: 2, fires_on_day: TODAY.day - 5, held_at: "2026-01-01T00:00:00Z" });
+    expect(dueConsequenceEvents(TEST_ADAPTER, [held], TODAY)).toEqual([]);
   });
 });

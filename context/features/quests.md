@@ -76,9 +76,13 @@ than one cursor through that same ledger at once.
 - **A beat's `converge_mode` says how it receives several threads.** `any`
   (the default, and every beat's behaviour before this epic) lets every
   arriving thread proceed on its own. `all` parks each arriving thread
-  (`waiting`) until every one of the beat's authored incoming routes has been
-  walked by a live or waiting thread, then merges them into the earliest
-  arrival and fires the beat's arrival rules exactly once.
+  (`waiting`) for as long as another open thread of the quest could still
+  reach the beat by some route (#1011), then merges them into the earliest
+  arrival and fires the beat's arrival rules exactly once. It no longer waits
+  on every *authored* incoming route: an alternative ending (one route will
+  never be walked because its sibling was) needs no funnel beat, and a thread
+  that was never opened, has ended, or stands somewhere the join is
+  unreachable from never strands it.
 - **A payoff can be held instead of fired.** The Advance dialog lets the DM
   untick a consequence before submitting; a held rule still logs its event
   (`held_at` set) but performs nothing, and sits in the cockpit's Held payoff
@@ -92,6 +96,29 @@ than one cursor through that same ledger at once.
   announced to the table by the same broadcast the engine already fires. Same
   table (`quest_consequences`), same delay, same event log, same undo as every
   other verb.
+- **Three more world verbs (#1011)**: `move_npc` (an NPC to another place),
+  `add_companion` (an NPC joins the party as a companion) and
+  `shift_faction_standing` (the party's standing with a faction, on the NPC
+  ladder). Each records what `previous` needs to undo it.
+- **Timers come in two kinds, and they are separate on purpose (#1011).** A
+  **progress clock** (`quest_clocks`: N segments, 2 to 12) is ticked by the DM
+  or by a `tick_clock` rule and, when it fills, fires the rules watching it. A
+  clock never ticks by itself. A **deadline** is an objective's due date: when
+  the campaign's in-world date moves forward past it, a still-pending
+  objective of an active quest fails. See `quest_clocks` and "Objective due
+  dates" under the data model.
+- **A route's gate is a set of conditions, not one (#1011).** Any number of
+  conditions, combined by the route's `gate_mode` (`all` | `any`); each
+  condition is an objective plus the *set* of statuses that satisfy it, and
+  `dormant` is nameable at last ("unless her trust is broken" is
+  `{dormant, pending, complete}`).
+- **Settled is final for rules (#1011).** `complete` and `fail` move only an
+  open objective (`dormant` or `pending`), and the consequence cascade is
+  seeded only by an objective that actually changed. The DM's own assert and
+  `previous` are the two things that may still move a settled one.
+- **The quest is never closed by the engine (#1011).** When the ledger
+  settles the cockpit and the Overview ask the DM ("Every objective is
+  resolved."); the server never writes `quests.status` itself.
 
 ### The site
 
@@ -319,6 +346,79 @@ A column-level grant revokes it from a plain client `UPDATE` (`description`,
 `private.apply_quest_consequences` so a status change can never bypass the
 consequence engine watching it.
 
+**Settled is final for rules (#1011).** `complete` and `fail` (as rule verbs)
+move only an objective whose status is `dormant` or `pending`; `raise` and
+`reveal` were already guarded the other way. The cascade (a rule firing
+because an objective changed, which changes another) is seeded only by an
+objective that actually moved, status or visibility, so a rule aimed at an
+already-settled objective is a no-op that cannot re-trigger the rules
+watching it. Both are decisions with reasons: see **Do not "fix" these**.
+`assert_quest_objective_status` and `previous` are unchanged and still move
+anything, because they are the DM's own hand.
+
+**Objective due dates (#1011).** `due_year`, `due_month`, `due_day` (migration
+`20261007214426`): all three set or all three null (`quest_objectives_due_all_or_none`),
+writable by a plain client update like `description`. A trigger on
+`campaigns` (`private.fail_overdue_objectives`, after update of
+`current_year/month/day`) runs when the in-world date moves **forward** (the
+new tuple is greater than the old; a null on either side does nothing): every
+`pending` objective of an `active` quest of that campaign whose due date is
+strictly earlier than the new date fails, **one `assert` transition per quest**
+with reason "Deadline passed" and provenance `{deadline: true, objective_ids, date}`,
+and `apply_quest_consequences` cascades from the failed ids. Inclusive: due on
+the 14th fails when the date becomes the 15th. Dates compare as
+(year, month, day) tuples, which holds for any calendar, so no calendar maths
+lives in the database. A backward move undoes nothing (the DM can, by hand);
+`dormant`, settled and non-active-quest objectives are left alone. The client
+side: `lib/quests/deadlines.ts` (`objectiveDueDate`, `describeDeadline`,
+`formatDueDate`), `QuestObjectiveDueDate.vue` (the "Set due date" link on each
+Overview objective row; months come from the calendar adapter), and a due
+caption on `QuestRunObjectivesLedger` rows, shown only while the objective is
+pending.
+
+### `quest_clocks`: progress clocks (#1011)
+
+`id`, `campaign_id`, `quest_id` (composite FK onto `quests (id, campaign_id)`,
+cascade), `label` (1-80), `segments` (2-12, `QUEST_CLOCK_MIN/MAX_SEGMENTS`),
+`filled` (0 to `segments`, `quest_clocks_filled_in_range`), `sort_order`,
+`unique (id, quest_id)` (the composite `quest_consequences` targets). RLS is
+DM-only on all four verbs (`private.is_campaign_dm`): a player never reads a
+clock, and the rows ring the `campaign_sync` doorbell rather than travel as
+payloads (registry entry `quest_clocks`, `CLOCKS_KEY`). Demo copies carry
+clocks.
+
+**`filled` has exactly two writers**, like `quest_objectives.status`: a column
+grant leaves a client only `label`, `segments` and `sort_order` to write (and
+`insert` of the same plus ids), and `filled` moves through
+`tick_quest_clock(clock, step, reason?)` (DM-gated RPC, signed non-zero step)
+or a `tick_clock` rule, both funnelling into `private.set_quest_clock_filled`.
+That function clamps to `0..segments`; a tick that **fills** the clock (reaches
+`segments` from below) writes an `assert` transition ("‹label› filled",
+provenance `{clock_id}`) and runs `apply_quest_consequences` with the clock as
+the seed, so every rule with `on_clock_id` set fires, cascading like any other
+condition. Ticking down, or ticking a clock that was already full, fires
+nothing. **Clocks never tick on their own** and deadlines are not clocks: the
+database can compare two in-world dates but cannot count days across a custom
+calendar's months (that maths lives in `src/lib/calendar/dayMath.ts`), so a
+calendar deadline is an objective's due date, and a clock is for things that
+advance by events.
+
+Client: `useQuestClocks` / `useCreateQuestClock` / `useUpdateQuestClock` /
+`useDeleteQuestClock` / `useTickQuestClock` (`composables/quests/useQuestClocks.ts`),
+`QuestClocksPanel.vue` (authoring, a "Clocks" section on the Overview between
+Objectives and the rules panel), `QuestRunClocks.vue` (the cockpit's Clocks
+card: dial, "n of N", Tick and Untick; a fill toasts "‹label› filled. Its
+rules fired."), `QuestClockDial.vue` (display only; `lib/quests/clockDial.ts`).
+
+**Backup (`useCampaignBackup`).** A backup carries `quest_clocks` (absent from
+older backups, read as empty). Restore inserts only the authored columns
+(`filled` and `created_by` have no client grant), so a restored clock starts
+empty, and it inserts clocks *before* the rules that watch or tick them. The
+rule columns `on_clock_id`, `target_clock_id`, `target_location_id` and
+`target_faction_id` are remapped like every other FK. Objective rows
+(`due_*`), edges (`gate_mode`) and factions (`party_standing`) are carried
+whole.
+
 ### `quest_beats`
 
 `title` (non-blank, enforced), `dm_content`, `rumor_text`, `reveal_text`,
@@ -326,8 +426,9 @@ consequence engine watching it.
 enum** — conventionally `combat` / `social` / `explore` / `discovery` / `neutral`,
 plus the tombstone `archived`), `presentation_hint`, `canvas_x/y`,
 `is_improvised`, `improv_reviewed_at`, `read_aloud`, `how_it_plays`,
-`converge_mode` (`any` | `all`, #850 — see "Threads, parallel routes and
-payoff" above). (`conversion_source_type/_id` were here until #799 dropped them
+`converge_mode` (`any` | `all`, #850, semantics reworked by #1011: `all`
+waits for every other open thread that could still reach the beat, see
+"Threads, parallel routes and payoff" above). (`conversion_source_type/_id` were here until #799 dropped them
 — see **Dead residue** above.)
 
 **`outcomes` and `consequences` are gone (#850).** Both existed because the
@@ -369,7 +470,7 @@ strings live in the beat's read-aloud/prose today rather than in a dedicated
 field. The other 39 forks needed no text because the target beat's title
 already was the outcome.
 
-**`route_kind` and `thread_label` (#850).** `route_kind` is `choice` (default)
+**`route_kind`, `thread_label` (#850) and `gate_mode` (#1011).** `route_kind` is `choice` (default)
 or `parallel` — see "Threads, parallel routes and payoff" in the model above.
 `thread_label` is the name a `parallel` route gives the thread it opens
 ("shown to the DM and on the player thread," frame `02 Story flow`'s Selected
@@ -378,14 +479,25 @@ one-route-per-pair question #795 closed: a parallel route is still a single
 edge from source to target, it just spawns a thread instead of moving the
 existing one.
 
-### `quest_beat_edge_gates` — whether a route is open (#795)
+### `quest_beat_edge_gates`: whether a route is open (#795, compound by #1011)
 
-One optional row per edge: `objective_id` + `status` (`pending` | `complete` |
-`failed` — the same set `quest_consequences.on_objective_status` uses, and for
-the same reason `dormant` is excluded: a route gated on an objective the party
-has never been given would never open). The route is open while the named
-objective stands in that status; **absent means always open**, not a default —
-and still the shape production has: the hand-wiring pass of 9 Sep 2026 (#834,
+**Any number of rows per edge**, combined by `quest_beat_edges.gate_mode`
+(`all` default | `any`; meaningless with fewer than two conditions). Each row
+is one condition: `id` (the primary key is no longer `edge_id`),
+`objective_id` and `statuses text[]`, the SET of objective statuses that
+satisfies it (`quest_beat_edge_gates_statuses_check`: a subset of `dormant`,
+`pending`, `complete`, `failed`, between one and **three** elements, since all
+four would be no condition at all); `unique (edge_id, objective_id)`, one
+condition per objective per route. The single `status` column was folded into
+`statuses` (`array[status]`) and dropped. #795 excluded `dormant` because a
+route gated on an objective the party has never been given would never open;
+with a set that argument inverts, since "open unless it has failed" is
+`{dormant, pending, complete}` and a route that can say it should. The UI words
+the four as "Not yet raised", "Open", "Completed" and "Failed".
+The route is open when `all` conditions hold (every row's objective stands in
+one of its statuses) or, for `any`, when one does. **No rows means always
+open**: a real state rather than a coerced default, and still the shape most
+production routes have, since the hand-wiring pass of 9 Sep 2026 (#834,
 below) read every fork's prose and gated none of them, because every one is
 decided at the table, not by the ledger.
 
@@ -396,21 +508,28 @@ leaving `status` dangling. RLS is a single `private.is_campaign_dm(campaign_id)`
 policy, `for all`, so the client reads and writes it directly with no RPC.
 
 **Enforced inside `transition_quest_runtime`'s `advance` branch, not only drawn
-in the cockpit.** A closed route raises `23514`, naming the objective, the
-required status, and the current one — so a route the ledger says is shut
+in the cockpit.** A closed route raises `23514`, naming the objectives, the
+statuses they need, and the current ones, so a route the ledger says is shut
 genuinely cannot be advanced through. Jump remains the deliberate override; it
 already demands a reason and does not consult the gate at all.
 
-`get_quest_runtime_context(campaign, quest, thread)`'s `outgoing` entries carry
-`gate` (the same four fields joined server-side: `objective_id`, `objective`,
-`required_status`, `current_status`, `is_open`, or `null`), `effects`
+`private.edge_gate_state(edge)` evaluates a gate once for both consumers:
+`assert_edge_gate_open` (the enforcement) and the runtime context (the
+display), so they cannot disagree. `get_quest_runtime_context(campaign, quest,
+thread)`'s `outgoing` entries carry `gate` (`null`, or `{mode, is_open,
+conditions: [{objective_id, objective, statuses, current_status, met}]}`), `effects`
 (`quest_consequences` rows keyed by `on_edge_id`, read rather than duplicated
 — see #794 above), and, since #850, `route_kind`, `thread_label`,
 `converge_mode`, `site` and `payoff`/`loot` — see **The runtime** below for the
 full shape. Build mode joins the gate shape client-side, in
 `lib/quests/gates.ts#deriveQuestRouteGates`, against `useQuestObjectives` —
 `QuestBeatEdge.gate`/`QuestRuntimeChoice.gate` are typed identically
-(`QuestRouteGate`) so both surfaces read the same fields.
+(`QuestRouteGate`) so both surfaces read the same fields. The sentences the
+panels and the outcome strip show come from the same module
+(`describeQuestRouteGate` / `describeQuestRouteNeeds` / `describeQuestRouteHeld`,
+statuses sorted into ladder order), and the route editor's draft/diff logic
+(`draftRouteGate`, `validateGateDrafts`, a write plan of remove/update/add)
+lives there too.
 
 ### `quest_beat_attachments`
 
@@ -500,7 +619,7 @@ A quest is born with one thread, "Main" — an `after insert on quests` trigger
 `create_quest_overview_beat` set) — so `start` always has a thread to point
 at, and every quest that predates this migration was backfilled the same way.
 `status` progresses `live` → `waiting` (parked at a `converge_mode: 'all'`
-beat, waiting for the rest) → `live` again on merge, or → `closed`/`merged`
+beat while another open thread could still reach it) → `live` again on merge, or → `closed`/`merged`
 when the DM ends it or a converge folds it into another. Nothing here closes
 on its own; RLS is a single `private.is_campaign_dm` policy.
 
@@ -638,8 +757,9 @@ event.
 
 `quest_consequences` is the rule: exactly one **condition** (`on_beat_id`,
 `on_edge_id`, `on_objective_id` + `on_objective_status` ∈
-`pending`/`complete`/`failed`, `on_quest_settled`, or — since #869 —
-`on_location_id` + `on_location_fact`), an **`after_days`** delay, and an
+`pending`/`complete`/`failed`, `on_quest_settled`, since #869
+`on_location_id` + `on_location_fact`, or since #1011 `on_clock_id`, a clock
+filling), an **`after_days`** delay, and an
 **`action`**:
 
 | action                                                       | kind         | needs                                                              |
@@ -652,6 +772,53 @@ event.
 | `owe_favor` (#850)                                           | world action | `target_npc_id` + `action_payload.text`                            |
 | `award_milestone` (#850)                                     | world action | `action_payload.text`                                              |
 | `give_handout` (#970, `20261004110516`)                      | world action | `target_document_id` (a Scriptorium document of the quest's campaign) |
+| `tick_clock` (#1011)                                         | engine state | `target_clock_id` + `action_payload.step` (signed, non-zero)       |
+| `move_npc` (#1011)                                           | world action | `target_npc_id` + `target_location_id`                             |
+| `add_companion` (#1011)                                      | world action | `target_npc_id`                                                    |
+| `shift_faction_standing` (#1011)                             | world action | `target_faction_id` + `action_payload.step` **or** `.to`           |
+
+**Eleven world actions and five engine-state verbs.** `private.quest_action_is_world`
+lists the eleven that `perform_quest_consequence` performs (now or after
+`after_days`); the five engine-state verbs (`raise`, `reveal`, `complete`,
+`fail` and `tick_clock`) move inline inside the transition and cascade, and
+`QUEST_CONSEQUENCE_LEDGER_ACTIONS` lists them. `tick_clock` is the odd one: it
+is engine state like the objective verbs but its target is a clock, so
+`isObjectiveConsequenceAction` excludes it. A clock it fills fires its own
+rules in the same transition.
+
+**The three #1011 world verbs** (all scoped to the event's campaign on every
+id, because a definer must not move another campaign's NPC or into another
+campaign's place; the write-time trigger `quest_consequences_targets_in_campaign`
+refuses a target from another campaign. It replaced `give_handout`'s
+single-column document guard and now covers the document, NPC, place and
+faction columns):
+
+- `move_npc` sets `npcs.location_id`. It records `previous_location_id` and
+  `npc_moved = true` (the old place may legitimately be null, so the flag, not
+  the value, says there is something to put back). Quietly does nothing when
+  the NPC or the place is not in the campaign.
+- `add_companion` inserts the `companions` row `CompanionForm` seeds from an
+  NPC: name, portrait and focal point, and the leading integer of the stat
+  block's `hit_points`, `armor_class` and `speed` (1, 10 and 30 when the stat
+  block says nothing), `companion_type = 'ally'`, `source_type = 'npc'`,
+  `source_npc_id`. It joins the party unassigned; the DM gives it an owner on
+  the Party page. The row's id is the event's `companion_id`, which undo
+  deletes by.
+- `shift_faction_standing` moves `factions.party_standing` (new column, type
+  `npc_relationship`, default `unknown`) with the same two payload forms as
+  `shift_npc_relationship`, `step` and `to`, the same clamp at both ends and
+  the same `unknown` skip, and records `previous_standing`. Its payload has
+  its own CHECK (`quest_consequences_faction_shift_payload`); `tick_clock`'s
+  is `quest_consequences_clock_step_payload` (a non-zero whole number), and
+  the NPC shift's step was tightened to a whole number the same way, because
+  a bad payload that only fails at fire time can fail inside the deadline
+  trigger and block the date change.
+
+Each new column sits on `quest_consequence_events` as its undo record
+(`target_clock_id` + `previous_clock_filled`, `target_location_id` +
+`previous_location_id` + `npc_moved`, `companion_id`, `target_faction_id` +
+`previous_standing`). A rule's identity (the unique indexes) learned the new
+targets, so one beat can move two NPCs or tick two clocks.
 
 `give_handout` (#970) hands a Scriptorium handout to the **whole party** and
 applies the reveals of every entry the handout links, through the same
@@ -700,8 +867,13 @@ quest-settled condition (`on_objective_id`/`on_objective_status`, or
 `QuestConsequencesPanel.vue`, before the Quest Manager Redesign folded its
 `scope="beat"` half into the Payoff list and left it with exactly one scope
 (so the `scope` prop and its beat-only branches are gone, not kept as dead
-code paths). Both surfaces still share the same action half: the four ledger
-verbs and the now-seven world actions, plus the delay field. A location-fact
+code paths). Both surfaces still share the same action half: the ledger verbs, `tick_clock`
+and the eleven world actions, plus the delay field. The four targeted verbs of
+#1011 (`tick_clock`, `move_npc`, `add_companion`, `shift_faction_standing`)
+share one set of fields, `QuestWorldVerbFields.vue`, fed by
+`useWorldVerbTargets` and validated by `worldVerbReady` / `worldVerbInsertFields`
+in `lib/quests/consequences.ts`, so the two panels cannot drift. A clock-fills condition
+("When a clock fills…") is authored on the same quest-overview surface. A location-fact
 condition (below) is authored on the same quest-overview surface as
 objective-became and quest-settled, in `QuestRulesPanel.vue` — a place is not
 scoped to one beat, so it has no home on the beat page's Payoff list.
@@ -767,6 +939,11 @@ and a NULL check passes. The one option list both authoring panels offer
 (`RELATIONSHIP_SHIFT_OPTIONS`, `src/lib/quests/consequences.ts`) puts the
 five stances first and defaults to "Becomes friendly".
 
+**`create_calendar_event` without an `event_type` files under `'quest'` (#1011).**
+`calendar_events.event_type` is NOT NULL and the payload's was optional, so a
+rule authored without one failed at fire time and rolled the whole transition
+back. The performer now defaults a blank type to `quest`.
+
 **`unlock_quest` promotes `undiscovered` → `active` and marks the target's
 entry beat `rumored` if it was hidden.** That was the one rung with no
 trigger: nothing moved a quest _out_ of `undiscovered` except a DM editing it.
@@ -803,7 +980,11 @@ or route carried it — with `held_at` set and nothing performed: no objective
 moved, no journal entry written, no calendar event created. The cockpit's
 Held payoff panel (`QuestRunHeldPayoff.vue`) and the quest card's "Held
 payoff — not yet fired" read `held_at is not null and performed_at is null`.
-Firing a held event from the log calls the same `perform_quest_consequence`
+A held event that also carries a delay is **never auto-performed when its day
+arrives** (#1011): `useDueConsequences` reads only `held_at is null` rows, so
+a held payoff fires solely from the cockpit's Fire button. It used to be
+performed on the due date regardless, which is the hold being ignored. Firing
+a held event from the log calls the same `perform_quest_consequence`
 a due delayed action uses, which clears `held_at` alongside setting
 `performed_at` — the one function performs both a due delayed row and a held
 one, distinguished only by which column got it there. A held **ledger** verb
@@ -826,7 +1007,7 @@ fields, not on any one "set today" call site, closes the bug where aging a
 campaign forward from `DetailsTab`'s "Current Year" field fired nothing.
 
 A ledger verb applies **immediately** regardless of `after_days` when it is
-not held — only the (now seven) world actions are ever deferred by
+not held: only the (now eleven) world actions are ever deferred by
 `perform_quest_consequence`, which does not know how to perform a ledger verb
 that fired inline. `after_days` on a ledger-verb row is authored intent, not
 (yet) an enforced wait. The one exception is a **held** ledger verb (#850,
@@ -982,8 +1163,10 @@ neither generated nor read.
   status, giver, location, parent, tags, sharing — one autosaved editor per
   field), then either a "Write the opening beat" empty state (no beats yet) or
   a read-only list of the graph's root beat(s) linking into Story flow, then
-  lifecycle (objectives, quest-wide consequences via `QuestRulesPanel` — see
-  below, sub-quests, calendar, and the backfill panel). A beat's own content is
+  lifecycle (objectives, each with an optional due date; the Clocks section;
+  quest-wide consequences via `QuestRulesPanel` (see below), sub-quests,
+  calendar, and the backfill panel). `QuestSettledPrompt` (compact) sits at the
+  head of the objectives list. A beat's own content is
   edited in exactly one place — the story flow's rail, or
   `QuestBeatDetailView` — never here; this surface no longer embeds a second
   beat editor (it did, for the `is_overview` beat, before #793).
@@ -1035,9 +1218,30 @@ canvas.
   itself); then, mutually exclusive, `QuestRoutePanel` (a selected edge — its
   `route_kind`/`thread_label` as writable fields, its gate, its payoff, Save/Delete)
   or `QuestSelectedBeatPanel` (a selected beat with no edge selected — prep-gap,
-  payoff, loot, converge and site chips, "Open beat", "Preview as players");
+  payoff, loot, converge and site chips, the converge control, "Open beat",
+  "Preview as players");
   then `QuestGraphOutline` underneath, always present, one row per beat with
   its thread and state.
+- **The gate editor (#1011)** in `QuestRoutePanel`: with no conditions the
+  panel reads "No conditions: this route is always open." **Add condition**
+  appends a card (an objective `EntityCombobox`, which excludes objectives
+  already used by another condition, and one `AppCheckbox` per status, the
+  fourth disabled once three are ticked, `GATE_MAX_STATUSES`). Once there are
+  two or more conditions a `SegmentedControl` offers **All of these** /
+  **Any of these** (`gate_mode`), and a line under the cards reads the gate
+  back (`describeQuestRouteGate`). Save diffs the drafts against the stored
+  rows (`planGateWrites`) and writes only what changed; `validateGateDrafts`
+  names the first problem in the DM's words. The canvas pill for a closed
+  route and the cockpit use the same sentences.
+- **`QuestConvergeControl` (#1011)** on the selected beat: "When threads
+  arrive", a `SegmentedControl` of **Each runs on** (`any`) / **Wait for the
+  others** (`all`) with the one-sentence explanation under it (`lib/quests/converge.ts`).
+  `converge_mode` existed since #850 but had **no editor anywhere**: it could
+  only be set by the designer or the database. The control shows only where
+  it can matter, `convergeMatters`: the beat has at least one incoming route
+  *and* the quest has a parallel route somewhere (a quest of choices alone has
+  one cursor and nothing to wait for). Saves on click through
+  `useUpdateQuestBeat`.
 - **"Add parallel route"** opens the beat composer already carrying
   `parallel: true`. The invariant it and `QuestRoutePanel` both enforce: **a
   parallel route may never be the only way out of a beat** — the Parallel
@@ -1125,10 +1329,13 @@ target is staged at a room-bearing site, "Add route"); `QuestPayoffPanel`
 ("Payoff": this beat's `quest_consequences` and `loot_placements` rows as
 **one list**, each row tagged `auto` (fires from the engine) or `you dispatch`
 (a human action) — see "Threads, parallel routes and payoff" above for why the
-tables stay separate while the surface does not — with **eight quick-adds**:
-Item, Riches (loot); Influence, Knowledge, Quest, Favour, Milestone, Event
-(consequences, one button per action the DM might reach for without opening a
-condition form first).
+tables stay separate while the surface does not, with **thirteen quick-adds**:
+Item, Riches (loot); Influence, Knowledge, Quest, Favour, Milestone, Event,
+Handout, Tick clock, Move NPC, Companion, Standing (consequences, one button
+per action the DM might reach for without opening a condition form first).
+The last four of those are #1011's: they share `QuestWorldVerbFields.vue`
+with the Rules panel and `PayoffIcon` grew `clock`, `pin`, `party` and
+`faction` for their rows.
 
 **Deletes** `QuestBeatLootPanel.vue` and the beat-scoped half of
 `QuestConsequencesPanel.vue`; the quest-scoped half survives, renamed
@@ -1181,7 +1388,22 @@ show first. Below the header:
   outcomes of the current beat rather than of the table. Replaces
   `QuestRunControls`, which was a bar docked to the foot of the whole cockpit;
   this is a card in the left column now, under Held payoff.
-- The rail: `QuestRunObjectivesLedger` (gate hints), `QuestRunStorySoFar`
+- **`QuestSettledPrompt`** at the head of the cockpit (#1011): "Every objective
+  is resolved." with **Mark completed**, **Mark failed** (both write
+  `quests.status` through `useUpdateQuest`) and **Keep running** (dismissed per
+  quest for the session, in a module-level set shared with the Overview's
+  compact copy, so a reload asks again). It shows only for a quest still
+  `active` whose ledger is settled (`isLedgerSettled`, which mirrors
+  `private.quest_ledger_settled`). The server never changes quest status
+  itself; this prompt is the whole mechanism.
+- **`QuestRunClocks`** (#1011): the quest's clocks as dials with Tick and
+  Untick. In the rail at `xl` and above (under the objectives ledger); below
+  `xl`, where the rail does not mount, in the main column above the session
+  panel. Neither placement shows while the site handoff owns the width.
+  Renders nothing for a quest without clocks.
+- The rail: `QuestRunObjectivesLedger` (gate hints; a pending objective with a
+  due date also shows "due in N days" / overdue, from `describeDeadline`),
+  `QuestRunStorySoFar`
   (this thread's own path, replacing `QuestRunPath`, which read a narrower,
   undifferentiated shape), `QuestRunOpenChains` (other open chains, **sibling
   threads of this quest listed first**, per the design's "Also open" rule),
@@ -1189,6 +1411,12 @@ show first. Below the header:
   `mt-auto` inside a stretched grid row — **in normal document flow, never
   `sticky` or `fixed`** (the #776 fix; regressing this back into a floating
   bar is the thing not to do).
+- **A closed route says why, first (#1011).** The outcome strip puts the
+  gate's reason (`describeQuestRouteNeeds`, e.g. `needs “A” complete or “B”
+  complete`) above the payoff caption, because the payoff is what taking the
+  route would do, which is moot until it opens; a closed parallel route is
+  dimmed and `aria-disabled` and shows the reason in place of "Ticked by
+  default".
 - **`QuestRunOutcomeStrip`'s Choose no longer transitions on its own click.**
   It opens `QuestAdvanceDialog` preselected on the chosen route — the dialog
   is "the only place a thread is created" now (see below). "Something else…"
@@ -1558,8 +1786,13 @@ spawn_edge_ids?, hold_consequence_ids?, dispatch_loot_ids?)` — commands
 route by **spawning a thread** in the same transaction — its own cursor,
 `enter` transition and arrival rules — while the calling thread's cursor does
 not move. Arriving at a `converge_mode: 'all'` beat parks the thread
-(`private.settle_thread_arrival`): once every one of the beat's authored
-incoming routes has been walked by a live-or-waiting thread, the earliest
+(`private.settle_thread_arrival`, via `compute_arrival_status`) for as long as
+`private.quest_join_blocked` is true, i.e. while any *other* open thread of the
+quest (live, or parked at a different join) could still reach the beat
+(`private.quest_beat_reaches`: a recursive walk of every route kind, gates
+ignored because a closed gate can open, archived beats not walked). Threads
+already parked at this join are the ones being waited *for*. Once nothing can
+still reach it, `private.settle_converge_joins` releases the join: the earliest
 arrival (by `seq`, never `created_at` — two threads can write their arrival
 transition inside the same transaction and tie on timestamp) survives as the
 running cursor, every other waiting thread there is folded into it
@@ -1569,6 +1802,18 @@ still fire immediately on walking — the route's rules are the route's, only
 the beat's arrival rules wait for the merge. `p_hold_consequence_ids` logs a
 rule with `held_at` set instead of performing it; `p_dispatch_loot_ids`
 dispatches loot on the target as part of the same move.
+
+**Joins re-settle after every runtime move (#1011).** `settle_converge_joins`
+runs at the end of `transition_quest_runtime` (every command, so an advance,
+jump, end or return alike), after a thread arrives (`settle_thread_arrival`),
+from `close_quest_thread` (including a thread that never had a cursor, which
+`end` does not reach), and repeats until a pass merges
+nothing, since ending a merged thread can release another join. A join with a
+single waiting thread "merges" into that thread alone; that is how a join is
+released when the thread it waited on ends elsewhere. Before #1011 the only
+trigger was another thread *arriving*, so closing the straggler left its
+siblings parked forever. The DM closing a thread is therefore a join-releasing
+act, and needs nothing extra.
 
 `open_quest_thread(campaign, quest, beat, label, reason?)` /
 `close_quest_thread(campaign, quest, thread, reason?)` — the thread bar's
@@ -1586,9 +1831,16 @@ plus — since #850 — `thread` (this thread's own summary), `threads` (every
 sibling thread of the quest, each with its own current beat and status), and
 `held` (the quest's held-but-not-fired payoff events).
 
+Every outgoing entry's `gate` is now `{mode, is_open, conditions[]}` (see
+`quest_beat_edge_gates`), and `held` excludes nothing new but is the only
+source for the Held payoff panel.
+
 `get_campaign_live_quests` — one row **per open thread**, running first, each
 carrying `thread_id`/`thread_label`/`thread_status` and a `sibling_count` (how
 many threads that thread's quest currently has open).
+
+`tick_quest_clock(clock, step?, reason?)` (#1011, DM-gated, `authenticated`
+only: ticks a clock from the cockpit; see `quest_clocks`).
 
 `improvise_quest_runtime`, `search_quest_runtime_jump_targets`,
 `end_campaign_quest_session` (pauses every running **thread** at its beat;
@@ -1806,6 +2058,48 @@ there.
   actually happened first, and a converge-all merge depends on it being right.
   Anything that orders arrivals by `created_at` instead will occasionally pick
   the wrong survivor.
+- **Settled is final for rules; do not make `complete` / `fail` "just set the
+  status".** A rule that fires twice, or two rules that both complete the same
+  objective, would otherwise re-seed the cascade each time and run every rule
+  watching that objective again (a broadcast sent twice, a favour owed twice).
+  Guarding the verbs (`dormant`/`pending` only) and seeding the cascade only
+  from an objective that actually moved is what makes rule chains idempotent.
+  The DM's own `assert_quest_objective_status` and `previous` stay unguarded on
+  purpose: they are the hand overriding the engine, and the only way to correct
+  a mistake.
+- **`converge_mode = 'all'` waits for open threads that can reach the beat, not
+  for every authored incoming route.** The earlier reading made an alternative
+  ending ("the party wins" or "the party flees", then the same finale) strand
+  the finale forever, because one of its incoming routes could never be walked,
+  and forced a funnel beat in front of every shared ending. The question the
+  join asks is "could anyone still arrive?", answered by reachability over
+  routes (gates ignored, since a closed gate can open) and over open threads
+  only; an unspawned parallel route is not a thread, so it never counts. If you
+  find a join that never releases, look at whether an open thread can still
+  reach it, not at the edge list.
+- **A thread closing re-settles the joins.** Do not move that check back into
+  "on arrival"; the straggler a join waits for is exactly the one that never
+  arrives.
+- **The server never closes a quest.** When the ledger settles the DM is
+  *asked* (`QuestSettledPrompt`); no trigger writes `quests.status`. A quest
+  can be settled with objectives still open, and a ledger can settle before
+  the story is over. Do not add the automatic version.
+- **Clocks do not tick on a calendar, and deadlines are not clocks.** They are
+  two features because they answer different questions: the database can
+  compare two dates but not count days across a custom calendar, so a calendar
+  deadline is an objective's due date (compared as a tuple); a clock is
+  event-driven and moves only by the DM or a rule. Do not make a clock "advance
+  per in-world day".
+- **A deadline fires only on a forward date move, and only for pending
+  objectives of active quests.** Winding the calendar back un-fails nothing, so
+  a mis-clicked date costs a manual fix rather than a silent reversal that
+  could re-fire rules.
+- **A held payoff with a delay still waits for Fire.** `useDueConsequences`
+  filters `held_at is null` deliberately; a delay on a held row is authored
+  intent for when it would have fired, not permission to perform it.
+- **A restored clock starts empty.** `filled` is engine state with no client
+  grant, so a backup restore sends only the authored columns. Do not give the
+  client a grant on it to make the restore exact.
 - **The Payoff panel is one list over two tables, on purpose.** `QuestPayoffPanel.vue`
   merges `quest_consequences` and `loot_placements` at the surface because
   that is one question at the table ("what does this beat give"), but the
@@ -1884,4 +2178,4 @@ built — not a reason to build it beside.
 
 ## DM Manual
 
-`src/manual/worldbuilding-quests.md`.
+`src/manual/worldbuilding-quests.md` (the quest log, objectives and due dates, clocks, quest-wide rules), `quests-story-flow.md` (routes, gates, converge, payoff) and `quests-running.md` (the cockpit, clocks, the settled prompt, held payoff).

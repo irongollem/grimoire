@@ -9,6 +9,6 @@
 import { npcRelationshipBg, npcRelationshipText } from "@/lib/npcDisplay";
 import type { NpcRelationship } from "@/types/npc.types";
 
-/** How an NPC regards the party: a small coloured diamond and the word. */
+/** How an NPC or faction regards the party: a small coloured diamond and the word. */
 defineProps<{ relationship: NpcRelationship }>();
 </script>

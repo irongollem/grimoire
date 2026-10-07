@@ -71,6 +71,15 @@
         />
       </div>
 
+      <!-- Party standing: the same five-wedge reaction wheel an NPC's stance uses -->
+      <div class="space-y-1.5">
+        <label class="text-eyebrow font-semibold text-muted-foreground">Party standing</label>
+        <RelationshipWheel
+          v-model="form.party_standing"
+          label="Faction standing toward the party"
+        />
+      </div>
+
       <!-- Visibility -->
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Visible to Players</label>
@@ -177,6 +186,8 @@ import {
   useDeleteFaction,
 } from "@/composables/factions/useFactions";
 import { FACTION_TYPES, FACTION_ALIGNMENTS, type Faction } from "@/types/faction.types";
+import type { NpcRelationship } from "@/types/npc.types";
+import RelationshipWheel from "@/components/common/RelationshipWheel.vue";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -249,6 +260,7 @@ const form = ref({
   description: null as string | null,
   emblem_url: "" as string,
   alignment: null as string | null,
+  party_standing: "unknown" as NpcRelationship,
   player_visible_to: [] as string[],
   ai_provenance: null as AiProvenance | null,
 });
@@ -262,6 +274,7 @@ watch(
     form.value.description = f.description;
     form.value.emblem_url = f.emblem_url ?? "";
     form.value.alignment = f.alignment;
+    form.value.party_standing = f.party_standing;
     form.value.player_visible_to = f.player_visible_to ?? [];
     form.value.ai_provenance = f.ai_provenance ?? null;
     tags.value = [...f.tags];
@@ -289,6 +302,7 @@ async function handleSave() {
       description: form.value.description,
       emblem_url: form.value.emblem_url || null,
       alignment: form.value.alignment,
+      party_standing: form.value.party_standing,
       player_visible_to: form.value.player_visible_to,
       tags: tags.value,
       ai_provenance: form.value.ai_provenance,

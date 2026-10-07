@@ -22,6 +22,11 @@
             :class="objective.status === 'complete' ? 'text-muted-foreground line-through' : objective.status === 'failed' ? 'text-muted-foreground' : 'text-foreground'"
           >{{ objective.description }}</span>
           <span class="block text-caption text-muted-foreground">{{ captionFor(objective) }}</span>
+          <span
+            v-if="deadlineFor(objective)"
+            class="block text-caption"
+            :class="deadlineFor(objective)?.urgency === 'overdue' ? 'text-destructive' : deadlineFor(objective)?.urgency === 'later' ? 'text-muted-foreground' : 'text-tone-caution'"
+          >{{ deadlineFor(objective)?.label }}</span>
         </span>
       </li>
     </ul>
@@ -49,6 +54,9 @@ import { computed } from "vue";
 import { useAssertQuestObjectiveStatus, useQuestObjectives } from "@/composables/quests/useQuests";
 import { useQuestConsequences } from "@/composables/quests/useQuestFlow";
 import { countObjectivesComplete, nextObjectiveStatus, QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
+import { describeDeadline, objectiveDueDate, type DeadlineSummary } from "@/lib/quests/deadlines";
+import { useCalendarStore } from "@/stores/calendar";
+import { useCampaignStore } from "@/stores/campaign";
 import { objectiveGateTargets, objectiveThreadHint } from "@/lib/quests/run";
 import type { QuestObjective, QuestRuntimeChoice, QuestThreadCursor } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
@@ -65,6 +73,17 @@ const objectives = computed(() => data.value ?? []);
 const doneCount = computed(() => countObjectivesComplete(objectives.value));
 const { mutateAsync: assertStatus } = useAssertQuestObjectiveStatus();
 const consequencesQuery = useQuestConsequences(computed(() => questId));
+
+const campaign = useCampaignStore();
+const calendar = useCalendarStore();
+
+/** A deadline only matters while the objective can still be missed. */
+function deadlineFor(objective: QuestObjective): DeadlineSummary | null {
+  if (objective.status !== "pending") return null;
+  const due = objectiveDueDate(objective);
+  if (!due) return null;
+  return describeDeadline(calendar.adapter, due, { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay });
+}
 
 function statusTooltip(objective: QuestObjective): string {
   const label = QUEST_OBJECTIVE_STATUS_LABELS[objective.status];

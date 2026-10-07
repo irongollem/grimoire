@@ -11,7 +11,7 @@ import { describeQuestConsequenceAction, type QuestConsequenceLabelResolver } fr
  */
 
 export type PayoffTone = "destructive" | "caution" | "info" | "arcane" | "primary" | "muted";
-export type PayoffIcon = "invite" | "hand" | "scrollText" | "quest" | "coins" | "package" | "check" | "calendar" | "send" | "award" | "document";
+export type PayoffIcon = "invite" | "hand" | "scrollText" | "quest" | "coins" | "package" | "check" | "calendar" | "send" | "award" | "document" | "clock" | "pin" | "party" | "faction";
 
 export interface PayoffRow {
   /** The `quest_consequences.id` or `loot_placements.id` this row renders. */
@@ -50,6 +50,10 @@ const CONSEQUENCE_STYLE: Record<QuestConsequenceAction, { tone: PayoffTone; icon
   owe_favor: { tone: "caution", icon: "hand" },
   award_milestone: { tone: "muted", icon: "award" },
   give_handout: { tone: "info", icon: "document" },
+  tick_clock: { tone: "caution", icon: "clock" },
+  move_npc: { tone: "info", icon: "pin" },
+  add_companion: { tone: "info", icon: "party" },
+  shift_faction_standing: { tone: "destructive", icon: "faction" },
 };
 
 function beatTitle(beats: readonly QuestBeat[], id: string): string {
@@ -93,6 +97,11 @@ export interface DerivePayoffRowsInput {
   beatLabel?: QuestConsequenceLabelResolver["beatLabel"];
   /** Resolves a `give_handout` row's document to its title. */
   documentLabel?: QuestConsequenceLabelResolver["documentLabel"];
+  /** Name the targets of the #1011 verbs; omitted, the row reads generically. */
+  clockLabel?: QuestConsequenceLabelResolver["clockLabel"];
+  npcLabel?: QuestConsequenceLabelResolver["npcLabel"];
+  locationLabel?: QuestConsequenceLabelResolver["locationLabel"];
+  factionLabel?: QuestConsequenceLabelResolver["factionLabel"];
 }
 
 /**
@@ -112,7 +121,15 @@ export function derivePayoffRows(input: DerivePayoffRowsInput): PayoffRow[] {
         source: "consequence",
         tone: style.tone,
         icon: style.icon,
-        summary: describeQuestConsequenceAction(row, input.objectiveLabel, { questLabel: input.questLabel, beatLabel: input.beatLabel, documentLabel: input.documentLabel }),
+        summary: describeQuestConsequenceAction(row, input.objectiveLabel, {
+          questLabel: input.questLabel,
+          beatLabel: input.beatLabel,
+          documentLabel: input.documentLabel,
+          clockLabel: input.clockLabel,
+          npcLabel: input.npcLabel,
+          locationLabel: input.locationLabel,
+          factionLabel: input.factionLabel,
+        }),
         caption: consequenceCaption(row, input.outgoingEdges, input.beats),
         chip: "auto",
       };

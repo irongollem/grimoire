@@ -55,7 +55,7 @@ function beat(id: string, title: string, kind = "neutral"): QuestBeat {
 function edge(source_beat_id: string, target_beat_id: string): QuestBeatEdge {
   return {
     id: `${source_beat_id}-${target_beat_id}`, quest_id: "quest-1", campaign_id: "campaign-1", source_beat_id, target_beat_id,
-    route_kind: "choice", thread_label: null, created_by: "dm", created_at: "now",
+    route_kind: "choice", thread_label: null, gate_mode: "all", created_by: "dm", created_at: "now",
   };
 }
 
@@ -63,7 +63,8 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
   return {
     quest_id: "quest-1", on_beat_id: null, on_edge_id: null, on_objective_id: null,
     on_objective_status: null, on_quest_settled: false, on_location_id: null, on_location_fact: null, entry_beat_id: null, after_days: 0,
-    action: "complete", target_objective_id: null, target_npc_id: null, target_quest_id: null, target_document_id: null, action_payload: {},
+    action: "complete", target_objective_id: null, target_npc_id: null, target_quest_id: null, target_document_id: null,
+    on_clock_id: null, target_clock_id: null, target_location_id: null, target_faction_id: null, action_payload: {},
     created_at: "now", updated_at: "now",
     ...overrides,
   };
@@ -256,7 +257,7 @@ describe("QuestBackfillPanel", () => {
 
   it("previews only the consequence rules attached directly to a selected beat's arrival", async () => {
     mocks.beats = [beat("a", "The Flooded Hall")];
-    mocks.objectives = [{ id: "obj-1", quest_id: "quest-1", description: "Find the missing miller", status: "pending", is_player_visible: false, sort_order: 0 }];
+    mocks.objectives = [{ id: "obj-1", quest_id: "quest-1", description: "Find the missing miller", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null }];
     mocks.consequences = [
       consequence({ id: "c1", on_beat_id: "a", action: "complete", target_objective_id: "obj-1" }),
       // Not shown: a route-triggered rule (assert never fires on_edge_id conditions).

@@ -1,3 +1,4 @@
+import { describeGateStatuses } from "./gates";
 import { getReachableBeatIds, rootBeatIds } from "./graph";
 import type {
   QuestBeat,
@@ -6,6 +7,7 @@ import type {
   QuestConsequence,
   QuestConsequenceAction,
   QuestConsequenceObjectiveStatus,
+  QuestGateMode,
   QuestObjective,
 } from "@/types/quest.types";
 
@@ -58,10 +60,10 @@ export interface QuestConsistencyFinding {
  * hand it a projection without first constructing rows it does not need.
  */
 type CheckedBeat = Pick<QuestBeat, "id" | "title" | "kind" | "is_improvised">;
-type CheckedEdge = Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id">;
+type CheckedEdge = Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id"> & { id?: string; gate_mode?: QuestGateMode };
 type CheckedObjective = Pick<QuestObjective, "id" | "description" | "status">;
 type CheckedConsequence = Pick<QuestConsequence, "action" | "on_objective_id" | "target_objective_id">;
-type CheckedGate = Pick<QuestBeatEdgeGate, "edge_id" | "objective_id" | "status">;
+type CheckedGate = Pick<QuestBeatEdgeGate, "edge_id" | "objective_id" | "statuses">;
 
 export interface QuestConsistencyInput {
   beats: readonly CheckedBeat[];
@@ -164,21 +166,49 @@ function objectivesNeverRaised(input: QuestConsistencyInput): QuestConsistencyFi
 function gatesThatNeverOpen(input: QuestConsistencyInput): QuestConsistencyFinding[] {
   const producible = producibleStatuses(input.consequences);
   const objectiveById = new Map(input.objectives.map((objective) => [objective.id, objective]));
+  const modeByEdge = new Map(input.edges.filter((edge) => edge.id).map((edge) => [edge.id!, edge.gate_mode ?? "all"]));
 
-  return input.gates.flatMap((gate) => {
+  const gatesByEdge = new Map<string, CheckedGate[]>();
+  for (const gate of input.gates) {
+    const list = gatesByEdge.get(gate.edge_id) ?? [];
+    list.push(gate);
+    gatesByEdge.set(gate.edge_id, list);
+  }
+
+  // A condition can never hold when its objective neither stands in any of
+  // the accepted statuses now nor can be moved into one. `dormant` is only
+  // ever a starting state: no rule produces it, so it counts as reachable
+  // solely while the objective is still dormant (covered by the first test).
+  // Returns null for a condition on an unknown objective: that is a
+  // referential problem the database's foreign key owns, so stay quiet.
+  function neverHolds(gate: CheckedGate): boolean | null {
     const objective = objectiveById.get(gate.objective_id);
-    // An unknown objective is a referential problem, not a reachability one —
-    // the database's foreign key owns that, so stay quiet rather than guess.
-    if (!objective) return [];
-    if (objective.status === gate.status) return [];
-    if (producible.get(gate.objective_id)?.has(gate.status)) return [];
-    return [{
-      kind: "gate_never_opens" as const,
-      message: `A route waits for "${shortTitle(objective.description)}" to be ${gate.status}, and nothing ever sets it. That branch can never be taken.`,
-      objectiveIds: [objective.id],
-      edgeId: gate.edge_id,
-    }];
-  });
+    if (!objective) return null;
+    if (gate.statuses.includes(objective.status)) return false;
+    const made = producible.get(gate.objective_id);
+    return !gate.statuses.some((status) => status !== "dormant" && made?.has(status));
+  }
+
+  const findings: QuestConsistencyFinding[] = [];
+  for (const [edgeId, gates] of gatesByEdge) {
+    const verdicts = gates.map((gate) => ({ gate, never: neverHolds(gate) })).filter((entry) => entry.never !== null);
+    if (!verdicts.length) continue;
+    const mode = modeByEdge.get(edgeId) ?? "all";
+    const shut = mode === "any" ? verdicts.every((entry) => entry.never) : verdicts.some((entry) => entry.never);
+    if (!shut) continue;
+    const blamed = verdicts.filter((entry) => entry.never).map((entry) => entry.gate);
+    const names = blamed.map((gate) => `"${shortTitle(objectiveById.get(gate.objective_id)!.description)}"`);
+    const wants = blamed.map((gate) => describeGateStatuses(gate.statuses));
+    findings.push({
+      kind: "gate_never_opens",
+      message: mode === "any" && blamed.length > 1
+        ? `A route waits for any of ${names.join(", ")}, and nothing ever sets any of them to what it needs. That branch can never be taken.`
+        : `A route waits for ${names[0]} to be ${wants[0]}, and nothing ever sets it. That branch can never be taken.`,
+      objectiveIds: blamed.map((gate) => gate.objective_id),
+      edgeId,
+    });
+  }
+  return findings;
 }
 
 /**

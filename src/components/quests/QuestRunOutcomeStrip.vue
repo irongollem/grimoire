@@ -12,7 +12,10 @@
         </div>
         <div>
           <p class="text-heading-sm font-bold text-foreground">{{ choice.beat_title }}</p>
-          <p v-if="captionFor(choice)" class="text-caption" :class="choice.gate && !choice.gate.is_open ? 'text-destructive' : 'text-muted-foreground'">{{ captionFor(choice) }}</p>
+          <!-- A closed route says why first: the payoff caption is what taking it
+               would do, which is moot until the gate opens. -->
+          <p v-if="isClosed(choice)" class="text-caption text-destructive">{{ closedReason(choice) }}</p>
+          <p v-if="captionFor(choice)" class="text-caption text-muted-foreground">{{ captionFor(choice) }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <AppButton label="Choose" size="xs" variant="primary" :disabled="navigationDisabled || isClosed(choice)" @click="emit('choose', choice.edge_id)" />
@@ -29,12 +32,19 @@
         </div>
       </article>
 
-      <article v-for="choice in parallelRoutes" :key="choice.edge_id" class="space-y-1 rounded-lg border border-tone-info/40 bg-tone-info/5 p-3">
+      <article
+        v-for="choice in parallelRoutes"
+        :key="choice.edge_id"
+        class="space-y-1 rounded-lg border p-3"
+        :class="isClosed(choice) ? 'border-border bg-card opacity-60' : 'border-tone-info/40 bg-tone-info/5'"
+        :aria-disabled="isClosed(choice) || undefined"
+      >
         <span class="inline-flex items-center gap-1 rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">
           <IconParallel class="h-3 w-3" aria-hidden="true" />opens alongside
         </span>
         <p class="text-heading-sm font-bold text-foreground">{{ choice.beat_title }}</p>
-        <p class="text-caption text-muted-foreground">Ticked by default. Advancing also spawns Thread {{ choice.thread_label }}.</p>
+        <p v-if="isClosed(choice)" class="text-caption text-destructive">{{ closedReason(choice) }}</p>
+        <p v-else class="text-caption text-muted-foreground">Ticked by default. Advancing also spawns Thread {{ choice.thread_label }}.</p>
       </article>
 
       <!-- The fork's open-ended option: no target beat exists yet, so naming
@@ -78,17 +88,22 @@ const parallelRoutes = computed(() => props.outgoing.filter((choice) => choice.r
 function isClosed(choice: QuestRunBranchChoice) {
   return !!choice.gate && !choice.gate.is_open;
 }
+function closedReason(choice: QuestRunBranchChoice): string {
+  return routeCondition(choice.gate)?.text ?? "";
+}
+// An open or ungated route captions with its first payoff, else what its gate
+// held; a closed one already shows its reason above, so only the payoff is left.
 function captionFor(choice: QuestRunBranchChoice): string {
   const payoffCaption = summarizeRoutePayoff(choice.payoff[0]);
   if (payoffCaption) return payoffCaption;
-  return routeCondition(choice.gate)?.text ?? "";
+  return isClosed(choice) ? "" : (routeCondition(choice.gate)?.text ?? "");
 }
 
 const branchSearch = ref("");
 const filteredChoices = computed(() => {
   const query = branchSearch.value.trim().toLowerCase();
   if (!query) return choices.value;
-  return choices.value.filter((choice) => `${choice.beat_title} ${choice.gate?.objective ?? ""} ${choice.beat_kind}`.toLowerCase().includes(query));
+  return choices.value.filter((choice) => `${choice.beat_title} ${choice.gate?.conditions.map((condition) => condition.objective).join(" ") ?? ""} ${choice.beat_kind}`.toLowerCase().includes(query));
 });
 const emit = defineEmits<{
   choose: [edgeId: string];

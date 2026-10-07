@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestRunObjectivesLedger from "./QuestRunObjectivesLedger.vue";
 import type { QuestRuntimeChoice, QuestThreadCursor } from "@/types/quest.types";
@@ -25,6 +26,7 @@ function mountLedger(props: Partial<{ outgoing: QuestRuntimeChoice[]; threads: Q
 
 describe("QuestRunObjectivesLedger", () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     mocks.objectives.value = [];
     mocks.assertStatus.mockReset();
     mocks.consequences.value = [];
@@ -38,7 +40,7 @@ describe("QuestRunObjectivesLedger", () => {
   it("shows the tally alongside the ledger", () => {
     mocks.objectives.value = [
       { id: "o1", quest_id: "q1", description: "Save the princess", status: "complete", is_player_visible: true },
-      { id: "o2", quest_id: "q1", description: "Find the tunnel", status: "pending", is_player_visible: false },
+      { id: "o2", quest_id: "q1", description: "Find the tunnel", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null },
     ];
     const wrapper = mountLedger();
     expect(wrapper.text()).toContain("1/2");
@@ -48,7 +50,7 @@ describe("QuestRunObjectivesLedger", () => {
 
   it("cycles a status through the sole writer, not a second editor", async () => {
     mocks.objectives.value = [
-      { id: "o1", quest_id: "q1", description: "Save the princess", status: "pending", is_player_visible: false },
+      { id: "o1", quest_id: "q1", description: "Save the princess", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null },
     ];
     const wrapper = mountLedger();
     await wrapper.find("button").trigger("click");
@@ -57,17 +59,17 @@ describe("QuestRunObjectivesLedger", () => {
 
   it("names the route an objective gates", () => {
     mocks.objectives.value = [
-      { id: "o1", quest_id: "q1", description: "Name the true collector", status: "pending", is_player_visible: false },
+      { id: "o1", quest_id: "q1", description: "Name the true collector", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null },
     ];
     const wrapper = mountLedger({
-      outgoing: [{ edge_id: "e1", beat_id: "b1", beat_title: "The finale", gate: { objective_id: "o1", objective: "x", required_status: "complete", current_status: "pending", is_open: false } }] as QuestRuntimeChoice[],
+      outgoing: [{ edge_id: "e1", beat_id: "b1", beat_title: "The finale", gate: { mode: "all", is_open: false, conditions: [{ objective_id: "o1", objective: "x", statuses: ["complete"], current_status: "pending", met: false }] } }] as unknown as QuestRuntimeChoice[],
     });
     expect(wrapper.text()).toContain("pending · gates The finale");
   });
 
   it("names the sibling thread that raised an objective", () => {
     mocks.objectives.value = [
-      { id: "o1", quest_id: "q1", description: "Recover the seal", status: "pending", is_player_visible: false },
+      { id: "o1", quest_id: "q1", description: "Recover the seal", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null },
     ];
     mocks.consequences.value = [
       { id: "c1", quest_id: "q1", on_beat_id: "beat-b", on_edge_id: null, on_objective_id: null, on_objective_status: null, on_quest_settled: false, entry_beat_id: null, after_days: 0, action: "raise", target_objective_id: "o1", target_npc_id: null, target_quest_id: null, action_payload: {}, created_at: "now" },
@@ -79,5 +81,17 @@ describe("QuestRunObjectivesLedger", () => {
       ] as QuestThreadCursor[],
     });
     expect(wrapper.text()).toContain("pending · Thread B");
+  });
+
+  it("shows how close a pending objective's deadline is, and nothing once it is resolved", () => {
+    // The campaign store defaults to year 1495 month 1 day 1; due the 2nd is tomorrow.
+    const base = { quest_id: "q1", is_player_visible: false, sort_order: 0, due_year: 1495, due_month: 1, due_day: 2 };
+    mocks.objectives.value = [
+      { ...base, id: "o1", description: "Stop the ritual", status: "pending" },
+      { ...base, id: "o2", description: "Warn the mayor", status: "complete" },
+    ];
+    const wrapper = mountLedger();
+    expect(wrapper.text()).toContain("due tomorrow");
+    expect(wrapper.text().match(/due tomorrow/g)).toHaveLength(1);
   });
 });

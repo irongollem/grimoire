@@ -100,6 +100,9 @@
             :fallback-icon="IconShield"
             :tags="faction.tags"
           >
+            <template v-if="faction.party_standing !== 'unknown'" #body>
+              <RelationshipMark :relationship="faction.party_standing" class="mt-1.5" />
+            </template>
             <template #actions>
               <AudienceRevealControl
                 :name="faction.name"
@@ -145,6 +148,7 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import EntityListRow from "@/components/common/EntityListRow.vue";
+import RelationshipMark from "@/components/common/RelationshipMark.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";

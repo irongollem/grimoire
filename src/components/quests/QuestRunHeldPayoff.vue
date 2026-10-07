@@ -23,8 +23,8 @@
           <IconClock class="h-4 w-4" aria-hidden="true" />
         </span>
         <div class="min-w-0 flex-1">
-          <p class="truncate text-body font-semibold text-foreground">{{ describeHeldPayoff(event) }}</p>
-          <p class="text-caption text-muted-foreground">{{ event.beat_title ? `held at ${event.beat_title}` : "held" }}</p>
+          <p class="truncate text-body font-semibold text-foreground">{{ heldSummary(event) }}</p>
+          <p class="text-caption text-muted-foreground">{{ heldCaption(event) }}</p>
         </div>
         <AppButton label="Fire now" size="xs" variant="primary" :loading="firingId === event.event_id" @click="fireOne(event.event_id)" />
       </div>
@@ -44,6 +44,8 @@
  * held three beats ago is still the DM's to dispatch today.
  */
 import { computed, ref } from "vue";
+import { useWorldVerbTargets } from "@/composables/quests/useWorldVerbTargets";
+import { delayPhrase, describeQuestConsequenceAction, isLedgerConsequenceAction, isTargetedWorldVerb } from "@/lib/quests/consequences";
 import { useDispatchLoot } from "@/composables/quests/useQuestFlow";
 import { useFireHeldConsequence } from "@/composables/quests/useQuestThreads";
 import { describeHeldLoot, describeHeldPayoff } from "@/lib/quests/run";
@@ -51,11 +53,37 @@ import { IconClock, IconCoins, IconPackage, IconPackageOpen } from "@/lib/icons"
 import type { LootPlacement, LootPlacementKind, QuestHeldPayoff } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 
-const { campaignId, loot, held } = defineProps<{
+const { campaignId, questId, loot, held } = defineProps<{
   campaignId: string;
+  /** Names a held clock tick's clock; without it that row reads as the bare verb. */
+  questId?: string;
   loot: LootPlacement[];
   held: QuestHeldPayoff[];
 }>();
+
+// A held event carries ids, not names. The four #1011 verbs read as a sentence
+// naming their target once the campaign lists are in; the older verbs keep the
+// plain action label.
+const targets = useWorldVerbTargets(() => questId ?? "", () => held.some((event) => isTargetedWorldVerb(event.action)));
+
+function heldSummary(event: QuestHeldPayoff): string {
+  if (!isTargetedWorldVerb(event.action)) return describeHeldPayoff(event);
+  return describeQuestConsequenceAction(event, () => "", {
+    clockLabel: targets.clockLabel,
+    npcLabel: targets.npcLabel,
+    locationLabel: targets.locationLabel,
+    factionLabel: targets.factionLabel,
+  });
+}
+
+function heldCaption(event: QuestHeldPayoff): string {
+  const where = event.beat_title ? `held at ${event.beat_title}` : "held";
+  // A ledger verb applies on the spot whatever its stored delay.
+  if (event.after_days > 0 && !isLedgerConsequenceAction(event.action)) {
+    return `${where} · ${delayPhrase(event.after_days)}`;
+  }
+  return where;
+}
 
 const total = computed(() => loot.length + held.length);
 const dispatchLoot = useDispatchLoot();

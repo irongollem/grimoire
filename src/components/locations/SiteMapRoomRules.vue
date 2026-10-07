@@ -46,7 +46,7 @@
         <option v-for="fact in QUEST_CONSEQUENCE_LOCATION_FACTS" :key="fact" :value="fact">When {{ QUEST_CONSEQUENCE_LOCATION_FACT_LABELS[fact].toLowerCase() }}</option>
       </AppSelect>
       <AppSelect v-model="ruleAction" size="xs" tone="card" aria-label="Do this">
-        <option v-for="verb in QUEST_CONSEQUENCE_LEDGER_ACTIONS" :key="verb" :value="verb">{{ ACTION_LABELS[verb] }}</option>
+        <option v-for="verb in OBJECTIVE_ACTIONS" :key="verb" :value="verb">{{ ACTION_LABELS[verb] }}</option>
       </AppSelect>
 
       <template v-if="ruleQuestId">
@@ -85,7 +85,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { CONSEQUENCES_BY_LOCATIONS_KEY, useCreateQuestConsequence, useDeleteQuestConsequence } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
-import { describeQuestConsequenceAction, QUEST_CONSEQUENCE_ACTION_LABELS } from "@/lib/quests/consequences";
+import { describeQuestConsequenceAction, isObjectiveConsequenceAction, QUEST_CONSEQUENCE_ACTION_LABELS } from "@/lib/quests/consequences";
 import {
   QUEST_CONSEQUENCE_LEDGER_ACTIONS,
   QUEST_CONSEQUENCE_LOCATION_FACT_LABELS,
@@ -162,6 +162,8 @@ function delaySuffix(rule: QuestConsequence): string {
 
 const questOptions = computed(() => (quests.value ?? []).map((q) => ({ id: q.id, name: q.title })));
 const ruleQuestId = ref("");
+// A room rule moves an objective; a clock tick has its own authoring (quest rules).
+const OBJECTIVE_ACTIONS = QUEST_CONSEQUENCE_LEDGER_ACTIONS.filter(isObjectiveConsequenceAction);
 const ruleFact = ref<LocationStateFact>("cleared");
 const ruleAction = ref<QuestConsequenceAction>("complete");
 const ruleObjectiveId = ref("");
@@ -192,12 +194,16 @@ async function add(): Promise<void> {
       on_quest_settled: false,
       on_location_id: locationId,
       on_location_fact: ruleFact.value,
+      on_clock_id: null,
       after_days: 0,
       action: ruleAction.value,
       target_objective_id: ruleObjectiveId.value,
       target_npc_id: null,
       target_quest_id: null,
       target_document_id: null,
+      target_clock_id: null,
+      target_location_id: null,
+      target_faction_id: null,
       entry_beat_id: null,
       action_payload: {},
     };

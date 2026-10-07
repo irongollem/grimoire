@@ -1,8 +1,16 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
+import type { QuestRouteGate } from "@/types/quest.types";
 import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";
 
-const closedGate = { objective_id: "o1", objective: "Clear the checkpoint", required_status: "complete", current_status: "pending", is_open: false } as const;
+const closedGate: QuestRouteGate = {
+  mode: "all", is_open: false,
+  conditions: [{ objective_id: "o1", objective: "Clear the checkpoint", statuses: ["complete"], current_status: "pending", met: false }],
+};
+const openedGate: QuestRouteGate = {
+  mode: "all", is_open: true,
+  conditions: [{ objective_id: "o1", objective: "Clear the checkpoint", statuses: ["complete"], current_status: "complete", met: true }],
+};
 
 const outgoing = [
   {
@@ -66,7 +74,7 @@ describe("QuestRunOutcomeStrip", () => {
     const gated = [{ ...outgoing[0]!, gate: closedGate }];
     const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: gated } });
     const card = wrapper.find("article");
-    expect(card.text()).toContain("needs “Clear the checkpoint” completed");
+    expect(card.text()).toContain("needs “Clear the checkpoint” complete");
     const chooseButton = card.findAll("button").find((button) => button.text() === "Choose");
     expect(chooseButton?.attributes("disabled")).toBeDefined();
     await chooseButton!.trigger("click");
@@ -74,10 +82,9 @@ describe("QuestRunOutcomeStrip", () => {
   });
 
   it("shows an open gate as ready and leaves Choose enabled", () => {
-    const openGate = { ...closedGate, current_status: "complete" as const, is_open: true };
-    const gated = [{ ...outgoing[0]!, gate: openGate }];
+    const gated = [{ ...outgoing[0]!, gate: openedGate }];
     const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: gated } });
-    expect(wrapper.text()).toContain("ready: “Clear the checkpoint” is completed");
+    expect(wrapper.text()).toContain("ready: “Clear the checkpoint” is complete");
     const chooseButton = wrapper.findAll("button").find((button) => button.text() === "Choose");
     expect(chooseButton?.attributes("disabled")).toBeUndefined();
   });
@@ -98,10 +105,33 @@ describe("QuestRunOutcomeStrip", () => {
   it("prefers a route's own payoff over its gate condition when both exist", () => {
     const payoffChoice = {
       ...outgoing[0]!,
-      gate: { ...closedGate, is_open: true },
-      payoff: [{ consequence_id: "c1", action: "reveal" as const, target_objective_id: "o1", target_objective: "Testify before the Guild", target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, action_payload: {}, after_days: 0, on_edge: true }],
+      gate: openedGate,
+      payoff: [{ consequence_id: "c1", action: "reveal" as const, target_objective_id: "o1", target_objective: "Testify before the Guild", target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, target_clock_id: null, target_clock: null, target_location_id: null, target_location: null, target_faction_id: null, target_faction: null, action_payload: {}, after_days: 0, on_edge: true }],
     };
     const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [payoffChoice] } });
     expect(wrapper.text()).toContain("reveal · Testify before the Guild");
+  });
+
+  it("says why a closed route is closed even when it also carries a payoff", () => {
+    const closedWithPayoff = {
+      ...outgoing[0]!,
+      gate: closedGate,
+      payoff: [{ consequence_id: "c1", action: "reveal" as const, target_objective_id: "o1", target_objective: "Testify before the Guild", target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, target_clock_id: null, target_clock: null, target_location_id: null, target_location: null, target_faction_id: null, target_faction: null, action_payload: {}, after_days: 0, on_edge: true }],
+    };
+    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [closedWithPayoff] } });
+    expect(wrapper.text()).toContain("needs “Clear the checkpoint” complete");
+    expect(wrapper.text()).toContain("reveal · Testify before the Guild");
+  });
+
+  it("shows a closed parallel route as closed with its reason, and an open one as before", () => {
+    const parallel = { ...outgoing[0]!, route_kind: "parallel" as const, thread_label: "The sealed crypt" };
+    const shut = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [{ ...parallel, gate: closedGate }] } });
+    const card = shut.find("article");
+    expect(card.text()).toContain("needs “Clear the checkpoint” complete");
+    expect(card.text()).not.toContain("Ticked by default");
+    expect(card.attributes("aria-disabled")).toBe("true");
+    const open = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [{ ...parallel, gate: openedGate }] } });
+    expect(open.find("article").text()).toContain("Ticked by default");
+    expect(open.find("article").attributes("aria-disabled")).toBeUndefined();
   });
 });

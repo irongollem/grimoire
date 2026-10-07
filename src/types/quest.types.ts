@@ -88,7 +88,46 @@ export interface QuestObjective {
   status: QuestObjectiveStatus;
   is_player_visible: boolean;
   sort_order: number;
+  /**
+   * An in-world due date (#1011, migration `20261007214426`): all three set or
+   * all three null. When the campaign's date moves past it, a still-pending
+   * objective of an active quest fails and its rules cascade. Inclusive: due
+   * on the 14th fails when the date becomes the 15th.
+   */
+  due_year: number | null;
+  due_month: number | null;
+  due_day: number | null;
 }
+
+/**
+ * A progress clock (#1011, `quest_clocks`): N segments the DM ticks in the run
+ * cockpit, or a `tick_clock` rule ticks. Filling it fires the rules watching
+ * it (`on_clock_id`). It never ticks by itself; a calendar deadline is an
+ * objective's `due_*`, not a clock. `filled` moves only through
+ * `tick_quest_clock` or a rule, so the client cannot write it.
+ */
+export interface QuestClock {
+  id: string;
+  campaign_id: string;
+  quest_id: string;
+  label: string;
+  segments: number;
+  filled: number;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuestClockInsert = Pick<QuestClock, "campaign_id" | "quest_id" | "label" | "segments"> & {
+  id?: string;
+  sort_order?: number;
+};
+export type QuestClockUpdate = Partial<Pick<QuestClock, "label" | "segments" | "sort_order">>;
+
+/** The fewest and most segments a clock may have (`quest_clocks_segments_check`). */
+export const QUEST_CLOCK_MIN_SEGMENTS = 2;
+export const QUEST_CLOCK_MAX_SEGMENTS = 12;
 
 /**
  * `raise` lifts an objective out of `dormant` and does nothing to one already
@@ -127,9 +166,16 @@ export type QuestConsequenceAction =
   | "grant_knowledge"
   | "owe_favor"
   | "award_milestone"
-  | "give_handout";
+  | "give_handout"
+  | "tick_clock"
+  | "move_npc"
+  | "add_companion"
+  | "shift_faction_standing";
 
-export const QUEST_CONSEQUENCE_LEDGER_ACTIONS: readonly QuestConsequenceAction[] = ["raise", "reveal", "complete", "fail"];
+/** Engine state: these move inside the transition and cascade. `tick_clock`
+ *  is one of them (#1011): a clock it fills fires its own rules in the same
+ *  transition, exactly as an objective a rule completes does. */
+export const QUEST_CONSEQUENCE_LEDGER_ACTIONS: readonly QuestConsequenceAction[] = ["raise", "reveal", "complete", "fail", "tick_clock"];
 export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] = [
   "create_calendar_event",
   "send_broadcast",
@@ -139,6 +185,9 @@ export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] 
   "owe_favor",
   "award_milestone",
   "give_handout",
+  "move_npc",
+  "add_companion",
+  "shift_faction_standing",
 ];
 
 /**
@@ -216,7 +265,17 @@ export interface MilestoneConsequencePayload {
   text: string;
 }
 
+/** `tick_clock` (#1011): segments to add, signed; clamped by the database. */
+export interface ClockTickConsequencePayload {
+  step: number;
+}
+
+/** `shift_faction_standing` (#1011): the party's standing with a faction, on
+ *  the same ladder and with the same two forms as an NPC's relationship. */
+export type FactionStandingShiftConsequencePayload = RelationshipShiftConsequencePayload;
+
 export type QuestConsequenceActionPayload =
+  | ClockTickConsequencePayload
   | CalendarEventConsequencePayload
   | BroadcastConsequencePayload
   | RelationshipShiftConsequencePayload
@@ -255,6 +314,8 @@ export interface QuestConsequence {
    */
   on_location_id: string | null;
   on_location_fact: LocationStateFact | null;
+  /** A clock filling up (#1011). */
+  on_clock_id: string | null;
   /** In-world days between the condition firing and the action performing.
    *  Zero performs inside the same transaction as the condition. Honoured for
    *  the two world actions; a ledger verb applies immediately regardless —
@@ -280,6 +341,12 @@ export interface QuestConsequence {
    *  (migration `20261004110516`). Set exactly when the action is that one,
    *  and always a document of the quest's own campaign. */
   target_document_id: string | null;
+  /** The clock a `tick_clock` rule ticks (#1011). */
+  target_clock_id: string | null;
+  /** Where a `move_npc` rule moves `target_npc_id` (#1011). */
+  target_location_id: string | null;
+  /** The faction whose party standing a `shift_faction_standing` rule moves (#1011). */
+  target_faction_id: string | null;
   /**
    * unlock_quest only: the beat of `target_quest_id` the party comes in at
    * through this bridge (migration `20260909194207`). Composite FK onto the
@@ -360,6 +427,17 @@ export interface QuestConsequenceEvent {
   journal_entry_id: string | null;
   favor_id: string | null;
   milestone_id: string | null;
+  /** #1011's undo records: the clock's fill, the NPC's place (`npc_moved`
+   *  says it was recorded, since the old place may be null), the companion a
+   *  rule added, and the faction standing it moved. */
+  target_clock_id: string | null;
+  previous_clock_filled: number | null;
+  target_location_id: string | null;
+  previous_location_id: string | null;
+  npc_moved: boolean;
+  companion_id: string | null;
+  target_faction_id: string | null;
+  previous_standing: NpcRelationship | null;
   created_at: string;
   updated_at: string;
 }
@@ -433,7 +511,14 @@ export const QUEST_BEAT_KIND_LABELS: Record<(typeof QUEST_BEAT_KINDS)[number], s
   discovery: "Discovery",
 };
 
-/** How a beat receives several arriving threads (#853). */
+/**
+ * How a beat receives arriving threads (#853, semantics #1011). `any`: each
+ * thread runs on as it arrives. `all`: an arriving thread waits while any
+ * other open thread of the quest could still reach this beat by some route;
+ * once none can, the waiting threads merge and the beat's rules fire once.
+ * Alternative endings into an `all` beat therefore need no funnel beat, and a
+ * thread that was never opened, has ended, or went elsewhere never blocks it.
+ */
 export type QuestConvergeMode = "any" | "all";
 
 export interface QuestBeat {
@@ -505,6 +590,9 @@ export interface QuestBeatEdge {
   /** The label a `parallel` route gives the thread it opens — shown to the DM
    *  and on the player thread. Null on a `choice`. */
   thread_label: string | null;
+  /** How the route's gate conditions combine (#1011): `all` must each hold,
+   *  `any` needs one. Meaningless with fewer than two conditions. */
+  gate_mode: QuestGateMode;
   /**
    * Not a column here — `quest_beat_edge_gates` is a separate child table so
    * that deleting an objective can drop the gate and keep the route, which a
@@ -517,40 +605,55 @@ export interface QuestBeatEdge {
   gate?: QuestRouteGate | null;
 }
 
-export type QuestBeatEdgeInsert = Omit<QuestBeatEdge, "id" | "created_by" | "created_at" | "gate">;
+export type QuestBeatEdgeInsert = Omit<QuestBeatEdge, "id" | "created_by" | "created_at" | "gate" | "gate_mode"> & {
+  gate_mode?: QuestGateMode;
+};
+
+/** `all`: every condition must hold. `any`: one is enough (#1011). */
+export type QuestGateMode = "all" | "any";
 
 /**
- * This route is open while its objective stands in the given status; absent
- * means always open. A child row rather than columns on the edge (#795): the
- * FK cascades when the objective is deleted, dropping the gate and keeping
- * the route.
+ * One condition of a route's gate (#1011): the route needs `objective_id` to
+ * stand in one of `statuses`. A route has any number of them, combined by its
+ * `gate_mode`; none means always open. Child rows rather than columns on the
+ * edge (#795): the FK cascades when the objective is deleted, dropping the
+ * condition and keeping the route. `statuses` may name `dormant`, so "unless
+ * it has failed" is `["dormant", "pending", "complete"]`; at most three of
+ * the four, since all four would be no condition at all.
  */
 export interface QuestBeatEdgeGate {
+  id: string;
   edge_id: string;
   quest_id: string;
   campaign_id: string;
   objective_id: string;
-  status: QuestConsequenceObjectiveStatus;
+  statuses: QuestObjectiveStatus[];
   created_at: string;
   updated_at: string;
 }
 
-export type QuestBeatEdgeGateInsert = Omit<QuestBeatEdgeGate, "created_at" | "updated_at">;
+export type QuestBeatEdgeGateInsert = Omit<QuestBeatEdgeGate, "id" | "created_at" | "updated_at">;
 
-/**
- * A gate as read for display: the objective it names, the status the route
- * needs, the status the objective is actually in, and whether that makes the
- * route open right now. Shared by Build mode (`QuestBeatEdge.gate`, joined
- * client-side against `quest_objectives` by `deriveQuestRouteGates`) and Run
- * mode (`QuestRuntimeChoice.gate`, joined server-side by
- * `get_quest_runtime_context`) so both surfaces read the same fields.
- */
-export interface QuestRouteGate {
+/** One condition as read for display, with whether it holds right now. */
+export interface QuestRouteGateCondition {
   objective_id: string;
   objective: string;
-  required_status: QuestConsequenceObjectiveStatus;
+  statuses: QuestObjectiveStatus[];
   current_status: QuestObjectiveStatus;
+  met: boolean;
+}
+
+/**
+ * A route's gate as read for display: its mode, whether it is open right now,
+ * and each condition. Shared by Build mode (`QuestBeatEdge.gate`, joined
+ * client-side by `deriveQuestRouteGates`) and Run mode
+ * (`QuestRuntimeChoice.gate`, computed server-side by `private.edge_gate_state`
+ * inside `get_quest_runtime_context`) so both surfaces read the same fields.
+ */
+export interface QuestRouteGate {
+  mode: QuestGateMode;
   is_open: boolean;
+  conditions: QuestRouteGateCondition[];
 }
 
 /**
@@ -670,6 +773,13 @@ export interface QuestRoutePayoff {
   target_document_id: string | null;
   /** The handout's title, resolved by the runtime RPC like `target_quest`. */
   target_document: string | null;
+  /** #1011's targets, resolved to names the same way. */
+  target_clock_id: string | null;
+  target_clock: string | null;
+  target_location_id: string | null;
+  target_location: string | null;
+  target_faction_id: string | null;
+  target_faction: string | null;
   action_payload: QuestConsequenceActionPayload;
   after_days: number;
   on_edge: boolean;
@@ -755,6 +865,9 @@ export interface QuestHeldPayoff {
   target_npc_id: string | null;
   target_quest_id: string | null;
   target_document_id: string | null;
+  target_clock_id: string | null;
+  target_location_id: string | null;
+  target_faction_id: string | null;
   action_payload: QuestConsequenceActionPayload;
   after_days: number;
   held_at: string;

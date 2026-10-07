@@ -49,14 +49,14 @@ function buildContext(): QuestRuntimeContext {
         edge_id: "edge-1", quest_id: "quest-1", beat_id: "beat-target", beat_title: "Testify before the Guild", beat_kind: "social",
         gate: null, effects: [], route_kind: "choice", thread_label: null, converge_mode: "any", site: null,
         payoff: [
-          { consequence_id: "c1", action: "shift_npc_relationship", target_objective_id: null, target_objective: null, target_npc_id: "npc-1", target_npc: "Ashmouth Guild", target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, action_payload: { step: -1 }, after_days: 0, on_edge: true },
-          { consequence_id: "c2", action: "owe_favor", target_objective_id: null, target_objective: null, target_npc_id: "npc-2", target_npc: "Ser Vallis", target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, action_payload: { text: "Ser Vallis owes the party" }, after_days: 0, on_edge: false },
+          { consequence_id: "c1", action: "shift_npc_relationship", target_objective_id: null, target_objective: null, target_npc_id: "npc-1", target_npc: "Ashmouth Guild", target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, target_clock_id: null, target_clock: null, target_location_id: null, target_location: null, target_faction_id: null, target_faction: null, action_payload: { step: -1 }, after_days: 0, on_edge: true },
+          { consequence_id: "c2", action: "owe_favor", target_objective_id: null, target_objective: null, target_npc_id: "npc-2", target_npc: "Ser Vallis", target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, target_clock_id: null, target_clock: null, target_location_id: null, target_location: null, target_faction_id: null, target_faction: null, action_payload: { text: "Ser Vallis owes the party" }, after_days: 0, on_edge: false },
         ],
         loot: [{ id: "l1", kind: "currency", label: "80 gp, skimmed", quantity: 80, item_id: null }],
       },
       {
         edge_id: "edge-2", quest_id: "quest-1", beat_id: "beat-watch", beat_title: "Flee the cloister", beat_kind: "combat",
-        gate: { objective_id: "o1", objective: "the guard is dealt with", required_status: "complete", current_status: "pending", is_open: false },
+        gate: { mode: "all", is_open: false, conditions: [{ objective_id: "o1", objective: "the guard is dealt with", statuses: ["complete"], current_status: "pending", met: false }] },
         effects: [], route_kind: "choice", thread_label: null, converge_mode: "any", site: null, payoff: [], loot: [],
       },
       {
@@ -126,6 +126,22 @@ describe("QuestAdvanceDialog", () => {
     // projected thread is B — the fixture's authored thread_label "C" is
     // quoted as the route's name, not mistaken for the thread's own letter.
     expect(wrapper.text()).toContain("Creates Thread B, “C”, at that beat.");
+  });
+
+  it("names the #1011 verbs' targets and says when a world payoff is delayed", async () => {
+    const context = buildContext();
+    context.outgoing[0]!.payoff = [
+      { consequence_id: "c3", action: "move_npc", target_objective_id: null, target_objective: null, target_npc_id: "npc-1", target_npc: "Scrim", target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, target_clock_id: null, target_clock: null, target_location_id: "loc-1", target_location: "The Roost", target_faction_id: null, target_faction: null, action_payload: {}, after_days: 3, on_edge: true },
+      { consequence_id: "c4", action: "tick_clock", target_objective_id: null, target_objective: null, target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, target_clock_id: "clock-1", target_clock: "The count", target_location_id: null, target_location: null, target_faction_id: null, target_faction: null, action_payload: { step: 1 }, after_days: 2, on_edge: true },
+    ];
+    const wrapper = await mountDialog({ context });
+    await radios(wrapper)[0]!.trigger("change");
+
+    expect(wrapper.text()).toContain("Scrim moves to The Roost");
+    expect(wrapper.text()).toContain("in 3 days");
+    expect(wrapper.text()).toContain("The count ticks 1");
+    // A clock tick applies inside the transition whatever its stored delay.
+    expect(wrapper.text()).not.toContain("in 2 days");
   });
 
   it("shows the selected route's payoff and loot, and recomputes the footer as ticks change", async () => {

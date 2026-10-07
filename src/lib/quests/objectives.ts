@@ -43,3 +43,16 @@ export function isObjectiveResolved(objective: Pick<QuestObjective, "status">) {
 export function countObjectivesComplete(objectives: Array<Pick<QuestObjective, "status">>) {
   return objectives.filter((objective) => objective.status === "complete").length;
 }
+
+/**
+ * A quest's ledger is settled when at least one objective is live (not
+ * dormant) and none is still pending: everything the party was asked to do has
+ * been completed or failed. Mirrors `private.quest_ledger_settled`. The server
+ * never changes `quests.status` on this; the DM is prompted instead (#1011).
+ * Dormant objectives are ignored, so an unraised branch does not hold a quest
+ * open, and a ledger of only dormant objectives is not settled.
+ */
+export function isLedgerSettled(objectives: ReadonlyArray<Pick<QuestObjective, "status">>): boolean {
+  const live = objectives.filter((objective) => objective.status !== "dormant");
+  return live.length > 0 && live.every((objective) => isObjectiveResolved(objective));
+}

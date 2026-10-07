@@ -3,7 +3,7 @@
     viewBox="0 0 200 200"
     class="block w-full max-w-45 mx-auto select-none touch-manipulation"
     role="radiogroup"
-    aria-label="NPC reaction toward the party"
+    :aria-label="label"
   >
     <g
       v-for="(opt, i) in WEDGES"
@@ -76,7 +76,11 @@ import { ref } from 'vue'
 import { npcRelationshipVar } from '@/lib/npcDisplay'
 import { NPC_RELATIONSHIP_LABELS, type NpcRelationship } from '@/types/npc.types'
 
-defineProps<{ modelValue: NpcRelationship }>()
+const { label = 'NPC reaction toward the party' } = defineProps<{
+  modelValue: NpcRelationship
+  /** Accessible name of the radio group; a faction's standing reuses the wheel. */
+  label?: string
+}>()
 const emit = defineEmits<{ 'update:modelValue': [value: NpcRelationship] }>()
 
 /**

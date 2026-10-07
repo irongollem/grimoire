@@ -313,6 +313,7 @@ describe("buildMarkdownVault — Factions", () => {
       alignment: "Neutral Good",
       player_visible_to: [],
       tags: ["heroes"],
+      party_standing: "indifferent",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
       ...over,
@@ -358,6 +359,9 @@ describe("buildMarkdownVault — Quests", () => {
       status: "pending",
       is_player_visible: true,
       sort_order: 0,
+      due_year: null,
+      due_month: null,
+      due_day: null,
       ...over,
     };
   }

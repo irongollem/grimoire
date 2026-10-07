@@ -78,12 +78,13 @@ const { data: rawRows, isLoading } = useQuery({
     const { data, error } = await supabase
       .from("quest_consequence_events")
       .select(
-        "id, after_days, fires_on_year, fires_on_month, fires_on_day, action, action_payload, " +
+        "id, after_days, fires_on_year, fires_on_month, fires_on_day, held_at, action, action_payload, " +
           "quest:quests(id, title)",
       )
       .eq("campaign_id", cid)
       .is("performed_at", null)
       .is("undone_at", null)
+      .is("held_at", null)
       // The whole world-action set, not the two it started with. This was a
       // hardcoded pair, so the two actions added later (#831, #836) never
       // appeared as "about to fire" — `useDueConsequences` performed them on

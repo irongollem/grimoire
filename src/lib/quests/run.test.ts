@@ -31,8 +31,12 @@ const choice = (edge_id: string, gate: QuestRuntimeChoice["gate"] = null): Quest
   edge_id, quest_id: "q1", beat_id: `beat-${edge_id}`, beat_title: edge_id, beat_kind: "neutral", gate, effects: [],
   route_kind: "choice", thread_label: null, converge_mode: "any", site: null, payoff: [], loot: [],
 });
-const openGate = { objective_id: "o1", objective: "Save the princess", required_status: "complete", current_status: "complete", is_open: true } as const;
-const closedGate = { ...openGate, current_status: "pending", is_open: false } as const;
+const gateOn = (objective_id: string, objective: string, current_status: "pending" | "complete", is_open: boolean): QuestRuntimeChoice["gate"] => ({
+  mode: "all", is_open,
+  conditions: [{ objective_id, objective, statuses: ["complete"], current_status, met: is_open }],
+});
+const openGate = gateOn("o1", "Save the princess", "complete", true);
+const closedGate = gateOn("o1", "Save the princess", "pending", false);
 
 describe("run-mode jump ranking", () => {
   it("ranks recently visited beats ahead of the rest", () => {
@@ -167,10 +171,21 @@ describe("describeThreadCursor", () => {
 describe("objectiveGateTargets", () => {
   it("names every route this objective gates", () => {
     const outgoing = [
-      choice("e1", { objective_id: "o1", objective: "The ledger", required_status: "complete", current_status: "pending", is_open: false }),
-      choice("e2", { objective_id: "o2", objective: "Other", required_status: "complete", current_status: "complete", is_open: true }),
+      choice("e1", gateOn("o1", "The ledger", "pending", false)),
+      choice("e2", gateOn("o2", "Other", "complete", true)),
     ];
     expect(objectiveGateTargets("o1", outgoing)).toEqual(["e1"]);
+  });
+
+  it("finds the objective among several conditions of one route", () => {
+    const compound: QuestRuntimeChoice["gate"] = {
+      mode: "any", is_open: false,
+      conditions: [
+        { objective_id: "o9", objective: "Nine", statuses: ["failed"], current_status: "pending", met: false },
+        { objective_id: "o1", objective: "One", statuses: ["complete"], current_status: "pending", met: false },
+      ],
+    };
+    expect(objectiveGateTargets("o1", [choice("e1", compound)])).toEqual(["e1"]);
   });
 
   it("returns nothing when no route gates on this objective", () => {
@@ -206,6 +221,7 @@ describe("summarizeRoutePayoff", () => {
   const payoff = (overrides: Partial<QuestRoutePayoff> = {}): QuestRoutePayoff => ({
     consequence_id: "c1", action: "reveal", target_objective_id: "o1", target_objective: "Testify before the Guild",
     target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, target_document_id: null, target_document: null,
+    target_clock_id: null, target_clock: null, target_location_id: null, target_location: null, target_faction_id: null, target_faction: null,
     action_payload: {}, after_days: 0, on_edge: true,
     ...overrides,
   });
@@ -227,7 +243,7 @@ describe("describeHeldPayoff", () => {
   it("names the action a held event will perform", () => {
     const held: QuestHeldPayoff = {
       event_id: "e1", consequence_id: "c1", action: "shift_npc_relationship", target_objective_id: null,
-      target_npc_id: "npc-1", target_quest_id: null, target_document_id: null, action_payload: {}, after_days: 0,
+      target_npc_id: "npc-1", target_quest_id: null, target_document_id: null, target_clock_id: null, target_location_id: null, target_faction_id: null, action_payload: {}, after_days: 0,
       held_at: "2026-01-01T00:00:00Z", beat_id: "beat-1", beat_title: "Confront Ser Vallis",
     };
     expect(describeHeldPayoff(held)).toBe("Shifts an NPC's disposition");

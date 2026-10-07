@@ -118,6 +118,7 @@ insert into definer_registry (name, kind, reason) values
   ('spend_downtime_draw', 'refuses', null),
   ('spend_feature_spell_slot', 'refuses', null),
   ('take_spellcasting_rest', 'refuses', null),
+  ('tick_quest_clock', 'refuses', null),
   ('transfer_campaign_ownership', 'refuses', null),
   ('transition_quest_runtime', 'refuses', null),
   ('update_combatant_position', 'refuses', null),

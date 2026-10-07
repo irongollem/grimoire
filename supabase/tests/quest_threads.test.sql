@@ -70,8 +70,8 @@ insert into public.quest_consequences (id, quest_id, on_beat_id, action, target_
 insert into public.quest_consequences (id, quest_id, on_edge_id, action, target_objective_id) values
   ('85200000-0000-4000-8000-000000000062', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000043', 'complete', '85200000-0000-4000-8000-000000000053');
 
-insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, status) values
-  ('85200000-0000-4000-8000-000000000042', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000051', 'complete');
+insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, statuses) values
+  ('85200000-0000-4000-8000-000000000042', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000051', array['complete']);
 
 -- A site-tier location with two rooms, staged at R5, for the 'site' key.
 insert into public.locations (id, user_id, campaign_id, name, location_type) values

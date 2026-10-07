@@ -14,6 +14,7 @@ Factions represent any organisation in your world: guilds, governments, cults, c
 | Term | Meaning |
 | --- | --- |
 | Faction | An organisation with a type, alignment, emblem, and a roster of NPC and PC members. |
+| Party standing | How the faction regards the party, on the same five-step ladder as an NPC's stance: Hostile, Unfriendly, Indifferent, Friendly, Helpful. |
 | Relation | A one-directional link from this faction to another: your view of them may differ from theirs of you. |
 | Reveal | A faction shared with a player becomes visible to them; a player whose own character has joined a faction sees it automatically regardless of sharing. |
 
@@ -24,6 +25,7 @@ Click **New Faction** and fill in:
 - **Type**: Guild, Government, Religion, Criminal, Military, Merchant, Secret Society, Cult, Order, Tribe, or Other, picked from a searchable combobox.
 - **Alignment**: one of the nine D&D alignments (optional but useful for quick reads).
 - **Reveal**: who this faction is shared with, right in the editor.
+- **Party standing**: how the faction feels about the party, set on the same five-segment wheel an NPC's stance uses. It starts unset (unknown); click a segment to choose one.
 - **Tags**.
 - **Emblem**: upload a square image with focal-point control.
 - **Name** and **Description** (rich text covering history, motives, and activities) on the right.
@@ -37,6 +39,12 @@ Click **Generate** on the Factions list page to open the faction generator panel
 ## Bulk moving or copying factions
 
 Click **Select** to enter selection mode, tick the factions you want, then use the bar that appears to **Move to campaign** (reassigns ownership) or **Copy to campaign…** (duplicates into another campaign, along with each faction's worshipped-deity links). "Make available in all campaigns" isn't offered for a bulk move, because a general faction can't carry a campaign-scoped deity link with it.
+
+## Party standing
+
+Party standing is where the party stands with the organisation as a whole: the Harpers might be Friendly while the Zhentarim are Hostile. It shows as a coloured mark on the faction's row in the list and on its sheet, and you change it in the editor. It is separate from **Relations**, which are how factions regard each other.
+
+A quest can move it for you: give a beat or quest rule the **Shift faction standing** action, either stepping the standing up or down or setting it to a chosen stance, and stepping back with Previous restores it. See [Quest Log](#quest-log).
 
 ## NPC membership
 
@@ -86,7 +94,7 @@ Use the reveal control on a faction's row (list page) or its own page to pick wh
 
 ## What your players see
 
-Players see a faction on their Player Portal's **Factions** page once it's shared with them, or once their own character joins it: factions they belong to sort to the top with a highlighted border. Opening a faction shows its description and, only for factions the player is a member of, a **Known Members** list: fellow PC members (the player's own character marked "(You)"), and active NPC members, each with their role.
+Players see a faction on their Player Portal's **Factions** page once it's shared with them, or once their own character joins it: factions they belong to sort to the top with a highlighted border. Opening a faction shows its description, the party's standing with it (once you have set one) and, only for factions the player is a member of, a **Known Members** list: fellow PC members (the player's own character marked "(You)"), and active NPC members, each with their role.
 
 ## Tips
 

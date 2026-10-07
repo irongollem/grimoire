@@ -3,7 +3,7 @@
     <div>
       <h3 class="text-heading-sm font-bold text-foreground">Consequences</h3>
       <p class="text-caption text-muted-foreground">
-        When an objective becomes a status, the whole ledger settles, or a place gains a fact, do this, optionally after a delay.
+        When an objective becomes a status, a clock fills, the whole ledger settles, or a place gains a fact, do this, optionally after a delay.
       </p>
     </div>
 
@@ -11,7 +11,7 @@
       <li v-for="row in rows" :key="row.id" class="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-border p-2 text-caption">
         <IconLightning v-if="isWorldAction(row.action)" class="h-3.5 w-3.5 text-primary shrink-0" />
         <span v-else class="rounded bg-muted px-1.5 py-0.5 uppercase text-muted-foreground" :class="ACTION_TONES[row.action]">{{ ACTION_LABELS[row.action] }}</span>
-        <QuestObjectiveStatusMark v-if="isLedgerAction(row.action) && objectiveFor(row.target_objective_id)" :status="objectiveFor(row.target_objective_id)!.status" />
+        <QuestObjectiveStatusMark v-if="isObjectiveAction(row.action) && objectiveFor(row.target_objective_id)" :status="objectiveFor(row.target_objective_id)!.status" />
         <span class="min-w-0 flex-1 truncate text-foreground">{{ actionSummary(row) }}</span>
         <span class="truncate text-muted-foreground">{{ conditionLabel(row) }}{{ delaySuffix(row) }}</span>
         <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === row.id" @click="remove(row.id)" />
@@ -21,8 +21,9 @@
 
     <div class="grid min-w-0 gap-2 sm:grid-cols-2">
       <!-- Condition -->
-      <AppSelect v-model="conditionKind" class="min-w-0" aria-label="Condition" @change="conditionObjectiveId = ''; conditionLocationId = ''">
+      <AppSelect v-model="conditionKind" class="min-w-0" aria-label="Condition" @change="conditionObjectiveId = ''; conditionLocationId = ''; conditionClockId = ''">
         <option value="settled">When the quest settles</option>
+        <option value="clock">When a clock fills…</option>
         <option value="objective">When an objective becomes…</option>
         <option value="location">When a place…</option>
       </AppSelect>
@@ -31,6 +32,10 @@
         <AppSelect v-model="conditionObjectiveStatus" class="min-w-0 sm:col-span-2" aria-label="Becomes">
           <option v-for="status in QUEST_CONSEQUENCE_OBJECTIVE_STATUSES" :key="status" :value="status">…becomes {{ QUEST_OBJECTIVE_STATUS_LABELS[status] }}</option>
         </AppSelect>
+      </template>
+      <template v-else-if="conditionKind === 'clock'">
+        <EntityCombobox v-if="targets.clockOptions.value.length" v-model="conditionClockId" class="min-w-0" :options="targets.clockOptions.value" placeholder="Which clock…" />
+        <p v-else class="text-caption italic text-muted-foreground">{{ NO_QUEST_CLOCKS_NOTE }}</p>
       </template>
       <template v-else-if="conditionKind === 'location'">
         <!-- Any location, not just sites — a district or a room can be
@@ -52,24 +57,40 @@
       </div>
 
       <!-- Action -->
-      <AppSelect v-model="action" class="min-w-0 sm:col-span-2" aria-label="What it does" @change="targetObjectiveId = ''">
+      <AppSelect v-model="action" class="min-w-0 sm:col-span-2" aria-label="What it does" @change="targetObjectiveId = ''; targetClockId = ''; targetLocationId = ''; targetFactionId = ''">
         <optgroup label="Objective">
-          <option v-for="verb in QUEST_CONSEQUENCE_LEDGER_ACTIONS" :key="verb" :value="verb">{{ ACTION_LABELS[verb] }}</option>
+          <option v-for="verb in OBJECTIVE_ACTIONS" :key="verb" :value="verb">{{ ACTION_LABELS[verb] }}</option>
+        </optgroup>
+        <optgroup label="Clock">
+          <option value="tick_clock">{{ ACTION_LABELS.tick_clock }}</option>
         </optgroup>
         <optgroup label="World">
           <option v-for="verb in QUEST_CONSEQUENCE_WORLD_ACTIONS" :key="verb" :value="verb">{{ ACTION_LABELS[verb] }}</option>
         </optgroup>
       </AppSelect>
 
-      <template v-if="isLedgerAction(action)">
+      <template v-if="isObjectiveAction(action)">
         <EntityCombobox v-if="targetOptions.length" v-model="targetObjectiveId" class="min-w-0 sm:col-span-2" :options="targetOptions" placeholder="Which objective…" />
         <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">Add an objective on the quest overview first.</p>
       </template>
+      <QuestWorldVerbFields
+        v-else-if="isTargetedWorldVerb(action)"
+        v-model:clock-id="targetClockId"
+        v-model:clock-step="clockStep"
+        v-model:npc-id="targetNpcId"
+        v-model:location-id="targetLocationId"
+        v-model:faction-id="targetFactionId"
+        v-model:shift-key="relationshipShiftKey"
+        :verb="action"
+        :targets="targets"
+        class="sm:col-span-2"
+      />
       <template v-else-if="action === 'create_calendar_event'">
         <AppInput v-model="calendarTitle" size="body-xs" placeholder="Event title…" class="sm:col-span-2" />
         <AppSelect v-model="calendarType" class="min-w-0 sm:col-span-2">
           <option v-for="t in CALENDAR_EVENT_TYPES" :key="t" :value="t">{{ t }}</option>
         </AppSelect>
+        <AppInput v-model="calendarDescription" size="body-xs" placeholder="Description (optional)…" class="sm:col-span-2" />
       </template>
       <template v-else-if="action === 'shift_npc_relationship'">
         <EntityCombobox v-if="npcPickerShown" v-model="targetNpcId" class="min-w-0 sm:col-span-2" :options="npcOptions" placeholder="Which NPC…" @open="npcListWanted = true" />
@@ -128,6 +149,7 @@ import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker"
 import { useHandoutPayoff } from "@/composables/quests/useHandoutPayoff";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useLocationNames, useLocationTree } from "@/composables/locations/useLocations";
+import { useWorldVerbTargets } from "@/composables/quests/useWorldVerbTargets";
 import { QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
 import {
   QUEST_CONSEQUENCE_LEDGER_ACTIONS,
@@ -148,8 +170,9 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconLightning } from "@/lib/icons";
-import { DEFAULT_RELATIONSHIP_SHIFT_KEY, RELATIONSHIP_SHIFT_OPTIONS, describeQuestConsequenceAction, isLedgerConsequenceAction, QUEST_CONSEQUENCE_ACTION_LABELS, relationshipShiftPayload } from "@/lib/quests/consequences";
+import { DEFAULT_RELATIONSHIP_SHIFT_KEY, RELATIONSHIP_SHIFT_OPTIONS, describeQuestConsequenceAction, isObjectiveConsequenceAction, isTargetedWorldVerb, NO_QUEST_CLOCKS_NOTE, QUEST_CONSEQUENCE_ACTION_LABELS, relationshipShiftPayload, worldVerbInsertFields, worldVerbReady, type WorldVerbDraft } from "@/lib/quests/consequences";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
+import QuestWorldVerbFields from "./QuestWorldVerbFields.vue";
 
 /**
  * The quest-wide half of the one consequence editor (#794): rules that fire
@@ -195,9 +218,15 @@ const ACTION_TONES: Record<QuestConsequenceAction, string> = {
   owe_favor: "text-tone-info",
   award_milestone: "text-primary",
   give_handout: "text-tone-info",
+  tick_clock: "text-primary",
+  move_npc: "text-tone-info",
+  add_companion: "text-tone-info",
+  shift_faction_standing: "text-tone-info",
 };
 
-const isLedgerAction = isLedgerConsequenceAction;
+const OBJECTIVE_ACTIONS = QUEST_CONSEQUENCE_LEDGER_ACTIONS.filter(isObjectiveConsequenceAction);
+
+const isObjectiveAction = isObjectiveConsequenceAction;
 function isWorldAction(a: QuestConsequenceAction): boolean {
   return QUEST_CONSEQUENCE_WORLD_ACTIONS.includes(a);
 }
@@ -220,7 +249,7 @@ const locationOptions = computed(() => locationTreeOptions.value);
 // Objective-became, quest-settled and location-fact rules only — a beat/edge
 // rule from the flow lives in the Payoff list instead.
 const rows = computed(() => (consequencesQuery.data.value ?? [])
-  .filter((row) => row.on_objective_id !== null || row.on_quest_settled || row.on_location_id !== null));
+  .filter((row) => row.on_objective_id !== null || row.on_quest_settled || row.on_location_id !== null || row.on_clock_id !== null));
 
 const objectiveOptions = computed(() => (objectives.value ?? []).map((objective) => ({ id: objective.id, name: objective.description })));
 function objectiveFor(id: string | null) {
@@ -245,7 +274,8 @@ function locationLabel(id: string | null): string {
 
 // ── Condition form ───────────────────────────────────────────────────────────
 
-const conditionKind = ref<"settled" | "objective" | "location">("settled");
+const conditionKind = ref<"settled" | "objective" | "location" | "clock">("settled");
+const conditionClockId = ref("");
 const conditionObjectiveId = ref("");
 const conditionObjectiveStatus = ref<QuestConsequenceObjectiveStatus>("complete");
 const conditionLocationId = ref("");
@@ -260,6 +290,11 @@ const calendarTitle = ref("");
 const calendarType = ref<string>("quest");
 const broadcastMessage = ref("");
 const targetNpcId = ref("");
+const targetClockId = ref("");
+const clockStep = ref(1);
+const targetLocationId = ref("");
+const targetFactionId = ref("");
+const calendarDescription = ref("");
 const relationshipShiftKey = ref(DEFAULT_RELATIONSHIP_SHIFT_KEY);
 const targetQuestId = ref("");
 const targetDocumentId = ref("");
@@ -269,6 +304,9 @@ const milestoneText = ref("");
 const adding = ref(false);
 const removingId = ref("");
 const error = ref("");
+// The campaign-wide lists behind the NPC/faction/place pickers load only once a
+// rule needs one: the form is on a #1011 verb, or such a rule already exists.
+const targets = useWorldVerbTargets(() => questId, () => isTargetedWorldVerb(action.value) || rows.value.some((row) => isTargetedWorldVerb(row.action)));
 
 // Existing rows describe their NPC target from the consequence payload, so the
 // NPC list is needed only by the add form's picker and is read when it opens.
@@ -318,10 +356,17 @@ watch(targetOptions, (options) => {
   if (targetObjectiveId.value && !options.some((option) => option.id === targetObjectiveId.value)) targetObjectiveId.value = "";
 });
 
+const worldDraft = computed<WorldVerbDraft>(() => ({
+  clockId: targetClockId.value, clockStep: clockStep.value, npcId: targetNpcId.value,
+  locationId: targetLocationId.value, factionId: targetFactionId.value, shiftKey: relationshipShiftKey.value,
+}));
+
 const canAdd = computed(() => {
   if (conditionKind.value === "objective" && !conditionObjectiveId.value) return false;
   if (conditionKind.value === "location" && !conditionLocationId.value) return false;
-  if (isLedgerAction(action.value)) return !!targetObjectiveId.value;
+  if (conditionKind.value === "clock" && !conditionClockId.value) return false;
+  if (isObjectiveAction(action.value)) return !!targetObjectiveId.value;
+  if (isTargetedWorldVerb(action.value)) return worldVerbReady(action.value, worldDraft.value);
   if (action.value === "create_calendar_event") return !!calendarTitle.value.trim();
   if (action.value === "shift_npc_relationship") return !!targetNpcId.value && relationshipShiftPayload(relationshipShiftKey.value) !== null;
   if (action.value === "unlock_quest") return !!targetQuestId.value;
@@ -336,6 +381,7 @@ const canAdd = computed(() => {
 
 function conditionLabel(row: QuestConsequence): string {
   if (row.on_quest_settled) return "when the quest settles";
+  if (row.on_clock_id) return `when ${targets.clockLabel(row.on_clock_id) ?? "a clock"} fills`;
   if (row.on_location_id) return `when "${locationLabel(row.on_location_id)}" is ${QUEST_CONSEQUENCE_LOCATION_FACT_LABELS[row.on_location_fact!].toLowerCase()}`;
   return `when "${objectiveLabel(row.on_objective_id)}" becomes ${QUEST_OBJECTIVE_STATUS_LABELS[row.on_objective_status!].toLowerCase()}`;
 }
@@ -345,7 +391,15 @@ function delaySuffix(row: QuestConsequence): string {
 }
 
 function actionSummary(row: QuestConsequence): string {
-  return describeQuestConsequenceAction(row, objectiveLabel, { questLabel: unlockQuestLabel, beatLabel: unlockBeatLabel, documentLabel });
+  return describeQuestConsequenceAction(row, objectiveLabel, {
+    questLabel: unlockQuestLabel,
+    beatLabel: unlockBeatLabel,
+    documentLabel,
+    clockLabel: targets.clockLabel,
+    npcLabel: targets.npcLabel,
+    locationLabel: targets.locationLabel,
+    factionLabel: targets.factionLabel,
+  });
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────
@@ -355,6 +409,12 @@ function resetForm() {
   conditionObjectiveId.value = "";
   conditionLocationId.value = "";
   conditionLocationFact.value = "cleared";
+  conditionClockId.value = "";
+  targetClockId.value = "";
+  clockStep.value = 1;
+  targetLocationId.value = "";
+  targetFactionId.value = "";
+  calendarDescription.value = "";
   targetObjectiveId.value = "";
   afterDays.value = 0;
   calendarTitle.value = "";
@@ -374,8 +434,11 @@ async function add() {
   adding.value = true;
   error.value = "";
   try {
-    const payload: QuestConsequenceActionPayload = action.value === "create_calendar_event"
-      ? { title: calendarTitle.value.trim(), event_type: calendarType.value }
+    const world = isTargetedWorldVerb(action.value) ? worldVerbInsertFields(action.value, worldDraft.value) : null;
+    const payload: QuestConsequenceActionPayload = world
+      ? world.action_payload
+      : action.value === "create_calendar_event"
+      ? { title: calendarTitle.value.trim(), event_type: calendarType.value, ...(calendarDescription.value.trim() ? { description: calendarDescription.value.trim() } : {}) }
       : action.value === "send_broadcast"
         ? { message: broadcastMessage.value.trim() }
         : action.value === "shift_npc_relationship"
@@ -396,10 +459,15 @@ async function add() {
       on_quest_settled: conditionKind.value === "settled",
       on_location_id: conditionKind.value === "location" ? conditionLocationId.value : null,
       on_location_fact: conditionKind.value === "location" ? conditionLocationFact.value : null,
+      on_clock_id: conditionKind.value === "clock" ? conditionClockId.value : null,
       after_days: afterDays.value || 0,
       action: action.value,
-      target_objective_id: isLedgerAction(action.value) ? targetObjectiveId.value : null,
+      target_objective_id: isObjectiveAction(action.value) ? targetObjectiveId.value : null,
       target_npc_id: action.value === "shift_npc_relationship" || action.value === "owe_favor" ? targetNpcId.value : null,
+      target_clock_id: null,
+      target_location_id: null,
+      target_faction_id: null,
+      ...world,
       target_quest_id: action.value === "unlock_quest" ? targetQuestId.value : null,
       target_document_id: action.value === "give_handout" ? targetDocumentId.value : null,
       entry_beat_id: action.value === "unlock_quest" ? resolveEntryBeatId() : null,

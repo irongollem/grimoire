@@ -154,7 +154,7 @@ export function objectiveGateTargets(
   outgoing: readonly QuestRuntimeChoice[],
 ): string[] {
   return outgoing
-    .filter((choice) => choice.gate?.objective_id === objectiveId)
+    .filter((choice) => choice.gate?.conditions.some((condition) => condition.objective_id === objectiveId))
     .map((choice) => choice.beat_title);
 }
 
@@ -196,7 +196,7 @@ export function objectiveThreadHint(
 export function summarizeRoutePayoff(payoff: QuestRoutePayoff | undefined): string | null {
   if (!payoff) return null;
   const verb = ledgerVerbOf(payoff.action);
-  const target = payoff.target_objective ?? payoff.target_npc ?? payoff.target_quest ?? payoff.target_document ?? null;
+  const target = payoff.target_objective ?? payoff.target_npc ?? payoff.target_quest ?? payoff.target_document ?? payoff.target_clock ?? payoff.target_faction ?? null;
   if (verb) return target ? `${verb} · ${target}` : verb;
   return describeQuestRouteEffect({ action: payoff.action, objective: target, after_days: payoff.after_days });
 }
@@ -213,7 +213,11 @@ const HELD_PAYOFF_ACTION_LABELS: Record<QuestConsequenceAction, string> = {
   grant_knowledge: "Grants knowledge",
   owe_favor: "Owes a favor",
   award_milestone: "Awards a milestone",
-  give_handout: "Gives a handout",
+  give_handout: "Give a handout",
+  tick_clock: "Tick clock",
+  move_npc: "Move NPC",
+  add_companion: "Add companion",
+  shift_faction_standing: "Shift faction standing",
 };
 
 /**

@@ -17,8 +17,9 @@ The next two pages in this section go deeper: [Quest Story Flow](#quest-story-fl
 | --- | --- |
 | Beat | A single scene or event in the quest's story: the thing that happened. |
 | Objective | What the party is trying to achieve: raised, revealed, completed or failed by beats. |
-| Route | A connection from one beat to another; can require an objective to be in a particular state before it opens. |
+| Route | A connection from one beat to another; can require one or more objectives to be in particular states before it opens. |
 | Thread | A live marker tracking where the party currently stands in the story. A quest starts with one ("Main") and can run several at once. |
+| Clock | A named progress clock with 2 to 12 segments, ticked by you at the table or by a rule. A full clock fires the rules watching it. |
 | Payoff | What a beat gives: consequences (things that fire automatically) and loot (things you hand over). |
 | Run cockpit | The live-session screen that walks a thread through the story flow, beat by beat. |
 
@@ -66,15 +67,34 @@ The Overview's **Objectives** list is the one place every goal in the quest is t
 
 - A status mark you click to cycle it: **Open → Completed → Failed → Open** (failure sits after completion on purpose, since it's the rarer, more destructive click). An objective starts life as **Open** unless something set it dormant first: a dormant ("not yet raised") objective can only be raised by a beat or a quest-wide rule; you can't click one back into dormant by hand.
 - A reveal/hide toggle: hidden objectives are invisible to players even if the whole quest is shared; a dormant objective can't be revealed until it's raised.
+- A **Set due date** link (see below).
 - A remove (✕) button.
+
+When every objective is Completed or Failed, a prompt appears above the list: **Every objective is resolved.** with **Mark completed**, **Mark failed** and **Keep running**. Grimoire never closes a quest by itself, so this is how you settle it.
+
+**Due dates.** **Set due date** gives an objective a deadline in your campaign's calendar (year, month and day, using your calendar's own month names). When the campaign's date moves forward past that day, an objective that is still Open fails on its own, under the reason "Deadline passed", and the rules watching it fire. The day itself is inclusive: an objective due on the 14th fails when the date becomes the 15th. It only applies to Open objectives of an Active quest, so a Completed objective, a Not yet raised one or a quest still Undiscovered is left alone. Winding the calendar back undoes nothing; change the status by hand if you need to. **Clear due date** (the small x) removes it.
+
+## Clocks
+
+The **Clocks** section holds named progress clocks for the quest: "The ritual completes", "Suspicion", "Reinforcements arrive". Type a name into **Add clock…**, choose how many **Segments** (2 to 12) and add it. You can rename a clock or change its segments later. A clock starts empty and never ticks by itself; you tick it from the Run cockpit's Clocks card, or a payoff rule ticks it (action **Tick clock**, a positive or negative number of segments). When a clock fills, every rule set to **When a clock fills…** for it fires. Clocks are for things that advance by events at the table; for something that depends on the calendar, use an objective's due date instead. Players never see clocks.
 
 ## Quest-wide consequences
 
 Below Objectives, the same panel lets you write rules that fire automatically: "when this becomes true, do this." Each rule has:
 
-- **A condition**: one of **When the quest settles** (nothing left open), **When an objective becomes…** (pick the objective and the status: Open, Completed, or Failed), or **When a place…** (pick a location and whether it's Explored, Cleared, or Looted).
+- **A condition**: one of **When the quest settles** (nothing left open), **When a clock fills…** (pick the clock), **When an objective becomes…** (pick the objective and the status: Open, Completed, or Failed), or **When a place…** (pick a location and whether it's Explored, Cleared, or Looted).
 - **A delay**: an optional number of in-world days between the condition firing and the action happening.
-- **An action**: grouped **Objective** (Raise, Reveal to players, Complete, Fail: moves another objective) or **World** (Create calendar event, Send broadcast, Shift NPC relationship, Unlock quest, Grant knowledge, Owe favour, Award milestone).
+- **An action**: grouped **Objective** (Raise, Reveal to players, Complete, Fail: moves another objective) **Clock** (Tick clock), or **World** (Create calendar event, Send broadcast, Shift an NPC's disposition, Unlock a quest, Grant knowledge, Owe a favor, Award a milestone, Give a handout, Move NPC, Add companion, Shift faction standing).
+
+The newer world actions work like this:
+
+- **Move NPC**: puts an NPC in another place of the campaign (the Atlas location is changed).
+- **Add companion**: the NPC joins the party as an ally companion, with hit points, armour class and speed read from their stat block. They arrive unassigned; give them an owner on the Party page.
+- **Shift faction standing**: moves the party's standing with a faction, either up or down by steps or straight to a chosen stance, on the same five-step ladder an NPC's disposition uses. See [Factions](#factions).
+
+Each of the three is undone by stepping back with Previous, which puts the NPC, the companion and the standing back as they were. A rule can only name NPCs, places, factions and clocks that belong to this quest's own campaign.
+
+A rule that completes or fails an objective only moves one that is still open (Not yet raised or Open). An objective that has already been Completed or Failed stays settled, and a rule aimed at it does nothing and does not set off the rules watching it. Your own clicks in the Objectives list, and Previous, still change anything.
 
 Beat- and route-scoped rules (the kind that fire when the party arrives at a specific beat, or takes a specific route) live on the beat itself instead: see [Quest Story Flow](#quest-story-flow-beats-routes-objectives)'s Payoff section. This panel is only for rules tied to the quest as a whole, not to one moment in its story.
 

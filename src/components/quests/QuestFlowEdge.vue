@@ -42,7 +42,7 @@ import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type Position } from "@
 defineOptions({ inheritAttrs: false });
 import { IconLayers, IconLock } from "@/lib/icons";
 import type { QuestFlowEdgeData } from "@/lib/quests/flow";
-import { describeQuestRouteGate, questRouteGateLabel } from "@/lib/quests/gates";
+import { describeQuestRouteGateLines, questRouteGateLabel } from "@/lib/quests/gates";
 
 const {
   sourceX,
@@ -91,7 +91,7 @@ const pillText = computed(() => {
   if (kindLabel.value === "parallel") return `parallel · opens ${data?.threadLabel || data?.targetTitle || "a new thread"}`;
   return `choice · ${data?.targetTitle ?? "?"}`;
 });
-const labelTooltip = computed(() => gate.value ? describeQuestRouteGate(gate.value) : undefined);
+const labelTooltip = computed(() => gate.value ? describeQuestRouteGateLines(gate.value).join("\n") : undefined);
 const labelClass = computed(() => ({
   "is-gate": kindLabel.value === "gate",
   "is-parallel": kindLabel.value === "parallel",

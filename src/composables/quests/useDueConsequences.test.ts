@@ -55,6 +55,7 @@ function event(overrides: Partial<PendingConsequenceEvent> & { id: string }): Pe
     fires_on_year: todayYear.value,
     fires_on_month: todayMonth.value,
     fires_on_day: todayDay.value,
+    held_at: null,
     ...overrides,
   };
 }

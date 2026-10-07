@@ -286,7 +286,7 @@ import { isVersionConflictError, planAdvance, type PlanAdvanceResult } from "@/l
 import { routeCondition } from "@/lib/quests/ledger";
 import { spaceNoun } from "@/lib/locations/tiers";
 import { pluralizeCount } from "@/lib/utils";
-import { describeQuestConsequenceAction, relationshipShiftIsGain } from "@/lib/quests/consequences";
+import { delayPhrase, describeQuestConsequenceAction, isLedgerConsequenceAction, relationshipShiftIsGain } from "@/lib/quests/consequences";
 import { useQuestRuntimeCommand, useQuestRuntimeImprovise } from "@/composables/quests/useQuestFlow";
 import { useBelow } from "@/composables/useBreakpoint";
 import { drawerTransition } from "@/lib/motion";
@@ -298,9 +298,13 @@ import {
   IconClose,
   IconCoins,
   IconDocument,
+  IconClock,
+  IconFaction,
   IconHand,
   IconInvite,
   IconLayers,
+  IconParty,
+  IconPin,
   IconQuest,
   IconReveal,
   IconScrollText,
@@ -434,6 +438,10 @@ const canSubmit = computed(() =>
 function describePayoff(entry: QuestRoutePayoff): string {
   return describeQuestConsequenceAction(entry, () => entry.target_objective ?? entry.target_npc ?? entry.target_quest ?? "Objective removed", {
     documentLabel: () => entry.target_document,
+    clockLabel: () => entry.target_clock,
+    npcLabel: () => entry.target_npc,
+    locationLabel: () => entry.target_location,
+    factionLabel: () => entry.target_faction,
   });
 }
 
@@ -454,6 +462,10 @@ const PAYOFF_ICON: Record<QuestConsequenceAction, Component> = {
   owe_favor: IconHand,
   award_milestone: IconAward,
   give_handout: IconDocument,
+  tick_clock: IconClock,
+  move_npc: IconPin,
+  add_companion: IconParty,
+  shift_faction_standing: IconFaction,
 };
 function payoffIcon(action: QuestConsequenceAction): Component {
   return PAYOFF_ICON[action];
@@ -473,6 +485,10 @@ const PAYOFF_TONE: Record<QuestConsequenceAction, PayoffTone> = {
   owe_favor: "caution",
   award_milestone: "gold",
   give_handout: "info",
+  tick_clock: "caution",
+  move_npc: "info",
+  add_companion: "info",
+  shift_faction_standing: "danger",
 };
 const TONE_CLASSES: Record<PayoffTone, { bg: string; text: string }> = {
   success: { bg: "bg-tone-success/15", text: "text-ink-success" },
@@ -486,7 +502,7 @@ function payoffTone(entry: QuestRoutePayoff): { bg: string; text: string } {
   // Signed, like the rule editor's own tone map (QuestConsequencesPanel.vue):
   // a positive shift reads as a gain, a negative one as a cost — the same
   // action either way, painted by the sign the DM actually set.
-  if (entry.action === "shift_npc_relationship" && relationshipShiftIsGain(entry.action_payload as Partial<RelationshipShiftConsequencePayload>)) {
+  if ((entry.action === "shift_npc_relationship" || entry.action === "shift_faction_standing") && relationshipShiftIsGain(entry.action_payload as Partial<RelationshipShiftConsequencePayload>)) {
     return TONE_CLASSES.success;
   }
   return TONE_CLASSES[PAYOFF_TONE[entry.action]];
@@ -505,12 +521,20 @@ const PAYOFF_HINT: Record<QuestConsequenceAction, string> = {
   unlock_quest: "unlock_quest · hold it back for the finale",
   award_milestone: "award_milestone · character sheet",
   give_handout: "give_handout · player journal",
+  tick_clock: "fires with the transition · a clock that fills fires its own rules",
+  move_npc: "move_npc · NPC's location",
+  add_companion: "add_companion · party",
+  shift_faction_standing: "shift_faction_standing · faction page",
 };
+
 function payoffHint(entry: QuestRoutePayoff): string {
-  if (entry.action === "give_handout") {
-    return entry.target_document ? `The party receives ${entry.target_document}` : "The party receives a handout";
-  }
-  return PAYOFF_HINT[entry.action];
+  // A ledger verb (and a clock tick) applies inside the transition whatever its
+  // stored delay, so only a world action can honestly say "in 3 days".
+  const delay = isLedgerConsequenceAction(entry.action) ? "" : delayPhrase(entry.after_days);
+  const hint = entry.action === "give_handout"
+    ? (entry.target_document ? `The party receives ${entry.target_document}` : "The party receives a handout")
+    : PAYOFF_HINT[entry.action];
+  return delay ? `${delay} · ${hint}` : hint;
 }
 
 function cancel() {

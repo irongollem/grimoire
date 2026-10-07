@@ -14,12 +14,38 @@
 
       <AppInput v-if="routeKind === 'parallel'" v-model="threadLabel" placeholder="Thread label: shown to the DM and on the player thread…" aria-label="Opens thread" />
 
-      <div class="grid gap-2 sm:grid-cols-2">
-        <AppSelect v-model="gateStatus" aria-label="Route gate">
-          <option value="">No gate, always open</option>
-          <option v-for="status in QUEST_CONSEQUENCE_OBJECTIVE_STATUSES" :key="status" :value="status">Open while an objective is {{ QUEST_OBJECTIVE_STATUS_LABELS[status].toLowerCase() }}</option>
-        </AppSelect>
-        <EntityCombobox v-if="gateStatus" v-model="gateObjectiveId" :options="objectiveOptions" placeholder="Which objective…" />
+      <div class="space-y-2" role="group" aria-label="Route gate">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-caption font-semibold text-foreground">Gate</span>
+          <SegmentedControl v-if="conditions.length > 1" v-model="gateMode" size="sm" :options="gateModeOptions" />
+        </div>
+        <p v-if="!conditions.length" class="text-caption text-muted-foreground">No conditions: this route is always open.</p>
+        <div v-for="(condition, index) in conditions" :key="condition.key" class="space-y-1.5 rounded-md border border-border bg-background p-2">
+          <div class="flex items-center gap-2">
+            <EntityCombobox
+              :model-value="condition.objectiveId"
+              :options="objectiveChoicesFor(condition)"
+              placeholder="Which objective…"
+              @update:model-value="setObjective(index, $event)"
+            />
+            <AppButton label="Remove" size="xs" variant="subtle" @click="removeCondition(index)" />
+          </div>
+          <div class="flex flex-wrap gap-x-3 gap-y-1" role="group" aria-label="Statuses that open the route">
+            <AppCheckbox
+              v-for="status in QUEST_OBJECTIVE_STATUSES"
+              :key="status"
+              :model-value="condition.statuses"
+              :value="status"
+              :label="QUEST_OBJECTIVE_STATUS_LABELS[status]"
+              :disabled="!condition.statuses.includes(status) && condition.statuses.length >= GATE_MAX_STATUSES"
+              label-role="caption"
+              size="sm"
+              @update:model-value="setStatuses(index, $event)"
+            />
+          </div>
+        </div>
+        <AppButton label="Add condition" size="xs" variant="subtle" :disabled="!canAddCondition" @click="addCondition" />
+        <p v-if="gatePreview" class="text-caption text-muted-foreground">{{ describeQuestRouteGate(gatePreview) }}</p>
       </div>
 
       <div v-if="effects.length" class="rounded-md border border-border bg-background p-2">
@@ -44,36 +70,64 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
-import { describeQuestRouteEffect } from "@/lib/quests/gates";
-import { QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
-import { QUEST_CONSEQUENCE_OBJECTIVE_STATUSES, type QuestConsequenceObjectiveStatus, type QuestRouteEffect, type QuestRouteKind } from "@/types/quest.types";
+import { describeQuestRouteEffect, describeQuestRouteGate, GATE_MAX_STATUSES, type GateConditionDraft } from "@/lib/quests/gates";
+import { QUEST_OBJECTIVE_STATUS_LABELS, QUEST_OBJECTIVE_STATUSES } from "@/lib/quests/objectives";
+import type { QuestGateMode, QuestObjectiveStatus, QuestRouteEffect, QuestRouteGate, QuestRouteKind } from "@/types/quest.types";
 
-const { sourceTitle, targetTitle, objectiveOptions, effects, editTo, canBeParallel, saving = false, error = "" } = defineProps<{
+const { sourceTitle, targetTitle, objectiveOptions, effects, editTo, canBeParallel, gatePreview = null, saving = false, error = "" } = defineProps<{
   sourceTitle: string;
   targetTitle: string;
   objectiveOptions: { id: string; name: string }[];
   effects: QuestRouteEffect[];
   editTo: string;
   canBeParallel: boolean;
+  /** The gate the unsaved conditions would make, for the plain-language line. */
+  gatePreview?: QuestRouteGate | null;
   saving?: boolean;
   error?: string;
 }>();
 const emit = defineEmits<{ save: []; delete: [] }>();
 
 // A beat with no choice route yet cannot afford to spend its only outgoing
-// route on a parallel one — the invariant the composer also enforces when
+// route on a parallel one - the invariant the composer also enforces when
 // creating a route from scratch (frame `01 Delta`'s "invariant to keep").
 const routeKindOptions = computed<SegmentedOption<QuestRouteKind>[]>(() => [
   { value: "choice", label: "Choice" },
   { value: "parallel", label: "Parallel", disabled: !canBeParallel, tooltip: canBeParallel ? undefined : "Add a choice route from this beat first." },
 ]);
+const gateModeOptions: SegmentedOption<QuestGateMode>[] = [
+  { value: "all", label: "All of these" },
+  { value: "any", label: "Any of these" },
+];
 
 const routeKind = defineModel<QuestRouteKind>("routeKind", { required: true });
 const threadLabel = defineModel<string>("threadLabel", { required: true });
-const gateStatus = defineModel<QuestConsequenceObjectiveStatus | "">("gateStatus", { required: true });
-const gateObjectiveId = defineModel<string>("gateObjectiveId", { required: true });
+const gateMode = defineModel<QuestGateMode>("gateMode", { required: true });
+const conditions = defineModel<GateConditionDraft[]>("conditions", { required: true });
+
+// An objective may be a condition at most once per route, so each row's picker
+// offers its own objective plus the ones no other row has taken.
+function objectiveChoicesFor(condition: GateConditionDraft) {
+  const taken = new Set(conditions.value.filter((other) => other.key !== condition.key).map((other) => other.objectiveId));
+  return objectiveOptions.filter((option) => !taken.has(option.id));
+}
+const canAddCondition = computed(() => conditions.value.length < objectiveOptions.length);
+
+let nextKey = 0;
+function addCondition() {
+  conditions.value = [...conditions.value, { key: `new-${nextKey++}`, gateId: null, objectiveId: "", statuses: ["complete"] }];
+}
+function removeCondition(index: number) {
+  conditions.value = conditions.value.filter((_, at) => at !== index);
+}
+function setObjective(index: number, objectiveId: string) {
+  conditions.value = conditions.value.map((condition, at) => (at === index ? { ...condition, objectiveId } : condition));
+}
+function setStatuses(index: number, statuses: QuestObjectiveStatus[]) {
+  conditions.value = conditions.value.map((condition, at) => (at === index ? { ...condition, statuses } : condition));
+}
 </script>

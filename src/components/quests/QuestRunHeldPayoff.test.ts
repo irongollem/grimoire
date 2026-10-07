@@ -12,6 +12,19 @@ vi.mock("@/composables/quests/useQuestThreads", () => ({
   useFireHeldConsequence: () => ({ mutateAsync: mocks.fire }),
 }));
 
+vi.mock("@/composables/quests/useQuestClocks", () => ({
+  useQuestClocks: () => ({ data: { value: [{ id: "clock-1", label: "The count", segments: 6 }] } }),
+}));
+vi.mock("@/composables/npcs/useNpcs", () => ({
+  useNpcs: () => ({ data: { value: [{ id: "npc-1", name: "Scrim" }] } }),
+}));
+vi.mock("@/composables/factions/useFactions", () => ({
+  useAllFactions: () => ({ data: { value: [] } }),
+}));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useLocationTree: () => ({ locationOptions: { value: [{ id: "loc-roost", name: "The Roost", depth: 0 }] } }),
+}));
+
 const currencyLoot: LootPlacement = {
   id: "loot-1", beat_id: "beat-1", quest_id: "quest-1", location_id: null, campaign_id: "c1",
   kind: "currency", item_id: null, library_item_id: null, quantity: 1, label: "80 gp, skimmed", payload: {},
@@ -21,7 +34,7 @@ const currencyLoot: LootPlacement = {
 
 const heldEvent: QuestHeldPayoff = {
   event_id: "ev-1", consequence_id: "cq-1", action: "shift_npc_relationship", target_objective_id: null,
-  target_npc_id: "npc-1", target_quest_id: null, target_document_id: null, action_payload: {}, after_days: 0,
+  target_npc_id: "npc-1", target_quest_id: null, target_document_id: null, target_clock_id: null, target_location_id: null, target_faction_id: null, action_payload: {}, after_days: 0,
   held_at: "2026-01-01T00:00:00Z", beat_id: "beat-1", beat_title: "Confront Ser Vallis",
 };
 
@@ -53,5 +66,14 @@ describe("QuestRunHeldPayoff", () => {
     expect(wrapper.text()).toContain("Shifts an NPC's disposition");
     await wrapper.find("button").trigger("click");
     expect(mocks.fire).toHaveBeenCalledWith({ eventId: "ev-1" });
+  });
+
+  it("names the target and the delay of a held #1011 verb", () => {
+    const moved: QuestHeldPayoff = { ...heldEvent, event_id: "ev-2", action: "move_npc", target_npc_id: "npc-1", target_location_id: "loc-roost", after_days: 3 };
+    const ticked: QuestHeldPayoff = { ...heldEvent, event_id: "ev-3", action: "tick_clock", target_clock_id: "clock-1", action_payload: { step: 2 } };
+    const wrapper = mount(QuestRunHeldPayoff, { props: { campaignId: "c1", questId: "quest-1", loot: [], held: [moved, ticked] } });
+    expect(wrapper.text()).toContain("Scrim moves to The Roost");
+    expect(wrapper.text()).toContain("in 3 days");
+    expect(wrapper.text()).toContain("The count ticks 2");
   });
 });

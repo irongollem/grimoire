@@ -37,6 +37,15 @@ vi.mock("@/composables/quests/useQuests", () => ({
     { id: "quest-empty", title: "The empty ledger", status: "undiscovered", entry_beat_id: null },
   ] } }),
 }));
+vi.mock("@/composables/quests/useQuestClocks", () => ({
+  useQuestClocks: () => ({ data: { value: [{ id: "clock-1", quest_id: "quest-1", label: "The count", segments: 6, filled: 2 }] } }),
+}));
+vi.mock("@/composables/factions/useFactions", () => ({
+  useAllFactions: () => ({ data: { value: [{ id: "fac-1", name: "Understage Crew" }] } }),
+}));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useLocationTree: () => ({ locationOptions: { value: [{ id: "loc-vault", name: "The Inner Vault", depth: 0 }] } }),
+}));
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useNpcs: () => ({ data: { value: [{ id: "npc-1", name: "Oarus Masthew" }] } }),
 }));
@@ -65,7 +74,7 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
   return {
     quest_id: "quest-1", on_beat_id: null, on_edge_id: null, on_objective_id: null, on_objective_status: null,
     on_quest_settled: false, on_location_id: null, on_location_fact: null, entry_beat_id: null, after_days: 0, action: "grant_knowledge", target_objective_id: null,
-    target_npc_id: null, target_quest_id: null, target_document_id: null, action_payload: {},
+    target_npc_id: null, target_quest_id: null, target_document_id: null, target_clock_id: null, target_location_id: null, target_faction_id: null, on_clock_id: null, action_payload: {},
     created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
   };
@@ -159,6 +168,55 @@ describe("QuestPayoffPanel", () => {
       action: "shift_npc_relationship",
       target_npc_id: "npc-1",
       action_payload: { to: "friendly" },
+    }));
+  });
+
+  it("quick-adds a clock tick, a move, a companion and a standing shift", async () => {
+    const quickAdd = async (wrapper: ReturnType<typeof mountPanel>, label: string) => {
+      await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === label)!.trigger("click");
+      await flushPromises();
+    };
+    const add = async (wrapper: ReturnType<typeof mountPanel>) => {
+      await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+      await flushPromises();
+    };
+
+    let wrapper = mountPanel();
+    await quickAdd(wrapper, "Tick clock");
+    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "clock-1");
+    await flushPromises();
+    await add(wrapper);
+    expect(mocks.createConsequence).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: "tick_clock", target_clock_id: "clock-1", on_beat_id: "beat-fork", action_payload: { step: 1 },
+    }));
+
+    wrapper = mountPanel();
+    await quickAdd(wrapper, "Move NPC");
+    const [npc, place] = wrapper.findAllComponents({ name: "EntityCombobox" });
+    npc!.vm.$emit("update:modelValue", "npc-1");
+    place!.vm.$emit("update:modelValue", "loc-vault");
+    await flushPromises();
+    await add(wrapper);
+    expect(mocks.createConsequence).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: "move_npc", target_npc_id: "npc-1", target_location_id: "loc-vault",
+    }));
+
+    wrapper = mountPanel();
+    await quickAdd(wrapper, "Companion");
+    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "npc-1");
+    await flushPromises();
+    await add(wrapper);
+    expect(mocks.createConsequence).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: "add_companion", target_npc_id: "npc-1", action_payload: {},
+    }));
+
+    wrapper = mountPanel();
+    await quickAdd(wrapper, "Standing");
+    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "fac-1");
+    await flushPromises();
+    await add(wrapper);
+    expect(mocks.createConsequence).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: "shift_faction_standing", target_faction_id: "fac-1", action_payload: { to: "friendly" },
     }));
   });
 

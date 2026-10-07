@@ -109,7 +109,19 @@
             <AppSelect v-model="calendarType" aria-label="Event type">
               <option v-for="t in CALENDAR_EVENT_TYPES" :key="t" :value="t">{{ t }}</option>
             </AppSelect>
+            <AppInput v-model="calendarDescription" size="body-xs" placeholder="Description (optional)…" />
           </template>
+          <QuestWorldVerbFields
+            v-else-if="worldVerb"
+            v-model:clock-id="targetClockId"
+            v-model:clock-step="clockStep"
+            v-model:npc-id="targetNpcId"
+            v-model:location-id="targetLocationId"
+            v-model:faction-id="targetFactionId"
+            v-model:shift-key="relationshipShiftKey"
+            :verb="worldVerb"
+            :targets="targets"
+          />
         </template>
 
         <div class="flex justify-end gap-2">
@@ -131,18 +143,20 @@ import { useItemIndex } from "@/composables/items/useItemIndex";
 import { itemRefColumns } from "@/lib/itemRef";
 import { useHandoutPayoff } from "@/composables/quests/useHandoutPayoff";
 import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useWorldVerbTargets } from "@/composables/quests/useWorldVerbTargets";
 import { drawerTransition } from "@/lib/motion";
 import { derivePayoffRows, type PayoffIcon, type PayoffRow, type PayoffTone } from "@/lib/quests/payoff";
-import { type QuestBeat, type QuestBeatEdge, type QuestConsequence, type QuestConsequenceActionPayload, type QuestConsequenceInsert, type LootPlacement } from "@/types/quest.types";
-import { DEFAULT_RELATIONSHIP_SHIFT_KEY, RELATIONSHIP_SHIFT_OPTIONS, relationshipShiftPayload } from "@/lib/quests/consequences";
+import { type QuestBeat, type QuestConsequenceAction, type QuestBeatEdge, type QuestConsequence, type QuestConsequenceActionPayload, type QuestConsequenceInsert, type LootPlacement } from "@/types/quest.types";
+import { DEFAULT_RELATIONSHIP_SHIFT_KEY, RELATIONSHIP_SHIFT_OPTIONS, isTargetedWorldVerb, relationshipShiftPayload, worldVerbInsertFields, worldVerbReady, type WorldVerbDraft } from "@/lib/quests/consequences";
 import { EVENT_TYPE_COLORS, type CalendarEventType } from "@/types/calendar.types";
 import {
-  IconAward, IconCalendar, IconCheck, IconCoins, IconDocument, IconHand, IconInvite, IconPackage, IconQuest, IconScrollText, IconSend,
+  IconAward, IconCalendar, IconCheck, IconClock, IconCoins, IconDocument, IconFaction, IconHand, IconInvite, IconPackage, IconParty, IconPin, IconQuest, IconScrollText, IconSend,
 } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import QuestWorldVerbFields from "./QuestWorldVerbFields.vue";
 
 const { beat, edges, beats, consequences, loot } = defineProps<{
   beat: QuestBeat;
@@ -158,6 +172,7 @@ const { beat, edges, beats, consequences, loot } = defineProps<{
 const ICON_COMPONENTS: Record<PayoffIcon, Component> = {
   invite: IconInvite, hand: IconHand, scrollText: IconScrollText, quest: IconQuest, coins: IconCoins,
   package: IconPackage, check: IconCheck, calendar: IconCalendar, send: IconSend, award: IconAward, document: IconDocument,
+  clock: IconClock, pin: IconPin, party: IconParty, faction: IconFaction,
 };
 const TONE_ICON_BOX: Record<PayoffTone, string> = {
   destructive: "bg-destructive/15 text-destructive",
@@ -185,6 +200,10 @@ const rows = computed<PayoffRow[]>(() => derivePayoffRows({
   questLabel: unlockQuestLabel,
   beatLabel: unlockBeatLabel,
   documentLabel,
+  clockLabel: (id) => targets.clockLabel(id),
+  npcLabel: (id) => targets.npcLabel(id),
+  locationLabel: (id) => targets.locationLabel(id),
+  factionLabel: (id) => targets.factionLabel(id),
 }));
 
 function beatTitle(id: string): string {
@@ -209,7 +228,7 @@ async function remove(row: PayoffRow) {
 
 // ── Quick adds ───────────────────────────────────────────────────────────────
 
-type QuickAddKind = "item" | "riches" | "influence" | "knowledge" | "quest" | "favor" | "milestone" | "event" | "handout";
+type QuickAddKind = "item" | "riches" | "influence" | "knowledge" | "quest" | "favor" | "milestone" | "event" | "handout" | "clock" | "move" | "companion" | "standing";
 const QUICK_ADD_OPTIONS: Array<{ kind: QuickAddKind; label: string; icon: Component }> = [
   { kind: "item", label: "Item", icon: IconPackage },
   { kind: "riches", label: "Riches", icon: IconCoins },
@@ -220,7 +239,19 @@ const QUICK_ADD_OPTIONS: Array<{ kind: QuickAddKind; label: string; icon: Compon
   { kind: "milestone", label: "Milestone", icon: IconAward },
   { kind: "event", label: "Event", icon: IconCalendar },
   { kind: "handout", label: "Handout", icon: IconDocument },
+  { kind: "clock", label: "Tick clock", icon: IconClock },
+  { kind: "move", label: "Move NPC", icon: IconPin },
+  { kind: "companion", label: "Companion", icon: IconParty },
+  { kind: "standing", label: "Standing", icon: IconFaction },
 ];
+
+/** The #1011 quick-adds, keyed to the verb each writes. */
+const WORLD_VERB_FOR_KIND: Partial<Record<QuickAddKind, QuestConsequenceAction>> = {
+  clock: "tick_clock",
+  move: "move_npc",
+  companion: "add_companion",
+  standing: "shift_faction_standing",
+};
 
 const activeQuickAdd = ref<QuickAddKind | null>(null);
 const adding = ref(false);
@@ -250,7 +281,17 @@ const favorText = ref("");
 const milestoneText = ref("");
 const calendarTitle = ref("");
 const calendarType = ref<string>("quest");
+const calendarDescription = ref("");
+const targetClockId = ref("");
+const clockStep = ref(1);
+const targetLocationId = ref("");
+const targetFactionId = ref("");
 const CALENDAR_EVENT_TYPES = Object.keys(EVENT_TYPE_COLORS) as CalendarEventType[];
+
+const worldVerb = computed(() => (activeQuickAdd.value ? WORLD_VERB_FOR_KIND[activeQuickAdd.value] ?? null : null));
+// Existing rows name their targets from these lists too, so they load as soon as
+// a #1011 rule exists on this quest or one is being written.
+const targets = useWorldVerbTargets(() => beat.quest_id, () => worldVerb.value !== null || consequences.some((row) => isTargetedWorldVerb(row.action)));
 
 const { data: npcs } = useNpcs();
 const npcOptions = computed(() => (npcs.value ?? []).map((npc) => ({ id: npc.id, name: npc.name })));
@@ -277,7 +318,8 @@ function resetQuickAddFields() {
   conditionEdgeId.value = ""; afterDays.value = 0;
   targetNpcId.value = ""; relationshipShiftKey.value = DEFAULT_RELATIONSHIP_SHIFT_KEY; targetQuestId.value = ""; targetDocumentId.value = ""; resetEntryBeatPicker();
   knowledgeText.value = ""; favorText.value = ""; milestoneText.value = "";
-  calendarTitle.value = ""; calendarType.value = "quest";
+  calendarTitle.value = ""; calendarType.value = "quest"; calendarDescription.value = "";
+  targetClockId.value = ""; clockStep.value = 1; targetLocationId.value = ""; targetFactionId.value = "";
   error.value = "";
 }
 
@@ -293,6 +335,11 @@ function closeQuickAdd() {
 
 watch(() => beat.id, closeQuickAdd);
 
+const worldDraft = computed<WorldVerbDraft>(() => ({
+  clockId: targetClockId.value, clockStep: clockStep.value, npcId: targetNpcId.value,
+  locationId: targetLocationId.value, factionId: targetFactionId.value, shiftKey: relationshipShiftKey.value,
+}));
+
 const canAdd = computed(() => {
   switch (activeQuickAdd.value) {
     case "item": return !!itemId.value && quantity.value > 0;
@@ -304,6 +351,10 @@ const canAdd = computed(() => {
     case "milestone": return !!milestoneText.value.trim();
     case "event": return !!calendarTitle.value.trim();
     case "handout": return !!targetDocumentId.value;
+    case "clock":
+    case "move":
+    case "companion":
+    case "standing": return worldVerb.value !== null && worldVerbReady(worldVerb.value, worldDraft.value);
     default: return false;
   }
 });
@@ -328,8 +379,11 @@ async function submit() {
         sort_order: loot.length,
       });
     } else {
-      const action = { influence: "shift_npc_relationship", knowledge: "grant_knowledge", quest: "unlock_quest", favor: "owe_favor", milestone: "award_milestone", event: "create_calendar_event", handout: "give_handout" }[activeQuickAdd.value] as QuestConsequenceInsert["action"];
-      const payload: QuestConsequenceActionPayload = activeQuickAdd.value === "influence"
+      const action = { influence: "shift_npc_relationship", knowledge: "grant_knowledge", quest: "unlock_quest", favor: "owe_favor", milestone: "award_milestone", event: "create_calendar_event", handout: "give_handout", clock: "tick_clock", move: "move_npc", companion: "add_companion", standing: "shift_faction_standing" }[activeQuickAdd.value] as QuestConsequenceInsert["action"];
+      const world = isTargetedWorldVerb(action) ? worldVerbInsertFields(action, worldDraft.value) : null;
+      const payload: QuestConsequenceActionPayload = world
+        ? world.action_payload
+        : activeQuickAdd.value === "influence"
         ? relationshipShiftPayload(relationshipShiftKey.value)!
         : activeQuickAdd.value === "knowledge"
           ? { text: knowledgeText.value.trim() }
@@ -338,7 +392,7 @@ async function submit() {
             : activeQuickAdd.value === "milestone"
               ? { text: milestoneText.value.trim() }
               : activeQuickAdd.value === "event"
-                ? { title: calendarTitle.value.trim(), event_type: calendarType.value }
+                ? { title: calendarTitle.value.trim(), event_type: calendarType.value, ...(calendarDescription.value.trim() ? { description: calendarDescription.value.trim() } : {}) }
                 : {};
       const insert: QuestConsequenceInsert = {
         quest_id: beat.quest_id,
@@ -349,10 +403,15 @@ async function submit() {
         on_quest_settled: false,
         on_location_id: null,
         on_location_fact: null,
+        on_clock_id: null,
         after_days: afterDays.value || 0,
         action,
         target_objective_id: null,
         target_npc_id: activeQuickAdd.value === "influence" || activeQuickAdd.value === "favor" ? targetNpcId.value : null,
+        target_clock_id: null,
+        target_location_id: null,
+        target_faction_id: null,
+        ...world,
         target_quest_id: activeQuickAdd.value === "quest" ? targetQuestId.value : null,
         target_document_id: activeQuickAdd.value === "handout" ? targetDocumentId.value : null,
         entry_beat_id: activeQuickAdd.value === "quest" ? resolveEntryBeatId() : null,

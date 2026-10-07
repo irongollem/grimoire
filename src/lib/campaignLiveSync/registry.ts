@@ -14,6 +14,8 @@ import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 
 export const BEATS_KEY = "quest_beats";
 export const THREADS_KEY = "quest_threads";
+/** A quest's progress clocks (#1011). */
+export const CLOCKS_KEY = "quest_clocks";
 export const OBJECTIVES_KEY = "quest_objectives";
 export const PLAYER_NPCS_KEY = "player-npcs";
 export const PLAYER_NOTES_KEY = "player-notes";
@@ -132,6 +134,10 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // payloads altogether. These replaced four 5-second polls.
   ["quest_runtime_state", QUEST_RUNTIME_SYNC_KEYS],
   ["quest_threads", QUEST_RUNTIME_SYNC_KEYS],
+  // Clocks (#1011) are DM-only quest state like threads, so they ring too. A
+  // rule can tick one mid-transition, which is why the runtime views refresh
+  // with them: a filled clock may have fired rules that moved the ledger.
+  ["quest_clocks", [CLOCKS_KEY, ...QUEST_RUNTIME_SYNC_KEYS]],
   // A step is also a learned moment, listed under its session (#985).
   ["quest_beat_transitions", [...QUEST_RUNTIME_SYNC_KEYS, SESSION_LEARNED_KEY]],
   // Since 20261003105146 the table has no campaign_id, so it cannot be a

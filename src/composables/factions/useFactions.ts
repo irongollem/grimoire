@@ -10,6 +10,7 @@ import { matchSettingRowIds, stampSettingSource } from "@/lib/populateSetting/se
 import { useToast } from "@/composables/useToast";
 import type {
   Faction,
+  FactionInsert,
   FactionNpc,
   FactionLocation,
   FactionItem,
@@ -130,7 +131,7 @@ export function useCreateFaction() {
   const campaign = useCampaignStore();
   return useMutation({
     mutationFn: async (
-      payload: Omit<Faction, "id" | "user_id" | "campaign_id" | "created_at" | "updated_at">,
+      payload: Omit<FactionInsert, "user_id" | "campaign_id">,
     ) => {
       const user = getCurrentUser();
       const { data, error } = await supabase

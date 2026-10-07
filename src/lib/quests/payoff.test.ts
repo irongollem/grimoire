@@ -26,7 +26,7 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
     action: "grant_knowledge",
     target_objective_id: null,
     target_npc_id: null,
-    target_quest_id: null, target_document_id: null,
+    target_quest_id: null, target_document_id: null, target_clock_id: null, target_location_id: null, target_faction_id: null, on_clock_id: null,
     action_payload: {},
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
@@ -136,6 +136,31 @@ describe("derivePayoffRows", () => {
       { tone: "arcane", icon: "quest" },
       { tone: "muted", icon: "check" },
     ]);
+  });
+
+  it("styles the #1011 verbs and names their targets", () => {
+    const rows = derivePayoffRows({
+      beatId: "beat-fork",
+      consequences: [
+        consequence({ id: "c-1", on_beat_id: "beat-fork", action: "tick_clock", target_clock_id: "clock-1", action_payload: { step: 1 } }),
+        consequence({ id: "c-2", on_beat_id: "beat-fork", action: "move_npc", target_npc_id: "npc-1", target_location_id: "loc-1" }),
+        consequence({ id: "c-3", on_beat_id: "beat-fork", action: "add_companion", target_npc_id: "npc-1" }),
+        consequence({ id: "c-4", on_beat_id: "beat-fork", action: "shift_faction_standing", target_faction_id: "fac-1", action_payload: { step: -1 } }),
+      ],
+      outgoingEdges,
+      beats,
+      loot: [],
+      objectiveLabel,
+      clockLabel: () => "The count",
+      npcLabel: () => "Scrim",
+      locationLabel: () => "The Roost",
+      factionLabel: () => "Understage Crew",
+    });
+
+    expect(rows.map((row) => row.summary)).toEqual([
+      "The count ticks 1", "Scrim moves to The Roost", "Scrim joins the party", "Understage Crew: standing worsens by 1",
+    ]);
+    expect(rows.map((row) => row.icon)).toEqual(["clock", "pin", "party", "faction"]);
   });
 
   it("marks every consequence row 'auto' and every loot row 'you dispatch'", () => {

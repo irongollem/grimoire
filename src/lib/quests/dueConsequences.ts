@@ -10,6 +10,9 @@ export interface PendingConsequenceEvent {
   fires_on_year: number;
   fires_on_month: number;
   fires_on_day: number;
+  /** Set when the DM held the payoff in the Advance dialog. A held event fires
+   *  only from the Fire button, never because its day arrived (#1011). */
+  held_at: string | null;
 }
 
 /**
@@ -25,6 +28,7 @@ export function dueConsequenceEvents(
   today: CalendarDate,
 ): PendingConsequenceEvent[] {
   return rows.filter((row) => {
+    if (row.held_at !== null) return false;
     const dueOn = addDays(
       adapter,
       { year: row.fires_on_year, month: row.fires_on_month, day: row.fires_on_day },
