@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import SessionsUnsortedView from "./SessionsUnsortedView.vue";
 import type { LearnedEntry } from "@/lib/sessions/learned";
@@ -44,6 +44,9 @@ vi.mock("@/composables/sessions/useSessionLearned", () => ({
   useUnsortedLearned: () => ({ entries, isLoading: ref(false), error: ref(null) }),
   useMoveLearned: () => ({ mutateAsync, isPending: ref(false) }),
 }));
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({ error: vi.fn(), fromError: (_e: unknown, fallback: string) => fallback }),
+}));
 vi.mock("@/composables/sessions/useCampaignSessions", () => ({
   useCampaignSessions: () => ({ data: ref([session("s14", 14, "2026-10-02"), session("s15", 15, "2026-10-04")]) }),
 }));
@@ -60,22 +63,62 @@ function mountPage() {
   });
 }
 
+/** The session id and entry keys of every move the page asked for, in order. */
+function moves() {
+  return mutateAsync.mock.calls.map(([arg]) => ({
+    sessionId: arg.sessionId,
+    keys: arg.entries.map((e: LearnedEntry) => e.key),
+  }));
+}
+
+/** Presses the "Follow suggestions" button and lets the moves settle. */
+async function follow(w: ReturnType<typeof mountPage>) {
+  await w.findAll("button").find((b) => b.text() === "Follow suggestions")!.trigger("click");
+  await flushPromises();
+}
+
+beforeEach(() => {
+  mutateAsync.mockReset();
+  mutateAsync.mockResolvedValue(undefined);
+});
+
 describe("SessionsUnsortedView, Follow suggestions", () => {
   it("moves each ticked row to its own suggested session, one write per session", async () => {
     const w = mountPage();
     const boxes = w.findAll("input[type=checkbox]");
     await boxes[0].setValue(true);
     await boxes[2].setValue(true);
-    await w.findAll("button").find((b) => b.text() === "Follow suggestions")!.trigger("click");
-    await flushPromises();
-
-    const calls = mutateAsync.mock.calls.map(([arg]) => ({
-      sessionId: arg.sessionId,
-      keys: arg.entries.map((e: LearnedEntry) => e.key),
-    }));
-    expect(calls).toEqual([
+    await follow(w);
+    expect(moves()).toEqual([
       { sessionId: "s14", keys: ["a"] },
       { sessionId: "s15", keys: ["c"] },
     ]);
+  });
+
+  it("follows a row's own picker where the DM changed it from the suggestion", async () => {
+    const w = mountPage();
+    const boxes = w.findAll("input[type=checkbox]");
+    await boxes[0].setValue(true);
+    await boxes[1].setValue(true);
+    // The first select is the bulk "Put them in"; the rows' own pickers follow it in order.
+    await w.findAll("select")[1].setValue("s15");
+    await follow(w);
+    expect(moves()).toEqual([
+      { sessionId: "s15", keys: ["a"] },
+      { sessionId: "s14", keys: ["b"] },
+    ]);
+  });
+
+  it("keeps the rows of a destination that failed ticked, and unticks the rest", async () => {
+    mutateAsync.mockImplementation(async ({ sessionId }: { sessionId: string }) => {
+      if (sessionId === "s15") throw new Error("offline");
+    });
+    const w = mountPage();
+    const boxes = w.findAll("input[type=checkbox]");
+    await boxes[0].setValue(true);
+    await boxes[2].setValue(true);
+    await follow(w);
+    const ticked = w.findAll("input[type=checkbox]").map((b) => (b.element as HTMLInputElement).checked);
+    expect(ticked).toEqual([false, false, true]);
   });
 });

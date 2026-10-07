@@ -140,11 +140,14 @@ watchEffect(() => {
   picked.value = picked.value.filter((k) => keys.has(k));
 });
 
-async function run(moved: LearnedEntry[], target: string | null) {
+/** Moves the entries, reporting a failure; true when they moved. */
+async function run(moved: LearnedEntry[], target: string | null): Promise<boolean> {
   try {
     await move.mutateAsync({ entries: moved, sessionId: target });
+    return true;
   } catch (e) {
     toast.error(toast.fromError(e, "Could not move those."));
+    return false;
   }
 }
 
@@ -159,24 +162,31 @@ const followable = computed(() => {
   return rows.value.filter((r) => chosen.has(r.entry.key) && r.target !== undefined);
 });
 
-/** Moves each ticked row to its own picker's session, one write per destination. */
+/**
+ * Moves each ticked row to its own picker's session, one write per destination. A destination
+ * that fails keeps its rows ticked, so the DM can try those again; the rest untick as they move.
+ */
 async function moveFollowing() {
   const byTarget = new Map<string | null, LearnedEntry[]>();
   for (const row of followable.value) {
     const target = row.target as string | null;
     byTarget.set(target, [...(byTarget.get(target) ?? []), row.entry]);
   }
-  for (const [target, moved] of byTarget) await run(moved, target);
-  picked.value = [];
+  const done = new Set<string>();
+  for (const [target, moved] of byTarget) {
+    if (await run(moved, target)) for (const e of moved) done.add(e.key);
+  }
+  picked.value = picked.value.filter((k) => !done.has(k));
 }
 
 async function moveSelected() {
   if (bulkTarget.value === undefined) return;
   const chosen = new Set(picked.value);
-  await run(
+  const moved = await run(
     entries.value.filter((e) => chosen.has(e.key)),
     bulkTarget.value,
   );
-  picked.value = [];
+  // A failed move keeps the ticks, so the DM can try again.
+  if (moved) picked.value = [];
 }
 </script>
