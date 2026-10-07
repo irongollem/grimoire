@@ -295,6 +295,30 @@ describe("the campaign row and its id", () => {
     expect(useCampaignStore().activeRuleset).toBe("2014");
   });
 
+  it("drops the previous edition immediately when only the campaign id changes", async () => {
+    const store = useCampaignStore();
+    store.switchToCampaign(row("a", "2024"));
+    await nextTick();
+    expect(store.activeRuleset).toBe("2024");
+
+    store.activeCampaignId = "b";
+
+    expect(store.activeCampaign).toBeNull();
+    expect(store.activeRuleset).toBe("2014");
+  });
+
+  it("reads the target campaign's hint immediately when only the id changes", () => {
+    localStorage.setItem("grimoire_active_campaign", "a");
+    localStorage.setItem(HINT, JSON.stringify({ id: "b", ruleset: "2024" }));
+    const store = useCampaignStore();
+    expect(store.activeRuleset).toBe("2014");
+
+    store.activeCampaignId = "b";
+
+    expect(store.activeCampaign).toBeNull();
+    expect(store.activeRuleset).toBe("2024");
+  });
+
   it("survives a corrupt remembered edition", () => {
     localStorage.setItem(HINT, "{nope");
     localStorage.setItem("grimoire_active_campaign", "a");
