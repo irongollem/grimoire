@@ -7,9 +7,13 @@
     Generic enough for both NPCs and Monsters; the parent maps each entity to
     these props. The whole card is a <RouterLink> to the detail route.
   -->
+  <!-- Gallery is a column whose plate and body are the card's direct children: the vellum
+       theme's wanted-poster rules (inset framed plate, centred engraved name) key on exactly
+       the desktop card's shape, `> .relative.shrink-0.overflow-hidden` and `> .flex.flex-1.flex-col.p-3`. -->
   <RouterLink
     :to="to"
-    class="block rounded-xl border border-border bg-card transition-colors active:border-primary/50"
+    class="rounded-xl border border-border bg-card transition-colors active:border-primary/50"
+    :class="layout === 'gallery' ? 'flex flex-col overflow-hidden' : 'block'"
   >
     <!-- ── Rows layout ──────────────────────────────────────────────────── -->
     <div v-if="layout === 'rows'" class="flex items-center gap-3 p-2.5">
@@ -73,8 +77,8 @@
     </div>
 
     <!-- ── Gallery layout ───────────────────────────────────────────────── -->
-    <div v-else class="flex flex-col overflow-hidden rounded-xl">
-      <div class="relative aspect-4/5 w-full overflow-hidden bg-muted">
+    <template v-else>
+      <div class="relative aspect-4/5 shrink-0 overflow-hidden bg-muted">
         <FocalImage
           :src="imageUrl"
           :alt="title"
@@ -82,22 +86,23 @@
           :focal-point="focalPoint"
           :placeholder="placeholder"
         />
+        <!-- The same chip as the desktop card's badge, so it becomes the same paper label. -->
         <span
           v-if="badgeText"
-          class="absolute right-1.5 top-1.5 rounded px-1.5 py-0.5 text-eyebrow font-bold text-white"
+          class="absolute top-2 right-2 flex h-6 items-center rounded px-1.5 text-eyebrow font-bold text-white backdrop-blur-sm"
         >
-          <span class="absolute inset-0 rounded opacity-90" :class="badgeClass ?? 'bg-muted-foreground'" />
+          <span class="absolute inset-0 rounded opacity-50" :class="badgeClass ?? 'bg-muted-foreground'" />
           <span class="relative">{{ badgeText }}</span>
         </span>
         <span
           v-if="shared"
-          class="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-black/60"
+          class="absolute left-2 top-2 flex size-6 items-center justify-center rounded-full bg-black/60"
         >
           <IconReveal class="size-3.5 text-primary" aria-label="Shared with players" />
         </span>
       </div>
 
-      <div class="flex flex-col gap-0.5 p-2.5">
+      <div class="flex flex-1 flex-col gap-0.5 p-3">
         <div class="flex items-center gap-1.5">
           <span v-if="statusClass" class="size-2 shrink-0 rounded-full" :class="statusClass" />
           <h3 class="truncate text-heading-xs font-bold leading-tight text-foreground">
@@ -108,7 +113,7 @@
           {{ subtitle }}
         </p>
       </div>
-    </div>
+    </template>
   </RouterLink>
 </template>
 
