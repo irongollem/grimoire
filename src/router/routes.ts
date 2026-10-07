@@ -96,7 +96,9 @@ export const routes: RouteRecordRaw[] = [
     path: "/play/fallen",
     name: "play-fallen",
     component: () => import("@/views/play/PlayerFallenView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Hall of the Fallen" },
+    // fillsMain: the stone wall is the page's ground edge to edge. darkChrome: the wall is always
+    // dark, so the bars around it go dark with it.
+    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Hall of the Fallen", fillsMain: true, darkChrome: true },
   },
   {
     path: "/play/champions",
@@ -507,7 +509,8 @@ export const routes: RouteRecordRaw[] = [
     path: "/party/fallen",
     name: "party-fallen",
     component: () => import("@/views/party/PartyFallenView.vue"),
-    meta: { requiresAuth: true, title: "Hall of the Fallen" },
+    // darkChrome: the wall is always dark, so the bars around it go dark with it.
+    meta: { requiresAuth: true, title: "Hall of the Fallen", darkChrome: true },
   },
   {
     path: "/party/:id",
