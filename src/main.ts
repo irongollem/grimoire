@@ -5,7 +5,8 @@ import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
-import { supabase, onSessionLost, consumeRefusedRead, getCurrentUser } from "./lib/supabase";
+import { prefetchInitialChunks } from "./router/prefetchInitial";
+import { supabase, onSessionLost, consumeRefusedRead, getCurrentUser, readStoredSession } from "./lib/supabase";
 import { createIdentityChangeGate, resetForNewIdentity } from "./lib/authIdentityChange";
 import { createSessionRecovery } from "./lib/sessionRecovery";
 import { createQueryPersistence } from "./lib/queryPersistence/persistence";
@@ -59,6 +60,27 @@ const router = createRouter({
     return savedPosition ?? { top: 0 };
   },
 });
+
+// The cold-load request chain used to be render-order waits, not data
+// dependencies (#999): identity, then the shell, then the shell's first reads,
+// each started only once the one before it had rendered. Two things that need
+// nothing from the identity answer start here, at t=0, beside it.
+//
+// 1. The first navigation's chunks (layout shell and route component), which
+//    the router would otherwise request only after its guard's identity await.
+prefetchInitialChunks(router, window.location.pathname + window.location.search + window.location.hash);
+
+// 2. The IndexedDB open. On a device that has never opened the database it
+//    creates it, and every persisted read queues behind that; the unpersisted
+//    chat probe did not, which is why the dashboard reads trailed it. Only with
+//    a stored session: a signed-out visitor persists nothing, so it would create
+//    a database for nobody.
+//
+// Data is deliberately NOT fetched here. A campaign read sent at t=0 was tried
+// and measured: it went out a second time once App.vue's query mounted, so it
+// saved nothing, and it broke the premise `authIdentityChange.ts` rests on, that
+// nothing queries before auth-js's first event.
+if (readStoredSession() !== null) void persistence.warm();
 
 // The "next navigation" half of the deferred deploy reload (see swAutoUpdate.ts):
 // when a new build is waiting and nothing is busy, the navigation becomes a full

@@ -83,6 +83,14 @@ import HearthRightNow from "@/components/play/hearth/HearthRightNow.vue";
 import HearthSpellcasting from "@/components/play/hearth/HearthSpellcasting.vue";
 import HearthVitals from "@/components/play/hearth/HearthVitals.vue";
 import HearthWaiting from "@/components/play/hearth/HearthWaiting.vue";
+import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
+import { usePlayerCalendarEventsRange } from "@/composables/calendar/useCalendarEvents";
+import { useAllSessionAvailability, useSessionProposals } from "@/composables/calendar/useScheduling";
+import { useMyRecentNotes } from "@/composables/notes/useMyRecentNotes";
+import { useArmorClass } from "@/composables/party/useArmorClass";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
+import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
+import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { usePlayerSessionState } from "@/composables/campaign/useCampaignSession";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAuthStore } from "@/stores/auth";
@@ -121,6 +129,29 @@ const isSettling = computed(
     (!!memberId.value && !party.value && !partyFailed.value) ||
     (!!member.value && !!campaign.activeCampaignId && !session.value && !sessionFailed.value),
 );
+
+// Start the sections' reads with the view, not when the sections mount. The
+// sections wait behind `isSettling` (party, then session), which put these a
+// full round late although each needs only the campaign, the member id or the
+// calendar year, all known from the first round. The sections call the same
+// hooks with the same arguments and so read these cache entries; this only
+// moves when the requests start. Reads whose arguments come from the late
+// responses (species by id, the wild-shape beast, stored item refs resolved
+// from the inventory, unread markers over the quests) stay in their sections.
+useCharacterClasses(memberId);
+useArmorClass();
+usePlayerVisibleQuests();
+usePlayerQuestBeats();
+useSessionProposals();
+useAllSessionAvailability();
+useCampaignMembers();
+usePlayerCalendarEventsRange(
+  computed(() => campaign.todayYear),
+  computed(() => campaign.todayYear + 1),
+);
+// The Hearth does not mount the notes list in DM preview (they are the
+// player's private notes), so neither may this read.
+useMyRecentNotes(3, () => !ui.dmPreviewMode);
 const isRunning = computed(() => session.value?.isRunning === true);
 const startedAt = computed(() => session.value?.startedAt ?? null);
 </script>

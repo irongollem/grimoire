@@ -77,7 +77,7 @@ async function deleteRule(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export function useRules() {
+export function useRules(enabled: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const { ruleset } = useTableRuleset();
@@ -87,7 +87,7 @@ export function useRules() {
       if (cid === null) throw new Error("useRules fetched without a campaign");
       return fetchRules(cid, rs);
     },
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && enabled(),
     staleTime: Infinity,
   });
 }

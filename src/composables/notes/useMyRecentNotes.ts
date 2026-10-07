@@ -108,7 +108,7 @@ async function fetchRecentEntityNotes(campaignId: string, userId: string, limit:
  * campaign in the query itself, never left to RLS. It is not live-synced (only
  * this user writes these rows), so it refetches when the Hearth mounts.
  */
-export function useMyRecentNotes(limit = 3) {
+export function useMyRecentNotes(limit = 3, enabled: () => boolean = () => true) {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
@@ -120,9 +120,9 @@ export function useMyRecentNotes(limit = 3) {
       if (!cid || !uid) throw new Error("useMyRecentNotes fetched without a campaign and a user");
       return fetchRecentEntityNotes(cid, uid, limit);
     },
-    enabled: () => !!campaignId.value && !!userId.value,
+    enabled: () => !!campaignId.value && !!userId.value && enabled(),
   });
-  const journalQuery = useMyJournalEntries();
+  const journalQuery = useMyJournalEntries(enabled);
 
   const notes = computed(() =>
     mergeRecentNotes(entityQuery.data.value ?? [], journalQuery.data.value ?? [], limit),

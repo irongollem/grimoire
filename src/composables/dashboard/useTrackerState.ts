@@ -31,7 +31,7 @@ async function upsertTrackerState(
 }
 
 /** Fetches all tracker states for the active campaign (all party members, all rules). */
-export function useTrackerStates() {
+export function useTrackerStates(enabled: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
@@ -40,7 +40,7 @@ export function useTrackerStates() {
       if (cid === null) throw new Error("useTrackerStates fetched without a campaign");
       return fetchTrackerStates(cid);
     },
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && enabled(),
   });
 }
 

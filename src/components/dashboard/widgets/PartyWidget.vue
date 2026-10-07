@@ -82,6 +82,8 @@ import { computed } from "vue";
 import { IconMind, IconNavParty, IconReveal } from "@/lib/icons";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
+import { useTrackerStates } from "@/composables/dashboard/useTrackerState";
+import { useRules } from "@/composables/rules/useRules";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { describeAc } from "@/rules/armorClass";
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
@@ -111,6 +113,12 @@ const acOf = (m: PartyMember) => m.wildshape_state?.beast_ac ?? acFor(m);
 const acTitle = (m: PartyMember) =>
   m.wildshape_state ? `Wild Shape: ${m.wildshape_state.beast_name}` : describeAc(acBreakdownFor(m));
 const { data: party, isError: partyIsError, refetch: refetchParty } = useActiveParty();
+// The party body (and so each member's DmTrackerButtons) mounts only after the
+// party and memorials load, which put these two reads a round behind. The
+// buttons read the same cache entries; this only moves when the request starts.
+// DM-only exactly as the buttons are, so a player never sends them.
+useTrackerStates(() => auth.isDM);
+useRules(() => auth.isDM);
 
 /** A wild-shaped member wears the beast's face, as everywhere else — the
  *  beast's picture as it reads now (art tables merged), not only the copy the

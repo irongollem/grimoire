@@ -193,6 +193,27 @@ describe("createQueryPersistence", () => {
     expect(errors).toEqual([]);
   });
 
+  it("warm() opens the database ahead of the first read and a later read reuses it", async () => {
+    const open = vi.spyOn(indexedDB, "open");
+    const { persistence, client } = session();
+    await persistence.warm();
+    expect(open).toHaveBeenCalledTimes(1);
+    await seed();
+    open.mockClear();
+    const queryFn = vi.fn(() => Promise.resolve("net"));
+    await expect(client.fetchQuery({ queryKey: [...LISTED], queryFn })).resolves.toBe("stored");
+    expect(open).not.toHaveBeenCalled();
+    expect(errors).toEqual([]);
+    vi.restoreAllMocks();
+  });
+
+  it("warm() never rejects when indexedDB is missing, and writes nothing", async () => {
+    vi.stubGlobal("indexedDB", undefined);
+    const { persistence } = session();
+    await expect(persistence.warm()).resolves.toBeUndefined();
+    expect(errors).toEqual([]);
+  });
+
   it("treats a storage read that throws as a miss and reports it", async () => {
     const boom = new Error("read failed");
     vi.spyOn(IDBObjectStore.prototype, "get").mockImplementationOnce(() => {

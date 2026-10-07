@@ -58,7 +58,14 @@ vi.mock("@/composables/party/useArmorClass", () => ({
 }));
 vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: { value: [] } }) }));
 vi.mock("@/composables/campaign/useCampaignPresence", () => ({ useCampaignPresence: () => ({ isOnline: () => false }) }));
-vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ isDM: false }) }));
+const gates = vi.hoisted(() => ({ isDM: false, trackerEnabled: [] as Array<() => boolean>, rulesEnabled: [] as Array<() => boolean> }));
+vi.mock("@/composables/dashboard/useTrackerState", () => ({
+  useTrackerStates: (enabled: () => boolean) => gates.trackerEnabled.push(enabled),
+}));
+vi.mock("@/composables/rules/useRules", () => ({
+  useRules: (enabled: () => boolean) => gates.rulesEnabled.push(enabled),
+}));
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ get isDM() { return gates.isDM; } }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: null }) }));
 
 // AppButton renders a real RouterLink for every `to="..."` prop, which needs an
@@ -67,6 +74,21 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignI
 const routerStub = { global: { stubs: { RouterLink: true } } };
 
 describe("PartyWidget", () => {
+  it("starts the tracker reads with the widget, for a DM only", () => {
+    gates.trackerEnabled.length = 0;
+    gates.rulesEnabled.length = 0;
+    mount(PartyWidget, routerStub);
+    expect(gates.trackerEnabled).toHaveLength(1);
+    expect(gates.rulesEnabled).toHaveLength(1);
+    gates.isDM = false;
+    expect(gates.trackerEnabled[0]!()).toBe(false);
+    expect(gates.rulesEnabled[0]!()).toBe(false);
+    gates.isDM = true;
+    expect(gates.trackerEnabled[0]!()).toBe(true);
+    expect(gates.rulesEnabled[0]!()).toBe(true);
+    gates.isDM = false;
+  });
+
   beforeEach(() => {
     mocks.partyData = undefined;
     mocks.partyIsError = false;

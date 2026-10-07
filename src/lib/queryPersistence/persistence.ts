@@ -78,6 +78,14 @@ export interface QueryPersistence {
   clear(): Promise<void>;
   /** Delete records written by anyone but `userId`, and records older than 7 days. Never rejects. */
   prune(userId: string): Promise<void>;
+  /**
+   * Begin opening the database now instead of at the first persisted read. On a
+   * device that has never opened it, the open creates the database, which under
+   * a throttled CPU is long enough that every persisted query queued behind it
+   * visibly trails the unpersisted ones. Idempotent, never rejects, and a
+   * failed open is reported and degrades to network-only exactly as a lazy one.
+   */
+  warm(): Promise<void>;
 }
 
 /**
@@ -195,5 +203,9 @@ export function createQueryPersistence(options: QueryPersistenceOptions): QueryP
     }
   }
 
-  return { persister, clear, prune };
+  async function warm(): Promise<void> {
+    await getStore();
+  }
+
+  return { persister, clear, prune, warm };
 }

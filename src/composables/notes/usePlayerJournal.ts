@@ -106,7 +106,7 @@ async function deleteEntry(id: string): Promise<void> {
 // ── Composables ───────────────────────────────────────────────────────────────
 
 /** All entries authored by the current user in the active campaign. */
-export function useMyJournalEntries() {
+export function useMyJournalEntries(enabled: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
@@ -115,7 +115,7 @@ export function useMyJournalEntries() {
       if (!cid) throw new Error("useMyJournalEntries fetched without a campaign");
       return fetchMyEntries(cid);
     },
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && enabled(),
   });
 }
 
