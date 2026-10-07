@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   entityCampaigns: {} as Record<string, string | null>,
   reads: [] as { table: string; column: string }[],
   readError: null as Error | null,
+  /** When set, a read waits on it: the note's server copy has not arrived yet. */
+  gate: null as Promise<void> | null,
   touchError: null as Error | null,
   updates: [] as { table: string; patch: Record<string, unknown>; id: string }[],
   upserts: [] as { row: Record<string, unknown>; opts: unknown }[],
@@ -27,8 +29,9 @@ vi.mock("@/lib/supabase", () => ({
     from: (table: string) => ({
       select: (column: string) => ({
         eq: () => ({
-          maybeSingle: () => {
+          maybeSingle: async () => {
             mocks.reads.push({ table, column });
+            if (mocks.gate) await mocks.gate;
             if (mocks.readError) return Promise.resolve({ data: null, error: mocks.readError });
             const value = column === "campaign_id" ? mocks.entityCampaigns[table] : mocks.serverValue;
             return Promise.resolve({ data: { [column]: value }, error: null });
@@ -119,6 +122,19 @@ describe("useDmNote", () => {
       user_id: "me", campaign_id: "camp-1", entity_type: "npc", entity_id: "n1", entity_label: "Brenna",
     });
     expect(mocks.upserts[0].opts).toEqual({ onConflict: "user_id,campaign_id,entity_type,entity_id" });
+  });
+
+  it("never saves a column note typed over a read that has not landed, so an NPC opened from the list cannot be blanked (#999)", async () => {
+    mocks.serverValue = doc("old");
+    let release!: () => void;
+    mocks.gate = new Promise<void>((resolve) => { release = resolve; });
+    const { handle } = setup(npc);
+    handle.draft.content = doc("typed too early");
+    await settle();
+    expect(mocks.updates).toEqual([]);
+    mocks.gate = null;
+    release();
+    await flushPromises();
   });
 
   it("writes null for a blank column note and uses the item's dm_notes column", async () => {

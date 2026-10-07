@@ -70,6 +70,17 @@ async function fetchBacklinks(campaignId: string, entityId: string): Promise<Ent
 }
 
 /**
+ * The backlinks read as one value, so the open-on-intent prefetch and
+ * `useEntityBacklinks` share a key and a fetcher by construction (#999).
+ */
+export function entityBacklinksQuery(campaignId: string, entityId: string) {
+  return {
+    queryKey: [BACKLINKS_KEY, campaignId, entityId] as const,
+    queryFn: () => fetchBacklinks(campaignId, entityId),
+  };
+}
+
+/**
  * Everything in this campaign that `@mentions` an entity: the "Mentioned in"
  * section on a DM detail surface (epic #932, stories 1 and 3).
  *

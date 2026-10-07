@@ -31,6 +31,7 @@ import { computed, type ComputedRef } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { useRoute } from "vue-router";
 import { supabase } from "@/lib/supabase";
+import { createIdBatcher } from "@/lib/batchById";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { isPlayerArea } from "@/router/lens";
 import { useParty } from "@/composables/party/useParty";
@@ -121,19 +122,31 @@ export function monsterNameTable(id: string): "monsters" | "library_monsters" {
   return isUuid(id) ? "monsters" : "library_monsters";
 }
 
+/** A chip per mention means a note full of monsters asks for each name alone; batched per table (a text id sent to `monsters` is a 22P02). */
+const monsterNameBatchers = {
+  monsters: monsterNameBatcher("monsters"),
+  library_monsters: monsterNameBatcher("library_monsters"),
+};
+
+function monsterNameBatcher(table: "monsters" | "library_monsters") {
+  return createIdBatcher<{ id: string; name: string }>({
+    fetchMany: async (ids) => {
+      const { data, error } = await supabase.from(table).select("id, name").in("id", ids);
+      if (error) throw error;
+      return data;
+    },
+    idOf: (row) => row.id,
+  });
+}
+
 /** One monster, one query — checks both the user's own `monsters` table and
  *  the shared `library_monsters` table, since a mentioned id can be either. */
 function useDmMonsterName(id: string): ComputedRef<string | null> {
   const query = useQuery({
     queryKey: ["mention-monster-name", id] as const,
     queryFn: async ({ queryKey: [, monsterId] }) => {
-      const { data, error } = await supabase
-        .from(monsterNameTable(monsterId))
-        .select("name")
-        .eq("id", monsterId)
-        .maybeSingle();
-      if (error) throw error;
-      return data?.name ?? null;
+      const row = await monsterNameBatchers[monsterNameTable(monsterId)].load(monsterId);
+      return row?.name ?? null;
     },
     enabled: () => !!id,
     staleTime: Infinity,

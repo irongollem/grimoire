@@ -117,6 +117,16 @@ export async function openMeasuredPage(browser: Browser, profile: Profile, opts:
   const cdp = await context.newCDPSession(page);
   const recorder = await NetworkRecorder.attach(cdp);
   if (opts.throttled) await cdp.send("Emulation.setCPUThrottlingRate", { rate: profile.cpuThrottle });
+  // Below the routing layer, so it reaches the CORS preflights the hold above
+  // cannot (see `ProfileRecord.latencyMs`). -1 leaves bandwidth unthrottled.
+  if (opts.throttled && (profile.latencyMs ?? 0) > 0) {
+    await cdp.send("Network.emulateNetworkConditions", {
+      offline: false,
+      latency: profile.latencyMs ?? 0,
+      downloadThroughput: -1,
+      uploadThroughput: -1,
+    });
+  }
   // Playwright turns the HTTP cache off while a route is installed. That would
   // make every warm journey re-download its assets and measure a cache that
   // does not exist for a real returning user, so it is switched back on.

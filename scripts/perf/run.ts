@@ -10,7 +10,7 @@
  *
  * Usage:
  *   npx tsx scripts/perf/run.ts [--base <url>] [--journey <name>]... [--runs <n>]
- *                               [--out <file>] [--cpu <rate>] [--delay <ms>]
+ *                               [--out <file>] [--cpu <rate>] [--delay <ms>] [--latency <ms>]
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -39,6 +39,7 @@ async function main(): Promise<void> {
       out: { type: "string" },
       cpu: { type: "string", default: "4" },
       delay: { type: "string", default: "150" },
+      latency: { type: "string", default: "0" },
     },
   });
 
@@ -52,6 +53,7 @@ async function main(): Promise<void> {
   const profile: Profile = {
     cpuThrottle: parsePositive("cpu", values.cpu),
     apiDelayMs: parsePositive("delay", values.delay, true),
+    latencyMs: parsePositive("latency", values.latency, true),
     viewport: { width: 1440, height: 900 },
     apiOrigin: API_ORIGIN,
   };
@@ -108,12 +110,12 @@ async function main(): Promise<void> {
       startedAt,
       base: values.base,
       runsPerJourney: runs,
-      profile: { cpuThrottle: profile.cpuThrottle, apiDelayMs: profile.apiDelayMs, viewport: profile.viewport },
+      profile: { cpuThrottle: profile.cpuThrottle, apiDelayMs: profile.apiDelayMs, latencyMs: profile.latencyMs, viewport: profile.viewport },
       journeys,
     };
     mkdirSync(dirname(outFile), { recursive: true });
     writeFileSync(outFile, `${JSON.stringify(results, null, 2)}\n`);
-    console.log(`\nmedian of ${runs} run(s), CPU ${profile.cpuThrottle}x, +${profile.apiDelayMs}ms per API request\n`);
+    console.log(`\nmedian of ${runs} run(s), CPU ${profile.cpuThrottle}x, +${profile.apiDelayMs}ms per API request, ${profile.latencyMs ?? 0}ms latency on every request\n`);
     console.log(formatTable(journeys));
     console.log(`\nwrote ${outFile}`);
   } finally {

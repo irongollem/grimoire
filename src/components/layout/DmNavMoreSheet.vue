@@ -43,6 +43,7 @@
                 : 'border-border bg-card text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
               item.requiresCampaign && !hasCampaign ? 'pointer-events-none opacity-40' : '',
             ]"
+            v-prefetch="item.to"
             @click="navigate(item)"
           >
             <component :is="item.icon" class="h-5 w-5 shrink-0" />
@@ -131,6 +132,7 @@ import { useScratchpadStore } from "@/stores/scratchpad";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import { useAbove } from "@/composables/useBreakpoint";
+import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 
 const { open = false, barRoutes = [], create = null } = defineProps<{
   open?: boolean;
@@ -152,6 +154,7 @@ const BugReportModal = defineAsyncComponent(
 const bugReportOpen = ref(false);
 const bugReportMounted = useLazyMount(bugReportOpen);
 
+const vPrefetch = usePrefetchOnIntent();
 const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();

@@ -13,7 +13,7 @@ export interface Sample extends RequestSummary {
   contentReadyMs: number | null;
 }
 
-export type NumericMetric = Exclude<keyof Sample, "apiPaths">;
+export type NumericMetric = Exclude<keyof Sample, "apiPaths" | "apiWaves">;
 
 /**
  * Display order and labels. Order is the order of the printed table; `unit`
@@ -57,6 +57,15 @@ export interface JourneyResult {
 export interface ProfileRecord {
   cpuThrottle: number;
   apiDelayMs: number;
+  /**
+   * Round-trip latency added to EVERY request through Chromium's network
+   * emulation, preflights and static assets included. The `apiDelayMs` hold is a
+   * Playwright route, and Chromium answers CORS preflights below the routing
+   * layer, so the hold never reaches them: a profile without latency cannot see
+   * what a preflight costs. Absent in results written before it existed, which
+   * ran without it.
+   */
+  latencyMs?: number;
   viewport: { width: number; height: number };
 }
 

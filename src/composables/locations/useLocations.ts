@@ -2,13 +2,16 @@ import { computed, isRef, ref, toValue, type MaybeRefOrGetter } from "vue";
 import type { Ref } from "vue";
 import { useQueries, useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { createIdBatcher } from "@/lib/batchById";
+import { MissingRowError } from "@/lib/queryRetry";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import type { GridCalibration, Location, LocationInsert, LocationSummary, LocationUpdate, MapScale } from "@/types/location.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { LOCATION_SUMMARY_SELECT, VAGUE_LOCATION_TYPES } from "@/types/location.types";
-import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
+import { PLANAR_LOCATIONS } from "@/data/settingLocations";
+import { loadSettingContent } from "@/settings/content";
 import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/populateSetting/settingContent";
 import { persistReorder, toReorderEntries } from "@/lib/reorder";
 import { isInteriorType } from "@/lib/locations/tiers";
@@ -132,10 +135,29 @@ async function fetchAllLocations(campaignId: string): Promise<LocationSummary[]>
   return data as unknown as LocationSummary[];
 }
 
+/**
+ * `useLocation` and `useLocationNames` fan out one query per id, so ids asked
+ * for in the same tick leave as one `.in("id", ids)` request. The per-id keys
+ * stay as they are; only the network is coalesced.
+ */
+const locationBatcher = createIdBatcher<Location>({
+  fetchMany: async (ids) => {
+    const { data, error } = await supabase.from("locations").select("*").in("id", ids);
+    if (error) throw error;
+    return data as Location[];
+  },
+  idOf: (location) => location.id,
+});
+
+/**
+ * Throws for a missing row, as `.single()` did: a query for a place that is gone
+ * is an error, not an empty place. A `MissingRowError`, so it is not retried with
+ * backoff, exactly as PostgREST's PGRST116 was not.
+ */
 async function fetchLocation(id: string): Promise<Location> {
-  const { data, error } = await supabase.from("locations").select("*").eq("id", id).single();
-  if (error) throw error;
-  return data as Location;
+  const location = await locationBatcher.load(id);
+  if (!location) throw new MissingRowError(`Location not found: ${id}`);
+  return location;
 }
 
 async function createLocation(loc: LocationInsert): Promise<Location> {
@@ -240,6 +262,17 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
   });
 }
 
+/** The flat Atlas read; shared by `useAllLocations` and the navigation prefetch. */
+export function allLocationsQuery(campaignId: string | null) {
+  return {
+    queryKey: [QUERY_KEY, campaignId, "all"] as const,
+    queryFn: () => {
+      if (campaignId === null) throw new Error("useAllLocations fetched without an active campaign");
+      return fetchAllLocations(campaignId);
+    },
+  };
+}
+
 /** All locations in the campaign as slim `LocationSummary` rows (flat list, for
  *  insert panel / search / the tree). Anything that shows a place in full reads
  *  it by id with `useLocation`; a slim row is never a `Location`.
@@ -250,12 +283,10 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
 export function useAllLocations(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const options = computed(() => allLocationsQuery(campaignId.value));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, "all"] as const),
-    queryFn: ({ queryKey: [, cid] }) => {
-      if (cid === null) throw new Error("useAllLocations fetched without an active campaign");
-      return fetchAllLocations(cid);
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
@@ -775,7 +806,9 @@ export function usePopulateLocations() {
       if (campaignError) throw campaignError;
 
       const calendarId: string = campaignRow?.calendar_id ?? "faerun";
-      const presets = SETTING_LOCATIONS[calendarId] ?? SETTING_LOCATIONS["faerun"] ?? [];
+      // A calendar that is not a built-in setting (custom, gregorian) falls back to Faerûn's presets.
+      const content = (await loadSettingContent(calendarId)) ?? (await loadSettingContent("faerun"));
+      const presets = content ? content.locations : [];
       if (!presets.length) return 0;
 
       const user = getCurrentUser();

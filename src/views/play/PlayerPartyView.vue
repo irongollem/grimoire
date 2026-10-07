@@ -155,7 +155,7 @@ import PeopleToolbar from "@/components/play/people/PeopleToolbar.vue";
 import { buildPartyEntries, type PartyEntry } from "@/components/play/people/peopleParty";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
-import type { HealthVisibility } from "@/types/encounter.types";
+import { healthVisibilityOf } from "@/lib/healthVisibility";
 
 const route = useRoute();
 const router = useRouter();
@@ -267,7 +267,7 @@ const partyEntries = computed(() =>
 );
 
 const healthVis = computed(
-  () => (campaign.activeCampaign?.health_visibility as HealthVisibility) ?? "strategic",
+  () => healthVisibilityOf(campaign.activeCampaign),
 );
 
 function showHp(entry: PartyEntry): boolean {

@@ -89,7 +89,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useCreateNpcSet, useUpdateNpcSet } from "@/composables/npcs/useNpcSets";
 import { getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import type { Npc, NpcSet } from "@/types/npc.types";
+import type { NpcListRow, NpcSet } from "@/types/npc.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ set: NpcSet | null }>();
@@ -143,7 +143,7 @@ watch(
   { immediate: true },
 );
 
-const filtered = computed<Npc[]>(() => {
+const filtered = computed<NpcListRow[]>(() => {
   const q = search.value.trim().toLowerCase();
   const list = npcs.value ?? [];
   if (!q) return list;
@@ -162,13 +162,13 @@ function toggle(id: string) {
     : [...draft.npc_ids, id];
 }
 
-function displayName(npc: Npc): string {
+function displayName(npc: NpcListRow): string {
   return getNpcDisplayName(npc) ?? "???";
 }
-function portrait(npc: Npc): string {
+function portrait(npc: NpcListRow): string {
   return getNpcDisplayPortrait(npc) || PLACEHOLDER;
 }
-function subtitle(npc: Npc): string | undefined {
+function subtitle(npc: NpcListRow): string | undefined {
   const parts = [npc.race, npc.occupation].filter(Boolean) as string[];
   return parts.length ? parts.join(" · ") : undefined;
 }

@@ -93,6 +93,7 @@ Skip `vue-tsc` for harness builds; only the bundle matters.
 | `dm-cold` | `/dashboard` in a **new context holding only the stored session** (Playwright `storageState` = cookies + localStorage; no HTTP cache, no service worker, no IndexedDB). A returning user with empty caches. |
 | `dm-warm` | Same, but the page first loads once (discarded), waits for the service worker to be active and the query persister to flush (3 s), then **reloads**. A returning user's next visit. |
 | `dm-nav` | From a settled dashboard, clicks the real sidebar links to `/npcs`, `/encounters`, `/quests`. One measurement window per click. No FCP/LCP/TBT (client-side navigation paints nothing new). |
+| `dm-npc-detail` | From a settled `/npcs` grid: rests on a card for 150 ms, clicks it, measures until the sheet's prose block is visible. The hover is what `v-prefetch` reacts to, so this journey is the one that shows the intent prefetch working. |
 | `player-cold` | `/play` as the player fixture in a stored-session-only context. Reported as **skipped** if `/play` redirects (a stack without the fixture: the player is not seated at a campaign). |
 | `resume` | Settled dashboard, tab hidden, then visible after more than the app's 60 s wake threshold (`hiddenReconcileMs` in `App.vue`). Measures what refetches. |
 

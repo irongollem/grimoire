@@ -13,7 +13,7 @@ import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import type { RunCombatant, EventTrigger } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 
 type InitiativeInputs = Pick<RunCombatant, "dex_mod" | "initiative_bonus">;
 type TurnCombatant = Pick<RunCombatant, "instance_id" | "hp" | "type">;
@@ -165,7 +165,7 @@ export interface NpcSpawnOptions {
 /** Builds the RunCombatant entries for `count` copies of an NPC. Same shape
  *  as `buildMonsterCombatants` minus legendary actions and 2024
  *  `initiative_bonus` support — NPCs have never used either. */
-export function buildNpcCombatants(npc: Npc, opts: NpcSpawnOptions): RunCombatant[] {
+export function buildNpcCombatants(npc: NpcListRow, opts: NpcSpawnOptions): RunCombatant[] {
   const sb = npc.stat_block;
   const maxHp = hitPointsToMax(sb?.hit_points, 10);
   const dex = Number(sb?.dex ?? 10);

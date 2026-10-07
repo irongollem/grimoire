@@ -1,9 +1,6 @@
-import type { DndSettingDef } from "./types";
+import type { SettingContentDef } from "./types";
 
-export const planescapeSetting: DndSettingDef = {
-  id: "planescape",
-  label: "Planescape",
-
+export const planescapeContent: SettingContentDef = {
   defaultAiPrompt:
     "Strange, layered, cosmopolitan fantasy where nothing is normal and everything has a philosophy behind it. Sigil's palette is smoked stone, faction colours, portal-shimmer, and the glow of a thousand exotic light sources — no two blocks look the same. " +
     "Characters are radically diverse: tieflings with every horn shape imaginable, githzerai in wrapped linen and discipline, bariaur, modrons on errands, a dabus floating silently past trailing rebuses. Faction insignia should be visible and meaningful. " +
@@ -12,35 +9,6 @@ export const planescapeSetting: DndSettingDef = {
     "Portals should be visually distinct — not generic glowing circles but unique: a particular door at a particular angle, a specific window at noon, a crack in a certain wall. " +
     "Creatures from lower planes should feel genuinely malevolent and alien; upper-plane beings should feel uncomfortably perfect. Yugoloths look like they're calculating the cost of your soul. " +
     "Keep the mood weird, street-level, and philosophically loaded — even a simple alley has an argument happening in it.",
-
-  calendar: {
-    name: "Planescape (Planar Common Reckoning)",
-    epochName: "PCR",
-    defaultYear: 570,
-    weekStyle: "weekly",
-    dayLabels: ["Prime", "Bleaker", "Guvner", "Cipher", "Signer", "Sensate", "Deadday"],
-    months: [
-      { name: "Primum",     alias: "The Opening",     days: 30 },
-      { name: "Internum",   alias: "The Seeking",     days: 30 },
-      { name: "Tertium",    alias: "The Debating",    days: 30 },
-      { name: "Quartum",    alias: "The Arguing",     days: 30 },
-      { name: "Quintum",    alias: "The Reckoning",   days: 30 },
-      { name: "Sextum",     alias: "The Convergence", days: 30 },
-      { name: "Septimum",   alias: "The Midtide",     days: 30 },
-      { name: "Octavum",    alias: "The Wandering",   days: 30 },
-      { name: "Nonum",      alias: "The Returning",   days: 30 },
-      { name: "Decimum",    alias: "The Closing",     days: 30 },
-      { name: "Undecimum",  alias: "The Silence",     days: 30 },
-      { name: "Duodecimum", alias: "The Reckoning",   days: 30 },
-    ],
-    intercalaryDays: [
-      { name: "Day of Factions",   afterMonth: 3,  description: "A day when the great factions of Sigil hold open debates in the Hall of Speakers. Recruitment is aggressive; newcomers are wise to choose a side." },
-      { name: "Great Bazaar Day",  afterMonth: 6,  description: "A planar market day when portals to every known trading plane cycle open in the Great Bazaar. The most exotic goods in the multiverse change hands." },
-      { name: "Day of the Lady",   afterMonth: 9,  description: "A day of enforced quiet in Sigil. No faction meetings. No public violence. The Lady of Pain's dabus scrub the streets. No one asks why." },
-      { name: "Convergence",       afterMonth: 12, description: "The year's end festival, when planar travellers across the multiverse gather debts, settle old scores, and begin new ventures." },
-    ],
-    leapYearRule: "none",
-  },
 
   locations: [
     { name: "The Outlands",      location_type: "plane",    notes: "The Great Wheel's hub, a ring-shaped outer plane of perfect neutral balance, with the Spire rising from its centre.", tags: ["outer planes", "true neutral", "the spire"] },

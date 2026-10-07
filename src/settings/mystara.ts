@@ -1,9 +1,6 @@
-import type { DndSettingDef } from "./types";
+import type { SettingContentDef } from "./types";
 
-export const mystaraSetting: DndSettingDef = {
-  id: "mystara",
-  label: "Mystara",
-
+export const mystaraContent: SettingContentDef = {
   defaultAiPrompt:
     "Classic adventure fantasy with a bright, culturally varied palette — Thyatian marble white and imperial crimson, Karameikan frontier timber and muddy roads, Glantrian arcane purples and brass, dwarven Rockhome grey granite and forge-orange, elven Alfheim silver-green. " +
     "Each kingdom has a distinct visual identity — lean into historical analogues. Thyatian soldiers wear segmented armour and carry pilums; Karameikan adventurers look like frontier explorers in mismatched practical gear; Glantrian wizards dress for ceremony and status. " +
@@ -11,35 +8,6 @@ export const mystaraSetting: DndSettingDef = {
     "Dungeons and ruins predate the current kingdoms — show older civilisation in the stonework, Traladan pictographs beneath Thyatian plaster, dwarven mason marks on what is now an elven road. History is physical here. " +
     "Characters should feel like people from specific places — a Thyatian soldier carries Imperial swagger, a Traladan elder carries quiet resentment, a Glantrian noble carries entitlement and a scroll case. " +
     "The overall mood is optimistic and adventurous with real stakes — a good world to explore, full of secrets but not fundamentally broken.",
-
-  calendar: {
-    name: "Mystara (Thyatian Calendar)",
-    epochName: "AC",
-    defaultYear: 1000,
-    weekStyle: "weekly",
-    dayLabels: ["Lunadain", "Gromdain", "Tserdain", "Moldain", "Nytdain", "Lorelain", "Soladain"],
-    months: [
-      { name: "Nuwmont",   alias: "New Month",    days: 28 },
-      { name: "Vatermont", alias: "Deep Winter",  days: 28 },
-      { name: "Thaumont",  alias: "Early Spring", days: 28 },
-      { name: "Flaurmont", alias: "Spring Bloom", days: 28 },
-      { name: "Yarthmont", alias: "Late Spring",  days: 28 },
-      { name: "Klarmont",  alias: "Early Summer", days: 28 },
-      { name: "Felmont",   alias: "High Summer",  days: 28 },
-      { name: "Fyrmont",   alias: "Late Summer",  days: 28 },
-      { name: "Ambyrmont", alias: "Early Autumn", days: 28 },
-      { name: "Sviftmont", alias: "Mid Autumn",   days: 28 },
-      { name: "Eirmont",   alias: "Late Autumn",  days: 28 },
-      { name: "Kaldmont",  alias: "Deep Winter",  days: 28 },
-    ],
-    intercalaryDays: [
-      { name: "Festival of Thaumont", afterMonth: 2,  description: "A spring festival welcoming the new growing season, celebrated with fairs and the blessing of fields by Thyatian priests." },
-      { name: "Midsummer Festival",   afterMonth: 6,  description: "The great summer celebration: jousting, bardic competitions, and the renewal of noble oaths across the Known World." },
-      { name: "Harvest Festival",     afterMonth: 9,  description: "A four-day harvest celebration observed throughout the Known World. Trade caravans converge on market cities." },
-      { name: "Kaldmont Festival",    afterMonth: 12, description: "The midwinter feast and gift-giving tradition that closes the Thyatian year. Nobles open their halls to the poor; temples offer free meals." },
-    ],
-    leapYearRule: "none",
-  },
 
   locations: [
     { name: "Mystara",                    location_type: "world",    notes: "A hollow world with an inner sun. The outer surface hosts the Known World; the Hollow World inside preserves lost civilisations.", tags: ["hollow world", "inner sun", "known world"] },

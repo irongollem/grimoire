@@ -212,7 +212,7 @@ import type {
   EventAction,
 } from "@/types/encounter.types";
 import type { Monster, MonsterIndexEntry } from "@/types/monster.types";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 
 const events = defineModel<EncounterEvent[]>("events", { required: true });
 const props = defineProps<{
@@ -223,7 +223,7 @@ const props = defineProps<{
    *  cannot author one — NPC reinforcements come from the runner's
    *  complication generator (#604) — but it does have to describe them
    *  honestly once they exist on the encounter. */
-  npcs: Npc[];
+  npcs: NpcListRow[];
   factions: FactionDef[];
 }>();
 

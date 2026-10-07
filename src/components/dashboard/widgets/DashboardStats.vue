@@ -18,21 +18,20 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconNavAtlas, IconNavEncounters, IconNavNpcs, IconNavQuests } from "@/lib/icons";
 import { useQuests } from "@/composables/quests/useQuests";
-import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useEncounters } from "@/composables/encounters/useEncounters";
-import { useAllLocations } from "@/composables/locations/useLocations";
+import { useCampaignCounts } from "@/composables/campaign/useCampaignCounts";
 
 /** Counts, not a card: the strip is a set of links that happen to carry a
- *  number, so it deliberately skips DashboardWidget's chrome. */
+ *  number, so it deliberately skips DashboardWidget's chrome. The NPC, encounter
+ *  and place figures are counted by the database (#999) rather than by loading
+ *  each list; the quest list stays because the Quests widget on the same screen
+ *  reads it anyway and the active count comes free from it. */
 const { data: allQuests } = useQuests();
-const { data: npcs } = useNpcs();
-const { data: encounters } = useEncounters();
-const { data: locations } = useAllLocations();
+const { npcs, encounters, locations } = useCampaignCounts();
 
 const stats = computed(() => [
   { label: "Active Quests", value: (allQuests.value ?? []).filter((q) => q.status === "active").length || "—", icon: IconNavQuests, to: "/quests" },
-  { label: "NPCs",          value: npcs.value?.length ?? "—",       icon: IconNavNpcs,       to: "/npcs" },
-  { label: "Encounters",    value: encounters.value?.length ?? "—", icon: IconNavEncounters, to: "/encounters" },
-  { label: "Locations",     value: locations.value?.length ?? "—",  icon: IconNavAtlas,      to: "/locations" },
+  { label: "NPCs",          value: npcs.data.value ?? "—",       icon: IconNavNpcs,       to: "/npcs" },
+  { label: "Encounters",    value: encounters.data.value ?? "—", icon: IconNavEncounters, to: "/encounters" },
+  { label: "Locations",     value: locations.data.value ?? "—",  icon: IconNavAtlas,      to: "/locations" },
 ]);
 </script>

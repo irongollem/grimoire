@@ -5,6 +5,7 @@ import { compareSiblings, type SiblingOrder } from "@/lib/locations/tree";
 import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 import { isLocationType } from "@/lib/locations/tiers";
 import { LOCATION_SUMMARY_COLUMNS } from "@/types/location.types";
+import { NPC_LIST_COLUMNS } from "@/types/npc.types";
 
 type WorldTable = "notes" | "quests" | "locations" | "factions" | "npcs" | "companions";
 type Row = Record<string, unknown> & { id: string; campaign_id?: string | null };
@@ -71,6 +72,21 @@ function projectLocation(queryKey: QueryKey, row: Row): Row {
 }
 
 /**
+ * The campaign NPC list (`["npcs", cid]`) caches the slim `NpcListRow` (#999: no
+ * prose columns), so a realtime row spliced into it keeps only those columns. The
+ * reducer only calls this for list (array) caches, so the two-part detail key
+ * `["npcs", id]`, which holds the whole record, is never narrowed; the by-location
+ * summaries already hold their own narrow shape and are left as they are.
+ */
+function projectNpc(queryKey: QueryKey, row: Row): Row {
+  if (queryKey.length !== 2) return row;
+  const kept = Object.fromEntries(
+    NPC_LIST_COLUMNS.filter((column) => column in row).map((column) => [column, row[column]]),
+  );
+  return { ...kept, id: row.id };
+}
+
+/**
  * Event filters are campaign-scoped, but this small guard also protects an old
  * channel callback from changing the newly-selected campaign's cache.
  */
@@ -132,11 +148,28 @@ function invalidateJoinedCaches(queryClient: QueryClient, roots: readonly string
   invalidate(queryClient, (key) => typeof key[0] === "string" && rootSet.has(key[0]));
 }
 
+/** A head count (`useCampaignCounts`, #999) only changes when a row is added or removed. */
+function invalidateCount(queryClient: QueryClient, root: "npcs" | "locations", change: Change): void {
+  if (change.eventType === "UPDATE") return;
+  invalidate(queryClient, (key) => key[0] === root && key[1] === "count");
+}
+
 function invalidateGlobalSearch(queryClient: QueryClient): void {
   invalidate(queryClient, (key) => key[0] === "global-search");
 }
 
-function applyNotes(queryClient: QueryClient, change: Change, _context: Context): void {
+/**
+ * The dashboard's narrow note reads (pinned, session links, one session's
+ * recap) are projections under `["notes", campaignId, ...]`: three or more
+ * segments, so the exact-row reducer below never reaches them. Any note change
+ * can alter them (a pin toggled, a note attached to a session), so they refetch.
+ */
+function invalidateNarrowNoteCaches(queryClient: QueryClient, campaignId: string): void {
+  invalidate(queryClient, (key) => key[0] === "notes" && key.length >= 3 && key[1] === campaignId);
+}
+
+function applyNotes(queryClient: QueryClient, change: Change, context: Context): void {
+  invalidateNarrowNoteCaches(queryClient, context.campaignId);
   // A DM previewing as a player holds projection caches too; refresh them.
   invalidate(queryClient, (key) => key[0] === PLAYER_NOTES_KEY);
   applyRealtimeRow(queryClient, change, {
@@ -242,6 +275,7 @@ function applyNpcs(queryClient: QueryClient, change: Change, context: Context): 
         return Array.isArray(key[2]) && key[2].includes(row.location_id);
       },
       compare: compareName,
+      project: projectNpc,
     });
   }
 
@@ -285,6 +319,7 @@ export function applyCampaignRealtimeWorld(
       break;
     case "locations":
       applyLocations(queryClient, payload, context);
+      invalidateCount(queryClient, "locations", payload);
       if (context.isDM) {
         invalidateNpcReveals(queryClient);
         invalidateSessionLearned(queryClient);
@@ -302,6 +337,10 @@ export function applyCampaignRealtimeWorld(
       }
       // This is a reduced spell-caster projection rather than a raw NPC row.
       invalidate(queryClient, (key) => key[0] === "npcs" && key[1] === "spell-casters");
+      // The by-id appearance and name reads (#999): the Chronicler's @mentions and
+      // the dashboard's quest-giver names. Neither is a row cache, so neither is spliced.
+      invalidate(queryClient, (key) => key[0] === "npcs" && (key[1] === "appearances" || key[1] === "names"));
+      invalidateCount(queryClient, "npcs", payload);
       invalidateGlobalSearch(queryClient);
       break;
     case "companions":

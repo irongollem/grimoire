@@ -12,6 +12,7 @@ function sample(overrides: Partial<Sample> = {}): Sample {
     serialDepth: 3,
     settledMs: 2000,
     apiPaths: ["GET /rest/v1/a"],
+    apiWaves: [1],
     fcpMs: 800,
     lcpMs: 1200,
     tbtMs: 100,

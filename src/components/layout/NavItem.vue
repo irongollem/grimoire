@@ -13,6 +13,7 @@
   <!-- Normal -->
   <RouterLink
     v-else
+    v-prefetch="item.to"
     :to="item.to"
     class="flex items-center gap-3 rounded-md px-3 py-2.5 text-body transition-colors duration-150"
     :class="
@@ -32,9 +33,12 @@ import { IconLock } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import type { NavItem } from "@/lib/nav";
 
+import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
+
 const props = defineProps<{ item: NavItem }>();
 const emit = defineEmits<{ navigate: [] }>();
 
+const vPrefetch = usePrefetchOnIntent();
 const route = useRoute();
 const campaignStore = useCampaignStore();
 

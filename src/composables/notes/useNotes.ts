@@ -22,6 +22,49 @@ async function fetchNotes(campaignId: string): Promise<Note[]> {
   return data as Note[];
 }
 
+/** What the Pinned Notes widget renders: a title, a category and a text preview. */
+export type PinnedNote = Pick<Note, "id" | "title" | "category" | "content">;
+
+const PINNED_NOTE_COLUMNS = "id, title, category, content";
+
+async function fetchPinnedNotes(campaignId: string, limit: number): Promise<PinnedNote[]> {
+  const { data, error } = await supabase
+    .from("notes")
+    .select(PINNED_NOTE_COLUMNS)
+    .eq("campaign_id", campaignId)
+    .eq("is_pinned", true)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data as PinnedNote[];
+}
+
+/** The id of a session that has a note, which is all the "no notes yet" gaps need. */
+export type SessionNoteLink = Pick<Note, "id" | "session_id">;
+
+async function fetchSessionNoteLinks(campaignId: string): Promise<SessionNoteLink[]> {
+  const { data, error } = await supabase
+    .from("notes")
+    .select("id, session_id")
+    .eq("campaign_id", campaignId)
+    .not("session_id", "is", null);
+  if (error) throw error;
+  return data as SessionNoteLink[];
+}
+
+/** The newest note of one session, content only; null when the session has none. */
+async function fetchSessionRecap(campaignId: string, sessionId: string): Promise<Pick<Note, "content"> | null> {
+  const { data, error } = await supabase
+    .from("notes")
+    .select("content")
+    .eq("campaign_id", campaignId)
+    .eq("session_id", sessionId)
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return (data as Pick<Note, "content">[])[0] ?? null;
+}
+
 /**
  * The notes a player may read, as the server projects them: secret blocks are
  * stripped there (`get_player_visible_notes`, #932), so the DM-only passages
@@ -97,18 +140,74 @@ async function deleteNote(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** The list read the notes page performs; shared with the navigation prefetch. */
+export function noteListQuery(campaignId: string | null) {
+  return {
+    queryKey: [QUERY_KEY, campaignId] as const,
+    queryFn: () => {
+      if (!campaignId) throw new Error("useNotes fetched without a campaign");
+      return fetchNotes(campaignId);
+    },
+  };
+}
+
 /** `enabled` defers the fetch for a surface that is mounted before it is used
  *  (the Scriptorium draft dialog lives in the always-mounted generator cluster). */
 export function useNotes(enabled: () => boolean = () => true) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
+  const options = computed(() => noteListQuery(activeCampaignId.value));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value] as const),
-    queryFn: ({ queryKey: [, campaignId] }) => {
-      if (!campaignId) throw new Error("useNotes fetched without a campaign");
-      return fetchNotes(campaignId);
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!activeCampaignId.value && enabled(),
+  });
+}
+
+/**
+ * The newest pinned notes, for the dashboard. The three narrow readers below
+ * sit under `["notes", campaignId, ...]`, three or more segments, so the
+ * realtime reducer for exact note rows (two segments) leaves them alone and
+ * `invalidateNarrowNoteCaches` refetches them on any note change instead.
+ */
+export function usePinnedNotes(limit: number) {
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value, "pinned", limit] as const),
+    queryFn: ({ queryKey: [, campaignId] }) => {
+      if (!campaignId) throw new Error("usePinnedNotes fetched without a campaign");
+      return fetchPinnedNotes(campaignId, limit);
+    },
+    enabled: () => !!activeCampaignId.value,
+  });
+}
+
+/** Which sessions have a note, without loading any note's prose. */
+export function useSessionNoteLinks() {
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value, "session-links"] as const),
+    queryFn: ({ queryKey: [, campaignId] }) => {
+      if (!campaignId) throw new Error("useSessionNoteLinks fetched without a campaign");
+      return fetchSessionNoteLinks(campaignId);
+    },
+    enabled: () => !!activeCampaignId.value,
+  });
+}
+
+/** One session's recap note (content only), fetched on demand rather than with every note. */
+export function useSessionRecap(sessionId: Ref<string | undefined>) {
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value, "session-recap", sessionId.value] as const),
+    queryFn: ({ queryKey: [, campaignId, , id] }) => {
+      if (!campaignId || !id) throw new Error("useSessionRecap fetched without a campaign or session");
+      return fetchSessionRecap(campaignId, id);
+    },
+    enabled: () => !!activeCampaignId.value && !!sessionId.value,
   });
 }
 

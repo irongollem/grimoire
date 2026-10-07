@@ -47,18 +47,22 @@ import DashboardQuestRow from "../DashboardQuestRow.vue";
 import { buildQuestRows } from "@/lib/dashboard/questRows";
 import { useQuests } from "@/composables/quests/useQuests";
 import { useCampaignLiveQuests } from "@/composables/quests/useQuestFlow";
-import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useNpcNames } from "@/composables/npcs/useNpcFields";
 import type { Quest } from "@/types/quest.types";
 
 const { data: allQuests, isLoading: questsLoading } = useQuests();
 const { data: liveChains, isLoading: chainsLoading } = useCampaignLiveQuests();
-const { data: npcs } = useNpcs();
 
 const activeQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "active"));
+// Only the quest-givers' names are printed, so read those rows rather than the
+// whole campaign NPC list (#999).
+const { data: giverNames } = useNpcNames(() =>
+  activeQuests.value.flatMap((q) => (q.giver_npc_id ? [q.giver_npc_id] : [])),
+);
 
 function giverName(quest: Quest): string | null {
   if (!quest.giver_npc_id) return null;
-  return (npcs.value ?? []).find((n) => n.id === quest.giver_npc_id)?.name ?? null;
+  return giverNames.value?.get(quest.giver_npc_id) ?? null;
 }
 
 const rows = computed(() =>

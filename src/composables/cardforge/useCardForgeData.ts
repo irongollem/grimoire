@@ -8,7 +8,7 @@ import { useSpellIndex } from "@/composables/spells/useSpellIndex";
 import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { useCardForgeStore } from "@/stores/cardForge";
 import type { CardSubject } from "@/types/card.types";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 import type { MonsterIndexEntry } from "@/types/monster.types";
 import type { ItemIndexEntry } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
@@ -41,12 +41,12 @@ export function useCardForgeData() {
     if (store.source === "npcs") {
       return (npcsData.value ?? [])
         .filter(
-          (n: Npc) =>
+          (n: NpcListRow) =>
             n.name.toLowerCase().includes(q) ||
             (n.occupation ?? "").toLowerCase().includes(q) ||
             (n.race ?? "").toLowerCase().includes(q),
         )
-        .map((n: Npc) => ({
+        .map((n: NpcListRow) => ({
           id: n.id,
           name: n.name,
           sub: [n.race, n.occupation].filter(Boolean).join(" · "),
@@ -134,8 +134,8 @@ export function useCardForgeData() {
     const ids = store.selectedIds;
     return [
       ...(npcsData.value ?? [])
-        .filter((n: Npc) => ids.npcs.has(n.id))
-        .map((n: Npc) => ({ kind: "npc" as const, data: n })),
+        .filter((n: NpcListRow) => ids.npcs.has(n.id))
+        .map((n: NpcListRow) => ({ kind: "npc" as const, data: n })),
       ...[...ids.monsters].flatMap((id) => {
         const m = selectedMonsters.value.get(id);
         return m ? [{ kind: "monster" as const, data: m }] : [];

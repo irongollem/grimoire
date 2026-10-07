@@ -1,6 +1,6 @@
 <template>
   <DashboardWidget
-    v-if="pinnedNotes.length"
+    v-if="pinnedNotes && pinnedNotes.length"
     title="Pinned Notes"
     to="/notes"
     action-label="All notes →"
@@ -12,7 +12,7 @@
     <div class="@container">
       <div class="grid grid-cols-1 @lg:grid-cols-2 @4xl:grid-cols-4 gap-px bg-border">
         <RouterLink
-          v-for="note in pinnedNotes.slice(0, 4)"
+          v-for="note in pinnedNotes"
           :key="note.id"
           :to="`/notes/${note.id}`"
           class="bg-card flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/30 transition-colors group"
@@ -34,20 +34,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconPin } from "@/lib/icons";
-import { useNotes } from "@/composables/notes/useNotes";
+import { usePinnedNotes, type PinnedNote } from "@/composables/notes/useNotes";
 import { extractTiptapText } from "@/lib/utils";
 import DashboardWidget from "../DashboardWidget.vue";
-import type { Note } from "@/types/notes.types";
 
-/** Only the first four: the dashboard shows what is pinned, the notes list is
- *  where you read them. */
-const { data: notes } = useNotes();
-const pinnedNotes = computed(() => (notes.value ?? []).filter((n) => n.is_pinned));
+/** Only the first four, asked of the database rather than sliced after loading
+ *  every note: the dashboard shows what is pinned, the notes list is where you
+ *  read them. */
+const { data: pinnedNotes } = usePinnedNotes(4);
 
-function preview(note: Note): string {
+function preview(note: PinnedNote): string {
   return extractTiptapText(note.content, 120);
 }
 </script>

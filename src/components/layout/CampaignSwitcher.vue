@@ -23,7 +23,7 @@
           >
             <span class="truncate">{{
               activeCampaign?.name ??
-              (campaignsLoading ? "Loading…" : "Select Campaign")
+              (nameLoading ? "Loading…" : "Select Campaign")
             }}</span>
             <AppButton
               v-if="activeCampaign?.demo_source"
@@ -49,7 +49,7 @@
           >
             {{
               activeCampaign?.setting ??
-              (campaignsLoading ? "" : "No campaign active")
+              (nameLoading ? "" : "No campaign active")
             }}
             <span
               v-if="onlineCount > 0"
@@ -286,6 +286,15 @@ const { mutateAsync: restoreCampaign, isPending: isRestoring } = useRestoreCampa
 const campaigns = computed(() => campaignList.value ?? []);
 const archivedCampaigns = computed(() => archivedList.value ?? []);
 const activeCampaign = computed(() => campaignStore.activeCampaign);
+// The shell no longer waits for the active campaign's row (#999), so an id that
+// names one of this DM's campaigns but has no row yet is "loading", not "no
+// campaign": saying "Select Campaign" there would flash on every cold load. An id
+// the list does not hold (a deleted campaign) still reads as nothing selected.
+const nameLoading = computed(() => {
+  if (campaignsLoading.value) return true;
+  const activeId = campaignStore.activeCampaignId;
+  return !!activeId && !activeCampaign.value && campaigns.value.some((c) => c.id === activeId);
+});
 const showArchived = ref(false);
 
 const isFirstCampaign = computed(() => campaigns.value.length === 0);

@@ -33,7 +33,7 @@ import { HAZARD_GLYPH_LABELS } from "@/types/trap.types";
 import type { DungeonFeature, DungeonFeatureType, FeatureGlyph } from "@/types/dungeonFeature.types";
 import { FEATURE_GLYPH_LABELS } from "@/types/dungeonFeature.types";
 import type { PuzzleRoom } from "@/types/puzzle.types";
-import type { Encounter } from "@/types/encounter.types";
+import type { EncounterListRow } from "@/types/encounter.types";
 import type { LootPlacement } from "@/types/quest.types";
 import {
   IconAnnounce,
@@ -185,7 +185,7 @@ export interface PreparedMarksInput {
   /** Already scoped to this site's rooms and this site's hosting features. */
   puzzles: PuzzleRoom[];
   /** Already scoped to this site's rooms. */
-  encounters: Encounter[];
+  encounters: EncounterListRow[];
   /** Already scoped to this site's rooms. */
   lootPlacements: LootPlacement[];
   regions: LocationMapRegion[];

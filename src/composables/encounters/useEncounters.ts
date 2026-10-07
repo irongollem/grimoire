@@ -2,21 +2,22 @@ import { computed, ref, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import type { Encounter, EncounterInsert, EncounterUpdate } from "@/types/encounter.types";
+import { ENCOUNTER_LIST_COLUMNS } from "@/types/encounter.types";
+import type { Encounter, EncounterInsert, EncounterListRow, EncounterUpdate } from "@/types/encounter.types";
 import type { Ref } from "vue";
 import { isRef } from "vue";
 import { useToast } from "@/composables/useToast";
 
 const QUERY_KEY = "encounters";
 
-async function fetchEncounters(campaignId: string): Promise<Encounter[]> {
+async function fetchEncounters(campaignId: string): Promise<EncounterListRow[]> {
   const { data, error } = await supabase
     .from("encounters")
-    .select("*")
+    .select(ENCOUNTER_LIST_COLUMNS.join(", "))
     .eq("campaign_id", campaignId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data as Encounter[];
+  return data as unknown as EncounterListRow[];
 }
 
 async function fetchEncounter(id: string): Promise<Encounter | null> {
@@ -54,15 +55,24 @@ async function deleteEncounter(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** The list read the encounters page performs; shared with the navigation prefetch. */
+export function encounterListQuery(campaignId: string | null) {
+  return {
+    queryKey: [QUERY_KEY, campaignId] as const,
+    queryFn: () => {
+      if (campaignId === null) throw new Error("useEncounters fetched without a campaign");
+      return fetchEncounters(campaignId);
+    },
+  };
+}
+
 export function useEncounters() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const options = computed(() => encounterListQuery(campaignId.value));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
-    queryFn: ({ queryKey: [, cid] }) => {
-      if (cid === null) throw new Error("useEncounters fetched without a campaign");
-      return fetchEncounters(cid);
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!campaignId.value,
   });
 }
@@ -163,7 +173,7 @@ export function useEncountersByMonster(monsterId: MaybeRefOrGetter<string>) {
   const { data: encounters } = useEncounters();
   return computed(() => {
     const id = toValue(monsterId);
-    if (!id) return [] as Encounter[];
+    if (!id) return [] as EncounterListRow[];
     return (encounters.value ?? []).filter((e) =>
       e.combatants.some((c) => c.monster_id === id),
     );
@@ -175,7 +185,7 @@ export function useEncountersByNpc(npcId: MaybeRefOrGetter<string>) {
   const { data: encounters } = useEncounters();
   return computed(() => {
     const id = toValue(npcId);
-    if (!id) return [] as Encounter[];
+    if (!id) return [] as EncounterListRow[];
     return (encounters.value ?? []).filter((e) =>
       e.combatants.some((c) => c.npc_id === id),
     );

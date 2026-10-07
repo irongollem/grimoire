@@ -1,13 +1,14 @@
 import { reportHandledError } from "@/lib/observability/sentry";
-import { computed, isRef, ref } from "vue";
+import { computed, isRef, ref, watch } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
-import { getSetting } from "@/settings/index";
-import type { Npc, NpcInsert, NpcUpdate, PlayerNpc } from "@/types/npc.types";
+import { loadSettingContent } from "@/settings/content";
+import { NPC_LIST_COLUMNS } from "@/types/npc.types";
+import type { Npc, NpcInsert, NpcListRow, NpcUpdate, PlayerNpc } from "@/types/npc.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 import { PLAYER_NPCS_KEY } from "@/lib/campaignLiveSync/registry";
@@ -22,20 +23,25 @@ const QUERY_KEY = "npcs";
  * without touching the DM's row caches under `npcs`.
  */
 
-async function fetchNpcs(campaignId: string): Promise<Npc[]> {
+async function fetchNpcs(campaignId: string): Promise<NpcListRow[]> {
   const { data, error } = await supabase
     .from("npcs")
-    .select("*")
+    .select(NPC_LIST_COLUMNS.join(", "))
     .eq("campaign_id", campaignId)
     .order("name", { ascending: true });
   if (error) throw error;
-  return data as Npc[];
+  return data as unknown as NpcListRow[];
 }
 
 async function fetchNpc(id: string): Promise<Npc> {
   const { data, error } = await supabase.from("npcs").select("*").eq("id", id).single();
   if (error) throw error;
   return data as Npc;
+}
+
+/** The columns a list row carries, from a full record (a save returns the whole row). */
+function toNpcListRow(npc: Npc): NpcListRow {
+  return Object.fromEntries(NPC_LIST_COLUMNS.map((column) => [column, npc[column]])) as NpcListRow;
 }
 
 /** Exported so a resolved downtime outcome can clone a seed contact into the campaign. */
@@ -56,7 +62,7 @@ async function updateNpc(id: string, update: NpcUpdate): Promise<Npc> {
   return data as Npc;
 }
 
-async function deleteNpc(npc: Npc): Promise<void> {
+async function deleteNpc(npc: Pick<NpcListRow, "id" | "portrait_url" | "cutout_url" | "disguise_portrait_url">): Promise<void> {
   const { error } = await supabase.from("npcs").delete().eq("id", npc.id);
   if (error) throw error;
   // NPC portraits live in the `npc-portraits` bucket, not `asset-images` —
@@ -67,6 +73,21 @@ async function deleteNpc(npc: Npc): Promise<void> {
   await deleteUnreferencedByPublicUrl({
     urls: [npc.portrait_url, npc.cutout_url, npc.disguise_portrait_url],
   });
+}
+
+/**
+ * The list read the NPC page performs, as one value shared by `useNpcs` and the
+ * navigation prefetch (`router/routeDataPrefetch.ts`), so the two cannot drift
+ * onto different keys or fetchers.
+ */
+export function npcListQuery(campaignId: string | null) {
+  return {
+    queryKey: [QUERY_KEY, campaignId] as const,
+    queryFn: () => {
+      if (!campaignId) throw new Error("useNpcs fetched without a campaign");
+      return fetchNpcs(campaignId);
+    },
+  };
 }
 
 /** Every NPC in the active campaign.
@@ -80,12 +101,10 @@ async function deleteNpc(npc: Npc): Promise<void> {
 export function useNpcs(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const options = computed(() => npcListQuery(campaignId.value));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
-    queryFn: ({ queryKey: [, cid] }) => {
-      if (!cid) throw new Error("useNpcs fetched without a campaign");
-      return fetchNpcs(cid);
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
@@ -150,35 +169,62 @@ export function useNpcsByLocations(locationIds: Ref<string[]>) {
 
 export function useNpc(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
-  const queryClient = useQueryClient();
-  const campaign = useCampaignStore();
-
-  /** This NPC's row inside the already-fetched campaign list, if it is there. */
-  const fromList = () =>
-    queryClient
-      .getQueryData<Npc[]>([QUERY_KEY, campaign.activeCampaignId])
-      ?.find((npc) => npc.id === idRef.value);
 
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryKey: computed(() => npcQuery(idRef.value).queryKey),
     queryFn: ({ queryKey: [, npcId] }) => fetchNpc(npcId),
     enabled: () => !!idRef.value,
-    // Every caller reaches an NPC *from* somewhere that already holds the whole
-    // row — the grid, the relationship web, a location's residents — so a detail
-    // view that starts empty spends its first moment showing a spinner over data
-    // that is on screen behind it. That is barely noticeable on a page that has
-    // navigated away, and glaring in a modal that opens on top of the very card
-    // it is duplicating.
-    initialData: fromList,
-    // The seed inherits the list's age rather than claiming to have been
-    // fetched just now. At this query's default `staleTime` of 0 both refetch
-    // on mount either way, so this buys honesty rather than behaviour today —
-    // and it is what keeps the trade intact (show it now, correct it if needed)
-    // the moment anyone gives this query a `staleTime`, which is exactly when
-    // a lie about the data's age would start being believed.
-    initialDataUpdatedAt: () =>
-      queryClient.getQueryState([QUERY_KEY, campaign.activeCampaignId])?.dataUpdatedAt,
+    // Deliberately not seeded from the campaign list any more (#999). The list
+    // leaves the prose columns out, so a seed would hand the sheet and the editor
+    // a record with no appearance, personality, backstory or notes, which reads
+    // as an NPC with nothing written and, in an editor, could be saved back that
+    // way. Surfaces that only READ use `useNpcOpening` below, which paints from
+    // the list row without ever calling it a full record; everything that edits
+    // uses this and waits for the row.
   });
+}
+
+/** The by-id read, as one value shared by `useNpc` and the open-on-intent prefetch. */
+export function npcQuery(id: string) {
+  return {
+    queryKey: [QUERY_KEY, id] as const,
+    queryFn: () => fetchNpc(id),
+  };
+}
+
+/**
+ * Opening an NPC to read it (#999): the card paints at once from the slim list
+ * row while the full record is read by id.
+ *
+ * Two values, never one merged record, so the type says which one a surface has:
+ * `npc` is the full row and is `undefined` until it arrives; `preview` is the
+ * list row (or the full row, once there) and is what the header, portrait,
+ * badges and stat block draw from. A reader of `preview` cannot reach
+ * `appearance`, `personality`, `backstory` or `notes`, and an editor must take
+ * `npc`, so nothing can initialise from, or save back, a record without prose.
+ */
+export function useNpcOpening(id: Ref<string>) {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+  const full = useNpc(id);
+  const fromList = computed(() => {
+    if (!campaign.activeCampaignId) return undefined;
+    const rows = queryClient.getQueryData<NpcListRow[]>(npcListQuery(campaign.activeCampaignId).queryKey);
+    return rows?.find((row) => row.id === id.value);
+  });
+  // Evaluated once per id: the list cache is not reactive, and a row that moved
+  // on the grid between hover and click is still the right thing to paint.
+  const listRow = ref<NpcListRow | undefined>(fromList.value);
+  watch(id, () => { listRow.value = fromList.value; });
+  const preview = computed<NpcListRow | undefined>(() => full.data.value ?? listRow.value);
+  return {
+    npc: full.data,
+    preview,
+    /** Nothing to draw yet: neither a list row nor the record. */
+    isLoading: computed(() => preview.value === undefined && full.isLoading.value),
+    /** The by-id read failed and there is no record: the prose will never arrive. */
+    failed: computed(() => full.isError.value && full.data.value === undefined),
+  };
 }
 
 /**
@@ -240,7 +286,7 @@ export function useUpdateNpc() {
       // Update the list cache in-place to avoid a full list rerender
       queryClient.setQueryData(
         [QUERY_KEY, campaign.activeCampaignId],
-        (old: Npc[] | undefined) => old?.map((n) => (n.id === id ? updatedNpc : n)),
+        (old: NpcListRow[] | undefined) => old?.map((n) => (n.id === id ? toNpcListRow(updatedNpc) : n)),
       );
       queryClient.setQueryData([QUERY_KEY, id], updatedNpc);
       queueNpcEmbedding(id);
@@ -343,7 +389,7 @@ export function usePopulateSettingNpcs() {
       if (campaignError) throw campaignError;
 
       const calendarId: string = campaignRow?.calendar_id ?? "faerun";
-      const setting = getSetting(calendarId);
+      const setting = await loadSettingContent(calendarId);
       if (!setting?.heroes.length) return 0;
 
       const user = getCurrentUser();

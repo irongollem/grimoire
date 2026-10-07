@@ -40,7 +40,7 @@ vi.mock("@/lib/populateSetting/settingContent", () => ({
   stampSettingSource: vi.fn(),
   PLANAR_SOURCE: "planar",
 }));
-vi.mock("@/data/settingLocations", () => ({ SETTING_LOCATIONS: [], PLANAR_LOCATIONS: [] }));
+vi.mock("@/data/settingLocations", () => ({ PLANAR_LOCATIONS: [] }));
 
 const { insertLocations } = await import("@/composables/locations/useLocations");
 const { insertLocationMapRegions, updateLocationMapRegions } = await import("@/composables/locations/useLocationMapRegions");

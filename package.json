@@ -58,7 +58,7 @@
     "perf": "tsx --tsconfig tsconfig.node.json scripts/perf/run.ts",
     "perf:fixture": "tsx --tsconfig tsconfig.node.json scripts/perf/fixture.ts",
     "perf:compare": "tsx --tsconfig tsconfig.node.json scripts/perf/compare.ts",
-    "perf:build": "SENTRY_AUTH_TOKEN= ANALYZE=json ANALYZE_OUT=dist-bundle vite build --outDir dist-bundle --emptyOutDir",
+    "perf:build": "SENTRY_AUTH_TOKEN= ANALYZE=json ANALYZE_OUT=dist-bundle vite build --mode localdb --outDir dist-bundle --emptyOutDir",
     "perf:bundle": "tsx --tsconfig tsconfig.node.json scripts/perf/bundle/critical-path.ts dist-bundle",
     "perf:composition": "tsx --tsconfig tsconfig.node.json scripts/perf/bundle/composition.ts",
     "arch:graph": "depcruise src --config .dependency-cruiser.cjs",

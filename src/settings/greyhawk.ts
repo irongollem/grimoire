@@ -1,10 +1,7 @@
-import type { DndSettingDef } from "./types";
+import type { SettingContentDef } from "./types";
 import { GREYHAWK_DEITIES, GREYHAWK_PANTHEONS } from "@/data/settingDeities";
 
-export const greyhawkSetting: DndSettingDef = {
-  id: "greyhawk",
-  label: "Greyhawk",
-
+export const greyhawkContent: SettingContentDef = {
   defaultAiPrompt:
     "Gritty sword-and-sorcery fantasy with an earthy, weathered palette — rough-spun wool, worn leather, iron, tallow candles, smoke-stained timber, and river mud. " +
     "Magic is rare and consequential. A wizard should stand out in a crowd — robes mark them as exceptional, their equipment strange and purposeful. Avoid casual magic flourishes. " +
@@ -13,35 +10,6 @@ export const greyhawkSetting: DndSettingDef = {
     "Cities should feel medieval and layered — guild halls, market chaos, temple banners, the occasional lord's guard moving through a crowd that quietly parts. " +
     "Evil should feel tangible: Iuz's forces are twisted, cruel, and orcish-dark; the Great Kingdom's corruption shows in its finery hiding rot beneath. " +
     "Keep the mood grounded, dangerous, and classically adventurous — this is the world where the genre was forged.",
-
-  calendar: {
-    name: "Greyhawk (Oerth Common Year)",
-    epochName: "CY",
-    defaultYear: 591,
-    weekStyle: "weekly",
-    dayLabels: ["Starday", "Sunday", "Moonday", "Godsday", "Waterday", "Earthday", "Freeday"],
-    months: [
-      { name: "Fireseek",   alias: "Deep Winter",   days: 28 },
-      { name: "Readying",   alias: "Late Winter",   days: 28 },
-      { name: "Coldeven",   alias: "Early Spring",  days: 28 },
-      { name: "Planting",   alias: "Mid Spring",    days: 28 },
-      { name: "Flocktime",  alias: "Late Spring",   days: 28 },
-      { name: "Wealsun",    alias: "Early Summer",  days: 28 },
-      { name: "Reaping",    alias: "High Summer",   days: 28 },
-      { name: "Goodmonth",  alias: "Late Summer",   days: 28 },
-      { name: "Harvester",  alias: "Early Autumn",  days: 28 },
-      { name: "Patchwall",  alias: "Mid Autumn",    days: 28 },
-      { name: "Ready'reat", alias: "Late Autumn",   days: 28 },
-      { name: "Sunsebb",    alias: "Early Winter",  days: 28 },
-    ],
-    intercalaryDays: [
-      { name: "Needfest",  afterMonth: 12, description: "A mid-winter festival of gift-giving and merriment, lasting a full week." },
-      { name: "Growfest",  afterMonth: 3,  description: "A spring festival celebrating the return of warmth and the planting season." },
-      { name: "Richfest",  afterMonth: 6,  description: "A midsummer celebration of prosperity, games, and revelry." },
-      { name: "Brewfest",  afterMonth: 9,  description: "An autumn harvest festival of feasting, drinking, and thanksgiving." },
-    ],
-    leapYearRule: "none",
-  },
 
   locations: [
     { name: "Oerth",                            location_type: "world",     notes: "The world of Greyhawk, an Earth-like planet orbiting a yellow sun.", tags: ["greyhawk", "world of greyhawk", "planet"] },

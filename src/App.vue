@@ -117,10 +117,8 @@ watch(
   { immediate: true },
 );
 
-// Eagerly fetch the active campaign so it's hydrated before the app renders.
-// Without this, DefaultLayout mounts and CampaignSwitcher/nav queries fire
-// before activeCampaign is set, producing a visible "Create your first campaign"
-// flash for DMs and missing-data states for players.
+// Fetch the active campaign row as early as the id is known, in parallel with
+// the shell rather than ahead of it (see `showLoading` below).
 // `initialized` only means auth finished *checking* — it is true for a signed-out
 // visitor too. `activeCampaignId` outlives the session in localStorage, so gating
 // on `initialized` alone had the login screen fetch a campaign that RLS could
@@ -140,27 +138,32 @@ const campaignIdToFetch = computed<string | null>(() => {
   return fallback.campaign_id;
 });
 
-const { data: earlyCampaign, isError: campaignLoadError } = useCampaignById(
+const { data: earlyCampaign } = useCampaignById(
   () => campaignIdToFetch.value,
 );
 
-// Hold the loading screen until auth is ready AND the active campaign has been
-// fetched (if one is expected). This prevents the "Create your first campaign"
-// flash that occurs when components mount before activeCampaign is hydrated.
+// Hold the loading screen only until auth has finished checking. It used to
+// hold on until the active campaign ROW had arrived as well, to stop the "Create
+// your first campaign" flash that came from mounting before `activeCampaign` was
+// hydrated. That made the campaign row the head of a chain: the layout, the
+// route and every widget mounted one full request round after they could have,
+// and every read they make started that much later (#999, measured per request
+// round). Nearly everything reads by `activeCampaignId`, which is known from
+// localStorage before the first paint, so the shell does not need the row.
 //
-// We do NOT gate on `isLoading` here — there is a one-tick window right after
-// `auth.initialized` becomes true where TanStack Query has set `enabled = true`
-// but hasn't yet set `isFetching = true`. If we gated on `isLoading`, the
-// loading screen would briefly vanish during that window, the dashboard would
-// mount (showing empty party/quests), and then the loading screen would return
-// once fetching starts — causing a remount with a partially-initialised state.
-// Instead: keep the screen up as long as a campaign is expected but not loaded,
-// and release it on error so a fetch failure doesn't block the app forever.
+// The flash is closed where it came from instead. The campaign lists that drive
+// "Create your first campaign" are queries of their own, and DmCampaignGate
+// blocks only on a *resolved* empty list. The few readers of a row field either
+// wait for the row themselves (AiUseNoticeGate opens nothing until
+// `activeCampaign` exists), render a neutral state until it arrives (the
+// player-facing health visibility fails closed), or read a value the browser
+// already holds (`activeRuleset`, the theme in themeRuntime).
+//
+// A campaign that fails to load (deleted, foreign, offline) holds nothing back,
+// as before: the shell comes up without a row and the switcher recovers it.
 const showLoading = computed(() => {
   if (import.meta.env.SSR) return false;
-  if (!auth.initialized) return true;
-  if (campaignIdToFetch.value && !campaignStore.activeCampaign && !campaignLoadError.value) return true;
-  return false;
+  return !auth.initialized;
 });
 
 watch(

@@ -32,6 +32,16 @@ export function isMissingRowError(error: unknown): boolean {
   );
 }
 
+/**
+ * The same definitive "no such row", raised by client code that no longer goes
+ * through `.single()`: a batched `.in("id", ids)` read (`lib/batchById.ts`)
+ * answers a missing id with an absent row, not a 406. It carries PostgREST's
+ * code so `isMissingRowError` and every caller that checks it treat both alike.
+ */
+export class MissingRowError extends Error {
+  readonly code = "PGRST116";
+}
+
 export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
   if (isMissingRowError(error)) return false;
   if (isAbortError(error)) return failureCount < 2;

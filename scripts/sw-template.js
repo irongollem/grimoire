@@ -202,6 +202,42 @@ function isImmutableAsset(path) {
   return path.startsWith("/assets/") && !MUTABLE.has(path);
 }
 
+// Fetches one precache entry for the install, or null when no usable response
+// could be had.
+//
+// A content-hashed file is fetched through the HTTP cache first. On a first
+// visit the page has just downloaded every one of these bytes to boot, and
+// `cache: "reload"` made the install download the whole shell a second time
+// (~330 kB JS and ~80 kB CSS) while the page was still loading its data. The
+// hash in the filename is what makes the HTTP cache safe to trust: the same
+// name is the same bytes, so a hit cannot be a stale build. It is only a hit
+// for a file that is actually in the HTTP cache; anything missing from it is a
+// normal network fetch, so the install still ends with the whole shell cached.
+//
+// The nosniff guarantee above is kept by validating first and retrying second:
+// an HTTP-cache entry that fails `isUsableResponse` (the SPA's index.html
+// stored under a .js key during a half-provisioned deploy, say) is not
+// accepted, it is replaced by a `cache: "reload"` fetch, exactly the request
+// the install used to make. So a cached bad answer can never be what gets put
+// in the precache, and the atomic rule (reject the install when a critical
+// file has no usable response) is judged on the reloaded one.
+//
+// Files that can change under a stable name (index.html, and everything copied
+// verbatim from public/, which `isImmutableAsset` excludes) are always
+// reloaded, as before: the HTTP cache is exactly where a stale one would hide.
+async function fetchForInstall(path) {
+  if (isImmutableAsset(path)) {
+    try {
+      const cached = await fetch(new Request(path));
+      if (isUsableResponse(path, cached)) return cached;
+    } catch {
+      // fall through to the reloading fetch
+    }
+  }
+  const response = await fetch(new Request(path, { cache: "reload" }));
+  return isUsableResponse(path, response) ? response : null;
+}
+
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -222,8 +258,8 @@ self.addEventListener("install", (event) => {
             }
           }
           try {
-            const response = await fetch(new Request(path, { cache: "reload" }));
-            if (isUsableResponse(path, response)) {
+            const response = await fetchForInstall(path);
+            if (response) {
               await cache.put(path, response);
               return;
             }

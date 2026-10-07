@@ -87,11 +87,11 @@ import { isBlankNote } from "@/composables/notes/useMyEntityNote";
 import { useAutosave } from "@/composables/useAutosave";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
-import type { Npc, NpcPcNote, NpcRelationshipType } from "@/types/npc.types";
+import type { NpcListRow, NpcPcNote, NpcRelationshipType } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 
 const { npc, member, shared, metAt = null, note = null } = defineProps<{
-  npc: Npc;
+  npc: NpcListRow;
   member: PartyMember;
   shared: boolean;
   /** ISO timestamp this character first met the NPC; null when they have not. */

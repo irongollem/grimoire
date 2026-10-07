@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { serialDepth, settledTime } from "./serialDepth";
+import { chainPositions, serialDepth, settledTime } from "./serialDepth";
 
 describe("serialDepth", () => {
   it("is 0 with no requests", () => {
@@ -86,5 +86,23 @@ describe("settledTime", () => {
 
   it("is measured from the window start and ignores the gap before the first request", () => {
     expect(settledTime([{ start: 2000, end: 2300 }], 1000)).toBe(1300);
+  });
+});
+
+describe("chainPositions", () => {
+  it("reports each request's link in input order, so a late request can be named", () => {
+    // Input deliberately out of start order: c waits on b, which waits on a.
+    expect(
+      chainPositions([
+        { start: 200, end: 300 },
+        { start: 0, end: 100 },
+        { start: 100, end: 200 },
+        { start: 10, end: 90 },
+      ]),
+    ).toEqual([3, 1, 2, 1]);
+  });
+
+  it("is empty with no requests", () => {
+    expect(chainPositions([])).toEqual([]);
   });
 });

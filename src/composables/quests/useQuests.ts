@@ -159,15 +159,24 @@ async function deleteRef(id: string): Promise<void> {
 
 // ── Public composables ─────────────────────────────────────────────────────────
 
+/** The list read the quest log performs; shared with the navigation prefetch. */
+export function questListQuery(campaignId: string | null) {
+  return {
+    queryKey: [QUESTS_KEY, campaignId, "all"] as const,
+    queryFn: () => {
+      if (campaignId === null) throw new Error("useQuests fetched without a campaign");
+      return fetchQuests(campaignId);
+    },
+  };
+}
+
 export function useQuests() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const options = computed(() => questListQuery(campaignId.value));
   return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, campaignId.value, "all"] as const),
-    queryFn: ({ queryKey: [, cid] }) => {
-      if (cid === null) throw new Error("useQuests fetched without a campaign");
-      return fetchQuests(cid);
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!campaignId.value,
   });
 }

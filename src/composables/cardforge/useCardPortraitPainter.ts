@@ -3,6 +3,7 @@ import { useMissingPortrait } from "@/ai/useMissingPortrait";
 import { npcImageContext, monsterImageContext, itemImageContext, spellImageContext } from "@/ai/entityImageContext";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
+import { useFetchNpc } from "@/composables/npcs/useNpcs";
 import { cardSubjectId, type CardSubject } from "@/types/card.types";
 
 /**
@@ -13,6 +14,8 @@ import { cardSubjectId, type CardSubject } from "@/types/card.types";
  */
 export function useCardPortraitPainter() {
   const npc = useMissingPortrait("npc");
+  // The card subject is a list row without the prose the paint prompt quotes (#999).
+  const fetchNpc = useFetchNpc();
   const monster = useMissingPortrait("monster");
   const item = useMissingPortrait("item");
   const spell = useMissingPortrait("spell");
@@ -57,8 +60,12 @@ export function useCardPortraitPainter() {
     let failure: string | null = null;
     switch (subject.kind) {
       case "npc":
-        url = await npc.paint(id, npcImageContext(subject.data));
-        failure = npc.error.value;
+        try {
+          url = await npc.paint(id, npcImageContext(await fetchNpc(id)));
+          failure = npc.error.value;
+        } catch (error) {
+          failure = error instanceof Error ? error.message : "Could not read this NPC.";
+        }
         break;
       case "monster":
         url = await monster.paint(id, monsterImageContext(subject.data));

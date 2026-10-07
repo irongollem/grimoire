@@ -445,20 +445,44 @@ function bootBudgetPlugin(): Plugin {
    * provisional: 447.4 plus the 28 kB that `vercel build --prod` has added over
    * a bare build, plus the usual headroom. Tighten it from the "boot payload"
    * line the next release job prints.
+   *
+   * Then story 1.4 moved the Sentry SDK behind first paint: 449.5 to 412.2 kB.
+   * The same arithmetic (412.2 + 28, plus ~6.7%) gives 470.
+   *
+   * Then the `app-boot` group below and lazy AI panels: 413.7 to 406.0 kB,
+   * measured on a build that has the app's environment (see the guard in
+   * `closeBundle`). (406.0 + 28) x 1.067 = 463, so 465. A build without the
+   * environment reads ~351 kB, and that number is meaningless; see the guard.
    */
-  const BOOT_BUDGET_GZIP_BYTES = 510 * 1024;
+  const BOOT_BUDGET_GZIP_BYTES = 465 * 1024;
   // The build's real output directory (see swPlugin). Hard-coded to dist/, a
   // build with --outDir measured whatever stale dist/ happened to be lying
   // around, or failed when there was none.
   let distDir = path.resolve(import.meta.dirname, "dist");
+  let hasSupabaseEnv = false;
 
   return {
     name: "grimoire-boot-budget",
     apply: "build",
     configResolved(config) {
       distDir = path.resolve(config.root, config.build.outDir);
+      hasSupabaseEnv = typeof config.env.VITE_SUPABASE_URL === "string" && config.env.VITE_SUPABASE_URL !== "";
     },
     closeBundle() {
+      // A build without VITE_SUPABASE_URL is a build of an app that throws on
+      // its first line (src/lib/supabase.ts refuses to start without it), and
+      // since every boot module shares the `app-boot` chunk, the minifier treats
+      // all the code after that throw as unreachable and drops it: such a build
+      // measured ~351 kB against ~406 kB for the real thing, and a budget set
+      // from it would have failed the first release (#999). So it is not
+      // measured at all. Placeholder values are enough; CI sets them.
+      if (!hasSupabaseEnv) {
+        throw new Error(
+          "The boot budget cannot measure a build without VITE_SUPABASE_URL: that build throws at startup, " +
+            "and the minifier drops everything after the throw, so its size means nothing. " +
+            "Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (placeholders are fine), or use --mode localdb.",
+        );
+      }
       const html = readFileSync(path.join(distDir, "index.html"), "utf8");
 
       // Scripts plus modulepreloads only. Stylesheets, icons and the manifest
@@ -810,6 +834,53 @@ export default defineConfig(({ mode }) => {
               { name: "webp-fallback", test: /node_modules[\\/](@jsquash[\\/]webp|wasm-feature-detect)/ },
               // Everything else from node_modules
               { name: "vendor", test: /node_modules/ },
+              // The app's own code that the entry reaches statically, filed apart
+              // from the code that merely shares a chunk with it (#999).
+              //
+              // Without this group the app's code is split purely by which set of
+              // importers uses a module, so a module the boot path needs and a
+              // module only a lazy route needs, if they happen to share an
+              // importer set, land in one chunk and the boot path downloads both.
+              // `$initial` is rolldown's built-in tag for "statically imported by
+              // an entry, directly or through its dependency chain": every such
+              // module goes into one chunk, and everything else in `src/` is
+              // left to the automatic splitting it had before. The edge only
+              // points one way, since a module that is not statically reachable
+              // from the entry cannot be pulled in by it.
+              //
+              // Measured on a build with the app's environment (gzip, boot
+              // payload): 413.7 kB in 37 files before, 406.0 kB in 10 files after.
+              // A build without the environment reads 351.1 kB here; that number
+              // is an artefact (see bootBudgetPlugin's guard). A cold dashboard's
+              // static closure (entry, DefaultLayout, DashboardView and what they
+              // import) went from 181 chunks / 766 kB to 154 chunks / 703 kB.
+              //
+              // WHAT WAS TRIED AND REJECTED to also collapse the ~280 chunks under
+              // 2 kB that the lazy routes share (do not retry without re-measuring):
+              //  - A second group over the shared `src/composables|lib|types|stores`
+              //    modules, whether one chunk, entries-aware with a merge threshold,
+              //    one chunk per domain folder, or only modules under 2-8 kB, with
+              //    and without `includeDependenciesRecursively`. Every variant cut
+              //    the file count by a third, and every one made the dashboard load
+              //    more: a merged chunk imports the UNION of its members'
+              //    dependencies, so one tiny type module that touches the editor
+              //    pulled `tiptap` (142 kB gzip) or `documents` (295 kB) into every
+              //    route that used any other member. The dashboard's static
+              //    closure rose from 766 kB to 976-1297 kB.
+              //  - `experimentalInlineCommonChunks`, which copies small common
+              //    chunks into their consumers and so has no union problem. It
+              //    brought the chunk count to 413 and the dashboard closure to
+              //    783 kB, but it forces `strictExecutionOrder` on for the whole
+              //    app, and the boot payload went from 351.1 to 416.8 kB. Both of
+              //    those were measured WITHOUT the app's environment, so the gap
+              //    may be the artefact bootBudgetPlugin's guard describes rather
+              //    than strict ordering: re-measure before ruling it out for that
+              //    reason alone. It is also marked experimental.
+              {
+                name: "app-boot",
+                tags: ["$initial"],
+                test: /[\\/]src[\\/]/,
+              },
             ],
           },
         },

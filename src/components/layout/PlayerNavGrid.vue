@@ -18,6 +18,7 @@
       <RouterLink
         v-for="item in sortedNav"
         :key="item.id"
+        v-prefetch="item.to"
         :to="item.to"
         class="relative flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition-colors"
         :class="isActive(item.to)
@@ -51,6 +52,7 @@ import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import { usePlayerNavPrefs } from "@/composables/play/usePlayerNavPrefs";
 import { isNavItemActive } from "@/lib/playerNav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
+import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 
 const { unreadPaths, campaignName, characterName } = defineProps<{
   /** Nav paths with something new (usePlayerUnread). */
@@ -64,6 +66,7 @@ const emit = defineEmits<{
   'open-campaigns': [];
 }>();
 
+const vPrefetch = usePrefetchOnIntent();
 const route = useRoute();
 const { sortedNav } = usePlayerNavPrefs();
 

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { getSetting } from "@/settings/index";
+import { loadSettingContent } from "@/settings/content";
 import { matchSettingRowIds, stampSettingSource } from "@/lib/populateSetting/settingContent";
 import type {
   Deity, DeityInsert, DeityUpdate,
@@ -237,7 +237,7 @@ export function usePopulateDeities() {
       if (campaignError) throw campaignError;
 
       const calendarId: string = campaignRow?.calendar_id ?? "faerun";
-      const setting = getSetting(calendarId);
+      const setting = await loadSettingContent(calendarId);
       if (!setting?.pantheons.length && !setting?.deities.length) return [0, 0];
 
       const user = getCurrentUser();

@@ -1,9 +1,6 @@
-import type { DndSettingDef } from "./types";
+import type { SettingContentDef } from "./types";
 
-export const darksunSetting: DndSettingDef = {
-  id: "darksun",
-  label: "Dark Sun",
-
+export const darksunContent: SettingContentDef = {
   defaultAiPrompt:
     "Dying desert world with a brutal, sun-bleached palette — bone white, terracotta orange, ochre, obsidian black, and the sickly crimson of a sun too close and too hot. Cast harsh overhead shadows; midday on Athas has no mercy. " +
     "There is no metal — weapons and armour are stone, bone, chitin, obsidian, and hardened leather. Show this: a sword made of bone with sinew wrapping and a chipped edge, armour of beetle carapace stitched with gut. Everything is maintained, repaired, precious. " +
@@ -12,34 +9,6 @@ export const darksunSetting: DndSettingDef = {
     "The landscape is actively hostile: silt dust on every surface, heat shimmer distorting the horizon, dead trees bleached to sculpture, carcasses stripped clean by the sun. Vegetation, when it exists, should feel miraculous. " +
     "Sorcerer-kings should look like they have absorbed centuries of power — ancient and terrible, their templars wearing the city's colours like a brand. The Dragon is not a creature. It is a catastrophe. " +
     "Keep the mood brutal, defiant, and survival-driven — beauty exists here, but it is hard-edged and costs something.",
-
-  calendar: {
-    name: "Dark Sun (Calendar of Athas)",
-    epochName: "FY",
-    defaultYear: 190,
-    weekStyle: "tenday",
-    weekRowNames: ["First Tenday", "Second Tenday", "Third Tenday"],
-    months: [
-      { name: "Scorch",             alias: "High Sun I",      days: 30 },
-      { name: "Morrow",             alias: "High Sun II",     days: 30 },
-      { name: "Rest",               alias: "High Sun III",    days: 30 },
-      { name: "Gather",             alias: "High Sun IV",     days: 30 },
-      { name: "Cooling",            alias: "Low Sun I",       days: 30 },
-      { name: "Haze",               alias: "Low Sun II",      days: 30 },
-      { name: "Wind",               alias: "Low Sun III",     days: 30 },
-      { name: "Sorrow",             alias: "Low Sun IV",      days: 30 },
-      { name: "Smolder",            alias: "Wind & Fire I",   days: 30 },
-      { name: "Desert's Vengeance", alias: "Wind & Fire II",  days: 30 },
-      { name: "Bloom",              alias: "Wind & Fire III", days: 30 },
-      { name: "Embers",             alias: "Wind & Fire IV",  days: 30 },
-    ],
-    intercalaryDays: [
-      { name: "Festival of the Highest Sun", afterMonth: 4,  description: "The scorching midpoint of High Sun, a brutal day when even the sorcerer-kings' templars retreat indoors. Gladiatorial games are held in shaded arenas." },
-      { name: "Day of Rest",                 afterMonth: 8,  description: "The sole intercalary day all city-states observe. Even slave labour halts. Defilers and preservers alike feel the draw of the dying land on this day." },
-      { name: "Storm's Crown",               afterMonth: 11, description: "The peak of Wind & Fire season; violent dust storms sweep the Tablelands. Caravans shelter and psions meditate on the Way amidst the howling dark." },
-    ],
-    leapYearRule: "none",
-  },
 
   locations: [
     { name: "Athas",               location_type: "world",     notes: "A dying world stripped of life by defiling magic. No gods answer prayers here; psionics and primal power fill the void. The sun burns crimson.", tags: ["dying world", "defiling magic", "dark sun", "crimson sun"] },

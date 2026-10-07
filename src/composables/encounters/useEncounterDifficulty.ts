@@ -10,7 +10,7 @@ import {
 } from "@/lib/encounters/difficulty";
 import type { CombatantDef, FactionDef } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 import type { Companion } from "@/types/companion.types";
 import type { Trap } from "@/types/trap.types";
 import type { PartyMember } from "@/types/party.types";
@@ -37,7 +37,7 @@ export function useEncounterDifficulty(params: {
   companionIds: Ref<string[]> | ComputedRef<string[]>;
   trapIds: Ref<string[]> | ComputedRef<string[]>;
   monsters: Ref<Monster[]> | ComputedRef<Monster[]>;
-  npcs: Ref<Npc[]> | ComputedRef<Npc[]>;
+  npcs: Ref<NpcListRow[]> | ComputedRef<NpcListRow[]>;
   party: Ref<PartyMember[] | null | undefined> | ComputedRef<PartyMember[] | null | undefined>;
   companions: Ref<Companion[] | null | undefined> | ComputedRef<Companion[] | null | undefined>;
   allTraps: Ref<Trap[] | null | undefined> | ComputedRef<Trap[] | null | undefined>;

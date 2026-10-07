@@ -118,6 +118,19 @@ function contentTypeFor(path: string) {
   return "image/webp";
 }
 
+/**
+ * happy-dom's Request does not expose `cache`, which is the one thing the install
+ * fetch tests need to see, so the worker is handed one that remembers the mode
+ * it was constructed with.
+ */
+class RecordingRequest extends Request {
+  readonly cacheMode: string;
+  constructor(input: string | URL | Request, init?: RequestInit) {
+    super(input, init);
+    this.cacheMode = init?.cache ?? "default";
+  }
+}
+
 function loadWorker(options: {
   precache?: string[];
   mutable?: string[];
@@ -186,7 +199,7 @@ function loadWorker(options: {
       },
     },
     fetch: fetchMock,
-    Request,
+    Request: RecordingRequest,
     Response,
     URL,
     Promise,
@@ -406,6 +419,68 @@ describe("service-worker copy-forward", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const stored = stores.get("grimoire-test")!.get("/assets/cardforge/loot-backs/dragons-watch-tc.webp");
     expect(await stored!.text()).toBe("fresh");
+  });
+});
+
+describe("service-worker install fetch mode", () => {
+  const modes = (fm: ReturnType<typeof vi.fn>) =>
+    fm.mock.calls.map(([request]) => [new URL((request as Request).url).pathname, (request as RecordingRequest).cacheMode]);
+
+  it("fills a content-hashed asset from the HTTP cache instead of reloading it", async () => {
+    const fetchMock = vi.fn(async () => response("export {};", "application/javascript"));
+    const { runInstall, fetchMock: fm, stores } = loadWorker({ precache: ["/assets/app-DXiZtau7.js"], fetchMock });
+
+    await runInstall();
+
+    expect(modes(fm)).toEqual([["/assets/app-DXiZtau7.js", "default"]]);
+    expect(await stores.get("grimoire-test")!.get("/assets/app-DXiZtau7.js")!.text()).toBe("export {};");
+  });
+
+  it("never lets an HTTP-cache answer with the wrong type into the precache", async () => {
+    // A half-provisioned deploy can leave the SPA's index.html in the HTTP cache
+    // under a .js name. The default-mode answer fails the content-type check, so
+    // the install repeats the request with `cache: "reload"` and keeps that one.
+    const fetchMock = vi.fn(async (request: Request) =>
+      (request as RecordingRequest).cacheMode === "reload"
+        ? response("export {};", "application/javascript")
+        : response("<!doctype html>", "text/html"),
+    );
+    const { runInstall, fetchMock: fm, stores } = loadWorker({ precache: ["/assets/app-DXiZtau7.js"], fetchMock });
+
+    await runInstall();
+
+    expect(modes(fm)).toEqual([
+      ["/assets/app-DXiZtau7.js", "default"],
+      ["/assets/app-DXiZtau7.js", "reload"],
+    ]);
+    expect(await stores.get("grimoire-test")!.get("/assets/app-DXiZtau7.js")!.text()).toBe("export {};");
+  });
+
+  it("still rejects the install when neither fetch yields a usable critical file", async () => {
+    const fetchMock = vi.fn(async () => response("<!doctype html>", "text/html"));
+    const { runInstall } = loadWorker({ precache: ["/assets/app-DXiZtau7.js"], fetchMock });
+
+    await expect(runInstall()).rejects.toThrow("precache failed for 1 critical asset");
+  });
+
+  it("always reloads files that can change under a stable name", async () => {
+    const fetchMock = vi.fn(async (request: Request) =>
+      new URL(request.url).pathname === "/index.html"
+        ? response("<!doctype html>", "text/html")
+        : response("fresh", "image/webp"),
+    );
+    const { runInstall, fetchMock: fm } = loadWorker({
+      precache: ["/index.html", "/assets/cardforge/a.webp"],
+      mutable: ["/assets/cardforge/a.webp"],
+      fetchMock,
+    });
+
+    await runInstall();
+
+    expect(modes(fm).sort()).toEqual([
+      ["/assets/cardforge/a.webp", "reload"],
+      ["/index.html", "reload"],
+    ]);
   });
 });
 

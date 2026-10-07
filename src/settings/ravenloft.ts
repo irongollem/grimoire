@@ -1,9 +1,6 @@
-import type { DndSettingDef } from "./types";
+import type { SettingContentDef } from "./types";
 
-export const ravenloftSetting: DndSettingDef = {
-  id: "ravenloft",
-  label: "Ravenloft",
-
+export const ravenloftContent: SettingContentDef = {
   defaultAiPrompt:
     "Gothic horror with a desaturated, fog-drenched palette — bone white, slate grey, deep shadow black, and crimson used sparingly and with intent. Candlelight and firelight should feel inadequate against the dark. " +
     "The Mists are always present: at treeline, between buildings, curling under doors. Let them obscure as much as they reveal. " +
@@ -12,41 +9,6 @@ export const ravenloftSetting: DndSettingDef = {
     "Creatures should feel wrong — vampires are beautiful and repellent at once, werewolves are mid-transformation agony, ghosts are the shape of grief given form. Anatomy should disturb without being gratuitous. " +
     "Use environmental horror: the torch that keeps almost going out, the dog that won't stop barking, the wagon wheel stuck in mud at the worst moment, the window with something behind it. " +
     "Keep the mood oppressive, dread-soaked, and intimate — the horror is personal, not spectacle.",
-
-  calendar: {
-    name: "Ravenloft (Barovian Calendar)",
-    epochName: "BC",
-    defaultYear: 735,
-    weekStyle: "weekly",
-    dayLabels: ["Moonday", "Grimday", "Ashenday", "Bleakday", "Dreadday", "Wailday", "Darkday"],
-    months: [
-      { name: "Deadwinter",  alias: "The Long Dark",  days: 30 },
-      { name: "Witchblight", alias: "The Rime",        days: 30 },
-      { name: "Thawing",     alias: "False Spring",    days: 30 },
-      { name: "Bloodrose",   alias: "Blooming",        days: 30 },
-      { name: "Mourning",    alias: "The Weeping",     days: 30 },
-      { name: "Mistmonth",   alias: "High Summer",     days: 30 },
-      { name: "Swelter",     alias: "The Fever",       days: 30 },
-      { name: "Duskfall",    alias: "The Turning",     days: 30 },
-      { name: "Darkening",   alias: "The Long Dusk",   days: 30 },
-      { name: "Harvestwane", alias: "Last Harvest",    days: 30 },
-      { name: "Grimtide",    alias: "The Reckoning",   days: 30 },
-      { name: "Deepmist",    alias: "The Vanishing",   days: 30 },
-    ],
-    intercalaryDays: [
-      {
-        name: "Mistsday",
-        afterMonth: 6,
-        description: "The longest night of summer. The Mists draw close and the boundary between life and death blurs. Darklords are said to be at their most powerful.",
-      },
-      {
-        name: "Night of the Walking Dead",
-        afterMonth: 12,
-        description: "The most dreaded night in Ravenloft: the dead rise from their graves and the Mists swallow entire villages. No one ventures out alone.",
-      },
-    ],
-    leapYearRule: "none",
-  },
 
   locations: [
     { name: "The Mists",              location_type: "plane",   notes: "The supernatural fog that surrounds and separates the Domains of Dread. Travellers who enter without invitation rarely find their way out.", tags: ["mists", "demiplane", "prison"] },

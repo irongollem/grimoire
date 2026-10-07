@@ -165,24 +165,7 @@
       <!-- 5. Accordion sections -->
       <NpcAccordionSection v-model:open="openSections.lore" title="Lore">
         <div class="flex flex-col gap-4">
-          <div v-if="npc.appearance" class="flex flex-col gap-1">
-            <h3 class="text-label-lg font-bold uppercase text-primary">Appearance</h3>
-            <RichTextViewer :content="npc.appearance" />
-          </div>
-          <div v-if="npc.personality" class="flex flex-col gap-1">
-            <h3 class="text-label-lg font-bold uppercase text-primary">Personality</h3>
-            <RichTextViewer :content="npc.personality" />
-          </div>
-          <div v-if="npc.backstory" class="flex flex-col gap-1">
-            <h3 class="text-label-lg font-bold uppercase text-primary">Backstory</h3>
-            <RichTextViewer :content="npc.backstory" />
-          </div>
-          <p
-            v-if="!npc.appearance && !npc.personality && !npc.backstory"
-            class="text-body italic text-muted-foreground"
-          >
-            No lore recorded for this NPC.
-          </p>
+          <NpcLoreSections :full="full" />
 
           <EntityBacklinks :entity-id="npc.id" heading-class="text-label-lg font-bold text-muted-foreground uppercase" />
         </div>
@@ -215,7 +198,8 @@
       </NpcAccordionSection>
 
       <NpcAccordionSection v-model:open="openSections.voice" title="Voice Coach">
-        <NpcVoiceCoach :npc="npc" />
+        <NpcVoiceCoach v-if="full" :npc="full" />
+        <div v-else class="flex min-h-40 items-center justify-center"><BannerLoader class="h-8" /></div>
       </NpcAccordionSection>
     </div>
 
@@ -300,7 +284,8 @@ import { computed, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useScroll } from "@vueuse/core";
 import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import BannerLoader from "@/components/brand/BannerLoader.vue";
+import NpcLoreSections from "@/components/npcs/NpcLoreSections.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
@@ -330,9 +315,13 @@ import {
 } from "@/lib/npcDisplay";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useCampaignStore } from "@/stores/campaign";
-import { NPC_RELATIONSHIP_LABELS, type Npc } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_LABELS, type Npc, type NpcListRow } from "@/types/npc.types";
 
-const { npc } = defineProps<{ npc: Npc }>();
+const { npc } = defineProps<{
+  /** Paints at once from the list row; the prose waits for `full` (#999). */
+  npc: NpcListRow;
+  full?: Npc;
+}>();
 
 const router = useRouter();
 const campaignStore = useCampaignStore();

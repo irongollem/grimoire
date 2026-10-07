@@ -5,7 +5,8 @@ import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
-import { supabase, onSessionLost, consumeRefusedRead, getCurrentUser } from "./lib/supabase";
+import { prefetchInitialChunks } from "./router/prefetchInitial";
+import { supabase, onSessionLost, consumeRefusedRead, getCurrentUser, readStoredSession } from "./lib/supabase";
 import { createIdentityChangeGate, resetForNewIdentity } from "./lib/authIdentityChange";
 import { createSessionRecovery } from "./lib/sessionRecovery";
 import { createQueryPersistence } from "./lib/queryPersistence/persistence";
@@ -15,7 +16,7 @@ import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
 import { useAuthStore } from "./stores/auth";
 import { installStaleChunkRecovery, chunksArrived } from "./lib/staleChunkRecovery";
 import { queryRetryDelay, shouldRetryQuery } from "./lib/queryRetry";
-import { initErrorTracking, reportHandledError } from "./lib/observability/sentry";
+import { initErrorTracking, loadErrorTrackingAfterPaint, reportHandledError } from "./lib/observability/sentry";
 import { installNavigationReload, installSwAutoUpdate } from "./lib/swAutoUpdate";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
@@ -60,6 +61,27 @@ const router = createRouter({
   },
 });
 
+// The cold-load request chain used to be render-order waits, not data
+// dependencies (#999): identity, then the shell, then the shell's first reads,
+// each started only once the one before it had rendered. Two things that need
+// nothing from the identity answer start here, at t=0, beside it.
+//
+// 1. The first navigation's chunks (layout shell and route component), which
+//    the router would otherwise request only after its guard's identity await.
+prefetchInitialChunks(router, window.location.pathname + window.location.search + window.location.hash);
+
+// 2. The IndexedDB open. On a device that has never opened the database it
+//    creates it, and every persisted read queues behind that; the unpersisted
+//    chat probe did not, which is why the dashboard reads trailed it. Only with
+//    a stored session: a signed-out visitor persists nothing, so it would create
+//    a database for nobody.
+//
+// Data is deliberately NOT fetched here. A campaign read sent at t=0 was tried
+// and measured: it went out a second time once App.vue's query mounted, so it
+// saved nothing, and it broke the premise `authIdentityChange.ts` rests on, that
+// nothing queries before auth-js's first event.
+if (readStoredSession() !== null) void persistence.warm();
+
 // The "next navigation" half of the deferred deploy reload (see swAutoUpdate.ts):
 // when a new build is waiting and nothing is busy, the navigation becomes a full
 // page load onto it. The handle exists only in production, where the service
@@ -86,7 +108,9 @@ const app = createApp(App);
 
 // Before any plugin, directive or store — this installs Vue's errorHandler and
 // the global handlers, and anything thrown during the wiring below is exactly
-// the kind of boot failure worth hearing about. No-op without a DSN.
+// the kind of boot failure worth hearing about. They only buffer: the Sentry SDK
+// itself is a separate chunk that loads after first paint (see below), or sooner
+// if an error arrives first, and replays what was held. No-op without a DSN.
 initErrorTracking(app, router);
 
 const pinia = createPinia();
@@ -303,7 +327,17 @@ if (window.visualViewport) {
 // report (see installNavigationReload). Any other rejection is a boot failure
 // and is rethrown, so it still reaches Sentry as an unhandled rejection.
 router.isReady().then(
-  () => app.mount("#app"),
+  () => {
+    app.mount("#app");
+    // The SDK stays off the critical path: it loads once the page has painted.
+    loadErrorTrackingAfterPaint();
+    // No idle prefetch of the other destinations' chunks here: it was tried
+    // (#999) and measured as a regression, because `import()` evaluates a chunk
+    // as well as downloading it, and on a warm load that work landed on top of
+    // the app's own boot (app ready +141 ms). Navigation is warmed on intent
+    // instead (usePrefetchOnIntent), and the service worker caches chunks once
+    // they have been fetched.
+  },
   (failure: unknown) => {
     if (leavingForNewBuild()) return;
     throw failure;

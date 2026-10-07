@@ -1,7 +1,13 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { createMemoryHistory, createRouter, isNavigationFailure, NavigationFailureType } from "vue-router";
-import { createReloadCoordinator, installNavigationReload, untilNewestWorkerControls } from "@/lib/swAutoUpdate";
+import {
+  createReloadCoordinator,
+  installNavigationReload,
+  installSwAutoUpdate,
+  scheduleWhenIdle,
+  untilNewestWorkerControls,
+} from "@/lib/swAutoUpdate";
 
 describe("createReloadCoordinator", () => {
   it("never reloads by itself and surfaces the manual fallback", () => {
@@ -182,5 +188,82 @@ describe("untilNewestWorkerControls", () => {
     const done = untilNewestWorkerControls(5_000);
     await vi.advanceTimersByTimeAsync(5_000);
     await expect(done).resolves.toBeUndefined();
+  });
+});
+
+// The install fetches the whole shell, so on a first visit registering it while
+// the page is still loading made the two compete for the connection.
+describe("installSwAutoUpdate registration timing", () => {
+  function stubServiceWorker() {
+    const register = vi.fn(async () => ({ update: vi.fn(async () => undefined) }));
+    const sw = Object.assign(new EventTarget(), { controller: null, register });
+    Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: sw });
+    return register;
+  }
+  const options = { isBusy: () => false, onDeferred: () => {}, idleFallbackMs: 500 };
+  const setReadyState = (value: DocumentReadyState) =>
+    Object.defineProperty(document, "readyState", { configurable: true, get: () => value });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(navigator, "serviceWorker");
+    Reflect.deleteProperty(document, "readyState");
+    Reflect.deleteProperty(window, "requestIdleCallback");
+  });
+
+  it("does not register before the page has loaded, nor on load itself", () => {
+    vi.useFakeTimers();
+    const register = stubServiceWorker();
+    setReadyState("loading");
+    installSwAutoUpdate(options);
+
+    expect(register).not.toHaveBeenCalled();
+    window.dispatchEvent(new Event("load"));
+    expect(register).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(500);
+    expect(register).toHaveBeenCalledExactlyOnceWith("/sw.js");
+  });
+
+  it("registers when the browser reports idle time, where it can", () => {
+    const register = stubServiceWorker();
+    setReadyState("loading");
+    let idle: (() => void) | undefined;
+    Object.defineProperty(window, "requestIdleCallback", {
+      configurable: true,
+      value: (task: () => void) => {
+        idle = task;
+        return 1;
+      },
+    });
+    installSwAutoUpdate(options);
+    window.dispatchEvent(new Event("load"));
+
+    expect(register).not.toHaveBeenCalled();
+    idle?.();
+    expect(register).toHaveBeenCalledExactlyOnceWith("/sw.js");
+  });
+
+  it("schedules at once when the page finished loading before this ran", () => {
+    vi.useFakeTimers();
+    const register = stubServiceWorker();
+    setReadyState("complete");
+    installSwAutoUpdate(options);
+
+    vi.advanceTimersByTime(500);
+    expect(register).toHaveBeenCalledOnce();
+  });
+});
+
+describe("scheduleWhenIdle", () => {
+  afterEach(() => Reflect.deleteProperty(window, "requestIdleCallback"));
+
+  it("asks for idle time with an upper bound so a busy page cannot postpone it forever", () => {
+    const ric = vi.fn();
+    Object.defineProperty(window, "requestIdleCallback", { configurable: true, value: ric });
+    const task = () => {};
+    scheduleWhenIdle(task, 500);
+    expect(ric).toHaveBeenCalledWith(task, { timeout: 10_000 });
   });
 });

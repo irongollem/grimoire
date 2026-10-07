@@ -43,6 +43,6 @@ export function layoutNameFor(meta: RouteLocationNormalized["meta"]): LayoutName
  * Safe to call repeatedly — `import()` is memoised per specifier, so the second
  * call returns the first call's promise rather than issuing another request.
  */
-export function preloadLayout(to: RouteLocationNormalized): Promise<unknown> {
+export function preloadLayout(to: Pick<RouteLocationNormalized, "meta">): Promise<unknown> {
   return loaders[layoutNameFor(to.meta)]();
 }

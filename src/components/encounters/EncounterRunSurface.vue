@@ -21,7 +21,7 @@ import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 import type { Trap } from "@/types/trap.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EncounterRunner from "@/components/encounters/EncounterRunner.vue";
@@ -107,14 +107,14 @@ watch(
         traps: filterEncounterTraps(enc.trap_ids, traps),
       });
       store.availableMonsters = mons;
-      store.availableNpcs = npcList as Npc[];
+      store.availableNpcs = npcList;
       const lairOwnerInstanceId = enc.lair_enabled && enc.lair_owner_def_id
         ? live.combatants_live.find((combatant) => combatant.def_id === enc.lair_owner_def_id)?.instance_id ?? null
         : null;
       store.setBossMechanics({ lairEnabled: enc.lair_enabled, lairOwnerInstanceId });
       return;
     }
-    initStore(enc, mons, par, npcList as Npc[], filterEncounterTraps(enc.trap_ids, traps));
+    initStore(enc, mons, par, npcList, filterEncounterTraps(enc.trap_ids, traps));
   },
   { immediate: true },
 );
@@ -124,7 +124,7 @@ function filterEncounterTraps(trapIds: string[], all: Trap[]): Trap[] {
   return all.filter((trap) => ids.has(trap.id));
 }
 
-function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: Npc[], traps: Trap[]) {
+function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: NpcListRow[], traps: Trap[]) {
   store.reset();
   store.encounterId = enc.id;
   store.encounterName = enc.name;

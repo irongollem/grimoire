@@ -1,64 +1,61 @@
 /**
- * Settings registry — the single source of truth for all D&D campaign settings.
+ * Settings registry: the light, eager half of every built-in campaign setting
+ * (id, label, calendar). It is small enough to ship in the boot graph, which
+ * the calendar store, the campaign switcher and every picker read synchronously.
  *
- * Each setting is a DndSettingDef: a plain JSON-serializable object containing
- * the calendar definition, location presets, Hall of Heroes seed data, and a
- * default AI prompt. Custom DM settings can be fetched from blob storage and
- * registered at runtime via registerSetting().
+ * The heavy half (locations, factions, heroes, pantheons, deities, the default
+ * AI prompt) is about 300 kB of seed text in `src/settings/<id>.ts`. It lives in
+ * `./content`, one lazily fetched chunk per setting, and must never be imported
+ * from here: a static import of any content module would put all nine back into
+ * the first paint, which is the regression this split exists to prevent.
  */
 
 import type { CalendarAdapter } from "@/types/calendar.types";
-import { toCalendarAdapter, calendarDefToAdapter } from "./types";
-import type { SettingCalendarDef } from "./types";
-import { faerunSetting }      from "./faerun";
-import { eberronSetting }     from "./eberron";
-import { greyhawkSetting }    from "./greyhawk";
-import { dragonlanceSetting } from "./dragonlance";
-import { ravenloftSetting }   from "./ravenloft";
-import { planescapeSetting }  from "./planescape";
-import { spelljammerSetting } from "./spelljammer";
-import { darksunSetting }     from "./darksun";
-import { mystaraSetting }     from "./mystara";
-
-import type { DndSettingDef } from "./types";
+import { calendarDefToAdapter } from "./types";
+import type { SettingCalendarDef, SettingMeta } from "./types";
+import { FAERUN_CALENDAR } from "./faerun.calendar";
+import { EBERRON_CALENDAR } from "./eberron.calendar";
+import { GREYHAWK_CALENDAR } from "./greyhawk.calendar";
+import { DRAGONLANCE_CALENDAR } from "./dragonlance.calendar";
+import { RAVENLOFT_CALENDAR } from "./ravenloft.calendar";
+import { PLANESCAPE_CALENDAR } from "./planescape.calendar";
+import { SPELLJAMMER_CALENDAR } from "./spelljammer.calendar";
+import { DARKSUN_CALENDAR } from "./darksun.calendar";
+import { MYSTARA_CALENDAR } from "./mystara.calendar";
+// Gregorian remains a standalone adapter (it's a real-world calendar, not a D&D setting).
+import { gregorianAdapter } from "@/calendars/gregorian";
 
 // ── Registry ─────────────────────────────────────────────────────────────────
 
-const SETTINGS_MAP = new Map<string, DndSettingDef>([
-  [faerunSetting.id,      faerunSetting],
-  [eberronSetting.id,     eberronSetting],
-  [greyhawkSetting.id,    greyhawkSetting],
-  [dragonlanceSetting.id, dragonlanceSetting],
-  [ravenloftSetting.id,   ravenloftSetting],
-  [planescapeSetting.id,  planescapeSetting],
-  [spelljammerSetting.id, spelljammerSetting],
-  [darksunSetting.id,     darksunSetting],
-  [mystaraSetting.id,     mystaraSetting],
-]);
+const SETTING_METAS: readonly SettingMeta[] = [
+  { id: "faerun",      label: "Forgotten Realms", calendar: FAERUN_CALENDAR },
+  { id: "eberron",     label: "Eberron",          calendar: EBERRON_CALENDAR },
+  { id: "greyhawk",    label: "Greyhawk",         calendar: GREYHAWK_CALENDAR },
+  { id: "dragonlance", label: "Dragonlance",      calendar: DRAGONLANCE_CALENDAR },
+  { id: "ravenloft",   label: "Ravenloft",        calendar: RAVENLOFT_CALENDAR },
+  { id: "planescape",  label: "Planescape",       calendar: PLANESCAPE_CALENDAR },
+  { id: "spelljammer", label: "Spelljammer",      calendar: SPELLJAMMER_CALENDAR },
+  { id: "darksun",     label: "Dark Sun",         calendar: DARKSUN_CALENDAR },
+  { id: "mystara",     label: "Mystara",          calendar: MYSTARA_CALENDAR },
+];
 
-/** Register a custom DM setting fetched at runtime from blob storage. */
-export function registerSetting(def: DndSettingDef): void {
-  SETTINGS_MAP.set(def.id, def);
+const SETTING_METAS_BY_ID = new Map(SETTING_METAS.map((s) => [s.id, s]));
+
+/** List every built-in setting's light metadata. */
+export function listSettings(): readonly SettingMeta[] {
+  return SETTING_METAS;
 }
 
-/** List all registered settings (built-in + custom). */
-export function listSettings(): DndSettingDef[] {
-  return Array.from(SETTINGS_MAP.values());
-}
-
-/** Get a setting definition by ID, or undefined if not found. */
-export function getSetting(id: string): DndSettingDef | undefined {
-  return SETTINGS_MAP.get(id);
+/** Get a setting's light metadata by ID, or undefined if it is not a built-in. */
+export function getSetting(id: string): SettingMeta | undefined {
+  return SETTING_METAS_BY_ID.get(id);
 }
 
 // ── Calendar adapter helpers ──────────────────────────────────────────────────
 
-// Gregorian remains a standalone adapter (it's a real-world calendar, not a D&D setting).
-import { gregorianAdapter } from "@/calendars/gregorian";
-
 /** Registry of CalendarAdapters keyed by adapter ID — derived from settings + gregorian. */
 export const CALENDAR_REGISTRY: Record<string, CalendarAdapter> = Object.fromEntries([
-  ...Array.from(SETTINGS_MAP.values()).map((s) => [s.id, toCalendarAdapter(s)]),
+  ...SETTING_METAS.map((s) => [s.id, calendarDefToAdapter(s.id, s.calendar)]),
   ["gregorian", gregorianAdapter],
 ]);
 
@@ -80,31 +77,12 @@ export function listCalendarAdapters(): CalendarAdapter[] {
 
 /** Canonical list of settings for UI pickers. Includes freeform entries. */
 export const DND_SETTINGS = [
-  ...Array.from(SETTINGS_MAP.values()).map((s) => ({ value: s.id, label: s.label })),
+  ...SETTING_METAS.map((s) => ({ value: s.id, label: s.label })),
   { value: "homebrew", label: "Homebrew" },
   { value: "other",    label: "Other"    },
 ] as const;
 
 export type DndSettingValue = (typeof DND_SETTINGS)[number]["value"];
 
-// ── Location presets ──────────────────────────────────────────────────────────
-
-import type { SettingLocationDef } from "./types";
-
-/** Location presets keyed by setting ID. */
-export const SETTING_LOCATIONS: Record<string, SettingLocationDef[]> = Object.fromEntries(
-  Array.from(SETTINGS_MAP.values()).map((s) => [
-    s.id,
-    s.locations,
-  ]),
-);
-
-// ── Re-exports for backward compatibility ─────────────────────────────────────
-
-export type { DndSettingDef, SettingCalendarDef } from "./types";
-export {
-  toCalendarAdapter,
-  calendarDefToAdapter,
-  createDefaultCustomCalendarDef,
-  toHallOfHeroInserts,
-} from "./types";
+export type { SettingMeta, SettingContentDef, SettingCalendarDef } from "./types";
+export { calendarDefToAdapter, createDefaultCustomCalendarDef } from "./types";

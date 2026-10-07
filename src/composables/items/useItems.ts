@@ -3,6 +3,7 @@ import { computed, isRef } from "vue";
 import type { Ref, ComputedRef } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { createIdBatcher } from "@/lib/batchById";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { useUiStore } from "@/stores/ui";
@@ -30,10 +31,22 @@ async function fetchItems(): Promise<Item[]> {
   return all;
 }
 
-async function fetchItem(id: string): Promise<Item | null> {
-  const { data, error } = await supabase.from("items").select("*").eq("id", id).maybeSingle();
-  if (error) throw error;
-  return data as Item | null;
+/**
+ * One chat drop per row, each asking for its own item: batched so a screen of
+ * twenty drops sends one `.in("id", ids)` request. The per-id query keys are
+ * untouched; only the network is coalesced. A missing row is still `null`.
+ */
+const itemBatcher = createIdBatcher<Item>({
+  fetchMany: async (ids) => {
+    const { data, error } = await supabase.from("items").select("*").in("id", ids);
+    if (error) throw error;
+    return data as Item[];
+  },
+  idOf: (item) => item.id,
+});
+
+function fetchItem(id: string): Promise<Item | null> {
+  return itemBatcher.load(id);
 }
 
 /** Exported so a resolved downtime outcome can mint a seed item into the campaign. */

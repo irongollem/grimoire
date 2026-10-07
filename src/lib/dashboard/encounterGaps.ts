@@ -1,4 +1,4 @@
-import type { Encounter } from "@/types/encounter.types";
+import type { EncounterListRow } from "@/types/encounter.types";
 
 /**
  * "Encounters missing pieces" (#764) — which built encounters are not
@@ -58,7 +58,7 @@ export interface EncounterGapRow {
   gaps: EncounterGapKind[];
 }
 
-function gapsFor(encounter: Encounter): EncounterGapKind[] {
+function gapsFor(encounter: EncounterListRow): EncounterGapKind[] {
   const gaps: EncounterGapKind[] = [];
   const hasCombatants = encounter.combatants.length > 0;
 
@@ -84,7 +84,7 @@ function gapsFor(encounter: Encounter): EncounterGapKind[] {
  * `GAP_RANK`), then by how many pieces are missing, then by name so the
  * order is stable when both are equal.
  */
-export function deriveEncounterGapRows(encounters: readonly Encounter[]): EncounterGapRow[] {
+export function deriveEncounterGapRows(encounters: readonly EncounterListRow[]): EncounterGapRow[] {
   const rows = encounters
     .filter((encounter) => !encounter.is_finished)
     .map((encounter) => ({ encounter, gaps: gapsFor(encounter) }))

@@ -10,7 +10,7 @@ import {
 } from "@/lib/npcDisplay";
 import type { RevealAdapter } from "@/lib/reveal";
 import { useUiStore } from "@/stores/ui";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 
 /**
  * Everything a DM surface needs to share an NPC and to drop its disguise: the
@@ -37,7 +37,7 @@ export function npcShareUpdate(
   };
 }
 
-export function useNpcReveal(npc: () => Npc) {
+export function useNpcReveal(npc: () => NpcListRow) {
   const { mutate: updateNpc } = useUpdateNpc();
   const { data: partyData } = useParty();
   const { sendNarrativeEvent } = useCampaignMessages();

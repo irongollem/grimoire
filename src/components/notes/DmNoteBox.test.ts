@@ -5,7 +5,7 @@ import { computed, reactive, ref } from "vue";
 import { useScratchpadStore } from "@/stores/scratchpad";
 import DmNoteBox from "./DmNoteBox.vue";
 
-const seen = vi.hoisted(() => ({ subjects: [] as unknown[] }));
+const seen = vi.hoisted(() => ({ subjects: [] as unknown[], loading: { value: false } }));
 
 vi.mock("@/composables/notes/useDmNote", () => ({
   useDmNote: (subject: () => unknown) => {
@@ -15,7 +15,7 @@ vi.mock("@/composables/notes/useDmNote", () => ({
       status: computed(() => "saved"),
       saveError: computed(() => ""),
       revision: ref(0),
-      loading: computed(() => false),
+      loading: computed(() => seen.loading.value),
     };
   },
 }));
@@ -31,6 +31,7 @@ describe("DmNoteBox", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     seen.subjects.length = 0;
+    seen.loading.value = false;
   });
 
   it("renders the editor and registers its entity with the scratchpad", () => {
@@ -70,5 +71,17 @@ describe("DmNoteBox", () => {
     expect(w.find("[data-test=editor]").exists()).toBe(true);
     expect(store.pageSubjects).toHaveLength(0);
     expect(w.text()).not.toContain("Open in the scratchpad");
+  });
+
+  it.each(["inline", "panel"] as const)("shows no save status in the %s variant until the note has loaded", async (variant) => {
+    seen.loading.value = true;
+    const w = mount(DmNoteBox, { props: { ...props, variant }, global: { stubs } });
+    expect(w.find("[data-test=status]").exists()).toBe(false);
+    expect(w.find("[data-test=editor]").exists()).toBe(false);
+  });
+
+  it("shows the save status once the note has loaded", () => {
+    const w = mount(DmNoteBox, { props, global: { stubs } });
+    expect(w.find("[data-test=status]").exists()).toBe(true);
   });
 });

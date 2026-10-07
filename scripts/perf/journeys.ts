@@ -78,6 +78,9 @@ const CONTENT = {
   // previous page's heading also matches `main h1`).
   "/encounters": { selector: "main h1", text: "Encounters" },
   "/quests": { selector: "#quest-group-active" },
+  // The open sheet's prose block, which NpcLoreSections renders only once the
+  // record read by id has landed (its loading state is a different element).
+  "dm-npc-detail": { selector: '[data-testid="npc-lore"]' },
   hearth: { selector: ".hearth-title" },
 } as const satisfies Record<string, ContentSpec>;
 
@@ -163,6 +166,36 @@ const dmNav: Journey = {
   },
 };
 
+/** How long the pointer rests on a card before the click: past the 80 ms intent delay, short of a deliberate pause. */
+const HOVER_BEFORE_CLICK_MS = 150;
+
+const dmNpcDetail: Journey = {
+  name: "dm-npc-detail",
+  // Opening an NPC from a settled grid: sidebar to /npcs and let it settle, then
+  // hover a card, click it, and measure until the sheet's prose is on screen.
+  async run(env) {
+    const measured = await openMeasuredPage(env.browser, env.profile, { storageState: env.dm, throttled: true });
+    try {
+      await primeDashboard(measured, env.base);
+      await measured.page.locator('a[href="/npcs"]:visible').first().click({ timeout: 15_000 });
+      await measured.page.waitForURL((url) => url.pathname === "/npcs", { timeout: 15_000 });
+      const card = measured.page.locator(CONTENT["/npcs"].selector).first();
+      await card.waitFor({ timeout: 15_000 });
+      await settle(measured, "navigation to /npcs");
+      measured.recorder.reset();
+      await watchContent(measured.page, CONTENT["dm-npc-detail"]);
+      await card.hover();
+      await new Promise((resolve) => setTimeout(resolve, HOVER_BEFORE_CLICK_MS));
+      await card.click({ timeout: 15_000 });
+      await measured.page.waitForURL((url) => /^\/npcs\/[^/]+$/.test(url.pathname), { timeout: 15_000 });
+      await settle(measured, "opening an NPC");
+      return [{ label: "dm-npc-detail", sample: await collectSample(measured, "navigation") }];
+    } finally {
+      await measured.context.close();
+    }
+  },
+};
+
 const playerCold: Journey = {
   name: "player-cold",
   async run(env) {
@@ -208,4 +241,4 @@ const resume: Journey = {
   },
 };
 
-export const JOURNEYS: readonly Journey[] = [dmCold, dmWarm, dmNav, playerCold, resume];
+export const JOURNEYS: readonly Journey[] = [dmCold, dmWarm, dmNav, dmNpcDetail, playerCold, resume];

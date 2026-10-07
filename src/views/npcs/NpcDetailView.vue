@@ -12,7 +12,7 @@
   -->
   <NpcDetailModal v-if="asModal" :id="id" @close="close" />
 
-  <NpcDetailMobile v-else-if="showMobileRead && npc" :npc="npc" />
+  <NpcDetailMobile v-else-if="showMobileRead && preview" :npc="preview" :full="npc" />
 
   <!-- Mobile edit (<md): NpcDetail renders its own NpcEditMobile layer (app bar
        + stacked cards + save bar), so it needs no PageHeader chrome. -->
@@ -138,17 +138,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconDelete, IconGenerate } from '@/lib/icons';
-import { useNpc } from "@/composables/npcs/useNpcs";
+import { useNpc, useNpcOpening } from "@/composables/npcs/useNpcs";
 import { useDetailModal } from "@/composables/useDetailModal";
 import { useRecentNpcs } from "@/composables/dashboard/useRecentNpcs";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import NpcDetail from "@/components/npcs/NpcDetail.vue";
+import type NpcDetailComponent from "@/components/npcs/NpcDetail.vue";
 import NpcDetailModal from "@/components/npcs/NpcDetailModal.vue";
 import NpcDetailMobile from "@/components/npcs/NpcDetailMobile.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
@@ -197,13 +197,21 @@ function cancelEdit() {
   void router.replace({ query: q });
 }
 
+// The edit forms take the full record (`useNpc`) and wait for it; reading paints from
+// the list row at once (`useNpcOpening`) and gets the prose when it lands (#999).
 const { data: npc, isLoading: npcLoading } = useNpc(id);
+const { preview } = useNpcOpening(id);
 const { recordVisit } = useRecentNpcs();
 watch(id, (npcId) => { if (npcId) recordVisit(npcId); }, { immediate: true });
 const isLoading = computed(() => !isNewNpc.value && npcLoading.value);
 
+// The edit form is the heaviest thing under this route (rich-text editors, the AI
+// panels, image tooling) and the read paths never mount it, so it is a chunk of
+// its own rather than part of every open (#999).
+const NpcDetail = defineAsyncComponent(() => import("@/components/npcs/NpcDetail.vue"));
+
 // Template ref to NpcDetail — gives access to its exposed state/methods
-const npcDetail = ref<InstanceType<typeof NpcDetail> | null>(null);
+const npcDetail = ref<InstanceType<typeof NpcDetailComponent> | null>(null);
 
 const subtitle = computed(() => {
   if (!npc.value) return "";

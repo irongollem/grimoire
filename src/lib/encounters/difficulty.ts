@@ -4,7 +4,7 @@ import { totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import type { Companion } from "@/types/companion.types";
 import type { Monster } from "@/types/monster.types";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Trap } from "@/types/trap.types";
 
@@ -100,7 +100,7 @@ export function encounterDifficulty(source: DifficultySource, lookups: Difficult
  */
 export function difficultyLookups(rows: {
   monsters: readonly Monster[];
-  npcs: readonly Npc[];
+  npcs: readonly NpcListRow[];
   party: readonly PartyMember[];
   characterClasses: readonly CharacterClass[];
   companions: readonly Companion[];

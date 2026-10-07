@@ -16,7 +16,10 @@ vi.mock("@/stores/auth", () => ({
   useAuthStore: () => ({ linkedPartyMemberId: state.linkedPartyMemberId }),
 }));
 vi.mock("@/stores/ui", () => ({
-  useUiStore: () => ({ dmPreviewMode: state.dmPreviewMode, dmPreviewPartyMemberId: state.dmPreviewPartyMemberId }),
+  useUiStore: () => ({
+    get dmPreviewMode() { return state.dmPreviewMode; },
+    get dmPreviewPartyMemberId() { return state.dmPreviewPartyMemberId; },
+  }),
 }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ activeCampaignId: "campaign-1", activeCampaign: { name: "The Southern Road" } }),
@@ -41,6 +44,23 @@ vi.mock("@/composables/campaign/useCampaignSession", () => ({
     isError: ref(false),
   }),
 }));
+
+// The view starts the sections' reads early (see the comment in the view); these
+// are the hooks it hoists, stubbed so the test needs no query client.
+const hoisted = vi.hoisted(() => ({ recentNotesEnabled: [] as Array<() => boolean> }));
+vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers: () => ({}) }));
+vi.mock("@/composables/calendar/useCalendarEvents", () => ({ usePlayerCalendarEventsRange: () => ({}) }));
+vi.mock("@/composables/calendar/useScheduling", () => ({
+  useSessionProposals: () => ({}),
+  useAllSessionAvailability: () => ({}),
+}));
+vi.mock("@/composables/notes/useMyRecentNotes", () => ({
+  useMyRecentNotes: (_limit: number, enabled: () => boolean) => hoisted.recentNotesEnabled.push(enabled),
+}));
+vi.mock("@/composables/party/useArmorClass", () => ({ useArmorClass: () => ({}) }));
+vi.mock("@/composables/party/useCharacterClasses", () => ({ useCharacterClasses: () => ({}) }));
+vi.mock("@/composables/quests/useQuestFlow", () => ({ usePlayerQuestBeats: () => ({}) }));
+vi.mock("@/composables/quests/useQuests", () => ({ usePlayerVisibleQuests: () => ({}) }));
 
 const SECTIONS = [
   "HearthFirstVisit",
@@ -77,6 +97,16 @@ describe("PlayerHearthView", () => {
     state.isRunning = false;
     state.partyLoaded = true;
     state.sessionLoaded = true;
+  });
+
+  it("starts the player's own notes read early only outside DM preview", () => {
+    hoisted.recentNotesEnabled.length = 0;
+    mountView();
+    expect(hoisted.recentNotesEnabled).toHaveLength(1);
+    state.dmPreviewMode = false;
+    expect(hoisted.recentNotesEnabled[0]!()).toBe(true);
+    state.dmPreviewMode = true;
+    expect(hoisted.recentNotesEnabled[0]!()).toBe(false);
   });
 
   it("shows a loader, not the first-visit page, while a linked player's party is still loading", () => {

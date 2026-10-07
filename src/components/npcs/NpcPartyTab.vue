@@ -57,9 +57,9 @@ import { useNpcReveal } from "@/composables/npcs/useNpcReveal";
 import { useNpcReveals } from "@/composables/npcs/useNpcReveals";
 import { useParty } from "@/composables/party/useParty";
 import { NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 
-const { npc } = defineProps<{ npc: Npc }>();
+const { npc } = defineProps<{ npc: NpcListRow }>();
 
 const npcId = computed(() => npc.id);
 const { data: party } = useParty();
