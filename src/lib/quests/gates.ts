@@ -130,37 +130,6 @@ export function validateGateDrafts(drafts: readonly GateConditionDraft[]): strin
   return null;
 }
 
-export interface GateWritePlan {
-  remove: string[];
-  update: { id: string; statuses: QuestObjectiveStatus[] }[];
-  add: { objectiveId: string; statuses: QuestObjectiveStatus[] }[];
-}
-
-/**
- * What to write to turn the stored rows into the drafts. A draft that kept its
- * row and objective but changed its statuses is an update; one whose objective
- * changed is a remove plus an add (the row's identity is the pair). Removes
- * are listed so the caller can run them first, which keeps the
- * `(edge_id, objective_id)` unique key free for an add that takes over.
- */
-export function planGateWrites(stored: readonly QuestBeatEdgeGate[], drafts: readonly GateConditionDraft[]): GateWritePlan {
-  const storedById = new Map(stored.map((row) => [row.id, row]));
-  const kept = new Set<string>();
-  const plan: GateWritePlan = { remove: [], update: [], add: [] };
-  for (const draft of drafts) {
-    const row = draft.gateId ? storedById.get(draft.gateId) : undefined;
-    if (row && row.objective_id === draft.objectiveId) {
-      kept.add(row.id);
-      const same = row.statuses.length === draft.statuses.length && row.statuses.every((status) => draft.statuses.includes(status));
-      if (!same) plan.update.push({ id: row.id, statuses: draft.statuses });
-    } else {
-      plan.add.push({ objectiveId: draft.objectiveId, statuses: draft.statuses });
-    }
-  }
-  plan.remove = stored.filter((row) => !kept.has(row.id)).map((row) => row.id);
-  return plan;
-}
-
 /** One line per condition for a tooltip: `“A” complete (now pending)`, led by
  *  how they combine when there are several. */
 export function describeQuestRouteGateLines(gate: QuestRouteGate): string[] {

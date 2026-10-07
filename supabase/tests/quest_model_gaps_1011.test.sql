@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(150);
+select plan(199);
 
 set local grimoire.bypass_quota = 'on';
 
@@ -152,13 +152,13 @@ insert into public.quest_beats (id, quest_id, campaign_id, title) values ('10110
 insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label, gate_mode) values ('10110000-0000-4000-8000-500000000032', '10110000-0000-4000-8000-300000000011', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-400000000030', '10110000-0000-4000-8000-400000000036', 'choice', null, 'all');
 insert into public.quest_beats (id, quest_id, campaign_id, title) values ('10110000-0000-4000-8000-400000000037', '10110000-0000-4000-8000-300000000011', '10110000-0000-4000-8000-200000000001', 'V7');
 insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label, gate_mode) values ('10110000-0000-4000-8000-500000000033', '10110000-0000-4000-8000-300000000011', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-400000000030', '10110000-0000-4000-8000-400000000037', 'choice', null, 'all');
-insert into public.locations (id, user_id, campaign_id, name, location_type) values ('10110000-0000-4000-8000-a00000000001', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Home', 'building'), ('10110000-0000-4000-8000-a00000000002', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Away', 'building'), ('10110000-0000-4000-8000-a00000000003', '10110000-0000-4000-8000-100000000003', '10110000-0000-4000-8000-200000000002', 'Elsewhere', 'building');
+insert into public.locations (id, user_id, campaign_id, name, location_type) values ('10110000-0000-4000-8000-a00000000001', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Home', 'building'), ('10110000-0000-4000-8000-a00000000002', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Away', 'building'), ('10110000-0000-4000-8000-a00000000003', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Elsewhere', 'building');
 insert into public.npcs (id, user_id, campaign_id, name, location_id, stat_block) values
   ('10110000-0000-4000-8000-900000000001', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Mover', '10110000-0000-4000-8000-a00000000001', null),
   ('10110000-0000-4000-8000-900000000002', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Drifter', null, null),
   ('10110000-0000-4000-8000-900000000003', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Veteran', null, '{"hit_points": "45 (6d8 + 18)", "armor_class": "15 (chain mail)", "speed": "40 ft., fly 60 ft."}'::jsonb),
   ('10110000-0000-4000-8000-900000000004', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Blank', null, null),
-  ('10110000-0000-4000-8000-900000000005', '10110000-0000-4000-8000-100000000003', '10110000-0000-4000-8000-200000000002', 'Foreigner', null, null);
+  ('10110000-0000-4000-8000-900000000005', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Foreigner', null, null);
 insert into public.factions (id, user_id, campaign_id, name, party_standing, player_visible_to) values
   ('10110000-0000-4000-8000-b00000000001', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Order', 'unknown', '{}'),
   ('10110000-0000-4000-8000-b00000000002', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Guild', 'indifferent', '{}'),
@@ -166,16 +166,51 @@ insert into public.factions (id, user_id, campaign_id, name, party_standing, pla
   ('10110000-0000-4000-8000-b00000000004', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Watch', 'unfriendly', array['10110000-0000-4000-8000-d00000000001']::uuid[]);
 insert into public.quest_consequences (quest_id, action, on_beat_id, target_npc_id, target_location_id, id) values ('10110000-0000-4000-8000-300000000011', 'move_npc', '10110000-0000-4000-8000-400000000031', '10110000-0000-4000-8000-900000000001', '10110000-0000-4000-8000-a00000000002', '10110000-0000-4000-8000-700000000013');
 insert into public.quest_consequences (quest_id, action, on_beat_id, target_npc_id, target_location_id, id) values ('10110000-0000-4000-8000-300000000011', 'move_npc', '10110000-0000-4000-8000-400000000031', '10110000-0000-4000-8000-900000000002', '10110000-0000-4000-8000-a00000000002', '10110000-0000-4000-8000-700000000014');
--- A rule may not name another campaign's place or NPC at all (#1011 audit):
--- refused when written, so the run context can never resolve a foreign name.
-select throws_ok($q$insert into public.quest_consequences (quest_id, action, on_beat_id, target_npc_id, target_location_id, id) values ('10110000-0000-4000-8000-300000000011', 'move_npc', '10110000-0000-4000-8000-400000000032', '10110000-0000-4000-8000-900000000001', '10110000-0000-4000-8000-a00000000003', '10110000-0000-4000-8000-700000000015')$q$, '23514', 'A quest rule can only name a place of its own campaign', 'a rule naming another campaign''s place is refused when written');
-select throws_ok($q$insert into public.quest_consequences (quest_id, action, on_beat_id, target_npc_id, target_location_id, id) values ('10110000-0000-4000-8000-300000000011', 'move_npc', '10110000-0000-4000-8000-400000000032', '10110000-0000-4000-8000-900000000005', '10110000-0000-4000-8000-a00000000002', '10110000-0000-4000-8000-700000000016')$q$, '23514', 'A quest rule can only name an NPC of its own campaign', 'a rule naming another campaign''s NPC is refused when written');
+insert into public.quest_consequences (quest_id, action, on_beat_id, target_npc_id, target_location_id, id) values ('10110000-0000-4000-8000-300000000011', 'move_npc', '10110000-0000-4000-8000-400000000032', '10110000-0000-4000-8000-900000000001', '10110000-0000-4000-8000-a00000000003', '10110000-0000-4000-8000-700000000015');
+insert into public.quest_consequences (quest_id, action, on_beat_id, target_npc_id, target_location_id, id) values ('10110000-0000-4000-8000-300000000011', 'move_npc', '10110000-0000-4000-8000-400000000032', '10110000-0000-4000-8000-900000000005', '10110000-0000-4000-8000-a00000000002', '10110000-0000-4000-8000-700000000016');
+-- The rule trigger only lets a rule name its own campaign's rows; the runtime guard is for rows that move out afterwards.
+update public.locations set user_id = '10110000-0000-4000-8000-100000000003', campaign_id = '10110000-0000-4000-8000-200000000002' where id = '10110000-0000-4000-8000-a00000000003';
+update public.npcs set user_id = '10110000-0000-4000-8000-100000000003', campaign_id = '10110000-0000-4000-8000-200000000002' where id = '10110000-0000-4000-8000-900000000005';
 insert into public.quest_consequences (quest_id, action, on_beat_id, target_npc_id, id) values ('10110000-0000-4000-8000-300000000011', 'add_companion', '10110000-0000-4000-8000-400000000033', '10110000-0000-4000-8000-900000000003', '10110000-0000-4000-8000-700000000017');
 insert into public.quest_consequences (quest_id, action, on_beat_id, target_npc_id, id) values ('10110000-0000-4000-8000-300000000011', 'add_companion', '10110000-0000-4000-8000-400000000033', '10110000-0000-4000-8000-900000000004', '10110000-0000-4000-8000-700000000018');
 insert into public.quest_consequences (quest_id, action, on_beat_id, target_faction_id, action_payload, id) values ('10110000-0000-4000-8000-300000000011', 'shift_faction_standing', '10110000-0000-4000-8000-400000000034', '10110000-0000-4000-8000-b00000000001', '{"to": "helpful"}'::jsonb, '10110000-0000-4000-8000-700000000019');
 insert into public.quest_consequences (quest_id, action, on_beat_id, target_faction_id, action_payload, id) values ('10110000-0000-4000-8000-300000000011', 'shift_faction_standing', '10110000-0000-4000-8000-400000000035', '10110000-0000-4000-8000-b00000000002', '{"step": -2}'::jsonb, '10110000-0000-4000-8000-700000000020');
 insert into public.quest_consequences (quest_id, action, on_beat_id, target_faction_id, action_payload, id) values ('10110000-0000-4000-8000-300000000011', 'shift_faction_standing', '10110000-0000-4000-8000-400000000035', '10110000-0000-4000-8000-b00000000003', '{"step": 1}'::jsonb, '10110000-0000-4000-8000-700000000021');
 insert into public.quest_consequences (quest_id, action, on_beat_id, action_payload, id) values ('10110000-0000-4000-8000-300000000011', 'create_calendar_event', '10110000-0000-4000-8000-400000000036', '{"title": "Moot at dawn"}'::jsonb, '10110000-0000-4000-8000-700000000022');
+insert into public.quest_clocks (id, campaign_id, quest_id, label, segments, filled) values ('10110000-0000-4000-8000-800000000003', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-300000000001', 'KT', 6, 0);
+insert into public.quest_clocks (id, campaign_id, quest_id, label, segments, filled) values ('10110000-0000-4000-8000-800000000004', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-300000000001', 'KR', 5, 0);
+insert into public.quests (id, user_id, campaign_id, title, status) values ('10110000-0000-4000-8000-300000000012', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Q12', 'active');
+insert into public.quest_beats (id, quest_id, campaign_id, title) values ('10110000-0000-4000-8000-400000000038', '10110000-0000-4000-8000-300000000012', '10110000-0000-4000-8000-200000000001', 'D0');
+insert into public.quest_beats (id, quest_id, campaign_id, title) values ('10110000-0000-4000-8000-400000000039', '10110000-0000-4000-8000-300000000012', '10110000-0000-4000-8000-200000000001', 'D1');
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label, gate_mode) values ('10110000-0000-4000-8000-500000000034', '10110000-0000-4000-8000-300000000012', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-400000000038', '10110000-0000-4000-8000-400000000039', 'choice', null, 'all');
+insert into public.quest_clocks (id, campaign_id, quest_id, label, segments, filled) values ('10110000-0000-4000-8000-800000000005', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-300000000012', 'KD', 4, 0);
+insert into public.quest_consequences (quest_id, action, after_days, on_beat_id, target_clock_id, action_payload, id) values ('10110000-0000-4000-8000-300000000012', 'tick_clock', 3, '10110000-0000-4000-8000-400000000039', '10110000-0000-4000-8000-800000000005', '{"step": 1}'::jsonb, '10110000-0000-4000-8000-700000000023');
+insert into public.quests (id, user_id, campaign_id, title, status) values ('10110000-0000-4000-8000-300000000013', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Q13', 'active');
+insert into public.quest_objectives (id, quest_id, description, status, is_player_visible) values ('10110000-0000-4000-8000-600000000020', '10110000-0000-4000-8000-300000000013', 'Z1', 'pending', false);
+insert into public.quest_objectives (id, quest_id, description, status, is_player_visible) values ('10110000-0000-4000-8000-600000000021', '10110000-0000-4000-8000-300000000013', 'Z2', 'dormant', false);
+insert into public.quest_clocks (id, campaign_id, quest_id, label, segments, filled) values ('10110000-0000-4000-8000-800000000006', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-300000000013', 'KZ', 3, 0);
+insert into public.quest_consequences (quest_id, action, on_quest_settled, target_objective_id, id) values ('10110000-0000-4000-8000-300000000013', 'raise', true, '10110000-0000-4000-8000-600000000021', '10110000-0000-4000-8000-700000000024');
+insert into public.quest_consequences (quest_id, action, on_quest_settled, target_clock_id, action_payload, id) values ('10110000-0000-4000-8000-300000000013', 'tick_clock', true, '10110000-0000-4000-8000-800000000006', '{"step": 1}'::jsonb, '10110000-0000-4000-8000-700000000025');
+insert into public.quests (id, user_id, campaign_id, title, status) values ('10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Q14', 'active');
+insert into public.quest_beats (id, quest_id, campaign_id, title) values ('10110000-0000-4000-8000-400000000040', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', 'LS');
+insert into public.quest_beats (id, quest_id, campaign_id, title) values ('10110000-0000-4000-8000-400000000041', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', 'LM');
+insert into public.quest_beats (id, quest_id, campaign_id, title) values ('10110000-0000-4000-8000-400000000042', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', 'LT');
+insert into public.quest_beats (id, quest_id, campaign_id, title, converge_mode) values ('10110000-0000-4000-8000-400000000043', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', 'LJ1', 'all');
+insert into public.quest_beats (id, quest_id, campaign_id, title, converge_mode) values ('10110000-0000-4000-8000-400000000044', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', 'LJ2', 'all');
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label, gate_mode) values ('10110000-0000-4000-8000-500000000035', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-400000000040', '10110000-0000-4000-8000-400000000041', 'choice', null, 'all');
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label, gate_mode) values ('10110000-0000-4000-8000-500000000036', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-400000000040', '10110000-0000-4000-8000-400000000042', 'parallel', 'B', 'all');
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label, gate_mode) values ('10110000-0000-4000-8000-500000000037', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-400000000041', '10110000-0000-4000-8000-400000000043', 'choice', null, 'all');
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label, gate_mode) values ('10110000-0000-4000-8000-500000000038', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-400000000042', '10110000-0000-4000-8000-400000000044', 'choice', null, 'all');
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label, gate_mode) values ('10110000-0000-4000-8000-500000000039', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-400000000043', '10110000-0000-4000-8000-400000000044', 'choice', null, 'all');
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label, gate_mode) values ('10110000-0000-4000-8000-500000000040', '10110000-0000-4000-8000-300000000014', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-400000000044', '10110000-0000-4000-8000-400000000043', 'choice', null, 'all');
+insert into public.quests (id, user_id, campaign_id, title, status) values ('10110000-0000-4000-8000-300000000015', '10110000-0000-4000-8000-100000000001', '10110000-0000-4000-8000-200000000001', 'Q15', 'active');
+insert into public.quest_beats (id, quest_id, campaign_id, title) values ('10110000-0000-4000-8000-400000000045', '10110000-0000-4000-8000-300000000015', '10110000-0000-4000-8000-200000000001', 'H0');
+insert into public.quest_beats (id, quest_id, campaign_id, title) values ('10110000-0000-4000-8000-400000000046', '10110000-0000-4000-8000-300000000015', '10110000-0000-4000-8000-200000000001', 'H1');
+insert into public.quest_beats (id, quest_id, campaign_id, title) values ('10110000-0000-4000-8000-400000000047', '10110000-0000-4000-8000-300000000015', '10110000-0000-4000-8000-200000000001', 'H2');
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label, gate_mode) values ('10110000-0000-4000-8000-500000000041', '10110000-0000-4000-8000-300000000015', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-400000000045', '10110000-0000-4000-8000-400000000046', 'choice', null, 'all');
+insert into public.quest_objectives (id, quest_id, description, status, is_player_visible) values ('10110000-0000-4000-8000-600000000022', '10110000-0000-4000-8000-300000000015', 'OH1', 'pending', false);
+insert into public.quest_objectives (id, quest_id, description, status, is_player_visible) values ('10110000-0000-4000-8000-600000000023', '10110000-0000-4000-8000-300000000015', 'OH2', 'pending', false);
+insert into public.quest_beat_edge_gates (id, edge_id, quest_id, campaign_id, objective_id, statuses) values ('10110000-0000-4000-8000-c00000000007', '10110000-0000-4000-8000-500000000041', '10110000-0000-4000-8000-300000000015', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-600000000022', array['complete']::text[]);
 
 -- ── Assertions ──────────────────────────────────────────────────────────────
 set local role authenticated;
@@ -250,7 +285,7 @@ select is(
   'Renamed clock', 'the rename landed');
 
 select lives_ok($q$
-  insert into public.quest_clocks (id, campaign_id, quest_id, label, segments, sort_order) values ('10110000-0000-4000-8000-800000000003', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-300000000001', 'Fresh', 6, 2)
+  insert into public.quest_clocks (id, campaign_id, quest_id, label, segments, sort_order) values ('10110000-0000-4000-8000-800000000007', '10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-300000000001', 'Fresh', 6, 2)
 $q$, 'a DM can add a clock to their quest');
 
 select is(
@@ -270,7 +305,7 @@ select is(
   'false', 'ticking a full clock changes nothing');
 
 select is(
-  (select public.tick_quest_clock('10110000-0000-4000-8000-800000000003', -9) ->> 'filled'),
+  (select public.tick_quest_clock('10110000-0000-4000-8000-800000000007', -9) ->> 'filled'),
   '0', 'a negative tick clamps at zero');
 
 select lives_ok($q$
@@ -785,6 +820,10 @@ select throws_ok($q$
   insert into public.quest_consequences (quest_id, on_beat_id, action, target_npc_id) values ('10110000-0000-4000-8000-300000000011', '10110000-0000-4000-8000-400000000037', 'move_npc', '10110000-0000-4000-8000-900000000001')
 $q$, '23514', null, 'a move_npc rule without a destination is rejected');
 
+select throws_ok($q$
+  insert into public.quest_consequences (quest_id, on_beat_id, action, target_npc_id, target_location_id) values ('10110000-0000-4000-8000-300000000011', '10110000-0000-4000-8000-400000000037', 'move_npc', '10110000-0000-4000-8000-900000000001', '10110000-0000-4000-8000-a00000000003')
+$q$, '23514', 'A quest rule can only name a place of its own campaign', 'a rule cannot be written to name another campaign''s place');
+
 select lives_ok($q$
   select public.transition_quest_runtime(p_campaign_id => '10110000-0000-4000-8000-200000000001', p_quest_id => '10110000-0000-4000-8000-300000000011', p_thread_id => (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000011' and label = 'Main'), p_command => 'advance', p_expected_version => (select version from public.quest_runtime_state where quest_id = '10110000-0000-4000-8000-300000000011' and thread_id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000011' and label = 'Main')), p_edge_id => '10110000-0000-4000-8000-500000000032')
 $q$, 'Main reaches the beat that files a calendar event');
@@ -792,6 +831,231 @@ $q$, 'Main reaches the beat that files a calendar event');
 select is(
   (select event_type from public.calendar_events where linked_quest_id = '10110000-0000-4000-8000-300000000011'),
   'quest', 'a calendar rule without an event type files it under quest');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10110000-0000-4000-8000-100000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
+select lives_ok($q$
+  select public.tick_quest_clock('10110000-0000-4000-8000-800000000003')
+$q$, 'a first tick lands');
+
+select lives_ok($q$
+  select public.tick_quest_clock('10110000-0000-4000-8000-800000000003')
+$q$, 'a second tick lands');
+
+select is(
+  (select filled from public.quest_clocks where id = '10110000-0000-4000-8000-800000000003'),
+  2, 'two ticks in sequence both land: the tick is relative to the locked row');
+
+select lives_ok($q$
+  select public.tick_quest_clock('10110000-0000-4000-8000-800000000004', 2)
+$q$, 'the guard clock is ticked to two');
+
+select throws_ok($q$
+  update public.quest_clocks set segments = 2 where id = '10110000-0000-4000-8000-800000000004'
+$q$, '23514', 'A clock with 2 filled cannot be shortened to 2 segments: that would fill it without firing its rules. Untick it first.', 'shortening a clock to its fill is refused');
+
+select throws_ok($q$
+  update public.quest_clocks set segments = 1 where id = '10110000-0000-4000-8000-800000000004'
+$q$, '23514', 'A clock with 2 filled cannot be shortened to 1 segments: that would fill it without firing its rules. Untick it first.', 'shortening below the fill is refused too');
+
+select lives_ok($q$
+  update public.quest_clocks set segments = 3 where id = '10110000-0000-4000-8000-800000000004'
+$q$, 'shrinking to a value still above the fill succeeds');
+
+select is(
+  (select segments from public.quest_clocks where id = '10110000-0000-4000-8000-800000000004'),
+  3, 'the shrink landed');
+
+select throws_ok($q$
+  update public.quest_clocks set segments = 3 where id = '10110000-0000-4000-8000-800000000001'
+$q$, '23514', 'new row for relation "quest_clocks" violates check constraint "quest_clocks_filled_in_range"', 'resizing a full clock below its fill is the check constraint, not the guard');
+
+select lives_ok($q$
+  select public.transition_quest_runtime(p_campaign_id => '10110000-0000-4000-8000-200000000001', p_quest_id => '10110000-0000-4000-8000-300000000012', p_thread_id => (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000012' and label = 'Main'), p_command => 'start', p_expected_version => 0, p_target_beat_id => '10110000-0000-4000-8000-400000000038')
+$q$, 'Main starts at D0');
+
+select lives_ok($q$
+  select public.transition_quest_runtime(p_campaign_id => '10110000-0000-4000-8000-200000000001', p_quest_id => '10110000-0000-4000-8000-300000000012', p_thread_id => (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000012' and label = 'Main'), p_command => 'advance', p_expected_version => (select version from public.quest_runtime_state where quest_id = '10110000-0000-4000-8000-300000000012' and thread_id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000012' and label = 'Main')), p_edge_id => '10110000-0000-4000-8000-500000000034')
+$q$, 'Main reaches the beat with a delayed tick_clock rule');
+
+select is(
+  (select filled from public.quest_clocks where id = '10110000-0000-4000-8000-800000000005'),
+  1, 'a delayed tick_clock rule still ticks the clock now');
+
+select ok(
+  (select performed_at is not null from public.quest_consequence_events where consequence_id = '10110000-0000-4000-8000-700000000023'), 'the delayed engine event is already performed');
+
+select is(
+  (select array[performed_on_year, performed_on_month, performed_on_day] from public.quest_consequence_events where consequence_id = '10110000-0000-4000-8000-700000000023'),
+  array[1495, 1, 1], 'and stamped with the campaign''s date');
+
+select is(
+  (select after_days from public.quest_consequence_events where consequence_id = '10110000-0000-4000-8000-700000000023'),
+  3, 'while still recording the delay it was authored with');
+
+reset role;
+
+select lives_ok($q$
+  select private.perform_quest_consequence((select id from public.quest_consequence_events where consequence_id = '10110000-0000-4000-8000-700000000023'), 1495, 1, 4)
+$q$, 'performing the already-performed event is accepted');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10110000-0000-4000-8000-100000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
+select is(
+  (select filled from public.quest_clocks where id = '10110000-0000-4000-8000-800000000005'),
+  1, 'performing it again ticks nothing: the delayed tick fires once');
+
+select lives_ok($q$
+  select public.assert_quest_objective_status('10110000-0000-4000-8000-600000000020', 'complete', 'the ledger settles')
+$q$, 'the DM settles the last open objective');
+
+select is(
+  (select status from public.quest_objectives where id = '10110000-0000-4000-8000-600000000021'),
+  'pending', 'a settled-rule raise is applied, not just logged');
+
+select is(
+  (select filled from public.quest_clocks where id = '10110000-0000-4000-8000-800000000006'),
+  1, 'a settled-rule tick_clock is applied');
+
+select ok(
+  (select bool_and(performed_at is not null) from public.quest_consequence_events where consequence_id in ('10110000-0000-4000-8000-700000000024', '10110000-0000-4000-8000-700000000025')), 'both settled events are performed');
+
+select lives_ok($q$
+  select public.transition_quest_runtime(p_campaign_id => '10110000-0000-4000-8000-200000000001', p_quest_id => '10110000-0000-4000-8000-300000000014', p_thread_id => (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'Main'), p_command => 'start', p_expected_version => 0, p_target_beat_id => '10110000-0000-4000-8000-400000000040')
+$q$, 'Main starts at the fork');
+
+select lives_ok($q$
+  select public.transition_quest_runtime(p_campaign_id => '10110000-0000-4000-8000-200000000001', p_quest_id => '10110000-0000-4000-8000-300000000014', p_thread_id => (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'Main'), p_command => 'advance', p_expected_version => (select version from public.quest_runtime_state where quest_id = '10110000-0000-4000-8000-300000000014' and thread_id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'Main')), p_edge_id => '10110000-0000-4000-8000-500000000035', p_spawn_edge_ids => array['10110000-0000-4000-8000-500000000036']::uuid[])
+$q$, 'Main advances and spawns thread B');
+
+select lives_ok($q$
+  select public.transition_quest_runtime(p_campaign_id => '10110000-0000-4000-8000-200000000001', p_quest_id => '10110000-0000-4000-8000-300000000014', p_thread_id => (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'Main'), p_command => 'advance', p_expected_version => (select version from public.quest_runtime_state where quest_id = '10110000-0000-4000-8000-300000000014' and thread_id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'Main')), p_edge_id => '10110000-0000-4000-8000-500000000037')
+$q$, 'Main arrives at J1 while B can still move');
+
+select is(
+  (select status from public.quest_runtime_state where quest_id = '10110000-0000-4000-8000-300000000014' and thread_id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'Main')),
+  'waiting', 'a live thread that can reach the join blocks it');
+
+select lives_ok($q$
+  select public.transition_quest_runtime(p_campaign_id => '10110000-0000-4000-8000-200000000001', p_quest_id => '10110000-0000-4000-8000-300000000014', p_thread_id => (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'B'), p_command => 'advance', p_expected_version => (select version from public.quest_runtime_state where quest_id = '10110000-0000-4000-8000-300000000014' and thread_id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'B')), p_edge_id => '10110000-0000-4000-8000-500000000038')
+$q$, 'B arrives at J2, which reaches J1 and back');
+
+select is(
+  (select status from public.quest_runtime_state where quest_id = '10110000-0000-4000-8000-300000000014' and thread_id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'B')),
+  'running', 'B is not parked by a thread that is itself parked at the other join');
+
+select is(
+  (select status from public.quest_runtime_state where quest_id = '10110000-0000-4000-8000-300000000014' and thread_id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'Main')),
+  'waiting', 'Main still waits: B is live and can reach J1');
+
+select lives_ok($q$
+  select public.transition_quest_runtime(p_campaign_id => '10110000-0000-4000-8000-200000000001', p_quest_id => '10110000-0000-4000-8000-300000000014', p_thread_id => (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'B'), p_command => 'advance', p_expected_version => (select version from public.quest_runtime_state where quest_id = '10110000-0000-4000-8000-300000000014' and thread_id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'B')), p_edge_id => '10110000-0000-4000-8000-500000000040')
+$q$, 'B walks on to J1');
+
+select is(
+  (select status from public.quest_runtime_state where quest_id = '10110000-0000-4000-8000-300000000014' and thread_id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'Main')),
+  'running', 'with B arrived, Main is released');
+
+select is(
+  (select status from public.quest_threads where id = (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000014' and label = 'B')),
+  'merged', 'and B is merged into it rather than waiting forever');
+
+select lives_ok($q$
+  select public.set_quest_route_gate('10110000-0000-4000-8000-500000000041', 'any', '[{"objective_id": "10110000-0000-4000-8000-600000000022", "statuses": ["complete"]}, {"objective_id": "10110000-0000-4000-8000-600000000023", "statuses": ["pending", "complete"]}]'::jsonb)
+$q$, 'the DM replaces a gate in one call');
+
+select is(
+  (select gate_mode from public.quest_beat_edges where id = '10110000-0000-4000-8000-500000000041'),
+  'any', 'the call set the gate mode');
+
+select is(
+  (select count(*)::integer from public.quest_beat_edge_gates where edge_id = '10110000-0000-4000-8000-500000000041'),
+  2, 'and added the listed condition');
+
+select is(
+  (select statuses from public.quest_beat_edge_gates where edge_id = '10110000-0000-4000-8000-500000000041' and objective_id = '10110000-0000-4000-8000-600000000023'),
+  array['pending', 'complete'], 'with its status set');
+
+select lives_ok($q$
+  select public.set_quest_route_gate('10110000-0000-4000-8000-500000000041', 'all', '[{"objective_id": "10110000-0000-4000-8000-600000000023", "statuses": ["failed"]}]'::jsonb)
+$q$, 'the DM replaces it again');
+
+select is(
+  (select count(*)::integer from public.quest_beat_edge_gates where edge_id = '10110000-0000-4000-8000-500000000041'),
+  1, 'conditions not listed are deleted');
+
+select is(
+  (select statuses from public.quest_beat_edge_gates where edge_id = '10110000-0000-4000-8000-500000000041' and objective_id = '10110000-0000-4000-8000-600000000023'),
+  array['failed'], 'a listed condition is updated in place');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10110000-0000-4000-8000-100000000003', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
+select throws_ok($q$
+  select public.set_quest_route_gate('10110000-0000-4000-8000-500000000041', 'any', '[]'::jsonb)
+$q$, 'P0002', 'Route not found', 'a stranger cannot reach another campaign''s route');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10110000-0000-4000-8000-100000000002', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
+select throws_ok($q$
+  select public.set_quest_route_gate('10110000-0000-4000-8000-500000000041', 'any', '[]'::jsonb)
+$q$, 'P0002', 'Route not found', 'a player cannot rewrite a gate');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10110000-0000-4000-8000-100000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
+select is(
+  (select gate_mode from public.quest_beat_edges where id = '10110000-0000-4000-8000-500000000041'),
+  'all', 'the refused calls left the mode alone');
+
+select is(
+  (select count(*)::integer from public.quest_beat_edge_gates where edge_id = '10110000-0000-4000-8000-500000000041'),
+  1, 'and the gate rows alone');
+
+select throws_ok($q$
+  select public.set_quest_route_gate('10110000-0000-4000-8000-500000000041', 'sometimes', '[]'::jsonb)
+$q$, '22023', 'A gate mode is all or any', 'a bad mode is refused');
+
+select throws_ok($q$
+  select public.set_quest_route_gate('10110000-0000-4000-8000-500000000041', 'any', '[{"objective_id": "10110000-0000-4000-8000-600000000023", "statuses": ["complete"]}, {"objective_id": "10110000-0000-4000-8000-600000000003", "statuses": ["pending"]}]'::jsonb)
+$q$, '23503', null, 'a condition naming another quest''s objective is rejected');
+
+select is(
+  (select gate_mode from public.quest_beat_edges where id = '10110000-0000-4000-8000-500000000041'),
+  'all', 'the failed call did not change the mode');
+
+select is(
+  (select count(*)::integer from public.quest_beat_edge_gates where edge_id = '10110000-0000-4000-8000-500000000041'),
+  1, 'nor the number of conditions');
+
+select is(
+  (select statuses from public.quest_beat_edge_gates where edge_id = '10110000-0000-4000-8000-500000000041' and objective_id = '10110000-0000-4000-8000-600000000023'),
+  array['failed'], 'nor the surviving condition');
+
+select lives_ok($q$
+  select public.set_quest_route_gate('10110000-0000-4000-8000-500000000041', 'all', '[]'::jsonb)
+$q$, 'an empty array clears the gate');
+
+select is(
+  (select count(*)::integer from public.quest_beat_edge_gates where edge_id = '10110000-0000-4000-8000-500000000041'),
+  0, 'no conditions remain');
+
+select is(
+  (select o -> 'gate' from jsonb_array_elements(public.get_quest_runtime_context('10110000-0000-4000-8000-200000000001', '10110000-0000-4000-8000-300000000015', (select id from public.quest_threads where quest_id = '10110000-0000-4000-8000-300000000015' and label = 'Main')) -> 'outgoing') o where o ->> 'edge_id' = '10110000-0000-4000-8000-500000000041') is null,
+  true, 'and the route reports no gate');
 
 reset role;
 set local role authenticated;

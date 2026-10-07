@@ -11,7 +11,8 @@ const beat = (id: string, over: { title?: string; kind?: string; is_improvised?:
 
 const edge = (source_beat_id: string, target_beat_id: string) => ({ source_beat_id, target_beat_id });
 
-const objective = (id: string, status: QuestObjectiveStatus, description = id) => ({ id, description, status });
+const objective = (id: string, status: QuestObjectiveStatus, description = id, due: { due_year: number; due_month: number; due_day: number } | null = null) =>
+  ({ id, description, status, due_year: due?.due_year ?? null, due_month: due?.due_month ?? null, due_day: due?.due_day ?? null });
 
 const rule = (
   action: QuestConsequenceAction,
@@ -124,6 +125,24 @@ describe("deriveQuestConsistency", () => {
         gates: [gate("e1", "o1", "complete")],
       });
       expect(kinds(findings)).not.toContain("gate_never_opens");
+    });
+
+    it("counts a due date as a way to fail the objective", () => {
+      const due = { due_year: 1490, due_month: 3, due_day: 14 };
+      const failedGate = check({ objectives: [objective("o1", "pending", "o1", due)], gates: [gate("e1", "o1", "failed")] });
+      expect(kinds(failedGate)).not.toContain("gate_never_opens");
+      const completeOnly = check({ objectives: [objective("o1", "pending")], gates: [gate("e1", "o1", "failed")] });
+      expect(kinds(completeOnly)).toContain("gate_never_opens");
+      expect(kinds(check({ objectives: [objective("o1", "pending", "o1", due)] }))).not.toContain("objective_never_resolves");
+    });
+
+    it("treats a settled objective as final: rules cannot move it again", () => {
+      const findings = check({
+        objectives: [objective("o1", "complete")],
+        consequences: [rule("fail", "o1")],
+        gates: [gate("e1", "o1", "failed")],
+      });
+      expect(kinds(findings)).toContain("gate_never_opens");
     });
 
     it("distinguishes failed from complete — the wrong verb does not open the gate", () => {
@@ -248,7 +267,7 @@ describe("cause suppresses symptom", () => {
     // one fault look like two, which is what the rendered panel showed.
     const findings = deriveQuestConsistency({
       beats: [], edges: [], gates: [], consequences: [],
-      objectives: [{ id: "o1", description: "Avenge the scribe", status: "dormant" }],
+      objectives: [objective("o1", "dormant", "Avenge the scribe")],
     });
     expect(findings.map((f) => f.kind)).toEqual(["objective_never_raised"]);
   });
@@ -257,7 +276,7 @@ describe("cause suppresses symptom", () => {
     const findings = deriveQuestConsistency({
       beats: [], edges: [], gates: [],
       consequences: [{ action: "raise", on_objective_id: null, target_objective_id: "o1" }],
-      objectives: [{ id: "o1", description: "Win them over", status: "dormant" }],
+      objectives: [objective("o1", "dormant", "Win them over")],
     });
     expect(findings.map((f) => f.kind)).toEqual(["objective_never_resolves"]);
   });
@@ -265,7 +284,7 @@ describe("cause suppresses symptom", () => {
   it("suppresses it for an objective already blamed by a gate", () => {
     const findings = deriveQuestConsistency({
       beats: [], edges: [], consequences: [],
-      objectives: [{ id: "o1", description: "Win them over", status: "pending" }],
+      objectives: [objective("o1", "pending", "Win them over")],
       gates: [{ edge_id: "e1", objective_id: "o1", statuses: ["complete" as const] }],
     });
     expect(findings.map((f) => f.kind)).toEqual(["gate_never_opens"]);

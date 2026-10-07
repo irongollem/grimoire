@@ -12,7 +12,7 @@
         v-for="clock in clocks ?? []"
         :key="clock.id"
         :clock="clock"
-        @update="save(clock, $event)"
+        :quest-id="questId"
         @remove="remove(clock)"
       />
       <div class="flex items-center gap-2 pt-1">
@@ -64,15 +64,14 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import { useCreateQuestClock, useDeleteQuestClock, useQuestClocks, useUpdateQuestClock } from "@/composables/quests/useQuestClocks";
+import { useCreateQuestClock, useDeleteQuestClock, useQuestClocks } from "@/composables/quests/useQuestClocks";
 import { IconAdd } from "@/lib/icons";
-import { QUEST_CLOCK_MAX_SEGMENTS, QUEST_CLOCK_MIN_SEGMENTS, type QuestClock, type QuestClockUpdate } from "@/types/quest.types";
+import { QUEST_CLOCK_MAX_SEGMENTS, QUEST_CLOCK_MIN_SEGMENTS, type QuestClock } from "@/types/quest.types";
 import QuestClockEditRow from "./QuestClockEditRow.vue";
 
 const { questId, campaignId } = defineProps<{ questId: string; campaignId: string }>();
 const { data: clocks } = useQuestClocks(computed(() => questId));
 const { mutateAsync: createClock } = useCreateQuestClock();
-const { mutateAsync: updateClock } = useUpdateQuestClock();
 const { mutateAsync: deleteClock } = useDeleteQuestClock();
 const { confirm } = useConfirm();
 const toast = useToast();
@@ -99,16 +98,6 @@ async function submit() {
       sort_order: clocks.value?.length ?? 0,
     });
     newLabel.value = "";
-  } catch (e: unknown) {
-    toast.error(toast.fromError(e));
-  }
-}
-
-// The server rejects a segment count below what is already filled; that error
-// is shown, not hidden, and the row snaps back to the refetched truth.
-async function save(clock: QuestClock, update: QuestClockUpdate) {
-  try {
-    await updateClock({ id: clock.id, questId, update });
   } catch (e: unknown) {
     toast.error(toast.fromError(e));
   }

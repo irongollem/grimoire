@@ -42,29 +42,48 @@
  * One clock in the quest overview's authoring list (#1011). Label and segment
  * count commit on change, not per keystroke; `filled` is never edited here (it
  * moves through `tick_quest_clock`), so a resize below the current fill is the
- * server's to refuse and the parent surfaces that error.
+ * server's to refuse. The row owns its save so that a refusal can put the
+ * draft back: the sync watchers below only fire when the stored value changes,
+ * and a refused write changes nothing.
  */
 import { ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import { useUpdateQuestClock } from "@/composables/quests/useQuestClocks";
+import { useToast } from "@/composables/useToast";
 import { IconClose } from "@/lib/icons";
 import { clockProgressLabel } from "@/lib/quests/clockDial";
 import { QUEST_CLOCK_MAX_SEGMENTS, QUEST_CLOCK_MIN_SEGMENTS, type QuestClock, type QuestClockUpdate } from "@/types/quest.types";
 import QuestClockDial from "./QuestClockDial.vue";
 
-const { clock } = defineProps<{ clock: QuestClock }>();
-const emit = defineEmits<{ update: [update: QuestClockUpdate]; remove: [] }>();
+const { clock, questId } = defineProps<{ clock: QuestClock; questId: string }>();
+const emit = defineEmits<{ remove: [] }>();
+
+const { mutateAsync: updateClock } = useUpdateQuestClock();
+const toast = useToast();
 
 const label = ref(clock.label);
 const segments = ref(clock.segments);
-// A refetch (another device, a refused write) is the truth; the draft follows it.
+// A refetch (another device) is the truth; the draft follows it.
 watch(() => clock.label, (value) => { label.value = value; });
 watch(() => clock.segments, (value) => { segments.value = value; });
+
+async function save(update: QuestClockUpdate) {
+  try {
+    await updateClock({ id: clock.id, questId, update });
+  } catch (e: unknown) {
+    // Refused (a resize at or below the current fill, a check constraint):
+    // show why, and put the rejected draft back to what is stored.
+    toast.error(toast.fromError(e));
+    label.value = clock.label;
+    segments.value = clock.segments;
+  }
+}
 
 function commitLabel() {
   const next = label.value.trim();
   if (!next) { label.value = clock.label; return; }
-  if (next !== clock.label) emit("update", { label: next });
+  if (next !== clock.label) void save({ label: next });
 }
 
 function commitSegments() {
@@ -73,6 +92,6 @@ function commitSegments() {
     segments.value = clock.segments;
     return;
   }
-  if (next !== clock.segments) emit("update", { segments: next });
+  if (next !== clock.segments) void save({ segments: next });
 }
 </script>

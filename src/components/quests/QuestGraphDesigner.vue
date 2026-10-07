@@ -167,10 +167,7 @@ import {
   useQuestConsequences,
   useQuestRuntimeContext,
   useUpdateQuestBeatEdge,
-  useAddQuestBeatEdgeGateCondition,
-  useRemoveQuestBeatEdgeGateCondition,
-  useSetQuestBeatEdgeGateMode,
-  useUpdateQuestBeatEdgeGateCondition,
+  useSetQuestRouteGate,
   useSetQuestBeatPositions,
 } from "@/composables/quests/useQuestFlow";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
@@ -181,7 +178,7 @@ import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
 import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import { deriveQuestBeatPresentations, presentableBeatOf, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput, type QuestBeatStaging } from "@/lib/quests/presentation";
-import { deriveQuestRouteGates, draftRouteGate, planGateWrites, validateGateDrafts, type GateConditionDraft } from "@/lib/quests/gates";
+import { deriveQuestRouteGates, draftRouteGate, validateGateDrafts, type GateConditionDraft } from "@/lib/quests/gates";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { extractTiptapText } from "@/lib/utils";
@@ -244,10 +241,7 @@ const archiveBeat = useArchiveQuestBeat();
 const createEdge = useCreateQuestBeatEdge();
 const updateEdge = useUpdateQuestBeatEdge();
 const deleteEdge = useDeleteQuestBeatEdge();
-const addGateCondition = useAddQuestBeatEdgeGateCondition();
-const updateGateCondition = useUpdateQuestBeatEdgeGateCondition();
-const removeGateCondition = useRemoveQuestBeatEdgeGateCondition();
-const setGateMode = useSetQuestBeatEdgeGateMode();
+const setRouteGate = useSetQuestRouteGate();
 const campaign = useCampaignStore();
 const { confirm } = useConfirm();
 
@@ -551,17 +545,15 @@ async function saveEdge() {
   if (edgeRouteKind.value === "parallel" && !edgeThreadLabel.value.trim()) { mutationError.value = "A parallel route needs a thread label. It is shown to the DM and on the player thread."; return; }
   if (edgeRouteKind.value === "parallel" && !canSelectedEdgeBeParallel.value) { mutationError.value = "This beat has no other choice route. Switching this one to parallel would leave its thread nowhere to go."; return; }
   const edge = selectedEdge.value;
+  // Captured before any await: the refetch after updateEdge re-fires the
+  // selectedEdge watcher, which resets these refs to the stored values.
+  const mode = edgeGateMode.value;
+  const conditions = edgeGateConditions.value.map((draft) => ({ objectiveId: draft.objectiveId, statuses: [...draft.statuses] }));
   edgeSaving.value = true;
   try {
     mutationError.value = "";
     await updateEdge.mutateAsync({ id: edge.id, questId, update: { route_kind: edgeRouteKind.value, thread_label: edgeRouteKind.value === "parallel" ? edgeThreadLabel.value.trim() : null } });
-    // Removes first: an objective swapped between conditions frees its
-    // (edge, objective) key before the add that takes it over.
-    const plan = planGateWrites(edgeGates.value.filter((gate) => gate.edge_id === edge.id), edgeGateConditions.value);
-    for (const id of plan.remove) await removeGateCondition.mutateAsync({ id, questId });
-    for (const change of plan.update) await updateGateCondition.mutateAsync({ id: change.id, questId, statuses: change.statuses });
-    for (const added of plan.add) await addGateCondition.mutateAsync({ edgeId: edge.id, questId, campaignId: edge.campaign_id, objectiveId: added.objectiveId, statuses: added.statuses });
-    if (edgeGateMode.value !== edge.gate_mode) await setGateMode.mutateAsync({ edgeId: edge.id, questId, mode: edgeGateMode.value });
+    await setRouteGate.mutateAsync({ edgeId: edge.id, questId, mode, conditions });
     // Re-read the stored rows before the editor can save again, so a condition
     // just added is an update next time rather than a second insert.
     await edgeGatesQuery.refetch();

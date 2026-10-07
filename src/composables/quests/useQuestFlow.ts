@@ -645,69 +645,25 @@ export function useUpdateQuestBeatEdge() {
 }
 
 /**
- * A route's gate is any number of condition rows (#1011), one per objective
- * (`unique (edge_id, objective_id)`), combined by the edge's `gate_mode`.
- * Four writes cover every edit: add a condition, change which statuses one
- * accepts, remove one, and set how they combine. "No gate" is simply no rows.
+ * A route's gate is any number of condition rows (#1011), one per objective,
+ * combined by the edge's `gate_mode`. It is saved in ONE call to
+ * `set_quest_route_gate`: the mode and the full condition list go in a single
+ * transaction, so a failure never leaves the route half-edited (fewer
+ * conditions than intended, or none, which would open it). `[]` clears the gate.
  */
-export function useAddQuestBeatEdgeGateCondition() {
+export function useSetQuestRouteGate() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { edgeId: string; questId: string; campaignId: string; objectiveId: string; statuses: QuestObjectiveStatus[] }) => {
-      const { data, error } = await supabase
-        .from("quest_beat_edge_gates")
-        .insert({ edge_id: input.edgeId, quest_id: input.questId, campaign_id: input.campaignId, objective_id: input.objectiveId, statuses: input.statuses })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as QuestBeatEdgeGate;
-    },
-    onSuccess: (_data, input) => {
-      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
-    },
-  });
-}
-
-export function useUpdateQuestBeatEdgeGateCondition() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { id: string; questId: string; statuses: QuestObjectiveStatus[] }) => {
-      const { data, error } = await supabase
-        .from("quest_beat_edge_gates")
-        .update({ statuses: input.statuses })
-        .eq("id", input.id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as QuestBeatEdgeGate;
-    },
-    onSuccess: (_data, input) => {
-      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
-    },
-  });
-}
-
-export function useRemoveQuestBeatEdgeGateCondition() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { id: string; questId: string }) => {
-      const { error } = await supabase.from("quest_beat_edge_gates").delete().eq("id", input.id);
-      if (error) throw error;
-    },
-    onSuccess: (_result, input) => {
-      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
-    },
-  });
-}
-
-export function useSetQuestBeatEdgeGateMode() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { edgeId: string; questId: string; mode: QuestGateMode }) => {
-      const { error } = await supabase.from("quest_beat_edges").update({ gate_mode: input.mode }).eq("id", input.edgeId);
+    mutationFn: async (input: { edgeId: string; questId: string; mode: QuestGateMode; conditions: { objectiveId: string; statuses: QuestObjectiveStatus[] }[] }) => {
+      const { error } = await supabase.rpc("set_quest_route_gate", {
+        p_edge_id: input.edgeId,
+        p_mode: input.mode,
+        p_conditions: input.conditions.map((condition) => ({ objective_id: condition.objectiveId, statuses: condition.statuses })),
+      });
       if (error) throw error;
     },
     onSettled: (_data, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
     },
   });

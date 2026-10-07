@@ -61,7 +61,7 @@ export interface QuestConsistencyFinding {
  */
 type CheckedBeat = Pick<QuestBeat, "id" | "title" | "kind" | "is_improvised">;
 type CheckedEdge = Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id"> & { id?: string; gate_mode?: QuestGateMode };
-type CheckedObjective = Pick<QuestObjective, "id" | "description" | "status">;
+type CheckedObjective = Pick<QuestObjective, "id" | "description" | "status" | "due_year" | "due_month" | "due_day">;
 type CheckedConsequence = Pick<QuestConsequence, "action" | "on_objective_id" | "target_objective_id">;
 type CheckedGate = Pick<QuestBeatEdgeGate, "edge_id" | "objective_id" | "statuses">;
 
@@ -140,6 +140,23 @@ function producibleStatuses(consequences: readonly CheckedConsequence[]): Map<st
 }
 
 /**
+ * Every status an objective can still be moved into by rules or the clock.
+ *
+ * Settled is final: a rule verb no longer moves an objective that is already
+ * complete or failed (only the DM's assert does), so for those the rules'
+ * output does not apply. A due date is a way to fail: when the campaign date
+ * passes it, a pending objective fails. It only matters for an objective that
+ * is, or can become, pending.
+ */
+function movableStatuses(objective: CheckedObjective, producible: Map<string, Set<QuestConsequenceObjectiveStatus>>): Set<QuestConsequenceObjectiveStatus> {
+  if (objective.status === "complete" || objective.status === "failed") return new Set();
+  const made = new Set(producible.get(objective.id));
+  const hasDue = objective.due_year !== null && objective.due_month !== null && objective.due_day !== null;
+  if (hasDue && (objective.status === "pending" || made.has("pending"))) made.add("failed");
+  return made;
+}
+
+/**
  * A dormant objective no rule can ever raise.
  *
  * `dormant` means "a branch nobody has taken *yet*". If nothing can take it,
@@ -185,8 +202,8 @@ function gatesThatNeverOpen(input: QuestConsistencyInput): QuestConsistencyFindi
     const objective = objectiveById.get(gate.objective_id);
     if (!objective) return null;
     if (gate.statuses.includes(objective.status)) return false;
-    const made = producible.get(gate.objective_id);
-    return !gate.statuses.some((status) => status !== "dormant" && made?.has(status));
+    const made = movableStatuses(objective, producible);
+    return !gate.statuses.some((status) => status !== "dormant" && made.has(status));
   }
 
   const findings: QuestConsistencyFinding[] = [];
@@ -279,8 +296,8 @@ function objectivesNeverResolved(input: QuestConsistencyInput): QuestConsistency
   return input.objectives
     .filter((objective) => {
       if (objective.status === "complete" || objective.status === "failed") return false;
-      const statuses = producible.get(objective.id);
-      return !statuses?.has("complete") && !statuses?.has("failed");
+      const statuses = movableStatuses(objective, producible);
+      return !statuses.has("complete") && !statuses.has("failed");
     })
     .map((objective) => ({
       kind: "objective_never_resolves" as const,

@@ -382,9 +382,11 @@ as $$
 $$;
 
 -- Is a converge-all join at p_beat_id still waiting on someone? It is while
--- any other open thread of the quest (live, or parked at a different join)
--- could still reach it. Threads already parked at this join are the ones
--- being waited FOR, not on.
+-- any other LIVE thread of the quest (one that can still move) could reach it.
+-- Threads already parked at this join are the ones being waited FOR, not on;
+-- a thread parked at a DIFFERENT join does not block either, since it cannot
+-- move until that join releases: counting it let two joins that reach each
+-- other (a loop) wait on each other forever (#1011 review).
 create function private.quest_join_blocked(p_quest_id uuid, p_beat_id uuid, p_exclude_thread_id uuid)
 returns boolean
 language sql
@@ -397,10 +399,9 @@ as $$
       join public.quest_runtime_state s on s.thread_id = th.id and s.quest_id = th.quest_id
      where th.quest_id = p_quest_id
        and th.id is distinct from p_exclude_thread_id
-       and th.status in ('live', 'waiting')
-       and s.status <> 'ended'
+       and th.status = 'live'
+       and s.status not in ('ended', 'waiting')
        and s.current_beat_id is not null
-       and not (s.status = 'waiting' and s.current_beat_id = p_beat_id)
        and private.quest_beat_reaches(p_quest_id, s.current_beat_id, p_beat_id)
   );
 $$;
@@ -557,17 +558,19 @@ begin
       p_campaign_id, p_quest_id, p_transition_id, null, p_edge_id, '{}'::uuid[], null, p_hold
     );
   end if;
-
-  perform private.settle_converge_joins(p_campaign_id, p_quest_id, p_quest_title, p_hold);
+  -- The joins settle once, after the whole command (transition_quest_runtime,
+  -- open_quest_thread), not per arrival.
 end;
 $function$;
 
--- ── Clocks: filling one ────────────────────────────────────────────────────
+-- ── Clocks: ticking one ────────────────────────────────────────────────────
 
--- Set a clock's fill (clamped). Filling it up fires the rules watching it,
--- under an assert transition, exactly as an asserted objective or a place's
--- fact does. Shared by tick_quest_clock and a held tick_clock rule fired late.
-create function private.set_quest_clock_filled(p_clock_id uuid, p_filled integer, p_reason text)
+-- Tick a clock by a signed step (clamped), relative to the row as locked here,
+-- so two ticks at once both land (#1011 review: an absolute value computed
+-- before the lock lost one). Filling it up fires the rules watching it, under
+-- an assert transition, exactly as an asserted objective or a place's fact
+-- does. Shared by tick_quest_clock and a held tick_clock rule fired late.
+create function private.tick_quest_clock_by(p_clock_id uuid, p_step integer, p_reason text)
 returns jsonb
 language plpgsql
 security definer
@@ -585,7 +588,7 @@ begin
     raise exception 'Clock not found' using errcode = 'P0002';
   end if;
 
-  v_new := least(greatest(coalesce(p_filled, v_clock.filled), 0), v_clock.segments);
+  v_new := least(greatest(v_clock.filled + coalesce(p_step, 0), 0), v_clock.segments);
   if v_new = v_clock.filled then
     return jsonb_build_object('changed', false, 'filled', v_new, 'segments', v_clock.segments, 'filled_up', false);
   end if;
@@ -614,6 +617,30 @@ begin
   return jsonb_build_object('changed', true, 'filled', v_new, 'segments', v_clock.segments, 'filled_up', false);
 end;
 $function$;
+
+-- #5 (review): a clock may not be shortened to its fill. That would make it
+-- full without a tick, so the rules watching it would never fire (and the
+-- cockpit's Tick is disabled on a full clock). Untick it first, or tick it full.
+create function private.guard_quest_clock_resize()
+returns trigger
+language plpgsql
+set search_path to ''
+as $function$
+begin
+  if new.segments <> old.segments and old.filled < old.segments and new.segments <= old.filled then
+    raise exception 'A clock with % filled cannot be shortened to % segments: that would fill it without firing its rules. Untick it first.',
+      old.filled, new.segments
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$function$;
+
+revoke execute on function private.guard_quest_clock_resize() from public, anon, authenticated;
+
+create trigger quest_clocks_guard_resize
+  before update of segments on public.quest_clocks
+  for each row execute procedure private.guard_quest_clock_resize();
 
 -- ── 6. The consequence engine ───────────────────────────────────────────────
 drop function private.apply_quest_consequences(uuid, uuid, uuid, uuid, uuid, uuid[], boolean, uuid[], uuid, text);
@@ -737,7 +764,7 @@ begin
         -- A clock is engine state like an objective: it moves now, inside the
         -- transition, and filling it seeds the next cascade round.
         select filled, segments into v_prev_filled, v_segments
-          from public.quest_clocks where id = v_rule.target_clock_id;
+          from public.quest_clocks where id = v_rule.target_clock_id for update;
         v_new_filled := least(greatest(
           v_prev_filled + coalesce((v_rule.action_payload ->> 'step')::int, 1), 0), v_segments);
         update public.quest_clocks set filled = v_new_filled where id = v_rule.target_clock_id;
@@ -751,13 +778,19 @@ begin
         campaign_id, quest_id, transition_id, consequence_id, action,
         target_objective_id, target_npc_id, target_quest_id, target_document_id, previous_status, previous_is_player_visible,
         target_clock_id, previous_clock_filled, target_location_id, target_faction_id,
-        action_payload, after_days, fires_on_year, fires_on_month, fires_on_day
+        action_payload, after_days, fires_on_year, fires_on_month, fires_on_day,
+        performed_at, performed_on_year, performed_on_month, performed_on_day
       ) values (
         p_campaign_id, p_quest_id, p_transition_id, v_rule.id, v_rule.action,
         v_rule.target_objective_id, v_rule.target_npc_id, v_rule.target_quest_id, private.handout_still_in_campaign(v_rule.target_document_id, p_campaign_id), v_prev_status, v_prev_visible,
         v_rule.target_clock_id, v_prev_filled, v_rule.target_location_id, v_rule.target_faction_id,
         v_rule.action_payload, v_rule.after_days,
-        v_today.current_year, v_today.current_month, v_today.current_day
+        v_today.current_year, v_today.current_month, v_today.current_day,
+        -- An engine-state verb has just applied above: it is performed now.
+        case when private.quest_action_is_world(v_rule.action) then null else now() end,
+        case when private.quest_action_is_world(v_rule.action) then null else v_today.current_year end,
+        case when private.quest_action_is_world(v_rule.action) then null else v_today.current_month end,
+        case when private.quest_action_is_world(v_rule.action) then null else v_today.current_day end
       ) returning id into v_event_id;
 
       -- World actions perform now when due immediately. The three verbs added
@@ -807,16 +840,46 @@ begin
         continue;
       end if;
 
+      v_prev_status := null;
+      v_prev_visible := null;
+      v_prev_filled := null;
+      if v_rule.action in ('raise', 'reveal', 'complete', 'fail') then
+        select status, is_player_visible into v_prev_status, v_prev_visible
+          from public.quest_objectives where id = v_rule.target_objective_id;
+        update public.quest_objectives
+           set status = case v_rule.action
+                 when 'raise' then case when status = 'dormant' then 'pending' else status end
+                 when 'reveal' then case when status = 'dormant' then 'pending' else status end
+                 when 'complete' then case when status in ('dormant', 'pending') then 'complete' else status end
+                 when 'fail' then case when status in ('dormant', 'pending') then 'failed' else status end
+               end,
+               is_player_visible = case when v_rule.action = 'reveal' then true else is_player_visible end
+         where id = v_rule.target_objective_id;
+      elsif v_rule.action = 'tick_clock' then
+        select filled, segments into v_prev_filled, v_segments
+          from public.quest_clocks where id = v_rule.target_clock_id for update;
+        update public.quest_clocks
+           set filled = least(greatest(v_prev_filled + coalesce((v_rule.action_payload ->> 'step')::int, 1), 0), v_segments)
+         where id = v_rule.target_clock_id;
+      end if;
+
       insert into public.quest_consequence_events (
         campaign_id, quest_id, transition_id, consequence_id, action,
         target_objective_id, target_npc_id, target_quest_id, target_document_id,
+        previous_status, previous_is_player_visible, previous_clock_filled,
         target_clock_id, target_location_id, target_faction_id, action_payload, after_days,
-        fires_on_year, fires_on_month, fires_on_day
+        fires_on_year, fires_on_month, fires_on_day,
+        performed_at, performed_on_year, performed_on_month, performed_on_day
       ) values (
         p_campaign_id, p_quest_id, p_transition_id, v_rule.id, v_rule.action,
         v_rule.target_objective_id, v_rule.target_npc_id, v_rule.target_quest_id, private.handout_still_in_campaign(v_rule.target_document_id, p_campaign_id),
+        v_prev_status, v_prev_visible, v_prev_filled,
         v_rule.target_clock_id, v_rule.target_location_id, v_rule.target_faction_id, v_rule.action_payload, v_rule.after_days,
-        v_today.current_year, v_today.current_month, v_today.current_day
+        v_today.current_year, v_today.current_month, v_today.current_day,
+        case when private.quest_action_is_world(v_rule.action) then null else now() end,
+        case when private.quest_action_is_world(v_rule.action) then null else v_today.current_year end,
+        case when private.quest_action_is_world(v_rule.action) then null else v_today.current_month end,
+        case when private.quest_action_is_world(v_rule.action) then null else v_today.current_day end
       ) returning id into v_event_id;
 
       if v_rule.after_days = 0 and private.quest_action_is_world(v_rule.action) then
@@ -1039,11 +1102,10 @@ begin
     -- its rules under an assert transition of their own, as a tick from the
     -- run cockpit does.
     select * into v_clock from public.quest_clocks
-     where id = v_ev.target_clock_id and campaign_id = v_ev.campaign_id;
+     where id = v_ev.target_clock_id and campaign_id = v_ev.campaign_id for update;
     if found then
       update public.quest_consequence_events set previous_clock_filled = v_clock.filled where id = p_event_id;
-      perform private.set_quest_clock_filled(
-        v_clock.id, v_clock.filled + coalesce((v_ev.action_payload ->> 'step')::int, 1), null);
+      perform private.tick_quest_clock_by(v_clock.id, coalesce((v_ev.action_payload ->> 'step')::int, 1), null);
     end if;
 
   elsif v_ev.action = 'move_npc' then
@@ -1600,8 +1662,11 @@ begin
 
   -- #1011: any move can release a converge-all join: a thread that arrived,
   -- one that ended, one that walked somewhere the join is no longer reachable
-  -- from. Settle every waiting join of the quest now.
-  perform private.settle_converge_joins(p_campaign_id, p_quest_id, v_quest_title, v_hold);
+  -- from. Settle every waiting join of the quest now, once (settle_thread_arrival
+  -- no longer does it itself). Pause and resume move no cursor, so they skip it.
+  if p_command not in ('pause', 'resume') then
+    perform private.settle_converge_joins(p_campaign_id, p_quest_id, v_quest_title, v_hold);
+  end if;
 
   -- Dispatch: undispatched loot already staged on the beat just reached.
   if cardinality(v_dispatch) > 0 then
@@ -1679,6 +1744,9 @@ begin
   perform private.settle_thread_arrival(
     p_campaign_id, p_quest_id, v_quest_title, v_thread_id, v_transition_id, p_beat_id, v_beat.title, null, '{}'::uuid[]
   );
+
+  -- #1011: a thread opened onto a converge-all join may complete it.
+  perform private.settle_converge_joins(p_campaign_id, p_quest_id, v_quest_title, '{}'::uuid[]);
 
   return public.get_quest_runtime_context(p_campaign_id, p_quest_id, v_thread_id);
 end;
@@ -1956,7 +2024,7 @@ begin
     raise exception 'A tick needs a non-zero step' using errcode = '22023';
   end if;
 
-  return private.set_quest_clock_filled(p_clock_id, v_clock.filled + p_step, p_reason);
+  return private.tick_quest_clock_by(p_clock_id, p_step, p_reason);
 end;
 $function$;
 
@@ -2033,6 +2101,56 @@ create trigger campaigns_fail_overdue_objectives
   after update of current_year, current_month, current_day on public.campaigns
   for each row execute procedure private.fail_overdue_objectives();
 
+-- ── 9b. Saving a route's gate in one statement ─────────────────────────────
+
+-- The story flow used to save a gate as separate writes (removes, updates,
+-- adds, then the mode). A failure halfway left a route with fewer conditions
+-- than the DM meant, possibly none, which opens it; and a refetch between the
+-- writes could swallow the mode change. One invoker call, one transaction:
+-- RLS on quest_beat_edges / quest_beat_edge_gates (DM-only) authorizes it, so
+-- it need not be a definer (#936: prefer invoker where RLS already authorizes).
+-- p_conditions: [{ "objective_id": uuid, "statuses": [text, ...] }, ...];
+-- an empty array clears the gate.
+create function public.set_quest_route_gate(p_edge_id uuid, p_mode text, p_conditions jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path to 'public', 'private'
+as $function$
+declare
+  v_edge public.quest_beat_edges%rowtype;
+begin
+  if p_mode is null or p_mode not in ('all', 'any') then
+    raise exception 'A gate mode is all or any' using errcode = '22023';
+  end if;
+  if p_conditions is null or jsonb_typeof(p_conditions) <> 'array' then
+    raise exception 'Gate conditions must be an array' using errcode = '22023';
+  end if;
+
+  update public.quest_beat_edges set gate_mode = p_mode where id = p_edge_id
+  returning * into v_edge;
+  if not found then
+    raise exception 'Route not found' using errcode = 'P0002';
+  end if;
+
+  delete from public.quest_beat_edge_gates g
+   where g.edge_id = p_edge_id
+     and not exists (
+       select 1 from jsonb_array_elements(p_conditions) c
+        where (c ->> 'objective_id')::uuid = g.objective_id
+     );
+
+  insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, statuses)
+  select p_edge_id, v_edge.quest_id, v_edge.campaign_id, (c ->> 'objective_id')::uuid,
+         array(select jsonb_array_elements_text(c -> 'statuses'))
+    from jsonb_array_elements(p_conditions) c
+  on conflict (edge_id, objective_id) do update set statuses = excluded.statuses;
+end;
+$function$;
+
+revoke execute on function public.set_quest_route_gate(uuid, text, jsonb) from public, anon;
+grant execute on function public.set_quest_route_gate(uuid, text, jsonb) to authenticated, service_role;
+
 -- ── 10. Players see the party's standing ───────────────────────────────────
 
 -- The projection returns setof factions positionally, so the new column has
@@ -2085,11 +2203,11 @@ $function$;
 
 -- ── 11. Execute grants ─────────────────────────────────────────────────────
 
--- A trigger function needs no EXECUTE grant, and set_quest_clock_filled is
+-- A trigger function needs no EXECUTE grant, and tick_quest_clock_by is
 -- reached only from definer functions. settle_converge_joins keeps its grant:
 -- close_quest_thread is an invoker function and calls it.
 revoke execute on function private.fail_overdue_objectives() from public, anon, authenticated;
-revoke execute on function private.set_quest_clock_filled(uuid, integer, text) from public, anon, authenticated;
+revoke execute on function private.tick_quest_clock_by(uuid, integer, text) from public, anon, authenticated;
 revoke execute on function private.settle_converge_joins(uuid, uuid, text, uuid[]) from public, anon;
 grant execute on function private.settle_converge_joins(uuid, uuid, text, uuid[]) to authenticated, service_role;
 revoke execute on function private.apply_quest_consequences(uuid, uuid, uuid, uuid, uuid, uuid[], boolean, uuid[], uuid, text, uuid) from public, anon;

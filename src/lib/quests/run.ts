@@ -213,11 +213,11 @@ const HELD_PAYOFF_ACTION_LABELS: Record<QuestConsequenceAction, string> = {
   grant_knowledge: "Grants knowledge",
   owe_favor: "Owes a favor",
   award_milestone: "Awards a milestone",
-  give_handout: "Give a handout",
-  tick_clock: "Tick clock",
-  move_npc: "Move NPC",
-  add_companion: "Add companion",
-  shift_faction_standing: "Shift faction standing",
+  give_handout: "Gives a handout",
+  tick_clock: "Ticks a clock",
+  move_npc: "Moves an NPC",
+  add_companion: "Adds a companion",
+  shift_faction_standing: "Shifts faction standing",
 };
 
 /**

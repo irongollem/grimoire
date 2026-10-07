@@ -391,13 +391,19 @@ clocks.
 grant leaves a client only `label`, `segments` and `sort_order` to write (and
 `insert` of the same plus ids), and `filled` moves through
 `tick_quest_clock(clock, step, reason?)` (DM-gated RPC, signed non-zero step)
-or a `tick_clock` rule, both funnelling into `private.set_quest_clock_filled`.
-That function clamps to `0..segments`; a tick that **fills** the clock (reaches
+or a `tick_clock` rule. The RPC and a held rule fired late go through
+`private.tick_quest_clock_by`, which locks the row and applies the step
+relative to it (an absolute value computed before the lock lost one of two
+concurrent ticks); a `tick_clock` rule inside a transition locks the row the
+same way. A tick clamps to `0..segments`; a tick that **fills** the clock (reaches
 `segments` from below) writes an `assert` transition ("‹label› filled",
 provenance `{clock_id}`) and runs `apply_quest_consequences` with the clock as
 the seed, so every rule with `on_clock_id` set fires, cascading like any other
 condition. Ticking down, or ticking a clock that was already full, fires
-nothing. **Clocks never tick on their own** and deadlines are not clocks: the
+nothing. **A clock cannot be shortened to its fill**
+(`quest_clocks_guard_resize`, 23514): that would make it full without a tick,
+so its rules would never fire and the cockpit's Tick, disabled on a full
+clock, could not fire them either. Untick it first. **Clocks never tick on their own** and deadlines are not clocks: the
 database can compare two in-world dates but cannot count days across a custom
 calendar's months (that maths lives in `src/lib/calendar/dayMath.ts`), so a
 calendar deadline is an objective's due date, and a clock is for things that
@@ -760,7 +766,12 @@ event.
 `pending`/`complete`/`failed`, `on_quest_settled`, since #869
 `on_location_id` + `on_location_fact`, or since #1011 `on_clock_id`, a clock
 filling), an **`after_days`** delay, and an
-**`action`**:
+**`action`**. An `on_quest_settled` rule applies an engine-state verb (raise,
+reveal, complete, fail, `tick_clock`) the moment the ledger settles, like any
+other condition; until the #1011 review it only ever performed world actions,
+so "when the quest settles, raise the epilogue objective" was logged and never
+applied. It does not cascade further: settling is the end of the cascade.
+The action is one of:
 
 | action                                                       | kind         | needs                                                              |
 | ------------------------------------------------------------ | ------------ | ------------------------------------------------------------------ |
@@ -999,7 +1010,9 @@ long it sat held.
 Per-calendar leap and intercalary rules live only in `src/lib/dayMath.ts`
 (#766), and a plpgsql port would be a fifth copy. So a delayed row
 (`after_days > 0`) is logged with `fires_on_year/month/day` and left
-`performed_at is null`; the client decides `fires_on + after_days` has
+`performed_at is null` (a world action only: an engine-state verb, ledger or
+`tick_clock`, applies inside the transition and is logged performed at once,
+so the runner never applies it a second time; #1011 review); the client decides `fires_on + after_days` has
 arrived and calls `perform_quest_consequence(event_id, year, month, day)` to
 perform it. `useDueConsequences` (mounted once in `DefaultLayout.vue`) is the
 one place that watches for that — a watcher on the campaign store's own today
@@ -1229,9 +1242,12 @@ canvas.
   fourth disabled once three are ticked, `GATE_MAX_STATUSES`). Once there are
   two or more conditions a `SegmentedControl` offers **All of these** /
   **Any of these** (`gate_mode`), and a line under the cards reads the gate
-  back (`describeQuestRouteGate`). Save diffs the drafts against the stored
-  rows (`planGateWrites`) and writes only what changed; `validateGateDrafts`
-  names the first problem in the DM's words. The canvas pill for a closed
+  back (`describeQuestRouteGate`). Save writes the whole gate in one call,
+  `set_quest_route_gate(edge, mode, conditions)` (SECURITY INVOKER: RLS
+  authorizes), so a failure can never leave a route with fewer conditions
+  than the DM meant (which could open it), and a refetch mid-save cannot
+  swallow a mode change; `validateGateDrafts` names the first problem in the
+  DM's words first. The canvas pill for a closed
   route and the cockpit use the same sentences.
 - **`QuestConvergeControl` (#1011)** on the selected beat: "When threads
   arrive", a `SegmentedControl` of **Each runs on** (`any`) / **Wait for the
@@ -1787,11 +1803,14 @@ route by **spawning a thread** in the same transaction — its own cursor,
 `enter` transition and arrival rules — while the calling thread's cursor does
 not move. Arriving at a `converge_mode: 'all'` beat parks the thread
 (`private.settle_thread_arrival`, via `compute_arrival_status`) for as long as
-`private.quest_join_blocked` is true, i.e. while any *other* open thread of the
-quest (live, or parked at a different join) could still reach the beat
+`private.quest_join_blocked` is true, i.e. while any *other* live thread of the
+quest (one that can still move) could reach the beat
 (`private.quest_beat_reaches`: a recursive walk of every route kind, gates
 ignored because a closed gate can open, archived beats not walked). Threads
-already parked at this join are the ones being waited *for*. Once nothing can
+already parked at this join are the ones being waited *for*, and a thread
+parked at a *different* join does not block: it cannot move until that join
+releases, so counting it let two joins that reach each other (a loop) wait on
+each other forever. Once nothing can
 still reach it, `private.settle_converge_joins` releases the join: the earliest
 arrival (by `seq`, never `created_at` — two threads can write their arrival
 transition inside the same transaction and tie on timestamp) survives as the

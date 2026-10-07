@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveQuestRouteGates, describeQuestRouteEffect, describeQuestRouteGate, describeQuestRouteGateLines, describeQuestRouteNeeds, draftRouteGate, planGateWrites, questRouteGateLabel, validateGateDrafts } from "./gates";
+import { deriveQuestRouteGates, describeQuestRouteEffect, describeQuestRouteGate, describeQuestRouteGateLines, describeQuestRouteNeeds, draftRouteGate, questRouteGateLabel, validateGateDrafts } from "./gates";
 import type { QuestBeatEdgeGate, QuestObjective, QuestRouteEffect, QuestRouteGate } from "@/types/quest.types";
 
 const objective = (id: string, status: QuestObjective["status"], description = id): QuestObjective => ({
@@ -122,7 +122,6 @@ describe("describeQuestRouteEffect", () => {
 
 describe("route gate drafts", () => {
   const draft = (key: string, gateId: string | null, objectiveId: string, statuses: QuestBeatEdgeGate["statuses"]) => ({ key, gateId, objectiveId, statuses });
-  const row = (id: string, objectiveId: string, statuses: QuestBeatEdgeGate["statuses"]): QuestBeatEdgeGate => ({ ...gate("e1", objectiveId, statuses), id });
 
   it("previews the gate a draft would make, ignoring unfinished conditions", () => {
     const objectives = [objective("o1", "pending", "One"), objective("o2", "failed", "Two")];
@@ -138,21 +137,6 @@ describe("route gate drafts", () => {
     expect(validateGateDrafts([draft("a", null, "o1", ["pending"]), draft("b", null, "o1", ["failed"])])).toMatch(/only once/);
     expect(validateGateDrafts([draft("a", null, "o1", ["pending"]), draft("b", null, "o2", ["failed"])])).toBeNull();
     expect(validateGateDrafts([])).toBeNull();
-  });
-
-  it("plans removes, status updates and adds", () => {
-    const stored = [row("g1", "o1", ["complete"]), row("g2", "o2", ["failed"]), row("g3", "o3", ["pending"])];
-    const plan = planGateWrites(stored, [
-      draft("a", "g1", "o1", ["complete", "pending"]), // statuses changed
-      draft("b", "g2", "o2", ["failed"]), // untouched
-      draft("c", "g3", "o4", ["pending"]), // objective swapped: remove + add
-      draft("d", null, "o5", ["dormant"]), // new
-    ]);
-    expect(plan).toEqual({
-      remove: ["g3"],
-      update: [{ id: "g1", statuses: ["complete", "pending"] }],
-      add: [{ objectiveId: "o4", statuses: ["pending"] }, { objectiveId: "o5", statuses: ["dormant"] }],
-    });
   });
 });
 
