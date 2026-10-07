@@ -162,17 +162,15 @@ const route = useRoute();
 const router = useRouter();
 const campaignStore = useCampaignStore();
 
-// Import Document is AI extraction: hidden, not disabled, while the campaign
-// owner has AI off. The AI Assistant / Connections tabs stay, since they are
-// where it is switched back on.
 // The Members tab carries a count while characters wait on the DM's approval (#943),
 // the same "(n)" the TabBar shows, so a decision is not only found by opening it.
 const pendingReviews = useCampaignPendingContentReviews();
 const waitingCount = computed(() => pendingReviews.data.value?.length ?? 0);
 
 const tabs = computed(() => {
-  const visible = campaignStore.isAiEnabled ? ALL_TABS : ALL_TABS.filter((t) => t.id !== "import");
-  return visible.map((t) =>
+  // Import Document stays visible with AI off: a wiki export is read without
+  // AI (#932), and the tab itself offers only that source until AI is on.
+  return ALL_TABS.map((t) =>
     t.id === "members" && waitingCount.value > 0 ? { ...t, label: `${t.label} (${waitingCount.value})` } : t,
   );
 });

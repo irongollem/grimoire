@@ -199,18 +199,10 @@ const myFactionIds = computed(() =>
   new Set((myFactionMemberships.value ?? []).map((m) => m.faction_id)),
 );
 
-// In DM preview the DM owns all rows so RLS returns everything — filter
-// client-side to match what a real player would see via the DB policies:
-// - direct faction member, OR
-// - this party member's id is in player_visible_to
-const visibleFactions = computed(() => {
-  const all = factions.value ?? [];
-  if (!ui.dmPreviewMode) return all;
-  return all.filter((f) => {
-    if (myFactionIds.value.has(f.id)) return true;
-    return !!myMemberId.value && (f.player_visible_to ?? []).includes(myMemberId.value);
-  });
-});
+// The server projection already applies the visibility rule (shared with this
+// character, or this character belongs), for a real player and, through the
+// preview member id, for a DM previewing one. Nothing to filter here.
+const visibleFactions = computed(() => factions.value ?? []);
 
 // Member factions float to the top; within each group sort alphabetically.
 const sortedFactions = computed(() =>

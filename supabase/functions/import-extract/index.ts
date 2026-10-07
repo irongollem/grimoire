@@ -497,6 +497,18 @@ serve(withCors(async (req: Request) => {
     .maybeSingle();
   if (!importRow) return new Response("Import not found", { status: 404 });
 
+  // A wiki export (#932) is read by the DM's own browser and never extracted:
+  // nothing in it may reach a model or a credit hold. Pages the DM wants a
+  // model to read go through a separate `text` import, which carries the page
+  // ceiling and the charge. Refused before the rate limiter, the provider
+  // lookup and everything else below.
+  if (importRow.source_kind === "archive") {
+    return new Response(JSON.stringify({
+      error: "invalid_source",
+      message: "A wiki export is imported without AI and cannot be extracted.",
+    }), { status: 422, headers: { "Content-Type": "application/json" } });
+  }
+
   // Fast, non-atomic short-circuit for the common case (already extracting,
   // already reviewed) — cheaper than running every downstream check just to
   // fail on the atomic claim later. The claim below is still what actually

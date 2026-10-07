@@ -49,7 +49,7 @@ import { useGenerationCreditCosts } from "@/composables/billing/useCreditConfig"
 import type {
   DocumentImport,
   DocumentImportInsert,
-  DocumentImportSourceKind,
+  AiDocumentImportSourceKind,
   DocumentImportStatus,
 } from "@/types/documentImport.types";
 
@@ -195,14 +195,16 @@ export interface CreateDocumentImportInput {
    *  see `sourceText`. */
   files: File[];
   /**
-   * Widened past `DocumentImportSourceKind` to include `"text"` (#829) —
+   * The kinds an AI pass reads; a wiki export (`archive`, #932) is never created here, it has
+   * its own composable (`useArchiveImport.ts`) because nothing is uploaded or extracted.
+   * Includes `"text"` (#829) —
    * `documentImport.types.ts` is a frozen contract this story does not own
    * (see that file's header; it is being extended in step with the parallel
    * "quest as a graph" work). The DB itself already accepts `'text'`
    * (migration 20260906213100), so this is the type catching up to what the
    * row can actually hold, done here rather than there.
    */
-  sourceKind: DocumentImportSourceKind;
+  sourceKind: AiDocumentImportSourceKind;
   /** What the DM called it, for the wizard header. */
   displayName: string;
   /** Pages for a PDF, photos for a batch, or `pagesForText(...)` for a

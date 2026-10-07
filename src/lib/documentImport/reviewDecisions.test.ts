@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  candidateLetter,
+  decisionStatus,
   ignoreAllDecisions,
+  matchKindHint,
   needsDmChoice,
   quotaShortfalls,
   rowsAddedToQuota,
@@ -139,5 +142,38 @@ describe("plan limits", () => {
 
   it("treats exactly filling the room as fine", () => {
     expect(quotaShortfalls({ npcs: 2 }, () => 2)).toEqual([]);
+  });
+});
+
+describe("decisionStatus", () => {
+  it("says what will happen, with a tone per action", () => {
+    expect(decisionStatus({ action: "create" }, null)).toEqual({ label: "New", tone: "info" });
+    expect(decisionStatus({ action: "ignore" }, null)).toEqual({ label: "Ignored", tone: "neutral" });
+    expect(decisionStatus({ action: "generate" }, "2 credits")).toEqual({ label: "Generate · 2 credits", tone: "arcane" });
+    expect(decisionStatus({ action: "generate" }, null).label).toBe("Generate");
+  });
+
+  it("tells a link to your own row from a link to a library entry", () => {
+    expect(decisionStatus({ action: "link", candidate: candidate({ name: "Mara", detail: "innkeeper" }) }, null)).toEqual({
+      label: "Links to Mara · innkeeper",
+      tone: "success",
+    });
+    expect(decisionStatus({ action: "link", candidate: candidate({ source: "library", name: "Wraith" }) }, null)).toEqual({
+      label: "Uses library entry: Wraith",
+      tone: "primary",
+    });
+  });
+});
+
+describe("candidateLetter and matchKindHint", () => {
+  it("letters candidates A, B, C and wraps past Z", () => {
+    expect([0, 1, 25, 26, 27].map(candidateLetter)).toEqual(["A", "B", "Z", "AA", "AB"]);
+  });
+
+  it("describes how a candidate matched", () => {
+    expect(matchKindHint("exact")).toBe("same name");
+    expect(matchKindHint("near")).toBe("nearly the same name");
+    expect(matchKindHint("contains")).toBe("name contains");
+    expect(matchKindHint("similar")).toBe("looks similar");
   });
 });

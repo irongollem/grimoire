@@ -5,16 +5,46 @@
     placing, moving and hiding pins is the whole job. The unplaced list inside
     `LocationMap` is where a place that is not yet on the map gets dropped on.
   -->
-  <LocationMap
-    v-model:pins="pins"
-    :stack="stack"
-    :children="candidates"
-    mode="edit"
-    show-hidden-pins
-    compact
-    :location-id="location.id"
-    @pin-click="emit('select', $event)"
-  />
+  <div class="flex flex-col gap-2">
+    <!-- The map's scale (#932): what Browse's Measure tool reads. Beside the
+         map because it is a fact about this picture, set by marking two points
+         on it; it has no other home on a place with no workbench. -->
+    <div v-if="stack.primary" class="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
+      <IconRuler class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span v-if="scale">
+        Scale: <span class="font-semibold text-foreground">{{ formatDistance(scale.distance, scale.unit) }}</span>
+        between the two marked points
+      </span>
+      <span v-else>No scale yet, so routes cannot be measured</span>
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        :label="scale ? 'Edit scale' : 'Set scale'"
+        @click="scaleOpen = true"
+      />
+    </div>
+
+    <LocationMap
+      v-model:pins="pins"
+      :stack="stack"
+      :children="candidates"
+      mode="edit"
+      show-hidden-pins
+      compact
+      :location-id="location.id"
+      @pin-click="emit('select', $event)"
+    />
+
+    <MapScaleDialog
+      :open="scaleOpen"
+      :map-url="stack.primary?.url ?? null"
+      :existing="scale"
+      :saving="isSavingScale"
+      @cancel="scaleOpen = false"
+      @save="saveScale"
+      @clear="saveScale(null)"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -33,12 +63,21 @@
  * way out (so the stored copy players read is never staler than the write).
  */
 import { computed, ref, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
-import { getPinnableDescendants, useUpdateLocation, type PinnableFields } from "@/composables/locations/useLocations";
+import MapScaleDialog from "@/components/locations/MapScaleDialog.vue";
+import {
+  getPinnableDescendants,
+  useUpdateLocation,
+  useUpdateLocationMapScale,
+  type PinnableFields,
+} from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
+import { IconRuler } from "@/lib/icons";
+import { formatDistance, parseMapScale } from "@/lib/locations/mapScale";
 import { refreshPinMetadata } from "@/lib/locations/mapPins";
 import { buildMapStack } from "@/lib/locations/mapStack";
-import type { Location, MapPin } from "@/types/location.types";
+import type { Location, MapPin, MapScale } from "@/types/location.types";
 
 const { location, locations } = defineProps<{
   location: Location;
@@ -53,6 +92,20 @@ const toast = useToast();
 const { mutateAsync: updateLocation } = useUpdateLocation();
 
 const stack = computed(() => buildMapStack(location));
+
+// ── Map scale (#932) — written live like the pins: there is no Save in Build. ─
+const scale = computed(() => parseMapScale(location.map_scale));
+const scaleOpen = ref(false);
+const { mutateAsync: updateScale, isPending: isSavingScale } = useUpdateLocationMapScale();
+
+async function saveScale(next: MapScale | null) {
+  try {
+    await updateScale({ id: location.id, scale: next });
+    scaleOpen.value = false;
+  } catch (e) {
+    toast.error(toast.fromError(e));
+  }
+}
 const candidates = computed(() => getPinnableDescendants(location.id, locations));
 
 /** The row's pins with their denormalised fields current. */

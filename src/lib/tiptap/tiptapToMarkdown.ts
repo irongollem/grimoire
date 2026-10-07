@@ -205,6 +205,19 @@ function blockToMarkdown(node: JsonRecord, options?: TiptapToMarkdownOptions): s
         // motivated this are usually a single paragraph.
         .join("\n>\n");
     }
+    case "secretBlock": {
+      // A DM-only passage (#932). Dropping it as an unknown node would make a
+      // Markdown export silently lose every secret, so it becomes an Obsidian
+      // callout that a reader (and the importer) can recognise as DM-only.
+      const inner = asNodeArray(node.content)
+        .map((n) => blockToMarkdown(n, options))
+        .filter((b): b is string => b !== null);
+      if (!inner.length) return null;
+      const body = inner
+        .map((block) => block.split("\n").map((line) => `> ${line}`).join("\n"))
+        .join("\n>\n");
+      return `> [!secret] DM only\n${body}`;
+    }
     case "bulletList":
       return listToMarkdown(node, false, options);
     case "orderedList":

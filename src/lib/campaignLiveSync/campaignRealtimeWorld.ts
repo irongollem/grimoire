@@ -1,4 +1,5 @@
 import type { QueryClient, QueryKey } from "@tanstack/vue-query";
+import { PLAYER_FACTIONS_KEY, PLAYER_NOTES_KEY } from "@/lib/campaignLiveSync/registry";
 import { applyRealtimeRow, type RealtimeRowChange } from "@/lib/campaignLiveSync/realtimeCache";
 import { compareSiblings, type SiblingOrder } from "@/lib/locations/tree";
 import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
@@ -158,11 +159,14 @@ function invalidateGlobalSearch(queryClient: QueryClient): void {
 }
 
 function applyNotes(queryClient: QueryClient, change: Change, _context: Context): void {
+  // A DM previewing as a player holds projection caches too; refresh them.
+  invalidate(queryClient, (key) => key[0] === PLAYER_NOTES_KEY);
   applyRealtimeRow(queryClient, change, {
     rootKey: "notes",
     include: (key) => key.length === 2 && isString(key[1]),
-    // Realtime RLS already decides whether this complete row may reach this
-    // client; both DM and player note caches store the same raw row shape.
+    // Only the DM can select `notes` rows now: players read the
+    // `get_player_visible_notes` projection (secret blocks are stripped there),
+    // so no row event reaches them and their cache refreshes on `notes_player`.
     matches: (key, row) => key[1] === row.campaign_id || key[1] === row.id,
     compare: compareNewest,
   });
@@ -229,9 +233,11 @@ function applyFactions(queryClient: QueryClient, change: Change, context: Contex
     });
   }
 
-  // The player-visible list and these relation queries are all projections or
-  // joins. Their visibility and embedded faction shape must come from SQL.
-  invalidate(queryClient, (key) => key[0] === "factions" && key[1] === context.campaignId && key[2] === "player-visible");
+  // The player-visible list (PLAYER_FACTIONS_KEY, a strip-secrets projection)
+  // and these relation queries are projections or joins. Their visibility and
+  // embedded faction shape must come from SQL. Only the DM's preview caches
+  // are reached from here; players hear `factions_player`.
+  invalidate(queryClient, (key) => key[0] === PLAYER_FACTIONS_KEY && key[1] === context.campaignId);
   invalidateJoinedCaches(queryClient, [
     "npc-factions",
     "deity-factions",

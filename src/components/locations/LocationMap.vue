@@ -26,6 +26,7 @@
             :stack="stack"
             :compact="compact"
             :placing="!!placingChildId"
+            :class="measuring ? 'cursor-crosshair!' : ''"
             @tap="onTap"
             @container-click="pinsLayerRef?.clearPinned()"
           >
@@ -64,6 +65,9 @@
               :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
               @select-room="onSelectPreparedRoom"
             />
+            <!-- The Measure tool's route (#932): under the pins, so a pin a
+                 waypoint snapped to stays the thing on top. -->
+            <MapMeasureLayer :points="routePoints" :scale="frameRef?.scale ?? 1" />
             <MapPinsLayer
               ref="pinsLayerRef"
               v-model:pins="pins"
@@ -73,6 +77,7 @@
               :mode="mode"
               :show-hidden-pins="showHiddenPins"
               :offer-peek="offerPeek"
+              :suppress-actions="measuring"
               :shared-child-ids="sharedChildIds"
               :scale="frameRef?.scale ?? 1"
               :to-image-fraction="toImageFraction"
@@ -210,6 +215,7 @@ import { IconClose, IconLocation, IconRuler } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import MapFrame from "@/components/locations/MapFrame.vue";
+import MapMeasureLayer from "@/components/locations/MapMeasureLayer.vue";
 import MapPinsLayer from "@/components/locations/MapPinsLayer.vue";
 import MapRegionsLayer from "@/components/locations/MapRegionsLayer.vue";
 import SiteMapLayerBar from "@/components/locations/SiteMapLayerBar.vue";
@@ -222,6 +228,7 @@ import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
 import { calibrationCellsWide } from "@/lib/locations/gridCalibration";
 import { isSiteType } from "@/lib/locations/tiers";
+import type { RoutePoint } from "@/lib/locations/mapRoute";
 import type { MapStack } from "@/lib/locations/mapStack";
 import type { RoomFacts } from "@/lib/locations/planCanvas";
 import { useUiStore } from "@/stores/ui";
@@ -250,6 +257,8 @@ const {
   showLayerBar = true,
   showFog = false,
   fogGlimpsedCells = [],
+  measuring = false,
+  routePoints = [],
 } = defineProps<{
   /** The site's map stack — Picture, Drawing, and/or a blank grid (#884).
    *  Callers build it with `buildMapStack()` and gate mounting this
@@ -312,6 +321,11 @@ const {
    *  `MapRegionsLayer`. Off/empty for every other caller. */
   showFog?: boolean;
   fogGlimpsedCells?: readonly (readonly CellKey[])[];
+  /** The Atlas Measure tool is on (#932): a tap on the map is a waypoint, not
+   *  a pin click. The route itself is the caller's state, drawn from
+   *  `routePoints`. */
+  measuring?: boolean;
+  routePoints?: readonly RoutePoint[];
 }>();
 
 const emit = defineEmits<{
@@ -329,6 +343,9 @@ const emit = defineEmits<{
   /** The pill counts this component would show its own layer bar, whether or
    *  not `showLayerBar` is actually rendering one — so a caller suppressing
    *  it (S6) can still read the numbers without re-deriving them. */
+  /** A waypoint tapped while `measuring`: a pin's own spot when the tap was
+   *  on a pin, otherwise where the tap landed. */
+  "measure-point": [point: RoutePoint];
   "layer-counts": [counts: { spaces: number; ways: number; zones: number; prepared: number }];
 }>();
 
@@ -355,9 +372,35 @@ const placingChildId = ref<string | null>(null);
  * survives the frame's capture via `window` listeners instead (see its own
  * docstring), so it needs nothing from `tap`.
  */
-function onTap(target: EventTarget | null) {
+function onTap(target: EventTarget | null, clientX: number, clientY: number) {
+  if (measuring) {
+    onMeasureTap(target, clientX, clientY);
+    return;
+  }
   const handled = pinsLayerRef.value?.handleTap(target);
   if (handled) frameRef.value?.swallowClick();
+}
+
+/**
+ * A tap while measuring is a waypoint. On a pin it snaps to the pin's own spot
+ * and remembers which place that is (the route's ends name the travel event);
+ * anywhere else it is open ground. The frame's own zoom buttons also report a
+ * tap, so a tap on any button is left to the button.
+ */
+function onMeasureTap(target: EventTarget | null, clientX: number, clientY: number) {
+  const el = target as HTMLElement | null;
+  const pinId = el?.closest?.("[data-pin-id]")?.getAttribute("data-pin-id") ?? null;
+  if (!pinId && el?.closest?.("button")) return;
+  const pin = pinId ? pins.value.find((p) => p.child_location_id === pinId) : undefined;
+  if (pin) {
+    emit("measure-point", { x: pin.x, y: pin.y, pin: { id: pin.child_location_id, name: pin.child_name } });
+  } else {
+    const at = toImageFraction(clientX, clientY);
+    if (at) emit("measure-point", { ...at, pin: null });
+  }
+  // The redirected click pointer capture sends to the frame would otherwise
+  // clear a pinned pill under the waypoint just dropped.
+  frameRef.value?.swallowClick();
 }
 
 /** Passed down to the pins layer and the regions layer so both share the

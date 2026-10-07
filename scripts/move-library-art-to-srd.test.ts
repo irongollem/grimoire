@@ -63,6 +63,12 @@ describe("qualify", () => {
     expect(q.targetPath).toBe("srd/bg.webp");
   });
 
+  it("sends species art from asset-images to species-images/srd", () => {
+    const q = qualify(`https://cdn.example.com/asset-images/${ADMIN}/catfolk.webp`, "species") as Qualified;
+    expect(q.targetBucket).toBe("species-images");
+    expect(q.targetPath).toBe("srd/catfolk.webp");
+  });
+
   it("sends a monster to monster-images/srd", () => {
     const q = qualify(`https://cdn.example.com/monster-images/${ADMIN}/m.webp`, "monster") as Qualified;
     expect(q.targetBucket).toBe("monster-images");
@@ -209,7 +215,7 @@ describe("encode round trip", () => {
 
 describe("updateOrder", () => {
   it("rewrites the source rows last, so an interrupted job is still a job on the next run", () => {
-    for (const kind of ["item", "monster", "background"] as const) {
+    for (const kind of ["item", "monster", "background", "species"] as const) {
       const order = updateOrder(kind);
       const sources = SOURCE_COLUMNS.filter((c) => c.kind === kind);
       expect(order.slice(-sources.length).map((c) => `${c.table}.${c.column}`)).toEqual(sources.map((c) => `${c.table}.${c.column}`));
@@ -218,10 +224,11 @@ describe("updateOrder", () => {
     }
   });
 
-  it("rewrites the shared copies of item and monster art, and only library_backgrounds for a background", () => {
+  it("rewrites the shared copies of item and monster art, and only the library row for a background or species", () => {
     expect(updateOrder("item").length).toBeGreaterThan(SOURCE_COLUMNS.filter((c) => c.kind === "item").length);
     expect(updateOrder("monster").length).toBeGreaterThan(SOURCE_COLUMNS.filter((c) => c.kind === "monster").length);
     expect(updateOrder("background").map((c) => `${c.table}.${c.column}`)).toEqual(["library_backgrounds.image_url"]);
+    expect(updateOrder("species").map((c) => `${c.table}.${c.column}`)).toEqual(["library_species.image_url"]);
   });
 });
 

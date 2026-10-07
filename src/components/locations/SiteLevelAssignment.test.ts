@@ -28,7 +28,7 @@ function place(over: Partial<Location> = {}): Location {
     player_visible_to: [], player_summary: null, is_description_shared: false,
     is_npcs_shared: false, is_inventory_shared: false, npc_owner_id: null,
     related_location_ids: [], source_map_id: null, is_battle_map: false,
-    grid_calibration: null, map_layer_url: null, map_layer_calibration: null,
+    grid_calibration: null, map_layer_url: null, map_layer_calibration: null, map_scale: null,
     plan_size: null, era_start: null, era_end: null, audio_theme: null,
     sort_order: null, map_published_rev: null, is_level: false,
     created_at: "", updated_at: "",

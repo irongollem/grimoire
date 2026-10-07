@@ -4,7 +4,7 @@ section: World Building
 section_order: 2
 order: 0
 summary: Chart your world as a tree of places, from a whole plane down to a single room, with maps, pins and per-player visibility at every level.
-keywords: atlas, locations, map, hierarchy, world, region, city, town, dungeon, pin, tree, scale rail
+keywords: atlas, locations, map, hierarchy, world, region, city, town, dungeon, pin, tree, scale rail, measure, distance, travel time, route
 ---
 
 The Atlas is Grimoire's location system: every place in your world, nested as deep as you like, each with its own description, art, map and player-visibility rules. Find it under **Campaign → Atlas** in the sidebar (`/locations`). A location that can hold rooms and a floor plan (a building, dungeon, store, tavern, inn or wilds) is called a **site**; running one at the table has its own page, [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
@@ -59,6 +59,21 @@ Click **Generate** on the Atlas list page to open the Location Generator panel. 
 Press **Build**, open the **Map** tab and upload an image as this location's **Picture**; then drag to drop **pins**, each linked to a direct child. Clicking a vague-container child's pin position instead offers the concrete places nested inside it, so a regional map can still pin individual towns. Each pin has its own **visible to players** flag; whether players see the map at all is the **Map** switch in Reveal. Tick **Battle map** on the Picture row for tactical encounter art: it is kept out of the player Atlas and offered to the battle map instead. A site-tier place additionally shows traced room regions on the same map: see the Sites page.
 
 Descending into a child that also has its own map plays a zoom transition rather than a flat page change, and an **Up to `<parent>`** control on the map lets you rise the same way.
+
+## Measuring a route and travel time
+
+A world, region or city map can tell you how far it is from one place to another and how long the walk takes. It needs a **scale** first.
+
+1. Press **Build** and open the **Map** tab. Above the map, choose **Set scale**.
+2. Drag the two handles onto two places whose distance you know, type the distance, and pick **Miles** or **Kilometres**. Each map keeps its own unit. Press **Save Scale**. **Edit scale** changes it later, and **Clear scale** removes it.
+3. Press **Done**, then choose **Measure** at the top right of the map.
+4. Tap the map to drop stops along your route. Tapping a pin snaps to that place, so a route from Waterdeep to Daggerford is just two taps. **Undo** removes the last stop and **Clear** starts over.
+
+The panel under the map shows the total distance and the travel time. Pick a **Slow**, **Normal** or **Fast** pace: the pace table is the one in the rulebook (24 miles a day at a normal pace, 30 fast, 18 slow, eight hours of travel to a day), and a fast pace costs −5 to passive Perception while a slow pace lets the party use Stealth. Press **Esc** or the close button to leave Measure.
+
+**Add to calendar** opens a new travel event already filled in: it starts on the campaign's current in-world day, runs for as many days as the trip takes, links the destination, and puts the party members standing at the starting place on the road. You can change anything before saving. Routes are not kept; the calendar event is the record of the trip.
+
+Measuring is for places that use pins. A building or dungeon is measured in feet on its own grid instead.
 
 ## Sharing a location with players
 

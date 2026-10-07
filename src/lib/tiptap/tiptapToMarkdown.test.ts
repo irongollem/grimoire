@@ -326,3 +326,19 @@ describe("tiptapToMarkdown — round trip with markdownToTiptap", () => {
     expect(md).not.toContain("para>");
   });
 });
+
+describe("tiptapToMarkdown: secret blocks", () => {
+  const para = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+
+  it("keeps a DM-only passage as a secret callout instead of dropping it", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [para("Public."), { type: "secretBlock", content: [para("The vizier is the lich."), para("Second.")] }],
+    });
+    expect(md).toBe("Public.\n\n> [!secret] DM only\n> The vizier is the lich.\n>\n> Second.");
+  });
+
+  it("skips an empty secret block", () => {
+    expect(tiptapToMarkdown({ type: "doc", content: [{ type: "secretBlock", content: [{ type: "paragraph" }] }] })).toBe("");
+  });
+});

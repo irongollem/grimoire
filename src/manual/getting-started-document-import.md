@@ -3,8 +3,8 @@ title: Importing an Adventure
 section: Getting Started
 section_order: 0
 order: 5
-summary: Turn a PDF, page photos, or pasted text into NPCs, monsters, locations, items, and quests.
-keywords: import, document, pdf, photo, ocr, extraction, adventure, wizard, review
+summary: Turn a PDF, page photos, pasted text, or a LegendKeeper, World Anvil or Obsidian export into NPCs, monsters, locations, items, and quests.
+keywords: import, document, pdf, photo, ocr, extraction, adventure, wizard, review, wiki, legendkeeper, world anvil, obsidian, markdown, zip
 ---
 
 Instead of typing up a chapter of an adventure by hand, hand Grimoire the source material and review what it found. An AI pass reads a PDF, a batch of page photos, or text you paste in, pulls out factions, monsters, NPCs, locations, items, spells, quests, and encounters, and lets you decide, entity by entity, what happens to each one before anything is saved. It's DM-only; there's no player-facing side to this at all. Open it from **Campaign Settings → Import Document**.
@@ -51,6 +51,22 @@ If an extraction fails, the import shows **Import failed** with the error messag
 ## Finishing
 
 Once you confirm the review, **Import complete** shows a count of what was actually created for each kind. Click **Start a new import** to import another document.
+
+## Importing a wiki export
+
+Moving over from LegendKeeper, World Anvil or Obsidian? Choose **Wiki export** at the top of the import tab. This one needs **no AI and no credits**: your browser reads the files, nothing is sent to a model, and everything it creates is for your eyes only until you share it yourself.
+
+1. Pick the export: a **.zip**, the Markdown or HTML files themselves, or an unzipped export **folder**.
+2. **Sort.** You see which app the export looks like, any files that were not read (images and settings, with the reason), and your pages grouped by folder. Each page has a guess at what it is: **NPC**, **Place**, **Faction**, **Quest**, **Item**, **Note**, or **Skip**. Change any of them, or use **Set all to…** on a folder to settle a whole folder at once. Big folders start closed.
+3. Name the import, tick **I have the right to use this material**, and continue.
+4. **Review.** Each page matching something you already have is linked rather than copied; you can change it to **Create** or **Ignore**, and open a page to see how its text will be stored. If the import would go past your plan's limits, it tells you before anything is written.
+5. **Import.** One exported page becomes one record, kept whole as rich text. Pages nested under a place in your wiki put their NPCs and sub-places inside it, and links between pages become @mentions of places, factions and NPCs. A link to a quest, item or note stays as plain text, and the result lists any link that could not be turned into a mention.
+
+A quest page becomes a quest with a one-line summary, and the rest of its text goes on the quest's first beat as DM notes.
+
+Afterwards you can optionally tick imported pages to be **read by AI** for stat blocks and other details. That is a normal AI import of just those pages, with its usual page limit, credit cost and review; it is not offered when AI is turned off for the campaign.
+
+If the page is reloaded halfway through a review, the import tab says it was interrupted: drop the same export again to carry on (your choices of kind are remembered), or abandon it.
 
 ## What your players see
 
