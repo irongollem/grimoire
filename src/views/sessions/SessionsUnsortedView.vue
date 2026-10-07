@@ -25,8 +25,8 @@
             variant="primary"
             size="sm"
             label="Move"
-            :disabled="picked.length === 0 || bulkTarget === undefined"
-            :loading="move.isPending.value"
+            :disabled="busy || picked.length === 0 || bulkTarget === undefined"
+            :loading="busy"
             @click="moveSelected"
           />
           <span class="text-muted-foreground">or</span>
@@ -35,8 +35,8 @@
             variant="outline"
             size="sm"
             label="Follow suggestions"
-            :disabled="followable.length === 0"
-            :loading="move.isPending.value"
+            :disabled="busy || followable.length === 0"
+            :loading="busy"
             @click="moveFollowing"
           />
         </div>
@@ -62,7 +62,7 @@
                 variant="subtle"
                 size="sm"
                 label="Move"
-                :disabled="row.target === undefined"
+                :disabled="busy || row.target === undefined"
                 @click="moveOne(row.entry, row.target)"
               />
             </div>
@@ -140,6 +140,23 @@ watchEffect(() => {
   picked.value = picked.value.filter((k) => keys.has(k));
 });
 
+/**
+ * True for the whole of any move, including every destination of "Follow suggestions": a row
+ * moved by hand meanwhile could otherwise be moved again by a destination still queued.
+ */
+const busy = ref(false);
+
+/** Runs one move operation unless another is in flight. */
+async function exclusive(operation: () => Promise<void>) {
+  if (busy.value) return;
+  busy.value = true;
+  try {
+    await operation();
+  } finally {
+    busy.value = false;
+  }
+}
+
 /** Moves the entries, reporting a failure; true when they moved. */
 async function run(moved: LearnedEntry[], target: string | null): Promise<boolean> {
   try {
@@ -153,7 +170,9 @@ async function run(moved: LearnedEntry[], target: string | null): Promise<boolea
 
 async function moveOne(entry: LearnedEntry, target: string | null | undefined) {
   if (target === undefined) return;
-  await run([entry], target);
+  await exclusive(async () => {
+    await run([entry], target);
+  });
 }
 
 /** The ticked rows whose picker points somewhere: the suggestion, or the DM's own choice. */
@@ -167,6 +186,11 @@ const followable = computed(() => {
  * that fails keeps its rows ticked, so the DM can try those again; the rest untick as they move.
  */
 async function moveFollowing() {
+  await exclusive(followAll);
+}
+
+/** The body of "Follow suggestions", run under `exclusive`. */
+async function followAll() {
   const byTarget = new Map<string | null, LearnedEntry[]>();
   for (const row of followable.value) {
     const target = row.target as string | null;
@@ -180,13 +204,16 @@ async function moveFollowing() {
 }
 
 async function moveSelected() {
-  if (bulkTarget.value === undefined) return;
-  const chosen = new Set(picked.value);
-  const moved = await run(
-    entries.value.filter((e) => chosen.has(e.key)),
-    bulkTarget.value,
-  );
-  // A failed move keeps the ticks, so the DM can try again.
-  if (moved) picked.value = [];
+  const target = bulkTarget.value;
+  if (target === undefined) return;
+  await exclusive(async () => {
+    const chosen = new Set(picked.value);
+    const moved = await run(
+      entries.value.filter((e) => chosen.has(e.key)),
+      target,
+    );
+    // A failed move keeps the ticks, so the DM can try again.
+    if (moved) picked.value = [];
+  });
 }
 </script>

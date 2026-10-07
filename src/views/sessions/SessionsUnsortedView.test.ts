@@ -121,4 +121,25 @@ describe("SessionsUnsortedView, Follow suggestions", () => {
     const ticked = w.findAll("input[type=checkbox]").map((b) => (b.element as HTMLInputElement).checked);
     expect(ticked).toEqual([false, false, true]);
   });
+  it("disables every other move while its destinations are still being written", async () => {
+    let release: () => void = () => {};
+    mutateAsync.mockImplementation(() => new Promise<void>((resolve) => (release = resolve)));
+    const w = mountPage();
+    const boxes = w.findAll("input[type=checkbox]");
+    await boxes[0].setValue(true);
+    await boxes[2].setValue(true);
+    await w.findAll("button").find((b) => b.text() === "Follow suggestions")!.trigger("click");
+    await flushPromises();
+
+    const rowMoves = w.findAll("button").filter((b) => b.text() === "Move").slice(1);
+    expect(rowMoves.every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+    await rowMoves[1].trigger("click");
+    expect(mutateAsync).toHaveBeenCalledTimes(1);
+
+    release();
+    await flushPromises();
+    release();
+    await flushPromises();
+    expect(mutateAsync).toHaveBeenCalledTimes(2);
+  });
 });
