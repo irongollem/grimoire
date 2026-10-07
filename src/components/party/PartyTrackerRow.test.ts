@@ -116,3 +116,16 @@ describe("PartyTrackerRow wild-shaped portrait", () => {
     expect(wrapper.findComponent({ name: "FocalImage" }).attributes("src")).toBe("https://cdn.test/copied.webp");
   });
 });
+
+describe("PartyTrackerRow critical-hit choice", () => {
+  const atZero = (failures: number) =>
+    ({ ...member("2024", "s"), current_hp: 0, death_save_successes: 0, death_save_failures: failures }) as PartyMember;
+
+  it("offers it while the character is dying", () => {
+    expect(mountRow(atZero(1), null).text()).toContain("Critical hit");
+  });
+
+  it("drops it once the character is dead, where damage has nothing left to do", () => {
+    expect(mountRow(atZero(3), null).text()).not.toContain("Critical hit");
+  });
+});

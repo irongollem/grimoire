@@ -25,8 +25,7 @@
         <span class="tolling-dagger">&dagger;</span>{{ current.game_date }}
       </p>
       <span class="tolling-rule" aria-hidden="true" />
-      <!-- eslint-disable-next-line vue/no-v-html -- sanitised by sanitizeHtml -->
-      <div v-if="accountHtml" class="tolling-account" data-testid="tolling-account" v-html="accountHtml" />
+      <RichTextViewer v-if="account" :content="account" class="tolling-account" data-testid="tolling-account" />
       <div class="tolling-actions">
         <AppButton variant="ghost" size="lg" label="Later" data-testid="tolling-later" @click="later" />
         <AppButton
@@ -58,6 +57,7 @@
 import { computed, defineAsyncComponent, reactive, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import MemorialCameo from "@/components/memorials/MemorialCameo.vue";
 import MemorialCandle from "@/components/memorials/MemorialCandle.vue";
 import { useCampaignMemorials, useLightCandle, useMarkTolled, useMyMournerRows } from "@/composables/memorials/useMemorials";
@@ -65,7 +65,7 @@ import { useLazyMount } from "@/composables/useLazyMount";
 import { useToast } from "@/composables/useToast";
 import { IconEdit } from "@/lib/icons";
 import { pendingTolls } from "@/lib/memorials/wall";
-import { sanitizeHtml } from "@/lib/sanitizeHtml";
+import { writtenOrNull } from "@/lib/memorials/writing";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import type { CharacterMemorial } from "@/types/memorial.types";
@@ -113,12 +113,7 @@ const current = computed<CharacterMemorial | null>(() => {
 
 const isOwner = computed(() => current.value !== null && current.value.owner_user_id !== null && current.value.owner_user_id === auth.user?.id);
 
-const accountHtml = computed(() => {
-  const account = current.value ? current.value.account : null;
-  if (account === null) return null;
-  const clean = sanitizeHtml(account);
-  return clean.replace(/<[^>]*>/g, "").trim() === "" ? null : clean;
-});
+const account = computed(() => writtenOrNull(current.value ? current.value.account : null));
 
 function markTolled(m: CharacterMemorial) {
   handled.add(m.id);

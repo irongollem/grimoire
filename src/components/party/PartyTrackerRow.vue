@@ -131,7 +131,7 @@
             />
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <AppInput
               v-model.number="hpInput"
               type="number"
@@ -397,8 +397,8 @@ const hpPools = computed(() => formHpPools(member, member.wildshape_state));
 
 const toast = useToast();
 const criticalHit = ref(false);
-/** The critical-hit choice shows only for a character at 0 HP and not in a beast form. */
-const hitsDyingBody = computed(() => member.current_hp <= 0 && !member.wildshape_state);
+/** The critical-hit choice shows only for a dying character (0 HP, not yet dead) not in a beast form. */
+const hitsDyingBody = computed(() => member.current_hp <= 0 && member.death_save_failures < 3 && !member.wildshape_state);
 const dyingInput = computed(() => ({
   pools: hpPools.value,
   saves: { successes: member.death_save_successes, failures: member.death_save_failures },

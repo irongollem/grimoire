@@ -6,6 +6,10 @@ import { ref } from "vue";
 import MemorialTolling from "./MemorialTolling.vue";
 import type { CharacterMemorial, MemorialMourner } from "@/types/memorial.types";
 
+/** A stored Tiptap document, as RichTextEditor writes it; an empty string is a cleared editor. */
+const DOC = (text: string) =>
+  JSON.stringify({ type: "doc", content: [{ type: "paragraph", ...(text ? { content: [{ type: "text", text }] } : {}) }] });
+
 const lightMutate = vi.fn((_t: unknown, o?: { onSuccess?: () => void }) => o?.onSuccess?.());
 const tolledMutate = vi.fn();
 const memorials = ref<CharacterMemorial[]>([]);
@@ -32,7 +36,7 @@ function fallen(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial {
     kind: "fallen",
     restored_at: null,
     game_date: "29 Kythorn 1492 DR",
-    account: "<p>The song stopped on the last chord.</p>",
+    account: DOC("The song stopped on the last chord."),
     character_name: "Toddy",
     portrait_url: null,
     portrait_focal_point: null,

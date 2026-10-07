@@ -58,7 +58,9 @@
         </div>
         <div class="mcard-masthead-underline" />
         <p class="mcard-lead">
-          <b>{{ memorial.character_name }}</b>{{ lineage ? `, ${lineage}` : "" }}, {{ fallen ? "fell" : "laid down arms" }}{{ gameDate ? ` on ${gameDate}` : "" }}.
+          <!-- The name stands on its own line; the sentence that follows it is the obituary's lead. -->
+          <b>{{ memorial.character_name }}</b>
+          <span class="mcard-lead-line">{{ lineage ? `${lineage}, ` : "" }}{{ fallen ? "fell" : "laid down arms" }}{{ gameDate ? ` on ${gameDate}` : "" }}.</span>
         </p>
 
         <div class="mcard-scroll">
@@ -75,8 +77,7 @@
               @click="emit('edit-account')"
             />
           </div>
-          <!-- eslint-disable-next-line vue/no-v-html -- sanitised by sanitizeHtml -->
-          <div v-if="accountHtml" class="mcard-account" data-testid="account" v-html="accountHtml" />
+          <RichTextViewer v-if="account" :content="account" class="mcard-account" data-testid="account" />
           <p v-else class="mcard-pending">No account has been written.</p>
 
           <p v-if="memorial.last_blow && fallen" class="mcard-aside" data-testid="last-blow">
@@ -93,7 +94,7 @@
             <div class="mcard-section-head">
               <span class="mcard-smallcaps mcard-oxblood">{{ fallen ? "Last words" : "Farewell" }}</span>
               <AppButton
-                v-if="viewer === 'owner' && wordsHtml"
+                v-if="viewer === 'owner' && words"
                 variant="outline"
                 size="icon-xs"
                 :icon="IconEdit"
@@ -103,10 +104,9 @@
                 @click="emit('edit-words')"
               />
             </div>
-            <div v-if="wordsHtml" class="mcard-words">
+            <div v-if="words" class="mcard-words">
               <span class="mcard-quote-mark" aria-hidden="true">&ldquo;</span>
-              <!-- eslint-disable-next-line vue/no-v-html -- sanitised by sanitizeHtml -->
-              <div class="mcard-words-text" data-testid="words" v-html="wordsHtml" />
+              <RichTextViewer :content="words" class="mcard-words-text" data-testid="words" />
               <div class="mcard-smallcaps mcard-signed">{{ memorial.player_name }}</div>
             </div>
             <div v-else class="mcard-invite" data-testid="words-invite">
@@ -166,11 +166,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import MemorialCameo from "@/components/memorials/MemorialCameo.vue";
 import MemorialCandle from "@/components/memorials/MemorialCandle.vue";
 import { IconEdit, IconUndo } from "@/lib/icons";
 import { memorialLineage } from "@/lib/memorials/lineage";
-import { sanitizeHtml } from "@/lib/sanitizeHtml";
+import { writtenOrNull } from "@/lib/memorials/writing";
 import type { CharacterMemorial } from "@/types/memorial.types";
 
 /**
@@ -225,16 +226,10 @@ const realDate = computed(() => formatRealDate(props.memorial.real_date));
 /** The in-world date; the real one stands in when the DM left it blank. */
 const gameDate = computed(() => props.memorial.game_date ?? realDate.value);
 
-function nonEmptyHtml(html: string | null): string | null {
-  if (html === null) return null;
-  const clean = sanitizeHtml(html);
-  // An editor that was cleared leaves "<p></p>": text-less markup is no text.
-  return clean.replace(/<[^>]*>/g, "").trim() === "" ? null : clean;
-}
-
-const accountHtml = computed(() => nonEmptyHtml(props.memorial.account));
-const wordsHtml = computed(() => nonEmptyHtml(props.memorial.last_words));
-const showWordsSection = computed(() => wordsHtml.value !== null || props.viewer === "owner");
+// Both are Tiptap documents from RichTextEditor; an emptied one counts as unwritten.
+const account = computed(() => writtenOrNull(props.memorial.account));
+const words = computed(() => writtenOrNull(props.memorial.last_words));
+const showWordsSection = computed(() => words.value !== null || props.viewer === "owner");
 
 const candleLabel = computed(() => {
   if (props.candleCount === 0) return "Light a candle";
@@ -477,10 +472,18 @@ function joinNames(names: readonly string[]): string {
   text-align: center;
 }
 .mcard-lead b {
+  display: block;
+  margin-bottom: 0.1875rem;
   font-family: var(--font-cinzel);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
+.mcard-lead-line {
+  display: block;
+  font-style: italic;
+  color: var(--mc-ink-soft);
+}
+.mcard-lead-line::first-letter { text-transform: uppercase; }
 .mcard-scroll {
   flex: 1 1 0;
   min-height: 0;
@@ -504,10 +507,10 @@ function joinNames(names: readonly string[]): string {
   text-align: left;
   hyphens: auto;
 }
-.mcard-account :deep(p),
-.mcard-words-text :deep(p) { margin: 0 0 0.25rem; }
+.mcard-account :deep(.ProseMirror p),
+.mcard-words-text :deep(.ProseMirror p) { margin: 0 0 0.25rem; }
 /* The one drop cap on the card, deliberately: the first letter of the DM's account. */
-.mcard-account :deep(:first-child)::first-letter {
+.mcard-account :deep(.ProseMirror > :first-child)::first-letter {
   float: left;
   padding: 0.1875rem 0.25rem 0 0;
   font-family: var(--font-cinzel);

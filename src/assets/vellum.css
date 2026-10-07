@@ -542,6 +542,9 @@
   text-underline-offset: 0.35em;
 }
 :root[data-theme^="vellum"] .torn-wash { --torn-fill: var(--secondary); --torn-edge: transparent; }
+/* A panel that is only a frame for an artefact drawn inside it (the Hall's memorial card on a
+   phone) opts out of the torn paper, which would otherwise show around the artefact. */
+:root[data-theme^="vellum"] .torn-bare::before { content: none; }
 
 /* The 6px colour strip on top of category cards (NoteCard and friends)
    becomes a bookmark ribbon hanging from the top edge. */

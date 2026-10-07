@@ -122,7 +122,7 @@
     <AppModal
       :open="isPhone && openMemorial !== null"
       size="sm"
-      panel-class="border-0 bg-transparent shadow-none"
+      panel-class="torn-bare border-0 bg-transparent shadow-none"
       :label="openMemorial ? `${openMemorial.character_name}'s memorial card` : 'Memorial card'"
       @close="openId = null"
     >

@@ -35,12 +35,13 @@ import ModalHeader from "@/components/common/ModalHeader.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { useWriteLastWords } from "@/composables/memorials/useMemorials";
 import { useToast } from "@/composables/useToast";
+import { writtenOrNull } from "@/lib/memorials/writing";
 import type { CharacterMemorial } from "@/types/memorial.types";
 
 /**
  * The owner's last words for a memorial (#982). Open while `memorial` is set; saving writes
  * through `write_last_words`, which only the owner of the character may call. An editor
- * left empty clears the words rather than saving "<p></p>", so the card's invitation to
+ * left empty clears the words rather than saving an empty document, so the card's invitation to
  * write them comes back.
  */
 const props = defineProps<{ memorial: CharacterMemorial | null }>();
@@ -58,13 +59,9 @@ watch(
   { immediate: true },
 );
 
-function hasText(html: string | null | undefined): boolean {
-  return html !== null && html !== undefined && html.replace(/<[^>]*>/g, "").trim() !== "";
-}
-
 const dirty = computed(() => {
-  const stored = hasText(props.memorial?.last_words) ? props.memorial?.last_words : null;
-  const next = hasText(draft.value) ? draft.value : null;
+  const stored = writtenOrNull(props.memorial?.last_words);
+  const next = writtenOrNull(draft.value);
   return stored !== next;
 });
 
@@ -72,7 +69,7 @@ function save() {
   const memorial = props.memorial;
   if (!memorial) return;
   write.mutate(
-    { partyMemberId: memorial.party_member_id, lastWords: hasText(draft.value) ? draft.value : null },
+    { partyMemberId: memorial.party_member_id, lastWords: writtenOrNull(draft.value) },
     {
       onSuccess: () => emit("close"),
       onError: (e) => toast.error(toast.fromError(e, "Could not save their last words.")),

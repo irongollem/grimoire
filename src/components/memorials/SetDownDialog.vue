@@ -113,6 +113,7 @@ import { useCampaignMemorials, useEditMemorialAccount, useSetCharacterDown } fro
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useToast } from "@/composables/useToast";
 import { formatGameDate } from "@/lib/memorials/gameDate";
+import { writtenOrNull } from "@/lib/memorials/writing";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useCalendarStore } from "@/stores/calendar";
@@ -176,12 +177,6 @@ function todayIso(): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
-function hasText(html: string | null): html is string {
-  return html !== null && html.replace(/<[^>]*>/g, "").trim() !== "";
-}
-function htmlOrNull(html: string | null): string | null {
-  return hasText(html) ? html : null;
-}
 function textOrNull(text: string): string | null {
   return text.trim() === "" ? null : text.trim();
 }
@@ -225,7 +220,7 @@ watch(
 // A restored memorial can arrive after the dialog opened; take its words in, but never over an edit.
 watch(earlier, (prior, was) => {
   if (!props.open || edit.value || was || !prior) return;
-  if (!hasText(account.value)) account.value = prior.account;
+  if (writtenOrNull(account.value) === null) account.value = prior.account;
   if (lastBlow.value === "" && prior.last_blow !== null) lastBlow.value = prior.last_blow;
 });
 
@@ -277,7 +272,7 @@ const draft = computed<CharacterMemorial>(() => {
       ...props.memorial,
       game_date: textOrNull(gameDate.value),
       real_date: realDate.value,
-      account: htmlOrNull(account.value),
+      account: writtenOrNull(account.value),
       last_blow: typedBlow,
     };
   }
@@ -292,8 +287,8 @@ const draft = computed<CharacterMemorial>(() => {
     restored_at: null,
     game_date: textOrNull(gameDate.value),
     real_date: realDate.value,
-    account: writesAccount.value ? htmlOrNull(account.value) : null,
-    last_words: writesFarewell.value ? htmlOrNull(farewell.value) : null,
+    account: writesAccount.value ? writtenOrNull(account.value) : null,
+    last_words: writesFarewell.value ? writtenOrNull(farewell.value) : null,
     last_blow: kind.value === "fallen" && writesAccount.value ? typedBlow : null,
     survived_by: kind.value === "fallen" ? survivedBy.value : [],
     player_name: member ? member.player_name : null,
@@ -321,7 +316,7 @@ function submit() {
         partyMemberId: props.memorial.party_member_id,
         gameDate: textOrNull(gameDate.value),
         realDate: realDate.value,
-        account: htmlOrNull(account.value),
+        account: writtenOrNull(account.value),
         lastBlow: props.memorial.kind === "fallen" ? textOrNull(lastBlow.value) : null,
       },
       { onSuccess, onError: (e) => toast.error(toast.fromError(e, "Could not save the account.")) },
@@ -336,9 +331,9 @@ function submit() {
       kind: kind.value,
       gameDate: textOrNull(gameDate.value),
       realDate: realDate.value,
-      account: writesAccount.value ? htmlOrNull(account.value) : null,
+      account: writesAccount.value ? writtenOrNull(account.value) : null,
       lastBlow: writesAccount.value && kind.value === "fallen" ? textOrNull(lastBlow.value) : null,
-      lastWords: writesFarewell.value ? htmlOrNull(farewell.value) : null,
+      lastWords: writesFarewell.value ? writtenOrNull(farewell.value) : null,
     },
     {
       onSuccess,
