@@ -10,23 +10,9 @@
 
     <!-- Lore tab -->
     <div v-if="activeTab === 'lore'" class="space-y-4">
-      <div v-if="npc.appearance" class="flex flex-col gap-1">
-        <h3 class="text-label-lg font-bold text-primary uppercase">Appearance</h3>
-        <RichTextViewer :content="npc.appearance" />
-      </div>
-      <div v-if="npc.personality" class="flex flex-col gap-1">
-        <h3 class="text-label-lg font-bold text-primary uppercase">Personality</h3>
-        <RichTextViewer :content="npc.personality" />
-      </div>
-      <div v-if="npc.backstory" class="flex flex-col gap-1">
-        <h3 class="text-label-lg font-bold text-primary uppercase">Backstory</h3>
-        <RichTextViewer :content="npc.backstory" />
-      </div>
-      <p v-if="!npc.appearance && !npc.personality && !npc.backstory"
-        class="text-body text-muted-foreground italic">
-        No lore recorded for this NPC.
-      </p>
+      <NpcLoreSections :full="full" />
 
+      <!-- Needs only the id, so it reads alongside the record rather than after it (#999). -->
       <EntityBacklinks :entity-id="npc.id" heading-class="text-label-lg font-bold text-muted-foreground uppercase" />
     </div>
 
@@ -58,15 +44,18 @@
 
     <!-- Voice tab -->
     <div v-else-if="activeTab === 'voice'">
-      <NpcVoiceCoach :npc="npc" />
+      <!-- The coach reads the prose to write in the NPC's voice, so it waits for the record. -->
+      <NpcVoiceCoach v-if="full" :npc="full" />
+      <div v-else class="flex min-h-40 items-center justify-center"><BannerLoader class="h-8" /></div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
+import BannerLoader from "@/components/brand/BannerLoader.vue";
+import NpcLoreSections from "@/components/npcs/NpcLoreSections.vue";
 import TabBar from "@/components/common/TabBar.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
@@ -76,9 +65,14 @@ import NpcRelationsTab from "@/components/npcs/NpcRelationsTab.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
-import type { Npc } from "@/types/npc.types";
+import type { Npc, NpcListRow } from "@/types/npc.types";
 
-defineProps<{ npc: Npc }>();
+defineProps<{
+  /** What the list already knew: everything but the prose. */
+  npc: NpcListRow;
+  /** The record read by id; absent until it arrives (#999). */
+  full?: Npc;
+}>();
 
 const TABS = [
   { key: 'lore',      label: 'Lore' },

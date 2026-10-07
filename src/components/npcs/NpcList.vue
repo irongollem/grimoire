@@ -82,6 +82,7 @@
               npc.location_id ? locationName(npc.location_id) : undefined
             "
             :shared="isShared(npc)"
+            v-prefetch="`/npcs/${npc.id}`"
           />
         </BulkSelectableCard>
       </div>
@@ -106,6 +107,7 @@
             npc.location_id ? locationName(npc.location_id) : undefined
           "
           :locked="lockedNpcIds.has(npc.id)"
+          v-prefetch="`/npcs/${npc.id}`"
         />
       </BulkSelectableCard>
     </div>
@@ -142,6 +144,7 @@ import { useScrollRestore } from "@/composables/useScrollRestore";
 import { IconNavNpcs } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
+import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 import { useNpcPcNotesByPartyMember } from "@/composables/npcs/useNpcPcNotes";
 import { useAllLocations, useLocationTree } from "@/composables/locations/useLocations";
 import { useUiStore } from "@/stores/ui";
@@ -193,6 +196,9 @@ const props = defineProps<{
 }>();
 
 const { data: npcs, isLoading } = useNpcs();
+// Resting on a card warms the detail route and its reads (id record, DM note,
+// backlinks), so the open finds them in flight or done (#999).
+const vPrefetch = usePrefetchOnIntent();
 const ui = useUiStore();
 const isMobile = useIsMobile();
 const layout = computed({

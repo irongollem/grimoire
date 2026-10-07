@@ -1,5 +1,5 @@
 import { reportHandledError } from "@/lib/observability/sentry";
-import { computed, isRef, ref } from "vue";
+import { computed, isRef, ref, watch } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
@@ -62,7 +62,7 @@ async function updateNpc(id: string, update: NpcUpdate): Promise<Npc> {
   return data as Npc;
 }
 
-async function deleteNpc(npc: Npc): Promise<void> {
+async function deleteNpc(npc: Pick<NpcListRow, "id" | "portrait_url" | "cutout_url" | "disguise_portrait_url">): Promise<void> {
   const { error } = await supabase.from("npcs").delete().eq("id", npc.id);
   if (error) throw error;
   // NPC portraits live in the `npc-portraits` bucket, not `asset-images` —
@@ -171,17 +171,60 @@ export function useNpc(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
 
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
+    queryKey: computed(() => npcQuery(idRef.value).queryKey),
     queryFn: ({ queryKey: [, npcId] }) => fetchNpc(npcId),
     enabled: () => !!idRef.value,
     // Deliberately not seeded from the campaign list any more (#999). The list
     // leaves the prose columns out, so a seed would hand the sheet and the editor
     // a record with no appearance, personality, backstory or notes, which reads
     // as an NPC with nothing written and, in an editor, could be saved back that
-    // way. The detail views already show their loading state while this reads
-    // the one row (a single-row read by id), and a row an earlier visit or a
-    // save already put under this key is used as is.
+    // way. Surfaces that only READ use `useNpcOpening` below, which paints from
+    // the list row without ever calling it a full record; everything that edits
+    // uses this and waits for the row.
   });
+}
+
+/** The by-id read, as one value shared by `useNpc` and the open-on-intent prefetch. */
+export function npcQuery(id: string) {
+  return {
+    queryKey: [QUERY_KEY, id] as const,
+    queryFn: () => fetchNpc(id),
+  };
+}
+
+/**
+ * Opening an NPC to read it (#999): the card paints at once from the slim list
+ * row while the full record is read by id.
+ *
+ * Two values, never one merged record, so the type says which one a surface has:
+ * `npc` is the full row and is `undefined` until it arrives; `preview` is the
+ * list row (or the full row, once there) and is what the header, portrait,
+ * badges and stat block draw from. A reader of `preview` cannot reach
+ * `appearance`, `personality`, `backstory` or `notes`, and an editor must take
+ * `npc`, so nothing can initialise from, or save back, a record without prose.
+ */
+export function useNpcOpening(id: Ref<string>) {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+  const full = useNpc(id);
+  const fromList = computed(() => {
+    if (!campaign.activeCampaignId) return undefined;
+    const rows = queryClient.getQueryData<NpcListRow[]>(npcListQuery(campaign.activeCampaignId).queryKey);
+    return rows?.find((row) => row.id === id.value);
+  });
+  // Evaluated once per id: the list cache is not reactive, and a row that moved
+  // on the grid between hover and click is still the right thing to paint.
+  const listRow = ref<NpcListRow | undefined>(fromList.value);
+  watch(id, () => { listRow.value = fromList.value; });
+  const preview = computed<NpcListRow | undefined>(() => full.data.value ?? listRow.value);
+  return {
+    npc: full.data,
+    preview,
+    /** Nothing to draw yet: neither a list row nor the record. */
+    isLoading: computed(() => preview.value === undefined && full.isLoading.value),
+    /** The by-id read failed and there is no record: the prose will never arrive. */
+    failed: computed(() => full.isError.value && full.data.value === undefined),
+  };
 }
 
 /**

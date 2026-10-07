@@ -8,6 +8,9 @@ import { allLocationsQuery } from "@/composables/locations/useLocations";
 import { noteListQuery } from "@/composables/notes/useNotes";
 import { partyListQuery } from "@/composables/party/useParty";
 import { factionListQuery } from "@/composables/factions/useFactions";
+import { npcQuery } from "@/composables/npcs/useNpcs";
+import { entityBacklinksQuery } from "@/composables/notes/useEntityBacklinks";
+import { dmNoteColumnQuery } from "@/composables/notes/useDmNote";
 
 /**
  * The first reads a DM destination performs, started before the click so the
@@ -57,6 +60,38 @@ const DM_DATA: Readonly<Record<string, readonly Prefetch[]>> = {
   "/factions": [(qc, id) => qc.prefetchQuery(factionListQuery(id))],
 };
 
+type PrefetchOne = (queryClient: QueryClient, campaignId: string, id: string) => Promise<unknown>;
+
+interface DetailData {
+  /** The path's single segment after the prefix. */
+  prefix: string;
+  /** Segments that share the prefix but are not records (`/npcs/web`). */
+  reserved: readonly string[];
+  reads: readonly PrefetchOne[];
+}
+
+/**
+ * Detail destinations. Every read here is keyed by the id in the path (and the
+ * campaign), so all of them start together at intent time instead of the
+ * record's dependants waiting on its answer: the record, the DM's note on it
+ * and its "Mentioned in" list (#999). The sheet paints from the list row in the
+ * meantime, so only the prose waits on the record.
+ */
+const DM_DETAIL_DATA: readonly DetailData[] = [
+  {
+    prefix: "/npcs/",
+    reserved: ["new", "web", "sets"],
+    reads: [
+      (qc, _campaignId, id) => qc.prefetchQuery(npcQuery(id)),
+      (qc, _campaignId, id) => {
+        const note = dmNoteColumnQuery("npc", id);
+        return note === null ? Promise.resolve() : qc.prefetchQuery(note);
+      },
+      (qc, campaignId, id) => qc.prefetchQuery(entityBacklinksQuery(campaignId, id)),
+    ],
+  },
+];
+
 /** The destinations that prefetch data, for the tests and for anyone adding one. */
 export const DATA_PREFETCH_PATHS: readonly string[] = Object.keys(DM_DATA);
 
@@ -72,4 +107,10 @@ export function prefetchRouteData(queryClient: QueryClient, location: string): v
   if (!auth.isAuthenticated || !campaignId || auth.currentRole !== "dm") return;
   const path = location.split(/[?#]/)[0] ?? "";
   for (const prefetch of DM_DATA[path] ?? []) void prefetch(queryClient, campaignId);
+  for (const detail of DM_DETAIL_DATA) {
+    if (!path.startsWith(detail.prefix)) continue;
+    const id = path.slice(detail.prefix.length);
+    if (id === "" || id.includes("/") || detail.reserved.includes(id)) continue;
+    for (const prefetch of detail.reads) void prefetch(queryClient, campaignId, id);
+  }
 }

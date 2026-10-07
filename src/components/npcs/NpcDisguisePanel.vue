@@ -29,8 +29,8 @@
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 
-defineProps<{ npc: Npc; revealed: boolean }>();
+defineProps<{ npc: NpcListRow; revealed: boolean }>();
 const emit = defineEmits<{ (e: "change", revealed: boolean): void }>();
 </script>

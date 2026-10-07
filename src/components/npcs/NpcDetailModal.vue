@@ -8,7 +8,7 @@
     @close="emit('close')"
   >
     <template #actions>
-      <NpcRevealControl v-if="npc" :npc="npc" />
+      <NpcRevealControl v-if="preview" :npc="preview" />
       <AppButton
         variant="subtle"
         size="sm"
@@ -18,9 +18,9 @@
       />
     </template>
 
-    <NpcSheet v-if="npc" :npc="npc" />
+    <NpcSheet v-if="preview && !failed" :npc="preview" :full="npc" />
     <p v-else class="py-16 text-center text-body text-muted-foreground italic">
-      This NPC could not be found.
+      {{ failed ? "This NPC could not be loaded." : "This NPC could not be found." }}
     </p>
   </EntityDetailModal>
 </template>
@@ -39,7 +39,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import EntityDetailModal from "@/components/common/EntityDetailModal.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import NpcSheet from "@/components/npcs/NpcSheet.vue";
-import { useNpc } from "@/composables/npcs/useNpcs";
+import { useNpcOpening } from "@/composables/npcs/useNpcs";
 import { IconEdit } from "@/lib/icons";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 
@@ -47,17 +47,19 @@ const { id } = defineProps<{ id: string }>();
 
 const emit = defineEmits<{ close: [] }>();
 
-const { data: npc, isLoading } = useNpc(computed(() => id));
+// Paints from the list row at once; the sheet takes the prose from `npc` once
+// the record read by id lands (#999).
+const { npc, preview, isLoading, failed } = useNpcOpening(computed(() => id));
 
 // `getNpcDisplayName` is honestly nullable — the player projection returns null
 // for a name that is not revealed — so the "no name" case is marked rather than
 // coerced. A DM looking at their own NPC always has one.
-const displayName = computed(() => (npc.value ? getNpcDisplayName(npc.value) ?? "???" : "NPC"));
+const displayName = computed(() => (preview.value ? getNpcDisplayName(preview.value) ?? "???" : "NPC"));
 
 /** What this NPC is, in one line — the header's job now the sheet has dropped it. */
 const subtitle = computed(() => {
-  if (!npc.value) return undefined;
-  const { race, occupation, alignment, age } = npc.value;
+  if (!preview.value) return undefined;
+  const { race, occupation, alignment, age } = preview.value;
   return [race, occupation, alignment, age ? `Age ${age}` : null].filter(Boolean).join(" · ");
 });
 </script>

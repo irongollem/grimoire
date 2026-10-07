@@ -38,6 +38,23 @@ export async function fetchDmNoteColumn(type: DmNoteEntityType, id: string): Pro
   return typeof value === "string" ? value : null;
 }
 
+/** The key of a column read with no subject; it is disabled and never fetches. */
+const INERT_NOTE_KEY = ["dm-note", null, null] as const;
+
+/**
+ * The column-kind note's read as one value, so the open-on-intent prefetch and
+ * `useDmNote` share a key and a fetcher by construction (#999). Null for a type
+ * whose note is not a column on the entity's table.
+ */
+export function dmNoteColumnQuery(type: DmNoteEntityType, id: string) {
+  const store = dmNoteEntry(type).store;
+  if (store.kind !== "column") return null;
+  return {
+    queryKey: ["dm-note", store.table, id] as const,
+    queryFn: () => fetchDmNoteColumn(type, id),
+  };
+}
+
 /**
  * The DM's one note on an entity, saving itself as they type (#983). Which
  * store holds it (a column on the entity's table, or the DM's private
@@ -97,8 +114,7 @@ export function useDmNote(subject: MaybeRefOrGetter<DmNoteSubject | null>) {
   const columnQuery = useQuery({
     queryKey: computed(() => {
       const s = columnSubject.value;
-      const store = s ? dmNoteEntry(s.type).store : null;
-      return ["dm-note", store?.kind === "column" ? store.table : null, s?.id ?? null] as const;
+      return s ? dmNoteColumnQuery(s.type, s.id)?.queryKey ?? INERT_NOTE_KEY : INERT_NOTE_KEY;
     }),
     queryFn: async (): Promise<string | null> => {
       const s = columnSubject.value;

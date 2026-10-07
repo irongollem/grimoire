@@ -10,7 +10,8 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaign }));
 vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => null }));
 
 import { DATA_PREFETCH_PATHS, prefetchRouteData } from "./routeDataPrefetch";
-import { npcListQuery } from "@/composables/npcs/useNpcs";
+import { npcListQuery, npcQuery } from "@/composables/npcs/useNpcs";
+import { entityBacklinksQuery } from "@/composables/notes/useEntityBacklinks";
 import { partyListQuery } from "@/composables/party/useParty";
 
 function fakeClient() {
@@ -32,6 +33,31 @@ describe("prefetchRouteData", () => {
     const keys = prefetchQuery.mock.calls.map(([options]) => (options as { queryKey: unknown }).queryKey);
     expect(keys).toContainEqual(npcListQuery("c1").queryKey);
     expect(keys).toContainEqual(partyListQuery("c1").queryKey);
+  });
+
+  it("starts an NPC's record, note and backlinks together from its id", () => {
+    signIn("dm", "c1");
+    const { client, prefetchQuery } = fakeClient();
+    prefetchRouteData(client, "/npcs/n1?tab=lore");
+    const keys = prefetchQuery.mock.calls.map(([options]) => (options as { queryKey: unknown }).queryKey);
+    expect(keys).toContainEqual(npcQuery("n1").queryKey);
+    expect(keys).toContainEqual(["dm-note", "npcs", "n1"]);
+    expect(keys).toContainEqual(entityBacklinksQuery("c1", "n1").queryKey);
+    expect(keys).toHaveLength(3);
+  });
+
+  it("does not treat the NPC sub-pages as records", () => {
+    signIn("dm", "c1");
+    const { client, prefetchQuery } = fakeClient();
+    for (const path of ["/npcs/new", "/npcs/web", "/npcs/sets", "/npcs/n1/edit"]) prefetchRouteData(client, path);
+    expect(prefetchQuery).not.toHaveBeenCalled();
+  });
+
+  it("sends no detail read for a player", () => {
+    signIn("player", "c1");
+    const { client, prefetchQuery } = fakeClient();
+    prefetchRouteData(client, "/npcs/n1");
+    expect(prefetchQuery).not.toHaveBeenCalled();
   });
 
   it("ignores a query string and a destination with no data read", () => {

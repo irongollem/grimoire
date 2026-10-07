@@ -27,6 +27,12 @@
         "serialDepth": 1
       }
     },
+    "dm-npc-detail": {
+      "dm-npc-detail": {
+        "apiRequests": 3,
+        "serialDepth": 1
+      }
+    },
     "player-cold": {
       "player-cold": {
         "apiRequests": 29,
