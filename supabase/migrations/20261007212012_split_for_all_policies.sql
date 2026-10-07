@@ -29,6 +29,9 @@
 -- transaction and compares what every account can see and the effective check of every
 -- policy; supabase/tests/permissive_policy_merge.test.sql pins the end state, now counting
 -- FOR ALL policies too.
+-- The local stack holds no rows in party_milestones, pinned_forms or soundboard_broadcast, so
+-- the differential cannot see them; their three sections below were checked against
+-- pg_policies by reading, and each is the originals' expressions unchanged.
 
 -- app_invites
 --   all: app_invites_admin_write (using and with check)

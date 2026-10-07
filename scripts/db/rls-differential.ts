@@ -17,6 +17,9 @@
  * as Postgres's policy-recursion error) is recorded as a value and so shows up as a difference.
  * Every check that errored is listed at the end. Today that is anon on two tables whose policies
  * call a login-only helper (`permission denied for function`): a denial, the same before and after.
+ * Tables that no check reached a single row of are listed too: the comparison proves nothing for
+ * them, so their policies have to be read. Locally that is party_milestones, pinned_forms and
+ * soundboard_broadcast, which hold no rows.
  *
  * Local stack only: `readLocalStack` refuses anything that is not loopback.
  *
@@ -58,7 +61,8 @@ begin
                  when 'update_using' then coalesce(p.qual, 'false')
                  when 'delete_using' then coalesce(p.qual, 'false')
                  when 'update_check' then coalesce(p.with_check, p.qual, 'false')
-                 when 'insert_check' then coalesce(p.with_check, 'false') end || ')', ' or ')
+                 -- a FOR ALL policy with no with check uses its using for INSERT too
+                 when 'insert_check' then coalesce(p.with_check, case when p.cmd = 'ALL' then p.qual end, 'false') end || ')', ' or ')
           into expr
           from pg_policies p
          where p.schemaname = 'public' and p.tablename = t and p.permissive = 'PERMISSIVE'
@@ -119,6 +123,8 @@ select kind, count(*) filter (where val !~ '^0:' and val !~ '^ERR') as nonempty,
   from snaps where phase = 'before' group by kind order by kind;
 \echo === checks that errored (a check that cannot run proves nothing, even when unchanged) ===
 select coalesce(uid::text, 'anon') as account, tbl, kind, val from snaps where phase = 'before' and val ~ '^ERR';
+\echo === tables no check reached a row of (the comparison proves nothing for these: read their policies) ===
+select tbl from snaps where phase = 'before' group by tbl having bool_and(val ~ '^(0:|ERR)') order by tbl;
 rollback;
 `;
 }
