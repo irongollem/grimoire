@@ -307,6 +307,70 @@ describe("service-worker runtime cache", () => {
     expect(stores.get("grimoire-runtime")?.has("/assets/useArmorClass-CNBo7hfw.js") ?? false).toBe(false);
   });
 
+  it.each(["/assets/old-chunk.js", "/assets/placeholders/npc.webp"])(
+    "evicts cached HTML at %s before fetching a replacement",
+    async (path) => {
+      const fetchMock = vi.fn(async () => response("replacement", contentTypeFor(path)));
+      const { runFetch, stores } = loadWorker({
+        mutable: ["/assets/placeholders/npc.webp"],
+        seed: { "grimoire-runtime": {} },
+        fetchMock,
+      });
+      const runtime = stores.get("grimoire-runtime")!;
+      runtime.set(path, response("<!doctype html>", "text/html"));
+      fetchMock.mockImplementationOnce(async () => {
+        expect(runtime.has(path)).toBe(false);
+        return response("replacement", contentTypeFor(path));
+      });
+
+      const { result, revalidated } = await runFetch(path);
+
+      expect(await result!.text()).toBe("replacement");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(revalidated).toBe(false);
+      expect(await runtime.get(path)!.text()).toBe("replacement");
+    },
+  );
+
+  it("evicts unusable cached responses even when the network is offline", async () => {
+    const path = "/assets/old-chunk.js";
+    const { runFetch, stores, fetchMock } = loadWorker({
+      seed: { "grimoire-runtime": {} },
+      fetchMock: vi.fn(async () => { throw new Error("offline"); }),
+    });
+    stores.get("grimoire-runtime")!.set(path, response("<!doctype html>", "text/html"));
+
+    const { result } = await runFetch(path);
+
+    expect(result!.type).toBe("error");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(stores.get("grimoire-runtime")!.has(path)).toBe(false);
+  });
+
+  it.each([
+    ["js", "application/javascript"], ["css", "text/css"],
+    ["woff", "font/woff"], ["woff2", "font/woff2"],
+    ["ttf", "font/ttf"], ["otf", "font/otf"],
+    ["ico", "image/x-icon"], ["png", "image/png"],
+    ["svg", "image/svg+xml"], ["webp", "image/webp"],
+    ["jpg", "image/jpeg"], ["jpeg", "image/jpeg"],
+    ["avif", "image/avif"], ["webmanifest", "application/manifest+json"],
+  ])("only caches the expected MIME type for .%s assets", async (extension, contentType) => {
+    const path = `/assets/asset-123.${extension.toUpperCase()}`;
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response("<!doctype html>", "text/html; charset=utf-8"))
+      .mockResolvedValueOnce(response("wrong asset", "application/octet-stream"))
+      .mockResolvedValueOnce(response("valid asset", `${contentType.toUpperCase()}; charset=utf-8`));
+    const { runFetch, stores } = loadWorker({ fetchMock });
+
+    await runFetch(path);
+    expect(stores.get("grimoire-runtime")!.has(path)).toBe(false);
+    await runFetch(path);
+    expect(stores.get("grimoire-runtime")!.has(path)).toBe(false);
+    await runFetch(path);
+    expect(await stores.get("grimoire-runtime")!.get(path)!.text()).toBe("valid asset");
+  });
+
   it("passes through a non-asset request without caching it", async () => {
     const { runFetch, stores, fetchMock } = loadWorker({});
 

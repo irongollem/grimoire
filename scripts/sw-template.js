@@ -168,19 +168,30 @@ function isCriticalAsset(path) {
   return path === "/index.html" || /\.(js|css)$/i.test(path);
 }
 
-// The SPA rewrite can answer a not-yet-provisioned asset URL with the app's
-// index.html and status 200. Caching that response under a .js/.css key makes
-// the install look complete, then the browser rejects it under `nosniff` and
-// the freshly claimed page white-screens. Validate the MIME type as well as
-// the status for every file the browser must execute or parse.
+// The SPA rewrite can answer an asset URL with index.html and status 200.
+// Validate every cacheable format so that fallback cannot persist as an asset.
+const ASSET_CONTENT_TYPES = {
+  js: ["text/javascript", "application/javascript", "text/ecmascript", "application/ecmascript"],
+  css: ["text/css"],
+  woff: ["font/woff", "application/font-woff", "application/x-font-woff"],
+  woff2: ["font/woff2"],
+  ttf: ["font/ttf", "application/x-font-ttf"],
+  otf: ["font/otf", "application/x-font-opentype"],
+  ico: ["image/vnd.microsoft.icon", "image/x-icon"],
+  png: ["image/png"],
+  svg: ["image/svg+xml"],
+  webp: ["image/webp"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  avif: ["image/avif"],
+  webmanifest: ["application/manifest+json", "application/json"],
+};
+
 function hasExpectedContentType(path, response) {
-  const type = (response.headers.get("content-type") || "").toLowerCase();
-  if (path === "/index.html") return type.includes("text/html");
-  if (/\.js$/i.test(path)) {
-    return type.includes("javascript") || type.includes("ecmascript");
-  }
-  if (/\.css$/i.test(path)) return type.includes("text/css");
-  return true;
+  const type = (response.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase();
+  if (path === "/index.html") return type === "text/html";
+  const extension = RUNTIME_CACHEABLE.exec(path)?.[1].toLowerCase();
+  return !extension || ASSET_CONTENT_TYPES[extension].includes(type);
 }
 
 function isUsableResponse(path, response) {
@@ -419,7 +430,12 @@ async function serveFromRuntime(event, req, path) {
   }
 
   const runtime = await caches.open(RUNTIME_CACHE);
-  const cached = await runtime.match(req);
+  let cached = await runtime.match(req);
+  if (cached && !isUsableResponse(path, cached)) {
+    // This unversioned cache may still contain bad entries from older workers.
+    await runtime.delete(req);
+    cached = undefined;
+  }
   if (cached && isImmutableAsset(path)) return cached;
 
   const update = fetch(req)
