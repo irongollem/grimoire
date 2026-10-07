@@ -518,8 +518,12 @@ function joinNames(names: readonly string[]): string {
   text-align: left;
   hyphens: auto;
 }
-.mcard-account :deep(.ProseMirror p),
-.mcard-words-text :deep(.ProseMirror p) { margin: 0 0 0.25rem; }
+/* RichTextViewer gives each paragraph its own margin and line height; the card's win here. */
+.mcard .mcard-account :deep(.ProseMirror p),
+.mcard .mcard-words-text :deep(.ProseMirror p) {
+  margin: 0 0 0.25rem;
+  line-height: inherit;
+}
 /* The one drop cap on the card, deliberately: the first letter of the DM's account. */
 .mcard-account :deep(.ProseMirror > :first-child)::first-letter {
   float: left;
