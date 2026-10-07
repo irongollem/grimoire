@@ -3,17 +3,6 @@ import { preloadLayout } from "@/layouts/layoutLoader";
 import { prefetchRouteComponents, startChunk } from "./routeChunks";
 
 /**
- * Starts downloading the chunks a navigation to `location` will need, layout
- * included, without navigating. Used by the first-navigation prefetch below and
- * the idle prefetch of the main destinations (`idlePrefetch.ts`); prefetch on
- * intent uses `prefetchRouteComponents` alone (see `routeChunks.ts` for why).
- */
-export function prefetchRouteChunks(router: Router, location: string): void {
-  const resolved = prefetchRouteComponents(router, location);
-  if (resolved !== null) startChunk(() => preloadLayout(resolved));
-}
-
-/**
  * Starts downloading the chunks the first navigation will need, right now,
  * without waiting for the router's guards (#999).
  *
@@ -33,5 +22,6 @@ export function prefetchRouteChunks(router: Router, location: string): void {
  * real navigation, which is where it is reported.
  */
 export function prefetchInitialChunks(router: Router, location: string): void {
-  prefetchRouteChunks(router, location);
+  const resolved = prefetchRouteComponents(router, location);
+  if (resolved !== null) startChunk(() => preloadLayout(resolved));
 }
