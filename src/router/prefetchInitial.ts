@@ -1,17 +1,16 @@
-import type { RouteLocationResolved, RouteRecordNormalized, Router } from "vue-router";
+import type { Router } from "vue-router";
 import { preloadLayout } from "@/layouts/layoutLoader";
+import { prefetchRouteComponents, startChunk } from "./routeChunks";
 
 /**
- * A lazy route component is a plain arrow around `import()`. A real function
- * component has a prototype (or is a compiled SFC object), and calling one of
- * those as a loader would be wrong, so only prototype-less functions qualify.
+ * Starts downloading the chunks a navigation to `location` will need, layout
+ * included, without navigating. Used by the first-navigation prefetch below and
+ * the idle prefetch of the main destinations (`idlePrefetch.ts`); prefetch on
+ * intent uses `prefetchRouteComponents` alone (see `routeChunks.ts` for why).
  */
-function isLazyLoader(component: unknown): component is () => Promise<unknown> {
-  return typeof component === "function" && !("prototype" in component);
-}
-
-function lazyLoaders(matched: readonly RouteRecordNormalized[]): Array<() => Promise<unknown>> {
-  return matched.flatMap((record) => Object.values(record.components ?? {}).filter(isLazyLoader));
+export function prefetchRouteChunks(router: Router, location: string): void {
+  const resolved = prefetchRouteComponents(router, location);
+  if (resolved !== null) startChunk(() => preloadLayout(resolved));
 }
 
 /**
@@ -34,19 +33,5 @@ function lazyLoaders(matched: readonly RouteRecordNormalized[]): Array<() => Pro
  * real navigation, which is where it is reported.
  */
 export function prefetchInitialChunks(router: Router, location: string): void {
-  let resolved: RouteLocationResolved;
-  try {
-    resolved = router.resolve(location);
-  } catch {
-    return;
-  }
-  const start = (load: () => Promise<unknown>) => {
-    try {
-      void load().catch(() => undefined);
-    } catch {
-      /* a loader that throws synchronously is the real navigation's to report */
-    }
-  };
-  start(() => preloadLayout(resolved));
-  for (const load of lazyLoaders(resolved.matched)) start(load);
+  prefetchRouteChunks(router, location);
 }

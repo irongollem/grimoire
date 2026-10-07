@@ -9,6 +9,7 @@
       <RouterLink
         v-for="item in mobileNav"
         :key="'mob-' + item.id"
+        v-prefetch="item.to"
         :to="item.to"
         class="sm:hidden relative flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 transition-colors"
         :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
@@ -22,6 +23,7 @@
       <RouterLink
         v-for="item in tabletNav"
         :key="'tab-' + item.id"
+        v-prefetch="item.to"
         :to="item.to"
         class="hidden sm:flex relative flex-col items-center justify-center gap-0.5 flex-1 py-3 transition-colors"
         :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
@@ -54,6 +56,7 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { IconGridView } from '@/lib/icons';
 import { usePlayerNavPrefs } from "@/composables/play/usePlayerNavPrefs";
+import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS, isNavItemActive } from "@/lib/playerNav";
 
 const { showMore, unreadPaths } = defineProps<{
@@ -66,6 +69,7 @@ const emit = defineEmits<{
   'open-more': [];
 }>();
 
+const vPrefetch = usePrefetchOnIntent();
 const route = useRoute();
 const { sortedNav } = usePlayerNavPrefs();
 

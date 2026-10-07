@@ -57,6 +57,7 @@
           :class="
             isActive(slot.tab.to) ? 'text-primary' : 'text-muted-foreground'
           "
+          v-prefetch="slot.tab.to"
           @click="go(slot.tab.to)"
         >
           <span class="relative flex h-6 w-6 items-center justify-center">
@@ -98,9 +99,11 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { sessionTabs, type NavItem } from "@/lib/nav";
 import { useAbove } from "@/composables/useBreakpoint";
+import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import DmNavMoreSheet from "./DmNavMoreSheet.vue";
 
+const vPrefetch = usePrefetchOnIntent();
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();

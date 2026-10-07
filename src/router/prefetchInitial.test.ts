@@ -4,7 +4,7 @@ import type { RouteLocationResolved, Router } from "vue-router";
 const preloadLayout = vi.fn((_to: unknown) => Promise.resolve());
 vi.mock("@/layouts/layoutLoader", () => ({ preloadLayout: (to: unknown) => preloadLayout(to) }));
 
-import { prefetchInitialChunks } from "./prefetchInitial";
+import { prefetchInitialChunks, prefetchRouteChunks } from "./prefetchInitial";
 
 function routerResolving(resolved: unknown): Router {
   return { resolve: () => resolved } as unknown as Router;
@@ -40,5 +40,18 @@ describe("prefetchInitialChunks", () => {
     await Promise.resolve();
     const throwing = { resolve: () => { throw new Error("bad url"); } } as unknown as Router;
     expect(() => prefetchInitialChunks(throwing, "/%")).not.toThrow();
+  });
+});
+
+describe("prefetchRouteChunks", () => {
+  it("starts the same chunks for any location", () => {
+    let lazyCalls = 0;
+    const lazy = () => {
+      lazyCalls += 1;
+      return Promise.resolve({});
+    };
+    const resolved = { meta: {}, matched: [{ components: { default: lazy } }] };
+    prefetchRouteChunks(routerResolving(resolved), "/npcs");
+    expect(lazyCalls).toBe(1);
   });
 });

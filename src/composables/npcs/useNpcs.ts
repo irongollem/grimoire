@@ -75,6 +75,21 @@ async function deleteNpc(npc: Npc): Promise<void> {
   });
 }
 
+/**
+ * The list read the NPC page performs, as one value shared by `useNpcs` and the
+ * navigation prefetch (`router/routeDataPrefetch.ts`), so the two cannot drift
+ * onto different keys or fetchers.
+ */
+export function npcListQuery(campaignId: string | null) {
+  return {
+    queryKey: [QUERY_KEY, campaignId] as const,
+    queryFn: () => {
+      if (!campaignId) throw new Error("useNpcs fetched without a campaign");
+      return fetchNpcs(campaignId);
+    },
+  };
+}
+
 /** Every NPC in the active campaign.
  *
  *  `enabled` lets permanently-mounted callers (the chat widget, the closed
@@ -86,12 +101,10 @@ async function deleteNpc(npc: Npc): Promise<void> {
 export function useNpcs(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const options = computed(() => npcListQuery(campaignId.value));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
-    queryFn: ({ queryKey: [, cid] }) => {
-      if (!cid) throw new Error("useNpcs fetched without a campaign");
-      return fetchNpcs(cid);
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }

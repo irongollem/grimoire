@@ -261,6 +261,17 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
   });
 }
 
+/** The flat Atlas read; shared by `useAllLocations` and the navigation prefetch. */
+export function allLocationsQuery(campaignId: string | null) {
+  return {
+    queryKey: [QUERY_KEY, campaignId, "all"] as const,
+    queryFn: () => {
+      if (campaignId === null) throw new Error("useAllLocations fetched without an active campaign");
+      return fetchAllLocations(campaignId);
+    },
+  };
+}
+
 /** All locations in the campaign as slim `LocationSummary` rows (flat list, for
  *  insert panel / search / the tree). Anything that shows a place in full reads
  *  it by id with `useLocation`; a slim row is never a `Location`.
@@ -271,12 +282,10 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
 export function useAllLocations(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const options = computed(() => allLocationsQuery(campaignId.value));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, "all"] as const),
-    queryFn: ({ queryKey: [, cid] }) => {
-      if (cid === null) throw new Error("useAllLocations fetched without an active campaign");
-      return fetchAllLocations(cid);
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }

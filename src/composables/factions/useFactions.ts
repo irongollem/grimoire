@@ -26,23 +26,32 @@ import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 
 // ── Factions CRUD ──────────────────────────────────────────────────────────────
 
+/** The faction list read; shared by `useAllFactions` and the navigation prefetch. */
+export function factionListQuery(campaignId: string | null) {
+  return {
+    queryKey: ["factions", campaignId] as const,
+    queryFn: async () => {
+      if (campaignId === null) throw new Error("useAllFactions fetched without a campaign");
+      const { data, error } = await supabase
+        .from("factions")
+        .select("*")
+        .eq("campaign_id", campaignId)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data as Faction[];
+    },
+  };
+}
+
 /** `enabled` lets permanently-mounted callers defer the fetch until their panel
  *  is open — see {@link useNpcs} for the rationale. */
 export function useAllFactions(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const options = computed(() => factionListQuery(campaignId.value));
   return useQuery({
-    queryKey: computed(() => ["factions", campaignId.value] as const),
-    queryFn: async ({ queryKey: [, cid] }) => {
-      if (cid === null) throw new Error("useAllFactions fetched without a campaign");
-      const { data, error } = await supabase
-        .from("factions")
-        .select("*")
-        .eq("campaign_id", cid)
-        .order("name", { ascending: true });
-      if (error) throw error;
-      return data as Faction[];
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }

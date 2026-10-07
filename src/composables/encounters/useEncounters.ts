@@ -55,15 +55,24 @@ async function deleteEncounter(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** The list read the encounters page performs; shared with the navigation prefetch. */
+export function encounterListQuery(campaignId: string | null) {
+  return {
+    queryKey: [QUERY_KEY, campaignId] as const,
+    queryFn: () => {
+      if (campaignId === null) throw new Error("useEncounters fetched without a campaign");
+      return fetchEncounters(campaignId);
+    },
+  };
+}
+
 export function useEncounters() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const options = computed(() => encounterListQuery(campaignId.value));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
-    queryFn: ({ queryKey: [, cid] }) => {
-      if (cid === null) throw new Error("useEncounters fetched without a campaign");
-      return fetchEncounters(cid);
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!campaignId.value,
   });
 }

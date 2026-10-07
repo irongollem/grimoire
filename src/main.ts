@@ -6,6 +6,7 @@ import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
 import { prefetchInitialChunks } from "./router/prefetchInitial";
+import { afterFirstPaint } from "./lib/afterFirstPaint";
 import { supabase, onSessionLost, consumeRefusedRead, getCurrentUser, readStoredSession } from "./lib/supabase";
 import { createIdentityChangeGate, resetForNewIdentity } from "./lib/authIdentityChange";
 import { createSessionRecovery } from "./lib/sessionRecovery";
@@ -331,6 +332,13 @@ router.isReady().then(
     app.mount("#app");
     // The SDK stays off the critical path: it loads once the page has painted.
     loadErrorTrackingAfterPaint();
+    // The main destinations' chunks follow once the browser is idle, so a click
+    // on the sidebar is not also a download. The module is its own chunk: the
+    // nav registries it reads are not worth entry weight for work that starts
+    // after paint (#999).
+    afterFirstPaint(() => {
+      void import("./router/idlePrefetch").then((module) => module.startIdleChunkPrefetch(router));
+    });
   },
   (failure: unknown) => {
     if (leavingForNewBuild()) return;

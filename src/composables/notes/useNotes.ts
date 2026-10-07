@@ -109,17 +109,26 @@ async function deleteNote(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** The list read the notes page performs; shared with the navigation prefetch. */
+export function noteListQuery(campaignId: string | null) {
+  return {
+    queryKey: [QUERY_KEY, campaignId] as const,
+    queryFn: () => {
+      if (!campaignId) throw new Error("useNotes fetched without a campaign");
+      return fetchNotes(campaignId);
+    },
+  };
+}
+
 /** `enabled` defers the fetch for a surface that is mounted before it is used
  *  (the Scriptorium draft dialog lives in the always-mounted generator cluster). */
 export function useNotes(enabled: () => boolean = () => true) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
+  const options = computed(() => noteListQuery(activeCampaignId.value));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, activeCampaignId.value] as const),
-    queryFn: ({ queryKey: [, campaignId] }) => {
-      if (!campaignId) throw new Error("useNotes fetched without a campaign");
-      return fetchNotes(campaignId);
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!activeCampaignId.value && enabled(),
   });
 }

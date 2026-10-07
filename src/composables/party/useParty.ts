@@ -58,17 +58,26 @@ async function deletePartyMember(member: PartyMember): Promise<void> {
   await deleteUnreferencedByPublicUrl({ urls: [member.portrait_url] });
 }
 
+/** The roster read; shared by `useParty` and the navigation prefetch. */
+export function partyListQuery(campaignId: string | null) {
+  return {
+    queryKey: [QUERY_KEY, campaignId] as const,
+    queryFn: () => {
+      if (!campaignId) throw new Error("useParty fetched without a campaign — enabled guarantees it's set");
+      return fetchParty(campaignId);
+    },
+  };
+}
+
 /** `enabled` lets permanently-mounted callers defer the fetch until their panel
  *  is open — see {@link useNpcs} for the rationale. */
 export function useParty(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const options = computed(() => partyListQuery(campaignId.value));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
-    queryFn: ({ queryKey: [, cid] }) => {
-      if (!cid) throw new Error("useParty fetched without a campaign — enabled guarantees it's set");
-      return fetchParty(cid);
-    },
+    queryKey: computed(() => options.value.queryKey),
+    queryFn: () => options.value.queryFn(),
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
