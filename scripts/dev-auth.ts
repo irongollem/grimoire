@@ -54,10 +54,10 @@ import { parseArgs } from "node:util";
 import { quote, sql } from "./lib/dev-db.ts";
 import { ensureFixtureContent } from "./lib/dev-fixture-content.ts";
 import { ensureFixtureQuest } from "./lib/dev-fixture-quest.ts";
-import { readLocalStack, type StackStatus } from "./lib/dev-stack.ts";
+import { LOCAL_DEV_PASSWORD, readLocalStack, type StackStatus } from "./lib/dev-stack.ts";
 
 /** Local-only, deliberately boring, never valid anywhere but this machine. */
-const DEV_PASSWORD = "grimoire-local-dev";
+const DEV_PASSWORD = LOCAL_DEV_PASSWORD;
 const FIXTURE_EMAIL = "dm-fixture@example.invalid";
 const PLAYER_EMAIL = "player-fixture@example.invalid";
 

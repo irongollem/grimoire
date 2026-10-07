@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, defineComponent, h, type App } from "vue";
+import { createApp, defineComponent, h, ref, type App } from "vue";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
 const mocks = vi.hoisted(() => ({ select: vi.fn() }));
@@ -41,6 +41,19 @@ describe("usePlan", () => {
     apps = [];
     client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mocks.select.mockReset();
+  });
+
+  it("reads nothing while disabled, then once when enabled", async () => {
+    mocks.select.mockResolvedValue({ data: [FREE, PRO], error: null });
+    const open = ref(false);
+    const pro = mount(() => usePlan("pro", () => open.value));
+    await flush();
+    expect(mocks.select).not.toHaveBeenCalled();
+
+    open.value = true;
+    await flush();
+    expect(mocks.select).toHaveBeenCalledTimes(1);
+    expect(pro.data.value).toEqual(PRO);
   });
 
   it("answers every plan from one read", async () => {

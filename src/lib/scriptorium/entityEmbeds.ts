@@ -12,7 +12,8 @@
  */
 
 import type { JSONContent } from "@tiptap/core";
-import type { EntityEmbedType, EntityEmbedSize, EntityEmbedAttrs } from "@/lib/tiptap/entityEmbed";
+import type { EntityEmbedAttrs } from "@/lib/tiptap/entityEmbed";
+import type { EntityEmbedType, EntityEmbedSize } from "@/lib/tiptap/nodeViewTypes";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { applyArtChoice, type EntityArtChoice } from "@/lib/scriptorium/entityArt";
 

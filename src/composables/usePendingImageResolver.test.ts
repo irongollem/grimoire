@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { effectScope, type EffectScope } from "vue";
-import { usePendingImageResolver } from "./usePendingImageResolver";
+import { usePendingImageDocResolver, usePendingImageResolver } from "./usePendingImageResolver";
 
 vi.mock("@/ai/useImageJob", () => ({ waitForImageJob: vi.fn() }));
 vi.mock("@/ai/useImageGeneration", () => ({ getLocalImageJob: vi.fn() }));
@@ -137,5 +137,69 @@ describe("usePendingImageResolver", () => {
     // The settle-notification re-scan must skip failed anchors, or a
     // rejecting job would loop: notify → scan → reject → notify → …
     expect(waitForImageJobMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("usePendingImageDocResolver (the editor-less viewer)", () => {
+  const anchorDoc = (jobId: string) => ({
+    type: "doc",
+    content: [{ type: "pendingImage", attrs: { jobId, status: "pending", prompt: "" } }],
+  });
+
+  function makeDocResolver(initial: unknown) {
+    let current: unknown = initial;
+    const scope = effectScope();
+    scopes.push(scope);
+    const resolver = scope.run(() =>
+      usePendingImageDocResolver(
+        () => current,
+        (next) => {
+          current = next;
+        },
+      ),
+    )!;
+    return { resolver, read: () => current };
+  }
+
+  it("swaps the anchor for the image in the document it was given", async () => {
+    waitForImageJobMock.mockResolvedValue("https://img/doc.webp");
+    const { resolver, read } = makeDocResolver(anchorDoc("job-doc"));
+
+    resolver.scan();
+
+    await vi.waitFor(() =>
+      expect(read()).toEqual({
+        type: "doc",
+        content: [{ type: "image", attrs: { src: "https://img/doc.webp" } }],
+      }),
+    );
+  });
+
+  it("marks the anchor failed on rejection, once", async () => {
+    waitForImageJobMock.mockRejectedValue(new Error("render exploded"));
+    const { resolver, read } = makeDocResolver(anchorDoc("job-doc-fails"));
+
+    resolver.scan();
+
+    await vi.waitFor(() => expect(JSON.stringify(read())).toContain('"status":"failed"'));
+    expect(waitForImageJobMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the document alone once the holder reports it gone", async () => {
+    let settle!: (url: string) => void;
+    waitForImageJobMock.mockReturnValue(new Promise<string>((resolve) => { settle = resolve; }));
+    let current: unknown = anchorDoc("job-gone");
+    const setDoc = vi.fn();
+    const scope = effectScope();
+    scopes.push(scope);
+    const resolver = scope.run(() => usePendingImageDocResolver(() => current, setDoc))!;
+
+    resolver.scan();
+    current = null; // the viewer unmounted mid-wait
+    settle("https://img/late.webp");
+
+    await vi.waitFor(() => expect(waitForImageJobMock).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    expect(setDoc).not.toHaveBeenCalled();
   });
 });

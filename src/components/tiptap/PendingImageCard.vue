@@ -1,5 +1,5 @@
 <template>
-  <NodeViewWrapper class="pending-image-wrapper" contenteditable="false">
+  <div class="pending-image-wrapper" contenteditable="false">
     <div
       class="pending-image-card"
       :class="isFailed ? 'pending-image-card--failed' : 'pending-image-card--pending'"
@@ -21,33 +21,40 @@
           v-if="isEditable"
           type="button"
           class="pending-image-remove-btn"
-          @click="props.deleteNode()"
+          @click="emit('remove')"
         >
           <IconDelete class="h-3 w-3" />
           Remove
         </button>
       </template>
     </div>
-  </NodeViewWrapper>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from "vue";
-import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import { IconGenerate, IconWarning, IconDelete } from '@/lib/icons';
 
-const props = defineProps({ ...nodeViewProps });
+// Plain props, not Tiptap's `nodeViewProps` — see EntityMentionChip. `remove`
+// is the editor wrapper's cue to delete the node.
+const props = defineProps<{
+  status: string;
+  prompt: string;
+  startedAt: number | null;
+  editable: boolean;
+}>();
+const emit = defineEmits<{ remove: [] }>();
 
-const isEditable = computed(() => props.editor.isEditable);
-const isFailed   = computed(() => props.node.attrs.status === "failed");
-const prompt     = computed(() => (props.node.attrs.prompt as string) || "");
+const isEditable = computed(() => props.editable);
+const isFailed   = computed(() => props.status === "failed");
+const prompt     = computed(() => props.prompt);
 const truncatedPrompt = computed(() => {
   const p = prompt.value;
   return p.length > 90 ? p.slice(0, 87) + "…" : p;
 });
 
 // Elapsed-time readout — ticks every second while generation is pending.
-const startedAt = (props.node.attrs.startedAt as number | null) ?? Date.now();
+const startedAt = props.startedAt ?? Date.now();
 const elapsed = ref(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
 let timer: ReturnType<typeof setInterval> | null = null;
 

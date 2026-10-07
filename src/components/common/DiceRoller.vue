@@ -165,7 +165,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onBeforeUnmount, type Component, type ComponentPublicInstance } from "vue";
-import { IconDiceRoll, IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconDie20, IconDie100, IconClose } from '@/lib/icons';
+import { IconDiceRoll, IconClose } from '@/lib/icons';
+import { IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconDie20, IconDie100 } from '@/lib/dice/dieIcons';
 import AppButton from "@/components/common/AppButton.vue";
 import DiceResult from "@/components/common/DiceResult.vue";
 import { primeDiceAudio } from "@/lib/dice/diceAudio";

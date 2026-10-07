@@ -34,7 +34,7 @@
       show-claim-option
       @created="onCreated"
     />
-    <PaywallModal v-model="showPaywall" resource="campaigns" />
+    <PaywallModal v-if="paywallMounted" v-model="showPaywall" resource="campaigns" />
   </div>
   <slot v-else />
 </template>
@@ -64,7 +64,6 @@
 import { computed, defineAsyncComponent, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
 import { IconAdd, IconDM, IconUserRound } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -103,7 +102,14 @@ const blocking = computed(
 const hasArchived = computed(() => (archived.value?.length ?? 0) > 0);
 
 const showModal = ref(false);
+// Async + latched (#999): PaywallModal reads the `plans` table through
+// useProPricing, and it only opens when a free account hits the campaign
+// quota. Mounting it eagerly cost a request on every cold DM load.
+const PaywallModal = defineAsyncComponent(
+  () => import("@/components/common/PaywallModal.vue"),
+);
 const showPaywall = ref(false);
+const paywallMounted = useLazyMount(showPaywall);
 const newCampaignMounted = useLazyMount(showModal);
 
 function startCreate() {

@@ -287,8 +287,11 @@ export { Layers as IconLayers }
 // ── Custom nav glyphs ─────────────────────────────────────────────────────────
 // Hand-drawn, vectorized icons for the Campaign nav section. Dedicated names so
 // repointing them never disturbs the shared Lucide icons used elsewhere. Source
-// art + pipeline live in art-src/nav-campaign/. Swap one by re-running the
-// generator and the matching NAV_GLYPHS entry updates here automatically.
+// art is in the local art-src/nav-campaign/ dump and the pipeline is
+// scripts/glyphs (the /glyph skill); adding or replacing a glyph there updates
+// the matching NAV_GLYPHS entry here automatically.
+// These are on the startup path (the sidebar is on every page), so they stay
+// in this module; the generated data is already optimised by the pipeline.
 import { glyph } from "@/lib/glyph";
 import { NAV_GLYPHS } from "@/lib/navGlyphs.generated";
 import { NAV_GLYPHS as ASSET_GLYPHS } from "@/lib/navGlyphs.assets.generated";
@@ -341,41 +344,17 @@ export const IconNavMint = glyph(ASSET_GLYPHS.mint);
 export const IconNavIlluminator = glyph(ASSET_GLYPHS.illuminator);
 export const IconNavCartographer = glyph(ASSET_GLYPHS.cartographer);
 
-// ── Custom crafting-discipline glyphs ─────────────────────────────────────────
-// Hand-drawn, vectorized icons for the Workshop's crafting disciplines, in the
-// same style as the nav glyphs. Source art + pipeline live in art-src/crafting/.
-// Wired into src/lib/crafting-disciplines.ts.
-import { CRAFTING_GLYPHS } from "@/lib/craftingGlyphs.generated";
-export const IconCraftAlchemy = glyph(CRAFTING_GLYPHS.alchemy);
-export const IconCraftSmithing = glyph(CRAFTING_GLYPHS.smithing);
-export const IconCraftLeathercraft = glyph(CRAFTING_GLYPHS.leathercraft);
-export const IconCraftWoodcraft = glyph(CRAFTING_GLYPHS.woodcraft);
-export const IconCraftJewelcrafting = glyph(CRAFTING_GLYPHS.jewelcrafting);
-export const IconCraftHerbalism = glyph(CRAFTING_GLYPHS.herbalism);
-export const IconCraftPoisoncraft = glyph(CRAFTING_GLYPHS.poisoncraft);
-export const IconCraftTinkering = glyph(CRAFTING_GLYPHS.tinkering);
-export const IconCraftCooking = glyph(CRAFTING_GLYPHS.cooking);
-export const IconCraftScribing = glyph(CRAFTING_GLYPHS.scribing);
-export const IconCraftBrewing = glyph(CRAFTING_GLYPHS.brewing);
-export const IconCraftWeaving = glyph(CRAFTING_GLYPHS.weaving);
-export const IconCraftMasonry = glyph(CRAFTING_GLYPHS.masonry);
-export const IconCraftPainting = glyph(CRAFTING_GLYPHS.painting);
-
-// ── Custom polyhedral-dice glyphs ─────────────────────────────────────────────
-// Hand-drawn, vectorized dice in the same style as the nav/crafting glyphs.
-// Source art + pipeline live in art-src/dice/. The generic IconDice/IconDiceRoll
-// point at the iconic d20; per-die glyphs feed the DiceRoller grid.
-import { DICE_GLYPHS } from "@/lib/diceGlyphs.generated";
-export const IconDie2 = glyph(DICE_GLYPHS.d2);
-export const IconDie4 = glyph(DICE_GLYPHS.d4);
-export const IconDie6 = glyph(DICE_GLYPHS.d6);
-export const IconDie8 = glyph(DICE_GLYPHS.d8);
-export const IconDie10 = glyph(DICE_GLYPHS.d10);
-export const IconDie12 = glyph(DICE_GLYPHS.d12);
-export const IconDie20 = glyph(DICE_GLYPHS.d20);
-export const IconDie100 = glyph(DICE_GLYPHS.d100);
-export const IconDice = glyph(DICE_GLYPHS.d20);
-export const IconDiceRoll = glyph(DICE_GLYPHS.d20);
+// ── Custom dice glyph (the d20) ───────────────────────────────────────────────
+// Hand-drawn, vectorized d20 in the same style as the nav glyphs (source art in
+// the local art-src/dice/ dump, pipeline in scripts/glyphs). Only the d20 is here: IconDice/IconDiceRoll
+// have 17 consumers and sit on the startup path, so the other dice (and the
+// crafting disciplines) live beside the features that draw them, in
+// src/lib/dice/dieIcons.ts and src/lib/crafting/craftingIcons.ts. A glyph
+// module imported here lands in the entry chunk whole, which is why they are
+// not.
+import { DICE_D20_GLYPHS } from "@/lib/diceGlyphs.d20.generated";
+export const IconDice = glyph(DICE_D20_GLYPHS.d20);
+export const IconDiceRoll = glyph(DICE_D20_GLYPHS.d20);
 
 // ── UI / Misc ─────────────────────────────────────────────────────────────────
 export { BarChart2 as IconChart }

@@ -7,8 +7,8 @@
 // to trace a space"), which already got this right: intersection snap,
 // alt = half-cell, esc abandons, click the first node to close.
 //
-// `useRegionPen.ts` re-exports these for `planCanvas.ts`, which this story
-// does not own and so cannot repoint — see that file's own note.
+// `planCanvas.ts` (lib) imports `isNearFirstNode` from here directly: lib
+// must not reach up into `src/composables/`.
 //
 // The ring maths itself (closing test, insert/move/delete a vertex, nearest
 // vertex/edge, simplify) stays in `src/lib/locations/polygon.ts`. That

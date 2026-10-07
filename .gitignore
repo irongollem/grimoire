@@ -10,6 +10,7 @@ node_modules/
 
 # Build output
 dist/
+dist-bundle/
 dist-ssr/
 
 # Environment variables
@@ -88,3 +89,4 @@ graphify-out/
 
 # Paper-doll species renders awaiting review (scripts/generate-dolls.ts)
 .doll-out/
+perf-results/

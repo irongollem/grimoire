@@ -31,7 +31,24 @@ let deletedMessageIds = new Set<string>();
 let oldestCursor: Pick<CampaignMessage, "created_at" | "id"> | null = null;
 const MAX_RECONNECT = 5;
 
-function compareMessages(a: CampaignMessage, b: CampaignMessage) {
+// ── Closed-chat cost (#999) ────────────────────────────────────────────────────
+// The chat is mounted on every page so it can raise the unread dot, but until
+// someone opens it nothing needs the 100-row history (`select *`, jsonb
+// metadata and all). While it is closed only a narrow probe of the newest rows
+// is read, enough for `resolveChatUnread` (id, time, sender, type, and the one
+// metadata key it inspects). The first open, or any caller that renders the
+// list, calls `loadHistory()`, which latches: from then on every refresh
+// (campaign switch, reconnect) reads the full window as before. Realtime
+// delivery is untouched and runs whether or not the chat is open.
+const PROBE_LIMIT = 20;
+type ProbeMessage = Pick<CampaignMessage, "id" | "campaign_id" | "user_id" | "recipient_user_id" | "type" | "created_at"> & {
+  metadata: { skill_label: string } | null;
+};
+const unreadProbe = ref<ProbeMessage[]>([]);
+let historyWanted = false;
+let historyLoadedFor: string | null = null;
+
+function compareMessages(a: Pick<CampaignMessage, "created_at" | "id">, b: Pick<CampaignMessage, "created_at" | "id">) {
   return a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
 }
 
@@ -45,7 +62,7 @@ function mergeMessages(incoming: CampaignMessage[]) {
     .sort(compareMessages);
 }
 
-function isVisibleToCurrentUser(msg: CampaignMessage): boolean {
+function isVisibleToCurrentUser(msg: Pick<CampaignMessage, "type" | "recipient_user_id" | "user_id">): boolean {
   const auth = useAuthStore();
   const uid = auth.user?.id;
   // dm_roll: only the recipient (DM) sees it — sender never sees result
@@ -95,6 +112,58 @@ async function fetchMessages(campaignId: string, expectedGeneration = generation
   }
 }
 
+async function fetchProbe(campaignId: string, expectedGeneration = generation) {
+  if (expectedGeneration !== generation || campaignId !== subscribedCampaignId) return;
+  try {
+    const { data, error } = await supabase
+      .from("campaign_messages")
+      .select("id,campaign_id,user_id,recipient_user_id,type,created_at,skill_label:metadata->>skill_label")
+      .eq("campaign_id", campaignId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(PROBE_LIMIT);
+    if (error || data === null || expectedGeneration !== generation || campaignId !== subscribedCampaignId) return;
+    // The full window supersedes the probe; do not resurrect it after a load.
+    if (historyLoadedFor === campaignId) return;
+    const rows = data as unknown as Array<Omit<ProbeMessage, "metadata"> & { skill_label: string | null }>;
+    unreadProbe.value = rows
+      .filter(isVisibleToCurrentUser)
+      .map(({ skill_label, ...row }) => ({
+        ...row,
+        metadata: skill_label ? { skill_label } : null,
+      }));
+  } catch {
+    // The dot simply stays as it was; the next reconcile retries.
+  }
+}
+
+/** Read whatever the current state calls for: the full window once the list has
+ *  been wanted, the narrow unread probe until then. */
+function refresh(campaignId: string, gen: number, resetPagination = false) {
+  if (historyWanted) {
+    historyLoadedFor = campaignId;
+    unreadProbe.value = [];
+    void fetchMessages(campaignId, gen, resetPagination);
+  } else {
+    void fetchProbe(campaignId, gen);
+  }
+}
+
+/**
+ * Fetch the chat history. Called when the chat opens (or by any surface that
+ * renders the message list); idempotent per campaign. Once called, every later
+ * campaign switch loads the full window directly.
+ */
+export function loadChatHistory() {
+  ensureWatcher();
+  historyWanted = true;
+  const campaignId = subscribedCampaignId;
+  if (!campaignId || historyLoadedFor === campaignId) return;
+  historyLoadedFor = campaignId;
+  unreadProbe.value = [];
+  void fetchMessages(campaignId, generation, true);
+}
+
 async function loadOlder() {
   const campaignId = subscribedCampaignId;
   const cursor = oldestCursor;
@@ -135,6 +204,8 @@ function subscribe(campaignId: string, clearMessages = false) {
   const myGen = ++generation;
   if (clearMessages) {
     messages.value = [];
+    unreadProbe.value = [];
+    historyLoadedFor = null;
     deletedMessageIds = new Set();
     oldestCursor = null;
     hasOlder.value = false;
@@ -144,7 +215,7 @@ function subscribe(campaignId: string, clearMessages = false) {
     topic: `campaign-messages:${campaignId}`,
     reconcile: () => {
       if (myGen === generation && subscribedCampaignId === campaignId) {
-        void fetchMessages(campaignId, myGen);
+        refresh(campaignId, myGen);
       }
     },
     bind: (channel) => channel
@@ -195,6 +266,7 @@ function subscribe(campaignId: string, clearMessages = false) {
         const deletedId = (payload.old as { id: string }).id;
         deletedMessageIds.add(deletedId);
         messages.value = messages.value.filter(m => m.id !== deletedId);
+        unreadProbe.value = unreadProbe.value.filter(m => m.id !== deletedId);
       },
     ),
     onStatus: (status) => {
@@ -217,7 +289,7 @@ function subscribe(campaignId: string, clearMessages = false) {
         setTimeout(async () => {
           if (!subscribedCampaignId || myGen !== generation) return;
           subscribe(campaignId);
-          if (subscribedCampaignId === campaignId) void fetchMessages(campaignId, generation);
+          if (subscribedCampaignId === campaignId) refresh(campaignId, generation);
         }, delay);
       }
     },
@@ -257,6 +329,8 @@ function ensureWatcher() {
         realtimeChannel = null;
         subscribedCampaignId = null;
         messages.value = [];
+        unreadProbe.value = [];
+        historyLoadedFor = null;
         deletedMessageIds = new Set();
         loading.value = false;
         loadingOlder.value = false;
@@ -265,7 +339,7 @@ function ensureWatcher() {
         return;
       }
       subscribe(id, true);
-      void fetchMessages(id, generation, true);
+      refresh(id, generation, true);
     },
     { immediate: true },
   );
@@ -279,8 +353,15 @@ export function useCampaignMessages() {
   const campaign = useCampaignStore();
   const auth = useAuthStore();
   const ui = useUiStore();
-  const { data: partyMembers } = useParty();
-  const { data: campaignMembers } = useCampaignMembers();
+  // Both lists are read only to resolve a name or a previewed player (#999), so
+  // they load only when there is one to resolve: a linked or previewed
+  // character for the sender name, preview mode for the whisper filter, or the
+  // chat panel being open. Anything else sends under the account's own name and
+  // needs neither. A disabled query still serves a list another surface cached.
+  const { data: partyMembers } = useParty(
+    () => ui.chatOpen || (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId) != null,
+  );
+  const { data: campaignMembers } = useCampaignMembers(() => ui.chatOpen || ui.dmPreviewMode);
 
   async function ensureMessage(messageId: string) {
     if (messages.value.some((message) => message.id === messageId)) return;
@@ -324,6 +405,18 @@ export function useCampaignMessages() {
     return messages.value.filter(
       m => m.recipient_user_id === null || m.recipient_user_id === pid,
     );
+  });
+
+  // What the unread dot reads: the full list once loaded, else the probe plus
+  // anything realtime delivered since. Same preview filter as `messages`.
+  const unreadMessages = computed<Array<Pick<CampaignMessage, "id" | "campaign_id" | "user_id" | "recipient_user_id" | "type" | "created_at" | "metadata">>>(() => {
+    const byId = new Map<string, ProbeMessage | CampaignMessage>();
+    for (const m of unreadProbe.value) byId.set(m.id, m);
+    for (const m of visibleMessages.value) byId.set(m.id, m);
+    const all = [...byId.values()].sort(compareMessages);
+    if (!ui.dmPreviewMode) return all;
+    const pid = previewedUserId.value;
+    return all.filter(m => m.recipient_user_id === null || m.recipient_user_id === pid);
   });
 
   async function sendFlavorMessage(text: string, skillLabel?: string) {
@@ -700,5 +793,5 @@ export function useCampaignMessages() {
     if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as PlayerOfferMetadata };
   }
 
-  return { messages: visibleMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendSystemMessage, sendSystemMessages, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendSystemMessage, sendSystemMessages, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }

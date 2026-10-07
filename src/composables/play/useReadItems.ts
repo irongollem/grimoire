@@ -8,37 +8,53 @@ const KEY = "player_read_items";
 // preventing everything from appearing as "new" on first feature deployment.
 const FEATURE_LAUNCH = new Date("2026-05-03");
 
-async function fetchReadMap(campaignId: string, entityType: string): Promise<Map<string, Date>> {
+/** One cache entry holds the markers of every type its caller asked for, keyed
+ *  `${entityType}:${entityId}` (type names contain no colon). */
+type ReadMap = Map<string, Date>;
+
+function markerKey(entityType: string, entityId: string): string {
+  return `${entityType}:${entityId}`;
+}
+
+async function fetchReadMap(campaignId: string, entityTypes: readonly string[]): Promise<ReadMap> {
   const user = getCurrentUser();
   if (!user) return new Map();
   const { data, error } = await supabase
     .from("player_read_items")
-    .select("entity_id, read_at")
+    .select("entity_type, entity_id, read_at")
     .eq("user_id", user.id)
     .eq("campaign_id", campaignId)
-    .eq("entity_type", entityType);
+    .in("entity_type", [...entityTypes]);
   if (error) throw error;
-  const map = new Map<string, Date>();
-  for (const row of data) map.set(row.entity_id, new Date(row.read_at));
+  const map: ReadMap = new Map();
+  for (const row of data) map.set(markerKey(row.entity_type, row.entity_id), new Date(row.read_at));
   return map;
 }
 
-export function useReadItems(entityType: string) {
+/**
+ * Read markers for several entity types in ONE request (#999). The player
+ * portal's unread dots need four types (quest, puzzle, handout, note); they used
+ * to be four queries differing only in `entity_type`. The returned `isNew`
+ * takes the type as its first argument, so one entry serves them all.
+ */
+export function useReadMarkers(entityTypes: readonly string[]) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  // Sorted so the same set of types always lands on the same cache entry.
+  const types = [...entityTypes].sort();
 
   const query = useQuery({
-    queryKey: computed(() => [KEY, entityType, campaignId.value] as const),
-    queryFn: ({ queryKey: [, type, cid] }) => {
-      if (!cid) throw new Error("useReadItems fetched without a campaign — enabled guarantees it's set");
-      return fetchReadMap(cid, type);
+    queryKey: computed(() => [KEY, campaignId.value, types] as const),
+    queryFn: ({ queryKey: [, cid, ts] }) => {
+      if (!cid) throw new Error("useReadMarkers fetched without a campaign — enabled guarantees it's set");
+      return fetchReadMap(cid, ts);
     },
     enabled: () => !!campaignId.value,
   });
 
   // updatedAt: provide for re-flagging on DM edit; omit for "never-read only" (e.g. bestiary)
-  function isNew(entityId: string, updatedAt?: string): boolean {
-    const readAt = query.data.value?.get(entityId);
+  function isNew(entityType: string, entityId: string, updatedAt?: string): boolean {
+    const readAt = query.data.value?.get(markerKey(entityType, entityId));
     if (!readAt) {
       if (!updatedAt) return false;
       return new Date(updatedAt) > FEATURE_LAUNCH;
@@ -48,6 +64,11 @@ export function useReadItems(entityType: string) {
   }
 
   return { ...query, isNew };
+}
+
+export function useReadItems(entityType: string) {
+  const { isNew, ...query } = useReadMarkers([entityType]);
+  return { ...query, isNew: (entityId: string, updatedAt?: string) => isNew(entityType, entityId, updatedAt) };
 }
 
 export function useMarkRead() {
@@ -73,18 +94,26 @@ export function useMarkRead() {
       if (error) throw error;
     },
     onMutate: async ({ entityType, entityId }) => {
-      const queryKey = [KEY, entityType, campaign.activeCampaignId];
-      await qc.cancelQueries({ queryKey });
-      const prev = qc.getQueryData<Map<string, Date>>(queryKey);
-      qc.setQueryData<Map<string, Date>>(queryKey, (old) => {
-        const next = new Map(old ?? []);
-        next.set(entityId, new Date());
+      // Every cached marker set for this campaign that covers the type.
+      const filters = {
+        queryKey: [KEY, campaign.activeCampaignId],
+        predicate: (q: { queryKey: readonly unknown[] }) => {
+          const types = q.queryKey[2];
+          return Array.isArray(types) && types.includes(entityType);
+        },
+      };
+      await qc.cancelQueries(filters);
+      const prev = qc.getQueriesData<ReadMap>(filters);
+      qc.setQueriesData<ReadMap>(filters, (old) => {
+        const next: ReadMap = new Map(old ?? []);
+        next.set(markerKey(entityType, entityId), new Date());
         return next;
       });
-      return { prev, queryKey };
+      return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev !== undefined) qc.setQueryData(ctx.queryKey, ctx.prev);
+      if (!ctx) return;
+      for (const [key, data] of ctx.prev) qc.setQueryData(key, data);
     },
   });
 }

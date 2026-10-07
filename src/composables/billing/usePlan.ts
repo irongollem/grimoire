@@ -9,10 +9,15 @@ async function fetchPlans(): Promise<Plan[]> {
   return data as Plan[]
 }
 
-export function usePlan(id: PlanId) {
+/**
+ * `enabled` lets a surface that is usually closed (a paywall mounted on every
+ * list page) read the plans only once it opens (#999).
+ */
+export function usePlan(id: PlanId, enabled: () => boolean = () => true) {
   return useQuery({
     queryKey: ['plans'],
     queryFn: fetchPlans,
+    enabled,
     select: (plans): Plan => {
       const plan = plans.find((p) => p.id === id)
       // `.single()` used to make a missing row an error; keep it one.

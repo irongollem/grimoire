@@ -166,7 +166,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
-import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
+import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines";
 import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe, useRevealAllRecipes } from "@/composables/crafting/useCrafting";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";

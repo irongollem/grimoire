@@ -16,8 +16,11 @@
  * module-level set tracks jobIds already being resolved so re-scanning
  * mid-flight doesn't start a second wait for the same job.
  *
- * Instances are wired into both RichTextEditor and the read-only
- * RichTextViewer, so an anchor can be waited on by one instance while its
+ * Two entry points share one resolution core: `usePendingImageResolver`
+ * (an Editor, used by RichTextEditor) and `usePendingImageDocResolver` (a
+ * plain JSON document the caller owns, used by the read-only RichTextViewer,
+ * which has no editor at all so it does not load Tiptap). Instances are wired
+ * into both RichTextEditor and the read-only RichTextViewer, so an anchor can be waited on by one instance while its
  * document is open in another (view a note → click Edit mid-wait). When a
  * job settles, every live instance is asked to re-scan: the instance whose
  * editor still holds the anchor re-tracks the now-settled job and resolves
@@ -27,7 +30,11 @@
 import { getCurrentScope, onScopeDispose } from "vue";
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { findPendingImages } from "@/lib/pendingImages";
+import {
+  findPendingImages,
+  markPendingImageFailed,
+  replacePendingImageWithImage,
+} from "@/lib/pendingImages";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { getLocalImageJob } from "@/ai/useImageGeneration";
 import { useToast } from "@/composables/useToast";
@@ -43,6 +50,23 @@ const liveScanners = new Set<() => void>();
 function notifyScanners(): void {
   for (const scanFn of liveScanners) scanFn();
 }
+
+/**
+ * What resolution needs from whatever holds the document. An Editor and a
+ * plain JSON document both satisfy it, so the module-level tracking and the
+ * cross-instance handoff are written once.
+ */
+interface ResolverTarget {
+  /** The holder is gone (editor destroyed / viewer unmounted): stop touching it. */
+  isGone(): boolean;
+  getDoc(): unknown;
+  /** Swap the anchor for the finished image. No-op when the anchor is gone. */
+  replaceWithImage(jobId: string, url: string): void;
+  /** Returns true when an anchor was found and marked failed. */
+  markFailed(jobId: string): boolean;
+}
+
+type GetTarget = () => ResolverTarget | null;
 
 interface PendingImageNodeMatch {
   pos: number;
@@ -64,25 +88,29 @@ function findPendingImageNode(
   return match;
 }
 
-function replaceWithImage(editor: Editor, jobId: string, url: string): void {
-  const match = findPendingImageNode(editor, jobId);
-  if (!match) return; // user deleted the anchor — the image is already in the gallery
-  const { pos, node } = match;
-  const imageNode = editor.schema.nodes.image.create({ src: url });
-  const tr = editor.state.tr.replaceWith(pos, pos + node.nodeSize, imageNode);
-  editor.view.dispatch(tr);
-}
-
-/** Returns true when an anchor was found and marked failed. */
-function markFailed(editor: Editor, jobId: string): boolean {
-  const match = findPendingImageNode(editor, jobId);
-  if (!match) return false;
-  const tr = editor.state.tr.setNodeMarkup(match.pos, undefined, {
-    ...match.node.attrs,
-    status: "failed",
-  });
-  editor.view.dispatch(tr);
-  return true;
+function editorTarget(editor: Editor): ResolverTarget {
+  return {
+    isGone: () => editor.isDestroyed,
+    getDoc: () => editor.getJSON(),
+    replaceWithImage(jobId, url) {
+      const match = findPendingImageNode(editor, jobId);
+      if (!match) return; // user deleted the anchor — the image is already in the gallery
+      const { pos, node } = match;
+      const imageNode = editor.schema.nodes.image.create({ src: url });
+      const tr = editor.state.tr.replaceWith(pos, pos + node.nodeSize, imageNode);
+      editor.view.dispatch(tr);
+    },
+    markFailed(jobId) {
+      const match = findPendingImageNode(editor, jobId);
+      if (!match) return false;
+      const tr = editor.state.tr.setNodeMarkup(match.pos, undefined, {
+        ...match.node.attrs,
+        status: "failed",
+      });
+      editor.view.dispatch(tr);
+      return true;
+    },
+  };
 }
 
 async function resolveLocalJob(jobId: string): Promise<string> {
@@ -97,34 +125,27 @@ async function resolveLocalJob(jobId: string): Promise<string> {
   return promise;
 }
 
-function handleFailure(
-  getEditor: () => Editor | null | undefined,
-  jobId: string,
-  e: unknown,
-): void {
-  const editor = getEditor();
-  if (!editor || editor.isDestroyed) return; // note closed mid-wait — a future scan on reopen re-tracks
-  const anchorStillPresent = markFailed(editor, jobId);
+function handleFailure(getTarget: GetTarget, jobId: string, e: unknown): void {
+  const target = getTarget();
+  if (!target || target.isGone()) return; // note closed mid-wait — a future scan on reopen re-tracks
+  const anchorStillPresent = target.markFailed(jobId);
   if (!anchorStillPresent) {
     const { error } = useToast();
     error(e instanceof Error ? e.message : "Image generation failed.");
   }
 }
 
-async function resolveOne(
-  getEditor: () => Editor | null | undefined,
-  jobId: string,
-): Promise<void> {
+async function resolveOne(getTarget: GetTarget, jobId: string): Promise<void> {
   try {
     const url = jobId.startsWith("local-")
       ? await resolveLocalJob(jobId)
       : await waitForImageJob(jobId);
 
-    const editor = getEditor();
-    if (!editor || editor.isDestroyed) return;
-    replaceWithImage(editor, jobId, url);
+    const target = getTarget();
+    if (!target || target.isGone()) return;
+    target.replaceWithImage(jobId, url);
   } catch (e) {
-    handleFailure(getEditor, jobId, e);
+    handleFailure(getTarget, jobId, e);
   } finally {
     trackedJobIds.delete(jobId);
     // The anchor may live in a different instance's document by now (e.g.
@@ -136,20 +157,17 @@ async function resolveOne(
   }
 }
 
-export function usePendingImageResolver(
-  getEditor: () => Editor | null | undefined,
-) {
+function useResolver(getTarget: GetTarget) {
   function scan(): void {
-    const editor = getEditor();
-    if (!editor || editor.isDestroyed) return;
+    const target = getTarget();
+    if (!target || target.isGone()) return;
 
-    const doc: unknown = editor.getJSON();
-    const anchors = findPendingImages(doc);
+    const anchors = findPendingImages(target.getDoc());
 
     for (const { jobId } of anchors) {
       if (trackedJobIds.has(jobId)) continue;
       trackedJobIds.add(jobId);
-      void resolveOne(getEditor, jobId);
+      void resolveOne(getTarget, jobId);
     }
   }
 
@@ -157,4 +175,40 @@ export function usePendingImageResolver(
   if (getCurrentScope()) onScopeDispose(() => liveScanners.delete(scan));
 
   return { scan };
+}
+
+export function usePendingImageResolver(
+  getEditor: () => Editor | null | undefined,
+) {
+  return useResolver(() => {
+    const editor = getEditor();
+    return editor ? editorTarget(editor) : null;
+  });
+}
+
+/**
+ * The same resolution over a plain Tiptap JSON document, for the read-only
+ * viewer. `getDoc` returns the document as currently shown (null once the
+ * viewer is gone); `setDoc` receives the next document when an anchor is
+ * swapped for its image or marked failed. The caller keeps persistence out of
+ * it — the swap is in-memory only, like the editor path in the viewer.
+ */
+export function usePendingImageDocResolver(
+  getDoc: () => unknown,
+  setDoc: (doc: unknown) => void,
+) {
+  return useResolver(() => ({
+    isGone: () => getDoc() === null,
+    getDoc,
+    replaceWithImage(jobId, url) {
+      const next = replacePendingImageWithImage(getDoc(), jobId, url);
+      if (next) setDoc(next);
+    },
+    markFailed(jobId) {
+      const next = markPendingImageFailed(getDoc(), jobId);
+      if (!next) return false;
+      setDoc(next);
+      return true;
+    },
+  }));
 }

@@ -1,5 +1,5 @@
 /**
- * Persisted library cache: a TanStack `persister` that answers a listed query
+ * Persisted query cache: a TanStack `persister` that answers a listed query
  * from IndexedDB the first time it is fetched in a page session, and writes the
  * network answer back after every fetch.
  *
@@ -17,8 +17,14 @@
  * a query reads only its own record and only when it is about to fetch.
  *
  * This module is policy-free: the caller's `shouldPersist` decides which keys
- * are listed. The allow-list (shared library content only) lives in
- * `policy.ts`, together with the reasoning for it.
+ * are listed and in which class. The classes and the reasoning for them live in
+ * `policy.ts`:
+ *
+ *   - `static`: shared library content. A record is trusted for a day and a
+ *     build, and is refetched in the background only past that.
+ *   - `live` (#999): campaign data the live channel keeps current. A record is
+ *     painted from disk at once and ALWAYS revalidated straight away, because
+ *     other people changed it while this device was away.
  *
  * Rules worth knowing before you change anything here:
  *
@@ -30,9 +36,10 @@
  *   - Disk is read only when the query holds no data (its first fetch this page
  *     session, or after garbage collection). A refetch, with data present, always
  *     goes to the network, so `staleTime` and invalidation keep their meaning.
- *   - A record from another build, or older than a day, is returned at once and
- *     refetched in the background, even for a `staleTime: Infinity` query. A
- *     record older than a week is a miss.
+ *   - A `static` record from another build, or older than a day, is returned at
+ *     once and refetched in the background, even for a `staleTime: Infinity`
+ *     query. A `live` record is returned and refetched whatever its age. A
+ *     record older than a week is a miss, in either class.
  *   - Writes are fire-and-forget and never affect the data the query returns.
  *     An empty list and ephemeral data (ephemeral.ts) are never written.
  *   - Nothing here throws anything the queryFn did not throw. No IndexedDB, a
@@ -49,13 +56,16 @@ const MAX_AGE_MS = 7 * 24 * HOUR_MS;
 /** Older than this: returned, then refetched in the background. */
 const REFRESH_AFTER_MS = 24 * HOUR_MS;
 
+/** How a persisted key is trusted when it comes back from disk. See the header. */
+export type PersistClass = "static" | "live";
+
 export interface QueryPersistenceOptions {
   /** Identifies the running build. A record written by another build is shown, then refetched. */
   buildId: string;
   /** The signed-in user id, or null. Read on every fetch; never cached here. */
   getUserId: () => string | null;
-  /** The allow-list (policy.ts). */
-  shouldPersist: (queryKey: readonly unknown[]) => boolean;
+  /** Which class a key is persisted in, or null for "not at all" (policy.ts). */
+  shouldPersist: (queryKey: readonly unknown[]) => PersistClass | null;
   /** Called with any unexpected storage error. The module itself never throws into the app. */
   onError?: (error: unknown) => void;
   now?: () => number;
@@ -104,7 +114,7 @@ export function createQueryPersistence(options: QueryPersistenceOptions): QueryP
     return storePromise;
   }
 
-  async function fromDisk(hash: string, userId: string): Promise<{ data: unknown; stale: boolean } | null> {
+  async function fromDisk(hash: string, userId: string, persistClass: PersistClass): Promise<{ data: unknown; stale: boolean } | null> {
     try {
       const store = await getStore();
       if (!store) return null;
@@ -112,7 +122,8 @@ export function createQueryPersistence(options: QueryPersistenceOptions): QueryP
       if (!record || record.userId !== userId) return null;
       const age = now() - record.savedAt;
       if (age > MAX_AGE_MS) return null;
-      return { data: record.data, stale: record.buildId !== options.buildId || age > REFRESH_AFTER_MS };
+      const stale = persistClass === "live" || record.buildId !== options.buildId || age > REFRESH_AFTER_MS;
+      return { data: record.data, stale };
     } catch (error) {
       report(error);
       return null;
@@ -137,9 +148,8 @@ export function createQueryPersistence(options: QueryPersistenceOptions): QueryP
 
   const persister: QueryPersister = (queryFn, context, query) => {
     const userId = options.getUserId();
-    if (unavailable || userId === null || !options.shouldPersist(query.queryKey)) {
-      return queryFn(context);
-    }
+    const persistClass = unavailable || userId === null ? null : options.shouldPersist(query.queryKey);
+    if (userId === null || persistClass === null) return queryFn(context);
 
     const network = async (): Promise<unknown> => {
       const data = await queryFn(context);
@@ -153,10 +163,12 @@ export function createQueryPersistence(options: QueryPersistenceOptions): QueryP
     // Data present means a refetch: the network answers, never the disk.
     if (query.state.data !== undefined) return network();
 
-    return fromDisk(query.queryHash, userId).then((hit) => {
+    return fromDisk(query.queryHash, userId, persistClass).then((hit) => {
       if (!hit) return network();
       if (hit.stale) {
         // Once the data below has landed, the refetch has data present and goes to the network.
+        // (For a live key this runs every time, so the network corrects the disk
+        // copy at once instead of waiting for the query to go stale.)
         setTimeout(() => {
           void context.client.invalidateQueries({ queryKey: query.queryKey, exact: true });
         }, 0);

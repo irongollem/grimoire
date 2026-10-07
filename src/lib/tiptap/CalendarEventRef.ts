@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { CommandProps } from "@tiptap/core";
 import { VueNodeViewRenderer } from "@tiptap/vue-3";
-import CalendarEventRefChip from "@/components/tiptap/CalendarEventRefChip.vue";
+import CalendarEventRefNodeView from "@/components/tiptap/CalendarEventRefNodeView.vue";
 
 export interface CalendarEventRefAttrs {
   eventId: string;
@@ -80,6 +80,6 @@ export const CalendarEventRef = Node.create({
   },
 
   addNodeView() {
-    return VueNodeViewRenderer(CalendarEventRefChip);
+    return VueNodeViewRenderer(CalendarEventRefNodeView);
   },
 });

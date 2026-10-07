@@ -166,3 +166,17 @@ export function cellRectInImageFractions(
     h: cellHFrac,
   };
 }
+
+/** The per-cell size as image fractions (width, height), or null when the
+ *  calibration or image is degenerate. Pen points and cell rects both derive
+ *  from it, so a vertex lines up exactly with the rendered cell grid. */
+export function cellFractionSize(
+  calibration: GridCalibration,
+  imageNaturalWidth: number,
+  imageNaturalHeight: number,
+): { cellWFrac: number; cellHFrac: number } | null {
+  if (imageNaturalWidth <= 0 || imageNaturalHeight <= 0 || calibration.cells_per_image_width <= 0) return null;
+  const cellWFrac = 1 / calibration.cells_per_image_width;
+  const cellHFrac = cellWFrac * (imageNaturalWidth / imageNaturalHeight);
+  return { cellWFrac, cellHFrac };
+}

@@ -69,6 +69,16 @@ async function deleteSound(sound: Sound, currentUserId: string): Promise<void> {
 
 // ── Query hooks ───────────────────────────────────────────────────────────
 
+/** The campaign's sound query, shared by `useSounds` and by readers that must
+ *  fetch it on demand without mounting an observer (`useAudioThemeTriggers`, #999). */
+export function soundsQueryOptions(campaignId: string) {
+  return {
+    queryKey: [QUERY_KEY, campaignId] as const,
+    queryFn: () => fetchSounds(campaignId),
+  };
+}
+
+/** `enabled` lets always-mounted surfaces (the floating player, the palette) wait until they are shown (#999). */
 export function useSounds(enabled?: () => boolean) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 

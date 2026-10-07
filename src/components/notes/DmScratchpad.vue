@@ -105,9 +105,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watchEffect } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watchEffect } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
-import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { useDmNoteTouches } from "@/composables/notes/useDmNoteTouches";
 import { useAbove } from "@/composables/useBreakpoint";
 import { useHotkeys } from "@/composables/useHotkeys";
@@ -119,15 +118,24 @@ import { useAuthStore } from "@/stores/auth";
 import { useScratchpadStore } from "@/stores/scratchpad";
 import type { DmNoteTouch } from "@/types/dmNote.types";
 
+// The note box holds the rich text editor. The scratchpad is mounted by the DM layout on
+// every page, so a static import put the whole editor (tiptap, about 140 kB gzip) on every
+// DM's first load, whether or not the panel was ever opened (#999). It renders only once a
+// note is shown, so this fetches the editor on first use.
+const DmNoteBox = defineAsyncComponent(() => import("@/components/notes/DmNoteBox.vue"));
+
 const store = useScratchpadStore();
 const auth = useAuthStore();
-const { touches, label } = useDmNoteTouches();
 const docked = useAbove("md");
 const panelEl = ref<HTMLElement | null>(null);
 
 // A player or a campaign-less session never sees the panel, even if the flag
 // was left open when the active campaign changed.
 const visible = computed(() => store.open && auth.isDM);
+
+// The touches (and the session log that frames them) are read only while the
+// panel is on screen: it is closed by default and mounted on every DM page (#999).
+const { touches, label } = useDmNoteTouches(() => visible.value);
 
 const pinnedNow = computed(() => store.pinned !== null);
 /** Pinned, and the page has moved on to something else. */

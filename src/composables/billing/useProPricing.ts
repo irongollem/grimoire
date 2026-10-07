@@ -11,8 +11,8 @@ import { detectCurrency, formatCents, resolveAmount } from "@/lib/pricing";
  * would drift from the amount actually charged. BillingView keeps its own
  * wiring because it lets the viewer switch currency; the upsell dialogs do not.
  */
-export function useProPricing() {
-  const { data: proPlan } = usePlan("pro");
+export function useProPricing(enabled: () => boolean = () => true) {
+  const { data: proPlan } = usePlan("pro", enabled);
   const currency = detectCurrency();
 
   const monthly = computed(() =>

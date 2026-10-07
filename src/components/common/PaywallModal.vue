@@ -106,7 +106,10 @@ const props = defineProps<{
 }>()
 
 const { quota } = useQuota(props.resource ?? 'npcs')
-const { monthlyLabel, yearlyLabel, savedMonths, monthlyCredits: proMonthlyCredits } = useProPricing()
+// About twenty pages mount this modal closed; the plans are read when it first
+// opens, not on every page that could show it (#999). They never change during a
+// session, so the first open is the only one that waits.
+const { monthlyLabel, yearlyLabel, savedMonths, monthlyCredits: proMonthlyCredits } = useProPricing(() => open.value)
 const { isChild } = useChildAccount()
 const router = useRouter()
 

@@ -242,7 +242,7 @@
     :show-claim-option="isFirstCampaign"
     @created="onCampaignCreated"
   />
-  <PaywallModal v-model="showPaywall" resource="campaigns" />
+  <PaywallModal v-if="paywallMounted" v-model="showPaywall" resource="campaigns" />
   <ImportBackupModal v-if="importMounted" v-model="showImport" />
 </template>
 
@@ -262,7 +262,6 @@ import { useCampaignStore } from "@/stores/campaign";
 import { getCalendarAdapter } from "@/calendars/index";
 import type { Campaign } from "@/types/campaign.types";
 import { useQuota } from "@/composables/billing/useQuota";
-import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 
 // The card sits beside three modals at the top level, so Vue cannot pick a
@@ -308,7 +307,14 @@ const DemoCampaignOffer = defineAsyncComponent(
 );
 
 const showModal = ref(false);
+// Async + latched (#999): PaywallModal reads the `plans` table through
+// useProPricing, and it only opens when a free account hits the campaign
+// quota. Mounting it eagerly cost a request on every cold DM load.
+const PaywallModal = defineAsyncComponent(
+  () => import("@/components/common/PaywallModal.vue"),
+);
 const showPaywall = ref(false);
+const paywallMounted = useLazyMount(showPaywall);
 const showImport = ref(false);
 const newCampaignMounted = useLazyMount(showModal);
 const importMounted = useLazyMount(showImport);

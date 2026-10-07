@@ -4,9 +4,8 @@ import { PluginKey } from "@tiptap/pm/state";
 import { Suggestion } from "@tiptap/suggestion";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { VueNodeViewRenderer } from "@tiptap/vue-3";
-import EntityMentionChip from "@/components/tiptap/EntityMentionChip.vue";
-
-export type EntityType = "player" | "npc" | "monster" | "location" | "party" | "faction";
+import EntityMentionNodeView from "@/components/tiptap/EntityMentionNodeView.vue";
+import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 
 /**
  * A suggestion-list item for the @mention picker UI only. `label` never
@@ -24,7 +23,7 @@ export interface EntityMentionItem {
  * viewer, including the player portal, so storing the entity's real name here
  * leaked a disguised NPC's true identity straight past the server-side name
  * gate. The display name is resolved per-viewer at render time instead — see
- * `EntityMentionChip`, which calls `useMentionName(entityType, id)` itself
+ * `EntityMentionChip` (reached through `EntityMentionNodeView`), which calls `useMentionName(entityType, id)` itself
  * (not an extension option: that would make every editor/viewer instance —
  * `RichTextViewer` alone has 57 call sites — subscribe to every entity kind's
  * query whether or not the document mentions one; the chip is the one place
@@ -92,7 +91,7 @@ export function createEntityMentionExtension(
     },
 
     addNodeView() {
-      return VueNodeViewRenderer(EntityMentionChip);
+      return VueNodeViewRenderer(EntityMentionNodeView);
     },
 
     addProseMirrorPlugins() {

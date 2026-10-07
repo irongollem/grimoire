@@ -14,8 +14,7 @@
 //
 // The pure reducers moved to `src/lib/map/gestures/pen.ts` (epic #884 S7a,
 // the paint-systems merge) — re-exported below because `planCanvas.ts`
-// imports `isNearFirstNode`/`cellFractionSize` from *this* path and that
-// file belongs to another story's wave, so it cannot be repointed here.
+// is kept for any caller still importing them from this path.
 // `useRegionPen` below is the thin reactive wrapper `MapRegionsLayer.vue`
 // actually holds, so the component doesn't re-derive "is the draft ring
 // closeable" or "which node is under the cursor" itself.
@@ -37,6 +36,7 @@ import {
 import type { TemplateShape } from "@/lib/locations/polygon";
 import type { GridPoint } from "@/types/locationMapRegion.types";
 import type { GridCalibration } from "@/types/location.types";
+import { cellFractionSize } from "@/lib/locations/gridCalibration";
 
 export {
   addDraftPoint,
@@ -59,17 +59,6 @@ export {
 // which sit at cell corners and halves rather than inside a cell. Both
 // derive the same per-cell fraction size, so a vertex the pen drops lines up
 // exactly with the cell grid `MapRegionsLayer` already renders.
-
-export function cellFractionSize(
-  calibration: GridCalibration,
-  imageNaturalWidth: number,
-  imageNaturalHeight: number,
-): { cellWFrac: number; cellHFrac: number } | null {
-  if (imageNaturalWidth <= 0 || imageNaturalHeight <= 0 || calibration.cells_per_image_width <= 0) return null;
-  const cellWFrac = 1 / calibration.cells_per_image_width;
-  const cellHFrac = cellWFrac * (imageNaturalWidth / imageNaturalHeight);
-  return { cellWFrac, cellHFrac };
-}
 
 /** A grid point (a ring vertex, in map-cell space) to canvas pixels — the
  *  same canvas the overlay already draws cell rects onto. Degenerate inputs

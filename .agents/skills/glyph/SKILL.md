@@ -20,13 +20,24 @@ committed is the output: a generated TS module of inline SVG markup (or, for
 damage types, standalone SVGs). The deterministic steps are `scripts/glyphs/cli.ts`
 (tested in `glyphTrace.test.ts`); this skill is the judgement around them.
 
-| Set          | Generated output                         | Wired in                                                        |
-| ------------ | ---------------------------------------- | --------------------------------------------------------------- |
-| `nav`        | `src/lib/navGlyphs.generated.ts`         | `src/lib/icons.ts` `IconNav*`, consumed by `src/lib/nav.ts`     |
-| `nav-assets` | `src/lib/navGlyphs.assets.generated.ts`  | `src/lib/icons.ts`                                              |
-| `crafting`   | `src/lib/craftingGlyphs.generated.ts`    | `src/lib/icons.ts` `IconCraft*`, `src/lib/crafting-disciplines.ts` |
-| `dice`       | `src/lib/diceGlyphs.generated.ts`        | `src/lib/icons.ts` `IconDie*`, `DiceRoller.vue`                 |
-| damage types | `public/assets/damage-types/<type>.svg`  | `src/components/common/DamageIcon.vue`                          |
+| Set          | Generated output                              | Wired in                                                                  |
+| ------------ | --------------------------------------------- | ------------------------------------------------------------------------- |
+| `nav`        | `src/lib/navGlyphs.generated.ts`              | `src/lib/icons.ts` `IconNav*`, consumed by `src/lib/nav.ts`               |
+| `nav-assets` | `src/lib/navGlyphs.assets.generated.ts`       | `src/lib/icons.ts`                                                        |
+| `crafting`   | `src/lib/crafting/craftingGlyphs.generated.ts`| `src/lib/crafting/craftingIcons.ts` `IconCraft*`, `src/lib/crafting/disciplines.ts` |
+| `dice`       | `src/lib/dice/diceGlyphs.generated.ts`        | `src/lib/dice/dieIcons.ts` `IconDie*` (d2-d12, d100), `DiceRoller.vue`, `QuickDiceWidget.vue` |
+| `dice-d20`   | `src/lib/diceGlyphs.d20.generated.ts`         | `src/lib/icons.ts` `IconDice` / `IconDiceRoll`; `dieIcons.ts` re-exports it as `IconDie20` |
+| damage types | `public/assets/damage-types/<type>.svg`       | `src/components/common/DamageIcon.vue`                                    |
+
+**Where a glyph module is imported decides which chunk carries it.** `icons.ts`
+has ~560 importers, so anything it imports lands in the entry chunk whole (a
+bundler places a module in one chunk). That is why the nav sets (the sidebar is
+on every page) and the d20 (17 consumers) are the only glyph data `icons.ts`
+imports, and why crafting and the other dice sit in feature folders with their
+own `*Icons.ts` that only their consumers import. A new glyph for a feature
+that is not on every page goes in a feature-owned module, never in `icons.ts`.
+The d20 is its own set so that replacing it does not pull the rest of the dice
+into the entry; to redraw it use `add dice-d20 <traceDir> d20`.
 
 Never hand-edit a generated module. `sources.md` beside this file records which
 sheet and cell every existing glyph came from, and why rival candidates lost.
@@ -42,11 +53,24 @@ npx tsx scripts/glyphs/cli.ts add     <set> <traceDir> <name>             # spli
 npx tsx scripts/glyphs/cli.ts module  <set> <traceDir> <name...>          # rewrite the whole set, in this order
 npx tsx scripts/glyphs/cli.ts svg     <traceDir> <outDir> <name...>       # standalone SVGs (damage types)
 npx tsx scripts/glyphs/cli.ts preview <set> <name> <out.png>              # render an entry, black on white
+npx tsx scripts/glyphs/cli.ts optimize <set>                              # re-optimise a set's stored markup in place
+npx tsx scripts/glyphs/cli.ts compare  <set> <beforeModule.ts>            # worst pixel difference vs an earlier copy
 ```
 
 `add` is the normal case: the other glyphs' traces are long gone, so `module`
 is only for when every trace of a set is to hand. Glyph names are object keys
 and must be lowerCamel identifiers.
+
+**Optimisation is built in.** `module` and `add` run every glyph through
+`glyphOptimize.ts` (svgo: transforms baked, segments shortened, whitespace
+gone), which roughly halves the path data. Each glyph takes the smallest of a
+short ladder of settings that `glyphCompare.ts` renders identically at 24 and
+96px (at most 12 pixels differing by more than 32 grey levels); a glyph whose
+outline cannot take the rounding falls back to potrace's own integer
+coordinates, which cannot differ. `optimize <set>` does the same to a module
+that already exists, from the stored markup, and refuses to write if anything
+moved. It is safe to re-run. To prove an optimisation against the original,
+`git show <rev>:<module path> > /tmp/before.ts` then `compare <set> /tmp/before.ts`.
 
 ## Procedure
 
@@ -94,7 +118,8 @@ dump), or in your scratchpad.
    re-tracing, not by editing the module.
 
 8. **Wire it** if the name is new: `export const IconNav<Name> = glyph(NAV_GLYPHS.<name>);`
-   in its block of `src/lib/icons.ts` with a one-line comment naming the feature,
+   in its block of `src/lib/icons.ts` (crafting and per-die glyphs go in
+   `src/lib/crafting/craftingIcons.ts` / `src/lib/dice/dieIcons.ts` instead) with a one-line comment naming the feature,
    issue and source sheet (as the Hearth and Fallen entries do), then use it
    where the feature needs it (`src/lib/nav.ts` for nav entries).
 

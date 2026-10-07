@@ -402,9 +402,10 @@ import { Columns } from "@/lib/tiptap/Columns";
 import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";
 import type { CalendarEventRefAttrs } from "@/lib/tiptap/CalendarEventRef";
 import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
-import type { EntityMentionItem, EntityMentionAttrs, EntityType } from "@/lib/tiptap/EntityMention";
+import type { EntityMentionItem, EntityMentionAttrs } from "@/lib/tiptap/EntityMention";
+import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 import { IllustrationSuggestion, findIllustrationSuggestion } from "@/lib/tiptap/IllustrationSuggestion";
-import type { IllustrationTarget } from "@/lib/tiptap/IllustrationSuggestion";
+import type { IllustrationTarget } from "@/lib/tiptap/nodeViewTypes";
 import { PendingImage } from "@/lib/tiptap/PendingImage";
 import { AiGenerated } from "@/lib/tiptap/AiGenerated";
 import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
@@ -623,7 +624,11 @@ const editor = useEditor({
     Columns,
     Highlight,
     TaskList,
-    TaskItem.configure({ nested: true }),
+    // Tiptap's task-item node view drops the `data-type` its own renderHTML sets,
+    // so the `li[data-type="taskItem"]` rules below (and RichTextViewer's) never
+    // matched: checked items were not struck through. The node view does apply
+    // configured HTMLAttributes, so the attribute is restored here (#999).
+    TaskItem.configure({ nested: true, HTMLAttributes: { "data-type": "taskItem" } }),
     Typography,
     ...(allowCalendarEvents ? [CalendarEventRef] : []),
     entityMentionExtension,

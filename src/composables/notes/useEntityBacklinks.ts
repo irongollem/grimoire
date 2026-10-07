@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { placeRoute } from "@/lib/locations/placeRoute";
+import { BACKLINKS_KEY } from "@/lib/campaignLiveSync/registry";
 
 export type BacklinkKind = "note" | "npc" | "location" | "faction" | "quest-beat" | "party-member";
 
@@ -14,7 +15,6 @@ export interface EntityBacklink {
   to: string;
 }
 
-export const BACKLINKS_KEY = "backlinks";
 
 /** One row of `get_entity_backlinks` (migration 20261004221637). */
 export interface BacklinkRow {

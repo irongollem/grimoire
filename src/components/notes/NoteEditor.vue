@@ -201,7 +201,7 @@ import {
 import type { Note, NoteCategory, NoteSessionDates } from "@/types/notes.types";
 import type { ChronicleInsert } from "@/types/chronicler.types";
 import type { CalendarEvent } from "@/types/calendar.types";
-import type { IllustrationTarget } from "@/lib/tiptap/IllustrationSuggestion";
+import type { IllustrationTarget } from "@/lib/tiptap/nodeViewTypes";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { normalizeTag } from "@/lib/tags";
 import { useCampaignStore } from "@/stores/campaign";

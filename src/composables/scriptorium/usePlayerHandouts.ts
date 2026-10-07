@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import type { ReadableScriptoriumDocument, ScriptoriumDocument } from "@/types/scriptorium.types";
+import { PLAYER_HANDOUTS_KEY } from "@/lib/campaignLiveSync/registry";
 
 /**
  * Query-key root for every player-side handout read (#970). The campaign
@@ -12,7 +13,6 @@ import type { ReadableScriptoriumDocument, ScriptoriumDocument } from "@/types/s
  * alone. Never to the DM's own `scriptorium` root: that would refetch the
  * document a DM is typing into.
  */
-export const PLAYER_HANDOUTS_KEY = "player-handouts";
 
 // ── Reads ──────────────────────────────────────────────────────────────────────
 // RLS is a ceiling, not a filter (CLAUDE.md, Client Reads): both reads name the

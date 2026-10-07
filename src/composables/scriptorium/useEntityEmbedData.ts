@@ -45,7 +45,7 @@ import {
   LIBRARY_MONSTER_ART_STALE_TIME,
 } from "@/composables/library/useLibraryMonsterArt";
 import { entityRefKey, type EntityRef, type EntityEmbedLookup } from "@/lib/scriptorium/entityEmbeds";
-import type { EntityEmbedType } from "@/lib/tiptap/entityEmbed";
+import type { EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
 import type { Npc } from "@/types/npc.types";
 import type { Spell } from "@/types/spell.types";
 import type { Item } from "@/types/item.types";

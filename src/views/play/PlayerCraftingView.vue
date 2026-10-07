@@ -194,8 +194,8 @@ import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView } from '@/
 import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
-import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
-import type { DisciplineConfig } from "@/lib/crafting-disciplines";
+import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines";
+import type { DisciplineConfig } from "@/lib/crafting/disciplines";
 import { canonicalToolName, hasToolProficiency } from "@/rules/toolProficiency";
 import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs, useCraftableOutputItems } from "@/composables/crafting/useCrafting";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";

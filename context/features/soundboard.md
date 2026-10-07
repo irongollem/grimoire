@@ -97,7 +97,7 @@ Rebuilt in #572 phase 1. Playback for everything except Spotify runs through a
 orchestrating on top and `src/lib/audio/soundTransport.ts` holding the non-reactive
 plumbing:
 
-```
+```text
 MediaElementAudioSource → BiquadFilter → soundGain → bus(music|ambient|effects) → master → destination
 ```
 
@@ -105,7 +105,7 @@ MediaElementAudioSource → BiquadFilter → soundGain → bus(music|ambient|eff
 - **`src/lib/audio/soundTransport.ts`** — the `HTMLAudioElement` registry, duck refcounting, transition generations, and `category → bus` mapping. Deliberately outside Pinia: Vue's Proxy wrapper breaks `HTMLAudioElement` (volume/loop mutations silently drop, `play()` calls fail unpredictably).
 - **Volume runs through `GainNode.gain`, not `audio.volume`.** That is the change that made everything else possible — `audio.volume` is pre-context and cannot be ramped as an `AudioParam`, so every transition used to be a hard cut. Elements are held wide open at `volume = 1` and the graph owns level. The fallback path still uses `audio.volume` when Web Audio is unavailable.
 - **Per-sound gain composes three factors** — user volume × `gain_trim` (persisted loudness normalisation) × the active effect's gain reduction. All three writers recompute the product against the same node rather than clobbering each other.
-- **Fades and crossfade.** Fade-in on play, fade-out before pause/stop (the fade-out promise resolves before the element is paused). Music-playlist advance is a real crossfade, triggered from `ontimeupdate` while the outgoing track is still audible — _not_ from `onended`, which would only give a fade-in after silence. The next element is pre-created so its fetch and decode precede the transition.
+- **Fades and crossfade.** Fade-in on play, fade-out before pause/stop (the fade-out promise resolves before the element is paused). Music-playlist advance is a real crossfade, triggered from `ontimeupdate` while the outgoing track is still audible — *not* from `onended`, which would only give a fade-in after silence. The next element is pre-created so its fetch and decode precede the transition.
 - **Ducking.** An `effects`-category sound attenuates the music and ambient buses (never the effects bus) with a fast attack and slower release. Ref-counted via a Set in `soundTransport`, so overlapping one-shots do not un-duck each other.
 - **Master and per-bus faders** — `setMasterVolume` / `setBusVolume`, surfaced in the widget's Mixer section.
 - **Effect presets** are six lowpass frequency/Q/gain triples (`through_door`, `through_wall`, `distant`, `underwater`, `cave`, `sewer`), ramped over 0.5s, ported into the engine from the old store.
@@ -151,6 +151,7 @@ The music slot is a genuine **stack**, not a single owner with one level of hist
 - **A location offers Play ambience / Stop ambience, and what it starts outlives the page.** The DM puts a room on, then goes to notes or an NPC while the room is still where everything happens, so leaving the page does not stop it, and neither does starting a session. `useAmbiencePlayback` owns this. It holds no state of its own: "is this place playing" is read from the bus's ambient owners (`ambience:<themeOwnerId>`), so the page and the floating player cannot disagree. Pressing Play on a second place replaces the first rather than layering them. It fires a **cue**, not a theme request, because the DM pressed it on purpose: the automatic-triggers switch governs guessed audio only. The button appears only when something on the soundboard answers the theme.
 - **Stopping a scene by hand frees its owner.** `useAudioThemeTriggers` watches the store's running scenes and drops any owner whose scene stopped. Without that, a scene stopped in the floating player left its owner listed, and the same source's next request was ignored as a repeat (Play needed two presses).
 - **Two owners can hold one scene** (a room put on by hand and the party standing in it). Releasing one only stops the scene when no other owner still targets it.
+- **The library loads on demand, not at mount (#999).** `useAudioThemeTriggers` lives in `DefaultLayout`, so subscribing to the sound and playlist lists cost two requests on every DM page. It now reads them from the query cache when a trigger fires, and loads them first (`fetchQuery` with `soundsQueryOptions` / `playlistsQueryOptions`) when the cache has no usable copy; events that arrive during that load queue behind it in order, so a release never overtakes its request. The palette loads the lists when it opens and the floating widget when `widgetOpen`. Playback already running is never touched by any of this.
 - **Audio that starts on its own opens the floating player.** `useAudioThemeTriggers.revealPlayer()` sets `widgetOpen` whenever a request resolves to something playable, and for every cue. Desktop only: on a phone the panel would cover the page. Before, the widget only opened when the DM had popped it out by hand.
 - **The pop-out toggle lives beside the dice roller** in the desktop sidebar (`AppSidebar`, DM only), so the player is reachable from every page. Its count badge is also the one thing on screen saying audio is still playing.
 - **A layer's preview in the scene editor is a play/stop toggle.** A bed can run for minutes, so `PlaylistTrackRow` shows Stop while the sound plays, and closing `PlaylistEditorDialog` stops whatever it auditioned (and nothing the DM had playing before).
@@ -177,7 +178,7 @@ Shortcuts go through the app-wide registry (`src/lib/hotkeys.ts` + `src/composab
 | `page`    | Registered by a screen. The soundboard's transport keys live here                     |
 | `overlay` | A modal. While **any** overlay binding is enabled, page and global bindings do not fire at all |
 
-The overlay layer is a hard cutoff, not a precedence bump — an open palette must not let `1`-`9` fire sounds on the board behind it. This is also why every dialog reachable from `/soundboard` registers an overlay `escape` binding: it closes the dialog _and_ stops the transport keys responding while the DM types a name.
+The overlay layer is a hard cutoff, not a precedence bump — an open palette must not let `1`-`9` fire sounds on the board behind it. This is also why every dialog reachable from `/soundboard` registers an overlay `escape` binding: it closes the dialog *and* stops the transport keys responding while the DM types a name.
 
 Since #746, `AddSoundDialog`, `BoardSettingsDialog` and `PlaylistEditorDialog` no longer register that binding themselves — they are built on `AppModal`, and the shell registers it for them, with the same two effects. `SoundPalette` is still hand-rolled and still registers its own (along with its arrow/enter bindings), because it is a top-aligned palette rather than a centred panel and does not fit the shell's geometry.
 

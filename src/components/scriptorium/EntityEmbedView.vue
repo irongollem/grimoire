@@ -133,7 +133,7 @@ import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { IconExternalLink, IconScissors, IconImage } from "@/lib/icons";
-import type { EntityEmbedType, EntityEmbedSize } from "@/lib/tiptap/entityEmbed";
+import type { EntityEmbedType, EntityEmbedSize } from "@/lib/tiptap/nodeViewTypes";
 import type { ScriptoriumTheme } from "@/types/scriptorium.types";
 
 const props = defineProps({ ...nodeViewProps });

@@ -1,6 +1,5 @@
 <template>
-  <!-- atom node — no inner content, NodeViewWrapper must be inline -->
-  <NodeViewWrapper as="span" class="entity-mention-wrapper">
+  <span class="entity-mention-wrapper">
     <!-- ── EDITOR MODE: static chip ───────────────────────────────────────── -->
     <span
       v-if="isEditable"
@@ -36,23 +35,29 @@
       <span class="entity-chip-at">@</span>
       <span class="entity-chip-label">{{ displayName }}</span>
     </button>
-  </NodeViewWrapper>
+  </span>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import { useRouter, useRoute } from "vue-router";
 import { useUiStore } from "@/stores/ui";
 import { isPlayerArea } from "@/router/lens";
 import { useMentionName } from "@/composables/notes/useMentionName";
-import type { EntityType } from "@/lib/tiptap/EntityMention";
+import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 
-const props = defineProps({ ...nodeViewProps });
+// Plain props, not Tiptap's `nodeViewProps`: the read-only viewer renders this
+// chip straight from the stored JSON without an editor (so it never loads
+// Tiptap), and the editor reaches it through `EntityMentionNodeView`.
+const props = defineProps<{
+  entityType: EntityType;
+  id: string;
+  editable: boolean;
+}>();
 
-const isEditable = computed(() => props.editor.isEditable);
-const entityType = computed(() => props.node.attrs.entityType as EntityType);
-const entityId = computed(() => props.node.attrs.id as string);
+const isEditable = computed(() => props.editable);
+const entityType = computed(() => props.entityType);
+const entityId = computed(() => props.id);
 
 /**
  * The mention no longer carries its own name (#932 story 3 — a stored label

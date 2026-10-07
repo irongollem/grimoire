@@ -11,18 +11,25 @@
  */
 import { normalizeEntityName } from "./entityName";
 import { resolveEncounterCombatants } from "./normalize";
+import type { NameLookupRow } from "./importPlan";
 import type { ImportEntityKind, ExtractedQuestBeat } from "@/types/documentImport.types";
 import type { CombatantDef } from "@/types/encounter.types";
 import type { QuestBeatAttachmentType, QuestRefType } from "@/types/quest.types";
 import { refusalReason, writeBatchIsolatingFailures } from "@/lib/batchWrite";
 import {
-  plainRows,
   type BeatAttachmentWrite,
   type ImportSweepDeps,
   type LootPlacementHome,
   type LootPlacementWrite,
   type SourcedRow,
 } from "./importSweep";
+
+/** Strips the sourcing off a lookup, leaving the id/name rows a resolver matches
+ *  against. Lives here, not in `importSweep.ts`, so the value import runs one way
+ *  (importSweep -> importSweepLinking); this file only imports types back. */
+export function plainRows(rows: readonly SourcedRow[] | undefined): NameLookupRow[] {
+  return (rows ?? []).map((row) => ({ id: row.id, name: row.name }));
+}
 
 export interface QuestBeatContext {
   questId: string;

@@ -113,11 +113,18 @@ function swPlugin(assetCdnOrigin: string): Plugin {
     return result;
   }
 
+  // The build's real output directory, so a build with --outDir (the #999
+  // profiling builds use dist-bundle/) gets its worker beside its own
+  // index.html instead of failing on a dist/ that is not there.
+  let distDir = path.resolve(import.meta.dirname, "dist");
+
   return {
     name: "grimoire-sw",
     apply: "build",
+    configResolved(config) {
+      distDir = path.resolve(config.root, config.build.outDir);
+    },
     closeBundle() {
-      const distDir  = path.resolve(import.meta.dirname, "dist");
       const template = readFileSync(
         path.resolve(import.meta.dirname, "scripts/sw-template.js"),
         "utf8",
@@ -250,10 +257,15 @@ function artStripPlugin(assetCdnBase: string | null): Plugin {
    * this map in the earlier hook for the later one to read.
    */
   const bundledOriginals = new Map<string, string>();
+  // The build's real output directory (see swPlugin).
+  let distDir = path.resolve(import.meta.dirname, "dist");
 
   return {
     name: "grimoire-art-strip",
     apply: "build",
+    configResolved(config) {
+      distDir = path.resolve(config.root, config.build.outDir);
+    },
     generateBundle(_options, bundle) {
       for (const [emittedPath, item] of Object.entries(bundle)) {
         if (item.type !== "asset") continue;
@@ -273,7 +285,6 @@ function artStripPlugin(assetCdnBase: string | null): Plugin {
     closeBundle() {
       if (!assetCdnBase) return;
 
-      const distDir = path.resolve(import.meta.dirname, "dist");
       const manifestPath = path.resolve(import.meta.dirname, "src/generated/artManifest.json");
       if (!existsSync(manifestPath)) return;
 
@@ -422,19 +433,32 @@ function polyfillsPlugin(): Plugin {
  */
 function bootBudgetPlugin(): Plugin {
   /**
-   * 608.6 kB is the shipped payload, measured with `vercel build --prod` (see
-   * the docblock above for why the other two numbers are not it). Set ~6.7%
-   * above: enough headroom for ordinary growth, tight enough that another
-   * accidental import of a lazy subsystem breaks the build rather than the
-   * first-load experience.
+   * 608.6 kB was the shipped payload, measured with `vercel build --prod` (see
+   * the docblock above for why the other two numbers are not it), and the
+   * budget sat ~6.7% above it at 650 kB: enough headroom for ordinary growth,
+   * tight enough that another accidental import of a lazy subsystem breaks the
+   * build rather than the first-load experience.
+   *
+   * #999 took the editor off the boot path (the `@floating-ui` group below)
+   * and shrank and split the glyph data: `npm run perf:build` went from 640.7
+   * to 447.4 kB. The shipped number has not been read yet, so this is
+   * provisional: 447.4 plus the 28 kB that `vercel build --prod` has added over
+   * a bare build, plus the usual headroom. Tighten it from the "boot payload"
+   * line the next release job prints.
    */
-  const BOOT_BUDGET_GZIP_BYTES = 650 * 1024;
+  const BOOT_BUDGET_GZIP_BYTES = 510 * 1024;
+  // The build's real output directory (see swPlugin). Hard-coded to dist/, a
+  // build with --outDir measured whatever stale dist/ happened to be lying
+  // around, or failed when there was none.
+  let distDir = path.resolve(import.meta.dirname, "dist");
 
   return {
     name: "grimoire-boot-budget",
     apply: "build",
+    configResolved(config) {
+      distDir = path.resolve(config.root, config.build.outDir);
+    },
     closeBundle() {
-      const distDir = path.resolve(import.meta.dirname, "dist");
       const html = readFileSync(path.join(distDir, "index.html"), "utf8");
 
       // Scripts plus modulepreloads only. Stylesheets, icons and the manifest
@@ -632,14 +656,18 @@ export default defineConfig(({ mode }) => {
       // Writes dist/stats.html (gitignored); `treemap` answers "what is big",
       // gzip/brotli sizes answer "what is big *over the wire*", which is the
       // number that actually decides whether a chunk needs splitting.
+      // ANALYZE=json writes <outDir>/stats.json (raw-data, no browser) for the
+      // scripts in scripts/perf/bundle; ANALYZE=1 keeps the interactive treemap.
+      // ANALYZE_OUT names the directory when the build uses a non-default
+      // --outDir, so a profiling build never has to touch dist/.
       ...(process.env.ANALYZE
         ? [
             visualizer({
-              filename: "dist/stats.html",
-              template: "treemap",
+              ...(process.env.ANALYZE === "json"
+                ? { filename: `${process.env.ANALYZE_OUT || "dist"}/stats.json`, template: "raw-data", open: false }
+                : { filename: `${process.env.ANALYZE_OUT || "dist"}/stats.html`, template: "treemap", open: true }),
               gzipSize: true,
               brotliSize: true,
-              open: true,
             }) as Plugin,
           ]
         : []),
@@ -718,6 +746,15 @@ export default defineConfig(({ mode }) => {
               { name: "model-viewer", test: /node_modules[\\/]@google[\\/]model-viewer/ },
               // Quest graph engine — Build mode only.
               { name: "quest-flow", test: /node_modules[\\/]@vue-flow[\\/]/ },
+              // Floating UI positions every reka-ui popover (AppButton's menus,
+              // ConfirmDialog, the date picker), so it is boot code. It must be
+              // claimed before `tiptap`: a group also captures the dependencies
+              // of what it matches, and tiptap's bubble and floating menus depend
+              // on it, so left to the catch-all it was filed into the editor
+              // chunk. `vendor` then imported it from there, and every first
+              // load downloaded the whole editor (149 kB gzip) to position a
+              // tooltip (#999, measured with `npm run perf:composition`).
+              { name: "vendor", test: /node_modules[\\/]@floating-ui[\\/]/ },
               // Tiptap editor — loaded on any page with a rich text field
               { name: "tiptap", test: /node_modules[\\/](@tiptap|prosemirror)/ },
               // Document, date, and compatibility packages are substantial but

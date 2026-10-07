@@ -41,7 +41,7 @@ import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonsters
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
-import type { EntityType } from "@/lib/tiptap/EntityMention";
+import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 
 /**
  * What a name can be asked for: every mention kind, plus the two things a player

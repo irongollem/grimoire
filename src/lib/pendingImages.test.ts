@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { findPendingImages } from "@/lib/pendingImages";
+import {
+  findPendingImages,
+  markPendingImageFailed,
+  replacePendingImageWithImage,
+} from "@/lib/pendingImages";
 
 describe("findPendingImages", () => {
   it("finds a top-level pendingImage node", () => {
@@ -96,5 +100,48 @@ describe("findPendingImages", () => {
       content: [{ type: "pendingImage", attrs: { jobId: "job-no-prompt", status: "pending" } }],
     };
     expect(findPendingImages(doc)).toEqual([{ jobId: "job-no-prompt", prompt: "" }]);
+  });
+});
+
+describe("replacePendingImageWithImage / markPendingImageFailed", () => {
+  const anchor = (jobId: string) => ({
+    type: "pendingImage",
+    attrs: { jobId, prompt: "a dragon", status: "pending" },
+  });
+  const doc = () => ({
+    type: "doc",
+    content: [
+      { type: "paragraph" },
+      { type: "columns", content: [anchor("job-1"), anchor("job-2")] },
+    ],
+  });
+
+  it("puts the image where the anchor was, leaving the other anchor alone", () => {
+    const original = doc();
+    const next = replacePendingImageWithImage(original, "job-1", "https://img/1.webp");
+    expect(next).toEqual({
+      type: "doc",
+      content: [
+        { type: "paragraph" },
+        {
+          type: "columns",
+          content: [{ type: "image", attrs: { src: "https://img/1.webp" } }, anchor("job-2")],
+        },
+      ],
+    });
+    // The input is not mutated: the viewer relies on a new reference to re-render.
+    expect(original).toEqual(doc());
+  });
+
+  it("keeps the anchor but marks it failed", () => {
+    const next = markPendingImageFailed(doc(), "job-2");
+    expect(findPendingImages(next)).toEqual([{ jobId: "job-1", prompt: "a dragon" }]);
+    expect(JSON.stringify(next)).toContain('"status":"failed"');
+  });
+
+  it("returns null when the anchor is not there", () => {
+    expect(replacePendingImageWithImage(doc(), "nope", "u")).toBeNull();
+    expect(markPendingImageFailed(doc(), "nope")).toBeNull();
+    expect(replacePendingImageWithImage("not a doc", "job-1", "u")).toBeNull();
   });
 });

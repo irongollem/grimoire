@@ -6,7 +6,7 @@
 import { computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import OutOfCreditsDialog from "@/components/billing/OutOfCreditsDialog.vue";
-import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
+import { outOfCreditsNeeded as needed } from "@/composables/ai/useOutOfCredits";
 import { useLazyMount } from "@/composables/useLazyMount";
 import { useToast } from "@/composables/useToast";
 
@@ -20,7 +20,6 @@ import { useToast } from "@/composables/useToast";
  * the credit, provider and plan reads it makes) mounts on first need and then
  * stays, so closing it does not discard a half-made consent tick.
  */
-const { needed } = useOutOfCredits();
 const mounted = useLazyMount(computed(() => needed.value !== null));
 const { success } = useToast();
 const route = useRoute();

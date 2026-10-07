@@ -1,9 +1,18 @@
-import { ref } from "vue";
+import { ref, type Ref } from "vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 
 // Module-level singleton, like useConfirm: one dialog, mounted once in App.vue,
 // opened from any generator. Holds the credits the blocked action needed.
 const needed = ref<number | null>(null);
+
+/**
+ * Read-only view of the open state for App.vue's dialog shell. Exported apart
+ * from `useOutOfCredits()` on purpose (#999): that composable calls
+ * `useAiCredits()`, which issues the balance, bucket and cost queries, and the
+ * shell is mounted for every signed-in user on every page. The shell only needs
+ * to know whether the dialog is open; the queries belong where AI is used.
+ */
+export const outOfCreditsNeeded: Readonly<Ref<number | null>> = needed;
 
 /**
  * The credit gate every AI action goes through before it spends anything.

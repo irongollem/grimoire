@@ -51,17 +51,17 @@
     </div>
   </AppModal>
 
-  <MemorialWordsDialog :memorial="writing" @close="doneWriting" />
+  <MemorialWordsDialog v-if="wordsMounted" :memorial="writing" @close="doneWriting" />
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, defineAsyncComponent, reactive, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import MemorialCameo from "@/components/memorials/MemorialCameo.vue";
 import MemorialCandle from "@/components/memorials/MemorialCandle.vue";
-import MemorialWordsDialog from "@/components/memorials/MemorialWordsDialog.vue";
 import { useCampaignMemorials, useLightCandle, useMarkTolled, useMyMournerRows } from "@/composables/memorials/useMemorials";
+import { useLazyMount } from "@/composables/useLazyMount";
 import { useToast } from "@/composables/useToast";
 import { IconEdit } from "@/lib/icons";
 import { pendingTolls } from "@/lib/memorials/wall";
@@ -69,7 +69,8 @@ import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import type { CharacterMemorial } from "@/types/memorial.types";
-import { useTheme, darkTwinStyle } from "@/composables/useTheme";
+import { useTheme } from "@/composables/useTheme";
+import { darkTwinStyle } from "@/lib/themeRuntime";
 
 /**
  * The death notice (Hall of the Fallen, #982, frame 11): the next time a player opens the
@@ -96,6 +97,12 @@ const tolled = useMarkTolled();
 /** Seen this visit, so the notice does not return between the click and the refetch. */
 const handled = reactive(new Set<string>());
 const writing = ref<CharacterMemorial | null>(null);
+
+// The words dialog holds the rich text editor. This notice is mounted by the player
+// layout on every portal page, so a static import put the whole editor (tiptap, about
+// 140 kB gzip) on every player's first load for a dialog only an owner ever opens (#999).
+const MemorialWordsDialog = defineAsyncComponent(() => import("@/components/memorials/MemorialWordsDialog.vue"));
+const wordsMounted = useLazyMount(computed(() => writing.value !== null));
 
 const current = computed<CharacterMemorial | null>(() => {
   const cid = campaign.activeCampaignId;

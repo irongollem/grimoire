@@ -1,5 +1,5 @@
 import type { Component } from "vue";
-import { IconCraftAlchemy, IconCraftBrewing, IconCraftCooking, IconCraftHerbalism, IconCraftJewelcrafting, IconCraftLeathercraft, IconCraftMasonry, IconCraftPainting, IconCraftPoisoncraft, IconCraftScribing, IconCraftSmithing, IconCraftTinkering, IconCraftWeaving, IconCraftWoodcraft } from '@/lib/icons';
+import { IconCraftAlchemy, IconCraftBrewing, IconCraftCooking, IconCraftHerbalism, IconCraftJewelcrafting, IconCraftLeathercraft, IconCraftMasonry, IconCraftPainting, IconCraftPoisoncraft, IconCraftScribing, IconCraftSmithing, IconCraftTinkering, IconCraftWeaving, IconCraftWoodcraft } from '@/lib/crafting/craftingIcons';
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import type { SaveKey } from "@/types/party.types";
 
