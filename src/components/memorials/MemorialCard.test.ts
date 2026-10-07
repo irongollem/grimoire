@@ -5,8 +5,13 @@ import { describe, expect, it, vi } from "vitest";
 import MemorialCard from "./MemorialCard.vue";
 import type { CharacterMemorial } from "@/types/memorial.types";
 
+/** A stored Tiptap document, as RichTextEditor writes it; an empty string is a cleared editor. */
+const DOC = (text: string) =>
+  JSON.stringify({ type: "doc", content: [{ type: "paragraph", ...(text ? { content: [{ type: "text", text }] } : {}) }] });
+
 vi.mock("@/components/common/FocalImage.vue", () => ({ default: { template: "<div class='focal-stub' />" } }));
 
+/** A fallen character's memorial with every field filled; override what a test is about. */
 function memorial(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial {
   return {
     id: "m1",
@@ -18,7 +23,7 @@ function memorial(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial
     restored_at: null,
     game_date: "14 Mirtul 1492 DR",
     real_date: "2026-05-04",
-    account: "<p>Chicory held the gate.</p>",
+    account: DOC("Chicory held the gate."),
     last_words: null,
     last_blow: "a giant wasp",
     survived_by: ["Fresco", "Rosie", "Vellum"],
@@ -36,6 +41,7 @@ function memorial(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial
   };
 }
 
+/** Mounts the card back side up for a bystander; props override the side and the viewer. */
 function render(
   m: CharacterMemorial,
   props: { side?: "front" | "back"; viewer?: "owner" | "dm" | "other"; candleCount?: number; litByMe?: boolean } = {},
@@ -99,9 +105,16 @@ describe("MemorialCard back", () => {
     expect(w.find("[data-testid=light-candle]").exists()).toBe(false);
   });
 
-  it("sanitises the account html", () => {
-    const w = render(memorial({ account: "<p>Held the gate.</p><script>alert(1)</script>" }));
-    expect(w.get("[data-testid=account]").html()).not.toContain("<script");
+  it("renders the account as rich text, never as its stored JSON", () => {
+    const w = render(memorial({ account: DOC("Trampled by a mammoth") }));
+    expect(w.get("[data-testid=account]").text()).toBe("Trampled by a mammoth");
+    expect(w.get("[data-testid=account]").text()).not.toContain('"type"');
+  });
+
+  it("puts the name on its own line, apart from the lineage", () => {
+    const w = render(memorial());
+    expect(w.get(".mcard-lead b").text()).toBe("Chicory");
+    expect(w.get(".mcard-lead-line").text()).not.toContain("Chicory");
   });
 
   it("invites the owner to write last words when there are none", async () => {
@@ -113,7 +126,7 @@ describe("MemorialCard back", () => {
   });
 
   it("gives the owner a quill on existing last words", async () => {
-    const w = render(memorial({ last_words: "<p>Plant something.</p>" }), { viewer: "owner" });
+    const w = render(memorial({ last_words: DOC("Plant something.") }), { viewer: "owner" });
     expect(w.text()).toContain("Plant something.");
     expect(w.text()).not.toContain("yours to write");
     await w.get("[data-testid=edit-words]").trigger("click");
@@ -129,12 +142,12 @@ describe("MemorialCard back", () => {
   });
 
   it("treats an emptied editor as no words", () => {
-    const w = render(memorial({ last_words: "<p></p>" }), { viewer: "other" });
+    const w = render(memorial({ last_words: DOC("") }), { viewer: "other" });
     expect(w.text()).not.toContain("Last words");
   });
 
   it("shows last words to others, signed, without a quill", () => {
-    const w = render(memorial({ last_words: "<p>Plant something.</p>" }), { viewer: "other" });
+    const w = render(memorial({ last_words: DOC("Plant something.") }), { viewer: "other" });
     expect(w.text()).toContain("Last words");
     expect(w.text()).toContain("Plant something.");
     expect(w.text()).toContain("Mira");
@@ -142,7 +155,7 @@ describe("MemorialCard back", () => {
   });
 
   it("labels the retired section Farewell", () => {
-    const w = render(memorial({ kind: "retired", last_words: "<p>Teach them to parry.</p>" }));
+    const w = render(memorial({ kind: "retired", last_words: DOC("Teach them to parry.") }));
     expect(w.text()).toContain("Farewell");
     expect(w.text()).not.toContain("Last words");
   });

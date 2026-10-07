@@ -31,6 +31,7 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ todayYear: 1492, todayMonth: 5, todayDay: 29, activeCampaign: { name: "Sugarwell" } }),
 }));
 
+/** A player-owned party member to set down; override what a test is about. */
 function member(overrides: Partial<PartyMember> = {}): PartyMember {
   return {
     id: "pm1",
@@ -59,6 +60,7 @@ type RenderProps = {
   memorial?: CharacterMemorial | null;
 };
 
+/** Mounts the dialog open, with the editor and the card stubbed. */
 function render(props: RenderProps) {
   return mount(SetDownDialog, { props: { open: true, ...props }, global: { stubs } });
 }
@@ -112,7 +114,7 @@ describe("SetDownDialog", () => {
 
   it("starts a second fall from what the first one left", () => {
     memorialRows.value = [
-      { party_member_id: "pm1", account: "<p>Held the gate.</p>", last_blow: "a wasp", last_words: null, created_at: "2026-05-04" } as CharacterMemorial,
+      { party_member_id: "pm1", account: "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Held the gate.\"}]}]}", last_blow: "a wasp", last_words: null, created_at: "2026-05-04" } as CharacterMemorial,
     ];
     const w = render({ mode: "fallen", member: member() });
     expect((w.find("[data-testid=last-blow]").element as HTMLInputElement).value).toBe("a wasp");
@@ -125,7 +127,7 @@ describe("SetDownDialog", () => {
       kind: "fallen",
       game_date: "14 Mirtul 1492 DR",
       real_date: "2026-05-04",
-      account: "<p>Old.</p>",
+      account: "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Old.\"}]}]}",
       last_blow: "a wasp",
       character_name: "Chicory",
     } as CharacterMemorial;

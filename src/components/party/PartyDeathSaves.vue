@@ -2,7 +2,12 @@
   <div v-if="status === 'dead'" class="flex flex-wrap items-center gap-3 p-2 rounded bg-destructive/10 border border-destructive/40" role="status">
     <span class="text-label font-bold text-destructive">Dead</span>
     <span class="text-caption text-muted-foreground">Three failed death saves.</span>
-    <AppButton variant="tinted" tone="danger" emphasis="soft" size="sm" label="Revive" class="ml-auto" @click="revive" />
+    <!-- Three failures never mark anyone fallen by themselves (#982): the DM chooses, here or in the runner. -->
+    <div class="ml-auto flex flex-wrap items-center gap-2">
+      <AppButton variant="tinted" tone="danger" emphasis="soft" size="sm" label="Revive" @click="revive" />
+      <AppButton variant="primary" size="sm" label="Mark as fallen…" @click="marking = true" />
+    </div>
+    <SetDownDialog v-if="marking" open mode="fallen" :member="member" @close="marking = false" />
   </div>
   <div v-else-if="status === 'stable'" class="flex flex-wrap items-center gap-3 p-2 rounded bg-muted/30 border border-border" role="status">
     <span class="text-label font-bold text-foreground">Stable</span>
@@ -40,8 +45,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import SetDownDialog from "@/components/memorials/SetDownDialog.vue";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
@@ -53,10 +59,13 @@ const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { confirm } = useConfirm();
 const toast = useToast();
 
+const marking = ref(false);
+
 const status = computed(() =>
   dyingStatus(member.current_hp, { successes: member.death_save_successes, failures: member.death_save_failures }),
 );
 
+/** Brings a dead character back at 1 HP with cleared saves, after a confirmation. */
 async function revive() {
   if (!(await confirm(`Bring ${member.name} back at 1 HP with their death saves cleared?`, {
     title: "Revive character?",
@@ -79,6 +88,7 @@ async function revive() {
   }
 }
 
+/** Advances one save track by a pip, wrapping from three back to none. */
 async function toggleDeathSave(type: "success" | "failure") {
   if (type === "success") {
     const n = member.death_save_successes >= 3 ? 0 : member.death_save_successes + 1;

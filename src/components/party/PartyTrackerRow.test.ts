@@ -19,6 +19,7 @@ vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: 
 
 const CAMPAIGN_ID = "c1";
 
+/** A party member of the given ruleset and species, at full HP. */
 function member(ruleset: RulesetKey, speciesId: string): PartyMember {
   return {
     id: "m1",
@@ -40,6 +41,7 @@ function member(ruleset: RulesetKey, speciesId: string): PartyMember {
   } as unknown as PartyMember;
 }
 
+/** Mounts the row with its heavier panels stubbed. */
 function mountRow(m: PartyMember, speciesName: string | null) {
   return mount(PartyTrackerRow, {
     props: {
@@ -114,5 +116,19 @@ describe("PartyTrackerRow wild-shaped portrait", () => {
   it("falls back to the form's own copy until the beast resolves", () => {
     const wrapper = mountRow(shaped("https://cdn.test/copied.webp"), "Firbolg");
     expect(wrapper.findComponent({ name: "FocalImage" }).attributes("src")).toBe("https://cdn.test/copied.webp");
+  });
+});
+
+describe("PartyTrackerRow critical-hit choice", () => {
+  /** A character at 0 HP with this many failed death saves. */
+  const atZero = (failures: number) =>
+    ({ ...member("2024", "s"), current_hp: 0, death_save_successes: 0, death_save_failures: failures }) as PartyMember;
+
+  it("offers it while the character is dying", () => {
+    expect(mountRow(atZero(1), null).text()).toContain("Critical hit");
+  });
+
+  it("drops it once the character is dead, where damage has nothing left to do", () => {
+    expect(mountRow(atZero(3), null).text()).not.toContain("Critical hit");
   });
 });

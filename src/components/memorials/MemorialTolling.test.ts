@@ -6,6 +6,10 @@ import { ref } from "vue";
 import MemorialTolling from "./MemorialTolling.vue";
 import type { CharacterMemorial, MemorialMourner } from "@/types/memorial.types";
 
+/** A stored Tiptap document, as RichTextEditor writes it; an empty string is a cleared editor. */
+const DOC = (text: string) =>
+  JSON.stringify({ type: "doc", content: [{ type: "paragraph", ...(text ? { content: [{ type: "text", text }] } : {}) }] });
+
 const lightMutate = vi.fn((_t: unknown, o?: { onSuccess?: () => void }) => o?.onSuccess?.());
 const tolledMutate = vi.fn();
 const memorials = ref<CharacterMemorial[]>([]);
@@ -23,6 +27,7 @@ vi.mock("@/stores/auth", () => ({ useAuthStore: () => authState }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 vi.mock("@/components/common/FocalImage.vue", () => ({ default: { template: "<div />" } }));
 
+/** A fallen character's memorial for the notice to show; override what a test is about. */
 function fallen(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial {
   return {
     id: "m1",
@@ -32,7 +37,7 @@ function fallen(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial {
     kind: "fallen",
     restored_at: null,
     game_date: "29 Kythorn 1492 DR",
-    account: "<p>The song stopped on the last chord.</p>",
+    account: DOC("The song stopped on the last chord."),
     character_name: "Toddy",
     portrait_url: null,
     portrait_focal_point: null,
@@ -45,6 +50,7 @@ const stubs = {
   AppButton: { props: ["label"], template: "<button>{{ label }}</button>" },
   MemorialWordsDialog: { props: ["memorial"], emits: ["close"], template: "<div v-if='memorial' class='words' @click=\"$emit('close')\" />" },
 };
+/** Mounts the notice; `suppressed` stands in for a live encounter holding it back. */
 const render = (suppressed = false) => mount(MemorialTolling, { props: { suppressed }, global: { stubs } });
 
 beforeEach(() => {
