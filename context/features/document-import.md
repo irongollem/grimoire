@@ -2,7 +2,9 @@
 
 A DM supplies source material — a PDF, a batch of page photos, or **text pasted
 straight in** — an AI pass extracts game entities from it, and an eight-step
-wizard reviews every entity before anything reaches a content table. **DM-only**
+wizard reviews every entity before anything reaches a content table. (A
+**wiki export** from LegendKeeper, World Anvil or Obsidian is the one source
+that skips the AI pass entirely; see "A wiki export is a fourth source kind".) **DM-only**
 — there is no player-facing surface at all.
 
 Lives at **Campaign Settings → Import Document** (`/campaign/settings?tab=import`).
@@ -61,6 +63,7 @@ resolve (see "One sweep, one linking phase" below):
 | `importSweepLinking.ts` | Split out of `importSweep.ts` to stay under its line cap: `resolveEncounters` (combatant resolution) and `resolveBeatCrossReferences` (a beat's location/npc/faction/encounter/monster/item names), plus `resolveLocationLoot` and `buildSiteRoomIndex`/`SiteRoomIndex` (below) — the shared `attachItemLoot` helper both loot resolvers use, parameterised by `LootPlacementHome` rather than duplicated per caller |
 | `sourceTitle.ts` | The "Source book" field's pure half (below): `normalizeSourceTitle`, `rankSourceOptions`/`pickDefaultSourceTitle` (the DM's own naming history, ranked and prefilled), `hasSourcedCreate` (whether the review would even create a sourced row) |
 | `questPasteReview.ts` | Pure helpers for the compact review only: pick the headline quest, summarize the other kinds found, derive a default staging-row name |
+| `../archiveImport/*` (#932) | The wiki-export source, all pure: `readArchive` (zip/Markdown/HTML to `ArchivePage`s), `archiveManifest` (the compact row value), `archiveRows` (page to columns), `archiveSweep` (the two-pass sweep), `archiveMatches` (dedupe batching), `archivePreview`, `archiveAiText`, `sortGroups`, `readFiles` |
 
 **Composable** (`src/composables/campaign/`, `src/composables/monsters/`) —
 `useDocumentImportRunner.ts` is `importSweep.ts`'s Supabase-backed half (real
@@ -93,6 +96,16 @@ per entity), `DocumentImportPasteStep.vue` (the settings paste source step) and
 `DocumentPasteEditor.vue` (the rich paste-capture box itself, shared with
 `QuestPasteImportPanel.vue` in `src/components/quests/`).
 
+The wiki-export UI (#932) is `ArchiveImportPanel.vue` (the flow and the
+in-memory pages) with `ArchiveFilePicker`, `ArchiveSortStep`,
+`ArchiveReviewStep` + `ArchiveReviewRow`, `ArchiveResultStep` and
+`ArchiveAiExtract`. `ImportDecisionChoice.vue` (the link/create/generate/ignore
+radio group) was extracted from `ImportEntityReviewRow.vue` so both reviews
+offer the same choice; `reviewDecisions.ts` owns `decisionStatus`, `matchKindHint`
+and `candidateLetter` for the same reason. Its composable is
+`composables/campaign/useArchiveImport.ts` (create the row, batched matches, run
+the sweep).
+
 **Server** (`supabase/functions/`) — `import-extract/index.ts`,
 `import-extract/extractionSchema.ts`, `_shared/documentGen.ts`.
 
@@ -122,6 +135,11 @@ should not be raised as if it were. Full reasoning on #353.
 **Copy is deliberately neutral.** "Import from a PDF or page photos" — never a
 named book, publisher, or D&D Beyond, anywhere in UI, docs or marketing.
 
+That rule is about books and the publishers who sell them. It does not cover
+naming the *software* a DM is moving away from: the wiki-export source (below)
+says LegendKeeper, World Anvil and Obsidian on purpose, because "which app do I
+export from" is the first thing that DM needs to know.
+
 **A beat's `rumor_text` and `reveal_text` are summary, and that is the same
 rule, not an exception to it.** They are the only player-facing prose the
 import writes besides the quest `summary`, so the prompt holds them to both
@@ -136,7 +154,7 @@ and its two producers" in [quests.md](quests.md).
 
 ### Pasting is a third source kind, and the box is rich text on purpose (#829)
 
-`source_kind` is `pdf | images | text`. A pasted import carries no storage object
+`source_kind` was `pdf | images | text` when pasting arrived (a fourth, `archive`, followed in #932). A pasted import carries no storage object
 at all — `source_paths` is empty and the text lives in `document_imports.source_text`,
 swept by the same `expires_at` cleanup. `document_imports_source_shape_check`
 binds all three: each kind to its own `source_paths` cardinality, and whether
@@ -168,6 +186,96 @@ structure, and every semantic judgement stays with the model. A parser can tell
 you a block is set apart and that a heading is depth-3; only a model can tell
 you that one depth-3 heading is a scene and the next is a container that merely
 groups the rooms beneath it.
+
+### A wiki export is a fourth source kind, read without AI (#932)
+
+`source_kind` is `pdf | images | text | archive`. A DM moving from LegendKeeper,
+World Anvil or Obsidian picks **Wiki export** on the import tab, drops the
+export (a `.zip`, loose `.md`/`.html`/`.json` files, or an unzipped folder), and
+the **browser** reads it: `src/lib/archiveImport/` turns each exported page
+into one `ArchivePage` (kind guessed from folder, frontmatter or template; body
+kept whole as Tiptap JSON; `[[wikilinks]]` and relative links as placeholder
+nodes). Nothing is sent to a model and nothing is charged, which is why the
+flow works with a campaign's AI switched off.
+
+The flow is pick, **sort** (client-only: detected app and evidence, skipped
+files with reasons, pages grouped by folder with a kind per page, bulk "set
+all"), **review** (per kind: link to an existing entry, create, or ignore, with
+the same `import-match` candidates and the same `ImportDecisionChoice` control
+the AI review uses) and **result** (counts, problems, links left as text, and
+the optional AI pass). It lives in `ArchiveImportPanel.vue`; `DocumentImportTab`
+only decides when to show it.
+
+**Why the 50-page ceiling does not apply.** The ceiling exists because the
+platform *extracts* from a source (the EU database right, see "The legal design
+is in the prompt"). Here nothing is extracted: the DM's own pages are copied in
+by their own browser, the way a bundle or a backup restore is. An archive row
+has its own sanity bound (`page_count <= 2000`, a CHECK). The ceiling still
+binds every page the DM later sends to AI, because that goes through a **`text`
+row**, which keeps the cap, the credit charge and the review (below).
+
+**Why the row holds only a manifest.** `extracted` is
+`{ archive: { version, source, pages: [{ ref, title, kind }] } }`
+(`archiveManifest.ts`), never a page body. The request stays small however big
+the export is, and what the DM wrote is not stored twice. The cost is that a
+reload during review loses the bodies; the tab then shows "This wiki import was
+interrupted", the DM drops the same export again and each page's kind is
+restored from the manifest **by `ref`** (a different export is refused when no
+page `ref` matches), or the DM abandons the row. The row is inserted directly
+with `status = 'review'`: `import-extract` refuses `archive` rows (422) and
+nothing server-side reads one.
+
+**The tab stays with AI off.** Campaign settings used to hide Import Document
+while the campaign's AI was off, because every source was extraction. A wiki
+export is not, so the tab now always shows, and with AI off it offers only the
+wiki export and says in one line why the other sources are missing
+(`CampaignSettingsView`, `DocumentImportTab`).
+
+**Why no `ai_provenance`.** Nothing in an archive import was generated, so the
+rows it creates must not be marked as if it were (AI Act marking, #611). The
+database enforces it (`document_imports_archive_not_ai_check`), and because
+`DocumentImportWizard` refuses a row without provenance and `normalize.ts`
+caps prose at 600 characters, **an archive row must never reach either**:
+`DocumentImportTab` keeps it out of `reviewRow`, `QuestPasteImportPanel` treats
+an active one as someone else's import, and the type is a union discriminated
+by `source_kind` (`AiDocumentImport | ArchiveDocumentImport`, `isArchiveImport`)
+so a reader of `extracted` has to say which shape it expects.
+
+**The sweep** (`archiveSweep.ts`, pure with injected writers, wrapped by
+`useRunArchiveSweep`). Creates places parent-first (a place's `parent_id` is on
+the insert because `guard_location_room_parent` is a BEFORE INSERT trigger; an
+interior place with no site to sit in is imported as `other` and the result says
+so), then factions, NPCs (`location_id` from the place their page nests under),
+items, quests, notes. Everything is DM-only, uncapped, one insert per row so a
+quota refusal is reported for that row. A quota refusal stops *that kind* (every
+later row would be refused identically) and the other kinds go on. Quests are
+created like a hand-made one, with the plain one-line `summary`; a quest page's
+prose goes on an **opening beat's `dm_content`** (a hand-made quest creates no
+beat, but `summary` is one plain line and the prose has to live somewhere).
+
+**Mentions resolve in two passes**, because a link can point at a record that
+does not exist yet. Pass 1 inserts every row with each link as its plain label
+and builds a `ref -> { id, entityType }` registry (created *or* linked rows).
+Pass 2 rewrites, only for pages that contain links, the body columns with the
+links turned into `@mentions` when the target is a place, faction or NPC. A link
+to a quest, item or note, an ignored page, or a target outside the export stays
+a plain label and is listed on the result screen. An `archiveLink` placeholder is
+never written to the database (a test asserts it over every payload).
+
+**Dedupe batches.** `import-match` refuses a request over 300 entities
+(`MAX_TOTAL_ENTITIES`) and is rate limited per user, so `archiveMatches.ts` sends
+a large export in sequential batches of at most 300 and merges the answers; a
+failed batch fails the whole check, because a review missing a third of its
+candidates would default those pages to "create" and duplicate what the DM
+already owns. Only a name and a 400-character excerpt are sent per page.
+
+**The AI layer** is optional and on the result screen: the DM ticks imported
+pages (none by default), sees the page budget against their plan and the cost,
+and Start writes them as one markdown document (`archiveAiText.ts`: `# Title` +
+body, links flattened to labels) into an ordinary `text` import and starts it.
+From there the AI flow and its review take over, and its dedupe offers the
+just-imported rows as links. Hidden with a one-line reason when the campaign has
+AI off.
 
 ### The page cap is enforced where it cannot be forged (#829)
 

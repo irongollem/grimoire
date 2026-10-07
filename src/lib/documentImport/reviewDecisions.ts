@@ -13,7 +13,8 @@
  *   - the two group actions, "Ignore all" and "Reset to suggested"
  *     (`ignoreAllDecisions`, `resetToSuggestedDecisions`)
  */
-import { defaultDecision, type EntityCandidate, type ImportDecision } from "./entityMatching";
+import type { ButtonTone } from "@/components/common/appButtonVariants";
+import { defaultDecision, type EntityCandidate, type EntityMatchKind, type ImportDecision } from "./entityMatching";
 import type { UsableEntity } from "./sanitizeEntities";
 import type { ImportEntityKind } from "@/types/documentImport.types";
 
@@ -141,5 +142,49 @@ export function quotaShortfalls(
     const room = roomFor(kind);
     if (room !== null && wouldAdd > room) out.push({ kind, wouldAdd, room });
   }
+  return out;
+}
+
+// ── How a decision reads, shared by every review row ────────────────────────
+
+/** The chip a collapsed review row shows for its decision. success = link to a
+ *  row the DM already owns, primary = link to a library row (copied in first,
+ *  so a distinct action), info = create (the default), arcane = generate (the
+ *  app's "AI and magic" tone), neutral = ignore. */
+export function decisionStatus(decision: ImportDecision, generateCreditsLabel: string | null): { label: string; tone: ButtonTone } {
+  switch (decision.action) {
+    case "link": {
+      const c = decision.candidate;
+      const detail = c.detail ? ` · ${c.detail}` : "";
+      // A library candidate is referenced in place, not copied; the status says which shelf it comes from.
+      return c.source === "campaign"
+        ? { label: `Links to ${c.name}${detail}`, tone: "success" }
+        : { label: `Uses library entry: ${c.name}${detail}`, tone: "primary" };
+    }
+    case "create":
+      return { label: "New", tone: "info" };
+    case "generate":
+      return { label: generateCreditsLabel ? `Generate · ${generateCreditsLabel}` : "Generate", tone: "arcane" };
+    case "ignore":
+      return { label: "Ignored", tone: "neutral" };
+  }
+}
+
+export function matchKindHint(kind: EntityMatchKind): string {
+  if (kind === "exact") return "same name";
+  if (kind === "near") return "nearly the same name";
+  if (kind === "contains") return "name contains";
+  return "looks similar";
+}
+
+/** A, B, C… Z, AA, AB… — the same wrapping idiom `lib/quests/threads.ts`'s
+ *  `threadLetter` uses, though five candidates in practice never gets close. */
+export function candidateLetter(index: number): string {
+  let n = index;
+  let out = "";
+  do {
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
   return out;
 }

@@ -348,7 +348,8 @@ import { useLazyMount } from "@/composables/useLazyMount";
 import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
 import TermsGate from "@/components/account/TermsGate.vue";
 import PlayerAudioStream from "@/components/soundboard/PlayerAudioStream.vue";
-import { activeThemeId, darkTwinStyle } from "@/lib/themeRuntime";
+import { activeThemeId } from "@/lib/themeRuntime";
+import { darkChromeStyle } from "@/lib/memorials/hallGround";
 
 const auth = useAuthStore();
 const ui = useUiStore();
@@ -373,8 +374,9 @@ const PlayerCampaignsSheet = defineAsyncComponent(
 const bugReportOpen = ref(false);
 const bugReportMounted = useLazyMount(bugReportOpen);
 const route = useRoute();
-// A page that is always dark (meta.darkChrome, the Hall of the Fallen) takes the bars with it.
-const chromeStyle = computed(() => (route.meta.darkChrome ? darkTwinStyle(activeThemeId.value) : undefined));
+// A page that is always dark (meta.darkChrome, the Hall of the Fallen) takes the bars with it,
+// on a stone ground so a rubber-band scroll past the page shows wall, not vellum's paper.
+const chromeStyle = computed(() => (route.meta.darkChrome ? darkChromeStyle(activeThemeId.value) : undefined));
 
 const membershipCampaignId = computed(() => auth.membership?.campaign_id ?? null);
 watch(membershipCampaignId, (id) => {

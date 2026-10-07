@@ -3,6 +3,8 @@ import { computed, toValue, type Ref, type MaybeRefOrGetter } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
+import { PLAYER_FACTIONS_KEY } from "@/lib/campaignLiveSync/registry";
 import { getSetting } from "@/settings/index";
 import { matchSettingRowIds, stampSettingSource } from "@/lib/populateSetting/settingContent";
 import { useToast } from "@/composables/useToast";
@@ -72,20 +74,29 @@ export function useFaction(id: MaybeRefOrGetter<string>) {
   });
 }
 
+/**
+ * The factions a player may read, as the server projects them (a faction shared
+ * with their character, or one their character belongs to) with DM-only secret
+ * blocks stripped from the description (`get_player_visible_factions`, #932).
+ * Players cannot select `factions` any more. With a DM previewing as a party
+ * member the RPC returns exactly that member's view, so callers do not filter.
+ * Refreshed by the `factions_player` doorbell.
+ */
 export function usePlayerVisibleFactions() {
   const campaign = useCampaignStore();
+  const ui = useUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => ["factions", campaignId.value, "player-visible"] as const),
-    queryFn: async ({ queryKey: [, cid] }) => {
+    queryKey: computed(() => [PLAYER_FACTIONS_KEY, campaignId.value, previewMemberId.value] as const),
+    queryFn: async ({ queryKey: [, cid, previewId] }) => {
       if (cid === null) throw new Error("usePlayerVisibleFactions fetched without a campaign");
-      const { data, error } = await supabase
-        .from("factions")
-        .select("*")
-        .eq("campaign_id", cid)
-        .order("name", { ascending: true });
+      const { data, error } = await supabase.rpc("get_player_visible_factions", {
+        p_campaign_id: cid,
+        p_preview_member_id: previewId,
+      });
       if (error) throw error;
-      return data as Faction[];
+      return (data as Faction[]).sort((a, b) => a.name.localeCompare(b.name));
     },
     enabled: computed(() => !!campaignId.value),
   });
@@ -774,13 +785,11 @@ export function usePartyMemberFactions(partyMemberId: string | Ref<string>) {
     queryFn: async ({ queryKey: [, pid] }) => {
       const { data, error } = await supabase
         .from("faction_party_members")
-        .select("*, faction:factions(id, name, faction_type, emblem_url, player_visible_to)")
+        .select("*")
         .eq("party_member_id", pid)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data as (FactionPartyMember & {
-        faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url" | "player_visible_to">;
-      })[];
+      return data as FactionPartyMember[];
     },
     enabled: computed(() => !!(typeof id === "string" ? id : id.value)),
   });

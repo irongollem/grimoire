@@ -173,12 +173,12 @@ import { useMonsterGenerationCost } from "@/composables/monsters/useMonsterGener
 import type { ImportSweepInput, ImportSweepProgress, ImportSweepReport } from "@/composables/campaign/useDocumentImportRunner";
 import {
   IMPORT_ENTITY_KINDS,
-  type DocumentImport,
+  type AiDocumentImport,
   type ImportEntityKind,
 } from "@/types/documentImport.types";
 import { IconExternalLink } from "@/lib/icons";
 
-const { importRow } = defineProps<{ importRow: DocumentImport }>();
+const { importRow } = defineProps<{ importRow: AiDocumentImport }>();
 const emit = defineEmits<{ finished: [] }>();
 
 const allEntries = listEntityKindsInWizardOrder();

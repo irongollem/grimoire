@@ -251,7 +251,7 @@ export function resolveEnum<T extends string>(
  * the enum's membership a second time here, which would drift the moment a
  * type is added to one and not the other.
  */
-const LOCATION_TYPES = Object.keys(LOCATION_TYPE_LABELS) as LocationType[];
+export const LOCATION_TYPES = Object.keys(LOCATION_TYPE_LABELS) as LocationType[];
 
 /**
  * `Monster.stat_block` is a full `MonsterStatBlock`, not a partial one, even

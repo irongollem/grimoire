@@ -1,5 +1,6 @@
 // ── DM Screen Reference Tables ────────────────────────────────────────────────
 // Hardcoded 5e SRD reference data for the DM Screen tab.
+import { TRAVEL_PACES } from "@/rules/travelPace";
 
 export interface ScreenTable {
   id: string;
@@ -269,11 +270,17 @@ export const DM_SCREEN_SECTIONS: ScreenSection[] = [
         id: "travel-pace",
         title: "Travel Pace",
         columns: ["Pace", "Per Minute", "Per Hour", "Per Day", "Effect"],
-        rows: [
-          ["Fast", "400 ft.", "4 miles", "30 miles", "−5 to passive Perception."],
-          ["Normal", "300 ft.", "3 miles", "24 miles", "—"],
-          ["Slow", "200 ft.", "2 miles", "18 miles", "Can use Stealth."],
-        ],
+        // Derived from the same table the Atlas measuring tool reads, so the
+        // screen and the calculator cannot disagree. The screen's tables are
+        // 2014 throughout; making the whole screen follow the campaign's
+        // edition is #934's work, so this row stays 2014 with the rest.
+        rows: [...TRAVEL_PACES].reverse().map((p) => [
+          p.label,
+          `${p.feetPerMinute} ft.`,
+          `${p.milesPerHour} miles`,
+          `${p.milesPerDay} miles`,
+          p.effect["2014"] ?? "—",
+        ]),
       },
       {
         id: "food-water",

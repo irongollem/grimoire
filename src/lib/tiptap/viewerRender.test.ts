@@ -33,6 +33,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import Typography from "@tiptap/extension-typography";
 import { Columns } from "./Columns";
 import { AiGenerated } from "./AiGenerated";
+import { SecretBlock } from "./secretBlock";
 import { CalendarEventRef } from "./CalendarEventRef";
 import { createEntityMentionExtension } from "./EntityMention";
 import { IllustrationSuggestion } from "./IllustrationSuggestion";
@@ -110,6 +111,7 @@ function viewerExtensions(): Extensions {
     IllustrationSuggestion,
     PendingImage,
     AiGenerated,
+    SecretBlock,
   ];
 }
 
@@ -326,6 +328,10 @@ const FIXTURES: Record<string, JSONContent> = {
     { type: "aiGenerated", attrs: { model: "gpt-x" }, content: [p(t("model text"))] },
     { type: "aiGenerated", content: [p(t("unknown model"))] },
   ),
+  "secret block, nested and holding a list": doc({
+    type: "secretBlock",
+    content: [p(t("the vizier is the lich")), { type: "bulletList", content: [{ type: "listItem", content: [p(t("clue"))] }] }],
+  }),
   "table with header row, spans, widths and alignment": doc({
     type: "table",
     content: [

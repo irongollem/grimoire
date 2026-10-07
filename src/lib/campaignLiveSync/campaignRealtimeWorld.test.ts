@@ -56,6 +56,17 @@ describe("applyCampaignRealtimeWorld", () => {
     expect(qc.getQueryData(["notes", "newer"])).toEqual(newer);
   });
 
+  it("refreshes, never splices into, the player note projection a previewing DM holds", () => {
+    const qc = new QueryClient();
+    const note = row({ id: "n1", content: "secret" });
+    const projection = [{ id: "n1", content: "public" }];
+    qc.setQueryData(["player-notes", "campaign-1", null], projection);
+
+    applyCampaignRealtimeWorld(qc, "notes", change(note), dm);
+    expect(qc.getQueryData(["player-notes", "campaign-1", null])).toBe(projection);
+    expect(invalidated(qc, ["player-notes", "campaign-1", null])).toBe(true);
+  });
+
   it("updates the campaign quest list in place while invalidating, not replacing, player projections", () => {
     const qc = new QueryClient();
     const previous = row({ id: "quest-1", status: "undiscovered", parent_quest_id: "parent-a", notes: "secret" });
@@ -179,7 +190,7 @@ describe("applyCampaignRealtimeWorld", () => {
     const faction = row({ id: "faction-1", name: "Zhentarim", description: "secret" });
     const projection = [{ id: "faction-1", name: "Public" }];
     qc.setQueryData(["factions", "campaign-1"], []);
-    qc.setQueryData(["factions", "campaign-1", "player-visible"], projection);
+    qc.setQueryData(["player-factions", "campaign-1", null], projection);
     qc.setQueryData(["npc-factions", "npc-1"], [{ faction: { id: "faction-1", name: "Old" } }]);
     qc.setQueryData(["deity-factions", "deity-1"], [{ faction: { id: "faction-1", name: "Old" } }]);
     qc.setQueryData(["party-member-factions", "member-1"], [{ faction: { id: "faction-1", name: "Old" } }]);
@@ -187,8 +198,8 @@ describe("applyCampaignRealtimeWorld", () => {
 
     applyCampaignRealtimeWorld(qc, "factions", change(faction), dm);
     expect(qc.getQueryData(["factions", "campaign-1"])).toEqual([faction]);
-    expect(qc.getQueryData(["factions", "campaign-1", "player-visible"])).toBe(projection);
-    expect(invalidated(qc, ["factions", "campaign-1", "player-visible"])).toBe(true);
+    expect(qc.getQueryData(["player-factions", "campaign-1", null])).toBe(projection);
+    expect(invalidated(qc, ["player-factions", "campaign-1", null])).toBe(true);
     expect(invalidated(qc, ["npc-factions", "npc-1"])).toBe(true);
     expect(invalidated(qc, ["deity-factions", "deity-1"])).toBe(true);
     expect(invalidated(qc, ["party-member-factions", "member-1"])).toBe(true);

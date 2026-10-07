@@ -286,6 +286,16 @@
           :icon="IconColumns"
           @click="editor.chain().focus().toggleColumns().run()"
         />
+        <AppButton
+          v-if="allowSecrets"
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('secretBlock')"
+          tooltip="DM only: players never receive this passage (click again to remove)"
+          :icon="IconSecret"
+          @click="editor.chain().focus().toggleSecretBlock().run()"
+        />
         <!-- Calendar event ref — only when allowCalendarEvents is enabled -->
         <template v-if="allowCalendarEvents">
           <div class="w-px h-5 bg-border mx-0.5" />
@@ -396,7 +406,7 @@ import { parseMarkdown, looksLikeMarkdown, sanitizePasteText } from "@/lib/tipta
 import { insertionPos } from "@/lib/tiptap/insertionPos";
 import { useEnhanceAvailable } from "@/ai/useTextEnhancement";
 import TextEnhanceBubble from "@/components/common/TextEnhanceBubble.vue";
-import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconCalendarDays, IconColumns, IconDelete, IconHighlight, IconImage, IconInsertColumn, IconInsertRow, IconLink, IconList, IconListOrdered, IconListTodo, IconMinus, IconQuote, IconRedo, IconTable, IconUnderline, IconUndo } from '@/lib/icons';
+import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconCalendarDays, IconColumns, IconDelete, IconHighlight, IconImage, IconInsertColumn, IconInsertRow, IconLink, IconList, IconListOrdered, IconListTodo, IconMinus, IconQuote, IconSecret, IconRedo, IconTable, IconUnderline, IconUndo } from '@/lib/icons';
 import TextAlign from "@tiptap/extension-text-align";
 import { Columns } from "@/lib/tiptap/Columns";
 import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";
@@ -408,6 +418,7 @@ import { IllustrationSuggestion, findIllustrationSuggestion } from "@/lib/tiptap
 import type { IllustrationTarget } from "@/lib/tiptap/nodeViewTypes";
 import { PendingImage } from "@/lib/tiptap/PendingImage";
 import { AiGenerated } from "@/lib/tiptap/AiGenerated";
+import { SecretBlock } from "@/lib/tiptap/secretBlock";
 import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
 
 const CustomDocument = Node.create({
@@ -433,6 +444,7 @@ const {
   placeholder,
   allowUpload,
   allowCalendarEvents,
+  allowSecrets,
   entityMentionItems,
   stickyToolbar = true,
   toolbar = "full",
@@ -444,6 +456,13 @@ const {
   size?: EditorSize;
   allowUpload?: boolean;
   allowCalendarEvents?: boolean;
+  /**
+   * Offer the "DM only" passage control (#932). The server withholds these
+   * blocks from every player-visible projection, so set it only on fields that
+   * players can see in some form. The node itself is registered in every editor
+   * regardless, so opening a field that holds a secret elsewhere cannot delete it.
+   */
+  allowSecrets?: boolean;
   entityMentionItems?: EntityMentionItem[];
   stickyToolbar?: boolean;
   /**
@@ -637,6 +656,7 @@ const editor = useEditor({
     }),
     PendingImage,
     AiGenerated,
+    SecretBlock.configure({ creatable: allowSecrets === true }),
   ],
   editorProps: {
     handlePaste(view, event) {

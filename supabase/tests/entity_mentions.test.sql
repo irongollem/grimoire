@@ -66,6 +66,12 @@ select is(
   'removing a mention removes its row'
 );
 
+-- A notes edit also rings `notes_player` for the players' projection
+-- (20261007092700), and the doorbell row keeps whichever ring came last; in
+-- production both reach the client, one realtime event per upsert. Silence that
+-- ring here so the assertion below sees the index's own.
+alter table public.notes disable trigger notes_signal_update;
+
 -- A source that leaves every campaign keeps no rows; deleting it drops them.
 update public.notes set campaign_id = null where id = '97200000-0000-4000-8000-000000000030';
 select is((select count(*)::int from public.entity_mentions where source_id = '97200000-0000-4000-8000-000000000030'), 0, 'a note with no campaign keeps no rows');

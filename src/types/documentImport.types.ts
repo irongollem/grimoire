@@ -41,6 +41,7 @@
 import type { AiProvenance } from "@/ai/provenance";
 import type { MonsterStatBlock } from "@/types/monster.types";
 import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult } from "@/ai/types";
+import type { ArchiveManifest } from "@/lib/archiveImport/archiveManifest";
 
 // ── Entity kinds ─────────────────────────────────────────────────────────────
 
@@ -434,9 +435,15 @@ export type ExtractionResult = {
  * storage object at all — `document_imports_source_shape_check` binds each kind
  * to its own `source_paths` cardinality and to whether `source_text` is set.
  */
-export const DOCUMENT_IMPORT_SOURCE_KINDS = ["pdf", "images", "text"] as const;
+export const DOCUMENT_IMPORT_SOURCE_KINDS = ["pdf", "images", "text", "archive"] as const;
 
 export type DocumentImportSourceKind = (typeof DOCUMENT_IMPORT_SOURCE_KINDS)[number];
+
+/**
+ * The three kinds an AI pass reads. A wiki export (`archive`, #932) is the
+ * fourth: read by the DM's own browser, never extracted, never marked as AI.
+ */
+export type AiDocumentImportSourceKind = Exclude<DocumentImportSourceKind, "archive">;
 
 export const DOCUMENT_IMPORT_STATUSES = [
   "pending",
@@ -473,16 +480,30 @@ export type DocumentImportStatus = (typeof DOCUMENT_IMPORT_STATUSES)[number];
  * So the safety is per-field and distributed, not a gate. Do not add one on the
  * strength of this comment alone — decide whether it is wanted first.
  */
-export interface DocumentImport {
+export interface DocumentImportBase {
   id: string;
   user_id: string;
   campaign_id: string;
-  source_kind: DocumentImportSourceKind;
   /** Storage paths under `{userId}/` in `import-documents`, in page order. */
   source_paths: string[];
   display_name: string;
   page_count: number;
   status: DocumentImportStatus;
+  /**
+   * Kind → how many rows that step imported. Absent means "not reviewed yet",
+   * 0 means "reviewed and skipped everything" — the wizard resumes on the
+   * difference, so the two must not be collapsed.
+   */
+  rights_attested_at: string;
+  error: string | null;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** An import an AI pass reads (`pdf`, `images`, `text`): `extracted` is the model's output. */
+export interface AiDocumentImport extends DocumentImportBase {
+  source_kind: AiDocumentImportSourceKind;
   extracted: ExtractionResult;
   /**
    * Kind → how many rows that step imported. Absent means "not reviewed yet",
@@ -490,18 +511,34 @@ export interface DocumentImport {
    * difference, so the two must not be collapsed.
    */
   imported_counts: Partial<Record<ImportEntityKind, number>>;
-  rights_attested_at: string;
   ai_provenance: AiProvenance | null;
-  error: string | null;
-  expires_at: string;
-  created_at: string;
-  updated_at: string;
+}
+
+/**
+ * A wiki export (#932): `extracted` holds only the manifest (which pages, and
+ * the kind the DM settled for each), never a page body. Never AI: the
+ * database holds `ai_provenance` null for this kind with a CHECK.
+ */
+export interface ArchiveDocumentImport extends DocumentImportBase {
+  source_kind: "archive";
+  extracted: ArchiveManifest;
+  /** Notes are counted too; they are not an extraction kind. */
+  imported_counts: Partial<Record<ImportEntityKind | "notes", number>>;
+  ai_provenance: null;
+}
+
+/** Discriminated by `source_kind`, so a reader of `extracted` has to say which shape it expects. */
+export type DocumentImport = AiDocumentImport | ArchiveDocumentImport;
+
+export function isArchiveImport(row: DocumentImport): row is ArchiveDocumentImport {
+  return row.source_kind === "archive";
 }
 
 export type DocumentImportInsert = Omit<
-  DocumentImport,
-  "id" | "user_id" | "status" | "extracted" | "imported_counts" | "ai_provenance" | "error" | "expires_at" | "created_at" | "updated_at"
+  DocumentImportBase,
+  "id" | "user_id" | "status" | "error" | "expires_at" | "created_at" | "updated_at"
 > & {
+  source_kind: DocumentImportSourceKind;
   status?: DocumentImportStatus;
   expires_at?: string;
 };

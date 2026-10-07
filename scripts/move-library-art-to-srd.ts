@@ -13,7 +13,8 @@
  *
  * Reads the source rows (`library_art_defaults.image_url` for items,
  * `library_monster_art_canonical.image_url` and `.cutout_url` for monsters,
- * `library_backgrounds.image_url` for backgrounds), keeps those whose URL sits
+ * `library_backgrounds.image_url` for backgrounds, `library_species.image_url`
+ * for species), keeps those whose URL sits
  * in a user-uuid folder of a registered image bucket, and for each distinct
  * image:
  *
@@ -28,13 +29,15 @@
  *    so an interrupted run resumes by running again. An object already there at
  *    another size is a failure, never an overwrite: `srd/` holds live art;
  * 6. only once every object is confirmed present by HEAD, updates the shared
- *    copies (`library_items`, `library_monsters`; backgrounds have none) whose
+ *    copies (`library_items`, `library_monsters`; backgrounds and species have none) whose
  *    URL equals the old one exactly, and the source row last. The source row is what makes an image a
  *    job, so it must be the last thing to change: updated first, a failure
  *    before the copies would leave them stale with no job left to finish them.
  *
  * Background art moves out of `asset-images`, where backgrounds uploaded until
- * #978 gave them `background-images`, into `background-images/srd/`.
+ * #978 gave them `background-images`, into `background-images/srd/`. Species
+ * art does the same into `species-images/srd/`: the Tome of Heroes pictures
+ * carried over from the admin's vault copies when those were retired (#995).
  *
  * The per-user rows (`items`, `monsters`, `npcs`, `backgrounds`, ...) are never touched: the
  * old files stay where they are, so those rows keep working. **This script has
@@ -80,13 +83,14 @@ const VARIANT_QUALITY = 80;
 const PAGE = 1000;
 const CONCURRENCY = 4;
 
-export type ArtKind = "item" | "monster" | "background";
+export type ArtKind = "item" | "monster" | "background" | "species";
 
 /** The bucket each kind of canonical art lives in once moved. */
 export const TARGET_BUCKET: Readonly<Record<ArtKind, string>> = {
   item: "item-images",
   monster: "monster-images",
   background: "background-images",
+  species: "species-images",
 };
 
 interface ColumnSpec {
@@ -101,11 +105,13 @@ export const SOURCE_COLUMNS: readonly (ColumnSpec & { orderBy: string })[] = [
   { table: "library_monster_art_canonical", column: "image_url", kind: "monster", orderBy: "entry_id" },
   { table: "library_monster_art_canonical", column: "cutout_url", kind: "monster", orderBy: "entry_id" },
   { table: "library_backgrounds", column: "image_url", kind: "background", orderBy: "id" },
+  { table: "library_species", column: "image_url", kind: "species", orderBy: "id" },
 ];
 
 /**
  * The shared copies of the source URLs, edited by exact old URL after the move.
- * Backgrounds have none: `library_backgrounds` is both the source and the only copy.
+ * Backgrounds and species have none: `library_backgrounds` and `library_species`
+ * are each both the source and the only copy.
  */
 export const SHARED_COLUMNS: readonly ColumnSpec[] = [
   { table: "library_items", column: "image_url", kind: "item" },

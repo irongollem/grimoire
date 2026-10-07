@@ -334,23 +334,11 @@ Key columns:
 | `linked_calendar_event_id`     | uuid FK → calendar_events | auto-managed; null on event delete                                   |
 | `sort_order`                   | integer                   | manual drag order; null until reordered (migration `20260608000002`) |
 
-**RLS (current):** `auth.uid() = user_id` gives DM full access. Players select where their `party_member_id` is in `player_visible_to`:
+**RLS (current):** `auth.uid() = user_id` gives the DM full access. Players have **no select policy on `notes`** since `20261007092700` (#932): a raw row would carry the DM's secret blocks (see "DM-only secret blocks" below). Players read through `get_player_visible_notes(p_campaign_id, p_preview_member_id)`, which returns a note when their character's `party_member_id` is in `player_visible_to`, with every `secretBlock` removed from `content`. With `p_preview_member_id` the campaign DM sees exactly what that member would; with null, anything shared with at least one member. The rule that used to be a policy (`cm.party_member_id = any(notes.player_visible_to)`) now lives in the function.
 
-```sql
-create policy "notes_select" on notes for select using (
-  auth.uid() = user_id
-  or (
-    campaign_id is not null
-    and campaign_id in (select campaign_id from campaign_members where user_id = auth.uid())
-    and exists (
-      select 1 from campaign_members cm
-      where cm.user_id = auth.uid()
-        and cm.campaign_id = notes.campaign_id
-        and cm.party_member_id = any(notes.player_visible_to)
-    )
-  )
-);
-```
+#### DM-only secret blocks (#932)
+
+A `secretBlock` Tiptap node (`src/lib/tiptap/secretBlock.ts`) holds a passage the DM keeps back inside shared text. The server strips it at any depth (`private.withhold_secret_blocks`) from every player projection: notes, location and faction descriptions, item description / mundane / curse / written content, puzzle description. It is withheld, never hidden with CSS, for the same reason as NPC disguises: a secret the client never receives cannot leak. The toolbar's "DM only" button (`allowSecrets` on `RichTextEditor`, shortcut Mod-Alt-S) is on exactly those fields; handouts, NPC lore, puzzle hints and solutions and player-authored text do not offer it. The node is registered in **every** `RichTextEditor`, offered or not, because ProseMirror drops nodes its schema does not know and a DM opening the field elsewhere would otherwise delete their secret on save. The DM sees it as a dashed, tinted passage with a label (`src/assets/secret-block.css`, shared with `RichTextViewer`). Markdown export writes it as a `> [!secret] DM only` callout; `tiptapToPlainText` keeps its text (DM-side only).
 
 ### TypeScript Types — `src/types/notes.types.ts`
 
@@ -485,7 +473,7 @@ All note creation and editing happens here. Key integrations:
 
 ### Player-Facing Notes View — `src/views/play/PlayerNotesView.vue`
 
-- Uses `useNotes()` — Supabase RLS filters automatically; only notes with the player's `party_member_id` in `player_visible_to` are returned
+- Players read notes through `usePlayerVisibleNotes()` (`get_player_visible_notes`, key `[PLAYER_NOTES_KEY, campaignId, previewMemberId]`, refreshed by the `notes_player` doorbell); `useNotes()` is the DM's table read
 - Read-only accordion list: pinned-first sort, expand to `RichTextViewer`
 - No create/edit/delete capability for players
 
@@ -759,9 +747,10 @@ interface CalendarAdapter {
 **`src/components/calendar/EventModal.vue`**
 
 - Full CRUD modal for calendar events (create + edit + delete)
-- Props: `modelValue: boolean`, `editEvent?: CalendarEvent | null`, `initialDay?: number | null`
+- Props: `modelValue: boolean`, `editEvent?: CalendarEvent | null`, `initialDay?: number | null`, `prefill?: Partial<CalendarEventInsert>` (a new event opens with these fields laid over the blank draft; applied on open only, so the DM's edits are never overwritten, and ignored when editing)
 - Uses `useCreateCalendarEvent`, `useUpdateCalendarEvent`, `useDeleteCalendarEvent`
 - Travel events: uses `EntityCombobox` with `useAllLocations()` for destination; party member checkboxes via `useParty()`; on submit, calls `useUpdatePartyMember` for each selected traveler to update `current_location_id`
+- **Travel from a measured route (#932):** the Atlas's Measure tool (`MapMeasurePanel.vue`) opens this modal with `prefill` set from `routeEventPrefill` (`src/lib/locations/mapRoute.ts`): `event_type: "travel"`, title "Travel to <last pin>" (or "Travel"), the campaign's in-world today as the start, `linked_location_id` the last pin's place, travelers the party members whose `current_location_id` is the first pin's place, and a description ("84 mi from Waterdeep to Daggerford at a normal pace: 3 days, 4 hours."). A trip of one calendar day or less stays a single-day event; a longer one is multi-day and ends on `addDays(start, ceil(days) - 1)`, which walks the calendar adapter's own months and rolls off intercalary days. The DM can still edit everything before saving; submit then behaves as for any travel event.
 - `description` field uses `RichTextEditor`
 - 8 preset colours; auto-assigns colour by event type
 
@@ -822,7 +811,7 @@ The inline calendar event reference chip is a custom Tiptap node:
 | ------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Notes list (`/notes`)           | Full CRUD                                      | No access                                                                                                               |
 | Note detail (`/notes/:id`)      | Read + Edit + Delete                           | No access                                                                                                               |
-| Player notes (`/play/notes`)    | N/A                                            | Read-only; filtered by RLS to `player_visible_to`                                                                       |
+| Player notes (`/play/notes`)    | N/A                                            | Read-only; `get_player_visible_notes` filters to `player_visible_to` and strips secret blocks                                                                       |
 | Player journal                  | N/A                                            | Full CRUD on own entries; read shared entries from others                                                               |
 | Calendar (`/calendar`)          | Full CRUD                                      | No access                                                                                                               |
 | Entity calendar pins            | DM creates/deletes via `EntityCalendarSection` | No access                                                                                                               |
@@ -834,7 +823,7 @@ The inline calendar event reference chip is a custom Tiptap node:
 
 1. **Session note → calendar event circular FK**: Insert note first (no linked event), then insert event with `linked_note_id`, then patch `note.linked_calendar_event_id`. Never try to set both FKs in a single transaction. `syncSessionCalendarEvent` in `useNoteCalendarSync` handles this correctly, and its test pins the ordering.
 
-2. **`player_visible_to` is the sole source of truth**: There is no longer a `shared_with_players` boolean. An empty array means DM-only. Populate with party member UUIDs (not user IDs). The RLS policy enforces this via `cm.party_member_id = any(notes.player_visible_to)`.
+2. **`player_visible_to` is the sole source of truth**: There is no longer a `shared_with_players` boolean. An empty array means DM-only. Populate with party member UUIDs (not user IDs). `get_player_visible_notes` enforces this via `cm.party_member_id = any(notes.player_visible_to)`; players cannot select `notes` directly.
 
 3. **Calendar events do not have player-facing RLS**: The `calendar_events` table RLS only allows `auth.uid() = user_id`. Players cannot read calendar events even indirectly. The `CalendarEventRefChip` in viewer mode queries `useCalendarEventById` — this works for DMs but will return null for players (chips show as `[event removed]` state).
 

@@ -70,6 +70,7 @@ export { RefreshCw as IconRefresh }
 export { RotateCcw as IconReset }
 export { Eye as IconReveal }
 export { EyeOff as IconHide }
+export { EyeOff as IconSecret }
 export { Pin as IconPin }
 export { Archive as IconArchive }
 export { Printer as IconPrint }

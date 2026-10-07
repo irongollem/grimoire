@@ -85,7 +85,7 @@
       </template>
 
       <!-- View actions (player view) -->
-      <template v-if="mode === 'view'">
+      <template v-if="mode === 'view' && !suppressActions">
         <!-- Go there — only when the child location is shared/navigable -->
         <AppButton
           v-if="sharedChildIds?.has(pin.child_location_id)"
@@ -142,6 +142,7 @@ const {
   mode,
   showHiddenPins = false,
   offerPeek = true,
+  suppressActions = false,
   scale,
   toImageFraction,
 } = defineProps<{
@@ -176,6 +177,12 @@ const {
    * clicking the pill does and only makes the pill harder to hit.
    */
   offerPeek?: boolean;
+  /**
+   * Hide the pill's Go/Watch buttons. The Atlas measuring tool (#932) turns a
+   * tap on a pin into a waypoint, so a pin must not also offer to navigate
+   * away mid-route.
+   */
+  suppressActions?: boolean;
   /** The frame's current zoom, for counter-scaling pins (see `pinStyle`). */
   scale: number;
   /** The frame's client-coordinates → image-fraction conversion. Shared with

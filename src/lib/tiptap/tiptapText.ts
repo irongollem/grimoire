@@ -4,6 +4,10 @@
  * html2canvas character-sheet PDF, where mounting a Tiptap viewer is unreliable
  * and an unparsed JSON string would otherwise be printed verbatim.
  *
+ * A `secretBlock` (DM-only passage, #932) is walked like any other block: this
+ * runs on the DM's own copy (previews, search), and players never receive the
+ * node because the server strips it from their projections.
+ *
  * Legacy plain-text values (anything that isn't valid Tiptap JSON) are returned
  * as-is, so pre-migration data and starter-recipe seeds keep rendering.
  */

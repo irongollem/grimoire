@@ -386,7 +386,7 @@ Back route goes to `/play` (character sheet) if the player triggered it from the
 
 Route: `/play/journal` (`PlayerJournalView.vue`)
 
-A personal journal owned by each player character, and also the home of the Quest Log and Puzzles tabs (`/play/quests` and `/play/puzzles` redirect here — see those sections below). Six tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), **Quest Log**, **Puzzles**, **DM Notes** (read-only view of notes the DM has shared) and **Handouts** (Scriptorium documents the DM has shared with this player).
+A personal journal owned by each player character, and also the home of the Quest Log and Puzzles tabs (`/play/quests` and `/play/puzzles` redirect here; see those sections below). Six tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), **Quest Log**, **Puzzles**, **DM Notes** (read-only view of notes the DM has shared, read through `get_player_visible_notes` so DM-only secret blocks never arrive; a DM previewing a member sees exactly that member's notes) and **Handouts** (Scriptorium documents the DM has shared with this player).
 
 Each entry has:
 
