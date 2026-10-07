@@ -212,6 +212,7 @@ import { useSpecies, useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { getDisplayRace, getDisplaySpeciesId } from "@/lib/partyMemberDisplay";
 import type { PartyMember } from "@/types/party.types";
+import { healthVisibilityOf } from "@/lib/healthVisibility";
 import type { HealthVisibility } from "@/types/encounter.types";
 import type { Species } from "@/types/species.types";
 
@@ -244,7 +245,7 @@ const displayAc = computed(() => {
 });
 
 const healthVis = computed<HealthVisibility>(
-  () => (campaign.activeCampaign?.health_visibility as HealthVisibility) ?? "strategic",
+  () => healthVisibilityOf(campaign.activeCampaign),
 );
 const isOwnMember = computed(() => props.member?.id === (viewerMemberId.value ?? auth.linkedPartyMemberId));
 const showNumericHp = computed(() =>

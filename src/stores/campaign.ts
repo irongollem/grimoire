@@ -6,9 +6,11 @@ import { useAuthStore } from "@/stores/auth";
 import { decryptApiKey } from "@/lib/apiKeyVault";
 import { isLocalCiphertext, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
 import { DEFAULT_THEME_ID } from "@/lib/themes";
+import { normalizeRuleset, type RulesetKey } from "@/types/ruleset.types";
 
 const STORAGE_KEY      = "grimoire_active_campaign";
 const LOCAL_MODE_KEY   = "grimoire_key_local_mode";
+const RULESET_HINT_KEY = "grimoire_active_campaign_ruleset";
 
 // Per-provider localStorage keys (local mode only)
 const LOCAL_KEYS: Record<string, string> = {
@@ -57,6 +59,61 @@ export const useCampaignStore = defineStore("campaign", () => {
     if (id) localStorage.setItem(STORAGE_KEY, id);
     else localStorage.removeItem(STORAGE_KEY);
   });
+
+  // The row on screen always belongs to the id on screen. The shell no longer
+  // waits for the campaign row (App.vue), so an id can change while the old row
+  // is still held — a join link or a mode switch sets the id alone — and
+  // without this the previous campaign's name, theme and settings would be
+  // shown under the new id until the new row landed. `sync` so no render sees
+  // the mismatch; App.vue's hydration watcher then fills the row in.
+  watch(
+    activeCampaignId,
+    (id) => {
+      if (activeCampaign.value && activeCampaign.value.id !== id) activeCampaign.value = null;
+    },
+    { flush: "sync" },
+  );
+
+  // The campaign's edition keys a good many library queries (rules, species,
+  // monsters, spells, items). The shell mounts before the campaign row arrives,
+  // so until it does those queries would key on the 2014 fallback and refetch
+  // when the row said 2024. This remembers the last edition seen for the active
+  // campaign so a returning visit keys correctly from the first render. It is a
+  // hint, never an answer: the row overrides it the moment it exists, and it only
+  // applies to the id it was written for.
+  function readRulesetHint(id: string | null): string | null {
+    if (!id || typeof localStorage === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(RULESET_HINT_KEY);
+      if (!raw) return null;
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof parsed !== "object" || parsed === null) return null;
+      const hint = parsed as { id?: unknown; ruleset?: unknown };
+      return hint.id === id && typeof hint.ruleset === "string" ? hint.ruleset : null;
+    } catch {
+      return null;
+    }
+  }
+  const rulesetHint = ref<string | null>(readRulesetHint(activeCampaignId.value));
+  watch(activeCampaignId, (id) => { rulesetHint.value = readRulesetHint(id); });
+  watch(
+    () => activeCampaign.value && ({ id: activeCampaign.value.id, ruleset: activeCampaign.value.ruleset }),
+    (row) => {
+      if (!row) return;
+      rulesetHint.value = row.ruleset;
+      try {
+        localStorage.setItem(RULESET_HINT_KEY, JSON.stringify(row));
+      } catch {
+        // Storage full or blocked: the hint is an optimisation, losing it costs one refetch.
+      }
+    },
+    { immediate: true },
+  );
+
+  /** The active campaign's edition: its row once loaded, the remembered hint until then. */
+  const activeRuleset = computed<RulesetKey>(() =>
+    normalizeRuleset(activeCampaign.value ? activeCampaign.value.ruleset : rulesetHint.value),
+  );
 
   // Resolve a BYOK-local key into its plaintext (in-memory) form, decrypting
   // the local-vault ciphertext. Legacy values — pre-vault plaintext, or a
@@ -252,6 +309,7 @@ export const useCampaignStore = defineStore("campaign", () => {
   return {
     activeCampaignId,
     activeCampaign,
+    activeRuleset,
     decryptedApiKey,
     isAiEnabled,
     decryptedOpenAiKey,

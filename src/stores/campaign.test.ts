@@ -15,6 +15,8 @@ vi.mock("@/lib/themeRuntime", () => ({ setTheme }));
 // app). Mocked wholesale so this file never has to build a real auth store.
 interface MockAuthStore {
   isChildAccount: boolean;
+  membership?: null;
+  refreshMembership?: () => void;
   initialized?: boolean;
   isAuthenticated?: boolean;
 }
@@ -237,5 +239,65 @@ describe("the theme follows the session, not the last campaign", () => {
     auth.isAuthenticated = true;
     await nextTick();
     expect(setTheme).toHaveBeenLastCalledWith("grimoire");
+  });
+});
+
+// The shell mounts before the campaign row arrives (#999), which makes two
+// things the store's job: never show one campaign's row under another's id, and
+// key edition-scoped queries correctly before the row lands.
+describe("the campaign row and its id", () => {
+  const HINT = "grimoire_active_campaign_ruleset";
+  const row = (id: string, ruleset: "2014" | "2024") => ({ id, ruleset, theme: null }) as unknown as Campaign;
+
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    mockUseAuthStore.mockReturnValue({ isChildAccount: false, membership: null, refreshMembership: vi.fn() } as MockAuthStore);
+  });
+
+  it("drops the held row as soon as the id moves to another campaign", () => {
+    const store = useCampaignStore();
+    store.switchToCampaign(row("a", "2014"));
+    store.activeCampaignId = "b";
+    expect(store.activeCampaign).toBeNull();
+  });
+
+  it("keeps the row when the id is set to the one it already belongs to", () => {
+    const store = useCampaignStore();
+    store.switchToCampaign(row("a", "2014"));
+    store.activeCampaignId = "a";
+    expect(store.activeCampaign?.id).toBe("a");
+  });
+
+  it("answers 2014 for a campaign it has never seen, until the row says otherwise", () => {
+    localStorage.setItem("grimoire_active_campaign", "a");
+    const store = useCampaignStore();
+    expect(store.activeRuleset).toBe("2014");
+    store.switchToCampaign(row("a", "2024"));
+    expect(store.activeRuleset).toBe("2024");
+  });
+
+  it("remembers the edition per campaign and uses it before the row arrives", async () => {
+    const first = useCampaignStore();
+    first.switchToCampaign(row("a", "2024"));
+    await nextTick();
+    expect(JSON.parse(localStorage.getItem(HINT) ?? "null")).toEqual({ id: "a", ruleset: "2024" });
+
+    setActivePinia(createPinia());
+    const reloaded = useCampaignStore();
+    expect(reloaded.activeCampaign).toBeNull();
+    expect(reloaded.activeRuleset).toBe("2024");
+  });
+
+  it("ignores a remembered edition that belongs to a different campaign", () => {
+    localStorage.setItem(HINT, JSON.stringify({ id: "other", ruleset: "2024" }));
+    localStorage.setItem("grimoire_active_campaign", "a");
+    expect(useCampaignStore().activeRuleset).toBe("2014");
+  });
+
+  it("survives a corrupt remembered edition", () => {
+    localStorage.setItem(HINT, "{nope");
+    localStorage.setItem("grimoire_active_campaign", "a");
+    expect(useCampaignStore().activeRuleset).toBe("2014");
   });
 });

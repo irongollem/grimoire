@@ -1,7 +1,7 @@
 import { injectLocal, provideLocal } from "@vueuse/core";
 import { computed, type ComputedRef, type MaybeRefOrGetter, toValue } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { normalizeRuleset, type RulesetKey } from "@/types/ruleset.types";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 /**
  * The ruleset scope: which edition a piece of UI reads its rules from.
@@ -58,7 +58,7 @@ const RULESET_SCOPE_KEY = Symbol("rulesetScope");
 
 function campaignScope(): RulesetScope {
   const campaign = useCampaignStore();
-  const edition = computed(() => normalizeRuleset(campaign.activeCampaign?.ruleset));
+  const edition = computed(() => campaign.activeRuleset);
   return { build: edition, table: edition, standalone: computed(() => !campaign.activeCampaignId) };
 }
 
@@ -80,7 +80,7 @@ export function provideCharacterRuleset(
       const m = toValue(member);
       if (!m) return outer.table.value;
       const seatedHere = m.campaign_id !== null && m.campaign_id === campaign.activeCampaignId;
-      return seatedHere ? normalizeRuleset(campaign.activeCampaign?.ruleset) : m.ruleset;
+      return seatedHere ? campaign.activeRuleset : m.ruleset;
     }),
     standalone: computed(() => {
       const m = toValue(member);

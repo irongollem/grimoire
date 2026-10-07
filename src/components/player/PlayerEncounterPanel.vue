@@ -237,6 +237,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/encounters/useEncounterLive";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
+import { healthVisibilityOf } from "@/lib/healthVisibility";
 import type { RunCombatant, HealthVisibility, EncounterEvent, EventAction } from "@/types/encounter.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import type { Companion } from "@/types/companion.types";
@@ -295,7 +296,7 @@ const { playTurnChime } = useTurnChime();
 const { isShaking, triggerShake } = useScreenShake();
 
 const healthVis = computed<HealthVisibility>(
-  () => (campaign.activeCampaign?.health_visibility as HealthVisibility) ?? "strategic",
+  () => healthVisibilityOf(campaign.activeCampaign),
 );
 
 const sortedCombatants = computed(() =>
