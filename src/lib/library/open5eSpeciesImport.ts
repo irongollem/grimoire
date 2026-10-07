@@ -1,7 +1,7 @@
 import { fetchAllFromDocuments, licenseForDocumentKey, rulesetForDocument } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import { markdownToTiptapJson, toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
-import type { SpeciesSize } from "@/types/species.types";
+import type { SpeciesSize, SpeciesSubrace } from "@/types/species.types";
 
 export interface Open5eTrait {
   name: string;
@@ -14,7 +14,9 @@ export interface Open5eRace {
   name: string;
   desc: string;
   is_subspecies: boolean;
-  subspecies_of: { key: string; name: string } | null;
+  /** The parent species' record key (e.g. `"srd_elf"`), not an object: the
+   *  live v2 API returns the bare key. */
+  subspecies_of: string | null;
   traits: Open5eTrait[];
   document: Open5eDocumentRef;
 }
@@ -132,6 +134,53 @@ export function buildCreateOnlyDefaults() {
   };
 }
 
+const ASI_TRAIT = "ability score increase";
+
+/**
+ * One Open5e subspecies record as a subrace of its parent. Open5e v2 models a
+ * subrace (High Elf, Malkin catfolk) as a species record of its own that
+ * points at its parent through `subspecies_of`; Grimoire keeps it inside the
+ * parent's `subraces`, which is what the character builder offers. Its ability
+ * score increase is the subrace's own, added to the parent's.
+ */
+export function buildSubrace(race: Open5eRace): SpeciesSubrace {
+  return {
+    name: race.name,
+    description: race.desc ? toTiptapJson(race.desc) : "",
+    traits: race.traits
+      .filter(entry => entry.name.toLowerCase() !== ASI_TRAIT)
+      .map(entry => ({ name: entry.name, description: markdownToTiptapJson(entry.desc) })),
+    ability_score_increases: parseAsi(race.traits.find(entry => entry.name.toLowerCase() === ASI_TRAIT)?.desc),
+  };
+}
+
+/**
+ * Splits fetched records into core species and the subraces each one carries,
+ * keyed by the parent's record key. A subspecies whose parent was not fetched
+ * lands in `orphans`, so a caller can report it rather than lose it silently.
+ */
+export function groupSubspecies(races: readonly Open5eRace[]): {
+  core: Open5eRace[];
+  subracesByParent: Map<string, SpeciesSubrace[]>;
+  orphans: Open5eRace[];
+} {
+  const core = races.filter(race => !race.is_subspecies);
+  const coreKeys = new Set(core.map(race => race.key));
+  const subracesByParent = new Map<string, SpeciesSubrace[]>();
+  const orphans: Open5eRace[] = [];
+  for (const race of races) {
+    if (!race.is_subspecies) continue;
+    if (!race.subspecies_of || !coreKeys.has(race.subspecies_of)) {
+      orphans.push(race);
+      continue;
+    }
+    const siblings = subracesByParent.get(race.subspecies_of) ?? [];
+    siblings.push(buildSubrace(race));
+    subracesByParent.set(race.subspecies_of, siblings);
+  }
+  return { core, subracesByParent, orphans };
+}
+
 /**
  * Fetches every species record (subspecies included) from the given Open5e
  * v2 document keys. Unlike `fetchOpen5eMonsters` (which maps eagerly — monsters
@@ -139,8 +188,8 @@ export function buildCreateOnlyDefaults() {
  * returned as-is: a caller that wants importable rows must first decide
  * whether to keep subspecies (`race.is_subspecies`) before calling
  * `buildImportedFields`/`buildCreateOnlyDefaults` — see
- * `scripts/seed-library-species.ts`, which keeps only non-subspecies rows for the
- * shared table.
+ * `scripts/seed-library-species.ts`, which folds subspecies into their parent's
+ * `subraces` with `groupSubspecies`.
  */
 export async function fetchOpen5eSpecies(documentKeys: string[]): Promise<Open5eRace[]> {
   return fetchAllFromDocuments<Open5eRace>("https://api.open5e.com/v2/species/", documentKeys);

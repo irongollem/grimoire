@@ -6,6 +6,8 @@ import {
   parseAsi,
   parseTags,
   buildImportedFields,
+  buildSubrace,
+  groupSubspecies,
 } from "@/lib/library/open5eSpeciesImport";
 import type { Open5eRace } from "@/lib/library/open5eSpeciesImport";
 
@@ -202,5 +204,50 @@ describe("buildImportedFields — source_license", () => {
     const documentMetadata = new Map([["some-other-doc", { ...document, key: "some-other-doc" }]]);
     const fields = buildImportedFields(race(), documentMetadata);
     expect(fields.source_license).toBeNull();
+  });
+});
+
+function highElf(overrides: Partial<Open5eRace> = {}): Open5eRace {
+  return race({
+    key: "srd-2024_high-elf",
+    name: "High Elf",
+    desc: "You have a keen mind.",
+    is_subspecies: true,
+    subspecies_of: "srd-2024_elf",
+    traits: [
+      { name: "Ability Score Increase", desc: "Your Intelligence score increases by 1.", type: null },
+      { name: "Cantrip", desc: "You know one cantrip of your choice.", type: null },
+    ],
+    ...overrides,
+  });
+}
+
+describe("buildSubrace", () => {
+  it("keeps the subrace's own ability score increase out of its traits", () => {
+    const subrace = buildSubrace(highElf());
+    expect(subrace.name).toBe("High Elf");
+    expect(subrace.ability_score_increases).toEqual({ int: 1 });
+    expect(subrace.traits.map((trait) => trait.name)).toEqual(["Cantrip"]);
+    expect(JSON.parse(subrace.description).type).toBe("doc");
+  });
+
+  it("leaves the description empty when Open5e has none", () => {
+    expect(buildSubrace(highElf({ desc: "" })).description).toBe("");
+  });
+});
+
+describe("groupSubspecies", () => {
+  it("folds each subspecies under its parent and keeps only core species as rows", () => {
+    const { core, subracesByParent, orphans } = groupSubspecies([race(), highElf()]);
+    expect(core.map((entry) => entry.key)).toEqual(["srd-2024_elf"]);
+    expect(subracesByParent.get("srd-2024_elf")?.map((subrace) => subrace.name)).toEqual(["High Elf"]);
+    expect(orphans).toEqual([]);
+  });
+
+  it("reports a subspecies whose parent was not fetched instead of dropping it silently", () => {
+    const stray = highElf({ subspecies_of: "srd-2024_dwarf" });
+    const { subracesByParent, orphans } = groupSubspecies([race(), stray]);
+    expect(subracesByParent.size).toBe(0);
+    expect(orphans).toEqual([stray]);
   });
 });
