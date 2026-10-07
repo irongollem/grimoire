@@ -17,8 +17,8 @@ that differs from machine to machine.
 It creates, with fixed names and no randomness or clock-dependent content:
 
 - `perf-dm@example.invalid` and `perf-player@example.invalid`, password
-  `grimoire-perf-local` (distinct from `dev:auth`'s accounts, so it never
-  disturbs your dev fixtures);
+  `grimoire-local-dev`, the same local-only password as `dev:auth` (but
+  different accounts, so it never disturbs your dev fixtures);
 - one campaign owned by the DM, three party members (the player claims
   `Perf Rogue`, so `/play` works), one location, three NPCs, two notes (one
   pinned), one quest with three beats, one encounter, and no dashboard layout
@@ -50,7 +50,7 @@ stops; if only the player cannot sign in, `player-cold` is reported skipped.
 
 ```bash
 supabase status                      # local stack up (do not reset it)
-npm run perf:fixture                 # once (idempotent): perf-dm / perf-player, password grimoire-perf-local
+npm run perf:fixture                 # once (idempotent): perf-dm / perf-player, password grimoire-local-dev
 npx playwright install chromium      # once
 
 # 1. build. The empty token is REQUIRED: without it the build uploads source

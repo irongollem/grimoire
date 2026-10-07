@@ -12,7 +12,8 @@
  * ## What it creates (all fixed names, no randomness, no clock)
  *
  * - `perf-dm@example.invalid` and `perf-player@example.invalid`, password
- *   `grimoire-perf-local`. Not the `dev:auth` accounts, so running this never
+ *   `LOCAL_DEV_PASSWORD` (the same local-only password as dev:auth). Not the
+ *   `dev:auth` accounts, so running this never
  *   disturbs the maintainer's own dev fixtures.
  * - One campaign owned by the DM, with three party members, one of which the
  *   player claims, so `/play` works.
@@ -49,12 +50,12 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { quote, sql } from "../lib/dev-db.ts";
-import { assertDemoKey, readLocalStack } from "../lib/dev-stack.ts";
+import { assertDemoKey, LOCAL_DEV_PASSWORD, readLocalStack } from "../lib/dev-stack.ts";
 import { markdownToTiptap } from "../lib/tiptap.ts";
 
 export const PERF_DM_EMAIL = "perf-dm@example.invalid";
 export const PERF_PLAYER_EMAIL = "perf-player@example.invalid";
-export const PERF_PASSWORD = "grimoire-perf-local";
+export const PERF_PASSWORD = LOCAL_DEV_PASSWORD;
 
 const CAMPAIGN_NAME = "Perf Fixture Campaign";
 

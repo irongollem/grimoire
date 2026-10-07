@@ -9,6 +9,14 @@
  */
 import { execFileSync } from "node:child_process";
 
+/**
+ * The password every local-only account is given (dev:auth's fixtures and the
+ * perf fixture). Not a credential to anything: every script that sets it runs
+ * through `readLocalStack`, which refuses a non-loopback stack. One literal for
+ * the whole repo, documented in CLAUDE.md and allowed in .gitguardian.yaml.
+ */
+export const LOCAL_DEV_PASSWORD = "grimoire-local-dev";
+
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 /** PostgREST's row cap on the hosted project. A page this size is always a full page or the last one. */
 const PAGE = 1000;

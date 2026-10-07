@@ -17,7 +17,9 @@ secret:
     - name: Supabase local-dev demo anon key (public, local-only)
       match: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
 
-    # The password `scripts/dev-auth.ts` sets on the two local accounts. It is a
+    # The password local-only accounts are given (`LOCAL_DEV_PASSWORD` in
+    # `scripts/lib/dev-stack.ts`; used by `scripts/dev-auth.ts` and the perf
+    # fixture, `scripts/perf/fixture.ts`). It is a
     # real hardcoded password and GitGuardian is right to see one — it just is
     # not a credential to anything: `readStack()` refuses to proceed unless both
     # API_URL and DB_URL resolve to loopback, and it fails closed on every other

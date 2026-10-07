@@ -1,6 +1,7 @@
 import type { Browser } from "playwright";
 import { collectSample, type ContentSpec, type MeasuredPage, openMeasuredPage, type Profile, settle, watchContent } from "./browser";
 import type { Sample } from "./results";
+import { LOCAL_DEV_PASSWORD } from "../lib/dev-stack.ts";
 
 export type StorageState = NonNullable<Parameters<Browser["newContext"]>[0]>["storageState"];
 type StoredSession = Exclude<StorageState, string | undefined>;
@@ -30,7 +31,7 @@ export interface Journey {
 
 export const DM_EMAIL = "perf-dm@example.invalid";
 export const PLAYER_EMAIL = "perf-player@example.invalid";
-const PASSWORD = "grimoire-perf-local";
+const PASSWORD = LOCAL_DEV_PASSWORD;
 
 /**
  * Signs in through the real /login form once and returns what a returning user
