@@ -131,7 +131,7 @@ import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useRunningEncounters } from "@/composables/encounters/useEncounterLive";
 import { DIFFICULTY_COLORS } from "@/types/encounter.types";
 import { difficultyLookups, encounterDifficulty } from "@/lib/encounters/difficulty";
-import type { Encounter } from "@/types/encounter.types";
+import type { EncounterListRow } from "@/types/encounter.types";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -243,7 +243,7 @@ function descriptionText(raw: string | null | undefined): string {
   }
 }
 
-function totalMonsterCount(encounter: Encounter): number {
+function totalMonsterCount(encounter: EncounterListRow): number {
   return encounter.combatants.reduce((s, c) => s + c.count, 0);
 }
 
@@ -260,11 +260,11 @@ const difficultyRows = computed(() =>
   }),
 );
 
-function encounterDifficultyLabel(encounter: Encounter): string {
+function encounterDifficultyLabel(encounter: EncounterListRow): string {
   return encounterDifficulty(encounter, difficultyRows.value).label;
 }
 
-function encounterDifficultyColor(encounter: Encounter): string {
+function encounterDifficultyColor(encounter: EncounterListRow): string {
   const label = encounterDifficultyLabel(encounter);
   return (
     DIFFICULTY_COLORS[label as keyof typeof DIFFICULTY_COLORS] ?? "#6B7280"

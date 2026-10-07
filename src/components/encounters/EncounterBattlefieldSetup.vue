@@ -122,14 +122,14 @@ import {
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import type { CombatantDef, FactionDef, RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 
 const props = defineProps<{
   locationId: string | null;
   combatants: CombatantDef[];
   factions: FactionDef[];
   monsters: Monster[];
-  npcs: Npc[];
+  npcs: NpcListRow[];
 }>();
 
 const emit = defineEmits<{

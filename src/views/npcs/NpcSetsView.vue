@@ -71,7 +71,7 @@ import { useNpcSets, useDeleteNpcSet } from "@/composables/npcs/useNpcSets";
 import { useCardForgeStore } from "@/stores/cardForge";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import type { Npc, NpcSet } from "@/types/npc.types";
+import type { NpcListRow, NpcSet } from "@/types/npc.types";
 
 const router = useRouter();
 const { data: npcsData } = useNpcs();
@@ -84,15 +84,15 @@ const toast = useToast();
 const sets = computed<NpcSet[]>(() => setsData.value ?? []);
 
 const npcById = computed(() => {
-  const map = new Map<string, Npc>();
+  const map = new Map<string, NpcListRow>();
   for (const n of npcsData.value ?? []) map.set(n.id, n);
   return map;
 });
 
 // Resolve membership in stored (playlist) order, dropping ids of deleted NPCs.
-function membersFor(set: NpcSet): Npc[] {
+function membersFor(set: NpcSet): NpcListRow[] {
   const map = npcById.value;
-  return set.npc_ids.map((id) => map.get(id)).filter((n): n is Npc => !!n);
+  return set.npc_ids.map((id) => map.get(id)).filter((n): n is NpcListRow => !!n);
 }
 
 // ── Editor ────────────────────────────────────────────────────────────────────

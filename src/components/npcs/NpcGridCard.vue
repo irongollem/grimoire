@@ -90,10 +90,10 @@ import {
   npcStatusBg,
 } from "@/lib/npcDisplay";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 
 const { npc, locationName } = defineProps<{
-  npc: Npc;
+  npc: NpcListRow;
   /** Resolved by the list, which already holds the id → name map. */
   locationName?: string;
   locked?: boolean;

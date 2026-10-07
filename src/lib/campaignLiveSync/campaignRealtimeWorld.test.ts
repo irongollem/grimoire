@@ -123,7 +123,10 @@ describe("applyCampaignRealtimeWorld", () => {
     qc.setQueryData(["faction-npcs", "faction-1"], [{ npc: { id: "npc-1", name: "Old" } }]);
 
     applyCampaignRealtimeWorld(qc, "npcs", change(npc), dm);
-    expect(qc.getQueryData(["npcs", "campaign-1"])).toEqual([npc]);
+    // The campaign list is slim (#999: no prose), so the DM-only notes never land in it.
+    expect(qc.getQueryData(["npcs", "campaign-1"])).toEqual([
+      { id: "npc-1", campaign_id: "campaign-1", name: "Alpha", location_id: "inn-1", updated_at: npc.updated_at },
+    ]);
     expect(qc.getQueryData(["npcs", "by-location", "inn-1"])).toEqual([npc]);
     expect(qc.getQueryData(["npcs", "by-locations", ["inn-1", "market-1"]])).toEqual([npc]);
     expect(qc.getQueryData(["player-npcs", "campaign-1", null])).toBe(shared);
@@ -133,6 +136,25 @@ describe("applyCampaignRealtimeWorld", () => {
     expect(invalidated(qc, ["npcs", "spell-casters", "campaign-1", "spell-1"])).toBe(true);
     expect(invalidated(qc, ["global-search", "alp", "campaign-1"])).toBe(true);
     expect(invalidated(qc, ["faction-npcs", "faction-1"])).toBe(true);
+  });
+
+  it("keeps the NPC detail cache whole and rings the head count and appearance reads (#999)", () => {
+    const qc = new QueryClient();
+    const full = row({ id: "npc-1", name: "Alpha", notes: "DM secret", backstory: "long" });
+    qc.setQueryData(["npcs", "npc-1"], full);
+    qc.setQueryData(["npcs", "count", "campaign-1"], 3);
+    qc.setQueryData(["npcs", "appearances", ["npc-1"]], new Map());
+    qc.setQueryData(["npcs", "names", ["npc-1"]], new Map());
+
+    applyCampaignRealtimeWorld(qc, "npcs", { eventType: "UPDATE", old: {}, new: { ...full, name: "Beta" } }, dm);
+    expect(qc.getQueryData(["npcs", "npc-1"])).toEqual({ ...full, name: "Beta" });
+    // An update changes no count, but it can change an appearance.
+    expect(invalidated(qc, ["npcs", "count", "campaign-1"])).toBe(false);
+    expect(invalidated(qc, ["npcs", "appearances", ["npc-1"]])).toBe(true);
+    expect(invalidated(qc, ["npcs", "names", ["npc-1"]])).toBe(true);
+
+    applyCampaignRealtimeWorld(qc, "npcs", { eventType: "INSERT", old: {}, new: row({ id: "npc-2", campaign_id: "campaign-1" }) }, dm);
+    expect(invalidated(qc, ["npcs", "count", "campaign-1"])).toBe(true);
   });
 
   it("uses targeted invalidation for faction player projections and faction joins", () => {

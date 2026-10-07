@@ -174,7 +174,8 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import type { TabItem } from "@/components/common/TabBar.vue";
 import { useParty } from "@/composables/party/useParty";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
-import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useToast } from "@/composables/useToast";
+import { useFetchNpc, useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { drawToken, renderMysteryBack, type TokenEntity, type TokenFigure } from "@/lib/tokenRenderer";
@@ -371,6 +372,8 @@ const { data: partyMembers } = useParty();
 // By id, not from the campaign-edition list: a character of the other edition keeps its species.
 const { data: speciesById } = useSpeciesByIds(() => (partyMembers.value ?? []).map((m) => m.species_id));
 const { data: npcs }         = useNpcs();
+const fetchNpc = useFetchNpc();
+const toast = useToast();
 // The Token Forge makes tokens for the DM's own monsters (a shared library
 // monster is read-only here), so the grid is the index's own rows.
 const { data: monsterIndex } = useMonsterIndex();
@@ -522,10 +525,10 @@ const paintTarget = computed<TokenEntity | null>(() => {
 // context reads the one selected monster's row.
 const { data: selectedMonster } = useMonstersByIds(() => [sourceTab.value === "monster" ? selected.value?.id : null]);
 
-function paintContext(id: string): string {
+async function paintContext(id: string): Promise<string> {
   if (sourceTab.value === "npc") {
-    const n = npcs.value?.find((x) => x.id === id);
-    return n ? npcImageContext(n) : "";
+    // The NPC list carries no prose (#999); the prompt quotes appearance and personality.
+    return npcImageContext(await fetchNpc(id));
   }
   if (sourceTab.value === "monster") {
     const m = selectedMonster.value.get(id);
@@ -546,7 +549,14 @@ function paintContext(id: string): string {
 async function paintSelected() {
   const entity = paintTarget.value;
   if (!entity) return;
-  const url = await activePainter.value.paint(entity.id, paintContext(entity.id));
+  let context: string;
+  try {
+    context = await paintContext(entity.id);
+  } catch (error) {
+    toast.error(toast.fromError(error));
+    return;
+  }
+  const url = await activePainter.value.paint(entity.id, context);
   // `selected` is a snapshot of the row: carry the new art into it so the preview redraws.
   if (url && selected.value?.id === entity.id) {
     selected.value = { ...selected.value, imageUrl: url, focalPoint: { x: 50, y: 50 } };

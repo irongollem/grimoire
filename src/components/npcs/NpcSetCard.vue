@@ -53,13 +53,13 @@
 import { computed } from "vue";
 import { IconEdit, IconDelete, IconExport } from "@/lib/icons";
 import { getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
-import type { Npc, NpcSet } from "@/types/npc.types";
+import type { NpcListRow, NpcSet } from "@/types/npc.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{
   set: NpcSet;
   /** Resolved, in-order set members (parent filters out deleted NPCs). */
-  members: Npc[];
+  members: NpcListRow[];
 }>();
 const emit = defineEmits<{ export: []; edit: []; delete: [] }>();
 
@@ -71,10 +71,10 @@ const missingCount = computed(() => props.set.npc_ids.length - props.members.len
 const previewMembers = computed(() => props.members.slice(0, MAX_THUMBS));
 const overflowCount = computed(() => Math.max(0, props.members.length - MAX_THUMBS));
 
-function displayName(npc: Npc): string {
+function displayName(npc: NpcListRow): string {
   return getNpcDisplayName(npc) ?? "???";
 }
-function portrait(npc: Npc): string {
+function portrait(npc: NpcListRow): string {
   return getNpcDisplayPortrait(npc) || PLACEHOLDER;
 }
 function onImgError(e: Event) {

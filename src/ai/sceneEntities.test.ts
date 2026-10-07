@@ -1,18 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { mentionedLocationIds, mentionedMonsterIds, type SceneMonster, parseSceneEntities, stripMentionTokens, type SceneEntitySources } from "./sceneEntities";
-import type { Npc } from "@/types/npc.types";
+import { mentionedLocationIds, mentionedMonsterIds, mentionedNpcIds, type SceneMonster, parseSceneEntities, stripMentionTokens, type SceneEntitySources } from "./sceneEntities";
+import type { NpcListRow } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Faction } from "@/types/faction.types";
 import type { Location } from "@/types/location.types";
 
-function npc(overrides: Partial<Npc>): Npc {
+function npc(overrides: Partial<NpcListRow>): NpcListRow {
   return {
     id: "npc-1",
     name: "Gnarl",
     portrait_url: null,
-    appearance: null,
     ...overrides,
-  } as Npc;
+  } as NpcListRow;
 }
 
 function monster(overrides: Partial<SceneMonster>): SceneMonster {
@@ -150,10 +149,22 @@ describe("parseSceneEntities", () => {
       content: [{ type: "paragraph", content: [{ type: "text", text: longText }] }],
     });
     const result = resolve("@Gnarl looms.", {
-      npcs: [npc({ name: "Gnarl", appearance: richAppearance })],
+      npcs: [npc({ name: "Gnarl" })],
+      npcAppearances: new Map([["npc-1", richAppearance]]),
     });
     expect(result[0].textDescription).not.toContain("{");
     expect(result[0].textDescription!.length).toBeLessThan(longText.length);
+  });
+
+  it("resolves an NPC with its name alone until its appearance has loaded (#999)", () => {
+    const result = resolve("@Gnarl looms.", { npcs: [npc({ name: "Gnarl" })] });
+    expect(result[0].textDescription).toBe("Gnarl");
+  });
+
+  it("names the NPCs a text mentions, so only their appearance is read", () => {
+    const npcs = [npc({ id: "a", name: "Gnarl" }), npc({ id: "b", name: "Mara" })];
+    expect(mentionedNpcIds("@Gnarl waves", npcs)).toEqual(["a"]);
+    expect(mentionedNpcIds("nobody here", npcs)).toEqual([]);
   });
 
   it("resolves a location mention with its image_url as the portrait and a flattened description", () => {

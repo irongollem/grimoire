@@ -1,4 +1,4 @@
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Faction } from "@/types/faction.types";
@@ -54,7 +54,7 @@ export type SceneMonster = Pick<Monster, "name" | "description" | "image_url">;
 
 export interface SceneEntitySources {
   partyMembers?: PartyMember[];
-  npcs?: Npc[];
+  npcs?: NpcListRow[];
   monsters?: readonly SceneMonster[];
   locations?: LocationSummary[];
   /**
@@ -64,8 +64,20 @@ export interface SceneEntitySources {
    * resolves with its name alone.
    */
   locationDescriptions?: ReadonlyMap<string, string | null>;
+  /**
+   * `appearance` by NPC id. The NPC list leaves prose out (#999), so a caller
+   * loads the looks of the NPCs the text mentions (`mentionedNpcIds`) and
+   * passes them here; an NPC without an entry resolves with its name alone.
+   */
+  npcAppearances?: ReadonlyMap<string, string | null>;
   factions?: Faction[];
   groupPortraitUrl?: string | null;
+}
+
+/** Ids of the NPCs an @mention in `text` can resolve to, to load their appearance. */
+export function mentionedNpcIds(text: string, npcs: readonly { id: string; name: string }[]): string[] {
+  const tokens = [...new Set([...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map((m) => m[1]))];
+  return npcs.filter((npc) => tokens.some((tok) => nameMatches(npc.name, tok))).map((npc) => npc.id);
 }
 
 /** Ids of the places an @mention in `text` can resolve to, to load their descriptions. */
@@ -87,7 +99,7 @@ export function parseSceneEntities(
   text: string,
   sources: SceneEntitySources,
 ): ResolvedEntity[] {
-  const { partyMembers, npcs, monsters, locations, locationDescriptions, factions, groupPortraitUrl } = sources;
+  const { partyMembers, npcs, monsters, locations, locationDescriptions, npcAppearances, factions, groupPortraitUrl } = sources;
 
   // Extract @Token — stops at whitespace and common punctuation
   const tokens = [...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map(
@@ -127,7 +139,7 @@ export function parseSceneEntities(
     if (!found) {
       for (const npc of npcs ?? []) {
         if (nameMatches(npc.name, tok)) {
-          const appearance = summarize(npc.appearance);
+          const appearance = summarize(npcAppearances?.get(npc.id));
           found = {
             label: npc.name,
             portraitUrl: npc.portrait_url ?? null,

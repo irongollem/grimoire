@@ -1,11 +1,11 @@
-import type { Npc } from "./npc.types";
+import type { NpcListRow } from "./npc.types";
 import type { Monster } from "./monster.types";
 import type { Item } from "./item.types";
 import type { Spell } from "./spell.types";
 import type { DowntimeActivity, DowntimeSeed } from "./downtime.types";
 
 export type CardSubject =
-  | { kind: "npc"; data: Npc }
+  | { kind: "npc"; data: NpcListRow }
   | { kind: "monster"; data: Monster }
   | { kind: "item"; data: Item }
   | { kind: "spell"; data: Spell }

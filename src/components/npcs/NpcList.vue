@@ -158,7 +158,7 @@ import {
   npcStatusBg,
 } from "@/lib/npcDisplay";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import { storeToRefs } from "pinia";
@@ -294,7 +294,7 @@ const lockedNpcIds = computed((): Set<string> => {
 
 // Mobile-card subtitle — mirrors the desktop "{race} - {occupation}" line,
 // gracefully collapsing when one half is missing.
-function npcSubtitle(npc: Npc): string | undefined {
+function npcSubtitle(npc: NpcListRow): string | undefined {
   const parts = [npc.race, npc.occupation].filter(Boolean) as string[];
   return parts.length ? parts.join(" - ") : undefined;
 }
@@ -306,7 +306,7 @@ function npcSubtitle(npc: Npc): string | undefined {
 // first reveal, the play-mode narration — is `NpcRevealControl`'s, which is why
 // ~90 lines of popover left this file.
 
-function isShared(npc: Npc): boolean {
+function isShared(npc: NpcListRow): boolean {
   return npc.player_visible_to.length > 0;
 }
 

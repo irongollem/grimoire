@@ -325,7 +325,8 @@ import { useSpotifyStore } from "@/stores/spotify";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useCampaignStore } from "@/stores/campaign";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
-import { mentionedLocationIds, parseSceneEntities, stripMentionTokens } from "@/ai/sceneEntities";
+import { mentionedLocationIds, mentionedNpcIds, parseSceneEntities, stripMentionTokens } from "@/ai/sceneEntities";
+import { useNpcAppearances } from "@/composables/npcs/useNpcFields";
 import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
 import { useMentionedMonsters } from "@/composables/monsters/useMentionedMonsters";
 import {
@@ -556,6 +557,9 @@ const { mentionItems, partyMembers, npcs, monsterIndex, locations, factions } = 
 // by id, only for the places the description actually names.
 const mentionedLocations = computed(() => mentionedLocationIds(generateDescription.value, locations.value ?? []));
 const { data: locationDescriptions } = useLocationDescriptions(mentionedLocations);
+// The NPC list carries no prose (#999): the looks of the mentioned NPCs are read by id.
+const mentionedNpcs = computed(() => mentionedNpcIds(generateDescription.value, npcs.value ?? []));
+const { data: npcAppearances } = useNpcAppearances(mentionedNpcs);
 // Likewise the monsters: the index has names only, so the mentioned ones are read by id.
 const mentionedMonsters = useMentionedMonsters(() => generateDescription.value, () => monsterIndex.value);
 
@@ -566,6 +570,7 @@ const mentionedEntities = computed(() =>
     monsters: mentionedMonsters.value,
     locations: locations.value,
     locationDescriptions: locationDescriptions.value,
+    npcAppearances: npcAppearances.value,
     factions: factions.value,
     groupPortraitUrl: campaignStore.activeCampaign?.group_portrait_url,
   }),

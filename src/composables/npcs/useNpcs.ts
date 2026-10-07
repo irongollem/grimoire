@@ -7,7 +7,8 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import { getSetting } from "@/settings/index";
-import type { Npc, NpcInsert, NpcUpdate, PlayerNpc } from "@/types/npc.types";
+import { NPC_LIST_COLUMNS } from "@/types/npc.types";
+import type { Npc, NpcInsert, NpcListRow, NpcUpdate, PlayerNpc } from "@/types/npc.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 import { PLAYER_NPCS_KEY } from "@/lib/campaignLiveSync/registry";
@@ -22,20 +23,25 @@ const QUERY_KEY = "npcs";
  * without touching the DM's row caches under `npcs`.
  */
 
-async function fetchNpcs(campaignId: string): Promise<Npc[]> {
+async function fetchNpcs(campaignId: string): Promise<NpcListRow[]> {
   const { data, error } = await supabase
     .from("npcs")
-    .select("*")
+    .select(NPC_LIST_COLUMNS.join(", "))
     .eq("campaign_id", campaignId)
     .order("name", { ascending: true });
   if (error) throw error;
-  return data as Npc[];
+  return data as unknown as NpcListRow[];
 }
 
 async function fetchNpc(id: string): Promise<Npc> {
   const { data, error } = await supabase.from("npcs").select("*").eq("id", id).single();
   if (error) throw error;
   return data as Npc;
+}
+
+/** The columns a list row carries, from a full record (a save returns the whole row). */
+function toNpcListRow(npc: Npc): NpcListRow {
+  return Object.fromEntries(NPC_LIST_COLUMNS.map((column) => [column, npc[column]])) as NpcListRow;
 }
 
 /** Exported so a resolved downtime outcome can clone a seed contact into the campaign. */
@@ -150,34 +156,18 @@ export function useNpcsByLocations(locationIds: Ref<string[]>) {
 
 export function useNpc(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
-  const queryClient = useQueryClient();
-  const campaign = useCampaignStore();
-
-  /** This NPC's row inside the already-fetched campaign list, if it is there. */
-  const fromList = () =>
-    queryClient
-      .getQueryData<Npc[]>([QUERY_KEY, campaign.activeCampaignId])
-      ?.find((npc) => npc.id === idRef.value);
 
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
     queryFn: ({ queryKey: [, npcId] }) => fetchNpc(npcId),
     enabled: () => !!idRef.value,
-    // Every caller reaches an NPC *from* somewhere that already holds the whole
-    // row — the grid, the relationship web, a location's residents — so a detail
-    // view that starts empty spends its first moment showing a spinner over data
-    // that is on screen behind it. That is barely noticeable on a page that has
-    // navigated away, and glaring in a modal that opens on top of the very card
-    // it is duplicating.
-    initialData: fromList,
-    // The seed inherits the list's age rather than claiming to have been
-    // fetched just now. At this query's default `staleTime` of 0 both refetch
-    // on mount either way, so this buys honesty rather than behaviour today —
-    // and it is what keeps the trade intact (show it now, correct it if needed)
-    // the moment anyone gives this query a `staleTime`, which is exactly when
-    // a lie about the data's age would start being believed.
-    initialDataUpdatedAt: () =>
-      queryClient.getQueryState([QUERY_KEY, campaign.activeCampaignId])?.dataUpdatedAt,
+    // Deliberately not seeded from the campaign list any more (#999). The list
+    // leaves the prose columns out, so a seed would hand the sheet and the editor
+    // a record with no appearance, personality, backstory or notes, which reads
+    // as an NPC with nothing written and, in an editor, could be saved back that
+    // way. The detail views already show their loading state while this reads
+    // the one row (a single-row read by id), and a row an earlier visit or a
+    // save already put under this key is used as is.
   });
 }
 
@@ -240,7 +230,7 @@ export function useUpdateNpc() {
       // Update the list cache in-place to avoid a full list rerender
       queryClient.setQueryData(
         [QUERY_KEY, campaign.activeCampaignId],
-        (old: Npc[] | undefined) => old?.map((n) => (n.id === id ? updatedNpc : n)),
+        (old: NpcListRow[] | undefined) => old?.map((n) => (n.id === id ? toNpcListRow(updatedNpc) : n)),
       );
       queryClient.setQueryData([QUERY_KEY, id], updatedNpc);
       queueNpcEmbedding(id);

@@ -220,6 +220,27 @@ export interface Npc {
 }
 
 /**
+ * What the campaign NPC list carries (#999). The four prose columns are the bulk
+ * of an NPC row (`npcs` holds most of its size in TOAST) and a list only draws
+ * names, portraits and badges, so `useNpcs` leaves them out and a screen that
+ * needs them reads the one record (`useNpc`). `stat_block` stays: the encounter
+ * builder, its difficulty maths, the runner and the card/companion forms resolve
+ * a stat block for every NPC they list, and doing that with a fetch per row
+ * would trade one wide read for many narrow ones.
+ */
+export const NPC_LIST_HEAVY_COLUMNS = ["appearance", "personality", "backstory", "notes"] as const;
+export type NpcListRow = Omit<Npc, (typeof NPC_LIST_HEAVY_COLUMNS)[number]>;
+
+/** Every `npcs` column except the heavy ones; a typed list so a renamed column fails the build. */
+export const NPC_LIST_COLUMNS = [
+  "id", "user_id", "campaign_id", "name", "race", "alignment", "age", "occupation", "location_id",
+  "status", "relationship", "portrait_url", "portrait_focal_point", "cutout_url", "stat_block", "disguise_name",
+  "disguise_portrait_url", "disguise_portrait_focal_point", "is_revealed", "tags", "linked_monster_id",
+  "scriptorium_doc_id", "player_visible_to", "player_visible_fields", "ai_provenance", "unmasked_at",
+  "created_at", "updated_at",
+] as const satisfies readonly (keyof NpcListRow)[];
+
+/**
  * NPC as returned by the `get_player_visible_npcs` projection. Field-gated, so a
  * hidden `name` (and other gated columns) can be null — use this, not `Npc`, for
  * anything reading `useSharedNpcs`, and resolve the name through `getNpcDisplayName`

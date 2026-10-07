@@ -7,7 +7,7 @@ import { dimNonMembers } from "@/lib/npcWeb/focus";
 import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
 import { useUiStore } from "@/stores/ui";
 import { NPC_RELATIONSHIP_INVERSE, NPC_RELATIONSHIP_TYPE_VAR } from "@/types/npc.types";
-import type { Npc, NpcPcNote, NpcRelation, NpcRelationshipType } from "@/types/npc.types";
+import type { NpcListRow, NpcPcNote, NpcRelation, NpcRelationshipType } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 
 /**
@@ -33,7 +33,7 @@ import type { PartyMember } from "@/types/party.types";
 export type NpcWebPcNote = Pick<NpcPcNote, "npc_id" | "party_member_id" | "relationship_type">;
 
 export interface NpcWebGraphInput {
-  npcs: () => Npc[] | undefined;
+  npcs: () => NpcListRow[] | undefined;
   partyMembers: () => PartyMember[] | undefined;
   relations: () => NpcRelation[] | undefined;
   pcNotes: () => NpcWebPcNote[] | undefined;

@@ -66,6 +66,23 @@ export interface Encounter {
   updated_at: string;
 }
 
+/**
+ * What the campaign encounter list carries (#999). The scripted events and the
+ * reward pools are read only when one encounter is opened, so
+ * `useEncounters` leaves them out and the sheet, the runner and the editor read
+ * the record by id (`useEncounter`). The description, combatant definitions and
+ * factions stay: the cards show the description, and the list's difficulty badge, the quest and site attachment pickers and the
+ * "used by" lookups all read them for every row.
+ */
+export type EncounterListRow = Omit<Encounter, "events">;
+
+export const ENCOUNTER_LIST_COLUMNS = [
+  "id", "user_id", "campaign_id", "name", "description", "party_member_ids", "companion_ids",
+  "party_member_factions", "combatants", "factions", "item_ids", "trap_ids", "reward_currency_pools", "location_id",
+  "is_finished", "lair_enabled", "lair_owner_def_id", "audio_theme", "ai_provenance",
+  "created_at", "updated_at",
+] as const satisfies readonly (keyof EncounterListRow)[];
+
 export type EncounterInsert = Omit<
   Encounter,
   "id" | "user_id" | "created_at" | "updated_at" | "audio_theme"

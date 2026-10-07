@@ -59,12 +59,12 @@ import { formPortrait } from "@/lib/wildshapePortrait";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import RunnerTraitSection from "@/components/encounters/RunnerTraitSection.vue";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 import type { RunCombatant } from "@/types/encounter.types";
 
 const { combatant, npc } = defineProps<{
   combatant: RunCombatant;
-  npc: Npc;
+  npc: NpcListRow;
 }>();
 
 const portrait = computed(() => formPortrait(combatant, combatant.wildshape));

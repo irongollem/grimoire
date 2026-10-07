@@ -35,10 +35,10 @@ import NpcAlterEgoControl from "@/components/npcs/NpcAlterEgoControl.vue";
 import { useNpcReveal } from "@/composables/npcs/useNpcReveal";
 import { NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
 import type { RevealForm } from "@/lib/reveal";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 
 const { npc, form = "button" } = defineProps<{
-  npc: Npc;
+  npc: NpcListRow;
   form?: RevealForm;
 }>();
 

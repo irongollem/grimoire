@@ -214,14 +214,14 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { CombatantDef, FactionDef } from "@/types/encounter.types";
 import { crToXp } from "@/types/encounter.types";
 import type { Monster, MonsterIndexEntry } from "@/types/monster.types";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 
 const combatants = defineModel<CombatantDef[]>("combatants", { required: true });
 const props = defineProps<{
   factions: FactionDef[];
   monsters: Monster[];
   pickableMonsters: MonsterIndexEntry[];
-  npcs: Npc[];
+  npcs: NpcListRow[];
   excludedMonsterIds: Set<string>;
 }>();
 
@@ -342,7 +342,7 @@ const filteredNpcs = computed(() => {
   return all.filter((n) => n.name.toLowerCase().includes(q)).slice(0, 10);
 });
 
-function addNpcToCombatants(npc: Npc) {
+function addNpcToCombatants(npc: NpcListRow) {
   // Map the 5e reaction scale onto the encounter's faction model
   // (which only knows players / ally / enemy / neutral).
   const factionId = (() => {

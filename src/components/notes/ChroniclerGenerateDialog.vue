@@ -106,7 +106,8 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 const SCENE_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { IconGenerate } from '@/lib/icons';
 import { startChroniclerImage } from "@/ai/useChroniclerImageGeneration";
-import { mentionedLocationIds, parseSceneEntities } from "@/ai/sceneEntities";
+import { mentionedLocationIds, mentionedNpcIds, parseSceneEntities } from "@/ai/sceneEntities";
+import { useNpcAppearances } from "@/composables/npcs/useNpcFields";
 import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
 import { useMentionedMonsters } from "@/composables/monsters/useMentionedMonsters";
 import { useCampaignStore } from "@/stores/campaign";
@@ -166,6 +167,9 @@ const { mentionItems, partyMembers, npcs, monsterIndex, locations, factions } = 
 
 const mentionedLocations = computed(() => mentionedLocationIds(scenePrompt.value, locations.value ?? []));
 const { data: locationDescriptions } = useLocationDescriptions(mentionedLocations);
+// The NPC list carries no prose (#999): the looks of the mentioned NPCs are read by id.
+const mentionedNpcs = computed(() => mentionedNpcIds(scenePrompt.value, npcs.value ?? []));
+const { data: npcAppearances } = useNpcAppearances(mentionedNpcs);
 const mentionedMonsters = useMentionedMonsters(() => scenePrompt.value, () => monsterIndex.value);
 
 const resolvedEntities = computed(() =>
@@ -175,6 +179,7 @@ const resolvedEntities = computed(() =>
     monsters: mentionedMonsters.value,
     locations: locations.value,
     locationDescriptions: locationDescriptions.value,
+    npcAppearances: npcAppearances.value,
     factions: factions.value,
     groupPortraitUrl: campaignStore.activeCampaign?.group_portrait_url,
   }),

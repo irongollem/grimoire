@@ -31,7 +31,7 @@ import {
   type RunCombatant,
 } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
-import type { Npc } from "@/types/npc.types";
+import type { NpcListRow } from "@/types/npc.types";
 
 const {
   hostW,
@@ -58,7 +58,7 @@ const {
   combatants: RunCombatant[];
   factions?: FactionDef[];
   monsters?: Monster[];
-  npcs?: Npc[];
+  npcs?: NpcListRow[];
   activeInstanceId?: string | null;
   /** instance_id -> portrait URL for combatants with a ready vtt-format mini
    *  (frame 13: "A `minis` row with `format:'vtt'` is the portrait"). Takes
