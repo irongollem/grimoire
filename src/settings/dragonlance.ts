@@ -1,10 +1,7 @@
-import type { DndSettingDef } from "./types";
+import type { SettingContentDef } from "./types";
 import { DRAGONLANCE_DEITIES, DRAGONLANCE_PANTHEONS } from "@/data/settingDeities";
 
-export const dragonlanceSetting: DndSettingDef = {
-  id: "dragonlance",
-  label: "Dragonlance",
-
+export const dragonlanceContent: SettingContentDef = {
   defaultAiPrompt:
     "Epic fantasy suffused with loss and hard-won hope. Three moons cast overlapping silver, red, and black light — use them to set the mood of any scene: Solinari's silver for holy moments, Lunitari's red for arcane tension, Nuitari's absence-black for dark sorcery. " +
     "Palette splits between warmth and ruin: Solace's amber vallenwood firelight and padded comfort versus the ash-grey devastation of dragonfire, scorched earth, and draconian ranks. " +
@@ -13,30 +10,6 @@ export const dragonlanceSetting: DndSettingDef = {
     "Dragonlords and their mounts should dominate compositions — scale matters. A blue dragon over a battlefield is not a detail, it is the sky. " +
     "Use environmental storytelling: trampled crops, refugee columns, destroyed shrines, campfires too small against a very dark night. " +
     "Keep the mood epic but earned — triumph costs something, and sorrow is never far.",
-
-  calendar: {
-    name: "Dragonlance (Krynn Common Calendar)",
-    epochName: "AC",
-    defaultYear: 351,
-    weekStyle: "weekly",
-    dayLabels: ["Linaras", "Palast", "Bakukal", "Bracha", "Misham", "Kirinor", "Majetag"],
-    months: [
-      { name: "Newkolt",    alias: "New Cold",        days: 28 },
-      { name: "Deepkolt",   alias: "Deep Cold",       days: 28 },
-      { name: "Brookgreen", alias: "Green Brook",     days: 28 },
-      { name: "Yurthgreen", alias: "Spring Green",    days: 28 },
-      { name: "Fleurgreen", alias: "Flower Green",    days: 28 },
-      { name: "Holden",     alias: "Midsummer Hold",  days: 28 },
-      { name: "Fierswelt",  alias: "Fierce Heat",     days: 28 },
-      { name: "Reapember",  alias: "Reaping Time",    days: 28 },
-      { name: "Paleswelt",  alias: "Pale Heat",       days: 28 },
-      { name: "Havesthold", alias: "Harvest Hold",    days: 28 },
-      { name: "Frostkolt",  alias: "Frost Cold",      days: 28 },
-      { name: "Darkember",  alias: "Dark Ember",      days: 28 },
-    ],
-    intercalaryDays: [],
-    leapYearRule: "none",
-  },
 
   locations: [
     { name: "Krynn",                          location_type: "world",     notes: "The world of Dragonlance, a planet dominated by the struggle between Paladine, Takhisis, and the balance of Gilean.", tags: ["planet", "world"] },

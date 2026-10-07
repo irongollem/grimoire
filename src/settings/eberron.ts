@@ -1,9 +1,6 @@
-import type { DndSettingDef } from "./types";
+import type { SettingContentDef } from "./types";
 
-export const eberronSetting: DndSettingDef = {
-  id: "eberron",
-  label: "Eberron",
-
+export const eberronContent: SettingContentDef = {
   defaultAiPrompt:
     "Magitech noir fantasy with a post-war, rain-slicked mood. Favour amber gaslight, dark polished wood, tarnished brass, wet cobblestone, and industrial grey stone. " +
     "Magic is infrastructure — House seals on crates, lightning rail sparks, the blue-white glow of eberite lanterns, Cannith maker's marks stamped on everything. " +
@@ -12,30 +9,6 @@ export const eberronSetting: DndSettingDef = {
     "Architecture mixes grand Galifar-era facades with makeshift post-war additions — scaffolding, boarding, mismatched stone. Sharn layers keep and skytower above fog-choked lower wards. " +
     "The Mournland should feel wrong: grey-white mist, warped terrain, silence, the absence of decay where everything should be rotting. " +
     "Keep the mood tense, morally grey, and urban — glamour exists but it's always covering something.",
-
-  calendar: {
-    name: "Eberron (Galifar Calendar)",
-    epochName: "YK",
-    defaultYear: 998,
-    weekStyle: "weekly",
-    dayLabels: ["Sul", "Mol", "Zol", "Wir", "Zor", "Far", "Sar"],
-    months: [
-      { name: "Zarantyr",  alias: "Storm Month",    days: 28 },
-      { name: "Olarune",   alias: "Sentinel Month", days: 28 },
-      { name: "Therendor", alias: "Healer's Month", days: 28 },
-      { name: "Eyre",      alias: "Anvil Month",    days: 28 },
-      { name: "Dravago",   alias: "Herder's Month", days: 28 },
-      { name: "Nymm",      alias: "Crowns Month",   days: 28 },
-      { name: "Lharvion",  alias: "Eye Month",      days: 28 },
-      { name: "Barrakas",  alias: "Lantern Month",  days: 28 },
-      { name: "Rhaan",     alias: "Book Month",     days: 28 },
-      { name: "Sypheros",  alias: "Shadow Month",   days: 28 },
-      { name: "Aryth",     alias: "Gateway Month",  days: 28 },
-      { name: "Vult",      alias: "Warding Month",  days: 28 },
-    ],
-    intercalaryDays: [],
-    leapYearRule: "none",
-  },
 
   locations: [
     { name: "Eberron",     location_type: "world",     notes: "The world itself, formed from the body of the great dragon Eberron, where magic is woven into its very physics.", tags: ["planet", "world"] },

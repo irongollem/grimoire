@@ -162,7 +162,7 @@ import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities
 import { CLERIC_DOMAINS } from "@/types/deity.types";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { getSetting } from "@/settings/index";
+import { useSettingContent } from "@/composables/campaign/useSettingContent";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -192,8 +192,10 @@ function revealDeity(id: string, playerVisibleTo: string[]) {
 
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("deities", "/deities/new");
 
+// The populate button only appears once the setting's seed content has arrived.
+const { data: settingContent } = useSettingContent(() => campaign.activeCampaign?.calendar_id);
 const hasSetting = computed(() => {
-  const s = getSetting(campaign.activeCampaign?.calendar_id ?? "");
+  const s = settingContent.value;
   return !!(s?.pantheons.length || s?.deities.length);
 });
 

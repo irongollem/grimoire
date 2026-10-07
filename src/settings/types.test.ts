@@ -2,9 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   calendarDefToAdapter,
   createDefaultCustomCalendarDef,
-  toCalendarAdapter,
 } from "./types";
-import type { SettingCalendarDef, DndSettingDef } from "./types";
+import type { SettingCalendarDef } from "./types";
 
 const tendayDef: SettingCalendarDef = {
   name: "Custom Harptos",
@@ -143,24 +142,5 @@ describe("createDefaultCustomCalendarDef", () => {
     const adapter = calendarDefToAdapter("custom", def);
     expect(adapter.weekSize).toBe(7);
     expect(adapter.formatDate(1, 1, 1, null)).toBe("Day 1 of Week 1, Month 1, 1 AY");
-  });
-});
-
-describe("toCalendarAdapter (legacy DndSettingDef wrapper)", () => {
-  it("delegates to calendarDefToAdapter using the setting id", () => {
-    const fakeSetting: DndSettingDef = {
-      id: "fake",
-      label: "Fake",
-      defaultAiPrompt: "",
-      calendar: tendayDef,
-      locations: [],
-      factions: [],
-      heroes: [],
-      pantheons: [],
-      deities: [],
-    };
-    const a = toCalendarAdapter(fakeSetting);
-    expect(a.id).toBe("fake");
-    expect(a.weekSize).toBe(10);
   });
 });

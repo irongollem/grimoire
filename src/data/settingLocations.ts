@@ -46,8 +46,3 @@ export const PLANAR_LOCATIONS: LocationPreset[] = [
   { name: "Sigil",           location_type: "city",  notes: "The City of Doors: a planar metropolis atop the Spire, accessible from any plane via portals. Governed by the Lady of Pain.", tags: ["outlands", "lady of pain", "portals", "planar hub"] },
 ];
 
-/**
- * Preset locations keyed by setting ID.
- * Source of truth: src/settings/*.ts — this is a re-export for backward compatibility.
- */
-export { SETTING_LOCATIONS } from "@/settings/index";

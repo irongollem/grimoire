@@ -1,18 +1,13 @@
 /**
- * DndSettingDef — the single source of truth for a D&D campaign setting.
- *
- * Everything is plain data (JSON-serializable). Functions (isLeapYear,
- * formatDate, weekdayOffset) are derived by toCalendarAdapter() so that
- * custom DM settings can be stored as JSON in Supabase blob storage and
- * loaded at runtime with no code changes.
- *
- * To register a custom setting at runtime, call registerSetting(def) from
- * src/settings/index.ts after fetching the JSON from blob storage.
+ * A D&D campaign setting is two plain-data halves (see SettingMeta and
+ * SettingContentDef below), split so that a page downloads only the half it
+ * needs. Everything is JSON-serializable; the calendar's functions (isLeapYear,
+ * formatDate, weekdayOffset) are derived by calendarDefToAdapter().
  */
 
 import type { CalendarAdapter, CalendarMonth, IntercalaryDay } from "@/types/calendar.types";
 import type { LocationType } from "@/types/location.types";
-import type { NpcStatus, NpcRelationship, HallOfHeroInsert } from "@/types/npc.types";
+import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 
 // ── Calendar ────────────────────────────────────────────────────────────────
 
@@ -126,13 +121,21 @@ export interface SettingHeroDef {
 
 // ── Top-level setting definition ────────────────────────────────────────────
 
-export interface DndSettingDef {
+/** The light half of a setting: enough to list it in a picker and to build its
+ *  calendar. Small and eager, so the dashboard and every calendar surface can
+ *  read it synchronously without downloading a setting's seed content. */
+export interface SettingMeta {
   id: string;
   label: string;
+  calendar: SettingCalendarDef;
+}
+
+/** The heavy half: seed content that only the populate buttons and the AI
+ *  prompt default read. One module per setting, fetched on demand. */
+export interface SettingContentDef {
   /** Pre-filled into the campaign's AI Setting Prompt when this setting is selected.
    *  DMs can edit or overwrite it at any time. */
   defaultAiPrompt: string;
-  calendar: SettingCalendarDef;
   locations: SettingLocationDef[];
   factions: SettingFactionDef[];
   heroes: SettingHeroDef[];
@@ -221,12 +224,6 @@ export function calendarDefToAdapter(id: string, c: SettingCalendarDef): Calenda
   };
 }
 
-/** Derives a full CalendarAdapter (with logic functions) from a plain DndSettingDef.
- *  Called at app startup for built-in settings and at runtime for custom settings. */
-export function toCalendarAdapter(def: DndSettingDef): CalendarAdapter {
-  return calendarDefToAdapter(def.id, def.calendar);
-}
-
 /** A sensible starter SettingCalendarDef for the custom-calendar editor.
  *  Twelve 30-day months, weekly 7-day calendar, no leap years. */
 export function createDefaultCustomCalendarDef(): SettingCalendarDef {
@@ -243,31 +240,4 @@ export function createDefaultCustomCalendarDef(): SettingCalendarDef {
     intercalaryDays: [],
     leapYearRule: "none",
   };
-}
-
-/** Expands a setting's hero seed data into HallOfHeroInsert rows ready for DB insertion. */
-export function toHallOfHeroInserts(def: DndSettingDef): HallOfHeroInsert[] {
-  return def.heroes.map((h) => ({
-    name: h.name,
-    setting: def.id,
-    race: h.race,
-    alignment: h.alignment,
-    age: null,
-    occupation: h.occupation,
-    appearance: null,
-    personality: h.personality,
-    backstory: h.backstory,
-    notes: null,
-    status: h.status,
-    relationship: h.relationship,
-    portrait_url: h.portrait_url,
-    card_art_url: null,
-    portrait_focal_point: null,
-    disguise_name: null,
-    disguise_portrait_url: null,
-    disguise_portrait_focal_point: null,
-    is_revealed: true,
-    tags: h.tags,
-    stat_block: null,
-  }));
 }

@@ -10,7 +10,8 @@ import { useToast } from "@/composables/useToast";
 import type { GridCalibration, Location, LocationInsert, LocationSummary, LocationUpdate } from "@/types/location.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { LOCATION_SUMMARY_SELECT, VAGUE_LOCATION_TYPES } from "@/types/location.types";
-import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
+import { PLANAR_LOCATIONS } from "@/data/settingLocations";
+import { loadSettingContent } from "@/settings/content";
 import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/populateSetting/settingContent";
 import { persistReorder, toReorderEntries } from "@/lib/reorder";
 import { isInteriorType } from "@/lib/locations/tiers";
@@ -792,7 +793,9 @@ export function usePopulateLocations() {
       if (campaignError) throw campaignError;
 
       const calendarId: string = campaignRow?.calendar_id ?? "faerun";
-      const presets = SETTING_LOCATIONS[calendarId] ?? SETTING_LOCATIONS["faerun"] ?? [];
+      // A calendar that is not a built-in setting (custom, gregorian) falls back to Faerûn's presets.
+      const content = (await loadSettingContent(calendarId)) ?? (await loadSettingContent("faerun"));
+      const presets = content ? content.locations : [];
       if (!presets.length) return 0;
 
       const user = getCurrentUser();

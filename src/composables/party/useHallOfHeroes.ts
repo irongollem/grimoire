@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { listSettings } from "@/settings/index";
+import { loadSettingContent } from "@/settings/content";
 import type { HallOfHero, HallOfHeroInsert, HallOfHeroUpdate, NpcInsert } from "@/types/npc.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 
@@ -181,7 +182,15 @@ export function usePopulateAllSettingHeroes() {
   return useMutation({
     mutationFn: async (): Promise<{ inserted: number; updated: number }> => {
       const user = getCurrentUser();
-      const settings = listSettings();
+      // This admin action syncs every setting, so it is the one place that
+      // legitimately downloads all nine content chunks, and only when run.
+      const settings = await Promise.all(
+        listSettings().map(async (meta) => {
+          const content = await loadSettingContent(meta.id);
+          if (!content) throw new Error(`No seed content for setting ${meta.id}`);
+          return { id: meta.id, heroes: content.heroes };
+        }),
+      );
 
       const { data: existing, error: fetchError } = await supabase
         .from("hall_of_heroes")

@@ -3,7 +3,7 @@ import { computed, toValue, type Ref, type MaybeRefOrGetter } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { useCampaignStore } from "@/stores/campaign";
-import { getSetting } from "@/settings/index";
+import { loadSettingContent } from "@/settings/content";
 import { matchSettingRowIds, stampSettingSource } from "@/lib/populateSetting/settingContent";
 import { useToast } from "@/composables/useToast";
 import type {
@@ -871,7 +871,7 @@ export function usePopulateFactions() {
       if (campaignError) throw campaignError;
 
       const calendarId: string = campaignRow?.calendar_id ?? "faerun";
-      const setting = getSetting(calendarId);
+      const setting = await loadSettingContent(calendarId);
       if (!setting?.factions.length) return 0;
 
       const user = getCurrentUser();

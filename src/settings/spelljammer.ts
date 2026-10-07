@@ -1,9 +1,6 @@
-import type { DndSettingDef } from "./types";
+import type { SettingContentDef } from "./types";
 
-export const spelljammerSetting: DndSettingDef = {
-  id: "spelljammer",
-  label: "Spelljammer",
-
+export const spelljammerContent: SettingContentDef = {
   defaultAiPrompt:
     "Space swashbuckling fantasy where the void is the ocean. The dominant palette is deep void black broken by nebula purples and golds, crystal sphere iridescence, ship-lantern amber, and bioluminescent creature glow. " +
     "Ships are practical and fantastical at once — wood, hemp rope, and brass fittings scaled up to ocean-vessel size, with a spelljammer helm at the heart and siege ballistas on the rails. Show wear: salt-equivalent asteroid dust, scorch marks, patched hull planks. " +
@@ -12,34 +9,6 @@ export const spelljammerSetting: DndSettingDef = {
     "The Rock of Bral should feel like a port city built on the underside of a mountain — cramped, cosmopolitan, smelling of strange spices and engine oil and ozone. " +
     "The Astral Sea is silver-white infinity with god-isles drifting like continents, githyanki silver citadels visible in the middle distance, and the occasional dead god's corpse large enough to build a city on. " +
     "Keep the mood adventurous, strange, and wide-open — danger is real but the wonder is bigger.",
-
-  calendar: {
-    name: "Spelljammer (Bral Standard Year)",
-    epochName: "SY",
-    defaultYear: 5048,
-    weekStyle: "weekly",
-    dayLabels: ["Helm", "Keel", "Mast", "Rig", "Void", "Port", "Star"],
-    months: [
-      { name: "Starrise",   alias: "New Voyage",     days: 30 },
-      { name: "Coldvoid",   alias: "The Long Dark",  days: 30 },
-      { name: "Windtack",   alias: "Sailing Season", days: 30 },
-      { name: "Brightburn", alias: "Sun-Facing",     days: 30 },
-      { name: "Spelltide",  alias: "The Convergence",days: 30 },
-      { name: "Higharch",   alias: "Midsphere",      days: 30 },
-      { name: "Driftmonth", alias: "The Quiet Drift",days: 30 },
-      { name: "Emberfall",  alias: "Cooling Season", days: 30 },
-      { name: "Stargather", alias: "The Counting",   days: 30 },
-      { name: "Grayreach",  alias: "The Long Haul",  days: 30 },
-      { name: "Deepvoid",   alias: "Dead Reckoning", days: 30 },
-      { name: "Returntide", alias: "Homeport",       days: 30 },
-    ],
-    intercalaryDays: [
-      { name: "Void Day",                afterMonth: 3,  description: "A traditional rest day observed by Spelljammer crews: no navigation, no cargo handling. Ships drift and crews share stories of distant spheres." },
-      { name: "Great Market",            afterMonth: 6,  description: "The annual festival on the Rock of Bral. Ships from dozens of crystal spheres gather to trade, race spelljammers, and seek new crew." },
-      { name: "Night of Shooting Stars", afterMonth: 9,  description: "A single night when an unusual number of meteors streak across every crystal sphere. Navigators use it to verify star charts." },
-    ],
-    leapYearRule: "none",
-  },
 
   locations: [
     { name: "Wildspace",            location_type: "plane",    notes: "The void between worlds within a crystal sphere: breathable air, minimal gravity, and the endless dark between planets and moons.", tags: ["void", "crystal sphere", "space"] },

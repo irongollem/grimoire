@@ -6,7 +6,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
-import { getSetting } from "@/settings/index";
+import { loadSettingContent } from "@/settings/content";
 import { NPC_LIST_COLUMNS } from "@/types/npc.types";
 import type { Npc, NpcInsert, NpcListRow, NpcUpdate, PlayerNpc } from "@/types/npc.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
@@ -389,7 +389,7 @@ export function usePopulateSettingNpcs() {
       if (campaignError) throw campaignError;
 
       const calendarId: string = campaignRow?.calendar_id ?? "faerun";
-      const setting = getSetting(calendarId);
+      const setting = await loadSettingContent(calendarId);
       if (!setting?.heroes.length) return 0;
 
       const user = getCurrentUser();

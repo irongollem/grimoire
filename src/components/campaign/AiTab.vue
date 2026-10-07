@@ -265,6 +265,7 @@ import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
 import { encryptLocalKey, decryptLocalKey, isLocalCiphertext } from "@/lib/localKeyVault";
 import { getSetting } from "@/settings/index";
+import { useSettingContent } from "@/composables/campaign/useSettingContent";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useChildAccount } from "@/composables/account/useChildAccount";
 import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/ai/useProviderConfig";
@@ -365,7 +366,9 @@ function undoClearKey(id: string) {
 const localModeEnabled = ref(typeof localStorage !== "undefined" && localStorage.getItem(LOCAL_MODE_KEY) === "local");
 
 const activeSetting        = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
-const settingDefaultPrompt = computed(() => activeSetting.value?.defaultAiPrompt ?? "");
+const { data: settingContent } = useSettingContent(() => campaign.activeCampaign?.calendar_id);
+// Empty until the setting's chunk arrives, which hides the "Load defaults" button meanwhile.
+const settingDefaultPrompt = computed(() => (settingContent.value ? settingContent.value.defaultAiPrompt : ""));
 const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
 
 const { enabledImageProviders, enabledTextProviders, imageMultiplierFor } = useProviderConfig();
