@@ -427,8 +427,11 @@ async function serveFromRuntime(event, req, path) {
       // `basic` excludes opaque cross-origin responses, which have status 0
       // and would poison the cache with something we cannot even read. This
       // handler is same-origin already, but a redirect off-origin would
-      // otherwise land here.
-      if (response.ok && response.type === "basic") {
+      // otherwise land here. The content-type check is the precache's, for
+      // the same reason: a page still on the previous build asks for a chunk
+      // the new deploy removed, the SPA rewrite answers with index.html and
+      // 200, and that HTML must not be kept under an immutable chunk name.
+      if (isUsableResponse(path, response) && response.type === "basic") {
         await runtime.put(req, response.clone());
         await trimCache(runtime, RUNTIME_MAX_ENTRIES);
       }
