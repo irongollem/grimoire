@@ -15,9 +15,7 @@
     </PageHeader>
 
     <!-- ── Your company ────────────────────────────────────────────────────── -->
-    <div v-if="partyLoading" class="flex justify-center py-8">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="partyLoading" variant="rows" :count="3" />
     <p v-else-if="!members?.length" class="font-fell italic text-muted-foreground">
       No party members yet.
     </p>
@@ -34,9 +32,7 @@
 
     <!-- ── People: the ledger ──────────────────────────────────────────────── -->
     <section v-if="npcs.length || npcsLoading">
-      <div v-if="npcsLoading" class="flex justify-center py-8">
-        <LoadingSpinner />
-      </div>
+      <ListSkeleton v-if="npcsLoading" variant="rows" :count="4" />
       <div v-else class="lg:grid lg:grid-cols-[28rem_minmax(0,1fr)] lg:items-start lg:gap-8">
         <div class="space-y-5">
           <header class="flex items-baseline gap-2.5 px-1">
@@ -55,7 +51,7 @@
           <p v-if="readMapError" class="text-body italic text-muted-foreground">
             Your people could not be loaded. Try again in a moment.
           </p>
-          <LoadingSpinner v-else-if="!ready || groupsPending" class="mx-auto" />
+          <ListSkeleton v-else-if="!ready || groupsPending" variant="rows" :count="4" />
           <template v-else>
             <NewToYouStrip :items="newToYouItems" @turned="turnNewToYou" @open="openPerson" />
 
@@ -123,13 +119,13 @@
 </template>
 
 <script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";

@@ -30,13 +30,15 @@
       No backgrounds match your filters.
     </p>
 
-    <div
+    <VirtualGrid
       v-else
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+      :items="filtered"
+      :item-key="backgroundKey"
+      :columns="columns"
+      :estimate-row-height="GRID_ROW_PX"
     >
+      <template #default="{ item: b }">
       <div
-        v-for="b in visibleItems"
-        :key="b.id"
         class="group relative flex flex-col rounded-lg border bg-card transition-colors overflow-hidden"
         :class="[
           selectMode ? 'cursor-pointer' : '',
@@ -139,9 +141,8 @@
           Edit
         </RouterLink>
       </div>
-    </div>
-
-    <div ref="sentinelRef" />
+      </template>
+    </VirtualGrid>
 
     <p
       v-if="filtered.length"
@@ -157,8 +158,9 @@ import { computed } from "vue";
 import { IconCheck, IconEdit } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { isLibraryBackground, useBackgrounds } from "@/composables/rules/useBackgrounds";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -206,7 +208,17 @@ const filtered = computed(() => {
   return list;
 });
 
-const { savedCount, linkCount } = useScrollRestore("backgrounds");
-const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
-linkCount(visibleCount);
+// The whole filtered list is in hand, so only the scroll position needs
+// restoring; VirtualGrid windows what is mounted.
+useScrollRestore("backgrounds");
+
+// Mirrors the grid classes this list used to carry:
+// `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3`.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const backgroundKey = (background: Background) => background.id;
+
+// Row height before a row is measured (px): 206px measured at a 390px
+// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
+// back from a detail re-renders every unmeasured row above the viewport.
+const GRID_ROW_PX = 206;
 </script>

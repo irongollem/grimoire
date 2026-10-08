@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-4">
+  <div ref="containerRef" class="flex flex-col gap-4">
     <!-- Loading: the same auto-fill grid and EntityGridCard shape as the loaded
          list, so the cards do not jump when they land. -->
     <ListSkeleton v-if="isLoading" variant="grid" columns="fill" :count="12" />
@@ -25,12 +25,16 @@
       <template #icon><IconNavItemVault class="h-16 w-16" /></template>
     </EmptyState>
 
-    <!-- Grid -->
-    <div
+    <!-- Grid, windowed: only the rows near the viewport are mounted. -->
+    <VirtualGrid
       v-else
-      class="grid gap-3"
-      style="grid-template-columns: repeat(auto-fill, minmax(11.25rem, 1fr))"
+      :items="rows"
+      :item-key="itemKey"
+      :columns="columns"
+      :estimate-row-height="GRID_ROW_PX"
+      :gap="GRID_GAP_REM"
     >
+      <template #default="{ item }">
       <!--
         An item card is deliberately the leanest of the entity cards: the name
         rides the artwork in `#image-footer`, and the body carries only a quick
@@ -46,8 +50,6 @@
            exists to hear pointer/focus for the detail prefetch: EntityGridCard
            opens with a comment, so listeners passed to it do not fall through. -->
       <div
-        v-for="item in rows"
-        :key="item.id"
         class="contents"
         @pointerover="prefetchDetail(item.id)"
         @focusin="prefetchDetail(item.id)"
@@ -146,13 +148,14 @@
         </EntityGridCard>
       </BulkSelectableCard>
       </div>
-    </div>
+      </template>
+    </VirtualGrid>
     <div ref="sentinelRef" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { type Component as VueComponent } from "vue";
+import { ref, type Component as VueComponent } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { IconCaravan, IconCircle, IconCoins, IconComponent, IconDocument, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconNavItemVault, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
@@ -193,6 +196,8 @@ import { useItemBrowse } from "@/composables/items/useItemBrowse";
 import { fetchResolvedItem, resolvedItemKey } from "@/composables/items/useItems";
 import type { ItemScope } from "@/lib/items/itemScope";
 import { ITEM_RARITY_LABELS, RARITY_BG } from "@/types/item.types";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useAutoFillColumns } from "@/composables/useGridColumns";
 import EmptyState from "@/components/common/EmptyState.vue";
 import ListSkeleton from "@/components/common/ListSkeleton.vue";
 
@@ -224,6 +229,21 @@ const DETAIL_PREFETCH_STALE_MS = 30_000;
 const emit = defineEmits<{ "toggle-select": [id: string] }>();
 
 const queryClient = useQueryClient();
+
+// Mirrors the track this grid used to declare:
+// `repeat(auto-fill, minmax(11.25rem, 1fr))` with `gap-3`.
+const GRID_MIN_WIDTH_REM = 11.25;
+const GRID_GAP_REM = 0.75;
+const containerRef = ref<HTMLElement | null>(null);
+const columns = useAutoFillColumns(containerRef, GRID_MIN_WIDTH_REM, GRID_GAP_REM);
+const itemKey = (item: { id: string }) => item.id;
+
+// Row height before a row is measured (px), in the default Vellum theme:
+// 2 border + 144 artwork (h-36) + 24 body padding (p-3) + 19 for the tag chips
+// (text-label 11px at line-height 1, plus py-1) = 189. A card with a stat line
+// as well runs ~25px taller (pt-1, a 17px text-caption line, gap-1), one with
+// neither ~19px shorter; rows are re-measured as they mount.
+const GRID_ROW_PX = 189;
 const {
   rows,
   selectableIds,

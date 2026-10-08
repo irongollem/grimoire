@@ -56,12 +56,18 @@
       No heroes match your filters.
     </p>
 
-    <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <VirtualGrid
+      v-else
+      :items="filtered"
+      :item-key="heroKey"
+      :columns="columns"
+      :gap="1"
+      :estimate-row-height="HERO_ROW_PX"
+    >
       <!-- Same card shell as NPCs and monsters (EntityGridCard), so heroes get
            the same artwork plate, corner chips and, in Vellum, the poster. -->
+      <template #default="{ item: hero }">
       <EntityGridCard
-        v-for="hero in filtered"
-        :key="hero.id"
         :to="`/hall-of-heroes/${hero.id}`"
         :title="hero.name"
         :image-url="hero.portrait_url"
@@ -127,7 +133,8 @@
           />
         </template>
       </EntityGridCard>
-    </div>
+      </template>
+    </VirtualGrid>
     </div><!-- /listRef -->
 
     <template v-if="filtered.length" #footer>
@@ -158,6 +165,8 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import EntityGridCard from "@/components/common/EntityGridCard.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { HallOfHero } from "@/types/npc.types";
@@ -173,6 +182,17 @@ function settingLabel(val: string) {
 }
 
 const router = useRouter();
+
+// Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` (gap-4) this grid used to carry.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const heroKey = (hero: HallOfHero) => hero.id;
+
+// Row height before a row is measured (px), for a card with tags, in the Vellum
+// default: 1px border x2 + 144 artwork (h-36) + p-3 (24) + name (17.5) + race
+// line (17.3) + tags row (4 pt-1 + 15) + Add to Campaign button (~31: 12 py-1.5
+// + 17.3 label + border) + three gap-1 (12) = 267. Compare the monster grid's
+// measured 262.
+const HERO_ROW_PX = 267;
 const listRef = ref<HTMLElement | null>(null);
 useScrollRestore("hall-of-heroes", listRef);
 

@@ -464,7 +464,7 @@ Mutation errors from these RPCs surface via toasts (`useCharacterSpells` mutatio
 
 The Workshop is where the DM creates crafting recipes and controls which players can see them.
 
-**List view** — tabbed by crafting discipline. All recipes are shown in an "All" tab; individual discipline tabs filter the list. Mobile-responsive cards truncate the name and collapse discipline/proficiency/tools badges to icons only. The list is paged in on scroll via `useInfiniteScroll` (48 at a time) with `useScrollRestore` keyed `crafting-recipes`, so returning from `/crafting/:id` lands where you left off.
+**List view** — tabbed by crafting discipline. All recipes are shown in an "All" tab; individual discipline tabs filter the list. Mobile-responsive cards truncate the name and collapse discipline/proficiency/tools badges to icons only. The list is windowed through `VirtualGrid` (only the rows near the viewport are mounted) with `useScrollRestore` keyed `crafting-recipes`, so returning from `/crafting/:id` lands where you left off.
 
 **Crafting disciplines** — defined in `src/lib/crafting/disciplines.ts`. Each discipline has:
 
@@ -512,7 +512,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 
 **Discipline tabs** — only disciplines with at least one accessible recipe are shown. Tabs where the character lacks the required tool proficiency show a "NO PROF" badge and use dimmer styling.
 
-**Paging** — the grid mounts 24 cards and pages the rest in on scroll (`useInfiniteScroll`); switching tabs resets to the first page. The page size is deliberately smaller than the 48 used elsewhere: a recipe card is ~5ms of mount work, so a campaign with 184 shared recipes rendered as one unbroken ~980ms task in a production build on a fast desktop. On a low-end Chromebook that was several seconds during which the browser answers no input at all — not even a reload — and Chrome killed the renderer with an out-of-memory error, which is what the freeze was originally reported as. Do not render the full list "because it is only a few hundred": the cost is linear and there is no cap on recipes per campaign.
+**Windowing** — the grid renders through `VirtualGrid`, which mounts only the rows near the viewport (8 Oct 2026; it replaced paging 24 cards in on scroll, which still mounted every card the player had scrolled past). Why it matters here more than most: a recipe card is ~5ms of mount work, so a campaign with 184 shared recipes rendered as one unbroken ~980ms task in a production build on a fast desktop. On a low-end Chromebook that was several seconds during which the browser answers no input at all — not even a reload — and Chrome killed the renderer with an out-of-memory error, which is what the freeze was originally reported as. Do not render the full list "because it is only a few hundred": the cost is linear and there is no cap on recipes per campaign. The row estimate (`RECIPE_ROW_PX`) is the roughest in the app, since a card's height follows its ingredient count.
 
 **Recipe cards** — each card shows:
 

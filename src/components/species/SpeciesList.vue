@@ -43,13 +43,15 @@
       No species match your filters.
     </p>
 
-    <div
+    <VirtualGrid
       v-else
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+      :items="filtered"
+      :item-key="speciesKey"
+      :columns="columns"
+      :estimate-row-height="GRID_ROW_PX"
     >
+      <template #default="{ item: s }">
       <BulkSelectableCard
-        v-for="s in visibleItems"
-        :key="s.id"
         corner="top-right"
         :selected="bulk.isSelected(s.id)"
         :selecting="bulk.selecting.value && !selectMode && isUuid(s.id)"
@@ -145,9 +147,8 @@
           </RouterLink>
         </div>
       </BulkSelectableCard>
-    </div>
-
-    <div ref="sentinelRef" />
+      </template>
+    </VirtualGrid>
 
     <p
       v-if="filtered.length"
@@ -176,8 +177,9 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { allowedSpecies } from "@/lib/campaignContentGating";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -231,9 +233,19 @@ const filtered = computed(() => {
   return list;
 });
 
-const { savedCount, linkCount } = useScrollRestore("species");
-const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
-linkCount(visibleCount);
+// The whole filtered list is in hand, so only the scroll position needs
+// restoring; VirtualGrid windows what is mounted.
+useScrollRestore("species");
+
+// Mirrors the grid classes this list used to carry:
+// `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3`.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const speciesKey = (species: Species) => species.id;
+
+// Row height before a row is measured (px): 252px measured at a 390px
+// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
+// back from a detail re-renders every unmeasured row above the viewport.
+const GRID_ROW_PX = 252;
 
 // ── Bulk selection (#875) — the DM's codex tool ─────────────────────────────
 //

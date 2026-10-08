@@ -56,9 +56,19 @@
           show-handle
         />
       </VueDraggable>
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        <NoteCard v-for="note in unpinned" :key="note.id" :note="note" :locked="lockedNoteIds.has(note.id)" />
-      </div>
+      <!-- Windowed: only the cards near the viewport are mounted. Manual mode above
+           stays an ordinary render, because dragging needs every card present. -->
+      <VirtualGrid
+        v-else
+        :items="unpinned"
+        :item-key="noteKey"
+        :columns="columns"
+        :estimate-row-height="NOTE_ROW_PX"
+      >
+        <template #default="{ item: note }">
+          <NoteCard :note="note" :locked="lockedNoteIds.has(note.id)" />
+        </template>
+      </VirtualGrid>
     </template>
 
     <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
@@ -85,6 +95,8 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import NoteCard from "@/components/notes/NoteCard.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { sortEntities, type SortField } from "@/lib/noteSort";
 import type { Note, NoteCategory } from "@/types/notes.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -115,6 +127,17 @@ const SORT_OPTIONS = [
   { value: "title", label: "Title A–Z" },
   { value: "manual", label: "Manual" },
 ] as const satisfies readonly { value: SortField; label: string }[];
+
+// Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` the pinned
+// and manual-sort grids still carry.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const noteKey = (note: Note) => note.id;
+
+// Row height before a row is measured (px), measured at a 390px phone on
+// 8 Oct 2026: 140-156px across cards, 156 the median. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const NOTE_ROW_PX = 156;
 
 const { data: notes, isLoading } = useNotes();
 const { mutate: reorder } = useReorderNotes();

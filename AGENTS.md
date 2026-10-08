@@ -89,11 +89,13 @@ create trigger <table>_updated_at
 ```sql
 alter table <table> enable row level security;
 
-create policy "<table>_select" on <table> for select using (auth.uid() = user_id);
-create policy "<table>_insert" on <table> for insert with check (auth.uid() = user_id);
-create policy "<table>_update" on <table> for update using (auth.uid() = user_id);
-create policy "<table>_delete" on <table> for delete using (auth.uid() = user_id);
+create policy "<table>_select" on <table> for select using ((select auth.uid()) = user_id);
+create policy "<table>_insert" on <table> for insert with check ((select auth.uid()) = user_id);
+create policy "<table>_update" on <table> for update using ((select auth.uid()) = user_id);
+create policy "<table>_delete" on <table> for delete using ((select auth.uid()) = user_id);
 ```
+
+**One permissive policy per table and command.** Postgres evaluates every permissive policy that applies and ORs them, per row, so a second `select` policy doubles the cost of every read. To widen access (a DM read, an admin read, a player read), OR the new condition into the existing `<table>_<cmd>` policy; never add a sibling. A `for all` policy counts toward all four commands, so pairing one with a `for select` policy is the same overlap. `supabase/tests/permissive_policy_merge.test.sql` fails on any overlap in `public`. Write `(select auth.uid())`, not bare `auth.uid()`: the wrapped form is evaluated once per statement instead of once per row (the one deliberate exception, `campaign_tile_packs_select`, is explained in `20261006230038`). #999 merged 60 overlaps on 26 tables; to prove a policy rewrite changes nobody's access, run `scripts/db/rls-differential.ts`.
 
 Migration files live in `supabase/migrations/` with the Supabase CLI's own prefix, `YYYYMMDDHHMMSS_name.sql` (14-digit UTC timestamp to the second).
 
@@ -447,11 +449,12 @@ belongs in `quests/` because it is *about* quests, however many features read it
 Popularity is not the test here either; it is just a different non-test.
 
 The 25 modules that stay at the root are the ones with genuinely no domain:
-`useConfirm`, `useToast`, `useBreakpoint`, `useHotkeys`, `useInfiniteScroll`,
+`useConfirm`, `useToast`, `useBreakpoint`, `useHotkeys`,
 `useServerInfiniteScroll` (its server-paged sibling: the sentinel under the catalogue lists),
 `useScrollRestore`, `useLazyMount`, `useDetailModal`, `useAnchoredPopover`,
 `useModeSwitch`, `useTheme`, `useGlobalSearch`, `useScreenShake`, `useLocalePrefs`,
-`useBulkSelection`, `useUnsavedGuard`, `useAutosave`, `useRecordDraft` (an editor's draft merged against the server copy, #946), the PWA trio (`useAppUpdate`, `usePwaInstall`,
+`useBulkSelection`, `useGridColumns` (column counts for `VirtualGrid`, mirroring a CSS grid's breakpoints or auto-fill),
+`useUnsavedGuard`, `useAutosave`, `useRecordDraft` (an editor's draft merged against the server copy, #946), the PWA trio (`useAppUpdate`, `usePwaInstall`,
 `usePullToRefresh`) and the image trio (`useImageUpload`, `usePendingImageResolver`,
 `useArtTabs`). Adding a 26th is a claim that the thing has no domain — check that
 claim before you make it. (This list read 19 until 27 Sep 2026 while the folder held
@@ -485,8 +488,12 @@ A new `<button class="px-2 py-0.5 border rounded …">` or `<input class="bg-mut
 | A coloured pill whose colour means something          | `AppButton variant="tinted"` + `tone` + `emphasis` |
 | A toggle/segmented picker                             | `AppButton :active` or `SegmentedControl`   |
 | A spinner: `animate-spin`, a ring, a lucide loader    | `BannerLoader` (sized by height); in a button, `AppButton :loading`; for a whole block, `LoadingSpinner` |
+| A list body whose data has not arrived yet            | `ListSkeleton` in the variant the real items use (`rows` / `gallery` / `grid` / `text` / `tiles` / `stack`, with `columns` matching the list's track); a one-off shape no variant fits (a tree, a kanban) is composed from `SkeletonBlock` |
+| A list that can grow without bound (a catalogue, a campaign's entities) | `VirtualGrid`, with `useBreakpointColumns` / `useAutoFillColumns` mirroring the CSS grid it replaces. Every card stays mounted otherwise: ~1,000 bestiary cards froze an iPhone (8 Oct 2026). Measure the row estimate on a real page |
 
 The waving bookmark flag is the app's only loading indicator, at every size from a 12px button glyph to the loading screen; `loadingIndicator.test.ts` fails the suite if anything spins again, and holds the static boot splash in `index.html` equal to the component.
+
+A skeleton is not a second loading indicator: it stands in for *content*, where the flag stands for *work*. The maintainer's direction (8 Oct 2026) is that a list shows its frame at once with shimmer rows shaped like what will land, never a blank page or a lone spinner, because on a phone a page that waits for its data reads as a tap that failed. `navigationPending` (`src/router/navigationPending.ts`) does the same one step earlier: a navigation whose route chunk takes longer than 100 ms shows `RouteSkeleton` instead of leaving the old page on screen, and keeps the old page mounted so a cancelled navigation loses nothing.
 
 Every variant is rendered at `/dev/components` — open it rather than guessing which one matches. If none does, add a variant to `appButtonVariants.ts` / `fieldVariants.ts` / `checkboxVariants.ts` (the compile-time assertion forces it into the catalogue); do **not** fall back to a class string. A raw `<button>`/`<input>` is fine only when it carries *no* chrome — a bare word of clickable text, or a radio/file input. Checkboxes are **not** in that exception: the original carve-out assumed a checkbox carries no chrome, and measurement (#751, 21 Aug 2026) found 100 of them in twelve visual states — they route through `AppCheckbox`, whose one deliberate raw survivor (the `sr-only` travel chip in `EventModalTravelFields`) is named in its docstring.
 

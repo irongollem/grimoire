@@ -73,7 +73,7 @@
       @copy="handleCopyOpen"
     />
     <!--
-      Paged and position-restoring like the NPC and monster grids. No mobile
+      Windowed and position-restoring like the NPC and monster grids. No mobile
       card swap, though, and that is deliberate rather than unfinished:
       `EntityMobileCard`'s "rows" layout is this row, and it is a `RouterLink`
       wrapper — so adopting it would trade a working reveal control for a
@@ -81,10 +81,14 @@
       another way. `EntityListRow` uses the link-overlay trick precisely so it
       can hold a button, and it already reflows to one column.
     -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <VirtualGrid
+        :items="filtered"
+        :item-key="factionKey"
+        :columns="columns"
+        :estimate-row-height="ROW_PX"
+      >
+        <template #default="{ item: faction }">
         <BulkSelectableCard
-          v-for="faction in visibleItems"
-          :key="faction.id"
           corner="top-left"
           :selected="isSelected(faction.id)"
           :selecting="selecting"
@@ -111,10 +115,9 @@
             </template>
           </EntityListRow>
         </BulkSelectableCard>
-      </div>
+        </template>
+      </VirtualGrid>
     </template>
-
-    <div ref="sentinelRef" />
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="factions" />
@@ -154,8 +157,9 @@ import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
@@ -189,12 +193,19 @@ const filtered = computed(() => {
   });
 });
 
-// `sentinelRef` must stay destructured — the template binds it as a plain
-// `ref="sentinelRef"` string, which is never typechecked, so dropping it leaves
-// the ref null and the list silently capped at 48 with every gate green.
-const { savedCount, linkCount } = useScrollRestore("factions");
-const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
-linkCount(visibleCount);
+// The whole filtered list is in hand, so only the scroll position needs
+// restoring; VirtualGrid windows what is mounted.
+useScrollRestore("factions");
+
+// Mirrors the grid classes this list used to carry:
+// `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3`.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
+const factionKey = (faction: { id: string }) => faction.id;
+
+// Row height before a row is measured (px): 86px measured at a 390px
+// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
+// back from a detail re-renders every unmeasured row above the viewport.
+const ROW_PX = 86;
 
 const populateMutation = usePopulateFactions();
 const populateStatus = ref<"idle" | "done" | "uptodate">("idle");

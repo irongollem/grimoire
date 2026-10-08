@@ -765,7 +765,13 @@ export default defineConfig(({ mode }) => {
               // the runtime ships as @vue/*, so listed after tiptap (and without
               // that alternative) it was absorbed into the editor chunk, forcing
               // every chunk that needs Vue to import all 574 kB of tiptap.
-              { name: "vue-core", test: /node_modules[\\/](@vue[\\/]|vue|pinia|@tanstack)/ },
+              // `@tanstack` minus the list virtualizer, which goes in `virtual` below.
+              { name: "vue-core", test: /node_modules[\\/](@vue[\\/]|vue|pinia|@tanstack[\\/](?!vue-virtual|virtual-core))/ },
+              // List windowing (VirtualGrid), only needed once a long list renders,
+              // so kept out of `vue-core`, which the entry imports. After it, not
+              // before: a group pulls in its members' dependencies, and listed
+              // first this one took Vue itself along with the virtualizer.
+              { name: "virtual", test: /node_modules[\\/]@tanstack[\\/](vue-virtual|virtual-core)/ },
               // 3D model viewer — Simulacrum only, keep it out of the main bundle.
               { name: "model-viewer", test: /node_modules[\\/]@google[\\/]model-viewer/ },
               // Quest graph engine — Build mode only.

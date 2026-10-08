@@ -220,7 +220,15 @@
       />
 
       <main ref="mainEl" class="flex-1 overflow-y-auto">
-        <div :class="fullscreenMobile || route.meta.fillsMain ? 'h-full' : 'px-4 py-6'">
+        <!-- Same as App.vue: the outgoing page stays mounted, only hidden,
+             while a slow route chunk downloads, so a cancelled navigation
+             finds its scroll and form state intact. Outside the padded
+             wrapper because RouteSkeleton brings its own page padding. -->
+        <RouteSkeleton v-if="navigationPending" />
+        <div
+          v-show="!navigationPending"
+          :class="fullscreenMobile || route.meta.fillsMain ? 'h-full' : 'px-4 py-6'"
+        >
           <!-- Renders nothing unless the DM is actually sharing audio, so a
                table that plays in one room never sees it. -->
           <PlayerAudioStream class="mb-4" />
@@ -324,6 +332,8 @@ import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconReveal, IconSettingsAlt } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import AppButton from "@/components/common/AppButton.vue";
+import RouteSkeleton from "@/components/common/RouteSkeleton.vue";
+import { navigationPending } from "@/router/navigationPending";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useNeedsInitiativeRoll } from "@/composables/encounters/useNeedsInitiativeRoll";
 import { usePlayerEncounterLive } from "@/composables/encounters/useEncounterLive";

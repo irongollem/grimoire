@@ -4,15 +4,21 @@ import type { ComponentPublicInstance } from "vue";
 import { scrollParentOf } from "@/lib/scrollParent";
 
 /**
- * Persists the scroll position (and infinite-scroll page count) for a list
- * view so that navigating List → Detail → Back restores exactly where the
- * user was.
+ * Persists the scroll position (and, for a server-paged list, how many rows
+ * were loaded) for a list view so that navigating List → Detail → Back
+ * restores exactly where the user was.
  *
- * Usage A — inside a list component that uses useInfiniteScroll (e.g. NpcList.vue):
+ * Usage A — a server-paged list. The scroll position is only meaningful once
+ * the list is as long as it was, so the loaded count is linked and
+ * `useServerInfiniteScroll` (which calls this itself) pages back to it:
  *
- *   const { savedCount, linkCount } = useScrollRestore('npcs')
- *   const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount)
- *   linkCount(visibleCount)
+ *   const { sentinelRef } = useServerInfiniteScroll({ scrollKey: 'monsters', loadedCount, ... })
+ *
+ * Usage A2 — a client list rendered through VirtualGrid. The whole filtered
+ * list is present at once, so only the scroll position is restored and the
+ * count is ignored:
+ *
+ *   useScrollRestore('npcs')
  *
  * Usage B — inside a view that renders its list content directly (no child list component):
  *
@@ -50,8 +56,8 @@ export function useScrollRestore(
   let countRef: Ref<number> | null = null;
 
   /**
-   * Link the `visibleCount` ref returned by useInfiniteScroll so that the
-   * current page depth is included in the saved state.
+   * Link the number of loaded rows of a server-paged list so that the current
+   * depth is included in the saved state.
    */
   function linkCount(ref: Ref<number>) {
     countRef = ref;
@@ -87,9 +93,9 @@ export function useScrollRestore(
   onBeforeUnmount(save);
 
   /**
-   * The visibleCount that was active when the user left the list.
-   * Pass this as `initialCount` to useInfiniteScroll so the same number of
-   * items are rendered before the scroll position is restored.
+   * The loaded count that was active when the user left the list.
+   * `useServerInfiniteScroll` pages back to it before the scroll position is
+   * restored, so the list is the same height again.
    */
   const savedCount = states.get(key)?.count;
 

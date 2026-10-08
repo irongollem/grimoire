@@ -449,11 +449,12 @@ belongs in `quests/` because it is *about* quests, however many features read it
 Popularity is not the test here either; it is just a different non-test.
 
 The 25 modules that stay at the root are the ones with genuinely no domain:
-`useConfirm`, `useToast`, `useBreakpoint`, `useHotkeys`, `useInfiniteScroll`,
+`useConfirm`, `useToast`, `useBreakpoint`, `useHotkeys`,
 `useServerInfiniteScroll` (its server-paged sibling: the sentinel under the catalogue lists),
 `useScrollRestore`, `useLazyMount`, `useDetailModal`, `useAnchoredPopover`,
 `useModeSwitch`, `useTheme`, `useGlobalSearch`, `useScreenShake`, `useLocalePrefs`,
-`useBulkSelection`, `useUnsavedGuard`, `useAutosave`, `useRecordDraft` (an editor's draft merged against the server copy, #946), the PWA trio (`useAppUpdate`, `usePwaInstall`,
+`useBulkSelection`, `useGridColumns` (column counts for `VirtualGrid`, mirroring a CSS grid's breakpoints or auto-fill),
+`useUnsavedGuard`, `useAutosave`, `useRecordDraft` (an editor's draft merged against the server copy, #946), the PWA trio (`useAppUpdate`, `usePwaInstall`,
 `usePullToRefresh`) and the image trio (`useImageUpload`, `usePendingImageResolver`,
 `useArtTabs`). Adding a 26th is a claim that the thing has no domain — check that
 claim before you make it. (This list read 19 until 27 Sep 2026 while the folder held
@@ -487,7 +488,8 @@ A new `<button class="px-2 py-0.5 border rounded …">` or `<input class="bg-mut
 | A coloured pill whose colour means something          | `AppButton variant="tinted"` + `tone` + `emphasis` |
 | A toggle/segmented picker                             | `AppButton :active` or `SegmentedControl`   |
 | A spinner: `animate-spin`, a ring, a lucide loader    | `BannerLoader` (sized by height); in a button, `AppButton :loading`; for a whole block, `LoadingSpinner` |
-| A list body whose data has not arrived yet            | `ListSkeleton` in the variant the real items use (`rows` / `gallery` / `grid` / `text` / `tiles`, with `columns` matching the list's track); a one-off shape no variant fits (a tree, a kanban) is composed from `SkeletonBlock` |
+| A list body whose data has not arrived yet            | `ListSkeleton` in the variant the real items use (`rows` / `gallery` / `grid` / `text` / `tiles` / `stack`, with `columns` matching the list's track); a one-off shape no variant fits (a tree, a kanban) is composed from `SkeletonBlock` |
+| A list that can grow without bound (a catalogue, a campaign's entities) | `VirtualGrid`, with `useBreakpointColumns` / `useAutoFillColumns` mirroring the CSS grid it replaces. Every card stays mounted otherwise: ~1,000 bestiary cards froze an iPhone (8 Oct 2026). Measure the row estimate on a real page |
 
 The waving bookmark flag is the app's only loading indicator, at every size from a 12px button glyph to the loading screen; `loadingIndicator.test.ts` fails the suite if anything spins again, and holds the static boot splash in `index.html` equal to the component.
 

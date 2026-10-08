@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
-import { reactive, ref, computed, defineComponent, h, type Ref } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { reactive, ref, defineComponent, h } from "vue";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import NpcList from "./NpcList.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import type { Npc } from "@/types/npc.types";
@@ -118,19 +118,29 @@ vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
   }),
 }));
 
-// Windowing over `filtered` without IntersectionObserver — mirrors the real
-// composable's slicing so a >pageSize fixture still exercises "select all
-// shown selects everything filtered, not only what's painted."
-vi.mock("@/composables/useInfiniteScroll", () => ({
-  useInfiniteScroll: (filtered: Ref<Npc[]>, pageSize = 48) => ({
-    visibleItems: computed(() => filtered.value.slice(0, pageSize)),
-    sentinelRef: ref(null),
-    visibleCount: ref(Math.min(pageSize, filtered.value.length)),
-  }),
-}));
 vi.mock("@/composables/useScrollRestore", () => ({
-  useScrollRestore: () => ({ savedCount: undefined, linkCount: vi.fn() }),
+  // A client list restores scroll position only; it reads nothing back.
+  useScrollRestore: () => ({}),
 }));
+
+// VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so
+// every box reads 0 tall and nothing would render. Give the scroller (the
+// document, here) a tall viewport and every row a plausible height, which makes
+// a screenful of rows "visible" (about ten, plus overscan) without changing
+// what is under test.
+const VIEWPORT_PX = 2600;
+const ORIGINAL_OFFSET_HEIGHT = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+    configurable: true,
+    get(this: HTMLElement) {
+      return this === document.documentElement ? VIEWPORT_PX : 260;
+    },
+  });
+});
+afterAll(() => {
+  if (ORIGINAL_OFFSET_HEIGHT) Object.defineProperty(HTMLElement.prototype, "offsetHeight", ORIGINAL_OFFSET_HEIGHT);
+});
 
 const stubs = {
   NpcGridCard: { template: '<div class="stub-card" />', props: ["npc", "locationName", "locked"] },
@@ -183,11 +193,13 @@ describe("NpcList — bulk selection (#885)", () => {
     expect(wrapper.text()).not.toContain("selected");
   });
 
-  it("select-all shown selects every filtered row, not only the windowed/painted subset", async () => {
+  it("select-all shown selects every filtered row, not only the mounted subset", async () => {
     npcsData.value = Array.from({ length: 60 }, (_, i) => npc({ id: `npc-${i}`, name: `NPC ${i}` }));
     const wrapper = mountList();
-    // Only 48 are painted (the windowed page), well under the 60 total.
-    expect(wrapper.findAll(".stub-card")).toHaveLength(48);
+    await flushMicrotasks(); // VirtualGrid finds its scroller on mount, rows follow
+    // Only the rows near the viewport are mounted, well under the 60 total.
+    expect(wrapper.findAll(".stub-card").length).toBeGreaterThan(0);
+    expect(wrapper.findAll(".stub-card").length).toBeLessThan(60);
 
     await exposed(wrapper).toggleSelectMode();
     const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");

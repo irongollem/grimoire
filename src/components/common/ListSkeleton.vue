@@ -11,6 +11,9 @@
                   trailing badge and two lines of text
       - tiles   : EntityListRow (factions, pantheons): an emblem tile beside
                   a name and a count line
+      - stack   : full-width cards in one column at every width (the player
+                  journal's entries, notes, quest log and handouts): a title
+                  with a trailing badge over one line of text
   -->
   <div role="status" :class="containerClass">
     <span class="sr-only">Loading…</span>
@@ -41,6 +44,20 @@
           <SkeletonBlock class="h-4" :class="pick(TITLE_WIDTHS, i)" />
           <SkeletonBlock class="h-3" :class="pick(SUBTITLE_WIDTHS, i)" />
         </div>
+      </div>
+    </template>
+
+    <template v-else-if="variant === 'stack'">
+      <div
+        v-for="i in count"
+        :key="i"
+        class="flex flex-col gap-2 rounded-lg border border-border bg-card p-4"
+      >
+        <div class="flex items-start justify-between gap-2">
+          <SkeletonBlock class="h-4" :class="pick(TITLE_WIDTHS, i)" />
+          <SkeletonBlock class="h-4 w-12 shrink-0" />
+        </div>
+        <SkeletonBlock class="h-3" :class="pick(TEXT_WIDTHS, i)" />
       </div>
     </template>
 
@@ -100,14 +117,14 @@ import { computed } from "vue";
 import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
 
 const { variant = "rows", count = 8, columns = 4 } = defineProps<{
-  variant?: "rows" | "gallery" | "grid" | "text" | "tiles";
+  variant?: "rows" | "gallery" | "grid" | "text" | "tiles" | "stack";
   count?: number;
   /**
    * The column track of a `grid`, `text` or `tiles` list, matching the list it
    * stands in for: its widest column count, or "fill" for a list that packs
    * fixed-width cards with `auto-fill` (the item catalogue).
    */
-  columns?: 3 | 4 | "fill";
+  columns?: 2 | 3 | 4 | "fill";
 }>();
 
 // Literal class strings, because Tailwind only generates the ones written in
@@ -122,13 +139,14 @@ function pick(widths: string[], index: number): string {
 }
 
 const GRID_CLASS = {
+  2: "grid grid-cols-1 gap-3 sm:grid-cols-2",
   3: "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3",
   4: "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
   fill: "grid gap-3 grid-cols-[repeat(auto-fill,minmax(11.25rem,1fr))]",
 } as const;
 
 const containerClass = computed(() => {
-  if (variant === "rows") return "flex flex-col gap-2";
+  if (variant === "rows" || variant === "stack") return "flex flex-col gap-2";
   if (variant === "gallery") return "grid grid-cols-2 gap-3";
   return GRID_CLASS[columns];
 });

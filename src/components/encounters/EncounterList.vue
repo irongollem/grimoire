@@ -20,10 +20,15 @@
       No encounters match your search.
     </p>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <VirtualGrid
+      v-else
+      :items="filtered"
+      :item-key="encounterKey"
+      :columns="columns"
+      :estimate-row-height="ENCOUNTER_ROW_PX"
+    >
+      <template #default="{ item: encounter }">
       <div
-        v-for="encounter in filtered"
-        :key="encounter.id"
         class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
         <!-- Card link overlay (disabled for locked items) -->
@@ -107,7 +112,8 @@
           </div>
         </div>
       </div>
-    </div>
+      </template>
+    </VirtualGrid>
 
     <p
       v-if="filtered.length"
@@ -142,6 +148,8 @@ import { useEncountersInRollTables } from "@/composables/dungeon-features/useRol
 import { useUiStore } from "@/stores/ui";
 import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 
@@ -155,6 +163,17 @@ function handleNew() {
 }
 
 const ui = useUiStore();
+
+// Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` this grid used to carry.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
+const encounterKey = (encounter: EncounterListRow) => encounter.id;
+
+// Row height before a row is measured (px), for a card with a description, in
+// the Vellum default: 1px border x2 + 6 colour bar + p-4 (32) + name row (17.5,
+// the one-line 14px title) + 2-line description at 13px/1.333 (34.7) + stats row
+// (17.3) + two gap-3 (24) = 134. A card without a description is 87px, so a row
+// of those is over-estimated until measured.
+const ENCOUNTER_ROW_PX = 134;
 const search = computed(() => ui.encountersSearch);
 const hideFinished = computed(() => ui.encountersHideFinished);
 const questFilter = computed(() => ui.encountersFilterQuestId);

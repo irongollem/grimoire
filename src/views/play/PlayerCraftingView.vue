@@ -62,10 +62,16 @@
         </p>
       </div>
 
-      <div v-else class="grid gap-4 sm:grid-cols-2">
+      <VirtualGrid
+        v-else
+        :items="disciplineRecipes"
+        :item-key="recipeKey"
+        :columns="recipeColumns"
+        :estimate-row-height="RECIPE_ROW_PX"
+        :gap="1"
+      >
+        <template #default="{ item: recipe }">
         <div
-          v-for="recipe in visibleRecipes"
-          :key="recipe.id"
           class="rounded-lg border border-border bg-card flex flex-col overflow-hidden"
         >
           <!-- Card header -->
@@ -160,9 +166,8 @@
             />
           </div>
         </div>
-      </div>
-
-      <div ref="sentinelRef" />
+        </template>
+      </VirtualGrid>
     </template>
 
     <!-- Attempt dialog -->
@@ -198,7 +203,8 @@ import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines"
 import type { DisciplineConfig } from "@/lib/crafting/disciplines";
 import { canonicalToolName, hasToolProficiency } from "@/rules/toolProficiency";
 import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs, useCraftableOutputItems } from "@/composables/crafting/useCrafting";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useParty } from "@/composables/party/useParty";
@@ -277,15 +283,20 @@ const disciplineRecipes = computed(() =>
     : (recipes.value ?? []).filter((r) => r.discipline === ui.playerCraftingActiveTab),
 );
 
-// Page the grid in on scroll rather than mounting every recipe at once.
-// A recipe card is ~5ms of mount work (47 nodes, an AppButton and three glyph
-// components each), so the 184-recipe "All" tab rendered as one unbroken 977ms
-// task in a production build on a fast desktop. A low-end Chromebook is several
-// times slower than that, and during a single long task the browser answers no
-// input at all — not even a reload — which is how the tab read as hung before
-// Chrome killed the renderer. The page size is smaller than the 48 the other
-// list views use because this card is much heavier than a grid tile.
-const { visibleItems: visibleRecipes, sentinelRef } = useInfiniteScroll(disciplineRecipes, 24);
+// Windowed rather than mounted whole: a recipe card is ~5ms of mount work (47
+// nodes, an AppButton and three glyph components each), so the 184-recipe "All"
+// tab once rendered as one unbroken 977ms task, which on a low-end Chromebook
+// hung the renderer. Only the rows near the viewport exist now.
+// Mirrors the `grid gap-4 sm:grid-cols-2` it replaced.
+const recipeColumns = useBreakpointColumns({ base: 1, sm: 2 });
+const recipeKey = (recipe: CraftingRecipe) => recipe.id;
+// Row height before it is measured (px), for a typical card: 2 border + 63
+// header (py-3 24, border-b 1, name 20, mb-0.5 2, DC line 16) + 52 description
+// (pt-3 12, two prose lines ~40) + 103 ingredients (py-3 24, 11 label + 8 gap,
+// three 16px rows at mb-1 = 60) + 61 attempt bar (py-3 24, border-t 1, 36
+// button) = 281. Cards differ by description and ingredient count (a grid row
+// takes its taller card), so rows are re-measured as they mount.
+const RECIPE_ROW_PX = 281;
 
 const allRecipeIds = computed(() => (recipes.value ?? []).map((r) => r.id));
 const ingredientsMap = useAllRecipeIngredients(allRecipeIds);

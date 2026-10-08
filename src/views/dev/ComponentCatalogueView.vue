@@ -510,7 +510,7 @@
 
     <CatalogueSection
       title="Skeletons"
-      note="Content placeholders for a list while its code or data arrives (not a progress indicator: BannerLoader stays that). Each variant mirrors its real card: rows = EntityMobileCard rows, gallery = EntityMobileCard gallery, grid = EntityGridCard, text = the thumbnail-less cards (quests, notes, encounters, spells, documents), tiles = EntityListRow (factions, pantheons); the fill column track is the item catalogue's auto-fill grid. Check the sheen on every theme, and that reduced motion leaves still blocks."
+      note="Content placeholders for a list while its code or data arrives (not a progress indicator: BannerLoader stays that). Each variant mirrors its real card: rows = EntityMobileCard rows, gallery = EntityMobileCard gallery, grid = EntityGridCard, text = the thumbnail-less cards (quests, notes, encounters, spells, documents), tiles = EntityListRow (factions, pantheons), stack = the player journal's one-column cards; the fill column track is the item catalogue's auto-fill grid. Check the sheen on every theme, and that reduced motion leaves still blocks."
     >
       <div class="grid gap-6 lg:grid-cols-2">
         <div>
@@ -526,6 +526,8 @@
       <ListSkeleton variant="grid" :count="4" />
       <p class="mb-2 mt-6 text-caption text-muted-foreground">text</p>
       <ListSkeleton variant="text" :count="4" />
+      <p class="mb-2 mt-6 text-caption text-muted-foreground">stack</p>
+      <ListSkeleton variant="stack" :count="3" />
       <p class="mb-2 mt-6 text-caption text-muted-foreground">tiles</p>
       <ListSkeleton variant="tiles" :columns="3" :count="3" />
       <p class="mb-2 mt-6 text-caption text-muted-foreground">grid, columns="fill"</p>
@@ -536,6 +538,31 @@
         <SkeletonBlock class="h-4 w-48" />
         <SkeletonBlock class="h-9 w-24 rounded-lg" />
       </div>
+    </CatalogueSection>
+
+    <CatalogueSection
+      title="VirtualGrid"
+      note="A windowed grid: only the rows near the viewport are mounted. 500 generated cards; the counter is how many cards exist in the DOM right now, and should stay near a screenful while you scroll the page. Columns come from useBreakpointColumns (1 / 2 / 3 / 4). Cards have varying heights on purpose: rows are measured after mount."
+    >
+      <p class="mb-3 text-caption text-muted-foreground">
+        {{ virtualDemoMounted }} of {{ VIRTUAL_DEMO_ITEMS.length }} cards mounted
+      </p>
+      <VirtualGrid
+        :items="VIRTUAL_DEMO_ITEMS"
+        :item-key="(item) => item.id"
+        :columns="virtualDemoColumns"
+        :estimate-row-height="96"
+      >
+        <template #default="{ item }">
+          <div
+            class="rounded-lg border border-border bg-muted p-3 text-caption text-foreground"
+            :data-virtual-demo-card="item.id"
+          >
+            <p class="font-bold">Card {{ item.id + 1 }}</p>
+            <p v-for="n in item.lines" :key="n" class="text-muted-foreground">Line {{ n }}</p>
+          </div>
+        </template>
+      </VirtualGrid>
     </CatalogueSection>
   </div>
 </template>
@@ -575,6 +602,8 @@ import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { SWITCH_SIZES } from "@/components/common/toggleSwitchVariants";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import CatalogueSection from "./CatalogueSection.vue";
 import {
   BUTTON_VARIANTS,
@@ -615,6 +644,15 @@ const MANY_OPTIONS = Array.from({ length: 9 }, (_, i) => ({
   value: `d${i}`,
   label: `Discipline ${i + 1}`,
 }));
+
+const VIRTUAL_DEMO_ITEMS = Array.from({ length: 500 }, (_, id) => ({ id, lines: 1 + (id % 4) }));
+const virtualDemoColumns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const virtualDemoMounted = ref(0);
+// Counted from the DOM, because the point of the section is that it stays small.
+const virtualDemoTimer = window.setInterval(() => {
+  virtualDemoMounted.value = document.querySelectorAll("[data-virtual-demo-card]").length;
+}, 300);
+onBeforeUnmount(() => window.clearInterval(virtualDemoTimer));
 
 const isIconSize = (size: ButtonSize) => size.startsWith("icon-");
 

@@ -2,9 +2,7 @@
   <div>
     <PageHeader flush title="Factions" description="Organizations and powers at play in the world." />
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" variant="tiles" :columns="2" />
 
     <p
       v-else-if="!factions?.length"
@@ -38,10 +36,15 @@
         No factions match your filter.
       </p>
 
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <VirtualGrid
+        v-else
+        :items="filtered"
+        :item-key="factionKey"
+        :columns="factionColumns"
+        :estimate-row-height="FACTION_ROW_PX"
+      >
+        <template #default="{ item: faction }">
         <div
-          v-for="faction in filtered"
-          :key="faction.id"
           class="rounded-lg border overflow-hidden cursor-pointer transition-colors"
           :class="myFactionIds.has(faction.id)
             ? 'border-tone-success/50 bg-tone-success/10 hover:border-tone-success/70'
@@ -70,7 +73,8 @@
             </div>
           </div>
         </div>
-      </div>
+        </template>
+      </VirtualGrid>
     </div>
 
     <!-- Detail panel -->
@@ -166,6 +170,9 @@
 </template>
 
 <script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed } from "vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
@@ -177,7 +184,6 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import type { Faction } from "@/types/faction.types";
 import FocalImage from "@/components/common/FocalImage.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import RelationshipMark from "@/components/common/RelationshipMark.vue";
@@ -251,6 +257,15 @@ const filtered = computed(() => {
       (f.tags ?? []).some((t) => t.toLowerCase().includes(q)),
   );
 });
+
+// Windowed: the world's factions grow with the campaign. Mirrors the
+// `grid-cols-1 sm:grid-cols-2` it replaced.
+const factionColumns = useBreakpointColumns({ base: 1, sm: 2 });
+const factionKey = (faction: { id: string }) => faction.id;
+// Row height before a row is measured (px): 80px measured at a 390px
+// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
+// back from a detail re-renders every unmeasured row above the viewport.
+const FACTION_ROW_PX = 80;
 
 function open(faction: Faction) {
   selected.value = faction;

@@ -29,7 +29,17 @@
       </p>
     </div>
 
-    <LoadingSpinner v-else-if="isLoading" class="py-16" />
+    <!-- Two collapsed-level headers over a few spell rows, the shape of the grouped list below -->
+    <div v-else-if="isLoading" role="status" class="flex flex-col gap-2">
+      <span class="sr-only">Loading…</span>
+      <div v-for="g in 2" :key="g" class="overflow-hidden rounded-lg border border-border bg-card">
+        <SkeletonBlock class="h-9 w-full rounded-none" />
+        <div v-for="r in 3" :key="r" class="flex items-center gap-2 px-3 py-3">
+          <SkeletonBlock class="size-2.5 shrink-0 rounded-full" />
+          <SkeletonBlock class="h-4" :class="r % 2 ? 'w-1/3' : 'w-1/2'" />
+        </div>
+      </div>
+    </div>
 
     <!-- Empty state -->
     <div
@@ -352,7 +362,7 @@ import type { ConcentrationState, SpellSlotEntry } from "@/types/party.types";
 import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/multiclass.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import PlayerSpellSlotStrip from "@/components/spells/PlayerSpellSlotStrip.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";

@@ -31,7 +31,7 @@ NPCs render as a responsive card grid: 1 column on mobile, 2 on sm, 3 on lg, 4 o
 - A status dot (top-right of name row): green=alive, red=dead, amber=missing, grey=unknown.
 - Two always-visible icon chips over the portrait's top-left corner, on the same scrim and at the same size: **Edit** (straight to `?edit=true`) and the **reveal** control. Clicking anywhere else on the card opens the sheet.
 
-Infinite scroll is used: items are revealed progressively as the user scrolls (`useInfiniteScroll`). A count line at the bottom shows "N of M NPCs" when filters are active.
+The list is windowed (`VirtualGrid`): only the rows near the viewport are mounted, so a long NPC list never holds every portrait decoded at once, and `useScrollRestore` brings the scroll position back on return from a detail. A count line at the bottom shows "N of M NPCs" when filters are active.
 
 ### Filtering and Sorting
 

@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
-import { reactive, ref, computed, defineComponent, h, type Ref } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { reactive, ref, defineComponent, h } from "vue";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import SpeciesList from "./SpeciesList.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import type { Species } from "@/types/species.types";
@@ -104,19 +104,29 @@ vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
   }),
 }));
 
-// Windowing over `filtered` without IntersectionObserver — mirrors the real
-// composable's slicing so a >pageSize fixture still exercises "select all
-// shown selects everything filtered, not only what's painted."
-vi.mock("@/composables/useInfiniteScroll", () => ({
-  useInfiniteScroll: (filtered: Ref<Species[]>, pageSize = 48) => ({
-    visibleItems: computed(() => filtered.value.slice(0, pageSize)),
-    sentinelRef: ref(null),
-    visibleCount: ref(Math.min(pageSize, filtered.value.length)),
-  }),
-}));
 vi.mock("@/composables/useScrollRestore", () => ({
-  useScrollRestore: () => ({ savedCount: undefined, linkCount: vi.fn() }),
+  // A client list restores scroll position only; it reads nothing back.
+  useScrollRestore: () => ({}),
 }));
+
+// VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so
+// every box reads 0 tall and nothing would render. Give the scroller (the
+// document, here) a tall viewport and every row a plausible height, which makes
+// a screenful of rows "visible" (about ten, plus overscan) without changing
+// what is under test.
+const VIEWPORT_PX = 2600;
+const ORIGINAL_OFFSET_HEIGHT = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+    configurable: true,
+    get(this: HTMLElement) {
+      return this === document.documentElement ? VIEWPORT_PX : 260;
+    },
+  });
+});
+afterAll(() => {
+  if (ORIGINAL_OFFSET_HEIGHT) Object.defineProperty(HTMLElement.prototype, "offsetHeight", ORIGINAL_OFFSET_HEIGHT);
+});
 
 const stubs = { RouterLink: true };
 
@@ -138,13 +148,15 @@ describe("SpeciesList — campaign scope", () => {
     allSpecies.value = [];
   });
 
-  it("browsing lists general species and the active campaign's, never another campaign's", () => {
+  it("browsing lists general species and the active campaign's, never another campaign's", async () => {
     allSpecies.value = [
       customSpecies(1, { name: "Everywhere" }),
       customSpecies(2, { name: "Ours", campaign_id: "camp-1" }),
       customSpecies(3, { name: "Theirs", campaign_id: "camp-2" }),
     ];
-    const text = mountList().text();
+    const wrapper = await mountList();
+    await flushMicrotasks(); // VirtualGrid finds its scroller on mount, rows follow
+    const text = wrapper.text();
     expect(text).toContain("Everywhere");
     expect(text).toContain("Ours");
     expect(text).not.toContain("Theirs");
@@ -161,7 +173,7 @@ describe("SpeciesList — bulk selection (#875)", () => {
 
   it("the Select toggle shows and hides the bulk scope bar", async () => {
     allSpecies.value = [customSpecies(1)];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     expect(wrapper.text()).not.toContain("selected");
 
     await exposed(wrapper).toggleBulkSelectMode();
@@ -171,28 +183,30 @@ describe("SpeciesList — bulk selection (#875)", () => {
     expect(wrapper.text()).not.toContain("selected");
   });
 
-  it("select-all shown selects every filtered custom row, not only the windowed/painted subset", async () => {
+  it("select-all shown selects every filtered custom row, not only the mounted subset", async () => {
     allSpecies.value = [
       ...Array.from({ length: 60 }, (_, i) => customSpecies(i + 1)),
       sharedSpecies("elf"),
       sharedSpecies("dwarf"),
     ];
-    const wrapper = mountList();
-    // 62 total rows, but only 48 are painted (the windowed page).
-    expect(wrapper.findAll(".grid > *")).toHaveLength(48);
+    const wrapper = await mountList();
+    await flushMicrotasks(); // VirtualGrid finds its scroller on mount, rows follow
+    // 62 total rows, but only the ones near the viewport are mounted.
+    expect(wrapper.findAll(".group.relative").length).toBeGreaterThan(0);
+    expect(wrapper.findAll(".group.relative").length).toBeLessThan(60);
 
     await exposed(wrapper).toggleBulkSelectMode();
     const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
     await selectAllBtn!.trigger("click");
 
-    // All 60 custom rows are selected despite only 48 being rendered, and the
+    // All 60 custom rows are selected despite only a screenful being mounted, and the
     // 2 shared/library rows (slug ids) are excluded.
     expect(wrapper.text()).toContain("60 selected");
   });
 
   it("clicking a card while selecting toggles it into the selection rather than navigating", async () => {
     allSpecies.value = [customSpecies(1), customSpecies(2)];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
     expect(wrapper.text()).toContain("0 selected");
 
@@ -206,7 +220,7 @@ describe("SpeciesList — bulk selection (#875)", () => {
 
   it("shared/library rows are never selectable", async () => {
     allSpecies.value = [customSpecies(1), customSpecies(2), sharedSpecies("elf"), sharedSpecies("dwarf")];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
 
     // Only the two custom rows grow a selection checkbox.
@@ -219,7 +233,7 @@ describe("SpeciesList — bulk selection (#875)", () => {
 
   it("puts the checkbox chip in the top-right corner, clear of the Edit link at top-left", async () => {
     allSpecies.value = [customSpecies(1)];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
     expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
   });
@@ -227,7 +241,7 @@ describe("SpeciesList — bulk selection (#875)", () => {
   it("moving to the active campaign calls the mutation with the table, selected ids and campaign id", async () => {
     allSpecies.value = [customSpecies(1), customSpecies(2), customSpecies(3)];
     mutateAsync.mockResolvedValue({ moved: 2 });
-    const wrapper = mountList();
+    const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
 
     const boxes = wrapper.findAll('input[type="checkbox"]');
@@ -249,7 +263,7 @@ describe("SpeciesList — bulk selection (#875)", () => {
   it("prunes a stale id when the underlying list changes (refetch/filter) before the move (#875)", async () => {
     allSpecies.value = [customSpecies(1), customSpecies(2), customSpecies(3)];
     mutateAsync.mockResolvedValue({ moved: 1 });
-    const wrapper = mountList();
+    const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
 
     const boxes = wrapper.findAll('input[type="checkbox"]');
@@ -274,7 +288,7 @@ describe("SpeciesList — bulk selection (#875)", () => {
   it("making rows available in all campaigns calls the mutation with a null campaign id", async () => {
     allSpecies.value = [customSpecies(1)];
     mutateAsync.mockResolvedValue({ moved: 1 });
-    const wrapper = mountList();
+    const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
 
     const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
@@ -292,7 +306,7 @@ describe("SpeciesList — bulk selection (#875)", () => {
 
   it("selectMode (the player picker) keeps the bulk tool fully inert and its own single-select behaviour unchanged", async () => {
     allSpecies.value = [customSpecies(1), customSpecies(2)];
-    const wrapper = mountList({ selectMode: true });
+    const wrapper = await mountList({ selectMode: true });
 
     // Bulk mode cannot be entered while selectMode is true.
     await exposed(wrapper).toggleBulkSelectMode();
@@ -315,7 +329,7 @@ describe("SpeciesList — copy to campaign (#598)", () => {
 
   it("opens the dialog with the pruned selection, the active campaign as the source scope, and the irregular plural", async () => {
     allSpecies.value = [customSpecies(1), customSpecies(2)];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
     const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
     await selectAllBtn!.trigger("click");
@@ -333,7 +347,7 @@ describe("SpeciesList — copy to campaign (#598)", () => {
 
   it("prunes a stale id at copy time exactly like move (#875)", async () => {
     allSpecies.value = [customSpecies(1), customSpecies(2), customSpecies(3)];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
     const boxes = wrapper.findAll('input[type="checkbox"]');
     await boxes[0]!.trigger("click"); // species 1
@@ -350,7 +364,7 @@ describe("SpeciesList — copy to campaign (#598)", () => {
 
   it("a copied event toasts the count and destination, closes the dialog, and clears the selection", async () => {
     allSpecies.value = [customSpecies(1)];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
     const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
     await selectAllBtn!.trigger("click");

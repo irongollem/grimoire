@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { mount, RouterLinkStub } from "@vue/test-utils";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref, computed } from "vue";
 import ItemList from "./ItemList.vue";
 import { IconDocument } from "@/lib/icons";
@@ -82,14 +82,30 @@ function makeItem(overrides: Partial<ItemBrowseRow> = {}): ItemBrowseRow {
 
 const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
 
-function mountList(
+// VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so
+// every box reads 0 tall and nothing would render. Give the scroller (the
+// document, here) a tall viewport and every row a plausible height.
+const ORIGINAL_OFFSET_HEIGHT = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+    configurable: true,
+    get(this: HTMLElement) {
+      return this === document.documentElement ? 1_000_000 : 200;
+    },
+  });
+});
+afterAll(() => {
+  if (ORIGINAL_OFFSET_HEIGHT) Object.defineProperty(HTMLElement.prototype, "offsetHeight", ORIGINAL_OFFSET_HEIGHT);
+});
+
+async function mountList(
   props: Partial<{
     selecting: boolean;
     selectedIds: ReadonlySet<string>;
     scopeFilter: ItemBrowseFilters["scope"];
   }> = {},
 ) {
-  return mount(ItemList, {
+  const wrapper = mount(ItemList, {
     props: {
       search: "",
       typeFilter: "",
@@ -100,6 +116,8 @@ function mountList(
     },
     global: globalStubs,
   });
+  await flushPromises(); // VirtualGrid finds its scroller on mount, rows follow
+  return wrapper;
 }
 
 describe("ItemList — bulk selection (#875)", () => {
@@ -113,58 +131,58 @@ describe("ItemList — bulk selection (#875)", () => {
     mocks.prefetch.mockClear();
   });
 
-  it("exposes the server's selectableIds, which are never a library row", () => {
+  it("exposes the server's selectableIds, which are never a library row", async () => {
     mocks.rows = [makeItem({ name: "Owned Sword" }), makeItem({ id: "srd_owlbear_feather", name: "Owlbear Feather", is_shared: true })];
     mocks.selectableIds = [OWNED, "22222222-2222-4222-8222-222222222222"];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     // Includes an own row that has not scrolled in yet: select-all is not bound to the painted page.
     expect(wrapper.vm.selectableIds).toEqual([OWNED, "22222222-2222-4222-8222-222222222222"]);
   });
 
-  it("paints every row it was given, one card each", () => {
+  it("paints every row it was given, one card each", async () => {
     mocks.rows = Array.from({ length: 60 }, (_, i) =>
       makeItem({ id: `11111111-${String(i).padStart(4, "0")}-4111-8111-111111111111`, name: `Item ${i}` }),
     );
-    const wrapper = mountList();
+    const wrapper = await mountList();
     expect(wrapper.findAllComponents(BulkSelectableCard)).toHaveLength(60);
   });
 
-  it("wraps a DM-owned row's card with selecting on, but a library row's with selecting off", () => {
+  it("wraps a DM-owned row's card with selecting on, but a library row's with selecting off", async () => {
     mocks.rows = [
       makeItem({ id: "11111111-1111-4111-8111-111111111111", name: "Owned Sword" }),
       makeItem({ id: "srd_owlbear_feather", name: "Owlbear Feather", is_shared: true }),
     ];
-    const wrapper = mountList({ selecting: true });
+    const wrapper = await mountList({ selecting: true });
     const cards = wrapper.findAllComponents(BulkSelectableCard);
     expect(cards).toHaveLength(2);
     expect(cards[0].props("selecting")).toBe(true);
     expect(cards[1].props("selecting")).toBe(false);
   });
 
-  it("in select mode an owned row shows neither Edit nor the Reference badge, a library row keeps Reference", () => {
+  it("in select mode an owned row shows neither Edit nor the Reference badge, a library row keeps Reference", async () => {
     mocks.rows = [
       makeItem({ id: "11111111-1111-4111-8111-111111111111", name: "Owned Sword" }),
       makeItem({ id: "srd_owlbear_feather", name: "Owlbear Feather", is_shared: true }),
     ];
-    const wrapper = mountList({ selecting: true });
+    const wrapper = await mountList({ selecting: true });
     const [owned, library] = wrapper.findAllComponents(BulkSelectableCard);
     expect(owned.find('a[href*="edit=true"]').exists()).toBe(false);
     expect(owned.text()).not.toContain("Reference");
     expect(library.text()).toContain("Reference");
   });
 
-  it("does not enter selecting mode for any row when the list-wide flag is off", () => {
+  it("does not enter selecting mode for any row when the list-wide flag is off", async () => {
     mocks.rows = [makeItem({ id: "11111111-1111-4111-8111-111111111111" })];
-    const wrapper = mountList({ selecting: false });
+    const wrapper = await mountList({ selecting: false });
     expect(wrapper.findComponent(BulkSelectableCard).props("selecting")).toBe(false);
   });
 
-  it("reflects selectedIds onto the matching card's selected prop", () => {
+  it("reflects selectedIds onto the matching card's selected prop", async () => {
     mocks.rows = [
       makeItem({ id: "11111111-1111-4111-8111-111111111111" }),
       makeItem({ id: "22222222-2222-4222-8222-222222222222" }),
     ];
-    const wrapper = mountList({
+    const wrapper = await mountList({
       selecting: true,
       selectedIds: new Set(["22222222-2222-4222-8222-222222222222"]),
     });
@@ -175,17 +193,17 @@ describe("ItemList — bulk selection (#875)", () => {
 
   it("toggling a card emits toggle-select with that row's id", async () => {
     mocks.rows = [makeItem({ id: "11111111-1111-4111-8111-111111111111" })];
-    const wrapper = mountList({ selecting: true });
+    const wrapper = await mountList({ selecting: true });
     await wrapper.findComponent(BulkSelectableCard).vm.$emit("toggle");
     expect(wrapper.emitted("toggle-select")).toEqual([["11111111-1111-4111-8111-111111111111"]]);
   });
 
-  it("hides the Edit button while selecting, so it never collides with the checkbox chip", () => {
+  it("hides the Edit button while selecting, so it never collides with the checkbox chip", async () => {
     mocks.rows = [makeItem({ id: "11111111-1111-4111-8111-111111111111" })];
-    const notSelecting = mountList({ selecting: false });
+    const notSelecting = await mountList({ selecting: false });
     expect(notSelecting.find('[aria-label="Edit"]').exists()).toBe(true);
 
-    const selecting = mountList({ selecting: true });
+    const selecting = await mountList({ selecting: true });
     expect(selecting.find('[aria-label="Edit"]').exists()).toBe(false);
   });
 });
@@ -201,47 +219,47 @@ describe("ItemList — filters, paging and prefetch (#972)", () => {
     mocks.prefetch.mockClear();
   });
 
-  it("hands the filter props to the browse composable", () => {
-    mountList({ scopeFilter: "other_campaign" });
+  it("hands the filter props to the browse composable", async () => {
+    await mountList({ scopeFilter: "other_campaign" });
     expect(mocks.lastFilters?.()).toEqual({ search: "", type: "", rarity: "", source: "", scope: "other_campaign" });
   });
 
-  it("exposes the sources the server reported", () => {
+  it("exposes the sources the server reported", async () => {
     mocks.sources = [{ slug: "srd-2024", title: "SRD 2024" }];
-    expect(mountList().vm.sources).toEqual([{ slug: "srd-2024", title: "SRD 2024" }]);
+    expect((await mountList()).vm.sources).toEqual([{ slug: "srd-2024", title: "SRD 2024" }]);
   });
 
-  it("shows the empty state when no row matches", () => {
-    expect(mountList().text()).toContain("No items found");
+  it("shows the empty state when no row matches", async () => {
+    expect((await mountList()).text()).toContain("No items found");
   });
 
-  it("shows the document icon only for a row with content", () => {
+  it("shows the document icon only for a row with content", async () => {
     mocks.rows = [makeItem({ has_content: true })];
-    expect(mountList().findComponent(IconDocument).exists()).toBe(true);
+    expect((await mountList()).findComponent(IconDocument).exists()).toBe(true);
     mocks.rows = [makeItem({ has_content: false })];
-    expect(mountList().findComponent(IconDocument).exists()).toBe(false);
+    expect((await mountList()).findComponent(IconDocument).exists()).toBe(false);
   });
 
   it("prefetches the detail on pointer hover", async () => {
     mocks.rows = [makeItem()];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     await wrapper.find(".contents").trigger("pointerover");
     expect(mocks.prefetch).toHaveBeenCalledTimes(1);
     expect(mocks.prefetch.mock.calls[0][0].queryKey).toEqual(["resolved-item", OWNED]);
   });
 
-  it("keeps fetching pages until the saved scroll depth is back", () => {
+  it("keeps fetching pages until the saved scroll depth is back", async () => {
     mocks.rows = [makeItem()];
     mocks.hasNextPage = true;
     mocks.savedCount = 96;
-    mountList();
+    await mountList();
     expect(mocks.fetchNextPage).toHaveBeenCalled();
   });
 
-  it("does not fetch ahead when there is no saved depth", () => {
+  it("does not fetch ahead when there is no saved depth", async () => {
     mocks.rows = [makeItem()];
     mocks.hasNextPage = true;
-    mountList();
+    await mountList();
     expect(mocks.fetchNextPage).not.toHaveBeenCalled();
   });
 });

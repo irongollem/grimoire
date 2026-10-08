@@ -2,9 +2,7 @@
   <div>
     <PageHeader flush title="Atlas" description="Maps shared by your DM." />
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" variant="rows" :count="6" />
 
     <EmptyState
       v-else-if="!locations?.length"
@@ -157,6 +155,7 @@
 </template>
 
 <script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -178,7 +177,6 @@ import type { Location, LocationType } from "@/types/location.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AiImageBadge from "@/components/common/AiImageBadge.vue";

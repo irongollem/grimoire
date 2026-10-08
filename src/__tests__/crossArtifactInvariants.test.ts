@@ -239,12 +239,16 @@ describe("component tags resolve to real imports", () => {
         if (BUILT_IN.has(tag)) continue;
         checked++;
 
-        // Imported by name, via a named/aliased import, or declared locally.
+        // Imported by name, via a named/aliased import, or declared locally —
+        // including by destructuring, which is how vueuse's
+        // `const [DefineEntry, ReuseEntry] = createReusableTemplate()` binds a
+        // template shared by two branches (PlayerJournalMyTab).
         const bound =
           new RegExp(`\\bimport\\s+${tag}\\b`).test(outside) ||
           new RegExp(`\\bimport\\s*\\{[^}]*\\b${tag}\\b[^}]*\\}`, "s").test(outside) ||
           new RegExp(`\\bas\\s+${tag}\\b`).test(outside) ||
-          new RegExp(`\\b(?:const|let|var|function|class)\\s+${tag}\\b`).test(outside);
+          new RegExp(`\\b(?:const|let|var|function|class)\\s+${tag}\\b`).test(outside) ||
+          new RegExp(`\\b(?:const|let|var)\\s*[[{][^\\]}=]*\\b${tag}\\b[^\\]}=]*[\\]}]\\s*=`).test(outside);
 
         if (!bound) violations.push(`${file} uses <${tag}> but never imports it`);
       }

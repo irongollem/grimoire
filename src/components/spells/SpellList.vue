@@ -32,7 +32,13 @@
     </p>
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <VirtualGrid
+        :items="rows"
+        :item-key="spellKey"
+        :columns="columns"
+        :estimate-row-height="GRID_ROW_PX"
+      >
+        <template #default="{ item: spell }">
         <!--
           Wrapped in BulkSelectableCard (#875) for every card — but `selecting`
           is only ever true for a row the DM can actually re-scope; shared/
@@ -41,8 +47,6 @@
           cannot be selected or re-scoped, same as their Edit button above.
         -->
         <BulkSelectableCard
-          v-for="spell in rows"
-          :key="spell.id"
           corner="top-right"
           :selected="selectedIds.has(spell.id)"
           :selecting="selecting && spell.is_own && !spell.is_shared"
@@ -194,7 +198,8 @@
             </template>
           </div>
         </BulkSelectableCard>
-      </div>
+        </template>
+      </VirtualGrid>
 
       <div ref="sentinelRef" />
 
@@ -217,6 +222,8 @@ import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell }
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { SCHOOL_BG, spellLevelLabel } from "@/types/spell.types";
 import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -369,6 +376,16 @@ function isKnown(spellId: string): boolean {
   if (casterType === "prepared") return preparedSpellIds?.includes(spellId) ?? false;
   return knownSpellIds?.includes(spellId) ?? false;
 }
+
+// Mirrors the grid classes this list used to carry:
+// `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3`.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const spellKey = (spell: SpellBrowseRow) => spell.id;
+
+// Row height before a row is measured (px): 164px measured at a 390px
+// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
+// back from a detail re-renders every unmeasured row above the viewport.
+const GRID_ROW_PX = 164;
 
 const {
   rows, total, selectableIds, ready, hasNextPage, isFetchingNextPage, fetchNextPage, isLoading, error,

@@ -88,6 +88,7 @@
     "@sentry/vue": "^11.2.0",
     "@supabase/supabase-js": "^2.117.2",
     "@tanstack/vue-query": "^5.104.0",
+    "@tanstack/vue-virtual": "^3.13.39",
     "@tiptap/extension-highlight": "^3.31.4",
     "@tiptap/extension-image": "^3.31.4",
     "@tiptap/extension-placeholder": "^3.31.4",

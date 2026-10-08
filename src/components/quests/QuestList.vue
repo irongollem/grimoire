@@ -53,10 +53,15 @@
         No quests match the active filters.
       </p>
 
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <VirtualGrid
+        v-else
+        :items="filtered"
+        :item-key="questKey"
+        :columns="columns"
+        :estimate-row-height="QUEST_ROW_PX"
+      >
+        <template #default="{ item: quest }">
         <RouterLink
-          v-for="quest in filtered"
-          :key="quest.id"
           :to="`/quests/${quest.id}`"
           class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
         >
@@ -104,7 +109,8 @@
             </div>
           </div>
         </RouterLink>
-      </div>
+        </template>
+      </VirtualGrid>
 
       <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
         {{ filtered.length }} of {{ allQuests?.length ?? 0 }} quests
@@ -129,15 +135,29 @@ import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestKanbanBoard from "@/components/quests/QuestKanbanBoard.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { timeAgo } from "@/lib/utils";
 import { filterQuestBoard } from "@/lib/quests/board";
 import {
   QUEST_STATUS_LABELS,
   QUEST_STATUS_COLORS,
+  type Quest,
   type QuestStatus,
 } from "@/types/quest.types";
 
 const ui = useUiStore();
+
+// Mirrors `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`. Only the
+// list mode is windowed; the Kanban board renders its grouped columns whole.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const questKey = (quest: Quest) => quest.id;
+
+// Row height before a row is measured (px), measured at a 390px phone on
+// 8 Oct 2026 from a single quest card, so worth rechecking against more. It
+// decides where a restored scroll lands, since coming back from a detail
+// re-renders every unmeasured row above the viewport.
+const QUEST_ROW_PX = 142;
 const search = computed(() => ui.questsSearch);
 const isKanban = computed(() => ui.questsIsKanban);
 

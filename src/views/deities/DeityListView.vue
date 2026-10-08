@@ -86,10 +86,10 @@
         :total="deities?.length ?? 0"
         plural="deities"
       />
-      <div :class="layout === 'gallery' ? 'grid grid-cols-2 gap-3 pb-2' : 'flex flex-col gap-2 pb-2'">
+      <!-- Windowed: only the rows near the viewport are mounted. -->
+      <EntityMobileGrid :items="filtered" :item-key="deityKey" :layout="layout">
+          <template #default="{ item: deity }">
         <EntityMobileCard
-          v-for="deity in visibleItems"
-          :key="deity.id"
           :layout="layout"
           :to="`/deities/${deity.id}`"
           :title="deity.name"
@@ -100,14 +100,19 @@
           :badge-text="deity.alignment ?? undefined"
           :shared="deity.player_visible_to.length > 0"
         />
-      </div>
+          </template>
+      </EntityMobileGrid>
     </template>
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <VirtualGrid
+        :items="filtered"
+        :item-key="deityKey"
+        :columns="desktopColumns"
+        :estimate-row-height="GRID_ROW_PX"
+      >
+        <template #default="{ item: deity }">
         <EntityGridCard
-          v-for="deity in visibleItems"
-          :key="deity.id"
           :to="`/deities/${deity.id}`"
           :title="deity.name"
           :image-url="deity.portrait_url"
@@ -147,10 +152,9 @@
             </div>
           </template>
         </EntityGridCard>
-      </div>
+        </template>
+      </VirtualGrid>
     </template>
-
-    <div ref="sentinelRef" />
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="deities" />
@@ -178,8 +182,10 @@ import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
 import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import EntityMobileGrid from "@/components/common/EntityMobileGrid.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const ui = useUiStore();
@@ -225,13 +231,20 @@ const layout = computed({
   },
 });
 
-const { savedCount, linkCount } = useScrollRestore("deities");
-// `sentinelRef` must stay destructured — the template binds it as a plain
-// `ref="sentinelRef"` string, which is never typechecked, so dropping it leaves
-// the ref null, the observer unattached, and the grid silently capped at 48
-// with lint, typecheck and build all green. Same note as NpcList.
-const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
-linkCount(visibleCount);
+// The whole filtered list is in hand, so only the scroll position needs
+// restoring; VirtualGrid windows what is mounted.
+useScrollRestore("deities");
+
+// Desktop row height before a row is measured (px); the phone layouts' live in
+// EntityMobileGrid. Derived in the default Vellum theme: 2 border + 144 artwork
+// + 24 body padding (p-3) + 79 body (name 20, titles 17, pantheon 11, domain
+// chips 19 incl. pt-1, three gap-1 gaps) = 249.
+const GRID_ROW_PX = 249;
+
+// Mirrors the grid classes this list used to carry:
+// `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`.
+const desktopColumns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const deityKey = (deity: { id: string }) => deity.id;
 
 const revealMutation = useRevealAllDeities();
 const revealStatus = ref<"idle" | "done">("idle");

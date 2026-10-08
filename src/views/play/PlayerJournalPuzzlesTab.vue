@@ -1,7 +1,5 @@
 <template>
-  <div v-if="isLoading" class="flex justify-center py-12">
-    <LoadingSpinner />
-  </div>
+  <ListSkeleton v-if="isLoading" variant="gallery" :count="6" />
   <div v-else-if="!puzzles.length" class="text-center py-12">
     <IconPuzzle class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
     <p class="font-fell text-muted-foreground italic">No puzzles shared by your DM yet.</p>
@@ -47,11 +45,11 @@
 </template>
 
 <script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import { RouterLink } from 'vue-router';
 import { IconPuzzle } from '@/lib/icons';
 import FocalImage from '@/components/common/FocalImage.vue';
 import AiImageBadge from '@/components/common/AiImageBadge.vue';
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import EntityNewDot from '@/components/common/EntityNewDot.vue';
 import { useReadItems } from '@/composables/play/useReadItems';
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from '@/types/puzzle.types';
