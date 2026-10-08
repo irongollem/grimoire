@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { assertDemoKey, assertLoopbackStack, assertRemoteUrl, type StackStatus } from "./dev-stack";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  assertDemoKey,
+  assertLoopbackStack,
+  assertRemoteUrl,
+  MissingRemoteTable,
+  parseContentRange,
+  remoteCount,
+  remoteRows,
+  type StackStatus,
+} from "./dev-stack";
 
 describe("assertRemoteUrl", () => {
   it("accepts the hosted project over https", () => {
@@ -56,5 +65,39 @@ describe("assertDemoKey", () => {
   it("refuses any other issuer and anything that is not a JWT", () => {
     expect(() => assertDemoKey("SERVICE_ROLE_KEY", jwt({ iss: "supabase", ref: "abcd" }))).toThrow(/Refusing/);
     expect(() => assertDemoKey("SERVICE_ROLE_KEY", "not-a-jwt")).toThrow(/Refusing/);
+  });
+});
+
+describe("parseContentRange", () => {
+  it("reads the total after the slash", () => {
+    expect(parseContentRange("0-0/236")).toBe(236);
+    expect(parseContentRange("*/0")).toBe(0);
+  });
+
+  it("refuses a header it cannot read rather than report a zero", () => {
+    expect(() => parseContentRange(null)).toThrow(/Content-Range/);
+    expect(() => parseContentRange("0-0/*")).toThrow(/Content-Range/);
+  });
+});
+
+describe("a table production does not have yet", () => {
+  const remote = new URL("https://abcd.supabase.co");
+  afterEach(() => vi.unstubAllGlobals());
+
+  function answer(status: number, body: string) {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(body, { status })));
+  }
+
+  it("is MissingRemoteTable, so a pull can treat it as empty (the local schema runs ahead)", async () => {
+    answer(404, JSON.stringify({ code: "PGRST205", message: "Could not find the table 'public.quest_embeddings'" }));
+    await expect(remoteRows(remote, "k", "quest_embeddings", "", "id")).rejects.toBeInstanceOf(MissingRemoteTable);
+    await expect(remoteCount(remote, "k", "quest_embeddings", "")).rejects.toBeInstanceOf(MissingRemoteTable);
+  });
+
+  it("does not swallow any other failure", async () => {
+    answer(401, JSON.stringify({ message: "JWT expired" }));
+    const read = remoteRows(remote, "k", "npcs", "", "id");
+    await expect(read).rejects.toThrow(/Could not read npcs from production \(401\)/);
+    await expect(read).rejects.not.toBeInstanceOf(MissingRemoteTable);
   });
 });
