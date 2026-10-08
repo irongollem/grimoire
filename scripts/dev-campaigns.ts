@@ -325,6 +325,21 @@ async function check(dbUrl: string, remote: URL, key: string, source: string): P
   console.log("\nRun without --check to pull, import, copy and seat.");
 }
 
+/**
+ * Several real campaigns on a Free account trip the plan limit: the app opens
+ * "Choose your active campaign" and offers to archive all but one, so the first
+ * thing a tester met was a prompt to archive the fixtures (8 Oct 2026). Holding
+ * many campaigns is this script's whole point, so the fixture is Pro on the
+ * local stack. `readLocalStack` has already refused anything but loopback.
+ */
+function ensureFixtureCanHoldThem(dbUrl: string, owner: string): void {
+  sql(
+    dbUrl,
+    `insert into public.user_subscriptions (user_id, plan_id, status) values (${quote(owner)}, 'pro', 'active')
+     on conflict (user_id) do update set plan_id = 'pro', status = 'active'`,
+  );
+}
+
 async function main(): Promise<void> {
   const { values } = parseArgs({ options: { check: { type: "boolean", default: false } } });
 
@@ -347,6 +362,7 @@ async function main(): Promise<void> {
     copies.push({ imported, copyId, counts: localCounts(stack.DB_URL, copyId) });
     console.log(`Copied "${imported.name}" to ${FIXTURE_EMAIL} as ${copyId}`);
   }
+  ensureFixtureCanHoldThem(stack.DB_URL, owner);
 
   const heroes = await copyHall(stack.DB_URL, remote, key, source, owner);
 
