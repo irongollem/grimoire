@@ -34,11 +34,14 @@
         >
           <span v-if="selected === c.id" class="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
         </span>
+        <!-- w-full on each line: under items-start a line sizes to its own text,
+             so truncate had no width to cut at and a long campaign name ran out
+             of its card on a phone. -->
         <div class="flex-1 min-w-0 flex flex-col items-start">
-          <p class="text-heading-xs font-semibold text-foreground truncate">
+          <p class="w-full text-heading-xs font-semibold text-foreground truncate">
             {{ c.name }}
           </p>
-          <p class="text-caption text-muted-foreground italic truncate">
+          <p class="w-full text-caption text-muted-foreground italic truncate">
             {{ c.setting }} · last updated {{ formatDate(c.updated_at) }}
           </p>
         </div>

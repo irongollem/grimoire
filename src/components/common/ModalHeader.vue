@@ -21,7 +21,9 @@
         and it deliberately carries no tracking, because letter-spacing belongs
         to the small uppercase label roles and not to headings (#552).
       -->
-      <h2 :id="titleId" class="truncate text-heading-sm font-bold text-foreground">
+      <!-- Wraps rather than truncates: on a phone a dialog's own name was cut
+           mid-word ("Choose your active campai…"), hiding what it is for. -->
+      <h2 :id="titleId" class="text-balance break-words text-heading-sm font-bold text-foreground">
         {{ title }}
       </h2>
       <p v-if="subtitle" :id="subtitleId" class="mt-0.5 text-muted-foreground" :class="HEADER_SUBTITLE_ROLES[subtitleRole]">
