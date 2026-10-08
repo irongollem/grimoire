@@ -10,13 +10,15 @@
 --                 spell, its source); the sync still writes them
 --   non-class     no spell but a class's is ever always prepared
 --   copy          a clone keeps the subclass variant and each grant once
+--   takeover      a pick the subclass sync took over still holds its slot
+--   old rows      an unrelated update does not re-check a row the check predates
 --
 --   1 Ann  DM of c1     2 Bea  player at c1, owner of e1 (2024 Cleric 1, Zzq Domain, variant A)
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(25);
 
 create function pg_temp.u(p text) returns uuid language sql immutable as $$
   select ('99600000-0000-4000-8000-0000000000' || p)::uuid;
@@ -33,14 +35,17 @@ insert into public.campaigns (id, user_id, name, ruleset) values (pg_temp.u('c1'
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values (pg_temp.u('c1'), pg_temp.u('01'), 'dm', 'Ann')
 on conflict (campaign_id, user_id) do update set role = excluded.role;
 
--- W0/W1 wizard cantrips, W2 a 1st-level wizard spell, S0 a sorcerer cantrip,
--- G1 the domain's grant, V1 its variant grant, C1-C3 ordinary cleric picks.
+-- W0/W1/W3 wizard cantrips, W2 a 1st-level wizard spell, S0 a sorcerer cantrip,
+-- G1 the domain's grant, V1 its variant A grant, C1-C3 ordinary cleric picks.
+-- Variant B grants W0, the cantrip the player picks, so switching to it makes
+-- the sync take that pick over.
 insert into public.spells (id, user_id, campaign_id, name, level, classes, ruleset)
 select pg_temp.u(v.id), pg_temp.u('01'), pg_temp.u('c1'), 'Zzq ' || v.name, v.lvl, v.cls, '2024'
 from (values
   ('b0', 'W0', 0, array['Wizard']), ('b1', 'W1', 0, array['Wizard']), ('b2', 'W2', 1, array['Wizard']),
   ('b3', 'S0', 0, array['Sorcerer']), ('b4', 'G1', 1, array['Cleric']), ('b5', 'V1', 1, array['Cleric']),
-  ('b6', 'C1', 1, array['Cleric']), ('b7', 'C2', 1, array['Cleric']), ('b8', 'C3', 1, array['Cleric'])
+  ('b6', 'C1', 1, array['Cleric']), ('b7', 'C2', 1, array['Cleric']), ('b8', 'C3', 1, array['Cleric']),
+  ('b9', 'W3', 0, array['Wizard'])
 ) as v(id, name, lvl, cls);
 
 -- A level-1 domain feature that picks one wizard cantrip (Arcane Initiate's shape).
@@ -54,7 +59,8 @@ insert into public.custom_subclasses
   (pg_temp.u('d1'), null, null, 'Cleric', 'Zzq Domain', '2024',
    jsonb_build_object('1', jsonb_build_array(pg_temp.t('f1'))),
    jsonb_build_object('1', jsonb_build_array(pg_temp.t('b4'))),
-   jsonb_build_object('A', jsonb_build_object('1', jsonb_build_array(pg_temp.t('b5')))),
+   jsonb_build_object('A', jsonb_build_object('1', jsonb_build_array(pg_temp.t('b5'))),
+                      'B', jsonb_build_object('1', jsonb_build_array(pg_temp.t('b0')))),
    'Terrain');
 
 insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, ruleset, max_hp, current_hp)
@@ -100,6 +106,37 @@ select throws_ok($$
   update public.character_spells set is_prepared = true, always_prepared = true
    where party_member_id = pg_temp.u('e1') and spell_id = pg_temp.t('b6')
 $$, '42501', null, 'an ordinary pick cannot be turned always prepared to free its slot');
+
+-- ── A pick the subclass takes over ──────────────────────────────────────────
+
+update public.character_classes set subclass_variant = 'B' where id = pg_temp.u('a1');
+select ok((select bool_and(granted_by_subclass and pick_was_always_prepared) from pg_temp.rows_of(pg_temp.u('e1'), 'b0')),
+  'switching to a variant that grants the picked cantrip turns the pick into the grant');
+select throws_ok($$
+  insert into public.character_spells (party_member_id, spell_id, source_type, source_class_id, is_prepared, always_prepared)
+  values (pg_temp.u('e1'), pg_temp.t('b9'), 'class', pg_temp.u('a1'), true, true)
+$$, '42501', null, 'and the taken-over pick still holds its slot, or switching back would leave two');
+update public.character_classes set subclass_variant = 'A' where id = pg_temp.u('a1');
+select ok((select bool_and(always_prepared and not granted_by_subclass) from pg_temp.rows_of(pg_temp.u('e1'), 'b0')),
+  'switching back restores the pick');
+
+-- ── A row the check predates ────────────────────────────────────────────────
+
+-- Written as the server, with limits suspended, as rows written before #1027
+-- stand: a second always-prepared cantrip where the feature grants one.
+reset role;
+select set_config('grimoire.spell_limits', 'suspended', true);
+insert into public.character_spells (party_member_id, spell_id, source_type, source_class_id, is_prepared, always_prepared)
+values (pg_temp.u('e1'), pg_temp.t('b1'), 'class', pg_temp.u('a1'), true, true);
+select set_config('grimoire.spell_limits', '', true);
+set local role authenticated;
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', pg_temp.u('02')), true);
+-- The source picker (useAssignCharacterSpellSource) writes source_class_id even
+-- when it does not change, which fires both spell triggers.
+select lives_ok($$
+  update public.character_spells set source_class_id = pg_temp.u('a1')
+   where party_member_id = pg_temp.u('e1') and spell_id = pg_temp.t('b1')
+$$, 'rewriting its unchanged source is not a new claim and is not refused');
 
 -- ── The server's columns ────────────────────────────────────────────────────
 
