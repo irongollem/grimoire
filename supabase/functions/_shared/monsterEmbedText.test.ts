@@ -21,7 +21,7 @@ const NAME_ONLY: EmbeddableMonster = {
   habitat: null,
   tags: null,
   description: null,
-  stat_block: null,
+  stat_block: {},
 };
 
 describe("buildMonsterEmbedText", () => {
@@ -49,16 +49,10 @@ describe("buildMonsterEmbedText", () => {
     expect(text).toContain("Owlbear. Large, CR 3.");
   });
 
-  it("never emits a dangling 'CR .' when challenge_rating is missing", () => {
-    const text = buildMonsterEmbedText(makeMonster({ stat_block: null }));
-    expect(text).not.toContain("CR .");
-    expect(text).not.toContain("CR ,");
-    expect(text).toContain("Owlbear. Large monstrosity.");
-  });
-
-  it("never emits a dangling 'CR .' when stat_block is present but challenge_rating is absent", () => {
+  it("never emits a dangling 'CR .' when challenge_rating is absent", () => {
     const text = buildMonsterEmbedText(makeMonster({ stat_block: {} }));
     expect(text).not.toContain("CR .");
+    expect(text).not.toContain("CR ,");
     expect(text).toContain("Owlbear. Large monstrosity.");
   });
 
@@ -71,7 +65,7 @@ describe("buildMonsterEmbedText", () => {
   });
 
   it("omits the size/type/CR clause entirely when size, type and CR are all missing", () => {
-    const text = buildMonsterEmbedText(makeMonster({ size: null, monster_type: null, stat_block: null }));
+    const text = buildMonsterEmbedText(makeMonster({ size: null, monster_type: null, stat_block: {} }));
     expect(text).toBe(
       "Owlbear. forest, ambush predator. Temperate forests. " +
       "A cross between a giant owl and a bear, ferocious and territorial.",

@@ -35,9 +35,9 @@ insert into public.quest_beats (id, quest_id, campaign_id, title, converge_mode)
 insert into public.npcs (id, user_id, campaign_id, name) values
   ('97290000-0000-4000-8000-000000000040', '97290000-0000-4000-8000-000000000001', '97290000-0000-4000-8000-000000000010', 'Present NPC'),
   ('97290000-0000-4000-8000-000000000049', '97290000-0000-4000-8000-000000000001', '97290000-0000-4000-8000-000000000010', 'Departed NPC');
-insert into public.library_monsters (id, name, monster_type, ruleset, conceptual_key, source, source_document_key, source_record_key) values
-  ('board_test_wolf', 'Zz Board Wolf', 'beast', '2014', 'zz_board_wolf', 'srd-2014', 'srd-2014', 'board-test-wolf'),
-  ('board_test_gone', 'Zz Board Ghost', 'undead', '2014', 'zz_board_ghost', 'srd-2014', 'srd-2014', 'board-test-gone');
+insert into public.library_monsters (id, name, monster_type, ruleset, conceptual_key, source, source_document_key, source_record_key, stat_block) values
+  ('board_test_wolf', 'Zz Board Wolf', 'beast', '2014', 'zz_board_wolf', 'srd-2014', 'srd-2014', 'board-test-wolf', '{}'::jsonb),
+  ('board_test_gone', 'Zz Board Ghost', 'undead', '2014', 'zz_board_ghost', 'srd-2014', 'srd-2014', 'board-test-gone', '{}'::jsonb);
 
 insert into public.quest_beat_attachments (beat_id, quest_id, campaign_id, attachment_type, ref_id, is_required) values
   ('97290000-0000-4000-8000-000000000030', '97290000-0000-4000-8000-000000000020', '97290000-0000-4000-8000-000000000010', 'npc', '97290000-0000-4000-8000-000000000040', true),

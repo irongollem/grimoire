@@ -79,16 +79,16 @@ from generate_series(1, 6);
 insert into public.campaign_enabled_sources (campaign_id, source_slug, source_title)
 values ('19410000-0000-4000-8000-000000000010', 'zzmatch-book', 'Match Test Book');
 
-insert into public.library_monsters (id, name, monster_type, ruleset, conceptual_key, source, source_document_key, source_record_key) values
-  ('zzmatch-goblin-scout-1', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-1'),
-  ('zzmatch-goblin-scout-2', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-2'),
-  ('zzmatch-goblin-scout-3', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-3'),
-  ('zzmatch-goblin-scout-4', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-4'),
-  ('zzmatch-goblin-scout-5', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-5'),
-  ('zzmatch-goblin-scout-6', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-6'),
-  ('zzmatch-disabled-ogre', 'Ogre Zzmatch', 'giant', '2014', 'zzmatch_ogre', 'zzmatch-disabled-book', 'zzmatch-disabled-book', 'zzmatch-disabled-ogre'),
+insert into public.library_monsters (id, name, monster_type, ruleset, conceptual_key, source, source_document_key, source_record_key, stat_block) values
+  ('zzmatch-goblin-scout-1', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-1', '{}'::jsonb),
+  ('zzmatch-goblin-scout-2', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-2', '{}'::jsonb),
+  ('zzmatch-goblin-scout-3', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-3', '{}'::jsonb),
+  ('zzmatch-goblin-scout-4', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-4', '{}'::jsonb),
+  ('zzmatch-goblin-scout-5', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-5', '{}'::jsonb),
+  ('zzmatch-goblin-scout-6', 'Goblin Raider', 'humanoid', '2014', 'zzmatch_goblin_raider', 'zzmatch-book', 'zzmatch-book', 'zzmatch-goblin-scout-6', '{}'::jsonb),
+  ('zzmatch-disabled-ogre', 'Ogre Zzmatch', 'giant', '2014', 'zzmatch_ogre', 'zzmatch-disabled-book', 'zzmatch-disabled-book', 'zzmatch-disabled-ogre', '{}'::jsonb),
   -- In the enabled book, and one letter from a name the page will ask for.
-  ('zzmatch-ghast', 'Zzmatch Qhast', 'undead', '2014', 'zzmatch_ghast', 'zzmatch-book', 'zzmatch-book', 'zzmatch-ghast');
+  ('zzmatch-ghast', 'Zzmatch Qhast', 'undead', '2014', 'zzmatch_ghast', 'zzmatch-book', 'zzmatch-book', 'zzmatch-ghast', '{}'::jsonb);
 
 -- ── Exact match through article + plural ─────────────────────────────────────
 select results_eq(

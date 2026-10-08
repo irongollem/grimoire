@@ -115,7 +115,7 @@ interface MonsterSourceRow {
   habitat: string | null;
   tags: string[] | null;
   description: string | null;
-  stat_block: { challenge_rating?: string | null } | null;
+  stat_block: { challenge_rating?: string | null };
 }
 
 function toMonsterSourceRow(row: Record<string, unknown>): MonsterSourceRow {
@@ -127,7 +127,7 @@ function toMonsterSourceRow(row: Record<string, unknown>): MonsterSourceRow {
     habitat: (row.habitat as string | null) ?? null,
     tags: (row.tags as string[] | null) ?? null,
     description: (row.description as string | null) ?? null,
-    stat_block: (row.stat_block as MonsterSourceRow["stat_block"]) ?? null,
+    stat_block: row.stat_block as MonsterSourceRow["stat_block"],
   };
 }
 

@@ -26,8 +26,8 @@ insert into public.monsters (id, user_id, campaign_id, name, monster_type, size,
 -- own rather than borrowing seeded ones: CI's database is built from the
 -- migrations alone, so its library tables are empty, and a fixture that copied
 -- "whichever bundled item exists" inserted nothing there.
-insert into public.library_monsters (id, name, monster_type, ruleset, conceptual_key, source, source_document_key, source_record_key) values
-  ('browse_test_owlbear', 'Zz Library Owlbear', 'monstrosity', '2014', 'zz_library_owlbear', 'srd-2014', 'srd-2014', 'browse-test-owlbear');
+insert into public.library_monsters (id, name, monster_type, ruleset, conceptual_key, source, source_document_key, source_record_key, stat_block) values
+  ('browse_test_owlbear', 'Zz Library Owlbear', 'monstrosity', '2014', 'zz_library_owlbear', 'srd-2014', 'srd-2014', 'browse-test-owlbear', '{}'::jsonb);
 insert into public.library_items (id, name, item_type, rarity, source, source_document_key, source_record_key) values
   ('browse_test_lantern', 'Zz Library Lantern', 'gear', 'mundane', 'grimoire-bundled', 'grimoire-bundled', 'browse-test-lantern');
 

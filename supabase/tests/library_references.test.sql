@@ -33,8 +33,8 @@ on conflict (campaign_id, user_id) do update
 insert into public.library_items (id, name, rarity, source_document_key, source_record_key)
 values ('libref_test_item', 'Libref Moonblade', 'rare', 'libref-test', 'libref-test-item'),
        ('libref_test_item_b', 'Libref Sunblade', 'rare', 'libref-test', 'libref-test-item-b');
-insert into public.library_monsters (id, name, monster_type, ruleset, conceptual_key, source_document_key, source_record_key)
-values ('libref_test_monster', 'Libref Wyrm', 'dragon', '2014', 'libref-test-monster', 'libref-test', 'libref-test-monster');
+insert into public.library_monsters (id, name, monster_type, ruleset, conceptual_key, source_document_key, source_record_key, stat_block)
+values ('libref_test_monster', 'Libref Wyrm', 'dragon', '2014', 'libref-test-monster', 'libref-test', 'libref-test-monster', '{}'::jsonb);
 
 insert into public.quests (id, user_id, campaign_id, title)
 values ('95400000-0000-4000-8000-000000000020', '95400000-0000-4000-8000-000000000001', '95400000-0000-4000-8000-0000000000c1', 'Libref quest');
