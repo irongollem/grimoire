@@ -525,18 +525,27 @@ export const routes: RouteRecordRaw[] = [
     name: "spells",
     component: () => import("@/views/spells/SpellsView.vue"),
     meta: { requiresAuth: true, title: "Spellbook" },
+    // Same shape as `/monsters`: `:id` is a child so the spellbook grid stays
+    // mounted while one spell is being read. See `useDetailModal`.
+    children: [
+      {
+        path: ":id",
+        name: "spell-detail",
+        component: () => import("@/views/spells/SpellDetailView.vue"),
+        // fullscreenMobile: reading on a phone is a takeover with its own app
+        // bar (SpellSheetMobile), so the global bars are suppressed below md.
+        meta: { requiresAuth: true, title: "Spell", fullscreenMobile: true },
+      },
+    ],
   },
   {
     path: "/spells/new",
     name: "spell-new",
     component: () => import("@/views/spells/SpellDetailView.vue"),
+    // Deliberately NOT nested under /spells: creating a spell is the full
+    // editor at every width, so there is no list to sit over. Static segments
+    // outrank the `:id` param, so this still wins the match.
     meta: { requiresAuth: true, title: "New Spell" },
-  },
-  {
-    path: "/spells/:id",
-    name: "spell-detail",
-    component: () => import("@/views/spells/SpellDetailView.vue"),
-    meta: { requiresAuth: true, title: "Spell" },
   },
 
   // Vault (Items)

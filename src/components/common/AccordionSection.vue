@@ -1,6 +1,6 @@
 <template>
   <!--
-    Mobile-only (<md) collapsible card section for the NPC detail screen.
+    Mobile-only (<md) collapsible card section for the phone sheets.
     A tappable header (Cinzel title + rotating chevron) toggles the body.
     Open state is owned by the parent via `v-model:open`.
   -->

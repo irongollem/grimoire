@@ -17,7 +17,7 @@ import { placeRoute } from "@/lib/locations/placeRoute";
 export type DmNoteEntityType =
   | "npc" | "monster" | "item" | "trap" | "puzzle" | "dungeon_feature" | "loot_table" | "roll_table"
   | "location" | "deity" | "species" | "faction" | "companion" | "quest" | "encounter" | "party_member"
-  | "hero";
+  | "hero" | "spell";
 
 export type DmNoteStore =
   | { kind: "column"; table: string; column: "notes" | "dm_notes" }
@@ -69,6 +69,9 @@ export const DM_NOTE_ENTITIES: Readonly<Record<DmNoteEntityType, DmNoteEntry>> =
   quest: { type: "quest", label: "Quest", store: entityNote("quests"), route: (id) => `/quests/${id}` },
   encounter: { type: "encounter", label: "Encounter", store: entityNote("encounters"), route: (id) => `/encounters/${id}` },
   party_member: { type: "party_member", label: "Party member", store: entityNote("party_members"), route: (id) => `/party/${id}` },
+  // A custom spell row is selectable by every member of its campaign (the
+  // player's spell list reads it), so a notes column would travel to players.
+  spell: { type: "spell", label: "Spell", store: entityNote("spells"), route: (id) => `/spells/${id}` },
   hero: { type: "hero", label: "Hero", store: entityNote(null), route: (id) => `/hall-of-heroes/${id}` },
 };
 

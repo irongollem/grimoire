@@ -1,5 +1,5 @@
 <template>
-  <ListPageLayout title="Spellbook" description="Your custom spell compendium">
+  <ListPageLayout v-if="showList" title="Spellbook" description="Your custom spell compendium">
     <template #title-suffix>
       <ManualHelpLink page="creating-custom-spells" />
     </template>
@@ -112,10 +112,20 @@
       @toggle-select="toggleRowSelection"
     />
   </ListPageLayout>
+
+  <!--
+    The detail route for one spell. On tablet and up it is a modal teleported
+    over the grid above, which is why the grid is still rendered alongside it;
+    on a phone, and in edit mode at any width, it takes the screen and the grid
+    renders nothing. `useDetailModal` owns that for both halves.
+  -->
+  <RouterView />
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
+import { RouterView } from "vue-router";
+import { useDetailModal } from "@/composables/useDetailModal";
 import { IconAdd, IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -138,6 +148,10 @@ import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignF
 import { useCampaignStore } from "@/stores/campaign";
 
 const ui = useUiStore();
+
+// Whether to keep drawing the grid: behind the read modal yes, under a
+// full-screen takeover no. The detail view asks the same composable.
+const { showList } = useDetailModal("/spells");
 
 const LEVEL_FILTERS = [
   { value: "", label: "All" },

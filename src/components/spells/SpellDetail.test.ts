@@ -40,7 +40,12 @@ vi.mock("vue-router", () => ({
   // actions" suite below mounts the real header, which does.
   RouterLink: { name: "RouterLink", template: "<a><slot /></a>" },
 }));
-vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
+const isMobile = vi.hoisted(() => ({ value: false }));
+vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/composables/useBreakpoint")>()),
+  useIsMobile: () => isMobile,
+}));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn(() => true) }) }));
 vi.mock("@/composables/library/useLibrarySpellArt", () => ({
   useUpsertLibrarySpellArt: () => ({ mutateAsync: vi.fn() }),
 }));
@@ -129,6 +134,60 @@ describe("SpellDetail scope default", () => {
     const wrapper = mountDetail(existing);
     await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
     expect(mocks.update).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Where the editor leaves to, matching the monster precedent: the sheet over the
+ * spellbook on desktop (a child route of the list), the plain list on a phone.
+ */
+describe("SpellDetail navigation", () => {
+  const existing = { id: "sp1", campaign_id: "campaign-1", name: "Fireball", level: 3, classes: [], components: [], tags: [] } as unknown as Spell;
+  type Vm = { name: string; save: () => Promise<void>; cancel: () => void; confirmDelete: () => Promise<void> };
+
+  beforeEach(() => {
+    isMobile.value = false;
+    mockRouterPush.mockClear();
+    mockRouterReplace.mockClear();
+  });
+
+  it("saving an existing spell lands on its sheet on desktop", async () => {
+    const wrapper = mountDetail(existing);
+    (wrapper.vm as unknown as Vm).name = "Fireball II";
+    await (wrapper.vm as unknown as Vm).save();
+    expect(mockRouterPush).toHaveBeenCalledWith("/spells/sp1");
+  });
+
+  it("saving an existing spell lands on the list on a phone", async () => {
+    isMobile.value = true;
+    const wrapper = mountDetail(existing);
+    (wrapper.vm as unknown as Vm).name = "Fireball II";
+    await (wrapper.vm as unknown as Vm).save();
+    expect(mockRouterPush).toHaveBeenCalledWith("/spells");
+  });
+
+  it("creating a spell lands on the new spell's sheet", async () => {
+    const wrapper = mountDetail(null);
+    (wrapper.vm as unknown as Vm).name = "Fireball";
+    await (wrapper.vm as unknown as Vm).save();
+    expect(mockRouterPush).toHaveBeenCalledWith("/spells/new-spell");
+    expect(mockRouterReplace).not.toHaveBeenCalled();
+  });
+
+  it("deleting goes back to the list", async () => {
+    const wrapper = mountDetail(existing);
+    await (wrapper.vm as unknown as Vm).confirmDelete();
+    expect(mockRouterPush).toHaveBeenCalledWith("/spells");
+  });
+
+  it("cancelling an existing spell goes back to its sheet", () => {
+    (mountDetail(existing).vm as unknown as Vm).cancel();
+    expect(mockRouterReplace).toHaveBeenCalledWith("/spells/sp1");
+  });
+
+  it("cancelling a new spell goes to the list", () => {
+    (mountDetail(null).vm as unknown as Vm).cancel();
+    expect(mockRouterPush).toHaveBeenCalledWith("/spells");
   });
 });
 
@@ -225,7 +284,7 @@ describe("SpellDetailHeader send actions", () => {
   it("shared spell: clicking the bare button still emits sendToScriptorium", async () => {
     const wrapper = mountHeader(true);
 
-    await wrapper.get("button").trigger("click");
+    await wrapper.findAll("button").find((b) => b.text().includes("Send to Scriptorium"))?.trigger("click");
 
     expect(wrapper.emitted("sendToScriptorium")).toHaveLength(1);
     expect(wrapper.emitted("copyToCampaign")).toBeUndefined();

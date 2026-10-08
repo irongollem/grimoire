@@ -12,13 +12,11 @@
           class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[80vh]"
         />
         <div
-          class="rounded-lg border border-border bg-card p-3 flex flex-col gap-1.5 font-stat text-base"
+          class="rounded-lg border border-primary/30 bg-card p-3 flex flex-col gap-1.5 font-stat text-base"
         >
           <div class="flex justify-between">
             <span class="text-muted-foreground">Level</span>
-            <span class="font-bold">{{
-              spell.level === 0 ? "Cantrip" : `${spell.level}${levelSuffix}`
-            }}</span>
+            <span class="font-bold">{{ spellLevelOrdinal(spell.level) }}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-muted-foreground">School</span>
@@ -53,15 +51,15 @@
         <div v-if="compact" class="flex items-start gap-3">
           <dl class="grid min-w-0 flex-1 grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 font-stat text-base">
             <dt class="text-muted-foreground">Casting time</dt>
-            <dd class="font-semibold">{{ spell.casting_time_custom || spell.casting_time }}</dd>
+            <dd class="font-semibold">{{ spellCastingTime(spell) }}</dd>
             <dt class="text-muted-foreground">Range</dt>
-            <dd class="font-semibold">{{ spell.range_custom || spell.range }}</dd>
+            <dd class="font-semibold">{{ spellRange(spell) }}</dd>
             <dt class="text-muted-foreground">Components</dt>
-            <dd class="font-semibold">{{ componentsInWords }}</dd>
+            <dd class="font-semibold">{{ spellComponentsInWords(spell) }}</dd>
             <dt class="text-muted-foreground">Duration</dt>
             <dd class="font-semibold">
-              {{ spell.duration_custom || spell.duration }}
-              <span v-if="spell.concentration && !/concentration/i.test(spell.duration_custom || spell.duration)" class="ml-1 rounded border border-primary/30 px-1.5 text-label font-normal text-primary">Concentration</span>
+              {{ spellDuration(spell) }}
+              <span v-if="needsConcentrationNote(spell)" class="ml-1 rounded border border-primary/30 px-1.5 text-label font-normal text-primary">Concentration</span>
               <span v-if="spell.ritual" class="ml-1 rounded border border-border px-1.5 text-label font-normal text-muted-foreground">Can be cast as a ritual</span>
             </dd>
           </dl>
@@ -78,45 +76,19 @@
           </div>
         </div>
 
-        <!-- Casting properties -->
+        <!-- Casting properties: a stat strip in the trait panels' family. -->
         <div
           v-if="!compact"
-          class="grid grid-cols-3 gap-2 rounded-lg border border-border bg-card/50 p-3"
+          class="grid grid-cols-3 divide-x divide-primary/15 rounded-lg border border-primary/30 bg-card py-3"
         >
-          <div class="text-center">
-            <p
-              class="text-eyebrow text-muted-foreground"
-            >
-              Casting Time
-            </p>
-            <p class="font-stat text-base font-semibold">
-              {{ spell.casting_time_custom || spell.casting_time }}
-            </p>
-          </div>
-          <div class="text-center">
-            <p
-              class="text-eyebrow text-muted-foreground"
-            >
-              Range
-            </p>
-            <p class="font-stat text-base font-semibold">
-              {{ spell.range_custom || spell.range }}
-            </p>
-          </div>
-          <div class="text-center">
-            <p
-              class="text-eyebrow text-muted-foreground"
-            >
-              Duration
-            </p>
-            <p class="font-stat text-base font-semibold">
-              {{ spell.duration_custom || spell.duration }}
-            </p>
+          <div v-for="fact in castingFacts" :key="fact.label" class="px-3 text-center">
+            <p class="text-eyebrow text-muted-foreground">{{ fact.label }}</p>
+            <p class="font-stat text-base font-semibold">{{ fact.value }}</p>
           </div>
         </div>
 
         <!-- Components + material -->
-        <div v-if="!compact" class="font-stat text-base">
+        <div v-if="!compact && spell.components.length" class="font-stat text-base">
           <span class="font-semibold">Components: </span>
           <span>{{ spell.components.join(", ") }}</span>
           <span v-if="spell.material"> ({{ spell.material }})</span>
@@ -142,25 +114,13 @@
           >
         </div>
 
-        <!-- Description -->
-        <div class="flex flex-col gap-1">
-          <h3
-            class="text-label-lg font-bold text-primary uppercase"
-          >
-            Description
-          </h3>
-          <RichTextViewer :content="spell.description" />
-        </div>
-
-        <!-- Higher levels -->
-        <div v-if="spell.higher_levels" class="flex flex-col gap-1">
-          <h3
-            class="text-label-lg font-bold text-primary uppercase"
-          >
-            At Higher Levels
-          </h3>
+        <!-- Description and higher levels: torn panels like the monster sheet's traits. -->
+        <TraitList title="Description">
+          <RichTextViewer :content="spell.description" class="lore" />
+        </TraitList>
+        <TraitList v-if="spell.higher_levels" title="At Higher Levels">
           <RichTextViewer :content="spell.higher_levels" />
-        </div>
+        </TraitList>
 
         <!-- Classes + source -->
         <div
@@ -183,6 +143,9 @@
           >{{ spellSourceLabel(spell.source, spell.source_title) }}</a>
           <span v-else>{{ spellSourceLabel(spell.source, spell.source_title) }}</span>
         </div>
+
+        <!-- Filled by the page that owns the sheet (the DM's note, custom spells). -->
+        <slot v-if="!compact" name="dm-note" />
 
         <!-- Known by party members -->
         <div v-if="!compact && knowers?.length" class="flex flex-col gap-2">
@@ -228,10 +191,18 @@
 import { computed } from "vue";
 import { IconParty, IconUser } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
+import TraitList from "@/components/common/TraitList.vue";
+import {
+  needsConcentrationNote,
+  spellCastingTime,
+  spellComponentsInWords,
+  spellDuration,
+  spellRange,
+} from "@/lib/spells/spellFacts";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useSpellKnowers } from "@/composables/party/useCharacterSpells";
 import { useNpcSpellCasters } from "@/composables/npcs/useNpcs";
-import { SCHOOL_TEXT, ATTACK_TYPES, spellSourceLabel } from "@/types/spell.types";
+import { SCHOOL_TEXT, ATTACK_TYPES, spellLevelOrdinal, spellSourceLabel } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
@@ -247,18 +218,6 @@ const props = defineProps<{
 const { data: knowers } = useSpellKnowers(computed(() => props.spell.id));
 const { data: npcCasters } = useNpcSpellCasters(computed(() => props.spell.id));
 
-const LEVEL_SUFFIXES = ["", "st", "nd", "rd"];
-const levelSuffix = computed(() =>
-  props.spell.level <= 3 ? LEVEL_SUFFIXES[props.spell.level] : "th",
-);
-
-const COMPONENT_WORDS: Record<string, string> = { V: "Verbal", S: "Somatic", M: "Material" };
-const componentsInWords = computed(() => {
-  const words = props.spell.components.map((c) => COMPONENT_WORDS[c.toUpperCase()] ?? c);
-  const line = words.join(", ");
-  return props.spell.material ? `${line} (${props.spell.material})` : line;
-});
-
 const attackTypeLabel = computed(
   () =>
     ATTACK_TYPES.find((a) => a.value === props.spell.attack_type)?.label ??
@@ -270,6 +229,12 @@ const damageRollsLine = computed(
     props.spell.damage_rolls?.map((r) => `${r.dice} ${r.type}`).join(" + ") ??
     "",
 );
+
+const castingFacts = computed(() => [
+  { label: "Casting Time", value: spellCastingTime(props.spell) },
+  { label: "Range", value: spellRange(props.spell) },
+  { label: "Duration", value: spellDuration(props.spell) },
+]);
 
 const hasMechanics = computed(
   () =>

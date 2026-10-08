@@ -18,7 +18,16 @@
   >
     <!-- Whole-card link, behind the actions. Absent while locked, so an
          over-quota entity cannot be opened by clicking past its overlay. -->
-    <RouterLink v-if="!locked" :to="to" class="absolute inset-0 z-2" @click="rememberOrigin" />
+    <RouterLink v-if="!locked && !activates" :to="to" class="absolute inset-0 z-2" @click="rememberOrigin" />
+    <!-- A card that opens something other than a route (the player portal's
+         spell modal) is a button over the same area, and says so with `activate`. -->
+    <button
+      v-else-if="!locked"
+      type="button"
+      class="absolute inset-0 z-2"
+      :aria-label="title"
+      @click="emit('activate')"
+    />
 
     <div
       v-if="locked"
@@ -108,7 +117,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import { IconLock } from "@/lib/icons";
 import { rememberModalOrigin } from "@/lib/modalOrigin";
 
-const { to, imageUrl = null, focalPoint = null } = defineProps<{
+const { to, imageUrl = null, focalPoint = null, activates = false } = defineProps<{
   to: string;
   title: string;
   placeholder: string;
@@ -126,7 +135,11 @@ const { to, imageUrl = null, focalPoint = null } = defineProps<{
   badgeClass?: string;
   /** Optional colour-bar class above the artwork — the monster grid's CR ramp. */
   accentClass?: string;
+  /** The card emits `activate` instead of navigating to `to`. */
+  activates?: boolean;
 }>();
+
+const emit = defineEmits<{ activate: [] }>();
 
 const cardRef = ref<HTMLElement | null>(null);
 

@@ -1,6 +1,6 @@
 <template>
   <!--
-    Mobile-only (<md) quick-fact cell for the 2-col NPC detail grid.
+    Mobile-only (<md) quick-fact cell for the 2-col grid of the phone sheets.
     Renders nothing when the value is blank so the grid collapses gracefully.
     A tiny uppercase Cinzel label sits above the value (Crimson Pro body).
   -->

@@ -1,11 +1,13 @@
 <template>
   <div class="flex items-center justify-between gap-3 flex-wrap">
-    <RouterLink
-      to="/spells"
-      class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
-    >
-      ← Spellbook
-    </RouterLink>
+    <!-- Leaves the editor without saving: back to the sheet for an existing
+         spell, to the spellbook for a new one (the parent decides which). -->
+    <AppButton
+      variant="ghost"
+      size="md"
+      :label="isShared ? 'Done' : 'Cancel'"
+      @click="$emit('cancel')"
+    />
     <div class="flex items-center gap-2">
       <AppButton
         v-if="isAiEnabled"
@@ -76,7 +78,6 @@
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from "vue-router";
 import { IconDelete, IconGenerate, IconSave, IconScrollText } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import EntitySendMenu from "@/components/common/EntitySendMenu.vue";
@@ -97,5 +98,6 @@ defineEmits<{
   copyToCampaign: [];
   delete: [];
   save: [];
+  cancel: [];
 }>();
 </script>

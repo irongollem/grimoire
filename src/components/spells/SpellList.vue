@@ -4,9 +4,12 @@
       Choose a replacement for <strong>{{ candidate.spell.name }}</strong>.
       <button type="button" class="ml-2 text-ink-arcane underline" @click="clearReplacement">Cancel</button>
     </div>
-    <!-- Loading: a spell card is text-only (school bar, name + level badge,
-         detail lines), the shape of the `text` skeleton. -->
-    <ListSkeleton v-if="isLoading" variant="text" :count="12" />
+    <!-- Loading: the same shape the real cards will land in. -->
+    <ListSkeleton
+      v-if="isLoading"
+      :variant="mobileLayout ? layout : 'grid'"
+      :count="mobileLayout ? 7 : 12"
+    />
 
     <EmptyState
       v-else-if="!rows.length && !search && !levelFilter && !schoolFilter && !classFilter && sourceFilter === 'all'"
@@ -31,6 +34,36 @@
       No spells match your filters.
     </p>
 
+    <!-- ── Phone (<md): compact rows / gallery, as the bestiary does ────── -->
+    <template v-else-if="mobileLayout">
+      <MobileEntityMetaRow v-model:layout="layout" :shown="total" :total="total" plural="spells" />
+      <EntityMobileGrid :items="rows" :item-key="spellKey" :layout="layout">
+        <template #default="{ item: spell }">
+          <BulkSelectableCard
+            corner="bottom-right"
+            :selected="selectedIds.has(spell.id)"
+            :selecting="selecting && spell.is_own && !spell.is_shared"
+            @toggle="emit('toggle-select', spell.id)"
+          >
+            <EntityMobileCard
+              :layout="layout"
+              :to="`/spells/${spell.id}`"
+              :title="spell.name"
+              :subtitle="mobileSubtitle(spell)"
+              :image-url="spell.image_url"
+              :focal-point="spell.image_focal_point"
+              :placeholder="placeholderUrl('spell')"
+              :badge-text="spellLevelOrdinal(spell.level)"
+              :badge-class="SCHOOL_BG[spell.school]"
+              @pointerenter="prefetchSpell(spell.id)"
+              @focusin="prefetchSpell(spell.id)"
+            />
+          </BulkSelectableCard>
+        </template>
+      </EntityMobileGrid>
+    </template>
+
+    <!-- ── Desktop grid (≥md), and the player portal at every width ──────── -->
     <template v-else>
       <VirtualGrid
         :items="rows"
@@ -39,188 +72,82 @@
         :estimate-row-height="GRID_ROW_PX"
       >
         <template #default="{ item: spell }">
-        <!--
-          Wrapped in BulkSelectableCard (#875) for every card — but `selecting`
-          is only ever true for a row the DM can actually re-scope; shared/
-          library spells (`isSharedContent`) always get `selecting: false`
-          regardless of the list-wide mode, so they render untouched and
-          cannot be selected or re-scoped, same as their Edit button above.
-        -->
-        <BulkSelectableCard
-          corner="top-right"
-          :selected="selectedIds.has(spell.id)"
-          :selecting="selecting && spell.is_own && !spell.is_shared"
-          @toggle="emit('toggle-select', spell.id)"
-        >
-          <div
-            class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+          <!--
+            Wrapped in BulkSelectableCard (#875) for every card — but `selecting`
+            is only ever true for a row the DM can actually re-scope; shared/
+            library spells (`isSharedContent`) always get `selecting: false`
+            regardless of the list-wide mode, so they render untouched and
+            cannot be selected or re-scoped, same as their Edit button.
+          -->
+          <BulkSelectableCard
+            corner="top-right"
+            :selected="selectedIds.has(spell.id)"
+            :selecting="selecting && spell.is_own && !spell.is_shared"
+            @toggle="emit('toggle-select', spell.id)"
           >
-            <!-- Card overlay: navigate in DM mode, open modal in player mode -->
-            <button
-              v-if="playerMemberId"
-              class="absolute inset-0 z-2"
-              @click="emit('spell-click', spell)"
-            />
-            <RouterLink
-              v-else
-              :to="`/spells/${spell.id}`"
-              class="absolute inset-0 z-2"
+            <!-- DM mode navigates to the spell; the player portal opens its own modal. -->
+            <SpellGridCard
+              :spell="spell"
+              :activates="!!playerMemberId"
+              :can-edit="!playerMemberId && spell.is_own && !spell.is_shared"
+              @activate="emit('spell-click', spell)"
               @pointerenter="prefetchSpell(spell.id)"
-              @focus="prefetchSpell(spell.id)"
-            />
-
-            <!-- School colour bar -->
-            <div
-              class="h-1.5 w-full shrink-0"
-              :class="SCHOOL_BG[spell.school]"
-            />
-
-            <div class="p-3 flex flex-col gap-2 flex-1">
-              <!-- Name + level badge -->
-              <div class="flex items-start justify-between gap-2">
-                <h3
-                  class="text-heading-xs font-bold text-foreground leading-tight flex-1 line-clamp-2"
-                >
-                  {{ spell.name }}
-                </h3>
-                <span
-                  class="shrink-0 px-1.5 py-0.5 rounded text-label font-bold text-white whitespace-nowrap"
-                  :class="SCHOOL_BG[spell.school]"
-                >
-                  {{ spell.level === 0 ? "C" : spell.level }}
-                </span>
-              </div>
-
-              <!-- School + type line -->
-              <p class="text-caption text-muted-foreground italic capitalize">
-                {{ spellLevelLabel(spell.level) }} {{ spell.school }}
-                <span v-if="spell.ritual"> · Ritual</span>
-              </p>
-
-              <!-- Cast time + range -->
-              <div class="flex gap-3 text-label-lg text-muted-foreground">
-                <span><span class="text-foreground font-bold">Cast</span> {{ spell.casting_time }}</span>
-                <span><span class="text-foreground font-bold">Range</span> {{ spell.range }}</span>
-              </div>
-
-              <!-- Components -->
-              <p class="text-label-lg text-muted-foreground">
-                <span class="text-foreground font-bold">Components</span>
-                {{ spell.components.join(", ") || "—" }}
-                <span v-if="spell.concentration"> · <em class="text-primary">Conc.</em></span>
-              </p>
-
-              <!-- Classes -->
-              <p
-                v-if="spell.classes.length"
-                class="text-caption text-muted-foreground truncate"
-              >
-                {{ spell.classes.join(", ") }}
-              </p>
-
-              <!-- Tags -->
-              <div v-if="spell.tags.length" class="flex flex-wrap gap-1 mt-auto">
-                <span
-                  v-for="tag in spell.tags.slice(0, 3)"
-                  :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-                >
-                  {{ tag }}
-                </span>
-              </div>
-
-              <!-- Source attribution -->
-              <a
-                v-if="spell.source_url"
-                :href="spell.source_url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="relative z-10 mt-auto text-caption-sm text-muted-foreground/60 hover:text-muted-foreground truncate transition-colors"
-                @click.stop
-              >
-                {{ spell.source_title ?? spell.source ?? "Reference" }}
-              </a>
-              <span
-                v-else-if="spell.source_title || spell.source"
-                class="mt-auto text-caption-sm text-muted-foreground/60 truncate"
-              >
-                {{ spell.source_title ?? spell.source }}
-              </span>
-            </div>
-
-            <!-- Edit button — DM mode only, not shown for SRD spell cards -->
-            <AppButton
-              v-if="!playerMemberId && spell.is_own && !spell.is_shared"
-              :to="`/spells/${spell.id}?edit=true`"
-              variant="ghost"
-              size="xs"
-              :icon="IconEdit"
-              label="Edit"
-              :class="[
-                CARD_OVERLAY_SCRIM,
-                'text-white hover:text-white absolute top-2 left-2 z-10 max-md:min-h-11 max-md:px-3',
-                '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
-              ]"
-              tooltip="Edit spell"
-            />
-
-            <!-- Learn / Prepare button — player mode -->
-            <template v-if="showLearnButton">
-              <AppButton
-                v-if="!isKnown(spell.id)"
-                variant="ghost"
-                size="xs"
-                :icon="IconAddBook"
-                :label="learnLabel(spell.level === 0)"
-                :disabled="isAdding || isChanging"
-                :class="[
-                  'absolute bottom-2 right-2 z-10 text-white hover:text-white bg-primary/80 hover:bg-primary max-md:min-h-11 max-md:px-3',
-                  '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
-                ]"
-                @click.prevent.stop="handleLearn(spell)"
-              />
-              <AppButton
-                v-else
-                variant="ghost"
-                size="xs"
-                :icon="isRemoving ? IconClose : IconCheck"
-                :label="learnedLabel(spell.level === 0)"
-                :disabled="isRemoving"
-                :tooltip="casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
-                :class="[
-                  CARD_OVERLAY_SCRIM,
-                  isRemoving ? 'text-muted-foreground hover:text-muted-foreground' : 'text-ink-success hover:text-destructive',
-                  'absolute bottom-2 right-2 z-10 max-md:min-h-11 max-md:px-3',
-                  '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
-                ]"
-                @click.prevent.stop="handleKnownClick(spell)"
-              />
-            </template>
-          </div>
-        </BulkSelectableCard>
+              @focusin="prefetchSpell(spell.id)"
+            >
+              <template v-if="showLearnButton" #overlay>
+                <AppButton
+                  v-if="!isKnown(spell.id)"
+                  variant="ghost"
+                  size="xs"
+                  :icon="IconAddBook"
+                  :label="learnLabel(spell.level === 0)"
+                  :disabled="isAdding || isChanging"
+                  :class="[
+                    'absolute bottom-2 right-2 z-10 text-white hover:text-white bg-primary/80 hover:bg-primary max-md:min-h-11 max-md:px-3',
+                    '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
+                  ]"
+                  @click.prevent.stop="handleLearn(spell)"
+                />
+                <AppButton
+                  v-else
+                  variant="ghost"
+                  size="xs"
+                  :icon="isRemoving ? IconClose : IconCheck"
+                  :label="learnedLabel(spell.level === 0)"
+                  :disabled="isRemoving"
+                  :tooltip="casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
+                  :class="[
+                    CARD_OVERLAY_SCRIM,
+                    isRemoving ? 'text-muted-foreground hover:text-muted-foreground' : 'text-ink-success hover:text-destructive',
+                    'absolute bottom-2 right-2 z-10 max-md:min-h-11 max-md:px-3',
+                    '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
+                  ]"
+                  @click.prevent.stop="handleKnownClick(spell)"
+                />
+              </template>
+            </SpellGridCard>
+          </BulkSelectableCard>
         </template>
       </VirtualGrid>
 
-      <div ref="sentinelRef" />
-
-      <p
-        class="mt-4 text-caption text-muted-foreground italic text-right"
-      >
+      <p class="mt-4 text-caption text-muted-foreground italic text-right">
         {{ total }} spells
       </p>
     </template>
+
+    <div ref="sentinelRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, watch } from "vue";
-import { IconAddBook, IconCheck, IconClose, IconEdit, IconNavSpellbook } from '@/lib/icons';
+import { IconAddBook, IconCheck, IconClose, IconNavSpellbook } from '@/lib/icons';
 import { useQueryClient } from "@tanstack/vue-query";
 import { fetchResolvedSpell, resolvedSpellKey } from "@/composables/spells/useSpells";
 import { useSpellBrowse } from "@/composables/spells/useSpellBrowse";
 import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell } from "@/composables/party/useCharacterSpells";
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
-import { SCHOOL_BG, spellLevelLabel } from "@/types/spell.types";
+import { SCHOOL_BG, spellLevelOrdinal } from "@/types/spell.types";
 import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
 import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
@@ -229,6 +156,13 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import EntityMobileGrid from "@/components/common/EntityMobileGrid.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
+import SpellGridCard from "@/components/spells/SpellGridCard.vue";
+import { useIsMobile } from "@/composables/useBreakpoint";
+import { useUiStore } from "@/stores/ui";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useSpellReplacement } from "@/composables/party/useSpellReplacement";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
@@ -385,10 +319,26 @@ function isKnown(spellId: string): boolean {
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const spellKey = (spell: SpellBrowseRow) => spell.id;
 
-// Row height before a row is measured (px): 164px measured at a 390px
-// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
-// back from a detail re-renders every unmeasured row above the viewport.
-const GRID_ROW_PX = 164;
+// Desktop row height before a row is measured (px; 277 measured, 9 Oct 2026); the phone layouts' live in
+// EntityMobileGrid. On desktop the sheet opens over a list that stays mounted,
+// so nothing has to be restored and the estimate matters little.
+const GRID_ROW_PX = 277;
+
+// The DM's phone gets the bestiary's rows/gallery. The player portal keeps the
+// grid at every width: its cards carry Learn / Prepare controls the compact
+// rows have no room for.
+const isMobile = useIsMobile();
+const mobileLayout = computed(() => isMobile.value && !playerMemberId);
+const ui = useUiStore();
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+});
+
+function mobileSubtitle(spell: SpellBrowseRow): string {
+  const school = spell.school.charAt(0).toUpperCase() + spell.school.slice(1);
+  return `${school}${spell.ritual ? " · Ritual" : ""}`;
+}
 
 const {
   rows, total, selectableIds, ready, hasNextPage, isFetchingNextPage, fetchNextPage, isLoading, error,

@@ -27,6 +27,7 @@
       @copy-to-campaign="openCopy"
       @delete="confirmDelete"
       @save="save"
+      @cancel="cancel"
     />
 
     <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
@@ -94,7 +95,7 @@
             <span class="text-label-lg text-muted-foreground uppercase">Level</span>
             <AppSelect v-model.number="level" size="lg">
               <option :value="0">Cantrip (0)</option>
-              <option v-for="n in 9" :key="n" :value="n">{{ n }}{{ levelSuffix(n) }}-Level</option>
+              <option v-for="n in 9" :key="n" :value="n">{{ spellLevelLabel(n) }}</option>
             </AppSelect>
           </label>
           <label class="flex flex-col gap-1">
@@ -242,6 +243,7 @@ import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRouter } from "vue-router";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import SpellGenerateDialog from "@/ai/SpellGenerateDialog.vue";
 import SpellLevelAdvisorModal from "./SpellLevelAdvisorModal.vue";
 import SpellLevelAdvisorPanel from "./SpellLevelAdvisorPanel.vue";
@@ -265,7 +267,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
-import { SPELL_SCHOOLS, spellSourceLabel } from "@/types/spell.types";
+import { SPELL_SCHOOLS, spellLevelLabel, spellSourceLabel } from "@/types/spell.types";
 import type { Spell, SpellSchool } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/spells/useSpells";
 import { useUpsertLibrarySpellArt } from "@/composables/library/useLibrarySpellArt";
@@ -288,6 +290,7 @@ import { parseDamageExpression, type DamageRoll } from "@/lib/dice/dice";
 
 const props = defineProps<{ spell: Spell | null; isShared?: boolean }>();
 const router = useRouter();
+const isMobile = useIsMobile();
 
 const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
@@ -423,13 +426,6 @@ function onImageUrlUpdate(url: string | null) {
 function onImageFocalUpdate(pt: { x: number; y: number } | null) {
   if (isShared.value) upsertLibraryArt({ entry_id: props.spell!.id, portrait_focal_point: pt });
   else imageFocalPoint.value = pt;
-}
-
-function levelSuffix(n: number): string {
-  if (n === 1) return "st";
-  if (n === 2) return "nd";
-  if (n === 3) return "rd";
-  return "th";
 }
 
 // ── Advisor state ─────────────────────────────────────────────────────────────
@@ -662,7 +658,10 @@ async function save() {
         await update({ id: props.spell.id, update: changed });
         commit();
       }
-      router.push("/spells");
+      // Desktop lands on the sheet over the spellbook (a child route of the
+      // list, so it is landing on the list); a phone has no modal, so it goes
+      // to the plain list.
+      router.push(isMobile.value ? "/spells" : `/spells/${props.spell.id}`);
     } else {
       // Import provenance and scaling come only from an import; a hand-made spell
       // starts without them, and the builder stays pure over the draft.
@@ -674,13 +673,19 @@ async function save() {
         higher_level_damage: null,
         higher_level_healing: null,
       });
-      router.replace(`/spells/${created.id}?edit=true`);
+      router.push(`/spells/${created.id}`);
     }
   } catch (e: unknown) {
     saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {
     isSaving.value = false;
   }
+}
+
+/** Leave the editor unsaved: back to the sheet for an existing spell, else the list. */
+function cancel() {
+  if (props.spell) router.replace(`/spells/${props.spell.id}`);
+  else router.push("/spells");
 }
 
 async function confirmDelete() {

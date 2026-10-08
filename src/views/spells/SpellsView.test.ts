@@ -50,6 +50,11 @@ vi.mock("@/components/spells/SpellList.vue", () => ({
   }),
 }));
 
+// The grid is on screen: no detail route is open over it.
+vi.mock("@/composables/useDetailModal", () => ({
+  useDetailModal: () => ({ showList: ref(true) }),
+}));
+
 vi.mock("@/composables/campaign/useBulkCampaignScope", () => ({
   useBulkCampaignScope: () => ({ mutateAsync: mocks.moveScope, isPending: ref(mocks.isMovingScope) }),
 }));
@@ -77,6 +82,8 @@ function mountView() {
     global: {
       stubs: {
         RouterLink: RouterLinkStub,
+        // The spell detail route's outlet; no router is installed here.
+        RouterView: true,
         SourcesPickerPanel: true,
         // CopyToCampaignDialog reads useDmCampaigns (TanStack Query) — its own
         // internals are covered by CopyToCampaignDialog.test.ts; this file

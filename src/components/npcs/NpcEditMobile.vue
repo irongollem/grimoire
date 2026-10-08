@@ -161,7 +161,7 @@
       </section>
 
       <!-- Lore card (collapsible) -->
-      <NpcAccordionSection v-model:open="loreOpen" title="Lore">
+      <AccordionSection v-model:open="loreOpen" title="Lore">
         <NpcLoreTab
           :npc-name="form.name"
           :appearance="form.appearance"
@@ -171,7 +171,7 @@
           @update:personality="form.personality = $event"
           @update:backstory="form.backstory = $event"
         />
-      </NpcAccordionSection>
+      </AccordionSection>
 
       <DmNoteBox v-if="npc?.id" type="npc" :id="npc.id" :label="npc.name" />
 
@@ -330,7 +330,7 @@ import NpcIdentitySection from "./NpcIdentitySection.vue";
 import RelationshipWheel from "@/components/common/RelationshipWheel.vue";
 import NpcLoreTab from "./NpcLoreTab.vue";
 import NpcRelationsSection from "./NpcRelationsSection.vue";
-import NpcAccordionSection from "./NpcAccordionSection.vue";
+import AccordionSection from "@/components/common/AccordionSection.vue";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
 import { NPC_ART_VARIANTS, type NpcArtTab } from "./npcArtTabs";
 

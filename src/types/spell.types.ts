@@ -209,6 +209,10 @@ export interface SpellBrowseRow {
   source: string | null;
   source_title: string | null;
   source_url: string | null;
+  /** The card's art, resolved like the detail page's: the caller's override,
+   *  then canonical library art, then the row's own. */
+  image_url: string | null;
+  image_focal_point: { x: number; y: number } | null;
   is_shared: boolean;
   /** The caller owns the row. Library rows and other members' custom spells
    *  (a player reads their DM's) are not own, so cannot be edited or re-scoped. */
@@ -360,11 +364,16 @@ export interface CharacterSpellEntry extends CharacterSpell {
 }
 
 // Convenience helpers
-export function spellLevelLabel(level: number): string {
+/** "Cantrip", "1st", "3rd", "9th": a slot already labelled "Level", and a card's badge. */
+export function spellLevelOrdinal(level: number): string {
   if (level === 0) return "Cantrip";
   const suffixes = ["", "st", "nd", "rd"];
-  const suffix = level <= 3 ? suffixes[level] : "th";
-  return `${level}${suffix}-Level`;
+  return `${level}${level <= 3 ? suffixes[level] : "th"}`;
+}
+
+/** "Cantrip", "1st-Level", "3rd-Level": the level in running text. */
+export function spellLevelLabel(level: number): string {
+  return level === 0 ? "Cantrip" : `${spellLevelOrdinal(level)}-Level`;
 }
 
 // ── Default spell slots ───────────────────────────────────────────────────────

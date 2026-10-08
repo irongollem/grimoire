@@ -43,7 +43,7 @@
  * session rows (story C), the beat page (story B) and the site handoff
  * (story S) — one recipe rather than three copies of the same disclosure.
  *
- * `v-show`, not `v-if`, for the body: the same reason `NpcAccordionSection`
+ * `v-show`, not `v-if`, for the body: the same reason `AccordionSection`
  * uses it — several callers wrap a panel that holds live state (the session
  * panel's disabled buttons, a held-payoff dispatch in flight), and rebuilding
  * it on every open would be wrong even where it wouldn't be visibly wrong.

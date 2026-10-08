@@ -4,7 +4,7 @@
     MonsterDetailView when useIsMobile() is true; the
     desktop MonsterSheet is shown otherwise, byte-identical to before.
 
-    Mirrors NpcDetailMobile's structure, with monster-specific differences:
+    Built on EntitySheetMobile, with the monster-specific parts:
       - CR pill (tinted by crBg) + SRD/source pill over the hero (no status
         dot — monsters have no alive/dead state)
       - quick-facts: Type / Size / Alignment / Habitat
@@ -13,7 +13,7 @@
       - primary bottom action is Customize for SRD monsters (clones to an
         editable copy), else Edit
 
-    Scroll layout top → bottom:
+    Scroll layout (see EntitySheetMobile):
       1. transparent glass app bar over the hero (solidifies on scroll)
       2. full-bleed hero portrait + CR/SRD badges + name + subtitle
       3. 2×2 quick-facts grid
@@ -22,141 +22,54 @@
       6. fixed bottom action bar (Reveal + Edit/Customize)
       7. Reveal bottom sheet + overflow ⋮ sheet
   -->
-  <div ref="scrollRoot" class="relative h-full overflow-y-auto md:hidden">
-    <!-- ── 1. App bar (glass, over hero) ──────────────────────────────────── -->
-    <header
-      class="fixed inset-x-0 top-0 z-30 flex items-center justify-between gap-2 px-3 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-2 transition-colors duration-200"
-      :class="scrolled ? 'border-b border-border bg-background/85 backdrop-blur-md' : ''"
-    >
-      <!-- Box normalized to icon-sm (32px) from the original size-10 (40px), and the
-           scroll-driven active:bg-* touch feedback normalizes to `fill="muted"`'s
-           hover: (AppButton has no active: axis) — same trade the #648 sweep makes
-           everywhere else. The not-scrolled look reuses CARD_OVERLAY_SCRIM, which is
-           named for exactly this "icon button over hero art" case. -->
-      <AppButton
-        variant="ghost"
-        fill="muted"
-        shape="pill"
-        size="icon-sm"
-        class="backdrop-blur-sm"
-        :class="scrolled ? 'text-foreground' : `${CARD_OVERLAY_SCRIM} text-white`"
-        aria-label="Back"
-        @click="goBack"
+  <EntitySheetMobile
+    back-to="/monsters"
+    :name="monster.name"
+    :subtitle="subtitle"
+    subtitle-class="capitalize"
+    :image="monster.image_url"
+    :focal-point="monster.portrait_focal_point"
+    :placeholder="placeholderUrl('monster')"
+    :tags="monster.tags"
+  >
+    <template #bar-actions="{ scrolled }">
+      <!--
+        The app bar's reveal. Below `md` the control opens as a bottom sheet on
+        its own. The form follows the bar; see EntitySheetMobile for why the
+        scrim has to go when the bar solidifies.
+      -->
+      <MonsterRevealControl :monster="monster" :form="scrolled ? 'inline' : 'overlay'" />
+    </template>
+
+    <template #pills>
+      <span
+        class="rounded px-2 py-0.5 text-eyebrow font-bold text-white"
+        :class="crBg(monster.stat_block.challenge_rating)"
       >
-        <template #icon>
-          <svg
-            class="size-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </template>
-      </AppButton>
-
-      <!-- Name fades in once scrolled past the hero -->
-      <h1
-        class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground transition-opacity duration-200"
-        :class="scrolled ? 'opacity-100' : 'opacity-0'"
+        CR {{ crText(monster.stat_block.challenge_rating) }}
+      </span>
+      <span
+        v-if="monster.is_shared"
+        class="rounded bg-black/55 px-2 py-0.5 text-eyebrow font-bold text-white"
       >
-        {{ monster.name }}
-      </h1>
+        {{ monster.source_title ?? monster.source ?? "Reference" }}
+      </span>
+      <span
+        v-if="isDiscovered"
+        class="flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-eyebrow font-bold text-primary"
+      >
+        <IconReveal class="size-3" /> Shared
+      </span>
+    </template>
 
-      <div class="flex shrink-0 items-center gap-2">
-        <!--
-          The app bar's reveal. Below `md` the control opens as a bottom sheet
-          on its own, replacing `MonsterRevealSheet` — one of the two mobile
-          sheets that had been written twice, independently.
+    <template #facts>
+      <QuickFact label="Type" :value="monster.monster_type" class="bg-card capitalize" />
+      <QuickFact label="Size" :value="monster.size" class="bg-card capitalize" />
+      <QuickFact label="Alignment" :value="monster.alignment" class="bg-card capitalize" />
+      <QuickFact label="Habitat" :value="monster.habitat" class="bg-card" />
+    </template>
 
-          The form follows the bar; see NpcDetailMobile for why the scrim has to
-          go when the bar solidifies.
-        -->
-        <MonsterRevealControl :monster="monster" :form="scrolled ? 'inline' : 'overlay'" />
-        <!-- Same normalization as the back button above. -->
-        <AppButton
-          variant="ghost"
-          fill="muted"
-          shape="pill"
-          size="icon-sm"
-          class="backdrop-blur-sm"
-          :class="scrolled ? 'text-foreground' : `${CARD_OVERLAY_SCRIM} text-white`"
-          aria-label="More actions"
-          @click="showMenu = true"
-        >
-          <template #icon>
-            <!-- vertical ellipsis -->
-            <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <circle cx="12" cy="5" r="1.6" />
-              <circle cx="12" cy="12" r="1.6" />
-              <circle cx="12" cy="19" r="1.6" />
-            </svg>
-          </template>
-        </AppButton>
-      </div>
-    </header>
-
-    <!-- ── 2. Hero ────────────────────────────────────────────────────────── -->
-    <div class="relative h-80 w-full overflow-hidden bg-muted">
-      <FocalImage
-        :src="monster.image_url"
-        :alt="monster.name"
-        format="portrait"
-        :focal-point="monster.portrait_focal_point"
-        :render-width="600"
-        :placeholder="placeholderUrl('monster')"
-        class="absolute inset-0"
-      />
-      <!-- Gradient fading into the page background -->
-      <div class="hero-fade pointer-events-none absolute inset-x-0 bottom-0 h-2/3" />
-
-      <!-- Overlaid identity -->
-      <div class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 px-4 pb-3">
-        <div class="flex flex-wrap items-center gap-1.5">
-          <span
-            class="rounded px-2 py-0.5 text-eyebrow font-bold text-white"
-            :class="crBg(monster.stat_block.challenge_rating)"
-          >
-            CR {{ crText(monster.stat_block.challenge_rating) }}
-          </span>
-          <span
-            v-if="monster.is_shared"
-            class="rounded bg-black/55 px-2 py-0.5 text-eyebrow font-bold text-white"
-          >
-            {{ monster.source_title ?? monster.source ?? "Reference" }}
-          </span>
-          <span
-            v-if="isDiscovered"
-            class="flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-eyebrow font-bold text-primary"
-          >
-            <IconReveal class="size-3" /> Shared
-          </span>
-        </div>
-
-        <h2 class="text-display font-bold leading-tight text-white drop-shadow-sm">
-          {{ monster.name }}
-        </h2>
-
-        <p class="text-body italic capitalize text-white/85 drop-shadow-sm">
-          {{ subtitle }}
-        </p>
-      </div>
-    </div>
-
-    <!-- ── Body ───────────────────────────────────────────────────────────── -->
-    <div class="flex flex-col gap-4 bg-background px-4 pt-4 pb-32">
-      <!-- 3. Quick-facts grid (2×2, hairline-separated) -->
-      <div class="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border">
-        <NpcQuickFact label="Type" :value="monster.monster_type" class="bg-card capitalize" />
-        <NpcQuickFact label="Size" :value="monster.size" class="bg-card capitalize" />
-        <NpcQuickFact label="Alignment" :value="monster.alignment" class="bg-card capitalize" />
-        <NpcQuickFact label="Habitat" :value="monster.habitat" class="bg-card" />
-      </div>
-
+    <template #after-facts>
       <!-- Lair location link -->
       <RouterLink
         v-if="lairLocation"
@@ -166,54 +79,36 @@
         <IconLocation class="size-4 shrink-0 text-primary/70" />
         Lair: {{ lairLocation.name }}
       </RouterLink>
+    </template>
 
-      <!-- 4. Tags -->
-      <div v-if="monster.tags?.length" class="flex flex-wrap gap-1.5">
-        <span
-          v-for="tag in monster.tags"
-          :key="tag"
-          class="rounded-full bg-muted px-2.5 py-1 text-label text-muted-foreground"
-        >
-          {{ tag }}
-        </span>
+    <DmNoteBox v-if="!monster.is_shared" type="monster" :id="monster.id" :label="monster.name" />
+
+    <AccordionSection v-model:open="openSections.lore" title="Lore">
+      <div class="flex flex-col gap-4">
+        <div v-if="description" class="flex flex-col gap-1">
+          <h3 class="text-label-lg font-bold uppercase text-primary">Description</h3>
+          <RichTextViewer :content="description" />
+        </div>
+        <p v-if="!description" class="text-body italic text-muted-foreground">
+          No lore recorded for this monster.
+        </p>
       </div>
+    </AccordionSection>
 
-      <DmNoteBox v-if="!monster.is_shared" type="monster" :id="monster.id" :label="monster.name" />
+    <AccordionSection v-model:open="openSections.combat" title="Combat">
+      <div class="flex flex-col gap-4">
+        <StatBlockPanel :sb="monster.stat_block" :name="monster.name" />
+        <TraitList title="Special Abilities" :traits="monster.stat_block.special_abilities" />
+        <SpellcastingList :spellcasting="monster.stat_block.spellcasting" />
+        <TraitList title="Actions" :traits="monster.stat_block.actions" />
+        <TraitList title="Bonus Actions" :traits="monster.stat_block.bonus_actions" />
+        <TraitList title="Reactions" :traits="monster.stat_block.reactions" />
+        <TraitList title="Legendary Actions" :traits="monster.stat_block.legendary_actions" />
+        <TraitList title="Lair Actions" :traits="monster.stat_block.lair_actions" />
+      </div>
+    </AccordionSection>
 
-      <!-- 5. Accordion sections -->
-      <NpcAccordionSection v-model:open="openSections.lore" title="Lore">
-        <div class="flex flex-col gap-4">
-          <div v-if="description" class="flex flex-col gap-1">
-            <h3 class="text-label-lg font-bold uppercase text-primary">Description</h3>
-            <RichTextViewer :content="description" />
-          </div>
-          <p
-            v-if="!description"
-            class="text-body italic text-muted-foreground"
-          >
-            No lore recorded for this monster.
-          </p>
-        </div>
-      </NpcAccordionSection>
-
-      <NpcAccordionSection v-model:open="openSections.combat" title="Combat">
-        <div class="flex flex-col gap-4">
-          <StatBlockPanel :sb="monster.stat_block" :name="monster.name" />
-          <TraitList title="Special Abilities" :traits="monster.stat_block.special_abilities" />
-          <SpellcastingList :spellcasting="monster.stat_block.spellcasting" />
-          <TraitList title="Actions" :traits="monster.stat_block.actions" />
-          <TraitList title="Bonus Actions" :traits="monster.stat_block.bonus_actions" />
-          <TraitList title="Reactions" :traits="monster.stat_block.reactions" />
-          <TraitList title="Legendary Actions" :traits="monster.stat_block.legendary_actions" />
-          <TraitList title="Lair Actions" :traits="monster.stat_block.lair_actions" />
-        </div>
-      </NpcAccordionSection>
-    </div>
-
-    <!-- ── 6. Fixed bottom action bar ─────────────────────────────────────── -->
-    <div
-      class="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-md"
-    >
+    <template #bottom-bar>
       <!-- `button` form: there is room here to name the audience outright. -->
       <MonsterRevealControl :monster="monster" />
 
@@ -239,14 +134,12 @@
         icon-size="md"
         label="Edit"
       />
-    </div>
-  </div>
+    </template>
 
-  <!-- Overflow ⋮ sheet — Send to Scriptorium / Delete live in the edit form
-       (they require the form to be mounted), so these route into it. Duplicate
-       is offered for custom monsters only (SRD uses Customize above). -->
-  <MobileSheet v-model:open="showMenu" :title="monster.name">
-    <div class="flex flex-col gap-1 pb-2">
+    <!-- Overflow ⋮ sheet: Send to Scriptorium / Delete live in the edit form
+         (they require the form to be mounted), so these route into it. Duplicate
+         is offered for custom monsters only (SRD uses Customize above). -->
+    <template #menu="{ close }">
       <AppButton
         v-if="!monster.is_shared"
         variant="menu"
@@ -257,7 +150,7 @@
         :icon="IconCopy"
         icon-size="md"
         label="Duplicate"
-        @click="showMenu = false"
+        @click="close"
       />
       <AppButton
         variant="menu"
@@ -268,12 +161,8 @@
         :icon="IconScrollText"
         icon-size="md"
         label="Send to Scriptorium"
-        @click="showMenu = false"
+        @click="close"
       />
-      <!-- Destructive row's active:bg-destructive/10 touch feedback is now
-           `press="tone"` — `fill`'s twin for this md:hidden screen. Normalizes
-           to active:bg-tone-danger/10 rather than the literal destructive
-           custom property, same trade as the other toned recolours in #648. -->
       <AppButton
         v-if="!monster.is_shared"
         variant="menu"
@@ -287,25 +176,22 @@
         label="Delete monster"
         @click="onDelete"
       />
-    </div>
-  </MobileSheet>
+    </template>
+  </EntitySheetMobile>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, toRef } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import { useRouter } from "vue-router";
-import { useScroll } from "@vueuse/core";
-import FocalImage from "@/components/common/FocalImage.vue";
+import EntitySheetMobile from "@/components/common/EntitySheetMobile.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
-import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
-import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
+import QuickFact from "@/components/common/QuickFact.vue";
+import AccordionSection from "@/components/common/AccordionSection.vue";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import { IconCopy, IconDelete, IconEdit, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";
 import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/monsters/useMonsters";
@@ -322,11 +208,6 @@ const { monster } = defineProps<{ monster: Monster }>();
 const description = useMonsterDescription(() => monster);
 
 const router = useRouter();
-
-// ── Scroll-driven app bar ──────────────────────────────────────────────────────
-const scrollRoot = ref<HTMLElement | null>(null);
-const { y: scrollY } = useScroll(scrollRoot);
-const scrolled = computed(() => scrollY.value > 150);
 
 // ── Display helpers (mirror the desktop sheet) ──────────────────────────────────
 const subtitle = computed(() => `${monster.size} ${monster.monster_type}, ${monster.alignment}`);
@@ -350,9 +231,6 @@ const openSections = reactive({
   combat: false,
 });
 
-// ── Sheets ───────────────────────────────────────────────────────────────────
-const showMenu = ref(false);
-
 // ── Customize (SRD → editable clone) — mirrors MonsterDetail/MonsterSheet ───────
 const { mutateAsync: clone } = useCloneLibraryMonster();
 const cloning = ref(false);
@@ -375,18 +253,4 @@ async function onDelete() {
   // Post-mutation navigation: list view is the success feedback.
   void router.push("/monsters");
 }
-
-function goBack() {
-  if (window.history.length > 1) router.back();
-  else void router.push("/monsters");
-}
 </script>
-
-<style scoped>
-/* Hero gradient fading into the page background. Uses the theme background var
-   so it tracks light/dark themes. Kept in <style> because Tailwind cannot
-   express a transparent → var() vertical gradient as a single utility. */
-.hero-fade {
-  background: linear-gradient(to bottom, transparent, var(--background) 92%);
-}
-</style>

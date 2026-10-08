@@ -10,13 +10,18 @@
     prose on one sheet was the bug.
   -->
   <section
-    v-if="traits?.length"
+    v-if="traits?.length || $slots.default"
     class="trait-list rounded-lg border border-primary/30 bg-card overflow-hidden break-inside-avoid"
   >
     <h3 class="border-b border-primary/20 bg-primary/5 px-4 py-1.5 text-heading-sm text-primary">
       {{ title }}
     </h3>
-    <div class="divide-y divide-primary/15">
+    <!-- Free text instead of named traits (a spell's description): the same
+         titled panel, with the body left to the caller. -->
+    <div v-if="$slots.default" class="px-4 py-3 text-body leading-relaxed text-foreground">
+      <slot />
+    </div>
+    <div v-else class="divide-y divide-primary/15">
       <div
         v-for="(trait, i) in traits"
         :key="i"
@@ -43,7 +48,7 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
 defineProps<{
   title: string;
-  traits: Array<{ name: string; description: string }> | undefined;
+  traits?: Array<{ name: string; description: string }>;
 }>();
 
 function paragraphs(value: string): string[] {

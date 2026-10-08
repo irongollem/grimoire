@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
+import { createPinia, setActivePinia } from "pinia";
 import SpellList from "./SpellList.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
@@ -78,11 +79,15 @@ function makeSpell(overrides: Partial<SpellBrowseRow> = {}): SpellBrowseRow {
     source: null,
     source_title: null,
     source_url: null,
+    image_url: null,
+    image_focal_point: null,
     is_shared: false,
     is_own: true,
     ...overrides,
   };
 }
+
+beforeEach(() => setActivePinia(createPinia()));
 
 const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
 
@@ -220,5 +225,37 @@ describe("SpellList filters", () => {
     const cards = wrapper.findAllComponents(BulkSelectableCard);
     expect(cards[0].props("selecting")).toBe(true);
     expect(cards[1].props("selecting")).toBe(false);
+  });
+});
+
+describe("SpellList cards", () => {
+  it("a DM card links to the spell, which opens over the grid", async () => {
+    mocks.rows = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
+    const wrapper = await mountList();
+    const link = wrapper.findComponent(RouterLinkStub);
+    expect(link.props("to")).toBe("/spells/11111111-1111-4111-8111-111111111111");
+  });
+
+  it("a player card is a button that emits spell-click instead of navigating", async () => {
+    const spell = makeSpell({ id: "11111111-1111-4111-8111-111111111111" });
+    mocks.rows = [spell];
+    const wrapper = mount(SpellList, {
+      props: {
+        search: "", levelFilter: "", schoolFilter: "", classFilter: "", sourceFilter: "all",
+        playerMemberId: "member-1",
+      },
+      global: globalStubs,
+    });
+    await flushPromises();
+    expect(wrapper.findComponent(RouterLinkStub).exists()).toBe(false);
+    await wrapper.find("button[aria-label='Test Spell']").trigger("click");
+    expect(wrapper.emitted("spell-click")).toEqual([[spell]]);
+  });
+
+  it("shows the level on the art and the source on a library row", async () => {
+    mocks.rows = [makeSpell({ level: 3, is_shared: true, source_title: "Deep Magic" })];
+    const wrapper = await mountList();
+    expect(wrapper.text()).toContain("3rd");
+    expect(wrapper.text()).toContain("Deep Magic");
   });
 });

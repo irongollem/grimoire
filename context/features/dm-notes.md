@@ -19,7 +19,7 @@ A DM note is the DM writing to their future self, and only that. It never reache
 - **Autosave replaces Save/Cancel for this field.** `useAutosave` + `AutosaveStatus` ("Saving…" / "Saved"). It follows the Forms-autosave direction in CLAUDE.md. There is no save to navigate after, so no Post-Mutation Navigation applies.
 - **Column versus private `entity_notes` row, and why deities and species moved.** The registry (`src/lib/dmNotes/registry.ts`, read its header) decides per type:
   - Nine types keep it in a column on their own table, which only the owner can read: `npcs.notes`, `monsters.notes`, `items.dm_notes`, `traps.notes`, `puzzle_rooms.notes`, `dungeon_features.notes`, `loot_tables.notes`, `roll_tables.notes`, `locations.notes`.
-  - Deities, species, factions, companions, quests, encounters and party members keep it as the DM's own private `entity_notes` row (`is_private`, not `shared_with_dm`).
+  - Deities, species, factions, companions, quests, encounters, party members and custom spells keep it as the DM's own private `entity_notes` row (`is_private`, not `shared_with_dm`). A spell takes the private row because `spells_select` lets a player read the custom spells of their DM. A library spell has no note: its id is text and the note's campaign is read from `spells`, so the box is shown only on a custom spell the DM can edit, as the monster sheet shows none on a library monster.
   - Deities and species **moved** because players can select those rows: `deities_player_select` returned every column of a deity revealed to a character (and `deities` is realtime-published), and `species_select` lets any campaign member read the DM's species. `deities.dm_notes` and `species.notes` were a REST call away from a player. Migration `20261006093358_dm_notes_scratchpad.sql` copies each non-blank value into the owner's private `entity_notes` row and drops both columns. Companions are readable by every member for the same reason, so they never had a safe column.
   - Heroes went the same way (#989, migration `20261006093359`): `hall_of_heroes` is read by every signed-in account, so its admin-only "DM Notes" column was readable by all of them. A hero is shared, so its note is each DM's own private row; the admin's two notes became the admin's own.
   - Factions, quests, encounters and party members never had a DM-notes column.
@@ -30,6 +30,7 @@ A DM note is the DM writing to their future self, and only that. It never reache
 - **The page box yields to the panel.** While the docked panel shows an entity, that entity's box on the page collapses to "Open in the scratchpad", so there is only ever one editor per note. Two live editors on one note would race each other's autosave. The yielded box hands its subject away, which flushes any pending edit first.
 - **Touched-this-session is keyed on the campaign session.** The panel's "This session" list is every entity whose note the DM wrote since the running session's `started_at`; once the session ends it reads "Last session": the run session in the `campaign_sessions` log (#985) that ended last, bounded by its `started_at` and `ended_at`. The live session is only the log's open row, so the ended one is read from the log (`useCampaignSessions`); a session logged by hand afterwards never ran and has no span. With no session started, there is no list. It is keyed on the session (see [sessions.md](sessions.md)) rather than on a time window so it means what the DM means by "tonight".
 - **No entity-root invalidation after an autosave.** Only the note's own read (`["dm-note", ...]`) refreshes. Every screen that shows a DM note reads it through `useDmNote`, so refetching the entity's lists after each autosave would cost a full list read every few seconds of typing at the table (see the comment in `useDmNote.ts`).
+- **Written in the hand (Vellum).** A note is the DM's words, not the book's, so its whole text is set in Fondamento in the softer hand ink, like what is typed into an `AppInput` (#1031). `DmNoteBox` carries `data-hand` and the rule lives in `vellum.css`'s Ink section; the placeholder stays in print. Other themes keep their body face.
 - **Generators still fill the note.** AI generators that create an NPC, trap, loot table and so on write their DM-notes output into the note. The deity generator creates the deity and then writes its generated secrets as the DM's private note. NPC Quick Create saves the Concept box as the NPC's DM note.
 
 ## The box
@@ -38,7 +39,7 @@ A DM note is the DM writing to their future self, and only that. It never reache
 
 Each autosave also upserts a `dm_note_touches` row (`recordTouch`).
 
-Surfaces: NPC, monster, item, trap, dungeon feature, puzzle, loot table and roll table pages; Atlas place pane; deity, species and faction pages; companion editor; quest Overview tab; encounter detail page and the encounter run screen; party member (the DM's private note, kept apart from the character's own "Notes"); Hall of Heroes hero page (each DM's own note on a shared hero, carried into the NPC when the hero is imported).
+Surfaces: NPC, monster, item, trap, dungeon feature, puzzle, loot table and roll table pages; Atlas place pane; deity, species and faction pages; companion editor; quest Overview tab; encounter detail page and the encounter run screen; party member (the DM's private note, kept apart from the character's own "Notes"); Hall of Heroes hero page (each DM's own note on a shared hero, carried into the NPC when the hero is imported); a custom spell's sheet.
 
 ## The docked scratchpad
 
@@ -57,7 +58,7 @@ Surfaces: NPC, monster, item, trap, dungeon feature, puzzle, loot table and roll
 
 | Table | Notes |
 | --- | --- |
-| `entity_notes` | Existing. Private rows (`is_private`) carry the DM note for deity, species, faction, companion, quest, encounter, party member and hero. |
+| `entity_notes` | Existing. Private rows (`is_private`) carry the DM note for deity, species, faction, companion, quest, encounter, party member, hero and spell. |
 | `dm_note_touches` | New. One row per (user, campaign, entity type, entity id), upserted with a fresh `touched_at` on each save; keeps the entity's label so a deleted entity still reads. RLS on `user_id`. `src/composables/notes/useDmNoteTouches.ts` reads it. |
 | notes columns | `npcs.notes`, `monsters.notes`, `items.dm_notes`, `traps.notes`, `puzzle_rooms.notes`, `dungeon_features.notes`, `loot_tables.notes`, `roll_tables.notes`, `locations.notes`. |
 | dropped | `deities.dm_notes`, `species.notes`. |
