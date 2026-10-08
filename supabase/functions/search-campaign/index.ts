@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, isChildAccount, suspendedResponse } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
@@ -38,14 +39,22 @@ import {
  * npc_player_notes are also per-player, so indexing them into a DM-facing
  * search would leak one player's private speculation through the search layer.
  *
+ * WHY PRO-ONLY. Search by meaning is a Pro feature of the caller's own
+ * account (is_user_pro: Pro, tester or admin, never a child); every plan keeps
+ * keyword search. It is not priced in credits: a search costs a fraction of a
+ * cent and charging a search box as the DM types would be absurd, so the plan
+ * is the gate instead. This does not contradict "never gate AI generation on
+ * Pro" (generation spends credits on every plan): nothing is generated here.
+ * `is_user_pro` fails closed, so a failed check answers `pro_only`.
+ *
  * WHY IT DOES NOT GATE ON `ai_enabled`. embed-on-write already embeds the
  * campaign's content whatever that flag says, and the query is the DM's own
  * text. Nothing is generated and no model reads the DM's prose here: the only
  * provider call is one embedding of the query. The flag governs generation,
  * and this is not generation.
  *
- * EVERY DEGRADATION ANSWERS 200 with `unavailable` (child account, no
- * embedding provider, rate limited) so the client falls back to keyword search
+ * EVERY DEGRADATION ANSWERS 200 with `unavailable` (child account, not Pro,
+ * no embedding provider, rate limited) so the client falls back to keyword search
  * silently instead of reporting an error. Only a malformed request, a missing
  * token, a wrong campaign, a provider failure or a total retrieval failure are
  * non-200.
@@ -190,6 +199,9 @@ serve(withCors(async (req: Request) => {
     console.error("search-campaign: DM check failed:", e);
     return json({ error: "Failed to check campaign access" }, 500);
   }
+
+  // Before the provider and the rate limit, so a free account costs nothing.
+  if (!(await isUserPro(admin, user.id))) return unavailable("pro_only");
 
   // Same platform provider resolution as embed-content. A config problem is an
   // expected degradation here, not an error the client should report.

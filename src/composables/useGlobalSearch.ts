@@ -1,11 +1,13 @@
 import { computed, type Ref } from "vue";
-import { refDebounced } from "@vueuse/core";
+import { refDebounced, useLocalStorage } from "@vueuse/core";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { orFilterValue } from "@/lib/postgrestFilter";
 import { useCampaignStore } from "@/stores/campaign";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useAuthStore } from "@/stores/auth";
+import { useSubscription } from "@/composables/billing/useSubscription";
+import { useChildAccount } from "@/composables/account/useChildAccount";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useRuleset, useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -213,6 +215,12 @@ export const SEARCH_DEBOUNCE_MS = 250;
  *  pause rather than the keyword tier's short one. */
 export const SEMANTIC_DEBOUNCE_MS = 500;
 
+/** At or below this many name hits, a free DM is told search by meaning exists. */
+export const PRO_UPSELL_MAX_HITS = 2;
+
+/** Browser-local: a dismissed note stays dismissed on this device only. */
+export const PRO_UPSELL_DISMISSED_KEY = "grimoire:search-by-meaning-upsell-dismissed";
+
 /** Below this the embedding of a fragment says little and costs the same. */
 const SEMANTIC_MIN_QUERY = 3;
 
@@ -243,6 +251,8 @@ async function searchByMeaning(query: string, campaignId: string): Promise<Campa
 export function useGlobalSearch(query: Ref<string>) {
   const campaign = useCampaignStore();
   const auth = useAuthStore();
+  const { isPro, isLoading: subscriptionLoading } = useSubscription();
+  const { isChild, isLoading: childLoading } = useChildAccount();
   const campaignId = computed(() => campaign.activeCampaignId ?? null);
   const trimmed = computed(() => query.value.trim());
   const settled = refDebounced(trimmed, SEARCH_DEBOUNCE_MS);
@@ -269,9 +279,12 @@ export function useGlobalSearch(query: Ref<string>) {
   });
 
   // Players never fire it: the function answers 403 to them, and the corpus is
-  // DM material. `isDM` is the active campaign's membership role.
+  // DM material. `isDM` is the active campaign's membership role. Search by
+  // meaning is a Pro feature of the DM's own account (the function answers
+  // `pro_only` otherwise), so a free account never sends the request; every
+  // plan keeps the keyword tier above.
   const semanticEligible = computed(
-    () => trimmed.value.length >= SEMANTIC_MIN_QUERY && campaignId.value !== null && auth.isDM,
+    () => trimmed.value.length >= SEMANTIC_MIN_QUERY && campaignId.value !== null && auth.isDM && isPro.value,
   );
 
   const semantic = useQuery({
@@ -280,7 +293,7 @@ export function useGlobalSearch(query: Ref<string>) {
       if (activeCampaignId === null) throw new Error("campaign search ran without a campaign");
       return searchByMeaning(search, activeCampaignId);
     },
-    enabled: () => semanticSettled.value.length >= SEMANTIC_MIN_QUERY && campaignId.value !== null && auth.isDM,
+    enabled: () => semanticSettled.value.length >= SEMANTIC_MIN_QUERY && campaignId.value !== null && auth.isDM && isPro.value,
     staleTime: 5 * 60_000,
     retry: false,
   });
@@ -307,7 +320,26 @@ export function useGlobalSearch(query: Ref<string>) {
     () => semanticEligible.value && (semantic.isFetching.value || semanticSettled.value !== trimmed.value),
   );
 
-  return { ...result, data, isFetching, isSemanticPending };
+  // Free DMs see one quiet line under a search that found little by name,
+  // the moment search by meaning would have helped (#599). Only then, not on
+  // every search: a note that answers a real miss sells, one on every query is
+  // noise. Never for a player, a Pro or tester account, or a child (#928: we
+  // never sell to a child), and not while the plan is still loading, so a Pro
+  // account never sees it flash. Dismissed per browser, on purpose: seeing it
+  // once more on another device surprises nobody.
+  const upsellDismissed = useLocalStorage(PRO_UPSELL_DISMISSED_KEY, false);
+  const showProUpsell = computed(() => {
+    if (upsellDismissed.value || !auth.isDM || campaignId.value === null) return false;
+    if (subscriptionLoading.value || childLoading.value || isPro.value || isChild.value) return false;
+    if (settled.value.length < SEMANTIC_MIN_QUERY || isFetching.value) return false;
+    const hits = (result.data.value?.groups ?? []).reduce((n, g) => n + g.items.length, 0);
+    return hits <= PRO_UPSELL_MAX_HITS;
+  });
+  function dismissProUpsell() {
+    upsellDismissed.value = true;
+  }
+
+  return { ...result, data, isFetching, isSemanticPending, showProUpsell, dismissProUpsell };
 }
 
 /** "Quests", "Quests and Locations", "Notes, Quests and Locations". */

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, defineComponent, h, ref, type App } from "vue";
+import { createApp, defineComponent, h, nextTick, ref, type App } from "vue";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
 const mocks = vi.hoisted(() => ({
@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   report: vi.fn(),
   invoke: vi.fn(),
   isDM: true,
+  isPro: true,
+  subscriptionLoading: false,
+  isChild: false,
   slugs: ["srd-2024"] as string[] | null,
   ruleset: "2024",
   calls: [] as { table: string; method: string; args: unknown[] }[],
@@ -44,8 +47,21 @@ vi.mock("@/composables/rules/useRuleset", () => ({
   useTableRuleset: () => ({ ruleset: { get value() { return mocks.ruleset; } } }),
 }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ get isDM() { return mocks.isDM; } }) }));
+vi.mock("@/composables/billing/useSubscription", async () => {
+  const { computed } = await import("vue");
+  return {
+    useSubscription: () => ({
+      isPro: computed(() => mocks.isPro),
+      isLoading: computed(() => mocks.subscriptionLoading),
+    }),
+  };
+});
+vi.mock("@/composables/account/useChildAccount", async () => {
+  const { computed } = await import("vue");
+  return { useChildAccount: () => ({ isChild: computed(() => mocks.isChild), isLoading: computed(() => false) }) };
+});
 
-import { SEARCH_DEBOUNCE_MS, SEMANTIC_DEBOUNCE_MS, useGlobalSearch } from "./useGlobalSearch";
+import { PRO_UPSELL_DISMISSED_KEY, SEARCH_DEBOUNCE_MS, SEMANTIC_DEBOUNCE_MS, useGlobalSearch } from "./useGlobalSearch";
 
 let client: QueryClient;
 let apps: App[] = [];
@@ -74,6 +90,10 @@ describe("useGlobalSearch", () => {
     mocks.invoke.mockReset();
     mocks.invoke.mockResolvedValue({ data: { hits: [] }, error: null });
     mocks.isDM = true;
+    mocks.isPro = true;
+    mocks.subscriptionLoading = false;
+    mocks.isChild = false;
+    localStorage.clear();
     mocks.campaignId = "campaign-1";
     mocks.slugs = ["srd-2024"];
     mocks.ruleset = "2024";
@@ -277,10 +297,18 @@ describe("useGlobalSearch", () => {
       expect(search.data.value?.groups.map((g) => g.type)).toEqual(["note"]);
     });
 
-    it("never fires for a player, below three letters, or without a campaign", async () => {
+    it("never fires for a player, a free account, below three letters, or without a campaign", async () => {
       mocks.isDM = false;
       await runSemantic();
       expect(mocks.invoke).not.toHaveBeenCalled();
+
+      mocks.isDM = true;
+      mocks.isPro = false;
+      const free = await runSemantic();
+      expect(mocks.invoke).not.toHaveBeenCalled();
+      // Not "searching by meaning" forever: the tier is simply not there.
+      expect(free.isSemanticPending.value).toBe(false);
+      mocks.isPro = true;
 
       mocks.isDM = true;
       const short = ref("in");
@@ -291,6 +319,55 @@ describe("useGlobalSearch", () => {
       mocks.campaignId = null;
       await runSemantic();
       expect(mocks.invoke).not.toHaveBeenCalled();
+    });
+  });
+  describe("Pro upsell", () => {
+    async function runUpsell(term = "the pig tavern") {
+      const query = ref(term);
+      const search = mount(() => useGlobalSearch(query));
+      await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS * 2);
+      return search;
+    }
+
+    it("shows for a free DM whose search found little by name", async () => {
+      mocks.isPro = false;
+      mocks.byTable = { notes: { data: [{ id: "n1", title: "Pig ledger" }], error: null } };
+      const search = await runUpsell();
+      expect(search.showProUpsell.value).toBe(true);
+    });
+
+    it("stays away when the name search already found plenty", async () => {
+      mocks.isPro = false;
+      mocks.byTable = { notes: { data: [{ id: "n1", title: "a" }, { id: "n2", title: "b" }, { id: "n3", title: "c" }], error: null } };
+      const search = await runUpsell("plenty");
+      expect(search.showProUpsell.value).toBe(false);
+    });
+
+    it("never shows to a Pro account, a child, a player, or while the plan loads", async () => {
+      expect((await runUpsell("pro account")).showProUpsell.value).toBe(false);
+
+      mocks.isPro = false;
+      mocks.isChild = true;
+      expect((await runUpsell("child account")).showProUpsell.value).toBe(false);
+
+      mocks.isChild = false;
+      mocks.isDM = false;
+      expect((await runUpsell("player account")).showProUpsell.value).toBe(false);
+
+      mocks.isDM = true;
+      mocks.subscriptionLoading = true;
+      expect((await runUpsell("plan loading")).showProUpsell.value).toBe(false);
+    });
+
+    it("stays dismissed in this browser once dismissed", async () => {
+      mocks.isPro = false;
+      const first = await runUpsell("dismiss me");
+      expect(first.showProUpsell.value).toBe(true);
+      first.dismissProUpsell();
+      expect(first.showProUpsell.value).toBe(false);
+      await nextTick();
+      expect(localStorage.getItem(PRO_UPSELL_DISMISSED_KEY)).toBe("true");
+      expect((await runUpsell("another term")).showProUpsell.value).toBe(false);
     });
   });
 });

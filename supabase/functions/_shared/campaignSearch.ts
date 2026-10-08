@@ -31,8 +31,10 @@ export interface CampaignSearchHit {
  * Why a search came back empty without it being the DM's query that found
  * nothing. Every one of these is an expected degradation, answered with a 200
  * so the client falls back to keyword search without reporting an error.
+ * `pro_only`: search by meaning is a Pro feature; every plan keeps keyword
+ * search.
  */
-export type CampaignSearchUnavailable = "child_account" | "embedding_provider_unavailable" | "rate_limited";
+export type CampaignSearchUnavailable = "child_account" | "pro_only" | "embedding_provider_unavailable" | "rate_limited";
 
 export interface CampaignSearchResponse {
   hits: CampaignSearchHit[];

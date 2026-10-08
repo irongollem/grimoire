@@ -104,6 +104,8 @@
           {{ failedMessage }}
         </div>
       </template>
+
+      <SearchProUpsellRow v-if="showProUpsell" @dismiss="dismissProUpsell" @navigate="close" />
     </div>
   </div>
 </template>
@@ -119,6 +121,7 @@ import { formatCombo, isMacPlatform } from "@/lib/hotkeys";
 import type { SearchGroup } from "@/composables/useGlobalSearch";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import SearchProUpsellRow from "@/components/layout/SearchProUpsellRow.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 
 const { hotkey = true } = defineProps<{
@@ -135,7 +138,7 @@ const focusedIndex = ref(-1);
 const inputRef = ref<AppInputHandle | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 
-const { data, isFetching, isError, isSemanticPending } = useGlobalSearch(query);
+const { data, isFetching, isError, isSemanticPending, showProUpsell, dismissProUpsell } = useGlobalSearch(query);
 
 const groups = computed<SearchGroup[]>(() => {
   if (query.value.trim().length < 2) return [];

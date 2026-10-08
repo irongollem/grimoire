@@ -82,6 +82,11 @@
           <div v-else-if="isError" class="px-4 py-8 text-center text-body text-muted-foreground">
             Search failed. Try again.
           </div>
+          <!-- Keyword found nothing but the by-meaning tier may still: not "No results" yet -->
+          <div v-else-if="mobileGroups.length === 0 && isSemanticPending" class="px-4 py-4 flex items-center gap-2 text-body text-muted-foreground">
+            <BannerLoader class="h-4" />
+            Searching by meaning…
+          </div>
           <div v-else-if="mobileGroups.length === 0" class="px-4 py-8 text-center text-body text-muted-foreground">
             <template v-if="failedGroups.length > 0">{{ failedMessage }}</template>
             <template v-else>No results for "{{ mobileQuery.trim() }}"</template>
@@ -101,12 +106,20 @@
                 class="px-4 py-3 border-b border-border/30"
                 :label="item.name"
                 @click="searchOpen = false"
-              />
+              >
+                <span class="min-w-0 truncate">{{ item.name }}</span>
+                <span v-if="item.descriptor" class="min-w-0 truncate text-caption text-muted-foreground">{{ item.descriptor }}</span>
+              </AppButton>
             </template>
+            <div v-if="isSemanticPending" class="px-4 py-3 flex items-center gap-2 text-caption text-muted-foreground">
+              <BannerLoader class="h-3.5" />
+              Searching by meaning…
+            </div>
             <p v-if="failedGroups.length > 0" class="px-4 py-3 text-caption text-muted-foreground">
               {{ failedMessage }}
             </p>
           </template>
+          <SearchProUpsellRow v-if="showProUpsell" inset="md" @dismiss="dismissProUpsell" @navigate="searchOpen = false" />
         </div>
       </div>
     </Teleport>
@@ -125,6 +138,7 @@ import type { AppInputHandle } from "@/components/common/fieldVariants";
 import DmScratchpadToggle from "@/components/notes/DmScratchpadToggle.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
+import SearchProUpsellRow from "./SearchProUpsellRow.vue";
 import SessionControl from "./SessionControl.vue";
 import { failedGroupsMessage, useGlobalSearch } from "@/composables/useGlobalSearch";
 
@@ -138,7 +152,7 @@ const searchOpen = ref(false);
 const mobileQuery = ref("");
 const mobileInputRef = ref<AppInputHandle | null>(null);
 
-const { data, isFetching, isError } = useGlobalSearch(mobileQuery);
+const { data, isFetching, isError, isSemanticPending, showProUpsell, dismissProUpsell } = useGlobalSearch(mobileQuery);
 
 const mobileGroups = computed(() => {
   if (mobileQuery.value.trim().length < 2) return [];

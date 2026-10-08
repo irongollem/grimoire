@@ -46,6 +46,8 @@
           {{ failedMessage }}
         </p>
       </div>
+
+      <SearchProUpsellRow v-if="showProUpsell" class="-mx-3" @dismiss="dismissProUpsell" />
     </div>
   </DashboardWidget>
 </template>
@@ -74,6 +76,7 @@ import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import SearchProUpsellRow from "@/components/layout/SearchProUpsellRow.vue";
 import { failedGroupsMessage, useGlobalSearch } from "@/composables/useGlobalSearch";
 
 /**
@@ -88,7 +91,7 @@ const query = ref("");
  *  never runs, so anything the card said about results would be invented. */
 const MIN_QUERY = 2;
 
-const { data, isFetching, isError, isSemanticPending } = useGlobalSearch(query);
+const { data, isFetching, isError, isSemanticPending, showProUpsell, dismissProUpsell } = useGlobalSearch(query);
 
 const groups = computed(() => data.value?.groups ?? []);
 const failedGroups = computed(() => data.value?.failedGroups ?? []);
