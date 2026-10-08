@@ -336,7 +336,7 @@ export async function pullCampaignTables(
   const missingInProduction: string[] = [];
   for (const t of catalogue) {
     const own = columns.get(t.table) ?? [];
-    const owner = source ? ownershipFilter(own, source) : "";
+    const owner = source ? ownershipFilter(t.table, own, source) : "";
     const rows: Record<string, unknown>[] = [];
     let total = 0;
     try {

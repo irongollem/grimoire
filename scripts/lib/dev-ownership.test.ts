@@ -6,22 +6,29 @@ const SOURCE = "12121212-3434-5656-7878-909090909090";
 
 describe("ownershipFilter", () => {
   it("restricts user_id exactly", () => {
-    expect(ownershipFilter(["id", "user_id", "name"], SOURCE)).toBe(`user_id=eq.${SOURCE}`);
+    expect(ownershipFilter("npcs", ["id", "user_id", "name"], SOURCE)).toBe(`user_id=eq.${SOURCE}`);
   });
 
-  it("lets created_by be null, meaning no recorded author", () => {
-    expect(ownershipFilter(["id", "created_by"], SOURCE)).toBe(`or=(created_by.eq.${SOURCE},created_by.is.null)`);
-  });
+  it.each(["quest_beats", "quest_beat_edges", "quest_beat_attachments", "quest_clocks", "loot_placements"])(
+    "accepts an unrecorded author only for allowlisted %s",
+    (table) => {
+      expect(ownershipFilter(table, ["id", "created_by"], SOURCE)).toBe(`or=(created_by.eq.${SOURCE},created_by.is.null)`);
+      expect(ownershipFilter(table, ["user_id", "created_by"], SOURCE)).toBe(
+        `user_id=eq.${SOURCE}&or=(created_by.eq.${SOURCE},created_by.is.null)`,
+      );
+    },
+  );
 
-  it("requires both when a table has both columns", () => {
-    expect(ownershipFilter(["user_id", "created_by"], SOURCE)).toBe(
-      `user_id=eq.${SOURCE}&or=(created_by.eq.${SOURCE},created_by.is.null)`,
+  it.each(["quest_threads", "future_table"])("requires an exact creator for %s", (table) => {
+    expect(ownershipFilter(table, ["id", "created_by"], SOURCE)).toBe(`created_by=eq.${SOURCE}`);
+    expect(ownershipFilter(table, ["user_id", "created_by"], SOURCE)).toBe(
+      `user_id=eq.${SOURCE}&created_by=eq.${SOURCE}`,
     );
   });
 
   it("filters nothing for a table with neither, and refuses a source that is not a uuid", () => {
-    expect(ownershipFilter(["id", "campaign_id"], SOURCE)).toBe("");
-    expect(() => ownershipFilter(["user_id"], "x&user_id=neq.1")).toThrow(/uuid/);
+    expect(ownershipFilter("quest_threads", ["id", "campaign_id"], SOURCE)).toBe("");
+    expect(() => ownershipFilter("npcs", ["user_id"], "x&user_id=neq.1")).toThrow(/uuid/);
   });
 });
 

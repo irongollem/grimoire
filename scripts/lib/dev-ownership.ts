@@ -23,21 +23,29 @@ import { uuid } from "./dev-demo-sql.ts";
 
 export type Rows = Record<string, unknown>[];
 
+// Only these authored campaign tables treat an absent creator as source ownership.
+// Threads record the acting DM, so a null creator there must not imply ownership.
+const NULL_CREATOR_TABLES = new Set([
+  "quest_beats",
+  "quest_beat_edges",
+  "quest_beat_attachments",
+  "quest_clocks",
+  "loot_placements",
+]);
+
 /**
- * The PostgREST filter that restricts a table to the source account's rows.
- *
- * `user_id` is exact. `created_by` also accepts null: the quest-graph tables
- * (beats, threads, clocks, edges, attachments) and loot placements leave it
- * empty when no author was recorded, and those rows belong to the campaign's
- * owner by construction, since only the owner may write them. A table with both
- * columns must satisfy both. Returns "" for a table with neither, whose rows
- * are then scoped by the parent or campaign filter alone.
+ * Restricts rows to the source account in the PostgREST GET itself.
+ * Both ownership columns must match when present. Null creators are accepted
+ * only for the explicit campaign-authoring tables above; new tables default to
+ * an exact match. Tables with neither column are scoped by their parent alone.
  */
-export function ownershipFilter(columns: string[], source: string): string {
+export function ownershipFilter(table: string, columns: string[], source: string): string {
   const id = uuid(source);
   const parts: string[] = [];
   if (columns.includes("user_id")) parts.push(`user_id=eq.${id}`);
-  if (columns.includes("created_by")) parts.push(`or=(created_by.eq.${id},created_by.is.null)`);
+  if (columns.includes("created_by")) {
+    parts.push(NULL_CREATOR_TABLES.has(table) ? `or=(created_by.eq.${id},created_by.is.null)` : `created_by=eq.${id}`);
+  }
   return parts.join("&");
 }
 

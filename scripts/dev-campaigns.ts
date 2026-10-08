@@ -30,7 +30,7 @@
  *    which is valid for its author and "not available" to the fixture. The
  *    strict `private.copy_demo_template` aborts on the first of them, so it is
  *    not used here. The source account's own local data is not touched.
- *    The previous copies this script made are removed first with
+ *    The previous copies this script made are removed after a successful import with
  *    `private.purge_demo_campaign`; they are recognised as campaigns the
  *    fixture owns, with no demo source, named like a source campaign.
  *    (`dev-auth.ts` names its own clone "<name> (fixture)", so the two cannot
@@ -46,7 +46,8 @@
  *
  * A campaign has other people in it. Only the maintainer's own rows leave
  * production: every copied table with `user_id` is read with `user_id` equal to
- * the source account, and `created_by` equal to it or null (no recorded author),
+ * the source account, and `created_by` equal to it (null only for the explicit
+ * authoring-table allowlist in `lib/dev-ownership.ts`),
  * in the GET itself. Tier-2 rows are read only for kept parents. Then rows whose
  * foreign keys point at a row that was not kept are pruned, to a fixed point,
  * using the local schema's own foreign-key metadata (`lib/dev-ownership.ts`).
@@ -68,6 +69,7 @@
  *   npm run dev:campaigns -- --check   # report counts, change nothing
  */
 
+import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import {
   FIXTURE_EMAIL,
@@ -141,7 +143,7 @@ async function remoteSummary(remote: URL, key: string, columns: Map<string, stri
   const out: { table: string; kept: number; total: number }[] = [];
   for (const table of MAIN_TABLES) {
     const scope = `campaign_id=eq.${campaignId}`;
-    const owner = ownershipFilter(columns.get(table) ?? [], source);
+    const owner = ownershipFilter(table, columns.get(table) ?? [], source);
     out.push({
       table,
       total: await remoteCount(remote, key, table, scope),
@@ -216,7 +218,7 @@ interface Imported {
   detached: Record<string, number>;
 }
 
-async function pullAndCopy(
+export async function pullAndCopy(
   stack: { DB_URL: string },
   remote: URL,
   key: string,
@@ -247,12 +249,15 @@ async function pullAndCopy(
 
   const references = await pullReferences(remote, key, dbUrl, tables);
 
-  for (const old of previousCopies(dbUrl, owner, String(campaign.name), fresh)) {
-    sql(dbUrl, `select private.purge_demo_campaign(${quote(old)})`);
-  }
+  // Snapshot before import so the new copy cannot be selected for purging.
+  const previous = previousCopies(dbUrl, owner, String(campaign.name), fresh);
   const mine = remapToFixture(byTable.campaigns[0], tables, source, owner);
   const ownTables = tables.map((t) => ({ ...t, rows: mine.rows.get(t.table) ?? [] }));
   const skipped = importCampaign(dbUrl, mine.campaign, campaignColumns, ownTables, references, false);
+  // A failed import must leave the previous working copies intact.
+  for (const old of previous) {
+    sql(dbUrl, `select private.purge_demo_campaign(${quote(old)})`);
+  }
   return {
     id: String(mine.campaign.id),
     name: String(campaign.name),
@@ -372,7 +377,9 @@ async function main(): Promise<void> {
   console.log("\nSign in as the fixture and pick a campaign in the switcher. Run this again to refresh all of it.");
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}
