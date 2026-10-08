@@ -17,7 +17,7 @@ export interface ProviderConfigRow {
 
 export const PROVIDER_DISPLAY: Record<string, string> = {
   openai:    "OpenAI",
-  anthropic: "Anthropic · Claude Haiku 3",
+  anthropic: "Anthropic",
   gemini:    "Google Gemini",
 };
 
@@ -59,6 +59,15 @@ export function useProviderConfig() {
     return rows.value.find((r) => r.provider === provider);
   }
 
+  /**
+   * The model a text call to this provider runs on: every generation edge
+   * function reads `provider_config.text_model` for the campaign's
+   * `text_provider`, BYOK or platform key alike. Null until the config loads.
+   */
+  function textModelFor(provider: string): string | null {
+    return rowFor(provider)?.text_model ?? null;
+  }
+
   function textMultiplierFor(provider: string): number {
     return rowFor(provider)?.text_multiplier ?? 1.0;
   }
@@ -76,6 +85,7 @@ export function useProviderConfig() {
     rows,
     enabledImageProviders,
     enabledTextProviders,
+    textModelFor,
     textMultiplierFor,
     imageMultiplierFor,
     audioMultiplierFor,

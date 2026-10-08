@@ -143,9 +143,9 @@
           >
             <option v-for="o in availableTextProviders" :key="o.value" :value="o.value">{{ o.label }}</option>
           </AppSelect>
-          <!-- Platform: fixed GPT-4o mini -->
+          <!-- Platform: the model the admin configured for this provider -->
           <div v-else-if="!hasByokTextKey" class="field-input text-sm text-muted-foreground select-none">
-            GPT-4o mini · platform credits
+            {{ textProviderLabel(form.text_provider) }} · platform credits
           </div>
           <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
             No provider selected
@@ -371,7 +371,7 @@ const { data: settingContent } = useSettingContent(() => campaign.activeCampaign
 const settingDefaultPrompt = computed(() => (settingContent.value ? settingContent.value.defaultAiPrompt : ""));
 const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
 
-const { enabledImageProviders, enabledTextProviders, imageMultiplierFor } = useProviderConfig();
+const { enabledImageProviders, enabledTextProviders, imageMultiplierFor, textModelFor } = useProviderConfig();
 const { costOf } = useAiCredits();
 
 // Per-provider speed + a one-line characterisation, shown so the choice makes sense.
@@ -388,10 +388,19 @@ const selectedImageCredits = computed(
   () => wholeCredits(costOf("entity_image") * 1.5 * imageMultiplierFor(selectedImageProvider.value)),
 );
 
+// The model is read from provider_config, never written here: it is the same
+// row the edge functions call with, so the label cannot name a model the
+// server has stopped using.
+function textProviderLabel(provider: string): string {
+  const name  = PROVIDER_DISPLAY[provider] ?? provider;
+  const model = textModelFor(provider);
+  return model ? `${name} · ${model}` : name;
+}
+
 // BYOK provider options (shown when the user has entered their own keys)
 const BYOK_TEXT_OPTIONS = [
-  { value: "openai",    label: "OpenAI · GPT-4o mini",       keyProvider: "openai"    },
-  { value: "gemini",    label: "Google Gemini 2.5 Flash",    keyProvider: "gemini"    },
+  { value: "openai", keyProvider: "openai" },
+  { value: "gemini", keyProvider: "gemini" },
 ] as const;
 
 const BYOK_IMAGE_OPTIONS = [
@@ -426,7 +435,11 @@ function providerHasKeyStored(providerId: string): boolean {
 const hasByokTextKey  = computed(() => BYOK_TEXT_OPTIONS.some((o) => providerHasKey(o.keyProvider)));
 const hasByokImageKey = computed(() => BYOK_IMAGE_OPTIONS.some((o) => providerHasKey(o.keyProvider)));
 
-const availableTextProviders  = computed(() => BYOK_TEXT_OPTIONS.filter((o) => providerHasKey(o.keyProvider)));
+const availableTextProviders  = computed(() =>
+  BYOK_TEXT_OPTIONS
+    .filter((o) => providerHasKey(o.keyProvider))
+    .map((o) => ({ value: o.value, label: textProviderLabel(o.value) })),
+);
 // For BYOK: filter by key. For platform users: use enabled providers from DB config.
 const availableImageProviders = computed(() =>
   hasByokImageKey.value
