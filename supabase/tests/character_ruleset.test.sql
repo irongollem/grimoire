@@ -25,8 +25,8 @@
 --   e1 Pia's 2014 Sorcerer, unattached    e3 Dana's roster character at c1
 --   e2 Pia's 2024 Cleric, unattached      e4 Pia's second 2014 character
 --   e6 Sam's 2024 character, unattached   e7 Sam's 2014 character
---   e8 Dana's OFFERED Sorcerer at c1 (is_dm_managed), with a class spell, an
---      always-prepared grant, and a pouch inside a backpack
+--   e8 Dana's OFFERED Sorcerer at c1 (is_dm_managed), with a class spell, a
+--      feat spell, and a pouch inside a backpack
 
 begin;
 
@@ -249,7 +249,7 @@ values ('94300000-0000-4000-8000-000000000051', '94300000-0000-4000-8000-0000000
   'Offer Flame', 1, 'Action', '60 ft.', 'Instantaneous', 'Test damage.', array['Sorcerer'], 'automatic', '[{"dice":"2d6","type":"fire"}]'::jsonb, '1 creature');
 insert into public.character_spells (party_member_id, spell_id, source_type, source_class_id, is_known, is_prepared, always_prepared, casting_ability, source_label) values
   ('94300000-0000-4000-8000-0000000000e8', '94300000-0000-4000-8000-000000000051', 'class', '94300000-0000-4000-8000-0000000000f8', true, true, false, null, null),
-  ('94300000-0000-4000-8000-0000000000e8', 'offer-granted-spell', 'feat', null, true, true, true, 'cha', 'Offer feat');
+  ('94300000-0000-4000-8000-0000000000e8', 'offer-granted-spell', 'feat', null, true, true, false, 'cha', 'Offer feat');
 insert into public.party_inventory (id, campaign_id, user_id, name, quantity, carried_by, is_container, container_id) values
   ('94300000-0000-4000-8000-0000000000b1', '94300000-0000-4000-8000-0000000000c1', '94300000-0000-4000-8000-000000000001', 'Backpack', 1, '94300000-0000-4000-8000-0000000000e8', true, null),
   ('94300000-0000-4000-8000-0000000000b2', '94300000-0000-4000-8000-0000000000c1', '94300000-0000-4000-8000-000000000001', 'Pouch', 1, '94300000-0000-4000-8000-0000000000e8', false, '94300000-0000-4000-8000-0000000000b1');
@@ -267,7 +267,7 @@ create function pg_temp.assumed_facts() returns jsonb language sql security defi
     'spell_class_is_own', (select bool_and(cc.party_member_id = copy.id) from public.character_spells cs
         join public.character_classes cc on cc.id = cs.source_class_id, copy
        where cs.party_member_id = copy.id and cs.source_type = 'class'),
-    'grant', (select jsonb_build_object('always_prepared', cs.always_prepared, 'casting_ability', cs.casting_ability)
+    'grant', (select jsonb_build_object('source_label', cs.source_label, 'casting_ability', cs.casting_ability)
         from public.character_spells cs, copy where cs.party_member_id = copy.id and cs.source_type = 'feat'),
     'pouch_in_own_backpack', (select bag.carried_by = copy.id and bag.name = 'Backpack' and bag.id <> '94300000-0000-4000-8000-0000000000b1'
         from public.party_inventory pouch join public.party_inventory bag on bag.id = pouch.container_id, copy
@@ -316,8 +316,8 @@ select is(jsonb_build_object('ruleset', (pg_temp.assumed()).ruleset, 'custom_att
   'the copy carries the offer''s edition and the columns a hand-written list had missed');
 select is(pg_temp.assumed_facts() ->> 'class_edition', '2014', 'its class keeps its definition pin');
 select is(pg_temp.assumed_facts() ->> 'spell_class_is_own', 'true', 'its class spell points at its own class row');
-select is(pg_temp.assumed_facts() -> 'grant', '{"always_prepared": true, "casting_ability": "cha"}'::jsonb,
-  'an always-prepared grant stays one, with its casting ability');
+select is(pg_temp.assumed_facts() -> 'grant', '{"source_label": "Offer feat", "casting_ability": "cha"}'::jsonb,
+  'a feat''s spell stays the feat''s, with its casting ability');
 select is(pg_temp.assumed_facts() ->> 'pouch_in_own_backpack', 'true', 'and what it carries sits in its own containers');
 
 -- A DM cannot reach into another table.

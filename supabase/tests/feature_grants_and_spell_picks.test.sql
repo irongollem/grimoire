@@ -35,8 +35,21 @@ insert into public.spells (id, user_id, campaign_id, name, level, classes, rules
 insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, level, ruleset, max_hp, current_hp, languages) values
   ('99400000-0000-4000-8000-0000000000e1', '99400000-0000-4000-8000-000000000001', '99400000-0000-4000-8000-000000000001',
    '99400000-0000-4000-8000-0000000000c1', 'Ann''s Cleric', 13, '2024', 20, 20, array['Common']);
-insert into public.character_classes (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
-select '99400000-0000-4000-8000-0000000000a1', m.id, 'Cleric', 13, true, sc.id, 'system'
+-- A domain whose level-14 feature picks one wizard cantrip (Arcane Initiate's
+-- shape): the pick the level-up below writes, and the only one it may (#1027).
+insert into public.class_features (id, user_id, campaign_id, name, kind, ruleset, mechanics) values
+  ('99400000-0000-4000-8000-0000000000f1', null, null, 'Zzf Initiate', 'feature', '2024',
+   '{"choices": [{"key": "zzf_cantrips", "label": "Zzf cantrips", "replace_on_level_up": false,
+                  "pick": {"kind": "spell", "lists": ["Wizard"], "level": 0, "free_cast": false},
+                  "count": {"kind": "per_grant", "amount": 1}}]}'::jsonb);
+insert into public.custom_subclasses (id, user_id, campaign_id, class_name, subclass_name, ruleset, features) values
+  ('99400000-0000-4000-8000-0000000000d1', null, null, 'Cleric', 'Zzf Domain', '2024',
+   '{"14": ["99400000-0000-4000-8000-0000000000f1"]}'::jsonb);
+insert into public.character_classes
+  (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind,
+   subclass_name, subclass_definition_id)
+select '99400000-0000-4000-8000-0000000000a1', m.id, 'Cleric', 13, true, sc.id, 'system',
+       'Zzf Domain', '99400000-0000-4000-8000-0000000000d1'
   from public.party_members m join public.system_classes sc on sc.ruleset = '2024' and sc.class_name = 'Cleric'
  where m.id = '99400000-0000-4000-8000-0000000000e1';
 

@@ -191,16 +191,17 @@ select lives_ok($$
     '00000000-0000-4000-8000-000000000544', '00000000-0000-4000-8000-000000000583')
 $$, 'a class cantrip can be deleted even without an active replacement window');
 
+-- Written as the subclass sync writes it (this file runs as the table owner).
 select lives_ok($$
   insert into public.character_spells
-    (id, party_member_id, spell_id, source_type, source_class_id, is_prepared, always_prepared)
+    (id, party_member_id, spell_id, source_type, source_class_id, is_prepared, always_prepared, granted_by_subclass)
   values ('00000000-0000-4000-8000-000000000558', '00000000-0000-4000-8000-000000000544',
-    '00000000-0000-4000-8000-000000000562', 'class', '00000000-0000-4000-8000-000000000546', true, true)
-$$, 'always-prepared grants bypass class list and preparation limits');
+    '00000000-0000-4000-8000-000000000562', 'class', '00000000-0000-4000-8000-000000000546', true, true, true)
+$$, 'a subclass grant bypasses class list and preparation limits');
 insert into public.character_spells
-  (id, party_member_id, spell_id, source_type, source_class_id, is_prepared, always_prepared)
+  (id, party_member_id, spell_id, source_type, source_class_id, is_prepared)
 values ('00000000-0000-4000-8000-000000000572', '00000000-0000-4000-8000-000000000544',
-  'test-edition-flame-2024', 'class', '00000000-0000-4000-8000-000000000546', true, true);
+  'test-edition-flame-2024', 'class', '00000000-0000-4000-8000-000000000546', true);
 
 select throws_matching($$
   select public.apply_level_up(

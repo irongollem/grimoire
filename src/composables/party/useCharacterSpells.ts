@@ -85,25 +85,22 @@ export function useAddCharacterSpell() {
       partyMemberId,
       spellId,
       isPrepared = false,
-      alwaysPrepared = false,
       sourceClassId = null,
     }: {
       partyMemberId: string;
       spellId: string;
       isPrepared?: boolean;
-      /** Subclass-granted spell — always prepared, excluded from the prepared limit. */
-      alwaysPrepared?: boolean;
       /** Class that granted this spell; required for correct multiclass stats. */
       sourceClassId?: string | null;
     }) => {
+      // Always-prepared rows are never added here: a subclass grant is the
+      // server's, and a feature's pick is written by creation or level-up (#1027).
       const { error } = await supabase
         .from("character_spells")
         .insert({
           party_member_id: partyMemberId,
           spell_id: spellId,
-          // An always-prepared spell is, by definition, prepared.
-          is_prepared: isPrepared || alwaysPrepared,
-          always_prepared: alwaysPrepared,
+          is_prepared: isPrepared,
           source_type: "class",
           source_class_id: sourceClassId,
         });
