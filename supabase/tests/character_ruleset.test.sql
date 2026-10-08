@@ -444,15 +444,17 @@ select is((select changed_table from public.campaign_sync where campaign_id = '9
   'ruleset_reviews', 'a review on a seated character rings its campaign''s doorbell');
 
 -- The two flags that stand a guard down are raised by a fixed set of functions
--- and by nothing a client can call with a key of its choosing.
+-- and by nothing a client can call with a key of its choosing. The subclass sync
+-- handing a converted pick back (restore_subclass_picks, 20261008195336) is one:
+-- it is reached only from the sync's triggers, never by a client.
 select is_empty($q$
   select n.nspname || '.' || p.proname
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and p.prokind = 'f'
     and p.prosrc ~ 'set_config\(\s*''grimoire\.(spell_limits|pm_ruleset_transition)'''
     and (n.nspname, p.proname) not in (('private', 'convert_party_member_ruleset'), ('private', 'copy_party_member'),
-                                       ('private', 'repoint_party_member_content'))
-$q$, 'only the conversion, the copy and a re-point may suspend the spell limit or admit a ruleset write');
+                                       ('private', 'repoint_party_member_content'), ('private', 'restore_subclass_picks'))
+$q$, 'only the conversion, the copy, a re-point and a subclass pick handed back may suspend the spell limit or admit a ruleset write');
 
 -- ── One reader, structurally ─────────────────────────────────────────────────
 -- Body-based on purpose: an outcome test covers only the functions someone

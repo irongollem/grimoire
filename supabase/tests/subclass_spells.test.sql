@@ -4,8 +4,8 @@
 --   grants      arrive at their class level, flagged granted_by_subclass and
 --               always prepared; a pick of the same spell is converted, which
 --               frees its prepared slot; a de-level, a variant switch, clearing the
---               subclass, deleting the class row and editing the subclass all
---               reconcile; an unknown variant is refused
+--               subclass and editing the subclass all reconcile, handing a
+--               converted pick back; removing the class row cascades; an unknown variant is refused
 --   expanded    a Warlock-patron-style list admits a spell the class lacks, for
 --               that subclass only
 --   browse      p_extra_ids survives the class filter; one signature remains
@@ -21,7 +21,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(67);
+select plan(71);
 
 create function pg_temp.u(p text) returns uuid language sql immutable as $$
   select ('99500000-0000-4000-8000-0000000000' || p)::uuid;
@@ -111,6 +111,8 @@ select is((select count(*) from public.character_spells where party_member_id = 
 select ok((select always_prepared and is_prepared and granted_by_subclass and is_known from public.character_spells
   where party_member_id = pg_temp.u('e1') and spell_id = pg_temp.t('b1')), 'and is now an always-prepared granted spell');
 select is(pg_temp.picks('a1'), 3::bigint, 'it no longer counts as a pick');
+select ok((select pick_was_prepared is not null and pick_was_always_prepared = false from public.character_spells
+  where party_member_id = pg_temp.u('e1') and spell_id = pg_temp.t('b1')), 'and it remembers how it stood as a pick');
 select lives_ok($$
   insert into public.character_spells (party_member_id, spell_id, source_type, source_class_id, is_known)
   values (pg_temp.u('e1'), pg_temp.t('bd'), 'class', pg_temp.u('a1'), true)
@@ -120,6 +122,8 @@ $$, 'so the slot it ate takes another pick');
 
 update public.character_classes set levels = 3 where id = pg_temp.u('a1');
 select is(pg_temp.granted('a1'), array[pg_temp.t('b1'), pg_temp.t('b2')]::text[] , 'level 3 adds the level-3 grant');
+select ok((select pick_was_prepared is null and pick_was_always_prepared is null from public.character_spells
+  where party_member_id = pg_temp.u('e1') and spell_id = pg_temp.t('b2')), 'a grant the sync created remembers no pick');
 update public.character_classes set levels = 5 where id = pg_temp.u('a1');
 select is(array_length(pg_temp.granted('a1'), 1), 3, 'level 5 adds the level-5 grant');
 update public.character_classes set levels = 2 where id = pg_temp.u('a1');
@@ -164,15 +168,26 @@ select is(pg_temp.granted('a1'), array[pg_temp.t('b1'), pg_temp.t('b5')]::text[]
 update public.character_classes set subclass_name = null where id = pg_temp.u('a1');
 select is(pg_temp.granted('a1'), '{}'::text[], 'clearing the subclass removes every grant');
 select is((select subclass_variant from public.character_classes where id = pg_temp.u('a1')), null, 'and its variant');
-select is(pg_temp.picks('a1'), 4::bigint, 'the player''s own picks stay');
+select is(pg_temp.picks('a1'), 5::bigint,
+  'the player''s own picks stay, and the one the grant took over comes back, over the allowance the freed slot let them fill');
+select ok((select not granted_by_subclass and not always_prepared and pick_was_prepared is null and pick_was_always_prepared is null
+  from public.character_spells where party_member_id = pg_temp.u('e1') and spell_id = pg_temp.t('b1')),
+  'the spell the grant took over is an ordinary pick again');
 
 -- ── Deleting the class row ───────────────────────────────────────────────────
 
+insert into public.character_spells (party_member_id, spell_id, source_type, source_class_id, is_known)
+values (pg_temp.u('e5'), pg_temp.t('ba'), 'class', pg_temp.u('a5'), true);
+update public.custom_subclasses set granted_spells = granted_spells
+  || jsonb_build_object('1', jsonb_build_array(pg_temp.t('b1'), pg_temp.t('ba'))) where id = pg_temp.u('d1');
 update public.character_classes set subclass_name = 'Zzs Domain', subclass_definition_id = pg_temp.u('d1') where id = pg_temp.u('a5');
-select is(pg_temp.granted('a5'), array[pg_temp.t('b1')], 'a character created with the subclass has its grant');
-delete from public.character_classes where id = pg_temp.u('a5');
+select is(pg_temp.granted('a5'), array[pg_temp.t('b1'), pg_temp.t('ba')]::text[], 'taking the subclass grants its spells, converting a pick of one');
+insert into public.character_spells (party_member_id, spell_id, source_type, source_class_id, is_known)
+values (pg_temp.u('e5'), pg_temp.t('bb'), 'class', pg_temp.u('a5'), true);
+select lives_ok($$ delete from public.character_classes where id = pg_temp.u('a5') $$,
+  'a class holding an ordinary pick can be removed (the old SET NULL key refused it)');
 select is((select count(*) from public.character_spells where party_member_id = pg_temp.u('e5')), 0::bigint,
-  'deleting the class row takes its grants with it, instead of orphaning them');
+  'and takes its spells with it, grants, the converted pick and the ordinary pick alike, instead of orphaning them');
 
 -- ── Ruleset 2024: an unprepared spellbook entry converts ─────────────────────
 
