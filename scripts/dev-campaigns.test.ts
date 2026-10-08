@@ -13,6 +13,8 @@ vi.mock("./lib/dev-campaign-io", () => ({
   pullCampaignTables: vi.fn(async () => ({ tables: [], keptOut: {}, missingInProduction: [] })),
   pullReferences: vi.fn(async () => []),
   pullReferencedSpecies: vi.fn(async () => ({ pulled: 0, detached: {} })),
+  pullSourceSpecies: vi.fn(async () => ({ reference: null, gone: [] })),
+  emptyLocalSpeciesReferences: vi.fn(() => 0),
   importCampaign: vi.fn(() => []),
   runSqlFile: vi.fn(),
   seatPlayerFixture: vi.fn(),
@@ -56,7 +58,11 @@ describe("campaign replacement", () => {
     const result = await copy();
     expect(events).toEqual([
       "snapshot", "import",
+      // The fixture's claim is released first, or the claimed character would
+      // survive the purge as a stray in dm-fixture's pool (#1034).
+      "update public.party_members set owner_user_id = null where campaign_id = 'old-copy-1'",
       "select private.purge_demo_campaign('old-copy-1')",
+      "update public.party_members set owner_user_id = null where campaign_id = 'old-copy-2'",
       "select private.purge_demo_campaign('old-copy-2')",
     ]);
     expect(result.id).not.toBe(campaign.id);

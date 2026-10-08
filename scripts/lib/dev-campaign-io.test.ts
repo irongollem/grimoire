@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseSkipped, pullCampaignTables, pullReferencedSpecies } from "./dev-campaign-io";
+import { emptyLocalSpeciesReferences, parseSkipped, pullCampaignTables, pullReferencedSpecies, pullSourceSpecies } from "./dev-campaign-io";
+import * as db from "./dev-db";
 import * as stack from "./dev-stack";
 
 describe("parseSkipped", () => {
@@ -91,5 +92,37 @@ describe("pullReferencedSpecies (#1034)", () => {
     const result = await pullReferencedSpecies(new URL("https://example.invalid"), "k", { id: CAMPAIGN, disabled_species_ids: [] }, tables, SOURCE);
     expect(rows).not.toHaveBeenCalled();
     expect(result).toEqual({ pulled: 0, detached: {} });
+  });
+});
+
+describe("pullSourceSpecies (#1034)", () => {
+  afterEach(() => vi.restoreAllMocks());
+  const SOURCE = "12121212-3434-5656-7878-909090909090";
+  const KEPT = "b0b0b0b0-0000-4000-8000-000000000001";
+  const GONE = "b0b0b0b0-0000-4000-8000-000000000002";
+
+  it("reads the missing species unchanged under the ownership rule, and lists what production no longer has", async () => {
+    vi.spyOn(db, "sql").mockImplementation((_url, query) => {
+      if (query.includes("pg_attribute")) return "species\tid,user_id,campaign_id,name";
+      return `${KEPT}\n${GONE}`;
+    });
+    const rows = vi.spyOn(stack, "remoteRows").mockResolvedValue([{ id: KEPT, user_id: SOURCE, campaign_id: null, name: "Moth-folk" }]);
+    const result = await pullSourceSpecies(new URL("https://example.invalid"), "k", "postgresql://local", "c1", SOURCE);
+    expect(rows.mock.calls[0]![3]).toContain(`user_id=eq.${SOURCE}`);
+    expect(result.reference).toEqual({ table: "species", rows: [{ id: KEPT, user_id: SOURCE, campaign_id: null, name: "Moth-folk" }], columns: ["id", "user_id", "campaign_id", "name"] });
+    expect(result.gone).toEqual([GONE]);
+  });
+
+  it("asks production nothing when the local rows name no missing species", async () => {
+    vi.spyOn(db, "sql").mockReturnValue("");
+    const rows = vi.spyOn(stack, "remoteRows");
+    expect(await pullSourceSpecies(new URL("https://example.invalid"), "k", "postgresql://local", "c1", SOURCE)).toEqual({ reference: null, gone: [] });
+    expect(rows).not.toHaveBeenCalled();
+  });
+
+  it("clears nothing, and runs nothing, when nothing is gone", () => {
+    const sql = vi.spyOn(db, "sql");
+    expect(emptyLocalSpeciesReferences("postgresql://local", "c1", [])).toBe(0);
+    expect(sql).not.toHaveBeenCalled();
   });
 });

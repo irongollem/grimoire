@@ -246,6 +246,68 @@ export async function pullReferencedSpecies(
   return { pulled, detached: detachMissingSpecies(byTable, held) };
 }
 
+/**
+ * The source campaign's own local rows (ids unchanged, from an earlier import or
+ * `seed.sql`) name account-level species the local stack never received,
+ * because `seed.sql` predates them (#1034). Reads the ones production still has,
+ * under the ownership rule, as reference rows the import inserts unchanged
+ * (`on conflict do nothing`), and lists the ids production no longer has, so
+ * `emptyLocalSpeciesReferences` can clear them once the import is done.
+ */
+export async function pullSourceSpecies(
+  remote: URL,
+  key: string,
+  dbUrl: string,
+  campaignId: string,
+  source: string,
+): Promise<{ reference: ReferenceTable | null; gone: string[] }> {
+  const wanted = sql(
+    dbUrl,
+    `select distinct v from (
+       select species_id v from public.party_members where campaign_id = ${quote(campaignId)}
+       union all select disguise_species_id from public.party_members where campaign_id = ${quote(campaignId)}
+       union all select unnest(disabled_species_ids)::text from public.campaigns where id = ${quote(campaignId)}
+     ) refs
+     where v ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+       and not exists (select 1 from public.species s where s.id::text = refs.v)`,
+  ).split("\n").filter(Boolean);
+  if (wanted.length === 0) return { reference: null, gone: [] };
+
+  const columns = readLocalColumns(dbUrl, ["species"]).get("species") ?? [];
+  const rows: Record<string, unknown>[] = [];
+  for (let i = 0; i < wanted.length; i += ID_CHUNK) {
+    const filter = andFilters(`id=in.(${wanted.slice(i, i + ID_CHUNK).join(",")})`, ownershipFilter("species", columns, source));
+    rows.push(...(await remoteRows(remote, key, "species", filter, "id")));
+  }
+  const found = new Set(rows.map((r) => String(r.id)));
+  return {
+    reference: rows.length ? { table: "species", rows, columns } : null,
+    gone: wanted.filter((id) => !found.has(id)),
+  };
+}
+
+/**
+ * Clears the species references in one campaign's local rows that name a
+ * species the local stack still lacks, the way `detachMissingSpecies` does
+ * before an import: a scalar to null, an array element dropped. Returns how
+ * many it cleared.
+ */
+export function emptyLocalSpeciesReferences(dbUrl: string, campaignId: string, ids: string[]): number {
+  if (ids.length === 0) return 0;
+  const list = `array[${ids.map(quote).join(", ")}]::text[]`;
+  const id = quote(campaignId);
+  return Number(sql(
+    dbUrl,
+    `with a as (update public.party_members set species_id = null where campaign_id = ${id} and species_id = any(${list}) returning 1),
+          b as (update public.party_members set disguise_species_id = null where campaign_id = ${id} and disguise_species_id = any(${list}) returning 1),
+          c as (update public.campaigns set disabled_species_ids = (
+                  select coalesce(array_agg(e order by n), '{}') from unnest(disabled_species_ids) with ordinality u(e, n)
+                   where not (e::text = any(${list}))
+                ) where id = ${id} and disabled_species_ids::text[] && ${list} returning 1)
+     select (select count(*) from a) + (select count(*) from b) + (select count(*) from c)`,
+  ));
+}
+
 export function importCampaign(
   dbUrl: string,
   campaign: Record<string, unknown>,

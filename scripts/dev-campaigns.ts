@@ -78,6 +78,8 @@ import {
   pullCampaignTables,
   pullReferences,
   pullReferencedSpecies,
+  pullSourceSpecies,
+  emptyLocalSpeciesReferences,
   readCatalogue,
   readExcludedTables,
   readForeignKeys,
@@ -252,14 +254,26 @@ export async function pullAndCopy(
   for (const t of tables) t.rows = byTable[t.table];
 
   const references = await pullReferences(remote, key, dbUrl, tables);
+  // The source campaign's own local rows name account-level species `seed.sql`
+  // never carried (#1034); they go in unchanged, and what production no longer
+  // has is cleared after the import.
+  const sourceSpecies = await pullSourceSpecies(remote, key, dbUrl, id, source);
+  if (sourceSpecies.reference) references.push(sourceSpecies.reference);
 
   // Snapshot before import so the new copy cannot be selected for purging.
   const previous = previousCopies(dbUrl, owner, String(campaign.name), fresh);
   const mine = remapToFixture(byTable.campaigns[0], tables, source, owner);
   const ownTables = tables.map((t) => ({ ...t, rows: mine.rows.get(t.table) ?? [] }));
   const skipped = importCampaign(dbUrl, mine.campaign, campaignColumns, ownTables, references, false);
+  const cleared = emptyLocalSpeciesReferences(dbUrl, id, sourceSpecies.gone);
+  if (cleared > 0) report.detached["species references in the source's own rows"] = cleared;
   // A failed import must leave the previous working copies intact.
   for (const old of previous) {
+    // The player fixture's claim would outlive the purge: a claimed character's
+    // delete is refused, and the campaign's ON DELETE SET NULL then leaves it in
+    // dm-fixture's pool, pointing at species the purge just removed. One more
+    // stray copy every run (#1034). The claim is this script's own; release it.
+    sql(dbUrl, `update public.party_members set owner_user_id = null where campaign_id = ${quote(old)}`);
     sql(dbUrl, `select private.purge_demo_campaign(${quote(old)})`);
   }
   return {
