@@ -889,7 +889,7 @@
   background-color: transparent;
   box-shadow: none;
 }
-:root[data-theme^="vellum"] :is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):is(:focus, :focus-visible) {
+:root[data-theme^="vellum"] :is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):is(:focus, :focus-visible, :focus-within) {
   border-bottom-color: var(--foreground);
   box-shadow: inset 0 -1px 0 var(--foreground);
 }
@@ -922,7 +922,7 @@
   background-clip: padding-box;
   border-image: var(--vl-field-frame) 12 / 0.75rem / 0.3125rem round;
 }
-:root[data-theme^="vellum"] [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):not(:is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) *):is(:focus, :focus-visible) { border-image-source: var(--vl-field-frame-focus); }
+:root[data-theme^="vellum"] [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):not(:is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) *):is(:focus, :focus-visible, :focus-within) { border-image-source: var(--vl-field-frame-focus); }
 :root[data-theme^="vellum"] [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):not(:is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) *)[aria-invalid="true"] { border-image-source: var(--vl-field-frame-invalid); }
 
 /* Floating slip. Outset 7px so a full-width hovered row never pokes past the

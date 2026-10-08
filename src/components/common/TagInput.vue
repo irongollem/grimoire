@@ -1,6 +1,12 @@
 <template>
   <div ref="rootEl" class="relative">
+    <!-- The wrapper is the field (it carries the box), so it takes the field hooks
+         and Vellum draws it as a line on a card or a slip on the bare page; the
+         input inside is `bare` so it gets the DM's hand without a second line. -->
     <div
+      data-field="tags"
+      data-field-size="body"
+      data-field-tone="card"
       class="flex flex-wrap items-center gap-1 min-h-9.5 bg-card border border-border rounded-md px-2 py-1 cursor-text"
       @click="inputRef?.focus()"
     >
@@ -16,6 +22,9 @@
         v-no-pwm
         ref="inputRef"
         v-model="inputVal"
+        data-field="input"
+        data-field-size="body"
+        data-field-tone="bare"
         :placeholder="model.length ? '' : placeholder"
         class="bg-transparent border-none outline-none text-body text-foreground placeholder:text-muted-foreground/60 min-w-24 flex-1"
         @keydown.enter.prevent="addFromInput"
