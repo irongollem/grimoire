@@ -1,5 +1,5 @@
 <template>
-  <PageHeader :title="beat?.title || 'Quest beat'" :description="eyebrowText" :owns-phone-bar="!!beat">
+  <PageHeader :title="beat?.title || 'Quest beat'" :description="eyebrowText" :owns-phone-bar="!isLoading && !!beat">
     <template #actions>
       <!-- Below `lg` these two land in the phone dock instead (frame 3) —
            hidden here so the actions do not double up. -->
