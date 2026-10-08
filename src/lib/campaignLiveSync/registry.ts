@@ -224,6 +224,14 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   ["quest_beat_attachments", ["quest_beat_attachments", QUEST_BOARD_KEY, BEATS_KEY, TRANSITIONS_KEY]],
   ["quest_consequences", ["quest_consequences", QUEST_BOARD_KEY, RUNTIME_CONTEXT_KEY]],
   ["quest_refs", ["quest_refs", BEATS_KEY, TRANSITIONS_KEY]],
+  // The rest (#1033 wave 3). What stays off a route on purpose is listed with
+  // its reason in live_sync_registry.test.sql (live_sync_exempt), which fails
+  // on any campaign table that is neither routed nor exempt.
+  ["spell_change_windows", ["spellChangeWindows"]],
+  ["npc_relationships", ["npc_relationships"]],
+  ["campaign_invites", ["campaign-invites"]],
+  // One user's own favourites, for their other devices.
+  ["player_favourites", ["player_favourites"]],
   // Subscribed on its own channel (usePartyLive), which carries inserts and
   // updates as exact rows. It rings only for what that channel cannot carry: a
   // delete, and a character leaving the campaign (#1026).

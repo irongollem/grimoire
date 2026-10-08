@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -76,7 +76,32 @@ insert into live_sync_doorbell (name) values
   ('faction_locations'), ('faction_items'), ('faction_npcs'), ('faction_relations'),
   ('location_doors'), ('location_map_regions'), ('quest_beat_edges'),
   ('quest_beat_edge_gates'), ('quest_beat_attachments'), ('quest_consequences'),
-  ('quest_refs');
+  ('quest_refs'),
+  -- The rest (#1033 wave 3).
+  ('spell_change_windows'), ('npc_relationships'), ('campaign_invites'),
+  ('player_favourites');
+
+-- Campaign tables deliberately on no route, each with the reason. Grimoire
+-- runs live games, so a table a member's screen reads is live by default; the
+-- assertion at the end fails on any campaign-anchored table that is neither
+-- routed nor listed here, so leaving one off has to be argued (#1033).
+create temporary table live_sync_exempt (name text primary key, reason text not null) on commit drop;
+insert into live_sync_exempt (name, reason) values
+  ('document_imports',          'server job progress: the sanctioned poll in useDocumentImport stops when extraction settles'),
+  ('tile_pack_generation_runs', 'server job progress: the sanctioned poll in useTilePacks stops when no run is in flight'),
+  ('tile_pack_generation_jobs', 'server job progress, read through its run'),
+  ('dashboard_layouts',         'Customize mode saves on every drag and writes the server''s answer back instead of refetching (useDashboardLayout); an echoed ring would refetch under the drag and could restore an older layout'),
+  ('player_read_items',         'one user''s read marks, written on every view: a ring would make every member re-read their own marks whenever anyone opens anything'),
+  ('session_proposal_invites',  'deny-all; read by token through the RSVP RPCs, and no screen holds it'),
+  ('spell_cast_records',        'a log no screen reads; a cast''s visible effects land on party_members and character_spells, which are live'),
+  ('crafting_recipe_grants',    'unread since recipes moved to player_visible_to (5 Apr 2026); its removal awaits the maintainer'),
+  ('faction_embeddings',        'derived search index, deny-all, read only by definer search'),
+  ('item_embeddings',           'derived search index, deny-all, read only by definer search'),
+  ('location_embeddings',       'derived search index, deny-all, read only by definer search'),
+  ('monster_embeddings',        'derived search index, deny-all, read only by definer search'),
+  ('note_embeddings',           'derived search index, deny-all, read only by definer search'),
+  ('npc_embeddings',            'derived search index, deny-all, read only by definer search'),
+  ('quest_embeddings',          'derived search index, deny-all, read only by definer search');
 
 -- Subscribed on a channel of its own with exact-row handlers, so it rings only
 -- for what that channel cannot carry: a delete (#1026).
@@ -264,6 +289,46 @@ select ok(
   (select p.prosrc ~ 'grimoire\.copying_campaign' from pg_proc p
     where p.oid = 'private.ring_campaigns(uuid[], text)'::regprocedure),
   'the ring stays quiet while a campaign is being copied');
+
+-- Live by default (#1033). A table is campaign data when it carries one of the
+-- anchors below or reaches one through foreign keys at any depth; such a table
+-- rings the doorbell, is published for a channel, or is exempt with a reason.
+-- A doorbell function that is renamed or added must join the pattern here.
+select is(
+  (with recursive anchored(oid) as (
+     select c.oid from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind = 'r'
+        and exists (select 1 from pg_attribute a
+                     where a.attrelid = c.oid and not a.attisdropped
+                       and a.attname in ('campaign_id', 'party_member_id', 'location_id', 'quest_id'))
+     union
+     select k.conrelid from pg_constraint k join anchored p on p.oid = k.confrelid
+      where k.contype = 'f'
+   )
+   select coalesce(string_agg(c.relname::text, ', ' order by c.relname), '')
+     from anchored a
+     join pg_class c on c.oid = a.oid
+    where c.relname not in (select name from live_sync_exempt)
+      and c.relname <> 'campaign_sync'
+      and not exists (select 1 from pg_trigger g join pg_proc p on p.oid = g.tgfoid
+                       where g.tgrelid = c.oid and not g.tgisinternal and p.proname like 'signal\_%')
+      and not exists (select 1 from pg_publication_tables t
+                       where t.pubname = 'supabase_realtime' and t.schemaname = 'public'
+                         and t.tablename = c.relname)),
+  '',
+  'every campaign table is on a live route or exempt with a reason');
+
+-- An exemption for a table that is in fact routed, or no longer exists, is stale.
+select is(
+  (select coalesce(string_agg(e.name, ', ' order by e.name), '')
+     from live_sync_exempt e
+    where to_regclass('public.' || e.name) is null
+       or exists (select 1 from pg_trigger g join pg_proc p on p.oid = g.tgfoid
+                   where g.tgrelid = to_regclass('public.' || e.name) and not g.tgisinternal
+                     and p.proname like 'signal\_%')),
+  '',
+  'no exemption names a table that is gone or already rings');
 
 select * from finish();
 rollback;
