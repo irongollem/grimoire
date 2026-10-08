@@ -10,7 +10,7 @@ import { useToast } from "@/composables/useToast";
 import type { GridCalibration, Location, LocationInsert, LocationSummary, LocationUpdate, MapScale } from "@/types/location.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { LOCATION_SUMMARY_SELECT, VAGUE_LOCATION_TYPES } from "@/types/location.types";
-import { PLANAR_LOCATIONS } from "@/data/settingLocations";
+import { PLANAR_LOCATIONS, type LocationPreset } from "@/data/settingLocations";
 import { loadSettingContent } from "@/settings/content";
 import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/populateSetting/settingContent";
 import { persistReorder, toReorderEntries } from "@/lib/reorder";
@@ -701,8 +701,70 @@ export function useReorderLocations() {
   });
 }
 
-/** Bulk-insert the 21 standard D&D planes into the active campaign. Returns inserted count.
- *  Two-pass: inserts all new planes first, then resolves parent_id links by name. */
+/**
+ * Inserts a setting's preset places into a campaign and returns how many were
+ * new. A preset already there (matched by name) is skipped, and stamped with
+ * `setting_source` if it predates that column, so shipped content stops counting
+ * against the user's location cap.
+ *
+ * Each new place gets a minted id, so its parent (another preset, new or
+ * already there) is known before anything is written, and the tree goes in one
+ * request per level: a row cannot be parented by another in the same statement
+ * (see `insertLocations`). It used to insert every place parentless and then
+ * patch each parent link in a request of its own, whose errors nothing read.
+ */
+export async function insertSettingLocations(
+  campaignId: string,
+  presets: readonly LocationPreset[],
+  source: string,
+): Promise<number> {
+  const { data: existing, error: fetchError } = await supabase
+    .from("locations")
+    .select("id, name")
+    .eq("campaign_id", campaignId);
+  if (fetchError) throw fetchError;
+
+  await stampSettingSource(
+    "locations",
+    matchSettingRowIds(existing ?? [], presets.map((p) => p.name)),
+    source,
+  );
+
+  const idByName = new Map((existing ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]));
+  const fresh = presets.filter((p) => !idByName.has(p.name.toLowerCase()));
+  if (!fresh.length) return 0;
+  for (const preset of fresh) idByName.set(preset.name.toLowerCase(), crypto.randomUUID());
+
+  const user = getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+  const toRow = ({ parent, ...preset }: LocationPreset) => ({
+    ...preset,
+    id: idByName.get(preset.name.toLowerCase())!,
+    user_id: user.id,
+    campaign_id: campaignId,
+    parent_id: parent ? (idByName.get(parent.toLowerCase()) ?? null) : null,
+    description: null,
+    image_url: null,
+    setting_source: source,
+  });
+
+  // A level is every remaining place whose parent is not itself still waiting.
+  let waiting = fresh;
+  while (waiting.length) {
+    const blocked = new Set(waiting.map((p) => p.name.toLowerCase()));
+    const level = waiting.filter((p) => !p.parent || !blocked.has(p.parent.toLowerCase()));
+    if (!level.length) throw new Error(`Setting locations form a cycle: ${waiting.map((p) => p.name).join(", ")}`);
+    const { error } = await supabase.from("locations").insert(level.map(toRow), { defaultToNull: false });
+    if (error) throw error;
+    // Queue each committed level even if a later level fails to insert.
+    queueEmbeddingsInBackground("location", level.map((p) => idByName.get(p.name.toLowerCase())!));
+    waiting = waiting.filter((p) => !level.includes(p));
+  }
+
+  return fresh.length;
+}
+
+/** Inserts the 21 standard D&D planes into the active campaign. Returns the inserted count. */
 export function usePopulatePlanarLocations() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
@@ -710,86 +772,13 @@ export function usePopulatePlanarLocations() {
     mutationFn: async (): Promise<number> => {
       const campaignId = campaign.activeCampaignId;
       if (!campaignId) throw new Error("No active campaign");
-
-      const user = getCurrentUser();
-
-      const { data: existing, error: fetchError } = await supabase
-        .from("locations")
-        .select("id, name")
-        .eq("campaign_id", campaignId);
-      if (fetchError) throw fetchError;
-
-      const existingNameToId = new Map(
-        (existing ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]),
-      );
-
-      // Repair pass for campaigns populated before `setting_source` existed —
-      // planes we shipped were counting against the user's 10-location cap, and
-      // there are twenty of them.
-      await stampSettingSource(
-        "locations",
-        matchSettingRowIds(existing ?? [], PLANAR_LOCATIONS.map((p) => p.name)),
-        PLANAR_SOURCE,
-      );
-
-      const toInsert = PLANAR_LOCATIONS
-        .filter((p) => !existingNameToId.has(p.name.toLowerCase()))
-        .map(({ parent: _parent, ...p }) => ({
-          ...p,
-          campaign_id: campaignId,
-          user_id: user!.id,
-          parent_id: null as string | null,
-          description: null,
-          image_url: null,
-          setting_source: PLANAR_SOURCE,
-        }));
-
-      if (!toInsert.length) return 0;
-
-      const { data: inserted, error: insertError } = await supabase
-        .from("locations")
-        .insert(toInsert)
-        .select("id, name");
-      if (insertError) throw insertError;
-
-      // Bulk insert bypasses useCreateLocation()'s mutation hook, so the new
-      // rows need an embed call here (one batched request, #972) -- otherwise these locations stay
-      // unretrievable until the next admin backfill (mirrors
-      // useCloneLibraryMonster's comment in useMonsters.ts).
-      queueEmbeddingsInBackground("location", (inserted ?? []).map((row) => row.id));
-
-      const nameToId = new Map(existingNameToId);
-      for (const loc of inserted ?? []) {
-        nameToId.set(loc.name.toLowerCase(), loc.id);
-      }
-
-      const insertedNameToId = new Map(
-        (inserted ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]),
-      );
-      const parentUpdates = PLANAR_LOCATIONS
-        .filter((p) => p.parent && insertedNameToId.has(p.name.toLowerCase()))
-        .map((p) => ({
-          id: insertedNameToId.get(p.name.toLowerCase())!,
-          parent_id: nameToId.get(p.parent!.toLowerCase()),
-        }))
-        .filter((u): u is { id: string; parent_id: string } => !!(u.id && u.parent_id));
-
-      if (parentUpdates.length) {
-        await Promise.all(
-          parentUpdates.map((u) =>
-            supabase.from("locations").update({ parent_id: u.parent_id }).eq("id", u.id),
-          ),
-        );
-      }
-
-      return (inserted ?? []).length;
+      return insertSettingLocations(campaignId, PLANAR_LOCATIONS, PLANAR_SOURCE);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
 
-/** Bulk-insert preset locations for the active campaign's setting. Returns inserted count.
- *  Two-pass: inserts all new locations first, then resolves parent_id links by name. */
+/** Inserts the preset places of the active campaign's setting. Returns the inserted count. */
 export function usePopulateLocations() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
@@ -810,85 +799,7 @@ export function usePopulateLocations() {
       const content = (await loadSettingContent(calendarId)) ?? (await loadSettingContent("faerun"));
       const presets = content ? content.locations : [];
       if (!presets.length) return 0;
-
-      const user = getCurrentUser();
-
-      // Fetch existing locations (id + name) for dedup and parent resolution
-      const { data: existing, error: fetchError } = await supabase
-        .from("locations")
-        .select("id, name")
-        .eq("campaign_id", campaignId);
-      if (fetchError) throw fetchError;
-
-      const existingNameToId = new Map(
-        (existing ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]),
-      );
-
-      // Repair pass for campaigns populated before `setting_source` existed.
-      // Every setting exceeds the free 10-location cap on its own — Faerûn ships
-      // 35 — so this is the button that was most thoroughly broken by counting
-      // our own content against the user.
-      await stampSettingSource(
-        "locations",
-        matchSettingRowIds(existing ?? [], presets.map((p) => p.name)),
-        calendarId,
-      );
-
-      // Pass 1 — insert all new locations (parent_id null for now)
-      const toInsert = presets
-        .filter((p) => !existingNameToId.has(p.name.toLowerCase()))
-        .map(({ parent: _parent, ...p }) => ({
-          ...p,
-          campaign_id: campaignId,
-          user_id: user!.id,
-          parent_id: null as string | null,
-          description: null,
-          image_url: null,
-          setting_source: calendarId,
-        }));
-
-      if (!toInsert.length) return 0;
-
-      const { data: inserted, error: insertError } = await supabase
-        .from("locations")
-        .insert(toInsert)
-        .select("id, name");
-      if (insertError) throw insertError;
-
-      // Bulk insert bypasses useCreateLocation()'s mutation hook, so the new
-      // rows need an embed call here (one batched request, #972) -- otherwise these locations stay
-      // unretrievable until the next admin backfill (mirrors
-      // useCloneLibraryMonster's comment in useMonsters.ts).
-      queueEmbeddingsInBackground("location", (inserted ?? []).map((row) => row.id));
-
-      // Pass 2 — resolve parent_id links by name
-      // Build full name→id map: existing rows + just-inserted rows
-      const nameToId = new Map(existingNameToId);
-      for (const loc of inserted ?? []) {
-        nameToId.set(loc.name.toLowerCase(), loc.id);
-      }
-
-      // Only patch parent_id for newly inserted rows that declare a parent
-      const insertedNameToId = new Map(
-        (inserted ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]),
-      );
-      const parentUpdates = presets
-        .filter((p) => p.parent && insertedNameToId.has(p.name.toLowerCase()))
-        .map((p) => ({
-          id: insertedNameToId.get(p.name.toLowerCase())!,
-          parent_id: nameToId.get(p.parent!.toLowerCase()),
-        }))
-        .filter((u): u is { id: string; parent_id: string } => !!(u.id && u.parent_id));
-
-      if (parentUpdates.length) {
-        await Promise.all(
-          parentUpdates.map((u) =>
-            supabase.from("locations").update({ parent_id: u.parent_id }).eq("id", u.id),
-          ),
-        );
-      }
-
-      return (inserted ?? []).length;
+      return insertSettingLocations(campaignId, presets, calendarId);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });

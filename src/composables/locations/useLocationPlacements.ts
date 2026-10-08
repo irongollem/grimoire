@@ -138,15 +138,15 @@ export async function insertLocationPlacements(rows: readonly LocationPlacementI
   if (error) throw error;
 }
 
-/** Several existing placements with their own values: one UPDATE each in
- *  parallel, without the hook's per-row invalidation. */
+/** Several existing placements with their own values, in ONE request and all
+ *  or nothing (`update_location_placements`, 20261008200423), without the hook's
+ *  per-row invalidation. */
 export async function updateLocationPlacements(
   updates: readonly { id: string; update: LocationPlacementUpdate }[],
 ): Promise<void> {
-  const results = await Promise.all(
-    updates.map(({ id, update }) => supabase.from("location_placements").update(update).eq("id", id)),
-  );
-  for (const { error } of results) if (error) throw error;
+  if (!updates.length) return;
+  const { error } = await supabase.rpc("update_location_placements", { p_updates: updates });
+  if (error) throw error;
 }
 
 async function updateLocationPlacement(id: string, update: LocationPlacementUpdate): Promise<LocationPlacement> {

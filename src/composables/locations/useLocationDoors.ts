@@ -70,15 +70,15 @@ export async function insertLocationDoors(rows: readonly LocationDoorInsert[]): 
   if (error) throw error;
 }
 
-/** Several existing doors with their own values: one UPDATE each in parallel,
- *  without the hook's per-row invalidation. */
+/** Several existing doors with their own values, in ONE request and all or
+ *  nothing (`update_location_doors`, 20261008200423), without the hook's per-row
+ *  invalidation. */
 export async function updateLocationDoors(
   updates: readonly { id: string; update: LocationDoorUpdate }[],
 ): Promise<void> {
-  const results = await Promise.all(
-    updates.map(({ id, update }) => supabase.from("location_doors").update(update).eq("id", id)),
-  );
-  for (const { error } of results) if (error) throw error;
+  if (!updates.length) return;
+  const { error } = await supabase.rpc("update_location_doors", { p_updates: updates });
+  if (error) throw error;
 }
 
 async function updateLocationDoor(id: string, update: LocationDoorUpdate): Promise<LocationDoor> {
