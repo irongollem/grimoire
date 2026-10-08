@@ -133,11 +133,11 @@ const SORT_OPTIONS = [
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const noteKey = (note: Note) => note.id;
 
-// Row height before a row is measured (px), measured at a 390px phone on
-// 8 Oct 2026: 140-156px across cards, 156 the median. It decides where a
+// Row height before a row is measured (px): 166-170px across 20 notes, 170 the median, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
 // restored scroll lands, since coming back from a detail re-renders every
 // unmeasured row above the viewport.
-const NOTE_ROW_PX = 156;
+const NOTE_ROW_PX = 170;
 
 const { data: notes, isLoading } = useNotes();
 const { mutate: reorder } = useReorderNotes();

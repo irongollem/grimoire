@@ -187,12 +187,11 @@ const router = useRouter();
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const heroKey = (hero: HallOfHero) => hero.id;
 
-// Row height before a row is measured (px), for a card with tags, in the Vellum
-// default: 1px border x2 + 144 artwork (h-36) + p-3 (24) + name (17.5) + race
-// line (17.3) + tags row (4 pt-1 + 15) + Add to Campaign button (~31: 12 py-1.5
-// + 17.3 label + border) + three gap-1 (12) = 267. Compare the monster grid's
-// measured 262.
-const HERO_ROW_PX = 267;
+// Row height before a row is measured (px): 273-295px across 162 heroes, 295 the median, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const HERO_ROW_PX = 295;
 const listRef = ref<HTMLElement | null>(null);
 useScrollRestore("hall-of-heroes", listRef);
 

@@ -202,10 +202,11 @@ useScrollRestore("factions");
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
 const factionKey = (faction: { id: string }) => faction.id;
 
-// Row height before a row is measured (px): 86px measured at a 390px
-// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
-// back from a detail re-renders every unmeasured row above the viewport.
-const ROW_PX = 86;
+// Row height before a row is measured (px): 82-107px across 26 factions, 88 the median, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const ROW_PX = 88;
 
 const populateMutation = usePopulateFactions();
 const populateStatus = ref<"idle" | "done" | "uptodate">("idle");

@@ -290,13 +290,11 @@ const disciplineRecipes = computed(() =>
 // Mirrors the `grid gap-4 sm:grid-cols-2` it replaced.
 const recipeColumns = useBreakpointColumns({ base: 1, sm: 2 });
 const recipeKey = (recipe: CraftingRecipe) => recipe.id;
-// Row height before it is measured (px), for a typical card: 2 border + 63
-// header (py-3 24, border-b 1, name 20, mb-0.5 2, DC line 16) + 52 description
-// (pt-3 12, two prose lines ~40) + 103 ingredients (py-3 24, 11 label + 8 gap,
-// three 16px rows at mb-1 = 60) + 61 attempt bar (py-3 24, border-t 1, 36
-// button) = 281. Cards differ by description and ingredient count (a grid row
-// takes its taller card), so rows are re-measured as they mount.
-const RECIPE_ROW_PX = 281;
+// Row height before a row is measured (px): 270-317px across 176 recipes, 295 the median (a card's height follows its ingredient count), measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const RECIPE_ROW_PX = 295;
 
 const allRecipeIds = computed(() => (recipes.value ?? []).map((r) => r.id));
 const ingredientsMap = useAllRecipeIngredients(allRecipeIds);

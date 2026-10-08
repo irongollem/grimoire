@@ -262,10 +262,11 @@ const filtered = computed(() => {
 // `grid-cols-1 sm:grid-cols-2` it replaced.
 const factionColumns = useBreakpointColumns({ base: 1, sm: 2 });
 const factionKey = (faction: { id: string }) => faction.id;
-// Row height before a row is measured (px): 80px measured at a 390px
-// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
-// back from a detail re-renders every unmeasured row above the viewport.
-const FACTION_ROW_PX = 80;
+// Row height before a row is measured (px): 74-82px across 26 factions, 82 the median, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const FACTION_ROW_PX = 82;
 
 function open(faction: Faction) {
   selected.value = faction;

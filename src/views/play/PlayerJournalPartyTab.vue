@@ -111,12 +111,11 @@ const {
   authorName: (entry: PlayerJournalEntry) => string | null;
 }>();
 
-// The party shares entries every session, so the list is windowed. An expanded
-// entry grows its row and is re-measured. Collapsed row height before
-// measurement (px): 2 border + 2 category rule (h-0.5) + 24 padding (py-3) +
-// 20 title (text-heading-xs) + 18 preview (mt-0.5 + one text-caption line) +
-// 6 (mt-1.5) + 16 meta line (text-caption author) = 88.
-const ENTRY_ROW_PX = 88;
+// Row height before a row is measured (px): 84px, the same journal card as the My tab, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const ENTRY_ROW_PX = 84;
 const entryKey = (entry: PlayerJournalEntry) => entry.id;
 
 defineEmits<{

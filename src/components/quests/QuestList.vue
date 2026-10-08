@@ -153,10 +153,10 @@ const ui = useUiStore();
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const questKey = (quest: Quest) => quest.id;
 
-// Row height before a row is measured (px), measured at a 390px phone on
-// 8 Oct 2026 from a single quest card, so worth rechecking against more. It
-// decides where a restored scroll lands, since coming back from a detail
-// re-renders every unmeasured row above the viewport.
+// Row height before a row is measured (px): 123-145px across 17 quests, 141 the median, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
 const QUEST_ROW_PX = 142;
 const search = computed(() => ui.questsSearch);
 const isKanban = computed(() => ui.questsIsKanban);

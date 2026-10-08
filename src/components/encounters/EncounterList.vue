@@ -168,12 +168,11 @@ const ui = useUiStore();
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
 const encounterKey = (encounter: EncounterListRow) => encounter.id;
 
-// Row height before a row is measured (px), for a card with a description, in
-// the Vellum default: 1px border x2 + 6 colour bar + p-4 (32) + name row (17.5,
-// the one-line 14px title) + 2-line description at 13px/1.333 (34.7) + stats row
-// (17.3) + two gap-3 (24) = 134. A card without a description is 87px, so a row
-// of those is over-estimated until measured.
-const ENCOUNTER_ROW_PX = 134;
+// Row height before a row is measured (px): 81-127px across 35 encounters, 127 the median, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const ENCOUNTER_ROW_PX = 127;
 const search = computed(() => ui.encountersSearch);
 const hideFinished = computed(() => ui.encountersHideFinished);
 const questFilter = computed(() => ui.encountersFilterQuestId);
