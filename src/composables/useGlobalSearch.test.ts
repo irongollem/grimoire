@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   ruleset: "2024",
   calls: [] as { table: string; method: string; args: unknown[] }[],
   campaignId: "campaign-1" as string | null,
+  /** The gate the search hands `useLibrarySourceSlugs`: whether it may read the books yet. */
+  sourcesActive: null as (() => boolean) | null,
 }));
 
 vi.mock("@/composables/library/useLibraryMonsterArt", async (importOriginal) => ({
@@ -45,7 +47,10 @@ vi.mock("@/lib/supabase", () => ({
 }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get activeCampaignId() { return mocks.campaignId; } }) }));
 vi.mock("@/composables/library/useEnabledSources", () => ({
-  useLibrarySourceSlugs: () => ({ slugs: { get value() { return mocks.slugs; } }, isLoading: { value: false } }),
+  useLibrarySourceSlugs: (active: () => boolean) => {
+    mocks.sourcesActive = active;
+    return { slugs: { get value() { return mocks.slugs; } }, isLoading: { value: false } };
+  },
 }));
 vi.mock("@/composables/rules/useRuleset", () => ({
   useRuleset: () => ({ ruleset: { get value() { return mocks.ruleset; } } }),
@@ -125,6 +130,19 @@ describe("useGlobalSearch", () => {
 
     await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
     expect(mocks.from).toHaveBeenCalledTimes(TABLES_PER_SEARCH);
+  });
+
+  it("does not ask for the enabled books until there is something to search (#999 2.15)", async () => {
+    // The box is mounted on every page; reading the books at mount cost two
+    // requests on every page load before anyone searched.
+    const query = ref("");
+    mount(() => useGlobalSearch(query));
+    await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS * 2);
+    expect(mocks.sourcesActive?.()).toBe(false);
+
+    query.value = "goblin";
+    await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+    expect(mocks.sourcesActive?.()).toBe(true);
   });
 
   it("sends nothing below two letters", async () => {

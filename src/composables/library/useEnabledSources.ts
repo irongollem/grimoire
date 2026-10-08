@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -67,7 +67,7 @@ async function disableSource(campaignId: string, source_slug: string): Promise<v
   if (error) throw error;
 }
 
-export function useEnabledSources() {
+export function useEnabledSources(active: MaybeRefOrGetter<boolean> = true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
@@ -76,7 +76,7 @@ export function useEnabledSources() {
       if (cid === null) throw new Error("useEnabledSources fetched without a campaign");
       return fetchEnabledSources(cid);
     },
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && toValue(active),
   });
 }
 
@@ -102,7 +102,7 @@ async function fetchUserEnabledSources(userId: string): Promise<UserEnabledSourc
 }
 
 /** The additional books the signed-in player enabled (the SRDs are not rows). */
-export function useUserEnabledSources() {
+export function useUserEnabledSources(active: MaybeRefOrGetter<boolean> = true) {
   const auth = useAuthStore();
   const userId = computed(() => auth.user?.id ?? null);
   return useQuery({
@@ -111,7 +111,7 @@ export function useUserEnabledSources() {
       if (uid === null) throw new Error("useUserEnabledSources fetched without a user");
       return fetchUserEnabledSources(uid);
     },
-    enabled: () => !!userId.value,
+    enabled: () => !!userId.value && toValue(active),
   });
 }
 
@@ -140,11 +140,15 @@ export function useUserEnabledSources() {
  * copy; exactly one of them remembered the standalone case, and the surfaces
  * behind the other five were empty for anyone without a campaign.
  */
-export function useLibrarySourceSlugs() {
+export function useLibrarySourceSlugs(active: MaybeRefOrGetter<boolean> = true) {
   const auth = useAuthStore();
   const { standalone } = useContentScope();
-  const enabledQuery = useEnabledSources();
-  const userQuery = useUserEnabledSources();
+  // Each read only where its answer is used: the campaign's books inside a
+  // campaign, the user's own outside one. `active` lets a caller that may never
+  // need either (the global search, mounted on every page) wait until it does,
+  // which kept two requests off every page load (#999 row 2.15).
+  const enabledQuery = useEnabledSources(() => !standalone.value && toValue(active));
+  const userQuery = useUserEnabledSources(() => standalone.value && toValue(active));
   const slugs = computed<string[] | null>(() =>
     resolveLibrarySlugs({
       standalone: standalone.value,

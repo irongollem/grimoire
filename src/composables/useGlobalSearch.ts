@@ -314,7 +314,9 @@ export function useGlobalSearch(query: Ref<string>) {
   const settled = refDebounced(trimmed, SEARCH_DEBOUNCE_MS);
   // Resolved in the scope the search box sits in (no character scope above it:
   // the active campaign's books and edition), like the lists it jumps to.
-  const { slugs } = useLibrarySourceSlugs();
+  // Asked for only once there is something to search: the composable is mounted
+  // on every page, and the books are needed by the first query, not the page load.
+  const { slugs } = useLibrarySourceSlugs(() => settled.value.length >= 2);
   const { ruleset: tableRuleset } = useTableRuleset();
   const { ruleset: buildRuleset } = useRuleset();
   const semanticSettled = refDebounced(trimmed, SEMANTIC_DEBOUNCE_MS);
