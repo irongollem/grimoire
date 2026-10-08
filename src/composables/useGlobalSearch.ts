@@ -11,6 +11,8 @@ import { useChildAccount } from "@/composables/account/useChildAccount";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useRuleset, useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { isUuid } from "@/lib/library/contentIdentity";
+import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { mergeSearchGroups, type SearchGroup } from "@/lib/search/mergeSearchHits";
 import type { CampaignSearchHit, CampaignSearchResponse } from "@edge-shared/campaignSearch.ts";
@@ -24,6 +26,60 @@ export interface SearchResult {
 }
 
 const LIMIT = 5;
+
+/** The picture a result row wears: only NPCs and bestiary entries have one. */
+export interface SearchThumbnail {
+  src: string;
+  focalPoint: { x: number; y: number } | null;
+}
+export type SearchThumbnails = Record<string, SearchThumbnail>;
+
+/**
+ * Portraits for the NPC and monster rows on screen, read from the ids the
+ * search already returned (both tiers), so neither the keyword fan-out nor the
+ * edge function carries art. A library monster gets the DM's own art layered
+ * over the canonical, as the Bestiary shows it. Entries without art are simply
+ * absent: the row falls back to an initial.
+ */
+async function fetchThumbnails(campaignId: string, npcIds: string[], monsterIds: string[]): Promise<SearchThumbnails> {
+  const customIds = monsterIds.filter(isUuid);
+  const libraryIds = monsterIds.filter((id) => !isUuid(id));
+  const [npcs, custom, library] = await Promise.all([
+    npcIds.length > 0
+      ? supabase.from("npcs").select("id, portrait_url, portrait_focal_point").eq("campaign_id", campaignId).in("id", npcIds)
+      : null,
+    customIds.length > 0
+      ? supabase.from("monsters").select("id, image_url, portrait_focal_point").in("id", customIds)
+      : null,
+    libraryIds.length > 0
+      ? supabase.from("library_monsters").select("id, image_url, portrait_focal_point").in("id", libraryIds)
+      : null,
+  ]);
+  if (npcs?.error) throw npcs.error;
+  if (custom?.error) throw custom.error;
+  if (library?.error) throw library.error;
+
+  const out: SearchThumbnails = {};
+  if (npcs?.data) {
+    for (const row of npcs.data) {
+      if (row.portrait_url) out[row.id] = { src: row.portrait_url, focalPoint: row.portrait_focal_point };
+    }
+  }
+  if (custom?.data) {
+    for (const row of custom.data) {
+      if (row.image_url) out[row.id] = { src: row.image_url, focalPoint: row.portrait_focal_point };
+    }
+  }
+  if (library?.data && library.data.length > 0) {
+    const art = await fetchLibraryMonsterArtEntries(libraryIds);
+    // `library_monsters` has no cutout column; the merge only needs the key.
+    const merged = withLibraryArtAll(library.data.map((row) => ({ ...row, cutout_url: null })), art);
+    for (const row of merged) {
+      if (row.image_url) out[row.id] = { src: row.image_url, focalPoint: row.portrait_focal_point };
+    }
+  }
+  return out;
+}
 
 /** `campaign_id = active OR campaign_id is null`: the scope `useItems` /
  *  `useMonsterIndex` give their own lists. Without a campaign, nothing narrows. */
@@ -339,7 +395,40 @@ export function useGlobalSearch(query: Ref<string>) {
     upsellDismissed.value = true;
   }
 
-  return { ...result, data, isFetching, isSemanticPending, showProUpsell, dismissProUpsell };
+  // Thumbnails ride on whatever ids are on screen, in either tier. A failure
+  // here is reported and costs the rows their picture, never the search.
+  const thumbnailIds = computed(() => {
+    const groups = data.value?.groups;
+    const idsOf = (type: string): string[] => {
+      const group = groups?.find((g) => g.type === type);
+      return group ? group.items.map((item) => item.id).sort() : [];
+    };
+    return { npcs: idsOf("npc"), monsters: idsOf("monster") };
+  });
+  const thumbnailQuery = useQuery({
+    queryKey: computed(() => ["search-thumbnails", campaignId.value, thumbnailIds.value] as const),
+    queryFn: async ({ queryKey: [, activeCampaignId, ids] }) => {
+      if (activeCampaignId === null) throw new Error("search thumbnails ran without a campaign");
+      try {
+        return await fetchThumbnails(activeCampaignId, ids.npcs, ids.monsters);
+      } catch (e) {
+        reportHandledError(e, "search-thumbnails");
+        return {} satisfies SearchThumbnails;
+      }
+    },
+    enabled: () => campaignId.value !== null && (thumbnailIds.value.npcs.length > 0 || thumbnailIds.value.monsters.length > 0),
+    staleTime: 5 * 60_000,
+    retry: false,
+    placeholderData: (previous) => previous,
+  });
+  // Until the read answers there is simply no art yet: rows show initials.
+  const NO_THUMBNAILS: SearchThumbnails = {};
+  const thumbnails = computed<SearchThumbnails>(() => {
+    const loaded = thumbnailQuery.data.value;
+    return loaded === undefined ? NO_THUMBNAILS : loaded;
+  });
+
+  return { ...result, data, isFetching, isSemanticPending, showProUpsell, dismissProUpsell, thumbnails };
 }
 
 /** "Quests", "Quests and Locations", "Notes, Quests and Locations". */

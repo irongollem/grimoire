@@ -25,7 +25,7 @@
         <div
           v-if="open"
           :style="popupStyle"
-          class="fixed z-9999 flex gap-1 bg-card border border-border rounded-lg p-1.5 shadow-xl"
+          data-slip class="fixed z-9999 flex gap-1 bg-card border border-border rounded-lg p-1.5 shadow-xl"
           :class="openUpward ? 'origin-bottom-right' : 'origin-top-right'"
         >
           <button

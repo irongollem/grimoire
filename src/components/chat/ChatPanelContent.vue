@@ -201,7 +201,7 @@
           />
           <div
             v-if="vendorShowItems && vendorItemSuggestions.length"
-            class="absolute left-0 bottom-full mb-0.5 z-20 w-full rounded border border-border bg-card shadow overflow-hidden max-h-40 overflow-y-auto"
+            data-slip class="absolute left-0 bottom-full mb-0.5 z-20 w-full rounded border border-border bg-card shadow overflow-hidden max-h-40 overflow-y-auto"
           >
             <AppButton
               v-for="it in vendorItemSuggestions"

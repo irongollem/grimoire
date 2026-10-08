@@ -14,7 +14,7 @@
     <!-- Popover -->
     <div
       v-if="open"
-      class="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-border bg-card shadow-lg p-3 space-y-2 z-50"
+      data-slip class="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-border bg-card shadow-lg p-3 space-y-2 z-50"
     >
       <p class="flex items-center gap-1.5 text-label font-semibold text-muted-foreground">
         <IconSend class="h-3 w-3" />

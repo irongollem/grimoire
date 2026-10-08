@@ -41,4 +41,17 @@ describe("EntityCombobox", () => {
     await w.get("input").trigger("focus");
     expect(w.emitted("open")).toHaveLength(2);
   });
+
+  it("renders the hooks Vellum styles its field by", () => {
+    const input = mountBox({ modelValue: "", options }).get("input");
+    expect(input.attributes("data-field")).toBe("combobox");
+    expect(input.attributes("data-field-size")).toBe("body");
+    expect(input.attributes("data-field-tone")).toBe("card");
+  });
+
+  it("marks its open list as a floating slip", async () => {
+    const w = mountBox({ modelValue: "", options });
+    await w.get("input").trigger("focus");
+    expect(w.find("ul[data-slip]").exists()).toBe(true);
+  });
 });

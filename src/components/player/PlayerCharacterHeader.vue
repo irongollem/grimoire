@@ -161,7 +161,7 @@
           <template v-if="showConditionPicker">
             <div class="fixed inset-0 z-40" @click="showConditionPicker = false" />
             <div
-              class="fixed z-50 w-52 rounded-lg border border-border bg-card shadow-xl overflow-hidden"
+              data-slip class="fixed z-50 w-52 rounded-lg border border-border bg-card shadow-xl overflow-hidden"
               :style="{ top: pickerPos.top + 'px', right: pickerPos.right + 'px' }"
             >
               <div class="p-2 border-b border-border">

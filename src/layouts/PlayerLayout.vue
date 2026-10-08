@@ -263,7 +263,7 @@
   <Teleport to="body">
     <div v-if="showMenu" class="fixed inset-0 z-50" @click="showMenu = false">
       <div
-        class="absolute right-2 top-14 bg-card border border-border rounded-lg shadow-xl overflow-hidden w-44"
+        data-slip class="absolute right-2 top-14 bg-card border border-border rounded-lg shadow-xl overflow-hidden w-44"
         @click.stop
       >
         <ModeToggle class="px-4 py-3" />

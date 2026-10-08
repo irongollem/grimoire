@@ -75,7 +75,7 @@
       <!-- Dropdown -->
       <div
         v-if="open"
-        class="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-md shadow-lg overflow-hidden"
+        data-slip class="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-md shadow-lg overflow-hidden"
       >
         <div class="py-1">
           <div

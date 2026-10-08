@@ -38,6 +38,9 @@ import "@fontsource/cardo/400-italic.css";
 
 import "@fontsource/unifrakturcook/700.css";
 
+// The DM's hand in Vellum (epic #1031): one weight only, never synthesized bold.
+import "@fontsource/fondamento/400.css";
+
 import "@fontsource/crimson-pro/300.css";
 import "@fontsource/crimson-pro/400.css";
 import "@fontsource/crimson-pro/600.css";

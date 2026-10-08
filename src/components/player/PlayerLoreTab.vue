@@ -105,7 +105,7 @@
             />
             <ul
               v-if="showDeityDropdown && deityHints.length"
-              class="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
+              data-slip class="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
             >
               <li
                 v-for="d in deityHints"

@@ -22,7 +22,7 @@
       v-if="open"
       ref="floatingRef"
       :style="floatingStyle"
-      class="z-300 w-60 rounded-md border border-border bg-popover p-3 shadow-lg"
+      data-slip class="z-300 w-60 rounded-md border border-border bg-popover p-3 shadow-lg"
       role="dialog"
       aria-label="What sharing this handout reveals"
     >

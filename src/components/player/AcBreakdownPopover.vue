@@ -14,7 +14,7 @@
       :style="floatingStyle"
       role="dialog"
       aria-label="How your Armor Class is worked out"
-      class="z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 shadow-xl"
+      data-slip class="z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 shadow-xl"
     >
       <p v-if="beastForm" class="text-body">
         In {{ beastForm }} form your Armor Class is the beast's. Your own, {{ breakdown.total }}, comes back when you change back.

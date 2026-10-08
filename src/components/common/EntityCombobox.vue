@@ -4,6 +4,9 @@
       <input
         v-no-pwm
         ref="inputEl"
+        data-field="combobox"
+        data-field-size="body"
+        data-field-tone="card"
         v-model="query"
         type="text"
         :placeholder="shownLabel || placeholder"
@@ -34,6 +37,7 @@
     <Teleport to="body">
       <ul
         v-if="open && filtered.length"
+        data-slip
         :style="dropdownStyle"
         :class="[
           'fixed z-9999 overflow-y-auto rounded-md border border-border bg-card shadow-lg',
@@ -51,6 +55,7 @@
       </ul>
       <div
         v-else-if="open && query && !filtered.length"
+        data-slip
         :style="dropdownStyle"
         class="fixed z-9999 rounded-md border border-border bg-card shadow-lg px-3 py-2"
       >

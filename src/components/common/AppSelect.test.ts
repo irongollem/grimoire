@@ -158,4 +158,11 @@ describe("non-string model values", () => {
     expect(wrapper.emitted("update:modelValue")).toBeUndefined();
     wrapper.unmount();
   });
+
+  it("renders the hooks Vellum styles its fields by", () => {
+    const { select } = mountSelect("a", () => [h("option", { value: "a" }, "A")]);
+    expect(select.attributes("data-field")).toBe("select");
+    expect(select.attributes("data-field-size")).toBe("sm");
+    expect(select.attributes("data-field-tone")).toBe("card");
+  });
 });

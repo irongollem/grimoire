@@ -41,7 +41,8 @@
     <!-- Dropdown -->
     <div
       v-if="open && query.trim().length >= 2"
-      class="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-md shadow-lg overflow-hidden max-h-80 overflow-y-auto"
+      data-slip
+      class="absolute left-0 top-full mt-1 z-50 w-[min(27rem,calc(100vw-2rem))] bg-card border border-border rounded-md shadow-lg overflow-hidden max-h-80 overflow-y-auto"
     >
       <!-- Loading -->
       <div v-if="isFetching" class="px-3 py-2 text-caption text-muted-foreground flex items-center gap-2">
@@ -72,40 +73,17 @@
         <template v-else>No results for "{{ query.trim() }}"</template>
       </div>
 
-      <!-- Results -->
-      <template v-else>
-        <template v-for="group in groups" :key="group.type">
-          <!-- Group header -->
-          <div class="px-3 py-1.5 text-eyebrow text-muted-foreground/60 uppercase bg-secondary/30 border-b border-border/50">
-            {{ group.label }}
-          </div>
-          <!-- Group items -->
-          <RouterLink
-            v-for="(item, i) in group.items"
-            :key="item.id"
-            :to="item.route"
-            class="flex items-center gap-2 px-3 py-2 text-body text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
-            :class="{ 'bg-secondary/60': flatIndex(group, i) === focusedIndex }"
-            @click="close"
-            @mouseenter="focusedIndex = flatIndex(group, i)"
-          >
-            <span class="shrink-0 max-w-[70%] truncate">{{ item.name }}</span>
-            <span v-if="item.descriptor" class="min-w-0 truncate text-caption text-muted-foreground">
-              {{ item.descriptor }}
-            </span>
-          </RouterLink>
-        </template>
-        <!-- Last row, after the keyword results, so nothing above it moves when it goes -->
-        <div v-if="isSemanticPending" class="px-3 py-2 text-caption text-muted-foreground flex items-center gap-2">
-          <BannerLoader class="h-3.5" />
-          Searching by meaning…
-        </div>
-        <div v-if="failedGroups.length > 0" class="px-3 py-2 text-caption text-muted-foreground">
-          {{ failedMessage }}
-        </div>
-      </template>
-
-      <SearchProUpsellRow v-if="showProUpsell" @dismiss="dismissProUpsell" @navigate="close" />
+      <SearchResultList
+        :groups="showResults ? groups : []"
+        :thumbnails="thumbnails"
+        :is-semantic-pending="isSemanticPending"
+        :failed-message="failedGroups.length > 0 ? failedMessage : null"
+        :show-pro-upsell="showProUpsell"
+        :focused-index="focusedIndex"
+        @navigate="close"
+        @dismiss-upsell="dismissProUpsell"
+        @hover="focusedIndex = $event"
+      />
     </div>
   </div>
 </template>
@@ -121,7 +99,7 @@ import { formatCombo, isMacPlatform } from "@/lib/hotkeys";
 import type { SearchGroup } from "@/composables/useGlobalSearch";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import SearchProUpsellRow from "@/components/layout/SearchProUpsellRow.vue";
+import SearchResultList from "@/components/layout/SearchResultList.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 
 const { hotkey = true } = defineProps<{
@@ -138,12 +116,14 @@ const focusedIndex = ref(-1);
 const inputRef = ref<AppInputHandle | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 
-const { data, isFetching, isError, isSemanticPending, showProUpsell, dismissProUpsell } = useGlobalSearch(query);
+const { data, isFetching, isError, isSemanticPending, showProUpsell, dismissProUpsell, thumbnails } = useGlobalSearch(query);
 
 const groups = computed<SearchGroup[]>(() => {
   if (query.value.trim().length < 2) return [];
   return data.value?.groups ?? [];
 });
+// The list shows once the keyword tier has answered with something.
+const showResults = computed(() => !isFetching.value && !isError.value && groups.value.length > 0);
 const failedGroups = computed(() => data.value?.failedGroups ?? []);
 const failedMessage = computed(() => failedGroupsMessage(failedGroups.value));
 
@@ -151,15 +131,6 @@ const failedMessage = computed(() => failedGroupsMessage(failedGroups.value));
 const flatItems = computed(() =>
   groups.value.flatMap((g) => g.items.map((item) => item.route)),
 );
-
-function flatIndex(group: SearchGroup, itemIndex: number): number {
-  let offset = 0;
-  for (const g of groups.value) {
-    if (g.type === group.type) return offset + itemIndex;
-    offset += g.items.length;
-  }
-  return -1;
-}
 
 function moveFocus(delta: number) {
   const len = flatItems.value.length;

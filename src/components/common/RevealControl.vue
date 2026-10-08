@@ -53,7 +53,7 @@
       <div
         v-if="open && !useSheet"
         ref="popoverRef"
-        class="fixed z-300 w-64 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
+        data-slip class="fixed z-300 w-64 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
         :style="popoverStyle"
         role="dialog"
         :aria-label="title"

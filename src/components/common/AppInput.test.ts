@@ -96,4 +96,12 @@ describe("AppInput v-model", () => {
     await nextTick();
     expect((wrapper.find("input").element as HTMLInputElement).value).toBe("PARSED");
   });
+
+  it("renders the hooks Vellum styles its fields by", () => {
+    const wrapper = mount(AppInput, { props: { modelValue: "x", size: "lg", tone: "muted" } });
+    const input = wrapper.get("input");
+    expect(input.attributes("data-field")).toBe("input");
+    expect(input.attributes("data-field-size")).toBe("lg");
+    expect(input.attributes("data-field-tone")).toBe("muted");
+  });
 });

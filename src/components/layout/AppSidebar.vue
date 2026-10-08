@@ -1,7 +1,11 @@
 <template>
   <aside
-    class="hidden sidenav:flex flex-col w-60 shrink-0 border-r border-border bg-card h-dvh sticky top-0"
+    class="hidden sidenav:flex flex-col w-60 shrink-0 border-r border-border bg-card h-dvh sticky top-0 z-40"
   >
+    <!-- z-40: `sticky` makes the aside its own stacking context, so without a
+         z-index the ⌘K results slip, which floats past the sidebar over the
+         page (#1031), was painted under the page's torn cards. Sticky page
+         chrome tops out at z-30; modals and toasts stay above at z-50. -->
     <!-- Logo -->
     <div class="px-4 py-4 border-b border-border space-y-2.5">
       <!-- Brand row: title left, status indicators right -->
@@ -75,7 +79,7 @@
       >
         <div
           v-if="menuOpen"
-          class="absolute bottom-full left-0 right-0 mb-1 rounded-xl border border-border bg-popover shadow-lg overflow-hidden py-1"
+          data-slip class="absolute bottom-full left-0 right-0 mb-1 rounded-xl border border-border bg-popover shadow-lg overflow-hidden py-1"
         >
           <!-- Edit name -->
           <div v-if="editingName" class="flex items-center gap-1.5 px-3 py-2">

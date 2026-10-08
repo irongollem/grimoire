@@ -1,6 +1,6 @@
 <template>
   <BubbleMenu :editor="editor" :tippy-options="{ duration: 100 }">
-    <div class="rounded-md border border-border bg-card shadow-lg overflow-hidden">
+    <div data-slip class="rounded-md border border-border bg-card shadow-lg overflow-hidden">
       <AppButton
         variant="link"
         size="sm"

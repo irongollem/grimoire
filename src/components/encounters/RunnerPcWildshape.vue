@@ -65,7 +65,7 @@
       v-if="showWildshapePicker && isDruid"
       ref="floatingRef"
       :style="floatingStyle"
-      class="wildshape-popover"
+      data-slip class="wildshape-popover"
     >
       <!-- Available forms — click to transform -->
       <div v-if="wildshapeForms.length" class="wildshape-picker-list">

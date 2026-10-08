@@ -60,7 +60,7 @@
               />
               <div
                 v-if="showAttachPicker"
-                class="absolute z-20 mt-1 w-60 rounded-md border border-border bg-card shadow-lg p-1.5 space-y-1"
+                data-slip class="absolute z-20 mt-1 w-60 rounded-md border border-border bg-card shadow-lg p-1.5 space-y-1"
               >
                 <p v-if="!availableCampaigns.length" class="text-caption text-muted-foreground italic px-1.5 py-1">
                   No campaigns to join yet.

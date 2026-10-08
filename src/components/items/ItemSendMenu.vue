@@ -22,7 +22,7 @@
 
     <div
       v-if="open"
-      class="absolute right-0 top-full mt-1.5 w-52 bg-card border border-border rounded-md shadow-lg z-20 py-1 overflow-hidden"
+      data-slip class="absolute right-0 top-full mt-1.5 w-52 bg-card border border-border rounded-md shadow-lg z-20 py-1 overflow-hidden"
     >
       <!-- Party stash -->
       <AppButton

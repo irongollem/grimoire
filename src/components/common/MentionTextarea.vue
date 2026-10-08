@@ -18,7 +18,7 @@
     <div
       v-if="dropdownVisible"
       :style="dropdownStyle"
-      class="z-9999 min-w-50 max-w-75 bg-card border border-border rounded-lg shadow-lg overflow-hidden flex flex-col"
+      data-slip class="z-9999 min-w-50 max-w-75 bg-card border border-border rounded-lg shadow-lg overflow-hidden flex flex-col"
     >
       <button
         v-for="(item, idx) in filteredItems"

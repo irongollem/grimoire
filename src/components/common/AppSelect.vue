@@ -1,6 +1,9 @@
 <template>
   <select
     ref="el"
+    data-field="select"
+    :data-field-size="size"
+    :data-field-tone="tone"
     :value="model"
     :disabled="disabled"
     :aria-label="ariaLabel"

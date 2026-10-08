@@ -5,7 +5,7 @@
 
     <div
       v-show="open"
-      class="absolute right-0 top-full mt-1 z-50 w-80 rounded-md border border-border bg-popover shadow-lg"
+      data-slip class="absolute right-0 top-full mt-1 z-50 w-80 rounded-md border border-border bg-popover shadow-lg"
     >
       <div class="p-3 border-b border-border">
         <p class="text-label-lg font-semibold text-foreground">{{ title }}</p>

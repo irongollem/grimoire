@@ -31,7 +31,7 @@
       <div
         v-if="open && filteredSuggestions.length"
         :style="dropdownStyle"
-        class="fixed z-9999 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
+        data-slip class="fixed z-9999 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
       >
         <AppButton
           v-for="s in filteredSuggestions"

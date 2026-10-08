@@ -1,6 +1,9 @@
 <template>
   <input
     ref="el"
+    data-field="input"
+    :data-field-size="size"
+    :data-field-tone="tone"
     :value="model"
     :type="type"
     :disabled="disabled"

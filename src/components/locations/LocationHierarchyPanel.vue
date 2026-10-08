@@ -81,7 +81,7 @@
             childDropdownOpen &&
             (childOptions.length || childSearch.trim())
           "
-          class="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg overflow-hidden"
+          data-slip class="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg overflow-hidden"
         >
           <AppButton
             v-for="opt in childOptions"
@@ -173,7 +173,7 @@
         />
         <div
           v-if="relatedDropdownOpen && relatedOptions.length"
-          class="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg overflow-hidden"
+          data-slip class="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg overflow-hidden"
         >
           <AppButton
             v-for="opt in relatedOptions"

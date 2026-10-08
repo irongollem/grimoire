@@ -22,32 +22,15 @@
         {{ failedGroups.length > 0 ? failedMessage : `Nothing matches “${query.trim()}”.` }}
       </p>
 
-      <div v-else class="-mx-3 divide-y divide-border/50">
-        <div v-for="group in groups" :key="group.type">
-          <p class="bg-muted/30 px-3 py-1 text-eyebrow font-semibold text-muted-foreground">
-            {{ group.label }}
-          </p>
-          <RouterLink
-            v-for="hit in group.items"
-            :key="hit.id"
-            :to="hit.route"
-            class="block truncate px-3 py-1.5 text-body text-foreground transition-colors hover:bg-muted/30 hover:text-primary"
-          >
-            {{ hit.name }}
-            <span v-if="hit.descriptor" class="text-caption font-normal text-muted-foreground">
-              {{ hit.descriptor }}
-            </span>
-          </RouterLink>
-        </div>
-        <p v-if="isSemanticPending" class="px-3 pt-2 text-caption text-muted-foreground italic">
-          Searching by meaning…
-        </p>
-        <p v-if="failedGroups.length > 0" class="px-3 pt-2 text-caption text-muted-foreground italic">
-          {{ failedMessage }}
-        </p>
-      </div>
-
-      <SearchProUpsellRow v-if="showProUpsell" class="-mx-3" @dismiss="dismissProUpsell" />
+      <SearchResultList
+        class="-mx-3"
+        :groups="state === 'results' ? groups : []"
+        :thumbnails="thumbnails"
+        :is-semantic-pending="isSemanticPending"
+        :failed-message="failedGroups.length > 0 ? failedMessage : null"
+        :show-pro-upsell="showProUpsell"
+        @dismiss-upsell="dismissProUpsell"
+      />
     </div>
   </DashboardWidget>
 </template>
@@ -73,10 +56,9 @@
  * the card in "searching" rather than claiming nothing matches.
  */
 import { computed, ref } from "vue";
-import { RouterLink } from "vue-router";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import SearchProUpsellRow from "@/components/layout/SearchProUpsellRow.vue";
+import SearchResultList from "@/components/layout/SearchResultList.vue";
 import { failedGroupsMessage, useGlobalSearch } from "@/composables/useGlobalSearch";
 
 /**
@@ -91,7 +73,7 @@ const query = ref("");
  *  never runs, so anything the card said about results would be invented. */
 const MIN_QUERY = 2;
 
-const { data, isFetching, isError, isSemanticPending, showProUpsell, dismissProUpsell } = useGlobalSearch(query);
+const { data, isFetching, isError, isSemanticPending, showProUpsell, dismissProUpsell, thumbnails } = useGlobalSearch(query);
 
 const groups = computed(() => data.value?.groups ?? []);
 const failedGroups = computed(() => data.value?.failedGroups ?? []);

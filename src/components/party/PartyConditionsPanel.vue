@@ -47,7 +47,7 @@
       />
     </template>
 
-    <div class="relative">
+    <div ref="triggerRef" class="flex w-fit">
       <AppButton
         variant="subtle"
         size="xs"
@@ -56,13 +56,21 @@
         :icon="IconAdd"
         label="Condition"
         class="border-dashed border-muted-foreground/40"
-        @click="toggleDropdown"
+        aria-haspopup="dialog"
+        :aria-expanded="conditionOpen"
+        @click="conditionOpen = !conditionOpen"
       />
-      <div v-if="conditionOpen" class="fixed inset-0 z-10" @click="conditionOpen = false" />
+    </div>
+    <!-- Teleported: every party card is its own stacking context (vellum's torn
+         panels isolate), so an in-card absolute menu sank under the next row. -->
+    <Teleport to="body">
       <div
         v-if="conditionOpen"
-        class="absolute left-0 z-20 w-48 rounded-lg border border-border bg-card shadow-lg p-1"
-        :class="conditionOpenUp ? 'bottom-full mb-1' : 'top-full mt-1'"
+        ref="floatingRef"
+        :style="floatingStyle"
+        data-slip class="z-300 w-48 max-h-[70vh] overflow-y-auto rounded-md border border-border bg-popover shadow-lg p-1"
+        role="dialog"
+        aria-label="Add a condition"
       >
         <AppButton
           v-for="cond in availableConditions"
@@ -78,7 +86,7 @@
           <AppButton variant="menu" tone="arcane" size="xs" block label="Cursed…" @click="openCurseInput" />
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -89,6 +97,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
@@ -105,7 +114,8 @@ const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { ruleset } = useTableRuleset();
 
 const conditionOpen = ref(false);
-const conditionOpenUp = ref(false);
+const triggerRef = ref<HTMLElement | null>(null);
+const { floatingRef, floatingStyle } = useAnchoredPopover(triggerRef, conditionOpen, () => (conditionOpen.value = false));
 const curseInputOpen = ref(false);
 const curseInputText = ref("");
 const curseInputEl = ref<AppInputHandle | null>(null);
@@ -119,14 +129,6 @@ const availableConditions = computed(() => {
     return !member.conditions.includes(c);
   });
 });
-
-function toggleDropdown(event: MouseEvent) {
-  const btn = event.currentTarget as HTMLElement;
-  const rect = btn.getBoundingClientRect();
-  const estimated = availableConditions.value.length * 26 + 40;
-  conditionOpenUp.value = rect.bottom + estimated > window.innerHeight;
-  conditionOpen.value = !conditionOpen.value;
-}
 
 async function addCondition(condition: string) {
   conditionOpen.value = false;

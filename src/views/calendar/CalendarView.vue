@@ -24,7 +24,7 @@
         <!-- Inline editor popover -->
         <div
           v-if="showTodayEditor"
-          class="absolute right-0 top-full mt-1 z-30 rounded-lg border border-border bg-card shadow-lg p-3 flex flex-col gap-2 min-w-52"
+          data-slip class="absolute right-0 top-full mt-1 z-30 rounded-lg border border-border bg-card shadow-lg p-3 flex flex-col gap-2 min-w-52"
         >
           <p class="text-label-lg font-semibold text-muted-foreground">Set In-Game Today</p>
           <div class="grid grid-cols-3 gap-1.5">

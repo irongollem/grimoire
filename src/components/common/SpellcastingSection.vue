@@ -123,7 +123,7 @@
               <ul
                 v-if="searchOpen[i] && filteredSpells(i).length"
                 :style="dropdownStyle[i]"
-                class="fixed z-9999 max-h-52 overflow-y-auto rounded-md border border-border bg-card shadow-lg"
+                data-slip class="fixed z-9999 max-h-52 overflow-y-auto rounded-md border border-border bg-card shadow-lg"
               >
                 <li v-for="spell in filteredSpells(i)" :key="spell.id">
                   <AppButton
@@ -140,6 +140,7 @@
               <div
                 v-else-if="searchOpen[i] && (searchQuery[i]?.trim())"
                 :style="dropdownStyle[i]"
+                data-slip
                 class="fixed z-9999 rounded-md border border-border bg-card shadow-lg px-3 py-2"
               >
                 <span class="text-caption text-muted-foreground italic">No spells found</span>

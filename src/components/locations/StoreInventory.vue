@@ -148,7 +148,7 @@
       </div>
       <div
         v-if="dropdownOpen && searchResults.length"
-        class="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover shadow-lg overflow-hidden max-h-48 overflow-y-auto"
+        data-slip class="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover shadow-lg overflow-hidden max-h-48 overflow-y-auto"
       >
         <AppButton
           v-for="item in searchResults"

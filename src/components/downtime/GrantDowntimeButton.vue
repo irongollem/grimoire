@@ -56,7 +56,7 @@ async function submit() {
 
     <div
       v-if="open"
-      class="absolute right-0 z-40 mt-1 w-64 rounded-lg border border-border bg-card p-3 shadow-lg"
+      data-slip class="absolute right-0 z-40 mt-1 w-64 rounded-lg border border-border bg-card p-3 shadow-lg"
     >
       <p class="text-caption-sm text-muted-foreground">
         Give <span class="font-medium text-foreground">{{ partyMemberName }}</span> a quiet

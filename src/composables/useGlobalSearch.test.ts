@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   byTable: {} as Record<string, { data: unknown[] | null; error: unknown }>,
   report: vi.fn(),
   invoke: vi.fn(),
+  fetchArt: vi.fn(),
   isDM: true,
   isPro: true,
   subscriptionLoading: false,
@@ -19,6 +20,10 @@ const mocks = vi.hoisted(() => ({
   campaignId: "campaign-1" as string | null,
 }));
 
+vi.mock("@/composables/library/useLibraryMonsterArt", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/composables/library/useLibraryMonsterArt")>()),
+  fetchLibraryMonsterArtEntries: mocks.fetchArt,
+}));
 vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: mocks.report }));
 
 /** Any PostgREST chain (`.select().eq().ilike().limit()`...) resolving to `mocks.result`. */
@@ -88,6 +93,8 @@ describe("useGlobalSearch", () => {
     mocks.byTable = {};
     mocks.report.mockReset();
     mocks.invoke.mockReset();
+    mocks.fetchArt.mockReset();
+    mocks.fetchArt.mockResolvedValue({});
     mocks.invoke.mockResolvedValue({ data: { hits: [] }, error: null });
     mocks.isDM = true;
     mocks.isPro = true;
@@ -220,6 +227,41 @@ describe("useGlobalSearch", () => {
       await run();
       expect(callsOn("library_monsters").filter((c) => c.method === "eq" && c.args[0] === "ruleset").map((c) => c.args[1]))
         .toEqual(["2024", "2014"]);
+    });
+  });
+
+  describe("thumbnails", () => {
+    it("resolves NPC and library monster art for the rows shown, with the DM's art laid over", async () => {
+      mocks.byTable = {
+        npcs: { data: [{ id: "n1", name: "Goblin Queen", disguise_name: null, portrait_url: "queen.webp", portrait_focal_point: { x: 40, y: 20 } }], error: null },
+        library_monsters: { data: [{ id: "srd_goblin", name: "Goblin", image_url: "canon.webp", portrait_focal_point: null }], error: null },
+      };
+      mocks.fetchArt.mockResolvedValue({ srd_goblin: { image_url: "mine.webp", cutout_url: null, portrait_focal_point: { x: 10, y: 10 } } });
+      const search = await run();
+      await vi.advanceTimersByTimeAsync(10);
+      expect(search.thumbnails.value).toEqual({
+        n1: { src: "queen.webp", focalPoint: { x: 40, y: 20 } },
+        srd_goblin: { src: "mine.webp", focalPoint: { x: 10, y: 10 } },
+      });
+      expect(mocks.fetchArt).toHaveBeenCalledWith(["srd_goblin"]);
+    });
+
+    it("reads nothing when no NPC or monster is on screen", async () => {
+      mocks.byTable = { notes: { data: [{ id: "n1", title: "Goblin ledger" }], error: null } };
+      const search = await run();
+      expect(search.thumbnails.value).toEqual({});
+      expect(mocks.fetchArt).not.toHaveBeenCalled();
+    });
+
+    it("reports a failed art read and leaves the search untouched", async () => {
+      mocks.byTable = { library_monsters: { data: [{ id: "srd_goblin", name: "Goblin", image_url: "c.webp", portrait_focal_point: null }], error: null } };
+      const boom = new Error("art down");
+      mocks.fetchArt.mockRejectedValue(boom);
+      const search = await run();
+      await vi.advanceTimersByTimeAsync(10);
+      expect(mocks.report).toHaveBeenCalledWith(boom, "search-thumbnails");
+      expect(search.thumbnails.value).toEqual({});
+      expect(search.data.value?.groups.map((g) => g.type)).toEqual(["monster"]);
     });
   });
 

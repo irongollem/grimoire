@@ -19,7 +19,7 @@
       v-if="open"
       ref="floatingRef"
       :style="floatingStyle"
-      class="z-300 w-60 max-h-[70vh] overflow-y-auto rounded-md border border-border bg-popover py-1 shadow-lg"
+      data-slip class="z-300 w-60 max-h-[70vh] overflow-y-auto rounded-md border border-border bg-popover py-1 shadow-lg"
       role="dialog"
       :aria-label="`Actions for ${item.name}`"
     >

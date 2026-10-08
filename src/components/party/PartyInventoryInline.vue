@@ -23,7 +23,7 @@
         />
         <div
           v-if="showItemDropdown && (catalogItems?.length ?? 0) > 0"
-          class="absolute left-0 top-full mt-0.5 z-20 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden max-h-48 overflow-y-auto"
+          data-slip class="absolute left-0 top-full mt-0.5 z-20 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden max-h-48 overflow-y-auto"
         >
           <AppButton
             v-for="(item, idx) in filteredCatalogItems"

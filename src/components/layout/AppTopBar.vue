@@ -91,35 +91,17 @@
             <template v-if="failedGroups.length > 0">{{ failedMessage }}</template>
             <template v-else>No results for "{{ mobileQuery.trim() }}"</template>
           </div>
-          <template v-else>
-            <template v-for="group in mobileGroups" :key="group.type">
-              <div class="px-4 py-2 text-eyebrow text-muted-foreground/60 uppercase bg-secondary/30 border-b border-t border-border/50">
-                {{ group.label }}
-              </div>
-              <AppButton
-                v-for="item in group.items"
-                :key="item.id"
-                :to="item.route"
-                variant="menu"
-                size="body"
-                block
-                class="px-4 py-3 border-b border-border/30"
-                :label="item.name"
-                @click="searchOpen = false"
-              >
-                <span class="min-w-0 truncate">{{ item.name }}</span>
-                <span v-if="item.descriptor" class="min-w-0 truncate text-caption text-muted-foreground">{{ item.descriptor }}</span>
-              </AppButton>
-            </template>
-            <div v-if="isSemanticPending" class="px-4 py-3 flex items-center gap-2 text-caption text-muted-foreground">
-              <BannerLoader class="h-3.5" />
-              Searching by meaning…
-            </div>
-            <p v-if="failedGroups.length > 0" class="px-4 py-3 text-caption text-muted-foreground">
-              {{ failedMessage }}
-            </p>
-          </template>
-          <SearchProUpsellRow v-if="showProUpsell" inset="md" @dismiss="dismissProUpsell" @navigate="searchOpen = false" />
+          <SearchResultList
+            :groups="showMobileResults ? mobileGroups : []"
+            :thumbnails="thumbnails"
+            density="touch"
+            inset="md"
+            :is-semantic-pending="isSemanticPending"
+            :failed-message="failedGroups.length > 0 ? failedMessage : null"
+            :show-pro-upsell="showProUpsell"
+            @navigate="searchOpen = false"
+            @dismiss-upsell="dismissProUpsell"
+          />
         </div>
       </div>
     </Teleport>
@@ -138,7 +120,7 @@ import type { AppInputHandle } from "@/components/common/fieldVariants";
 import DmScratchpadToggle from "@/components/notes/DmScratchpadToggle.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
-import SearchProUpsellRow from "./SearchProUpsellRow.vue";
+import SearchResultList from "./SearchResultList.vue";
 import SessionControl from "./SessionControl.vue";
 import { failedGroupsMessage, useGlobalSearch } from "@/composables/useGlobalSearch";
 
@@ -152,12 +134,15 @@ const searchOpen = ref(false);
 const mobileQuery = ref("");
 const mobileInputRef = ref<AppInputHandle | null>(null);
 
-const { data, isFetching, isError, isSemanticPending, showProUpsell, dismissProUpsell } = useGlobalSearch(mobileQuery);
+const { data, isFetching, isError, isSemanticPending, showProUpsell, dismissProUpsell, thumbnails } = useGlobalSearch(mobileQuery);
 
 const mobileGroups = computed(() => {
   if (mobileQuery.value.trim().length < 2) return [];
   return data.value?.groups ?? [];
 });
+const showMobileResults = computed(
+  () => mobileQuery.value.trim().length >= 2 && !isFetching.value && !isError.value && mobileGroups.value.length > 0,
+);
 const failedGroups = computed(() => data.value?.failedGroups ?? []);
 const failedMessage = computed(() => failedGroupsMessage(failedGroups.value));
 

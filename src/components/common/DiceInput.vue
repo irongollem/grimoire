@@ -17,7 +17,7 @@
     <Transition name="dice-drop">
       <div
         v-if="suggestions.length"
-        class="absolute top-full left-0 z-30 mt-1 rounded-md border border-border bg-card shadow-lg overflow-hidden min-w-36"
+        data-slip class="absolute top-full left-0 z-30 mt-1 rounded-md border border-border bg-card shadow-lg overflow-hidden min-w-36"
       >
         <AppButton
           v-for="(s, i) in suggestions"

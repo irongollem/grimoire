@@ -271,14 +271,14 @@
 @supports (font: -apple-system-body) {
   :root[data-theme^="vellum"] { --vl-torn-layer: translateZ(0); }
 }
-:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)) {
+:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)):not([data-slip]) {
   position: relative;
   isolation: isolate;
   background-color: transparent;
   border-color: transparent;
   box-shadow: none;
 }
-:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky))::before {
+:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)):not([data-slip])::before {
   content: "";
   position: absolute;
   /* #vl-rough displaces up to 3px; insetting by that keeps the whole torn
@@ -291,7 +291,7 @@
   transform: var(--vl-torn-layer);
   pointer-events: none;
 }
-:root[data-theme="vellum-dark"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky))::before {
+:root[data-theme="vellum-dark"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)):not([data-slip])::before {
   filter: url(#vl-rough) drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
 }
 :root[data-theme^="vellum"] .bg-card.border[class*="hover:border-"]:hover::before { border-color: var(--primary-edge); }
@@ -810,4 +810,108 @@
   font-weight: 700;
   line-height: 0.8;
   color: var(--destructive);
+}
+
+/* ── Ink: the DM's hand, and the shapes it writes on ──────────────────────
+   Epic #1031. Print is the book's voice (Alegreya, Cinzel, Source Sans); hand
+   is the DM's. Anything typed into an AppInput is set in Fondamento in a
+   softer ink, so the page reads as printed matter someone has written in.
+   Placeholders stay in print: they are the book's prompt, not the DM's words.
+   Dense sizes (xs, body-xs, caption) are inline edits in rows and grids and
+   keep print; number inputs keep it too, digits in a script face misread.
+   Fondamento has one weight, so weight is pinned to 400 or the browser would
+   fake a bold.
+
+   Shape follows the surface. On a card a short field is a LINE you write on;
+   on the bare page it is a small torn SLIP of paper with no line in it. A slip
+   cannot reuse the torn-panel ::before: an <input> cannot have one, and a
+   ::before inside a scrolling list scrolls away from its row. So the torn edge
+   is a 9-slice border-image drawn outside the element (border-image-outset),
+   leaving the 1px border width, and so the layout, exactly where it was.
+   `data-slip` is the same edge for anything that floats (menus, popovers,
+   combobox lists), with an offset underleaf and no blur. The field hooks are
+   data-field* rather than data-size, which AppButton's Cinzel rule owns. */
+:root[data-theme="vellum"] {
+  --vl-slip-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23faf6ee' stroke='%23cfc3ad' stroke-width='1' filter='url%28%23r%29'/%3E%3C/svg%3E");
+  --vl-field-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23faf6ee' stroke='%238a7d6c' stroke-width='1' filter='url%28%23r%29'/%3E%3C/svg%3E");
+  --vl-field-frame-focus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23faf6ee' stroke='%232b2019' stroke-width='1.5' filter='url%28%23r%29'/%3E%3C/svg%3E");
+  --vl-field-frame-invalid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23faf6ee' stroke='%23a3301d' stroke-width='1.5' filter='url%28%23r%29'/%3E%3C/svg%3E");
+  --vl-underleaf: #e2d6bf;
+  --vl-contact: rgb(43 32 25 / 0.16);
+  --vl-hand-ink: #4a3628;
+  --vl-line: #8a7d6c;
+}
+:root[data-theme="vellum-dark"] {
+  --vl-slip-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23261e18' stroke='%233d3228' stroke-width='1' filter='url%28%23r%29'/%3E%3C/svg%3E");
+  --vl-field-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23261e18' stroke='%2396846a' stroke-width='1' filter='url%28%23r%29'/%3E%3C/svg%3E");
+  --vl-field-frame-focus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23261e18' stroke='%23eadfca' stroke-width='1.5' filter='url%28%23r%29'/%3E%3C/svg%3E");
+  --vl-field-frame-invalid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23261e18' stroke='%23ec7a61' stroke-width='1.5' filter='url%28%23r%29'/%3E%3C/svg%3E");
+  --vl-underleaf: #0f0b09;
+  --vl-contact: rgb(0 0 0 / 0.45);
+  --vl-hand-ink: #dccbb0;
+  --vl-line: #96846a;
+}
+
+:root[data-theme^="vellum"] [data-field="input"]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]) {
+  font-family: "Fondamento", var(--vl-serif);
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: normal;
+  color: var(--vl-hand-ink);
+}
+:root[data-theme^="vellum"] [data-field="input"]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="body"]) { font-size: 0.9375rem; }
+:root[data-theme^="vellum"] [data-field="input"]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"])[data-field-size="lg"] { font-size: 1rem; }
+:root[data-theme^="vellum"] [data-field="input"]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"])[data-field-size="heading"] { font-size: 1.125rem; }
+:root[data-theme^="vellum"] [data-field="input"]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"])::placeholder {
+  font-family: var(--vl-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+}
+:root[data-theme^="vellum"] [data-field="input"]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"])[data-field-size="heading"]::placeholder { font-size: 1rem; }
+
+/* Line: a field on a card surface. The 1px bottom border inks to 2px on focus
+   through an inset shadow, so nothing shifts. An unlayered rule beats the
+   Tailwind focus ring. The field keeps its own horizontal padding: icon-led
+   fields (the search boxes) pad past their icon, and a line does not care. Selects keep their gradient caret (background-image is
+   untouched) and their right padding. */
+:root[data-theme^="vellum"] :is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]) {
+  border: 0;
+  border-bottom: 1px solid var(--vl-line);
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+:root[data-theme^="vellum"] :is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):is(:focus, :focus-visible) {
+  border-bottom-color: var(--foreground);
+  box-shadow: inset 0 -1px 0 var(--foreground);
+}
+:root[data-theme^="vellum"] :is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"])[aria-invalid="true"] {
+  border-bottom-color: var(--destructive);
+  box-shadow: inset 0 -1px 0 var(--destructive);
+}
+
+/* Slip: a field on the bare page. */
+:root[data-theme^="vellum"] [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):not(:is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) *) {
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  background-color: var(--card);
+  background-clip: padding-box;
+  border-image: var(--vl-field-frame) 12 / 0.75rem / 0.3125rem round;
+}
+:root[data-theme^="vellum"] [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):not(:is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) *):is(:focus, :focus-visible) { border-image-source: var(--vl-field-frame-focus); }
+:root[data-theme^="vellum"] [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):not(:is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) *)[aria-invalid="true"] { border-image-source: var(--vl-field-frame-invalid); }
+
+/* Floating slip. Outset 7px so a full-width hovered row never pokes past the
+   torn line. Nothing animates here. */
+:root[data-theme^="vellum"] [data-slip] {
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  backdrop-filter: none;
+  border-image: var(--vl-slip-frame) 12 fill / 0.75rem / 0.4375rem round;
+  filter: drop-shadow(3px 5px 0 var(--vl-underleaf)) drop-shadow(0 1px 1.5px var(--vl-contact));
 }

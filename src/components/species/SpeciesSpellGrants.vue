@@ -51,7 +51,7 @@
           />
           <div
             v-if="spellResults.length > 0 && grantForm.spellSearch.length >= 2"
-            class="absolute z-10 mt-1 w-full max-h-36 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border shadow-lg"
+            data-slip class="absolute z-10 mt-1 w-full max-h-36 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border shadow-lg"
           >
             <button
               v-for="spell in spellResults"
