@@ -1,0 +1,956 @@
+[
+ {
+  "source": "SRD 5.1 p17",
+  "level_kind": "cleric_level",
+  "mode": "always_prepared",
+  "table": {
+   "1": [
+    {
+     "name": "bless",
+     "library_id": "srd_srd_bless",
+     "library_name": "Bless"
+    },
+    {
+     "name": "cure wounds",
+     "library_id": "srd_srd_cure_wounds",
+     "library_name": "Cure Wounds"
+    }
+   ],
+   "3": [
+    {
+     "name": "lesser restoration",
+     "library_id": "srd_srd_lesser_restoration",
+     "library_name": "Lesser Restoration"
+    },
+    {
+     "name": "spiritual weapon",
+     "library_id": "srd_spiritual_weapon",
+     "library_name": "Spiritual Weapon"
+    }
+   ],
+   "5": [
+    {
+     "name": "beacon of hope",
+     "library_id": "srd_beacon_of_hope",
+     "library_name": "Beacon of Hope"
+    },
+    {
+     "name": "revivify",
+     "library_id": "srd_srd_revivify",
+     "library_name": "Revivify"
+    }
+   ],
+   "7": [
+    {
+     "name": "death ward",
+     "library_id": "srd_srd_death_ward",
+     "library_name": "Death Ward"
+    },
+    {
+     "name": "guardian of faith",
+     "library_id": "srd_guardian_of_faith",
+     "library_name": "Guardian of Faith"
+    }
+   ],
+   "9": [
+    {
+     "name": "mass cure wounds",
+     "library_id": "srd_mass_cure_wounds",
+     "library_name": "Mass Cure Wounds"
+    },
+    {
+     "name": "raise dead",
+     "library_id": "srd_srd_raise_dead",
+     "library_name": "Raise Dead"
+    }
+   ]
+  },
+  "subclass_row_id": "6f5e88d0-8ef2-4594-a007-c7d6da820a2b",
+  "class": "Cleric",
+  "subclass": "Life Domain",
+  "ruleset": "2014"
+ },
+ {
+  "source": "SRD 5.1 p33",
+  "level_kind": "paladin_level",
+  "mode": "always_prepared",
+  "table": {
+   "3": [
+    {
+     "name": "protection from evil and good",
+     "library_id": "srd_srd_protection_from_evil_and_good",
+     "library_name": "Protection from Evil and Good"
+    },
+    {
+     "name": "sanctuary",
+     "library_id": "srd_sanctuary",
+     "library_name": "Sanctuary"
+    }
+   ],
+   "5": [
+    {
+     "name": "lesser restoration",
+     "library_id": "srd_srd_lesser_restoration",
+     "library_name": "Lesser Restoration"
+    },
+    {
+     "name": "zone of truth",
+     "library_id": "srd_srd_zone_of_truth",
+     "library_name": "Zone of Truth"
+    }
+   ],
+   "9": [
+    {
+     "name": "beacon of hope",
+     "library_id": "srd_beacon_of_hope",
+     "library_name": "Beacon of Hope"
+    },
+    {
+     "name": "dispel magic",
+     "library_id": "srd_srd_dispel_magic",
+     "library_name": "Dispel Magic"
+    }
+   ],
+   "13": [
+    {
+     "name": "freedom of movement",
+     "library_id": "srd_freedom_of_movement",
+     "library_name": "Freedom of Movement"
+    },
+    {
+     "name": "guardian of faith",
+     "library_id": "srd_guardian_of_faith",
+     "library_name": "Guardian of Faith"
+    }
+   ],
+   "17": [
+    {
+     "name": "commune",
+     "library_id": "srd_commune",
+     "library_name": "Commune"
+    },
+    {
+     "name": "flame strike",
+     "library_id": "srd_flame_strike",
+     "library_name": "Flame Strike"
+    }
+   ]
+  },
+  "subclass_row_id": "8b1940aa-ddc4-49ad-badc-79610c490490",
+  "class": "Paladin",
+  "subclass": "Oath of Devotion",
+  "ruleset": "2014"
+ },
+ {
+  "source": "SRD 5.1 p50",
+  "level_kind": "spell_level",
+  "mode": "expanded_list_choose_when_learning",
+  "table": {
+   "1": [
+    {
+     "name": "burning hands",
+     "library_id": "srd_burning_hands",
+     "library_name": "Burning Hands"
+    },
+    {
+     "name": "command",
+     "library_id": "srd_srd_command",
+     "library_name": "Command"
+    }
+   ],
+   "2": [
+    {
+     "name": "blindness/deafness",
+     "library_id": "srd_blindnessdeafness",
+     "library_name": "Blindness/Deafness"
+    },
+    {
+     "name": "scorching ray",
+     "library_id": "srd_scorching_ray",
+     "library_name": "Scorching Ray"
+    }
+   ],
+   "3": [
+    {
+     "name": "fireball",
+     "library_id": "srd_fireball",
+     "library_name": "Fireball"
+    },
+    {
+     "name": "stinking cloud",
+     "library_id": "srd_stinking_cloud",
+     "library_name": "Stinking Cloud"
+    }
+   ],
+   "4": [
+    {
+     "name": "fire shield",
+     "library_id": "srd_fire_shield",
+     "library_name": "Fire Shield"
+    },
+    {
+     "name": "wall of fire",
+     "library_id": "srd_wall_of_fire",
+     "library_name": "Wall of Fire"
+    }
+   ],
+   "5": [
+    {
+     "name": "flame strike",
+     "library_id": "srd_flame_strike",
+     "library_name": "Flame Strike"
+    },
+    {
+     "name": "hallow",
+     "library_id": "srd_hallow",
+     "library_name": "Hallow"
+    }
+   ]
+  },
+  "subclass_row_id": "c520861e-5d22-44ac-ac31-67401923b70d",
+  "class": "Warlock",
+  "subclass": "The Fiend",
+  "ruleset": "2014"
+ },
+ {
+  "source": "SRD 5.1 p22",
+  "level_kind": "druid_level",
+  "mode": "always_prepared",
+  "terrains": {
+   "Arctic": {
+    "3": [
+     {
+      "name": "hold person",
+      "library_id": "srd_hold_person",
+      "library_name": "Hold Person"
+     },
+     {
+      "name": "spike growth",
+      "library_id": "srd_spike_growth",
+      "library_name": "Spike Growth"
+     }
+    ],
+    "5": [
+     {
+      "name": "sleet storm",
+      "library_id": "srd_sleet_storm",
+      "library_name": "Sleet Storm"
+     },
+     {
+      "name": "slow",
+      "library_id": "srd_slow",
+      "library_name": "Slow"
+     }
+    ],
+    "7": [
+     {
+      "name": "freedom of movement",
+      "library_id": "srd_freedom_of_movement",
+      "library_name": "Freedom of Movement"
+     },
+     {
+      "name": "ice storm",
+      "library_id": "srd_ice_storm",
+      "library_name": "Ice Storm"
+     }
+    ],
+    "9": [
+     {
+      "name": "commune with nature",
+      "library_id": "srd_commune_with_nature",
+      "library_name": "Commune with Nature"
+     },
+     {
+      "name": "cone of cold",
+      "library_id": "srd_cone_of_cold",
+      "library_name": "Cone of Cold"
+     }
+    ]
+   },
+   "Coast": {
+    "3": [
+     {
+      "name": "mirror image",
+      "library_id": "srd_mirror_image",
+      "library_name": "Mirror Image"
+     },
+     {
+      "name": "misty step",
+      "library_id": "srd_misty_step",
+      "library_name": "Misty Step"
+     }
+    ],
+    "5": [
+     {
+      "name": "water breathing",
+      "library_id": "srd_water_breathing",
+      "library_name": "Water Breathing"
+     },
+     {
+      "name": "water walk",
+      "library_id": "srd_water_walk",
+      "library_name": "Water Walk"
+     }
+    ],
+    "7": [
+     {
+      "name": "control water",
+      "library_id": "srd_control_water",
+      "library_name": "Control Water"
+     },
+     {
+      "name": "freedom of movement",
+      "library_id": "srd_freedom_of_movement",
+      "library_name": "Freedom of Movement"
+     }
+    ],
+    "9": [
+     {
+      "name": "conjure elemental",
+      "library_id": "srd_conjure_elemental",
+      "library_name": "Conjure Elemental"
+     },
+     {
+      "name": "scrying",
+      "library_id": "srd_scrying",
+      "library_name": "Scrying"
+     }
+    ]
+   },
+   "Desert": {
+    "3": [
+     {
+      "name": "blur",
+      "library_id": "srd_blur",
+      "library_name": "Blur"
+     },
+     {
+      "name": "silence",
+      "library_id": "srd_silence",
+      "library_name": "Silence"
+     }
+    ],
+    "5": [
+     {
+      "name": "create food and water",
+      "library_id": "srd_srd_create_food_and_water",
+      "library_name": "Create Food and Water"
+     },
+     {
+      "name": "protection from energy",
+      "library_id": "srd_protection_from_energy",
+      "library_name": "Protection from Energy"
+     }
+    ],
+    "7": [
+     {
+      "name": "blight",
+      "library_id": "srd_blight",
+      "library_name": "Blight"
+     },
+     {
+      "name": "hallucinatory terrain",
+      "library_id": "srd_hallucinatory_terrain",
+      "library_name": "Hallucinatory Terrain"
+     }
+    ],
+    "9": [
+     {
+      "name": "insect plague",
+      "library_id": "srd_insect_plague",
+      "library_name": "Insect Plague"
+     },
+     {
+      "name": "wall of stone",
+      "library_id": "srd_wall_of_stone",
+      "library_name": "Wall of Stone"
+     }
+    ]
+   },
+   "Forest": {
+    "3": [
+     {
+      "name": "barkskin",
+      "library_id": "srd_srd_barkskin",
+      "library_name": "Barkskin"
+     },
+     {
+      "name": "spider climb",
+      "library_id": "srd_spider_climb",
+      "library_name": "Spider Climb"
+     }
+    ],
+    "5": [
+     {
+      "name": "call lightning",
+      "library_id": "srd_call_lightning",
+      "library_name": "Call Lightning"
+     },
+     {
+      "name": "plant growth",
+      "library_id": "srd_plant_growth",
+      "library_name": "Plant Growth"
+     }
+    ],
+    "7": [
+     {
+      "name": "divination",
+      "library_id": "srd_divination",
+      "library_name": "Divination"
+     },
+     {
+      "name": "freedom of movement",
+      "library_id": "srd_freedom_of_movement",
+      "library_name": "Freedom of Movement"
+     }
+    ],
+    "9": [
+     {
+      "name": "commune with nature",
+      "library_id": "srd_commune_with_nature",
+      "library_name": "Commune with Nature"
+     },
+     {
+      "name": "tree stride",
+      "library_id": "srd_tree_stride",
+      "library_name": "Tree Stride"
+     }
+    ]
+   },
+   "Grassland": {
+    "3": [
+     {
+      "name": "invisibility",
+      "library_id": "srd_invisibility",
+      "library_name": "Invisibility"
+     },
+     {
+      "name": "pass without trace",
+      "library_id": "srd_pass_without_trace",
+      "library_name": "Pass without Trace"
+     }
+    ],
+    "5": [
+     {
+      "name": "daylight",
+      "library_id": "srd_srd_daylight",
+      "library_name": "Daylight"
+     },
+     {
+      "name": "haste",
+      "library_id": "srd_haste",
+      "library_name": "Haste"
+     }
+    ],
+    "7": [
+     {
+      "name": "divination",
+      "library_id": "srd_divination",
+      "library_name": "Divination"
+     },
+     {
+      "name": "freedom of movement",
+      "library_id": "srd_freedom_of_movement",
+      "library_name": "Freedom of Movement"
+     }
+    ],
+    "9": [
+     {
+      "name": "dream",
+      "library_id": "srd_dream",
+      "library_name": "Dream"
+     },
+     {
+      "name": "insect plague",
+      "library_id": "srd_insect_plague",
+      "library_name": "Insect Plague"
+     }
+    ]
+   },
+   "Mountain": {
+    "3": [
+     {
+      "name": "spider climb",
+      "library_id": "srd_spider_climb",
+      "library_name": "Spider Climb"
+     },
+     {
+      "name": "spike growth",
+      "library_id": "srd_spike_growth",
+      "library_name": "Spike Growth"
+     }
+    ],
+    "5": [
+     {
+      "name": "lightning bolt",
+      "library_id": "srd_lightning_bolt",
+      "library_name": "Lightning Bolt"
+     },
+     {
+      "name": "meld into stone",
+      "library_id": "srd_meld_into_stone",
+      "library_name": "Meld into Stone"
+     }
+    ],
+    "7": [
+     {
+      "name": "stone shape",
+      "library_id": "srd_stone_shape",
+      "library_name": "Stone Shape"
+     },
+     {
+      "name": "stoneskin",
+      "library_id": "srd_stoneskin",
+      "library_name": "Stoneskin"
+     }
+    ],
+    "9": [
+     {
+      "name": "passwall",
+      "library_id": "srd_passwall",
+      "library_name": "Passwall"
+     },
+     {
+      "name": "wall of stone",
+      "library_id": "srd_wall_of_stone",
+      "library_name": "Wall of Stone"
+     }
+    ]
+   },
+   "Swamp": {
+    "3": [
+     {
+      "name": "acid arrow",
+      "library_id": "srd_acid_arrow",
+      "library_name": "Acid Arrow"
+     },
+     {
+      "name": "darkness",
+      "library_id": "srd_darkness",
+      "library_name": "Darkness"
+     }
+    ],
+    "5": [
+     {
+      "name": "water walk",
+      "library_id": "srd_water_walk",
+      "library_name": "Water Walk"
+     },
+     {
+      "name": "stinking cloud",
+      "library_id": "srd_stinking_cloud",
+      "library_name": "Stinking Cloud"
+     }
+    ],
+    "7": [
+     {
+      "name": "freedom of movement",
+      "library_id": "srd_freedom_of_movement",
+      "library_name": "Freedom of Movement"
+     },
+     {
+      "name": "locate creature",
+      "library_id": "srd_srd_locate_creature",
+      "library_name": "Locate Creature"
+     }
+    ],
+    "9": [
+     {
+      "name": "insect plague",
+      "library_id": "srd_insect_plague",
+      "library_name": "Insect Plague"
+     },
+     {
+      "name": "scrying",
+      "library_id": "srd_scrying",
+      "library_name": "Scrying"
+     }
+    ]
+   }
+  },
+  "subclass_row_id": "01f55e47-3346-47c3-9a51-cdf8b35e9217",
+  "class": "Druid",
+  "subclass": "Circle of the Land",
+  "ruleset": "2014"
+ },
+ {
+  "source": "SRD 5.2.1 p40",
+  "level_kind": "cleric_level",
+  "mode": "always_prepared",
+  "table": {
+   "3": [
+    {
+     "name": "Aid",
+     "library_id": "srd_srd_2024_aid",
+     "library_name": "Aid"
+    },
+    {
+     "name": "Bless",
+     "library_id": "srd_srd_2024_bless",
+     "library_name": "Bless"
+    },
+    {
+     "name": "Cure Wounds",
+     "library_id": "srd_srd_2024_cure_wounds",
+     "library_name": "Cure Wounds"
+    },
+    {
+     "name": "Lesser Restoration",
+     "library_id": "srd_srd_2024_lesser_restoration",
+     "library_name": "Lesser Restoration"
+    }
+   ],
+   "5": [
+    {
+     "name": "Mass Healing Word",
+     "library_id": "srd_srd_2024_mass_healing_word",
+     "library_name": "Mass Healing Word"
+    },
+    {
+     "name": "Revivify",
+     "library_id": "srd_srd_2024_revivify",
+     "library_name": "Revivify"
+    }
+   ],
+   "7": [
+    {
+     "name": "Aura of Life",
+     "library_id": "srd_srd_2024_aura_of_life",
+     "library_name": "Aura of Life"
+    },
+    {
+     "name": "Death Ward",
+     "library_id": "srd_srd_2024_death_ward",
+     "library_name": "Death Ward"
+    }
+   ],
+   "9": [
+    {
+     "name": "Greater Restoration",
+     "library_id": "srd_srd_2024_greater_restoration",
+     "library_name": "Greater Restoration"
+    },
+    {
+     "name": "Mass Cure Wounds",
+     "library_id": "srd_srd_2024_mass_cure_wounds",
+     "library_name": "Mass Cure Wounds"
+    }
+   ]
+  },
+  "subclass_row_id": "bfe07c79-4790-49e6-99c4-b87eb4d32251",
+  "class": "Cleric",
+  "subclass": "Life Domain",
+  "ruleset": "2024"
+ },
+ {
+  "source": "SRD 5.2.1 p56",
+  "level_kind": "paladin_level",
+  "mode": "always_prepared",
+  "table": {
+   "3": [
+    {
+     "name": "Protection from Evil and Good",
+     "library_id": "srd_srd_2024_protection_from_evil_and_good",
+     "library_name": "Protection from Evil and Good"
+    },
+    {
+     "name": "Shield of Faith",
+     "library_id": "srd_srd_2024_shield_of_faith",
+     "library_name": "Shield of Faith"
+    }
+   ],
+   "5": [
+    {
+     "name": "Aid",
+     "library_id": "srd_srd_2024_aid",
+     "library_name": "Aid"
+    },
+    {
+     "name": "Zone of Truth",
+     "library_id": "srd_srd_2024_zone_of_truth",
+     "library_name": "Zone of Truth"
+    }
+   ],
+   "9": [
+    {
+     "name": "Beacon of Hope",
+     "library_id": "srd_srd_2024_beacon_of_hope",
+     "library_name": "Beacon of Hope"
+    },
+    {
+     "name": "Dispel Magic",
+     "library_id": "srd_srd_2024_dispel_magic",
+     "library_name": "Dispel Magic"
+    }
+   ],
+   "13": [
+    {
+     "name": "Freedom of Movement",
+     "library_id": "srd_srd_2024_freedom_of_movement",
+     "library_name": "Freedom of Movement"
+    },
+    {
+     "name": "Guardian of Faith",
+     "library_id": "srd_srd_2024_guardian_of_faith",
+     "library_name": "Guardian of Faith"
+    }
+   ],
+   "17": [
+    {
+     "name": "Commune",
+     "library_id": "srd_srd_2024_commune",
+     "library_name": "Commune"
+    },
+    {
+     "name": "Flame Strike",
+     "library_id": "srd_srd_2024_flame_strike",
+     "library_name": "Flame Strike"
+    }
+   ]
+  },
+  "subclass_row_id": "f496a36a-0db1-4399-9db5-a77a9da4bc59",
+  "class": "Paladin",
+  "subclass": "Oath of Devotion",
+  "ruleset": "2024"
+ },
+ {
+  "source": "SRD 5.2.1 p76",
+  "level_kind": "warlock_level",
+  "mode": "always_prepared",
+  "table": {
+   "3": [
+    {
+     "name": "Burning Hands",
+     "library_id": "srd_srd_2024_burning_hands",
+     "library_name": "Burning Hands"
+    },
+    {
+     "name": "Command",
+     "library_id": "srd_srd_2024_command",
+     "library_name": "Command"
+    },
+    {
+     "name": "Scorching Ray",
+     "library_id": "srd_srd_2024_scorching_ray",
+     "library_name": "Scorching Ray"
+    },
+    {
+     "name": "Suggestion",
+     "library_id": "srd_srd_2024_suggestion",
+     "library_name": "Suggestion"
+    }
+   ],
+   "5": [
+    {
+     "name": "Fireball",
+     "library_id": "srd_srd_2024_fireball",
+     "library_name": "Fireball"
+    },
+    {
+     "name": "Stinking Cloud",
+     "library_id": "srd_srd_2024_stinking_cloud",
+     "library_name": "Stinking Cloud"
+    }
+   ],
+   "7": [
+    {
+     "name": "Fire Shield",
+     "library_id": "srd_srd_2024_fire_shield",
+     "library_name": "Fire Shield"
+    },
+    {
+     "name": "Wall of Fire",
+     "library_id": "srd_srd_2024_wall_of_fire",
+     "library_name": "Wall of Fire"
+    }
+   ],
+   "9": [
+    {
+     "name": "Geas",
+     "library_id": "srd_srd_2024_geas",
+     "library_name": "Geas"
+    },
+    {
+     "name": "Insect Plague",
+     "library_id": "srd_srd_2024_insect_plague",
+     "library_name": "Insect Plague"
+    }
+   ]
+  },
+  "subclass_row_id": "d1054780-0162-4589-a0c2-b6be8816e243",
+  "class": "Warlock",
+  "subclass": "Fiend Patron",
+  "ruleset": "2024"
+ },
+ {
+  "source": "SRD 5.2.1 p46 (identical in 5.2)",
+  "level_kind": "druid_level",
+  "mode": "always_prepared; land type chosen after each Long Rest, lower-level spells stay prepared",
+  "terrains": {
+   "Arid": {
+    "3": [
+     {
+      "name": "Blur",
+      "library_id": "srd_srd_2024_blur",
+      "library_name": "Blur"
+     },
+     {
+      "name": "Burning Hands",
+      "library_id": "srd_srd_2024_burning_hands",
+      "library_name": "Burning Hands"
+     },
+     {
+      "name": "Fire Bolt",
+      "library_id": "srd_srd_2024_fire_bolt",
+      "library_name": "Fire Bolt"
+     }
+    ],
+    "5": [
+     {
+      "name": "Fireball",
+      "library_id": "srd_srd_2024_fireball",
+      "library_name": "Fireball"
+     }
+    ],
+    "7": [
+     {
+      "name": "Blight",
+      "library_id": "srd_srd_2024_blight",
+      "library_name": "Blight"
+     }
+    ],
+    "9": [
+     {
+      "name": "Wall of Stone",
+      "library_id": "srd_srd_2024_wall_of_stone",
+      "library_name": "Wall of Stone"
+     }
+    ]
+   },
+   "Polar": {
+    "3": [
+     {
+      "name": "Fog Cloud",
+      "library_id": "srd_srd_2024_fog_cloud",
+      "library_name": "Fog Cloud"
+     },
+     {
+      "name": "Hold Person",
+      "library_id": "srd_srd_2024_hold_person",
+      "library_name": "Hold Person"
+     },
+     {
+      "name": "Ray of Frost",
+      "library_id": "srd_srd_2024_ray_of_frost",
+      "library_name": "Ray of Frost"
+     }
+    ],
+    "5": [
+     {
+      "name": "Sleet Storm",
+      "library_id": "srd_srd_2024_sleet_storm",
+      "library_name": "Sleet Storm"
+     }
+    ],
+    "7": [
+     {
+      "name": "Ice Storm",
+      "library_id": "srd_srd_2024_ice_storm",
+      "library_name": "Ice Storm"
+     }
+    ],
+    "9": [
+     {
+      "name": "Cone of Cold",
+      "library_id": "srd_srd_2024_cone_of_cold",
+      "library_name": "Cone of Cold"
+     }
+    ]
+   },
+   "Temperate": {
+    "3": [
+     {
+      "name": "Misty Step",
+      "library_id": "srd_srd_2024_misty_step",
+      "library_name": "Misty Step"
+     },
+     {
+      "name": "Shocking Grasp",
+      "library_id": "srd_srd_2024_shocking_grasp",
+      "library_name": "Shocking Grasp"
+     },
+     {
+      "name": "Sleep",
+      "library_id": "srd_srd_2024_sleep",
+      "library_name": "Sleep"
+     }
+    ],
+    "5": [
+     {
+      "name": "Lightning Bolt",
+      "library_id": "srd_srd_2024_lightning_bolt",
+      "library_name": "Lightning Bolt"
+     }
+    ],
+    "7": [
+     {
+      "name": "Freedom of Movement",
+      "library_id": "srd_srd_2024_freedom_of_movement",
+      "library_name": "Freedom of Movement"
+     }
+    ],
+    "9": [
+     {
+      "name": "Tree Stride",
+      "library_id": "srd_srd_2024_tree_stride",
+      "library_name": "Tree Stride"
+     }
+    ]
+   },
+   "Tropical": {
+    "3": [
+     {
+      "name": "Acid Splash",
+      "library_id": "srd_srd_2024_acid_splash",
+      "library_name": "Acid Splash"
+     },
+     {
+      "name": "Ray of Sickness",
+      "library_id": "srd_srd_2024_ray_of_sickness",
+      "library_name": "Ray of Sickness"
+     },
+     {
+      "name": "Web",
+      "library_id": "srd_srd_2024_web",
+      "library_name": "Web"
+     }
+    ],
+    "5": [
+     {
+      "name": "Stinking Cloud",
+      "library_id": "srd_srd_2024_stinking_cloud",
+      "library_name": "Stinking Cloud"
+     }
+    ],
+    "7": [
+     {
+      "name": "Polymorph",
+      "library_id": "srd_srd_2024_polymorph",
+      "library_name": "Polymorph"
+     }
+    ],
+    "9": [
+     {
+      "name": "Insect Plague",
+      "library_id": "srd_srd_2024_insect_plague",
+      "library_name": "Insect Plague"
+     }
+    ]
+   }
+  },
+  "subclass_row_id": "3466b3c8-a003-4229-8667-d1d10dd27525",
+  "class": "Druid",
+  "subclass": "Circle of the Land",
+  "ruleset": "2024"
+ }
+]

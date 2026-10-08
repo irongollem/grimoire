@@ -52,20 +52,23 @@
       </div>
     </div>
 
-    <!-- Granted spells per level card -->
-    <div v-if="grantedLevels.length" class="rounded-lg border border-border bg-card overflow-hidden">
+    <!-- Spell cards: granted, by choice, expanded list -->
+    <div v-for="card in spellCards" :key="card.title" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="text-label-lg font-semibold text-muted-foreground">Granted Spells per Level</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">{{ card.title }}</span>
       </div>
-      <div class="p-4 flex flex-col gap-2">
-        <div v-for="lvl in grantedLevels" :key="lvl" class="flex items-start gap-3">
-          <span class="text-label-lg text-primary w-6 shrink-0 pt-0.5">{{ lvl }}</span>
-          <div class="flex flex-wrap gap-1">
-            <span
-              v-for="sid in sub.granted_spells[lvl.toString()]"
-              :key="sid"
-              class="text-label bg-tone-success/10 text-ink-success  rounded px-2 py-0.5"
-            >{{ spellNameById(sid) }}</span>
+      <div class="p-4 flex flex-col gap-3">
+        <div v-for="block in card.blocks" :key="block.heading ?? ''" class="flex flex-col gap-2">
+          <span v-if="block.heading" class="text-label-lg text-foreground">{{ block.heading }}</span>
+          <div v-for="lvl in block.levels" :key="lvl" class="flex items-start gap-3">
+            <span class="text-label-lg text-primary w-6 shrink-0 pt-0.5">{{ lvl }}</span>
+            <div class="flex flex-wrap gap-1">
+              <span
+                v-for="sid in block.map[lvl.toString()]"
+                :key="sid"
+                class="text-label bg-tone-success/10 text-ink-success rounded px-2 py-0.5"
+              >{{ spellNameById(sid) }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -92,7 +95,14 @@ const { confirm } = useConfirm();
 const deleteMut = useDeleteCustomSubclass();
 
 const { data: allFeatures } = useAllFeatures();
-const { data: grantedSpells } = useSpellsByIds(() => Object.values(props.sub.granted_spells ?? {}).flat());
+const variantMaps = computed(() => Object.entries(props.sub.spell_variants));
+const expandedVariantMaps = computed(() => Object.entries(props.sub.expanded_spell_variants));
+const { data: grantedSpells } = useSpellsByIds(() => [
+  ...Object.values(props.sub.granted_spells).flat(),
+  ...variantMaps.value.flatMap(([, map]) => Object.values(map).flat()),
+  ...Object.values(props.sub.expanded_spells).flat(),
+  ...expandedVariantMaps.value.flatMap(([, map]) => Object.values(map).flat()),
+]);
 
 function featureNameById(id: string): string {
   return allFeatures.value?.find(f => f.id === id)?.name ?? id;
@@ -106,9 +116,38 @@ const populatedLevels = computed<number[]>(() =>
   Object.keys(props.sub.features).map(Number).sort((a, b) => a - b),
 );
 
-const grantedLevels = computed<number[]>(() =>
-  Object.keys(props.sub.granted_spells ?? {}).map(Number).sort((a, b) => a - b),
-);
+function sortedLevels(map: Record<string, string[]>): number[] {
+  return Object.keys(map).map(Number).sort((a, b) => a - b);
+}
+
+interface SpellBlock { heading: string | null; map: Record<string, string[]>; levels: number[] }
+
+const spellCards = computed<{ title: string; blocks: SpellBlock[] }[]>(() => {
+  const cards: { title: string; blocks: SpellBlock[] }[] = [];
+  const granted = props.sub.granted_spells;
+  if (Object.keys(granted).length) {
+    cards.push({ title: "Granted Spells per Level", blocks: [{ heading: null, map: granted, levels: sortedLevels(granted) }] });
+  }
+  if (variantMaps.value.length) {
+    cards.push({
+      title: props.sub.spell_variant_label ? `Spells by ${props.sub.spell_variant_label}` : "Spells by Choice",
+      blocks: variantMaps.value.map(([name, map]) => ({ heading: name, map, levels: sortedLevels(map) })),
+    });
+  }
+  if (expandedVariantMaps.value.length) {
+    cards.push({
+      title: props.sub.spell_variant_label
+        ? `Expanded Spell List by ${props.sub.spell_variant_label} (by spell level)`
+        : "Expanded Spell List by Choice (by spell level)",
+      blocks: expandedVariantMaps.value.map(([name, map]) => ({ heading: name, map, levels: sortedLevels(map) })),
+    });
+  }
+  const expanded = props.sub.expanded_spells;
+  if (Object.keys(expanded).length) {
+    cards.push({ title: "Expanded Spell List (by spell level)", blocks: [{ heading: null, map: expanded, levels: sortedLevels(expanded) }] });
+  }
+  return cards;
+});
 
 async function handleDelete() {
   const ok = await confirm(`Delete "${props.sub.subclass_name}"? This cannot be undone.`, {

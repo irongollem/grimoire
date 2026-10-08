@@ -6,6 +6,8 @@ export interface ClassScopedSelectionRefs {
   subclassDefinitionId: Ref<string>;
   /** Name of a subclass just picked this level-up. */
   subclassInput: Ref<string>;
+  /** The option picked from that subclass's spell variants. */
+  subclassVariant: Ref<string>;
   /** Spell ids picked to fill this level's known-spell gain. */
   selectedSpellIds: Ref<Set<string>>;
   /** Cantrip ids picked to fill this level's known-cantrip gain. */
@@ -37,6 +39,7 @@ export function useClassScopedReset(
   watch(classIdentityKey, () => {
     refs.subclassDefinitionId.value = "";
     refs.subclassInput.value = "";
+    refs.subclassVariant.value = "";
     refs.selectedSpellIds.value = new Set();
     refs.selectedCantripIds.value = new Set();
     refs.choiceValues.value = {};

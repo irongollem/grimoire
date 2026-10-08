@@ -39,9 +39,9 @@ export interface ConfirmOptions {
   newClassName: Readonly<Ref<string>>;
   newClassDefinitionId: ComputedRef<string | null>;
   newClassDefinitionKind: ComputedRef<"system" | "custom" | null>;
-  /** Spell ids granted (always prepared) by the leveled subclass at this level. */
-  grantedSpellsForThisLevel: ComputedRef<string[]>;
-  /** All spell ids the character already has — granted spells skip these. */
+  /** The option picked from the subclass's `spell_variants` at this level, or null when none was asked. */
+  subclassVariant: ComputedRef<string | null>;
+  /** All spell ids the character already has — feature spell picks skip these. */
   existingSpellIds: ComputedRef<Set<string>>;
   /** Proficiencies the features gained this level give, and the spell picks to turn into rows (#994). */
   featureGrants: ComputedRef<BuildLevelUpPayloadInput["featureGrants"]>;
@@ -73,7 +73,7 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
       subclassInput, subclassDefinitionId,
       selectedSpellIds, selectedCantripIds, newClassName,
       newClassDefinitionId, newClassDefinitionKind,
-      grantedSpellsForThisLevel, existingSpellIds, featureGrants, featureSpells,
+      subclassVariant, existingSpellIds, featureGrants, featureSpells,
     } = opts;
 
     // Backstop: a level-up must know which class entry it is bumping, or which
@@ -112,7 +112,7 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
         newClassName: newClassName.value,
         newClassDefinitionId: newClassDefinitionId.value,
         newClassDefinitionKind: newClassDefinitionKind.value,
-        grantedSpellsForThisLevel: grantedSpellsForThisLevel.value,
+        subclassVariant: subclassVariant.value,
         existingSpellIds: existingSpellIds.value,
         featureGrants: featureGrants.value,
         featureSpells: featureSpells.value,

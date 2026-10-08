@@ -149,6 +149,7 @@ function classRow(definitionId: string, levels: number, overrides: Partial<Chara
     class_definition_kind: "system",
     subclass_name: null,
     subclass_definition_id: null,
+    subclass_variant: null,
     levels,
     is_primary: false,
     hit_dice_used: 0,

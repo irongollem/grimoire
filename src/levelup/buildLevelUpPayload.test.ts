@@ -56,7 +56,7 @@ function baseInput(overrides: Partial<BuildLevelUpPayloadInput> = {}): BuildLeve
     newClassDefinitionId: null,
     newClassDefinitionKind: null,
     subclassDefinitionId: null,
-    grantedSpellsForThisLevel: [],
+    subclassVariant: null,
     existingSpellIds: new Set(),
     featureGrants: [],
     featureSpells: { due: [], values: {}, isFeat: () => false, classHasSpellcasting: false },
@@ -242,25 +242,24 @@ describe("buildLevelUpPayload", () => {
     ).toThrow("Pick the class");
   });
 
-  it("emits picked spells, deduped subclass grants, and invocation grant rows", () => {
+  it("emits the picked spells and never writes the subclass's grants itself", () => {
     const { spellRows } = buildLevelUpPayload(
       baseInput({
         selectedSpellIds: new Set(["srd_hunters_mark"]),
         selectedCantripIds: new Set(["srd_light"]),
-        grantedSpellsForThisLevel: ["srd_speak_with_animals", "srd_already_known"],
         existingSpellIds: new Set(["srd_already_known"]),
       }),
     );
     expect(spellRows).toContainEqual({ spell_id: "srd_hunters_mark", is_prepared: false });
     expect(spellRows).toContainEqual({ spell_id: "srd_light", is_prepared: false });
-    // granted, not already known → always prepared
-    expect(spellRows).toContainEqual({
-      spell_id: "srd_speak_with_animals",
-      is_prepared: true,
-      always_prepared: true,
-    });
-    // already known granted spell is skipped
-    expect(spellRows.some((r) => r.spell_id === "srd_already_known")).toBe(false);
+    // The server derives the subclass's always-prepared rows from the class row.
+    expect(spellRows.some((r) => r.always_prepared)).toBe(false);
+  });
+
+  it("puts the picked subclass option in the class op, and omits it otherwise", () => {
+    expect(buildLevelUpPayload(baseInput({ subclassVariant: "Forest" })).classOp)
+      .toMatchObject({ op: "update", subclass_variant: "Forest" });
+    expect(buildLevelUpPayload(baseInput()).classOp).not.toHaveProperty("subclass_variant");
   });
 
   it("never writes the subclass into class_choices; the class row is its home", () => {

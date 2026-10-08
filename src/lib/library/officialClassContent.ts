@@ -10,6 +10,7 @@ import { FEAT_CATEGORIES } from "@/rules/features/mechanics.types";
 import type { FeatCategory, FeatureMechanics } from "@/rules/features/mechanics.types";
 import type { ClassFeatureInsert } from "@/types/feature.types";
 import type { CustomClassInsert, CustomSubclassInsert, HitDie } from "@/levelup/customTypes";
+import { LIBRARY_SUBCLASS_SPELLS } from "@/data/librarySubclassSpells";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 /**
@@ -127,6 +128,11 @@ export function officialIdentity(
 ): string {
   return `${documentKey}::${recordKey}::${ruleset ?? "any"}`;
 }
+
+/** The spell data of each library subclass that has any, by official identity. */
+const SUBCLASS_SPELLS = new Map(
+  LIBRARY_SUBCLASS_SPELLS.map(s => [officialIdentity(s.source_document_key, s.source_record_key, s.ruleset), s]),
+);
 
 /** Open5e document key to the `content_sources.key` a table enables, or null when no hostable book matches. */
 export function sourceKeyForDocument(documentKey: string, sources: readonly ContentSourceRef[]): string | null {
@@ -463,6 +469,7 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
     };
 
     if (cls.subclass_of) {
+      const spells = SUBCLASS_SPELLS.get(identity);
       const insert: CustomSubclassInsert = {
         ...common,
         class_name: cls.subclass_of.name,
@@ -470,11 +477,17 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
         conceptual_key: slugifyKey(`${cls.subclass_of.name}-${cls.name}`),
         description: cls.desc || null,
         features: {},
-        granted_spells: {},
+        // A new library subclass arrives with its spells (librarySubclassSpells.ts);
+        // one the data has nothing for is empty.
+        granted_spells: spells?.granted_spells ?? {},
+        spell_variants: spells?.spell_variants ?? {},
+        spell_variant_label: spells?.spell_variant_label ?? null,
+        expanded_spells: spells?.expanded_spells ?? {},
+        expanded_spell_variants: spells?.expanded_spell_variants ?? {},
         hp_per_level: null,
       };
-      // granted_spells and hp_per_level are configured by hand
-      // afterwards, so a re-import never refreshes them.
+      // The spell columns and hp_per_level may be edited by hand afterwards,
+      // so a re-import never refreshes them.
       const update: Partial<CustomSubclassInsert> = {
         class_name: insert.class_name,
         subclass_name: insert.subclass_name,

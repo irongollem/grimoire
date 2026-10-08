@@ -84,11 +84,37 @@
       />
 
       <!-- ── Section 3: Granted spells per level ───────────────────────────── -->
-      <CustomSubclassGrantedSpells
-        :granted-spells="form.granted_spells"
-        :all-spell-options="allSpellOptions"
-        @update:granted-spells="form.granted_spells = $event"
-      />
+      <SubclassSpellSection title="Granted Spells per Level" open :count="Object.keys(form.granted_spells).length">
+        <template #help>
+          Spells the subclass grants automatically: always prepared, and they don't count toward the
+          prepared-spell limit (oath / domain / circle spells). Pick from the SRD or your
+          <RouterLink to="/spells" class="text-primary hover:underline">custom spells</RouterLink>.
+        </template>
+        <SpellsByLevelGrid v-model="form.granted_spells" :all-spell-options="allSpellOptions" level-kind="class" />
+      </SubclassSpellSection>
+
+      <!-- ── Section 4: Spells that depend on a choice ─────────────────────── -->
+      <SubclassSpellSection title="Spells by Choice" :count="Object.keys({ ...form.spell_variants, ...form.expanded_spell_variants }).length">
+        <template #help>
+          For grants that depend on something the character picks, like a Circle of the Land terrain.
+          Name the choice, add its options, and set the spells each option grants at each class level.
+        </template>
+        <SubclassSpellVariants
+          v-model:variants="form.spell_variants"
+          v-model:expanded-variants="form.expanded_spell_variants"
+          v-model:label="form.spell_variant_label"
+          :all-spell-options="allSpellOptions"
+        />
+      </SubclassSpellSection>
+
+      <!-- ── Section 5: Expanded spell list ────────────────────────────────── -->
+      <SubclassSpellSection title="Expanded Spell List" :count="Object.keys(form.expanded_spells).length">
+        <template #help>
+          Spells this subclass adds to the class's spell list. The character still chooses them, and they
+          count toward known spells (e.g. a Warlock patron). Grouped by spell level, not class level.
+        </template>
+        <SpellsByLevelGrid v-model="form.expanded_spells" :all-spell-options="allSpellOptions" level-kind="spell" />
+      </SubclassSpellSection>
     </div>
   </PageHeader>
 </template>
@@ -96,7 +122,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { useRoute, useRouter } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -106,7 +132,9 @@ import { IconDelete, IconSave } from '@/lib/icons';
 import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/rules/useCustomSubclasses";
 import CustomSubclassSheet from "@/components/levelup/CustomSubclassSheet.vue";
 import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeaturesPerLevel.vue";
-import CustomSubclassGrantedSpells from "@/components/levelup/CustomSubclassGrantedSpells.vue";
+import SpellsByLevelGrid from "@/components/levelup/SpellsByLevelGrid.vue";
+import SubclassSpellSection from "@/components/levelup/SubclassSpellSection.vue";
+import SubclassSpellVariants from "@/components/levelup/SubclassSpellVariants.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { toPlainText } from "@/ai/utils";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
@@ -158,6 +186,10 @@ interface FormState {
   description: string;
   features: Record<string, string[]>;
   granted_spells: Record<string, string[]>;
+  spell_variants: Record<string, Record<string, string[]>>;
+  spell_variant_label: string | null;
+  expanded_spell_variants: Record<string, Record<string, string[]>>;
+  expanded_spells: Record<string, string[]>;
   hp_per_level: number | null;
 }
 
@@ -167,12 +199,21 @@ const form = ref<FormState>({
   description: "",
   features: {},
   granted_spells: {},
+  spell_variants: {},
+  spell_variant_label: null,
+  expanded_spell_variants: {},
+  expanded_spells: {},
   hp_per_level: null,
 });
 
 const { data: spellIndex } = useSpellIndex();
 // Spells already granted resolve by id, so one outside the enabled sources still shows its name.
-const { data: grantedRows } = useSpellsByIds(() => Object.values(form.value.granted_spells).flat());
+const { data: grantedRows } = useSpellsByIds(() => [
+  ...Object.values(form.value.granted_spells).flat(),
+  ...Object.values(form.value.spell_variants).flatMap(v => Object.values(v).flat()),
+  ...Object.values(form.value.expanded_spells).flat(),
+  ...Object.values(form.value.expanded_spell_variants).flatMap(v => Object.values(v).flat()),
+]);
 const allSpellOptions = computed(() => {
   const label = (s: { name: string; level: number }) =>
     s.level === 0 ? `${s.name} (cantrip)` : `${s.name} (lvl ${s.level})`;
@@ -196,6 +237,10 @@ watch(existing, (val) => {
     description: raw.description ?? "",
     features: raw.features,
     granted_spells: raw.granted_spells ?? {},
+    spell_variants: raw.spell_variants ?? {},
+    spell_variant_label: raw.spell_variant_label ?? null,
+    expanded_spell_variants: raw.expanded_spell_variants ?? {},
+    expanded_spells: raw.expanded_spells ?? {},
     hp_per_level: raw.hp_per_level ?? null,
   };
   campaignScope.value = raw.campaign_id ?? "all";
@@ -218,6 +263,13 @@ async function save() {
     description: toPlainText(form.value.description).trim() ? form.value.description : null,
     features: form.value.features,
     granted_spells: form.value.granted_spells,
+    spell_variants: form.value.spell_variants,
+    spell_variant_label:
+      Object.keys(form.value.spell_variants).length + Object.keys(form.value.expanded_spell_variants).length > 0
+        ? form.value.spell_variant_label
+        : null,
+    expanded_spell_variants: form.value.expanded_spell_variants,
+    expanded_spells: form.value.expanded_spells,
     hp_per_level: form.value.hp_per_level,
   };
   // Material edit detection: any change to the archetype's rules content means

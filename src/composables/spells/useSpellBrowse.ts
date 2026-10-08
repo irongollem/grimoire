@@ -16,6 +16,8 @@ export interface SpellBrowseFilters {
   class: string;
   /** "all" | "custom" | a library source slug. */
   source: string;
+  /** Spell ids admitted by the class filter whatever their `classes` say: a subclass's expanded list. */
+  extraIds?: readonly string[];
 }
 
 /** What `browse_spells` reports about the whole filtered result. Only the
@@ -48,6 +50,7 @@ async function fetchPage(
     p_source: f.source === "" ? "all" : f.source,
     p_limit: SPELL_BROWSE_PAGE_SIZE,
     p_offset: offset,
+    p_extra_ids: f.extraIds && f.extraIds.length > 0 ? [...f.extraIds] : null,
   });
   if (error) throw error;
   return data as unknown as SpellBrowsePage;
@@ -71,7 +74,7 @@ export function useSpellBrowse(filters: MaybeRefOrGetter<SpellBrowseFilters>) {
       const f = effective.value;
       return [
         "spells", "browse", slugs.value, ruleset.value, campaign.activeCampaignId,
-        f.search, f.level, f.school, f.class, f.source,
+        f.search, f.level, f.school, f.class, f.source, f.extraIds ?? [],
       ] as const;
     },
     fetchPage: (offset) => {

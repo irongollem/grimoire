@@ -37,7 +37,7 @@ vi.mock("@/composables/party/useArmorClass", () => ({
 function row(name: string, levels: number, primary: boolean): CharacterClass {
   return {
     id: name, party_member_id: "m1", class_name: name, class_definition_id: `def-${name}`,
-    class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, levels,
+    class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels,
     is_primary: primary, hit_dice_used: 0, sort_order: primary ? 0 : 1, created_at: "", updated_at: "",
   };
 }

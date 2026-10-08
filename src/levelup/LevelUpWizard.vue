@@ -93,6 +93,16 @@
         @update:model-value="subclassInput = $event"
       />
 
+      <!-- What the subclass grants at this level, and the option those grants depend on -->
+      <LevelUpSubclassSpells
+        v-if="memberClass"
+        :variant="subclassVariant || heldVariant || ''"
+        :subclass="customSubclass"
+        :class-level="levelInChosenClass"
+        :ask="variantDue"
+        @update:variant="subclassVariant = $event"
+      />
+
       <!-- Everything the new features ask for: ability scores or a feat, invocations, expertise, swaps -->
       <LevelUpChoices
         v-if="memberClass"
@@ -167,7 +177,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import LevelUpChoices from "@/components/features/LevelUpChoices.vue";
 import type { ChoiceValue } from "@/components/features/choiceValue";
@@ -175,6 +185,8 @@ import LevelUpClassPicker from "./LevelUpClassPicker.vue";
 import LevelUpFeaturesGained from "./LevelUpFeaturesGained.vue";
 import LevelUpHitPoints from "./LevelUpHitPoints.vue";
 import LevelUpSubclassPicker from "./LevelUpSubclassPicker.vue";
+import LevelUpSubclassSpells from "./LevelUpSubclassSpells.vue";
+import { subclassExpandedSpellIds, subclassVariantDue } from "./subclassSpells";
 import { subclassChoiceDue } from "./subclassChoice";
 import LevelUpSpellPicker from "./LevelUpSpellPicker.vue";
 import LevelUpSpellsUnavailable from "./LevelUpSpellsUnavailable.vue";
@@ -231,6 +243,16 @@ const needsSubclassChoice = computed(() =>
     systemClass.value?.subclass_level ?? customClass.value?.subclass_level,
   ),
 );
+/** The option (a Circle of the Land terrain) the character holds; a subclass picked now starts with none. */
+const heldVariant = computed(() =>
+  needsSubclassChoice.value ? null : (chosenExistingEntry.value?.subclass_variant ?? null),
+);
+const subclassVariant = ref("");
+const variantDue = computed(() => subclassVariantDue(customSubclass.value, heldVariant.value));
+/** What the payload sends: the option asked for now, never one the character already holds. */
+const variantPicked = computed(() => (variantDue.value && subclassVariant.value ? subclassVariant.value : null));
+/** The grants shown are those of the option the character will hold after this level. */
+watch(subclassDefinitionId, () => { subclassVariant.value = ""; });
 const subclassOptions = computed(() =>
   campaignCustomSubclasses.value
     .filter((subclass) => subclass.class_name === memberClass.value)
@@ -316,7 +338,12 @@ const {
 const spellSearch = ref("");
 const cantripSearch = ref("");
 const { spellCandidates, cantripCandidates, isLoading: spellsLoading } =
-  useLevelUpSpellCandidates({ className: memberClass, maxCastableLevel, spellSearch, cantripSearch });
+  useLevelUpSpellCandidates({
+    className: memberClass, maxCastableLevel, spellSearch, cantripSearch,
+    // A 2014 Warlock patron's expanded list is picked from like the class's own.
+    extraSpellIds: computed(() =>
+      subclassExpandedSpellIds(customSubclass.value, subclassVariant.value || heldVariant.value)),
+  });
 
 // Worded without "campaign" on purpose — a standalone player (#730) has none.
 function classFallbackNotice(candidates: { usedClassFallback: boolean }): string | undefined {
@@ -358,7 +385,7 @@ const classIdentityKey = computed(() =>
   isAddingNewClass.value ? `new:${newClassChoiceKey.value}` : `existing:${chosenClassSelector.value}`,
 );
 useClassScopedReset(classIdentityKey, {
-  subclassDefinitionId, subclassInput, selectedSpellIds, selectedCantripIds, choiceValues, swapPicks,
+  subclassDefinitionId, subclassInput, subclassVariant, selectedSpellIds, selectedCantripIds, choiceValues, swapPicks,
 });
 
 // ── Validation ─────────────────────────────────────────────────────────────────
@@ -375,19 +402,13 @@ const canConfirm = computed(() => {
   // With no subclass defined for this class there is nothing to pick; the
   // level-up goes on and the character is asked again next time.
   if (needsSubclassChoice.value && subclassOptions.value.length > 0 && !subclassDefinitionId.value) return false;
+  if (variantDue.value && !subclassVariant.value) return false;
   if (selectedSpellIds.value.size !== spellsKnownGain.value) return false;
   if (selectedCantripIds.value.size !== cantripsKnownGain.value) return false;
   return true;
 });
 
 // ── Confirm ────────────────────────────────────────────────────────────────────
-// Spells the leveled subclass grants (always prepared) at the new in-class
-// level. `customSubclass` already resolves the effective subclass by id: the
-// one just chosen at the subclass-choice level, otherwise the leveled row's own.
-const grantedSpellsForThisLevel = computed<string[]>(() =>
-  customSubclass.value?.granted_spells?.[String(levelInChosenClass.value)] ?? [],
-);
-
 const { confirm, error, isPending } = useLevelUpConfirm({
   member: props.member,
   targetLevel: props.targetLevel,
@@ -414,7 +435,7 @@ const { confirm, error, isPending } = useLevelUpConfirm({
   newClassName,
   newClassDefinitionId,
   newClassDefinitionKind,
-  grantedSpellsForThisLevel,
+  subclassVariant: variantPicked,
   existingSpellIds: alreadyKnownIds,
   featureGrants,
   featureSpells,

@@ -48,6 +48,13 @@
         :next-level="1"
         :class-name="f.class"
         :subclass-options="subclassOptions" />
+      <LevelUpSubclassSpells
+        v-if="pickedSubclass"
+        v-model:variant="subclassVariant"
+        class="mt-3"
+        :subclass="pickedSubclass"
+        :class-level="1"
+        :ask="subclassVariantChoices.length > 0" />
     </div>
     <p v-else-if="f.class && subclassLevel" class="text-body text-muted-foreground">
       You choose your subclass at level {{ subclassLevel }}.
@@ -208,6 +215,7 @@ import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-list
 import { CLASS_SKILL_CHOICES, FALLBACK_SKILL_DATA } from "@/data/classSkillChoices";
 import type { SkillKey } from "@/data/classSkillChoices";
 import LevelUpSubclassPicker from "@/levelup/LevelUpSubclassPicker.vue";
+import LevelUpSubclassSpells from "@/levelup/LevelUpSubclassSpells.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
@@ -217,6 +225,7 @@ const { form } = defineProps<{ form: CharacterCreationForm }>();
 
 const {
   f, subclassId, subclassLevel, subclassDueAtStart, subclassOptions,
+  pickedSubclass, subclassVariant, subclassVariantChoices,
   mergedClasses, selectedClassKey, onClassSelect, setSkillProf, skillBonus, toggleSave, saveBonus,
   bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills, toggleBgSkillChoice,
 } = form;

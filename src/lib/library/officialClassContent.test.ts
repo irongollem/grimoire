@@ -179,7 +179,69 @@ describe("planOfficialClassContent", () => {
       description: "A fighter of prowess.",
       ruleset: "2024",
     });
-    expect(Object.keys(result.subclasses[0].update)).not.toContain("granted_spells");
+    const updated = Object.keys(result.subclasses[0].update);
+    for (const column of ["granted_spells", "spell_variants", "spell_variant_label", "expanded_spells", "expanded_spell_variants"]) {
+      expect(updated).not.toContain(column);
+    }
+    // No spell data for this subclass: the columns arrive empty.
+    expect(result.subclasses[0].insert).toMatchObject({
+      granted_spells: {},
+      spell_variants: {},
+      spell_variant_label: null,
+      expanded_spells: {},
+      expanded_spell_variants: {},
+    });
+  });
+
+  it("gives a newly imported library subclass its spells, and a re-import leaves them alone", () => {
+    const lifeDomain: Open5eV2Class = {
+      key: "srd-2024_life-domain",
+      name: "Life Domain",
+      desc: "",
+      hit_dice: null,
+      saving_throws: [],
+      subclass_of: { key: "srd-2024_cleric", name: "Cleric" },
+      document: srd2024,
+      features: [],
+    };
+    const result = plan({ classes: [lifeDomain] });
+    const [subclass] = result.subclasses;
+    expect(subclass.insert.granted_spells["3"]).toContain("srd_srd_2024_cure_wounds");
+    expect(Object.keys(subclass.insert.granted_spells)).toEqual(["3", "5", "7", "9"]);
+    expect(Object.keys(subclass.update)).not.toContain("granted_spells");
+  });
+
+  it("gives Animal Lords its affinities as expanded variants", () => {
+    const lords: Open5eV2Class = {
+      key: "toh_animal-lords",
+      name: "Animal Lords",
+      desc: "",
+      hit_dice: null,
+      saving_throws: [],
+      subclass_of: { key: "toh_warlock", name: "Warlock" },
+      document: { ...srd2014, key: "toh", name: "Tome of Heroes" },
+      features: [],
+    };
+    const [subclass] = plan({ classes: [lords], sources: [...sources, { key: "toh", open5e_key: null, is_redistributable: true }] }).subclasses;
+    expect(subclass.insert.spell_variant_label).toBe("Affinity");
+    expect(Object.keys(subclass.insert.expanded_spell_variants).sort()).toEqual(["Air", "Earth", "Water"]);
+    expect(Object.keys(subclass.update)).not.toContain("expanded_spell_variants");
+  });
+
+  it("gives Circle of the Land its variants and label", () => {
+    const land: Open5eV2Class = {
+      key: "srd_circle-of-the-land",
+      name: "Circle of the Land",
+      desc: "",
+      hit_dice: null,
+      saving_throws: [],
+      subclass_of: { key: "srd-2014_druid", name: "Druid" },
+      document: srd2014,
+      features: [],
+    };
+    const [subclass] = plan({ classes: [land] }).subclasses;
+    expect(subclass.insert.spell_variant_label).toBe("Terrain");
+    expect(Object.keys(subclass.insert.spell_variants)).toHaveLength(7);
   });
 
   it("turns Open5e text into a Tiptap document, paragraph by paragraph", () => {

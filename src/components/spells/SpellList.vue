@@ -240,6 +240,7 @@ const {
   schoolFilter,
   classFilter,
   sourceFilter,
+  extraIds,
   playerMemberId,
   casterType,
   knownSpellIds,
@@ -257,6 +258,8 @@ const {
   schoolFilter: string;
   classFilter: string;
   sourceFilter: string;
+  /** Spells the class filter also admits: the chosen class's subclass's expanded list. */
+  extraIds?: readonly string[];
   /** Set when rendering inside the player portal — hides Edit, shows Learn/Remove button. */
   playerMemberId?: string;
   /** Caster archetype — controls button label and whether to show the button at all. */
@@ -395,6 +398,7 @@ const {
   school: schoolFilter,
   class: classFilter,
   source: sourceFilter,
+  extraIds,
 }));
 
 watch(error, (e) => {

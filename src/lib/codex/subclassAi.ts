@@ -99,6 +99,10 @@ export function subclassDraftFromAi(ai: SubclassAiResult, ctx: SubclassDraftCont
     description: description ? toTiptapJson(description) : null,
     features: featureIdsByLevel(features, features.map((_, i) => `pending-${i}`)),
     granted_spells: {},
+    spell_variants: {},
+    spell_variant_label: null,
+    expanded_spell_variants: {},
+    expanded_spells: {},
     hp_per_level: hp !== null && hp >= 1 && hp <= 2 ? hp : null,
     ai_provenance: ai.ai_provenance ?? null,
   };

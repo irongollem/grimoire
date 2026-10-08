@@ -564,6 +564,16 @@
         </template>
       </VirtualGrid>
     </CatalogueSection>
+
+    <CatalogueSection
+      title="SpellsByLevelGrid: class level and spell level"
+      note="One editor for every per-level spell map on a subclass. Left: keyed by class level (1-20), used by granted spells and each variant option. Right: keyed by spell level (1-9), used by the expanded list."
+    >
+      <div class="grid gap-6 md:grid-cols-2">
+        <SpellsByLevelGrid v-model="gridClass" :all-spell-options="gridSpells" level-kind="class" />
+        <SpellsByLevelGrid v-model="gridSpell" :all-spell-options="gridSpells" level-kind="spell" />
+      </div>
+    </CatalogueSection>
   </div>
 </template>
 
@@ -605,6 +615,7 @@ import { SWITCH_SIZES } from "@/components/common/toggleSwitchVariants";
 import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import CatalogueSection from "./CatalogueSection.vue";
+import SpellsByLevelGrid from "@/components/levelup/SpellsByLevelGrid.vue";
 import {
   BUTTON_VARIANTS,
   BUTTON_SIZES,
@@ -689,6 +700,13 @@ const segment = ref<string>("url");
 const emptyable = ref<string>("campaign");
 const selectValue = ref<string>("a");
 const checkboxValue = ref(true);
+const gridSpells = [
+  { id: "a", name: "Misty Step (lvl 2)" },
+  { id: "b", name: "Fireball (lvl 3)" },
+  { id: "c", name: "Hold Person (lvl 2)" },
+];
+const gridClass = ref<Record<string, string[]>>({ "3": ["a"], "5": ["b", "c"] });
+const gridSpell = ref<Record<string, string[]>>({ "1": ["c"] });
 const checkboxGroup = ref<string[]>(["dawn"]);
 const inputValue = ref<string | number | null>("Ancient Red Dragon");
 const numberValue = ref<string | number | null>(12);

@@ -6,6 +6,7 @@ function setup(initialIdentity: string) {
   const identity = ref(initialIdentity);
   const subclassDefinitionId = ref("sub-def-1");
   const subclassInput = ref("Beast Master");
+  const subclassVariant = ref("Forest");
   const selectedSpellIds = ref(new Set(["srd_hunters_mark"]));
   const selectedCantripIds = ref(new Set(["srd_light"]));
   const choiceValues = ref<Record<string, unknown>>({ "feat-1:favored_enemy": { picks: ["Orcs"] } });
@@ -16,6 +17,7 @@ function setup(initialIdentity: string) {
     useClassScopedReset(computed(() => identity.value), {
       subclassDefinitionId,
       subclassInput,
+      subclassVariant,
       selectedSpellIds,
       selectedCantripIds,
       choiceValues,
@@ -24,7 +26,7 @@ function setup(initialIdentity: string) {
   });
 
   return {
-    identity, subclassDefinitionId, subclassInput,
+    identity, subclassDefinitionId, subclassInput, subclassVariant,
     selectedSpellIds, selectedCantripIds, choiceValues, swapPicks,
     stop: () => scope.stop(),
   };
@@ -42,6 +44,7 @@ describe("useClassScopedReset", () => {
 
     expect(state.subclassDefinitionId.value).toBe("");
     expect(state.subclassInput.value).toBe("");
+    expect(state.subclassVariant.value).toBe("");
     expect(state.selectedSpellIds.value.size).toBe(0);
     expect(state.selectedCantripIds.value.size).toBe(0);
     expect(state.choiceValues.value).toEqual({});

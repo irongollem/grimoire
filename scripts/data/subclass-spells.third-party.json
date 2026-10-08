@@ -1,0 +1,2512 @@
+[
+ {
+  "class": "Druid",
+  "subclass": "Circle of the Many",
+  "source": "o5e",
+  "ruleset": "2014",
+  "subclass_row_id": "d2498382-7954-427f-8944-df3d0a3166a2",
+  "open5e_key": "open5e_circle-of-the-many",
+  "tables": []
+ },
+ {
+  "class": "Bard",
+  "subclass": "College of Skalds",
+  "source": "o5e",
+  "ruleset": "2014",
+  "subclass_row_id": "0571ab38-a24b-485d-9ba5-01c80bf3d52c",
+  "open5e_key": "open5e_college-of-skalds",
+  "tables": []
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Demise Domain",
+  "source": "o5e",
+  "ruleset": "2014",
+  "subclass_row_id": "d456bcab-cf4f-4f22-81b9-9fdec7d4a648",
+  "open5e_key": "open5e_demise-domain",
+  "tables": [
+   {
+    "feature": "Death Domain Spells (table)",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "false life",
+        "library_id": "srd_false_life"
+       },
+       {
+        "name": "ray of sickness",
+        "library_id": "srd_ray_of_sickness"
+       }
+      ],
+      "3": [
+       {
+        "name": "blindness/deafness",
+        "library_id": "srd_blindnessdeafness"
+       },
+       {
+        "name": "ray of enfeeblement",
+        "library_id": "srd_ray_of_enfeeblement"
+       }
+      ],
+      "5": [
+       {
+        "name": "animate dead",
+        "library_id": "srd_srd_animate_dead"
+       },
+       {
+        "name": "vampiric touch",
+        "library_id": "srd_vampiric_touch"
+       }
+      ],
+      "7": [
+       {
+        "name": "blight",
+        "library_id": "srd_blight"
+       },
+       {
+        "name": "death ward",
+        "library_id": "srd_srd_death_ward"
+       }
+      ],
+      "9": [
+       {
+        "name": "antilife shell",
+        "library_id": "srd_antilife_shell"
+       },
+       {
+        "name": "cloudkill",
+        "library_id": "srd_cloudkill"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Mischief Domain",
+  "source": "o5e",
+  "ruleset": "2014",
+  "subclass_row_id": "6902ef88-83d0-4e6d-a22c-b7d89c108b8c",
+  "open5e_key": "open5e_mischief-domain",
+  "tables": [
+   {
+    "feature": "Mischeif Domain Spells (table)",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "charm person",
+        "library_id": "srd_srd_charm_person"
+       },
+       {
+        "name": "disguise self",
+        "library_id": "srd_disguise_self"
+       }
+      ],
+      "3": [
+       {
+        "name": "mirror image",
+        "library_id": "srd_mirror_image"
+       },
+       {
+        "name": "pass without trace",
+        "library_id": "srd_pass_without_trace"
+       }
+      ],
+      "5": [
+       {
+        "name": "blink",
+        "library_id": "srd_srd_blink"
+       },
+       {
+        "name": "dispel magic",
+        "library_id": "srd_srd_dispel_magic"
+       }
+      ],
+      "7": [
+       {
+        "name": "dimension door",
+        "library_id": "srd_dimension_door"
+       },
+       {
+        "name": "polymorph",
+        "library_id": "srd_polymorph"
+       }
+      ],
+      "9": [
+       {
+        "name": "dominate person",
+        "library_id": "srd_dominate_person"
+       },
+       {
+        "name": "modify memory",
+        "library_id": "srd_modify_memory"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Paladin",
+  "subclass": "Oathless Betrayer",
+  "source": "o5e",
+  "ruleset": "2014",
+  "subclass_row_id": "cd03d9ef-44a2-4356-ad6a-64479375adf9",
+  "open5e_key": "open5e_oathless-betrayer",
+  "tables": [
+   {
+    "feature": "Oath Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Paladin Spells": {
+      "3": [
+       {
+        "name": "hellish rebuke",
+        "library_id": "srd_hellish_rebuke"
+       },
+       {
+        "name": "inflict wounds",
+        "library_id": "srd_inflict_wounds"
+       }
+      ],
+      "5": [
+       {
+        "name": "crown of madness",
+        "library_id": null
+       },
+       {
+        "name": "darkness",
+        "library_id": "srd_darkness"
+       }
+      ],
+      "9": [
+       {
+        "name": "animate dead",
+        "library_id": "srd_srd_animate_dead"
+       },
+       {
+        "name": "bestow curse",
+        "library_id": "srd_bestow_curse"
+       }
+      ],
+      "13": [
+       {
+        "name": "blight",
+        "library_id": "srd_blight"
+       },
+       {
+        "name": "confusion",
+        "library_id": "srd_confusion"
+       }
+      ],
+      "17": [
+       {
+        "name": "contagion",
+        "library_id": "srd_contagion"
+       },
+       {
+        "name": "dominate person",
+        "library_id": "srd_dominate_person"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Storm Domain",
+  "source": "o5e",
+  "ruleset": "2014",
+  "subclass_row_id": "f222a5b0-3b8e-42a0-8e25-d9d2a5d366a9",
+  "open5e_key": "open5e_storm-domain",
+  "tables": [
+   {
+    "feature": "Storm Domain Spells (table)",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "fog cloud",
+        "library_id": "srd_fog_cloud"
+       },
+       {
+        "name": "thunderwave",
+        "library_id": "srd_thunderwave"
+       }
+      ],
+      "3": [
+       {
+        "name": "gust of wind",
+        "library_id": "srd_gust_of_wind"
+       },
+       {
+        "name": "shatter",
+        "library_id": "srd_shatter"
+       }
+      ],
+      "5": [
+       {
+        "name": "call lightning",
+        "library_id": "srd_call_lightning"
+       },
+       {
+        "name": "sleet storm",
+        "library_id": "srd_sleet_storm"
+       }
+      ],
+      "7": [
+       {
+        "name": "control water",
+        "library_id": "srd_control_water"
+       },
+       {
+        "name": "ice storm",
+        "library_id": "srd_ice_storm"
+       }
+      ],
+      "9": [
+       {
+        "name": "destructive wave",
+        "library_id": null
+       },
+       {
+        "name": "insect plague",
+        "library_id": "srd_insect_plague"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Warlock",
+  "subclass": "The Ancient Fey Court",
+  "source": "o5e",
+  "ruleset": "2014",
+  "subclass_row_id": "a75f37f7-71f3-420d-923f-96d65ece763b",
+  "open5e_key": "open5e_the-ancient-fey-court",
+  "tables": [
+   {
+    "feature": "Expanded Spell List",
+    "level_kind": "spell_level",
+    "grant_mode": "expanded_list_choose_when_learning",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "faerie fire",
+        "library_id": "srd_faerie_fire"
+       },
+       {
+        "name": "sleep",
+        "library_id": "srd_sleep"
+       }
+      ],
+      "2": [
+       {
+        "name": "calm emotions",
+        "library_id": "srd_calm_emotions"
+       },
+       {
+        "name": "phantasmal force",
+        "library_id": null
+       }
+      ],
+      "3": [
+       {
+        "name": "blink",
+        "library_id": "srd_srd_blink"
+       },
+       {
+        "name": "plant growth",
+        "library_id": "srd_plant_growth"
+       }
+      ],
+      "4": [
+       {
+        "name": "dominate beast",
+        "library_id": "srd_dominate_beast"
+       },
+       {
+        "name": "greater invisibility",
+        "library_id": "srd_greater_invisibility"
+       }
+      ],
+      "5": [
+       {
+        "name": "dominate person",
+        "library_id": "srd_dominate_person"
+       },
+       {
+        "name": "seeming",
+        "library_id": "srd_seeming"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Warlock",
+  "subclass": "The Great Elder Thing",
+  "source": "o5e",
+  "ruleset": "2014",
+  "subclass_row_id": "1e3d2564-91b5-428c-a081-e42a0d16a595",
+  "open5e_key": "open5e_the-great-elder-thing",
+  "tables": [
+   {
+    "feature": "Expanded Spell List",
+    "level_kind": "spell_level",
+    "grant_mode": "expanded_list_choose_when_learning",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "dissonant whispers",
+        "library_id": null
+       },
+       {
+        "name": "hideous laughter",
+        "library_id": "srd_hideous_laughter"
+       }
+      ],
+      "2": [
+       {
+        "name": "detect thoughts",
+        "library_id": "srd_detect_thoughts"
+       },
+       {
+        "name": "phantasmal force",
+        "library_id": null
+       }
+      ],
+      "3": [
+       {
+        "name": "clairvoyance",
+        "library_id": "srd_clairvoyance"
+       },
+       {
+        "name": "sending",
+        "library_id": "srd_sending"
+       }
+      ],
+      "4": [
+       {
+        "name": "dominate beast",
+        "library_id": "srd_dominate_beast"
+       },
+       {
+        "name": "black tentacles",
+        "library_id": "srd_black_tentacles"
+       }
+      ],
+      "5": [
+       {
+        "name": "dominate person",
+        "library_id": "srd_dominate_person"
+       },
+       {
+        "name": "telekinesis",
+        "library_id": "srd_telekinesis"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Sorcerer",
+  "subclass": "Wyrd Magic",
+  "source": "o5e",
+  "ruleset": "2014",
+  "subclass_row_id": "1aaf7074-32e5-4ad7-9832-b87a6ea8a3e3",
+  "open5e_key": "open5e_wyrd-magic",
+  "tables": []
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Blood Domain",
+  "source": "taldorei",
+  "ruleset": "2014",
+  "subclass_row_id": "c689e680-3eb3-484b-9e30-65f6bf7615e7",
+  "open5e_key": "tdcs_blood-domain",
+  "tables": [
+   {
+    "feature": "Blood Domain Spells (table)",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "sleep",
+        "library_id": "srd_sleep"
+       },
+       {
+        "name": "ray of sickness",
+        "library_id": "srd_ray_of_sickness"
+       }
+      ],
+      "3": [
+       {
+        "name": "ray of enfeeblement",
+        "library_id": "srd_ray_of_enfeeblement"
+       },
+       {
+        "name": "crown of madness",
+        "library_id": null
+       }
+      ],
+      "5": [
+       {
+        "name": "haste",
+        "library_id": "srd_haste"
+       },
+       {
+        "name": "slow",
+        "library_id": "srd_slow"
+       }
+      ],
+      "7": [
+       {
+        "name": "blight",
+        "library_id": "srd_blight"
+       },
+       {
+        "name": "stoneskin",
+        "library_id": "srd_stoneskin"
+       }
+      ],
+      "9": [
+       {
+        "name": "dominate person",
+        "library_id": "srd_dominate_person"
+       },
+       {
+        "name": "hold monster",
+        "library_id": "srd_hold_monster"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Sorcerer",
+  "subclass": "Runechild",
+  "source": "taldorei",
+  "ruleset": "2014",
+  "subclass_row_id": "95951b8f-903d-4aa5-a20f-dae30b3e241a",
+  "open5e_key": "tdcs_runechild",
+  "tables": []
+ },
+ {
+  "class": "Warlock",
+  "subclass": "Ancient Dragons",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "2b7f8430-1777-4d1c-af10-18ff22d6aceb",
+  "open5e_key": "toh_ancient-dragons",
+  "tables": [
+   {
+    "feature": "Expanded Spell List",
+    "level_kind": "spell_level",
+    "grant_mode": "expanded_list_choose_when_learning",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "inflict wounds",
+        "library_id": "srd_inflict_wounds"
+       },
+       {
+        "name": "magic missile",
+        "library_id": "srd_magic_missile"
+       }
+      ],
+      "2": [
+       {
+        "name": "heat metal",
+        "library_id": "srd_heat_metal"
+       },
+       {
+        "name": "scorching ray",
+        "library_id": "srd_scorching_ray"
+       }
+      ],
+      "3": [
+       {
+        "name": "dispel magic",
+        "library_id": "srd_srd_dispel_magic"
+       },
+       {
+        "name": "lightning bolt",
+        "library_id": "srd_lightning_bolt"
+       }
+      ],
+      "4": [
+       {
+        "name": "greater invisibility",
+        "library_id": "srd_greater_invisibility"
+       },
+       {
+        "name": "ice storm",
+        "library_id": "srd_ice_storm"
+       }
+      ],
+      "5": [
+       {
+        "name": "cloudkill",
+        "library_id": "srd_cloudkill"
+       },
+       {
+        "name": "flame strike",
+        "library_id": "srd_flame_strike"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Warlock",
+  "subclass": "Animal Lords",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "985fed78-d104-4cdf-b7c8-85840087265f",
+  "open5e_key": "toh_animal-lords",
+  "tables": [
+   {
+    "feature": "Expanded Spell List",
+    "level_kind": "spell_level",
+    "grant_mode": "expanded_list_choose_when_learning",
+    "columns": {
+     "Animal Lord Spells": {
+      "1": [
+       {
+        "name": "Speak with Animals",
+        "library_id": "srd_speak_with_animals"
+       }
+      ],
+      "2": [
+       {
+        "name": "mark prey",
+        "library_id": "srd_mark_prey"
+       }
+      ],
+      "3": [
+       {
+        "name": "conjure animals",
+        "library_id": "srd_srd_conjure_animals"
+       }
+      ],
+      "4": [
+       {
+        "name": "polymorph",
+        "library_id": "srd_polymorph"
+       }
+      ],
+      "5": [
+       {
+        "name": "commune with nature",
+        "library_id": "srd_commune_with_nature"
+       }
+      ]
+     },
+     "Air Spells": {
+      "1": [
+       {
+        "name": "thunderwave",
+        "library_id": "srd_thunderwave"
+       }
+      ],
+      "2": [
+       {
+        "name": "gust of wind",
+        "library_id": "srd_gust_of_wind"
+       }
+      ],
+      "3": [
+       {
+        "name": "fly",
+        "library_id": "srd_fly"
+       }
+      ],
+      "4": [
+       {
+        "name": "storm of wings",
+        "library_id": "srd_storm_of_wings"
+       }
+      ],
+      "5": [
+       {
+        "name": "insect plague",
+        "library_id": "srd_insect_plague"
+       }
+      ]
+     },
+     "Earth Spells": {
+      "1": [
+       {
+        "name": "longstrider",
+        "library_id": "srd_longstrider"
+       }
+      ],
+      "2": [
+       {
+        "name": "pass without trace",
+        "library_id": "srd_pass_without_trace"
+       }
+      ],
+      "3": [
+       {
+        "name": "phantom seed",
+        "library_id": null
+       }
+      ],
+      "4": [
+       {
+        "name": "sudden stampede",
+        "library_id": "srd_sudden_stampede"
+       }
+      ],
+      "5": [
+       {
+        "name": "hold monster",
+        "library_id": "srd_hold_monster"
+       }
+      ]
+     },
+     "Water Spells": {
+      "1": [
+       {
+        "name": "fog cloud",
+        "library_id": "srd_fog_cloud"
+       }
+      ],
+      "2": [
+       {
+        "name": "misty step",
+        "library_id": "srd_misty_step"
+       }
+      ],
+      "3": [
+       {
+        "name": "water breathing",
+        "library_id": "srd_water_breathing"
+       }
+      ],
+      "4": [
+       {
+        "name": "control water",
+        "library_id": "srd_control_water"
+       }
+      ],
+      "5": [
+       {
+        "name": "cloudkill",
+        "library_id": "srd_cloudkill"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Ranger",
+  "subclass": "Beast Trainer",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "b6fc26f1-d48f-4f4d-b231-b760f5a1a571",
+  "open5e_key": "toh_beast-trainer",
+  "tables": []
+ },
+ {
+  "class": "Druid",
+  "subclass": "Circle of Ash",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "97d83603-3732-4042-a814-894dc0bb3537",
+  "open5e_key": "toh_circle-of-ash",
+  "tables": []
+ },
+ {
+  "class": "Druid",
+  "subclass": "Circle of Bees",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "449965e5-f02b-4609-82a0-9c459d56108c",
+  "open5e_key": "toh_circle-of-bees",
+  "tables": [
+   {
+    "feature": "Circle Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "blur",
+        "library_id": "srd_blur"
+       },
+       {
+        "name": "bombardment of stings",
+        "library_id": "srd_bombardment_of_stings"
+       }
+      ],
+      "5": [
+       {
+        "name": "fly",
+        "library_id": "srd_fly"
+       },
+       {
+        "name": "haste",
+        "library_id": "srd_haste"
+       }
+      ],
+      "7": [
+       {
+        "name": "giant insect",
+        "library_id": "srd_giant_insect"
+       },
+       {
+        "name": "locate creature",
+        "library_id": "srd_srd_locate_creature"
+       }
+      ],
+      "9": [
+       {
+        "name": "insect plague",
+        "library_id": "srd_insect_plague"
+       },
+       {
+        "name": "telepathic bond",
+        "library_id": "srd_telepathic_bond"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Druid",
+  "subclass": "Circle of Crystals",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "2ba304db-d5ab-44a0-80de-05bd21a2b70e",
+  "open5e_key": "toh_circle-of-crystals",
+  "tables": []
+ },
+ {
+  "class": "Druid",
+  "subclass": "Circle of Sand",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "30f95550-e17a-4918-8450-d1945e410b6c",
+  "open5e_key": "toh_circle-of-sand",
+  "tables": []
+ },
+ {
+  "class": "Druid",
+  "subclass": "Circle of the Green",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "13d36819-1de8-4b4e-8aad-71ed26dc3288",
+  "open5e_key": "toh_circle-of-the-green",
+  "tables": [
+   {
+    "feature": "Circle Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "2": [
+       {
+        "name": "entangle",
+        "library_id": "srd_srd_entangle"
+       },
+       {
+        "name": "goodberry",
+        "library_id": "srd_goodberry"
+       }
+      ],
+      "3": [
+       {
+        "name": "barkskin",
+        "library_id": "srd_srd_barkskin"
+       },
+       {
+        "name": "spike growth",
+        "library_id": "srd_spike_growth"
+       }
+      ],
+      "5": [
+       {
+        "name": "speak with plants",
+        "library_id": "srd_speak_with_plants"
+       },
+       {
+        "name": "vine carpet",
+        "library_id": "srd_vine_carpet"
+       }
+      ],
+      "7": [
+       {
+        "name": "dreamwine",
+        "library_id": "srd_dreamwine"
+       },
+       {
+        "name": "hallucinatory terrain",
+        "library_id": "srd_hallucinatory_terrain"
+       }
+      ],
+      "9": [
+       {
+        "name": "enchanted bloom",
+        "library_id": "srd_enchanted_bloom"
+       },
+       {
+        "name": "tree stride",
+        "library_id": "srd_tree_stride"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Druid",
+  "subclass": "Circle of the Shapeless",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "b2401b36-9ace-43e6-b02a-da3b73b33e27",
+  "open5e_key": "toh_circle-of-the-shapeless",
+  "tables": [
+   {
+    "feature": "Circle Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "enlarge/reduce",
+        "library_id": "srd_enlargereduce"
+       },
+       {
+        "name": "spider climb",
+        "library_id": "srd_spider_climb"
+       }
+      ],
+      "5": [
+       {
+        "name": "iron gut",
+        "library_id": "srd_iron_gut"
+       },
+       {
+        "name": "meld into stone",
+        "library_id": "srd_meld_into_stone"
+       }
+      ],
+      "7": [
+       {
+        "name": "blight",
+        "library_id": "srd_blight"
+       },
+       {
+        "name": "freedom of movement",
+        "library_id": "srd_freedom_of_movement"
+       }
+      ],
+      "9": [
+       {
+        "name": "contagion",
+        "library_id": "srd_contagion"
+       },
+       {
+        "name": "seeming",
+        "library_id": "srd_seeming"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Druid",
+  "subclass": "Circle of Wind",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "5a0d1c51-3bbb-4488-b6a2-5317bac9a2a6",
+  "open5e_key": "toh_circle-of-wind",
+  "tables": [
+   {
+    "feature": "Circle Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "blur",
+        "library_id": "srd_blur"
+       },
+       {
+        "name": "gust of wind",
+        "library_id": "srd_gust_of_wind"
+       }
+      ],
+      "5": [
+       {
+        "name": "fly",
+        "library_id": "srd_fly"
+       },
+       {
+        "name": "lightning bolt",
+        "library_id": "srd_lightning_bolt"
+       }
+      ],
+      "7": [
+       {
+        "name": "conjure minor elementals",
+        "library_id": "srd_conjure_minor_elementals"
+       },
+       {
+        "name": "freedom of movement",
+        "library_id": "srd_freedom_of_movement"
+       }
+      ],
+      "9": [
+       {
+        "name": "cloudkill",
+        "library_id": "srd_cloudkill"
+       },
+       {
+        "name": "conjure elemental",
+        "library_id": "srd_conjure_elemental",
+        "note": "air elemental only"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Sorcerer",
+  "subclass": "Cold-Blooded",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "eafe8f8c-f27c-4450-a836-19e1d34abd10",
+  "open5e_key": "toh_cold-blooded",
+  "tables": []
+ },
+ {
+  "class": "Bard",
+  "subclass": "College of Echoes",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "8a586b8b-deba-4490-b401-e788e4b10198",
+  "open5e_key": "toh_college-of-echoes",
+  "tables": []
+ },
+ {
+  "class": "Bard",
+  "subclass": "College of Investigation",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "2f7401b3-6f8e-4cfd-afd5-afaa02177b24",
+  "open5e_key": "toh_college-of-investigation",
+  "tables": []
+ },
+ {
+  "class": "Bard",
+  "subclass": "College of Shadows",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "2797594b-b77d-454f-9716-2f542be1885e",
+  "open5e_key": "toh_college-of-shadows",
+  "tables": []
+ },
+ {
+  "class": "Bard",
+  "subclass": "College of Sincerity",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "addaee58-381b-498d-b376-7c134bf6b9ab",
+  "open5e_key": "toh_college-of-sincerity",
+  "tables": []
+ },
+ {
+  "class": "Bard",
+  "subclass": "College of Tactics",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "483fc12c-3191-4c66-9102-9a51e7e55653",
+  "open5e_key": "toh_college-of-tactics",
+  "tables": []
+ },
+ {
+  "class": "Bard",
+  "subclass": "College of the Cat",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "3375f8b6-01c9-4682-aab2-19ba5dcbc92b",
+  "open5e_key": "toh_college-of-the-cat",
+  "tables": []
+ },
+ {
+  "class": "Ranger",
+  "subclass": "Grove Warden",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "69c508a4-4eff-4c72-8d77-411eaf866890",
+  "open5e_key": "toh_grove-warden",
+  "tables": [
+   {
+    "feature": "Grove Warden Magic",
+    "level_kind": "class_level",
+    "grant_mode": "extra_spell_known_not_counted",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "entangle",
+        "library_id": "srd_srd_entangle"
+       }
+      ],
+      "5": [
+       {
+        "name": "branding smite",
+        "library_id": "srd_srd_branding_smite"
+       }
+      ],
+      "9": [
+       {
+        "name": "speak with plants",
+        "library_id": "srd_speak_with_plants"
+       }
+      ],
+      "13": [
+       {
+        "name": "hallucinatory terrain",
+        "library_id": "srd_hallucinatory_terrain"
+       }
+      ],
+      "17": [
+       {
+        "name": "animate objects",
+        "library_id": "srd_animate_objects"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Ranger",
+  "subclass": "Haunted Warden",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "871fab01-79a0-45f8-907f-eee58cf4a477",
+  "open5e_key": "toh_haunted-warden",
+  "tables": [
+   {
+    "feature": "Haunted Warden Magic",
+    "level_kind": "class_level",
+    "grant_mode": "extra_spell_known_not_counted",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "false life",
+        "library_id": "srd_false_life"
+       }
+      ],
+      "5": [
+       {
+        "name": "invisibility",
+        "library_id": "srd_invisibility"
+       }
+      ],
+      "9": [
+       {
+        "name": "speak with dead",
+        "library_id": "srd_speak_with_dead"
+       }
+      ],
+      "13": [
+       {
+        "name": "death ward",
+        "library_id": "srd_srd_death_ward"
+       }
+      ],
+      "17": [
+       {
+        "name": "dispel evil and good",
+        "library_id": "srd_srd_dispel_evil_and_good"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Sorcerer",
+  "subclass": "Hungering",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "d952a023-639e-482c-a2c9-ffc1ab0004b9",
+  "open5e_key": "toh_hungering",
+  "tables": []
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Hunt Domain",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "1902da9d-6a69-48c1-a35c-81597bd0c978",
+  "open5e_key": "toh_hunt-domain",
+  "tables": [
+   {
+    "feature": "Hunt Domain Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "bloodbound",
+        "library_id": null
+       },
+       {
+        "name": "illuminate spoor",
+        "library_id": "srd_illuminate_spoor"
+       }
+      ],
+      "3": [
+       {
+        "name": "instant snare",
+        "library_id": "srd_instant_snare"
+       },
+       {
+        "name": "mark prey",
+        "library_id": "srd_mark_prey"
+       }
+      ],
+      "5": [
+       {
+        "name": "going in circles",
+        "library_id": "srd_going_in_circles"
+       },
+       {
+        "name": "tracer",
+        "library_id": "srd_tracer"
+       }
+      ],
+      "7": [
+       {
+        "name": "heart-seeking arrow",
+        "library_id": "srd_heart_seeking_arrow"
+       },
+       {
+        "name": "hunting stand",
+        "library_id": "srd_hunting_stand"
+       }
+      ],
+      "9": [
+       {
+        "name": "harrying hounds",
+        "library_id": "srd_harrying_hounds"
+       },
+       {
+        "name": "maim",
+        "library_id": "srd_maim"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Warlock",
+  "subclass": "Hunter in Darkness",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "2ad65b6e-a76e-482e-aa03-b4917149e6f8",
+  "open5e_key": "toh_hunter-in-darkness",
+  "tables": [
+   {
+    "feature": "Expanded Spell List",
+    "level_kind": "spell_level",
+    "grant_mode": "expanded_list_choose_when_learning",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "bloodhound",
+        "library_id": "srd_bloodhound"
+       },
+       {
+        "name": "hunter's endurance",
+        "library_id": "srd_hunters_endurance"
+       }
+      ],
+      "2": [
+       {
+        "name": "instant snare",
+        "library_id": "srd_instant_snare"
+       },
+       {
+        "name": "mark prey",
+        "library_id": "srd_mark_prey"
+       }
+      ],
+      "3": [
+       {
+        "name": "clairvoyance",
+        "library_id": "srd_clairvoyance"
+       },
+       {
+        "name": "nondetection",
+        "library_id": "srd_nondetection"
+       }
+      ],
+      "4": [
+       {
+        "name": "harry",
+        "library_id": "srd_harry"
+       },
+       {
+        "name": "heart-seeking arrow",
+        "library_id": "srd_heart_seeking_arrow"
+       }
+      ],
+      "5": [
+       {
+        "name": "killing fields",
+        "library_id": "srd_killing_fields"
+       },
+       {
+        "name": "legend lore",
+        "library_id": "srd_legend_lore"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Mercy Domain",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "3bd76324-c321-4275-b647-244081527d4d",
+  "open5e_key": "toh_mercy-domain",
+  "tables": [
+   {
+    "feature": "Mercy Domain Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "divine favor",
+        "library_id": "srd_srd_divine_favor"
+       },
+       {
+        "name": "healing word",
+        "library_id": "srd_healing_word"
+       }
+      ],
+      "3": [
+       {
+        "name": "aid",
+        "library_id": "srd_srd_aid"
+       },
+       {
+        "name": "ray of enfeeblement",
+        "library_id": "srd_ray_of_enfeeblement"
+       }
+      ],
+      "5": [
+       {
+        "name": "bardo",
+        "library_id": "srd_bardo"
+       },
+       {
+        "name": "revivify",
+        "library_id": "srd_srd_revivify"
+       }
+      ],
+      "7": [
+       {
+        "name": "death ward",
+        "library_id": "srd_srd_death_ward"
+       },
+       {
+        "name": "sacrificial healing",
+        "library_id": "srd_sacrificial_healing"
+       }
+      ],
+      "9": [
+       {
+        "name": "antilife shell",
+        "library_id": "srd_antilife_shell"
+       },
+       {
+        "name": "raise dead",
+        "library_id": "srd_srd_raise_dead"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Paladin",
+  "subclass": "Oath of Justice",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "82578a32-71ef-44a7-9582-01979059d190",
+  "open5e_key": "toh_oath-of-justice",
+  "tables": [
+   {
+    "feature": "Tenets of Justice",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "color spray",
+        "library_id": "srd_color_spray"
+       },
+       {
+        "name": "guiding bolt",
+        "library_id": "srd_guiding_bolt"
+       }
+      ],
+      "5": [
+       {
+        "name": "guiding bolt",
+        "library_id": "srd_guiding_bolt"
+       },
+       {
+        "name": "zone of truth",
+        "library_id": "srd_srd_zone_of_truth"
+       }
+      ],
+      "9": [
+       {
+        "name": "lightning bolt",
+        "library_id": "srd_lightning_bolt"
+       },
+       {
+        "name": "slow",
+        "library_id": "srd_slow"
+       }
+      ],
+      "13": [
+       {
+        "name": "faithful hound",
+        "library_id": "srd_faithful_hound"
+       },
+       {
+        "name": "locate creature",
+        "library_id": "srd_srd_locate_creature"
+       }
+      ],
+      "17": [
+       {
+        "name": "arcane hand",
+        "library_id": "srd_arcane_hand"
+       },
+       {
+        "name": "hold monster",
+        "library_id": "srd_hold_monster"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Paladin",
+  "subclass": "Oath of Safeguarding",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "5413ec10-7cad-4bd9-a2d0-cbe710306a06",
+  "open5e_key": "toh_oath-of-safeguarding",
+  "tables": [
+   {
+    "feature": "Oath Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "longstrider",
+        "library_id": "srd_longstrider"
+       },
+       {
+        "name": "shield of faith",
+        "library_id": "srd_srd_shield_of_faith"
+       }
+      ],
+      "5": [
+       {
+        "name": "hold person",
+        "library_id": "srd_hold_person"
+       },
+       {
+        "name": "spike growth",
+        "library_id": "srd_spike_growth"
+       }
+      ],
+      "9": [
+       {
+        "name": "beacon of hope",
+        "library_id": "srd_beacon_of_hope"
+       },
+       {
+        "name": "spirit guardians",
+        "library_id": "srd_spirit_guardians"
+       }
+      ],
+      "13": [
+       {
+        "name": "dimension door",
+        "library_id": "srd_dimension_door"
+       },
+       {
+        "name": "stoneskin",
+        "library_id": "srd_stoneskin"
+       }
+      ],
+      "17": [
+       {
+        "name": "greater restoration",
+        "library_id": "srd_greater_restoration"
+       },
+       {
+        "name": "wall of stone",
+        "library_id": "srd_wall_of_stone"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Paladin",
+  "subclass": "Oath of the Elements",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "1645abcc-56a5-4639-912f-8bb58f2c610c",
+  "open5e_key": "toh_oath-of-the-elements",
+  "tables": [
+   {
+    "feature": "Oath Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "burning hands",
+        "library_id": "srd_burning_hands"
+       },
+       {
+        "name": "thunderwave",
+        "library_id": "srd_thunderwave"
+       }
+      ],
+      "5": [
+       {
+        "name": "acid arrow",
+        "library_id": "srd_acid_arrow"
+       },
+       {
+        "name": "flaming sphere",
+        "library_id": "srd_flaming_sphere"
+       }
+      ],
+      "9": [
+       {
+        "name": "call lightning",
+        "library_id": "srd_call_lightning"
+       },
+       {
+        "name": "protection from energy",
+        "library_id": "srd_protection_from_energy"
+       }
+      ],
+      "13": [
+       {
+        "name": "conjure minor elementals",
+        "library_id": "srd_conjure_minor_elementals"
+       },
+       {
+        "name": "ice storm",
+        "library_id": "srd_ice_storm"
+       }
+      ],
+      "17": [
+       {
+        "name": "conjure elemental",
+        "library_id": "srd_conjure_elemental"
+       },
+       {
+        "name": "wall of stone",
+        "library_id": "srd_wall_of_stone"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Paladin",
+  "subclass": "Oath of the Guardian",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "ea4a076d-4445-473b-bf84-7656b7ef5153",
+  "open5e_key": "toh_oath-of-the-guardian",
+  "tables": [
+   {
+    "feature": "Oath Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "litany of sure hands",
+        "library_id": "srd_litany_of_sure_hands"
+       },
+       {
+        "name": "shield of faith",
+        "library_id": "srd_srd_shield_of_faith"
+       }
+      ],
+      "5": [
+       {
+        "name": "mantle of the brave",
+        "library_id": "srd_mantle_of_the_brave"
+       },
+       {
+        "name": "spiritual weapon",
+        "library_id": "srd_spiritual_weapon"
+       }
+      ],
+      "9": [
+       {
+        "name": "beacon of hope",
+        "library_id": "srd_beacon_of_hope"
+       },
+       {
+        "name": "invested champion",
+        "library_id": "srd_invested_champion"
+       }
+      ],
+      "13": [
+       {
+        "name": "banishment",
+        "library_id": "srd_srd_banishment"
+       },
+       {
+        "name": "inspiring speech",
+        "library_id": "srd_inspiring_speech"
+       }
+      ],
+      "17": [
+       {
+        "name": "creation",
+        "library_id": "srd_creation"
+       },
+       {
+        "name": "hallow",
+        "library_id": "srd_hallow"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Paladin",
+  "subclass": "Oath of the Hearth",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "e8520326-e868-4df0-ba12-6d83afc1a8a7",
+  "open5e_key": "toh_oath-of-the-hearth",
+  "tables": [
+   {
+    "feature": "Oath Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "burning hands",
+        "library_id": "srd_burning_hands"
+       },
+       {
+        "name": "sanctuary",
+        "library_id": "srd_sanctuary"
+       }
+      ],
+      "5": [
+       {
+        "name": "calm emotions",
+        "library_id": "srd_calm_emotions"
+       },
+       {
+        "name": "flame blade",
+        "library_id": "srd_flame_blade"
+       }
+      ],
+      "9": [
+       {
+        "name": "protection from energy",
+        "library_id": "srd_protection_from_energy"
+       },
+       {
+        "name": "tiny hut",
+        "library_id": "srd_tiny_hut"
+       }
+      ],
+      "13": [
+       {
+        "name": "guardian of faith",
+        "library_id": "srd_guardian_of_faith"
+       },
+       {
+        "name": "wall of fire",
+        "library_id": "srd_wall_of_fire"
+       }
+      ],
+      "17": [
+       {
+        "name": "flame strike",
+        "library_id": "srd_flame_strike"
+       },
+       {
+        "name": "hallow",
+        "library_id": "srd_hallow"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Paladin",
+  "subclass": "Oath of the Plaguetouched",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "cb924ef4-c784-4274-830e-f1652a713204",
+  "open5e_key": "toh_oath-of-the-plaguetouched",
+  "tables": [
+   {
+    "feature": "Oath Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "bane",
+        "library_id": "srd_bane"
+       },
+       {
+        "name": "protection from evil and good",
+        "library_id": "srd_srd_protection_from_evil_and_good"
+       }
+      ],
+      "5": [
+       {
+        "name": "enhance ability",
+        "library_id": "srd_enhance_ability"
+       },
+       {
+        "name": "lesser restoration",
+        "library_id": "srd_srd_lesser_restoration"
+       }
+      ],
+      "9": [
+       {
+        "name": "life from death",
+        "library_id": "srd_life_from_death"
+       },
+       {
+        "name": "remove curse",
+        "library_id": "srd_srd_remove_curse"
+       }
+      ],
+      "13": [
+       {
+        "name": "blight",
+        "library_id": "srd_blight"
+       },
+       {
+        "name": "freedom of movement",
+        "library_id": "srd_freedom_of_movement"
+       }
+      ],
+      "17": [
+       {
+        "name": "greater restoration",
+        "library_id": "srd_greater_restoration"
+       },
+       {
+        "name": "hold monster",
+        "library_id": "srd_hold_monster"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Warlock",
+  "subclass": "Old Wood",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "3b223b11-bae3-4fd2-a68f-49813a933d39",
+  "open5e_key": "toh_old-wood",
+  "tables": [
+   {
+    "feature": "Expanded Spell List",
+    "level_kind": "spell_level",
+    "grant_mode": "expanded_list_choose_when_learning",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "animal friendship",
+        "library_id": "srd_srd_animal_friendship"
+       },
+       {
+        "name": "faerie fire",
+        "library_id": "srd_faerie_fire"
+       }
+      ],
+      "2": [
+       {
+        "name": "animal messenger",
+        "library_id": "srd_animal_messenger"
+       },
+       {
+        "name": "spike growth",
+        "library_id": "srd_spike_growth"
+       }
+      ],
+      "3": [
+       {
+        "name": "conjure animals",
+        "library_id": "srd_srd_conjure_animals"
+       },
+       {
+        "name": "protection from energy",
+        "library_id": "srd_protection_from_energy"
+       }
+      ],
+      "4": [
+       {
+        "name": "conjure woodland beings",
+        "library_id": "srd_conjure_woodland_beings"
+       },
+       {
+        "name": "giant insect",
+        "library_id": "srd_giant_insect"
+       }
+      ],
+      "5": [
+       {
+        "name": "greater restoration",
+        "library_id": "srd_greater_restoration"
+       },
+       {
+        "name": "tree stride",
+        "library_id": "srd_tree_stride"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Portal Domain",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "ba4e427d-6423-402f-907a-109bb8a86f43",
+  "open5e_key": "toh_portal-domain",
+  "tables": [
+   {
+    "feature": "Domain Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "adjust position",
+        "library_id": "srd_adjust_position"
+       },
+       {
+        "name": "expeditious retreat",
+        "library_id": "srd_srd_expeditious_retreat"
+       }
+      ],
+      "3": [
+       {
+        "name": "glyph of shifting",
+        "library_id": "srd_glyph_of_shifting"
+       },
+       {
+        "name": "misty step",
+        "library_id": "srd_misty_step"
+       }
+      ],
+      "5": [
+       {
+        "name": "dimensional shove",
+        "library_id": "srd_dimensional_shove"
+       },
+       {
+        "name": "portal jaunt",
+        "library_id": "srd_portal_jaunt"
+       }
+      ],
+      "7": [
+       {
+        "name": "dimension door",
+        "library_id": "srd_dimension_door"
+       },
+       {
+        "name": "reposition",
+        "library_id": "srd_reposition"
+       }
+      ],
+      "9": [
+       {
+        "name": "pierce the veil",
+        "library_id": "srd_pierce_the_veil"
+       },
+       {
+        "name": "teleportation circle",
+        "library_id": "srd_teleportation_circle"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Warlock",
+  "subclass": "Primordial",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "0878c85f-f472-4ee1-8c0e-29b1f2d070f4",
+  "open5e_key": "toh_primordial",
+  "tables": [
+   {
+    "feature": "Expanded Spell List",
+    "level_kind": "spell_level",
+    "grant_mode": "expanded_list_choose_when_learning",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "command",
+        "library_id": "srd_srd_command"
+       },
+       {
+        "name": "healing word",
+        "library_id": "srd_healing_word"
+       }
+      ],
+      "2": [
+       {
+        "name": "lesser restoration",
+        "library_id": "srd_srd_lesser_restoration"
+       },
+       {
+        "name": "mud",
+        "library_id": "srd_mud"
+       }
+      ],
+      "3": [
+       {
+        "name": "power word fling",
+        "library_id": "srd_power_word_fling"
+       },
+       {
+        "name": "revivify",
+        "library_id": "srd_srd_revivify"
+       }
+      ],
+      "4": [
+       {
+        "name": "power word rend",
+        "library_id": "srd_power_word_rend"
+       },
+       {
+        "name": "stone shape",
+        "library_id": "srd_stone_shape"
+       }
+      ],
+      "5": [
+       {
+        "name": "conjure elemental",
+        "library_id": "srd_conjure_elemental"
+       },
+       {
+        "name": "creation",
+        "library_id": "srd_creation"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Sorcerer",
+  "subclass": "Resonant Body",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "9af89ff6-2f60-480c-9119-025c5c9635c1",
+  "open5e_key": "toh_resonant-body",
+  "tables": []
+ },
+ {
+  "class": "Sorcerer",
+  "subclass": "Rifthopper",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "66ecd869-5b11-4abe-a195-cd593ddb0e58",
+  "open5e_key": "toh_rifthopper",
+  "tables": []
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Serpent Domain",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "fed3ae8b-3c78-453d-aee4-e798165618be",
+  "open5e_key": "toh_serpent-domain",
+  "tables": [
+   {
+    "feature": "Serpent Domain Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "charm person",
+        "library_id": "srd_srd_charm_person"
+       },
+       {
+        "name": "find familiar",
+        "library_id": "srd_srd_find_familiar",
+        "note": "snakes only"
+       }
+      ],
+      "3": [
+       {
+        "name": "enthrall",
+        "library_id": "srd_enthrall"
+       },
+       {
+        "name": "protection from poison",
+        "library_id": "srd_srd_protection_from_poison"
+       }
+      ],
+      "5": [
+       {
+        "name": "conjure animals",
+        "library_id": "srd_srd_conjure_animals",
+        "note": "snakes only"
+       },
+       {
+        "name": "hypnotic pattern",
+        "library_id": "srd_hypnotic_pattern"
+       }
+      ],
+      "7": [
+       {
+        "name": "freedom of movement",
+        "library_id": "srd_freedom_of_movement"
+       },
+       {
+        "name": "polymorph",
+        "library_id": "srd_polymorph",
+        "note": "snakes only"
+       }
+      ],
+      "9": [
+       {
+        "name": "dominate person",
+        "library_id": "srd_dominate_person"
+       },
+       {
+        "name": "mislead",
+        "library_id": "srd_mislead"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Shadow Domain",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "542a4f0a-5b3f-44ca-b149-8a591bb0d5bd",
+  "open5e_key": "toh_shadow-domain",
+  "tables": [
+   {
+    "feature": "Shadow Domain Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "bane",
+        "library_id": "srd_bane"
+       },
+       {
+        "name": "false life",
+        "library_id": "srd_false_life"
+       }
+      ],
+      "3": [
+       {
+        "name": "blindness/deafness",
+        "library_id": "srd_blindnessdeafness"
+       },
+       {
+        "name": "darkness",
+        "library_id": "srd_darkness"
+       }
+      ],
+      "5": [
+       {
+        "name": "blink",
+        "library_id": "srd_srd_blink"
+       },
+       {
+        "name": "fear",
+        "library_id": "srd_fear"
+       }
+      ],
+      "7": [
+       {
+        "name": "black tentacles",
+        "library_id": "srd_black_tentacles"
+       },
+       {
+        "name": "greater invisibility",
+        "library_id": "srd_greater_invisibility"
+       }
+      ],
+      "9": [
+       {
+        "name": "cone of cold",
+        "library_id": "srd_cone_of_cold"
+       },
+       {
+        "name": "dream",
+        "library_id": "srd_dream"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Ranger",
+  "subclass": "Snake Speaker",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "c1124500-5450-4eca-a241-7992d040fae1",
+  "open5e_key": "toh_snake-speaker",
+  "tables": [
+   {
+    "feature": "Snake Speaker Magic",
+    "level_kind": "class_level",
+    "grant_mode": "extra_spell_known_not_counted",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "charm person",
+        "library_id": "srd_srd_charm_person"
+       }
+      ],
+      "5": [
+       {
+        "name": "suggestion",
+        "library_id": "srd_suggestion"
+       }
+      ],
+      "9": [
+       {
+        "name": "tongues",
+        "library_id": "srd_tongues"
+       }
+      ],
+      "13": [
+       {
+        "name": "confusion",
+        "library_id": "srd_confusion"
+       }
+      ],
+      "17": [
+       {
+        "name": "dominate person",
+        "library_id": "srd_dominate_person"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Ranger",
+  "subclass": "Spear of the Weald",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "c5c4e469-0f4a-4984-96fd-98dd9868d3a7",
+  "open5e_key": "toh_spear-of-the-weald",
+  "tables": []
+ },
+ {
+  "class": "Sorcerer",
+  "subclass": "Spore Sorcery",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "451c0fc4-8dd0-41d7-ac01-0c202ea3ed0c",
+  "open5e_key": "toh_spore-sorcery",
+  "tables": []
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Vermin Domain",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "5de3e9f4-52ce-44a4-8b00-c7570394c085",
+  "open5e_key": "toh_vermin-domain",
+  "tables": [
+   {
+    "feature": "Vermin Domain Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "detect poison and disease",
+        "library_id": "srd_srd_detect_poison_and_disease"
+       },
+       {
+        "name": "speak with animals",
+        "library_id": "srd_speak_with_animals",
+        "note": "vermin only"
+       }
+      ],
+      "3": [
+       {
+        "name": "spider climb",
+        "library_id": "srd_spider_climb"
+       },
+       {
+        "name": "web",
+        "library_id": "srd_web"
+       }
+      ],
+      "5": [
+       {
+        "name": "conjure animals",
+        "library_id": "srd_srd_conjure_animals",
+        "note": "vermin only"
+       },
+       {
+        "name": "fear",
+        "library_id": "srd_fear"
+       }
+      ],
+      "7": [
+       {
+        "name": "dominate beast",
+        "library_id": "srd_dominate_beast",
+        "note": "vermin only"
+       },
+       {
+        "name": "giant insect",
+        "library_id": "srd_giant_insect"
+       }
+      ],
+      "9": [
+       {
+        "name": "contagion",
+        "library_id": "srd_contagion"
+       },
+       {
+        "name": "insect plague",
+        "library_id": "srd_insect_plague"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Ranger",
+  "subclass": "Wasteland Strider",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "0501e2d9-9e56-469a-985c-a113c89fde80",
+  "open5e_key": "toh_wasteland-strider",
+  "tables": [
+   {
+    "feature": "Wasteland Strider Magic",
+    "level_kind": "class_level",
+    "grant_mode": "extra_spell_known_not_counted",
+    "columns": {
+     "Spells": {
+      "3": [
+       {
+        "name": "protection from the void",
+        "library_id": "srd_protection_from_the_void"
+       }
+      ],
+      "5": [
+       {
+        "name": "calm emotions",
+        "library_id": "srd_calm_emotions"
+       }
+      ],
+      "9": [
+       {
+        "name": "dispel magic",
+        "library_id": "srd_srd_dispel_magic"
+       }
+      ],
+      "13": [
+       {
+        "name": "banishment",
+        "library_id": "srd_srd_banishment"
+       }
+      ],
+      "17": [
+       {
+        "name": "hold monster",
+        "library_id": "srd_hold_monster"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Sorcerer",
+  "subclass": "Wastelander",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "137071fb-2c5c-4397-8ad9-d0a34fd0d3ff",
+  "open5e_key": "toh_wastelander",
+  "tables": []
+ },
+ {
+  "class": "Cleric",
+  "subclass": "Wind Domain",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "831072b1-327f-422e-87ba-e512fcd13e22",
+  "open5e_key": "toh_wind-domain",
+  "tables": [
+   {
+    "feature": "Wind Domain Spells",
+    "level_kind": "class_level",
+    "grant_mode": "always_prepared",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "feather fall",
+        "library_id": "srd_feather_fall"
+       },
+       {
+        "name": "thunderwave",
+        "library_id": "srd_thunderwave"
+       }
+      ],
+      "3": [
+       {
+        "name": "gust of wind",
+        "library_id": "srd_gust_of_wind"
+       },
+       {
+        "name": "misty step",
+        "library_id": "srd_misty_step"
+       }
+      ],
+      "5": [
+       {
+        "name": "fly",
+        "library_id": "srd_fly"
+       },
+       {
+        "name": "wind wall",
+        "library_id": "srd_wind_wall"
+       }
+      ],
+      "7": [
+       {
+        "name": "conjure minor elementals",
+        "library_id": "srd_conjure_minor_elementals",
+        "note": "air only"
+       },
+       {
+        "name": "freedom of movement",
+        "library_id": "srd_freedom_of_movement"
+       }
+      ],
+      "9": [
+       {
+        "name": "cloudkill",
+        "library_id": "srd_cloudkill"
+       },
+       {
+        "name": "conjure elemental",
+        "library_id": "srd_conjure_elemental",
+        "note": "air only"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "class": "Warlock",
+  "subclass": "Wyrdweaver",
+  "source": "toh",
+  "ruleset": "2014",
+  "subclass_row_id": "89ee2f28-b839-4382-881b-d27c9966ce47",
+  "open5e_key": "toh_wyrdweaver",
+  "tables": [
+   {
+    "feature": "Expanded Spell List",
+    "level_kind": "spell_level",
+    "grant_mode": "expanded_list_choose_when_learning",
+    "columns": {
+     "Spells": {
+      "1": [
+       {
+        "name": "bane",
+        "library_id": "srd_bane"
+       },
+       {
+        "name": "faerie fire",
+        "library_id": "srd_faerie_fire"
+       }
+      ],
+      "2": [
+       {
+        "name": "blur",
+        "library_id": "srd_blur"
+       },
+       {
+        "name": "frenzied bolt",
+        "library_id": "srd_frenzied_bolt"
+       }
+      ],
+      "3": [
+       {
+        "name": "bestow curse",
+        "library_id": "srd_bestow_curse"
+       },
+       {
+        "name": "hypnotic pattern",
+        "library_id": "srd_hypnotic_pattern"
+       }
+      ],
+      "4": [
+       {
+        "name": "compulsion",
+        "library_id": "srd_compulsion"
+       },
+       {
+        "name": "reset",
+        "library_id": "srd_reset"
+       }
+      ],
+      "5": [
+       {
+        "name": "battle mind",
+        "library_id": "srd_battle_mind"
+       },
+       {
+        "name": "mislead",
+        "library_id": "srd_mislead"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ }
+]

@@ -15,7 +15,7 @@ import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composable
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { subclassChoiceDue } from "@/levelup/subclassChoice";
-import { subclassGrantedSpellIds } from "@/levelup/subclassGrantedSpells";
+import { subclassVariantOptions } from "@/levelup/subclassSpells";
 import { useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCharacterCreationEdition } from "@/composables/party/useCharacterCreationEdition";
@@ -308,8 +308,16 @@ export function useCharacterCreationForm() {
     !isEditMode.value && !!selectedClass.value && subclassChoiceDue(null, STARTING_LEVEL, subclassLevel.value));
   const subclassOptions = computed(() =>
     creationSubclassOptions(campaignSubclasses.value, f.class, landingCampaign.value?.id ?? null));
+  // The option the picked subclass's grants depend on (Circle of the Land's terrain),
+  // asked in the same step: the server grants the spells from the class row.
+  const subclassVariant = ref("");
+  const pickedSubclass = computed(() =>
+    subclassDueAtStart.value ? (campaignSubclasses.value ?? []).find((sc) => sc.id === subclassId.value) ?? null : null);
+  const subclassVariantChoices = computed(() => subclassVariantOptions(pickedSubclass.value));
+  watch(subclassId, () => { subclassVariant.value = ""; });
   const blockedBySubclassChoice = computed(() =>
-    subclassDueAtStart.value && subclassOptions.value.length > 0 && !subclassId.value);
+    subclassDueAtStart.value && subclassOptions.value.length > 0
+    && (!subclassId.value || (subclassVariantChoices.value.length > 0 && !subclassVariant.value)));
   // Whether the loadout will wait: the character is not going to a table that
   // takes its edition. Mirrors the attach decision in save().
   const startingEquipmentDeferred = computed(() => {
@@ -322,6 +330,7 @@ export function useCharacterCreationForm() {
   });
   function clearSubclass() {
     subclassId.value = "";
+    subclassVariant.value = "";
     f.subclass = "";
   }
 
@@ -806,16 +815,6 @@ export function useCharacterCreationForm() {
         importClass: importClassEquipment.value,
         backgroundText: (allBackgrounds.value ?? []).find((b) => b.id === f.background_id)?.equipment ?? null,
         importBackground: importBackgroundEquipment.value,
-        // What a level-up to this level would grant for the chosen subclass
-        // (a 2014 Life Domain cleric's Bless and Cure Wounds), written once the
-        // character is linked to a table. A DM's roster character is never
-        // linked by this wizard, so it gets none here.
-        grantedSpellIds: chosenSubclass && !isDmCreate.value
-          ? subclassGrantedSpellIds(
-            (campaignSubclasses.value ?? []).find((sc) => sc.id === chosenSubclass.id)?.granted_spells,
-            STARTING_LEVEL,
-          )
-          : [],
       });
       // Level 1's picks land the way a level-up's do: class_choices, skills,
       // masteries, the resource pools at full, and the history entry the feature
@@ -880,6 +879,7 @@ export function useCharacterCreationForm() {
             // otherwise null and the level-up wizard asks at the due level.
             subclass_name:   chosenSubclass?.name ?? null,
             subclass_definition_id: chosenSubclass?.id ?? null,
+            subclass_variant: chosenSubclass && subclassVariantChoices.value.length > 0 ? subclassVariant.value : null,
             levels:          1,
             is_primary:      true,
             hit_dice_used:   0,
@@ -1015,6 +1015,7 @@ export function useCharacterCreationForm() {
     classEquipmentChoice, importClassEquipment, classEquipmentPack, startingEquipmentDeferred,
     // subclass chosen at creation, when the class picks one at level 1
     subclassId, subclassLevel, subclassDueAtStart, subclassOptions, blockedBySubclassChoice,
+    pickedSubclass, subclassVariant, subclassVariantChoices,
     // ASI (new chars)
     asiMode, customAsi, customAsiTotal, adjustCustomAsi,
     // computed

@@ -56,7 +56,7 @@ describe("useSpellBrowse", () => {
     expect(mocks.rpc).toHaveBeenCalledWith("browse_spells", {
       p_slugs: ["srd-2014"], p_ruleset: "2014", p_campaign_id: "camp-1",
       p_search: "fire", p_level: 0, p_school: "evocation", p_class: "Wizard",
-      p_source: "all", p_limit: 48, p_offset: 0,
+      p_source: "all", p_limit: 48, p_offset: 0, p_extra_ids: null,
     });
     expect(get().rows.value).toHaveLength(2);
     expect(get().total.value).toBe(3);
@@ -70,6 +70,13 @@ describe("useSpellBrowse", () => {
     expect(get().total.value).toBe(3);
     expect(get().selectableIds.value).toEqual(["a"]);
     expect(get().hasNextPage.value).toBe(false);
+  });
+
+  it("passes a subclass's expanded list as extra ids for the class filter", async () => {
+    mocks.rpc.mockResolvedValue({ data: { rows: [], total: 0, selectable_ids: [] }, error: null });
+    setup({ ...base, class: "Warlock", extraIds: ["srd_bless", "srd_command"] });
+    await flushPromises();
+    expect(mocks.rpc.mock.calls[0][1].p_extra_ids).toEqual(["srd_bless", "srd_command"]);
   });
 
   it("does not query until the enabled sources are known", async () => {

@@ -143,6 +143,10 @@ async function createExample() {
       campaign_id: null,
       features: { "3": [featureA.id], "7": [featureB.id], "10": [featureC.id] },
       granted_spells: {},
+      spell_variants: {},
+      spell_variant_label: null,
+      expanded_spell_variants: {},
+      expanded_spells: {},
       hp_per_level: null,
     });
   } finally {

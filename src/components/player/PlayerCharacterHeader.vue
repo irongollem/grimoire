@@ -63,6 +63,7 @@
             <template v-else>{{ summary.line }}</template>
             <span v-if="!wildshape && summary.level" class="text-label text-primary not-italic ml-1">Lv {{ summary.level }}</span>
           </p>
+          <SubclassVariantControl v-if="!wildshape" :member-id="member.id" />
           <p v-if="inGameDate" class="text-caption text-muted-foreground">{{ inGameDate }}</p>
           <!-- XP progress -->
           <div v-if="xpLevellingEnabled && !wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
@@ -255,6 +256,7 @@ import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AcBreakdownPopover from "@/components/player/AcBreakdownPopover.vue";
+import SubclassVariantControl from "@/components/player/SubclassVariantControl.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import AppButton from "@/components/common/AppButton.vue";

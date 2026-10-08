@@ -8,7 +8,6 @@ import type { PartyInventoryInsert, PartyInventoryItem } from "@/types/inventory
 import { itemRefColumns } from "@/lib/itemRef";
 import { likeLiteral, orFilterValue } from "@/lib/postgrestFilter";
 import { reportHandledError } from "@/lib/observability/sentry";
-import { subclassGrantedSpellRows } from "@/levelup/subclassGrantedSpells";
 
 /** Vault item data needed for equipment seeding. */
 export interface VaultEntry { id: string; bundle_items: BundleItemEntry[] | null }
@@ -77,12 +76,6 @@ export interface StartingEquipmentPlan {
   class_choice: "a" | "b" | null;
   /** The background's items, already split into names. */
   background_items: string[];
-  /**
-   * Spells the chosen subclass grants at level 1 (always prepared). They wait
-   * with the equipment because character_spells rows are only writable once the
-   * character is linked to a campaign (its RLS keys on campaign_members).
-   */
-  granted_spell_ids: string[];
 }
 
 export function buildStartingEquipmentPlan(input: {
@@ -91,18 +84,16 @@ export function buildStartingEquipmentPlan(input: {
   importClass: boolean;
   backgroundText: string | null;
   importBackground: boolean;
-  grantedSpellIds: string[];
 }): StartingEquipmentPlan | null {
   const classPart = input.importClass && CLASS_EQUIPMENT[input.className] ? input.className : null;
   const backgroundItems = input.importBackground && input.backgroundText
     ? parseEquipmentList(input.backgroundText)
     : [];
-  if (!classPart && backgroundItems.length === 0 && input.grantedSpellIds.length === 0) return null;
+  if (!classPart && backgroundItems.length === 0) return null;
   return {
     class_name: classPart,
     class_choice: classPart ? input.classChoice : null,
     background_items: backgroundItems,
-    granted_spell_ids: input.grantedSpellIds,
   };
 }
 
@@ -115,13 +106,10 @@ export function parseStartingEquipmentPlan(value: unknown): StartingEquipmentPla
   const items = Array.isArray(v.background_items)
     ? v.background_items.filter((i): i is string => typeof i === "string")
     : [];
-  const spells = Array.isArray(v.granted_spell_ids)
-    ? v.granted_spell_ids.filter((i): i is string => typeof i === "string")
-    : [];
-  if (!className && items.length === 0 && spells.length === 0) return null;
+  if (!className && items.length === 0) return null;
   return {
     class_name: className, class_choice: className ? choice : null,
-    background_items: items, granted_spell_ids: spells,
+    background_items: items,
   };
 }
 
@@ -226,24 +214,6 @@ async function writePlan(
     const vault = vaultMap.get(entry.name.toLowerCase());
     if (vault) await insertPack(entry, vault, characterId, campaignId, written);
   }
-  await writeGrantedSpells(plan.granted_spell_ids, characterId);
-}
-
-/** The subclass's level-1 spells, as the always-prepared class rows apply_level_up writes. */
-async function writeGrantedSpells(spellIds: string[], characterId: string): Promise<void> {
-  if (spellIds.length === 0) return;
-  const { data: primary, error: classError } = await supabase
-    .from("character_classes").select("id").eq("party_member_id", characterId).eq("is_primary", true).single();
-  if (classError) throw classError;
-  const { data: owned, error: ownedError } = await supabase
-    .from("character_spells").select("spell_id").eq("party_member_id", characterId);
-  if (ownedError) throw ownedError;
-  const rows = subclassGrantedSpellRows(spellIds, new Set((owned ?? []).map((r) => r.spell_id as string)));
-  if (rows.length === 0) return;
-  const { error } = await supabase.from("character_spells").insert(
-    rows.map((r) => ({ ...r, party_member_id: characterId, source_class_id: primary.id, source_type: "class" as const })),
-  );
-  if (error) throw error;
 }
 
 /**

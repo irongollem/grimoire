@@ -165,6 +165,7 @@
         :level-filter="ui.playerSpellsLevelFilter"
         :school-filter="ui.playerSpellsSchoolFilter"
         :class-filter="ui.playerSpellsClassFilter"
+        :extra-ids="browseExpandedIds"
         :source-filter="'all'"
         :player-member-id="resolvedMemberId ?? undefined"
         :caster-type="browseCasterType"
@@ -198,6 +199,8 @@ import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
 import { useAssignCharacterSpellSource, useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
 import { countPreparedAgainstLimit } from "@/rules/preparedSpellCount";
 import SpellList from "@/components/spells/SpellList.vue";
+import { useAllCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
+import { subclassExpandedSpellIds } from "@/levelup/subclassSpells";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
 import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
@@ -328,6 +331,11 @@ const browseClassName = computed(() => ui.playerSpellsClassFilter);
 const browseClassEntry = computed(() => (characterClasses.value ?? []).find(
   entry => entry.id === browseSourceClassId.value,
 ));
+// A 2014 Warlock patron's expanded list is chosen from like the class's own.
+const { data: allSubclasses } = useAllCustomSubclasses();
+const subclassOfEntry = (entry: CharacterClass | null | undefined) =>
+  (allSubclasses.value ?? []).find((s) => s.id === entry?.subclass_definition_id);
+const browseExpandedIds = computed(() => subclassExpandedSpellIds(subclassOfEntry(browseClassEntry.value), browseClassEntry.value?.subclass_variant ?? null));
 const browseClassData = computed(() => definitionFor(browseClassEntry.value));
 const browsePolicy = computed(() => browseClassEntry.value?.class_definition_kind === "custom"
   ? null
@@ -432,7 +440,8 @@ const legacySpells = computed(() => (characterSpellsDetails.value ?? []).filter(
   (!entry.source_type || entry.source_type === "class") && !entry.source_class_id,
 ));
 function sourceChoicesFor(spell: Spell) {
-  return (characterClasses.value ?? []).filter((entry) => spell.classes.includes(entry.class_name));
+  return (characterClasses.value ?? []).filter((entry) =>
+    spell.classes.includes(entry.class_name) || subclassExpandedSpellIds(subclassOfEntry(entry), entry.subclass_variant).includes(spell.id));
 }
 function assignLegacySource(id: string, sourceClassId: string) {
   if (!resolvedMemberId.value || !sourceClassId) return;

@@ -126,3 +126,14 @@ describe("pickSpellCandidates", () => {
     expect(usedClassFallback).toBe(false);
   });
 });
+
+describe("pickSpellCandidates with a subclass's expanded list", () => {
+  it("admits a listed spell the class filter would not, within the castable range", () => {
+    const base = { className: "Wizard", search: "", isCantrip: false, maxCastableLevel: 1 };
+    expect(pickSpellCandidates(LIBRARY, base).spells.map((s) => s.id)).not.toContain("srd_cure_wounds");
+    const withExtra = pickSpellCandidates(LIBRARY, { ...base, extraIds: ["srd_cure_wounds", "srd_fireball"] });
+    expect(withExtra.spells.map((s) => s.id)).toContain("srd_cure_wounds");
+    // Still bound by the level the character can cast.
+    expect(withExtra.spells.map((s) => s.id)).not.toContain("srd_fireball");
+  });
+});

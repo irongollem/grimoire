@@ -405,6 +405,7 @@ const sampleClassRow: CharacterClass = {
   class_definition_kind: "system",
   subclass_name: null,
   subclass_definition_id: null,
+  subclass_variant: null,
   levels: 12,
   is_primary: true,
   hit_dice_used: 0,

@@ -13,6 +13,8 @@ export interface CharacterClass {
   /** Set together or both null: a subclass is its definition. */
   subclass_name: string | null;
   subclass_definition_id: string | null;
+  /** The option chosen from the subclass's `spell_variants` (a Circle of the Land terrain); null until chosen, or when it has none. */
+  subclass_variant: string | null;
   levels: number;
   is_primary: boolean;
   hit_dice_used: number;

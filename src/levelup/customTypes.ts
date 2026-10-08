@@ -21,13 +21,35 @@ export interface CustomSubclass extends VersionedContentMetadata {
   description: string | null;
   features: CustomFeatures;
   /**
-   * Spells the subclass grants automatically (always prepared), keyed by the
-   * level gained — same shape as `features`. Ids reference library_spells.id
-   * (srd_* slug) or spells.id (custom uuid). On level-up these are written to
-   * character_spells with always_prepared = true and do not count toward the
-   * prepared-spell limit.
+   * Spells the subclass grants always prepared (Cleric domain, Paladin oath,
+   * Druid circle, 2024 Warlock patron), keyed by the CLASS level they arrive at.
+   * Ids reference library_spells.id or spells.id (custom uuid). The server keeps
+   * a character's rows in step (`private.sync_subclass_spells`): they arrive as
+   * the class levels, leave on a de-level or a subclass change, and never count
+   * toward a prepared or known limit.
    */
   granted_spells: CustomFeatures;
+  /**
+   * Granted spells that depend on a choice the character makes: Circle of the
+   * Land's terrain (2014) or land type (2024), an affinity column. Keyed by the
+   * option, then by class level like `granted_spells`; the character's pick is
+   * `character_classes.subclass_variant`. Empty when the subclass has no choice.
+   */
+  spell_variants: Record<string, CustomFeatures>;
+  /** What the choice is called on the sheet ("Land type"), when `spell_variants` or `expanded_spell_variants` has options. */
+  spell_variant_label: string | null;
+  /**
+   * Spells the subclass adds to the list its class PICKS from, keyed by SPELL
+   * level: a 2014 Warlock patron's expanded list. Not granted and not always
+   * prepared: the character still chooses them, and they count as known spells.
+   */
+  expanded_spells: CustomFeatures;
+  /**
+   * The expanded list's choice-dependent part: per option of the same choice as
+   * `spell_variants`, the spells added to the pick-from list, keyed by SPELL
+   * level. A ToH Animal Lords Warlock's Air, Earth or Water affinity.
+   */
+  expanded_spell_variants: Record<string, CustomFeatures>;
   /** Extra HP gained per level in this class, on top of the hit die roll (e.g. Draconic Resilience = 1). */
   hp_per_level: number | null;
   /** Set when the row came from the AI generator; flipped by `markEdited` on a content edit. */

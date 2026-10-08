@@ -1,0 +1,856 @@
+[
+ {
+  "class_name": "Mechanist",
+  "subclass_name": "Metallurgist",
+  "ruleset": "2014",
+  "source_document_key": "bfrd",
+  "source_record_key": "bfrd_metallurgist"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "Abjurationist",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_abjurationist"
+ },
+ {
+  "class_name": "Fighter",
+  "subclass_name": "Arcane Warrior",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_arcane-warrior"
+ },
+ {
+  "class_name": "Druid",
+  "subclass_name": "Circle of the Many",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_circle-of-the-many"
+ },
+ {
+  "class_name": "Bard",
+  "subclass_name": "College of Skalds",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_college-of-skalds"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Demise Domain",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_demise-domain"
+ },
+ {
+  "class_name": "Rogue",
+  "subclass_name": "Eldritch Trickster",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_eldritch-trickster"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Mischief Domain",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_mischief-domain"
+ },
+ {
+  "class_name": "Paladin",
+  "subclass_name": "Oathless Betrayer",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_oathless-betrayer"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "School of Abjuring and Warding",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_school-of-abjuring-and-warding"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "School of Divining and Soothsaying",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_school-of-divining-and-soothsaying"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "School of Illusions and Phantasms",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_school-of-illusions-and-phantasms"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "School of Necrotic Arts",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_school-of-necrotic-arts"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Storm Domain",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_storm-domain"
+ },
+ {
+  "class_name": "Warlock",
+  "subclass_name": "The Ancient Fey Court",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_the-ancient-fey-court"
+ },
+ {
+  "class_name": "Warlock",
+  "subclass_name": "The Great Elder Thing",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_the-great-elder-thing"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Way of Shadowdancing",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_way-of-shadowdancing"
+ },
+ {
+  "class_name": "Sorcerer",
+  "subclass_name": "Wyrd Magic",
+  "ruleset": "2014",
+  "source_document_key": "open5e",
+  "source_record_key": "open5e_wyrd-magic"
+ },
+ {
+  "class_name": "Fighter",
+  "subclass_name": "Champion",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_champion"
+ },
+ {
+  "class_name": "Druid",
+  "subclass_name": "Circle of the Land",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_circle-of-the-land"
+ },
+ {
+  "class_name": "Bard",
+  "subclass_name": "College of Lore",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_college-of-lore"
+ },
+ {
+  "class_name": "Sorcerer",
+  "subclass_name": "Draconic Bloodline",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_draconic-bloodline"
+ },
+ {
+  "class_name": "Ranger",
+  "subclass_name": "Hunter",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_hunter"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Life Domain",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_life-domain"
+ },
+ {
+  "class_name": "Paladin",
+  "subclass_name": "Oath of Devotion",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_oath-of-devotion"
+ },
+ {
+  "class_name": "Barbarian",
+  "subclass_name": "Path of the Berserker",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_path-of-the-berserker"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "School of Evocation",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_school-of-evocation"
+ },
+ {
+  "class_name": "Warlock",
+  "subclass_name": "The Fiend",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_the-fiend"
+ },
+ {
+  "class_name": "Rogue",
+  "subclass_name": "Thief",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_thief"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Way of the Open Hand",
+  "ruleset": "2014",
+  "source_document_key": "srd-2014",
+  "source_record_key": "srd_way-of-the-open-hand"
+ },
+ {
+  "class_name": "Fighter",
+  "subclass_name": "Champion",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_champion"
+ },
+ {
+  "class_name": "Druid",
+  "subclass_name": "Circle of the Land",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_circle-of-the-land"
+ },
+ {
+  "class_name": "Bard",
+  "subclass_name": "College of Lore",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_college-of-lore"
+ },
+ {
+  "class_name": "Sorcerer",
+  "subclass_name": "Draconic Sorcery",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_draconic-sorcery"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "Evoker",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_evoker"
+ },
+ {
+  "class_name": "Warlock",
+  "subclass_name": "Fiend Patron",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_fiend-patron"
+ },
+ {
+  "class_name": "Ranger",
+  "subclass_name": "Hunter",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_hunter"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Life Domain",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_life-domain"
+ },
+ {
+  "class_name": "Paladin",
+  "subclass_name": "Oath of Devotion",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_oath-of-devotion"
+ },
+ {
+  "class_name": "Barbarian",
+  "subclass_name": "Path of the Berserker",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_path-of-the-berserker"
+ },
+ {
+  "class_name": "Rogue",
+  "subclass_name": "Thief",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_thief"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Warrior of the Open Hand",
+  "ruleset": "2024",
+  "source_document_key": "srd-2024",
+  "source_record_key": "srd-2024_warrior-of-the-open-hand"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Blood Domain",
+  "ruleset": "2014",
+  "source_document_key": "tdcs",
+  "source_record_key": "tdcs_blood-domain"
+ },
+ {
+  "class_name": "Barbarian",
+  "subclass_name": "Path of the Juggernaut",
+  "ruleset": "2014",
+  "source_document_key": "tdcs",
+  "source_record_key": "tdcs_path-of-the-juggernaut"
+ },
+ {
+  "class_name": "Sorcerer",
+  "subclass_name": "Runechild",
+  "ruleset": "2014",
+  "source_document_key": "tdcs",
+  "source_record_key": "tdcs_runechild"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Way of the Cerulean Spirit",
+  "ruleset": "2014",
+  "source_document_key": "tdcs",
+  "source_record_key": "tdcs_way-of-the-cerulean-spirit"
+ },
+ {
+  "class_name": "Warlock",
+  "subclass_name": "Ancient Dragons",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_ancient-dragons"
+ },
+ {
+  "class_name": "Warlock",
+  "subclass_name": "Animal Lords",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_animal-lords"
+ },
+ {
+  "class_name": "Ranger",
+  "subclass_name": "Beast Trainer",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_beast-trainer"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "Cantrip Adept",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_cantrip-adept"
+ },
+ {
+  "class_name": "Rogue",
+  "subclass_name": "Cat Burglar",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_cat-burglar"
+ },
+ {
+  "class_name": "Fighter",
+  "subclass_name": "Chaplain",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_chaplain"
+ },
+ {
+  "class_name": "Druid",
+  "subclass_name": "Circle of Ash",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_circle-of-ash"
+ },
+ {
+  "class_name": "Druid",
+  "subclass_name": "Circle of Bees",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_circle-of-bees"
+ },
+ {
+  "class_name": "Druid",
+  "subclass_name": "Circle of Crystals",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_circle-of-crystals"
+ },
+ {
+  "class_name": "Druid",
+  "subclass_name": "Circle of Sand",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_circle-of-sand"
+ },
+ {
+  "class_name": "Druid",
+  "subclass_name": "Circle of the Green",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_circle-of-the-green"
+ },
+ {
+  "class_name": "Druid",
+  "subclass_name": "Circle of the Shapeless",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_circle-of-the-shapeless"
+ },
+ {
+  "class_name": "Druid",
+  "subclass_name": "Circle of Wind",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_circle-of-wind"
+ },
+ {
+  "class_name": "Sorcerer",
+  "subclass_name": "Cold-Blooded",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_cold-blooded"
+ },
+ {
+  "class_name": "Bard",
+  "subclass_name": "College of Echoes",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_college-of-echoes"
+ },
+ {
+  "class_name": "Bard",
+  "subclass_name": "College of Investigation",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_college-of-investigation"
+ },
+ {
+  "class_name": "Bard",
+  "subclass_name": "College of Shadows",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_college-of-shadows"
+ },
+ {
+  "class_name": "Bard",
+  "subclass_name": "College of Sincerity",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_college-of-sincerity"
+ },
+ {
+  "class_name": "Bard",
+  "subclass_name": "College of Tactics",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_college-of-tactics"
+ },
+ {
+  "class_name": "Bard",
+  "subclass_name": "College of the Cat",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_college-of-the-cat"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "Courser Mage",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_courser-mage"
+ },
+ {
+  "class_name": "Rogue",
+  "subclass_name": "Dawn Blade",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_dawn-blade"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "Familiar Master",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_familiar-master"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "Gravebinding",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_gravebinding"
+ },
+ {
+  "class_name": "Ranger",
+  "subclass_name": "Grove Warden",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_grove-warden"
+ },
+ {
+  "class_name": "Ranger",
+  "subclass_name": "Haunted Warden",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_haunted-warden"
+ },
+ {
+  "class_name": "Sorcerer",
+  "subclass_name": "Hungering",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_hungering"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Hunt Domain",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_hunt-domain"
+ },
+ {
+  "class_name": "Warlock",
+  "subclass_name": "Hunter in Darkness",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_hunter-in-darkness"
+ },
+ {
+  "class_name": "Fighter",
+  "subclass_name": "Legionary",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_legionary"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Mercy Domain",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_mercy-domain"
+ },
+ {
+  "class_name": "Paladin",
+  "subclass_name": "Oath of Justice",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_oath-of-justice"
+ },
+ {
+  "class_name": "Paladin",
+  "subclass_name": "Oath of Safeguarding",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_oath-of-safeguarding"
+ },
+ {
+  "class_name": "Paladin",
+  "subclass_name": "Oath of the Elements",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_oath-of-the-elements"
+ },
+ {
+  "class_name": "Paladin",
+  "subclass_name": "Oath of the Guardian",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_oath-of-the-guardian"
+ },
+ {
+  "class_name": "Paladin",
+  "subclass_name": "Oath of the Hearth",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_oath-of-the-hearth"
+ },
+ {
+  "class_name": "Paladin",
+  "subclass_name": "Oath of the Plaguetouched",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_oath-of-the-plaguetouched"
+ },
+ {
+  "class_name": "Warlock",
+  "subclass_name": "Old Wood",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_old-wood"
+ },
+ {
+  "class_name": "Barbarian",
+  "subclass_name": "Path of Booming Magnificence",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_path-of-booming-magnificence"
+ },
+ {
+  "class_name": "Barbarian",
+  "subclass_name": "Path of Hellfire",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_path-of-hellfire"
+ },
+ {
+  "class_name": "Barbarian",
+  "subclass_name": "Path of Mistwood",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_path-of-mistwood"
+ },
+ {
+  "class_name": "Barbarian",
+  "subclass_name": "Path of the Dragon",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_path-of-the-dragon"
+ },
+ {
+  "class_name": "Barbarian",
+  "subclass_name": "Path of the Herald",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_path-of-the-herald"
+ },
+ {
+  "class_name": "Barbarian",
+  "subclass_name": "Path of the Inner Eye",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_path-of-the-inner-eye"
+ },
+ {
+  "class_name": "Barbarian",
+  "subclass_name": "Path of Thorns",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_path-of-thorns"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Portal Domain",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_portal-domain"
+ },
+ {
+  "class_name": "Warlock",
+  "subclass_name": "Primordial",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_primordial"
+ },
+ {
+  "class_name": "Fighter",
+  "subclass_name": "Pugilist",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_pugilist"
+ },
+ {
+  "class_name": "Fighter",
+  "subclass_name": "Radiant Pikeman",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_radiant-pikeman"
+ },
+ {
+  "class_name": "Sorcerer",
+  "subclass_name": "Resonant Body",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_resonant-body"
+ },
+ {
+  "class_name": "Sorcerer",
+  "subclass_name": "Rifthopper",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_rifthopper"
+ },
+ {
+  "class_name": "Rogue",
+  "subclass_name": "Sapper",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_sapper"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "School of Liminality",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_school-of-liminality"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Serpent Domain",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_serpent-domain"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Shadow Domain",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_shadow-domain"
+ },
+ {
+  "class_name": "Rogue",
+  "subclass_name": "Smuggler",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_smuggler"
+ },
+ {
+  "class_name": "Ranger",
+  "subclass_name": "Snake Speaker",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_snake-speaker"
+ },
+ {
+  "class_name": "Rogue",
+  "subclass_name": "Soulspy",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_soulspy"
+ },
+ {
+  "class_name": "Ranger",
+  "subclass_name": "Spear of the Weald",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_spear-of-the-weald"
+ },
+ {
+  "class_name": "Wizard",
+  "subclass_name": "Spellsmith",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_spellsmith"
+ },
+ {
+  "class_name": "Sorcerer",
+  "subclass_name": "Spore Sorcery",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_spore-sorcery"
+ },
+ {
+  "class_name": "Fighter",
+  "subclass_name": "Timeblade",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_timeblade"
+ },
+ {
+  "class_name": "Fighter",
+  "subclass_name": "Tunnel Watcher",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_tunnel-watcher"
+ },
+ {
+  "class_name": "Rogue",
+  "subclass_name": "Underfoot",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_underfoot"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Vermin Domain",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_vermin-domain"
+ },
+ {
+  "class_name": "Ranger",
+  "subclass_name": "Wasteland Strider",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_wasteland-strider"
+ },
+ {
+  "class_name": "Sorcerer",
+  "subclass_name": "Wastelander",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_wastelander"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Way of Concordant Motion",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_way-of-concordant-motion"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Way of the Dragon",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_way-of-the-dragon"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Way of the Humble Elephant",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_way-of-the-humble-elephant"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Way of the Still Waters",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_way-of-the-still-waters"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Way of the Tipsy Monkey",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_way-of-the-tipsy-monkey"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Way of the Unerring Arrow",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_way-of-the-unerring-arrow"
+ },
+ {
+  "class_name": "Monk",
+  "subclass_name": "Way of the Wildcat",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_way-of-the-wildcat"
+ },
+ {
+  "class_name": "Cleric",
+  "subclass_name": "Wind Domain",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_wind-domain"
+ },
+ {
+  "class_name": "Warlock",
+  "subclass_name": "Wyrdweaver",
+  "ruleset": "2014",
+  "source_document_key": "toh",
+  "source_record_key": "toh_wyrdweaver"
+ }
+]

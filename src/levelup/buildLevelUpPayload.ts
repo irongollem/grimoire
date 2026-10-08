@@ -25,7 +25,6 @@ import type {
 } from "@/types/party.types";
 import { applyFeatureGrants, mergeSkillChanges, type FeatureSpellInput, featureSpellRows } from "./featureGrants";
 import { applyMasteryChanges, applySkillChanges, type ResolvedPicks } from "./levelPicks";
-import { subclassGrantedSpellRows } from "./subclassGrantedSpells";
 
 /** One character_spells row to insert (matches apply_level_up's p_spell_rows). */
 export interface SpellRow {
@@ -58,8 +57,13 @@ export type ClassOp =
       is_primary: boolean;
       hit_dice_used: number;
       sort_order: number;
+      /** The option picked from the subclass's `spell_variants`; omitted when none was asked. */
+      subclass_variant?: string;
     }
-  | { op: "update"; id: string; levels: number; subclass_name?: string; subclass_definition_id?: string };
+  | {
+      op: "update"; id: string; levels: number; subclass_name?: string; subclass_definition_id?: string;
+      subclass_variant?: string;
+    };
 
 export interface LevelUpPayload {
   /** party_members column updates (only present keys are applied by the RPC). */
@@ -102,9 +106,9 @@ export interface BuildLevelUpPayloadInput {
   newClassName: string;
   newClassDefinitionId: string | null;
   newClassDefinitionKind: "system" | "custom" | null;
-  /** Spell ids the leveled subclass grants (always prepared) at this level. */
-  grantedSpellsForThisLevel: string[];
-  /** All spell ids the character already has — granted spells skip these. */
+  /** The option picked from the subclass's `spell_variants` at this level, or null when none was asked. */
+  subclassVariant: string | null;
+  /** All spell ids the character already has — feature spell picks skip these. */
   existingSpellIds: Set<string>;
   /** The `grants` of every feature newly granted at this level (class, subclass, and the feats taken). */
   featureGrants: (FeatureGrants | undefined)[];
@@ -131,7 +135,7 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
     subclassInput, subclassDefinitionId,
     selectedSpellIds, selectedCantripIds, newClassName,
     newClassDefinitionId, newClassDefinitionKind,
-    grantedSpellsForThisLevel, existingSpellIds, featureGrants, featureSpells,
+    subclassVariant, existingSpellIds, featureGrants, featureSpells,
   } = input;
 
   const update: Record<string, unknown> = {
@@ -250,6 +254,7 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
       is_primary: existingClassOptions.length === 0,
       hit_dice_used: 0,
       sort_order: existingClassOptions.length,
+      ...(subclassVariant ? { subclass_variant: subclassVariant } : {}),
     };
   } else if (chosenExistingEntry) {
     classOp = {
@@ -261,6 +266,7 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
         subclass_name: subclass,
         subclass_definition_id: subclassDefinitionId,
       } : {}),
+      ...(subclassVariant ? { subclass_variant: subclassVariant } : {}),
     };
   }
 
@@ -268,8 +274,7 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
   const spellRows: SpellRow[] = [];
   for (const spell_id of selectedSpellIds) spellRows.push({ spell_id, is_prepared: false });
   for (const spell_id of selectedCantripIds) spellRows.push({ spell_id, is_prepared: false });
-  // Subclass-granted spells — always prepared, excluded from the prepared limit.
-  spellRows.push(...subclassGrantedSpellRows(grantedSpellsForThisLevel, existingSpellIds));
+  // Subclass-granted spells are not written here: the server derives them from the class row.
   // Auto-granted spells from Eldritch Invocations just picked (a replacement counts: it is added too).
   const invocationsTaken = Object.hasOwn(picks.record.choices, "eldritch_invocations")
     ? picks.record.choices.eldritch_invocations.added

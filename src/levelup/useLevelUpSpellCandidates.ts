@@ -34,7 +34,11 @@ export interface SpellCandidates {
 
 export function pickSpellCandidates(
   all: readonly SpellCandidate[],
-  opts: { className: string; search: string; isCantrip: boolean; maxCastableLevel: number },
+  opts: {
+    className: string; search: string; isCantrip: boolean; maxCastableLevel: number;
+    /** Spells the character's subclass adds to this class's list, admitted whatever their `classes` say. */
+    extraIds?: readonly string[];
+  },
 ): SpellCandidates {
   const inLevelRange = all.filter((spell) =>
     opts.isCantrip
@@ -42,8 +46,9 @@ export function pickSpellCandidates(
       : spell.level > 0 && spell.level <= opts.maxCastableLevel,
   );
 
+  const extra = new Set(opts.extraIds);
   const forClass = opts.className
-    ? inLevelRange.filter((spell) => spell.classes.includes(opts.className))
+    ? inLevelRange.filter((spell) => spell.classes.includes(opts.className) || extra.has(spell.id))
     : inLevelRange;
 
   // Decided before the search term is applied: a query that happens to match
@@ -72,6 +77,8 @@ export function useLevelUpSpellCandidates(opts: {
   maxCastableLevel: ComputedRef<number>;
   spellSearch: Ref<string>;
   cantripSearch: Ref<string>;
+  /** The subclass's expanded list, as ids. */
+  extraSpellIds: ComputedRef<string[]>;
 }) {
   const { data: spellIndex, isLoading } = useSpellIndex();
   // Not loaded yet is an empty list here; `isLoading` tells the picker which it is.
@@ -83,6 +90,7 @@ export function useLevelUpSpellCandidates(opts: {
       search: opts.spellSearch.value,
       isCantrip: false,
       maxCastableLevel: opts.maxCastableLevel.value,
+      extraIds: opts.extraSpellIds.value,
     }),
   );
 
@@ -92,6 +100,7 @@ export function useLevelUpSpellCandidates(opts: {
       search: opts.cantripSearch.value,
       isCantrip: true,
       maxCastableLevel: opts.maxCastableLevel.value,
+      extraIds: opts.extraSpellIds.value,
     }),
   );
 
