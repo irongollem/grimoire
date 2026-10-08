@@ -225,13 +225,37 @@ own character, which already renders the player projections.
 Those three points are what would justify building §4 later. The MCP route answers
 first whether anyone wants to play this way.
 
+### It is a spike, so it has to answer questions
+
+Phase 1 is an MVP for testing the ideas and the systems underneath them before we
+invest in the in-app table. It succeeds if it settles these:
+
+1. **Does "model chooses, code adjudicates" hold?** Over a few real sessions, does
+   the model call `roll` and the state tools reliably, or does it narrate past them?
+   The roll log in `campaign_messages` against the conversation shows it directly.
+2. **Is the world snapshot the right shape?** What does the model keep asking for
+   that `world_snapshot` / `solo_resume` don't give it? Each gap is a missing field
+   or tool, and that list is the spec for §4's context builder.
+3. **Does continuity survive a new conversation?** After `record_session` and
+   `solo_resume`, does session 3 remember session 1's NPCs, promises and open
+   threads? If not, #1019 is the wrong shape, or not enough.
+4. **Where does the creativity dial leak?** On **Canon**, count the invented names
+   that slip through. That tells us whether the dial can be a prompt rule or needs
+   enforcing in the tools (refusing unknown ids, for example).
+5. **Which systems break under an actor that never sleeps?** #1016 was found on
+   paper; the spike will find the ones we didn't.
+6. **Is it fun?** Does anyone play a second session?
+
+Answers go back into this document. They decide whether phase 1b happens, and what
+it builds first.
+
 ## 5. Phases
 
 | Phase | Scope | Size | Value to human DMs |
 | --- | --- | --- | --- |
 | **0. Foundations** | #1016 consequence runner · #1017 structured actions + resolver + turn reducer · #1018 condition durations · #1019 NPC memory | L–XL | High: each one stands alone |
-| **1. Solo through MCP** (§4a) | `prompts` capability + `solo_dm` · snapshot RPC + `world_snapshot` / `solo_resume` / `record_session` · quest, place, party and reveal tools · server `roll` · creativity dial at **Canon**. Needs #1016 and #1019; combat tools follow #1017 and #1018 | M | Every tool also lets a human DM run their table from their own AI |
-| **1b. Built-in solo table** (§4) | Only if phase 1 shows demand. Tool calling + streaming · `solo_turns` + summary · `solo-dm-turn` · solo table UI · moderation · metering | L | Transcript for the Chronicler |
+| **1. MCP spike** (§4a) | `prompts` capability + `solo_dm` · snapshot RPC + `world_snapshot` / `solo_resume` / `record_session` · quest, place, party and reveal tools · server `roll` · creativity dial at **Canon**. Needs #1016 and #1019; combat tools follow #1017 and #1018 | M | Every tool also lets a human DM run their table from their own AI |
+| **1b. Built-in solo table** (§4) | Only if the spike's answers say so. Tool calling + streaming · `solo_turns` + summary · `solo-dm-turn` · solo table UI · moderation · metering | L | Transcript for the Chronicler |
 | **2. AI-run combat** | Monster turns: legal actions from #1017, model picks, reducer executes; player turns through the existing combat tab | M | "Autopilot this minion" in crowded fights |
 | **3. Invention and depth** | **Embellish** / **Invent** with a review inbox · route graph · region encounter tables · faction clocks · grid tactics | M–L | Review inbox, route graph, encounter tables |
 
