@@ -48,16 +48,15 @@ export async function insertLocationMapRegions(rows: readonly LocationMapRegionI
   if (error) throw error;
 }
 
-/** Several existing regions, each with its own values, so one UPDATE each in
- *  parallel (a bulk form would need an RPC) but without the hook's per-row
- *  invalidation and door reconcile. */
+/** Several existing regions, each with its own values, in ONE request and all
+ *  or nothing (`update_location_map_regions`, 20261008200423), without the
+ *  hook's per-row invalidation and door reconcile: the caller does each once. */
 export async function updateLocationMapRegions(
   updates: readonly { id: string; update: LocationMapRegionUpdate }[],
 ): Promise<void> {
-  const results = await Promise.all(
-    updates.map(({ id, update }) => supabase.from("location_map_regions").update(update).eq("id", id)),
-  );
-  for (const { error } of results) if (error) throw error;
+  if (!updates.length) return;
+  const { error } = await supabase.rpc("update_location_map_regions", { p_updates: updates });
+  if (error) throw error;
 }
 
 async function updateLocationMapRegion(id: string, update: LocationMapRegionUpdate): Promise<LocationMapRegion> {
