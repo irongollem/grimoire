@@ -186,7 +186,7 @@ import LevelUpFeaturesGained from "./LevelUpFeaturesGained.vue";
 import LevelUpHitPoints from "./LevelUpHitPoints.vue";
 import LevelUpSubclassPicker from "./LevelUpSubclassPicker.vue";
 import LevelUpSubclassSpells from "./LevelUpSubclassSpells.vue";
-import { subclassExpandedSpellIds, subclassVariantDue } from "./subclassSpells";
+import { subclassExpandedSpellIds, subclassVariantDue, subclassVariantOptions } from "./subclassSpells";
 import { subclassChoiceDue } from "./subclassChoice";
 import LevelUpSpellPicker from "./LevelUpSpellPicker.vue";
 import LevelUpSpellsUnavailable from "./LevelUpSpellsUnavailable.vue";
@@ -243,10 +243,15 @@ const needsSubclassChoice = computed(() =>
     systemClass.value?.subclass_level ?? customClass.value?.subclass_level,
   ),
 );
-/** The option (a Circle of the Land terrain) the character holds; a subclass picked now starts with none. */
-const heldVariant = computed(() =>
-  needsSubclassChoice.value ? null : (chosenExistingEntry.value?.subclass_variant ?? null),
-);
+/**
+ * The option (a Circle of the Land terrain) the character holds; a subclass
+ * picked now starts with none, and so does one whose option the author has
+ * since renamed or removed, which the step then asks for again.
+ */
+const heldVariant = computed(() => {
+  const held = needsSubclassChoice.value ? null : (chosenExistingEntry.value?.subclass_variant ?? null);
+  return held !== null && subclassVariantOptions(customSubclass.value).includes(held) ? held : null;
+});
 const subclassVariant = ref("");
 const variantDue = computed(() => subclassVariantDue(customSubclass.value, heldVariant.value));
 /** What the payload sends: the option asked for now, never one the character already holds. */

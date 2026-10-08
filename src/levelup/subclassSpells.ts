@@ -69,5 +69,8 @@ export function subclassVariantDue(
   subclass: SubclassSpellSource | null | undefined,
   currentVariant: string | null,
 ): boolean {
-  return subclassVariantOptions(subclass).length > 0 && currentVariant === null;
+  const options = subclassVariantOptions(subclass);
+  // A held option the author has since renamed or removed is owed again: the
+  // server grants nothing for it, so the player has to pick a current one.
+  return options.length > 0 && (currentVariant === null || !options.includes(currentVariant));
 }
