@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(19);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -268,17 +268,39 @@ select is(
   2,
   'party_members and encounter_state are published for their own live channels');
 
--- One function writes the doorbell (20261008231316), so moving it to another
--- transport (#999 row 4.2, broadcast from the database) is a change in one
--- place. Every route finds its campaigns and calls private.ring_campaigns().
+-- One function writes the doorbell (20261008231316), at commit
+-- (20261008234009), so moving it to another transport (#999 row 4.2,
+-- broadcast from the database) is a change in one place. Every route finds its
+-- campaigns and calls private.ring_campaigns(), which queues them.
 select is(
   (select coalesce(string_agg(n.nspname || '.' || p.proname, ', ' order by p.proname), '')
      from pg_proc p
      join pg_namespace n on n.oid = p.pronamespace
     where n.nspname in ('public', 'private')
-      and p.prosrc ~* 'insert\s+into\s+(public\.)?campaign_sync'),
-  'private.ring_campaigns',
-  'only private.ring_campaigns writes the doorbell');
+      and p.prosrc ~* 'insert\s+into\s+(public\.)?campaign_sync\M'),
+  'private.flush_campaign_sync',
+  'only private.flush_campaign_sync writes the doorbell');
+
+-- Written at commit, not mid-transaction: a mid-transaction ring held the
+-- doorbell row lock beside the transaction's other locks and could deadlock two
+-- writers to one campaign (20261008234009).
+select ok(
+  exists (select 1 from pg_trigger g
+           where g.tgrelid = 'private.campaign_sync_pending'::regclass
+             and g.tgfoid = 'private.flush_campaign_sync()'::regprocedure
+             and g.tgdeferrable and g.tginitdeferred),
+  'the doorbell is flushed by a deferred trigger, at commit');
+
+-- An update rings the campaign a row left as well as the one it is in.
+select is(
+  (select coalesce(string_agg(g.tgrelid::regclass::text || '.' || g.tgname, ', ' order by 1), '')
+     from pg_trigger g
+    where not g.tgisinternal and (g.tgtype & 16) <> 0
+      and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
+                       'public.signal_parent_change()'::regprocedure)
+      and g.tgoldtable is null),
+  '',
+  'every route update trigger reads the old rows too');
 
 -- A campaign being copied (the demo) has nobody listening, and the copy
 -- inserts one row per statement, so a ring that does not return early fires

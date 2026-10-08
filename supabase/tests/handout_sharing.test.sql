@@ -1,4 +1,7 @@
 begin;
+-- This file reads campaign_sync inside its own transaction. The doorbell is
+-- written at commit (20261008234009), so drain its queue per statement instead.
+set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
 select plan(30);
