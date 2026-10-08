@@ -9,6 +9,11 @@ says what exists, what is missing, and the order to build it in. Four foundation
 filed as their own issues because each is worth having without solo mode: #1016,
 #1017, #1018 and #1019.
 
+**The first step is through the MCP server (§4a), not a built-in AI.** The player's
+own AI client (Claude, ChatGPT, …) is the Dungeon Master. Grimoire supplies the base
+prompt and the systems underneath it: state, rules, dice, and the record of play. The
+built-in solo table (§4) comes later, if it is still wanted.
+
 ---
 
 ## 1. Verdict
@@ -146,12 +151,87 @@ solo-dm-turn  (edge function, SSE stream)
   (condition durations). Range is near/far bands first, the theatre of the mind; grid
   tactics come later.
 
+## 4a. The first step: solo play through the MCP server
+
+`supabase/functions/mcp` already exists. It is an OAuth 2.1 resource server that runs
+every call under the user's own RLS scope. It offers `campaign_overview`,
+`search`/`get`/`list`, `create`/`update`, `soundboard` and `voice_coach`. Pointing a
+player's own AI client at it, with the right tools and a base prompt, gives solo play
+without most of §4.
+
+**What this removes from our side:**
+
+- **The agent runtime.** No tool calling or streaming in `textGen.ts`, no
+  `solo-dm-turn`, and no context-window management. The client does all of that.
+- **The transcript store and its retention questions.** The conversation lives in
+  the user's client.
+- **Moderation of free player text.** It never reaches a model we operate.
+- **Metering.** The user's own subscription pays for the conversation, so play costs
+  no Grimoire credits. `voice_coach` stays the one credit-costing tool.
+- **Most of the AI Act surface.** `ai-act.md` §3 already places this server outside
+  Art 50 because it calls no model. **One thing to check:** if we ship the DM base
+  prompt, is that still true? §2 holds that a Grimoire prompt keeps a Grimoire AI
+  system Grimoire's. The register needs a line on this before the prompt ships,
+  rather than an assumption either way.
+- **Child accounts.** The MCP server already refuses them (`mcp/index.ts:152-166`).
+
+**What it still needs from us.** This is the real work, and every piece also serves
+the built-in path later:
+
+1. **A base prompt, served as an MCP prompt.** The server advertises only `tools`
+   today (`mcp/index.ts:83`). Add the `prompts` capability with a `solo_dm` prompt
+   that takes the campaign, the character and the creativity dial as arguments. It
+   carries:
+   - the DM stance;
+   - the dial's rules (§3);
+   - "never roll, always call `roll`";
+   - "secrets in `[secret]` blocks are for you; narrate around them";
+   - the resume ritual: start from `solo_resume`, end with `record_session`.
+2. **Game-state tools.** These are thin wrappers over RPCs that already exist:
+   - `world_snapshot`: the snapshot RPC from §4;
+   - `quest_advance` / `quest_assert` / `quest_clock`: `transition_quest_runtime`,
+     `assert_quest_objective_status`, `tick_quest_clock`;
+   - `place_fact`: `location_state_events`;
+   - `move_party` / `advance_date`, which need #1016 so that consequences fire;
+   - `reveal`: share an NPC, place or handout with the party.
+3. **`roll`, the fairness tool.** The server rolls, and the result is posted to
+   `campaign_messages` as a roll. The model cannot invent a number, and every roll is
+   visible in the app's log. We can't force a client to call it, but the log shows it
+   when one doesn't.
+4. **Continuity.** Each conversation starts empty, so memory has to live in Grimoire:
+   - `solo_resume` returns the snapshot, the last session's recap and recent NPC
+     memories (#1019).
+   - `record_session` writes the recap as the session note, which the Chronicler can
+     already work from.
+
+   This makes #1019 a phase-1 dependency rather than a nicety.
+5. **Combat tools**, once #1017 and #1018 land: `combat_start`, `combat_options`
+   (the legal-action list), `combat_act` (resolve through the reducer) and
+   `combat_state`. Until then the model runs fights in the theatre of the mind, using
+   `roll`.
+
+**Grimoire as the second screen.** While the player talks to their AI, the app can
+stay open beside it. Every tool write lands in the same tables live sync already
+carries, so the map, sheet, HP, quest log and room audio update as the AI acts. The
+player's lens is still the DM's (§2), so the right view is the DM preview of their
+own character, which already renders the player projections.
+
+**What it costs in exchange:**
+
+- We don't control the experience. Prompt adherence varies by client and model.
+- The app has no chat pane of its own; the conversation stays in the client.
+- Setup is "connect an MCP server", which only a technical player will do.
+
+Those three points are what would justify building §4 later. The MCP route answers
+first whether anyone wants to play this way.
+
 ## 5. Phases
 
 | Phase | Scope | Size | Value to human DMs |
 | --- | --- | --- | --- |
 | **0. Foundations** | #1016 consequence runner · #1017 structured actions + resolver + turn reducer · #1018 condition durations · #1019 NPC memory | L–XL | High: each one stands alone |
-| **1. Narrative loop** | Tool calling + streaming · `solo_turns` + summary · snapshot RPC · `solo-dm-turn` · solo table UI · creativity dial at **Canon** · combat proposed by the AI and confirmed by the player | L | Snapshot, transcript for the Chronicler |
+| **1. Solo through MCP** (§4a) | `prompts` capability + `solo_dm` · snapshot RPC + `world_snapshot` / `solo_resume` / `record_session` · quest, place, party and reveal tools · server `roll` · creativity dial at **Canon**. Needs #1016 and #1019; combat tools follow #1017 and #1018 | M | Every tool also lets a human DM run their table from their own AI |
+| **1b. Built-in solo table** (§4) | Only if phase 1 shows demand. Tool calling + streaming · `solo_turns` + summary · `solo-dm-turn` · solo table UI · moderation · metering | L | Transcript for the Chronicler |
 | **2. AI-run combat** | Monster turns: legal actions from #1017, model picks, reducer executes; player turns through the existing combat tab | M | "Autopilot this minion" in crowded fights |
 | **3. Invention and depth** | **Embellish** / **Invent** with a review inbox · route graph · region encounter tables · faction clocks · grid tactics | M–L | Review inbox, route graph, encounter tables |
 
@@ -181,6 +261,9 @@ Found by this scoping; useful at every table:
     location facts and objectives.
 
 ## 7. Compliance and cost
+
+This section applies to the built-in path (phase 1b). The MCP path (§4a) avoids most
+of it, apart from the open question on the base prompt.
 
 - **AI Act Art 50(1).** A conversational AI talking to a player is not "obvious from
   context" the way a Generate button is. It needs a persistent disclosure on the solo
