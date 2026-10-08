@@ -28,7 +28,7 @@ import {
  */
 const REGISTRY_TEST = resolve(process.cwd(), "supabase/tests/live_sync_registry.test.sql");
 
-function pgTapList(table: "live_sync_subscribed" | "live_sync_doorbell" | "live_sync_named_signal"): string[] {
+function pgTapList(table: "live_sync_subscribed" | "live_sync_doorbell" | "live_sync_named_signal" | "live_sync_own_channel"): string[] {
   const sql = readFileSync(REGISTRY_TEST, "utf8");
   const block = new RegExp(`insert into ${table} \\([a-z_, ]+\\) values([\\s\\S]*?);`).exec(sql);
   if (!block) throw new Error(`could not find the ${table} list in live_sync_registry.test.sql`);
@@ -50,8 +50,20 @@ describe("live sync registries", () => {
       ...pgTapList("live_sync_subscribed"),
       ...pgTapList("live_sync_doorbell"),
       ...pgTapList("live_sync_named_signal"),
+      ...pgTapList("live_sync_own_channel"),
     ])].sort();
     expect([...SIGNAL_KEYS.keys()].sort()).toEqual(canRing);
+  });
+
+  it("refreshes an open character sheet when another client changes it", () => {
+    // #1026: a DM's level, subclass or terrain edit, or the spells a subclass
+    // regrants server-side, must reach the player's sheet, and the reverse.
+    expect(SIGNAL_KEYS.get("character_classes")).toContain("character_classes");
+    expect(SIGNAL_KEYS.get("character_spells")).toEqual(
+      expect.arrayContaining(["characterSpells", "characterSpellsDetails"]),
+    );
+    // A deleted or departed character leaves every member's party lists.
+    expect(SIGNAL_KEYS.get("party_members")).toEqual(["party", "my-characters", "offered-characters"]);
   });
 
   it("tells players to re-read the running session and the session labels", () => {

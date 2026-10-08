@@ -143,6 +143,18 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // Since 20261003105146 the table has no campaign_id, so it cannot be a
   // filtered subscription; a conversion (or an acknowledgement) rings instead.
   ["ruleset_reviews", ["ruleset_reviews"]],
+  // A character's classes and spells (#1026) have no campaign_id either, and
+  // spells are readable only by their owner and the DM, so both ring through
+  // the character rather than subscribing. A DM's level, subclass or terrain
+  // edit reaches the player's open sheet, and the reverse. A class change can
+  // open a spell-change window (open_level_up_spell_window) and a subclass
+  // change regrants spells server-side, which rings `character_spells` too.
+  ["character_classes", ["character_classes", "spellChangeWindows"]],
+  ["character_spells", ["characterSpells", "characterSpellsDetails", "spellChangeWindows", "spellKnowers"]],
+  // Subscribed on its own channel (usePartyLive), which carries inserts and
+  // updates as exact rows. It rings only for what that channel cannot carry: a
+  // delete, and a character leaving the campaign (#1026).
+  ["party_members", ["party", "my-characters", "offered-characters"]],
   // Players cannot read this table, so its row events reach only the DM; the
   // doorbell (20260928225909) tells players to re-read their projection. The
   // DM's own copy is a store fed by the handler below, not a query.

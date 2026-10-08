@@ -250,7 +250,12 @@ export function usePartyLive() {
             filter: `campaign_id=eq.${campaignId}` },
           (payload) => {
             if (campaign.activeCampaignId !== campaignId) return;
-            const row = (payload.eventType === "DELETE" ? payload.old : payload.new) as PartyMember;
+            // A filtered DELETE never arrives, and a character leaving this
+            // campaign arrives only at the one it joined: both ring the
+            // `party_members` doorbell instead (#1026), which refetches these
+            // lists through useCampaignLiveSync.
+            if (payload.eventType === "DELETE") return;
+            const row = payload.new as PartyMember;
             const isUpdate = payload.eventType === "UPDATE";
             const sortMembers = (list: PartyMember[]) =>
               list.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
@@ -266,7 +271,7 @@ export function usePartyLive() {
               if (!old) return old;
               const cached = old.find((member) => member.id === row.id);
               const withoutRow = old.filter((member) => member.id !== row.id);
-              if (payload.eventType === "DELETE" || !include) return withoutRow;
+              if (!include) return withoutRow;
               if (isUpdate && !cached) {
                 void queryClient.invalidateQueries({ queryKey, exact: true });
                 return old;

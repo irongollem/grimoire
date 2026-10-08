@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(12);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -30,11 +30,17 @@ select plan(10);
 --               published and also ring `<table>_player` on delete;
 --               quest_objectives has no campaign_id and rings through its
 --               parent quest (signal_quest_child_change).
+--   own channel a table subscribed outside the campaign channel with exact-row
+--               handlers (party_members, usePartyLive) rings only on delete.
 --
--- Both lists mirror the client registry, and campaignSyncTables.test.ts reads
+-- The tables hanging off a character (ruleset_reviews, character_classes,
+-- character_spells) have no campaign_id and ring through it
+-- (signal_party_member_child_change, #1026).
+--
+-- These lists mirror the client registry, and campaignSyncTables.test.ts reads
 -- this file and fails when they differ: SYNC_TABLES plus party_inventory for
--- the first, and SIGNAL_KEYS covering both. So a table cannot be added to the
--- client without being checked here.
+-- the first, and SIGNAL_KEYS covering all of them. So a table cannot be added
+-- to the client without being checked here.
 
 create temporary table live_sync_subscribed (name text primary key) on commit drop;
 insert into live_sync_subscribed (name) values
@@ -53,7 +59,13 @@ insert into live_sync_doorbell (name) values
   ('store_items'), ('quest_runtime_state'), ('quest_threads'),
   ('quest_beat_transitions'), ('campaign_sessions'), ('ruleset_reviews'),
   ('scriptorium_documents'), ('entity_mentions'), ('entity_notes'),
-  ('quest_clocks');
+  ('quest_clocks'), ('character_classes'), ('character_spells');
+
+-- Subscribed on a channel of its own with exact-row handlers, so it rings only
+-- for what that channel cannot carry: a delete (#1026).
+create temporary table live_sync_own_channel (name text primary key) on commit drop;
+insert into live_sync_own_channel (name) values
+  ('party_members');
 
 create temporary table live_sync_named_signal (name text primary key, source text not null) on commit drop;
 insert into live_sync_named_signal (name, source) values
@@ -77,7 +89,7 @@ language sql stable as $$
        and not g.tgisinternal
        and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
                         'public.signal_store_item_change()'::regprocedure,
-                        'public.signal_ruleset_review_change()'::regprocedure,
+                        'public.signal_party_member_child_change()'::regprocedure,
                         'public.signal_handout_change()'::regprocedure,
                         'public.signal_quest_child_change()'::regprocedure)
        and (g.tgtype & p_event_bit) <> 0)
@@ -115,6 +127,24 @@ select is(
     where not (pg_temp.rings_on(t.name, 4) and pg_temp.rings_on(t.name, 16) and pg_temp.rings_on(t.name, 8))),
   '',
   'every doorbell table rings on insert, update and delete');
+
+select is(
+  (select coalesce(string_agg(t.name, ', ' order by t.name), '')
+     from live_sync_own_channel t
+    where not pg_temp.rings_on(t.name, 8)),
+  '',
+  'every table on its own channel rings the doorbell on delete');
+
+-- The UPDATE that moves a character matches the channel filter on its new
+-- campaign only, so the campaign it left is rung by a trigger of its own.
+select ok(
+  exists (
+    select 1 from pg_trigger g
+     where g.tgrelid = 'public.party_members'::regclass
+       and not g.tgisinternal
+       and g.tgfoid = 'public.signal_party_member_left_campaign()'::regprocedure
+       and (g.tgtype & 16) <> 0),
+  'a character leaving a campaign rings the campaign it left');
 
 -- A named signal rings from its source table on insert and update, carrying
 -- its name as the trigger argument (signal_campaign_change reads tg_argv[0]).
