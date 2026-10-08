@@ -146,6 +146,61 @@ export function pruneForeignRows(tables: Record<string, Rows>, rules: FkRule[]):
 const UUID_TEXT = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
 
 /**
+ * Columns that name a homebrew species by its uuid in text, with no foreign key
+ * for `pruneForeignRows` to see (#1034). A value that is not a uuid is a
+ * library slug, which `pullReferences` carries. The same three references
+ * `supabase/checks/content_integrity.sql` checks.
+ */
+export const SPECIES_TEXT_REFERENCES = [
+  { table: "party_members", column: "species_id" },
+  { table: "party_members", column: "disguise_species_id" },
+  { table: "campaigns", column: "disabled_species_ids" },
+] as const;
+
+const UUID_VALUE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function speciesValues(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : [value];
+  return values.filter((v): v is string => typeof v === "string" && UUID_VALUE.test(v));
+}
+
+/** Every species uuid the text references name, across rows keyed by table. */
+export function speciesIdsReferenced(tables: Record<string, Rows>): Set<string> {
+  const ids = new Set<string>();
+  for (const { table, column } of SPECIES_TEXT_REFERENCES) {
+    for (const row of tables[table] ?? []) for (const id of speciesValues(row[column])) ids.add(id);
+  }
+  return ids;
+}
+
+/**
+ * Empties each species text reference whose species is not in `kept`, the way
+ * `pruneForeignRows` empties a nullable key: a scalar becomes null, and an
+ * array loses just the missing elements (a library slug in it stays). Mutates
+ * the rows; returns the count per `table.column`, for the report's `detached`.
+ */
+export function detachMissingSpecies(tables: Record<string, Rows>, kept: ReadonlySet<string>): Record<string, number> {
+  const detached: Record<string, number> = {};
+  const count = (key: string, n: number) => {
+    if (n > 0) detached[key] = (detached[key] ?? 0) + n;
+  };
+  for (const { table, column } of SPECIES_TEXT_REFERENCES) {
+    for (const row of tables[table] ?? []) {
+      const value = row[column];
+      if (Array.isArray(value)) {
+        const left = value.filter((v) => !(typeof v === "string" && UUID_VALUE.test(v) && !kept.has(v)));
+        count(`${table}.${column}`, value.length - left.length);
+        row[column] = left;
+      } else if (speciesValues(value).some((id) => !kept.has(id))) {
+        row[column] = null;
+        count(`${table}.${column}`, 1);
+      }
+    }
+  }
+  return detached;
+}
+
+/**
  * The pulled campaign as the fixture's own: every pulled row and the campaign
  * get a fresh id, the source account becomes the fixture, and every reference
  * to any of them moves along, inside jsonb and arrays as much as in plain

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { andFilters, type FkRule, ownershipFilter, pruneForeignRows, type Rows, remapToFixture } from "./dev-ownership";
+import { andFilters, detachMissingSpecies, type FkRule, ownershipFilter, pruneForeignRows, type Rows, remapToFixture, speciesIdsReferenced } from "./dev-ownership";
 
 const SOURCE = "12121212-3434-5656-7878-909090909090";
 
@@ -201,5 +201,30 @@ describe("remapToFixture", () => {
     expect(note.mentions).toEqual({ npc: npcId, other: ELSEWHERE });
     expect(note.ids).toEqual([npcId]);
     expect(note.spell).toBe("srd_command");
+  });
+});
+
+describe("species text references (#1034)", () => {
+  const A = "a0a0a0a0-0000-4000-8000-000000000001";
+  const B = "a0a0a0a0-0000-4000-8000-000000000002";
+
+  it("collects only uuids from the three columns, scalars and arrays alike", () => {
+    const tables: Record<string, Rows> = {
+      party_members: [{ species_id: A, disguise_species_id: "srd_srd_2024_elf" }, { species_id: null }],
+      campaigns: [{ disabled_species_ids: [B, "srd_srd_2024_dwarf"] }],
+      npcs: [{ species_id: "a0a0a0a0-0000-4000-8000-0000000000ff" }],
+    };
+    expect([...speciesIdsReferenced(tables)].sort()).toEqual([A, B]);
+  });
+
+  it("empties a missing scalar, drops a missing array element, and keeps slugs and kept ids", () => {
+    const tables: Record<string, Rows> = {
+      party_members: [{ species_id: B, disguise_species_id: A }, { species_id: "srd_srd_2024_elf" }],
+      campaigns: [{ disabled_species_ids: [A, B, "srd_srd_2024_dwarf"] }],
+    };
+    const detached = detachMissingSpecies(tables, new Set([A]));
+    expect(tables.party_members).toEqual([{ species_id: null, disguise_species_id: A }, { species_id: "srd_srd_2024_elf" }]);
+    expect(tables.campaigns![0]!.disabled_species_ids).toEqual([A, "srd_srd_2024_dwarf"]);
+    expect(detached).toEqual({ "party_members.species_id": 1, "campaigns.disabled_species_ids": 1 });
   });
 });

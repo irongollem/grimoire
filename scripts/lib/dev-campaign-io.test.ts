@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseSkipped, pullCampaignTables } from "./dev-campaign-io";
+import { parseSkipped, pullCampaignTables, pullReferencedSpecies } from "./dev-campaign-io";
 import * as stack from "./dev-stack";
 
 describe("parseSkipped", () => {
@@ -39,5 +39,57 @@ describe("pullCampaignTables ownership", () => {
     ], new Map([[table, ["id", "created_by"]]]), "campaign-id", source);
     const creator = creatorPrefix + source + (table === "quest_beats" ? ",created_by.is.null)" : "");
     expect(rows).toHaveBeenCalledWith(remote, "synthetic-key", table, `campaign_id=eq.campaign-id&${creator}`, "id");
+  });
+});
+
+describe("pullReferencedSpecies (#1034)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const SOURCE = "12121212-3434-5656-7878-909090909090";
+  const CAMPAIGN = "c0c0c0c0-0000-4000-8000-000000000001";
+  const IN_CAMPAIGN = "a0a0a0a0-0000-4000-8000-000000000001";
+  const ACCOUNT_LEVEL = "a0a0a0a0-0000-4000-8000-000000000002";
+  const SOMEONE_ELSES = "a0a0a0a0-0000-4000-8000-000000000003";
+
+  it("pulls the source account's species the campaign names but does not hold, and empties the rest", async () => {
+    const remote = new URL("https://example.invalid");
+    const rows = vi.spyOn(stack, "remoteRows").mockResolvedValue([{ id: ACCOUNT_LEVEL, user_id: SOURCE, campaign_id: null, name: "Moth-folk" }]);
+    const campaign: Record<string, unknown> = { id: CAMPAIGN, disabled_species_ids: [SOMEONE_ELSES, "srd_srd_2024_dwarf", ACCOUNT_LEVEL] };
+    const tables = [
+      { table: "species", tier: 1 as const, parentColumn: null, parentTable: null, deferColumns: [], columns: ["id", "user_id", "campaign_id", "name"], rows: [{ id: IN_CAMPAIGN }] },
+      {
+        table: "party_members", tier: 1 as const, parentColumn: null, parentTable: null, deferColumns: [], columns: ["id", "species_id", "disguise_species_id"],
+        rows: [
+          { id: "pm1", species_id: IN_CAMPAIGN, disguise_species_id: ACCOUNT_LEVEL },
+          { id: "pm2", species_id: SOMEONE_ELSES, disguise_species_id: "srd_srd_2024_elf" },
+        ],
+      },
+    ];
+
+    const result = await pullReferencedSpecies(remote, "synthetic-key", campaign, tables, SOURCE);
+
+    // Only the two it does not hold are asked for, and only the source account's.
+    const filter = rows.mock.calls[0]![3];
+    expect(filter).toContain(`user_id=eq.${SOURCE}`);
+    expect(filter.match(/id=in\.\((.*)\)/)![1]!.split(",").sort()).toEqual([ACCOUNT_LEVEL, SOMEONE_ELSES]);
+    // The pulled species is filed under this campaign, so the copy remaps it with the rest.
+    expect(tables[0]!.rows).toContainEqual({ id: ACCOUNT_LEVEL, user_id: SOURCE, campaign_id: CAMPAIGN, name: "Moth-folk" });
+    expect(result.pulled).toBe(1);
+    // Another account's species never arrives, so every reference to it is emptied; slugs stay.
+    expect(tables[1]!.rows[1]).toMatchObject({ species_id: null, disguise_species_id: "srd_srd_2024_elf" });
+    expect(tables[1]!.rows[0]).toMatchObject({ species_id: IN_CAMPAIGN, disguise_species_id: ACCOUNT_LEVEL });
+    expect(campaign.disabled_species_ids).toEqual(["srd_srd_2024_dwarf", ACCOUNT_LEVEL]);
+    expect(result.detached).toEqual({ "party_members.species_id": 1, "campaigns.disabled_species_ids": 1 });
+  });
+
+  it("asks production for nothing when the campaign holds every species it names", async () => {
+    const rows = vi.spyOn(stack, "remoteRows").mockResolvedValue([]);
+    const tables = [
+      { table: "species", tier: 1 as const, parentColumn: null, parentTable: null, deferColumns: [], columns: ["id", "user_id"], rows: [{ id: IN_CAMPAIGN }] },
+      { table: "party_members", tier: 1 as const, parentColumn: null, parentTable: null, deferColumns: [], columns: ["id"], rows: [{ id: "pm1", species_id: IN_CAMPAIGN }] },
+    ];
+    const result = await pullReferencedSpecies(new URL("https://example.invalid"), "k", { id: CAMPAIGN, disabled_species_ids: [] }, tables, SOURCE);
+    expect(rows).not.toHaveBeenCalled();
+    expect(result).toEqual({ pulled: 0, detached: {} });
   });
 });

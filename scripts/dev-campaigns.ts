@@ -77,6 +77,7 @@ import {
   PLAYER_EMAIL,
   pullCampaignTables,
   pullReferences,
+  pullReferencedSpecies,
   readCatalogue,
   readExcludedTables,
   readForeignKeys,
@@ -239,12 +240,15 @@ export async function pullAndCopy(
   for (const [column, value] of Object.entries(campaignRow)) {
     if (!SECRET_COLUMN.test(column)) campaign[column] = value;
   }
+  // Species the characters name by uuid text from outside the campaign (#1034).
+  const species = await pullReferencedSpecies(remote, key, campaign, tables, source);
 
   // The fixed-point prune. The campaign row takes part so that a current location
   // that was kept out is emptied rather than left dangling.
   const byTable: Record<string, Rows> = Object.fromEntries(tables.map((t) => [t.table, t.rows]));
   byTable.campaigns = [campaign];
   const report = pruneForeignRows(byTable, foreignKeyRules(dbUrl, tables, new Set(readExcludedTables(dbUrl)), source));
+  for (const [column, n] of Object.entries(species.detached)) report.detached[column] = (report.detached[column] ?? 0) + n;
   for (const t of tables) t.rows = byTable[t.table];
 
   const references = await pullReferences(remote, key, dbUrl, tables);

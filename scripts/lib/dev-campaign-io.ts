@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { quote, sql } from "./dev-db.ts";
 import { buildImportSql, collectSlugs, type DemoTable, type PulledTable, type ReferenceTable } from "./dev-demo-sql.ts";
-import { andFilters, ownershipFilter } from "./dev-ownership.ts";
+import { andFilters, detachMissingSpecies, ownershipFilter, type Rows, speciesIdsReferenced } from "./dev-ownership.ts";
 import { MissingRemoteTable, remoteCount, remoteRows } from "./dev-stack.ts";
 
 export const FIXTURE_EMAIL = "dm-fixture@example.invalid";
@@ -198,6 +198,53 @@ export async function pullReferences(remote: URL, key: string, dbUrl: string, ta
   return references;
 }
 
+
+/**
+ * The homebrew species a campaign's characters and settings name but the
+ * campaign does not hold (#1034). `species` is copied by `campaign_id`, so a
+ * species kept at account level, or one filed under another campaign, never
+ * came across, and `party_members.species_id`, `disguise_species_id` and
+ * `campaigns.disabled_species_ids` were left pointing at nothing: `db:check`
+ * failed on every fixture load.
+ *
+ * They are read under the ownership rule like every copied table (the source
+ * account's own rows only, in the GET itself) and filed under this campaign,
+ * so `remapToFixture` gives the copy its own and the next run's purge takes
+ * them away with it. A reference still unresolved (another account's species,
+ * or one production no longer has) is emptied rather than left dangling.
+ * Mutates the campaign and the pulled rows; returns how many were pulled and
+ * what was emptied, per `table.column`.
+ */
+export async function pullReferencedSpecies(
+  remote: URL,
+  key: string,
+  campaign: Record<string, unknown>,
+  tables: PulledTable[],
+  source: string,
+): Promise<{ pulled: number; detached: Record<string, number> }> {
+  const species = tables.find((t) => t.table === "species");
+  if (species === undefined) throw new Error("species is not among the copied tables; the catalogue changed");
+  const byTable: Record<string, Rows> = {
+    campaigns: [campaign],
+    party_members: tables.find((t) => t.table === "party_members")?.rows ?? [],
+  };
+  const held = new Set(species.rows.map((r) => String(r.id)));
+  const missing = [...speciesIdsReferenced(byTable)].filter((id) => !held.has(id));
+
+  let pulled = 0;
+  for (let i = 0; i < missing.length; i += ID_CHUNK) {
+    const filter = andFilters(
+      `id=in.(${missing.slice(i, i + ID_CHUNK).join(",")})`,
+      ownershipFilter("species", species.columns, source),
+    );
+    for (const row of await remoteRows(remote, key, "species", filter, "id")) {
+      species.rows.push({ ...row, campaign_id: campaign.id });
+      held.add(String(row.id));
+      pulled++;
+    }
+  }
+  return { pulled, detached: detachMissingSpecies(byTable, held) };
+}
 
 export function importCampaign(
   dbUrl: string,

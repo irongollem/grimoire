@@ -12,6 +12,7 @@ vi.mock("./lib/dev-campaign-io", () => ({
   readForeignKeys: vi.fn(() => []),
   pullCampaignTables: vi.fn(async () => ({ tables: [], keptOut: {}, missingInProduction: [] })),
   pullReferences: vi.fn(async () => []),
+  pullReferencedSpecies: vi.fn(async () => ({ pulled: 0, detached: {} })),
   importCampaign: vi.fn(() => []),
   runSqlFile: vi.fn(),
   seatPlayerFixture: vi.fn(),
