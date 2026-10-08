@@ -540,7 +540,7 @@ async function ensureFixturePlayer(
   );
   if (!campaignId) return { characterName: null, passwordChanged };
 
-  const character = findClaimableCharacter(dbUrl, campaignId);
+  const character = findClaimableCharacter(dbUrl, campaignId, playerId);
 
   sql(
     dbUrl,
@@ -570,27 +570,41 @@ async function ensureFixturePlayer(
 }
 
 /**
- * The party member this player's account claims: Nessa Quill by name, or —
- * should a future fixture roster ever drop that name — whichever member sorts
- * first. Falling back instead of returning nothing keeps the player account
- * useful (a claimed character, not an empty portal) even if the party's
- * makeup changes.
+ * The party member this player's account claims: the one it already holds in
+ * this campaign, else Nessa Quill by name, or — should a future fixture roster
+ * ever drop that name — whichever member sorts first. Falling back instead of
+ * returning nothing keeps the player account useful (a claimed character, not
+ * an empty portal) even if the party's makeup changes.
+ *
+ * Keeping the held seat first is what makes a re-run converge: moving the seat
+ * to another character is refused by `guard_campaign_member_self_update` when
+ * that character waits on a content review (#943), and a roster whose members
+ * all share `sort_order` 0 made "sorts first" a different pick on each run.
  */
 function findClaimableCharacter(
   dbUrl: string,
   campaignId: string,
+  playerId: string,
 ): { id: string; name: string } | null {
-  const preferred = sql(
+  const held = sql(
     dbUrl,
-    `select id, name from public.party_members
-      where campaign_id = ${quote(campaignId)} and name = 'Nessa Quill' limit 1`,
+    `select pm.id, pm.name from public.campaign_members cm
+       join public.party_members pm on pm.id = cm.party_member_id
+      where cm.campaign_id = ${quote(campaignId)} and cm.user_id = ${quote(playerId)} limit 1`,
   );
+  const preferred =
+    held ||
+    sql(
+      dbUrl,
+      `select id, name from public.party_members
+        where campaign_id = ${quote(campaignId)} and name = 'Nessa Quill' limit 1`,
+    );
   const row =
     preferred ||
     sql(
       dbUrl,
       `select id, name from public.party_members
-        where campaign_id = ${quote(campaignId)} order by sort_order limit 1`,
+        where campaign_id = ${quote(campaignId)} order by sort_order, name, id limit 1`,
     );
   if (!row) return null;
   const [id, name] = row.split("\t");
