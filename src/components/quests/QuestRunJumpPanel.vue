@@ -24,7 +24,7 @@
       </AppButton>
       <p v-if="!targets.length" class="p-3 text-caption italic text-muted-foreground">No eligible beats match.</p>
     </div>
-    <div v-if="selected" class="space-y-2 rounded-lg border border-border bg-background p-3">
+    <div v-if="selected" class="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
       <p class="text-caption font-semibold text-foreground">Jump to {{ selected.beat_title }}</p>
       <AppInput v-model="reason" placeholder="Why did the story jump?" />
       <AppCheckbox v-model="pushReturn" label-role="caption" label="Save the current beat as a return point" />

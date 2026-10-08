@@ -16,7 +16,7 @@
         <div
           v-for="milestone in milestones"
           :key="milestone.id"
-          class="flex items-start gap-3 p-2.5 rounded-lg border border-border bg-background group"
+          class="flex items-start gap-3 p-2.5 rounded-lg border border-border bg-muted/40 group"
         >
           <div class="flex-1 min-w-0">
             <p class="text-body text-foreground">{{ milestone.text }}</p>

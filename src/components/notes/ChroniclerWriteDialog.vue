@@ -124,7 +124,7 @@
           </label>
         </div>
 
-        <div class="overflow-y-auto overscroll-contain border border-border rounded-md p-4 bg-background min-h-0 flex-1">
+        <div class="overflow-y-auto overscroll-contain border border-border rounded-md p-4 bg-muted/40 min-h-0 flex-1">
           <RichTextViewer :content="previewContent" />
         </div>
       </div>

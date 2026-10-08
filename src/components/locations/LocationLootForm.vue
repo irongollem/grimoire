@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-2">
-    <div data-testid="location-loot-form" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
+    <div data-testid="location-loot-form" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
       <SegmentedControl v-model="kind" :options="KIND_OPTIONS" size="xs" block />
 
       <template v-if="kind === 'item'">

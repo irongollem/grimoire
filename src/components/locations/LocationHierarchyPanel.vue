@@ -36,7 +36,7 @@
       <IconLocation class="h-3.5 w-3.5" />Child
     </span>
     <div
-      class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-background relative"
+      class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-muted/40 relative"
     >
       <span
         v-if="childrenLoading"
@@ -135,7 +135,7 @@
       <IconLink class="h-3.5 w-3.5" />Related
     </span>
     <div
-      class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-background relative"
+      class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-muted/40 relative"
     >
       <AppButton
         v-for="relId in relatedLocationIds"

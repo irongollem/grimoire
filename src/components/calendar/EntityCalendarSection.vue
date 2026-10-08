@@ -5,7 +5,7 @@
       <span class="text-label-lg font-semibold text-muted-foreground flex items-center gap-1 shrink-0 w-16 pt-1.5">
         <IconCalendarDays class="h-3.5 w-3.5" />Pins
       </span>
-      <div class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-background">
+      <div class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-muted/40">
         <template v-if="entityId && pins?.length">
           <div
             v-for="pin in pins"

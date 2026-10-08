@@ -75,7 +75,7 @@
           Screenshot purged {{ formatDate(report.screenshot_purged_at) }} (90-day retention).
         </p>
 
-        <div v-if="expandedId === report.id" class="rounded-md border border-border bg-background p-2">
+        <div v-if="expandedId === report.id" class="rounded-md border border-border bg-muted/40 p-2">
           <p v-if="screenshotQuery.isPending.value" class="text-caption text-muted-foreground">
             Loading screenshot…
           </p>

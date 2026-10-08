@@ -24,7 +24,7 @@
         v-model="text"
         placeholder="e.g. Quest completed! You've earned 500 XP."
         rows="2"
-        class="w-full resize-none bg-background border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full resize-none bg-muted/40 border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
         @keydown.enter.exact.prevent="send"
         @keydown.escape="open = false"
       />

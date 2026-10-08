@@ -8,7 +8,7 @@
       <li
         v-for="row in rows"
         :key="row.badge.thread.id"
-        class="group flex items-center gap-2 rounded-md border bg-background p-2"
+        class="group flex items-center gap-2 rounded-md border bg-muted/40 p-2"
         :class="row.badge.tone.border"
       >
         <span class="h-2 w-2 shrink-0 rounded-full" :class="row.badge.tone.dot" aria-hidden="true" />

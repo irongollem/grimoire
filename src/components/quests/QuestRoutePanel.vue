@@ -20,7 +20,7 @@
           <SegmentedControl v-if="conditions.length > 1" v-model="gateMode" size="sm" :options="gateModeOptions" />
         </div>
         <p v-if="!conditions.length" class="text-caption text-muted-foreground">No conditions: this route is always open.</p>
-        <div v-for="(condition, index) in conditions" :key="condition.key" class="space-y-1.5 rounded-md border border-border bg-background p-2">
+        <div v-for="(condition, index) in conditions" :key="condition.key" class="space-y-1.5 rounded-md border border-border bg-muted/40 p-2">
           <div class="flex items-center gap-2">
             <EntityCombobox
               :model-value="condition.objectiveId"
@@ -48,7 +48,7 @@
         <p v-if="gatePreview" class="text-caption text-muted-foreground">{{ describeQuestRouteGate(gatePreview) }}</p>
       </div>
 
-      <div v-if="effects.length" class="rounded-md border border-border bg-background p-2">
+      <div v-if="effects.length" class="rounded-md border border-border bg-muted/40 p-2">
         <div class="flex items-center gap-2">
           <p class="text-caption font-semibold text-foreground">Consequences on this route</p>
           <AppButton :to="editTo" label="Edit" size="xs" variant="subtle" class="ml-auto" />

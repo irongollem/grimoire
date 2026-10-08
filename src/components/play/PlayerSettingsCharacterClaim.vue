@@ -21,7 +21,7 @@
     </div>
 
     <!-- Claim picker -->
-    <div v-if="showClaim" class="border border-border rounded-md p-3 space-y-3 bg-background mt-4">
+    <div v-if="showClaim" class="border border-border rounded-md p-3 space-y-3 bg-muted/40 mt-4">
       <p class="text-caption text-muted-foreground ">Select your character:</p>
       <div v-if="unclaimedMembers.length === 0" class="text-body text-muted-foreground italic">
         No unclaimed characters available. Ask your DM to add one.

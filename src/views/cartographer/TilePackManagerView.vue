@@ -18,7 +18,7 @@
             <span class="text-caption text-muted-foreground">{{ campaignPacks.length }} pack(s)</span>
           </div>
           <div v-if="campaignPacks.length" class="mt-4 grid gap-3 sm:grid-cols-2">
-            <article v-for="pack in campaignPacks" :key="pack.id" class="rounded-lg border border-border bg-background/40 p-3">
+            <article v-for="pack in campaignPacks" :key="pack.id" class="rounded-lg border border-border bg-muted/40 p-3">
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                   <h3 class="truncate text-label-lg text-foreground">{{ pack.name }}</h3>
@@ -88,7 +88,7 @@
             </label>
             <label class="block">
               <span class="mb-1 block text-label text-muted-foreground">Description</span>
-              <textarea v-model="conceptDescription" maxlength="1000" rows="4" class="w-full rounded-md border border-border bg-background px-3 py-2 text-body text-foreground" placeholder="Materials, motifs, palette, mood…" />
+              <textarea v-model="conceptDescription" maxlength="1000" rows="4" class="w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-body text-foreground" placeholder="Materials, motifs, palette, mood…" />
             </label>
             <p v-if="!activeCampaignId" class="text-caption text-ink-caution">Select an active campaign before generating.</p>
             <AppButton
@@ -104,7 +104,7 @@
         <div v-if="runList.length" class="rounded-xl border border-border bg-card p-4">
           <h2 class="text-heading-sm text-foreground">Generation runs</h2>
           <div class="mt-4 space-y-4">
-            <article v-for="run in runList" :key="run.id" class="rounded-lg border border-border bg-background/40 p-3">
+            <article v-for="run in runList" :key="run.id" class="rounded-lg border border-border bg-muted/40 p-3">
               <div class="flex items-start justify-between gap-3">
                 <div>
                   <h3 class="text-label-lg text-foreground">{{ run.user_tile_packs?.name ?? "Tile pack" }}</h3>

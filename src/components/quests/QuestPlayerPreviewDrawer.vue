@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div class="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-labelledby="quest-preview-heading">
       <button type="button" class="absolute inset-0 bg-black/60" aria-label="Close player preview" @click="emit('close')" />
-      <aside class="relative flex h-full w-full flex-col border-l border-border bg-background shadow-2xl" :class="hasMultipleThreads ? 'max-w-5xl' : 'max-w-xl'">
+      <aside class="relative flex h-full w-full flex-col border-l border-border bg-card shadow-2xl" :class="hasMultipleThreads ? 'max-w-5xl' : 'max-w-xl'">
         <header class="flex shrink-0 items-start gap-3 border-b border-border p-4">
           <div class="min-w-0 flex-1">
             <p class="text-label font-bold uppercase text-primary">Saved player projection</p>

@@ -20,7 +20,7 @@
         Connector URL
       </p>
       <div class="flex items-stretch gap-2">
-        <code class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground break-all">{{ mcpUrl }}</code>
+        <code class="flex-1 rounded-md border border-input bg-muted/40 px-3 py-2 text-xs text-foreground break-all">{{ mcpUrl }}</code>
         <AppButton
           variant="outline"
           size="sm"

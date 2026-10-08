@@ -240,7 +240,7 @@
         <input
           :value="icalFeedUrl"
           readonly
-          class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 font-mono text-xs text-muted-foreground select-all focus:outline-none focus:ring-1 focus:ring-ring truncate"
+          class="flex-1 bg-muted/40 border border-border rounded-md px-3 py-1.5 font-mono text-xs text-muted-foreground select-all focus:outline-none focus:ring-1 focus:ring-ring truncate"
           @click="($event.target as HTMLInputElement).select()"
         />
         <AppButton

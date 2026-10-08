@@ -100,7 +100,7 @@
     </p>
 
     <!-- Inline add — Build only. -->
-    <div v-if="building" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
+    <div v-if="building" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
       <EntityCombobox v-model="newRoomId" :options="siblingSpaces" placeholder="Pick a room or nested site…" />
       <AppSelect v-model="newKind" size="xs" aria-label="Way-out kind">
         <option v-for="kind in DOOR_KINDS" :key="kind" :value="kind">{{ DOOR_KIND_LABELS[kind] }}</option>

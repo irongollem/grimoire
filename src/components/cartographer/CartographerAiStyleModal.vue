@@ -49,7 +49,7 @@
               'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
               selectedPresetId === preset.id
                 ? 'border-tone-caution/60 bg-tone-caution/10 text-ink-caution'
-                : 'border-border bg-background text-muted-foreground hover:border-tone-caution/30 hover:text-foreground',
+                : 'border-border bg-muted/40 text-muted-foreground hover:border-tone-caution/30 hover:text-foreground',
             ]"
             @click="$emit('update:selectedPresetId', preset.id)"
           >
@@ -67,7 +67,7 @@
           rows="2"
           maxlength="300"
           placeholder="e.g. 'flooded corridors, green bioluminescent fungus, caved-in east wing'"
-          class="w-full bg-background border border-border rounded-md px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted/40 border border-border rounded-md px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
           @input="$emit('update:promptSuffix', ($event.target as HTMLTextAreaElement).value)"
         />
         <p v-if="error" class="mt-2 text-caption text-destructive">{{ error }}</p>

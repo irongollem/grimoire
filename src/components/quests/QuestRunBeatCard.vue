@@ -1,5 +1,5 @@
 <template>
-  <article class="space-y-4 rounded-xl border border-border bg-background p-4" aria-label="Current quest beat">
+  <article class="space-y-4 rounded-xl border border-border bg-card p-4" aria-label="Current quest beat">
     <div class="flex flex-wrap items-center gap-1.5">
       <span
         class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-label uppercase"

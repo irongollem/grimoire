@@ -1,5 +1,5 @@
 <template>
-  <div v-if="feature" class="flex flex-col gap-1.5 rounded-md border border-border bg-background px-3 py-2">
+  <div v-if="feature" class="flex flex-col gap-1.5 rounded-md border border-border bg-muted/40 px-3 py-2">
     <div class="flex items-center gap-2">
       <RouterLink
         :to="`/dungeon-features/${feature.id}`"

@@ -15,7 +15,7 @@
         <div
           v-for="entry in group.slots"
           :key="entry.id"
-          class="relative aspect-square overflow-hidden rounded border bg-background/60"
+          class="relative aspect-square overflow-hidden rounded border bg-muted/40"
           :class="entry.drawn
             ? 'border-border'
             : entry.required

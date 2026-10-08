@@ -130,7 +130,7 @@
 
     <!-- Manual add (search) -->
     <div class="relative">
-      <div class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
+      <div class="flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
         <IconAdd class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <AppInput
           v-model="search"

@@ -1,5 +1,5 @@
 <template>
-  <div class="rounded-md border border-border bg-background/40 p-3 space-y-3">
+  <div class="rounded-md border border-border bg-muted/40 p-3 space-y-3">
     <div class="flex items-center justify-between gap-2">
       <div>
         <p class="text-label-lg text-foreground">{{ run.status.replaceAll('_', ' ') }}</p>
@@ -265,7 +265,7 @@ function chipClasses(status: TilePackGenerationJob["status"]): string {
     case "failed": return "border-tone-danger/40 bg-tone-danger/10 text-tone-danger";
     case "cancelled": return "border-border bg-muted text-muted-foreground";
     case "rejected": return "border-tone-caution/40 bg-tone-caution/10 text-tone-caution";
-    default: return "border-border bg-background text-muted-foreground/60";
+    default: return "border-border bg-muted/40 text-muted-foreground/60";
   }
 }
 

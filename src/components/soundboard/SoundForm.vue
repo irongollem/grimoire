@@ -143,7 +143,7 @@
             :rows="2"
             placeholder="e.g. the passage-grove at night, @Vesper waiting, soft and serene"
             :items="mentionItems"
-            input-class="rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-none"
+            input-class="rounded-md border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-none"
           />
           <p v-if="mentionedWithImages.length > 0" class="text-caption-sm text-muted-foreground/60">
             Lyria will read {{ mentionedWithImages.length }} {{ mentionedWithImages.length === 1 ? 'picture' : 'pictures' }}: {{ mentionedWithImages.join(', ') }}
@@ -191,7 +191,7 @@
             rows="5"
             :maxlength="LYRICS_MAX_CHARS"
             placeholder="[Verse 1]&#10;In the depths of shadow and stone…&#10;&#10;[Chorus]&#10;Rise, brave adventurer, rise…"
-            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-none"
+            class="w-full rounded-md border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-none"
           />
           <p class="text-caption-sm text-muted-foreground/60">
             Use [Verse], [Chorus], [Bridge] markers. Parentheses for backing vocals.
@@ -234,7 +234,7 @@
             v-model="editedPrompt"
             rows="10"
             :maxlength="MUSIC_PROMPT_MAX_CHARS"
-            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-y"
+            class="w-full rounded-md border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-y"
           />
           <div class="flex items-start justify-between gap-2">
             <p class="text-caption-sm text-muted-foreground/60">
@@ -261,7 +261,7 @@
         />
         <div
           v-if="selectedFile"
-          class="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2"
+          class="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2"
         >
           <span class="flex-1 text-caption text-foreground truncate">{{ selectedFile.name }}</span>
           <AppButton variant="ghost" size="inline-xs" label="Change" class="shrink-0" @click="fileInputRef?.click()" />

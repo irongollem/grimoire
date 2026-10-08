@@ -23,7 +23,7 @@
         vanishes with it. Hiding this behind a chip that said "generator" was
         the schema vocabulary this control exists to replace.
       -->
-      <span v-if="layer" class="inline-flex shrink-0 rounded-md border border-border bg-background p-px">
+      <span v-if="layer" class="inline-flex shrink-0 rounded-md border border-border bg-muted/40 p-px">
         <AppButton
           variant="ghost"
           tone="success"

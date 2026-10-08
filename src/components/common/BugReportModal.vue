@@ -109,7 +109,7 @@
               required
               rows="2"
               placeholder="Describe the steps that led to the bug…"
-              class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+              class="w-full px-3 py-2 rounded-md bg-muted/40 border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
             />
           </div>
 
@@ -124,7 +124,7 @@
               required
               rows="2"
               placeholder="What should have happened…"
-              class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+              class="w-full px-3 py-2 rounded-md bg-muted/40 border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
             />
           </div>
 
@@ -139,7 +139,7 @@
               required
               rows="2"
               placeholder="Describe what went wrong…"
-              class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+              class="w-full px-3 py-2 rounded-md bg-muted/40 border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
             />
           </div>
         </template>
@@ -157,7 +157,7 @@
               required
               rows="2"
               placeholder="Describe the feature or improvement…"
-              class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+              class="w-full px-3 py-2 rounded-md bg-muted/40 border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
             />
           </div>
 
@@ -172,7 +172,7 @@
               required
               rows="2"
               placeholder="Why is this useful? What does it make easier…"
-              class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+              class="w-full px-3 py-2 rounded-md bg-muted/40 border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
             />
           </div>
         </template>
@@ -190,7 +190,7 @@
           </label>
           <div
             v-if="screenshotPreview"
-            class="relative rounded-md overflow-hidden border border-border bg-background"
+            class="relative rounded-md overflow-hidden border border-border bg-muted/40"
           >
             <img
               :src="screenshotPreview"

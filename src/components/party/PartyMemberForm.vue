@@ -3,7 +3,7 @@
   <div class="fixed inset-0 z-50 flex items-start justify-end">
     <div class="absolute inset-0 bg-black/60" @click="emit('close')" />
     <div
-      class="relative z-10 h-full w-full max-w-xl bg-background border-l border-border shadow-2xl flex flex-col overflow-hidden"
+      class="relative z-10 h-full w-full max-w-xl bg-card border-l border-border shadow-2xl flex flex-col overflow-hidden"
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">

@@ -19,7 +19,7 @@
       />
     </div>
 
-    <div v-if="site && previewOpen" class="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-2.5">
+    <div v-if="site && previewOpen" class="flex flex-col gap-2 rounded-md border border-border bg-muted/40 p-2.5">
       <template v-if="!location.is_map_shared">
         <p class="text-caption italic text-muted-foreground">This site isn't shared with players yet, so there is nothing for a preview to show.</p>
       </template>

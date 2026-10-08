@@ -58,7 +58,7 @@
                           {{ member.current_hp }} / {{ member.max_hp }}
                         </span>
                       </div>
-                      <div class="h-1.5 rounded-full bg-background overflow-hidden">
+                      <div class="h-1.5 rounded-full bg-muted/40 overflow-hidden">
                         <div class="h-full rounded-full transition-all" :class="hpBarColor"
                           :style="{ width: `${hpPct}%` }" />
                       </div>

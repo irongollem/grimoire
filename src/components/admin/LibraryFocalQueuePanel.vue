@@ -33,7 +33,7 @@
              card's own border and focus ring, none of AppButton's label chrome. -->
         <button
           type="button"
-          class="group block w-full overflow-hidden rounded-md border border-border bg-background text-left focus-visible:outline-2 focus-visible:outline-primary"
+          class="group block w-full overflow-hidden rounded-md border border-border bg-muted/40 text-left focus-visible:outline-2 focus-visible:outline-primary"
           @click="openViewer(item)"
         >
           <div class="relative h-36 overflow-hidden bg-muted">

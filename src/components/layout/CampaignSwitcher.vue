@@ -131,7 +131,7 @@
             </button>
             <!-- IconSettingsAlt icon — always faintly visible, full on hover -->
             <RouterLink
-              class="p-1 rounded opacity-25 group-hover:opacity-100 hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0"
+              class="p-1 rounded opacity-25 group-hover:opacity-100 hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-all shrink-0"
               title="Campaign settings"
               :to="{ name: 'campaign-settings' }"
               @click.stop="select(c); open = false"

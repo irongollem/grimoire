@@ -20,7 +20,8 @@
        blur, so the overlay never lingers. -->
   <div
     v-else
-    class="absolute inset-x-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1.5 rounded border border-gold-500/40 bg-background px-2 py-1.5 shadow-lg"
+    data-slip
+    class="absolute inset-x-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1.5 rounded border border-gold-500/40 bg-card px-2 py-1.5 shadow-lg"
   >
     <span class="shrink-0 text-label text-muted-foreground">Trim</span>
     <input

@@ -10,7 +10,7 @@
           <AppButton label="Close" size="sm" variant="subtle" @click="emit('close')" />
         </header>
 
-        <div v-if="encounterFocused" class="mt-4 h-[70vh] min-h-96 overflow-y-auto rounded-lg border border-border bg-background">
+        <div v-if="encounterFocused" class="mt-4 h-[70vh] min-h-96 overflow-y-auto rounded-lg border border-border bg-card">
           <EncounterRunSurface :encounter-id="attachment.ref_id" />
         </div>
         <template v-else>

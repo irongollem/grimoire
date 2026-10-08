@@ -19,7 +19,7 @@
       />
     </div>
 
-    <div v-if="creating" class="space-y-3 rounded-md border border-border bg-background/40 p-3">
+    <div v-if="creating" class="space-y-3 rounded-md border border-border bg-muted/40 p-3">
       <p class="text-label-lg uppercase text-muted-foreground">New tile pack</p>
       <label class="block space-y-1">
         <span class="text-label text-muted-foreground">Name</span>

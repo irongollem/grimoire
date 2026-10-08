@@ -165,7 +165,7 @@
             <div
               v-for="(lvl, li) in tracker.levels"
               :key="li"
-              class="rounded-md border border-border bg-background p-3 space-y-2"
+              class="rounded-md border border-border bg-muted/40 p-3 space-y-2"
             >
               <!-- Level header row: value, label, color, delete -->
               <div class="flex items-center gap-2">

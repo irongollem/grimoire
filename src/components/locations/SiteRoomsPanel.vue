@@ -13,7 +13,7 @@
          decision, not something read off mid-session. -->
     <div
       v-if="site && building"
-      class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2"
+      class="flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2"
     >
       <span class="min-w-0 shrink-0 truncate text-caption font-semibold text-foreground">{{ site.name }}</span>
       <RoomAmbienceCell
@@ -135,7 +135,7 @@
     <!-- Inline add — Build only. -->
     <div
       v-if="building"
-      class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2"
+      class="flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2"
     >
       <IconAdd class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       <AppInput

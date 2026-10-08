@@ -1,7 +1,7 @@
 <template>
   <div
     class="flex flex-col gap-2 rounded-lg border p-3"
-    :class="layout === 'row' ? 'w-full border-border bg-background sm:flex-row sm:items-end' : 'border-dashed border-border'"
+    :class="layout === 'row' ? 'w-full border-border bg-muted/40 sm:flex-row sm:items-end' : 'border-dashed border-border'"
   >
     <div class="min-w-0" :class="layout === 'row' ? 'flex-1' : ''">
       <p class="mb-1 text-caption text-muted-foreground">Beat</p>

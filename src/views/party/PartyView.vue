@@ -53,7 +53,7 @@
           <AppButton
             variant="subtle"
             size="sm"
-            class="bg-background"
+            class="bg-muted/40"
             :disabled="generating"
             :icon="IconUpload"
             label="Upload"
@@ -64,7 +64,7 @@
             v-if="isAiEnabled"
             variant="subtle"
             size="sm"
-            class="bg-background"
+            class="bg-muted/40"
             :disabled="generating || !hasPartyMembers"
             :tooltip="!hasPartyMembers ? 'Add party members first' : groupPortraitUrl ? 'Regenerate group portrait' : 'Generate group portrait'"
             @click="generateGroupPortrait"

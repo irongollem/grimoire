@@ -31,7 +31,7 @@
         <input
           v-model="newExpiry"
           type="datetime-local"
-          class="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          class="flex-1 rounded-md border border-input bg-muted/40 px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <AppButton
           variant="primary"
@@ -89,7 +89,7 @@
             @click="deleteInvite.mutate(invite.id)"
           />
         </div>
-        <div class="flex items-center gap-2 rounded bg-background px-2 py-1.5">
+        <div class="flex items-center gap-2 rounded bg-muted/40 px-2 py-1.5">
           <code class="flex-1 text-xs text-muted-foreground truncate font-mono">
             {{ signupUrl(invite.token) }}
           </code>

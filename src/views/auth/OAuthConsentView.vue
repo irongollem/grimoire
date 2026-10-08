@@ -24,7 +24,7 @@
     </div>
 
     <div v-else-if="details" class="space-y-5">
-      <div class="rounded-md border border-input bg-background px-4 py-3">
+      <div class="rounded-md border border-input bg-muted/40 px-4 py-3">
         <p class="text-heading-sm font-semibold text-foreground">
           {{ details.client.name || "An AI client" }}
         </p>

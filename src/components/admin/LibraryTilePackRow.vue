@@ -1,5 +1,5 @@
 <template>
-  <article class="rounded-md border border-border bg-background/40 p-3 space-y-2">
+  <article class="rounded-md border border-border bg-muted/40 p-3 space-y-2">
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">

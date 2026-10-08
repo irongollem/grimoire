@@ -21,7 +21,7 @@
                stays when art is missing so every row's text lines up. -->
           <span
             v-if="hasThumbnail(group.type)"
-            class="flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted font-cinzel text-label-lg text-muted-foreground"
+            class="flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-label-lg text-muted-foreground"
             :class="density === 'touch' ? 'size-10' : 'size-9'"
             aria-hidden="true"
           >

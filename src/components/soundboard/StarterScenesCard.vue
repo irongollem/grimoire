@@ -33,7 +33,7 @@
       <li
         v-for="scene in missingScenes"
         :key="scene.slug"
-        class="rounded-md border border-border bg-background/40 px-2.5 py-2"
+        class="rounded-md border border-border bg-muted/40 px-2.5 py-2"
       >
         <p class="text-caption text-foreground">{{ scene.name }}</p>
         <p class="text-caption-sm text-muted-foreground">{{ scene.description }}</p>
