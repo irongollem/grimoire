@@ -27,6 +27,7 @@ import { monsterGenerationConcept, monsterGenerationOptionsFromPage } from "@/li
 import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
 import { useQuestSpineWriter } from "@/composables/quests/useQuestSpineWriter";
 import { insertQuestRefs } from "@/composables/quests/useQuests";
+import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
 import {
   runImportSweep as runImportSweepCore,
   type BeatAttachmentWrite,
@@ -99,7 +100,10 @@ function buildDeps(
         if (isQuotaExceeded(error)) return { status: "quota_exceeded" };
         return { status: "failed", message: error.message };
       }
-      return { status: "inserted", id: (data as { id: string }).id };
+      const id = (data as { id: string }).id;
+      // A quest with no spine never reaches `writeSpine`, which queues the rest.
+      if (table === "quests") queueQuestEmbedding(id);
+      return { status: "inserted", id };
     },
 
     generateMonster: async (data): Promise<InsertRowOutcome> => {

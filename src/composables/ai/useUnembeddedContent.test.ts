@@ -51,7 +51,7 @@ vi.mock("@/stores/campaign", () => ({
   }),
 }));
 
-import { useUnembeddedContent } from "./useUnembeddedContent";
+import { useUnembeddedContent, UNEMBEDDED_KIND_LABELS } from "./useUnembeddedContent";
 
 /** Mounts the composable inside a real component so its `useQuery` has a
  *  query client to attach to — same helper shape as useDashboardLayout.test.ts. */
@@ -117,11 +117,18 @@ describe("useUnembeddedContent", () => {
       { kind: "item", missing: 1, ids: ["i1"] },
       { kind: "npc", missing: 1, ids: ["n1"] },
       { kind: "monster", missing: 1, ids: ["m1"] },
+      { kind: "quest", missing: 1, ids: ["q1"] },
     ];
     const { api } = open();
     await flushPromises();
 
     await api().indexAll();
+
+    expect(mocks.invokeCalls).toContainEqual({
+      fn: "embed-content",
+      body: { mode: "many", entity: "quest", ids: ["q1"] },
+    });
+    expect(UNEMBEDDED_KIND_LABELS.quest).toBe("quests");
 
     expect(mocks.invokeCalls).toContainEqual({
       fn: "embed-monsters",

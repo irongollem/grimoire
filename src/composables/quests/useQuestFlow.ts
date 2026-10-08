@@ -5,6 +5,7 @@ import { LIBRARY_TABLE_FOR_ATTACHMENT, splitAttachmentRefIds, summarizeQuestBeat
 import { deriveQuestBoardSummaries, type QuestBoardPayload, type QuestBoardSummary } from "@/lib/quests/board";
 import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
 import { BEATS_KEY, RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY } from "@/lib/campaignLiveSync/registry";
+import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -394,6 +395,7 @@ export function useCreateQuestBeat() {
       queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.quest_id] });
       void invalidatePlayerQuestBeatProjections(queryClient);
+      queueQuestEmbedding(input.quest_id);
     },
   });
 }
@@ -428,6 +430,9 @@ export function useCreateQuestBeatWithRoute() {
       queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+      // A new beat's title is part of the quest's embed text. onSettled, so an
+      // errored call (which may still have committed) is covered too.
+      queueQuestEmbedding(input.questId);
     },
   });
 }
@@ -461,11 +466,15 @@ export function useUpdateQuestBeat() {
     onError: (_error, _input, context) => {
       if (context?.previous !== undefined) queryClient.setQueryData(context.key, context.previous);
     },
-    onSettled: (_beat, _error, input) => {
+    onSettled: (_beat, error, input) => {
       queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "detail", input.id] });
       void invalidatePlayerQuestBeatProjections(queryClient);
+      // Only a title edit changes the quest's embed text (#599: beat prose is
+      // left out of it, see buildQuestEmbedText); kind, position and the like
+      // do not.
+      if (!error && "title" in input.update) queueQuestEmbedding(input.questId);
     },
   });
 }
@@ -548,6 +557,7 @@ export function useDeleteQuestBeat() {
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
       void invalidatePlayerQuestBeatProjections(queryClient);
+      queueQuestEmbedding(input.questId);
     },
   });
 }
@@ -585,7 +595,7 @@ export function useArchiveQuestBeat() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: ArchiveQuestBeatInput & { questId: string }) => archiveQuestBeat(input),
-    onSettled: (_data, _error, input) => {
+    onSettled: (_data, error, input) => {
       queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
@@ -594,6 +604,8 @@ export function useArchiveQuestBeat() {
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
       queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
       queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
+      // An archived beat leaves the quest's embed text.
+      if (!error) queueQuestEmbedding(input.questId);
     },
   });
 }

@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { useCampaignStore } from "@/stores/campaign";
+import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { parseImportMatches } from "@/lib/documentImport/entityMatching";
 import { buildImportMatchRequest } from "@/composables/campaign/useImportEntityMatches";
@@ -194,6 +195,9 @@ export function useRunArchiveSweep() {
     const user = getCurrentUser();
     if (!user) throw new Error("You must be signed in to import.");
     const report = await runArchiveSweep({ ...input, campaignId: importRow.campaign_id }, buildDeps(user.id), onProgress);
+    // A quest's one vector reads its title and opening beat (#599); both landed
+    // by now, so the bulk path embeds them in batched requests.
+    queueEmbeddingsInBackground("quest", report.created.filter((c) => c.kind === "quest").map((c) => c.id));
 
     const counts: ArchiveDocumentImport["imported_counts"] = {};
     for (const kind of Object.keys(COUNT_KEYS) as ArchiveRecordKind[]) counts[COUNT_KEYS[kind]] = report.perKind[kind].created;

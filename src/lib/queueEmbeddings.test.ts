@@ -34,6 +34,13 @@ describe("queueEmbeddings", () => {
     expect(r).toEqual({ embedded: 2, processed: 2, failed: 0, rateLimited: false });
   });
 
+  it("routes quests to embed-content with the quest entity", async () => {
+    mocks.invoke.mockResolvedValue(ok({ embedded: ["q0"], unchanged: [] }));
+    const r = await queueEmbeddings("quest", ["q0"]);
+    expect(mocks.invoke).toHaveBeenCalledWith("embed-content", { body: { mode: "many", entity: "quest", ids: ["q0"] } });
+    expect(r).toEqual({ embedded: 1, processed: 1, failed: 0, rateLimited: false });
+  });
+
   it("routes monsters to embed-monsters with monster_ids", async () => {
     mocks.invoke.mockResolvedValue(ok({ embedded: ["id0"], unchanged: ["id1"] }));
     const r = await queueEmbeddings("monster", ["id0", "id1"]);

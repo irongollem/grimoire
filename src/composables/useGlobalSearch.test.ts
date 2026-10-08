@@ -8,6 +8,12 @@ const mocks = vi.hoisted(() => ({
   /** Per-table override; falls back to `result`. */
   byTable: {} as Record<string, { data: unknown[] | null; error: unknown }>,
   report: vi.fn(),
+  invoke: vi.fn(),
+  isDM: true,
+  slugs: ["srd-2024"] as string[] | null,
+  ruleset: "2024",
+  calls: [] as { table: string; method: string; args: unknown[] }[],
+  campaignId: "campaign-1" as string | null,
 }));
 
 vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: mocks.report }));
@@ -18,15 +24,28 @@ function chain(table: string): unknown {
   return new Proxy(builder, {
     get(_target, prop) {
       if (prop === "then") return (resolve: (v: unknown) => unknown) => resolve(mocks.byTable[table] ?? mocks.result);
-      return () => chain(table);
+      return (...args: unknown[]) => { mocks.calls.push({ table, method: String(prop), args }); return chain(table); };
     },
   });
 }
 
-vi.mock("@/lib/supabase", () => ({ supabase: { from: (table: string) => { mocks.from(table); return chain(table); } } }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "campaign-1" }) }));
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    from: (table: string) => { mocks.from(table); return chain(table); },
+    functions: { invoke: mocks.invoke },
+  },
+}));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get activeCampaignId() { return mocks.campaignId; } }) }));
+vi.mock("@/composables/library/useEnabledSources", () => ({
+  useLibrarySourceSlugs: () => ({ slugs: { get value() { return mocks.slugs; } }, isLoading: { value: false } }),
+}));
+vi.mock("@/composables/rules/useRuleset", () => ({
+  useRuleset: () => ({ ruleset: { get value() { return mocks.ruleset; } } }),
+  useTableRuleset: () => ({ ruleset: { get value() { return mocks.ruleset; } } }),
+}));
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ get isDM() { return mocks.isDM; } }) }));
 
-import { SEARCH_DEBOUNCE_MS, useGlobalSearch } from "./useGlobalSearch";
+import { SEARCH_DEBOUNCE_MS, SEMANTIC_DEBOUNCE_MS, useGlobalSearch } from "./useGlobalSearch";
 
 let client: QueryClient;
 let apps: App[] = [];
@@ -40,9 +59,9 @@ function mount<T>(setup: () => T): T {
   return out;
 }
 
-/** Nine tables per search: notes, npcs, monsters, library_monsters, spells,
- *  library_spells, items, locations, quests. */
-const TABLES_PER_SEARCH = 9;
+/** Ten tables per search: notes, npcs, monsters, library_monsters, spells,
+ *  library_spells, items, locations, quests, factions. */
+const TABLES_PER_SEARCH = 10;
 
 describe("useGlobalSearch", () => {
   beforeEach(() => {
@@ -52,6 +71,13 @@ describe("useGlobalSearch", () => {
     mocks.result = { data: [], error: null };
     mocks.byTable = {};
     mocks.report.mockReset();
+    mocks.invoke.mockReset();
+    mocks.invoke.mockResolvedValue({ data: { hits: [] }, error: null });
+    mocks.isDM = true;
+    mocks.campaignId = "campaign-1";
+    mocks.slugs = ["srd-2024"];
+    mocks.ruleset = "2024";
+    mocks.calls = [];
   });
   afterEach(() => {
     apps.forEach((a) => a.unmount());
@@ -125,5 +151,146 @@ describe("useGlobalSearch", () => {
     mocks.result = { data: null as unknown as unknown[], error: err };
     const search = await run();
     expect(search.isError.value).toBe(true);
+  });
+  it("finds factions and names them as their own group", async () => {
+    mocks.byTable = { factions: { data: [{ id: "f1", name: "Goblin Court" }], error: null } };
+    const search = await run();
+    const group = search.data.value?.groups.find((g) => g.type === "faction");
+    expect(group?.label).toBe("Factions");
+    expect(group?.items[0]).toMatchObject({ route: "/factions/f1", matchedBy: "name" });
+  });
+
+  describe("library gating", () => {
+    const callsOn = (table: string) => mocks.calls.filter((c) => c.table === table);
+
+    it("reads library monsters and spells only from enabled books at the table edition", async () => {
+      mocks.slugs = ["srd-2024", "kp-bestiary"];
+      await run();
+      for (const table of ["library_monsters", "library_spells"]) {
+        expect(callsOn(table)).toContainEqual({ table, method: "in", args: ["source", ["srd-2024", "kp-bestiary"]] });
+        expect(callsOn(table)).toContainEqual({ table, method: "eq", args: ["ruleset", "2024"] });
+      }
+    });
+
+    it("applies the edition to custom monsters and spells too", async () => {
+      await run();
+      for (const table of ["monsters", "spells"]) {
+        expect(callsOn(table)).toContainEqual({ table, method: "or", args: [expect.stringContaining("ruleset.eq.2024")] });
+      }
+    });
+
+    it("skips the library reads entirely when no book is enabled", async () => {
+      mocks.slugs = [];
+      const search = await run();
+      expect(mocks.from).not.toHaveBeenCalledWith("library_monsters");
+      expect(mocks.from).not.toHaveBeenCalledWith("library_spells");
+      expect(mocks.from).toHaveBeenCalledWith("monsters");
+      expect(search.data.value?.failedGroups).toEqual([]);
+    });
+
+    it("waits for the enabled books before searching", async () => {
+      mocks.slugs = null;
+      await run();
+      expect(mocks.from).not.toHaveBeenCalled();
+    });
+
+    it("keeps a different book list or edition from reusing the cached answer", async () => {
+      await run();
+      mocks.ruleset = "2014";
+      await run();
+      expect(callsOn("library_monsters").filter((c) => c.method === "eq" && c.args[0] === "ruleset").map((c) => c.args[1]))
+        .toEqual(["2024", "2014"]);
+    });
+  });
+
+  describe("by meaning", () => {
+    const hit = (over: Record<string, unknown>) => ({
+      kind: "location", id: "l1", name: "The Pulled Sugar Inn", descriptor: "an inn run by a retired performer", distance: 0.2, ...over,
+    });
+
+    async function runSemantic() {
+      const query = ref("the inn run by a performer");
+      const search = mount(() => useGlobalSearch(query));
+      await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS * 2);
+      return search;
+    }
+
+    it("waits for the longer pause and sends one request", async () => {
+      const query = ref("");
+      mount(() => useGlobalSearch(query));
+      for (const typed of ["the", "the i", "the inn"]) {
+        query.value = typed;
+        await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS / 2);
+      }
+      expect(mocks.invoke).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS);
+      expect(mocks.invoke).toHaveBeenCalledTimes(1);
+      expect(mocks.invoke).toHaveBeenCalledWith("search-campaign", { body: { query: "the inn", campaign_id: "campaign-1" } });
+    });
+
+    it("merges meaning hits into the groups with their descriptor", async () => {
+      mocks.invoke.mockResolvedValue({ data: { hits: [hit({})] }, error: null });
+      const search = await runSemantic();
+      const locations = search.data.value?.groups.find((g) => g.type === "location");
+      expect(locations?.items[0]).toMatchObject({
+        name: "The Pulled Sugar Inn",
+        descriptor: "an inn run by a retired performer",
+        matchedBy: "meaning",
+      });
+      expect(search.isSemanticPending.value).toBe(false);
+    });
+
+    it("is pending while in flight and keyword results are not held back", async () => {
+      mocks.byTable = { notes: { data: [{ id: "n1", title: "Inn ledger" }], error: null } };
+      mocks.invoke.mockReturnValue(new Promise(() => {}));
+      const search = await runSemantic();
+      expect(search.isSemanticPending.value).toBe(true);
+      expect(search.data.value?.groups.map((g) => g.type)).toEqual(["note"]);
+    });
+
+    it.each([
+      ["a child account", { data: { hits: [hit({})], unavailable: "child_account" }, error: null }],
+      ["a missing vendor", { data: { hits: [], unavailable: "embedding_provider_unavailable" }, error: null }],
+      ["a rate limit", { data: { hits: [], unavailable: "rate_limited" }, error: null }],
+    ])("adds nothing for %s and reports nothing", async (_name, reply) => {
+      mocks.invoke.mockResolvedValue(reply);
+      const search = await runSemantic();
+      expect(search.data.value?.groups).toEqual([]);
+      expect(mocks.report).not.toHaveBeenCalled();
+    });
+
+    it("treats a 403 as no hits without reporting", async () => {
+      mocks.invoke.mockResolvedValue({ data: null, error: { context: { status: 403 } } });
+      const search = await runSemantic();
+      expect(search.data.value?.groups).toEqual([]);
+      expect(search.isError.value).toBe(false);
+      expect(mocks.report).not.toHaveBeenCalled();
+    });
+
+    it("reports any other failure and still shows the keyword results", async () => {
+      mocks.byTable = { notes: { data: [{ id: "n1", title: "Inn ledger" }], error: null } };
+      const boom = { context: { status: 500 } };
+      mocks.invoke.mockResolvedValue({ data: null, error: boom });
+      const search = await runSemantic();
+      expect(mocks.report).toHaveBeenCalledWith(boom, "campaign-search");
+      expect(search.isError.value).toBe(false);
+      expect(search.data.value?.groups.map((g) => g.type)).toEqual(["note"]);
+    });
+
+    it("never fires for a player, below three letters, or without a campaign", async () => {
+      mocks.isDM = false;
+      await runSemantic();
+      expect(mocks.invoke).not.toHaveBeenCalled();
+
+      mocks.isDM = true;
+      const short = ref("in");
+      mount(() => useGlobalSearch(short));
+      await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS * 2);
+      expect(mocks.invoke).not.toHaveBeenCalled();
+
+      mocks.campaignId = null;
+      await runSemantic();
+      expect(mocks.invoke).not.toHaveBeenCalled();
+    });
   });
 });

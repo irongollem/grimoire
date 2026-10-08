@@ -5,6 +5,7 @@ import type { Ref } from "vue";
 import { computed } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 import type { Campaign } from "@/types/campaign.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -836,7 +837,7 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
 
   if (includeTypes.has("quests") && bundle.quests?.length) {
     const sorted = sortByHierarchy(bundle.quests, "parent_quest_id");
-    await batchInsert("quests", sorted.map((q) => {
+    const questRows = sorted.map((q) => {
       // A bundle carries no version field, so every one has to be treated as
       // possibly older than the schema. This stripped only #793's two keys and
       // never picked up #799's ten, so any bundle holding a quest with reward
@@ -853,7 +854,8 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
         location_id: rCamp(q.location_id, idMap),
         player_visible_to: [],
       };
-    }));
+    });
+    await batchInsert("quests", questRows);
     if (bundle.quest_objectives?.length) {
       await batchInsert("quest_objectives", bundle.quest_objectives.map((obj) => ({
         ...obj,
@@ -861,6 +863,8 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
         quest_id: rCamp(obj.quest_id, idMap),
       })));
     }
+    // The vector reads the quest's objectives too (#599), so embed once they are in.
+    queueEmbeddingsInBackground("quest", questRows.map((q) => q.id));
     if (bundle.quest_refs?.length) {
       await batchInsert("quest_refs", bundle.quest_refs.map((qr) => ({
         ...qr,

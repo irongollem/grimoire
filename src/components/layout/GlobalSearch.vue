@@ -54,6 +54,15 @@
         Search failed. Try again.
       </div>
 
+      <!-- Keyword found nothing but the by-meaning tier may still: not "No results" yet -->
+      <div
+        v-else-if="groups.length === 0 && isSemanticPending"
+        class="px-3 py-2 text-caption text-muted-foreground flex items-center gap-2"
+      >
+        <BannerLoader class="h-3.5" />
+        Searching by meaning…
+      </div>
+
       <!-- No results -->
       <div
         v-else-if="groups.length === 0"
@@ -80,9 +89,17 @@
             @click="close"
             @mouseenter="focusedIndex = flatIndex(group, i)"
           >
-            <span class="truncate">{{ item.name }}</span>
+            <span class="shrink-0 max-w-[70%] truncate">{{ item.name }}</span>
+            <span v-if="item.descriptor" class="min-w-0 truncate text-caption text-muted-foreground">
+              {{ item.descriptor }}
+            </span>
           </RouterLink>
         </template>
+        <!-- Last row, after the keyword results, so nothing above it moves when it goes -->
+        <div v-if="isSemanticPending" class="px-3 py-2 text-caption text-muted-foreground flex items-center gap-2">
+          <BannerLoader class="h-3.5" />
+          Searching by meaning…
+        </div>
         <div v-if="failedGroups.length > 0" class="px-3 py-2 text-caption text-muted-foreground">
           {{ failedMessage }}
         </div>
@@ -118,7 +135,7 @@ const focusedIndex = ref(-1);
 const inputRef = ref<AppInputHandle | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 
-const { data, isFetching, isError } = useGlobalSearch(query);
+const { data, isFetching, isError, isSemanticPending } = useGlobalSearch(query);
 
 const groups = computed<SearchGroup[]>(() => {
   if (query.value.trim().length < 2) return [];

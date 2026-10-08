@@ -18,6 +18,7 @@ import type {
   QuestRefInsert,
 } from "@/types/quest.types";
 import { OBJECTIVES_KEY } from "@/lib/campaignLiveSync/registry";
+import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
 
 const QUESTS_KEY     = "quests";
 const REFS_KEY       = "quest_refs";
@@ -250,7 +251,10 @@ export function useCreateQuest() {
   return useMutation({
     mutationFn: (quest: Omit<QuestInsert, "campaign_id">) =>
       createQuest({ ...quest, campaign_id: campaign.activeCampaignId! }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUESTS_KEY] }),
+    onSuccess: (quest) => {
+      queryClient.invalidateQueries({ queryKey: [QUESTS_KEY] });
+      queueQuestEmbedding(quest.id);
+    },
   });
 }
 
@@ -258,9 +262,12 @@ export function useUpdateQuest() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, update }: { id: string; update: QuestUpdate }) => updateQuest(id, update),
-    onSuccess: (_data, { id }) => {
+    onSuccess: (_data, { id, update }) => {
       queryClient.invalidateQueries({ queryKey: [QUESTS_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUESTS_KEY, id] });
+      // Only these reach the quest's embed text (#599); a status or settle
+      // write is play state and must not queue one.
+      if ("title" in update || "tags" in update || "summary" in update) queueQuestEmbedding(id);
     },
   });
 }
@@ -293,6 +300,7 @@ export function useCreateObjective() {
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, vars.quest_id] });
       queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
+      queueQuestEmbedding(vars.quest_id);
     },
   });
 }
@@ -313,6 +321,7 @@ export function useUpdateObjective() {
     onSuccess: (_data, { questId }) => {
       queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, questId] });
       queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
+      queueQuestEmbedding(questId);
     },
   });
 }
@@ -364,6 +373,7 @@ export function useDeleteObjective() {
     onSuccess: (_data, { questId }) => {
       queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, questId] });
       queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
+      queueQuestEmbedding(questId);
     },
     onError: (e) => toast.error(toast.fromError(e)),
   });

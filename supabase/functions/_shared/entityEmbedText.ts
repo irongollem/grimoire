@@ -1,6 +1,6 @@
 /**
  * Single source of truth for the text embedded into an NPC's, faction's,
- * location's, note's or item's semantic-search vector (#600 — grounding the
+ * location's, note's, item's or quest's semantic-search vector (#600 — grounding the
  * quest-hook generator and the Chronicler recap generator, and whatever
  * generator follows them, in the DM's own content; generalises the #595
  * monster mechanism. #602 added items for the loot-table generator).
@@ -395,6 +395,93 @@ export function buildItemEmbedText(item: EmbeddableItem): string {
   if (description) clauses.push(description);
 
   return clauses.join(" ");
+}
+
+// ── Quest ─────────────────────────────────────────────────────────────────
+
+// Whole-text cap. Deliberately far below a note's 4000: one vector stands for
+// the whole quest, and the longer its text the further a short query sits from
+// it. Measured on the demo's "The Locked Workshop" (15 beats): with every beat's
+// prose folded in (3,998 chars) the query "the locked workshop" scored 0.566,
+// past the search's cut and behind every room in the dungeon; with titles,
+// summary, objectives and beat titles only (1,006 chars) it scored 0.485, and a
+// paraphrase of its premise went from 0.568 to 0.509.
+const QUEST_TEXT_CHAR_LIMIT = 1500;
+
+export interface EmbeddableQuestObjective {
+  description: string;
+  sort_order: number;
+}
+
+export interface EmbeddableQuestBeat {
+  /** Tie-break key for a deterministic order; not part of the text. */
+  id: string;
+  title: string;
+  created_at: string;
+}
+
+export interface EmbeddableQuest {
+  title: string;
+  tags: string[];
+  summary: string | null;
+  objectives: EmbeddableQuestObjective[];
+  beats: EmbeddableQuestBeat[];
+}
+
+/**
+ * Deterministic natural-language summary of a quest, used as the embedding
+ * input (#599). One vector per QUEST: its objectives and beat titles are folded
+ * in, so a query naming an event ("the harbour office") finds the quest the
+ * beat belongs to.
+ *
+ * Format: the title, tags, the one-line summary, then each objective
+ * description (by sort_order, then text), then each beat title (by created_at,
+ * then id), the whole text cut to 1500 chars at a word boundary. Each part is
+ * omitted when absent. The caller passes live beats only (embed-content drops
+ * archived ones).
+ *
+ * Deliberately excluded: `status` (it changes in play and must not force a
+ * re-embed, and the match RPC returns it instead); every beat's prose,
+ * dm_content included, which dilutes the one vector until the quest stops
+ * answering its own name (see QUEST_TEXT_CHAR_LIMIT); and the player-facing
+ * prose (read_aloud, rumor_text, reveal_text) for the same reason.
+ *
+ * Changing ANY of this changes every quest's source_hash, so it requires a full
+ * quest re-embed (see the module doc).
+ *
+ * Example:
+ *   "The Missing Shipment. trade, docks. Find who took the grain barges.
+ *   Question the harbour master. Recover the cargo. The harbour office. The
+ *   ambush at the weir."
+ */
+export function buildQuestEmbedText(quest: EmbeddableQuest): string {
+  const clauses: string[] = [];
+
+  clauses.push(`${collapseWhitespace(quest.title)}.`);
+
+  const tagsClause = buildTagsClause(quest.tags);
+  if (tagsClause) clauses.push(tagsClause);
+
+  const summary = buildPlainTextClause(quest.summary);
+  if (summary) clauses.push(summary);
+
+  const objectives = [...quest.objectives].sort(
+    (a, b) => a.sort_order - b.sort_order || a.description.localeCompare(b.description),
+  );
+  for (const objective of objectives) {
+    const description = normalizeField(objective.description);
+    if (description) clauses.push(description.endsWith(".") ? description : `${description}.`);
+  }
+
+  const beats = [...quest.beats].sort(
+    (a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+  );
+  for (const beat of beats) {
+    const title = normalizeField(beat.title);
+    if (title) clauses.push(title.endsWith(".") ? title : `${title}.`);
+  }
+
+  return truncateAtWordBoundary(clauses.join(" "), QUEST_TEXT_CHAR_LIMIT);
 }
 
 // ── Hash ──────────────────────────────────────────────────────────────────

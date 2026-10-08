@@ -13,7 +13,7 @@
         Two letters is enough. Searches notes, NPCs, monsters, spells, items and more.
       </p>
       <p v-else-if="state === 'searching'" class="px-1 text-caption text-muted-foreground italic">
-        Searching…
+        {{ isFetching ? "Searching…" : "Searching by meaning…" }}
       </p>
       <p v-else-if="state === 'error'" class="px-1 text-caption text-muted-foreground italic">
         Search failed. Try again.
@@ -34,8 +34,14 @@
             class="block truncate px-3 py-1.5 text-body text-foreground transition-colors hover:bg-muted/30 hover:text-primary"
           >
             {{ hit.name }}
+            <span v-if="hit.descriptor" class="text-caption font-normal text-muted-foreground">
+              {{ hit.descriptor }}
+            </span>
           </RouterLink>
         </div>
+        <p v-if="isSemanticPending" class="px-3 pt-2 text-caption text-muted-foreground italic">
+          Searching by meaning…
+        </p>
         <p v-if="failedGroups.length > 0" class="px-3 pt-2 text-caption text-muted-foreground italic">
           {{ failedMessage }}
         </p>
@@ -59,6 +65,10 @@
  * same empty array a genuine no-match returns and the same one an in-flight
  * request has not replaced yet. "Type more", "searching" and "nothing
  * matches" are three different things to say.
+ *
+ * The by-meaning tier (#599) adds no fifth state: with keyword results on
+ * screen a quiet trailing line says it is still looking; with none, it keeps
+ * the card in "searching" rather than claiming nothing matches.
  */
 import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
@@ -78,7 +88,7 @@ const query = ref("");
  *  never runs, so anything the card said about results would be invented. */
 const MIN_QUERY = 2;
 
-const { data, isFetching, isError } = useGlobalSearch(query);
+const { data, isFetching, isError, isSemanticPending } = useGlobalSearch(query);
 
 const groups = computed(() => data.value?.groups ?? []);
 const failedGroups = computed(() => data.value?.failedGroups ?? []);
@@ -88,7 +98,8 @@ const state = computed<"idle" | "searching" | "error" | "empty" | "results">(() 
   if (query.value.trim().length < MIN_QUERY) return "idle";
   if (isFetching.value) return "searching";
   if (isError.value) return "error";
-  if (groups.value.length === 0) return "empty";
+  // Keyword found nothing but the by-meaning tier has not answered: still searching.
+  if (groups.value.length === 0) return isSemanticPending.value ? "searching" : "empty";
   return "results";
 });
 </script>

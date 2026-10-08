@@ -360,6 +360,8 @@ const COST_CATEGORY: Record<string, CostCategory> = {
   // location row embed-content embeds. Same "attributable, not invisible"
   // reasoning as monster_embedding above.
   entity_embedding: "embedding",
+  // Charged 0 — the query embedding behind campaign search (#599).
+  campaign_search: "embedding",
 };
 const CATEGORY_CLASS: Record<CostCategory, string> = {
   text:  "bg-tone-info/15 text-ink-info",

@@ -43,7 +43,7 @@ import { useCampaignStore } from "@/stores/campaign";
 
 const QUERY_KEY = "unembedded-content-counts";
 
-export type UnembeddedKind = "item" | "npc" | "faction" | "location" | "note" | "monster";
+export type UnembeddedKind = "item" | "npc" | "faction" | "location" | "note" | "monster" | "quest";
 
 export interface UnembeddedCountRow {
   kind: UnembeddedKind;
@@ -58,6 +58,7 @@ export const UNEMBEDDED_KIND_LABELS: Record<UnembeddedKind, string> = {
   location: "locations",
   note: "notes",
   monster: "monsters",
+  quest: "quests",
 };
 
 export interface IndexAllResult {

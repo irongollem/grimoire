@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { writeQuestSpine, type WriteQuestSpineDeps, type WriteQuestSpineInput, type WriteQuestSpineResult } from "@/lib/quests/spineWrite";
 import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
 import { CONSEQUENCES_KEY, EDGES_KEY, invalidatePlayerQuestBeatProjections } from "@/composables/quests/useQuestFlow";
+import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
 import { BEATS_KEY, OBJECTIVES_KEY } from "@/lib/campaignLiveSync/registry";
 import type { QuestBeat, QuestObjective } from "@/types/quest.types";
 
@@ -49,6 +50,9 @@ export function useQuestSpineWriter() {
       queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] }),
       invalidatePlayerQuestBeatProjections(queryClient),
     ]);
+    // The spine's beat titles and objectives are the bulk of the quest's
+    // embed text (#599); the quest row alone was queued when it was created.
+    queueQuestEmbedding(input.questId);
     return result;
   }
 

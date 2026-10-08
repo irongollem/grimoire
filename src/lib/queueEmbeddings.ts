@@ -25,7 +25,7 @@ import { chunkArray } from "@/lib/utils";
 /** Matches the server's per-call cap (MANY_MAX_IDS in _shared/embedMany.ts). */
 export const EMBED_MANY_CHUNK = 100;
 
-export type EmbedManyEntity = "npc" | "faction" | "location" | "note" | "item" | "monster";
+export type EmbedManyEntity = "npc" | "faction" | "location" | "note" | "item" | "monster" | "quest";
 
 export interface QueueEmbeddingsResult {
   /** Ids the server embedded. */

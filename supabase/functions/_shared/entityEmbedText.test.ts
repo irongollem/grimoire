@@ -5,12 +5,14 @@ import {
   buildLocationEmbedText,
   buildNoteEmbedText,
   buildItemEmbedText,
+  buildQuestEmbedText,
   entityEmbedHash,
   type EmbeddableNpc,
   type EmbeddableFaction,
   type EmbeddableLocation,
   type EmbeddableNote,
   type EmbeddableItem,
+  type EmbeddableQuest,
 } from "./entityEmbedText";
 
 // ── NPC ───────────────────────────────────────────────────────────────────
@@ -582,5 +584,66 @@ describe("entityEmbedHash", () => {
   it("returns lowercase hex SHA-256 (64 chars)", async () => {
     const hash = await entityEmbedHash("The Rusty Anchor.");
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+// ── Quest ─────────────────────────────────────────────────────────────────
+
+function makeQuest(overrides: Partial<EmbeddableQuest> = {}): EmbeddableQuest {
+  return {
+    title: "The Missing Shipment",
+    tags: ["trade", "docks"],
+    summary: "Find who took the grain barges.",
+    objectives: [
+      { description: "Recover the cargo", sort_order: 1 },
+      { description: "Question the harbour master", sort_order: 0 },
+    ],
+    beats: [
+      { id: "b2", title: "Warehouse", created_at: "2026-01-02T00:00:00Z" },
+      { id: "b1", title: "Harbour office", created_at: "2026-01-01T00:00:00Z" },
+    ],
+    ...overrides,
+  };
+}
+
+describe("buildQuestEmbedText", () => {
+  it("orders title, tags, summary, objectives by sort_order, beats by created_at", () => {
+    expect(buildQuestEmbedText(makeQuest())).toBe(
+      "The Missing Shipment. trade, docks. Find who took the grain barges. Question the harbour master. Recover the cargo. Harbour office. Warehouse.",
+    );
+  });
+
+  it("is stable regardless of input order", () => {
+    const q = makeQuest();
+    const shuffled = makeQuest({ objectives: [...q.objectives].reverse(), beats: [...q.beats].reverse() });
+    expect(buildQuestEmbedText(shuffled)).toBe(buildQuestEmbedText(q));
+  });
+
+  it("breaks a created_at tie by id", () => {
+    const same = "2026-01-01T00:00:00Z";
+    const a = makeQuest({ beats: [
+      { id: "y", title: "Y", created_at: same },
+      { id: "x", title: "X", created_at: same },
+    ] });
+    expect(buildQuestEmbedText(a)).toContain("X. Y.");
+  });
+
+  it("caps the whole text at 1500 chars", () => {
+    const beats = Array.from({ length: 200 }, (_, i) => ({
+      id: `b${i}`, title: `Beat number ${i} in a long quest`, created_at: `2026-01-01T00:${String(Math.floor(i / 60)).padStart(2, "0")}:${String(i % 60).padStart(2, "0")}Z`,
+    }));
+    expect(buildQuestEmbedText(makeQuest({ beats })).length).toBeLessThanOrEqual(1500);
+  });
+
+  it("degrades to the title alone", () => {
+    expect(buildQuestEmbedText({ title: "Bare", tags: [], summary: null, objectives: [], beats: [] })).toBe("Bare.");
+  });
+
+  it("hashes differently when the text changes, identically when nothing does", async () => {
+    const a = await entityEmbedHash(buildQuestEmbedText(makeQuest()));
+    const b = await entityEmbedHash(buildQuestEmbedText(makeQuest()));
+    const c = await entityEmbedHash(buildQuestEmbedText(makeQuest({ summary: "Different." })));
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
   });
 });

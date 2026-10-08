@@ -76,6 +76,15 @@ export const RATE_LIMITS = {
    * a book while tuning it, tight enough that a stolen session cannot loop it.
    */
   pdf_render: { action: "pdf_render", limit: 30, windowSeconds: 3_600 },
+  /**
+   * Campaign-wide semantic search (#599). One search is one query embedding,
+   * and the client debounces a DM's typing to one request per pause, so a
+   * person never comes near this; it bounds a runaway loop, not a human.
+   * Checked before the embed so a limited caller costs us nothing. A limited
+   * search answers 200 `unavailable: "rate_limited"` and the client falls back
+   * to keyword search.
+   */
+  campaign_search: { action: "campaign_search", limit: 600, windowSeconds: 3_600 },
 } as const;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;

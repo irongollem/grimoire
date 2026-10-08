@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(21);
 
 -- Regression + acceptance cover for get_unembedded_content_counts()
 -- (20260907120124, #841). The RPC answers "what in this campaign has no
@@ -69,6 +69,9 @@ insert into public.notes (id, user_id, campaign_id, title) values
 insert into public.monsters (id, user_id, campaign_id, name) values
   ('84100000-0000-4000-8000-000000000070', '84100000-0000-4000-8000-000000000001', '84100000-0000-4000-8000-000000000010', 'T841 missing monster');
 
+insert into public.quests (id, user_id, campaign_id, title) values
+  ('84100000-0000-4000-8000-000000000080', '84100000-0000-4000-8000-000000000001', '84100000-0000-4000-8000-000000000010', 'T841 missing quest');
+
 -- Campaign B: everything embedded, so it is the control for the scoping
 -- assertion below -- if the RPC ever leaked campaign A's missing rows into a
 -- campaign B query, this is what would catch it.
@@ -84,6 +87,8 @@ insert into public.notes (id, user_id, campaign_id, title) values
   ('84100000-0000-4000-8000-000000000061', '84100000-0000-4000-8000-000000000002', '84100000-0000-4000-8000-000000000011', 'T841 B note');
 insert into public.monsters (id, user_id, campaign_id, name) values
   ('84100000-0000-4000-8000-000000000071', '84100000-0000-4000-8000-000000000002', '84100000-0000-4000-8000-000000000011', 'T841 B monster');
+insert into public.quests (id, user_id, campaign_id, title) values
+  ('84100000-0000-4000-8000-000000000081', '84100000-0000-4000-8000-000000000002', '84100000-0000-4000-8000-000000000011', 'T841 B quest');
 
 insert into public.item_embeddings (item_id, embedding, embedding_model, source_hash) values
   ('84100000-0000-4000-8000-000000000020', pg_temp.vec(), 'test-model-841', 'h'),
@@ -99,6 +104,8 @@ insert into public.note_embeddings (note_id, embedding, embedding_model, source_
   ('84100000-0000-4000-8000-000000000061', pg_temp.vec(), 'test-model-841', 'h');
 insert into public.monster_embeddings (monster_id, embedding, embedding_model, source_hash) values
   ('84100000-0000-4000-8000-000000000071', pg_temp.vec(), 'test-model-841', 'h');
+insert into public.quest_embeddings (quest_id, embedding, embedding_model, source_hash) values
+  ('84100000-0000-4000-8000-000000000081', pg_temp.vec(), 'test-model-841', 'h');
 
 -- ── Authorization ─────────────────────────────────────────────────────────
 
@@ -126,7 +133,7 @@ select set_config('request.jwt.claims',
 create temporary table _counts_a as
   select * from public.get_unembedded_content_counts('84100000-0000-4000-8000-000000000010');
 
-select is((select count(*)::integer from _counts_a), 6, 'one row per entity kind, campaign A');
+select is((select count(*)::integer from _counts_a), 7, 'one row per entity kind, campaign A');
 
 select is((select missing from _counts_a where kind = 'item'), 1, 'campaign A: one item missing an embedding');
 select ok(
@@ -161,9 +168,14 @@ select ok(
   and (select ids from _counts_a where kind = 'monster') <@ array['84100000-0000-4000-8000-000000000070']::uuid[],
   'campaign A: the missing monster id is correct');
 
+select is((select missing from _counts_a where kind = 'quest'), 1, 'campaign A: one quest missing an embedding');
+select is(
+  (select ids from _counts_a where kind = 'quest'), array['84100000-0000-4000-8000-000000000080']::uuid[],
+  'campaign A: the missing quest id is correct');
+
 -- ── Scoping, campaign B ──────────────────────────────────────────────────
 -- Every row in campaign B is embedded. If the join were not scoped by
--- campaign_id -- or scoped to the wrong campaign -- campaign A's six missing
+-- campaign_id -- or scoped to the wrong campaign -- campaign A's seven missing
 -- rows would show up here.
 
 select set_config('request.jwt.claims',

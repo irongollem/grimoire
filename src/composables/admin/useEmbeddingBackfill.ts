@@ -18,10 +18,10 @@ import { supabase } from "@/lib/supabase";
 // that could drift or double-run.
 
 export type EmbedTarget =
-  | "library" | "custom" | "npc" | "faction" | "location" | "note" | "item" | "library_item";
+  | "library" | "custom" | "npc" | "faction" | "location" | "note" | "item" | "library_item" | "quest";
 
 export const EMBED_TARGETS: readonly EmbedTarget[] =
-  ["library", "custom", "npc", "faction", "location", "note", "item", "library_item"];
+  ["library", "custom", "npc", "faction", "location", "note", "item", "library_item", "quest"];
 export const EMBED_TARGET_LABELS: Record<EmbedTarget, string> = {
   library: "library monsters (shared bestiary)",
   custom: "custom monsters (per-user)",
@@ -31,6 +31,7 @@ export const EMBED_TARGET_LABELS: Record<EmbedTarget, string> = {
   note: "notes (sessions & chronicles)",
   item: "vault items (per-user)",
   library_item: "library items (shared vault)",
+  quest: "quests (with their beats and objectives)",
 };
 
 // The two monster targets go through embed-monsters (body param `target`);

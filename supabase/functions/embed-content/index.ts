@@ -6,7 +6,7 @@ import { isAccountSuspended, isChildAccount, suspendedResponse } from "../_share
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { buildFactionEmbedText, buildItemEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
+import { buildFactionEmbedText, buildItemEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, buildQuestEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
 import { upsertEmbeddingsInChunks } from "../_shared/embeddingUpsert.ts";
 import { authorizeRows, campaignIdsToCheck, parseManyIds, type OwnedRow } from "../_shared/embedMany.ts";
 import {
@@ -24,12 +24,13 @@ import {
  * NPCs/factions/locations/notes) — the entity generalisation of
  * embed-monsters/index.ts (#595). Same two modes, same reasons, retargeted at
  * npc_embeddings / faction_embeddings / location_embeddings / note_embeddings
- * / item_embeddings / library_item_embeddings (created by the migrations
+ * / item_embeddings / library_item_embeddings / quest_embeddings (created by the migrations
  * alongside these stories) via the ENTITIES registry below instead of
  * embed-monsters' library/custom split. `note` was added by the Chronicler's
  * story (20260804000001) on top of the npc/faction/location trio #600's
  * quest-hook story introduced first (20260803000004); `item` and
  * `library_item` by the loot-table generator (#602, 20260805000005) —
+ * `quest` by campaign-wide semantic search (#599, search-campaign) --
  * everything below this registry (single-mode ownership check, batch admin
  * scan) generalises across every entity kind without change:
  *
@@ -37,7 +38,7 @@ import {
  *                    time, driven by repeated calls (see `remaining`). The
  *                    only mode shared-content kinds support.
  *   mode: "single" — embed-on-write for one of the caller's own npcs,
- *                    factions, locations, notes or items, called
+ *                    factions, locations, notes, items or quests, called
  *                    fire-and-forget after create/save.
  *   mode: "many"   — the same for up to 100 of the caller's own rows in ONE
  *                    provider call (#972), for bulk creates and the
@@ -75,19 +76,19 @@ function json(body: unknown, status = 200): Response {
 
 // ── Entity registry ──────────────────────────────────────────────────────
 
-type EntityKind = "npc" | "faction" | "location" | "note" | "item" | "library_item";
+type EntityKind = "npc" | "faction" | "location" | "note" | "item" | "library_item" | "quest";
 
 interface EntityConfig {
-  table: "npcs" | "factions" | "locations" | "notes" | "items" | "library_items";
+  table: "npcs" | "factions" | "locations" | "notes" | "items" | "library_items" | "quests";
   // Only the columns the entity's builder reads, plus id/user_id/updated_at
   // -- a plain `select("*")` would pull stat_block/portrait_url/map_pins/etc
   // for nothing, on every row, on every batch scan.
   select: string;
   sideTable:
     | "npc_embeddings" | "faction_embeddings" | "location_embeddings"
-    | "note_embeddings" | "item_embeddings" | "library_item_embeddings";
+    | "note_embeddings" | "item_embeddings" | "library_item_embeddings" | "quest_embeddings";
   /** FK column on the side table pointing back at the main table's id. */
-  idColumn: "npc_id" | "faction_id" | "location_id" | "note_id" | "item_id" | "library_item_id";
+  idColumn: "npc_id" | "faction_id" | "location_id" | "note_id" | "item_id" | "library_item_id" | "quest_id";
   /**
    * False for shared/admin-owned content that has no `user_id` column, which
    * makes mode: "single" (embed-on-write, authorized by row.user_id ===
@@ -191,9 +192,34 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
     supportsSingle: false,
     build: (row) => buildItemEmbedText(toEmbeddableItem(row)),
   },
+  // The DM's quests (#599). One vector per quest, folding in its objectives
+  // and beat titles (buildQuestEmbedText), so the select pulls both as embedded
+  // relations. `status` is deliberately not selected: it changes in play and
+  // is not part of the text. Archived beats (archive_quest_beat sets
+  // kind = 'archived' rather than deleting the row) are dropped here: they
+  // have left the story, so their prose must not steer search to the quest.
+  quest: {
+    table: "quests",
+    select: "id, user_id, campaign_id, updated_at, title, tags, summary, objectives:quest_objectives(description, sort_order), beats:quest_beats!quest_beats_quest_campaign_fkey(id, title, created_at, kind)",
+    sideTable: "quest_embeddings",
+    idColumn: "quest_id",
+    build: (row) =>
+      buildQuestEmbedText({
+        title: row.title as string,
+        tags: row.tags as string[],
+        summary: (row.summary as string | null) ?? null,
+        objectives: row.objectives as { description: string; sort_order: number }[],
+        beats: (row.beats as { id: string; title: string; created_at: string; kind: string }[])
+          .filter((beat) => beat.kind !== "archived"),
+      }),
+  },
 };
 
 const ENTITY_KINDS = Object.keys(ENTITIES) as EntityKind[];
+
+/** Kinds whose campaign rows also need the caller to be a DM there, not just
+ * the row's author: see handleSingle. Each must select `campaign_id`. */
+const CAMPAIGN_GATED: ReadonlySet<EntityKind> = new Set(["note", "quest"]);
 
 function isEntityKind(value: unknown): value is EntityKind {
   return typeof value === "string" && (ENTITY_KINDS as string[]).includes(value);
@@ -491,7 +517,11 @@ async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown
   // player to attach their own row to any known campaign id. Require DM access
   // before allowing that row into the campaign's embedding corpus. Global
   // notes remain private to their owner and need no campaign-role check.
-  if (entity === "note" && typeof row.campaign_id === "string") {
+  // Quests carry the same rule for a different reason (#599): RLS lets only a
+  // DM write a campaign quest, but a DM who has since been demoted still owns
+  // the rows they wrote there, and must not keep feeding that campaign's
+  // search corpus.
+  if (CAMPAIGN_GATED.has(entity) && typeof row.campaign_id === "string") {
     if (!(await dmCampaignIds([row.campaign_id], user.id)).has(row.campaign_id)) return json({ error: "Forbidden" }, 403);
   }
 
@@ -589,11 +619,11 @@ async function handleMany(req: Request, body: { entity?: unknown; ids?: unknown 
   // Per row, never per batch: ownership is the whole authorization story (see
   // handleSingle), and notes inside a campaign also need DM access, resolved
   // once per distinct campaign rather than once per row.
-  // Only notes carry the campaign rule (as in handleSingle); every other
-  // entity passes null, so no campaign column can forbid its rows.
+  // Only notes and quests carry the campaign rule (as in handleSingle); every
+  // other entity passes null, so no campaign column can forbid its rows.
   let dmCampaigns: Set<string> | null = null;
   try {
-    if (entity === "note") {
+    if (CAMPAIGN_GATED.has(entity)) {
       const campaignIds = campaignIdsToCheck(rows, user.id);
       dmCampaigns = campaignIds.length > 0 ? await dmCampaignIds(campaignIds, user.id) : new Set();
     }

@@ -5,19 +5,15 @@ import { supabase } from "@/lib/supabase";
 import { orFilterValue } from "@/lib/postgrestFilter";
 import { useCampaignStore } from "@/stores/campaign";
 import { placeRoute } from "@/lib/locations/placeRoute";
+import { useAuthStore } from "@/stores/auth";
+import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
+import { useRuleset, useTableRuleset } from "@/composables/rules/useRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 import { reportHandledError } from "@/lib/observability/sentry";
+import { mergeSearchGroups, type SearchGroup } from "@/lib/search/mergeSearchHits";
+import type { CampaignSearchHit, CampaignSearchResponse } from "@edge-shared/campaignSearch.ts";
 
-export interface SearchHit {
-  id: string;
-  name: string;
-  route: string;
-}
-
-export interface SearchGroup {
-  type: string;
-  label: string;
-  items: SearchHit[];
-}
+export type { SearchGroup, SearchHit } from "@/lib/search/mergeSearchHits";
 
 export interface SearchResult {
   groups: SearchGroup[];
@@ -27,7 +23,25 @@ export interface SearchResult {
 
 const LIMIT = 5;
 
-async function searchAll(query: string, campaignId: string | null): Promise<SearchResult> {
+/** `campaign_id = active OR campaign_id is null`: the scope `useItems` /
+ *  `useMonsterIndex` give their own lists. Without a campaign, nothing narrows. */
+function scopedToCampaign<T extends { or: (filter: string) => T }>(builder: T, campaignId: string | null): T {
+  return campaignId ? builder.or(`campaign_id.eq.${campaignId},campaign_id.is.null`) : builder;
+}
+
+/** Which books and edition the keyword tier reads, resolved the way the
+ *  bestiary and spell lists resolve them (`useMonsterIndex`, `useSpellIndex`). */
+interface SearchScope {
+  /** Enabled library source slugs. Empty means no book is on: skip library reads. */
+  slugs: string[];
+  /** Table rules (monsters). */
+  tableRuleset: RulesetKey;
+  /** Build rules (spells). */
+  buildRuleset: RulesetKey;
+}
+
+async function searchAll(query: string, campaignId: string | null, scope: SearchScope): Promise<SearchResult> {
+  const noRows = { data: [] as { id: string; name: string }[], error: null };
   const q = `%${query}%`;
 
   const [
@@ -40,6 +54,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     itemsRes,
     locationsRes,
     questsRes,
+    factionsRes,
   ] = await Promise.all([
     campaignId
       ? supabase.from("notes").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)
@@ -47,11 +62,24 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     campaignId
       ? supabase.from("npcs").select("id, name, disguise_name").eq("campaign_id", campaignId).or(`name.ilike.${orFilterValue(q)},disguise_name.ilike.${orFilterValue(q)}`).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; name: string; disguise_name: string | null }[], error: null }),
-    supabase.from("monsters").select("id, name").ilike("name", q).not("open5e_import", "eq", true).limit(LIMIT),
-    supabase.from("library_monsters").select("id, name").ilike("name", q).limit(LIMIT),
-    supabase.from("spells").select("id, name").ilike("name", q).not("open5e_import", "eq", true).limit(LIMIT),
-    supabase.from("library_spells").select("id, name").ilike("name", q).limit(LIMIT),
-    supabase.from("items").select("id, name").ilike("name", q).limit(LIMIT),
+    // Custom monsters and items: this campaign's own plus the DM's globals, the
+    // scope their list views use, so one campaign's material stays out of another's.
+    scopedToCampaign(
+      supabase.from("monsters").select("id, name").ilike("name", q).not("open5e_import", "eq", true)
+        .or(`ruleset.is.null,ruleset.eq.${scope.tableRuleset}`),
+      campaignId,
+    ).limit(LIMIT),
+    scope.slugs.length === 0
+      ? Promise.resolve(noRows)
+      : supabase.from("library_monsters").select("id, name").ilike("name", q)
+        .in("source", scope.slugs).eq("ruleset", scope.tableRuleset).limit(LIMIT),
+    supabase.from("spells").select("id, name").ilike("name", q).not("open5e_import", "eq", true)
+      .or(`ruleset.is.null,ruleset.eq.${scope.buildRuleset}`).limit(LIMIT),
+    scope.slugs.length === 0
+      ? Promise.resolve(noRows)
+      : supabase.from("library_spells").select("id, name").ilike("name", q)
+        .in("source", scope.slugs).eq("ruleset", scope.buildRuleset).limit(LIMIT),
+    scopedToCampaign(supabase.from("items").select("id, name").ilike("name", q), campaignId).limit(LIMIT),
     // `.or` rather than `.eq` — a location with campaign_id null is meant to
     // be visible in every campaign (#596), same as items/spells/species below.
     campaignId
@@ -60,6 +88,9 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     campaignId
       ? supabase.from("quests").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; title: string }[], error: null }),
+    campaignId
+      ? supabase.from("factions").select("id, name").eq("campaign_id", campaignId).ilike("name", q).limit(LIMIT)
+      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
   ]);
 
   // One failing table must not blank the others. Each failure goes to Sentry
@@ -75,6 +106,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     { label: "Vault", res: itemsRes },
     { label: "Locations", res: locationsRes },
     { label: "Quests", res: questsRes },
+    { label: "Factions", res: factionsRes },
   ];
   const failedReads = reads.filter((r) => r.res.error);
   for (const { label, res } of failedReads) reportHandledError(res.error, "global-search", { group: label });
@@ -89,6 +121,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
         id: r.id,
         name: r.disguise_name ? `${r.name} (${r.disguise_name})` : r.name,
         route: `/npcs/${r.id}`,
+        matchedBy: "name" as const,
       })),
     },
     {
@@ -101,7 +134,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
           .filter((r) => !customNames.has(r.name.toLowerCase()));
         return [...custom, ...srd]
           .slice(0, LIMIT)
-          .map((r) => ({ id: r.id, name: r.name, route: `/monsters/${r.id}` }));
+          .map((r) => ({ id: r.id, name: r.name, route: `/monsters/${r.id}`, matchedBy: "name" as const }));
       })(),
     },
     {
@@ -111,6 +144,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
         id: r.id,
         name: r.title,
         route: `/notes/${r.id}`,
+        matchedBy: "name" as const,
       })),
     },
     {
@@ -123,7 +157,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
           .filter((r) => !customNames.has(r.name.toLowerCase()));
         return [...custom, ...srd]
           .slice(0, LIMIT)
-          .map((r) => ({ id: r.id, name: r.name, route: `/spells/${r.id}` }));
+          .map((r) => ({ id: r.id, name: r.name, route: `/spells/${r.id}`, matchedBy: "name" as const }));
       })(),
     },
     {
@@ -133,6 +167,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
         id: r.id,
         name: r.name,
         route: `/vault/${r.id}`,
+        matchedBy: "name" as const,
       })),
     },
     {
@@ -142,6 +177,17 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
         id: r.id,
         name: r.name,
         route: placeRoute(r.id),
+        matchedBy: "name" as const,
+      })),
+    },
+    {
+      type: "faction",
+      label: "Factions",
+      items: ((factionsRes.data ?? []) as { id: string; name: string }[]).map((r) => ({
+        id: r.id,
+        name: r.name,
+        route: `/factions/${r.id}`,
+        matchedBy: "name" as const,
       })),
     },
     {
@@ -151,6 +197,7 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
         id: r.id,
         name: r.title,
         route: `/quests/${r.id}`,
+        matchedBy: "name" as const,
       })),
     },
   ];
@@ -162,25 +209,105 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
  *  requests, so searching every keystroke sent ~60 for an eight-letter word. */
 export const SEARCH_DEBOUNCE_MS = 250;
 
+/** One search is one query embedding, so the by-meaning tier waits for a real
+ *  pause rather than the keyword tier's short one. */
+export const SEMANTIC_DEBOUNCE_MS = 500;
+
+/** Below this the embedding of a fragment says little and costs the same. */
+const SEMANTIC_MIN_QUERY = 3;
+
+/**
+ * The by-meaning read. Never throws: the keyword tier is the search, this only
+ * adds to it, so every way it can go wrong collapses to "no extra hits".
+ * Expected degradations arrive as a 200 with `unavailable`; a 403 means the
+ * caller is not a DM of the campaign; anything else is a real fault, reported.
+ */
+async function searchByMeaning(query: string, campaignId: string): Promise<CampaignSearchHit[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke("search-campaign", {
+      body: { query, campaign_id: campaignId },
+    });
+    if (error) {
+      if ((error as { context?: Response }).context?.status === 403) return [];
+      throw error;
+    }
+    const reply = data as CampaignSearchResponse | null;
+    if (!reply) throw new Error("search-campaign answered with no body");
+    return reply.unavailable ? [] : reply.hits;
+  } catch (e) {
+    reportHandledError(e, "campaign-search");
+    return [];
+  }
+}
+
 export function useGlobalSearch(query: Ref<string>) {
   const campaign = useCampaignStore();
+  const auth = useAuthStore();
   const campaignId = computed(() => campaign.activeCampaignId ?? null);
   const trimmed = computed(() => query.value.trim());
   const settled = refDebounced(trimmed, SEARCH_DEBOUNCE_MS);
+  // Resolved in the scope the search box sits in (no character scope above it:
+  // the active campaign's books and edition), like the lists it jumps to.
+  const { slugs } = useLibrarySourceSlugs();
+  const { ruleset: tableRuleset } = useTableRuleset();
+  const { ruleset: buildRuleset } = useRuleset();
+  const semanticSettled = refDebounced(trimmed, SEMANTIC_DEBOUNCE_MS);
 
   const result = useQuery({
-    queryKey: computed(() => ["global-search", settled.value, campaignId.value] as const),
-    queryFn: ({ queryKey: [, search, activeCampaignId] }) => searchAll(search, activeCampaignId),
-    enabled: () => settled.value.length >= 2,
+    queryKey: computed(
+      () => ["global-search", settled.value, campaignId.value, slugs.value, tableRuleset.value, buildRuleset.value] as const,
+    ),
+    queryFn: ({ queryKey: [, search, activeCampaignId, enabledSlugs, table, build] }) => {
+      if (enabledSlugs === null) throw new Error("global search ran before the enabled sources loaded");
+      return searchAll(search, activeCampaignId, { slugs: enabledSlugs, tableRuleset: table, buildRuleset: build });
+    },
+    // A cached read, so waiting for the enabled books is short; searching
+    // before they are known would leak disabled books' rows.
+    enabled: () => settled.value.length >= 2 && slugs.value !== null,
     staleTime: 30_000,
     placeholderData: { groups: [], failedGroups: [] } satisfies SearchResult,
+  });
+
+  // Players never fire it: the function answers 403 to them, and the corpus is
+  // DM material. `isDM` is the active campaign's membership role.
+  const semanticEligible = computed(
+    () => trimmed.value.length >= SEMANTIC_MIN_QUERY && campaignId.value !== null && auth.isDM,
+  );
+
+  const semantic = useQuery({
+    queryKey: computed(() => ["campaign-search", semanticSettled.value, campaignId.value] as const),
+    queryFn: ({ queryKey: [, search, activeCampaignId] }) => {
+      if (activeCampaignId === null) throw new Error("campaign search ran without a campaign");
+      return searchByMeaning(search, activeCampaignId);
+    },
+    enabled: () => semanticSettled.value.length >= SEMANTIC_MIN_QUERY && campaignId.value !== null && auth.isDM,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  // The meaning hits answer `semanticSettled`; they belong on screen only while
+  // that is also the term the keyword groups answer.
+  const semanticHits = computed<CampaignSearchHit[]>(() =>
+    semanticSettled.value === settled.value && semanticEligible.value ? (semantic.data.value ?? []) : [],
+  );
+
+  const data = computed<SearchResult | undefined>(() => {
+    const keyword = result.data.value;
+    if (!keyword) return keyword;
+    return { ...keyword, groups: mergeSearchGroups(keyword.groups, semanticHits.value) };
   });
 
   // Still typing counts as searching: the results on screen are for a term
   // the DM has already moved past.
   const isFetching = computed(() => result.isFetching.value || (trimmed.value.length >= 2 && settled.value !== trimmed.value));
 
-  return { ...result, isFetching };
+  /** The by-meaning tier has not answered yet. Surfaces show a quiet row for it
+   *  and must never wait on it. */
+  const isSemanticPending = computed(
+    () => semanticEligible.value && (semantic.isFetching.value || semanticSettled.value !== trimmed.value),
+  );
+
+  return { ...result, data, isFetching, isSemanticPending };
 }
 
 /** "Quests", "Quests and Locations", "Notes, Quests and Locations". */
