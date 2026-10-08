@@ -21,7 +21,7 @@
 
 :root[data-theme^="vellum"] {
   --vl-serif: "Alegreya", "Crimson Pro", Georgia, serif;
-  --vl-sans: "Source Sans 3", Roboto, Helvetica, sans-serif;
+  --vl-sans: "Alegreya Sans", "Source Sans 3", Roboto, Helvetica, sans-serif;
   /* Component CSS that reads var(--font-fell) directly (RichTextViewer) gets
      the reading face too, not only the .font-fell utility. */
   --font-fell: var(--vl-serif);
@@ -60,9 +60,11 @@
 }
 
 /* ── Type ─────────────────────────────────────────────────────────────────
-   Alegreya reads, Source Sans 3 labels the controls, Cinzel only at display
-   size. Sizes step up a little because Alegreya has a smaller x-height than
-   Crimson Pro. */
+   Alegreya reads, Alegreya Sans labels the controls (its sans half, chosen
+   over Source Sans 3 so print is one family: four faces were one voice too
+   many on a form, #1031), Cinzel only at display size. Sizes step up a little
+   because both Alegreyas have a smaller x-height than Crimson Pro and Source
+   Sans. */
 :root[data-theme^="vellum"] body,
 :root[data-theme^="vellum"] .font-fell,
 :root[data-theme^="vellum"] .font-cinzel,
@@ -76,9 +78,13 @@
   font-family: var(--vl-serif);
   font-weight: 700;
 }
-:root[data-theme^="vellum"] .text-label { font-family: var(--vl-sans); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.02em; }
-:root[data-theme^="vellum"] .text-label-lg { font-family: var(--vl-sans); font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.01em; }
-:root[data-theme^="vellum"] .text-eyebrow { font-family: var(--vl-sans); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; }
+/* Stat blocks read the sans too, so Vellum prints in one superfamily (Alegreya
+   and Alegreya Sans) beside Cinzel for display and the hand. A rule on the
+   utility, not on --font-stat: Tailwind inlines that value into .font-stat. */
+:root[data-theme^="vellum"] .font-stat { font-family: var(--vl-sans); font-variant-numeric: lining-nums; }
+:root[data-theme^="vellum"] .text-label { font-family: var(--vl-sans); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.02em; }
+:root[data-theme^="vellum"] .text-label-lg { font-family: var(--vl-sans); font-size: 0.875rem; font-weight: 500; letter-spacing: 0.01em; }
+:root[data-theme^="vellum"] .text-eyebrow { font-family: var(--vl-sans); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; }
 /* Display stays engraved: listed last so it wins over `.font-cinzel` above. */
 :root[data-theme^="vellum"] :is(h1, .text-title, .text-display) {
   font-family: "Cinzel", Georgia, serif;
@@ -813,7 +819,7 @@
 }
 
 /* ── Ink: the DM's hand, and the shapes it writes on ──────────────────────
-   Epic #1031. Print is the book's voice (Alegreya, Cinzel, Source Sans); hand
+   Epic #1031. Print is the book's voice (Alegreya, Alegreya Sans, Cinzel); hand
    is the DM's. Anything typed into an AppInput is set in Fondamento in a
    softer ink, so the page reads as printed matter someone has written in.
    Placeholders stay in print: they are the book's prompt, not the DM's words.

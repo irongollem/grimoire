@@ -55,6 +55,11 @@ import "@fontsource/alegreya/500.css";
 import "@fontsource/alegreya/700.css";
 import "@fontsource/alegreya/400-italic.css";
 import "@fontsource/alegreya/700-italic.css";
+// Vellum's label and stat face: the sans half of Alegreya's superfamily, so
+// the book's print reads as one family beside Cinzel and the hand (#1031).
+import "@fontsource/alegreya-sans/400.css";
+import "@fontsource/alegreya-sans/500.css";
+import "@fontsource/alegreya-sans/700.css";
 
 import "@fontsource/eb-garamond/400.css";
 import "@fontsource/eb-garamond/500.css";
