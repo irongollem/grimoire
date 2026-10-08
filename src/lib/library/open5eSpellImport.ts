@@ -1,6 +1,7 @@
 import type { SpellInsert, SpellSchool, HigherLevelDamage } from "@/types/spell.types";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { ARTIFICER_SPELL_DELTA } from "@/data/artificerSpellDelta";
+import { PALADIN_2014_SPELLS } from "@/data/paladinSpellDelta2014";
 import { fetchAll, fetchAllFromDocuments, rulesetForDocument, slugifyKey, stableSrdId } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -165,6 +166,9 @@ const VALID_CLASSES = new Set<string>(SPELL_CLASSES);
 function normalizeClasses(spell: Open5eV2Spell): string[] {
   const classes = spell.classes.map((entry) => entry.name).filter((name) => VALID_CLASSES.has(name));
   if (ARTIFICER_SPELL_DELTA.has(spell.name) && !classes.includes("Artificer")) classes.push("Artificer");
+  if (spell.document.key === "srd-2014" && PALADIN_2014_SPELLS.has(spell.name) && !classes.includes("Paladin")) {
+    classes.push("Paladin");
+  }
   return classes;
 }
 
