@@ -9,6 +9,8 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { buildFactionEmbedText, buildItemEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, buildQuestEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
 import { upsertEmbeddingsInChunks } from "../_shared/embeddingUpsert.ts";
 import { authorizeRows, campaignIdsToCheck, parseManyIds, type OwnedRow } from "../_shared/embedMany.ts";
+import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { classifyEmbeddings, type AuditKindRow } from "../_shared/embeddingAudit.ts";
 import {
   EmbeddingProviderConfigError,
   isEmbeddingStale,
@@ -45,6 +47,10 @@ import {
  *                    "index everything" button. Authorized per row; a foreign
  *                    id is reported, not fatal. The rate limit is charged one
  *                    unit per stale row, atomically (check_rate_limit p_cost).
+ *   mode: "audit"  — read-only (#848): for one campaign, which of the caller's
+ *                    own rows have no vector or an out-of-date one, per kind.
+ *                    Makes no provider call, so it is neither rate-limited nor
+ *                    recorded; the client then repairs with "many".
  *
  * NOT CHARGED, BUT RECORDED: same accounting story as embed-monsters —
  * embedding is infrastructure for retrieval, not a user-facing generation in
@@ -705,6 +711,110 @@ async function handleMany(req: Request, body: { entity?: unknown; ids?: unknown 
   return json(result);
 }
 
+// ── Audit mode ────────────────────────────────────────────────────────────
+
+/** Ids per `.in()` request: keeps the URL well under the gateway's length cap. */
+const AUDIT_ID_CHUNK = 200;
+
+/** The caller's own rows in one campaign for one kind, paginated. Only the
+ * caller's: "many" (the repair the client runs next) authorizes
+ * `row.user_id === caller`, so listing a co-DM's rows would be a nag with no
+ * remedy. */
+async function fetchCampaignRows(
+  config: EntityConfig,
+  campaignId: string,
+  userId: string,
+): Promise<Record<string, unknown>[]> {
+  const rows: Record<string, unknown>[] = [];
+  let offset = 0;
+  for (;;) {
+    const { data, error } = await admin
+      .from(config.table)
+      .select(config.select)
+      .eq("campaign_id", campaignId)
+      .eq("user_id", userId)
+      .order("id")
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw new Error(`Failed to read ${config.table}: ${error.message}`);
+    const page = (data ?? []) as unknown as Record<string, unknown>[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return rows;
+}
+
+/** Stored hash + model for just `ids`, in chunks. */
+async function fetchStoredMetaFor(config: EntityConfig, ids: string[]): Promise<Map<string, StoredEmbeddingRow>> {
+  const map = new Map<string, StoredEmbeddingRow>();
+  for (let i = 0; i < ids.length; i += AUDIT_ID_CHUNK) {
+    const { data, error } = await admin
+      .from(config.sideTable)
+      .select(`${config.idColumn}, source_hash, embedding_model`)
+      .in(config.idColumn, ids.slice(i, i + AUDIT_ID_CHUNK));
+    if (error) throw new Error(`Failed to read ${config.sideTable}: ${error.message}`);
+    for (const row of (data ?? []) as Record<string, unknown>[]) {
+      map.set(row[config.idColumn] as string, {
+        source_hash: row.source_hash as string,
+        embedding_model: row.embedding_model as string,
+      });
+    }
+  }
+  return map;
+}
+
+async function auditKind(kind: EntityKind, campaignId: string, userId: string, model: string): Promise<AuditKindRow> {
+  const config = ENTITIES[kind];
+  const rows = await fetchCampaignRows(config, campaignId, userId);
+  const stored = await fetchStoredMetaFor(config, rows.map((r) => r.id as string));
+  const fresh = await Promise.all(
+    rows.map(async (row) => ({ id: row.id as string, hash: await entityEmbedHash(config.build(row)) })),
+  );
+  return { kind, ...classifyEmbeddings(fresh, stored, model) };
+}
+
+/** Per-campaign "what needs indexing" scan behind the AI-settings card and the
+ * dashboard banner (#841/#848). Gated on the campaign's DM role; a missing
+ * campaign and a non-DM both answer the same 403 so existence does not leak.
+ * No rate-limit check and no ledger row: nothing here calls the provider
+ * (resolvePlatformProvider only reads config), it just hashes text. */
+async function handleAudit(req: Request, body: { campaign_id?: unknown }): Promise<Response> {
+  if (typeof body.campaign_id !== "string" || body.campaign_id.length === 0) {
+    return json({ error: "campaign_id is required" }, 400);
+  }
+  const campaignId = body.campaign_id;
+
+  const gate = await authenticateWriter(req);
+  if (gate instanceof Response) return gate;
+  const user = gate;
+
+  const { data: campaign, error: campaignError } = await admin
+    .from("campaigns")
+    .select("id, user_id")
+    .eq("id", campaignId)
+    .maybeSingle();
+  if (campaignError) {
+    console.error("embed-content audit campaign lookup failed:", campaignError.message);
+    return json({ error: "Failed to load campaign" }, 500);
+  }
+  if (!campaign || !(await isCampaignDm(admin, campaign, user.id))) {
+    return json({ error: "Forbidden" }, 403);
+  }
+
+  const provider = await resolvePlatformProvider();
+  if (provider instanceof Response) return provider;
+
+  // library_item is shared content with no campaign or author to scope to.
+  const kinds = ENTITY_KINDS.filter((k) => ENTITIES[k].supportsSingle !== false);
+  try {
+    const result = await Promise.all(kinds.map((k) => auditKind(k, campaignId, user.id, provider.model)));
+    return json({ kinds: result });
+  } catch (e) {
+    console.error("embed-content audit failed:", e);
+    return json({ error: "Failed to audit embeddings" }, 500);
+  }
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────
 
 serve(withCors(async (req: Request) => {
@@ -713,7 +823,7 @@ serve(withCors(async (req: Request) => {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json({ error: "Unauthorized" }, 401);
 
-  let body: { mode?: unknown; entity?: unknown; id?: unknown; ids?: unknown; limit?: unknown };
+  let body: { mode?: unknown; entity?: unknown; id?: unknown; ids?: unknown; limit?: unknown; campaign_id?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -735,5 +845,9 @@ serve(withCors(async (req: Request) => {
     return handleMany(req, body);
   }
 
-  return json({ error: "Invalid mode -- must be 'batch', 'single' or 'many'" }, 400);
+  if (body.mode === "audit") {
+    return handleAudit(req, body);
+  }
+
+  return json({ error: "Invalid mode -- must be 'batch', 'single', 'many' or 'audit'" }, 400);
 }));

@@ -9,6 +9,8 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { buildMonsterEmbedText, monsterEmbedHash, type EmbeddableMonster } from "../_shared/monsterEmbedText.ts";
 import { upsertEmbeddingsInChunks } from "../_shared/embeddingUpsert.ts";
 import { authorizeRows, parseManyIds, type OwnedRow } from "../_shared/embedMany.ts";
+import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { classifyEmbeddings } from "../_shared/embeddingAudit.ts";
 import {
   EmbeddingProviderConfigError,
   isEmbeddingStale,
@@ -33,6 +35,10 @@ import {
  *   mode: "many"   — up to MANY_MAX_IDS of the caller's own custom monsters in
  *                    ONE provider call (#972), for a bulk create or a copy to
  *                    another campaign. Same per-row authorization as "single".
+ *   mode: "audit"  — read-only (#848): which of the caller's own custom monsters
+ *                    in one campaign have no vector or an out-of-date one.
+ *                    Makes no provider call, so it is neither rate-limited nor
+ *                    recorded; the client then repairs with "many".
  *
  * NOT CHARGED, BUT RECORDED: embedding is infrastructure that makes the
  * Encounter Suggester's retrieval possible, not a user-facing generation in
@@ -546,6 +552,86 @@ async function handleMany(req: Request, body: { monster_ids?: unknown }): Promis
   return json(result);
 }
 
+// ── Audit mode ────────────────────────────────────────────────────────────
+
+/** Ids per `.in()` request: keeps the URL well under the gateway's length cap. */
+const AUDIT_ID_CHUNK = 200;
+
+/** Per-campaign "what needs indexing" scan (#848). DM-gated; a missing campaign
+ * and a non-DM both answer 403 so existence does not leak. Only the caller's
+ * own rows, since "many" (the repair) refuses anyone else's, and never
+ * open5e_import rows, which match_custom_monsters does not read. No rate limit
+ * and no ledger row: nothing here calls the provider. */
+async function handleAudit(req: Request, body: { campaign_id?: unknown }): Promise<Response> {
+  if (typeof body.campaign_id !== "string" || body.campaign_id.length === 0) {
+    return json({ error: "campaign_id is required" }, 400);
+  }
+  const campaignId = body.campaign_id;
+
+  const gate = await authenticateWriter(req);
+  if (gate instanceof Response) return gate;
+  const user = gate;
+
+  const { data: campaign, error: campaignError } = await admin
+    .from("campaigns")
+    .select("id, user_id")
+    .eq("id", campaignId)
+    .maybeSingle();
+  if (campaignError) {
+    console.error("embed-monsters audit campaign lookup failed:", campaignError.message);
+    return json({ error: "Failed to load campaign" }, 500);
+  }
+  if (!campaign || !(await isCampaignDm(admin, campaign, user.id))) {
+    return json({ error: "Forbidden" }, 403);
+  }
+
+  const provider = await resolvePlatformProvider();
+  if (provider instanceof Response) return provider;
+
+  try {
+    const rows: MonsterSourceRow[] = [];
+    let offset = 0;
+    for (;;) {
+      const { data, error } = await admin
+        .from("monsters")
+        .select(SOURCE_SELECT)
+        .eq("campaign_id", campaignId)
+        .eq("user_id", user.id)
+        .eq("open5e_import", false)
+        .order("id")
+        .range(offset, offset + PAGE_SIZE - 1);
+      if (error) throw new Error(`Failed to read monsters: ${error.message}`);
+      const page = (data ?? []) as Record<string, unknown>[];
+      for (const row of page) rows.push(toMonsterSourceRow(row));
+      if (page.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
+    }
+
+    const stored = new Map<string, StoredEmbeddingRow>();
+    for (let i = 0; i < rows.length; i += AUDIT_ID_CHUNK) {
+      const { data, error } = await admin
+        .from("monster_embeddings")
+        .select("monster_id, source_hash, embedding_model")
+        .in("monster_id", rows.slice(i, i + AUDIT_ID_CHUNK).map((r) => r.id));
+      if (error) throw new Error(`Failed to read monster_embeddings: ${error.message}`);
+      for (const s of (data ?? []) as Record<string, unknown>[]) {
+        stored.set(s.monster_id as string, {
+          source_hash: s.source_hash as string,
+          embedding_model: s.embedding_model as string,
+        });
+      }
+    }
+
+    const fresh = await Promise.all(
+      rows.map(async (row) => ({ id: row.id, hash: await monsterEmbedHash(buildMonsterEmbedText(toEmbeddable(row))) })),
+    );
+    return json({ kinds: [{ kind: "monster", ...classifyEmbeddings(fresh, stored, provider.model) }] });
+  } catch (e) {
+    console.error("embed-monsters audit failed:", e);
+    return json({ error: "Failed to audit embeddings" }, 500);
+  }
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────
 
 serve(withCors(async (req: Request) => {
@@ -554,7 +640,7 @@ serve(withCors(async (req: Request) => {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json({ error: "Unauthorized" }, 401);
 
-  let body: { mode?: unknown; target?: unknown; limit?: unknown; monster_id?: unknown; monster_ids?: unknown };
+  let body: { mode?: unknown; target?: unknown; limit?: unknown; monster_id?: unknown; monster_ids?: unknown; campaign_id?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -576,5 +662,9 @@ serve(withCors(async (req: Request) => {
     return handleMany(req, body);
   }
 
-  return json({ error: "Invalid mode -- must be 'batch', 'single' or 'many'" }, 400);
+  if (body.mode === "audit") {
+    return handleAudit(req, body);
+  }
+
+  return json({ error: "Invalid mode -- must be 'batch', 'single', 'many' or 'audit'" }, 400);
 }));

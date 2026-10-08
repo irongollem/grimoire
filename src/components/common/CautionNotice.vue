@@ -13,7 +13,7 @@
  * The amber box for a short caution that sits inside a page: a bordered, tinted
  * block of text with the caution ink. Three surfaces had each typed the same
  * recipe (`RulesetReviewBanner`, `CharacterEditionNotice`,
- * `EmbedMissingContentBanner`), which is how a set of notices drifts apart.
+ * `EmbedStaleContentBanner`), which is how a set of notices drifts apart.
  *
  * It owns the box only. Layout inside it (a flex row, an action button) and any
  * deliberate departure (a smaller text size) come from the caller's `class`,

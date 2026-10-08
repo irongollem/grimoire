@@ -97,7 +97,6 @@ insert into definer_registry (name, kind, reason) values
   ('get_player_visible_site_state', 'refuses', null),
   ('get_prompt_screening_hints', 'refuses', null),
   ('get_quest_runtime_context', 'refuses', null),
-  ('get_unembedded_content_counts', 'refuses', null),
   ('get_user_ledger', 'refuses', null),
   ('grab_item_drop', 'refuses', null),
   ('join_campaign_via_invite', 'refuses', null),

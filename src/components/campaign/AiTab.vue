@@ -35,7 +35,7 @@
     <!-- Transfer-ownership embedding offer (#841) — not gated on ai_enabled or
          Pro: a transferred campaign can land unindexed content on any account,
          and pre-indexing before AI is ever turned back on is still useful. -->
-    <EmbedMissingContentCard />
+    <EmbedStaleContentCard />
 
     <ProFeatureGate
       v-if="!isPro"
@@ -275,7 +275,7 @@ import { useAiAcknowledgements } from "@/composables/ai/useAiAcknowledgements";
 import { AI_USE_NOTICE_VERSION } from "@/lib/legal";
 import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
 import AiNoticeDialog from "@/components/campaign/AiNoticeDialog.vue";
-import EmbedMissingContentCard from "@/components/campaign/EmbedMissingContentCard.vue";
+import EmbedStaleContentCard from "@/components/campaign/EmbedStaleContentCard.vue";
 import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";

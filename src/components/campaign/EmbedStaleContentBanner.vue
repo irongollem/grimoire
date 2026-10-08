@@ -15,8 +15,8 @@
     -->
     <span class="flex-1">
       {{ total }} {{ total === 1 ? "record" : "records" }} in this campaign
-      {{ total === 1 ? "isn't" : "aren't" }} indexed for AI search yet, so generators won't offer
-      {{ total === 1 ? "it" : "them" }}.
+      {{ total === 1 ? "needs" : "need" }} indexing for AI search, so generators may miss
+      {{ total === 1 ? "it" : "them" }} or match old text.
       <RouterLink
         class="ml-1 underline font-semibold"
         :to="{ name: 'campaign-settings', query: { tab: 'ai' } }"
@@ -37,19 +37,19 @@
 
 <script setup lang="ts">
 /**
- * The announcement half of the transfer-ownership embedding offer (#841) —
- * the campaign's AI settings tab (EmbedMissingContentCard) is the permanent
+ * The announcement half of the embedding offer (#841, widened by #848 to out-of-date vectors) —
+ * the campaign's AI settings tab (EmbedStaleContentCard) is the permanent
  * home, this is what makes a DM who never opens settings notice the offer
  * exists at all. Shown on the campaign dashboard, since that is where every
  * DM lands after a transfer.
  *
  * Dismissing hides only this banner, per campaign (`useUiStore`,
  * `useLocalStorage`) — the card stays up regardless, and a DM who says no
- * here is not broken out of anything: unindexed content is degraded, not
+ * here is not broken out of anything: unindexed or out-of-date content is degraded, not
  * broken, and retrieval falls back to the compact candidate list.
  *
- * Reads the same `useUnembeddedContent()` composable as
- * EmbedMissingContentCard.vue, never a second count query, so the two
+ * Reads the same `useStaleEmbeddings()` composable as
+ * EmbedStaleContentCard.vue, never a second count query, so the two
  * surfaces can never disagree about how much is missing.
  */
 import { computed } from "vue";
@@ -59,11 +59,11 @@ import CautionNotice from "@/components/common/CautionNotice.vue";
 import { IconClose } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
-import { useUnembeddedContent } from "@/composables/ai/useUnembeddedContent";
+import { useStaleEmbeddings } from "@/composables/ai/useStaleEmbeddings";
 
 const campaign = useCampaignStore();
 const ui = useUiStore();
-const { total } = useUnembeddedContent();
+const { total } = useStaleEmbeddings();
 
 const dismissed = computed(() => {
   const id = campaign.activeCampaignId;

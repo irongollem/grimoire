@@ -1106,8 +1106,8 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // Transfer-ownership embedding offer banner (#841). Dismissing the
-  // dashboard banner (EmbedMissingContentBanner) must not re-nag on every
-  // visit, but the permanent settings-tab card (EmbedMissingContentCard) has
+  // dashboard banner (EmbedStaleContentBanner) must not re-nag on every
+  // visit, but the permanent settings-tab card (EmbedStaleContentCard) has
   // no dismissal at all -- "index later" already has an answer there (leave
   // the button unclicked), so only the banner needs this.
   //

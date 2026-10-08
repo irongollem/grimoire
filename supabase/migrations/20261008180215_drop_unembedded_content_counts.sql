@@ -1,0 +1,24 @@
+-- Migration: drop_unembedded_content_counts
+-- #848: the AI-index offer (#841) now asks "what in this campaign has no
+-- vector OR an out-of-date one", and that question cannot be answered here.
+--
+-- A row that already had a vector keeps it when an embed fails, when the
+-- embed-text builder changes, or when the platform switches embedding model.
+-- It is then not unembedded but wrong: retrieval goes on matching text the DM
+-- has since rewritten. This function anti-joined entities against their
+-- embedding tables, so such a row has a vector and was invisible to it. The
+-- only test of staleness is `source_hash` against a hash of the row's current
+-- embed text, and that text is composed by the edge functions' builders
+-- (`_shared/entityEmbedText.ts`, `_shared/monsterEmbedText.ts`), not by
+-- anything SQL can call.
+--
+-- So the count moved to `mode: "audit"` in embed-content and embed-monsters,
+-- which rebuild each of the campaign's rows with the same builder and compare
+-- through `isEmbeddingStale`, covering missing, changed and re-modelled rows
+-- in one pass. Kept alongside it, this function would be a second, narrower
+-- answer to the same question, so it goes.
+--
+-- Sentry saw no loud embed-on-write failure between 7 Sep and 8 Oct 2026, so
+-- what the audit exists to catch is the silent kind: drift with no error.
+
+drop function public.get_unembedded_content_counts(uuid);

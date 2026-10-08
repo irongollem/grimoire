@@ -57,7 +57,7 @@ function combatant(overrides: Partial<RunCombatant> & Pick<RunCombatant, "instan
 }
 
 /** Mounts inside a real component so `useQuery` has a client to attach to —
- *  same helper shape as useUnembeddedContent.test.ts. */
+ *  same helper shape as useStaleEmbeddings.test.ts. */
 function open(combatants: RunCombatant[]) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const combatantsRef = ref(combatants);
