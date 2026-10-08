@@ -31,6 +31,11 @@ security definer
 set search_path to 'public'
 as $function$
 begin
+  -- A campaign being copied (the demo) has nobody listening yet, and the copy
+  -- inserts row by row, so a statement-level doorbell fires once per row.
+  if current_setting('grimoire.copying_campaign', true) = 'on' then
+    return null;
+  end if;
   insert into campaign_sync (campaign_id, changed_table, updated_at)
   select distinct pm.campaign_id, coalesce(tg_argv[0], tg_table_name), now()
     from changed c
@@ -116,6 +121,11 @@ security definer
 set search_path to 'public'
 as $function$
 begin
+  -- A campaign being copied (the demo) has nobody listening yet, and the copy
+  -- inserts row by row, so a statement-level doorbell fires once per row.
+  if current_setting('grimoire.copying_campaign', true) = 'on' then
+    return null;
+  end if;
   insert into campaign_sync (campaign_id, changed_table, updated_at)
   select old.campaign_id, tg_table_name, now()
    -- The campaign itself being deleted sets this null; nobody is listening.

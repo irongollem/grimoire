@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -224,6 +224,21 @@ select is(
       and tablename in ('party_members', 'encounter_state')),
   2,
   'party_members and encounter_state are published for their own live channels');
+
+-- A campaign being copied (the demo) has nobody listening, and the copy
+-- inserts one row per statement, so a doorbell that does not return early
+-- rings once per copied row: 2.2 of the seconds that pushed the copy past its
+-- timeout (20261005104317). Every trigger that writes the doorbell skips it.
+select is(
+  (select coalesce(string_agg(p.proname::text, ', ' order by p.proname), '')
+     from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('public', 'private')
+      and p.prorettype = 'trigger'::regtype
+      and p.prosrc ~* 'insert\s+into\s+(public\.)?campaign_sync'
+      and p.prosrc !~ 'grimoire\.copying_campaign'),
+  '',
+  'every doorbell trigger stays quiet while a campaign is being copied');
 
 select * from finish();
 rollback;
