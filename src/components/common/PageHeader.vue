@@ -18,7 +18,7 @@
     <div :class="[
         'max-w-full min-w-0 bg-background',
         flush ? '' : 'px-4 pt-4 md:px-6 md:pt-6',
-        flush && !$slots.actions ? 'hidden md:block' : '',
+        (flush && !$slots.actions) || ownsPhoneBar ? 'hidden md:block' : '',
       ]"
     >
       <div
@@ -113,5 +113,12 @@ defineProps<{
    * already names the page.
    */
   flush?: boolean;
+  /**
+   * The page draws its own phone top bar (a `fullscreenMobile` takeover such
+   * as the quest and beat pages), which already names it. Below `md` the
+   * title here is hidden anyway, so the block was only its padding and gold
+   * rule: an empty band above the page's own bar. This hides it there.
+   */
+  ownsPhoneBar?: boolean;
 }>();
 </script>
