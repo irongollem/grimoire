@@ -49,10 +49,13 @@ async function updateEncounter(id: string, update: EncounterUpdate): Promise<Enc
 }
 
 async function deleteEncounter(id: string): Promise<void> {
-  // Remove this encounter from any quest it was linked to
-  await supabase.from("quest_refs").delete().eq("ref_type", "encounter").eq("ref_id", id);
   const { error } = await supabase.from("encounters").delete().eq("id", id);
   if (error) throw error;
+  // quest_refs is polymorphic (ref_type/ref_id, no FK), so the encounter's
+  // links to quests need clearing by hand. Only after the delete succeeds, as
+  // deleteLocation does: a failed delete must not cost the quest its links.
+  const { error: refsError } = await supabase.from("quest_refs").delete().eq("ref_type", "encounter").eq("ref_id", id);
+  if (refsError) throw refsError;
 }
 
 /** The list read the encounters page performs; shared with the navigation prefetch. */

@@ -212,15 +212,17 @@ async function deleteLocation(id: string): Promise<void> {
   // irreversible cleanup — previously quest_refs were wiped and quests delinked
   // BEFORE the delete, so a failed delete destroyed those references while the
   // location still existed.
-  const { data: loc } = await supabase
+  const { data: loc, error: readError } = await supabase
     .from("locations")
     .select("image_url, map_url, map_layer_url")
     .eq("id", id)
     .single();
+  if (readError) throw readError;
   const { error } = await supabase.from("locations").delete().eq("id", id);
   if (error) throw error;
   // quest_refs is polymorphic (ref_type/ref_id, no FK) so it needs manual cleanup.
-  await supabase.from("quest_refs").delete().eq("ref_type", "location").eq("ref_id", id);
+  const { error: refsError } = await supabase.from("quest_refs").delete().eq("ref_type", "location").eq("ref_id", id);
+  if (refsError) throw refsError;
   // #917: a same-account campaign copy can point at this same
   // image_url/map_url/map_layer_url — only remove the files nothing else
   // still references.
