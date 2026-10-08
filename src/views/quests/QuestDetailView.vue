@@ -3,6 +3,7 @@
     :title="quest?.title || (isNew ? 'New Quest' : 'Loading…')"
     :description="quest ? QUEST_STATUS_LABELS[quest.status] : undefined"
     :contained="showsGraph"
+    :owns-phone-bar="!isNew && !!quest"
   >
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />

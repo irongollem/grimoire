@@ -197,6 +197,7 @@ import DemoTeaserBanner from "@/components/dashboard/DemoTeaserBanner.vue";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
 import { useDashboardLayout } from "@/composables/dashboard/useDashboardLayout";
 import { useToast } from "@/composables/useToast";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconCheck, IconGridView } from "@/lib/icons";
 import {
   addWidget,
@@ -366,7 +367,12 @@ function widgetProps(entry: DashboardLayoutEntry): Record<string, unknown> {
   return { settings: entry.settings };
 }
 
-const title = computed(() => (view.value === "session" ? "At the Table" : "Campaign Dashboard"));
+// A phone's header shares its row with search and Start session, so the long
+// name truncated to "Campaign Das…". The page is the campaign's anyway.
+const isMobile = useIsMobile();
+const title = computed(() =>
+  view.value === "session" ? "At the Table" : isMobile.value ? "Dashboard" : "Campaign Dashboard",
+);
 const description = computed(() =>
   view.value === "session" ? "What is in front of you" : "What still needs preparing",
 );

@@ -226,7 +226,10 @@ export function buildMonsterQueryText(name: string, data: Record<string, unknown
     habitat: str(data.habitat),
     tags: null,
     description: str(data.description),
-    stat_block: statBlock ? { challenge_rating: str(statBlock.challenge_rating) } : null,
+    // The embed builder takes a stat block as given (a stored monster always
+    // has one, 9b4c902); an extracted one may not, so an absent or malformed
+    // block is an empty one here rather than a null.
+    stat_block: { challenge_rating: statBlock ? str(statBlock.challenge_rating) : null },
   });
 }
 

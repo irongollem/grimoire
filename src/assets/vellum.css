@@ -578,6 +578,14 @@
   background-color: transparent;
   box-shadow: 1px 0 0 var(--border), 0 1px 0 var(--border);
 }
+/* Inside a torn card the cells' lines would run to the card's box, past the
+   rough edge 3px in, like the row dividers above. Inset the grid the same 6px,
+   and clip it so the outer column's right line and the last row's bottom line
+   (each cell draws its own, outside itself) do not hang off the grid. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) .gap-px.bg-border {
+  margin-inline: 6px;
+  overflow: clip;
+}
 :root[data-theme^="vellum"] .gap-px.bg-border.border.rounded-lg {
   position: relative;
   isolation: isolate;
