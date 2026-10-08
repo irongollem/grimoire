@@ -29,13 +29,12 @@ select plan(14);
 --               reaches them. quest_beats and quest_objectives are not
 --               published and also ring `<table>_player` on delete;
 --               quest_objectives has no campaign_id and rings through its
---               parent quest (signal_quest_child_change).
+--               parent quest (signal_parent_change).
 --   own channel a table subscribed outside the campaign channel with exact-row
 --               handlers (party_members, usePartyLive) rings only on delete.
 --
--- The tables hanging off a character (ruleset_reviews, character_classes,
--- character_spells) have no campaign_id and ring through it
--- (signal_party_member_child_change, #1026).
+-- A table with no campaign_id rings through its parent: a character, a place,
+-- a quest, a faction, a recipe or a playlist (signal_parent_change, #1033).
 --
 -- These lists mirror the client registry, and campaignSyncTables.test.ts reads
 -- this file and fails when they differ: SYNC_TABLES plus party_inventory for
@@ -66,7 +65,18 @@ insert into live_sync_doorbell (name) values
   ('party_member_tracker_state'), ('pinned_forms'), ('location_state_events'),
   ('location_placements'), ('quest_consequence_events'), ('campaign_join_requests'),
   ('encounters'), ('loot_tables'), ('roll_tables'), ('dungeon_maps'),
-  ('dungeon_features');
+  ('dungeon_features'),
+  -- Campaign content (#1033 wave 2).
+  ('monsters'), ('spells'), ('species'), ('custom_classes'), ('custom_subclasses'),
+  ('class_features'), ('rules'), ('traps'), ('crafting_recipes'),
+  ('crafting_recipe_ingredients'), ('crafting_recipe_outputs'),
+  ('crafting_recipe_modifiers'), ('campaign_enabled_sources'), ('campaign_tile_packs'),
+  ('sounds'), ('soundboard_pages'), ('soundboard_playlists'),
+  ('soundboard_playlist_tracks'), ('npc_sets'), ('faction_deities'),
+  ('faction_locations'), ('faction_items'), ('faction_npcs'), ('faction_relations'),
+  ('location_doors'), ('location_map_regions'), ('quest_beat_edges'),
+  ('quest_beat_edge_gates'), ('quest_beat_attachments'), ('quest_consequences'),
+  ('quest_refs');
 
 -- Subscribed on a channel of its own with exact-row handlers, so it rings only
 -- for what that channel cannot carry: a delete (#1026).
@@ -95,10 +105,8 @@ language sql stable as $$
      where g.tgrelid = format('public.%I', p_table)::regclass
        and not g.tgisinternal
        and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
-                        'public.signal_location_child_change()'::regprocedure,
-                        'public.signal_party_member_child_change()'::regprocedure,
-                        'public.signal_handout_change()'::regprocedure,
-                        'public.signal_quest_child_change()'::regprocedure)
+                        'public.signal_parent_change()'::regprocedure,
+                        'public.signal_handout_change()'::regprocedure)
        and (g.tgtype & p_event_bit) <> 0)
 $$;
 
@@ -154,17 +162,21 @@ select ok(
   'a character leaving a campaign rings the campaign it left');
 
 -- A named signal rings from its source table on insert and update, carrying
--- its name as the trigger argument (signal_campaign_change reads tg_argv[0]).
+-- its name as a trigger argument: the only one for signal_campaign_change
+-- (tg_argv[0]), the third for signal_parent_change (after the parent table and
+-- its foreign-key column).
 create function pg_temp.rings_named(p_table text, p_signal text, p_event_bit int) returns boolean
 language sql stable as $$
   select exists (
     select 1 from pg_trigger g
      where g.tgrelid = format('public.%I', p_table)::regclass
        and not g.tgisinternal
-       and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
-                        'public.signal_quest_child_change()'::regprocedure)
-       and g.tgnargs = 1
-       and split_part(encode(g.tgargs, 'escape'), '\000', 1) = p_signal
+       and ((g.tgfoid = 'public.signal_campaign_change()'::regprocedure
+             and g.tgnargs = 1
+             and split_part(encode(g.tgargs, 'escape'), '\000', 1) = p_signal)
+         or (g.tgfoid = 'public.signal_parent_change()'::regprocedure
+             and g.tgnargs = 3
+             and split_part(encode(g.tgargs, 'escape'), '\000', 3) = p_signal))
        and (g.tgtype & p_event_bit) <> 0)
 $$;
 

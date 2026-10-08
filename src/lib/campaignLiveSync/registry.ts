@@ -182,6 +182,48 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   ["roll_tables", ["roll_tables"]],
   ["dungeon_maps", ["dungeon_maps"]],
   ["dungeon_features", ["dungeon_features"]],
+  // Campaign content (#1033 wave 2): what the DM writes and the table reads.
+  // Rings for the same reasons as the play state above; tables with no
+  // campaign_id ring through their parent (signal_parent_change). Transient
+  // search results ("global-search", "spellSearch") are left out on purpose:
+  // they are re-asked on the next keystroke, and a root listed here is also
+  // persisted to disk (lib/queryPersistence/policy.ts).
+  ["monsters", ["monsters", "resolved-monster", QUEST_BOARD_KEY, "session-learned"]],
+  ["spells", ["spells", "characterSpellsDetails", "itemSpells", "character-content-reviews"]],
+  ["species", ["species", "species-by-ids"]],
+  ["custom_classes", ["custom_classes"]],
+  ["custom_subclasses", ["custom_subclasses"]],
+  ["class_features", ["class_features", "character-content-reviews"]],
+  ["rules", ["rules"]],
+  ["traps", ["traps"]],
+  ["crafting_recipes", ["crafting-recipes", "craftable-output-items"]],
+  ["crafting_recipe_ingredients", ["crafting-ingredients"]],
+  ["crafting_recipe_outputs", ["crafting-outputs", "craftable-output-items"]],
+  ["crafting_recipe_modifiers", ["crafting-modifiers"]],
+  ["campaign_enabled_sources", ["enabled-sources"]],
+  ["campaign_tile_packs", ["user-tile-packs"]],
+  ["sounds", ["sounds", QUEST_BOARD_KEY]],
+  ["soundboard_pages", ["soundboard_pages"]],
+  ["soundboard_playlists", ["soundboard_playlists", QUEST_BOARD_KEY]],
+  ["soundboard_playlist_tracks", ["soundboard_playlist_tracks"]],
+  ["npc_sets", ["npc_sets"]],
+  ["faction_deities", ["faction-deities", "deity-factions"]],
+  ["faction_locations", ["faction-locations"]],
+  ["faction_items", ["faction-items"]],
+  ["faction_npcs", ["faction-npcs", "player-faction-npcs", "npc-factions"]],
+  ["faction_relations", ["faction-relations"]],
+  // A place's map: the DM's site views, and the players' site state.
+  ["location_doors", ["location-doors", "site-doors", "player-visible-site-state"]],
+  ["location_map_regions", ["location-map-regions", "player-visible-site-state"]],
+  // Quest wiring. Unlike a beat row, none of these is written by an autosaving
+  // form, so the DM hears them too (a beat rings `quest_beats_player`, which
+  // the DM skips). get_player_visible_quest_beats reads all three of edges,
+  // attachments and refs for the players' story so far.
+  ["quest_beat_edges", ["quest_beat_edges", QUEST_BOARD_KEY, RUNTIME_CONTEXT_KEY, BEATS_KEY, TRANSITIONS_KEY]],
+  ["quest_beat_edge_gates", ["quest_beat_edge_gates"]],
+  ["quest_beat_attachments", ["quest_beat_attachments", QUEST_BOARD_KEY, BEATS_KEY, TRANSITIONS_KEY]],
+  ["quest_consequences", ["quest_consequences", QUEST_BOARD_KEY, RUNTIME_CONTEXT_KEY]],
+  ["quest_refs", ["quest_refs", BEATS_KEY, TRANSITIONS_KEY]],
   // Subscribed on its own channel (usePartyLive), which carries inserts and
   // updates as exact rows. It rings only for what that channel cannot carry: a
   // delete, and a character leaving the campaign (#1026).
