@@ -925,6 +925,21 @@
 :root[data-theme^="vellum"] [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):not(:is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) *):is(:focus, :focus-visible, :focus-within) { border-image-source: var(--vl-field-frame-focus); }
 :root[data-theme^="vellum"] [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):not(:is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) *)[aria-invalid="true"] { border-image-source: var(--vl-field-frame-invalid); }
 
+/* A DM's own note (DmNoteBox, inline and in the scratchpad) is written in the
+   hand throughout, not just its short fields: it is the one rich text that is
+   the DM's words rather than the book's. `data-hand` marks it. The placeholder
+   stays in print like every other prompt. Fondamento's single weight is left to
+   synthesise bold here, because a DM's bold is emphasis they chose to write. */
+:root[data-theme^="vellum"] [data-hand] .ProseMirror {
+  font-family: "Fondamento", var(--vl-serif);
+  font-style: normal;
+  letter-spacing: normal;
+  color: var(--vl-hand-ink);
+}
+:root[data-theme^="vellum"] [data-hand] .ProseMirror p.is-editor-empty:first-child::before {
+  font-family: var(--vl-serif);
+}
+
 /* Floating slip. Outset 7px so a full-width hovered row never pokes past the
    torn line. Nothing animates here. */
 :root[data-theme^="vellum"] [data-slip] {

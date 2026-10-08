@@ -5,7 +5,7 @@
     <AppButton variant="ghost" size="toolbar" label="Close" :icon="IconClose" @click="scratchpad.toggle()" />
   </div>
 
-  <section v-else-if="variant === 'inline'" class="flex flex-col gap-1.5" aria-label="DM notes">
+  <section v-else-if="variant === 'inline'" data-hand class="flex flex-col gap-1.5" aria-label="DM notes">
     <div class="flex items-center gap-2">
       <IconLock class="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
       <span class="text-label-lg font-semibold text-muted-foreground">DM notes</span>
@@ -25,7 +25,7 @@
     />
   </section>
 
-  <div v-else class="flex min-h-0 flex-col">
+  <div v-else data-hand class="flex min-h-0 flex-col">
     <RichTextEditor
       v-if="!note.loading.value"
       :key="note.revision.value"
