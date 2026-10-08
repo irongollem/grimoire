@@ -73,7 +73,6 @@ export interface GrimoireBackup {
   crafting_recipe_ingredients: Row[];
   crafting_recipe_modifiers: Row[];
   crafting_recipe_outputs: Row[];
-  crafting_recipe_grants: Row[];
   party_member_tracker_state: Row[];
   roll_tables: Row[];
   loot_tables: Row[];
@@ -257,7 +256,6 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     recipeIngredients,
     recipeModifiers,
     recipeOutputs,
-    recipeGrants,
     sessionAvailability,
     storeItems,
   ] = await Promise.all([
@@ -275,7 +273,6 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByIds("crafting_recipe_ingredients", "recipe_id", recipeIds),
     qByIds("crafting_recipe_modifiers", "recipe_id", recipeIds),
     qByIds("crafting_recipe_outputs", "recipe_id", recipeIds),
-    qByIds("crafting_recipe_grants", "recipe_id", recipeIds),
     qByIds("session_availability", "session_proposal_id", proposalIds),
     qByIds("store_items", "location_id", locationIds),
   ]);
@@ -365,7 +362,6 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     crafting_recipe_ingredients: recipeIngredients,
     crafting_recipe_modifiers: recipeModifiers,
     crafting_recipe_outputs: recipeOutputs,
-    crafting_recipe_grants: recipeGrants,
     party_member_tracker_state: trackerState,
     roll_tables: rollTables,
     loot_tables: lootTables,
@@ -1043,15 +1039,6 @@ export async function executeImport(
         id: r(out.id, idMap),
         recipe_id: r(out.recipe_id, idMap),
         // item_id kept as-is
-      })),
-    );
-    // crafting_recipe_grants has no id column
-    await batchInsert(
-      "crafting_recipe_grants",
-      backup.crafting_recipe_grants.map((grant) => ({
-        ...grant,
-        recipe_id: r(grant.recipe_id, idMap),
-        party_member_id: r(grant.party_member_id, idMap),
       })),
     );
 

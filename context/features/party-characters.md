@@ -641,7 +641,9 @@ owner_user_id = auth.uid() or (owner_user_id is null and user_id = auth.uid())
   creator of an unowned character); the DM changes a class through the level
   RPCs.
 - `crafting_recipe_grants_select` asked for the creator alone, so the owner of
-  a DM-made character could not read the recipes granted to their own character.
+  a DM-made character could not read the recipes granted to their own character. (The table
+  itself was later dropped as unread, `20261008233451`: recipes reach a character
+  through `crafting_recipes.player_visible_to`.)
 
 #### What a table approves (#943 wave 4, migration `20261003105147`)
 
