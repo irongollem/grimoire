@@ -63,7 +63,7 @@ insert into live_sync_doorbell (name) values
   ('handout_reveals'), ('location_reveals'), ('npc_reveals'), ('npc_pc_notes'),
   ('player_npc_ratings'), ('npc_favors'), ('faction_party_members'),
   ('party_member_tracker_state'), ('pinned_forms'), ('location_state_events'),
-  ('location_placements'), ('quest_consequence_events'), ('campaign_join_requests'),
+  ('location_placements'), ('quest_consequence_events'),
   ('encounters'), ('loot_tables'), ('roll_tables'), ('dungeon_maps'),
   ('dungeon_features'),
   -- Campaign content (#1033 wave 2).
@@ -91,6 +91,7 @@ insert into live_sync_exempt (name, reason) values
   ('tile_pack_generation_runs', 'server job progress: the sanctioned poll in useTilePacks stops when no run is in flight'),
   ('tile_pack_generation_jobs', 'server job progress, read through its run'),
   ('dashboard_layouts',         'Customize mode saves on every drag and writes the server''s answer back instead of refetching (useDashboardLayout); an echoed ring would refetch under the drag and could restore an older layout'),
+  ('campaign_join_requests',    'read by a parent who is not a member of the campaign, and the doorbell reaches members only; the family page refetches on focus'),
   ('player_read_items',         'one user''s read marks, written on every view: a ring would make every member re-read their own marks whenever anyone opens anything'),
   ('session_proposal_invites',  'deny-all; read by token through the RSVP RPCs, and no screen holds it'),
   ('spell_cast_records',        'a log no screen reads; a cast''s visible effects land on party_members and character_spells, which are live'),

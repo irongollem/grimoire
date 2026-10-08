@@ -93,8 +93,21 @@ export const LIVE_ROOT_KEYS: readonly string[] = [...new Set(RECONCILE_KEYS)];
 
 const LIVE_ROOTS = new Set<unknown>(LIVE_ROOT_KEYS);
 
+/**
+ * Live keys that stay off disk although their root is live. A shape keyed by
+ * a search, a filter set or a set of ids writes one record per combination
+ * asked (a browse is every loaded page of a 3,500-row catalogue, per settled
+ * search); it is refetched on demand, so a disk copy only accumulates. And
+ * `campaign-invites` rows carry join tokens, which do not belong on a shared
+ * device's disk (#1033 review).
+ */
+const LIVE_SHAPES_NOT_PERSISTED = new Set<unknown>(["browse", "by-ids", "player-by-ids"]);
+const LIVE_ROOTS_NOT_PERSISTED = new Set<unknown>(["campaign-invites"]);
+
 /** The persistence class of a key, or null when it is not persisted. */
 export function persistClass(queryKey: readonly unknown[]): PersistClass | null {
   if (isStaticContent(queryKey)) return "static";
-  return queryKey.length > 0 && LIVE_ROOTS.has(queryKey[0]) ? "live" : null;
+  if (queryKey.length === 0 || !LIVE_ROOTS.has(queryKey[0])) return null;
+  if (LIVE_ROOTS_NOT_PERSISTED.has(queryKey[0]) || LIVE_SHAPES_NOT_PERSISTED.has(queryKey[1])) return null;
+  return "live";
 }

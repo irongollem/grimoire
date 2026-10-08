@@ -1,7 +1,7 @@
 -- Play state rings the campaign doorbell (#1033, wave 1).
 --
 -- Grimoire runs live games, so what changes at the table must reach every open
--- screen without a reload. These eighteen tables change during play and were
+-- screen without a reload. These seventeen tables change during play and were
 -- on no live route at all: a reveal, a door opened, a favour owed, a tracker
 -- ticked, an encounter or roll table edited mid-session stayed stale on every
 -- other device.
@@ -83,7 +83,6 @@ begin
       ('pinned_forms',               'signal_campaign_change'),
       ('npc_favors',                 'signal_campaign_change'),
       ('quest_consequence_events',   'signal_campaign_change'),
-      ('campaign_join_requests',     'signal_campaign_change'),
       ('player_npc_ratings',         'signal_campaign_change'),
       ('encounters',                 'signal_campaign_change'),
       ('loot_tables',                'signal_campaign_change'),

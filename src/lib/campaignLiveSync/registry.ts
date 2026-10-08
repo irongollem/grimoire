@@ -175,8 +175,6 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // A fired or dismissed consequence moves the runtime the DM is running, and
   // get_player_visible_quest_beats reads it for the players' story so far.
   ["quest_consequence_events", ["quest_consequence_events", RUNTIME_CONTEXT_KEY, BEATS_KEY, TRANSITIONS_KEY]],
-  // A child's request to join reaches the parent waiting on it.
-  ["campaign_join_requests", ["family-campaigns"]],
   ["encounters", ["encounters", QUEST_BOARD_KEY, "session-learned"]],
   ["loot_tables", ["loot_tables"]],
   ["roll_tables", ["roll_tables"]],
@@ -223,7 +221,9 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   ["quest_beat_edge_gates", ["quest_beat_edge_gates"]],
   ["quest_beat_attachments", ["quest_beat_attachments", QUEST_BOARD_KEY, BEATS_KEY, TRANSITIONS_KEY]],
   ["quest_consequences", ["quest_consequences", QUEST_BOARD_KEY, RUNTIME_CONTEXT_KEY]],
-  ["quest_refs", ["quest_refs", BEATS_KEY, TRANSITIONS_KEY]],
+  // Also the encounter's quest links, the encounters list's quest filter and
+  // the quest filter's entity options.
+  ["quest_refs", ["quest_refs", "encounter_quests", "encounter_quest_links", "quest_filter_entities", BEATS_KEY, TRANSITIONS_KEY]],
   // The rest (#1033 wave 3). What stays off a route on purpose is listed with
   // its reason in live_sync_registry.test.sql (live_sync_exempt), which fails
   // on any campaign table that is neither routed nor exempt.

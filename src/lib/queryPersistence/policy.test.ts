@@ -43,6 +43,18 @@ describe("persistClass", () => {
     }
   });
 
+  it("keeps searched, filtered and id-set shapes of a live root off disk", () => {
+    expect(persistClass(["monsters", "browse", ["srd-2024"], "2024", "c1", "owl"])).toBeNull();
+    expect(persistClass(["spells", "by-ids", ["a"], []])).toBeNull();
+    expect(persistClass(["monsters", "player-by-ids", ["a"]])).toBeNull();
+    expect(persistClass(["monsters", "m1"])).toBe("live");
+  });
+
+  it("keeps invite tokens off disk", () => {
+    expect(LIVE_ROOT_KEYS).toContain("campaign-invites");
+    expect(persistClass(["campaign-invites", "c1"])).toBeNull();
+  });
+
   it("persists nothing else", () => {
     expect(persistClass(["plans"])).toBeNull();
     expect(persistClass(["library-monsters", "srd_owlbear"])).toBeNull();
