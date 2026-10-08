@@ -50,19 +50,35 @@ function record(overrides: Record<string, unknown> = {}) {
 describe("mapOpen5eV2Spell", () => {
   const srd2014 = { ...document, name: "System Reference Document 5.1", key: "srd-2014", gamesystem: { name: "5th Edition 2014", key: "5e-2014" } };
 
-  it("restores the 2014 Paladin list, which Open5e's srd-2014 data omits", () => {
-    const command = mapOpen5eV2Spell(
-      record({ key: "srd_command", document: srd2014, name: "Command", level: 1, classes: [{ name: "Cleric", key: "srd_cleric" }, { name: "Warlock", key: "srd_warlock" }] }) as Parameters<typeof mapOpen5eV2Spell>[0],
-    );
-    expect(command?.classes).toEqual(["Cleric", "Warlock", "Paladin"]);
+  const map2014 = (name: string, tagged: string[]) =>
+    mapOpen5eV2Spell(
+      record({
+        key: `srd_${name.toLowerCase().replaceAll(" ", "-")}`,
+        document: srd2014,
+        name,
+        level: 1,
+        classes: tagged.map((cls) => ({ name: cls, key: `srd_${cls.toLowerCase()}` })),
+      }) as Parameters<typeof mapOpen5eV2Spell>[0],
+    )?.classes;
+
+  it("takes a 2014 SRD spell's classes from the SRD lists, not from Open5e's subclass-wide tags", () => {
+    // Open5e tags Paladin on nothing and Druid on every Land circle spell.
+    expect(map2014("Bless", ["Cleric"])).toEqual(["Cleric", "Paladin"]);
+    expect(map2014("Spider Climb", ["Druid", "Sorcerer", "Wizard"])).not.toContain("Druid");
+    expect(map2014("Burning Hands", ["Cleric", "Sorcerer", "Wizard"])).not.toContain("Cleric");
+    expect(map2014("Plane Shift", ["Cleric", "Sorcerer", "Wizard"])).toContain("Druid");
+    expect(map2014("Faerie Fire", ["Bard", "Cleric", "Druid"])).toEqual(["Bard", "Druid", "Artificer"]);
   });
 
-  it("leaves an oath spell, another publisher's namesake and the 2024 list alone", () => {
-    const map = (overrides: Record<string, unknown>) =>
-      mapOpen5eV2Spell(record({ level: 1, classes: [{ name: "Cleric", key: "x" }], ...overrides }) as Parameters<typeof mapOpen5eV2Spell>[0]);
-    // Sanctuary is Oath of Devotion's, granted always-prepared, not on the Paladin list.
-    expect(map({ key: "srd_sanctuary", document: srd2014, name: "Sanctuary" })?.classes).not.toContain("Paladin");
-    expect(map({ key: "srd-2024_bless", name: "Bless" })?.classes).not.toContain("Paladin");
+  it("keeps Open5e's Warlock tag, whose patron spells widen the list a Warlock picks from", () => {
+    expect(map2014("Command", ["Cleric", "Warlock"])).toEqual(["Cleric", "Paladin", "Warlock"]);
+  });
+
+  it("leaves other documents to Open5e's tags", () => {
+    const bless2024 = mapOpen5eV2Spell(
+      record({ key: "srd-2024_bless", name: "Bless", level: 1, classes: [{ name: "Cleric", key: "x" }] }) as Parameters<typeof mapOpen5eV2Spell>[0],
+    );
+    expect(bless2024?.classes).toEqual(["Cleric"]);
   });
 
   it("preserves edition/source identity and structured mechanics", () => {

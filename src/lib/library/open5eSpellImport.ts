@@ -1,7 +1,7 @@
 import type { SpellInsert, SpellSchool, HigherLevelDamage } from "@/types/spell.types";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { ARTIFICER_SPELL_DELTA } from "@/data/artificerSpellDelta";
-import { PALADIN_2014_SPELLS } from "@/data/paladinSpellDelta2014";
+import { SRD_2014_CLASS_SPELL_LISTS } from "@/data/srd2014ClassSpellLists";
 import { fetchAll, fetchAllFromDocuments, rulesetForDocument, slugifyKey, stableSrdId } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -164,11 +164,19 @@ function normalizeRange(spell: Open5eV2Spell) {
 const VALID_CLASSES = new Set<string>(SPELL_CLASSES);
 
 function normalizeClasses(spell: Open5eV2Spell): string[] {
-  const classes = spell.classes.map((entry) => entry.name).filter((name) => VALID_CLASSES.has(name));
+  const tagged = spell.classes.map((entry) => entry.name).filter((name) => VALID_CLASSES.has(name));
+  // The 2014 SRD's own class lists replace Open5e's tags, which fold in every
+  // subclass's spells (see srd2014ClassSpellLists.ts). Classes the table does
+  // not cover keep Open5e's tag: Warlock, whose patron spells widen its list,
+  // and anything another document adds.
+  const classes =
+    spell.document.key === "srd-2014"
+      ? [
+          ...SPELL_CLASSES.filter((name) => SRD_2014_CLASS_SPELL_LISTS[name]?.has(spell.name)),
+          ...tagged.filter((name) => !(name in SRD_2014_CLASS_SPELL_LISTS)),
+        ]
+      : tagged;
   if (ARTIFICER_SPELL_DELTA.has(spell.name) && !classes.includes("Artificer")) classes.push("Artificer");
-  if (spell.document.key === "srd-2014" && PALADIN_2014_SPELLS.has(spell.name) && !classes.includes("Paladin")) {
-    classes.push("Paladin");
-  }
   return classes;
 }
 
