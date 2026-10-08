@@ -40,7 +40,7 @@
  * 6. Seats `player-fixture` in the copy with the most rows, claims a character,
  *    and writes the player-side rows that can never come from production
  *    because they are the players' own: journal entries, discovered monsters
- *    and recipe grants, all invented and generic (`lib/dev-fixture-sql.ts`).
+ *    and recipes shared with the character, all invented and generic (`lib/dev-fixture-sql.ts`).
  *
  * ## The ownership rule
  *
@@ -295,7 +295,9 @@ function seedPlayerSide(dbUrl: string, campaignId: string) {
     character: seat.characterName,
     journal: count("player_journal_entries", `campaign_id = ${quote(campaignId)} and user_id = ${quote(seat.playerId)}`),
     monsters: count("discovered_monsters", `campaign_id = ${quote(campaignId)}`),
-    grants: seat.characterId ? count("crafting_recipe_grants", `party_member_id = ${quote(seat.characterId)}`) : 0,
+    recipes: seat.characterId
+      ? count("crafting_recipes", `campaign_id = ${quote(campaignId)} and ${quote(seat.characterId)} = any(player_visible_to)`)
+      : 0,
   };
 }
 
@@ -387,7 +389,7 @@ async function main(): Promise<void> {
     player
       ? `  ${PLAYER_EMAIL}: seated in "${biggest.imported.name}"` +
           `${player.character ? `, playing ${player.character}` : ", no character to claim"}; ` +
-          `${player.journal} journal entries, ${player.monsters} discovered monsters, ${player.grants} recipe grants`
+          `${player.journal} journal entries, ${player.monsters} discovered monsters, ${player.recipes} shared recipes`
       : `  No player seated: ${PLAYER_EMAIL} does not exist. Run \`npm run dev:auth\` and then this again.`,
   );
   console.log("\nSign in as the fixture and pick a campaign in the switcher. Run this again to refresh all of it.");

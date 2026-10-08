@@ -38,7 +38,7 @@ describe("buildPlayerContentSql", () => {
     expect(text.indexOf("delete from public.player_journal_entries")).toBeLessThan(text.indexOf("insert into public.player_journal_entries"));
     expect(text.indexOf("delete from public.discovered_monsters")).toBeLessThan(text.indexOf("insert into public.discovered_monsters"));
     expect(text).toContain("c.n <= 40"); // discovered monsters, own first then library
-    expect(text).toContain("limit 30"); // recipe grants
+    expect(text).toContain("limit 30"); // shared recipes
   });
 
   it("tops discoveries up from the campaign's enabled library sources, its own monsters first", () => {
@@ -48,9 +48,15 @@ describe("buildPlayerContentSql", () => {
     expect(text).toContain("order by x.own desc, x.name");
   });
 
-  it("grants nothing and shares with nobody when no character was claimed", () => {
+  it("shares recipes by adding the character, never replacing the DM's own sharing", () => {
+    const text = buildPlayerContentSql(plan);
+    expect(text).toContain(`array_append(player_visible_to, '${MEMBER}')`);
+    expect(text).toContain(`not '${MEMBER}' = any(player_visible_to)`);
+  });
+
+  it("shares nothing with nobody when no character was claimed", () => {
     const text = buildPlayerContentSql({ ...plan, partyMemberId: null });
-    expect(text).not.toContain("crafting_recipe_grants");
+    expect(text).not.toContain("crafting_recipes");
     expect(text).toContain("null::uuid[]");
   });
 

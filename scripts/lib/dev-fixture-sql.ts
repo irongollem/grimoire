@@ -1,7 +1,7 @@
 /**
  * The pure halves of the account-level and player-side content `dev-campaigns.ts`
  * writes: the Hall of Heroes copy, and the rows a player authors that can never
- * come from production (journal entries, discovered monsters, recipe grants).
+ * come from production (journal entries, discovered monsters, shared recipes).
  * Kept apart from the script so the statements can be tested without a stack.
  *
  * The player-side text is invented and deliberately generic. A real player's
@@ -59,7 +59,7 @@ export function journalDrafts(count: number): JournalDraft[] {
 export interface PlayerContentPlan {
   campaignId: string;
   playerId: string;
-  /** The character the player claimed. Without one there is nobody to grant recipes to or share monsters with. */
+  /** The character the player claimed. Without one there is nobody to share recipes or monsters with. */
   partyMemberId: string | null;
   journal: JournalDraft[];
   monsterLimit: number;
@@ -72,8 +72,8 @@ export interface PlayerContentPlan {
  * Triggers stay on: `discovered_monsters` stamps the open session and checks
  * same-campaign references, and the point is to get rows the app would have
  * written. The deletes come first, scoped to what this script owns (the tagged
- * journal entries; the whole campaign's discovered monsters and the claimed
- * character's grants, which a copy made by `copy_demo_template` starts without).
+ * journal entries; the whole campaign's discovered monsters, which a copy made
+ * by `copy_demo_template` starts without).
  */
 export function buildPlayerContentSql(plan: PlayerContentPlan): string {
   const campaign = uuid(plan.campaignId);
@@ -105,10 +105,14 @@ export function buildPlayerContentSql(plan: PlayerContentPlan): string {
       `) x) c where c.n <= ${limit(plan.monsterLimit)};`,
   ];
   if (member !== null) {
+    // A recipe reaches a character through its own `player_visible_to`, the
+    // sharing column every module uses. Only ever added to: the copy carries
+    // the DM's own sharing, which a replace would wipe, and adding the first
+    // recipes by name again on a re-run changes nothing.
     lines.push(
-      `delete from public.crafting_recipe_grants where party_member_id = '${member}';`,
-      "insert into public.crafting_recipe_grants (recipe_id, party_member_id) " +
-        `select r.id, '${member}' from public.crafting_recipes r where r.campaign_id = '${campaign}' order by r.name limit ${limit(plan.recipeLimit)};`,
+      `update public.crafting_recipes set player_visible_to = array_append(player_visible_to, '${member}') ` +
+        `where id in (select r.id from public.crafting_recipes r where r.campaign_id = '${campaign}' order by r.name limit ${limit(plan.recipeLimit)}) ` +
+        `and not '${member}' = any(player_visible_to);`,
     );
   }
   lines.push("commit;");
