@@ -96,6 +96,25 @@ export function assertDemoKey(label: string, jwt: string): void {
  * There is deliberately no general-purpose client here, so there is no method
  * to get wrong.
  */
+/**
+ * Production has no such table. The table list comes from the LOCAL schema, which
+ * is routinely ahead of production (another session's unmerged migration, a
+ * feature not yet released), so a pull treats this as "empty in production"
+ * rather than failing the whole run on a table nothing there can hold yet.
+ */
+export class MissingRemoteTable extends Error {
+  constructor(readonly table: string) {
+    super(`${table} does not exist in production yet`);
+  }
+}
+
+/** PostgREST answers an unknown table with 404 and code PGRST205. */
+async function failedRead(response: Response, table: string, verb: string): Promise<Error> {
+  const body = await response.text();
+  if (response.status === 404 && body.includes("PGRST205")) return new MissingRemoteTable(table);
+  return new Error(`Could not ${verb} ${table} from production (${response.status}): ${body}`);
+}
+
 export async function remoteRows(
   remote: URL,
   key: string,
@@ -108,9 +127,7 @@ export async function remoteRows(
   for (let offset = 0; ; offset += PAGE) {
     const url = `${remote.origin}/rest/v1/${table}?${query}select=*&order=${orderBy}&limit=${PAGE}&offset=${offset}`;
     const response = await fetch(url, { method: "GET", headers: { apikey: key, Authorization: `Bearer ${key}` } });
-    if (!response.ok) {
-      throw new Error(`Could not read ${table} from production (${response.status}): ${await response.text()}`);
-    }
+    if (!response.ok) throw await failedRead(response, table, "read");
     const page = (await response.json()) as Record<string, unknown>[];
     rows.push(...page);
     if (page.length < PAGE) return rows;
@@ -132,4 +149,29 @@ export function assertRemoteUrl(raw: string | undefined): URL {
     throw new Error(`Refusing to read production from ${url.origin}: expected the hosted project over https.`);
   }
   return url;
+}
+
+// A `Content-Range` of `0-0/123`, or `*` + `/0` when empty: the total after the slash.
+export function parseContentRange(header: string | null): number {
+  const total = header?.split("/")[1];
+  if (total === undefined || !/^\d+$/.test(total)) {
+    throw new Error(`Unreadable Content-Range from production: ${header}`);
+  }
+  return Number(total);
+}
+
+/**
+ * How many rows a filter matches, without transferring them: a GET for one id
+ * with `Prefer: count=exact`. Read-only like `remoteRows`, and the reason the
+ * dev scripts can report how much a filter kept out without ever holding it.
+ */
+export async function remoteCount(remote: URL, key: string, table: string, filter: string): Promise<number> {
+  const query = filter ? `${filter}&` : "";
+  const url = `${remote.origin}/rest/v1/${table}?${query}select=*&limit=1`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "count=exact" },
+  });
+  if (!response.ok) throw await failedRead(response, table, "count");
+  return parseContentRange(response.headers.get("content-range"));
 }

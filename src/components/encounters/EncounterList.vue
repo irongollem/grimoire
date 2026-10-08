@@ -1,8 +1,6 @@
 <template>
   <div>
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" variant="text" :columns="3" :count="6" />
 
     <EmptyState
       v-else-if="!filtered.length && !search && questFilter === 'all'"
@@ -22,10 +20,15 @@
       No encounters match your search.
     </p>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <VirtualGrid
+      v-else
+      :items="filtered"
+      :item-key="encounterKey"
+      :columns="columns"
+      :estimate-row-height="ENCOUNTER_ROW_PX"
+    >
+      <template #default="{ item: encounter }">
       <div
-        v-for="encounter in filtered"
-        :key="encounter.id"
         class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
         <!-- Card link overlay (disabled for locked items) -->
@@ -109,7 +112,8 @@
           </div>
         </div>
       </div>
-    </div>
+      </template>
+    </VirtualGrid>
 
     <p
       v-if="filtered.length"
@@ -142,8 +146,10 @@ import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useEncounterQuestLinks } from "@/composables/quests/useQuests";
 import { useEncountersInRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useUiStore } from "@/stores/ui";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 
@@ -157,6 +163,16 @@ function handleNew() {
 }
 
 const ui = useUiStore();
+
+// Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` this grid used to carry.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
+const encounterKey = (encounter: EncounterListRow) => encounter.id;
+
+// Row height before a row is measured (px): 81-127px across 35 encounters, 127 the median, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const ENCOUNTER_ROW_PX = 127;
 const search = computed(() => ui.encountersSearch);
 const hideFinished = computed(() => ui.encountersHideFinished);
 const questFilter = computed(() => ui.encountersFilterQuestId);

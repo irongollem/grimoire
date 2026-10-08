@@ -77,13 +77,13 @@ describe("PartyTracker", () => {
     mocks.refetch.mockReset();
   });
 
-  it("shows the loading spinner, not the empty state, while the query has no answer yet (disabled or in-flight)", () => {
+  it("shows a loading skeleton, not the empty state, while the query has no answer yet (disabled or in-flight)", () => {
     mocks.partyData = undefined;
     mocks.partyIsError = false;
     const wrapper = mount(PartyTracker, { global: { stubs: globalStubs } });
     expect(wrapper.text()).not.toContain("No heroes in your party");
     expect(wrapper.text()).not.toContain("could not be loaded");
-    expect(wrapper.findComponent({ name: "LoadingSpinner" }).exists()).toBe(true);
+    expect(wrapper.find("[role=status]").exists()).toBe(true);
   });
 
   it("shows an error state with a working Retry control when the query fails", async () => {

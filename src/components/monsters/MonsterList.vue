@@ -14,9 +14,13 @@
       @copy="openCopyDialog"
     />
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <!-- Follows the mobile rows/gallery preference so the first page lands
+         in the shape the DM chose. -->
+    <ListSkeleton
+      v-if="isLoading"
+      :variant="isMobile ? layout : 'grid'"
+      :count="isMobile ? 7 : 12"
+    />
 
     <p v-else-if="error" class="text-center text-body text-destructive py-12" role="alert">
       Could not load monsters. {{ error.message }}
@@ -48,59 +52,60 @@
         :total="scopeTotal"
         plural="monsters"
       />
-      <div
-        :class="layout === 'gallery'
-          ? 'grid grid-cols-2 gap-3 pb-2'
-          : 'flex flex-col gap-2 pb-2'"
-      >
+      <!-- Windowed: only the rows near the viewport are mounted, so a long bestiary
+           never holds every portrait decoded at once. -->
+      <EntityMobileGrid :items="rows" :item-key="monsterKey" :layout="layout">
+          <template #default="{ item: monster }">
+            <BulkSelectableCard
+              corner="bottom-right"
+              :selected="bulk.isSelected(monster.id)"
+              :selecting="bulk.selecting.value && !monster.is_shared"
+              @toggle="bulk.toggle(monster.id)"
+            >
+              <EntityMobileCard
+                :layout="layout"
+                :to="`/monsters/${monster.id}`"
+                :title="monster.name"
+                :subtitle="monsterSubtitle(monster)"
+                :image-url="monster.image_url"
+                :focal-point="monster.portrait_focal_point"
+                :placeholder="placeholderUrl('monster')"
+                :badge-text="crLabel(monster.challenge_rating)"
+                :badge-class="crBg(monster.challenge_rating)"
+                :location="monster.habitat || undefined"
+                :shared="isDiscovered(monster)"
+                @pointerenter="prefetchDetail(monster.id)"
+                @focusin="prefetchDetail(monster.id)"
+              />
+            </BulkSelectableCard>
+          </template>
+      </EntityMobileGrid>
+    </template>
+
+    <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
+    <VirtualGrid
+      v-else
+      :items="rows"
+      :item-key="monsterKey"
+      :columns="desktopColumns"
+      :estimate-row-height="GRID_ROW_PX"
+    >
+      <template #default="{ item: monster }">
         <BulkSelectableCard
-          v-for="monster in rows"
-          :key="monster.id"
-          corner="bottom-right"
+          corner="top-right"
           :selected="bulk.isSelected(monster.id)"
           :selecting="bulk.selecting.value && !monster.is_shared"
           @toggle="bulk.toggle(monster.id)"
         >
-          <EntityMobileCard
-            :layout="layout"
-            :to="`/monsters/${monster.id}`"
-            :title="monster.name"
-            :subtitle="monsterSubtitle(monster)"
-            :image-url="monster.image_url"
-            :focal-point="monster.portrait_focal_point"
-            :placeholder="placeholderUrl('monster')"
-            :badge-text="crLabel(monster.challenge_rating)"
-            :badge-class="crBg(monster.challenge_rating)"
-            :location="monster.habitat || undefined"
-            :shared="isDiscovered(monster)"
+          <MonsterGridCard
+            :monster="monster"
+            :locked="lockedMonsterIds.has(monster.id)"
             @pointerenter="prefetchDetail(monster.id)"
             @focusin="prefetchDetail(monster.id)"
           />
         </BulkSelectableCard>
-      </div>
-    </template>
-
-    <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
-    <div
-      v-else
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
-    >
-      <BulkSelectableCard
-        v-for="monster in rows"
-        :key="monster.id"
-        corner="top-right"
-        :selected="bulk.isSelected(monster.id)"
-        :selecting="bulk.selecting.value && !monster.is_shared"
-        @toggle="bulk.toggle(monster.id)"
-      >
-        <MonsterGridCard
-          :monster="monster"
-          :locked="lockedMonsterIds.has(monster.id)"
-          @pointerenter="prefetchDetail(monster.id)"
-          @focusin="prefetchDetail(monster.id)"
-        />
-      </BulkSelectableCard>
-    </div>
+      </template>
+    </VirtualGrid>
 
     <div ref="sentinelRef" />
 
@@ -130,6 +135,9 @@ import { ref, computed, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import EntityMobileGrid from "@/components/common/EntityMobileGrid.vue";
 import { IconNavBestiary } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { useUiStore } from "@/stores/ui";
@@ -140,7 +148,7 @@ import { useCampaignDiscoveries } from "@/composables/encounters/useDiscoveredMo
 import MonsterGridCard from "@/components/monsters/MonsterGridCard.vue";
 import { crBg, crLabel } from "@/lib/monsterDisplay";
 import type { MonsterBrowseRow } from "@/types/monster.types";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
 import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
@@ -170,6 +178,17 @@ const search = computed(() => ui.monstersSearch);
 const typeFilter = computed(() => ui.monstersFilterType);
 const sourceFilter = computed(() => ui.monstersFilterSource);
 const isMobile = useIsMobile();
+
+// Desktop row height before a row is measured (px); the phone layouts' live in
+// EntityMobileGrid. It matters less than those: on desktop the sheet opens
+// over a list that stays mounted, so nothing has to be restored.
+const GRID_ROW_PX = 262;
+
+// Mirrors the grid classes this list used to carry:
+// `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`.
+const desktopColumns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const monsterKey = (monster: MonsterBrowseRow) => monster.id;
+
 const layout = computed({
   get: () => ui.entityListLayout,
   set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },

@@ -67,7 +67,14 @@
         </p>
       </div>
 
-      <div v-else class="grid gap-3">
+      <VirtualGrid
+        v-else
+        :items="disciplineRecipes"
+        :item-key="recipeKey"
+        :columns="1"
+        :estimate-row-height="activeDiscipline ? ROW_PX : ROW_WITH_TAGS_PX"
+      >
+        <template #default="{ item: recipe }">
         <!--
           Recipe card restructured so it can't grow wider than its
           container. Previously the name + tag pills sat in a single flex
@@ -80,8 +87,6 @@
           with all three tags still fits on one row below the name.
         -->
         <div
-          v-for="recipe in visibleRecipes"
-          :key="recipe.id"
           class="rounded-lg border border-border bg-card px-4 py-3 flex items-start gap-3 hover:border-border/80 transition-colors"
         >
           <!-- Left: name + tags + meta -->
@@ -149,9 +154,8 @@
             />
           </div>
         </div>
-      </div>
-
-      <div ref="sentinelRef" />
+        </template>
+      </VirtualGrid>
     </div>
   </ListPageLayout>
 </template>
@@ -170,8 +174,8 @@ import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines"
 import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe, useRevealAllRecipes } from "@/composables/crafting/useCrafting";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
@@ -241,13 +245,21 @@ const disciplineRecipes = computed(() =>
     : (recipes.value ?? []).filter((r) => r.discipline === ui.workshopActiveTab),
 );
 
-// Same unbounded render as the player Workshop (see PlayerCraftingView) over
-// the same recipe list. These rows are lighter than the player's cards, so the
-// standard 48 is enough. Scroll restore is wired here and not there because
-// this list navigates out to `/crafting/:id` and back.
-const { savedCount, linkCount } = useScrollRestore("crafting-recipes");
-const { visibleItems: visibleRecipes, sentinelRef, visibleCount } = useInfiniteScroll(disciplineRecipes, 48, savedCount);
-linkCount(visibleCount);
+// The whole recipe list is in hand, so only the scroll position needs
+// restoring; VirtualGrid windows what is mounted. Scroll restore is wired here
+// and not on the player Workshop because this list navigates out to
+// `/crafting/:id` and back.
+useScrollRestore("crafting-recipes");
+
+const recipeKey = (recipe: CraftingRecipe) => recipe.id;
+
+// Row heights before a row is measured (px), in the default Vellum theme: a
+// recipe row is 2 border + 24 padding (py-3) + name 20 + the DC line 21
+// (mt-1 + 17) = 67. On the "All" tab every row also carries a discipline chip
+// (mt-1 + 16), which makes 87; on a discipline tab only recipes needing
+// proficiency or tools do, so the shorter figure is the common case there.
+const ROW_PX = 67;
+const ROW_WITH_TAGS_PX = 87;
 
 async function remove(recipe: CraftingRecipe) {
   const ok = await confirm(`Delete "${recipe.name}"? This cannot be undone.`, { title: "Delete Recipe" });

@@ -16,7 +16,20 @@
         onto your board; you don't have to reproduce any of this yourself.
       </p>
 
-      <LoadingSpinner v-if="isPending" />
+      <!-- Loading: credit rows (attribution line, then collection line). -->
+      <div v-if="isPending" role="status">
+        <span class="sr-only">Loading…</span>
+        <ul class="space-y-1.5">
+          <li
+            v-for="n in 6"
+            :key="n"
+            class="flex flex-col gap-1.5 rounded-md border border-border bg-card/30 px-3 py-2 pl-4"
+          >
+            <SkeletonBlock class="h-4 w-3/4" />
+            <SkeletonBlock class="h-3 w-1/2" />
+          </li>
+        </ul>
+      </div>
 
       <p v-else-if="isError" class="text-body text-destructive">
         Could not load the credits. {{ errorMessage }}
@@ -84,7 +97,7 @@ import { RouterLink } from "vue-router";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
 import type { SoundLibraryEntry } from "@/types/sound.types";
 
 /**

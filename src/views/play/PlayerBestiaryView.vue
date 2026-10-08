@@ -14,9 +14,7 @@
 
     <!-- ── BESTIARY TAB ──────────────────────────────────────────── -->
     <template v-if="activeTab === 'bestiary'">
-      <div v-if="isLoadingDiscoveries" class="flex justify-center py-16">
-        <LoadingSpinner />
-      </div>
+      <ListSkeleton v-if="isLoadingDiscoveries" variant="grid" :count="8" />
 
       <div v-else-if="!resolved.length" class="text-center py-16 space-y-2">
         <p class="text-heading text-muted-foreground">No creatures discovered yet</p>
@@ -45,10 +43,14 @@
           />
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <VirtualGrid
+          :items="filtered"
+          :item-key="discoveryKey"
+          :columns="discoveryColumns"
+          :estimate-row-height="DISCOVERY_ROW_PX"
+        >
+          <template #default="{ item: entry }">
           <div
-            v-for="entry in filtered"
-            :key="entry.discovery.id"
             class="group relative rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
             @click="openLightbox(entry.monster, entry.discovery)"
           >
@@ -64,7 +66,8 @@
               :reveal-stats="entry.discovery.reveal_stats"
             />
           </div>
-        </div>
+          </template>
+        </VirtualGrid>
       </template>
     </template>
 
@@ -303,6 +306,9 @@
 </template>
 
 <script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed, useId } from "vue";
 import { refDebounced } from "@vueuse/core";
@@ -334,7 +340,6 @@ import AppModal from "@/components/common/AppModal.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import MonsterFormCard from "@/components/monsters/MonsterFormCard.vue";
@@ -434,6 +439,16 @@ const resolved = computed<BestiaryEntry[]>(() =>
     return { discovery: d, monster };
   }),
 );
+
+// The party's bestiary grows with every encounter, so the discoveries grid is
+// windowed (the Wild Shape picks below are a handful and stay plain grids).
+// Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` it replaced.
+const discoveryColumns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const discoveryKey = (entry: BestiaryEntry) => entry.discovery.id;
+// Row height before it is measured (px): 2 border + 4 CR rule (h-1) + 96
+// portrait (h-24, taller than the p-3 text column beside it) = 102. A name that
+// wraps makes a card taller; rows are re-measured as they mount.
+const DISCOVERY_ROW_PX = 102;
 
 const search = refDebounced(computed(() => ui.playerBestiarySearch), 300);
 const filtered = computed(() => {

@@ -34,8 +34,8 @@
         />
         <AppButton
           :icon="IconParty"
-          :label="`Shared with party (${filterCounts.party})`"
-          :mobile-label="`Party ${filterCounts.party}`"
+          :label="filterCounts ? `Shared with party (${filterCounts.party})` : 'Shared with party'"
+          :mobile-label="filterCounts ? `Party ${filterCounts.party}` : 'Party'"
           variant="subtle"
           size="md"
           :active="ui.questsPartyFilter"
@@ -52,8 +52,8 @@
         <AppButton
           v-if="boardSummaries !== undefined"
           :icon="IconWarning"
-          :label="`Prep gaps (${filterCounts.prepGaps})`"
-          :mobile-label="`Gaps ${filterCounts.prepGaps}`"
+          :label="filterCounts ? `Prep gaps (${filterCounts.prepGaps})` : 'Prep gaps'"
+          :mobile-label="filterCounts ? `Gaps ${filterCounts.prepGaps}` : 'Gaps'"
           variant="subtle"
           size="md"
           :active="ui.questsPrepGapsFilter"
@@ -63,8 +63,8 @@
         <AppButton
           v-if="boardSummaries !== undefined"
           :icon="IconLoot"
-          :label="`Loot pending (${filterCounts.pendingLoot})`"
-          :mobile-label="`Loot ${filterCounts.pendingLoot}`"
+          :label="filterCounts ? `Loot pending (${filterCounts.pendingLoot})` : 'Loot pending'"
+          :mobile-label="filterCounts ? `Loot ${filterCounts.pendingLoot}` : 'Loot'"
           variant="subtle"
           size="md"
           :active="ui.questsLootFilter"
@@ -121,8 +121,11 @@ const { data: entityOptions } = useQuestFilterEntities();
 const { data: allQuests } = useQuests();
 const { data: campaignRefs } = useCampaignQuestRefs();
 const { data: boardSummaries } = useQuestBoardSummaries();
-const filterCounts = computed(() => countQuestBoardFilters(
-  allQuests.value ?? [],
+// Null until the quests arrive: counting an unanswered query as an empty one
+// would put "(0)" on every chip, and "0 active" in the header, while a full
+// campaign is still loading.
+const filterCounts = computed(() => allQuests.value && countQuestBoardFilters(
+  allQuests.value,
   {
     search: ui.questsSearch,
     partyOnly: ui.questsPartyFilter,
@@ -147,7 +150,8 @@ const { showPaywall, handleNew } = useCreateGate("quests", "/quests/new");
  * rather than invented.
  */
 const headerLine = computed(() => {
-  const quests = allQuests.value ?? [];
+  const quests = allQuests.value;
+  if (!quests) return undefined;
   const summaries = boardSummaries.value;
   const activeCount = quests.filter((quest) => quest.status === "active").length;
   let threadsLive = 0;

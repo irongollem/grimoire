@@ -15,9 +15,11 @@
       @copy="openCopyDialog"
     />
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton
+      v-if="isLoading"
+      :variant="isMobile ? layout : 'grid'"
+      :count="isMobile ? 7 : 12"
+    />
 
     <EmptyState
       v-else-if="
@@ -52,16 +54,11 @@
         :total="npcs?.length ?? 0"
         plural="NPCs"
       />
-      <div
-        :class="
-          layout === 'gallery'
-            ? 'grid grid-cols-2 gap-3 pb-2'
-            : 'flex flex-col gap-2 pb-2'
-        "
-      >
+      <!-- Windowed: only the rows near the viewport are mounted, so a long NPC
+           list never holds every portrait decoded at once. -->
+      <EntityMobileGrid :items="filtered" :item-key="npcKey" :layout="layout">
+          <template #default="{ item: npc }">
         <BulkSelectableCard
-          v-for="npc in visibleItems"
-          :key="npc.id"
           corner="bottom-right"
           :selected="bulk.isSelected(npc.id)"
           :selecting="bulk.selecting.value"
@@ -85,17 +82,20 @@
             v-prefetch="`/npcs/${npc.id}`"
           />
         </BulkSelectableCard>
-      </div>
+          </template>
+      </EntityMobileGrid>
     </template>
 
     <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
-    <div
+    <VirtualGrid
       v-else
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+      :items="filtered"
+      :item-key="npcKey"
+      :columns="desktopColumns"
+      :estimate-row-height="GRID_ROW_PX"
     >
+      <template #default="{ item: npc }">
       <BulkSelectableCard
-        v-for="npc in visibleItems"
-        :key="npc.id"
         corner="bottom-right"
         :selected="bulk.isSelected(npc.id)"
         :selecting="bulk.selecting.value"
@@ -110,9 +110,8 @@
           v-prefetch="`/npcs/${npc.id}`"
         />
       </BulkSelectableCard>
-    </div>
-
-    <div ref="sentinelRef" />
+      </template>
+    </VirtualGrid>
 
     <p
       v-if="filtered.length && !isMobile"
@@ -139,8 +138,10 @@
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import EntityMobileGrid from "@/components/common/EntityMobileGrid.vue";
 import { IconNavNpcs } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -148,7 +149,7 @@ import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 import { useNpcPcNotesByPartyMember } from "@/composables/npcs/useNpcPcNotes";
 import { useAllLocations, useLocationTree } from "@/composables/locations/useLocations";
 import { useUiStore } from "@/stores/ui";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
 import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
@@ -276,14 +277,20 @@ const filtered = computed(() => {
   return list;
 });
 
-const { savedCount, linkCount } = useScrollRestore("npcs");
-// `sentinelRef` must stay destructured: the template binds `ref="sentinelRef"`,
-// which is a plain string attribute and therefore never typechecked. Dropping it
-// leaves the ref permanently null, so useInfiniteScroll never attaches its
-// observer and the grid silently stops at the first 48 — with lint, typecheck
-// and build all green.
-const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
-linkCount(visibleCount);
+// The whole filtered list is in hand, so only the scroll position needs
+// restoring; VirtualGrid windows what is mounted.
+useScrollRestore("npcs");
+
+// Desktop row height before a row is measured (px); the phone layouts' live in
+// EntityMobileGrid. NpcGridCard, derived in the default Vellum theme: 2 border +
+// 144 artwork + 24 body padding (p-3) + 82 body (name 17, race/occupation 17,
+// location 17, tag row 19 incl. pt-1, three gap-1 gaps) = 252.
+const GRID_ROW_PX = 252;
+
+// Mirrors the grid classes this list used to carry:
+// `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`.
+const desktopColumns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const npcKey = (npc: NpcListRow) => npc.id;
 
 const lockedNpcIds = computed((): Set<string> => {
   const q = npcQuota.value;
@@ -342,7 +349,7 @@ watch(selectableIds, (ids) => bulk.pruneTo(ids));
 
 function selectAllShown() {
   // "Shown" means every row passing the current filters, not just the
-  // windowed/painted subset — taken from `filtered`, not `visibleItems`.
+  // mounted/painted subset — taken from `filtered`.
   bulk.selectAll(selectableIds.value);
 }
 

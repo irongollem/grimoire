@@ -24,9 +24,7 @@
       </ListFilterSelect>
     </ListFilterBar>
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" variant="text" />
 
     <EmptyState
       v-else-if="!filtered.length && !ui.scriptoriumHasActiveFilters"
@@ -48,13 +46,15 @@
       No documents match your filters.
     </p>
 
-    <div
+    <VirtualGrid
       v-else
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+      :items="filtered"
+      :item-key="docKey"
+      :columns="columns"
+      :estimate-row-height="DOC_ROW_PX"
     >
+      <template #default="{ item: doc }">
       <div
-        v-for="doc in filtered"
-        :key="doc.id"
         class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
         <!-- Card link overlay (disabled for locked items) -->
@@ -160,7 +160,8 @@
           <IconDelete class="h-3 w-3" />
         </button>
       </div>
-    </div>
+      </template>
+    </VirtualGrid>
 
     <p
       v-if="filtered.length"
@@ -188,8 +189,10 @@ import {
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
@@ -201,6 +204,17 @@ import { DOC_TYPES, DOC_TYPE_OPTIONS } from "@/lib/scriptorium/editorConstants";
 import { documentScopeOf, isDocumentUsableIn } from "@/lib/scriptorium/documentScope";
 
 const router = useRouter();
+
+// Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` this grid used to carry.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const docKey = (doc: ScriptoriumDocumentSummary) => doc.id;
+
+// Row height before a row is measured (px), for a card with a two-line title and
+// tags but no status badges, in the Vellum default: 1px border x2 + 4 type bar +
+// p-4 (32) + header (35, two lines of leading-tight 14px) + tags row (15) +
+// footer (4 pt-1 + 17.3 caption) + two gap-2 (16) = 125. Published or shared
+// cards add 20 (12px badge row + gap), so those rows are under-estimated.
+const DOC_ROW_PX = 125;
 const { canCreate, quota: docQuota } = useQuota("scriptorium_documents");
 const showPaywall = ref(false);
 // Writing needs a larger screen (#915 story 7) — the phone list is a reader.

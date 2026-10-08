@@ -188,7 +188,30 @@
     <PaywallModal v-model="showSoundPaywall" resource="sounds" />
 
     <!-- Loading -->
-    <LoadingSpinner v-if="isPending" />
+    <!-- Loading: the board's own grid (so the columns are already where the
+         pads will be), with an Arrange-shaped card (title row, transport) or a
+         bare Perform pad to match the mode. -->
+    <div v-if="isPending" role="status" class="grid gap-3" :class="gridClass">
+      <span class="sr-only">Loading…</span>
+      <template v-if="ui.soundboardBoardMode === 'arrange'">
+        <div
+          v-for="n in 8"
+          :key="n"
+          class="flex flex-col gap-3 rounded-md border border-border bg-card p-3"
+        >
+          <SkeletonBlock class="h-4 w-3/5" />
+          <SkeletonBlock class="h-8 w-full rounded-md" />
+        </div>
+      </template>
+      <template v-else>
+        <SkeletonBlock
+          v-for="n in 12"
+          :key="n"
+          class="rounded-md"
+          :class="PAD_SKELETON_HEIGHT[ui.soundboardPadSize]"
+        />
+      </template>
+    </div>
 
     <!-- Empty state. The starter scenes lead rather than the Add button: a DM
          on day one has nothing to add yet, and "build your own library" is the
@@ -327,13 +350,13 @@ import { useQuota } from "@/composables/billing/useQuota";
 import { useSoundboardHotkeys } from "@/composables/soundboard/useSoundboardHotkeys";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
-import type { Sound } from "@/types/sound.types";
+import type { PadSize, Sound } from "@/types/sound.types";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import SoundCard from "@/components/soundboard/SoundCard.vue";
@@ -345,6 +368,10 @@ import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetTogg
 import BrandIcon from "@/components/brand/BrandIcon.vue";
 import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
 import PlaylistsPanel from "@/components/soundboard/PlaylistsPanel.vue";
+
+// The heights `SoundPad` gives each size (its HEIGHT_CLASS), so a loading Perform
+// board already stands as tall as the pads that replace it.
+const PAD_SKELETON_HEIGHT: Record<PadSize, string> = { sm: "h-14", md: "h-25", lg: "h-30" };
 
 const VIEW_MODES = [
   { id: "sounds", label: "Sounds", icon: IconList },

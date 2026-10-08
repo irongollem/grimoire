@@ -15,6 +15,7 @@ import { track } from "./lib/analytics";
 import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
 import { useAuthStore } from "./stores/auth";
 import { installStaleChunkRecovery, chunksArrived } from "./lib/staleChunkRecovery";
+import { installNavigationPending } from "./router/navigationPending";
 import { queryRetryDelay, shouldRetryQuery } from "./lib/queryRetry";
 import { initErrorTracking, loadErrorTrackingAfterPaint, reportHandledError } from "./lib/observability/sentry";
 import { installNavigationReload, installSwAutoUpdate } from "./lib/swAutoUpdate";
@@ -103,6 +104,11 @@ setupRouterGuard(router, queryClient);
 // 404s and the navigation dies. Recover with a one-shot hard reload onto the
 // fresh build instead of showing a dead "failed to load" view.
 installStaleChunkRecovery(router);
+
+// Registered last on purpose: it arms the skeleton only for a navigation every
+// earlier guard (unsaved-changes prompts, auth, lens redirects) has already let
+// through, so it never covers a page the user is being kept on.
+installNavigationPending(router);
 
 const app = createApp(App);
 

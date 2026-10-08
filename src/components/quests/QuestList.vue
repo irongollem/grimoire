@@ -1,8 +1,24 @@
 <template>
   <div>
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
+    <!-- The board is known before the data arrives, so the placeholder
+         follows the active mode: columns of cards, or the card grid. -->
+    <div v-if="isLoading && isKanban" role="status" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <span class="sr-only">Loading…</span>
+      <div v-for="col in 3" :key="col" class="flex flex-col gap-2">
+        <SkeletonBlock class="h-5 w-1/3" />
+        <div class="flex min-h-40 flex-col gap-2 rounded-lg border border-border bg-muted/20 p-2">
+          <div
+            v-for="card in 3"
+            :key="card"
+            class="flex flex-col gap-2 rounded-lg border border-border bg-card p-3"
+          >
+            <SkeletonBlock class="h-4 w-3/4" />
+            <SkeletonBlock class="h-3 w-1/2" />
+          </div>
+        </div>
+      </div>
     </div>
+    <ListSkeleton v-else-if="isLoading" variant="text" />
 
     <EmptyState
       v-else-if="!allQuests?.length"
@@ -37,10 +53,15 @@
         No quests match the active filters.
       </p>
 
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <VirtualGrid
+        v-else
+        :items="filtered"
+        :item-key="questKey"
+        :columns="columns"
+        :estimate-row-height="QUEST_ROW_PX"
+      >
+        <template #default="{ item: quest }">
         <RouterLink
-          v-for="quest in filtered"
-          :key="quest.id"
           :to="`/quests/${quest.id}`"
           class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
         >
@@ -88,7 +109,8 @@
             </div>
           </div>
         </RouterLink>
-      </div>
+        </template>
+      </VirtualGrid>
 
       <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
         {{ filtered.length }} of {{ allQuests?.length ?? 0 }} quests
@@ -108,19 +130,34 @@ import {
 import { useParty } from "@/composables/party/useParty";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { useUiStore } from "@/stores/ui";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestKanbanBoard from "@/components/quests/QuestKanbanBoard.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { timeAgo } from "@/lib/utils";
 import { filterQuestBoard } from "@/lib/quests/board";
 import {
   QUEST_STATUS_LABELS,
   QUEST_STATUS_COLORS,
+  type Quest,
   type QuestStatus,
 } from "@/types/quest.types";
 
 const ui = useUiStore();
+
+// Mirrors `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`. Only the
+// list mode is windowed; the Kanban board renders its grouped columns whole.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const questKey = (quest: Quest) => quest.id;
+
+// Row height before a row is measured (px): 123-145px across 17 quests, 141 the median, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const QUEST_ROW_PX = 142;
 const search = computed(() => ui.questsSearch);
 const isKanban = computed(() => ui.questsIsKanban);
 

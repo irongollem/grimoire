@@ -141,6 +141,15 @@ describe("buildImportSql", () => {
     );
   });
 
+  it("imports an ordinary campaign without marking it as the offered template", () => {
+    const plain = buildImportSql({ ...campaign, demo_template: false, demo_version: null }, campaignColumns, tables, references, "t", {
+      template: false,
+    });
+    expect(plain).not.toContain("demo_template = true");
+    expect(plain).not.toContain("demo_offered");
+    expect(plain.trimEnd().endsWith("commit;")).toBe(true);
+  });
+
   it("refuses a tag that occurs in the data, and names that are not plain identifiers", () => {
     expect(() => buildImportSql({ ...campaign, name: "$t$" }, campaignColumns, [], [], "t")).toThrow(/tag/);
     expect(() =>

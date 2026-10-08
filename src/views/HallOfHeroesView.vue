@@ -34,9 +34,7 @@
     </template>
 
     <div ref="listRef">
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" variant="grid" :count="12" />
 
     <EmptyState
       v-else-if="!filtered.length && !search && settingFilter === 'all'"
@@ -58,12 +56,18 @@
       No heroes match your filters.
     </p>
 
-    <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <VirtualGrid
+      v-else
+      :items="filtered"
+      :item-key="heroKey"
+      :columns="columns"
+      :gap="1"
+      :estimate-row-height="HERO_ROW_PX"
+    >
       <!-- Same card shell as NPCs and monsters (EntityGridCard), so heroes get
            the same artwork plate, corner chips and, in Vellum, the poster. -->
+      <template #default="{ item: hero }">
       <EntityGridCard
-        v-for="hero in filtered"
-        :key="hero.id"
         :to="`/hall-of-heroes/${hero.id}`"
         :title="hero.name"
         :image-url="hero.portrait_url"
@@ -129,7 +133,8 @@
           />
         </template>
       </EntityGridCard>
-    </div>
+      </template>
+    </VirtualGrid>
     </div><!-- /listRef -->
 
     <template v-if="filtered.length" #footer>
@@ -157,9 +162,11 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import EntityGridCard from "@/components/common/EntityGridCard.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { HallOfHero } from "@/types/npc.types";
@@ -175,6 +182,16 @@ function settingLabel(val: string) {
 }
 
 const router = useRouter();
+
+// Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` (gap-4) this grid used to carry.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const heroKey = (hero: HallOfHero) => hero.id;
+
+// Row height before a row is measured (px): 273-295px across 162 heroes, 295 the median, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const HERO_ROW_PX = 295;
 const listRef = ref<HTMLElement | null>(null);
 useScrollRestore("hall-of-heroes", listRef);
 

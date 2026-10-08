@@ -14,9 +14,7 @@
     </PageHeader>
 
     <!-- Loading -->
-    <div v-if="isPending" class="flex justify-center py-12">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isPending" variant="rows" :count="3" />
 
     <!-- Empty -->
     <div v-else-if="!characters?.length && !offeredCharacters?.length" class="rounded-lg border border-border bg-card p-8 text-center space-y-3">
@@ -195,6 +193,7 @@
 </template>
 
 <script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import { ref, computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
@@ -214,7 +213,6 @@ import AppButton from '@/components/common/AppButton.vue';
 import OverflowMenu, { type OverflowMenuEntry } from '@/components/common/OverflowMenu.vue';
 import { useToast } from '@/composables/useToast';
 import FocalImage from '@/components/common/FocalImage.vue';
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import type { PartyMember } from '@/types/party.types';
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { activeMembers } from "@/composables/party/useActiveParty";

@@ -33,9 +33,7 @@
   </div>
 
   <!-- Loading -->
-  <div v-if="isLoading" class="flex justify-center py-12">
-    <LoadingSpinner />
-  </div>
+  <ListSkeleton v-if="isLoading" variant="stack" />
 
   <!-- Empty state -->
   <div v-else-if="visibleEntries.length === 0" class="text-center py-16 space-y-3">
@@ -44,10 +42,16 @@
   </div>
 
   <!-- Entry feed -->
-  <div v-else class="flex flex-col gap-2">
+  <VirtualGrid
+    v-else
+    :items="visibleEntries"
+    :item-key="entryKey"
+    :columns="1"
+    :estimate-row-height="ENTRY_ROW_PX"
+    :gap="0.5"
+  >
+    <template #default="{ item: entry }">
     <JournalCard
-      v-for="entry in visibleEntries"
-      :key="entry.id"
       :color="JOURNAL_CATEGORIES[entry.category]?.color ?? '#6b7280'"
       :icon="categoryIcon(entry.category)"
       :category-label="JOURNAL_CATEGORIES[entry.category]?.label ?? ''"
@@ -72,14 +76,16 @@
         </div>
       </div>
     </JournalCard>
-  </div>
+    </template>
+  </VirtualGrid>
 </template>
 
 <script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import { IconPopulate } from '@/lib/icons';
 import AppButton from '@/components/common/AppButton.vue';
 import JournalCard from '@/components/player/JournalCard.vue';
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import RichTextViewer from '@/components/common/RichTextViewer.vue';
 import { JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST } from '@/composables/notes/usePlayerJournal';
 import type { JournalCategory, PlayerJournalEntry } from '@/composables/notes/usePlayerJournal';
@@ -104,6 +110,13 @@ const {
   formatDate: (iso: string) => string;
   authorName: (entry: PlayerJournalEntry) => string | null;
 }>();
+
+// Row height before a row is measured (px): 84px, the same journal card as the My tab, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const ENTRY_ROW_PX = 84;
+const entryKey = (entry: PlayerJournalEntry) => entry.id;
 
 defineEmits<{
   (e: 'update:filterCategory', value: JournalCategory | null): void;

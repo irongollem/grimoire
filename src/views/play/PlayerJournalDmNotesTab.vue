@@ -1,16 +1,20 @@
 <template>
-  <div v-if="isLoading" class="flex justify-center py-12">
-    <LoadingSpinner />
-  </div>
+  <ListSkeleton v-if="isLoading" variant="stack" />
   <div v-else-if="!dmNotes.length" class="text-center py-12">
     <IconPopulate class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
     <p class="font-fell text-muted-foreground italic">No notes shared by your DM yet.</p>
   </div>
-  <div v-else class="flex flex-col gap-2">
+  <VirtualGrid
+    v-else
+    :items="dmNotes"
+    :item-key="noteKey"
+    :columns="1"
+    :estimate-row-height="NOTE_ROW_PX"
+    :gap="0.5"
+  >
+    <template #default="{ item: note }">
     <JournalCard
-      v-for="note in dmNotes"
       :id="`dm-note-${note.id}`"
-      :key="note.id"
       :color="NOTE_CATEGORIES[note.category]?.color ?? '#6b7280'"
       :icon="NOTE_CATEGORIES[note.category]?.icon ?? IconPopulate"
       :category-label="NOTE_CATEGORIES[note.category]?.label ?? ''"
@@ -37,14 +41,16 @@
         </div>
       </div>
     </JournalCard>
-  </div>
+    </template>
+  </VirtualGrid>
 </template>
 
 <script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import { IconPin, IconPopulate } from '@/lib/icons';
 import JournalCard from '@/components/player/JournalCard.vue';
 import EntityNewDot from '@/components/common/EntityNewDot.vue';
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import RichTextViewer from '@/components/common/RichTextViewer.vue';
 import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue';
 import type { NoteCategory } from '@/types/notes.types';
@@ -66,6 +72,13 @@ defineProps<{
 defineEmits<{
   (e: 'toggleNote', id: string): void;
 }>();
+
+// The DM shares notes every session, so the list is windowed. An expanded note
+// grows its row and is re-measured. Collapsed row height before measurement
+// (px): 2 border + 2 category rule (h-0.5) + 24 padding (py-3) + 20 title
+// (text-heading-xs) + 6 (mt-1.5) + 16 meta line (text-caption "by DM") = 70.
+const NOTE_ROW_PX = 70;
+const noteKey = (note: Note) => note.id;
 
 const { data: sessions } = usePlayerSessions();
 

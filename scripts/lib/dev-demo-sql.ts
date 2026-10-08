@@ -60,18 +60,18 @@ export function collectSlugs(rows: unknown[]): string[] {
   return [...found].sort();
 }
 
-function ident(name: string): string {
+export function ident(name: string): string {
   if (!IDENT.test(name)) throw new Error(`Not a plain identifier: ${name}`);
   return name;
 }
 
-function uuid(value: string): string {
+export function uuid(value: string): string {
   if (!UUID.test(value)) throw new Error(`Not a uuid: ${value}`);
   return value;
 }
 
 /** A dollar-quoted literal. The tag is checked against the payload, so no row can close it early. */
-function dollar(text: string, tag: string): string {
+export function dollar(text: string, tag: string): string {
   const quote = `$${tag}$`;
   if (text.includes(quote)) throw new Error("The dollar-quote tag occurs in the data; pick another.");
   return `${quote}${text}${quote}`;
@@ -87,7 +87,7 @@ function dollar(text: string, tag: string): string {
  * lets a local default apply, lets a BEFORE INSERT trigger fill a column that
  * has none, and drops a column production has that this checkout does not.
  */
-function sharedColumns(table: string, localColumns: string[], rows: Record<string, unknown>[]): string[] {
+export function sharedColumns(table: string, localColumns: string[], rows: Record<string, unknown>[]): string[] {
   const carried = new Set(Object.keys(rows[0] ?? {}));
   const columns = localColumns.filter((c) => carried.has(c)).map(ident);
   if (columns.length === 0) throw new Error(`${table}: the pulled rows share no column with the local table.`);
@@ -99,8 +99,17 @@ function sharedColumns(table: string, localColumns: string[], rows: Record<strin
  * two temp tables `buildImportSql` fills. Rows go in a table at a time until
  * everything lands; a table that references itself falls back to a row at a
  * time; the deferred columns are restored once every row exists.
+ *
+ * `lenient` is for a real campaign (dev:campaigns). Production keeps rows that
+ * today's validation triggers would refuse, because a rule added later never
+ * re-checks what already exists (a spell no longer on its class list, a loot
+ * item from a source the campaign has since disabled). So every table falls
+ * back to a row at a time, rows that still cannot land are skipped and named
+ * in a `dev-skip` notice instead of failing the import, and so is a deferred
+ * column whose target was skipped. The demo template stays strict: it is
+ * authored to be clean, and a row it cannot import is a bug worth stopping on.
  */
-const PASSES = `
+const passes = (lenient: boolean) => `
 declare
   v_progress boolean;
   r record;
@@ -129,7 +138,7 @@ begin
         v_progress := true;
       exception when others then
         update demo_pull_rows set err = sqlerrm where tbl = r.tbl and not done;
-        if r.self_ref then
+        if r.self_ref or ${lenient} then
           for m in select seq, data from demo_pull_rows where tbl = r.tbl and not done order by seq loop
             begin
               execute format(
@@ -149,18 +158,29 @@ begin
     exit when not exists (select 1 from demo_pull_rows where not done);
 
     if not v_progress then
+      if ${lenient} then
+        for m in select tbl, err, count(*) as n from demo_pull_rows where not done group by tbl, err order by tbl loop
+          raise notice 'dev-skip|%|%|%', m.tbl, m.n, m.err;
+        end loop;
+        exit;
+      end if;
       raise exception 'The demo template could not be imported: %',
         (select string_agg(distinct tbl || ': ' || err, '; ') from demo_pull_rows where not done);
     end if;
   end loop;
 
-  for r in select tbl, (data ->> 'id')::uuid as id, deferred from demo_pull_rows where deferred <> '{}'::jsonb loop
-    execute format(
-      'update public.%I t set %s from jsonb_populate_record(null::public.%I, $1) src where t.id = $2',
-      r.tbl,
-      (select string_agg(format('%I = src.%I', k, k), ', ') from jsonb_object_keys(r.deferred) k),
-      r.tbl
-    ) using r.deferred, r.id;
+  for r in select tbl, (data ->> 'id')::uuid as id, deferred from demo_pull_rows where deferred <> '{}'::jsonb and done loop
+    begin
+      execute format(
+        'update public.%I t set %s from jsonb_populate_record(null::public.%I, $1) src where t.id = $2',
+        r.tbl,
+        (select string_agg(format('%I = src.%I', k, k), ', ') from jsonb_object_keys(r.deferred) k),
+        r.tbl
+      ) using r.deferred, r.id;
+    exception when others then
+      if not ${lenient} then raise; end if;
+      raise notice 'dev-skip|%|1|deferred column left empty: %', r.tbl, sqlerrm;
+    end;
   end loop;
 end
 `;
@@ -192,6 +212,14 @@ export function buildImportSql(
   tables: PulledTable[],
   references: ReferenceTable[],
   tag: string,
+  /**
+   * `template: false` imports an ordinary campaign (dev:campaigns): the
+   * demo-template flags at the end are left as the row carries them, because a
+   * real campaign marked as the offered template would be handed to every new
+   * account on this stack. `lenient` skips rows today's triggers refuse rather
+   * than failing (see `passes`).
+   */
+  options: { template: boolean; lenient?: boolean } = { template: true },
 ): string {
   const id = uuid(String(campaign.id));
   const author = uuid(String(campaign.user_id));
@@ -275,7 +303,7 @@ export function buildImportSql(
     `insert into public.campaigns (${campaignCols.join(", ")}) select ${campaignCols.map((c) => `x.${c}`).join(", ")} ` +
       `from jsonb_populate_record(null::public.campaigns, ${json({ ...campaign, current_location_id: null })}) x;`,
     `delete from public.campaign_enabled_sources where campaign_id = '${id}';`,
-    `do ${dollar(PASSES, `${tag}_do`)};`,
+    `do ${dollar(passes(options.lenient === true), `${tag}_do`)};`,
   );
 
   // Restore the campaign's own deferred column, and state the template flags
@@ -286,10 +314,12 @@ export function buildImportSql(
   if (typeof location === "string") {
     lines.push(`update public.campaigns set current_location_id = '${uuid(location)}' where id = '${id}';`);
   }
-  lines.push(
-    `update public.campaigns set demo_template = true, demo_version = ${dollar(String(campaign.demo_version), tag)}, ` +
-      `demo_offered = true where id = '${id}';`,
-    "commit;",
-  );
+  if (options.template) {
+    lines.push(
+      `update public.campaigns set demo_template = true, demo_version = ${dollar(String(campaign.demo_version), tag)}, ` +
+        `demo_offered = true where id = '${id}';`,
+    );
+  }
+  lines.push("commit;");
   return lines.join("\n") + "\n";
 }

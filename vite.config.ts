@@ -765,7 +765,13 @@ export default defineConfig(({ mode }) => {
               // the runtime ships as @vue/*, so listed after tiptap (and without
               // that alternative) it was absorbed into the editor chunk, forcing
               // every chunk that needs Vue to import all 574 kB of tiptap.
-              { name: "vue-core", test: /node_modules[\\/](@vue[\\/]|vue|pinia|@tanstack)/ },
+              // `@tanstack` minus the list virtualizer, which goes in `virtual` below.
+              { name: "vue-core", test: /node_modules[\\/](@vue[\\/]|vue|pinia|@tanstack[\\/](?!vue-virtual|virtual-core))/ },
+              // List windowing (VirtualGrid), only needed once a long list renders,
+              // so kept out of `vue-core`, which the entry imports. After it, not
+              // before: a group pulls in its members' dependencies, and listed
+              // first this one took Vue itself along with the virtualizer.
+              { name: "virtual", test: /node_modules[\\/]@tanstack[\\/](vue-virtual|virtual-core)/ },
               // 3D model viewer — Simulacrum only, keep it out of the main bundle.
               { name: "model-viewer", test: /node_modules[\\/]@google[\\/]model-viewer/ },
               // Quest graph engine — Build mode only.
@@ -793,6 +799,13 @@ export default defineConfig(({ mode }) => {
               // all ~590 kB of PDF code. Pin them to `vendor` so the edge only
               // ever points the other way.
               { name: "vendor", test: /node_modules[\\/]@babel[\\/]runtime/ },
+              // fflate is ours (tile-pack upload, archive import, Markdown export)
+              // as well as a jspdf dependency. A group pulls in its members'
+              // dependencies, so the `pdf` group took fflate along with jspdf,
+              // and `packUpload`'s `unzipSync` made the Atlas route statically
+              // import the whole `pdf` chunk (canvg, fast-png: ~200 kB gzip) on
+              // every cold visit. Above `pdf` because the first match wins.
+              { name: "zip", test: /node_modules[\\/]fflate/ },
               // PDF/print — only needed in Card Forge and character-sheet export.
               //
               // `canvg` is in this list for a reason that is invisible from the

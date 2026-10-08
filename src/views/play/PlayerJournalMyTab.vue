@@ -1,48 +1,7 @@
 <template>
-  <!-- Category filter -->
-  <div class="flex flex-wrap gap-1.5">
-    <AppButton
-      variant="subtle" shape="pill" size="xs"
-      :active="filterCategory === null"
-      label="All"
-      @click="$emit('update:filterCategory', null)"
-    />
-    <AppButton
-      v-for="[key, cat] in JOURNAL_CATEGORY_LIST"
-      :key="key"
-      variant="subtle" shape="pill" size="xs"
-      :active="filterCategory === key"
-      :class="filterCategory === key ? 'border-current' : ''"
-      :style="filterCategory === key ? { color: cat.color, backgroundColor: cat.color + '18', borderColor: cat.color + '60' } : {}"
-      :label="cat.label"
-      @click="$emit('update:filterCategory', filterCategory === key ? null : key)"
-    />
-  </div>
-
-  <!-- Loading -->
-  <div v-if="isLoading" class="flex justify-center py-12">
-    <LoadingSpinner />
-  </div>
-
-  <!-- Empty state -->
-  <div v-else-if="visibleEntries.length === 0" class="text-center py-16 space-y-3">
-    <IconPopulate class="h-10 w-10 text-muted-foreground/30 mx-auto" />
-    <p class="text-body text-muted-foreground">Your journal is empty.</p>
-    <p class="text-caption text-muted-foreground italic">Record your adventures, clues, and discoveries.</p>
-  </div>
-
-  <!-- Entry feed (draggable in manual sort, static otherwise) -->
-  <component
-    :is="sortBy === 'manual' ? VueDraggable : 'div'"
-    v-else
-    v-bind="dragBindings"
-    class="flex flex-col gap-2"
-  >
-    <div
-      v-for="entry in (sortBy === 'manual' ? dragEntries : visibleEntries)"
-      :key="entry.id"
-      class="relative"
-    >
+  <!-- One entry card, written once and used by both feeds below. -->
+  <DefineEntry v-slot="{ entry }">
+    <div class="relative">
       <!-- Drag handle (manual sort only) -->
       <div
         v-if="sortBy === 'manual'"
@@ -179,10 +138,67 @@
       </div>
       </JournalCard>
     </div>
-  </component>
+  </DefineEntry>
+
+  <!-- Category filter -->
+  <div class="flex flex-wrap gap-1.5">
+    <AppButton
+      variant="subtle" shape="pill" size="xs"
+      :active="filterCategory === null"
+      label="All"
+      @click="$emit('update:filterCategory', null)"
+    />
+    <AppButton
+      v-for="[key, cat] in JOURNAL_CATEGORY_LIST"
+      :key="key"
+      variant="subtle" shape="pill" size="xs"
+      :active="filterCategory === key"
+      :class="filterCategory === key ? 'border-current' : ''"
+      :style="filterCategory === key ? { color: cat.color, backgroundColor: cat.color + '18', borderColor: cat.color + '60' } : {}"
+      :label="cat.label"
+      @click="$emit('update:filterCategory', filterCategory === key ? null : key)"
+    />
+  </div>
+
+  <!-- Loading -->
+  <ListSkeleton v-if="isLoading" variant="stack" />
+
+  <!-- Empty state -->
+  <div v-else-if="visibleEntries.length === 0" class="text-center py-16 space-y-3">
+    <IconPopulate class="h-10 w-10 text-muted-foreground/30 mx-auto" />
+    <p class="text-body text-muted-foreground">Your journal is empty.</p>
+    <p class="text-caption text-muted-foreground italic">Record your adventures, clues, and discoveries.</p>
+  </div>
+
+  <!-- Manual sort: a drag reorders the DOM, so every entry has to be mounted.
+       Windowing a list you can drag within would drop the rows the drag needs. -->
+  <VueDraggable
+    v-else-if="sortBy === 'manual'"
+    v-bind="dragBindings"
+    class="flex flex-col gap-2"
+  >
+    <ReuseEntry v-for="entry in dragEntries" :key="entry.id" :entry="entry" />
+  </VueDraggable>
+
+  <!-- Every other sort: windowed, so a journal that grows every session stays cheap. -->
+  <VirtualGrid
+    v-else
+    :items="visibleEntries"
+    :item-key="entryKey"
+    :columns="1"
+    :estimate-row-height="ENTRY_ROW_PX"
+    :gap="0.5"
+  >
+    <template #default="{ item: entry }">
+      <ReuseEntry :entry="entry" />
+    </template>
+  </VirtualGrid>
 </template>
 
 <script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { createReusableTemplate } from "@vueuse/core";
 import { ref, computed, watch } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import { IconDrag, IconLock, IconPopulate, IconReveal, IconSave } from '@/lib/icons';
@@ -191,7 +207,6 @@ import AppCheckbox from '@/components/common/AppCheckbox.vue';
 import AppInput from '@/components/common/AppInput.vue';
 import AppSelect from '@/components/common/AppSelect.vue';
 import JournalCard from '@/components/player/JournalCard.vue';
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import RichTextEditor from '@/components/common/RichTextEditor.vue';
 import RichTextViewer from '@/components/common/RichTextViewer.vue';
 import { JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST } from '@/composables/notes/usePlayerJournal';
@@ -272,6 +287,15 @@ const titleModel = computed<string>({
   set: (value) => emit('editFormChange', { title: value }),
 });
 
+const [DefineEntry, ReuseEntry] = createReusableTemplate<{ entry: PlayerJournalEntry }>();
+
+// Row height before a row is measured (px): 84px across 40 entries, measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const ENTRY_ROW_PX = 84;
+const entryKey = (entry: PlayerJournalEntry) => entry.id;
+
 // Local mutable copy for drag-and-drop (manual sort); kept in sync with the
 // parent-supplied list and persisted on drag end.
 const dragEntries = ref<PlayerJournalEntry[]>([]);
@@ -281,18 +305,14 @@ function persistOrder() {
   emit('reorder', dragEntries.value.map((entry) => entry.id));
 }
 
-// VueDraggable props are only bound when manual sort is active, so the static
-// <div> fallback never receives stray drag attributes.
-const dragBindings = computed(() =>
-  sortBy === 'manual'
-    ? {
-        modelValue: dragEntries.value,
-        'onUpdate:modelValue': (v: PlayerJournalEntry[]) => { dragEntries.value = v; },
-        handle: '.journal-drag-handle',
-        animation: 150,
-        ghostClass: 'opacity-40',
-        onEnd: persistOrder,
-      }
-    : {},
-);
+// Bound only to the manual-sort VueDraggable; the other sorts are windowed and
+// never reorder.
+const dragBindings = computed(() => ({
+  modelValue: dragEntries.value,
+  'onUpdate:modelValue': (v: PlayerJournalEntry[]) => { dragEntries.value = v; },
+  handle: '.journal-drag-handle',
+  animation: 150,
+  ghostClass: 'opacity-40',
+  onEnd: persistOrder,
+}));
 </script>

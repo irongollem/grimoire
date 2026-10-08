@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { mount, RouterLinkStub } from "@vue/test-utils";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import SpellList from "./SpellList.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -86,10 +86,26 @@ function makeSpell(overrides: Partial<SpellBrowseRow> = {}): SpellBrowseRow {
 
 const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
 
-function mountList(
+// VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so
+// every box reads 0 tall and nothing would render. Give the scroller (the
+// document, here) a tall viewport and every row a plausible height.
+const ORIGINAL_OFFSET_HEIGHT = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+    configurable: true,
+    get(this: HTMLElement) {
+      return this === document.documentElement ? 1_000_000 : 200;
+    },
+  });
+});
+afterAll(() => {
+  if (ORIGINAL_OFFSET_HEIGHT) Object.defineProperty(HTMLElement.prototype, "offsetHeight", ORIGINAL_OFFSET_HEIGHT);
+});
+
+async function mountList(
   props: Partial<{ selecting: boolean; selectedIds: ReadonlySet<string>; sourceFilter: string }> = {},
 ) {
-  return mount(SpellList, {
+  const wrapper = mount(SpellList, {
     props: {
       search: "",
       levelFilter: "",
@@ -100,6 +116,8 @@ function mountList(
     },
     global: globalStubs,
   });
+  await flushPromises(); // VirtualGrid finds its scroller on mount, rows follow
+  return wrapper;
 }
 
 describe("SpellList — bulk selection (#875)", () => {
@@ -108,47 +126,47 @@ describe("SpellList — bulk selection (#875)", () => {
     mocks.filters = [];
   });
 
-  it("excludes a shared/library row (source_record_key set) from selectableIds", () => {
+  it("excludes a shared/library row (source_record_key set) from selectableIds", async () => {
     mocks.rows = [
       makeSpell({ id: "11111111-1111-4111-8111-111111111111", name: "Homebrew Bolt" }),
       makeSpell({ id: "22222222-2222-4222-8222-222222222222", name: "Fireball", is_shared: true }),
     ];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     expect(wrapper.vm.selectableIds).toEqual(["11111111-1111-4111-8111-111111111111"]);
   });
 
-  it("selectableIds is the server's whole answer, not the loaded rows", () => {
+  it("selectableIds is the server's whole answer, not the loaded rows", async () => {
     mocks.rows = [makeSpell(), makeSpell({ id: "22222222-2222-4222-8222-222222222222" })];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     expect(wrapper.vm.selectableIds).toHaveLength(2);
     expect(wrapper.vm.selectableReady).toBe(true);
     expect(wrapper.findAllComponents(BulkSelectableCard)).toHaveLength(2);
   });
 
-  it("wraps a DM-owned row's card with selecting on, but a shared row's with selecting off", () => {
+  it("wraps a DM-owned row's card with selecting on, but a shared row's with selecting off", async () => {
     mocks.rows = [
       makeSpell({ id: "11111111-1111-4111-8111-111111111111", name: "Homebrew Bolt" }),
       makeSpell({ id: "22222222-2222-4222-8222-222222222222", name: "Fireball", is_shared: true }),
     ];
-    const wrapper = mountList({ selecting: true });
+    const wrapper = await mountList({ selecting: true });
     const cards = wrapper.findAllComponents(BulkSelectableCard);
     expect(cards).toHaveLength(2);
     expect(cards[0].props("selecting")).toBe(true);
     expect(cards[1].props("selecting")).toBe(false);
   });
 
-  it("does not enter selecting mode for any row when the list-wide flag is off", () => {
+  it("does not enter selecting mode for any row when the list-wide flag is off", async () => {
     mocks.rows = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
-    const wrapper = mountList({ selecting: false });
+    const wrapper = await mountList({ selecting: false });
     expect(wrapper.findComponent(BulkSelectableCard).props("selecting")).toBe(false);
   });
 
-  it("reflects selectedIds onto the matching card's selected prop", () => {
+  it("reflects selectedIds onto the matching card's selected prop", async () => {
     mocks.rows = [
       makeSpell({ id: "11111111-1111-4111-8111-111111111111" }),
       makeSpell({ id: "22222222-2222-4222-8222-222222222222" }),
     ];
-    const wrapper = mountList({
+    const wrapper = await mountList({
       selecting: true,
       selectedIds: new Set(["22222222-2222-4222-8222-222222222222"]),
     });
@@ -159,44 +177,44 @@ describe("SpellList — bulk selection (#875)", () => {
 
   it("toggling a card emits toggle-select with that row's id", async () => {
     mocks.rows = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
-    const wrapper = mountList({ selecting: true });
+    const wrapper = await mountList({ selecting: true });
     await wrapper.findComponent(BulkSelectableCard).vm.$emit("toggle");
     expect(wrapper.emitted("toggle-select")).toEqual([["11111111-1111-4111-8111-111111111111"]]);
   });
 
-  it("puts the checkbox chip in the top-right corner, clear of the Edit button at top-left", () => {
+  it("puts the checkbox chip in the top-right corner, clear of the Edit button at top-left", async () => {
     mocks.rows = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
-    const wrapper = mountList({ selecting: true });
+    const wrapper = await mountList({ selecting: true });
     expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
   });
 });
 
 describe("SpellList filters", () => {
-  it("hands every filter to the server query, search passed raw (the composable settles it)", () => {
+  it("hands every filter to the server query, search passed raw (the composable settles it)", async () => {
     mocks.filters = [];
     mocks.rows = [];
-    mountList({ sourceFilter: "custom" });
+    await mountList({ sourceFilter: "custom" });
     expect(mocks.filters[0]).toEqual({
       search: "", level: "", school: "", class: "", source: "custom",
     });
   });
 
-  it("the Edit button is hidden for a shared row", () => {
+  it("the Edit button is hidden for a shared row", async () => {
     mocks.rows = [
       makeSpell({ id: "11111111-1111-4111-8111-111111111111", name: "Homebrew Bolt" }),
       makeSpell({ id: "22222222-2222-4222-8222-222222222222", name: "Fireball", is_shared: true }),
     ];
-    const wrapper = mountList();
+    const wrapper = await mountList();
     const edits = wrapper.findAllComponents(AppButton).filter((b) => b.props("tooltip") === "Edit spell");
     expect(edits).toHaveLength(1);
   });
 
-  it("a custom spell another member owns has no Edit button and is not selectable", () => {
+  it("a custom spell another member owns has no Edit button and is not selectable", async () => {
     mocks.rows = [
       makeSpell({ id: "11111111-1111-4111-8111-111111111111", name: "Homebrew Bolt" }),
       makeSpell({ id: "33333333-3333-4333-8333-333333333333", name: "Player Spell", is_own: false }),
     ];
-    const wrapper = mountList({ selecting: true });
+    const wrapper = await mountList({ selecting: true });
     const edits = wrapper.findAllComponents(AppButton).filter((b) => b.props("tooltip") === "Edit spell");
     expect(edits).toHaveLength(1);
     const cards = wrapper.findAllComponents(BulkSelectableCard);

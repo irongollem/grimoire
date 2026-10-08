@@ -25,9 +25,8 @@
       </ListFilterBar>
     </template>
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <!-- Mirrors EntityListRow (emblem tile, name, deity count) in its grid. -->
+    <ListSkeleton v-if="isLoading" variant="tiles" :columns="3" :count="9" />
 
     <EmptyState
       v-else-if="!filtered.length"
@@ -39,7 +38,7 @@
 
     <template v-else>
     <!--
-      Paged and position-restoring like the NPC and monster grids. No mobile
+      Windowed and position-restoring like the NPC and monster grids. No mobile
       card swap, though, and that is deliberate rather than unfinished:
       `EntityMobileCard`'s "rows" layout is this row, and it is a `RouterLink`
       wrapper — so adopting it would trade a working reveal control for a
@@ -47,10 +46,14 @@
       another way. `EntityListRow` uses the link-overlay trick precisely so it
       can hold a button, and it already reflows to one column.
     -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <VirtualGrid
+        :items="filtered"
+        :item-key="pantheonKey"
+        :columns="columns"
+        :estimate-row-height="ROW_PX"
+      >
+        <template #default="{ item: pantheon }">
         <EntityListRow
-          v-for="pantheon in visibleItems"
-          :key="pantheon.id"
           :to="`/pantheons/${pantheon.id}`"
           :title="pantheon.name"
           :subtitle="`${deityCount(pantheon.id)} ${deityCount(pantheon.id) === 1 ? 'deity' : 'deities'}`"
@@ -67,10 +70,9 @@
             />
           </template>
         </EntityListRow>
-      </div>
+        </template>
+      </VirtualGrid>
     </template>
-
-    <div ref="sentinelRef" />
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="pantheons" />
@@ -84,14 +86,15 @@ import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import EntityListRow from "@/components/common/EntityListRow.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import { useUiStore } from "@/stores/ui";
 
 const ui = useUiStore();
@@ -113,12 +116,19 @@ const filtered = computed(() => {
   });
 });
 
-// `sentinelRef` must stay destructured — the template binds it as a plain
-// `ref="sentinelRef"` string, which is never typechecked, so dropping it leaves
-// the ref null and the list silently capped at 48 with every gate green.
-const { savedCount, linkCount } = useScrollRestore("pantheons");
-const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
-linkCount(visibleCount);
+// The whole filtered list is in hand, so only the scroll position needs
+// restoring; VirtualGrid windows what is mounted.
+useScrollRestore("pantheons");
+
+// Mirrors the grid classes this list used to carry:
+// `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3`.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
+const pantheonKey = (pantheon: { id: string }) => pantheon.id;
+
+// Row height before a row is measured (px): 86px measured at a 390px
+// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
+// back from a detail re-renders every unmeasured row above the viewport.
+const ROW_PX = 86;
 
 function deityCount(pantheonId: string): number {
   return (deities.value ?? []).filter((d) => d.pantheon_id === pantheonId).length;

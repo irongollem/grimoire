@@ -22,12 +22,16 @@
       {{ emptyText }}
     </p>
     <template v-else>
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <VirtualGrid
+        :items="filtered"
+        :item-key="entryKey"
+        :columns="columns"
+        :estimate-row-height="GRID_ROW_PX"
+      >
+        <template #default="{ item }">
         <!-- A bare button: the card is the control, and it carries only the
              card's own border and focus ring, none of AppButton's label chrome. -->
         <button
-          v-for="item in visibleItems"
-          :key="item.imageUrl"
           type="button"
           class="group block w-full overflow-hidden rounded-md border border-border bg-background text-left focus-visible:outline-2 focus-visible:outline-primary"
           @click="openViewer(item)"
@@ -44,8 +48,8 @@
           </div>
           <p class="truncate px-2 py-1.5 text-caption text-foreground">{{ entryLabel(item) }}</p>
         </button>
-      </div>
-      <div v-if="hasMore" ref="sentinelRef" class="h-4" />
+        </template>
+      </VirtualGrid>
     </template>
 
     <LibraryFocalQueueViewer
@@ -72,7 +76,8 @@ import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import LibraryFocalQueueViewer from "@/components/admin/LibraryFocalQueueViewer.vue";
-import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useLibraryFocalQueue } from "@/composables/library/useLibraryFocalQueue";
 import { useUiStore } from "@/stores/ui";
 import {
@@ -102,7 +107,15 @@ const resetFilters = ui.resetFocalQueueFilters;
 const { query, entries } = useLibraryFocalQueue(kind);
 
 const filtered = computed(() => filterByStatus(entries.value, status.value));
-const { visibleItems, sentinelRef, hasMore } = useInfiniteScroll(filtered);
+
+// Mirrors the grid classes this list used to carry:
+// `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3`.
+const columns = useBreakpointColumns({ base: 2, sm: 3, lg: 4, xl: 5 });
+const entryKey = (entry: FocalQueueEntry) => entry.imageUrl;
+
+// Row height before a row is measured (px): 2 border + 144 picture (h-36) +
+// 29 caption (py-1.5 plus a 17px text-caption line) = 175.
+const GRID_ROW_PX = 175;
 
 const uncheckedCount = computed(() => entries.value.filter((row) => !isChecked(row)).length);
 const summary = computed(() => {

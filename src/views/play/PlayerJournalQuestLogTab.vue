@@ -1,7 +1,5 @@
 <template>
-  <div v-if="isLoading" class="flex justify-center py-12">
-    <LoadingSpinner />
-  </div>
+  <ListSkeleton v-if="isLoading" variant="stack" />
   <div v-else-if="!quests.length" class="text-center py-12">
     <IconScrollText class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
     <p class="font-fell text-muted-foreground italic">No quests shared by your DM yet.</p>
@@ -38,10 +36,10 @@
 </template>
 
 <script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import { RouterLink } from 'vue-router';
 import { IconChevronRight, IconScrollText } from '@/lib/icons';
 import EntityNewDot from '@/components/common/EntityNewDot.vue';
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from '@/types/quest.types';
 import type { Quest } from '@/types/quest.types';
 

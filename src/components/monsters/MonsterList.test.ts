@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { reactive, ref, computed, defineComponent, h } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import MonsterList from "./MonsterList.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import type { Monster } from "@/types/monster.types";
@@ -139,6 +139,23 @@ vi.mock("@/composables/useScrollRestore", () => ({
   useScrollRestore: () => ({ savedCount: undefined, linkCount: vi.fn() }),
 }));
 
+// VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so
+// every box reads 0 tall and nothing would render. Give the scroller (the
+// document, here) a tall viewport and every row a plausible height, which makes
+// the whole 48-row page "visible" without changing what is under test.
+const ORIGINAL_OFFSET_HEIGHT = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+    configurable: true,
+    get(this: HTMLElement) {
+      return this === document.documentElement ? 1_000_000 : 260;
+    },
+  });
+});
+afterAll(() => {
+  if (ORIGINAL_OFFSET_HEIGHT) Object.defineProperty(HTMLElement.prototype, "offsetHeight", ORIGINAL_OFFSET_HEIGHT);
+});
+
 const stubs = {
   MonsterGridCard: { template: '<div class="stub-card" />', props: ["monster", "locked"] },
   EntityMobileCard: true,
@@ -190,6 +207,7 @@ describe("MonsterList — bulk selection (#875)", () => {
       monster({ id: "shared-2", is_shared: true }),
     ];
     const wrapper = mountList();
+    await flushMicrotasks(); // VirtualGrid finds its scroller on mount, rows follow
     // Only 48 are painted (the windowed page), well under the 62 total.
     expect(wrapper.findAll(".stub-card")).toHaveLength(48);
 
@@ -219,6 +237,7 @@ describe("MonsterList — bulk selection (#875)", () => {
   it("warms the detail on pointer intent", async () => {
     monstersData.value = [monster({ id: "m1" })];
     const wrapper = mountList();
+    await flushMicrotasks();
     await wrapper.find(".stub-card").trigger("pointerenter");
     expect(prefetchQuery).toHaveBeenCalledTimes(1);
     expect(prefetchQuery.mock.calls[0]![0].queryKey).toEqual(["resolved-monster", "m1"]);
