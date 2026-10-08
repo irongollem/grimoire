@@ -54,9 +54,11 @@
       </ListFilterBar>
     </template>
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton
+      v-if="isLoading"
+      :variant="isMobile ? layout : 'grid'"
+      :count="isMobile ? 7 : 12"
+    />
 
     <EmptyState
       v-else-if="!filtered.length"
@@ -168,7 +170,7 @@ import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import EntityGridCard from "@/components/common/EntityGridCard.vue";

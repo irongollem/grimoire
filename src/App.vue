@@ -10,7 +10,13 @@
   <LoadingScreen v-if="showLoading" />
   <template v-else>
     <component :is="layout">
-      <RouterView />
+      <!-- The outgoing page stays mounted, only hidden, while a slow route chunk
+           downloads: a navigation that is later cancelled finds its scroll and
+           unsaved form state intact. -->
+      <RouteSkeleton v-if="navigationPending" />
+      <div v-show="!navigationPending" class="contents">
+        <RouterView />
+      </div>
     </component>
     <ConfirmDialog />
     <OutOfCreditsModal v-if="auth.isAuthenticated" />
@@ -46,6 +52,8 @@ import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { SpeedInsights } from "@vercel/speed-insights/vue";
 import { layoutLoaders } from "@/layouts/layoutLoader";
+import RouteSkeleton from "@/components/common/RouteSkeleton.vue";
+import { navigationPending } from "@/router/navigationPending";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import OutOfCreditsModal from "@/components/billing/OutOfCreditsModal.vue";
 import ToastHost from "@/components/common/ToastHost.vue";

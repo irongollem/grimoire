@@ -4,9 +4,9 @@
       Choose a replacement for <strong>{{ candidate.spell.name }}</strong>.
       <button type="button" class="ml-2 text-ink-arcane underline" @click="clearReplacement">Cancel</button>
     </div>
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <!-- Loading: a spell card is text-only (school bar, name + level badge,
+         detail lines), the shape of the `text` skeleton. -->
+    <ListSkeleton v-if="isLoading" variant="text" :count="12" />
 
     <EmptyState
       v-else-if="!rows.length && !search && !levelFilter && !schoolFilter && !classFilter && sourceFilter === 'all'"
@@ -217,7 +217,7 @@ import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell }
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { SCHOOL_BG, spellLevelLabel } from "@/types/spell.types";
 import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";

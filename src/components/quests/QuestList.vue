@@ -1,8 +1,24 @@
 <template>
   <div>
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
+    <!-- The board is known before the data arrives, so the placeholder
+         follows the active mode: columns of cards, or the card grid. -->
+    <div v-if="isLoading && isKanban" role="status" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <span class="sr-only">Loading…</span>
+      <div v-for="col in 3" :key="col" class="flex flex-col gap-2">
+        <SkeletonBlock class="h-5 w-1/3" />
+        <div class="flex min-h-40 flex-col gap-2 rounded-lg border border-border bg-muted/20 p-2">
+          <div
+            v-for="card in 3"
+            :key="card"
+            class="flex flex-col gap-2 rounded-lg border border-border bg-card p-3"
+          >
+            <SkeletonBlock class="h-4 w-3/4" />
+            <SkeletonBlock class="h-3 w-1/2" />
+          </div>
+        </div>
+      </div>
     </div>
+    <ListSkeleton v-else-if="isLoading" variant="text" />
 
     <EmptyState
       v-else-if="!allQuests?.length"
@@ -108,7 +124,8 @@ import {
 import { useParty } from "@/composables/party/useParty";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { useUiStore } from "@/stores/ui";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestKanbanBoard from "@/components/quests/QuestKanbanBoard.vue";

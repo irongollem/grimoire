@@ -1,9 +1,8 @@
 <template>
   <div class="flex flex-col gap-4">
-    <!-- Loading -->
-    <div v-if="isLoading" class="flex justify-center py-12">
-      <LoadingSpinner />
-    </div>
+    <!-- Loading: the same auto-fill grid and EntityGridCard shape as the loaded
+         list, so the cards do not jump when they land. -->
+    <ListSkeleton v-if="isLoading" variant="grid" columns="fill" :count="12" />
 
     <EmptyState
       v-else-if="error"
@@ -195,7 +194,7 @@ import { fetchResolvedItem, resolvedItemKey } from "@/composables/items/useItems
 import type { ItemScope } from "@/lib/items/itemScope";
 import { ITEM_RARITY_LABELS, RARITY_BG } from "@/types/item.types";
 import EmptyState from "@/components/common/EmptyState.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 
 const {
   search,

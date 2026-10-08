@@ -25,9 +25,8 @@
       </ListFilterBar>
     </template>
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <!-- Mirrors EntityListRow (emblem tile, name, deity count) in its grid. -->
+    <ListSkeleton v-if="isLoading" variant="tiles" :columns="3" :count="9" />
 
     <EmptyState
       v-else-if="!filtered.length"
@@ -84,7 +83,7 @@ import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";

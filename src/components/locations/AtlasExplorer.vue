@@ -1,6 +1,24 @@
 <template>
-  <div v-if="isLoading" class="flex justify-center py-16">
-    <LoadingSpinner />
+  <!-- Tree beside a place pane, the same split the loaded Atlas draws. -->
+  <div v-if="isLoading" role="status" class="flex min-h-0 lg:h-full">
+    <span class="sr-only">Loading…</span>
+    <div class="flex min-w-0 flex-1 flex-col gap-2 lg:w-md lg:flex-none lg:border-r lg:border-border lg:pr-4">
+      <div
+        v-for="row in TREE_SKELETON"
+        :key="row.id"
+        class="flex items-center gap-2"
+        :style="{ paddingLeft: `${row.depth * 1.25}rem` }"
+      >
+        <SkeletonBlock class="size-4 shrink-0 rounded" />
+        <SkeletonBlock class="h-4" :class="row.width" />
+      </div>
+    </div>
+    <div class="hidden min-w-0 flex-1 flex-col gap-4 lg:flex lg:pl-4">
+      <SkeletonBlock class="h-8 w-1/2" />
+      <SkeletonBlock class="h-48 w-full" />
+      <SkeletonBlock class="h-4 w-full" />
+      <SkeletonBlock class="h-4 w-4/5" />
+    </div>
   </div>
 
   <EmptyState
@@ -150,8 +168,12 @@
         so switching which place is being edited or run remounts instead of
         reusing stale local state, same as the old per-route pages did.
       -->
-      <div v-if="selectedLoading" class="flex flex-1 items-center justify-center p-8">
-        <LoadingSpinner />
+      <div v-if="selectedLoading" role="status" class="flex flex-1 flex-col gap-4">
+        <span class="sr-only">Loading…</span>
+        <SkeletonBlock class="h-8 w-1/2" />
+        <SkeletonBlock class="h-48 w-full" />
+        <SkeletonBlock class="h-4 w-full" />
+        <SkeletonBlock class="h-4 w-4/5" />
       </div>
       <EmptyState
         v-else-if="selectedFailed"
@@ -189,7 +211,7 @@ import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/AppButton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
 import AtlasPlacePane from "@/components/locations/AtlasPlacePane.vue";
 import AtlasTree from "@/components/locations/AtlasTree.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
@@ -211,6 +233,21 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 
 // ── Resizable tree column (desktop) ────────────────────────────────────────
+// Shape of a half-open tree for the loading placeholder: depth indents the row,
+// width is a literal class so Tailwind generates it. Static, never random.
+const TREE_SKELETON = [
+  { id: 1, depth: 0, width: "w-1/2" },
+  { id: 2, depth: 1, width: "w-2/5" },
+  { id: 3, depth: 2, width: "w-1/3" },
+  { id: 4, depth: 2, width: "w-2/5" },
+  { id: 5, depth: 1, width: "w-1/2" },
+  { id: 6, depth: 0, width: "w-3/5" },
+  { id: 7, depth: 1, width: "w-1/3" },
+  { id: 8, depth: 1, width: "w-2/5" },
+  { id: 9, depth: 0, width: "w-1/2" },
+  { id: 10, depth: 1, width: "w-3/5" },
+] as const;
+
 const TREE_MIN = 240;
 const TREE_MAX = 720;
 const TREE_DEFAULT = 448; // the old fixed max-w-md

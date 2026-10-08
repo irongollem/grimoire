@@ -15,9 +15,11 @@
       @copy="openCopyDialog"
     />
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton
+      v-if="isLoading"
+      :variant="isMobile ? layout : 'grid'"
+      :count="isMobile ? 7 : 12"
+    />
 
     <EmptyState
       v-else-if="
@@ -148,7 +150,7 @@ import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 import { useNpcPcNotesByPartyMember } from "@/composables/npcs/useNpcPcNotes";
 import { useAllLocations, useLocationTree } from "@/composables/locations/useLocations";
 import { useUiStore } from "@/stores/ui";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
 import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";

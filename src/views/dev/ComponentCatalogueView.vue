@@ -507,6 +507,36 @@
       </div>
       <LoadingSpinner message="Gathering your minis…" />
     </CatalogueSection>
+
+    <CatalogueSection
+      title="Skeletons"
+      note="Content placeholders for a list while its code or data arrives (not a progress indicator: BannerLoader stays that). Each variant mirrors its real card: rows = EntityMobileCard rows, gallery = EntityMobileCard gallery, grid = EntityGridCard, text = the thumbnail-less cards (quests, notes, encounters, spells, documents), tiles = EntityListRow (factions, pantheons); the fill column track is the item catalogue's auto-fill grid. Check the sheen on every theme, and that reduced motion leaves still blocks."
+    >
+      <div class="grid gap-6 lg:grid-cols-2">
+        <div>
+          <p class="mb-2 text-caption text-muted-foreground">rows</p>
+          <ListSkeleton variant="rows" :count="3" />
+        </div>
+        <div>
+          <p class="mb-2 text-caption text-muted-foreground">gallery</p>
+          <ListSkeleton variant="gallery" :count="4" />
+        </div>
+      </div>
+      <p class="mb-2 mt-6 text-caption text-muted-foreground">grid</p>
+      <ListSkeleton variant="grid" :count="4" />
+      <p class="mb-2 mt-6 text-caption text-muted-foreground">text</p>
+      <ListSkeleton variant="text" :count="4" />
+      <p class="mb-2 mt-6 text-caption text-muted-foreground">tiles</p>
+      <ListSkeleton variant="tiles" :columns="3" :count="3" />
+      <p class="mb-2 mt-6 text-caption text-muted-foreground">grid, columns="fill"</p>
+      <ListSkeleton variant="grid" columns="fill" :count="6" />
+      <p class="mb-2 mt-6 text-caption text-muted-foreground">SkeletonBlock</p>
+      <div class="flex items-center gap-3">
+        <SkeletonBlock class="size-14 rounded-lg" />
+        <SkeletonBlock class="h-4 w-48" />
+        <SkeletonBlock class="h-9 w-24 rounded-lg" />
+      </div>
+    </CatalogueSection>
   </div>
 </template>
 
@@ -530,6 +560,8 @@ import { useTheme } from "@/composables/useTheme";
 import AppButton from "@/components/common/AppButton.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
+import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { CHECKBOX_SIZES, CHECKBOX_LABEL_ROLES, CHECKBOX_ACCENTS } from "@/components/common/checkboxVariants";
 import AppInput from "@/components/common/AppInput.vue";

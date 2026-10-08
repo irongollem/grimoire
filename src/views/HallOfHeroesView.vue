@@ -34,9 +34,7 @@
     </template>
 
     <div ref="listRef">
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" variant="grid" :count="12" />
 
     <EmptyState
       v-else-if="!filtered.length && !search && settingFilter === 'all'"
@@ -157,7 +155,7 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import EntityGridCard from "@/components/common/EntityGridCard.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";

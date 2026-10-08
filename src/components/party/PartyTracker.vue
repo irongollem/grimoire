@@ -9,8 +9,26 @@
       <AppButton class="mt-2" label="Retry" size="sm" variant="destructive" @click="refetch()" />
     </div>
 
-    <div v-else-if="!party" class="flex justify-center py-16">
-      <LoadingSpinner />
+    <div v-else-if="!party" role="status" class="flex flex-col gap-3">
+      <span class="sr-only">Loading…</span>
+      <div
+        v-for="i in 3"
+        :key="i"
+        class="flex flex-col overflow-hidden rounded-lg border border-border bg-card md:flex-row"
+      >
+        <div class="flex shrink-0 flex-col md:w-44 md:border-r md:border-border">
+          <SkeletonBlock class="h-31.25 w-full rounded-none" />
+          <div class="flex flex-col gap-1.5 px-3 py-2.5">
+            <SkeletonBlock class="h-4 w-2/3" />
+            <SkeletonBlock class="h-3 w-1/2" />
+          </div>
+        </div>
+        <div class="flex flex-1 flex-col justify-center gap-3 p-3">
+          <SkeletonBlock class="h-4 w-1/3" />
+          <SkeletonBlock class="h-3 w-full" />
+          <SkeletonBlock class="h-3 w-4/5" />
+        </div>
+      </div>
     </div>
 
     <EmptyState
@@ -101,7 +119,7 @@ import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconNavParty } from "@/lib/icons";

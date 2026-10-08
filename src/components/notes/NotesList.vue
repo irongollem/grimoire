@@ -15,9 +15,7 @@
       />
     </ListFilterBar>
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" variant="text" />
 
     <EmptyState
       v-else-if="!filtered.length && !ui.notesHasActiveFilters"
@@ -80,7 +78,7 @@ import { IconNavNotes } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { useNotes, useReorderNotes } from "@/composables/notes/useNotes";
 import { useUiStore } from "@/stores/ui";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import SortControl from "@/components/common/SortControl.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

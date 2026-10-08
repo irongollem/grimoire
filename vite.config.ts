@@ -793,6 +793,13 @@ export default defineConfig(({ mode }) => {
               // all ~590 kB of PDF code. Pin them to `vendor` so the edge only
               // ever points the other way.
               { name: "vendor", test: /node_modules[\\/]@babel[\\/]runtime/ },
+              // fflate is ours (tile-pack upload, archive import, Markdown export)
+              // as well as a jspdf dependency. A group pulls in its members'
+              // dependencies, so the `pdf` group took fflate along with jspdf,
+              // and `packUpload`'s `unzipSync` made the Atlas route statically
+              // import the whole `pdf` chunk (canvg, fast-png: ~200 kB gzip) on
+              // every cold visit. Above `pdf` because the first match wins.
+              { name: "zip", test: /node_modules[\\/]fflate/ },
               // PDF/print — only needed in Card Forge and character-sheet export.
               //
               // `canvg` is in this list for a reason that is invisible from the

@@ -14,9 +14,13 @@
       @copy="openCopyDialog"
     />
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <!-- Follows the mobile rows/gallery preference so the first page lands
+         in the shape the DM chose. -->
+    <ListSkeleton
+      v-if="isLoading"
+      :variant="isMobile ? layout : 'grid'"
+      :count="isMobile ? 7 : 12"
+    />
 
     <p v-else-if="error" class="text-center text-body text-destructive py-12" role="alert">
       Could not load monsters. {{ error.message }}
@@ -140,7 +144,7 @@ import { useCampaignDiscoveries } from "@/composables/encounters/useDiscoveredMo
 import MonsterGridCard from "@/components/monsters/MonsterGridCard.vue";
 import { crBg, crLabel } from "@/lib/monsterDisplay";
 import type { MonsterBrowseRow } from "@/types/monster.types";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
 import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";

@@ -1,8 +1,6 @@
 <template>
   <div>
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" variant="text" :columns="3" :count="6" />
 
     <EmptyState
       v-else-if="!filtered.length && !search && questFilter === 'all'"
@@ -142,7 +140,7 @@ import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useEncounterQuestLinks } from "@/composables/quests/useQuests";
 import { useEncountersInRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useUiStore } from "@/stores/ui";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";

@@ -47,9 +47,7 @@
       </ListFilterBar>
     </template>
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" variant="tiles" :columns="3" :count="9" />
 
     <EmptyState
       v-else-if="!factions?.length"
@@ -149,7 +147,7 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import EntityListRow from "@/components/common/EntityListRow.vue";
 import RelationshipMark from "@/components/common/RelationshipMark.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import BulkScopeBar from "@/components/common/BulkScopeBar.vue";

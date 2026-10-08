@@ -18,8 +18,24 @@
       />
     </template>
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
+    <!-- Same auto-fill grid as the sets; each placeholder is a set card:
+         name and count, a row of portrait thumbs, the export button. -->
+    <div v-if="isLoading" role="status" class="sets-grid">
+      <span class="sr-only">Loading…</span>
+      <div
+        v-for="n in 6"
+        :key="n"
+        class="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
+      >
+        <div class="flex flex-col gap-1.5">
+          <SkeletonBlock class="h-5 w-3/5" />
+          <SkeletonBlock class="h-3 w-1/4" />
+        </div>
+        <div class="flex gap-1.5">
+          <SkeletonBlock v-for="t in 4" :key="t" class="size-10 rounded-md" />
+        </div>
+        <SkeletonBlock class="h-9 w-full rounded-md" />
+      </div>
     </div>
 
     <EmptyState
@@ -62,7 +78,7 @@ import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import NpcSetCard from "@/components/npcs/NpcSetCard.vue";
 import NpcSetEditorModal from "@/components/npcs/NpcSetEditorModal.vue";
