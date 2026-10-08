@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(14);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -232,20 +232,26 @@ select is(
   2,
   'party_members and encounter_state are published for their own live channels');
 
--- A campaign being copied (the demo) has nobody listening, and the copy
--- inserts one row per statement, so a doorbell that does not return early
--- rings once per copied row: 2.2 of the seconds that pushed the copy past its
--- timeout (20261005104317). Every trigger that writes the doorbell skips it.
+-- One function writes the doorbell (20261008231316), so moving it to another
+-- transport (#999 row 4.2, broadcast from the database) is a change in one
+-- place. Every route finds its campaigns and calls private.ring_campaigns().
 select is(
-  (select coalesce(string_agg(p.proname::text, ', ' order by p.proname), '')
+  (select coalesce(string_agg(n.nspname || '.' || p.proname, ', ' order by p.proname), '')
      from pg_proc p
      join pg_namespace n on n.oid = p.pronamespace
     where n.nspname in ('public', 'private')
-      and p.prorettype = 'trigger'::regtype
-      and p.prosrc ~* 'insert\s+into\s+(public\.)?campaign_sync'
-      and p.prosrc !~ 'grimoire\.copying_campaign'),
-  '',
-  'every doorbell trigger stays quiet while a campaign is being copied');
+      and p.prosrc ~* 'insert\s+into\s+(public\.)?campaign_sync'),
+  'private.ring_campaigns',
+  'only private.ring_campaigns writes the doorbell');
+
+-- A campaign being copied (the demo) has nobody listening, and the copy
+-- inserts one row per statement, so a ring that does not return early fires
+-- once per copied row: 2.2 of the seconds that pushed the copy past its
+-- timeout (20261005104317).
+select ok(
+  (select p.prosrc ~ 'grimoire\.copying_campaign' from pg_proc p
+    where p.oid = 'private.ring_campaigns(uuid[], text)'::regprocedure),
+  'the ring stays quiet while a campaign is being copied');
 
 select * from finish();
 rollback;

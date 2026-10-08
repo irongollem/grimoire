@@ -386,6 +386,8 @@ So: **do not write a DELETE handler on a campaign-filtered subscription.** It is
 
 Migration `20260904230420` adds one row per campaign — `campaign_id`, `changed_table`, `updated_at` — and a statement-level `AFTER DELETE` trigger on every table in `SYNC_TABLES` (plus `party_inventory`) that upserts into it. An UPDATE carries its full new record, so `campaign_id=eq.X` matches; the client reads `changed_table`, maps it through `SIGNAL_KEYS`, and invalidates that query key.
 
+**One function writes it** (`20261008231316`): `private.ring_campaigns(campaign_ids, signal)` holds the five rules every ring needs (quiet during a campaign copy, skip a campaign being deleted, one upserted row per campaign, rows locked in key order, the signal name). The trigger functions (`signal_campaign_change`, `signal_party_member_child_change`, `signal_location_child_change`, `signal_quest_child_change`, `signal_handout_change`, `signal_party_member_left_campaign`) only work out which campaigns a change belongs to. That is for the transport: the postgres_changes poller is a fixed cost of most of the database's time (#999), and moving the doorbell to broadcast from the database is then a change in one place. A new route calls the ring; it never writes `campaign_sync`, and `live_sync_registry.test.sql` fails if anything else does.
+
 It is a doorbell, not a log: one row per campaign, upserted in place, nothing to prune. And it is deliberately a signal rather than a copy of the row — the client already knows how to read its own data correctly (RLS, embeds, redacted projections), so telling it to read again is both smaller and impossible to get subtly wrong.
 
 These ride it beyond deletes:
