@@ -48,6 +48,23 @@ function record(overrides: Record<string, unknown> = {}) {
 }
 
 describe("mapOpen5eV2Spell", () => {
+  const srd2014 = { ...document, name: "System Reference Document 5.1", key: "srd-2014", gamesystem: { name: "5th Edition 2014", key: "5e-2014" } };
+
+  it("restores the 2014 Paladin list, which Open5e's srd-2014 data omits", () => {
+    const command = mapOpen5eV2Spell(
+      record({ key: "srd_command", document: srd2014, name: "Command", level: 1, classes: [{ name: "Cleric", key: "srd_cleric" }, { name: "Warlock", key: "srd_warlock" }] }) as Parameters<typeof mapOpen5eV2Spell>[0],
+    );
+    expect(command?.classes).toEqual(["Cleric", "Warlock", "Paladin"]);
+  });
+
+  it("leaves an oath spell, another publisher's namesake and the 2024 list alone", () => {
+    const map = (overrides: Record<string, unknown>) =>
+      mapOpen5eV2Spell(record({ level: 1, classes: [{ name: "Cleric", key: "x" }], ...overrides }) as Parameters<typeof mapOpen5eV2Spell>[0]);
+    // Sanctuary is Oath of Devotion's, granted always-prepared, not on the Paladin list.
+    expect(map({ key: "srd_sanctuary", document: srd2014, name: "Sanctuary" })?.classes).not.toContain("Paladin");
+    expect(map({ key: "srd-2024_bless", name: "Bless" })?.classes).not.toContain("Paladin");
+  });
+
   it("preserves edition/source identity and structured mechanics", () => {
     const spell = mapOpen5eV2Spell(record() as Parameters<typeof mapOpen5eV2Spell>[0]);
 
