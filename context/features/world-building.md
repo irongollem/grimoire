@@ -393,7 +393,7 @@ Cover: `src/lib/locations/siteRun.test.ts` (reachability graph, party-room deriv
 
 Widening `locations` at all means recreating `get_player_visible_locations`, which `returns setof locations` and lists every column positionally; `20260818081308` learned that the hard way and says so in its header.
 
-**Bulk seeding**: `SETTING_LOCATIONS` data maps calendar IDs to preset location arrays (e.g. Faerûn towns). `PLANAR_LOCATIONS` covers the 21 cosmological planes. Both use a two-pass insert: all records first, then parent links resolved by name.
+**Bulk seeding**: `SETTING_LOCATIONS` data maps calendar IDs to preset location arrays (e.g. Faerûn towns). `PLANAR_LOCATIONS` covers the 21 cosmological planes. Both go through `insertSettingLocations` (`useLocations.ts`): every new place gets a minted id, so its parent (another preset, new or already in the campaign) is known before the write, and the tree is inserted one level per request with `parent_id` set in the insert. A row cannot be parented by another in the same statement (the parent guard reads the parent), hence a request per level rather than one.
 
 ### Player View
 
