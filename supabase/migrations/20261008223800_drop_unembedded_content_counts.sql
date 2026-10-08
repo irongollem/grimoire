@@ -1,4 +1,8 @@
 -- Migration: drop_unembedded_content_counts
+-- Renamed forward from 20261008180215: it reached main after 20261008181301,
+-- 20261008195336, 20261008200258 and 20261008200423 were already applied in
+-- production, so `db push` refused it as "inserted before the last migration"
+-- and the release of 3951bbf6 stopped there (frontend held back with it).
 -- #848: the AI-index offer (#841) now asks "what in this campaign has no
 -- vector OR an out-of-date one", and that question cannot be answered here.
 --
