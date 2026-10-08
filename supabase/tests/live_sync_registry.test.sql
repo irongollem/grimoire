@@ -293,7 +293,8 @@ select ok(
 -- Live by default (#1033). A table is campaign data when it carries one of the
 -- anchors below or reaches one through foreign keys at any depth; such a table
 -- rings the doorbell, is published for a channel, or is exempt with a reason.
--- A doorbell function that is renamed or added must join the pattern here.
+-- Routed means a trigger on one of the doorbell route functions (a function
+-- merely named signal_* is not a route), or publication for a channel.
 select is(
   (with recursive anchored(oid) as (
      select c.oid from pg_class c
@@ -311,8 +312,11 @@ select is(
      join pg_class c on c.oid = a.oid
     where c.relname not in (select name from live_sync_exempt)
       and c.relname <> 'campaign_sync'
-      and not exists (select 1 from pg_trigger g join pg_proc p on p.oid = g.tgfoid
-                       where g.tgrelid = c.oid and not g.tgisinternal and p.proname like 'signal\_%')
+      and not exists (select 1 from pg_trigger g
+                       where g.tgrelid = c.oid and not g.tgisinternal
+                         and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
+                                          'public.signal_parent_change()'::regprocedure,
+                                          'public.signal_handout_change()'::regprocedure))
       and not exists (select 1 from pg_publication_tables t
                        where t.pubname = 'supabase_realtime' and t.schemaname = 'public'
                          and t.tablename = c.relname)),
@@ -324,9 +328,11 @@ select is(
   (select coalesce(string_agg(e.name, ', ' order by e.name), '')
      from live_sync_exempt e
     where to_regclass('public.' || e.name) is null
-       or exists (select 1 from pg_trigger g join pg_proc p on p.oid = g.tgfoid
+       or exists (select 1 from pg_trigger g
                    where g.tgrelid = to_regclass('public.' || e.name) and not g.tgisinternal
-                     and p.proname like 'signal\_%')),
+                     and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
+                                      'public.signal_parent_change()'::regprocedure,
+                                      'public.signal_handout_change()'::regprocedure))),
   '',
   'no exemption names a table that is gone or already rings');
 
