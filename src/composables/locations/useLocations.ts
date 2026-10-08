@@ -733,7 +733,6 @@ export async function insertSettingLocations(
   const idByName = new Map((existing ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]));
   const fresh = presets.filter((p) => !idByName.has(p.name.toLowerCase()));
   if (!fresh.length) return 0;
-  const freshNames = new Set(fresh.map((p) => p.name.toLowerCase()));
   for (const preset of fresh) idByName.set(preset.name.toLowerCase(), crypto.randomUUID());
 
   const user = getCurrentUser();
@@ -757,13 +756,11 @@ export async function insertSettingLocations(
     if (!level.length) throw new Error(`Setting locations form a cycle: ${waiting.map((p) => p.name).join(", ")}`);
     const { error } = await supabase.from("locations").insert(level.map(toRow), { defaultToNull: false });
     if (error) throw error;
+    // Queue each committed level even if a later level fails to insert.
+    queueEmbeddingsInBackground("location", level.map((p) => idByName.get(p.name.toLowerCase())!));
     waiting = waiting.filter((p) => !level.includes(p));
   }
 
-  // Bulk insert bypasses useCreateLocation()'s mutation hook, so the new rows
-  // need an embed call here (one batched request, #972); otherwise they stay
-  // unretrievable until the next admin backfill.
-  queueEmbeddingsInBackground("location", [...freshNames].map((name) => idByName.get(name)!));
   return fresh.length;
 }
 

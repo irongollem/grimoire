@@ -5,7 +5,7 @@
 -- update list is refused, not ignored; anon cannot call them.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(19);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data) values
   ('b4700000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'batch-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
@@ -80,6 +80,27 @@ select is((select cell_signature from public.location_map_regions where id = 'b4
 select throws_ok($$ select public.update_location_doors('[
     {"id": "b4700000-0000-4000-8000-0000000000ff", "update": {"label": "Ghost"}}
   ]'::jsonb) $$, '42501', null, 'a row that does not exist refuses the batch');
+
+-- Empty patches must refuse the batch, including rows hidden by RLS or absent.
+select throws_ok($$ select public.update_location_map_regions('[
+    {"id": "b4700000-0000-4000-8000-000000000030", "update": {"cell_signature": "sig-empty"}},
+    {"id": "b4700000-0000-4000-8000-000000000035", "update": {}}
+  ]'::jsonb) $$, 'P0001', 'update_location_map_regions: empty patches are not allowed',
+  'an empty patch for another DM''s region refuses the batch');
+select is((select cell_signature from public.location_map_regions where id = 'b4700000-0000-4000-8000-000000000030'),
+  'sig-a', 'an empty patch rolls back earlier writes in the batch');
+select throws_ok($$ select public.update_location_doors('[
+    {"id": "b4700000-0000-4000-8000-0000000000ff", "update": {}}
+  ]'::jsonb) $$, 'P0001', 'update_location_doors: empty patches are not allowed',
+  'an empty patch for a missing row is refused');
+select throws_ok($$ select public.update_location_placements('[
+    {"id": "b4700000-0000-4000-8000-000000000060", "update": {}}
+  ]'::jsonb) $$, 'P0001', 'update_location_placements: empty patches are not allowed',
+  'an empty patch for a writable row is also refused');
+select throws_ok($$ select public.update_location_doors('[
+    {"id": "not-a-uuid", "update": {}}
+  ]'::jsonb) $$, 'P0001', 'update_location_doors: empty patches are not allowed',
+  'an empty patch with a malformed id cannot silently succeed');
 
 -- ── Only the table's update columns ──────────────────────────────────────────
 

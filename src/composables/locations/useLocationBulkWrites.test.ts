@@ -8,6 +8,8 @@ import type { LocationMapRegionUpdate } from "@/types/locationMapRegion.types";
 // keeping, and the Supabase error thrown, never swallowed.
 
 const mocks = vi.hoisted(() => ({
+  queueEmbeddings: vi.fn(),
+  failInsertAt: 0,
   inserts: [] as { table: string; rows: Record<string, unknown>[]; options?: unknown }[],
   rpcs: [] as { fn: string; args: unknown }[],
   existing: [] as { id: string; name: string }[],
@@ -19,7 +21,7 @@ vi.mock("@/lib/supabase", () => ({
     from: (table: string) => ({
       insert: (rows: Record<string, unknown>[], options?: unknown) => {
         mocks.inserts.push({ table, rows, options });
-        return Promise.resolve({ error: mocks.error });
+        return Promise.resolve({ error: mocks.inserts.length === mocks.failInsertAt ? { message: "level failed" } : mocks.error });
       },
       select: () => ({ eq: () => Promise.resolve({ data: mocks.existing, error: null }) }),
     }),
@@ -31,6 +33,7 @@ vi.mock("@/lib/supabase", () => ({
   },
   getCurrentUser: () => ({ id: "user-1" }),
 }));
+vi.mock("@/lib/queueEmbeddings", () => ({ queueEmbeddingsInBackground: mocks.queueEmbeddings }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: null }) }));
 vi.mock("@/stores/ui", () => ({ useUiStore: () => ({}) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: String }) }));
@@ -54,6 +57,8 @@ describe("bulk location writers", () => {
     mocks.rpcs.length = 0;
     mocks.existing = [];
     mocks.error = null;
+    mocks.failInsertAt = 0;
+    mocks.queueEmbeddings.mockClear();
   });
 
   it("insertLocations sends every room in one insert, with its minted id and the user", async () => {
@@ -122,6 +127,9 @@ describe("bulk location writers", () => {
     ], "planar");
 
     expect(inserted).toBe(4);
+    expect(mocks.queueEmbeddings.mock.calls).toEqual(
+      mocks.inserts.map(({ rows }) => ["location", rows.map((row) => row.id)]),
+    );
     expect(mocks.inserts.map((i) => i.rows.map((r) => r.name))).toEqual([["Avernus", "Outlands"], ["Sigil"], ["The Hive"]]);
     const byName = new Map(mocks.inserts.flatMap((i) => i.rows).map((r) => [r.name, r]));
     expect(byName.get("Avernus")).toMatchObject({ parent_id: "old-hells", campaign_id: "c1", setting_source: "planar", user_id: "user-1" });
@@ -129,6 +137,19 @@ describe("bulk location writers", () => {
     expect(byName.get("Sigil")!.parent_id).toBe(byName.get("Outlands")!.id);
     expect(byName.get("The Hive")!.parent_id).toBe(byName.get("Sigil")!.id);
     expect(mocks.rpcs).toHaveLength(0);
+  });
+
+  it("queues embeddings for committed levels when a later insert fails", async () => {
+    mocks.failInsertAt = 2;
+    await expect(insertSettingLocations("c1", [
+      { name: "Outlands", location_type: "plane", notes: null, tags: [] },
+      { name: "Sigil", location_type: "city", parent: "Outlands", notes: null, tags: [] },
+    ], "planar")).rejects.toMatchObject({ message: "level failed" });
+
+    expect(mocks.inserts).toHaveLength(2);
+    expect(mocks.queueEmbeddings.mock.calls).toEqual([
+      ["location", [mocks.inserts[0]!.rows[0]!.id]],
+    ]);
   });
 
   it("seeds nothing when every place is already there", async () => {

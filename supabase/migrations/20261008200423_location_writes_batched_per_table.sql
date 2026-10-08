@@ -53,7 +53,7 @@ begin
     end if;
     select string_agg(format('%I = patch.%I', key, key), ', ') into v_sets from jsonb_object_keys(v_patch) key;
     if v_sets is null then
-      continue;
+      raise exception 'update_%: empty patches are not allowed', p_table;
     end if;
 
     execute format(

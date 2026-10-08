@@ -18,6 +18,7 @@ select is_empty($q$
     and not exists (
       select 1 from pg_index i
       where i.indrelid = fk.conrelid
+        and i.indisvalid
         and (i.indpred is null
              or pg_get_expr(i.indpred, i.indrelid) = format('(%I IS NOT NULL)',
                   (select attname from pg_attribute where attrelid = i.indrelid and attnum = i.indkey[0])))
@@ -31,6 +32,7 @@ $q$, 'every foreign key in public has an index its lookups can use');
 select ok(exists (
   select 1 from pg_index i
   where i.indrelid = 'public.document_imports'::regclass
+    and i.indisvalid
     and i.indpred is null
     and i.indkey[0] = (select attnum from pg_attribute
                        where attrelid = 'public.document_imports'::regclass and attname = 'user_id')
