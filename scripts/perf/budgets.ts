@@ -1,7 +1,11 @@
 import type { NumericMetric, ResultsFile } from "./results";
 
-/** Only counts are gated: bytes and times move with the machine, request counts do not. */
-export const GATED_METRICS = ["apiRequests", "serialDepth"] as const satisfies readonly NumericMetric[];
+/**
+ * Only counts are gated: bytes and times move with the machine, request counts do
+ * not. `totalRequests` counts the code chunks too (#999 2.14), which is the
+ * number that rises when the chunk graph fragments again.
+ */
+export const GATED_METRICS = ["apiRequests", "serialDepth", "totalRequests"] as const satisfies readonly NumericMetric[];
 export type GatedMetric = (typeof GATED_METRICS)[number];
 
 /** journey -> step label -> metric -> ceiling. */

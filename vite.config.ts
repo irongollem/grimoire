@@ -733,7 +733,18 @@ export default defineConfig(({ mode }) => {
       // that known chunk so an accidentally swollen shared chunk still warns.
       chunkSizeWarningLimit: 1100,
       rolldownOptions: {
+        // Required by `experimentalInlineCommonChunks` below. The app's only
+        // entry is index.html, whose exports nothing imports.
+        preserveEntrySignatures: false,
         output: {
+          // `experimentalInlineCommonChunks` turns this on when it is omitted;
+          // spelled out so nobody reads the default and flips it. It runs every
+          // module's body through an init function in import order, which is
+          // what keeps an inlined chunk's copies to one execution. Its open issue
+          // is top-level await inside a static import cycle (rolldown#9548):
+          // `src` has no top-level await, and dependency-cruiser fails CI on any
+          // import cycle.
+          strictExecutionOrder: true,
           // Vite 8 / rolldown: the function form of `manualChunks` is deprecated
           // and — importantly — is NOT consulted for virtual modules. That let
           // Vite's `__vitePreload` helper (`\0vite/preload-helper.js`, needed by
@@ -747,6 +758,39 @@ export default defineConfig(({ mode }) => {
           // Groups are matched in order — first match wins — so the node_modules
           // catch-all stays last.
           codeSplitting: {
+            // Small common chunks are copied into the chunks that read them
+            // instead of being fetched as files of their own (#999 2.14). The
+            // automatic splitting cuts the app's shared code by importer set, so
+            // nearly every composable and `*.types` module was its own chunk: 633
+            // chunks, 275 under 2 kB, and a cold dashboard fetched 157 of them.
+            // Copies avoid the union problem a merging group has (see the note
+            // above `app-boot`): a chunk only ever holds code its own route
+            // could reach. A runtime registry keeps one execution and one set of
+            // exports per inlined chunk however many copies are loaded.
+            //
+            // Measured 8-9 Oct 2026 (harness, 5 runs, CPU 4x, +150 ms per API
+            // request; build with the app's environment):
+            //   threshold   chunks  dashboard files / gzip  /play files  boot
+            //   none           633        157 / 674.7 kB       154      409.3 kB
+            //   4 kB           430         89 / 702.7 kB        86      421.5 kB
+            //   8 kB           336         57 / 694.1 kB        59      419.0 kB
+            //   16 kB          283         33 / 691.3 kB        38      417.3 kB
+            // 8 kB against none: DM cold 221 -> 120 requests, content ready
+            // 675 -> 579 ms, app ready 370 -> 299 ms; DM returning visit content
+            // ready 434 -> 311 ms; player cold 216 -> 121 requests, content ready
+            // 472 -> 419 ms; total blocking time unchanged. 16 kB cut another
+            // fifth of the requests but moved no timing beyond noise, and each
+            // step up copies more code, so the threshold stops at 8 kB.
+            // Every top-level route as DM and player showed the same errors
+            // with and without it.
+            //
+            // Chunks holding styles stay files: Vite's CSS plugin emits a style
+            // module's CSS from every chunk that lists it, so an inlined copy
+            // would duplicate the stylesheet.
+            experimentalInlineCommonChunks: {
+              maxSize: 8 * 1024,
+              exclude: /\.(css|scss|sass|less|styl|stylus|pcss|postcss|sss)(\?|$)/,
+            },
             groups: [
               // Shared dynamic-import helper — must never ride along with a
               // feature chunk (see above).
@@ -880,15 +924,10 @@ export default defineConfig(({ mode }) => {
               //    pulled `tiptap` (142 kB gzip) or `documents` (295 kB) into every
               //    route that used any other member. The dashboard's static
               //    closure rose from 766 kB to 976-1297 kB.
-              //  - `experimentalInlineCommonChunks`, which copies small common
-              //    chunks into their consumers and so has no union problem. It
-              //    brought the chunk count to 413 and the dashboard closure to
-              //    783 kB, but it forces `strictExecutionOrder` on for the whole
-              //    app, and the boot payload went from 351.1 to 416.8 kB. Both of
-              //    those were measured WITHOUT the app's environment, so the gap
-              //    may be the artefact bootBudgetPlugin's guard describes rather
-              //    than strict ordering: re-measure before ruling it out for that
-              //    reason alone. It is also marked experimental.
+              //  - `experimentalInlineCommonChunks` was rejected here first on a
+              //    boot payload of 351.1 -> 416.8 kB, measured without the app's
+              //    environment. Re-measured with it, the cost is 409.3 -> 419.0 kB,
+              //    and it is now on: see `experimentalInlineCommonChunks` above.
               {
                 name: "app-boot",
                 tags: ["$initial"],

@@ -16,8 +16,8 @@ const file = (journeys: JourneyResult[]): ResultsFile => ({
 });
 const budgets: Budgets = {
   journeys: {
-    "dm-cold": { "dm-cold": { apiRequests: 41, serialDepth: 5 } },
-    "player-cold": { "player-cold": { apiRequests: 43, serialDepth: 5 } },
+    "dm-cold": { "dm-cold": { apiRequests: 41, serialDepth: 5, totalRequests: 41 } },
+    "player-cold": { "player-cold": { apiRequests: 43, serialDepth: 5, totalRequests: 43 } },
   },
 };
 
@@ -28,6 +28,7 @@ describe("checkBudgets", () => {
     expect(report.missingSteps).toEqual([
       "dm-cold dm-cold: no numeric apiRequests budget",
       "dm-cold dm-cold: no numeric serialDepth budget",
+      "dm-cold dm-cold: no numeric totalRequests budget",
     ]);
     expect(isFailure(report)).toBe(true);
   });
@@ -38,16 +39,19 @@ describe("checkBudgets", () => {
     expect(isFailure(report)).toBe(false);
   });
 
-  it("fails on either metric going over", () => {
+  it("fails on any metric going over", () => {
     const report = checkBudgets(file([ok("dm-cold", "dm-cold", 42, 6)]), budgets);
-    expect(report.breaches.map((b) => b.metric)).toEqual(["apiRequests", "serialDepth"]);
+    expect(report.breaches.map((b) => b.metric)).toEqual(["apiRequests", "serialDepth", "totalRequests"]);
     expect(isFailure(report)).toBe(true);
     expect(formatBudgetReport(report)).toContain("OVER BUDGET");
   });
 
   it("hints to lower the budget on an improvement, without failing", () => {
     const report = checkBudgets(file([ok("dm-cold", "dm-cold", 30, 5)]), budgets);
-    expect(report.improvements).toMatchObject([{ metric: "apiRequests", budget: 41, actual: 30 }]);
+    expect(report.improvements).toMatchObject([
+      { metric: "apiRequests", budget: 41, actual: 30 },
+      { metric: "totalRequests", budget: 41, actual: 30 },
+    ]);
     expect(isFailure(report)).toBe(false);
     expect(formatBudgetReport(report)).toContain("lower budgets.json");
   });

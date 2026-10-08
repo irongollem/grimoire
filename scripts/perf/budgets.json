@@ -1,48 +1,56 @@
 {
-  "$comment": "Deterministic per-step ceilings, measured on the committed synthetic fixture (npm run perf:fixture; 3 runs, identical across two sessions, 7 Oct 2026). Lowered as #999 stories land: a story that lowers a number lowers it here in the same change; see README.md. The boot-bundle gzip budget is NOT here: it lives in bootBudgetPlugin (vite.config.ts). Raised on purpose in #999 2.2: the dashboard no longer preloads the NPC and encounter lists (it reads counts), so /npcs and /encounters fetch their own slim lists on navigation.",
+  "$comment": "Deterministic per-step ceilings, measured on the committed synthetic fixture (npm run perf:fixture; 3 runs, identical across two sessions, 7 Oct 2026). Lowered as #999 stories land: a story that lowers a number lowers it here in the same change; see README.md. The boot-bundle gzip budget is NOT here: it lives in bootBudgetPlugin (vite.config.ts). Raised on purpose in #999 2.2: the dashboard no longer preloads the NPC and encounter lists (it reads counts), so /npcs and /encounters fetch their own slim lists on navigation. totalRequests added in #999 2.14 (small common chunks inlined): it counts the code chunks too, so a fragmenting chunk graph shows here.",
   "journeys": {
     "dm-cold": {
       "dm-cold": {
         "apiRequests": 33,
-        "serialDepth": 5
+        "serialDepth": 5,
+        "totalRequests": 120
       }
     },
     "dm-warm": {
       "dm-warm": {
         "apiRequests": 33,
-        "serialDepth": 4
+        "serialDepth": 4,
+        "totalRequests": 121
       }
     },
     "dm-nav": {
       "/npcs": {
         "apiRequests": 2,
-        "serialDepth": 1
+        "serialDepth": 1,
+        "totalRequests": 15
       },
       "/encounters": {
         "apiRequests": 5,
-        "serialDepth": 1
+        "serialDepth": 1,
+        "totalRequests": 7
       },
       "/quests": {
         "apiRequests": 4,
-        "serialDepth": 1
+        "serialDepth": 1,
+        "totalRequests": 6
       }
     },
     "dm-npc-detail": {
       "dm-npc-detail": {
         "apiRequests": 3,
-        "serialDepth": 1
+        "serialDepth": 1,
+        "totalRequests": 19
       }
     },
     "player-cold": {
       "player-cold": {
         "apiRequests": 29,
-        "serialDepth": 4
+        "serialDepth": 4,
+        "totalRequests": 121
       }
     },
     "resume": {
       "resume": {
         "apiRequests": 26,
-        "serialDepth": 1
+        "serialDepth": 1,
+        "totalRequests": 28
       }
     }
   }
