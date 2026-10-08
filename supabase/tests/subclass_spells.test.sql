@@ -21,7 +21,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(64);
+select plan(67);
 
 create function pg_temp.u(p text) returns uuid language sql immutable as $$
   select ('99500000-0000-4000-8000-0000000000' || p)::uuid;
@@ -277,6 +277,23 @@ select lives_ok(format($$
 $$, pg_temp.t('e8'), pg_temp.t('a8'), pg_temp.t('ba')), 'a level-up that names the terrain succeeds');
 select is((select subclass_variant from public.character_classes where id = pg_temp.u('a8')), 'Coast', 'the variant is on the class row');
 select is(pg_temp.granted('a8'), array[pg_temp.t('b2')], 'and that option''s spells arrived in the same call');
+
+-- An author removes the option a character holds. The character must still be
+-- able to level: apply_level_up names subclass_variant in every class update, so
+-- the validation runs, and it may only refuse an option being CHOSEN, never one
+-- merely kept. The stale option grants nothing; the client asks again.
+reset role;
+update public.custom_subclasses set spell_variants = spell_variants - 'Coast'
+ where id = (select subclass_definition_id from public.character_classes where id = pg_temp.u('a8'));
+set local role authenticated;
+select pg_temp.as_user();
+select lives_ok(format($$
+  update public.character_classes set levels = levels, subclass_variant = subclass_variant where id = %L
+$$, pg_temp.t('a8')), 'a class update that keeps an option the author removed still succeeds');
+select is(pg_temp.granted('a8'), '{}'::text[], 'and the stale option grants nothing');
+select throws_like(format($$
+  update public.character_classes set subclass_variant = 'Arctic-gone' where id = %L
+$$, pg_temp.t('a8')), '%not an option%', 'choosing an option the subclass does not offer is still refused');
 
 select throws_like(format($$
   select public.apply_level_up(%L, '{"level": 3}'::jsonb,

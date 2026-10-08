@@ -52,7 +52,9 @@ const rows = computed(() =>
       subclassName: subclass.subclass_name,
       label: subclassVariantLabel(subclass),
       options,
-      variant: row.subclass_variant,
+      // An option the author has since renamed or removed reads as unchosen:
+      // the server grants nothing for it, so the select asks for a current one.
+      variant: row.subclass_variant !== null && options.includes(row.subclass_variant) ? row.subclass_variant : null,
     }];
   }),
 );

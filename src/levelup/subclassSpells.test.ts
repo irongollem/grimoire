@@ -46,4 +46,7 @@ describe("subclassVariantOptions and subclassVariantDue", () => {
     expect(subclassVariantDue(land, "Forest")).toBe(false);
     expect(subclassVariantDue({ ...land, spell_variants: {}, expanded_spell_variants: {} }, null)).toBe(false);
   });
+  it("is due again when the held option was renamed or removed by the subclass's author", () => {
+    expect(subclassVariantDue(land, "Coast")).toBe(true);
+  });
 });
