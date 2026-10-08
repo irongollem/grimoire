@@ -212,11 +212,14 @@ async function gatherContext(req: DraftRequest): Promise<string> {
   }
 
   // session: the subject is a session-category note, siblings are the notes linked to the same session.
+  // overrideTypes: without generated types supabase-js reads the many-to-one
+  // `session` embed as an array; PostgREST returns one object (or null).
   const { data: note, error: noteErr } = await admin.from("notes").select(NOTE_COLUMNS)
-    .eq("id", subjectId).eq("campaign_id", campaignId).eq("category", "session").maybeSingle();
+    .eq("id", subjectId).eq("campaign_id", campaignId).eq("category", "session").maybeSingle()
+    .overrideTypes<DraftNote, { merge: false }>();
   if (noteErr) throw new Error(noteErr.message);
   if (!note) throw new DraftError(404, "Session not found in this campaign");
-  if (!sessionNoteAllowed(note as DraftNote, audience)) {
+  if (!sessionNoteAllowed(note, audience)) {
     throw new DraftError(
       422,
       "This session's notes are not shared with players. Share the note with a player, or draft the recap for the DM.",
@@ -225,11 +228,12 @@ async function gatherContext(req: DraftRequest): Promise<string> {
   let siblings: DraftNote[] = [];
   if (note.session_id !== null) {
     const { data, error: sibErr } = await admin.from("notes").select(NOTE_COLUMNS)
-      .eq("campaign_id", campaignId).eq("session_id", note.session_id).neq("id", subjectId).limit(20);
+      .eq("campaign_id", campaignId).eq("session_id", note.session_id).neq("id", subjectId).limit(20)
+      .overrideTypes<DraftNote[], { merge: false }>();
     if (sibErr) throw new Error(sibErr.message);
-    siblings = (data ?? []) as DraftNote[];
+    siblings = data;
   }
-  return assembleContext([buildSessionBlock(note as DraftNote, siblings, audience)]);
+  return assembleContext([buildSessionBlock(note, siblings, audience)]);
 }
 
 const jsonError = (status: number, error: string) =>

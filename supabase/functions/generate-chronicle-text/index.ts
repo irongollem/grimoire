@@ -341,13 +341,16 @@ serve(withCors(async (req: Request) => {
     const matchedIds = ((noteMatch.data ?? []) as { id: string }[]).map((r) => r.id);
 
     if (matchedIds.length > 0) {
+      type NoteContentRow = { id: string; title: string; category: string; content: string | null; created_at: string; session: { number: number | null; title: string | null; played_on: string | null; started_at: string | null } | null };
+      // overrideTypes: without generated types supabase-js reads the many-to-one
+      // `session` embed as an array; PostgREST returns one object (or null).
       const { data: noteRows, error: noteError } = await admin
         .from("notes")
         .select("id, title, category, content, created_at, session:campaign_sessions(number, title, played_on, started_at)")
-        .in("id", matchedIds);
+        .in("id", matchedIds)
+        .overrideTypes<NoteContentRow[], { merge: false }>();
       if (noteError) throw new Error(noteError.message);
 
-      type NoteContentRow = { id: string; title: string; category: string; content: string | null; created_at: string; session: { number: number | null; title: string | null; played_on: string | null; started_at: string | null } | null };
       // Re-sorted into chronological order for presentation -- the RPC's
       // relevance ranking above only decided WHICH notes to include, not
       // what order best serves "read this as a timeline." Session numbers are
@@ -356,7 +359,7 @@ serve(withCors(async (req: Request) => {
       // session or no date (matched by relevance rather than being an actual
       // past session) sort last, since they aren't part of the sequence.
       const sessionWhen = (r: NoteContentRow): string | null => r.session?.started_at ?? r.session?.played_on ?? null;
-      const sorted = ((noteRows ?? []) as NoteContentRow[]).slice().sort((a, b) => {
+      const sorted = noteRows.slice().sort((a, b) => {
         const wa = sessionWhen(a);
         const wb = sessionWhen(b);
         if (wa == null && wb == null) return a.created_at.localeCompare(b.created_at);
