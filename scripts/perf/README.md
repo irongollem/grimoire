@@ -151,10 +151,13 @@ use; paint, TBT and settled time vary with machine load.
 
 ## Budgets (story 0.4)
 
-`budgets.json` holds a ceiling per journey step for the deterministic counts:
+`budgets.json` holds a ceiling per journey step for three counts:
 `apiRequests`, `serialDepth` and `totalRequests` (the last counts code chunks,
 stylesheets, fonts and images too, so it is the one that rises when the chunk
-graph fragments; #999 2.14). Times and bytes are never gated: they move with the machine. They were
+graph fragments; #999 2.14). The request counts repeat run to run. `serialDepth`
+can differ by one on CI, when a request finishes just before or just after
+another starts (`main`'s history flaps `dm-cold` between 4 and 5), so a depth
+ceiling is the maximum `main` has measured, not a single run. Times and bytes are never gated: they move with the machine. They were
 measured on the committed fixture (`npm run perf:fixture`), so a laptop and CI
 read the same rows.
 
