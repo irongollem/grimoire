@@ -59,7 +59,14 @@ insert into live_sync_doorbell (name) values
   ('store_items'), ('quest_runtime_state'), ('quest_threads'),
   ('quest_beat_transitions'), ('campaign_sessions'), ('ruleset_reviews'),
   ('scriptorium_documents'), ('entity_mentions'), ('entity_notes'),
-  ('quest_clocks'), ('character_classes'), ('character_spells');
+  ('quest_clocks'), ('character_classes'), ('character_spells'),
+  -- Play state (#1033 wave 1).
+  ('handout_reveals'), ('location_reveals'), ('npc_reveals'), ('npc_pc_notes'),
+  ('player_npc_ratings'), ('npc_favors'), ('faction_party_members'),
+  ('party_member_tracker_state'), ('pinned_forms'), ('location_state_events'),
+  ('location_placements'), ('quest_consequence_events'), ('campaign_join_requests'),
+  ('encounters'), ('loot_tables'), ('roll_tables'), ('dungeon_maps'),
+  ('dungeon_features');
 
 -- Subscribed on a channel of its own with exact-row handlers, so it rings only
 -- for what that channel cannot carry: a delete (#1026).
@@ -88,7 +95,7 @@ language sql stable as $$
      where g.tgrelid = format('public.%I', p_table)::regclass
        and not g.tgisinternal
        and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
-                        'public.signal_store_item_change()'::regprocedure,
+                        'public.signal_location_child_change()'::regprocedure,
                         'public.signal_party_member_child_change()'::regprocedure,
                         'public.signal_handout_change()'::regprocedure,
                         'public.signal_quest_child_change()'::regprocedure)

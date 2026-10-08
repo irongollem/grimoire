@@ -151,6 +151,37 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // change regrants spells server-side, which rings `character_spells` too.
   ["character_classes", ["character_classes", "spellChangeWindows"]],
   ["character_spells", ["characterSpells", "characterSpellsDetails", "spellChangeWindows", "spellKnowers"]],
+  // Play state (#1033). Each rings rather than subscribes: the rows are
+  // owner-only, readable by the DM and one player, DM-only, or carry no
+  // campaign_id (places and characters ring through their parent).
+  //
+  // What a player has been shown. The unsorted-facts count reads all three
+  // reveal tables under the "npc-reveals" root, and the session log files every
+  // reveal as a learned moment.
+  ["handout_reveals", ["session-learned", "npc-reveals"]],
+  ["location_reveals", ["session-learned", "npc-reveals"]],
+  ["npc_reveals", ["npc-reveals", PLAYER_NPCS_KEY, "session-learned"]],
+  ["npc_pc_notes", ["npc_pc_notes"]],
+  ["player_npc_ratings", ["player_npc_ratings"]],
+  ["npc_favors", ["npc_favors"]],
+  ["faction_party_members", ["faction-party-members", "party-member-factions", "player-faction-party-members", PLAYER_FACTIONS_KEY]],
+  ["party_member_tracker_state", ["tracker_state"]],
+  // A pinned form widens get_player_visible_monsters (Wild Shape candidates).
+  ["pinned_forms", ["pinned-forms", "monsters"]],
+  // Doors and rooms opened at the table: read through the location_state view,
+  // and by players through get_player_visible_site_state.
+  ["location_state_events", ["location-state", "player-visible-site-state"]],
+  ["location_placements", ["location-placements"]],
+  // A fired or dismissed consequence moves the runtime the DM is running, and
+  // get_player_visible_quest_beats reads it for the players' story so far.
+  ["quest_consequence_events", ["quest_consequence_events", RUNTIME_CONTEXT_KEY, BEATS_KEY, TRANSITIONS_KEY]],
+  // A child's request to join reaches the parent waiting on it.
+  ["campaign_join_requests", ["family-campaigns"]],
+  ["encounters", ["encounters", QUEST_BOARD_KEY, "session-learned"]],
+  ["loot_tables", ["loot_tables"]],
+  ["roll_tables", ["roll_tables"]],
+  ["dungeon_maps", ["dungeon_maps"]],
+  ["dungeon_features", ["dungeon_features"]],
   // Subscribed on its own channel (usePartyLive), which carries inserts and
   // updates as exact rows. It rings only for what that channel cannot carry: a
   // delete, and a character leaving the campaign (#1026).
