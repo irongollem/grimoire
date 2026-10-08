@@ -892,6 +892,21 @@
   box-shadow: inset 0 -1px 0 var(--destructive);
 }
 
+/* The `underline` tone was a rule under the text before the line existed (quest
+   clocks, journal titles, loot and currency pools, sound card names). It is the
+   same idea, so in Vellum it is the same line wherever it sits, rather than a
+   paler rule that turns gilt on focus. Hand and print follow the size as for any
+   other field. */
+:root[data-theme^="vellum"] [data-field-tone="underline"] { border-bottom-color: var(--vl-line); }
+:root[data-theme^="vellum"] [data-field-tone="underline"]:is(:focus, :focus-visible) {
+  border-bottom-color: var(--foreground);
+  box-shadow: inset 0 -1px 0 var(--foreground);
+}
+:root[data-theme^="vellum"] [data-field-tone="underline"][aria-invalid="true"] {
+  border-bottom-color: var(--destructive);
+  box-shadow: inset 0 -1px 0 var(--destructive);
+}
+
 /* Slip: a field on the bare page. */
 :root[data-theme^="vellum"] [data-field]:not([type="number"]):is([data-field-size="sm"], [data-field-size="md"], [data-field-size="lg"], [data-field-size="body"], [data-field-size="heading"]):is([data-field-tone="default"], [data-field-tone="card"], [data-field-tone="muted"], [data-field-tone="filled"]):not(:is(.bg-card, .bg-popover, [data-modal-panel], .torn, [data-slip]) *) {
   border-color: transparent;
