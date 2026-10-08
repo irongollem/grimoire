@@ -97,7 +97,7 @@ interface CustomMonsterRow {
   id: string;
   name: string;
   monster_type: string;
-  stat_block: { challenge_rating?: string } | null;
+  stat_block: { challenge_rating?: string };
 }
 
 // How many rows each side contributes. Custom monsters get a guaranteed share
@@ -115,7 +115,7 @@ function fromCustomRow(row: CustomMonsterRow): CandidateMonster {
   return {
     id: row.id,
     name: row.name,
-    cr: row.stat_block?.challenge_rating ?? "?",
+    cr: row.stat_block.challenge_rating ?? "?",
     type: row.monster_type,
   };
 }

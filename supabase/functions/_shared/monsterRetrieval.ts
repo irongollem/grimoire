@@ -41,7 +41,7 @@ interface CustomMonsterRow {
   id: string;
   name: string;
   monster_type: string | null;
-  stat_block: { challenge_rating?: string } | null;
+  stat_block: { challenge_rating?: string };
 }
 
 export interface MonsterRetrievalArgs {
@@ -73,7 +73,7 @@ function fromCustomRow(row: CustomMonsterRow): CandidateMonster {
   return {
     id: row.id,
     name: row.name,
-    cr: row.stat_block?.challenge_rating ?? "?",
+    cr: row.stat_block.challenge_rating ?? "?",
     type: row.monster_type ?? "?",
   };
 }

@@ -28,7 +28,7 @@ export interface EmbeddableMonster {
   habitat: string | null;
   tags: string[] | null;
   description: string | null;
-  stat_block: { challenge_rating?: string | null } | null;
+  stat_block: { challenge_rating?: string | null };
 }
 
 // Keeps the embedded description bounded and matches the ~150 token/row cost
@@ -82,7 +82,7 @@ export function buildMonsterEmbedText(monster: EmbeddableMonster): string {
   const sizeTypeCr = buildSizeTypeCrClause(
     monster.size,
     monster.monster_type,
-    monster.stat_block?.challenge_rating,
+    monster.stat_block.challenge_rating,
   );
   if (sizeTypeCr) clauses.push(sizeTypeCr);
 

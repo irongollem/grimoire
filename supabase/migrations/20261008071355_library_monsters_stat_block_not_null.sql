@@ -1,0 +1,11 @@
+-- library_monsters.stat_block was nullable only because the column was made
+-- before anyone knew whether every upstream record would carry one. Every
+-- one does: all 3,541 rows have a stat block, and the Open5e mapper
+-- (src/lib/library/open5eMonsterImport.ts) always builds one. `monsters`
+-- has been NOT NULL all along, and the client's `Monster` type, which both
+-- tables are read into, has never admitted a null — so a null here would
+-- crash every stat-block reader rather than render as "no stat block".
+--
+-- No default: a row without a stat block is a broken import, and refusing it
+-- is the point. `'{}'` would let the importer silently write empty creatures.
+alter table public.library_monsters alter column stat_block set not null;

@@ -39,10 +39,10 @@ values
 
 -- The shared library. "Duplicant" is deliberately in BOTH corpora so the ranking
 -- has something to choose between; an unclaimed name would prove nothing.
-insert into public.library_monsters (id, name, monster_type, source, is_shared, open5e_import, tags, ruleset, conceptual_key, source_document_key, source_record_key, provenance)
+insert into public.library_monsters (id, name, monster_type, source, is_shared, open5e_import, tags, ruleset, conceptual_key, source_document_key, source_record_key, provenance, stat_block)
 values
-  ('resolve_test_duplicant', 'Duplicant', 'humanoid', 'test', true, false, '{}', '2014', 'duplicant', 'test', 'duplicant', '{}'::jsonb),
-  ('resolve_test_testrat', 'Testrat', 'beast', 'test', true, false, '{}', '2014', 'testrat', 'test', 'testrat', '{}'::jsonb);
+  ('resolve_test_duplicant', 'Duplicant', 'humanoid', 'test', true, false, '{}', '2014', 'duplicant', 'test', 'duplicant', '{}'::jsonb, '{}'::jsonb),
+  ('resolve_test_testrat', 'Testrat', 'beast', 'test', true, false, '{}', '2014', 'testrat', 'test', 'testrat', '{}'::jsonb, '{}'::jsonb);
 
 insert into public.items (id, user_id, campaign_id, name, item_type, rarity, requires_attunement, properties, spell_ids, description, tags, is_arcane_focus, provenance, content_player_writable)
 values ('83700000-0000-4000-8000-000000000030', '83700000-0000-4000-8000-000000000001', '83700000-0000-4000-8000-000000000010', 'Potion of Testing', 'consumable', 'common', false, '{}', '{}', '', '{}', false, '{}'::jsonb, false);
