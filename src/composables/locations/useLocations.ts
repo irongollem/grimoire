@@ -216,7 +216,9 @@ async function deleteLocation(id: string): Promise<void> {
     .from("locations")
     .select("image_url, map_url, map_layer_url")
     .eq("id", id)
-    .single();
+    // A second delete of the same place (a double click, another tab) finds no
+    // row: nothing to clean up, and the delete below is a no-op, not an error.
+    .maybeSingle();
   if (readError) throw readError;
   const { error } = await supabase.from("locations").delete().eq("id", id);
   if (error) throw error;

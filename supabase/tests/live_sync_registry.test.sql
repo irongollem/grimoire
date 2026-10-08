@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(17);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -321,6 +321,24 @@ select is(
                          and t.tablename = c.relname)),
   '',
   'every campaign table is on a live route or exempt with a reason');
+
+-- A table that rings but sits in none of the lists above has no SIGNAL_KEYS
+-- entry (campaignSyncTables.test.ts holds the lists equal to it), so its rings
+-- arrive and are ignored: the silent failure this file exists to catch.
+select is(
+  (select coalesce(string_agg(distinct c.relname::text, ', '), '')
+     from pg_trigger g
+     join pg_class c on c.oid = g.tgrelid
+    where not g.tgisinternal
+      and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
+                       'public.signal_parent_change()'::regprocedure,
+                       'public.signal_handout_change()'::regprocedure)
+      and c.relname not in (select name from live_sync_subscribed
+                            union select name from live_sync_doorbell
+                            union select name from live_sync_own_channel
+                            union select source from live_sync_named_signal)),
+  '',
+  'every table that rings is in a list the client registry is held to');
 
 -- An exemption for a table that is in fact routed, or no longer exists, is stale.
 select is(
