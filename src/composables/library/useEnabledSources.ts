@@ -11,6 +11,7 @@ const AVAILABLE_PLAYER_KEY = "available-player-books";
 const AVAILABLE_KEY        = "available-library-sources";
 const AVAILABLE_SPELL_KEY  = "available-library-spell-sources";
 const AVAILABLE_ITEM_KEY   = "available-library-item-sources";
+const AVAILABLE_SPECIES_KEY = "available-library-species-sources";
 
 export interface EnabledSource {
   id: string;
@@ -209,6 +210,26 @@ export function useAvailableLibraryItemSources() {
   return useQuery({
     queryKey: computed(() => [AVAILABLE_ITEM_KEY, ruleset.value] as const),
     queryFn: ({ queryKey: [, rs] }) => fetchAvailableLibraryItemSources(rs),
+    staleTime: Infinity,
+  });
+}
+
+async function fetchAvailableLibrarySpeciesSources(ruleset: "2014" | "2024"): Promise<AvailableLibrarySource[]> {
+  const { data, error } = await supabase.rpc("get_library_species_sources", { p_ruleset: ruleset });
+  if (error) throw error;
+  return (data ?? []) as AvailableLibrarySource[];
+}
+
+/**
+ * The species books a DM may enable for the table. A source holding only species
+ * (Grimoire Species, #955) appears in no other picker, so without this one a
+ * campaign could never switch it on.
+ */
+export function useAvailableLibrarySpeciesSources() {
+  const { ruleset } = useTableRuleset();
+  return useQuery({
+    queryKey: computed(() => [AVAILABLE_SPECIES_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchAvailableLibrarySpeciesSources(rs),
     staleTime: Infinity,
   });
 }
