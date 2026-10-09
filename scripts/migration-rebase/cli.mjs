@@ -211,7 +211,11 @@ function main() {
     }
     if (failed) {
       console.error("");
-      if (plan.moves.length > 0) console.error("Fix with: node scripts/migration-rebase/cli.mjs --write");
+      // The fix has to compare against the same base the check did. On a push to
+      // main CI checks against the commit before the push (#1035), and a plain
+      // `--write` against origin/main would find nothing to move.
+      const baseFlag = base === "origin/main" ? "" : ` --base ${base}`;
+      if (plan.moves.length > 0) console.error(`Fix with: node scripts/migration-rebase/cli.mjs --write${baseFlag}`);
       else if (plan.renameBlocked) console.error(`Cannot fix this automatically: ${plan.renameBlocked}`);
       process.exit(1);
     }

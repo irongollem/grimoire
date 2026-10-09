@@ -88,6 +88,21 @@ describe("migration-rebase CLI", () => {
     expect(out).toMatch(/20260825073922/);
   });
 
+  it("prints the fix with the base the check used, so the fix finds what the check found", () => {
+    const root = makeRepo({ base: BASE, local: {} });
+    const before = git(["rev-parse", "HEAD"], root).trim();
+    writeFileSync(join(root, "supabase/migrations", "20260825005907_late.sql"), "-- late\n");
+    git(["add", "-A"], root);
+    git(["commit", "-qm", "push"], root);
+    git(["update-ref", "refs/remotes/origin/main", "main"], root);
+
+    const { code, out } = run(root, "--check", "--base", before);
+    expect(code).toBe(1);
+    expect(out).toContain(`Fix with: node scripts/migration-rebase/cli.mjs --write --base ${before}`);
+    expect(run(root, "--write", "--base", before).code).toBe(0);
+    expect(run(root, "--check", "--base", before).code).toBe(0);
+  });
+
   // Bug 1: `git mv` refuses a file it does not track, and an uncommitted
   // migration is the normal case rather than an edge one.
   it("renames a migration that git does not track yet", () => {
