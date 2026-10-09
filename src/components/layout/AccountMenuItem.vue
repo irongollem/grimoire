@@ -4,13 +4,20 @@
     size="inline"
     block
     :to="to"
+    :href="href"
+    :target="href ? '_blank' : undefined"
+    :rel="href ? 'noopener' : undefined"
     :tooltip="tooltip"
     :aria-label="label"
     :class="cn('justify-start gap-2 px-3 py-2 text-caption hover:bg-secondary/60', danger && 'text-destructive/80 hover:text-destructive')"
     @click="emit('click', $event)"
   >
     <template #icon>
-      <component :is="icon" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <!-- A slot so a row can carry a brand mark (BrandIcon takes a prop and
+           must not be tinted like a glyph); `icon` covers every other row. -->
+      <slot name="icon">
+        <component :is="icon" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      </slot>
     </template>
     <span>{{ label }}</span>
     <slot name="trailing" />
@@ -37,9 +44,12 @@ import type { RouteLocationRaw } from "vue-router";
 
 const { danger = false } = defineProps<{
   label: string;
-  icon: Component;
+  /** The row's glyph. Omit only when filling the `icon` slot instead. */
+  icon?: Component;
   /** Renders the row as a RouterLink. Omit for a plain button row. */
   to?: RouteLocationRaw;
+  /** Renders the row as an external link, opened in a new tab. */
+  href?: string;
   /** Supplementary hover text; never becomes the accessible name. */
   tooltip?: string;
   /** Sign out — the one row that reads as destructive. */

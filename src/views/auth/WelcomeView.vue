@@ -28,6 +28,18 @@
     </div>
 
     <DemoCampaignOffer layout="full" @loaded="onDemoLoaded" />
+
+    <p v-if="showDiscord" class="mt-6 text-center text-body text-muted-foreground italic">
+      Questions, ideas, or just curious what's coming next? Come and say hello on
+      <AppButton
+        variant="link"
+        size="inline-body"
+        :href="discordUrl"
+        target="_blank"
+        rel="noopener"
+        label="our Discord"
+      />.
+    </p>
   </div>
 </template>
 
@@ -35,6 +47,7 @@
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import DemoCampaignOffer from "@/components/campaign/DemoCampaignOffer.vue";
+import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
 import { IconDM, IconUserRound } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -44,6 +57,7 @@ import type { Campaign } from "@/types/campaign.types";
 const ui = useUiStore();
 const router = useRouter();
 const campaignStore = useCampaignStore();
+const { url: discordUrl, visible: showDiscord } = useDiscordInvite();
 
 function choose(mode: "dm" | "player") {
   ui.userMode = mode;

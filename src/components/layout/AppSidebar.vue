@@ -152,6 +152,15 @@
           />
 
           <AccountMenuItem
+            v-if="showDiscord"
+            :href="discordUrl"
+            label="Join our Discord"
+            @click="menuOpen = false"
+          >
+            <template #icon><BrandIcon name="discord" class="h-3.5 w-3.5" /></template>
+          </AccountMenuItem>
+
+          <AccountMenuItem
             :icon="IconBug"
             label="Report a bug"
             @click="bugReportOpen = true; menuOpen = false"
@@ -207,6 +216,8 @@ import { onClickOutside } from "@vueuse/core";
 import { useAuthStore } from "@/stores/auth";
 import { useUpdateCampaignMember } from "@/composables/campaign/useCampaignMembers";
 import LegalFooterLinks from "@/components/common/LegalFooterLinks.vue";
+import BrandIcon from "@/components/brand/BrandIcon.vue";
+import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
 import { NAV_GROUPS, navItemHiddenByFlag } from "@/lib/nav";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useSubscription } from "@/composables/billing/useSubscription";
@@ -228,6 +239,7 @@ import ModeToggle from "./ModeToggle.vue";
 const auth = useAuthStore();
 const router = useRouter();
 const { canInstall, hasNativePrompt, install } = usePwaInstall();
+const { url: discordUrl, visible: showDiscord } = useDiscordInvite();
 // Deferred — a dialog most sessions never open should not be entry-chunk
 // weight. Latched rather than mirrored so a half-typed report survives a
 // close/reopen, exactly as the always-mounted version did.

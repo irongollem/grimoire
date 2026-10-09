@@ -28,8 +28,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-/** Filenames in src/assets/brands/, without the extension. One for now. */
-export type BrandName = "spotify";
+/** Filenames in src/assets/brands/, without the extension. */
+export type BrandName = "spotify" | "discord";
 
 const { name, label } = defineProps<{
   name: BrandName;

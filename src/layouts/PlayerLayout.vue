@@ -278,6 +278,19 @@
           @click="showMenu = false"
         />
         <AppButton
+          v-if="showDiscord"
+          :href="discordUrl"
+          target="_blank"
+          rel="noopener"
+          variant="menu"
+          size="sm"
+          block
+          label="Join our Discord"
+          @click="showMenu = false"
+        >
+          <template #icon><BrandIcon name="discord" class="h-4 w-4" /></template>
+        </AppButton>
+        <AppButton
           variant="menu"
           size="sm"
           block
@@ -354,6 +367,8 @@ import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
 import { usePlayerUnread } from "@/composables/play/usePlayerUnread";
 import ModeToggle from "@/components/layout/ModeToggle.vue";
+import BrandIcon from "@/components/brand/BrandIcon.vue";
+import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
 import { useLazyMount } from "@/composables/useLazyMount";
 import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
 import TermsGate from "@/components/account/TermsGate.vue";
@@ -364,6 +379,9 @@ import { darkChromeStyle } from "@/lib/memorials/hallGround";
 const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
+// Players are where child accounts live, so this menu is the one the
+// child-account gate in useDiscordInvite matters most for.
+const { url: discordUrl, visible: showDiscord } = useDiscordInvite();
 // Deferred — a dialog most sessions never open should not be entry-chunk
 // weight. Latched rather than mirrored so a half-typed report survives a
 // close/reopen, exactly as the always-mounted version did.

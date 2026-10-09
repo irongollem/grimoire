@@ -88,6 +88,21 @@
     />
 
     <AppButton
+      v-if="showDiscord"
+      :href="discordUrl"
+      target="_blank"
+      rel="noopener"
+      variant="menu"
+      size="md"
+      block
+      class="mt-2 gap-3"
+      label="Join our Discord"
+      @click="emit('update:open', false)"
+    >
+      <template #icon><BrandIcon name="discord" class="h-4 w-4" /></template>
+    </AppButton>
+
+    <AppButton
       variant="menu"
       size="md"
       block
@@ -121,6 +136,8 @@ import AppButton from "@/components/common/AppButton.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
+import BrandIcon from "@/components/brand/BrandIcon.vue";
+import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
 import SessionRail from "./SessionRail.vue";
 import { IconAdd, IconBug, IconNote, IconRefresh, IconShieldCheck } from "@/lib/icons";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
@@ -152,6 +169,7 @@ const BugReportModal = defineAsyncComponent(
 );
 
 const bugReportOpen = ref(false);
+const { url: discordUrl, visible: showDiscord } = useDiscordInvite();
 const bugReportMounted = useLazyMount(bugReportOpen);
 
 const vPrefetch = usePrefetchOnIntent();
