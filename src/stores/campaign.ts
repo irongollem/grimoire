@@ -43,14 +43,39 @@ export const useCampaignStore = defineStore("campaign", () => {
   const decryptedAnthropicKey = ref<string>("");
   const decryptedGeminiKey    = ref<string>("");
 
-  // Decryptions in flight. Until they settle the refs above may still be empty
-  // (or the previous campaign's), so whether the campaign pays with its own
-  // key is not known yet: useCampaignProviders prices nothing meanwhile.
+  // Decryptions in flight for the current load. Until they settle the refs
+  // above are empty, so whether the campaign pays with its own key is not known
+  // yet: useCampaignProviders prices nothing meanwhile.
+  //
+  // Each load (a campaign switch, a settings save, clearing the campaign) starts
+  // a new generation, and a decryption only lands, or counts as pending, in the
+  // generation that started it: switching A -> B while A's key is still in the
+  // vault must not write A's key into B. A decryption that never answers (a
+  // backgrounded tab, a hung function) gives up after KEY_DECRYPT_TIMEOUT_MS as
+  // "no key", so it cannot hold every price back for the rest of the session.
+  const KEY_DECRYPT_TIMEOUT_MS = 15_000;
   const keysPending = ref(0);
   const providerKeysLoading = computed(() => keysPending.value > 0);
-  function trackKey<T>(decryption: Promise<T>): Promise<T> {
+  let keysGeneration = 0;
+  function newKeysGeneration() {
+    keysGeneration++;
+    keysPending.value = 0;
+  }
+  function trackKey<T>(decryption: Promise<T>, land: (value: T) => void, fail: () => void) {
+    const generation = keysGeneration;
+    const current = () => generation === keysGeneration;
     keysPending.value++;
-    return decryption.finally(() => { keysPending.value--; });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("Key decryption timed out")), KEY_DECRYPT_TIMEOUT_MS);
+    });
+    Promise.race([decryption, timeout])
+      .then((value) => { if (current()) land(value); })
+      .catch(() => { if (current()) fail(); })
+      .finally(() => {
+        clearTimeout(timer);
+        if (current()) keysPending.value--;
+      });
   }
 
   const providerKeyRefs: Record<string, ReturnType<typeof ref<string>>> = {
@@ -134,9 +159,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     if (!stored) { ref_.value = ""; return; }
 
     if (isLocalCiphertext(stored)) {
-      trackKey(decryptLocalKey(stored))
-        .then((key) => { ref_.value = key; })
-        .catch(() => { ref_.value = ""; });
+      trackKey(decryptLocalKey(stored), (key) => { ref_.value = key; }, () => { ref_.value = ""; });
       return;
     }
 
@@ -151,15 +174,14 @@ export const useCampaignStore = defineStore("campaign", () => {
     if (stored.startsWith("enc:v1:")) {
       // Server-encrypted blob wrongly left in localStorage — decrypt via the
       // server vault once, then hand it to the local vault.
-      trackKey(decryptApiKey(stored))
-        .then((key) => migrate(key))
-        .catch(() => { ref_.value = ""; });
+      trackKey(decryptApiKey(stored), migrate, () => { ref_.value = ""; });
     } else {
       migrate(stored);
     }
   }
 
   function loadProviderKeys(campaign: Campaign) {
+    newKeysGeneration();
     const localMode = localStorage.getItem(LOCAL_MODE_KEY) === "local";
     for (const [provider, localKey] of Object.entries(LOCAL_KEYS)) {
       const ref_ = providerKeyRefs[provider];
@@ -172,9 +194,7 @@ export const useCampaignStore = defineStore("campaign", () => {
         if (encrypted) {
           // Not the previous campaign's key while this one decrypts.
           ref_.value = "";
-          trackKey(decryptApiKey(encrypted))
-            .then((key) => { ref_.value = key; })
-            .catch(() => { ref_.value = ""; });
+          trackKey(decryptApiKey(encrypted), (key) => { ref_.value = key; }, () => { ref_.value = ""; });
         } else {
           ref_.value = "";
         }
@@ -234,6 +254,7 @@ export const useCampaignStore = defineStore("campaign", () => {
   function clearActiveCampaign() {
     activeCampaignId.value      = null;
     activeCampaign.value        = null;
+    newKeysGeneration();
     decryptedOpenAiKey.value    = "";
     decryptedAnthropicKey.value = "";
     decryptedGeminiKey.value    = "";

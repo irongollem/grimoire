@@ -110,4 +110,13 @@ describe("useCampaignProviders", () => {
     store.providerKeysLoading = false;
     expect(textProvider.value).toBe("openai");
   });
+
+  it("does not wait on decrypting keys for an account whose plan ignores them", () => {
+    store.providerKeysLoading = true;
+    isPro.value = false;
+    rows.value = [row("openai", { text_model: "gpt-5.6-luna", text_enabled: true })];
+    loaded.value = true;
+    const { textProvider } = useCampaignProviders();
+    expect(textProvider.value).toBe("openai");
+  });
 });

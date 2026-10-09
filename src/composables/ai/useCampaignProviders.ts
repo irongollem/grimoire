@@ -59,10 +59,19 @@ export function useCampaignProviders() {
     gemini: !!campaign.decryptedGeminiKey,
   }));
   const ownKeys = computed(() => (isPro.value ? storedKeys.value : {}));
-  /** Whether the campaign pays with its own key is not known yet. */
-  const undecided = computed(
-    () => campaign.providerKeysLoading || (planLoading.value && Object.values(storedKeys.value).some(Boolean)),
-  );
+  /**
+   * Whether the campaign pays with its own key is not known yet: keys still
+   * decrypting for an account whose plan lets them count (or whose plan is
+   * still loading), or a held key whose plan is still loading. A plan known
+   * not to be Pro ignores keys, so nothing it waits on can change the answer.
+   */
+  const undecided = computed(() => {
+    const keysCanCount = isPro.value || planLoading.value;
+    return (
+      (keysCanCount && campaign.providerKeysLoading) ||
+      (planLoading.value && Object.values(storedKeys.value).some(Boolean))
+    );
+  });
   /**
    * Null until provider_config first loads; see chooseTextProvider /
    * chooseImageProvider. Read off the data, not `isSuccess`: a failed

@@ -399,8 +399,14 @@ function providerHasKeyStored(providerId: string): boolean {
 // Anthropic with its key still runs on it (chooseTextProvider honours an
 // explicit pick), so it is listed while it is the pick. Leaving it out made the
 // watcher below re-point the campaign to another key on the next unrelated save.
+// Read off the stored key, like providerHasKey: the decrypted one is empty
+// while the vault answers (after every save) and after a failed decryption.
 const keepsAnthropic = computed(
-  () => form.value.text_provider === "anthropic" && !!campaign.decryptedAnthropicKey,
+  () =>
+    form.value.text_provider === "anthropic" &&
+    (localModeEnabled.value
+      ? !!localStorage.getItem("grimoire_anthropic_key")
+      : !!campaign.activeCampaign?.anthropic_api_key),
 );
 const availableTextProviders = computed(() =>
   [...BYOK_TEXT_ORDER.filter((p) => providerHasKey(p)), ...(keepsAnthropic.value ? ["anthropic" as const] : [])]

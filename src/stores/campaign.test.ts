@@ -5,7 +5,8 @@ import { createPinia, setActivePinia } from "pinia";
 // The store reaches for the vault and the theme on hydration; neither is under
 // test here and @/lib/supabase throws at module load without env vars.
 vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => null }));
-vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey: async () => "" }));
+const decryptApiKey = vi.hoisted(() => vi.fn(async (_blob: string) => ""));
+vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey }));
 const setTheme = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/themeRuntime", () => ({ setTheme }));
 
@@ -323,5 +324,47 @@ describe("the campaign row and its id", () => {
     localStorage.setItem(HINT, "{nope");
     localStorage.setItem("grimoire_active_campaign", "a");
     expect(useCampaignStore().activeRuleset).toBe("2014");
+  });
+});
+
+describe("provider keys — a decryption lands only in the load that started it", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    decryptApiKey.mockReset();
+  });
+
+  function campaignWith(id: string, openai: string | null): Campaign {
+    return { id, theme: null, openai_api_key: openai, anthropic_api_key: null, gemini_api_key: null } as unknown as Campaign;
+  }
+
+  it("does not write campaign A's key into B when A's decryption answers late", async () => {
+    let answerA: (key: string) => void = () => {};
+    decryptApiKey.mockImplementationOnce(() => new Promise<string>((resolve) => { answerA = resolve; }));
+    const store = useCampaignStore();
+
+    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
+    expect(store.providerKeysLoading).toBe(true);
+    store.switchToCampaign(campaignWith("b", null));
+    expect(store.providerKeysLoading).toBe(false);
+
+    answerA("sk-a");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(store.decryptedOpenAiKey).toBe("");
+  });
+
+  it("gives up on a decryption that never answers, rather than blocking prices for the session", async () => {
+    vi.useFakeTimers();
+    try {
+      decryptApiKey.mockImplementationOnce(() => new Promise<string>(() => {}));
+      const store = useCampaignStore();
+      store.switchToCampaign(campaignWith("a", "enc:v1:a"));
+      expect(store.providerKeysLoading).toBe(true);
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(store.providerKeysLoading).toBe(false);
+      expect(store.decryptedOpenAiKey).toBe("");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
