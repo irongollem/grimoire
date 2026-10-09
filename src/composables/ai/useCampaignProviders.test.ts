@@ -9,14 +9,22 @@ const store = reactive({
   decryptedGeminiKey: null as string | null,
 });
 const rows = ref<ProviderConfigRow[]>([]);
+const loaded = ref(false);
+const isPro = ref(true);
+const planLoading = ref(false);
 
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => store }));
 vi.mock("@/composables/ai/useProviderConfig", () => ({
   useProviderConfig: () => ({
+    query: { isSuccess: loaded },
     rows,
     textMultiplierFor: (p: string) => rows.value.find((r) => r.provider === p)?.text_multiplier ?? 1,
     imageMultiplierFor: (p: string) => rows.value.find((r) => r.provider === p)?.image_multiplier ?? 1,
   }),
+}));
+
+vi.mock("@/composables/billing/useSubscription", () => ({
+  useSubscription: () => ({ isPro, isLoading: planLoading }),
 }));
 
 const { useCampaignProviders } = await import("./useCampaignProviders");
@@ -38,6 +46,9 @@ function row(provider: string, over: Partial<ProviderConfigRow>): ProviderConfig
 
 beforeEach(() => {
   rows.value = [];
+  loaded.value = false;
+  isPro.value = true;
+  planLoading.value = false;
   store.decryptedOpenAiKey = null;
   store.decryptedGeminiKey = null;
   store.activeCampaign.text_provider = null;
@@ -55,6 +66,7 @@ describe("useCampaignProviders", () => {
       row("openai", { text_model: "gpt-5.6-luna", text_enabled: true, text_multiplier: 1.5 }),
       row("gemini", { image_enabled: true, image_multiplier: 3.8 }),
     ];
+    loaded.value = true;
     expect(textCredits(2)).toBe(3);
     expect(imageCredits(1)).toBe(4);
   });
@@ -65,5 +77,24 @@ describe("useCampaignProviders", () => {
     expect(textProvider.value).toBe("gemini");
     expect(textIsByok.value).toBe(true);
     expect(textCredits(2)).not.toBeNull();
+  });
+
+  it("does not let a key stored before a downgrade promise free generations", () => {
+    store.decryptedGeminiKey = "g-own";
+    isPro.value = false;
+    rows.value = [row("openai", { text_model: "gpt-5.6-luna", text_enabled: true })];
+    loaded.value = true;
+    const { textIsByok, textProvider } = useCampaignProviders();
+    expect(textProvider.value).toBe("openai");
+    expect(textIsByok.value).toBe(false);
+  });
+
+  it("resolves nothing for a stored key while the plan is loading", () => {
+    store.decryptedGeminiKey = "g-own";
+    planLoading.value = true;
+    loaded.value = true;
+    const { textProvider, imageProvider } = useCampaignProviders();
+    expect(textProvider.value).toBeNull();
+    expect(imageProvider.value).toBeNull();
   });
 });

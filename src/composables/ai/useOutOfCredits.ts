@@ -28,7 +28,9 @@ export const outOfCreditsNeeded: Readonly<Ref<number | null>> = needed;
  * A null cost is a price that is not known yet (`useCampaignProviders` before
  * provider_config loads, or with no provider the campaign could use). The
  * action is refused with a toast rather than sent to a server that would only
- * answer "not available".
+ * answer "not available". A read that failed recovers by itself: TanStack
+ * refetches an errored query with no data when the next component mounts it
+ * and on window focus.
  */
 export function useOutOfCredits() {
   const { affordable } = useAiCredits();

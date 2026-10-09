@@ -30,6 +30,17 @@ describe("chooseTextProvider", () => {
   it("is null when the admin offers nothing, or before the config loads", () => {
     expect(chooseTextProvider({ chosen: null, ownKeys: {}, platformKeys, configs: {} })).toBeNull();
     expect(chooseTextProvider({ chosen: null, ownKeys: {}, platformKeys: {}, configs })).toBeNull();
+    expect(chooseTextProvider({ chosen: null, ownKeys: {}, platformKeys, configs: null })).toBeNull();
+  });
+
+  it("answers an own key before the config loads", () => {
+    expect(chooseTextProvider({ chosen: null, ownKeys: { gemini: true }, platformKeys, configs: null }))
+      .toEqual({ provider: "gemini", isByok: true });
+  });
+
+  it("never falls back to an Anthropic key Settings no longer shows, but honours one named explicitly", () => {
+    expect(text(null, { anthropic: true })).toEqual({ provider: "openai", isByok: false });
+    expect(text("anthropic", { anthropic: true })).toEqual({ provider: "anthropic", isByok: true });
   });
 });
 
@@ -57,6 +68,13 @@ describe("chooseImageProvider", () => {
 
   it("uses the DM's own key for their choice whatever the switch says", () => {
     expect(image("gemini", { gemini: true }, geminiOff)).toEqual({ provider: "gemini", isByok: true });
+  });
+
+  it("before the config loads, answers only an own key for the pick and guesses no fallback", () => {
+    const loading = (chosen: string, ownKeys: Record<string, boolean>) =>
+      chooseImageProvider({ chosen, ownKeys, platformKeys, configs: null });
+    expect(loading("gemini", { gemini: true })).toEqual({ provider: "gemini", isByok: true });
+    expect(loading("gemini", { openai: true })).toBeNull();
   });
 
   it("keeps a pinned capability on its provider, with no fallback", () => {

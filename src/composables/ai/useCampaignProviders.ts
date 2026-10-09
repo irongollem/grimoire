@@ -8,6 +8,14 @@
  * The client cannot see platform keys, so it passes every provider as having
  * one; the server answers 422 when that is not so.
  *
+ * **A stored key counts only on Pro.** The edge functions drop campaign keys
+ * when the owner is not Pro (BYOK is Pro-only), but the vault still decrypts
+ * a key a DM stored before downgrading, so without this gate the badge would
+ * promise "no credits" on a generation the server bills. The vault decrypts
+ * only the caller's own campaign keys, so the caller's own plan is the
+ * owner's. While the plan is loading, a campaign that holds a key resolves to
+ * nothing rather than guessing either way.
+ *
  * **A price is null until it is known**: before provider_config loads, and
  * when the admin offers nothing the campaign could use. `GenerationCostBadge`
  * shows nothing for a null price and `requireCredits` refuses it, so no
@@ -17,6 +25,7 @@
 import { computed } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useSubscription } from "@/composables/billing/useSubscription";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 import {
   chooseImageProvider,
@@ -41,17 +50,24 @@ const ASSUME_PLATFORM_KEYS = { openai: true, anthropic: true, gemini: true } as 
 
 export function useCampaignProviders() {
   const campaign = useCampaignStore();
-  const { rows, textMultiplierFor, imageMultiplierFor } = useProviderConfig();
+  const { query, rows, textMultiplierFor, imageMultiplierFor } = useProviderConfig();
+  const { isPro, isLoading: planLoading } = useSubscription();
 
-  const ownKeys = computed(() => ({
+  const storedKeys = computed(() => ({
     openai: !!campaign.decryptedOpenAiKey,
     anthropic: !!campaign.decryptedAnthropicKey,
     gemini: !!campaign.decryptedGeminiKey,
   }));
-  const configs = computed(() => Object.fromEntries(rows.value.map((r) => [r.provider, r])));
+  const ownKeys = computed(() => (isPro.value ? storedKeys.value : {}));
+  /** A held key whose use depends on a plan not loaded yet: nothing is known. */
+  const undecided = computed(() => planLoading.value && Object.values(storedKeys.value).some(Boolean));
+  /** Null until provider_config loads; see chooseTextProvider / chooseImageProvider. */
+  const configs = computed(() =>
+    query.isSuccess.value ? Object.fromEntries(rows.value.map((r) => [r.provider, r])) : null,
+  );
 
   const text = computed(() =>
-    chooseTextProvider({
+    undecided.value ? null : chooseTextProvider({
       chosen: campaign.activeCampaign?.text_provider,
       ownKeys: ownKeys.value,
       platformKeys: ASSUME_PLATFORM_KEYS,
@@ -59,7 +75,7 @@ export function useCampaignProviders() {
     }),
   );
   const image = computed(() =>
-    chooseImageProvider({
+    undecided.value ? null : chooseImageProvider({
       chosen: campaign.activeCampaign?.image_provider,
       ownKeys: ownKeys.value,
       platformKeys: ASSUME_PLATFORM_KEYS,
@@ -71,7 +87,7 @@ export function useCampaignProviders() {
   const imageMultiplier = computed(() => (image.value ? imageMultiplierFor(image.value.provider) : null));
 
   return {
-    /** Null until provider_config loads, or when the admin offers nothing usable. */
+    /** Null until provider_config (and, with a stored key, the plan) loads, or when nothing usable is offered. */
     textProvider: computed(() => text.value?.provider ?? null),
     textIsByok: computed(() => text.value?.isByok === true),
     /** Null exactly when `textProvider` is. */

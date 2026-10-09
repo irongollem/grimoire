@@ -86,5 +86,5 @@ export function useTextEnhancement() {
     }
   }
 
-  return { isEnhancing, creditCost, enhance };
+  return { isEnhancing, creditCost, isByok: textIsByok, enhance };
 }

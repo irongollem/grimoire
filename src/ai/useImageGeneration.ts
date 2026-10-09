@@ -12,13 +12,12 @@ import {
   buildLabelledImagePrompt,
   buildSimpleImagePrompt,
 } from "@/ai/imagePrompt";
-import { getImageProvider } from "@/ai/providers";
+import { getImageProvider, localImageChoice } from "@/ai/providers";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { buildAiProvenance } from "@/ai/provenance";
 import { markGeneratedImageB64 } from "@edge-shared/provenance/mark.ts";
 import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
-import { chooseImageProvider, keysPresent } from "@edge-shared/providerChoice.ts";
 
 export type ImagePurpose =
   | "chronicler" | "group_portrait" | "npc_portrait" | "npc_disguise"
@@ -84,23 +83,13 @@ export function captureImageGenerationContext(): ImageGenerationContext {
   const store = useCampaignStore();
   const campaign = store.activeCampaign;
   if (!campaign) throw new Error("No active campaign selected.");
-  // The local-key path renders on the DM's own keys only: the server's rule
-  // (chooseImageProvider) with no platform to fall back to. On the server path
-  // these two fields are unused; the edge function resolves for itself.
-  const ownKeys = { openai: store.decryptedOpenAiKey, gemini: store.decryptedGeminiKey };
-  const choice = chooseImageProvider({
-    chosen: campaign.image_provider,
-    ownKeys: keysPresent(ownKeys),
-    platformKeys: {},
-    configs: {},
-  });
-  const imageProvider = choice?.provider ?? null;
-  const imageApiKey = imageProvider ? ownKeys[imageProvider] : null;
+  // Only the local-key path reads these two; the edge function resolves for itself.
+  const local = localImageChoice();
   return {
     campaignId: campaign.id,
     settingPrompt: campaign.ai_setting_prompt ?? "",
-    imageProvider,
-    imageApiKey,
+    imageProvider: local?.provider ?? null,
+    imageApiKey: local?.apiKey ?? null,
   };
 }
 

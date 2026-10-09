@@ -4,7 +4,7 @@ import { createGeminiTextProvider, createGeminiImageProvider } from "./gemini";
 import { createAnthropicTextProvider } from "./anthropic";
 import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
-import { chooseTextProvider } from "@edge-shared/providerChoice.ts";
+import { chooseImageProvider, chooseTextProvider, keysPresent, type ImageProviderKey } from "@edge-shared/providerChoice.ts";
 
 export type { TextProvider, ImageProvider };
 
@@ -65,17 +65,34 @@ async function fetchOpenAiImageModel(): Promise<string> {
   return data.image_model;
 }
 
+/**
+ * The image provider and key the local-key path renders with: the server's
+ * rule (chooseImageProvider) on the DM's own keys, with no platform to fall
+ * back to. Null when the campaign holds no image key.
+ */
+export function localImageChoice(): { provider: ImageProviderKey; apiKey: string } | null {
+  const store = useCampaignStore();
+  const keys = { openai: store.decryptedOpenAiKey, gemini: store.decryptedGeminiKey };
+  const choice = chooseImageProvider({
+    chosen: store.activeCampaign?.image_provider,
+    ownKeys: keysPresent(keys),
+    platformKeys: {},
+    configs: {},
+  });
+  return choice ? { provider: choice.provider, apiKey: keys[choice.provider] } : null;
+}
+
 export async function getImageProvider(options: {
+  /** A choice captured before an await (captureImageGenerationContext); omitted, the campaign's is resolved now. */
   imageProvider?: string | null;
   /** Captured local-vault key. Null means the captured campaign had no key. */
   apiKey?: string | null;
 } = {}): Promise<ImageProvider> {
-  const provider = options.imageProvider ?? useCampaignStore().activeCampaign?.image_provider ?? "openai";
-  const key = options.apiKey === undefined ? resolveKey(provider) : (options.apiKey ?? "");
-  if (!key) {
-    throw new Error(
-      `No API key configured for ${provider}. Add one in Campaign Settings → AI.`,
-    );
+  const local = options.imageProvider === undefined ? localImageChoice() : null;
+  const provider = options.imageProvider ?? local?.provider ?? null;
+  const key = options.imageProvider === undefined ? local?.apiKey : options.apiKey;
+  if (!provider || !key) {
+    throw new Error("No image API key configured. Add one in Campaign Settings → AI.");
   }
   switch (provider) {
     case "gemini":       return createGeminiImageProvider(key);

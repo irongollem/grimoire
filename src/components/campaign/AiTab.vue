@@ -251,7 +251,7 @@ import { useSubscription } from "@/composables/billing/useSubscription";
 import { useChildAccount } from "@/composables/account/useChildAccount";
 import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/ai/useProviderConfig";
 import { IMAGE_SPEED_LABEL } from "@/composables/ai/useCampaignProviders";
-import { imageOffered } from "@edge-shared/providerChoice.ts";
+import { BYOK_TEXT_ORDER, imageOffered } from "@edge-shared/providerChoice.ts";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { useAiAcknowledgements } from "@/composables/ai/useAiAcknowledgements";
@@ -355,7 +355,7 @@ const { data: settingContent } = useSettingContent(() => campaign.activeCampaign
 const settingDefaultPrompt = computed(() => (settingContent.value ? settingContent.value.defaultAiPrompt : ""));
 const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
 
-const { query: providerConfigQuery, rows: providerRows, imageMultiplierFor } = useProviderConfig();
+const { query: providerConfigQuery, rowFor, imageMultiplierFor } = useProviderConfig();
 // Until provider_config arrives nothing is known about what the admin offers:
 // no "unavailable" notice, no price, and no correcting the DM's pick against
 // options that are only the keys they hold.
@@ -367,8 +367,6 @@ const selectedImageCredits = computed(
   () => wholeCredits(costOf("entity_image") * 1.5 * imageMultiplierFor(form.value.image_provider)),
 );
 
-// Providers a DM can hold their own key for, in the order the Text picker lists them.
-const BYOK_TEXT_PROVIDERS = ["openai", "gemini"] as const;
 // Quick first, then Detailed.
 const IMAGE_CHOICE_ORDER = ["gemini", "openai"] as const;
 
@@ -397,7 +395,7 @@ function providerHasKeyStored(providerId: string): boolean {
 }
 
 const availableTextProviders = computed(() =>
-  BYOK_TEXT_PROVIDERS
+  BYOK_TEXT_ORDER
     .filter((p) => providerHasKey(p))
     .map((p) => ({ value: p, label: PROVIDER_DISPLAY[p] ?? p })),
 );
@@ -406,7 +404,7 @@ const availableTextProviders = computed(() =>
 // those, by the same `imageOffered` rule.
 const imageOptions = computed(() =>
   IMAGE_CHOICE_ORDER
-    .filter((p) => providerHasKey(p) || imageOffered(providerRows.value.find((r) => r.provider === p)))
+    .filter((p) => providerHasKey(p) || imageOffered(rowFor(p)))
     .map((p) => ({ value: p, label: IMAGE_SPEED_LABEL[p] })),
 );
 

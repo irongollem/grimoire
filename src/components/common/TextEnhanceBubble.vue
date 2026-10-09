@@ -8,7 +8,7 @@
         :loading="isEnhancing"
         :disabled="isEnhancing"
         label="Enhance"
-        :tooltip="`Rewrite the selection as richer prose (${creditCost} credit${creditCost === 1 ? '' : 's'})`"
+        :tooltip="enhanceTooltip"
         @click="onEnhance"
       />
     </div>
@@ -31,7 +31,7 @@
  * where `useEnhanceAvailable()` says yes; the error line positions itself
  * against the editor's own relative container, so place it inside that.
  */
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { Editor } from "@tiptap/vue-3";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import AppButton from "@/components/common/AppButton.vue";
@@ -48,7 +48,15 @@ const { editor, context, styleHint, contextRadius } = defineProps<{
   contextRadius?: number;
 }>();
 
-const { isEnhancing, creditCost, enhance } = useTextEnhancement();
+const { isEnhancing, creditCost, isByok, enhance } = useTextEnhancement();
+// The price is null until it is known (see useCampaignProviders); say nothing about it then.
+const enhanceTooltip = computed(() => {
+  const base = "Rewrite the selection as richer prose";
+  if (isByok.value) return `${base} (your API key, no credits)`;
+  const cost = creditCost.value;
+  if (cost === null) return base;
+  return `${base} (${cost} credit${cost === 1 ? "" : "s"})`;
+});
 const enhanceError = ref<string | null>(null);
 
 async function onEnhance() {

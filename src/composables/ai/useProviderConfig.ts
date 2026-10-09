@@ -66,6 +66,7 @@ export function useProviderConfig() {
   return {
     query,
     rows,
+    rowFor,
     textMultiplierFor,
     imageMultiplierFor,
     audioMultiplierFor,

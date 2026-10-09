@@ -27,6 +27,15 @@ export type ImageProviderKey = "openai" | "gemini";
 export const PLATFORM_TEXT_ORDER: readonly TextProviderKey[] = ["openai", "gemini", "anthropic"];
 
 /**
+ * The text keys Campaign Settings lets a DM enter, see and clear, in the order
+ * its Text picker lists them. Anthropic is not offered there (no platform
+ * contract yet), so an old Anthropic key left on a campaign is never picked up
+ * as a fallback the DM could neither see nor remove; it still answers when
+ * `text_provider` names it explicitly, as it always did.
+ */
+export const BYOK_TEXT_ORDER: readonly TextProviderKey[] = ["openai", "gemini"];
+
+/**
  * Where an image falls back when the campaign's choice is switched off: the
  * first in this order. The choice is the DM's Quick / Detailed pick
  * (gemini / openai).
@@ -75,7 +84,7 @@ export function keysPresent<K extends string>(keys: Partial<Record<K, string | n
 
 /**
  * Text. A campaign holding its own key uses it: the one `chosen` names when
- * it holds that one, otherwise the first it holds. `chosen` only decides
+ * it holds that one, otherwise the first it holds of BYOK_TEXT_ORDER. `chosen` only decides
  * between keys, which is all Campaign Settings asks it ("Your OpenAI key /
  * Your Gemini key"), and a null `chosen` (demo copies, campaigns never saved
  * since the column existed) is no reason to bill credits to a DM who brought
@@ -85,18 +94,23 @@ export function keysPresent<K extends string>(keys: Partial<Record<K, string | n
  * whatever `chosen` says. Honouring it there let a value left behind by a
  * cleared key route calls onto a provider the admin had switched off, at that
  * provider's multiplier (Gemini's is 3.8×).
+ *
+ * `configs: null` is a client that has not loaded provider_config yet: an own
+ * key still answers, the platform path does not.
  */
 export function chooseTextProvider(args: {
   chosen: string | null | undefined;
   ownKeys: Has<TextProviderKey>;
   platformKeys: Has<TextProviderKey>;
-  configs: Partial<Record<string, TextOffer | undefined>>;
+  configs: Partial<Record<string, TextOffer | undefined>> | null;
 }): ProviderChoice<TextProviderKey> | null {
   const chosen = PLATFORM_TEXT_ORDER.find((p) => p === args.chosen);
-  const own = chosen && args.ownKeys[chosen] ? chosen : PLATFORM_TEXT_ORDER.find((p) => args.ownKeys[p]);
+  const own = chosen && args.ownKeys[chosen] ? chosen : BYOK_TEXT_ORDER.find((p) => args.ownKeys[p]);
   if (own) return { provider: own, isByok: true };
 
-  const platform = PLATFORM_TEXT_ORDER.find((p) => textOffered(args.configs[p]) && args.platformKeys[p]);
+  const configs = args.configs;
+  if (!configs) return null;
+  const platform = PLATFORM_TEXT_ORDER.find((p) => textOffered(configs[p]) && args.platformKeys[p]);
   return platform ? { provider: platform, isByok: false } : null;
 }
 
@@ -111,23 +125,30 @@ export function chooseTextProvider(args: {
  * the paper-doll sheet, a reference-image forge): it is not a campaign choice,
  * so the admin's switch, which governs that choice, does not apply, and there
  * is no fallback.
+ *
+ * `configs: null` is a client that has not loaded provider_config yet. Only an
+ * own key for the pick answers then: whether the pick is offered, and so
+ * whether to fall back at all, is not known, and guessing a fallback would
+ * price (and fit the map styler's input to) a provider the server may not use.
  */
 export function chooseImageProvider(args: {
   chosen: string | null | undefined;
   ownKeys: Has<ImageProviderKey>;
   platformKeys: Has<ImageProviderKey>;
-  configs: Partial<Record<string, ImageOffer | undefined>>;
+  configs: Partial<Record<string, ImageOffer | undefined>> | null;
   pinned?: boolean;
 }): ProviderChoice<ImageProviderKey> | null {
   const choice = PLATFORM_IMAGE_ORDER.find((p) => p === (args.chosen ?? DEFAULT_IMAGE_CHOICE));
   if (choice && args.ownKeys[choice]) return { provider: choice, isByok: true };
   if (args.pinned) return choice && args.platformKeys[choice] ? { provider: choice, isByok: false } : null;
-  if (choice && imageOffered(args.configs[choice]) && args.platformKeys[choice]) {
+  const configs = args.configs;
+  if (!configs) return null;
+  if (choice && imageOffered(configs[choice]) && args.platformKeys[choice]) {
     return { provider: choice, isByok: false };
   }
 
   const own = PLATFORM_IMAGE_ORDER.find((p) => args.ownKeys[p]);
   if (own) return { provider: own, isByok: true };
-  const platform = PLATFORM_IMAGE_ORDER.find((p) => imageOffered(args.configs[p]) && args.platformKeys[p]);
+  const platform = PLATFORM_IMAGE_ORDER.find((p) => imageOffered(configs[p]) && args.platformKeys[p]);
   return platform ? { provider: platform, isByok: false } : null;
 }
