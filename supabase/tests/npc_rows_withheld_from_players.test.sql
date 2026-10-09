@@ -1,6 +1,8 @@
 begin;
--- This file reads campaign_sync inside its own transaction. The doorbell is
--- written at commit (20261008234009), so drain its queue per statement instead.
+-- This file reads the doorbell's rings (realtime.messages) inside its own
+-- transaction. The rings are sent at commit (20261009233206), so drain the queue
+-- per statement instead. Rings are read as a set ("a ring for X was sent"):
+-- inserted_at is constant inside a transaction, so their order cannot be read.
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
@@ -103,19 +105,24 @@ select is(
   (select count(*)::integer from public.npcs where campaign_id = '93300000-0000-4000-8000-000000000010'),
   4, 'the DM still reads every NPC row');
 
+-- realtime.messages is not readable by a client, so read the rings as the owner.
+reset role;
+
 -- The doorbell: an edit rings `npcs_player`, so players re-read their
 -- projection; a delete still rings `npcs`.
+delete from realtime.messages where topic = 'doorbell:93300000-0000-4000-8000-000000000010';
 update public.npcs set is_revealed = true where id = '93300000-0000-4000-8000-000000000020';
 
-select is(
-  (select changed_table from public.campaign_sync where campaign_id = '93300000-0000-4000-8000-000000000010'),
-  'npcs_player', 'an NPC edit rings the npcs_player signal');
+select ok(
+  exists (select 1 from realtime.messages where topic = 'doorbell:93300000-0000-4000-8000-000000000010' and event = 'ring' and extension = 'broadcast' and payload ->> 'table' = 'npcs_player'),
+  'an NPC edit rings the npcs_player signal');
 
+delete from realtime.messages where topic = 'doorbell:93300000-0000-4000-8000-000000000010';
 delete from public.npcs where id = '93300000-0000-4000-8000-000000000023';
 
-select is(
-  (select changed_table from public.campaign_sync where campaign_id = '93300000-0000-4000-8000-000000000010'),
-  'npcs', 'an NPC delete still rings as npcs');
+select ok(
+  exists (select 1 from realtime.messages where topic = 'doorbell:93300000-0000-4000-8000-000000000010' and event = 'ring' and extension = 'broadcast' and payload ->> 'table' = 'npcs'),
+  'an NPC delete still rings as npcs');
 
 select * from finish();
 rollback;

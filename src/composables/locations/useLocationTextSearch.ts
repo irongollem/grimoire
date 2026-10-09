@@ -36,8 +36,7 @@ async function searchLocationText(campaignId: string, query: string): Promise<Te
  * one term instead of mixing two.
  *
  * Keyed outside the `locations` root on purpose: results only need to be fresh
- * per query, and a `["locations", ...]` key would be picked up by the live-sync
- * reducer's prefix scan.
+ * per query, and under that root every `locations` ring would re-run the search.
  */
 export function useLocationTextSearch(query: Ref<string>) {
   const campaign = useCampaignStore();

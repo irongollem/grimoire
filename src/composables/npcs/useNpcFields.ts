@@ -30,9 +30,8 @@ export async function fetchNpcAppearances(
 
 /**
  * Reactive form of `fetchNpcAppearances`. Keyed `["npcs", "appearances", ids]`
- * under the `npcs` root so every NPC mutation refreshes it; the live-sync
- * reducer's `include` never admits it (its second segment is not a campaign id
- * and its length is 3 with a non-`by-location` middle).
+ * under the `npcs` root so every NPC mutation, and every `npcs` ring from
+ * another client, refreshes it.
  */
 export function useNpcAppearances(ids: Ref<readonly string[]>) {
   const sortedIds = computed(() => [...new Set(ids.value)].sort());
@@ -47,8 +46,8 @@ export function useNpcAppearances(ids: Ref<readonly string[]>) {
  * `name` of the given NPCs, by id, for a surface that prints a name next to
  * something else (the dashboard's quest rows show their quest-giver). Reading
  * the few names it needs replaces loading the whole campaign list for them
- * (#999). Keyed `["npcs", "names", ids]`; see `useNpcAppearances` for why that
- * shape never meets the live-sync list reducer.
+ * (#999). Keyed `["npcs", "names", ids]`, under the `npcs` root like
+ * `useNpcAppearances`, so a ring refreshes it.
  */
 export async function fetchNpcNames(ids: readonly string[]): Promise<Map<string, string>> {
   const result = new Map<string, string>();

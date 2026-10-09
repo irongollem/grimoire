@@ -4,15 +4,17 @@
 // removed. Mounted once in PlayerLayout only — the DM layout must never eject
 // when it removes a player (that DELETE is someone else's row).
 //
-// A DELETE payload cannot tell us *whose* row was removed: with RLS enabled,
-// Postgres Changes trims the old record to the primary key, and Realtime does
-// not apply the channel filter to DELETE events at all ("Delete events are not
-// filterable"). So every campaign_members DELETE lands here, carrying only an
-// id, and the authoritative check is the same one a delivery gap uses.
+// A `campaign_members` ring names the table, never the row, so it cannot say
+// whose membership changed. Every ring (and every rejoin of the campaign
+// channel, via reconcile) therefore re-reads this user's own row. Realtime
+// authorizes a private channel at join, so a just-removed player still hears
+// the ring on the open channel; a later rejoin is refused, which surfaces as a
+// reconcile or a failed read. Memberships change rarely, so one read per ring
+// is cheap.
 import { watch, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { supabase } from "@/lib/supabase";
-import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
+import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
@@ -23,7 +25,7 @@ export function usePlayerRemovalGuard() {
   const router = useRouter();
   const toast = useToast();
 
-  let realtime: RealtimeChannelHandle | null = null;
+  let stopListening: (() => void) | null = null;
   let subscribedCampaignId: string | null = null;
   let generation = 0;
   let ejecting = false;
@@ -38,35 +40,28 @@ export function usePlayerRemovalGuard() {
       .eq("campaign_id", campaignId)
       .eq("user_id", userId)
       .maybeSingle();
-    if (error || expectedGeneration !== generation || subscribedCampaignId !== campaignId || data) return;
+    if (error) throw error;
+    if (expectedGeneration !== generation || subscribedCampaignId !== campaignId || data) return;
     void eject(campaignId, campaign.activeCampaign?.name ?? "the campaign", expectedGeneration);
   }
 
   const stop = watch(
     () => campaign.activeCampaignId,
     (campaignId) => {
-      realtime?.stop();
-      realtime = null;
+      stopListening?.();
+      stopListening = null;
       subscribedCampaignId = campaignId;
       const myGeneration = ++generation;
       if (!campaignId) return;
 
-      realtime = createRealtimeChannel({
-        topic: `player_removal_guard:${campaignId}`,
-        reconcile: () => void confirmStillMember(campaignId, myGeneration),
-        // No `filter` — Realtime ignores filters on DELETE, so requesting one
-        // would only imply a narrowing that never happens. Memberships are
-        // deleted rarely, so re-reading our own row per event is cheap, and it
-        // is the only reading that survives a primary-key-only payload.
-        bind: (channel) => channel.on(
-          "postgres_changes",
-          { event: "DELETE", schema: "public", table: "campaign_members" },
-          () => {
-            if (myGeneration !== generation || subscribedCampaignId !== campaignId || ejecting) return;
-            void confirmStillMember(campaignId, myGeneration);
-          },
-        ),
+      const check = () => void confirmStillMember(campaignId, myGeneration);
+      const offRing = onCampaignRing(["campaign_members"], (ring) => {
+        if (ring.campaignId === campaignId) check();
       });
+      const offReconcile = onCampaignReconcile((id) => {
+        if (id === campaignId) check();
+      });
+      stopListening = () => { offRing(); offReconcile(); };
     },
     { immediate: true },
   );
@@ -99,7 +94,7 @@ export function usePlayerRemovalGuard() {
     stop();
     generation++;
     subscribedCampaignId = null;
-    realtime?.stop();
-    realtime = null;
+    stopListening?.();
+    stopListening = null;
   });
 }

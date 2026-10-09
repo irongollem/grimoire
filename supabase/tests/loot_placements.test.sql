@@ -6,8 +6,18 @@ select plan(52);
 select has_table('public', 'loot_placements', 'beat loot has a dedicated orchestration table');
 select has_function('public', 'dispatch_loot', array['uuid[]'], 'loot has an atomic dispatch RPC, home-agnostic');
 select has_function('public', 'get_loot_placements', array['uuid', 'uuid', 'uuid'], 'loot has a batched status RPC, filterable by quest or room');
-select ok(exists(select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'loot_placements'), 'beat loot dispatch changes publish to Run mode');
-select ok(exists(select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'campaign_messages'), 'chat claim changes publish to Run mode');
+-- Run mode refreshes on the campaign doorbell (20261009233206): a change to
+-- either table rings its campaign on insert, update and delete.
+select is(
+  (select count(distinct g.tgtype & 28)::int from pg_trigger g
+    where g.tgrelid = 'public.loot_placements'::regclass and not g.tgisinternal
+      and g.tgfoid = 'public.signal_campaign_change()'::regprocedure),
+  3, 'beat loot dispatch changes ring their campaign on insert, update and delete, so Run mode refreshes');
+select is(
+  (select count(distinct g.tgtype & 28)::int from pg_trigger g
+    where g.tgrelid = 'public.campaign_messages'::regclass and not g.tgisinternal
+      and g.tgfoid = 'public.signal_campaign_change()'::regprocedure),
+  3, 'chat claim changes ring their campaign on insert, update and delete, so Run mode refreshes');
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values

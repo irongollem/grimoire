@@ -383,8 +383,7 @@ cascade), `label` (1-80), `segments` (2-12, `QUEST_CLOCK_MIN/MAX_SEGMENTS`),
 `filled` (0 to `segments`, `quest_clocks_filled_in_range`), `sort_order`,
 `unique (id, quest_id)` (the composite `quest_consequences` targets). RLS is
 DM-only on all four verbs (`private.is_campaign_dm`): a player never reads a
-clock, and the rows ring the `campaign_sync` doorbell rather than travel as
-payloads (registry entry `quest_clocks`, `CLOCKS_KEY`). Demo copies carry
+clock, and the rows ring the campaign doorbell, which never carries a row (registry entry `quest_clocks`, `CLOCKS_KEY`). Demo copies carry
 clocks.
 
 **`filled` has exactly two writers**, like `quest_objectives.status`: a column
@@ -1054,14 +1053,12 @@ the `award_milestone` consequence or directly by the DM. RLS is DM-write,
 — unlike `npc_favors`, this table is meant for players to see, so every
 campaign member can select it directly.
 
-**Both realtime and the doorbell, because they cover different writes.**
-`party_milestones` joins the `supabase_realtime` publication, which carries
-inserts and updates live — an award reaches the party screen without a
-refetch. It also gets `party_milestones_signal_delete`, an `after delete`
-trigger calling `public.signal_campaign_change()` — the campaign_sync
-doorbell (`20260904230420`) — because a realtime channel never reliably sees
-a delete the way it sees an insert or update; every table on the doorbell
-covers its deletes this way rather than relying on the publication for them.
+**Live through the campaign doorbell.** `party_milestones` rings its campaign
+on insert, update and delete (`public.signal_campaign_change()`; insert and
+update since #999 4.2, `20261009233206`, when the doorbell became the only
+route), and the party screen refetches. Until then it was also in the
+`supabase_realtime` publication for inserts and updates, with the doorbell
+covering only deletes, which a campaign-filtered subscription never saw.
 `campaignSyncTables.test.ts` (the live-sync registry test) now also reads
 doorbell triggers wired by later migrations, so a table born after the
 doorbell was introduced can be registered without editing history.
@@ -1439,7 +1436,7 @@ show first. Below the header:
   opens the same dialog with its improvise option selected.
 
 Runtime context, live chains, runtime state and the thread list refresh when
-the `campaign_sync` doorbell rings for `quest_runtime_state`, `quest_threads` or
+the campaign doorbell rings for `quest_runtime_state`, `quest_threads` or
 `quest_beat_transitions` (`20260928225909`); none of them polls. The tables are
 never published as rows: `20260810000012` keeps DM-only quest history out of
 realtime payloads, and the doorbell carries only the table's name. Every

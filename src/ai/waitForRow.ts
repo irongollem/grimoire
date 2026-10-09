@@ -1,14 +1,20 @@
 import { supabase } from "@/lib/supabase";
-import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 
 /**
- * Generic "wait for a row to settle" machine: subscribes to Realtime
- * postgres_changes UPDATE events on `${table}` (id=eq.${id}) and polls the
- * row on an interval as a fallback, resolving when `resolveWhen` matches and
- * rejecting when `rejectWhen` returns an error message — or an Error, when the
- * caller needs the failed row on it (see AiGenerationJobFailedError) — or on
- * timeout.
- * Shared by src/ai/useImageJob.ts and src/ai/useMiniForge.ts.
+ * Generic "wait for a row to settle" machine: polls the row `${table}` (id=${id})
+ * on an interval, resolving when `resolveWhen` matches and rejecting when
+ * `rejectWhen` returns an error message (or an Error, when the caller needs the
+ * failed row on it, see AiGenerationJobFailedError) or on timeout.
+ *
+ * It polls instead of subscribing on purpose. This waits on a server job the
+ * user just started, which is one of the sanctioned polls (CLAUDE.md, Live
+ * Data): there is no campaign channel to hear it on, and a Realtime
+ * postgres_changes subscription is exactly what #999 4.2 removed everywhere.
+ * The poll ends the moment the row settles or the timeout fires, so an idle
+ * screen sends nothing.
+ *
+ * Shared by src/ai/useImageJob.ts, src/ai/useAiGenerationJob.ts and
+ * src/ai/useMiniForge.ts.
  */
 export function waitForRow<Row>(opts: {
   table: string;
@@ -21,43 +27,31 @@ export function waitForRow<Row>(opts: {
   pollIntervalMs?: number;
 }): Promise<Row> {
   const { table, id, select, resolveWhen, rejectWhen, timeoutMs, timeoutMessage } = opts;
-  const pollIntervalMs = opts.pollIntervalMs ?? 4_000;
+  // Generation jobs run for tens of seconds to minutes, so a single-row primary
+  // key read every 3 s is the whole cost of watching one, and 3 s is the longest
+  // a finished result can sit unnoticed.
+  const pollIntervalMs = opts.pollIntervalMs ?? 3_000;
 
   return new Promise((resolve, reject) => {
     let settled = false;
+    let reading = false;
     let pollHandle: ReturnType<typeof setInterval> | null = null;
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-    let realtime: RealtimeChannelHandle | null = null;
-    // The last row this waiter has seen, from either a real SELECT (poll) or
-    // a merged Realtime event — the merge baseline for the next UPDATE.
-    let lastRow: Row | null = null;
 
     const cleanup = () => {
       if (pollHandle) clearInterval(pollHandle);
       if (timeoutHandle) clearTimeout(timeoutHandle);
-      realtime?.stop();
-      realtime = null;
     };
 
-    /**
-     * `complete` distinguishes a poll's SELECT * (always the whole row) from
-     * a Realtime UPDATE payload, which omits any column Postgres left
-     * unchanged and stored out-of-line (TOAST) — real risk here, since
-     * `select: "*"` callers (waitForSculpt) promise the caller a complete
-     * row back. An incomplete event is merged over the last known row rather
-     * than trusted directly.
-     */
-    const settle = (row: Row | null, complete: boolean) => {
+    const settle = (row: Row | null) => {
       if (settled || !row) return;
-      const merged = complete || !lastRow ? row : { ...lastRow, ...row };
-      lastRow = merged;
-      if (resolveWhen(merged)) {
+      if (resolveWhen(row)) {
         settled = true;
         cleanup();
-        resolve(merged);
+        resolve(row);
         return;
       }
-      const failure = rejectWhen(merged);
+      const failure = rejectWhen(row);
       if (failure !== null) {
         settled = true;
         cleanup();
@@ -66,25 +60,22 @@ export function waitForRow<Row>(opts: {
     };
 
     const checkOnce = async () => {
-      const { data } = await supabase
-        .from(table)
-        .select(select)
-        .eq("id", id)
-        .maybeSingle();
-      settle(data as Row | null, true);
+      // A slow read must not stack a second one behind it.
+      if (reading || settled) return;
+      reading = true;
+      try {
+        const { data, error } = await supabase
+          .from(table)
+          .select(select)
+          .eq("id", id)
+          .maybeSingle();
+        // A failed read is a missed tick, not a verdict on the job: the next
+        // tick retries and the timeout still bounds the wait.
+        if (!error) settle(data as Row | null);
+      } finally {
+        reading = false;
+      }
     };
-
-    // This is deliberately a no-reconcile channel. The initial check and poll
-    // are its recovery path; attaching page/network self-healing would only
-    // add duplicate reads to a short-lived waiter.
-    realtime = createRealtimeChannel({
-      topic: `${table}-wait:${id}`,
-      bind: (channel) => channel.on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table, filter: `id=eq.${id}` },
-        (payload) => settle(payload.new as Row, false),
-      ),
-    });
 
     pollHandle = setInterval(checkOnce, pollIntervalMs);
     void checkOnce();

@@ -1,12 +1,12 @@
 import { ref, computed, watch, onUnmounted, toValue, type MaybeRefOrGetter } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
+import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
 import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
 import type { EncounterState, RunCombatant } from "@/types/encounter.types";
 
 // ── Module-level singleton for running encounters ──────────────────────────────
-let runRealtime: RealtimeChannelHandle | null = null;
+let stopRunRings: (() => void) | null = null;
 let runRefCount = 0;
 let stopRunWatcher: (() => void) | null = null;
 const runningStates = ref<EncounterState[]>([]);
@@ -28,46 +28,36 @@ export function useRunningEncounters() {
     }
   }
 
+  // The doorbell says an encounter_state row changed, never which; re-read the
+  // running rows. Not skipped for this tab's own rings: going live and ending a
+  // fight write the row but nothing here patches `runningStates` from the
+  // response, so the ring is the only thing that tells this list. Rings arrive in
+  // bursts (every HP tick pushes), so one read runs at a time and a ring that
+  // lands meanwhile schedules exactly one more.
   function subscribe(campaignId: string) {
-    runRealtime?.stop();
-    void fetchRunning(campaignId);
-    runRealtime = createRealtimeChannel({
-      topic: `running_encounters:${campaignId}`,
-      reconcile: () => void fetchRunning(campaignId),
-      bind: (channel) => channel.on("postgres_changes", { event: "*", schema: "public", table: "encounter_state",
-          filter: `campaign_id=eq.${campaignId}` },
-        (payload) => {
-          if (campaign.activeCampaignId !== campaignId) return;
-          if (payload.eventType === "DELETE") {
-            // RLS trims a DELETE payload to the primary key, and Realtime does
-            // not apply the channel filter to DELETE events — so `id` is all we
-            // get, and it may belong to another campaign. Matching on the
-            // primary key is safe either way: a foreign id is simply absent.
-            const id = (payload.old as { id?: string }).id;
-            if (id) runningStates.value = runningStates.value.filter(s => s.id !== id);
-          } else {
-            const row = payload.new as EncounterState;
-            const idx = runningStates.value.findIndex(s => s.encounter_id === row.encounter_id);
-            if (row.is_running) {
-              if (idx >= 0) {
-                // An UPDATE payload omits any column Postgres left unchanged
-                // and stored out-of-line (TOAST) — `combatants_live`,
-                // `events_fired` and `fog_mask` are exactly that shape (e.g.
-                // pushState() only touches fog_mask when it actually
-                // changed). Merge over the cached row rather than trusting
-                // the payload as complete.
-                runningStates.value[idx] = payload.eventType === "UPDATE"
-                  ? { ...runningStates.value[idx], ...row }
-                  : row;
-              } else {
-                runningStates.value.push(row);
-              }
-            } else {
-              if (idx >= 0) runningStates.value.splice(idx, 1);
-            }
-          }
-        }),
+    stopRunRings?.();
+    let reading = false;
+    let again = false;
+    const reread = async () => {
+      if (reading) { again = true; return; }
+      reading = true;
+      try {
+        do {
+          again = false;
+          await fetchRunning(campaignId);
+        } while (again && campaign.activeCampaignId === campaignId);
+      } finally {
+        reading = false;
+      }
+    };
+    void reread();
+    const offRing = onCampaignRing(["encounter_state"], (ring) => {
+      if (ring.campaignId === campaignId && campaign.activeCampaignId === campaignId) void reread();
     });
+    const offReconcile = onCampaignReconcile((id) => {
+      if (id === campaignId) void reread();
+    });
+    stopRunRings = () => { offRing(); offReconcile(); };
   }
 
   runRefCount++;
@@ -75,8 +65,8 @@ export function useRunningEncounters() {
     stopRunWatcher = watch(
       () => campaign.activeCampaignId,
       (campaignId) => {
-        runRealtime?.stop();
-        runRealtime = null;
+        stopRunRings?.();
+        stopRunRings = null;
         runningStates.value = [];
         runningLoaded.value = false;
         if (campaignId) subscribe(campaignId);
@@ -90,8 +80,8 @@ export function useRunningEncounters() {
     if (runRefCount === 0) {
       stopRunWatcher?.();
       stopRunWatcher = null;
-      runRealtime?.stop();
-      runRealtime = null;
+      stopRunRings?.();
+      stopRunRings = null;
       runningStates.value = [];
     }
   });
@@ -110,7 +100,7 @@ export function useRunningEncounters() {
 // can read the same reactive ref without needing its own subscription.
 export const liveState = ref<EncounterState | null>(null);
 const liveStateLoaded = ref(false);
-let playerRealtime: RealtimeChannelHandle | null = null;
+let stopPlayerRings: (() => void) | null = null;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ── DM composable ──────────────────────────────────────────────────────────────
@@ -300,31 +290,24 @@ export function usePlayerEncounterLive(campaignId: MaybeRefOrGetter<string | nul
     subscribedCampaignId = id;
     liveStateLoaded.value = false;
     void fetchRunning(id);
-    playerRealtime = createRealtimeChannel({
-      topic: `encounter_state_player_updates:${id}`,
-      reconcile: () => void fetchRunning(id),
-      bind: (channel) => channel.on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "encounter_state_player_updates",
-          filter: `campaign_id=eq.${id}`,
-        },
-        () => {
-          if (subscribedCampaignId !== id) return;
-          // The signal row deliberately contains no combatant payload. Resolve
-          // every change through the server-side projection before adopting it.
-          void fetchRunning(id);
-        },
-      ),
+    // `encounter_state` rings for every change to the row the player's
+    // projection (get_player_encounter_state) is built from; the player-updates
+    // signal table is written in the same transaction, so by the time the ring
+    // lands the projection is current. The ring carries no combatant payload:
+    // resolve it through the server-side projection before adopting anything.
+    const offRing = onCampaignRing(["encounter_state"], (ring) => {
+      if (ring.campaignId === id && subscribedCampaignId === id) void fetchRunning(id);
     });
+    const offReconcile = onCampaignReconcile((campaign) => {
+      if (campaign === id && subscribedCampaignId === id) void fetchRunning(id);
+    });
+    stopPlayerRings = () => { offRing(); offReconcile(); };
   }
 
   function unsubscribe(): void {
     subscribedCampaignId = null;
-    playerRealtime?.stop();
-    playerRealtime = null;
+    stopPlayerRings?.();
+    stopPlayerRings = null;
   }
 
   watch(

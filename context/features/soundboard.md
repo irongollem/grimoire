@@ -291,8 +291,7 @@ A DM can share **the music slot only** with players in the portal. `soundboard_b
 - **Sync is approximate.** Each client plays its own copy seeked to the offset; there is no media server. Fine for music, which is why one-shot effects are deliberately not carried — they would land a second apart across a group.
 - **Ambience is not shared.** Generator layers fire on random schedules, so "the same scene" would be a different arrangement on every device anyway.
 - **A DM who closes the tab leaves `is_live` true.** Players hear the current track finish and then nothing. The row is corrected next time the DM opens the board.
-- The player receiver owns its own realtime channel rather than going through `useCampaignLiveSync`, which invalidates TanStack queries — there is no query here to invalidate, only a live ref driving an element.
-- `soundboard_broadcast` had to be added to the `supabase_realtime` publication explicitly (migration `20260728000003`); a new table is not published automatically, and without it the receiver subscribes happily and simply never hears about a track change.
+- The player receiver hears `soundboard_broadcast` rings from the campaign doorbell through `onCampaignRing` and re-reads the row with `load()`; there is no query to invalidate, only a live ref driving an element, so the signal is listener-only (`LISTENER_ONLY_SIGNALS`). It used to own a `postgres_changes` channel, which needed the table in the `supabase_realtime` publication (migration `20260728000003`); since #999 4.2 the table rings on every write instead.
 
 ## DM / Player Split
 

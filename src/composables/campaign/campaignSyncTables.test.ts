@@ -7,6 +7,7 @@ import {
   QUEST_RUNTIME_SYNC_KEYS,
   BEATS_KEY,
   QUEST_RUNTIME_QUERY_KEYS,
+  LISTENER_ONLY_SIGNALS,
   PLAYER_FACTIONS_KEY,
   PLAYER_NOTES_KEY,
   PLAYER_NPCS_KEY,
@@ -14,17 +15,15 @@ import {
 } from "@/lib/campaignLiveSync/registry";
 
 /**
- * Live sync is three lists in two places: the tables the channel subscribes to
- * and the tables that ring the `campaign_sync` doorbell (in the database), and
- * the query keys each table refreshes (here). A table added to one of them is
- * silent, not broken-looking, in the others: a subscription to an unpublished
- * table joins and receives nothing, and a doorbell naming a table the client
- * cannot map is ignored.
+ * Live sync is two lists in two places: the signals the database rings (over
+ * Broadcast, one message per campaign per signal) and the query keys each one
+ * refreshes (here). A table added to one of them is silent, not broken-looking,
+ * in the other: a ring the client cannot map is ignored.
  *
  * supabase/tests/live_sync_registry.test.sql checks the database half against
- * the replayed schema: published, filterable, triggered. This file holds that
- * test's lists equal to the client registry, so neither side can grow alone.
- * Same arrangement as `bucketRegistryMirror.test.ts`.
+ * the replayed schema. This file holds that test's lists equal to the client
+ * registry, so neither side can grow alone. Same arrangement as
+ * `bucketRegistryMirror.test.ts`.
  */
 const REGISTRY_TEST = resolve(process.cwd(), "supabase/tests/live_sync_registry.test.sql");
 
@@ -38,9 +37,9 @@ function pgTapList(table: "live_sync_subscribed" | "live_sync_doorbell" | "live_
 }
 
 describe("live sync registries", () => {
-  it("checks every subscribed table against the database", () => {
-    // party_inventory is not in SYNC_TABLES (it has exact-row handlers rather
-    // than a registry entry) but it is subscribed and must be published too.
+  it("checks every SYNC_TABLES table against the database", () => {
+    // party_inventory is not in SYNC_TABLES (its root is not its name) but it
+    // is in the database's first list and must ring too.
     const subscribed = [...new Set([...SYNC_TABLES.map(([table]) => table), "party_inventory"])].sort();
     expect(pgTapList("live_sync_subscribed")).toEqual(subscribed);
   });
@@ -52,7 +51,42 @@ describe("live sync registries", () => {
       ...pgTapList("live_sync_named_signal"),
       ...pgTapList("live_sync_own_channel"),
     ])].sort();
-    expect([...SIGNAL_KEYS.keys()].sort()).toEqual(canRing);
+    // Signals the client hears that the database test's lists do not name:
+    // soundboard_broadcast and campaigns are heard by listeners, and the
+    // encounter runner's table maps to the session log.
+    const heard = new Set([...canRing, "encounter_state"]);
+    expect([...SIGNAL_KEYS.keys()].filter((signal) => !heard.has(signal))).toEqual([]);
+    expect(canRing.filter((signal) => !SIGNAL_KEYS.has(signal) && !LISTENER_ONLY_SIGNALS.has(signal))).toEqual([]);
+  });
+
+  it("maps every signal the database can ring to at least one query key or a listener", () => {
+    const rung = [
+      "calendar_events", "campaign_enabled_sources", "campaign_invites", "campaign_members", "campaign_messages",
+      "campaign_rules", "campaign_sessions", "campaign_tile_packs", "character_content_reviews", "character_memorials",
+      "class_features", "class_option_texts", "companions", "crafting_recipes", "custom_classes", "custom_subclasses",
+      "deities", "discovered_monsters", "dm_note_touches", "downtime_deck_backs", "downtime_draws", "downtime_grants",
+      "downtime_outcomes", "dungeon_features", "dungeon_maps", "encounter_state", "encounters", "entity_mentions",
+      "entity_notes", "faction_deities", "factions", "factions_player", "handout_reveals", "item_entries", "items",
+      "location_reveals", "locations", "locations_player", "loot_placements", "loot_tables", "memorial_mourners",
+      "minis", "monsters", "notes", "notes_player", "npc_favors", "npc_inventory", "npc_pc_notes", "npc_relationships",
+      "npc_reveals", "npc_sets", "npcs", "npcs_player", "pantheons", "party_inventory", "party_member_tracker_state",
+      "party_members", "party_milestones", "pinned_forms", "player_favourites", "player_journal_entries",
+      "player_npc_ratings", "puzzle_rooms", "quest_beat_attachments", "quest_beat_edge_gates", "quest_beat_edges",
+      "quest_beat_transitions", "quest_beats_player", "quest_clocks", "quest_consequence_events", "quest_runtime_state",
+      "quest_threads", "quests", "quests_player", "roll_tables", "rules", "session_availability", "session_proposals",
+      "soundboard_broadcast", "soundboard_pages", "soundboard_playlists", "sounds", "species", "spells", "traps",
+      "campaigns",
+    ];
+    const silent = rung.filter(
+      (signal) => !(SIGNAL_KEYS.get(signal)?.length) && !LISTENER_ONLY_SIGNALS.has(signal),
+    );
+    expect(silent).toEqual([]);
+  });
+
+  it("refreshes the DM's and the players' notes from either notes signal", () => {
+    for (const signal of ["notes", "notes_player"]) {
+      expect(SIGNAL_KEYS.get(signal), signal).toEqual(expect.arrayContaining(["notes", PLAYER_NOTES_KEY]));
+    }
   });
 
   it("refreshes an open character sheet when another client changes it", () => {
@@ -94,13 +128,13 @@ describe("live sync registries", () => {
   });
 
   it("tells players to re-read the projections that replaced their notes and factions reads", () => {
-    // Players cannot select either table (secret blocks, #932); the doorbell is
+    // Players cannot select either table (secret blocks, #932); the ring is
     // the only thing that reaches them.
-    expect(SIGNAL_KEYS.get("notes_player")).toEqual([PLAYER_NOTES_KEY]);
-    expect(SIGNAL_KEYS.get("factions_player")).toEqual([PLAYER_FACTIONS_KEY]);
+    expect(SIGNAL_KEYS.get("notes_player")).toContain(PLAYER_NOTES_KEY);
+    expect(SIGNAL_KEYS.get("factions_player")).toContain(PLAYER_FACTIONS_KEY);
   });
 
-  it("refreshes only player roots for the player-only signals", () => {
+  it("refreshes the projection roots for the projection signals", () => {
     expect(SIGNAL_KEYS.get("locations_player")).toEqual(["locations", PLAYER_NPCS_KEY]);
     expect(SIGNAL_KEYS.get("quests_player")).toEqual(["quests"]);
     expect(SIGNAL_KEYS.get("quest_beats_player")).toEqual([BEATS_KEY]);

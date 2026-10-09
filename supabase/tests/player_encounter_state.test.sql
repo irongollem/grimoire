@@ -1,7 +1,9 @@
 begin;
+-- Rings are sent at commit (20261009233206); read them per statement.
+set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -129,17 +131,24 @@ select is(
   'a hidden active combatant does not leak through the active-turn marker'
 );
 
-select is(
-  (select count(*)::integer from public.encounter_state_player_updates
-    where campaign_id = '57000000-0000-4000-8000-000000000010'),
-  1,
-  'campaign members can receive the metadata-only realtime signal'
+-- Players hear that the encounter changed as a metadata-only ring and refetch
+-- the projection; no row travels.
+reset role;
+delete from realtime.messages where topic = 'doorbell:57000000-0000-4000-8000-000000000010';
+update public.encounter_state set current_round = 3 where id = '57000000-0000-4000-8000-000000000040';
+select ok(
+  exists (select 1 from realtime.messages where topic = 'doorbell:57000000-0000-4000-8000-000000000010' and event = 'ring' and extension = 'broadcast' and payload ->> 'table' = 'encounter_state'),
+  'an encounter_state change rings encounter_state on its campaign'
 );
 
-reset role;
+delete from realtime.messages where topic = 'doorbell:57000000-0000-4000-8000-000000000010';
 update public.npcs
 set is_revealed = true
 where id = '57000000-0000-4000-8000-000000000030';
+select ok(
+  exists (select 1 from realtime.messages where topic = 'doorbell:57000000-0000-4000-8000-000000000010' and event = 'ring' and extension = 'broadcast' and payload ->> 'table' = 'encounter_state'),
+  'an NPC identity change during a running encounter rings encounter_state'
+);
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '57000000-0000-4000-8000-000000000002', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);

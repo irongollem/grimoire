@@ -1,37 +1,38 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(23);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
 --
--- Two ways a change reaches a client (src/composables/campaign/useCampaignLiveSync.ts):
+-- Every change reaches a client by one route, the campaign doorbell, which
+-- rings over Realtime Broadcast (20261009233206). Nothing is published for
+-- postgres_changes, so there is no publication to forget; what can go wrong is a
+-- table that does not ring. The lists below name how each table rings:
 --
---   subscribed  the channel listens to the table itself, filtered on
---               campaign_id. It must be published, or the subscription joins
---               and receives nothing, forever, with nothing about the client
---               code wrong (the failure 20260728000003 and 20260904230420 each
---               had to call out by hand). And it must ring the campaign_sync
---               doorbell on delete, because a filtered DELETE never arrives.
+--   subscribed  a table the client registry (SYNC_TABLES) names. Its signal is its
+--               own name, and it rings on insert, update and delete.
 --   doorbell    the table's rows may not travel at all (no campaign_id, a
 --               subscriber RLS will not show the row to, or DM-only quest
 --               history that 20260810000012 keeps out of realtime on purpose),
 --               so every write rings the doorbell instead.
---   named       a signal that is not a table name. A subscribed table whose
---               rows some members may not read rings a name of its own on
---               insert and update, so only those members' projections refresh:
+--   named       a signal that is not a table name. A table whose rows some
+--               members may not read rings a name of its own on insert and
+--               update, so only those members' projections refresh:
 --               `npcs` rings `npcs_player` (20260928233302), because players
 --               read NPCs only through get_player_visible_npcs. Places,
 --               quests, quest beats and quest objectives ring the same way
 --               (player_live_sync_for_places_and_quests): players read them
---               through projections or owner-only policies, so no row event
---               reaches them. quest_beats and quest_objectives are not
---               published and also ring `<table>_player` on delete;
---               quest_objectives has no campaign_id and rings through its
+--               through projections or owner-only policies.
+--               quest_beats and quest_objectives also ring `<table>_player` on
+--               delete; quest_objectives has no campaign_id and rings through its
 --               parent quest (signal_parent_change).
---   own channel a table subscribed outside the campaign channel with exact-row
---               handlers (party_members, usePartyLive) rings only on delete.
+--   own channel party_members, encounter_state and soundboard_broadcast, whose
+--               state a client also keeps outside the query cache (the runner,
+--               the player's encounter and audio) and hears through
+--               onCampaignRing; they ring like the rest. The name is historical:
+--               each once had a postgres_changes channel of its own.
 --
 -- A table with no campaign_id rings through its parent: a character, a place,
 -- a quest, a faction, a recipe or a playlist (signal_parent_change, #1033).
@@ -87,6 +88,8 @@ insert into live_sync_doorbell (name) values
 -- routed nor listed here, so leaving one off has to be argued (#1033).
 create temporary table live_sync_exempt (name text primary key, reason text not null) on commit drop;
 insert into live_sync_exempt (name, reason) values
+  ('ai_generation_jobs',        'server job progress, awaited by row id (waitForRow); not campaign content any member reads'),
+  ('image_generation_jobs',     'server job progress, awaited by row id (waitForRow); not campaign content any member reads'),
   ('document_imports',          'server job progress: the sanctioned poll in useDocumentImport stops when extraction settles'),
   ('tile_pack_generation_runs', 'server job progress: the sanctioned poll in useTilePacks stops when no run is in flight'),
   ('tile_pack_generation_jobs', 'server job progress, read through its run'),
@@ -107,7 +110,7 @@ insert into live_sync_exempt (name, reason) values
 -- for what that channel cannot carry: a delete (#1026).
 create temporary table live_sync_own_channel (name text primary key) on commit drop;
 insert into live_sync_own_channel (name) values
-  ('party_members');
+  ('party_members'), ('encounter_state'), ('soundboard_broadcast');
 
 create temporary table live_sync_named_signal (name text primary key, source text not null) on commit drop;
 insert into live_sync_named_signal (name, source) values
@@ -138,11 +141,9 @@ $$;
 select is(
   (select coalesce(string_agg(t.name, ', ' order by t.name), '')
      from live_sync_subscribed t
-    where not exists (
-      select 1 from pg_publication_tables p
-       where p.pubname = 'supabase_realtime' and p.schemaname = 'public' and p.tablename = t.name)),
+    where not (pg_temp.rings_on(t.name, 4) and pg_temp.rings_on(t.name, 16) and pg_temp.rings_on(t.name, 8))),
   '',
-  'every subscribed table is in the supabase_realtime publication');
+  'every subscribed table rings on insert, update and delete');
 
 select is(
   (select coalesce(string_agg(t.name, ', ' order by t.name), '')
@@ -161,6 +162,15 @@ select is(
   '',
   'every subscribed table rings the doorbell on delete');
 
+select ok(
+  exists (
+    select 1 from pg_trigger g
+     where g.tgrelid = 'public.campaigns'::regclass
+       and not g.tgisinternal
+       and g.tgfoid = 'private.signal_campaign_row_change()'::regprocedure
+       and (g.tgtype & 16) <> 0),
+  'a campaign row rings `campaigns` on update');
+
 select is(
   (select coalesce(string_agg(t.name, ', ' order by t.name), '')
      from live_sync_doorbell t
@@ -171,9 +181,9 @@ select is(
 select is(
   (select coalesce(string_agg(t.name, ', ' order by t.name), '')
      from live_sync_own_channel t
-    where not pg_temp.rings_on(t.name, 8)),
+    where not (pg_temp.rings_on(t.name, 4) and pg_temp.rings_on(t.name, 16) and pg_temp.rings_on(t.name, 8))),
   '',
-  'every table on its own channel rings the doorbell on delete');
+  'every table on its own channel rings on insert, update and delete');
 
 -- The UPDATE that moves a character matches the channel filter on its new
 -- campaign only, so the campaign it left is rung by a trigger of its own.
@@ -247,50 +257,47 @@ select is(
   '',
   'no policy but the owner''s or the DM''s lets anyone select notes or factions rows');
 
--- The DM-only runtime reaches clients by name only. If one of these is ever
--- published, player_quest_beats_security.test.sql catches the history table;
--- this catches the other two.
+-- Nothing is published for postgres_changes (20261009233206): every row stays
+-- on the server, and the DM-only quest runtime, beats and objectives reach
+-- clients by name only. An empty publication is also what lets Realtime stop
+-- polling the WAL.
 select is(
-  (select coalesce(string_agg(p.tablename::text, ', ' order by p.tablename), '')
+  (select coalesce(string_agg(p.schemaname || '.' || p.tablename, ', ' order by p.tablename), '')
      from pg_publication_tables p
-    where p.pubname = 'supabase_realtime' and p.schemaname = 'public'
-      and p.tablename in ('quest_runtime_state', 'quest_threads', 'quest_beat_transitions',
-                          'quest_beats', 'quest_objectives')),
+    where p.pubname = 'supabase_realtime'),
   '',
-  'the quest runtime, beats and objectives ring the doorbell and are never published as rows');
+  'the supabase_realtime publication holds no tables');
 
--- Subscribed on channels of their own (usePartyLive, useEncounterLive), not
--- through SYNC_TABLES, so the checks above do not cover them. Production had
--- both only by hand until 20261005015826.
-select is(
-  (select count(*)::integer from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public'
-      and tablename in ('party_members', 'encounter_state')),
-  2,
-  'party_members and encounter_state are published for their own live channels');
-
--- One function writes the doorbell (20261008231316), at commit
--- (20261008234009), so moving it to another transport (#999 row 4.2,
--- broadcast from the database) is a change in one place. Every route finds its
--- campaigns and calls private.ring_campaigns(), which queues them.
+-- One function sends the doorbell (20261008231316), at commit, so moving it to
+-- another transport is a change in one place. Every route finds its campaigns
+-- and calls private.ring_campaigns(), which queues them.
 select is(
   (select coalesce(string_agg(n.nspname || '.' || p.proname, ', ' order by p.proname), '')
      from pg_proc p
      join pg_namespace n on n.oid = p.pronamespace
     where n.nspname in ('public', 'private')
-      and p.prosrc ~* 'insert\s+into\s+(public\.)?campaign_sync\M'),
-  'private.flush_campaign_sync',
-  'only private.flush_campaign_sync writes the doorbell');
+      and p.prosrc ~* 'realtime\.send\s*\([^;]*''ring'''),
+  'private.send_campaign_rings',
+  'only private.send_campaign_rings sends a ring');
 
--- Written at commit, not mid-transaction: a mid-transaction ring held the
--- doorbell row lock beside the transaction's other locks and could deadlock two
--- writers to one campaign (20261008234009).
+select is(
+  (select coalesce(string_agg(n.nspname || '.' || p.proname, ', ' order by p.proname), '')
+     from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('public', 'private')
+      and p.prosrc ~* 'insert\s+into\s+private\.campaign_sync_pending\M'),
+  'private.ring_campaigns',
+  'only private.ring_campaigns queues a ring');
+
+-- Sent at commit, not mid-transaction, for the same reason it was written then:
+-- a mid-transaction ring held its lock beside the transaction's other locks and
+-- could deadlock two writers to one campaign (20261008234009).
 select ok(
   exists (select 1 from pg_trigger g
            where g.tgrelid = 'private.campaign_sync_pending'::regclass
-             and g.tgfoid = 'private.flush_campaign_sync()'::regprocedure
+             and g.tgfoid = 'private.send_campaign_rings()'::regprocedure
              and g.tgdeferrable and g.tginitdeferred),
-  'the doorbell is flushed by a deferred trigger, at commit');
+  'the doorbell is sent by a deferred trigger, at commit');
 
 -- An update rings the campaign a row left as well as the one it is in.
 select is(
@@ -314,9 +321,8 @@ select ok(
 
 -- Live by default (#1033). A table is campaign data when it carries one of the
 -- anchors below or reaches one through foreign keys at any depth; such a table
--- rings the doorbell, is published for a channel, or is exempt with a reason.
--- Routed means a trigger on one of the doorbell route functions (a function
--- merely named signal_* is not a route), or publication for a channel.
+-- rings the doorbell or is exempt with a reason. Routed means a trigger on one of
+-- the doorbell route functions (a function merely named signal_* is not a route).
 select is(
   (with recursive anchored(oid) as (
      select c.oid from pg_class c
@@ -333,15 +339,13 @@ select is(
      from anchored a
      join pg_class c on c.oid = a.oid
     where c.relname not in (select name from live_sync_exempt)
-      and c.relname <> 'campaign_sync'
       and not exists (select 1 from pg_trigger g
                        where g.tgrelid = c.oid and not g.tgisinternal
                          and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
                                           'public.signal_parent_change()'::regprocedure,
-                                          'public.signal_handout_change()'::regprocedure))
-      and not exists (select 1 from pg_publication_tables t
-                       where t.pubname = 'supabase_realtime' and t.schemaname = 'public'
-                         and t.tablename = c.relname)),
+                                          'public.signal_handout_change()'::regprocedure,
+                                          'private.signal_campaign_row_change()'::regprocedure))
+      ),
   '',
   'every campaign table is on a live route or exempt with a reason');
 
@@ -403,8 +407,10 @@ select is(
   'ringing one campaign twice in a transaction queues it once');
 
 -- The first ring of a pair is the one kept, and the flush writes signals in
--- the order they first rang: npcs, spells, npcs writes npcs then spells, as it
--- did before the dedupe.
+-- the order they first rang: npcs, spells, npcs sends npcs then spells. The
+-- order is read from the queue: the messages it becomes carry no readable order
+-- (inserted_at is constant in a transaction), and realtime_doorbell.test.sql
+-- reads them as a set.
 select private.ring_campaigns(array['00000000-0000-4000-8000-00000000d00c'::uuid], 'npcs');
 select private.ring_campaigns(array['00000000-0000-4000-8000-00000000d00c'::uuid], 'spells');
 select private.ring_campaigns(array['00000000-0000-4000-8000-00000000d00c'::uuid], 'npcs');
@@ -413,7 +419,7 @@ select is(
     where txid = pg_current_xact_id()
       and campaign_id = '00000000-0000-4000-8000-00000000d00c'),
   'npcs,spells',
-  'the dedupe keeps each signal at its first ring, so the flush order is unchanged');
+  'the dedupe keeps each signal at its first ring, so the send order is unchanged');
 
 select * from finish();
 rollback;

@@ -153,7 +153,7 @@ Costs inherent to that shape:
 | `spell_cast_records`, `dm_note_touches` | per-cast / per-edit | `dm_note_touches` has its own trim inside the DM-notes write path (`20261006093358`) |
 | `tile_pack_generation_jobs`, `tile_pack_generation_runs` | per tile-pack run | `attempts` and `plan` jsonb; no horizon |
 | `image_provenance` | one row per stored image key | permanent registry by design (epic #935), with no orphan sweep found in the migrations or cron jobs |
-| `campaign_sync` | doorbell rows | one row per table per campaign, upserted; bounded |
+| `private.campaign_sync_pending` | the doorbell's per-transaction queue | inserted and drained inside one transaction (`private.send_campaign_rings` at commit), so empty between transactions; the rings themselves are Realtime Broadcast messages, which Realtime keeps for three days in daily partitions |
 
 `rate_limit_events` (hourly), `bug_reports` (screenshot scrub) and the AI job tables are handled. The pattern already in `purge_expired_retention` (a dated `delete` per table) is the right home for the rest.
 

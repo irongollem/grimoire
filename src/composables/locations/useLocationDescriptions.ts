@@ -27,9 +27,8 @@ export async function fetchLocationDescriptions(
 
 /**
  * Reactive form of `fetchLocationDescriptions`. Keyed under the `locations`
- * root so every place mutation refreshes it, and as `["locations",
- * "descriptions", ids]`, which the live-sync reducer's `include` never admits
- * (its third segment is not a parent id and its second is not the campaign).
+ * root so every place mutation, and every `locations` ring from another client,
+ * refreshes it.
  */
 export function useLocationDescriptions(ids: Ref<readonly string[]>) {
   const sortedIds = computed(() => [...new Set(ids.value)].sort());

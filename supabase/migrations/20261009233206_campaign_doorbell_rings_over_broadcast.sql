@@ -13,7 +13,7 @@
 -- So the doorbell is the only route. A change rings its campaign once per
 -- transaction (private.ring_campaigns, unchanged in shape), and at commit
 -- private.send_campaign_rings sends one Broadcast message per (campaign, signal)
--- on the private topic `campaign:<id>`: {"table": <signal>, "origin": <tab id>}.
+-- on the private topic `doorbell:<campaign id>`: {"table": <signal>, "origin": <tab id>}.
 -- It carries what changed, never a row (the "thin event" / notify-then-fetch
 -- pattern): every client refetches through its own RLS, so a player is told
 -- that something changed and only ever reads what they may see.
@@ -26,7 +26,7 @@
 
 -- ── 1. Who may hear a topic ─────────────────────────────────────────────────
 
--- Total: false for anything but `campaign:<uuid>` of a campaign the caller is a
+-- Total: false for anything but `doorbell:<uuid>` of a campaign the caller is a
 -- member of, never NULL (CLAUDE.md, authorization predicates).
 create function private.can_hear_realtime_topic(p_topic text)
 returns boolean
@@ -37,7 +37,7 @@ set search_path = ''
 as $$
   select coalesce(
     case
-      when p_topic ~ '^campaign:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      when p_topic ~ '^doorbell:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
         then private.is_campaign_member(substring(p_topic from 10)::uuid)
     end,
     false);
@@ -45,11 +45,24 @@ $$;
 revoke execute on function private.can_hear_realtime_topic(text) from public, anon;
 grant execute on function private.can_hear_realtime_topic(text) to authenticated, service_role;
 
+-- `doorbell:`, not `campaign:`: useCampaignPresence already joins the public
+-- channel `campaign:<id>`, and realtime-js hands back the existing channel for a
+-- topic asked for twice, so a doorbell on that name bound to the public presence
+-- channel and never heard a private ring.
+--
 -- Join authorization for private Broadcast channels. Clients only listen: there
--- is no insert policy, so no client can ring a campaign.
+-- is no insert policy, so no client can ring a campaign. The row's own topic must
+-- be the joined one as well as a topic the caller may hear: Realtime sets
+-- realtime.topic to the topic being joined, so the second test is what a join
+-- needs, and the first keeps a session that set the setting by hand from
+-- reading any other campaign's messages.
 create policy "realtime_messages_select" on realtime.messages
   for select to authenticated
-  using (extension = 'broadcast' and private.can_hear_realtime_topic((select realtime.topic())));
+  using (
+    extension = 'broadcast'
+    and topic = (select realtime.topic())
+    and private.can_hear_realtime_topic((select realtime.topic()))
+  );
 
 -- ── 2. A ring remembers which tab caused it ─────────────────────────────────
 
@@ -126,7 +139,7 @@ begin
     perform realtime.send(
       jsonb_build_object('table', ring.changed_table, 'origin', ring.origin),
       'ring',
-      'campaign:' || ring.campaign_id,
+      'doorbell:' || ring.campaign_id,
       true);
   end loop;
   return null;
@@ -143,6 +156,40 @@ create constraint trigger campaign_sync_pending_send
 
 delete from private.demo_campaign_tables where table_name = 'campaign_sync';
 drop table public.campaign_sync;
+
+-- ── 4b. The players' encounter signal table goes too ────────────────────────
+
+-- encounter_state_player_updates (20260730000003) existed only to be published:
+-- players may not read encounter_state rows, so a row-free copy told them "the
+-- encounter changed" and they re-read the projection. encounter_state now rings
+-- its campaign itself (below), and a ring never carries a row, so the copy has
+-- no job left. An NPC's identity change (unmasked, renamed, a new portrait)
+-- reaches a running encounter's players the same way, as an encounter_state ring.
+create or replace function private.signal_encounter_npc_identity_change()
+returns trigger
+language plpgsql
+security definer
+set search_path to ''
+as $function$
+begin
+  perform private.ring_campaigns(
+    array(
+      select distinct state.campaign_id
+        from public.encounter_state state
+       where state.is_running
+         and exists (
+           select 1
+             from jsonb_array_elements(state.combatants_live) combatant
+            where combatant ->> 'npc_id' = new.id::text)),
+    'encounter_state');
+  return new;
+end;
+$function$;
+
+drop trigger encounter_state_player_update_sync on public.encounter_state;
+drop function private.sync_encounter_state_player_update();
+delete from private.demo_campaign_tables where table_name = 'encounter_state_player_updates';
+drop table public.encounter_state_player_updates;
 
 -- ── 5. Every live table rings on insert, update and delete ──────────────────
 

@@ -26,10 +26,9 @@ export interface AtlasRow {
  * ahead of arranged ones.
  *
  * Typed against the three fields it actually reads rather than a whole
- * `Location`, which every `Location` satisfies structurally. That lets realtime
- * cache splicing (`campaignRealtimeWorld.ts`) share this one implementation by
- * narrowing its loosely-typed payload honestly, instead of asserting it is a
- * `Location` — an assertion nothing checks and a missing column would break.
+ * `Location`, which every `Location` satisfies structurally, so a caller holding
+ * a partial row can use it honestly instead of asserting its value is a whole
+ * `Location`, an assertion nothing checks and a missing column would break.
  */
 export interface SiblingOrder {
   location_type: LocationType;

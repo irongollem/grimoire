@@ -143,13 +143,13 @@ export function usePlayerItemProjection(getOptions?: () => { enabled?: boolean }
   /**
    * Re-run the projection now, ignoring `staleTime: Infinity`.
    *
-   * That staleTime makes the projection a snapshot taken when the page loaded,
-   * and for a *player* nothing else ever ends it: the only invalidation is the
-   * `items` realtime reducer, `items` is owner-only under RLS so a player's
-   * subscription never receives those events, and the tables that widen the
-   * projection from the outside (`store_items`) are not campaign-scoped and so
-   * are not on the live-sync channel at all. A caller that can tell the
-   * snapshot is behind has to be able to say so. See `useSharedStoreItems`.
+   * That staleTime makes the projection a snapshot taken when the page loaded.
+   * The doorbell ends it for every member: the `items`, `store_items` and
+   * `party_inventory` rings all refresh the `items` root, and a ring reaches a
+   * player even for a table they may not read, since it carries no row. What
+   * it cannot end is this tab's own write, whose ring the tab skips, so a
+   * caller that can tell the snapshot is behind still says so here. See
+   * `useSharedStoreItems`.
    */
   async function refetch(): Promise<void> {
     await (ui.dmPreviewMode ? baseQuery.refetch() : projectionQuery.refetch());

@@ -1,8 +1,8 @@
 /**
  * The campaign doorbell's in-app fan-out (#999 4.2).
  *
- * `useCampaignLiveSync` holds the one Realtime channel per campaign (private
- * Broadcast topic `campaign:<id>`) and turns each ring into query invalidations
+ * `useCampaignLiveSync` holds the one Realtime channel per campaign (the private
+ * Broadcast topic `doorbellTopic(id)`) and turns each ring into query invalidations
  * through `SIGNAL_KEYS`. A few subscribers keep state outside TanStack Query (the
  * chat's message list, the encounter runner, the player's audio stream, the
  * removal guard), so they listen here instead of opening channels of their own:
@@ -14,6 +14,17 @@
  * updated its state can skip those.
  */
 import { TAB_ID } from "@/lib/tabId";
+
+/**
+ * The doorbell's private Broadcast topic for a campaign; the server sends to
+ * the same name (private.send_campaign_rings). Not `campaign:<id>`: that is the
+ * public presence channel (useCampaignPresence), and realtime-js hands back the
+ * existing channel for a topic asked for twice, so sharing the name bound the
+ * doorbell to the public channel, where no private ring arrives.
+ */
+export function doorbellTopic(campaignId: string): string {
+  return `doorbell:${campaignId}`;
+}
 
 export interface CampaignRing {
   campaignId: string;

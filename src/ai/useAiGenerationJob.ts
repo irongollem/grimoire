@@ -83,9 +83,9 @@ const JOB_SELECT = [
 ].join(", ");
 
 /**
- * Wait for a server-created AI generation to settle. Realtime delivers the
- * normal completion path; `waitForRow` performs the initial and missed-event
- * HTTP checks. It never marks the draft consumed.
+ * Wait for a server-created AI generation to settle. `waitForRow` polls the
+ * job row until it does, the sanctioned poll for a server job the user started
+ * (CLAUDE.md, Live Data). It never marks the draft consumed.
  */
 export async function waitForAiGenerationJob<Result = unknown>(
   jobId: string,

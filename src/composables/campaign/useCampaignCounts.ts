@@ -10,10 +10,8 @@ import { useCampaignStore } from "@/stores/campaign";
  * their `length`.
  *
  * Each count lives under its table's own query root (`["npcs", "count", cid]`),
- * so every mutation that invalidates the table's root refreshes it, and
- * `campaignRealtimeWorld` rings it on a realtime insert or delete. The live-sync
- * reducers never splice rows into these keys (their `include` rules admit only
- * list and detail shapes).
+ * so every mutation that invalidates the table's root refreshes it, and so does
+ * the table's ring on another client (the doorbell refreshes the whole root).
  */
 async function countRows(
   table: "npcs" | "encounters",

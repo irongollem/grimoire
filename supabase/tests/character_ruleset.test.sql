@@ -29,8 +29,10 @@
 --      feat spell, and a pouch inside a backpack
 
 begin;
--- This file reads campaign_sync inside its own transaction. The doorbell is
--- written at commit (20261008234009), so drain its queue per statement instead.
+-- This file reads the doorbell's rings (realtime.messages) inside its own
+-- transaction. The rings are sent at commit (20261009233206), so drain the queue
+-- per statement instead. Rings are read as a set ("a ring for X was sent"):
+-- inserted_at is constant inside a transaction, so their order cannot be read.
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
@@ -438,13 +440,11 @@ select ok(not has_function_privilege('anon', 'public.convert_party_member_copy(u
 
 -- ruleset_reviews has no campaign_id, so it rings the doorbell of whichever
 -- table the character sits at instead of travelling as a filtered row.
-insert into public.campaign_sync (campaign_id, changed_table, updated_at)
-values ('94300000-0000-4000-8000-0000000000c1', 'probe', now())
-on conflict (campaign_id) do update set changed_table = excluded.changed_table;
+delete from realtime.messages where topic = 'doorbell:94300000-0000-4000-8000-0000000000c1';
 insert into public.ruleset_reviews (party_member_id, flag_type)
 values ('94300000-0000-4000-8000-0000000000e1', 'background');
-select is((select changed_table from public.campaign_sync where campaign_id = '94300000-0000-4000-8000-0000000000c1'),
-  'ruleset_reviews', 'a review on a seated character rings its campaign''s doorbell');
+select ok(exists (select 1 from realtime.messages where topic = 'doorbell:94300000-0000-4000-8000-0000000000c1' and event = 'ring' and extension = 'broadcast' and payload ->> 'table' = 'ruleset_reviews'),
+  'a review on a seated character rings its campaign''s doorbell');
 
 -- The two flags that stand a guard down are raised by a fixed set of functions
 -- and by nothing a client can call with a key of its choosing. The subclass sync

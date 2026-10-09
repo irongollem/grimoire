@@ -221,7 +221,7 @@ a heading never appears over an empty grid.
 - **Invite System** — token-based URLs; expiry + max uses; role assignment; label/copy/revoke
 - **Campaign Members** — member list; player→character assignment; presence indicator; remove player
 - **Player Portal** — full separate experience under `/play/*`; own layout with fixed bottom nav; persistent live encounter sidebar (drag-resize); campaign chat sidebar; DM Preview Mode
-- **Live Sync** — Supabase Realtime subscriptions on every table in `SYNC_TABLES` (`useCampaignLiveSync`), plus the `campaign_sync` doorbell that carries what a campaign-filtered subscription cannot: deletes, whose payload is primary-key-only under RLS, and `store_items`, which has no `campaign_id`. Presence tracking
+- **Live Sync** — the campaign doorbell (`useCampaignLiveSync`): every live table rings its campaign on insert, update and delete as a Realtime Broadcast message on the private topic `doorbell:<campaign id>`, naming what changed and never the row, and each client refetches through its own RLS (`SIGNAL_KEYS`). Nothing subscribes to `postgres_changes` (#999 4.2). Presence tracking
 - **Role-Based Access** — DM vs player enforced via Supabase RLS on every table; players see only DM-shared data + their own private data
 
 ### Soundboard

@@ -147,30 +147,35 @@ flowchart LR
 ## Realtime sync (live multi-user)
 
 One campaign-wide channel, reference-counted, mounted once per layout
-(`DefaultLayout` / `PlayerLayout`) via `useCampaignLiveSync`:
+(`DefaultLayout` / `PlayerLayout`) via `useCampaignLiveSync`. It is the
+campaign doorbell: a private Realtime Broadcast topic, `doorbell:<campaign id>`, that
+carries what changed and never a row (#999 4.2, `20261009233206`).
 
 ```mermaid
 flowchart LR
-    pg[("Postgres<br/>~30 SYNC_TABLES,<br/>filter campaign_id=eq.X")] --> rt["Supabase Realtime"]
+    pg[("Postgres<br/>ring triggers on every live table;<br/>queued per transaction,<br/>sent at commit (send_campaign_rings)")] --> rt["Supabase Realtime<br/>Broadcast, private topic doorbell:id"]
     rt --> chan["src/lib/realtimeChannel.ts<br/>subscribe status · gap recovery ·<br/>wake listeners · teardown<br/>(heal policy: realtimeHeal.ts)"]
-    chan --> dispatch["src/lib/campaignLiveSync/<br/>3 dispatchers: world · player · systems"]
-    dispatch --> cache["realtimeCache.ts<br/>patch TanStack caches in place;<br/>joins/redacted rows → invalidate;<br/>RECONCILE_KEYS after event gaps"]
-    cache --> uiL["UI re-renders"]
-
-    rt -.-> enc["useEncounterLive<br/>(encounter_state, singleton + refcount)"]
-    rt -.-> pres["useCampaignPresence"]
-    rt -.-> msg["useCampaignMessages / broadcast"]
-    rt -.-> snd["useSoundboardBroadcast /<br/>usePlayerAudioStream"]
+    chan --> sync["useCampaignLiveSync<br/>skip own tab's rings;<br/>SIGNAL_KEYS → invalidate;<br/>RECONCILE_KEYS after gaps"]
+    sync --> uiL["queries refetch through RLS → UI"]
+    sync --> bus["campaignLiveSync/rings.ts<br/>onCampaignRing / onCampaignReconcile"]
+    bus -.-> enc["useEncounterLive · useRunnerPartySync"]
+    bus -.-> msg["useCampaignMessages"]
+    bus -.-> snd["usePlayerAudioStream · usePlayerRemovalGuard"]
+    rt -.-> pres["useCampaignPresence (Presence, public)"]
 ```
 
-Rules the reducers obey: an event may **patch** an already-loaded cache but
-never **create** one; anything the reducer can't reproduce exactly (joins,
-redacted player projections) falls back to targeted invalidation.
+Rules: a ring is a refetch, never a patch, so a client only ever holds what its
+own RLS returns. A tab skips the rings its own requests caused (the
+`x-grimoire-tab` header), so a mutation must refresh its own tab's caches.
+Nothing subscribes to `postgres_changes`: one subscription is enough to keep
+Realtime polling the database about once a second.
 
 **Symptom → cause:** "player doesn't see DM's change until reload" is either
-the table missing from `SYNC_TABLES` (`campaignLiveSync`), a reducer patching
-the wrong cache key, or channel death that healing didn't recover — check
-`realtimeChannel.ts` status handling before suspecting the DB.
+the table not ringing (`live_sync_registry.test.sql` lists every campaign table
+as ringing or exempt), its signal missing from `SIGNAL_KEYS`, or channel death
+that healing didn't recover; check `realtimeChannel.ts` status handling before
+suspecting the DB. "My own other view didn't update" is a mutation that does
+not invalidate its own roots: the ring skips the tab that caused it.
 
 ## Service worker & update lifecycle
 

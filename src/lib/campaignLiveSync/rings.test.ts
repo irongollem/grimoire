@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { emitCampaignReconcile, emitCampaignRing, onCampaignReconcile, onCampaignRing } from "./rings";
+import { doorbellTopic, emitCampaignReconcile, emitCampaignRing, onCampaignReconcile, onCampaignRing } from "./rings";
 import { TAB_ID } from "@/lib/tabId";
 
 describe("campaign rings", () => {
@@ -45,5 +45,12 @@ describe("campaign rings", () => {
     stop();
     emitCampaignReconcile("c2");
     expect(listener.mock.calls).toEqual([["c1"]]);
+  });
+
+  it("names the doorbell apart from the campaign's presence channel", () => {
+    // useCampaignPresence joins the public `campaign:<id>`; a shared name bound
+    // the doorbell to that public channel and no private ring ever arrived.
+    expect(doorbellTopic("c1")).toBe("doorbell:c1");
+    expect(doorbellTopic("c1")).not.toBe("campaign:c1");
   });
 });
