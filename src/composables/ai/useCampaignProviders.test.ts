@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import type { ProviderConfigRow } from "./useProviderConfig";
 
 const store = reactive({
@@ -7,6 +7,7 @@ const store = reactive({
   decryptedOpenAiKey: null as string | null,
   decryptedAnthropicKey: null as string | null,
   decryptedGeminiKey: null as string | null,
+  providerKeysLoading: false,
 });
 const rows = ref<ProviderConfigRow[]>([]);
 const loaded = ref(false);
@@ -16,7 +17,7 @@ const planLoading = ref(false);
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => store }));
 vi.mock("@/composables/ai/useProviderConfig", () => ({
   useProviderConfig: () => ({
-    query: { isSuccess: loaded },
+    query: { data: computed(() => (loaded.value ? rows.value : undefined)) },
     rows,
     textMultiplierFor: (p: string) => rows.value.find((r) => r.provider === p)?.text_multiplier ?? 1,
     imageMultiplierFor: (p: string) => rows.value.find((r) => r.provider === p)?.image_multiplier ?? 1,
@@ -49,6 +50,7 @@ beforeEach(() => {
   loaded.value = false;
   isPro.value = true;
   planLoading.value = false;
+  store.providerKeysLoading = false;
   store.decryptedOpenAiKey = null;
   store.decryptedGeminiKey = null;
   store.activeCampaign.text_provider = null;
@@ -96,5 +98,16 @@ describe("useCampaignProviders", () => {
     const { textProvider, imageProvider } = useCampaignProviders();
     expect(textProvider.value).toBeNull();
     expect(imageProvider.value).toBeNull();
+  });
+
+  it("resolves nothing while the campaign's keys are still decrypting", () => {
+    store.providerKeysLoading = true;
+    rows.value = [row("openai", { text_model: "gpt-5.6-luna", text_enabled: true })];
+    loaded.value = true;
+    const { textProvider, textCredits } = useCampaignProviders();
+    expect(textProvider.value).toBeNull();
+    expect(textCredits(2)).toBeNull();
+    store.providerKeysLoading = false;
+    expect(textProvider.value).toBe("openai");
   });
 });

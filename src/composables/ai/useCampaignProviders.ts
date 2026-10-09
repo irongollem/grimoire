@@ -13,8 +13,8 @@
  * a key a DM stored before downgrading, so without this gate the badge would
  * promise "no credits" on a generation the server bills. The vault decrypts
  * only the caller's own campaign keys, so the caller's own plan is the
- * owner's. While the plan is loading, a campaign that holds a key resolves to
- * nothing rather than guessing either way.
+ * owner's. While the keys are still decrypting, or the plan is loading for a
+ * campaign that holds one, nothing resolves rather than guessing either way.
  *
  * **A price is null until it is known**: before provider_config loads, and
  * when the admin offers nothing the campaign could use. `GenerationCostBadge`
@@ -59,11 +59,18 @@ export function useCampaignProviders() {
     gemini: !!campaign.decryptedGeminiKey,
   }));
   const ownKeys = computed(() => (isPro.value ? storedKeys.value : {}));
-  /** A held key whose use depends on a plan not loaded yet: nothing is known. */
-  const undecided = computed(() => planLoading.value && Object.values(storedKeys.value).some(Boolean));
-  /** Null until provider_config loads; see chooseTextProvider / chooseImageProvider. */
+  /** Whether the campaign pays with its own key is not known yet. */
+  const undecided = computed(
+    () => campaign.providerKeysLoading || (planLoading.value && Object.values(storedKeys.value).some(Boolean)),
+  );
+  /**
+   * Null until provider_config first loads; see chooseTextProvider /
+   * chooseImageProvider. Read off the data, not `isSuccess`: a failed
+   * background refetch turns the status to error but keeps the rows, and
+   * those rows are still the admin's config.
+   */
   const configs = computed(() =>
-    query.isSuccess.value ? Object.fromEntries(rows.value.map((r) => [r.provider, r])) : null,
+    query.data.value === undefined ? null : Object.fromEntries(rows.value.map((r) => [r.provider, r])),
   );
 
   const text = computed(() =>

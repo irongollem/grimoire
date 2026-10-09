@@ -43,6 +43,16 @@ export const useCampaignStore = defineStore("campaign", () => {
   const decryptedAnthropicKey = ref<string>("");
   const decryptedGeminiKey    = ref<string>("");
 
+  // Decryptions in flight. Until they settle the refs above may still be empty
+  // (or the previous campaign's), so whether the campaign pays with its own
+  // key is not known yet: useCampaignProviders prices nothing meanwhile.
+  const keysPending = ref(0);
+  const providerKeysLoading = computed(() => keysPending.value > 0);
+  function trackKey<T>(decryption: Promise<T>): Promise<T> {
+    keysPending.value++;
+    return decryption.finally(() => { keysPending.value--; });
+  }
+
   const providerKeyRefs: Record<string, ReturnType<typeof ref<string>>> = {
     openai:    decryptedOpenAiKey,
     anthropic: decryptedAnthropicKey,
@@ -124,7 +134,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     if (!stored) { ref_.value = ""; return; }
 
     if (isLocalCiphertext(stored)) {
-      decryptLocalKey(stored)
+      trackKey(decryptLocalKey(stored))
         .then((key) => { ref_.value = key; })
         .catch(() => { ref_.value = ""; });
       return;
@@ -141,7 +151,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     if (stored.startsWith("enc:v1:")) {
       // Server-encrypted blob wrongly left in localStorage — decrypt via the
       // server vault once, then hand it to the local vault.
-      decryptApiKey(stored)
+      trackKey(decryptApiKey(stored))
         .then((key) => migrate(key))
         .catch(() => { ref_.value = ""; });
     } else {
@@ -160,7 +170,9 @@ export const useCampaignStore = defineStore("campaign", () => {
         const dbField = DB_KEY_FIELDS[provider];
         const encrypted = campaign[dbField] as string | null | undefined;
         if (encrypted) {
-          decryptApiKey(encrypted)
+          // Not the previous campaign's key while this one decrypts.
+          ref_.value = "";
+          trackKey(decryptApiKey(encrypted))
             .then((key) => { ref_.value = key; })
             .catch(() => { ref_.value = ""; });
         } else {
@@ -313,6 +325,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedOpenAiKey,
     decryptedAnthropicKey,
     decryptedGeminiKey,
+    providerKeysLoading,
     switchToCampaign,
     clearActiveCampaign,
     switchUserMode,

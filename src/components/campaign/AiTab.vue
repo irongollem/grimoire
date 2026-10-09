@@ -359,7 +359,8 @@ const { query: providerConfigQuery, rowFor, imageMultiplierFor } = useProviderCo
 // Until provider_config arrives nothing is known about what the admin offers:
 // no "unavailable" notice, no price, and no correcting the DM's pick against
 // options that are only the keys they hold.
-const configLoaded = computed(() => providerConfigQuery.isSuccess.value);
+// Off the data, not `isSuccess`: a failed background refetch keeps the rows.
+const configLoaded = computed(() => providerConfigQuery.data.value !== undefined);
 const { costOf } = useAiCredits();
 
 // Representative price: one portrait-orientation image (entity_image × 1.5 × provider multiplier).
@@ -394,9 +395,15 @@ function providerHasKeyStored(providerId: string): boolean {
   return !!(c?.[p.dbField as keyof typeof c] as string | null);
 }
 
+// Anthropic keys are no longer offered here, but a campaign already set to
+// Anthropic with its key still runs on it (chooseTextProvider honours an
+// explicit pick), so it is listed while it is the pick. Leaving it out made the
+// watcher below re-point the campaign to another key on the next unrelated save.
+const keepsAnthropic = computed(
+  () => form.value.text_provider === "anthropic" && !!campaign.decryptedAnthropicKey,
+);
 const availableTextProviders = computed(() =>
-  BYOK_TEXT_ORDER
-    .filter((p) => providerHasKey(p))
+  [...BYOK_TEXT_ORDER.filter((p) => providerHasKey(p)), ...(keepsAnthropic.value ? ["anthropic" as const] : [])]
     .map((p) => ({ value: p, label: PROVIDER_DISPLAY[p] ?? p })),
 );
 // A choice is open when the admin offers it on platform credits or the DM holds
