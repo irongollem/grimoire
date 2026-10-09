@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(21);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -375,6 +375,32 @@ select is(
                                       'public.signal_handout_change()'::regprocedure))),
   '',
   'no exemption names a table that is gone or already rings');
+
+-- signal_campaign_change and signal_parent_change read `left_rows` on UPDATE
+-- (20261008234009), so an update trigger without it fails every UPDATE on its
+-- table at runtime with "relation left_rows does not exist". The tests above
+-- only see that a table rings, not that its update trigger can.
+select is(
+  (select coalesce(string_agg(g.tgname || ' on ' || g.tgrelid::regclass, ', ' order by g.tgname), '')
+     from pg_trigger g
+    where not g.tgisinternal
+      and (g.tgtype & 16) <> 0
+      and g.tgfoid in ('public.signal_campaign_change()'::regprocedure,
+                       'public.signal_parent_change()'::regprocedure)
+      and position('REFERENCING OLD TABLE AS left_rows' in pg_get_triggerdef(g.oid)) = 0),
+  '',
+  'every doorbell update trigger declares the left_rows transition table');
+
+-- A pair is queued once per transaction (20261009132548), so a definer path
+-- writing row by row does not leave commit one flush firing per row.
+select private.ring_campaigns(array['00000000-0000-4000-8000-00000000d00b'::uuid], 'npcs');
+select private.ring_campaigns(array['00000000-0000-4000-8000-00000000d00b'::uuid], 'npcs');
+select is(
+  (select count(*)::int from private.campaign_sync_pending
+    where txid = pg_current_xact_id()
+      and campaign_id = '00000000-0000-4000-8000-00000000d00b'),
+  1,
+  'ringing one campaign twice in a transaction queues it once');
 
 select * from finish();
 rollback;
