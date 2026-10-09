@@ -364,6 +364,7 @@ describe("focal point guess", () => {
     expect(focalTarget("monster")).toMatch(/head or face/);
     expect(focalTarget("item")).toMatch(/centre of the main object/);
     expect(focalTarget("spell")).toMatch(/caster's face|magical effect/);
+    expect(focalTarget("species")).toMatch(/group's faces/);
   });
 
   it("reads the model's answer as whole percents and clamps it", () => {

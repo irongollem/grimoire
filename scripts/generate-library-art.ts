@@ -101,10 +101,14 @@ const VARIANT_QUALITY = 80;
 const CONTEXT_LIMIT = 2000;
 const MANIFEST_FILE = "manifest.json";
 
-export type ArtKind = "spell" | "item" | "monster";
+/**
+ * `species` is publish-only: species pictures (the race showcase, #955) are rendered outside this tool, so no
+ * `generate` flag makes one; a manifest entry with `kind: "species"` and the species' `name` publishes it.
+ */
+export type ArtKind = "spell" | "item" | "monster" | "species";
 
 /** Storage bucket per kind. Canonical art lives under `srd/` in all three (see CLAUDE.md, Storage Path Convention). */
-export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images" };
+export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images" };
 
 /**
  * How canonical item art is staged, passed where the app passes a campaign's
@@ -218,6 +222,7 @@ const TABLES_FOR_KIND: Record<ArtKind, string> = {
   spell: "library_spell_art_canonical + library_spells",
   monster: "library_monster_art_canonical + library_monsters",
   item: "library_art_defaults + library_items",
+  species: "library_species",
 };
 
 // ---------------------------------------------------------------------------
@@ -450,7 +455,7 @@ export interface PublishRecord {
 export interface ManifestEntry {
   slug: string;
   kind: ArtKind;
-  /** Library spell or monster id; null for items. */
+  /** Library spell or monster id; null for items and species (a species publishes by `name`). */
   id: string | null;
   /** The entry's name. */
   name: string;
@@ -739,6 +744,7 @@ export interface FocalPoint {
 export function focalTarget(kind: ArtKind): string {
   if (kind === "monster") return "the creature's head or face (the point a portrait crop should centre on)";
   if (kind === "item") return "the centre of the main object (not the background props)";
+  if (kind === "species") return "the centre of the group's faces (the point a portrait crop should centre on)";
   return "the centre of the main subject: the caster's face if a caster is the focus, otherwise the heart of the magical effect";
 }
 
@@ -1163,6 +1169,14 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     if (missing.length > 0) throw new Error(`${entry.slug}: library monster ${missing.join(", ")} no longer exists.`);
     return ids;
   }
+  if (entry.kind === "species") {
+    // Every edition of a species shows the same picture: the 2014 and 2024 rows share a name.
+    const { data, error } = await client.from("library_species").select("id, name").ilike("name", escapeLikePattern(entry.name));
+    if (error) throw new Error(`Could not read library_species: ${error.message}`);
+    const ids = (data as { id: string; name: string }[]).filter((s) => s.name.toLowerCase() === entry.name.toLowerCase()).map((s) => s.id).sort();
+    if (ids.length === 0) throw new Error(`${entry.slug}: no library species named "${entry.name}".`);
+    return ids;
+  }
   const ids: string[] = [];
   for (const name of itemNames(entry)) {
     const { data, error } = await client.from("library_items").select("id, name").ilike("name", escapeLikePattern(name));
@@ -1200,6 +1214,11 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     if (rows.error) throw new Error(`Could not update library_monsters: ${rows.error.message}`);
     return;
   }
+  if (entry.kind === "species") {
+    const rows = await client.from("library_species").update({ image_url: url }).in("id", ids);
+    if (rows.error) throw new Error(`Could not update library_species: ${rows.error.message}`);
+    return;
+  }
   const art = await client
     .from("library_art_defaults")
     .upsert(
@@ -1231,6 +1250,10 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
   if (entry.kind === "monster") {
     check((await client.from("library_monster_art_canonical").update({ portrait_focal_point: focal, focal_point_checked_at: null }).in("entry_id", ids)).error, "library_monster_art_canonical");
     check((await client.from("library_monsters").update({ portrait_focal_point: focal }).in("id", ids)).error, "library_monsters");
+    return;
+  }
+  if (entry.kind === "species") {
+    check((await client.from("library_species").update({ focal_point: focal }).in("id", ids)).error, "library_species");
     return;
   }
   const names = itemNames(entry).map((name) => name.toLowerCase());

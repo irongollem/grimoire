@@ -10,7 +10,7 @@
  * even to blank. Rows flagged `is_metadata_curated` (a hand correction of
  * upstream — e.g. Black Flag is ORC-licensed per Kobold Press's own site,
  * but Open5e's taxonomy has no ORC entry and tags it `cc-by-40` instead —
- * plus our own non-Open5e rows: grimoire-bundled, grimoire-system,
+ * plus our own non-Open5e rows: grimoire-species, grimoire-bundled, grimoire-system,
  * grimoire-2024-compatibility, grimoire-art, dnd-free-rules-2024) are skipped ENTIRELY:
  * no field on them is touched, machine-derivable or not. A Supabase upsert
  * replaces the whole row, so this reads existing rows first and only ever
