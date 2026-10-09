@@ -36,7 +36,7 @@
 
     <!-- ── Phone (<md): compact rows / gallery, as the bestiary does ────── -->
     <template v-else-if="mobileLayout">
-      <MobileEntityMetaRow v-model:layout="layout" :shown="total" :total="total" plural="spells" />
+      <MobileEntityMetaRow v-model:layout="layout" :shown="rows.length" :total="total" plural="spells" />
       <EntityMobileGrid :items="rows" :item-key="spellKey" :layout="layout">
         <template #default="{ item: spell }">
           <BulkSelectableCard

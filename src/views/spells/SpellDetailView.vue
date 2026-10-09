@@ -19,16 +19,20 @@
        app's own bars, and PageHeader drops its title below md: this bar names
        what is being edited and leads back to the sheet, as MonsterEditMobile's
        does. A new spell is a flat route that keeps the app's bars. -->
-  <header
+  <MobileEditBar
     v-if="showMobileEditBar"
-    class="sticky top-0 z-20 -mx-4 -mt-4 mb-4 flex items-center gap-2 border-b border-border bg-background/95 px-2 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur md:hidden"
+    class="-mx-4 -mt-4 mb-4 md:hidden"
+    :title="pageTitle"
+    lead-label="View"
+    :lead-icon="IconDocument"
+    @lead="stopEditing"
   >
-    <AppButton variant="ghost" size="sm" label="View" :icon="IconDocument" class="shrink-0" @click="stopEditing" />
-    <h1 class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground">{{ pageTitle }}</h1>
     <span class="w-16 shrink-0" aria-hidden="true" />
-  </header>
+  </MobileEditBar>
 
-  <PageHeader v-if="!asModal && !showMobileRead" :title="pageTitle" :description="pageDescription">
+  <!-- On a phone, reading shows the sheet once the row is here; until then (and when
+       it never arrives) this block carries the loading and failed states. -->
+  <PageHeader v-if="!asModal && !(showMobileRead && spell)" :title="pageTitle" :description="pageDescription">
     <template v-if="!isNew && canEdit && !isMobile" #actions>
       <!-- Back to reading: the modal over the spellbook. -->
       <PageHeaderAction v-if="isEditing" label="View" :icon="IconDocument" @click="stopEditing" />
@@ -38,17 +42,14 @@
       <LoadingSpinner />
     </div>
     <p v-else-if="error" class="text-destructive text-body">Failed to load spell.</p>
+    <!-- A stale link or a deleted spell; also keeps `?edit=true` on one from opening an empty create form. -->
+    <p v-else-if="!isNew && !spell" class="text-muted-foreground text-body">This spell doesn't exist, or it was deleted.</p>
     <template v-else>
       <SpellDetail v-if="isEditing" :key="id" :spell="spell" :is-shared="isLibrarySpell" />
       <!-- An `?edit=true` link opened by someone who cannot edit lands here. -->
       <SpellSheet v-else-if="spell" :spell="spell" />
     </template>
   </PageHeader>
-
-  <!-- Reading on a phone, before the row has arrived. -->
-  <div v-if="!asModal && showMobileRead && !spell" class="flex justify-center py-16">
-    <LoadingSpinner />
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -61,7 +62,7 @@ import { isUuid } from "@/lib/library/contentIdentity";
 import { spellLevelLabel } from "@/types/spell.types";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import AppButton from "@/components/common/AppButton.vue";
+import MobileEditBar from "@/components/common/MobileEditBar.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

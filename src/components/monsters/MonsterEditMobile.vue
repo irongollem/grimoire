@@ -23,19 +23,7 @@
   -->
   <div class="flex min-h-dvh flex-col bg-background md:hidden">
     <!-- ── 1. App bar ─────────────────────────────────────────────────────── -->
-    <header
-      class="sticky top-0 z-20 flex items-center gap-2 border-b border-border bg-background/95 px-2 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur"
-    >
-      <AppButton
-        variant="ghost"
-        size="sm"
-        label="Cancel"
-        class="shrink-0"
-        @click="emit('cancel')"
-      />
-      <h1 class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground">
-        {{ title }}
-      </h1>
+    <MobileEditBar :title="title" lead-label="Cancel" @lead="emit('cancel')">
       <AppButton
         v-if="!isNew && !isShared"
         variant="ghost"
@@ -55,7 +43,7 @@
         </template>
       </AppButton>
       <span v-else class="size-8 shrink-0" aria-hidden="true" />
-    </header>
+    </MobileEditBar>
 
     <!-- ── 2. Scroll body ─────────────────────────────────────────────────── -->
     <main class="flex-1 space-y-3 overflow-y-auto p-3 pb-28">
@@ -280,6 +268,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import MobileEditBar from "@/components/common/MobileEditBar.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
