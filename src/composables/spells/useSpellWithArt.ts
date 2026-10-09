@@ -30,7 +30,7 @@ export function withSpellArt(spell: Spell, art: SpellArtOverlay | null | undefin
  */
 export function useSpellWithArt(id: Ref<string>) {
   const { data: art } = useLibrarySpellArtEntry(id, () => !isUuid(id.value));
-  const { data, isLoading, error } = useResolvedSpell(id);
+  const { data, isLoading, isPending, error } = useResolvedSpell(id);
 
   const isLibrarySpell = computed(() => data.value?.isShared === true);
 
@@ -40,5 +40,7 @@ export function useSpellWithArt(id: Ref<string>) {
     return isLibrarySpell.value ? withSpellArt(row, art.value) : row;
   });
 
-  return { spell, isLibrarySpell, isLoading, error };
+  // `isPending` is "no answer yet", including a query paused offline, which
+  // `isLoading` (pending and fetching) reads as finished.
+  return { spell, isLibrarySpell, isLoading, isPending, error };
 }

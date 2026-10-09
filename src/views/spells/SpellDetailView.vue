@@ -98,9 +98,11 @@ function stopEditing() {
 }
 
 // The art override and the library flag, shared with the modal.
-const { spell: resolvedSpell, isLibrarySpell, isLoading: resolvedLoading, error } = useSpellWithArt(id);
+const { spell: resolvedSpell, isLibrarySpell, isPending: resolvedPending, error } = useSpellWithArt(id);
 
-const isLoading = computed(() => !isNew.value && resolvedLoading.value);
+// Pending, not loading: a phone at the table with no signal pauses the query,
+// and that must read as still loading rather than as a deleted spell.
+const isLoading = computed(() => !isNew.value && resolvedPending.value);
 const spell = computed(() => (isNew.value ? null : resolvedSpell.value));
 
 // A note is stored against a row in `spells`: only a custom spell the DM can edit.

@@ -22,7 +22,7 @@ vi.mock("@/composables/spells/useSpellWithArt", () => ({
   useSpellWithArt: () => ({
     spell: ref<Spell | null>(null),
     isLibrarySpell: ref(false),
-    isLoading: ref(mocks.isLoading),
+    isPending: ref(mocks.isLoading),
     error: ref(mocks.error),
   }),
 }));
