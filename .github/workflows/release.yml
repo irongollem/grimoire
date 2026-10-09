@@ -72,9 +72,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         # Full history: the version guard below compares this branch's
-        # migrations against origin/main, and the default shallow clone has no
-        # origin/main to compare against — it would skip its most important
-        # check and pass in silence.
+        # migrations against origin/main (or, on a push, the commit before it),
+        # and the default shallow clone has neither to compare against — it
+        # would skip its most important check and pass in silence.
         with:
           fetch-depth: 0
       # Cheap, and it runs BEFORE the database starts: both failures it catches
@@ -86,8 +86,33 @@ jobs:
       # precisely so it can run here, before anything is installed, and in a
       # pre-push hook. Adding an install step to this job would cost more than
       # the check it guards.
+      #
+      # The base is what main held BEFORE this run's change. On a pull request
+      # that is origin/main. On a push to main it is `github.event.before`,
+      # never origin/main: by now origin/main IS the pushed commit, so every
+      # file in the push is already "on the base" and the check passes
+      # whatever the versions are. That is how a direct push landed a version
+      # behind four already in production on 9 Oct 2026 (#1035) and stopped
+      # the release at `db push`.
       - name: Migration versions are unique and newer than main
-        run: node scripts/migration-rebase/cli.mjs --check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          base=origin/main
+          if [ "$EVENT_NAME" = push ]; then
+            # A force push can leave the old tip outside every fetched ref;
+            # GitHub serves it by SHA. All zeros means the branch is new.
+            if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != 0000000000000000000000000000000000000000 ]; then
+              git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null || git fetch -q origin "$BEFORE_SHA" || true
+            fi
+            if git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+              base="$BEFORE_SHA"
+            else
+              echo "::warning::The commit before this push ($BEFORE_SHA) is not available, so migrations added by the push were NOT checked against what main already had. db push will still refuse an out-of-order version."
+            fi
+          fi
+          node scripts/migration-rebase/cli.mjs --check --base "$base"
       # Pinned to a commit SHA, not the moving `v3` tag: it is the one
       # third-party action here, and in production-release it runs in the same
       # job as SUPABASE_ACCESS_TOKEN and the production DB password. Dependabot

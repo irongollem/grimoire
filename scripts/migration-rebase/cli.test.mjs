@@ -179,6 +179,25 @@ describe("migration-rebase CLI", () => {
     expect(run(root, "--check").code).toBe(0);
   });
 
+  // #1035, 9 Oct 2026: a stale migration reached main by a direct push. CI
+  // checks the pushed commit, where origin/main already holds the file, so
+  // comparing against origin/main passed. Only the commit before the push
+  // shows that the file landed behind versions already released.
+  it("catches a stale migration already on origin/main when given the pre-push commit", () => {
+    const root = makeRepo({ base: BASE, local: {} });
+    const before = git(["rev-parse", "HEAD"], root).trim();
+    writeFileSync(join(root, "supabase/migrations/20260825005907_stale.sql"), "-- stale\n");
+    git(["add", "-A"], root);
+    git(["commit", "-qm", "push"], root);
+    git(["update-ref", "refs/remotes/origin/main", "main"], root);
+
+    expect(run(root, "--check").code).toBe(0);
+    const { code, out } = run(root, "--check", "--base", before);
+    expect(code).toBe(1);
+    expect(out).toMatch(/20260825005907_stale\.sql/);
+    expect(out).toMatch(/20260825073922/);
+  });
+
   it("changes nothing on a dry run", () => {
     const root = makeRepo({ base: BASE, local: { "20260825005907_stale.sql": "-- stale\n" } });
     const { code, out } = run(root, "--write", "--dry-run");

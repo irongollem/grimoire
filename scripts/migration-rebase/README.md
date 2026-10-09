@@ -68,6 +68,14 @@ rename silently misses the file's own body, because a path that no longer exists
 is indistinguishable from a file with nothing to rewrite. Both orderings shipped
 as bugs; the integration tests in `cli.test.mjs` exist to keep them fixed.
 
+**The base must be what the target held before the change, which on a push is
+not `origin/main`.** CI checks out the pushed commit, so `origin/main` already
+contains every file the push added and the default comparison passes whatever
+their versions. On 9 Oct 2026 (#1035) a direct push landed a version behind four
+already in production that way. The `database` job therefore passes
+`--base ${{ github.event.before }}` on a push and keeps `origin/main` only for
+pull requests, where the branch is not yet on it.
+
 ## Layout
 
 | File | Contains |
