@@ -1105,34 +1105,10 @@ export const useUiStore = defineStore("ui", () => {
     npcsFilterSortBy.value = "location";
   }
 
-  // Transfer-ownership embedding offer banner (#841). Dismissing the
-  // dashboard banner (EmbedStaleContentBanner) must not re-nag on every
-  // visit, but the permanent settings-tab card (EmbedStaleContentCard) has
-  // no dismissal at all -- "index later" already has an answer there (leave
-  // the button unclicked), so only the banner needs this.
-  //
-  // Keyed by campaign id, not a single flag: the offer is inherently
-  // per-campaign, so a DM running several campaigns who dismisses the banner
-  // on one transferred campaign must still see it on another that separately
-  // needs indexing. A plain boolean here would hide the second campaign's
-  // banner the moment the first was dismissed.
-  const dismissedEmbedOfferBanners = useLocalStorage<Record<string, boolean>>(
-    "grimoire:embed-offer-dismissed",
-    {},
-  );
-
-  function isEmbedOfferBannerDismissed(campaignId: string): boolean {
-    return dismissedEmbedOfferBanners.value[campaignId] === true;
-  }
-
-  function dismissEmbedOfferBanner(campaignId: string) {
-    dismissedEmbedOfferBanners.value = { ...dismissedEmbedOfferBanners.value, [campaignId]: true };
-  }
-
   // Soundboard starter-scene offer (StarterScenesCard). A DM who has decided
   // against the ready-made scenes should not be offered them on every visit.
-  // Per campaign for the same reason as the banner above: the scenes are added
-  // to one campaign, so declining them in one says nothing about the next.
+  // Per campaign: the scenes are added to one campaign, so declining them in
+  // one says nothing about the next.
   const dismissedStarterSceneOffers = useLocalStorage<Record<string, boolean>>(
     "grimoire:starter-scenes-dismissed",
     {},
@@ -1186,8 +1162,6 @@ export const useUiStore = defineStore("ui", () => {
     resetNpcsFilters,
 
     // Transfer-ownership embedding offer banner (#841)
-    isEmbedOfferBannerDismissed,
-    dismissEmbedOfferBanner,
 
     // Soundboard starter-scene offer
     isStarterSceneOfferDismissed,

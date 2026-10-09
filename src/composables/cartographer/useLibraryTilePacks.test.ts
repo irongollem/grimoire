@@ -42,7 +42,7 @@ import { describeLibraryPackError, libraryPackObjectPath, libraryTileUrl, useLib
 import type { LibraryTilePack } from "@/cartographer/userPack.types";
 
 /** Mounts the composable inside a real component so its `useQuery` has a
- *  query client to attach to — same helper shape as useStaleEmbeddings.test.ts. */
+ *  query client to attach to. */
 function open() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   let api!: ReturnType<typeof useLibraryTilePacks>;

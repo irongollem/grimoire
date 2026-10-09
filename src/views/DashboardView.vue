@@ -67,12 +67,9 @@
       </span>
     </template>
 
-    <!-- Embedding offer (#841, #848) -- announces what
-         EmbedStaleContentCard (campaign AI settings) already tracks. Shown
-         above the grid in both modes: it is not part of the arrangeable
-         board and customizing it is not a reason to hide it. -->
+    <!-- Shown above the grid in both modes: not part of the arrangeable
+         board, and customizing it is not a reason to hide it. -->
     <CampaignLensNotice class="mb-4" />
-    <EmbedStaleContentBanner class="mb-4" />
     <!-- The demo campaign's storefront teaser (#912) -- same reasoning as the
          two notices above: not part of the arrangeable board, shown in both
          modes, and self-hiding (no demo campaign, or no storefront URL yet). -->
@@ -191,7 +188,6 @@ import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import DashboardCustomizeFrame from "@/components/dashboard/DashboardCustomizeFrame.vue";
 import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
 import DashboardWidgetSettingsModal from "@/components/dashboard/DashboardWidgetSettingsModal.vue";
-import EmbedStaleContentBanner from "@/components/campaign/EmbedStaleContentBanner.vue";
 import CampaignLensNotice from "@/components/campaign/CampaignLensNotice.vue";
 import DemoTeaserBanner from "@/components/dashboard/DemoTeaserBanner.vue";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";

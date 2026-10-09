@@ -25,10 +25,6 @@
  *
  * The body is a slot rather than a prop because these paragraphs name controls
  * mid-sentence and need markup to do it.
- *
- * Not the amber `EmbedStaleContentBanner`, which is a different thing on
- * purpose: a one-line banner with a link, dismissible, for a condition that is
- * informational rather than an explanation of the page.
  */
 defineProps<{ title: string }>();
 </script>

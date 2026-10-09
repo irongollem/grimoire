@@ -129,6 +129,7 @@ import { activeThemeId } from "@/lib/themeRuntime";
 import { darkChromeStyle } from "@/lib/memorials/hallGround";
 import { safeQuestReturnTo } from "@/lib/quests/navigation";
 import AppButton from "@/components/common/AppButton.vue";
+import { useBackgroundIndexing } from "@/composables/ai/useBackgroundIndexing";
 
 // Async, and it must stay async: statically importing the generator panels
 // dragged them — plus their forms, template data and PaywallModal — into the
@@ -164,6 +165,8 @@ onScopeDispose(cancelBackground);
 const route = useRoute();
 const auth = useAuthStore();
 const isDm = computed(() => auth.currentRole === "dm");
+// Fills the campaign's search index behind the DM's back, once per session.
+useBackgroundIndexing(isDm);
 const isMobile = useIsMobile();
 const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscreenMobile);
 // A page that is always dark (meta.darkChrome, the Hall of the Fallen) takes the bars with it:
