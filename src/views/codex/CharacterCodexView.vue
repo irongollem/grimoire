@@ -18,6 +18,26 @@
     <template #actions>
       <template v-if="isDM">
         <!-- Species tab -->
+        <SourcesPickerPanel
+          v-if="activeTab === 'species'"
+          title="Species Sources"
+          description="Enabled sources add their species to this campaign instantly. No download needed."
+          empty-message="No species sources available yet."
+          :available-sources="speciesSourceData"
+          :is-loading="speciesSourcesLoading"
+        >
+          <template #trigger="{ open: pickerOpen, toggle }">
+            <AppButton
+              variant="subtle"
+              size="icon-sm"
+              :active="pickerOpen"
+              :icon="IconLibrary"
+              class="shrink-0"
+              tooltip="Manage species sources for this campaign"
+              @click="toggle"
+            />
+          </template>
+        </SourcesPickerPanel>
         <ListActionButton
           v-if="activeTab === 'species'"
           :icon="IconDownload"
@@ -221,7 +241,7 @@
 import { computed, ref, watch, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { IconAdd, IconBookUser, IconGenerate, IconAward, IconCheck, IconDownload, IconLevel, IconLightning, IconPopulate, IconSpecies } from '@/lib/icons';
+import { IconAdd, IconBookUser, IconGenerate, IconAward, IconCheck, IconDownload, IconLevel, IconLibrary, IconLightning, IconPopulate, IconSpecies } from '@/lib/icons';
 import TabBar from "@/components/common/TabBar.vue";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -230,6 +250,8 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import SpeciesList from "@/components/species/SpeciesList.vue";
 import SpeciesOpen5ePanel from "@/components/species/SpeciesOpen5ePanel.vue";
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
@@ -239,6 +261,7 @@ import ArchetypeList from "@/components/levelup/ArchetypeList.vue";
 import AbilityList from "@/components/features/AbilityList.vue";
 import FeatList from "@/components/feats/FeatList.vue";
 import { useUiStore } from "@/stores/ui";
+import { useAvailableLibrarySpeciesSources } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import { ACTIVATIONS, FEAT_CATEGORIES } from "@/rules/features/mechanics.types";
@@ -266,6 +289,7 @@ const SIZE_OPTIONS = [
 const ui = useUiStore();
 const isAiEnabled = computed(() => useCampaignStore().isAiEnabled);
 const auth = useAuthStore();
+const { data: speciesSourceData, isLoading: speciesSourcesLoading } = useAvailableLibrarySpeciesSources();
 const isDM = auth.isDM;
 const route = useRoute();
 const router = useRouter();
