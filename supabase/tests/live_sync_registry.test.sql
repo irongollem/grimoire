@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(22);
 
 -- The database half of live sync, checked against the schema as it stands
 -- rather than read out of migration text.
@@ -401,6 +401,19 @@ select is(
       and campaign_id = '00000000-0000-4000-8000-00000000d00b'),
   1,
   'ringing one campaign twice in a transaction queues it once');
+
+-- The first ring of a pair is the one kept, and the flush writes signals in
+-- the order they first rang: npcs, spells, npcs writes npcs then spells, as it
+-- did before the dedupe.
+select private.ring_campaigns(array['00000000-0000-4000-8000-00000000d00c'::uuid], 'npcs');
+select private.ring_campaigns(array['00000000-0000-4000-8000-00000000d00c'::uuid], 'spells');
+select private.ring_campaigns(array['00000000-0000-4000-8000-00000000d00c'::uuid], 'npcs');
+select is(
+  (select string_agg(changed_table, ',' order by id) from private.campaign_sync_pending
+    where txid = pg_current_xact_id()
+      and campaign_id = '00000000-0000-4000-8000-00000000d00c'),
+  'npcs,spells',
+  'the dedupe keeps each signal at its first ring, so the flush order is unchanged');
 
 select * from finish();
 rollback;

@@ -13,6 +13,13 @@
 -- is uncommitted), and the first ring of each pair is the one kept, so the
 -- order the flush writes signals in (by the first ring) is unchanged.
 
+-- The probe below looks a pair up by (txid, campaign_id, changed_table); on
+-- the txid index alone each ring would rescan all of this transaction's
+-- queue. txid leads, so the flush's `where txid = ...` uses the same index.
+drop index private.campaign_sync_pending_txid_idx;
+create index campaign_sync_pending_pair_idx
+  on private.campaign_sync_pending (txid, campaign_id, changed_table);
+
 create or replace function private.ring_campaigns(p_campaign_ids uuid[], p_signal text)
 returns void
 language plpgsql
