@@ -28,7 +28,6 @@ vi.mock("@/stores/campaign", () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
     activeCampaignId: "campaign-1",
     activeCampaign: { text_provider: "openai" },
-    decryptedApiKey: null,
   }),
 }));
 vi.mock("@/composables/factions/useFactions", () => ({
@@ -54,8 +53,8 @@ vi.mock("@/ai/useNpcGeneration", () => ({
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ costOf: () => 1, affordable: () => true, balance: ref(10) }),
 }));
-vi.mock("@/composables/ai/useProviderConfig", () => ({
-  useProviderConfig: () => ({ textMultiplierFor: () => 1 }),
+vi.mock("@/composables/ai/useCampaignProviders", () => ({
+  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
 }));
 vi.mock("@/composables/billing/useQuota", () => ({
   useQuota: () => ({ canCreate: canCreateFaction, quota: ref(null) }),

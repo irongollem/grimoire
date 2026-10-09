@@ -8,7 +8,7 @@ import { fetchCreditCost, releaseCredits, reserveCredits, reservationFailureResp
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
-import { callText } from "../_shared/textGen.ts";
+import { callText, resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE, type ResolvedTextProvider } from "../_shared/textGen.ts";
 import {
   buildStructureMessage,
   MUSIC_PROMPT_MAX_CHARS,
@@ -91,8 +91,7 @@ interface MusicJobRequest {
 
 interface MusicRuntimeRequest extends MusicJobRequest {
   apiKey: string;
-  textProvider: string;
-  textKeys: { openai: string | null; anthropic: string | null; gemini: string | null };
+  text: ResolvedTextProvider;
   textModel: string | null;
 }
 
@@ -237,8 +236,7 @@ async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): 
 
       try {
         const textResult = await callText({
-          provider: request.textProvider,
-          keys: request.textKeys,
+          text: request.text,
           model: request.textModel,
           system: structureSystem,
           user: structureMessage,
@@ -483,33 +481,25 @@ serve(withCors(async (req: Request) => {
   // reservation. Checked here, at request time, so a missing/disabled text
   // provider surfaces immediately instead of failing the job after Lyria's
   // (billed) work has already started. ─────────────────────────────────────
-  const textKeys = {
-    openai: campaignOpenai ?? platformKeys.openai ?? null,
-    anthropic: campaignAnthropic ?? platformKeys.anthropic ?? null,
-    gemini: campaignGemini ?? platformKeys.gemini ?? null,
-  };
-  // Resolve the provider that will actually answer, in callText's own order
-  // (_shared/textGen.ts): the campaign's choice when it is keyed, otherwise
-  // openai. The model must come from THAT provider's config — handing a
-  // gemini model id to the openai fallback fails every call.
-  const requestedTextProvider = campaign.text_provider ?? "openai";
-  const textProvider = (requestedTextProvider === "anthropic" && textKeys.anthropic) ? "anthropic"
-    : (requestedTextProvider === "gemini" && textKeys.gemini) ? "gemini"
-    : "openai";
-  if (textProvider === "openai" && !textKeys.openai) {
+  const text = resolveTextProvider({
+    chosen: campaign.text_provider,
+    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
+    platformKeys,
+    providerConfigs,
+  });
+  if (!text) {
     if (existing) {
-      await failGenerationJob(admin, existing.id, "No API key is configured to prepare this queued music prompt.");
+      await failGenerationJob(admin, existing.id, "No text provider is available to prepare this queued music prompt.");
     }
     return new Response(
-      JSON.stringify({ error: "No API key configured for music prompt structuring. Add one in Campaign Settings → AI, or ask your admin to configure a platform key." }),
+      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
       { status: 422, headers: { "Content-Type": "application/json" } },
     );
   }
-  const textProviderConfig = providerConfigs[textProvider as keyof typeof providerConfigs];
   // fast_text_model when the admin has set one — this is a short structuring
   // task, not a long-form generation, same reasoning as the quest designer's
   // per-turn calls (quest-designer-turn/index.ts).
-  const textModel = textProviderConfig?.fast_text_model ?? textProviderConfig?.text_model ?? null;
+  const textModel = text.config?.fast_text_model ?? text.config?.text_model ?? null;
 
   // The model is an admin setting (provider_config.audio_model), not something
   // the client chooses. A queued retry executes exactly the original durable
@@ -583,8 +573,7 @@ serve(withCors(async (req: Request) => {
   queueMusicWorker(job.id, {
     ...durableRequest,
     apiKey: geminiKey,
-    textProvider,
-    textKeys,
+    text,
     textModel,
   });
   return new Response(JSON.stringify({ job_id: job.id }), { headers: { "Content-Type": "application/json" } });

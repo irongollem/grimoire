@@ -31,7 +31,7 @@ import {
 } from "../_shared/embeddings.ts";
 import { retrieveCampaignEntities, formatEntityBlock } from "../_shared/campaignEntityRetrieval.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
+import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 /**
@@ -229,19 +229,21 @@ serve(withCors(async (req: Request) => {
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
-  const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
-  const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
-  const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
 
-  const textProvider = campaign.text_provider ?? "openai";
-  const textIsByok = textProvider === "anthropic" ? !!campaignAnthropic
-    : textProvider === "gemini"    ? !!campaignGemini
-    : !!campaignOpenai;
+  // The platform picks the model: a campaign on credits runs on the provider the
+  // admin enabled, and campaigns.text_provider only counts with the campaign's own key.
+  const text = resolveTextProvider({
+    chosen: campaign.text_provider,
+    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
+    platformKeys,
+    providerConfigs,
+  });
+  if (!text) return new Response(NO_TEXT_PROVIDER_MESSAGE, { status: 422 });
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
-  const baseChronicleTextCost = textIsByok ? 0 : await fetchCreditCost(admin, "chronicle_text");
+  const baseChronicleTextCost = text.isByok ? 0 : await fetchCreditCost(admin, "chronicle_text");
   const chronicleTextCost = wholeCredits(
-    applyMultiplier(baseChronicleTextCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier),
+    applyMultiplier(baseChronicleTextCost, text.textMultiplier),
   );
   // Atomic affordability gate: hold the balance across the paid call.
   // Throttle abusive burst volume before any paid provider work (issue #466).
@@ -394,25 +396,21 @@ serve(withCors(async (req: Request) => {
   // produces no prompt text at all rather than an empty ---BEGIN/END--- shell.
   const userContent = `${wrapUserInput(raw_text)}${retrievedEntityBlock}${priorChroniclesBlock}`;
 
-  const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
+  const textModel = text.config?.text_model;
 
   let textResult: TextResult;
 
   try {
     textResult = await callText({
-      provider: textProvider,
-      keys: { openai: openaiKey, anthropic: anthropicKey, gemini: geminiKey },
+      text,
       model: textModel,
       system: systemContent,
       user: userContent,
-      maxTokens: textProvider === "anthropic" && anthropicKey ? 8192 : undefined,
+      maxTokens: text.provider === "anthropic" ? 8192 : undefined,
       outputFormat: "text",
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
-    if (e instanceof MissingTextKeyError) {
-      return new Response(e.message, { status: 422 });
-    }
     console.error("Chronicle text generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
@@ -421,7 +419,7 @@ serve(withCors(async (req: Request) => {
   }
 
   await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "chronicle_text", textIsByok, chronicleTextCost, {
+  await recordGeneration(admin, user.id, "chronicle_text", text.isByok, chronicleTextCost, {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   }).catch(console.error);

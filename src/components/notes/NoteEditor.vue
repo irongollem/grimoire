@@ -95,7 +95,7 @@
       @insert-calendar-event="showEventModal = true"
       @illustration-click="onIllustrationClick"
     >
-      <template v-if="hasImageProvider || showWriteChronicle" #toolbar-end>
+      <template #toolbar-end>
         <div class="w-px h-5 bg-border mx-0.5" />
         <AppButton
           v-if="showWriteChronicle"
@@ -106,28 +106,26 @@
           tooltip="Write Chronicle"
           @click="openChroniclerWrite"
         />
-        <template v-if="hasImageProvider">
-          <AppButton
-            v-if="campaignStore.isAiEnabled"
-            variant="ghost"
-            size="icon-xs"
-            :icon="IconGenerate"
-            class="hover:bg-accent"
-            tooltip="Generate scene illustration"
-            @click="openChroniclerGenerate"
-          />
-          <!-- Scene library browses images already generated — not itself a
-               generation action, so it stays available regardless of the AI
-               toggle. -->
-          <AppButton
-            variant="ghost"
-            size="icon-xs"
-            :icon="IconImages"
-            class="hover:bg-accent"
-            tooltip="Scene library"
-            @click="showChroniclerLibrary = true"
-          />
-        </template>
+        <AppButton
+          v-if="showGenerateScene"
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconGenerate"
+          class="hover:bg-accent"
+          tooltip="Generate scene illustration"
+          @click="openChroniclerGenerate"
+        />
+        <!-- Scene library browses images already generated — not itself a
+             generation action, so it stays available regardless of the AI
+             toggle or which providers are on. -->
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconImages"
+          class="hover:bg-accent"
+          tooltip="Scene library"
+          @click="showChroniclerLibrary = true"
+        />
       </template>
     </RichTextEditor>
   </div>
@@ -206,6 +204,7 @@ import type { IllustrationTarget } from "@/lib/tiptap/nodeViewTypes";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { normalizeTag } from "@/lib/tags";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { storeToRefs } from "pinia";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -321,18 +320,12 @@ const showChroniclerLibrary  = ref(false);
 const showChroniclerWrite    = ref(false);
 
 const campaignStore = useCampaignStore();
-// Image generation runs through the shared provider abstraction on both the
-// server-side and BYOK local-vault paths, and both support every provider we
-// expose (OpenAI, Google Gemini). The button only needs a configured
-// image provider — not specifically OpenAI.
-const hasImageProvider = computed(() => !!(campaignStore.activeCampaign?.image_provider ?? "openai"));
-// Text generation works on both BYOK and platform keys via the edge function,
-// so the toolbar button only needs a campaign + configured provider — not a
-// decrypted client-side key.
-const hasTextProvider = computed(() => !!(campaignStore.activeCampaign?.text_provider ?? "openai"));
-// With AI off the generate/write controls are hidden outright; the scene
-// library (browsing images already made) stays.
-const showWriteChronicle = computed(() => hasTextProvider.value && campaignStore.isAiEnabled);
+// The generate controls need AI on and a provider the campaign can actually
+// run on (useCampaignProviders resolves it the way the edge functions do);
+// with AI off they are hidden outright, while the scene library stays.
+const { textProvider, imageProvider } = useCampaignProviders();
+const showWriteChronicle = computed(() => campaignStore.isAiEnabled && textProvider.value !== null);
+const showGenerateScene = computed(() => campaignStore.isAiEnabled && imageProvider.value !== null);
 
 function openChroniclerGenerate() {
   // Defensive: the toolbar button is hidden while AI is off, so this only

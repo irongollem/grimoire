@@ -9,6 +9,9 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
   },
 }));
 
+const toastError = vi.fn();
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: toastError }) }));
+
 const { useOutOfCredits, outOfCreditsNeeded } = await import("./useOutOfCredits");
 
 describe("useOutOfCredits", () => {
@@ -29,6 +32,14 @@ describe("useOutOfCredits", () => {
     const { requireCredits, needed } = useOutOfCredits();
     expect(requireCredits(12)).toBe(false);
     expect(needed.value).toBe(12);
+  });
+
+  it("refuses an action whose price is not known yet, without offering credits", () => {
+    affordable.mockReturnValue(true);
+    const { requireCredits, needed } = useOutOfCredits();
+    expect(requireCredits(null)).toBe(false);
+    expect(needed.value).toBeNull();
+    expect(toastError).toHaveBeenCalledOnce();
   });
 
   it("passes BYOK through, so an own-key action is never blocked on credits", () => {

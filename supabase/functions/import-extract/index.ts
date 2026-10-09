@@ -50,6 +50,7 @@ import { createClient } from "@supabase/supabase-js";
 import { PDFDocument } from "pdf-lib";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
+import { resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE } from "../_shared/textGen.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import {
@@ -552,51 +553,45 @@ serve(withCors(async (req: Request) => {
     .eq("generator_type", "document_import").maybeSingle();
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
-  const textProvider = campaign.text_provider ?? "openai";
-
-  // Through the shared module, not a direct query: `_shared/provider-config.ts`
-  // is the one place provider rows are read and cached, and a second reader
-  // here would drift from it the next time its select list changed.
-  const providerConfigs = await fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]);
-  const providerConfig = providerConfigs[textProvider as keyof typeof providerConfigs];
-  const documentModel = providerConfig?.document_model ?? null;
-  if (!documentModel) {
-    return new Response(
-      JSON.stringify({
-        error: "provider_unsupported",
-        message: `This campaign's AI provider (${textProvider}) doesn't support document import yet. Switch the campaign's text provider to Anthropic and try again.`,
-      }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
   async function decryptKey(enc: string | null): Promise<string | null> {
     if (!enc || !ownerIsPro) return null;
     try { return await decryptValue(enc); } catch { return null; }
   }
 
-  // `providerConfig` is already resolved above — the document-model guard needs
-  // it before we get here, and re-fetching would be a second reader of the same
-  // row that could disagree with the first.
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys] = await Promise.all([
+  // Provider rows go through the shared module, not a direct query:
+  // `_shared/provider-config.ts` is the one place they are read and cached.
+  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     Promise.all([
       decryptKey(campaign.openai_api_key),
       decryptKey(campaign.anthropic_api_key),
       decryptKey(campaign.gemini_api_key),
     ]),
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
+    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
-  const campaignKeyFor: Record<string, string | null> = {
-    openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini,
-  };
-  const apiKey = campaignKeyFor[textProvider] ?? platformKeys[textProvider as keyof typeof platformKeys] ?? null;
-  if (!apiKey) {
+  const text = resolveTextProvider({
+    chosen: campaign.text_provider,
+    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
+    platformKeys,
+    providerConfigs,
+  });
+  if (!text) {
     return new Response(
-      JSON.stringify({ error: "no_api_key", message: `No ${textProvider} API key configured.` }),
+      JSON.stringify({ error: "no_api_key", message: NO_TEXT_PROVIDER_MESSAGE }),
       { status: 422, headers: { "Content-Type": "application/json" } },
     );
   }
-  const textIsByok = !!campaignKeyFor[textProvider];
+  const textIsByok = text.isByok;
+  const documentModel = text.config?.document_model ?? null;
+  if (!documentModel) {
+    return new Response(
+      JSON.stringify({
+        error: "provider_unsupported",
+        message: "Document import isn't available right now.",
+      }),
+      { status: 422, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   // Bound source downloads as well as provider calls. Without this check a
   // caller with an invalid staged document could repeatedly make the function
@@ -675,7 +670,7 @@ serve(withCors(async (req: Request) => {
   const cost = wholeCredits(
     applyMultiplier(
       baseCost + perPageCost * actualPageCount,
-      providerConfig?.text_multiplier,
+      text.textMultiplier,
     ),
   );
 
@@ -726,7 +721,7 @@ serve(withCors(async (req: Request) => {
   let outcome: Awaited<ReturnType<typeof callDocument>>;
   try {
     outcome = await callDocument({
-      provider: textProvider, apiKey, model: documentModel,
+      provider: text.provider, apiKey: text.apiKey, model: documentModel,
       system: promptRow.content + DOCUMENT_INJECTION_GUARD,
       instruction,
       parts,
@@ -734,7 +729,7 @@ serve(withCors(async (req: Request) => {
     });
   } catch (e) {
     const message = e instanceof UnsupportedDocumentProviderError
-      ? `${textProvider} does not support document extraction.`
+      ? `${text.provider} does not support document extraction.`
       : e instanceof Error ? e.message : "Document extraction failed";
     console.error("Document extraction failed:", e);
     return await failClaimed(message);

@@ -11,8 +11,9 @@ import {
   type ScreeningContext,
 } from "./moderation.ts";
 import { nearestGeminiAspect } from "./geminiAspect.ts";
+import { chooseImageProvider, keysPresent, type ImageProviderKey } from "./providerChoice.ts";
 
-export type ImageProviderKey = "openai" | "gemini";
+export type { ImageProviderKey } from "./providerChoice.ts";
 
 export interface ImageGenUsage {
   model: string;
@@ -345,6 +346,8 @@ export interface ImageProviderConfig {
   chronicle_image_model?: string | null;
   image_multiplier?: number | null;
   image_quality?: string | null;
+  /** Admin → Providers switch: whether platform-key campaigns may render on this provider. */
+  image_enabled?: boolean | null;
 }
 
 export interface ResolvedImageProvider {
@@ -367,7 +370,10 @@ export interface ResolvedImageProvider {
 /**
  * Resolve the campaign's chosen image provider into a concrete model + API key.
  * `campaignKeys`/`platformKeys` are decrypted keys keyed by underlying provider
- * (openai/gemini). Returns null when no usable key exists.
+ * (openai/gemini). Which provider, and whether the campaign's own key pays, is
+ * `chooseImageProvider`'s answer (providerChoice.ts, where the rule and its
+ * reasons live); the client prices with the same function. Returns null when
+ * nothing usable remains.
  */
 export function resolveImageProvider(args: {
   imageProvider: string | null | undefined;
@@ -383,12 +389,23 @@ export function resolveImageProvider(args: {
    * 5 Oct 2026).
    */
   surface?: ImageSurface;
+  /**
+   * The caller needs `imageProvider`'s capability (a transparent cutout, the
+   * paper-doll sheet, a reference-image forge), so it is not a campaign choice
+   * and the `image_enabled` switch, which governs that choice, does not apply.
+   */
+  pinned?: boolean;
 }): ResolvedImageProvider | null {
-  const choice = (args.imageProvider ?? "openai") as ImageProviderKey;
-  const base = choice;
-
-  const campaignKey = args.campaignKeys[base] ?? null;
-  const apiKey = campaignKey ?? args.platformKeys[base] ?? null;
+  const choice = chooseImageProvider({
+    chosen: args.imageProvider,
+    ownKeys: keysPresent(args.campaignKeys),
+    platformKeys: keysPresent(args.platformKeys),
+    configs: args.providerConfigs,
+    pinned: args.pinned,
+  });
+  if (!choice) return null;
+  const base = choice.provider;
+  const apiKey = (choice.isByok ? args.campaignKeys : args.platformKeys)[base];
   if (!apiKey) return null;
 
   const config = args.providerConfigs[base];
@@ -397,7 +414,7 @@ export function resolveImageProvider(args: {
     ?? DEFAULT_MODEL[base];
 
   return {
-    provider: choice,
+    provider: base,
     base,
     model,
     apiKey,
@@ -406,7 +423,7 @@ export function resolveImageProvider(args: {
     // still screened. Null only when neither key exists, and the caller then
     // renders unscreened rather than not at all.
     moderationKey: args.campaignKeys.openai ?? args.platformKeys.openai ?? null,
-    isByok: !!campaignKey,
+    isByok: choice.isByok,
     imageMultiplier: args.providerConfigs[base]?.image_multiplier ?? 1.0,
     imageQuality: args.providerConfigs[base]?.image_quality ?? null,
   };

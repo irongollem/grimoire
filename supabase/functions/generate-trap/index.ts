@@ -21,7 +21,7 @@ import { generationRefusal } from "../_shared/accountGate.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
+import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 const admin = createClient(
@@ -122,9 +122,6 @@ serve(withCors(async (req: Request) => {
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
-  const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
-  const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
-  const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
 
   // Resolve the campaign's chosen image provider (openai / gemini).
   const img = resolveImageProvider({
@@ -142,17 +139,28 @@ serve(withCors(async (req: Request) => {
   const wrappedPrompt = wrapUserInput(prompt);
   const userContent = constraints.length ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}` : wrappedPrompt;
 
-  const textProvider = campaign.text_provider ?? "openai";
-  const textIsByok = textProvider === "anthropic" ? !!campaignAnthropic
-    : textProvider === "gemini"    ? !!campaignGemini
-    : !!campaignOpenai;
+  // The platform decides the text model: a campaign on platform credits runs on
+  // whichever provider the admin enabled, and `campaign.text_provider` only counts
+  // when the campaign holds its own key for it. Refuse before anything is spent.
+  const text = resolveTextProvider({
+    chosen: campaign.text_provider,
+    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
+    platformKeys,
+    providerConfigs,
+  });
+  if (!text) {
+    return new Response(
+      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
+      { status: 422, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
-  const baseTrapCost = textIsByok ? 0 : await fetchCreditCost(admin, "trap_generation");
+  const baseTrapCost = text.isByok ? 0 : await fetchCreditCost(admin, "trap_generation");
   // Charged and recorded as two separate ledger rows (below), so each is
   // rounded up to a whole credit on its own rather than rounding their sum.
   const trapCost = wholeCredits(
-    applyMultiplier(baseTrapCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier),
+    applyMultiplier(baseTrapCost, text.textMultiplier),
   );
   // The illustration is its own charge, reusing the entity_image cost (portrait
   // 1024×1536 → 1.5×). BYOK + multiplier come from the resolved image provider.
@@ -178,23 +186,19 @@ serve(withCors(async (req: Request) => {
     return reservationFailureResponse(reservation);
   }
 
-  const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
+  const textModel = text.config?.text_model;
 
   let textResult: TextResult;
 
   try {
     textResult = await callText({
-      provider: textProvider,
-      keys: { openai: openaiKey, anthropic: anthropicKey, gemini: geminiKey },
+      text,
       model: textModel,
       system: systemContent,
       user: userContent,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
-    if (e instanceof MissingTextKeyError) {
-      return new Response(e.message, { status: 422 });
-    }
     console.error("Trap text generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
@@ -258,7 +262,7 @@ serve(withCors(async (req: Request) => {
   await releaseCredits(admin, reservation.ids);
 
   // Log text generation (with credit deduction)
-  await recordGeneration(admin, user.id, "trap_generation", textIsByok, trapCost, {
+  await recordGeneration(admin, user.id, "trap_generation", text.isByok, trapCost, {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });

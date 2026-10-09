@@ -7,8 +7,7 @@ import { generateChroniclerImage } from "@/ai/useChroniclerImageGeneration";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
@@ -30,17 +29,16 @@ export function useGroupPortrait() {
   const { mutateAsync: updateCampaign } = useUpdateCampaign();
   const { costOf } = useAiCredits();
   const { requireCredits } = useOutOfCredits();
-  const { imageMultiplierFor } = useProviderConfig();
+  const { imageCredits, imageIsByok: groupPortraitByok } = useCampaignProviders();
 
   const generating = ref(false);
   const error      = ref("");
 
   const groupPortraitUrl = computed(() => store.activeCampaign?.group_portrait_url ?? null);
 
-  // Group portraits always render via OpenAI at 1536×1024 (landscape = 1.5× cost).
-  const groupPortraitByok = computed(() => !!store.decryptedOpenAiKey);
+  // Group portraits (generate-chronicle-image) run on the campaign's resolved image provider at 1536×1024 (landscape = 1.5× cost).
   const groupPortraitCost = computed(
-    () => wholeCredits(costOf("chronicle_image", { size: "1536x1024" }) * imageMultiplierFor("openai")),
+    () => imageCredits(costOf("chronicle_image", { size: "1536x1024" })),
   );
 
   function resolveHeight(speciesId: string | null, override: string | null | undefined): string | null {

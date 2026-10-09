@@ -47,25 +47,8 @@ export function useProviderConfig() {
 
   const rows = computed(() => query.data.value ?? []);
 
-  const enabledImageProviders = computed(() =>
-    rows.value.filter((r) => r.image_enabled && r.image_model),
-  );
-
-  const enabledTextProviders = computed(() =>
-    rows.value.filter((r) => r.text_enabled && r.text_model),
-  );
-
   function rowFor(provider: string): ProviderConfigRow | undefined {
     return rows.value.find((r) => r.provider === provider);
-  }
-
-  /**
-   * The model a text call to this provider runs on: every generation edge
-   * function reads `provider_config.text_model` for the campaign's
-   * `text_provider`, BYOK or platform key alike. Null until the config loads.
-   */
-  function textModelFor(provider: string): string | null {
-    return rowFor(provider)?.text_model ?? null;
   }
 
   function textMultiplierFor(provider: string): number {
@@ -83,9 +66,6 @@ export function useProviderConfig() {
   return {
     query,
     rows,
-    enabledImageProviders,
-    enabledTextProviders,
-    textModelFor,
     textMultiplierFor,
     imageMultiplierFor,
     audioMultiplierFor,

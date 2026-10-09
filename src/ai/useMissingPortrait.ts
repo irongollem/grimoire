@@ -3,14 +3,13 @@ import type { BucketId } from "@/lib/storage";
 import { useCampaignStore } from "@/stores/campaign";
 import { useEntityImageGeneration } from "@/ai/useEntityImageGeneration";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useUpdateMonster } from "@/composables/monsters/useMonsters";
 import { useUpdateItem } from "@/composables/items/useItems";
 import { useUpdateSpell } from "@/composables/spells/useSpells";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 export type PortraitKind = "npc" | "party" | "monster" | "item" | "spell";
 
@@ -47,7 +46,7 @@ export function useMissingPortrait(kind: PortraitKind) {
   const { generate, error } = useEntityImageGeneration(config.bucket);
   const { canSpend } = useGenerationGate();
   const { costOf } = useAiCredits();
-  const { imageMultiplierFor } = useProviderConfig();
+  const { imageCredits, imageIsByok: byok } = useCampaignProviders();
 
   const updateNpc = useUpdateNpc();
   const updateParty = useUpdatePartyMember();
@@ -55,9 +54,8 @@ export function useMissingPortrait(kind: PortraitKind) {
   const updateItem = useUpdateItem();
   const updateSpell = useUpdateSpell();
 
-  const byok = computed(() => !!campaign.decryptedOpenAiKey);
   const cost = computed(
-    () => wholeCredits(costOf("entity_image", { size: "1024x1536" }) * imageMultiplierFor("openai")),
+    () => imageCredits(costOf("entity_image", { size: "1024x1536" })),
   );
   const enabled = computed(() => campaign.isAiEnabled);
   const isPaintingAny = computed(() => paintingId.value !== null);

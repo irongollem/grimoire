@@ -33,7 +33,6 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useCreateSpecies } from "@/composables/rules/useSpecies";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -41,15 +40,13 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useSpeciesGeneration } from "@/ai/useSpeciesGeneration";
 import { SPECIES_SIZES } from "@/lib/codex/speciesAi";
 import type { SpeciesSize } from "@/types/species.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui = useUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 const toast = useToast();
 const { mutateAsync: createSpecies } = useCreateSpecies();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useSpeciesGeneration();
@@ -57,11 +54,9 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { canSpend } = useGenerationGate();
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("species_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("species_generation")),
 );
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;

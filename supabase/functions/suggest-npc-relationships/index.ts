@@ -22,7 +22,7 @@ import {
 } from "../_shared/ai-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
-import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
+import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import {
   resolveEmbeddingProvider,
   toVectorLiteral,
@@ -175,22 +175,30 @@ serve(withCors(async (req: Request) => {
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
-  const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
-  const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
-  const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
 
   const systemContent = promptRow.content +
     (rulesetContext ? `\n\n${rulesetContext}` : "") +
     buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
 
-  const textProvider = campaign.text_provider ?? "openai";
-  const textIsByok = textProvider === "anthropic" ? !!campaignAnthropic
-    : textProvider === "gemini"    ? !!campaignGemini
-    : !!campaignOpenai;
+  // The platform decides the text model: a campaign on platform credits runs on
+  // whichever provider the admin enabled, and `campaign.text_provider` only counts
+  // when the campaign holds its own key for it. Refuse before anything is spent.
+  const text = resolveTextProvider({
+    chosen: campaign.text_provider,
+    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
+    platformKeys,
+    providerConfigs,
+  });
+  if (!text) {
+    return new Response(
+      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
+      { status: 422, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
-  const baseCost = textIsByok ? 0 : await fetchCreditCost(admin, LEDGER_REASON);
+  const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, LEDGER_REASON);
   const cost = wholeCredits(
-    applyMultiplier(baseCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier),
+    applyMultiplier(baseCost, text.textMultiplier),
   );
 
   // Gate before any paid provider work, retrieval's embedding included (#466).
@@ -360,13 +368,12 @@ serve(withCors(async (req: Request) => {
       ].join("\n") +
       "\n---END CANDIDATES---";
 
-    const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
+    const textModel = text.config?.text_model;
 
     let textResult: TextResult;
     try {
       textResult = await callText({
-        provider: textProvider,
-        keys: { openai: openaiKey, anthropic: anthropicKey, gemini: geminiKey },
+        text,
         model: textModel,
         system: systemContent,
         user: userContent,
@@ -374,9 +381,6 @@ serve(withCors(async (req: Request) => {
       });
     } catch (e) {
       await releaseCredits(admin, reservation.ids);
-      if (e instanceof MissingTextKeyError) {
-        return new Response("No OpenAI API key configured", { status: 422 });
-      }
       console.error("NPC relationship text generation failed:", e);
       return new Response(
         JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
@@ -411,7 +415,7 @@ serve(withCors(async (req: Request) => {
     }
 
     await releaseCredits(admin, reservation.ids);
-    await recordGeneration(admin, user.id, LEDGER_REASON, textIsByok, cost, {
+    await recordGeneration(admin, user.id, LEDGER_REASON, text.isByok, cost, {
       model: textResult.usage.model, provider: textResult.usage.provider,
       input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
     });

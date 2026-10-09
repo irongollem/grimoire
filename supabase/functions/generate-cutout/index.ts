@@ -146,6 +146,7 @@ serve(withCors(async (req: Request) => {
   const img = resolveImageProvider({
     imageProvider: "openai",
     campaignKeys: {}, // deliberately empty — no BYOK path for cutouts, see file doc
+    pinned: true, // transparent output is OpenAI-only: a capability, not the campaign's Quick/Detailed choice
     platformKeys: { openai: platformKeys.openai },
     providerConfigs,
   });

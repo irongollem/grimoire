@@ -61,7 +61,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useItemGeneration } from "@/ai/useItemGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import {
@@ -70,7 +70,6 @@ import {
   ITEM_RARITIES,
   ITEM_RARITY_LABELS,
 } from "@/types/item.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui = useUiStore();
 const router = useRouter();
@@ -82,11 +81,9 @@ const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("item_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("item_generation")),
 );
 
 const concept = ref("");

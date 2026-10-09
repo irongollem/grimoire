@@ -4,8 +4,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { AI_PROMPT_LIMIT_LONG } from "@edge-shared/ai-prompt.ts";
 import { generateProseText } from "./entityTextGeneration";
 
@@ -47,13 +46,11 @@ export function useTextEnhancement() {
   const campaign = useCampaignStore();
   const { ruleset } = useTableRuleset();
   const { costOf } = useAiCredits();
-  const { textMultiplierFor } = useProviderConfig();
+  const { textCredits, textIsByok } = useCampaignProviders();
   const { requireCredits } = useOutOfCredits();
 
-  const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-  const textIsByok = computed(() => !!campaign.decryptedApiKey);
   const creditCost = computed(
-    () => wholeCredits(costOf("text_enhancement") * textMultiplierFor(textProvider.value)),
+    () => textCredits(costOf("text_enhancement")),
   );
 
   /**

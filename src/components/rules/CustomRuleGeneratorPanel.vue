@@ -35,7 +35,6 @@
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useCreateRule } from "@/composables/rules/useRules";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -44,14 +43,12 @@ import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useCustomRuleGeneration } from "@/ai/useCustomRuleGeneration";
 import { RULE_CATEGORIES } from "@/types/rule.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui = useUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 const toast = useToast();
 const { mutateAsync: createRule } = useCreateRule();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useCustomRuleGeneration();
@@ -59,11 +56,9 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { canSpend } = useGenerationGate();
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("custom_rule_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("custom_rule_generation")),
 );
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;

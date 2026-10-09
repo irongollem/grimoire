@@ -33,6 +33,10 @@ export interface ProviderRow {
    * than refusing.
    */
   fast_text_model: string | null;
+  /** Admin → Providers: whether platform-key text calls may run on this provider. See resolveTextProvider. */
+  text_enabled: boolean;
+  /** Admin → Providers: whether platform-key campaigns may render on this provider. See resolveImageProvider. */
+  image_enabled: boolean;
 }
 
 let providerCache: Partial<Record<Provider, ProviderRow>> | null = null;
@@ -48,7 +52,7 @@ export async function fetchProviderConfigs(
     // function fell back to its hard-coded defaults without a word.
     const { data, error } = await admin
       .from("provider_config")
-      .select("provider, text_model, image_model, map_style_model, chronicle_image_model, image_quality, document_model, text_multiplier, image_multiplier, fast_text_model");
+      .select("provider, text_model, image_model, map_style_model, chronicle_image_model, image_quality, document_model, text_multiplier, image_multiplier, fast_text_model, text_enabled, image_enabled");
     if (error) throw error;
     providerCache = Object.fromEntries(
       data.map((row: { provider: string } & ProviderRow) => [row.provider, row]),

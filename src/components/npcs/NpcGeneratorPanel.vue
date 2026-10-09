@@ -54,8 +54,8 @@ import { useCreateNpc } from "@/composables/npcs/useNpcs";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig, PORTRAIT_SIZE_BY_PROVIDER } from "@/composables/ai/useProviderConfig";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { PORTRAIT_SIZE_BY_PROVIDER } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { getNpcTemplate } from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
@@ -117,28 +117,25 @@ const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("npcs");
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
+const { textCredits, textIsByok, imageProvider, imageCredits, imageIsByok } = useCampaignProviders();
 
-const textProvider  = computed(() => campaign.activeCampaign?.text_provider  ?? "openai");
-const imageProvider = computed(() => campaign.activeCampaign?.image_provider ?? "openai");
-const textIsByok    = computed(() => !!campaign.decryptedApiKey);
-// BYOK only if THAT provider's own key is present.
-const imageIsByok   = computed(() =>
-  imageProvider.value === "gemini" ? !!campaign.decryptedGeminiKey : !!campaign.decryptedOpenAiKey,
-);
-
-const effectiveCreditCost = computed(() => {
+// Null while any part that will be charged has no known price yet.
+const effectiveCreditCost = computed<number | null>(() => {
   let cost = 0;
   if (!textIsByok.value) {
-    cost += wholeCredits(costOf("npc_text") * textMultiplierFor(textProvider.value));
+    const text = textCredits(costOf("npc_text"));
+    if (text === null) return null;
+    cost += text;
   }
   if (generateImage.value && !imageIsByok.value) {
+    if (imageProvider.value === null) return null;
     const n = generateAlterEgo.value ? 2 : 1;
-    const size = PORTRAIT_SIZE_BY_PROVIDER[imageProvider.value] ?? PORTRAIT_SIZE_BY_PROVIDER.openai;
+    const size = PORTRAIT_SIZE_BY_PROVIDER[imageProvider.value];
     // Rounded up PER portrait, then multiplied by count — matches the server,
     // which charges (and records) each portrait as its own whole-credit line
     // rather than rounding a pre-multiplied total (generate-npc/index.ts).
-    const perPortrait = wholeCredits(costOf("portrait", { size }) * imageMultiplierFor(imageProvider.value));
+    const perPortrait = imageCredits(costOf("portrait", { size }));
+    if (perPortrait === null) return null;
     cost += perPortrait * n;
   }
   return cost;

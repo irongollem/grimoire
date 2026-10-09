@@ -32,7 +32,7 @@ defineProps<{
   loading: boolean;
   /** True while any paint runs, or the caller cannot paint this entity. */
   disabled: boolean;
-  cost: number;
+  cost: number | null;
   byok: boolean;
   error?: string | null;
 }>();

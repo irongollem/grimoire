@@ -31,7 +31,7 @@ export function useGenerationGate(resource?: QuotaResource) {
   const { requireCredits } = useOutOfCredits();
   const showQuotaPaywall = ref(false);
 
-  function canSpend(cost: number, byok = false): boolean {
+  function canSpend(cost: number | null, byok = false): boolean {
     if (quota && !quota.canCreate.value) {
       showQuotaPaywall.value = true;
       return false;

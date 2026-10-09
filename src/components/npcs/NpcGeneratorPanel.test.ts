@@ -33,9 +33,6 @@ vi.mock("@/stores/campaign", () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
     activeCampaignId: "campaign-1",
     activeCampaign: { text_provider: "openai", image_provider: "openai" },
-    decryptedApiKey: null,
-    decryptedOpenAiKey: null,
-    decryptedGeminiKey: null,
   }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({
@@ -48,8 +45,20 @@ vi.mock("@/composables/ai/useImageGenerationLog", () => ({
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ costOf: () => 1, affordable: () => affordableState.value, balance: ref(10) }),
 }));
+vi.mock("@/composables/ai/useCampaignProviders", async () => {
+  const { ref } = await import("vue");
+  return {
+    useCampaignProviders: () => ({
+      textProvider: ref("openai"),
+      textIsByok: ref(false),
+      textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base),
+      imageProvider: ref("openai"),
+      imageIsByok: ref(false),
+      imageMultiplier: ref(1), imageCredits: (base: number) => Math.ceil(base),
+    }),
+  };
+});
 vi.mock("@/composables/ai/useProviderConfig", () => ({
-  useProviderConfig: () => ({ textMultiplierFor: () => 1, imageMultiplierFor: () => 1 }),
   PORTRAIT_SIZE_BY_PROVIDER: { openai: "1024x1536", gemini: "1024x1536" },
 }));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocationTree: () => ({ locationOptions: ref([]) }) }));

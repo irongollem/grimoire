@@ -306,8 +306,11 @@ const totalTally = computed(() => {
 const totalGenerateCount = computed(() => totalTally.value.generate);
 
 const { credits: perMonsterGenerateCredits } = useMonsterGenerationCost();
-const totalGenerateCredits = computed(
-  () => totalTally.value.generate * perMonsterGenerateCredits.value,
+// Null while the per-monster price is unknown; a product over null is null.
+const totalGenerateCredits = computed(() =>
+  perMonsterGenerateCredits.value === null
+    ? null
+    : totalTally.value.generate * perMonsterGenerateCredits.value,
 );
 
 // ── Source book (#site-workbench decision, 18 Sep 2026) ──────────────────────

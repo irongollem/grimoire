@@ -87,7 +87,7 @@
                 @click="onSendAnswers"
               />
               <span class="text-caption text-muted-foreground/70">
-                Exchange {{ turn }} of {{ QUEST_DESIGN_TURN_BUDGET }} · {{ creditsSoFar }} credits so far
+                Exchange {{ turn }} of {{ QUEST_DESIGN_TURN_BUDGET }} <template v-if="creditsSoFar !== null"> · {{ creditsSoFar }} credits so far</template>
               </span>
             </div>
           </template>
@@ -168,8 +168,7 @@ import { useAllFactions } from "@/composables/factions/useFactions";
 import { useCreateQuestFromHook } from "@/composables/quests/useCreateQuestFromHook";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { resolveGeneratedEntities, type EntityPools, type ResolvedEntity, ENTITY_KIND_ROUTE } from "@/ai/resolveGeneratedEntities";
@@ -202,7 +201,7 @@ const { data: locations } = useAllLocations();
 const { data: factions } = useAllFactions();
 const { createFromHook } = useCreateQuestFromHook();
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
+const { textCredits, textIsByok } = useCampaignProviders();
 const { confirm } = useConfirm();
 const toast = useToast();
 
@@ -230,14 +229,14 @@ const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("quests");
 
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textCreditCost = computed(
-  () => wholeCredits(costOf("quest_design_turn") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("quest_design_turn")),
 );
 // Each turn is billed separately server-side as its own whole charge, so the
 // running total is turns-so-far × that already-whole per-turn cost.
-const creditsSoFar = computed(() => turn.value * textCreditCost.value);
+const creditsSoFar = computed(() =>
+  textCreditCost.value === null ? null : turn.value * textCreditCost.value,
+);
 
 const proposeDisabled = computed(
   () => isGenerating.value || prose.value.trim().length === 0,

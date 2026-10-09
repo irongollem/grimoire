@@ -57,7 +57,6 @@
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import { useCreateFaction, useAddFactionNpc, useAddFactionLocation } from "@/composables/factions/useFactions";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -65,17 +64,15 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useFactionGeneration } from "@/ai/useFactionGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { FACTION_TYPES, FACTION_ALIGNMENTS } from "@/types/faction.types";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useLocationTree } from "@/composables/locations/useLocations";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui       = useUiStore();
 const router   = useRouter();
-const campaign = useCampaignStore();
 const { mutateAsync: createFaction }    = useCreateFaction();
 const { mutateAsync: addFactionNpc }    = useAddFactionNpc();
 const { mutateAsync: addFactionLocation } = useAddFactionLocation();
@@ -89,11 +86,9 @@ const { locationOptions } = useLocationTree(panelOpen);
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("factions");
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("faction_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("faction_generation")),
 );
 
 const concept                = ref("");

@@ -33,8 +33,8 @@
       </div>
     </template>
     <template #extra>
-      <!-- Party portrait toggle: only when image generation is on, OpenAI key available, and group portrait exists -->
-      <div v-if="isAiEnabled && generateImage && openAiKey && groupPortraitUrl" class="flex items-center justify-between">
+      <!-- Party portrait toggle: only when image generation is on, an image provider resolves (OpenAI and Gemini both take source images), and a group portrait exists -->
+      <div v-if="isAiEnabled && generateImage && imageProvider && groupPortraitUrl" class="flex items-center justify-between">
         <span class="text-caption text-muted-foreground">Add party to scene</span>
         <ToggleSwitch v-model="includeParty" aria-label="Add party to scene" />
       </div>
@@ -57,8 +57,7 @@ import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { TRAP_TYPES, CR_LIST } from "@/types/trap.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 
 const ui       = useUiStore();
 const router   = useRouter();
@@ -68,27 +67,27 @@ const { logImageGeneration } = useImageGenerationLog();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useTrapGeneration();
 
 const isAiEnabled   = computed(() => campaign.isAiEnabled);
-const openAiKey     = computed(() => campaign.decryptedOpenAiKey);
 const groupPortraitUrl = computed(() => campaign.activeCampaign?.group_portrait_url ?? null);
 
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
+const { textCredits, textIsByok, imageProvider, imageCredits, imageIsByok } = useCampaignProviders();
 
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok   = computed(() => !!campaign.decryptedApiKey);
-const imageIsByok  = computed(() => !!campaign.decryptedOpenAiKey);
 // Whole generation is BYOK-covered only when every part of it is — the text
 // call, and the illustration too whenever it's actually being generated.
 const fullyByok = computed(() => textIsByok.value && (!generateImage.value || imageIsByok.value));
 
-const effectiveCreditCost = computed(() => {
+// Null while any part that will be charged has no known price yet.
+const effectiveCreditCost = computed<number | null>(() => {
   let cost = textIsByok.value
     ? 0
-    : wholeCredits(costOf("trap_generation") * textMultiplierFor(textProvider.value));
+    : textCredits(costOf("trap_generation"));
+  if (cost === null) return null;
   // The illustration is a separate entity_image charge (portrait → 1.5×).
   if (generateImage.value && !imageIsByok.value) {
-    cost += wholeCredits(costOf("entity_image", { size: "1024x1536" }) * imageMultiplierFor("openai"));
+    const image = imageCredits(costOf("entity_image", { size: "1024x1536" }));
+    if (image === null) return null;
+    cost += image;
   }
   return cost;
 });

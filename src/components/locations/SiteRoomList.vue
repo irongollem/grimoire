@@ -115,7 +115,7 @@ import { useAllLocations, useFetchLocation, useUpdateLocation } from "@/composab
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useRoomFill } from "@/ai/useRoomFill";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
@@ -123,7 +123,6 @@ import { useCampaignStore } from "@/stores/campaign";
 import { buildAtlasIndex } from "@/lib/locations/tree";
 import { levelsOf, levelOrdinal } from "@/lib/locations/levels";
 import { buildRoomFillConstraints, neighboursOf } from "@/lib/locations/roomFill";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { useMoveParty } from "@/composables/locations/useMoveParty";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useToast } from "@/composables/useToast";
@@ -255,11 +254,9 @@ const aiProvenance = ref<AiProvenance | null>(null);
 const { isGenerating, error: genError, clearError, fill } = useRoomFill();
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const fillCreditCost = computed(
-  () => wholeCredits(costOf("room_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("room_generation")),
 );
 
 // Only fetched once a fill is open: nothing else on this list needs them.

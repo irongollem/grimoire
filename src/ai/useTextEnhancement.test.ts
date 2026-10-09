@@ -4,7 +4,6 @@ import { useEnhanceAvailable, useTextEnhancement } from "./useTextEnhancement";
 
 const campaignMock = {
   isAiEnabled: true,
-  decryptedApiKey: null as string | null,
   activeCampaign: { id: "c1", ai_setting_prompt: "Grim north", text_provider: "openai" } as
     | { id: string; ai_setting_prompt: string | null; text_provider: string }
     | null,
@@ -17,13 +16,14 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaignMock }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => authMock }));
 vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ ruleset: ref("2024") }) }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
-vi.mock("@/composables/ai/useProviderConfig", () => ({ useProviderConfig: () => ({ textMultiplierFor: () => 1 }) }));
+vi.mock("@/composables/ai/useCampaignProviders", () => ({
+  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
+}));
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits }) }));
 vi.mock("./entityTextGeneration", () => ({ generateProseText: (r: unknown) => generateProseText(r) }));
 
 beforeEach(() => {
   campaignMock.isAiEnabled = true;
-  campaignMock.decryptedApiKey = null;
   campaignMock.activeCampaign = { id: "c1", ai_setting_prompt: "Grim north", text_provider: "openai" };
   authMock.isDM = true;
   requireCredits.mockClear().mockReturnValue(true);

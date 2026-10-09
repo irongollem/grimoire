@@ -28,7 +28,6 @@ vi.mock("@/stores/campaign", () => ({
     isAiEnabled: true,
     activeCampaignId: "campaign-1",
     activeCampaign: { text_provider: "openai" },
-    decryptedApiKey: null,
     decryptedOpenAiKey: null,
   }),
 }));
@@ -54,9 +53,19 @@ vi.mock("@/ai/useNpcGeneration", () => ({
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ costOf: () => 1, affordable: () => true, balance: ref(10) }),
 }));
-vi.mock("@/composables/ai/useProviderConfig", () => ({
-  useProviderConfig: () => ({ textMultiplierFor: () => 1, imageMultiplierFor: () => 1 }),
-}));
+vi.mock("@/composables/ai/useCampaignProviders", async () => {
+  const { ref } = await import("vue");
+  return {
+    useCampaignProviders: () => ({
+      textProvider: ref("openai"),
+      textIsByok: ref(false),
+      textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base),
+      imageProvider: ref("openai"),
+      imageIsByok: ref(false),
+      imageMultiplier: ref(1), imageCredits: (base: number) => Math.ceil(base),
+    }),
+  };
+});
 vi.mock("@/composables/ai/useGenerationGate", () => ({
   useGenerationGate: () => ({ canSpend: () => true, gateQuotaError: () => false, showQuotaPaywall: ref(false) }),
 }));

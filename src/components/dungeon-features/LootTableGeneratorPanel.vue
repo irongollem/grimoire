@@ -173,7 +173,7 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import {
   LOOT_CR_TIERS,
   LOOT_CR_TIER_LABELS,
@@ -183,7 +183,6 @@ import {
   type LootEntry,
 } from "@/types/lootTable.types";
 import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_TEXT, type ItemRarity } from "@/types/item.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 
@@ -248,11 +247,9 @@ const createdTableId = ref<string | null>(null);
 
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("loot_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("loot_generation")),
 );
 
 async function runGenerate() {

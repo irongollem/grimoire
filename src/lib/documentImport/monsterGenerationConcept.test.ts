@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monsterGenerationConcept, monsterGenerationCreditCost, monsterGenerationOptionsFromPage } from "./monsterGenerationConcept";
+import { monsterGenerationConcept, monsterGenerationOptionsFromPage } from "./monsterGenerationConcept";
 
 describe("monsterGenerationConcept", () => {
   it("degrades to a bare name when nothing else was extracted", () => {
@@ -89,20 +89,5 @@ describe("monsterGenerationOptionsFromPage", () => {
         stat_block: { challenge_rating: "3" },
       }),
     ).toEqual({ challenge_rating: "3", monster_type: "undead", size: "medium" });
-  });
-});
-
-describe("monsterGenerationCreditCost", () => {
-  it("multiplies the base cost by the provider multiplier and rounds UP to a whole credit", () => {
-    expect(monsterGenerationCreditCost(1, 1.5)).toBe(2);
-    expect(monsterGenerationCreditCost(0.333, 1)).toBe(1);
-  });
-
-  it("is a no-op at a 1x multiplier on an already-whole cost", () => {
-    expect(monsterGenerationCreditCost(2, 1)).toBe(2);
-  });
-
-  it("never charges a fraction of a credit (26.25 → 27, the 0.35 image-multiplier case)", () => {
-    expect(monsterGenerationCreditCost(75, 0.35)).toBe(27);
   });
 });

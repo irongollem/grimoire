@@ -59,7 +59,7 @@
             @click="size = s.value"
           >
             <span class="text-label-lg ">{{ s.label }}</span>
-            <span class="text-caption-sm opacity-60">{{ byok ? 'BYOK' : `${shapeCost(s.value)} cr` }}</span>
+            <span class="text-caption-sm opacity-60">{{ byok ? 'BYOK' : (shapeCost(s.value) === null ? '' : `${shapeCost(s.value)} cr`) }}</span>
           </AppButton>
         </div>
       </div>
@@ -122,9 +122,8 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const props = defineProps<{ visible: boolean; initialPrompt?: string; noteId?: string }>();
 
@@ -191,14 +190,13 @@ const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
 const { user } = storeToRefs(useAuthStore());
 
-// Live credit cost — chronicle images always render via OpenAI; cost scales with
+// Live credit cost — chronicle images (generate-chronicle-image) run on the campaign's resolved image provider; cost scales with
 // the chosen shape's output area (landscape = 1.5× square). BYOK = no credits.
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { imageMultiplierFor } = useProviderConfig();
-const byok = computed(() => !!campaignStore.decryptedOpenAiKey);
-function shapeCost(s: ChroniclerSize): number {
-  return wholeCredits(costOf("chronicle_image", { size: s }) * imageMultiplierFor("openai"));
+const { imageCredits, imageIsByok: byok } = useCampaignProviders();
+function shapeCost(s: ChroniclerSize): number | null {
+  return imageCredits(costOf("chronicle_image", { size: s }));
 }
 const selectedCost = computed(() => (byok.value ? 0 : shapeCost(size.value)));
 

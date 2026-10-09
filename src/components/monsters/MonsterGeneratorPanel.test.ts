@@ -32,8 +32,10 @@ vi.mock("@/stores/campaign", () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
     activeCampaignId: "campaign-1",
     activeCampaign: { text_provider: "openai" },
-    decryptedApiKey: null,
   }),
+}));
+vi.mock("@/composables/ai/useCampaignProviders", () => ({
+  useCampaignProviders: () => ({ textIsByok: ref(false), textCredits: (base: number) => Math.ceil(base) }),
 }));
 vi.mock("@/composables/monsters/useGenerateMonster", () => ({
   useGenerateMonster: () => ({ generateAndCreateMonster: mocks.generateAndCreateMonster }),

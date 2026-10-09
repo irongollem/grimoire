@@ -64,9 +64,8 @@ import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { LocationType } from "@/types/location.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS) as [LocationType, string][];
 
@@ -85,11 +84,8 @@ const toast = useToast();
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("locations");
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
+const { textCredits, textIsByok, imageCredits, imageIsByok } = useCampaignProviders();
 
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok   = computed(() => !!campaign.decryptedApiKey);
-const imageIsByok  = computed(() => !!campaign.decryptedOpenAiKey);
 // Whole generation is BYOK-covered only when every image actually being
 // generated is covered too — a scene or map still charged while the text
 // call is free is not a BYOK generation.
@@ -97,13 +93,16 @@ const fullyByok = computed(
   () => textIsByok.value && (imageIsByok.value || (!generateImage.value && !generateMap.value)),
 );
 
-const effectiveCreditCost = computed(() => {
+// Null while any part that will be charged has no known price yet.
+const effectiveCreditCost = computed<number | null>(() => {
   let cost = textIsByok.value
     ? 0
-    : wholeCredits(costOf("location_generation") * textMultiplierFor(textProvider.value));
+    : textCredits(costOf("location_generation"));
+  if (cost === null) return null;
   // Scene + map are each a separate entity_image charge (square → 1.0×).
   if (!imageIsByok.value) {
-    const perImage = wholeCredits(costOf("entity_image", { size: "1024x1024" }) * imageMultiplierFor("openai"));
+    const perImage = imageCredits(costOf("entity_image", { size: "1024x1024" }));
+    if (perImage === null) return null;
     if (generateImage.value) cost += perImage;
     if (generateMap.value)   cost += perImage;
   }

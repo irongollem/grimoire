@@ -60,14 +60,13 @@ vi.mock("@/stores/campaign", () => ({
       return isAiEnabled.value;
     },
     activeCampaign: { text_provider: "openai" },
-    decryptedApiKey: null,
   }),
 }));
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ costOf: () => 1, affordable: () => true }),
 }));
-vi.mock("@/composables/ai/useProviderConfig", () => ({
-  useProviderConfig: () => ({ textMultiplierFor: () => 1 }),
+vi.mock("@/composables/ai/useCampaignProviders", () => ({
+  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
 }));
 vi.mock("@/ai/useNpcVoiceCoach", () => ({
   useNpcVoiceCoach: () => ({

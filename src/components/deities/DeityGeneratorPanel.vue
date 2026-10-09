@@ -52,7 +52,6 @@
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useCreateDeity, useAllDeities, useAllPantheons } from "@/composables/deities/useDeities";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -62,17 +61,15 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useDeityGeneration } from "@/ai/useDeityGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { useCreateEntityNote } from "@/composables/notes/useEntityNotes";
 import { CLERIC_DOMAINS, DEITY_ALIGNMENTS } from "@/types/deity.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui       = useUiStore();
 const router   = useRouter();
-const campaign = useCampaignStore();
 const toast = useToast();
 const { mutateAsync: createDeity } = useCreateDeity();
 const { mutateAsync: createNote } = useCreateEntityNote();
@@ -87,11 +84,9 @@ const { data: deities } = useAllDeities(panelOpen);
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("deities");
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("deity_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("deity_generation")),
 );
 
 const concept       = ref("");

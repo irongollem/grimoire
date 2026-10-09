@@ -169,7 +169,7 @@ const {
   title: string;
   conceptPlaceholder: string;
   conceptLimit?: number;
-  credits: number;
+  credits: number | null;
   byok: boolean;
   isGenerating: boolean;
   error: string | null;

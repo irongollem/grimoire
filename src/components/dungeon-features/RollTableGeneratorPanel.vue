@@ -118,10 +118,9 @@ import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { ROLL_TABLE_DIE_MAX } from "@/types/rollTable.types";
 import type { RollTableDie } from "@/types/rollTable.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const DIE_OPTIONS: RollTableDie[] = ["1d6", "1d8", "1d10", "1d12", "1d20"];
 const dieOptions = DIE_OPTIONS.map((d) => ({ value: d, label: d }));
@@ -171,11 +170,9 @@ function goToEntity(entity: ResolvedEntity) {
 
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("roll_table_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("roll_table_generation")),
 );
 
 const concept = ref("");

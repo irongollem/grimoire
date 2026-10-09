@@ -4,6 +4,7 @@ import { createGeminiTextProvider, createGeminiImageProvider } from "./gemini";
 import { createAnthropicTextProvider } from "./anthropic";
 import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
+import { chooseTextProvider } from "@edge-shared/providerChoice.ts";
 
 export type { TextProvider, ImageProvider };
 
@@ -21,8 +22,25 @@ function resolveKey(provider: string): string {
   return key;
 }
 
+/**
+ * The local-key path runs in the browser on the DM's own keys only, so it is
+ * the server's rule (chooseTextProvider) with no platform to fall back to: the
+ * key `text_provider` names, else the one the DM holds.
+ */
 export function getTextProvider(): TextProvider {
-  const provider = useCampaignStore().activeCampaign?.text_provider ?? "openai";
+  const store = useCampaignStore();
+  const choice = chooseTextProvider({
+    chosen: store.activeCampaign?.text_provider,
+    ownKeys: {
+      openai: !!store.decryptedOpenAiKey,
+      anthropic: !!store.decryptedAnthropicKey,
+      gemini: !!store.decryptedGeminiKey,
+    },
+    platformKeys: {},
+    configs: {},
+  });
+  if (!choice) throw new Error("No API key configured. Add one in Campaign Settings → AI.");
+  const provider = choice.provider;
   const key = resolveKey(provider);
   switch (provider) {
     case "anthropic": return createAnthropicTextProvider(key);

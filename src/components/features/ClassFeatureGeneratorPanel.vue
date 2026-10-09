@@ -35,7 +35,6 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useCreateFeature } from "@/composables/rules/useFeatures";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -44,15 +43,13 @@ import AppInput from "@/components/common/AppInput.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useClassFeatureGeneration } from "@/ai/useClassFeatureGeneration";
 import { ACTIVATIONS, type Activation } from "@/rules/features/mechanics.types";
 import { ACTIVATION_LABELS } from "@/types/feature.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui = useUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 const toast = useToast();
 const { mutateAsync: createFeature } = useCreateFeature();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useClassFeatureGeneration();
@@ -60,11 +57,9 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { canSpend } = useGenerationGate();
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("class_feature_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("class_feature_generation")),
 );
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;

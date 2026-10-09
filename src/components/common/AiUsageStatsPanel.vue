@@ -26,7 +26,9 @@
         </div>
       </div>
 
-      <div v-if="displayStats.length" class="space-y-1">
+      <!-- Per-model rows are the admin's view only: which model ran is the
+           platform's business, and a DM is told credits, not model names. -->
+      <div v-if="currency === 'usd' && stats.modelStats.value.length" class="space-y-1">
         <div class="flex items-center gap-2 px-2.5 pb-0.5">
           <span class="flex-1 text-eyebrow text-muted-foreground">Model</span>
           <span class="text-eyebrow text-muted-foreground shrink-0 w-10 text-right">Gens</span>
@@ -34,7 +36,7 @@
           <span class="text-eyebrow text-muted-foreground shrink-0 w-20 text-right">Avg/gen</span>
         </div>
         <div
-          v-for="stat in displayStats"
+          v-for="stat in stats.modelStats.value"
           :key="stat.label"
           class="flex items-center gap-2 rounded-md bg-muted/20 px-2.5 py-1.5"
         >
@@ -42,26 +44,19 @@
             <span class="text-caption font-semibold text-foreground">{{ stat.label }}</span>
             <span class="text-caption text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
           </div>
-          <span class="text-caption text-muted-foreground shrink-0 w-10 text-right">{{ currency === 'credits' ? stat.charged_count : stat.count }}×</span>
-          <template v-if="currency === 'credits'">
-            <span class="text-label-lg text-foreground shrink-0 w-20 text-right">{{ Math.round(stat.credits) }} cr</span>
-            <span class="text-label-lg text-muted-foreground shrink-0 w-20 text-right">{{ stat.avg_credits.toFixed(1) }} cr</span>
-          </template>
-          <template v-else>
-            <span class="text-label-lg text-foreground shrink-0 w-20 text-right">${{ stat.estimated_cost_usd.toFixed(3) }}</span>
-            <span class="text-label-lg text-muted-foreground shrink-0 w-20 text-right">${{ stat.avg_cost_usd.toFixed(4) }}</span>
-          </template>
+          <span class="text-caption text-muted-foreground shrink-0 w-10 text-right">{{ stat.count }}×</span>
+          <span class="text-label-lg text-foreground shrink-0 w-20 text-right">${{ stat.estimated_cost_usd.toFixed(3) }}</span>
+          <span class="text-label-lg text-muted-foreground shrink-0 w-20 text-right">${{ stat.avg_cost_usd.toFixed(4) }}</span>
         </div>
       </div>
 
-      <p v-else class="text-caption text-muted-foreground italic">No generation data yet.</p>
+      <p v-else-if="stats.totalGenerations.value === 0" class="text-caption text-muted-foreground italic">No generation data yet.</p>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import { computed } from "vue";
 import { useAiUsageStats } from "@/composables/ai/useAiUsageStats";
 
 const { title = "AI Usage Stats", subtitle = "", currency = "usd" } = defineProps<{
@@ -73,11 +68,4 @@ const { title = "AI Usage Stats", subtitle = "", currency = "usd" } = defineProp
 
 // RLS-scoped to the current user's own ledger, so this shows the viewer's usage.
 const stats = useAiUsageStats();
-
-// In the customer credits view, hide models that only ran BYOK (0 credits spent).
-const displayStats = computed(() =>
-  currency === "credits"
-    ? stats.modelStats.value.filter((s) => s.charged_count > 0)
-    : stats.modelStats.value,
-);
 </script>

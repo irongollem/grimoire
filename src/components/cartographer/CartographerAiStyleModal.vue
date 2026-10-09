@@ -230,7 +230,7 @@ const {
   atlasTargetHasMap: boolean;
   atlasError: string | null;
   atlasSaving: boolean;
-  credits: number;
+  credits: number | null;
   byok: boolean;
 }>();
 

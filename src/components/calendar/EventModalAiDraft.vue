@@ -40,10 +40,9 @@ import { IconGenerate } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useAllDeities, useAllPantheons } from "@/composables/deities/useDeities";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useCalendarEventGeneration, type CalendarEventDraft } from "@/ai/useCalendarEventGeneration";
@@ -51,7 +50,6 @@ import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { buildCalendarEventConstraints } from "@/lib/calendar/eventGeneration";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const { dateLabel, eventType } = defineProps<{
   /** The date the DM picked, as they read it ("3 Mirtul, 1492"). */
@@ -61,7 +59,6 @@ const { dateLabel, eventType } = defineProps<{
 }>();
 const emit = defineEmits<{ draft: [result: CalendarEventDraft]; close: [] }>();
 
-const campaign = useCampaignStore();
 const steer = ref("");
 
 // The modal stays mounted on the calendar, but the parent mounts this row only
@@ -73,11 +70,9 @@ const { data: factions } = useAllFactions();
 const { isGenerating, error: genError, generate } = useCalendarEventGeneration();
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("calendar_event_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("calendar_event_generation")),
 );
 
 // The draft is only as grounded as what has loaded, so Generate waits for all

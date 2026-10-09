@@ -107,6 +107,7 @@ import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import { imageHasTransparency } from "@/lib/mediaConvert";
@@ -186,13 +187,13 @@ watch(
 const campaign = useCampaignStore();
 const { isGenerating, error, generate } = useEntityImageGeneration(bucket);
 
-// Entity portraits always render via OpenAI at 1024×1536 (portrait → 1.5× cost).
+// Entity portraits (generate-entity-image) run on the campaign's resolved image provider at 1024×1536 (portrait → 1.5× cost).
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
 const { imageMultiplierFor } = useProviderConfig();
-const imageByok = computed(() => !!campaign.decryptedOpenAiKey);
+const { imageCredits, imageIsByok: imageByok } = useCampaignProviders();
 const imageCost = computed(
-  () => wholeCredits(costOf("entity_image", { size: "1024x1536" }) * imageMultiplierFor("openai")),
+  () => imageCredits(costOf("entity_image", { size: "1024x1536" })),
 );
 
 const showAiButton = computed(
@@ -214,6 +215,7 @@ function goToMiniForge() {
 // as an entity image, and never BYOK (generate-cutout is platform-keys-only,
 // like Simulacrum), so the cost badge never reads the campaign's own key.
 const { isGenerating: isCutoutGenerating, error: cutoutError, generate: generateCutout } = useCutoutGeneration();
+// Pinned to OpenAI: mirrors generate-cutout, which ignores the campaign's image pick.
 const cutoutCost = computed(
   () => wholeCredits(costOf("entity_cutout", { size: "1024x1536" }) * imageMultiplierFor("openai")),
 );

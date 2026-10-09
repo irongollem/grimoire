@@ -5,6 +5,7 @@ import {
   geminiText,
   openaiText,
   openaiReasoningParams,
+  resolveTextProvider,
 } from "./textGen";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -88,5 +89,50 @@ describe("plain-text provider mode", () => {
     await geminiText("key", "gemini-test", "system", "user", 1024, "text");
 
     expect(requestBody().generationConfig).toEqual({ maxOutputTokens: 1024 });
+  });
+});
+
+describe("resolveTextProvider — the platform picks the model, not the DM", () => {
+  const platformKeys = { openai: "sk-platform", gemini: "g-platform" };
+  const providerConfigs = {
+    openai: { text_model: "gpt-5.6-luna", text_enabled: true, text_multiplier: 1 },
+    gemini: { text_model: "gemini-2.5-flash", text_enabled: false, text_multiplier: 3.8 },
+  };
+
+  it("runs a platform-credit campaign on the enabled provider whatever text_provider says", () => {
+    const text = resolveTextProvider({ chosen: "gemini", campaignKeys: {}, platformKeys, providerConfigs });
+    expect(text).toMatchObject({ provider: "openai", apiKey: "sk-platform", isByok: false, textMultiplier: 1 });
+  });
+
+  it("runs on the DM's own key for the provider they chose", () => {
+    const text = resolveTextProvider({ chosen: "gemini", campaignKeys: { gemini: "g-own" }, platformKeys, providerConfigs });
+    expect(text).toMatchObject({ provider: "gemini", apiKey: "g-own", isByok: true });
+    expect(text?.config?.text_model).toBe("gemini-2.5-flash");
+  });
+
+  it("runs on the only key the DM holds, whichever provider text_provider names", () => {
+    const text = resolveTextProvider({ chosen: "openai", campaignKeys: { gemini: "g-own" }, platformKeys, providerConfigs });
+    expect(text).toMatchObject({ provider: "gemini", apiKey: "g-own", isByok: true });
+  });
+
+  it("does not bill credits to a DM with a key when text_provider was never saved", () => {
+    const text = resolveTextProvider({ chosen: null, campaignKeys: { openai: "sk-own" }, platformKeys, providerConfigs });
+    expect(text).toMatchObject({ provider: "openai", apiKey: "sk-own", isByok: true });
+  });
+
+  it("lets text_provider pick between two keys the DM holds", () => {
+    const text = resolveTextProvider({ chosen: "gemini", campaignKeys: { openai: "sk-own", gemini: "g-own" }, platformKeys, providerConfigs });
+    expect(text).toMatchObject({ provider: "gemini", apiKey: "g-own", isByok: true });
+  });
+
+  it("finds nothing when no provider is enabled with a key", () => {
+    const allOff = { openai: { ...providerConfigs.openai, text_enabled: false }, gemini: providerConfigs.gemini };
+    expect(resolveTextProvider({ chosen: null, campaignKeys: {}, platformKeys, providerConfigs: allOff })).toBeNull();
+    expect(resolveTextProvider({ chosen: null, campaignKeys: {}, platformKeys: {}, providerConfigs })).toBeNull();
+  });
+
+  it("skips an enabled provider with no model set", () => {
+    const noModel = { openai: { text_model: null, text_enabled: true }, gemini: { text_model: "gemini-2.5-flash", text_enabled: true } };
+    expect(resolveTextProvider({ chosen: null, campaignKeys: {}, platformKeys, providerConfigs: noModel })?.provider).toBe("gemini");
   });
 });

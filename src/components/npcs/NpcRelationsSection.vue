@@ -198,7 +198,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import {
@@ -206,7 +206,6 @@ import {
   type ResolvedSuggestion,
 } from "@/ai/useNpcRelationshipSuggestions";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 import {
   NPC_RELATIONSHIP_TYPE_LABELS,
   NPC_RELATIONSHIP_TYPE_VAR,
@@ -311,11 +310,9 @@ const {
 
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const suggestCost = computed(() =>
-  wholeCredits(costOf("npc_relationship_suggestion") * textMultiplierFor(textProvider.value)),
+  textCredits(costOf("npc_relationship_suggestion")),
 );
 
 const showSteer = ref(false);

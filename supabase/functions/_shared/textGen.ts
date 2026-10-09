@@ -5,12 +5,14 @@
  * Anthropic, Gemini). New AI Edge Functions must import from here rather
  * than copy-pasting their own `openaiText` / `anthropicText` / `geminiText`.
  *
- *   import { callText, MissingTextKeyError } from "../_shared/textGen.ts";
+ *   import { callText, resolveTextProvider } from "../_shared/textGen.ts";
  *
  * or, for direct provider access:
  *
  *   import { openaiText, anthropicText, geminiText } from "../_shared/textGen.ts";
  */
+
+import { chooseTextProvider, keysPresent, type TextProviderKey } from "./providerChoice.ts";
 
 // ── Text providers ────────────────────────────────────────────────────────────
 
@@ -127,7 +129,7 @@ export async function geminiText(
 
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 
-export class MissingTextKeyError extends Error {}
+export type { TextProviderKey } from "./providerChoice.ts";
 
 // Defaults mirror provider_config.text_model in the DB. Each must have an
 // ai_model_pricing row, or the calls it makes are costed as NULL:
@@ -139,31 +141,75 @@ export const DEFAULT_TEXT_MODELS = {
   gemini: "gemini-2.5-flash",
 } as const;
 
+/** The provider_config columns text resolution reads. */
+export interface TextProviderConfig {
+  text_model?: string | null;
+  fast_text_model?: string | null;
+  document_model?: string | null;
+  text_multiplier?: number | null;
+  text_enabled?: boolean | null;
+}
+
+export interface ResolvedTextProvider {
+  provider: TextProviderKey;
+  apiKey: string;
+  isByok: boolean;
+  /** That provider's provider_config row; the caller picks text_model, fast_text_model or document_model from it. */
+  config: TextProviderConfig | undefined;
+  /** Credit multiplier from provider_config (1.0 if unset). Irrelevant when `isByok`. */
+  textMultiplier: number;
+}
+
 /**
- * Select and call the campaign's configured text provider, mirroring the
- * selection logic previously duplicated across the AI generation Edge
- * Functions: anthropic (if keyed) → gemini (if keyed) → openai (default,
- * throws MissingTextKeyError if unkeyed).
+ * Which provider and key a text call runs on: `chooseTextProvider`'s answer
+ * (providerChoice.ts, where the rule and its reasons live), with the key it
+ * picked. The client prices with the same function, so the two cannot drift.
+ *
+ * Returns null when no provider is usable; the caller answers 422 before
+ * reserving any credits.
  */
+export function resolveTextProvider(args: {
+  chosen: string | null | undefined;
+  campaignKeys: Partial<Record<TextProviderKey, string | null>>;
+  platformKeys: Partial<Record<TextProviderKey, string | null>>;
+  providerConfigs: Partial<Record<string, TextProviderConfig | undefined>>;
+}): ResolvedTextProvider | null {
+  const choice = chooseTextProvider({
+    chosen: args.chosen,
+    ownKeys: keysPresent(args.campaignKeys),
+    platformKeys: keysPresent(args.platformKeys),
+    configs: args.providerConfigs,
+  });
+  if (!choice) return null;
+  const apiKey = (choice.isByok ? args.campaignKeys : args.platformKeys)[choice.provider];
+  if (!apiKey) return null;
+  return {
+    provider: choice.provider,
+    apiKey,
+    isByok: choice.isByok,
+    config: args.providerConfigs[choice.provider],
+    textMultiplier: args.providerConfigs[choice.provider]?.text_multiplier ?? 1.0,
+  };
+}
+
+/** The answer a function gives when resolveTextProvider finds nothing. */
+export const NO_TEXT_PROVIDER_MESSAGE =
+  "AI text generation isn't available right now. Try again later, or contact support if it persists.";
+
+/** Call the provider resolveTextProvider chose. `model` falls back to that provider's default. */
 export async function callText(opts: {
-  provider: string;
-  keys: { openai: string | null; anthropic: string | null; gemini: string | null };
+  text: ResolvedTextProvider;
   model?: string | null;
   system: string;
   user: string;
   maxTokens?: number;
   outputFormat?: TextOutputFormat;
 }): Promise<TextResult> {
-  const { provider, keys, model, system, user, maxTokens, outputFormat } = opts;
-
-  if (provider === "anthropic" && keys.anthropic) {
-    return anthropicText(keys.anthropic, model ?? DEFAULT_TEXT_MODELS.anthropic, system, user, maxTokens, outputFormat);
+  const { text, model, system, user, maxTokens, outputFormat } = opts;
+  const resolvedModel = model ?? DEFAULT_TEXT_MODELS[text.provider];
+  switch (text.provider) {
+    case "anthropic": return anthropicText(text.apiKey, resolvedModel, system, user, maxTokens, outputFormat);
+    case "gemini":    return geminiText(text.apiKey, resolvedModel, system, user, maxTokens, outputFormat);
+    case "openai":    return openaiText(text.apiKey, resolvedModel, system, user, maxTokens, outputFormat);
   }
-  if (provider === "gemini" && keys.gemini) {
-    return geminiText(keys.gemini, model ?? DEFAULT_TEXT_MODELS.gemini, system, user, maxTokens, outputFormat);
-  }
-  if (!keys.openai) {
-    throw new MissingTextKeyError("No OpenAI API key configured");
-  }
-  return openaiText(keys.openai, model ?? DEFAULT_TEXT_MODELS.openai, system, user, maxTokens, outputFormat);
 }

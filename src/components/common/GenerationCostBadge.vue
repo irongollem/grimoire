@@ -1,5 +1,6 @@
 <template>
   <span
+    v-if="credits !== null || byok"
     class="inline-flex items-center gap-1 text-caption"
     :class="byok ? 'text-muted-foreground/70' : (affordable ? 'text-muted-foreground' : 'text-destructive')"
     :title="title"
@@ -14,7 +15,7 @@
         variant="link"
         size="inline-caption"
         label="Get credits"
-        @click="openOutOfCredits(rounded)"
+        @click="rounded !== null && openOutOfCredits(rounded)"
       />
     </template>
   </span>
@@ -37,13 +38,16 @@ import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
  * "not enough credits" dialog: every plan may generate as long as it can pay
  * (Pro adds a monthly allowance and BYOK), so the way past an unaffordable
  * generation is buying credits on the spot.
+ *
+ * A null `credits` is a price not known yet (see `useCampaignProviders`): the
+ * chip renders nothing rather than a guess that jumps when the config lands.
  */
 const {
   credits,
   byok = false,
   showBalance = true,
 } = defineProps<{
-  credits: number;
+  credits: number | null;
   byok?: boolean;
   showBalance?: boolean;
 }>();
@@ -51,10 +55,10 @@ const {
 const { balance, affordable: canAfford } = useAiCredits();
 const { openOutOfCredits } = useOutOfCredits();
 
-const rounded = computed(() => Math.round(credits * 100) / 100);
+const rounded = computed(() => (credits === null ? null : Math.round(credits * 100) / 100));
 const creditLabel = computed(() => `${rounded.value === 1 ? "1 credit" : `${rounded.value} credits`}`);
 const balanceLabel = computed(() => `${Math.round(((balance.value ?? 0) as number) * 100) / 100}`);
-const affordable = computed(() => canAfford(rounded.value, byok));
+const affordable = computed(() => byok || (rounded.value !== null && canAfford(rounded.value, false)));
 const title = computed(() =>
   byok
     ? "Using your own API key; no credits are charged"

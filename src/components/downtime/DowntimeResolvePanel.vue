@@ -12,12 +12,11 @@ import { isAutoAppliedKind, describeEffect } from "@/lib/downtime/downtimeEffect
 import { useDowntimeGeneration } from "@/ai/useDowntimeGeneration";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import type { AiProvenance } from "@/ai/provenance";
 import type { DowntimeDeckBack, DowntimeDraw, DowntimeEffect, DrawResult } from "@/types/downtime.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const { draw, memberName, backs } = defineProps<{
   draw: DowntimeDraw;
@@ -98,19 +97,17 @@ const campaign = useCampaignStore();
 const { generate, isGenerating, error: draftError } = useDowntimeGeneration();
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textMultiplierFor } = useProviderConfig();
+const { textCredits, textIsByok } = useCampaignProviders();
 
 const steer = ref("");
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
 
 /** Text-only generator — there is no illustration, so no entity_image charge. */
 const effectiveCreditCost = computed(() =>
   textIsByok.value
     ? 0
-    : wholeCredits(costOf("downtime_generation") * textMultiplierFor(textProvider.value)),
+    : textCredits(costOf("downtime_generation")),
 );
 
 async function onDraft() {

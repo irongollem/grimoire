@@ -35,7 +35,7 @@ import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { callText, MissingTextKeyError, type TextOutputFormat, type TextResult } from "../_shared/textGen.ts";
+import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextOutputFormat, type TextResult } from "../_shared/textGen.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -207,17 +207,22 @@ serve(withCors(async (req: Request) => {
     ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
     : wrappedPrompt;
 
-  const textProvider = campaign.text_provider ?? "openai";
-  const textIsByok = textProvider === "anthropic" ? !!campaignAnthropic
-    : textProvider === "gemini" ? !!campaignGemini
-    : !!campaignOpenai;
+  // The platform picks the model: a campaign on credits runs on the provider the
+  // admin enabled, and campaigns.text_provider only counts with the campaign's own key.
+  const text = resolveTextProvider({
+    chosen: campaign.text_provider,
+    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
+    platformKeys,
+    providerConfigs,
+  });
+  if (!text) return jsonError(NO_TEXT_PROVIDER_MESSAGE, 422);
 
-  const cost = textIsByok
+  const cost = text.isByok
     ? 0
     : wholeCredits(
       applyMultiplier(
         await fetchCreditCost(admin, reason),
-        providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier,
+        text.textMultiplier,
       ),
     );
 
@@ -232,20 +237,14 @@ serve(withCors(async (req: Request) => {
   let textResult: TextResult;
   try {
     textResult = await callText({
-      provider: textProvider,
-      keys: {
-        openai:    campaignOpenai    ?? platformKeys.openai    ?? null,
-        anthropic: campaignAnthropic ?? platformKeys.anthropic ?? null,
-        gemini:    campaignGemini    ?? platformKeys.gemini    ?? null,
-      },
-      model: providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model,
+      text,
+      model: text.config?.text_model,
       system: systemContent,
       user: userContent,
       outputFormat: format,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
-    if (e instanceof MissingTextKeyError) return jsonError(e.message, 422);
     console.error(`${generator} text generation failed:`, e);
     return jsonError(e instanceof Error ? e.message : "Text generation failed", 502);
   }
@@ -266,7 +265,7 @@ serve(withCors(async (req: Request) => {
   }
 
   await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, reason, textIsByok, cost, {
+  await recordGeneration(admin, user.id, reason, text.isByok, cost, {
     model: textResult.usage.model,
     provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens,

@@ -95,7 +95,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
 import { useCreateItem } from "@/composables/items/useItems";
 import { useItemIndex } from "@/composables/items/useItemIndex";
@@ -117,7 +117,6 @@ import {
   type RecipeOutputResolution,
 } from "@/lib/crafting/recipeAi";
 import type { CraftingDiscipline } from "@/types/crafting.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui = useUiStore();
 const router = useRouter();
@@ -143,11 +142,9 @@ const { data: items } = useItemIndex(() => ({ enabled: ui.recipeGeneratorOpen })
 
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("recipe_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("recipe_generation")),
 );
 
 const concept = ref("");

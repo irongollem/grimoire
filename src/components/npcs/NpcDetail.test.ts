@@ -71,7 +71,7 @@ vi.mock("vue-router", () => ({
 }));
 
 vi.mock("@/stores/campaign", () => ({
-  useCampaignStore: () => ({ isAiEnabled: false, decryptedApiKey: null, activeCampaignId: ref("campaign-1") }),
+  useCampaignStore: () => ({ isAiEnabled: false, activeCampaignId: ref("campaign-1") }),
 }));
 
 vi.mock("@/stores/ui", () => ({

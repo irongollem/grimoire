@@ -32,8 +32,8 @@
 //
 // ── Image sizing: two shapes, chosen from the campaign's real provider ─────
 //
-// `imageProviderKey` resolves the campaign's `image_provider` to the shape
-// its render actually needs: flexible OpenAI (any 1:3..3:1 aspect within a
+// `useCampaignProviders().imageProvider` resolves the campaign's
+// `image_provider` to the shape its render actually needs: flexible OpenAI (any 1:3..3:1 aspect within a
 // 2560×1440 pixel budget) or Gemini (one of ten fixed aspect ratios).
 // `bake.ts`'s `fitStyleInputCanvas` does the actual fitting per shape; see its
 // doc for the full breakdown. Plain "openai" is always treated as flexible
@@ -72,7 +72,7 @@ import { getCurrentUser, supabase } from "@/lib/supabase";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import type { GridCalibration } from "@/types/location.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import {
   useAllLocations,
@@ -82,7 +82,6 @@ import {
 import { useCampaignStore } from "@/stores/campaign";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { downloadBlob } from "@/lib/downloadBlob";
 
 /** Shape of the `style-map` edge function's JSON response. */
@@ -152,24 +151,22 @@ export function useMapExport(opts: {
   // module's header for the sizing this pipeline now sends/requests.
   const mapStyleCampaign = useCampaignStore();
   const { costOf: costOfCredits } = useAiCredits();
-  const { imageMultiplierFor: mapImageMultiplierFor } = useProviderConfig();
   /**
-   * The campaign's actual chosen provider (`image_provider`), resolved once
-   * and used for both the AI input's sizing (`bake.ts`'s `StyleImageProvider`)
-   * and its pricing/BYOK below — a null/unset column means the platform
-   * default, "openai". All three used to hardcode OpenAI regardless of what
-   * the campaign was actually configured for.
+   * `resolvedImageProvider` is the provider style-map will actually run on (the
+   * campaign's pick resolved against its own keys and the admin's switches),
+   * used for the AI input's sizing (`bake.ts`'s `StyleImageProvider`) and for
+   * pricing/BYOK below. It is null until provider_config loads, and the input
+   * is never baked for a guessed shape: a Gemini render sent an OpenAI-sized
+   * input is refused by style-map with a 400.
    */
-  const imageProviderKey = computed<"openai" | "gemini">(() =>
-    mapStyleCampaign.activeCampaign?.image_provider === "gemini" ? "gemini" : "openai",
-  );
-  const styleByok = computed(() =>
-    !!(imageProviderKey.value === "gemini" ? mapStyleCampaign.decryptedGeminiKey : mapStyleCampaign.decryptedOpenAiKey),
-  );
+  const {
+    imageProvider: resolvedImageProvider,
+    imageIsByok: styleByok,
+    imageCredits,
+  } = useCampaignProviders();
   const { logImageGeneration } = useImageGenerationLog();
-  const styleCost = computed(
-    () => wholeCredits(costOfCredits("map_style_generation") * mapImageMultiplierFor(imageProviderKey.value)),
-  );
+  /** Null while the provider is unknown; the modal's `requireCredits` refuses it. */
+  const styleCost = computed(() => imageCredits(costOfCredits("map_style_generation")));
   const showStylePicker = ref(false);
   const showStyleResult = ref(false);
   const selectedPresetId = ref("playable");
@@ -210,12 +207,17 @@ export function useMapExport(opts: {
       styleError.value = "Choose a campaign before styling a map.";
       return;
     }
+    const provider = resolvedImageProvider.value;
+    if (!provider) {
+      styleError.value = "AI images aren't available right now. Try again in a moment.";
+      return;
+    }
     styleGenerating.value = true;
     startAiQuotes("map");
     try {
       const target = fixedTarget.value;
       const { blob: pngBlob, geometry, size } =
-        await bakeAiStyleInput(map, opts.runtimes(), target?.picture ?? null, opts.glyphs(), imageProviderKey.value);
+        await bakeAiStyleInput(map, opts.runtimes(), target?.picture ?? null, opts.glyphs(), provider);
       const image_b64 = await blobToBase64(pngBlob);
 
       const { data, error } = await supabase.functions.invoke<StyleMapResponse>("style-map", {

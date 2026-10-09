@@ -49,12 +49,6 @@ export const useCampaignStore = defineStore("campaign", () => {
     gemini:    decryptedGeminiKey,
   };
 
-  // Backward-compat computed used by generator panels to gate the AI button
-  const decryptedApiKey = computed<string>(() => {
-    const provider = activeCampaign.value?.text_provider ?? "openai";
-    return providerKeyRefs[provider]?.value ?? decryptedOpenAiKey.value;
-  });
-
   watch(activeCampaignId, (id) => {
     if (id) localStorage.setItem(STORAGE_KEY, id);
     else localStorage.removeItem(STORAGE_KEY);
@@ -315,7 +309,6 @@ export const useCampaignStore = defineStore("campaign", () => {
     activeCampaignId,
     activeCampaign,
     activeRuleset,
-    decryptedApiKey,
     isAiEnabled,
     decryptedOpenAiKey,
     decryptedAnthropicKey,

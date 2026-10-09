@@ -314,7 +314,6 @@ const artTab = ref<NpcArtTab>(
   props.npc?.disguise_name || props.npc?.disguise_portrait_url ? 'alter-ego' : 'true-form'
 )
 
-const aiApiKey = computed(() => campaign.decryptedApiKey)
 const isAiEnabled = computed(() => campaign.isAiEnabled)
 
 function onAiGenerated(result: NpcAiGenerated) {
@@ -780,7 +779,6 @@ const { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded } = useCopyEntity
 defineExpose({
   isSaving,
   isSendingToScriptorium,
-  aiApiKey,
   isAiEnabled,
   showGenerateDialog,
   form,

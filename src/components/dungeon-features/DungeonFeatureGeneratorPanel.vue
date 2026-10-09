@@ -51,11 +51,10 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useDungeonFeatureGeneration } from "@/ai/useDungeonFeatureGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TRIGGERS } from "@/types/dungeonFeature.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui       = useUiStore();
 const router   = useRouter();
@@ -69,24 +68,25 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { canSpend } = useGenerationGate();
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
+const { textCredits, textIsByok, imageCredits, imageIsByok } = useCampaignProviders();
 
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok   = computed(() => !!campaign.decryptedApiKey);
-const imageIsByok  = computed(() => !!campaign.decryptedOpenAiKey);
 const fullyByok    = computed(() => textIsByok.value && (!generateImage.value || imageIsByok.value));
 
 const concept       = ref("");
 const constraints   = reactive({ feature_type: "", trigger_type: "" });
 const generateImage = ref(true);
 
-const effectiveCreditCost = computed(() => {
+// Null while any part that will be charged has no known price yet.
+const effectiveCreditCost = computed<number | null>(() => {
   let cost = textIsByok.value
     ? 0
-    : wholeCredits(costOf("feature_generation") * textMultiplierFor(textProvider.value));
+    : textCredits(costOf("feature_generation"));
+  if (cost === null) return null;
   // The illustration is a separate entity_image charge (portrait size, 1.5x).
   if (generateImage.value && !imageIsByok.value) {
-    cost += wholeCredits(costOf("entity_image", { size: "1024x1536" }) * imageMultiplierFor("openai"));
+    const image = imageCredits(costOf("entity_image", { size: "1024x1536" }));
+    if (image === null) return null;
+    cost += image;
   }
   return cost;
 });

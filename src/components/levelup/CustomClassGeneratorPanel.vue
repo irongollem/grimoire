@@ -84,13 +84,12 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
 import { useCreateCustomClass } from "@/composables/rules/useCustomClasses";
 import { useCreateFeature, useDeleteFeature } from "@/composables/rules/useFeatures";
@@ -106,11 +105,9 @@ import {
 } from "@/lib/codex/classAi";
 import { createWithFeatures } from "@/lib/codex/featureBatch";
 import type { HitDie } from "@/levelup/customTypes";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui = useUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 const toast = useToast();
 
 const { mutateAsync: createClass } = useCreateCustomClass();
@@ -120,11 +117,9 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("custom_class_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("custom_class_generation")),
 );
 
 const concept = ref("");

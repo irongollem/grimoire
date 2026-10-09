@@ -21,7 +21,7 @@ import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { callText, type TextResult } from "../_shared/textGen.ts";
+import { callText, resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 // Entity portraits always render portrait-orientation.
@@ -109,9 +109,19 @@ serve(withCors(async (req: Request) => {
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
-  const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
-  const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
-  const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
+
+  const text = resolveTextProvider({
+    chosen: campaign.text_provider,
+    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
+    platformKeys,
+    providerConfigs,
+  });
+  if (!text) {
+    return new Response(
+      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
+      { status: 422, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   // Resolve the campaign's chosen image provider (openai / gemini).
   const img = resolveImageProvider({
@@ -151,18 +161,14 @@ serve(withCors(async (req: Request) => {
     INJECTION_GUARD_SUFFIX;
   const userContent = wrapUserInput(context);
 
-  const textProvider = campaign.text_provider ?? "openai";
-  const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
-
   let textResult: TextResult;
   try {
     textResult = await callText({
-      provider: textProvider,
-      keys: { openai: openaiKey, anthropic: anthropicKey, gemini: geminiKey },
-      model: textModel,
+      text,
+      model: text.config?.text_model,
       system: systemContent,
       user: userContent,
-      maxTokens: textProvider === "anthropic" && anthropicKey ? 1024 : undefined,
+      maxTokens: text.provider === "anthropic" ? 1024 : undefined,
       outputFormat: "text",
     });
   } catch (e) {

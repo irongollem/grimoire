@@ -353,6 +353,7 @@ async function handleStylize(
   const img = resolveImageProvider({
     imageProvider: providerChoice,
     campaignKeys: {}, // deliberately empty — never honor a campaign's stored key (no BYOK path)
+    pinned: true, // reference-image forging needs this provider's capability, so the image_enabled switch does not apply
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
   });

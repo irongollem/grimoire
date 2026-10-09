@@ -34,13 +34,14 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return mocks.aiEnabled.value; },
     activeCampaign: { text_provider: "openai" },
-    decryptedApiKey: null,
   }),
 }));
 vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: mocks.canSpend, gateQuotaError: () => false }) }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 3 }) }));
-vi.mock("@/composables/ai/useProviderConfig", () => ({ useProviderConfig: () => ({ textMultiplierFor: () => 1 }) }));
+vi.mock("@/composables/ai/useCampaignProviders", () => ({
+  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
+}));
 vi.mock("@/ai/useRoomFill", () => ({
   useRoomFill: () => ({ isGenerating: ref(false), error: ref(null), clearError: vi.fn(), fill: mocks.fill }),
 }));

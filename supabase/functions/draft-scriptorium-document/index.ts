@@ -21,7 +21,7 @@ import {
 } from "../_shared/ai-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
-import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
+import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import {
@@ -321,9 +321,6 @@ serve(withCors(async (req: Request) => {
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
-  const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
-  const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
-  const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
 
   const systemContent = promptRow.content +
     (rulesetContext ? `\n\n${rulesetContext}` : "") +
@@ -340,14 +337,19 @@ serve(withCors(async (req: Request) => {
     return jsonError(500, "Could not read the campaign data");
   }
 
-  const textProvider = campaign.text_provider ?? "openai";
-  const textIsByok = textProvider === "anthropic" ? !!campaignAnthropic
-    : textProvider === "gemini"    ? !!campaignGemini
-    : !!campaignOpenai;
+  // The platform picks the model: a campaign on credits runs on the provider the
+  // admin enabled, and campaigns.text_provider only counts with the campaign's own key.
+  const text = resolveTextProvider({
+    chosen: campaign.text_provider,
+    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
+    platformKeys,
+    providerConfigs,
+  });
+  if (!text) return jsonError(422, NO_TEXT_PROVIDER_MESSAGE);
 
-  const baseCost = textIsByok ? 0 : await fetchCreditCost(admin, REASON);
+  const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, REASON);
   const cost = wholeCredits(
-    applyMultiplier(baseCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier),
+    applyMultiplier(baseCost, text.textMultiplier),
   );
 
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
@@ -364,13 +366,12 @@ serve(withCors(async (req: Request) => {
     contextBlock,
   );
 
-  const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
+  const textModel = text.config?.text_model;
 
   let textResult: TextResult;
   try {
     textResult = await callText({
-      provider: textProvider,
-      keys: { openai: openaiKey, anthropic: anthropicKey, gemini: geminiKey },
+      text,
       model: textModel,
       system: systemContent,
       user: userContent,
@@ -378,9 +379,6 @@ serve(withCors(async (req: Request) => {
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
-    if (e instanceof MissingTextKeyError) {
-      return new Response("No OpenAI API key configured", { status: 422 });
-    }
     console.error("Scriptorium draft text generation failed:", e);
     return jsonError(502, e instanceof Error ? e.message : "Text generation failed");
   }
@@ -392,7 +390,7 @@ serve(withCors(async (req: Request) => {
   }
 
   await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, REASON, textIsByok, cost, {
+  await recordGeneration(admin, user.id, REASON, text.isByok, cost, {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });

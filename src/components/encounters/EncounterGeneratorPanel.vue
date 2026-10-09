@@ -156,7 +156,6 @@ const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckCircle, IconWarning } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import { useCreateEncounter } from "@/composables/encounters/useEncounters";
 import { useEncounterGeneration } from "@/ai/useEncounterGeneration";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -166,7 +165,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
@@ -179,7 +178,6 @@ import {
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { EncounterCombatantAiResult } from "@/ai/types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 type EncounterDifficultyOption = "auto" | "easy" | "medium" | "hard" | "deadly";
 
@@ -193,7 +191,6 @@ const DIFFICULTY_OPTIONS: { value: EncounterDifficultyOption; label: string }[] 
 
 const ui = useUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 
 const {
   isGenerating,
@@ -219,11 +216,9 @@ const { data: party } = useActiveParty();
 const { data: companions } = useCompanions();
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("encounter_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("encounter_generation")),
 );
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("encounters");

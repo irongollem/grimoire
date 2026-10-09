@@ -102,9 +102,9 @@ The **AI Assistant** tab configures in-app AI generation for this campaign, sepa
 3. On **Pro**, more options appear:
    - **Key Storage Mode**: check **Store keys locally on this device only** to keep API keys in this browser's storage instead of your account (they won't follow you to another device); leave it unchecked to store them encrypted in your account.
    - **API Keys · BYOK**: bring your own key for OpenAI and/or Google Gemini. Each field has a **Get key →** link to the provider's key page, and a **Clear**/**Undo** control once a key is on file. Bringing your own key means that provider bills you directly instead of spending Grimoire credits.
-   - **Active Providers**: separate pickers for **Text generation** and **Image generation**. Without a BYOK key, text generation runs on the fixed platform model and image generation offers whichever providers are currently enabled platform-side, with an estimated credit cost and rough speed shown per option.
+   - **Generation**: choose **Quick** or **Detailed** images, with the estimated credit cost per image. Which model writes and draws is Grimoire's choice and isn't shown; with your own keys for more than one provider, you also pick which key pays for text.
    - **Campaign Setting Prompt**: a free-text box describing your world's tone and visual style, included in every AI generation request for consistency. Click **Load [Setting] Defaults** to start from your chosen setting's built-in prompt.
-   - **Your AI Usage**: a running breakdown of credits spent per generation (platform-credit users only; BYOK calls are billed by your own provider and don't appear here).
+   - **Your AI Usage**: your total generations and credits spent (platform-credit users only; BYOK calls are billed by your own provider and don't appear here).
    - **Chronicler Promotion**: an opt-in checkbox allowing Grimoire to feature your campaign's AI-generated Chronicler scene images in its gallery or marketing. Off by default; your campaign name, notes, and player data are never shared either way.
 4. Click **Save**.
 

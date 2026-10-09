@@ -60,10 +60,10 @@ On the **AI Assistant** tab, Pro campaigns get two extra sections once AI is on:
 
 Enter a key for **OpenAI** or **Google Gemini** (each has a **Get key →** link to that provider's key page). A stored key can be **Clear**ed (falls back to platform credits) with an **Undo** available before you save. Leaving a field blank keeps whatever's already stored.
 
-Once at least one key is entered, the **Active Providers** section lets you choose, separately:
+The **Generation** section below the keys asks only what is yours to decide:
 
-- **Text generation**: used for NPCs, monsters, items, spells, and puzzles. Without a key, this is fixed to the platform's own model, billed in credits. With a key, pick which provider handles it.
-- **Image generation**: used for portraits and artwork. Shows the approximate credit cost and rendering speed for whichever provider is selected, even when you're not paying credits for it.
+- **Text**: Grimoire picks the model that writes NPCs, monsters, items, spells and the rest. With keys for more than one provider, choose which of your keys pays; with one key, that key is used.
+- **Images**: choose **Quick** or **Detailed** for portraits and artwork. The approximate credit cost per image is shown beneath, or "no credits charged" when your own key covers the choice.
 
 With any BYOK key active for a given kind of generation (text or image), that kind is billed to your own provider account: no credits are deducted for it.
 
@@ -77,7 +77,7 @@ With any BYOK key active for a given kind of generation (text or image), that ki
 Pro only, and only once the **AI Assistant** toggle is on:
 
 - **Campaign Setting Prompt**: free text describing your world's tone and visual style, included in every generation request so content stays consistent. A **Load … Defaults** button appears when your chosen setting has one.
-- **Your AI Usage**: a running total of credits spent per generation, shown for platform-credit campaigns (BYOK calls are billed by your provider, not tracked here).
+- **Your AI Usage**: your total generations and credits spent, shown for platform-credit campaigns (BYOK calls are billed by your provider, not tracked here).
 - **Chronicler Promotion**: an opt-in checkbox letting Grimoire feature your campaign's AI-generated Chronicler scene illustrations in its own gallery or marketing. Off by default; your campaign name, notes, and player data are never shared either way.
 
 ## What your players see
@@ -86,7 +86,7 @@ Nothing here: AI configuration is entirely DM-only. Players see the *results* (a
 
 ## Tips
 
-> If image generation is greyed out with "No provider available," a BYOK image key was cleared without a platform provider configured: enter a key or ask an admin to check the platform's image provider setup.
+> If the **Images** line reads "Image generation isn't available right now," no image option is currently offered on platform credits and you hold no key for one. Enter a key, or try again later.
 
 - Turning the **AI Assistant** toggle off is the fastest way to run a fully hand-authored campaign without generation buttons cluttering every screen, on any plan. Turn it back on and every **Generate with AI** button works again, billed to credits unless you've set up BYOK (Pro).
 - Switching between Local Mode and account-encrypted storage migrates your existing key automatically the next time you save: you won't be forced to re-enter it just because you toggled the checkbox.

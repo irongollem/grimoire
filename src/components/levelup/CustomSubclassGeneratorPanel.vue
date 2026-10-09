@@ -73,13 +73,12 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
 import { useCampaignCustomClasses, useCampaignSystemClasses } from "@/composables/rules/useCustomClasses";
 import { useCreateCustomSubclass } from "@/composables/rules/useCustomSubclasses";
@@ -87,11 +86,9 @@ import { useCreateFeature, useDeleteFeature } from "@/composables/rules/useFeatu
 import { useCustomSubclassGeneration } from "@/ai/useCustomSubclassGeneration";
 import { subclassWithFeatureIds, type SubclassDraft } from "@/lib/codex/subclassAi";
 import { createWithFeatures } from "@/lib/codex/featureBatch";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui = useUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 const toast = useToast();
 
 const { mutateAsync: createSubclass } = useCreateCustomSubclass();
@@ -118,11 +115,9 @@ const classOptions = computed(() =>
 
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("custom_subclass_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("custom_subclass_generation")),
 );
 
 const concept = ref("");

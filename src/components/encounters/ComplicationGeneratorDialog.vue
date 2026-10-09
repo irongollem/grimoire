@@ -216,10 +216,9 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { supabase } from "@/lib/supabase";
 import type { EncounterEvent } from "@/types/encounter.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const STEER_LIMIT = AI_PROMPT_LIMIT_SHORT;
 
@@ -283,11 +282,9 @@ const resolved = computed(() =>
 
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("complication_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("complication_generation")),
 );
 
 function handleClose() {

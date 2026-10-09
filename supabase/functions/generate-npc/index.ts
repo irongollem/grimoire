@@ -34,7 +34,7 @@ import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
+import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 const admin = createClient(
@@ -161,9 +161,6 @@ serve(withCors(async (req: Request) => {
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
-  const openaiKey = campaignOpenai ?? platformKeys.openai ?? null;
-  const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
-  const geminiKey = campaignGemini ?? platformKeys.gemini ?? null;
 
   // Resolve the campaign's chosen image provider (openai / gemini).
   const img = resolveImageProvider({
@@ -179,27 +176,31 @@ serve(withCors(async (req: Request) => {
     providerConfigs,
   });
 
-  // ── Determine provider + isByok before generating (needed for credit check) ──
-  const textProvider = campaign.text_provider ?? "openai";
-
-  const textIsByok =
-    textProvider === "anthropic"
-      ? !!campaignAnthropic
-      : textProvider === "gemini"
-        ? !!campaignGemini
-        : !!campaignOpenai;
+  // The platform decides the text model: a campaign on platform credits runs on
+  // whichever provider the admin enabled, and `campaign.text_provider` only counts
+  // when the campaign holds its own key for it. Refuse before anything is spent.
+  const text = resolveTextProvider({
+    chosen: campaign.text_provider,
+    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
+    platformKeys,
+    providerConfigs,
+  });
+  if (!text) {
+    return new Response(
+      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
+      { status: 422, headers: { "Content-Type": "application/json" } },
+    );
+  }
   const imageIsByok = img?.isByok ?? false;
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const [baseTextCost, basePortraitCost] = await Promise.all([
-    textIsByok ? Promise.resolve(0) : fetchCreditCost(admin, "npc_text"),
+    text.isByok ? Promise.resolve(0) : fetchCreditCost(admin, "npc_text"),
     imageIsByok || !shouldGenerateImage || !img
       ? Promise.resolve(0)
       : fetchCreditCost(admin, "portrait"),
   ]);
-  const textMultiplier =
-    providerConfigs[textProvider as keyof typeof providerConfigs]
-      ?.text_multiplier;
+  const textMultiplier = text.textMultiplier;
   // npcTextCost and portraitCostEach are each recorded as their own ledger row
   // (below) — portraitCostEach again per image via `* totalImageCount` — so
   // each is rounded up to a whole credit per unit, not as part of a summed total.
@@ -239,22 +240,17 @@ serve(withCors(async (req: Request) => {
     ? `${wrapUserInput(prompt)}\n\nThis NPC has a disguise identity — populate disguise_name and disguise_image_prompt.`
     : wrapUserInput(prompt);
 
-  const textModel =
-    providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
+  const textModel = text.config?.text_model;
 
   try {
     textResult = await callText({
-      provider: textProvider,
-      keys: { openai: openaiKey, anthropic: anthropicKey, gemini: geminiKey },
+      text,
       model: textModel,
       system: systemContent,
       user: userContent,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
-    if (e instanceof MissingTextKeyError) {
-      return new Response(e.message, { status: 422 });
-    }
     console.error("NPC text generation failed:", e);
     return new Response(
       JSON.stringify({ error: "Text generation failed" }),
@@ -388,7 +384,7 @@ serve(withCors(async (req: Request) => {
   // Release the hold first; the records below carry the real charge + analytics.
   await releaseCredits(admin, reservation.ids);
   const recordPromises: Promise<void>[] = [
-    recordGeneration(admin, user.id, "npc_text", textIsByok, npcTextCost, {
+    recordGeneration(admin, user.id, "npc_text", text.isByok, npcTextCost, {
       model: textResult.usage.model,
       provider: textResult.usage.provider,
       input_tokens: textResult.usage.input_tokens,

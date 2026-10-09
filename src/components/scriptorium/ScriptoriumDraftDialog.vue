@@ -122,7 +122,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useAllLocations } from "@/composables/locations/useLocations";
@@ -135,7 +135,6 @@ import { useScriptoriumDraft } from "@/ai/useScriptoriumDraft";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { htmlToScriptoriumJson } from "@/lib/scriptorium/documentContent";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 import type { DraftAudience, DraftKind, DraftSubjectType } from "@edge-shared/scriptoriumDraft.ts";
 
 const { open } = defineProps<{ open: boolean }>();
@@ -159,11 +158,9 @@ const { data: notes } = useNotes(whenOpen);
 const { data: sessions } = useCampaignSessions({ enabled: () => open });
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("scriptorium_draft") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("scriptorium_draft")),
 );
 
 const KIND_OPTIONS: ReadonlyArray<SegmentedOption<DraftKind>> = [

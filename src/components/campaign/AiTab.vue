@@ -70,7 +70,7 @@
       </div>
       <div class="p-4 flex flex-col gap-4">
         <p class="text-caption text-muted-foreground italic">
-          Bring your own key (BYOK): store keys for any providers you want to use, and your own provider bills you directly instead of spending credits. Choose which provider is active for text and image generation below.
+          Bring your own key (BYOK): your own provider bills you directly instead of spending credits.
         </p>
 
         <div v-for="p in providerDefs" :key="p.id" class="flex flex-col gap-1">
@@ -122,69 +122,50 @@
       </div>
     </div>
 
-    <!-- Provider Selection -->
+    <!-- Generation. Which model writes or draws is the platform's decision and
+         is never shown: text runs on whatever the admin enabled, and the DM is
+         asked only whether images should be quick or detailed. A DM holding
+         their own keys additionally says which key pays for text. -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="text-label-lg font-semibold text-muted-foreground">Active Providers</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Generation</span>
       </div>
       <div class="p-4 flex flex-col gap-4">
 
-        <!-- Text generation -->
-        <div class="flex flex-col gap-1">
-          <label class="text-label-lg text-muted-foreground">Text generation</label>
-          <p class="text-caption text-muted-foreground italic">Used for NPCs, monsters, items, spells, and puzzles.</p>
-          <!-- BYOK: picker based on entered keys -->
+        <div v-if="availableTextProviders.length > 0" class="flex flex-col gap-1">
+          <label class="text-label-lg text-muted-foreground">Text</label>
           <AppSelect
-            v-if="hasByokTextKey && availableTextProviders.length > 0"
+            v-if="availableTextProviders.length > 1"
             v-model="form.text_provider"
             tone="filled"
             size="body"
             weight="normal"
           >
-            <option v-for="o in availableTextProviders" :key="o.value" :value="o.value">{{ o.label }}</option>
+            <option v-for="o in availableTextProviders" :key="o.value" :value="o.value">Your {{ o.label }} key</option>
           </AppSelect>
-          <!-- Platform: the model the admin configured for this provider -->
-          <div v-else-if="!hasByokTextKey" class="field-input text-sm text-muted-foreground select-none">
-            {{ textProviderLabel(form.text_provider) }} · platform credits
-          </div>
-          <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
-            No provider selected
-          </div>
-          <p v-if="hasByokTextKey && availableTextProviders.length === 0" class="text-caption text-ink-caution  font-semibold">
-            ⚠ Enter an API key above to enable text generation.
-          </p>
-          <p v-else-if="hasByokTextKey" class="text-caption text-muted-foreground">
-            Your key · no credits charged
-          </p>
-          <p v-else-if="enabledTextProviders.length > 1" class="text-caption text-muted-foreground">
-            Quality tier available. Add an API key above to choose provider.
+          <p class="text-caption text-muted-foreground">
+            <template v-if="availableTextProviders.length === 1">Your {{ availableTextProviders[0].label }} key · </template>no credits charged
           </p>
         </div>
 
-        <!-- Image generation -->
         <div class="flex flex-col gap-1">
-          <label class="text-label-lg text-muted-foreground">Image generation</label>
-          <p class="text-caption text-muted-foreground italic">
-            Used for portrait and artwork generation.
-          </p>
-          <AppSelect
-            v-if="availableImageProviders.length > 0"
+          <label class="text-label-lg text-muted-foreground">Images</label>
+          <SegmentedControl
+            v-if="imageOptions.length > 1"
             v-model="form.image_provider"
-            tone="filled"
-            size="body"
-            weight="normal"
-          >
-            <option v-for="o in availableImageProviders" :key="o.value" :value="o.value">{{ o.label }} · {{ imageSpeed(o.value) }}</option>
-          </AppSelect>
-          <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
-            No provider available
-          </div>
-          <!-- Cost + speed for the chosen provider, so the trade-off is clear -->
-          <p class="text-caption text-muted-foreground">
-            <template v-if="!hasByokImageKey">≈ {{ selectedImageCredits }} credits / image</template>
-            <template v-else>Your key · no credits charged</template>
-            · {{ imageSpeed(selectedImageProvider) }} per image<span v-if="selectedImageProvider === 'gemini'"> (much faster than gpt-image)</span>
+            :options="imageOptions"
+            size="sm"
+            block
+          />
+          <p v-if="providerHasKey(form.image_provider)" class="text-caption text-muted-foreground">
+            Your key · no credits charged
           </p>
+          <template v-else-if="configLoaded">
+            <p v-if="imageOptions.length === 0" class="text-caption text-muted-foreground italic">
+              Image generation isn't available right now.
+            </p>
+            <p v-else class="text-caption text-muted-foreground">≈ {{ selectedImageCredits }} credits / image</p>
+          </template>
         </div>
 
       </div>
@@ -220,7 +201,7 @@
       v-if="!localModeEnabled"
       title="Your AI Usage"
       currency="credits"
-      subtitle="Credits spent per generation. BYOK calls (your own key) are billed by your provider, not here."
+      subtitle="Credits spent on generations. BYOK calls (your own key) are billed by your provider, not here."
     />
 
     <!-- Promotional consent -->
@@ -269,6 +250,8 @@ import { useSettingContent } from "@/composables/campaign/useSettingContent";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useChildAccount } from "@/composables/account/useChildAccount";
 import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/ai/useProviderConfig";
+import { IMAGE_SPEED_LABEL } from "@/composables/ai/useCampaignProviders";
+import { imageOffered } from "@edge-shared/providerChoice.ts";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { useAiAcknowledgements } from "@/composables/ai/useAiAcknowledgements";
@@ -280,6 +263,7 @@ import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 
 const { isPro } = useSubscription();
@@ -371,42 +355,22 @@ const { data: settingContent } = useSettingContent(() => campaign.activeCampaign
 const settingDefaultPrompt = computed(() => (settingContent.value ? settingContent.value.defaultAiPrompt : ""));
 const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
 
-const { enabledImageProviders, enabledTextProviders, imageMultiplierFor, textModelFor } = useProviderConfig();
+const { query: providerConfigQuery, rows: providerRows, imageMultiplierFor } = useProviderConfig();
+// Until provider_config arrives nothing is known about what the admin offers:
+// no "unavailable" notice, no price, and no correcting the DM's pick against
+// options that are only the keys they hold.
+const configLoaded = computed(() => providerConfigQuery.isSuccess.value);
 const { costOf } = useAiCredits();
 
-// Per-provider speed + a one-line characterisation, shown so the choice makes sense.
-const IMAGE_PROVIDER_INFO: Record<string, { speed: string }> = {
-  openai: { speed: "1–3 min" },
-  gemini: { speed: "~8–15 s" },
-};
-function imageSpeed(provider: string): string {
-  return IMAGE_PROVIDER_INFO[provider]?.speed ?? "speed varies";
-}
-const selectedImageProvider = computed(() => form.value.image_provider ?? "openai");
 // Representative price: one portrait-orientation image (entity_image × 1.5 × provider multiplier).
 const selectedImageCredits = computed(
-  () => wholeCredits(costOf("entity_image") * 1.5 * imageMultiplierFor(selectedImageProvider.value)),
+  () => wholeCredits(costOf("entity_image") * 1.5 * imageMultiplierFor(form.value.image_provider)),
 );
 
-// The model is read from provider_config, never written here: it is the same
-// row the edge functions call with, so the label cannot name a model the
-// server has stopped using.
-function textProviderLabel(provider: string): string {
-  const name  = PROVIDER_DISPLAY[provider] ?? provider;
-  const model = textModelFor(provider);
-  return model ? `${name} · ${model}` : name;
-}
-
-// BYOK provider options (shown when the user has entered their own keys)
-const BYOK_TEXT_OPTIONS = [
-  { value: "openai", keyProvider: "openai" },
-  { value: "gemini", keyProvider: "gemini" },
-] as const;
-
-const BYOK_IMAGE_OPTIONS = [
-  { value: "openai", label: "OpenAI · gpt-image",     keyProvider: "openai" },
-  { value: "gemini", label: "Google · Nano Banana",   keyProvider: "gemini" },
-] as const;
+// Providers a DM can hold their own key for, in the order the Text picker lists them.
+const BYOK_TEXT_PROVIDERS = ["openai", "gemini"] as const;
+// Quick first, then Detailed.
+const IMAGE_CHOICE_ORDER = ["gemini", "openai"] as const;
 
 function providerHasKey(providerId: string): boolean {
   if (form.value.keys[providerId].trim()) return true;
@@ -432,35 +396,42 @@ function providerHasKeyStored(providerId: string): boolean {
   return !!(c?.[p.dbField as keyof typeof c] as string | null);
 }
 
-const hasByokTextKey  = computed(() => BYOK_TEXT_OPTIONS.some((o) => providerHasKey(o.keyProvider)));
-const hasByokImageKey = computed(() => BYOK_IMAGE_OPTIONS.some((o) => providerHasKey(o.keyProvider)));
-
-const availableTextProviders  = computed(() =>
-  BYOK_TEXT_OPTIONS
-    .filter((o) => providerHasKey(o.keyProvider))
-    .map((o) => ({ value: o.value, label: textProviderLabel(o.value) })),
+const availableTextProviders = computed(() =>
+  BYOK_TEXT_PROVIDERS
+    .filter((p) => providerHasKey(p))
+    .map((p) => ({ value: p, label: PROVIDER_DISPLAY[p] ?? p })),
 );
-// For BYOK: filter by key. For platform users: use enabled providers from DB config.
-const availableImageProviders = computed(() =>
-  hasByokImageKey.value
-    ? BYOK_IMAGE_OPTIONS.filter((o) => providerHasKey(o.keyProvider))
-    : enabledImageProviders.value.map((r) => ({
-        value: r.provider,
-        label: PROVIDER_DISPLAY[r.provider] ?? r.provider,
-      })),
+// A choice is open when the admin offers it on platform credits or the DM holds
+// its key: chooseImageProvider (_shared/providerChoice.ts) honours exactly
+// those, by the same `imageOffered` rule.
+const imageOptions = computed(() =>
+  IMAGE_CHOICE_ORDER
+    .filter((p) => providerHasKey(p) || imageOffered(providerRows.value.find((r) => r.provider === p)))
+    .map((p) => ({ value: p, label: IMAGE_SPEED_LABEL[p] })),
 );
 
-// Auto-correct selection if the chosen provider loses its key
-watch(availableTextProviders, (options) => {
-  if (hasByokTextKey.value && options.length > 0 && !options.some((o) => o.value === form.value.text_provider)) {
-    form.value.text_provider = options[0].value;
-  }
-});
-watch(availableImageProviders, (options) => {
-  if (options.length > 0 && !options.some((o) => o.value === form.value.image_provider)) {
-    form.value.image_provider = options[0].value;
-  }
-});
+// Keep each pick on an option that exists, including one stored that way (a
+// null or stale text_provider while the DM holds a single other key), so the
+// form shows and saves what chooseTextProvider will actually run. Watching the
+// form value too re-applies it after the campaign watcher below resets the form.
+watch(
+  [availableTextProviders, () => form.value.text_provider],
+  ([options, chosen]) => {
+    if (options.length > 0 && !options.some((o) => o.value === chosen)) {
+      form.value.text_provider = options[0].value;
+    }
+  },
+  { immediate: true },
+);
+watch(
+  [imageOptions, () => form.value.image_provider, configLoaded],
+  ([options, chosen, loaded]) => {
+    if (loaded && options.length > 0 && !options.some((o) => o.value === chosen)) {
+      form.value.image_provider = options[0].value;
+    }
+  },
+  { immediate: true },
+);
 
 watch(
   () => campaign.activeCampaign,

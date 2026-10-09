@@ -31,16 +31,14 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconGenerate } from "@/lib/icons";
-import { useCampaignStore } from "@/stores/campaign";
 import { useConfirm } from "@/composables/useConfirm";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useQuestBeatFill, type QuestBeatFilled } from "@/ai/useQuestBeatFill";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import type { BeatFillContext } from "@/lib/quests/beatFill";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
@@ -53,17 +51,14 @@ const { questId, context, hasText } = defineProps<{
 }>();
 const emit = defineEmits<{ filled: [result: QuestBeatFilled & { overwrite: boolean }] }>();
 
-const campaign = useCampaignStore();
 const { confirm } = useConfirm();
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
+const { textCredits, textIsByok: isByok } = useCampaignProviders();
 const { isGenerating, error, generate } = useQuestBeatFill();
 
 const steer = ref("");
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const isByok = computed(() => !!campaign.decryptedApiKey);
-const creditCost = computed(() => wholeCredits(costOf("quest_beat_generation") * textMultiplierFor(textProvider.value)));
+const creditCost = computed(() => textCredits(costOf("quest_beat_generation")));
 
 async function run() {
   if (isGenerating.value) return;

@@ -168,10 +168,9 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { useNotes } from "@/composables/notes/useNotes";
 import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
-import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -181,7 +180,6 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import TagInput from "@/components/common/TagInput.vue";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const TONES = CHRONICLER_TONES;
 
@@ -230,14 +228,11 @@ const { isGenerating, generate: generateChronicle } = useChroniclerTextGeneratio
 const { mentionItems, partyMembers, npcs, monsterIndex, locations, factions } = useEntityMentionItems();
 const { data: notes } = useNotes();
 
-const campaign = useCampaignStore();
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("chronicle_text") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("chronicle_text")),
 );
 
 /**

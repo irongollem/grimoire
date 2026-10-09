@@ -48,10 +48,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
+import { ref, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -59,12 +58,12 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useMonsterGenerationCost } from "@/composables/monsters/useMonsterGenerationCost";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useMonsterGeneration } from "@/ai/useMonsterGeneration";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 
 const ui = useUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 const { generateAndCreateMonster } = useGenerateMonster();
 // `isGenerating`/`completedEntityId`/`concept` are the shared generation
 // state `useGenerateMonster` drives underneath — this panel still reads them
@@ -75,7 +74,7 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("monsters");
 
 const { credits: textCreditCost } = useMonsterGenerationCost();
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textIsByok } = useCampaignProviders();
 
 const concept = ref("");
 const constraints = reactive({ challenge_rating: "", monster_type: "", size: "" });

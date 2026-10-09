@@ -48,8 +48,7 @@ import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { usePuzzleGeneration } from "@/ai/usePuzzleGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
@@ -63,11 +62,9 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("puzzle_rooms");
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("puzzle_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("puzzle_generation")),
 );
 
 const concept       = ref("");

@@ -397,6 +397,7 @@ serve(withCors(async (req: Request) => {
   const img = resolveImageProvider({
     imageProvider: "openai",
     campaignKeys: {}, // deliberately empty — no BYOK path for dolls, see file doc
+    pinned: true, // the sheet needs OpenAI's edit endpoint: a capability, not the campaign's Quick/Detailed choice
     platformKeys: { openai: platformKeys.openai },
     providerConfigs,
   });

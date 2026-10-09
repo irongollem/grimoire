@@ -102,7 +102,7 @@ const BASE_COPY: Record<"ai_use" | "likeness", { title: string; intro: string; b
     intro: "This campaign is about to start using AI-generated content. A few things worth knowing:",
     bullets: [
       "Drafts can be inaccurate, generic, or resemble existing published works. Always review before using them.",
-      "Your prompts and relevant campaign context are sent to a third-party AI provider (OpenAI, Anthropic, or Google, whichever this campaign is set to use).",
+      "Your prompts and relevant campaign context are sent to a third-party AI provider (OpenAI, Anthropic, or Google, whichever Grimoire uses for that generation).",
       "Generated content carries an invisible AI marker, as required by EU law.",
     ],
   },

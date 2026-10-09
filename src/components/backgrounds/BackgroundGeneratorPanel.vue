@@ -31,7 +31,6 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useCreateBackground } from "@/composables/rules/useBackgrounds";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -39,14 +38,12 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useBackgroundGeneration } from "@/ai/useBackgroundGeneration";
 import { SKILLS } from "@/types/party.types";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const ui = useUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 const toast = useToast();
 const { mutateAsync: createBackground } = useCreateBackground();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useBackgroundGeneration();
@@ -54,11 +51,9 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { canSpend } = useGenerationGate();
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("background_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("background_generation")),
 );
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;

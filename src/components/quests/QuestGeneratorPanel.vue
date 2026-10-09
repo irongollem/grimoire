@@ -250,8 +250,7 @@ import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { resolveGeneratedEntities, type ResolvedEntity, ENTITY_KIND_ROUTE } from "@/ai/resolveGeneratedEntities";
 import { describeSpineRoutes, planSpineBeats } from "@/lib/quests/spine";
 import { useToast } from "@/composables/useToast";
@@ -317,11 +316,9 @@ function goToEntity(entity: ResolvedEntity) {
 }
 
 const { costOf } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const { textCredits, textIsByok } = useCampaignProviders();
 const textCreditCost = computed(
-  () => wholeCredits(costOf("quest_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("quest_generation")),
 );
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("quests");

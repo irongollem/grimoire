@@ -94,8 +94,7 @@ import { IconGenerate, IconQuote, IconRefresh } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useNpcVoiceCoach } from "@/ai/useNpcVoiceCoach";
 import AppButton from "@/components/common/AppButton.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
@@ -109,17 +108,15 @@ const SITUATION_LIMIT = AI_PROMPT_LIMIT_SHORT;
 const campaign = useCampaignStore();
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textMultiplierFor } = useProviderConfig();
+const { textCredits, textIsByok } = useCampaignProviders();
 
 const situation = ref("");
 
 const { isGenerating, error, lines, suggest, clear } = useNpcVoiceCoach();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
-const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
-  () => wholeCredits(costOf("npc_voice_generation") * textMultiplierFor(textProvider.value)),
+  () => textCredits(costOf("npc_voice_generation")),
 );
 
 async function runSuggest() {
