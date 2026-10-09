@@ -3,6 +3,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { createAuthAwareFetch } from "./authAwareFetch";
 import { authStorageKey, readPersistedSession } from "./persistedSession";
 import { withRequestDeadline } from "./requestDeadline";
+import { TAB_ID } from "./tabId";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -82,6 +83,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storageKey: AUTH_STORAGE_KEY,
   },
   global: {
+    // Lets the campaign doorbell tell this tab its own rings apart (tabId.ts).
+    headers: { "x-grimoire-tab": TAB_ID },
     fetch: createAuthAwareFetch(
       // A request frozen by iOS never answers; see requestDeadline.ts.
       withRequestDeadline((input, init) => globalThis.fetch(input, init)),

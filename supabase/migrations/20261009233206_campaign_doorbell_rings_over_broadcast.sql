@@ -1,0 +1,220 @@
+-- The campaign doorbell rings over Realtime Broadcast, and nothing subscribes to
+-- postgres_changes any more (#999 4.2).
+--
+-- The 9 Oct 2026 re-baseline found Realtime's postgres_changes poller at 91% of
+-- all database execution time: about 1.3 calls a second to realtime.list_changes,
+-- each decoding the whole WAL stream and checking every change against every
+-- subscriber's RLS, whatever changed. It is a fixed loop, not driven by how much
+-- is live (the 42 published tables saw ~1k writes in the same 46 h). Broadcast
+-- from the database is read by a streaming replication connection instead
+-- (supabase_realtime_messages_replication_slot), with no SQL polling; Supabase
+-- calls it the recommended method for scalability and security.
+--
+-- So the doorbell is the only route. A change rings its campaign once per
+-- transaction (private.ring_campaigns, unchanged in shape), and at commit
+-- private.send_campaign_rings sends one Broadcast message per (campaign, signal)
+-- on the private topic `campaign:<id>`: {"table": <signal>, "origin": <tab id>}.
+-- It carries what changed, never a row (the "thin event" / notify-then-fetch
+-- pattern): every client refetches through its own RLS, so a player is told
+-- that something changed and only ever reads what they may see.
+--
+-- `origin` is the `x-grimoire-tab` header the client sends with every request
+-- (one id per browser tab). A tab ignores its own rings: its save already
+-- refreshed what it changed, and a refetch of a record mid-autosave is exactly
+-- what the old PLAYER_ONLY_SIGNALS existed to avoid. A write from a definer
+-- path or an Edge Function has no header, so every tab refreshes.
+
+-- ── 1. Who may hear a topic ─────────────────────────────────────────────────
+
+-- Total: false for anything but `campaign:<uuid>` of a campaign the caller is a
+-- member of, never NULL (CLAUDE.md, authorization predicates).
+create function private.can_hear_realtime_topic(p_topic text)
+returns boolean
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select coalesce(
+    case
+      when p_topic ~ '^campaign:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        then private.is_campaign_member(substring(p_topic from 10)::uuid)
+    end,
+    false);
+$$;
+revoke execute on function private.can_hear_realtime_topic(text) from public, anon;
+grant execute on function private.can_hear_realtime_topic(text) to authenticated, service_role;
+
+-- Join authorization for private Broadcast channels. Clients only listen: there
+-- is no insert policy, so no client can ring a campaign.
+create policy "realtime_messages_select" on realtime.messages
+  for select to authenticated
+  using (extension = 'broadcast' and private.can_hear_realtime_topic((select realtime.topic())));
+
+-- ── 2. A ring remembers which tab caused it ─────────────────────────────────
+
+alter table private.campaign_sync_pending add column origin text;
+
+create or replace function private.ring_campaigns(p_campaign_ids uuid[], p_signal text)
+returns void
+language plpgsql
+security invoker
+set search_path to ''
+as $function$
+declare
+  v_origin text;
+begin
+  -- A campaign being copied (the demo) has nobody listening yet, and the copy
+  -- inserts row by row, so a statement-level doorbell would fire once per row
+  -- (20261005104317).
+  if current_setting('grimoire.copying_campaign', true) = 'on' then
+    return;
+  end if;
+  -- The tab that made this request (see the header). Anything that is not a
+  -- short token is ignored rather than echoed into every member's socket.
+  v_origin := nullif(current_setting('request.headers', true), '')::jsonb ->> 'x-grimoire-tab';
+  if v_origin !~ '^[A-Za-z0-9_-]{1,64}$' then
+    v_origin := null;
+  end if;
+  insert into private.campaign_sync_pending (campaign_id, changed_table, origin)
+  select distinct r.id, p_signal, v_origin
+    from unnest(p_campaign_ids) as r(id)
+   where r.id is not null
+     and not exists (
+       select 1
+         from private.campaign_sync_pending q
+        where q.txid = pg_current_xact_id()
+          and q.campaign_id = r.id
+          and q.changed_table = p_signal
+     );
+end;
+$function$;
+
+-- ── 3. The commit-time flush sends Broadcast messages ───────────────────────
+
+drop trigger campaign_sync_pending_flush on private.campaign_sync_pending;
+drop function private.flush_campaign_sync();
+
+create function private.send_campaign_rings()
+returns trigger
+language plpgsql
+security definer
+set search_path to ''
+as $function$
+declare
+  ring record;
+begin
+  -- Fires once per queued row, at commit. The first firing drains the whole
+  -- transaction's queue, so the rest find it empty.
+  for ring in
+    with drained as (
+      delete from private.campaign_sync_pending
+       where txid = pg_current_xact_id()
+      returning id, campaign_id, changed_table, origin
+    )
+    select d.campaign_id, d.changed_table, min(d.origin) as origin, min(d.id) as first_rung
+      from drained d
+     -- A campaign deleted later in the same transaction has nobody listening.
+     where exists (select 1 from public.campaigns p where p.id = d.campaign_id)
+     group by d.campaign_id, d.changed_table
+     -- Within one campaign, each distinct signal is sent in the order it first
+     -- rang: every one is a separate change, and a client refreshes what each names.
+     order by d.campaign_id, first_rung
+  loop
+    -- realtime.send swallows its own errors as a warning, so a ring can never
+    -- fail the write that rang it.
+    perform realtime.send(
+      jsonb_build_object('table', ring.changed_table, 'origin', ring.origin),
+      'ring',
+      'campaign:' || ring.campaign_id,
+      true);
+  end loop;
+  return null;
+end;
+$function$;
+revoke execute on function private.send_campaign_rings() from public, anon, authenticated;
+
+create constraint trigger campaign_sync_pending_send
+  after insert on private.campaign_sync_pending
+  deferrable initially deferred
+  for each row execute procedure private.send_campaign_rings();
+
+-- ── 4. The doorbell table goes ──────────────────────────────────────────────
+
+delete from private.demo_campaign_tables where table_name = 'campaign_sync';
+drop table public.campaign_sync;
+
+-- ── 5. Every live table rings on insert, update and delete ──────────────────
+
+-- These reached clients as postgres_changes row payloads, so most rang only on
+-- delete (a campaign-filtered DELETE never arrived). The signal is the table's
+-- own name; the client's SIGNAL_KEYS maps it to every query that reads it.
+do $$
+declare
+  t text;
+  ev text;
+begin
+  foreach t in array array[
+    'calendar_events', 'campaign_members', 'campaign_messages', 'campaign_rules',
+    'character_content_reviews', 'character_memorials', 'class_option_texts',
+    'companions', 'deities', 'discovered_monsters', 'dm_note_touches',
+    'downtime_deck_backs', 'downtime_draws', 'downtime_grants', 'downtime_outcomes',
+    'encounter_state', 'item_entries', 'items', 'loot_placements', 'memorial_mourners',
+    'minis', 'npc_inventory', 'pantheons', 'party_inventory', 'party_members',
+    'party_milestones', 'player_journal_entries', 'puzzle_rooms', 'session_availability',
+    'session_proposals', 'soundboard_broadcast'
+  ] loop
+    foreach ev in array array['insert', 'update', 'delete'] loop
+      -- Any ring already on this event counts, whatever its name
+      -- (loot_placements rings on delete as quest_beat_loot_signal_delete).
+      continue when exists (
+        select 1 from pg_trigger g
+         where g.tgrelid = format('public.%I', t)::regclass and not g.tgisinternal
+           and pg_get_triggerdef(g.oid) ~* ('after ' || ev || ' on ')
+           and g.tgfoid = 'public.signal_campaign_change()'::regprocedure);
+      execute format(
+        'create trigger %I after %s on public.%I referencing %s
+           for each statement execute function public.signal_campaign_change()',
+        t || '_signal_' || ev, ev, t,
+        case ev when 'update' then 'old table as left_rows new table as changed'
+                when 'insert' then 'new table as changed'
+                else 'old table as changed' end);
+    end loop;
+  end loop;
+end;
+$$;
+
+-- A campaign row is its own campaign: an edit (today's date, the party's place,
+-- the theme) rings `campaigns` on itself.
+create function private.signal_campaign_row_change()
+returns trigger
+language plpgsql
+security definer
+set search_path to ''
+as $function$
+begin
+  perform private.ring_campaigns(array(select c.id from changed c), 'campaigns');
+  return null;
+end;
+$function$;
+revoke execute on function private.signal_campaign_row_change() from public, anon, authenticated;
+
+create trigger campaigns_signal_update
+  after update on public.campaigns
+  referencing new table as changed
+  for each statement execute function private.signal_campaign_row_change();
+
+-- ── 6. Nothing is published for postgres_changes ────────────────────────────
+
+-- A client still on the previous build keeps its postgres_changes subscriptions
+-- until it reloads; they simply hear nothing. Once none is left, Realtime stops
+-- polling.
+do $$
+declare
+  r record;
+begin
+  for r in select schemaname, tablename from pg_publication_tables where pubname = 'supabase_realtime' loop
+    execute format('alter publication supabase_realtime drop table %I.%I', r.schemaname, r.tablename);
+  end loop;
+end;
+$$;
