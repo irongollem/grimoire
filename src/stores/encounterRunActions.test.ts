@@ -45,4 +45,30 @@ describe("runner limited abilities", () => {
     expect(store.lastRechargeEvents).toEqual([{ instanceId: "b", action: "Fire Breath", roll: 6, recharged: true }]);
     expect(store.combatants.find((c) => c.instance_id === "b")?.action_uses?.["Fire Breath"].used).toBe(0);
   });
+
+  it("clears the recharge lines on a turn that rolls none", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.01);
+    const store = useEncounterRunStore();
+    store.combatants = [monster("a", 20), monster("b", 5)];
+    store.started = true;
+    store.round = 1;
+    store.useAction("b", "Fire Breath", { recharge: { min: 5, max: 6 } });
+    store.nextTurn();
+    expect(store.lastRechargeEvents).toEqual([{ instanceId: "b", action: "Fire Breath", roll: 1, recharged: false }]);
+    store.nextTurn();
+    expect(store.lastRechargeEvents).toEqual([]);
+  });
+
+  it("restoreAction drops that instance's recharge line for the action", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.01);
+    const store = useEncounterRunStore();
+    store.combatants = [monster("a", 20), monster("b", 5)];
+    store.started = true;
+    store.round = 1;
+    store.useAction("b", "Fire Breath", { recharge: { min: 5, max: 6 } });
+    store.nextTurn();
+    expect(store.lastRechargeEvents).toHaveLength(1);
+    store.restoreAction("b", "Fire Breath");
+    expect(store.lastRechargeEvents).toEqual([]);
+  });
 });

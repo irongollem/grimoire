@@ -75,9 +75,9 @@ const actionSections = computed(() => {
   const sb = npc.stat_block;
   if (!sb) return [];
   return [
-    { label: "Special Abilities", entries: sb.special_abilities },
-    { label: "Actions", entries: sb.actions },
-    { label: "Legendary Actions", entries: sb.legendary_actions },
+    { label: "Special Abilities", list: "special_abilities" as const, entries: sb.special_abilities },
+    { label: "Actions", list: "actions" as const, entries: sb.actions },
+    { label: "Legendary Actions", list: "legendary_actions" as const, entries: sb.legendary_actions },
   ];
 });
 </script>

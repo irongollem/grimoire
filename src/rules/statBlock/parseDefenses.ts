@@ -109,7 +109,45 @@ function parseDamageField(raw: string | null | undefined, leftovers: string[]): 
   return groups;
 }
 
-/** Condition words in an immunity field -> SRD names; anything else is a leftover. */
+/** The SRD condition a piece of an immunity field names, if any. */
+function conditionIn(word: string): SrdConditionName | undefined {
+  // "paralysis" shares no stem with "paralyzed" past "paraly"; checked first so
+  // the stem table's order cannot hand it to another condition.
+  if (/^paralysis$/i.test(word)) return "Paralyzed";
+  return SRD_CONDITION_NAMES.find((n) => CONDITION_STEMS[n].test(word));
+}
+
+/**
+ * What a piece says beyond its condition word, once filler ("the poisoned
+ * condition") is gone. Non-empty means the immunity is qualified ("poisoned
+ * (while Assassinate is active)", "frightened while raging").
+ */
+function qualifierOf(word: string, name: SrdConditionName): string {
+  return word
+    .replace(new RegExp(`(?:${CONDITION_STEMS[name].source})[a-z]*`, "i"), " ")
+    .replace(/\bparalysis\b/i, " ")
+    .replace(/\b(the|conditions?)\b/gi, " ")
+    .replace(/[^a-z]+/gi, " ")
+    .trim();
+}
+
+/** Every word a bare condition ("prone poisoned"): those conditions; otherwise none. */
+function bareConditionRun(piece: string): SrdConditionName[] {
+  const names: SrdConditionName[] = [];
+  for (const word of piece.split(/\s+/)) {
+    const name = conditionIn(word);
+    if (name === undefined || qualifierOf(word, name) !== "") return [];
+    names.push(name);
+  }
+  return names;
+}
+
+/**
+ * Condition words in an immunity field -> SRD names; anything else is a leftover.
+ * A qualified immunity is a leftover too, kept whole as a note: the runner treats
+ * a typed condition immunity as absolute (a failed save never imposes it), which
+ * is wrong for one that holds only sometimes, and the qualifier must survive.
+ */
 function parseConditions(raw: string | null | undefined, leftovers: string[]): SrdConditionName[] {
   const text = cleanSource(raw);
   if (!text) return [];
@@ -117,12 +155,20 @@ function parseConditions(raw: string | null | undefined, leftovers: string[]): S
   for (const piece of text.split(/[;,]|\band\b/i)) {
     const word = piece.trim();
     if (!word) continue;
-    const name = SRD_CONDITION_NAMES.find((n) => CONDITION_STEMS[n].test(word) || /^paralysis$/i.test(word));
-    if (name === undefined) {
+    const name = conditionIn(word);
+    // A run of bare condition words with a comma missing ("prone poisoned") is
+    // each of them; anything else beside a condition word qualifies it.
+    const names =
+      name === undefined
+        ? []
+        : qualifierOf(word, name) === ""
+          ? [name]
+          : bareConditionRun(word);
+    if (names.length === 0) {
       leftovers.push(word);
-    } else if (!found.includes(name)) {
-      found.push(name);
+      continue;
     }
+    for (const n of names) if (!found.includes(n)) found.push(n);
   }
   return found;
 }

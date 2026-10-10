@@ -8,7 +8,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { attackRollMode, autoCritOnHit, resolveAttack as resolveAttackRoll } from "@/rules/combat/attackRoll";
 import { concentrationDc, resolveConcentration } from "@/rules/combat/concentration";
-import { halveDamage, resolveSaveAction } from "@/rules/combat/resolveAction";
+import { halveParts, resolveSaveAction } from "@/rules/combat/resolveAction";
 import { autoFailsSave, saveBonusFromStatBlock, saveRollMode } from "@/rules/combat/savingThrow";
 import { applyDefenses, damageRollsFor, type AppliedPart } from "@/rules/combat/typedDamage";
 import { getExhaustionD20Penalty, getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
@@ -333,7 +333,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
    * (`conBonus: null` is refused here: the UI rolls those at the table).
    */
   async function rollConcentration(
-    input: { target: RunCombatant; damage: number; dmMode?: RollMode } & RollOptions,
+    input: { target: RunCombatant; damage: number } & RollOptions,
   ): Promise<ConcentrationCheck | null> {
     const bonus = saveBonusFor(input.target, "con");
     if (bonus === null) throw new Error(`${input.target.name} has no stat block; roll their concentration save at the table`);
@@ -341,7 +341,6 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
       conditions: input.target.conditions,
       ability: "con",
       ruleset: ruleset.value,
-      dmMode: input.dmMode,
     });
     const penalty = getExhaustionD20Penalty(input.target.conditions, ruleset.value);
     const roll = await rollD20(`${input.target.name} concentration`, bonus + penalty, mode, input.target.name, input);
@@ -357,7 +356,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
    * with `bonus: null`; auto-fails come back failed without a die.
    */
   async function resolveSaves(
-    input: { entry: StatBlockEntry; targets: RunCombatant[]; dmMode?: RollMode } & RollOptions,
+    input: { entry: StatBlockEntry; targets: RunCombatant[] } & RollOptions,
   ): Promise<SaveTargetResult[]> {
     const save = input.entry.structured.save;
     if (!save) throw new Error(`"${input.entry.name}" has no structured saving throw`);
@@ -368,7 +367,6 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
         conditions: target.conditions,
         ability: save.ability,
         ruleset: ruleset.value,
-        dmMode: input.dmMode,
       });
       const base = { target, ability: save.ability, dc: save.dc, bonus, mode, reasons };
       const penalty = getExhaustionD20Penalty(target.conditions, ruleset.value);
@@ -444,7 +442,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
         share === "full"
           ? input.damageParts
           : share === "half"
-            ? input.damageParts.map((p) => ({ ...p, amount: halveDamage(p.amount) }))
+            ? halveParts(input.damageParts)
             : [];
       const damage =
         parts.length > 0 ? applyDamage({ target, parts, defenses, magical: input.magical }) : null;

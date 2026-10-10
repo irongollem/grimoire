@@ -9,7 +9,7 @@ import { isDeepStrictEqual } from "node:util";
 import { assertDemoKey, assertRemoteUrl, readLocalStack } from "../lib/dev-stack.ts";
 import { type ExpandStats, type ExtractedAction, contractBlocker, expandStatBlock, groupExtractions } from "./structureRows.ts";
 
-export const TABLES = ["library_monsters", "monsters", "npcs", "companions"] as const;
+export const TABLES = ["library_monsters", "monsters", "npcs", "companions", "hall_of_heroes"] as const;
 export type Table = (typeof TABLES)[number];
 
 /** PostgREST's page cap; a page of exactly this size may have a successor. */
@@ -65,7 +65,7 @@ export async function readRows(target: Target, table: Table): Promise<Row[]> {
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Updates one row by primary key, retrying transient failures. Returns false on a lasting failure. */
-async function writeRow(target: Target, table: Table, id: string, statBlock: unknown): Promise<boolean> {
+export async function writeRow(target: Target, table: Table, id: string, statBlock: unknown): Promise<boolean> {
   const url = `${target.origin}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`;
   for (let attempt = 0; attempt < RETRIES; attempt++) {
     try {
@@ -160,8 +160,13 @@ export interface BlockerCount {
   total: number;
   unstructured: number;
   textWithoutDefenses: number;
-  /** Rows still carrying any of the four old defense strings (0 once the contract migration has run). */
+  /** Rows still carrying any of the four old defense strings. */
   withLegacyStrings: number;
+  /**
+   * Rows that pass the contract rule yet still carry old strings. The contract
+   * migration strips every passing row, so any here means it has not run yet.
+   */
+  passingWithLegacyStrings: number;
 }
 
 const LEGACY_KEYS = ["damage_resistances", "damage_immunities", "damage_vulnerabilities", "condition_immunities"];
@@ -169,13 +174,41 @@ const LEGACY_KEYS = ["damage_resistances", "damage_immunities", "damage_vulnerab
 /** How many rows of a table the contract migration would refuse right now (`contractBlocker`). */
 export async function countBlockers(target: Target, table: Table): Promise<BlockerCount> {
   const rows = await readRows(target, table);
-  const count: BlockerCount = { total: rows.length, unstructured: 0, textWithoutDefenses: 0, withLegacyStrings: 0 };
+  const count: BlockerCount = { total: rows.length, unstructured: 0, textWithoutDefenses: 0, withLegacyStrings: 0, passingWithLegacyStrings: 0 };
   for (const row of rows) {
     const blocker = contractBlocker(row.stat_block);
     if (blocker === "unstructured") count.unstructured++;
     if (blocker === "text-without-defenses") count.textWithoutDefenses++;
     const block = row.stat_block;
-    if (typeof block === "object" && block !== null && LEGACY_KEYS.some((k) => k in block)) count.withLegacyStrings++;
+    if (typeof block === "object" && block !== null && LEGACY_KEYS.some((k) => k in block)) {
+      count.withLegacyStrings++;
+      if (blocker === null) count.passingWithLegacyStrings++;
+    }
   }
   return count;
+}
+
+/**
+ * Converts the rows the contract migration left alone (a monster the old client
+ * saved between the release's first step and the deploy): structured and without
+ * the old strings, as the migration made every other row. Only rows the contract
+ * rule flags are touched.
+ */
+export async function convertStragglers(
+  target: Target,
+  table: Table,
+  extractions: Map<string, Map<string, ExtractedAction>>,
+): Promise<{ found: number; written: number; failed: number }> {
+  const rows = await readRows(target, table);
+  const result = { found: 0, written: 0, failed: 0 };
+  for (const row of rows) {
+    if (contractBlocker(row.stat_block) === null) continue;
+    result.found++;
+    const { next } = expandStatBlock(row.stat_block, table === "library_monsters" ? extractions.get(row.id) : undefined, {
+      keepLegacyStrings: false,
+    });
+    if (await writeRow(target, table, row.id, next)) result.written++;
+    else result.failed++;
+  }
+  return result;
 }

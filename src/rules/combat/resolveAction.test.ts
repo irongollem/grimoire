@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AttackStructure, SaveStructure } from "@/types/statBlock.types";
-import { halveDamage, resolveAttackAction, resolveSaveAction } from "./resolveAction.ts";
+import { halveDamage, halveParts, resolveAttackAction, resolveSaveAction } from "./resolveAction.ts";
 
 const attack: AttackStructure = {
   delivery: "melee",
@@ -61,4 +61,25 @@ describe("resolveSaveAction", () => {
     const r = resolveSaveAction({ ...base, save: { ...save, ability: "wis" }, d20: 20, targetConditions: ["Stunned"] });
     expect(r.roll.success).toBe(true);
   });
+});
+
+describe("halveParts", () => {
+  const sum = (parts: Array<{ amount: number }>) => parts.reduce((n, p) => n + p.amount, 0);
+  it("7 fire + 7 poison halves to 7 in total, not 6", () => {
+    const out = halveParts([{ amount: 7, type: "fire" }, { amount: 7, type: "poison" }]);
+    expect(sum(out)).toBe(7);
+    expect(out.map((p) => p.type)).toEqual(["fire", "poison"]);
+  });
+  it("a single odd part rounds down", () => expect(halveParts([{ amount: 5, type: "fire" }])).toEqual([{ amount: 2, type: "fire" }]));
+  it("3+3+3 sums to 4, spare points to the earliest ties", () => {
+    const out = halveParts([{ amount: 3, type: "fire" }, { amount: 3, type: "cold" }, { amount: 3, type: null }]);
+    expect(out.map((p) => p.amount)).toEqual([2, 1, 1]);
+  });
+  it("keeps each part's type so a resisted half part is still resisted afterwards", () => {
+    const out = halveParts([{ amount: 7, type: "fire" }, { amount: 7, type: "cold" }]);
+    expect(out).toEqual([{ amount: 4, type: "fire" }, { amount: 3, type: "cold" }]);
+    // Resistance to fire then halves the 4 once more: 2 + 3 = 5.
+    expect(halveDamage(out[0].amount) + out[1].amount).toBe(5);
+  });
+  it("an even total loses nothing", () => expect(sum(halveParts([{ amount: 4, type: "fire" }, { amount: 6, type: "cold" }]))).toBe(5));
 });

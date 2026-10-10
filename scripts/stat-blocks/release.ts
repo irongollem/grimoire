@@ -14,11 +14,14 @@
  *        SAFE TO MERGE or DO NOT MERGE; merge the PR only after the first.
  *
  *   npm run stat-blocks:release -- after-merge
- *     1. Confirms the contract migration ran (no old strings left anywhere).
- *     2. Re-seeds the SRD library from Open5e (dry run first, then a typed
+ *     1. Confirms the contract migration ran (it strips the old strings from
+ *        every row that is safe to strip, so a passing row with strings left
+ *        means it has not).
+ *     2. Converts any straggler: a monster the old client saved between the
+ *        first stage and the deploy, which the migration left alone.
+ *     3. Re-seeds the SRD library from Open5e (dry run first, then a typed
  *        confirmation), which puts back the "(Costs 2 Actions)" Open5e strips
- *        from SRD legendary names.
- *     3. Confirms the SRD legendary costs are back.
+ *        from SRD legendary names, and confirms the costs are back.
  *
  * Counts only, never row content: user tables hold real accounts' rows.
  */
@@ -30,6 +33,7 @@ import {
   TABLES,
   type Table,
   type Target,
+  convertStragglers,
   countBlockers,
   loadExtractions,
   print,
@@ -61,17 +65,19 @@ async function blockersEverywhere(target: Target): Promise<Map<Table, BlockerCou
   return counts;
 }
 
-function printBlockers(counts: Map<Table, BlockerCount>): { blocked: number; legacy: number } {
+function printBlockers(counts: Map<Table, BlockerCount>): { blocked: number; legacy: number; notStripped: number } {
   let blocked = 0;
   let legacy = 0;
+  let notStripped = 0;
   for (const [table, c] of counts) {
     console.log(
       `  ${table.padEnd(18)} rows ${String(c.total).padStart(5)}   not structured ${c.unstructured}   text without defenses ${c.textWithoutDefenses}   still carrying old strings ${c.withLegacyStrings}`,
     );
     blocked += c.unstructured + c.textWithoutDefenses;
     legacy += c.withLegacyStrings;
+    notStripped += c.passingWithLegacyStrings;
   }
-  return { blocked, legacy };
+  return { blocked, legacy, notStripped };
 }
 
 async function beforeMerge(target: Target): Promise<number> {
@@ -129,10 +135,9 @@ function printNextSteps(): void {
   console.log(`
 Next:
   1. Merge the #1017 pull request now. Do NOT run the library seed before it is merged and deployed.
-  2. Wait for the release workflow to finish (it applies the migrations).
-     If its database job fails with "have no structured stat block yet", someone created a monster
-     in between: run this same command again, then re-run the failed job.
-  3. Then run:  npm run stat-blocks:release -- after-merge`);
+  2. Wait for the release workflow to finish (it applies the migrations and deploys the app).
+  3. Straight away run:  npm run stat-blocks:release -- after-merge
+     (a monster someone saves on the old app in between is converted there).`);
 }
 
 /** Legendary entries whose name carries a cost above 1, in the SRD rows. */
@@ -157,13 +162,36 @@ function runSeed(args: string[]): boolean {
 async function afterMerge(target: Target): Promise<number> {
   banner(`After the #1017 merge: ${new URL(target.origin).host}`);
   console.log("Checking the contract migration ran:");
-  const { blocked, legacy } = printBlockers(await blockersEverywhere(target));
-  if (legacy > 0 || blocked > 0) {
-    banner("NOT YET. The contract migration has not run (old strings are still there).");
+  const state = printBlockers(await blockersEverywhere(target));
+  if (state.notStripped > 0) {
+    banner("NOT YET. The contract migration has not run (rows it would strip still carry old strings).");
     console.log("Check that the PR is merged and the release workflow's database job is green, then run this again.");
     return 1;
   }
-  console.log("\nThe contract migration has run. Next: re-seed the SRD library from Open5e.");
+
+  if (state.blocked > 0) {
+    const go = await confirm(
+      `${state.blocked} stat block(s) were saved on the old app after the first stage, so the migration left them alone. They will be structured now, and their old strings dropped like everyone else's.`,
+      "convert stragglers",
+    );
+    if (!go) {
+      console.log("\nStopped. Those rows will not render in the new app until this runs. Run this command again.");
+      return 1;
+    }
+    const extractions = loadExtractions();
+    for (const table of TABLES) {
+      const r = await convertStragglers(target, table, extractions);
+      if (r.found > 0) console.log(`  ${table.padEnd(18)} found ${r.found}   converted ${r.written}   failed ${r.failed}`);
+    }
+    console.log("\nChecking again:");
+    const again = printBlockers(await blockersEverywhere(target));
+    if (again.blocked > 0 || again.legacy > 0) {
+      banner("STOP. Some rows are still not converted. Run this command again; if the count does not reach 0, tell Claude.");
+      return 1;
+    }
+  }
+
+  console.log("\nEvery stat block is converted. Next: re-seed the SRD library from Open5e.");
   console.log("First a dry run (fetches and maps, writes nothing):\n");
   if (!runSeed(["--dry-run"])) {
     banner("The dry run failed. Nothing was written. Tell Claude what it printed.");

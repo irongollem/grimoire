@@ -102,18 +102,16 @@ import type {
   SaveApplied,
   SaveTargetResult,
 } from "@/composables/encounters/useActionResolution";
-import type { RollMode } from "@/lib/dice/dice";
 import { targetCandidates } from "@/lib/encounters/actionTargeting";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { SaveStructure, StatBlockEntry } from "@/types/statBlock.types";
 
-const { attacker, entry, save, resolution, dmMode, silent } = defineProps<{
+const { attacker, entry, save, resolution, silent } = defineProps<{
   attacker: RunCombatant;
   entry: StatBlockEntry;
   save: SaveStructure;
   resolution: ActionResolution;
-  dmMode: RollMode;
   silent: boolean;
 }>();
 
@@ -147,7 +145,7 @@ async function rollSaves() {
   if (targets.length === 0 || rolling.value) return;
   rolling.value = true;
   try {
-    results.value = await resolution.resolveSaves({ entry, targets, dmMode, silent });
+    results.value = await resolution.resolveSaves({ entry, targets, silent });
     emit("first-roll");
   } finally {
     rolling.value = false;
@@ -201,7 +199,7 @@ function apply() {
 
 async function rollConcentration(a: SaveApplied) {
   if (!a.damage) return;
-  const check = await resolution.rollConcentration({ target: a.target, damage: a.damage.total, dmMode, silent });
+  const check = await resolution.rollConcentration({ target: a.target, damage: a.damage.total, silent });
   if (check) concentration[a.target.instance_id] = check;
 }
 </script>

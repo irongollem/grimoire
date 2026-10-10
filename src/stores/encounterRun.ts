@@ -142,7 +142,9 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         ? [{ instanceId: e.instanceId, action: e.action, roll: e.roll, recharged: e.type === "action_recharged" }]
         : [],
     );
-    if (recharges.length > 0) lastRechargeEvents.value = recharges;
+    // Exactly this turn's rolls: a turn that rolled none must clear the old lines,
+    // or "still spent" lingers for rounds. Other commands leave it alone.
+    if (command.type === "next_turn" || command.type === "reshuffle_initiative") lastRechargeEvents.value = recharges;
     for (const event of raised) {
       if (event.type === "player_persist") persistHandler?.(event.partyMemberId, event.patch);
       else if (event.type === "check_events") checkNow = true;
@@ -527,6 +529,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   /** DM override: the ability is available again. */
   function restoreAction(instanceId: string, action: string) {
     dispatch({ type: "restore_action", instanceId, action });
+    // The action is available again, so a "still spent" line for it is now false.
+    lastRechargeEvents.value = lastRechargeEvents.value.filter((e) => !(e.instanceId === instanceId && e.action === action));
   }
 
   function toggleReaction(instanceId: string) {

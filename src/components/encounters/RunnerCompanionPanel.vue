@@ -58,11 +58,11 @@ const actionSections = computed(() => {
   const sb = companion.stat_block;
   if (!sb) return [];
   return [
-    { label: "Special Abilities", entries: sb.special_abilities },
-    { label: "Actions", entries: sb.actions },
-    { label: "Bonus Actions", entries: sb.bonus_actions },
-    { label: "Reactions", entries: sb.reactions },
-    { label: "Legendary Actions", entries: sb.legendary_actions },
+    { label: "Special Abilities", list: "special_abilities" as const, entries: sb.special_abilities },
+    { label: "Actions", list: "actions" as const, entries: sb.actions },
+    { label: "Bonus Actions", list: "bonus_actions" as const, entries: sb.bonus_actions },
+    { label: "Reactions", list: "reactions" as const, entries: sb.reactions },
+    { label: "Legendary Actions", list: "legendary_actions" as const, entries: sb.legendary_actions },
   ];
 });
 </script>

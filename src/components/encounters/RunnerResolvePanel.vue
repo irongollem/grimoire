@@ -20,7 +20,6 @@
       :entry="entry"
       :save="save"
       :resolution="resolution"
-      :dm-mode="dmMode"
       :silent="silent"
       @first-roll="emit('first-roll')"
     />

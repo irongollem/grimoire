@@ -1,4 +1,4 @@
-import { combineModes, type RollMode } from "@/lib/dice/dice";
+import type { RollMode } from "@/lib/dice/dice";
 import { hasSaveDisadvantage } from "@/rules/conditions";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { SaveAbility } from "@/types/statBlock.types";
@@ -18,20 +18,20 @@ export function saveRollMode(input: {
   dmMode?: RollMode;
 }): { mode: RollMode; reasons: string[] } {
   const { conditions, ability, ruleset, dmMode } = input;
-  let mode: RollMode = "normal";
+  // Decide once over every source (any advantage with any disadvantage is a straight roll).
+  const hasAdvantage = dmMode === "advantage";
+  let hasDisadvantage = dmMode === "disadvantage";
   const reasons: string[] = [];
   if (hasSaveDisadvantage(conditions, ability, ruleset)) {
-    mode = combineModes(mode, "disadvantage");
+    hasDisadvantage = true;
     reasons.push(
       ability === "dex" && conditions.includes("Restrained")
         ? "Restrained on a Dexterity save"
         : "Exhaustion imposes disadvantage on saves",
     );
   }
-  if (dmMode && dmMode !== "normal") {
-    mode = combineModes(mode, dmMode);
-    reasons.push(`DM sets ${dmMode}`);
-  }
+  if (dmMode && dmMode !== "normal") reasons.push(`DM sets ${dmMode}`);
+  const mode: RollMode = hasAdvantage === hasDisadvantage ? "normal" : hasAdvantage ? "advantage" : "disadvantage";
   return { mode, reasons };
 }
 
@@ -50,12 +50,27 @@ export function resolveSave(input: {
   return { total, success: !input.autoFail && total >= input.dc };
 }
 
-/** "Con +5, Wis +3" -> { con: 5, wis: 3 }. Unreadable parts are skipped. */
-function parseSaveString(s: string): Record<string, number> {
-  const result: Record<string, number> = {};
+const SAVE_ABILITY_NAMES: Record<string, SaveAbility> = {
+  str: "str", strength: "str",
+  dex: "dex", dexterity: "dex",
+  con: "con", constitution: "con",
+  int: "int", intelligence: "int",
+  wis: "wis", wisdom: "wis",
+  cha: "cha", charisma: "cha",
+};
+
+/**
+ * "Con +5, Wis +3" -> { con: 5, wis: 3 }. Full names and abbreviations in any
+ * case, optional space before the sign, "-" or U+2212, and trailing text after
+ * a bonus ("Dex +3 (advantage vs. traps)") are all read. Unreadable parts are skipped.
+ */
+function parseSaveString(s: string): Partial<Record<SaveAbility, number>> {
+  const result: Partial<Record<SaveAbility, number>> = {};
   for (const part of s.split(",")) {
-    const m = part.trim().match(/^(\w+)\s+([+-]\d+)$/);
-    if (m) result[m[1].toLowerCase()] = Number(m[2]);
+    const m = part.trim().match(/^([a-z]+)\s*([+\-\u2212])\s*(\d+)/i);
+    if (!m) continue;
+    const ability = SAVE_ABILITY_NAMES[m[1].toLowerCase()];
+    if (ability) result[ability] = (m[2] === "+" ? 1 : -1) * Number(m[3]);
   }
   return result;
 }

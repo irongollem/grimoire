@@ -1,4 +1,4 @@
-import { combineModes, type RollMode } from "@/lib/dice/dice";
+import type { RollMode } from "@/lib/dice/dice";
 import { hasAttackDisadvantage } from "@/rules/conditions";
 import type { RulesetKey } from "@/types/ruleset.types";
 
@@ -33,10 +33,14 @@ export interface AttackRollModeInput {
  */
 export function attackRollMode(input: AttackRollModeInput): { mode: RollMode; reasons: string[] } {
   const { attackerConditions, targetConditions, delivery, withinFiveFeet, ruleset, dmMode } = input;
-  let mode: RollMode = "normal";
+  // Collect every source first and decide once: folding pairwise lets a later
+  // source flip a roll that an earlier advantage and disadvantage had cancelled.
+  let hasAdvantage = false;
+  let hasDisadvantage = false;
   const reasons: string[] = [];
   const add = (m: RollMode, reason: string) => {
-    mode = combineModes(mode, m);
+    if (m === "advantage") hasAdvantage = true;
+    if (m === "disadvantage") hasDisadvantage = true;
     reasons.push(reason);
   };
 
@@ -58,6 +62,7 @@ export function attackRollMode(input: AttackRollModeInput): { mode: RollMode; re
   if (delivery === "ranged" && withinFiveFeet) add("disadvantage", "ranged attack with an enemy within 5 ft");
 
   if (dmMode && dmMode !== "normal") add(dmMode, `DM sets ${dmMode}`);
+  const mode: RollMode = hasAdvantage === hasDisadvantage ? "normal" : hasAdvantage ? "advantage" : "disadvantage";
   return { mode, reasons };
 }
 

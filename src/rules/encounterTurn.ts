@@ -1,5 +1,6 @@
 import type { ActionUse, RunCombatant, WildshapeState } from "@/types/encounter.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
+import type { StatBlockListKey } from "@/rules/statBlock/parseAction";
 import { rechargeSucceeds } from "@/rules/combat/recharge";
 import { rollDie } from "@/lib/dice/dice";
 import type { PartyMemberUpdate } from "@/types/party.types";
@@ -141,6 +142,21 @@ function refreshTurnStart(c: RunCombatant): RunCombatant {
   return next;
 }
 
+/**
+ * Where an entry's limited-use tally is kept: the list qualifies the printed name,
+ * because a stat block may print "Tail Attack" under Actions and again under
+ * Legendary Actions, and those are two different abilities.
+ */
+export function actionUseKey(list: StatBlockListKey, entry: StatBlockEntry): string {
+  return `${list}/${entry.name}`;
+}
+
+/** The printed name behind a tally key (`actionUseKey` reversed). */
+export function actionUseName(key: string): string {
+  const slash = key.indexOf("/");
+  return slash === -1 ? key : key.slice(slash + 1);
+}
+
 /** The limit a stat-block entry puts on itself, in the shape `use_action` stores. */
 export function actionLimit(entry: StatBlockEntry): ActionLimit {
   const { recharge, uses } = entry.structured;
@@ -154,9 +170,13 @@ export function actionLimit(entry: StatBlockEntry): ActionLimit {
  * rest, so "per short rest" and "per long rest" are the same count here).
  * Unlimited entries are always available with no label.
  */
-export function actionAvailability(c: RunCombatant, entry: StatBlockEntry): { available: boolean; label: string | null } {
+export function actionAvailability(
+  c: RunCombatant,
+  entry: StatBlockEntry,
+  list: StatBlockListKey,
+): { available: boolean; label: string | null } {
   const { recharge, uses } = entry.structured;
-  const tally = c.action_uses?.[entry.name];
+  const tally = c.action_uses?.[actionUseKey(list, entry)];
   const used = tally ? tally.used : 0;
   if (recharge) {
     const range = recharge.min === recharge.max ? `${recharge.min}` : `${recharge.min}\u2013${recharge.max}`;

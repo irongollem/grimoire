@@ -7,7 +7,7 @@
       :class="e.recharged ? 'text-tone-success' : 'text-muted-foreground'"
       data-testid="recharge-line"
     >
-      {{ e.action }} {{ e.recharged ? "recharged" : "still spent" }} · rolled {{ e.roll }}
+      {{ actionUseName(e.action) }} {{ e.recharged ? "recharged" : "still spent" }} · rolled {{ e.roll }}
     </p>
 
     <template v-for="section in visibleSections" :key="section.label">
@@ -21,12 +21,12 @@
       >
         <header class="action-head">
           <strong class="action-name">{{ item.entry.name }}</strong>
-          <span v-for="b in item.badges" :key="b" class="action-badge" :class="{ 'is-spent': !item.available }">{{ b }}</span>
+          <span v-for="b in item.badges" :key="b" class="action-badge" :class="{ 'is-spent': !item.usable }">{{ b }}</span>
         </header>
         <p v-if="item.summary" class="action-summary">{{ item.summary }}</p>
         <div v-if="item.html" class="action-prose" v-html="item.html"></div>
 
-        <div v-if="item.controls.length > 0 || item.limited || !item.available" class="action-controls">
+        <div v-if="item.controls.length > 0 || item.limited || !item.usable" class="action-controls">
           <AppButton
             v-for="c in item.controls"
             :key="c.label"
@@ -34,20 +34,20 @@
             :tone="c.tone"
             size="md"
             :label="c.label"
-            :disabled="!item.available"
+            :disabled="!item.usable"
             :data-testid="`use-${item.entry.name}-${c.label}`"
             @click="start(item, c.option)"
           />
           <!-- A limited ability with nothing to roll (Invisibility, a 1/day
                teleport) still has to be marked used, or its recharge never rolls. -->
           <AppButton
-            v-if="item.controls.length === 0 && item.limited && item.available"
+            v-if="item.controls.length === 0 && item.limited && item.usable"
             variant="subtle"
             size="md"
             label="Use"
             tooltip="Mark this ability used"
             :data-testid="`use-${item.entry.name}`"
-            @click="store.useAction(combatant.instance_id, item.entry.name, actionLimit(item.entry))"
+            @click="store.useAction(combatant.instance_id, item.useKey, actionLimit(item.entry))"
           />
           <AppButton
             v-if="!item.available"
@@ -56,7 +56,7 @@
             label="Restore"
             tooltip="Mark this ability available again"
             :data-testid="`restore-${item.entry.name}`"
-            @click="store.restoreAction(combatant.instance_id, item.entry.name)"
+            @click="store.restoreAction(combatant.instance_id, item.useKey)"
           />
         </div>
 
@@ -100,9 +100,10 @@ import { RUNNER_ROLL_CONTEXT } from "@/components/encounters/runnerResolve";
 import { describeStructure } from "@/lib/statBlock/describeStructure";
 import { drawerTransition } from "@/lib/motion";
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
-import { actionAvailability, actionLimit } from "@/rules/encounterTurn";
+import { actionAvailability, actionLimit, actionUseKey, actionUseName } from "@/rules/encounterTurn";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { RunCombatant } from "@/types/encounter.types";
+import type { StatBlockListKey } from "@/rules/statBlock/parseAction";
 import type { ActionOption, StatBlockEntry } from "@/types/statBlock.types";
 
 /**
@@ -112,7 +113,7 @@ import type { ActionOption, StatBlockEntry } from "@/types/statBlock.types";
  */
 const { combatant, sections } = defineProps<{
   combatant: RunCombatant;
-  sections: Array<{ label: string; entries: StatBlockEntry[] | undefined }>;
+  sections: Array<{ label: string; list: StatBlockListKey; entries: StatBlockEntry[] | undefined }>;
 }>();
 
 const store = useEncounterRunStore();
@@ -129,7 +130,15 @@ interface Control {
 interface Item {
   key: string;
   entry: StatBlockEntry;
+  list: StatBlockListKey;
+  /** Where this entry's limited-use tally is kept (`actionUseKey`). */
+  useKey: string;
+  /** The tally has a use left. */
   available: boolean;
+  /** Why the shared pool forbids it right now (legendary cost, lair fired), or null. */
+  blocked: string | null;
+  /** Can be rolled: has a use left and the pool allows it. */
+  usable: boolean;
   badges: string[];
   summary: string | null;
   html: string;
@@ -141,6 +150,7 @@ interface Item {
 
 interface OpenPanel {
   key: string;
+  list: StatBlockListKey;
   /** The entry as written: where the limited-use tally is kept. */
   base: StatBlockEntry;
   /** What is rolled: the entry, or the chosen option shaped as one. */
@@ -174,14 +184,35 @@ function badgesFor(entry: StatBlockEntry, badges: string[], label: string | null
   return label ? [label, ...kept] : kept;
 }
 
-function buildItem(sectionLabel: string, entry: StatBlockEntry): Item {
+/** The pool a legendary or lair entry draws on, as RunnerBossMechanics gates it. */
+function blockedReason(list: StatBlockListKey, entry: StatBlockEntry): string | null {
+  if (list === "legendary_actions") {
+    const left = combatant.legendary_actions_remaining;
+    const cost = legendaryCost(entry);
+    return typeof left === "number" && cost > left ? `Costs ${cost} \u00b7 ${left} left` : null;
+  }
+  if (list === "lair_actions") return store.lairCanFireThisRound ? null : "Lair action used this round";
+  return null;
+}
+
+function legendaryCost(entry: StatBlockEntry): number {
+  return entry.structured.legendary_cost ?? 1;
+}
+
+function buildItem(list: StatBlockListKey, index: number, entry: StatBlockEntry): Item {
   const described = describeStructure(entry.structured);
-  const availability = actionAvailability(combatant, entry);
+  const availability = actionAvailability(combatant, entry, list);
+  const blocked = blockedReason(list, entry);
+  const badges = badgesFor(entry, described.badges, availability.label);
   return {
-    key: `${sectionLabel}:${entry.name}`,
+    key: `${list}:${index}`,
     entry,
+    list,
+    useKey: actionUseKey(list, entry),
     available: availability.available,
-    badges: badgesFor(entry, described.badges, availability.label),
+    blocked,
+    usable: availability.available && blocked === null,
+    badges: blocked ? [blocked, ...badges] : badges,
     summary: described.summary,
     html: renderTiptapHtml(entry.description),
     controls: controlsFor(entry),
@@ -193,7 +224,7 @@ function buildItem(sectionLabel: string, entry: StatBlockEntry): Item {
 const visibleSections = computed(() => {
   const built = sections
     .filter((s) => s.entries && s.entries.length > 0)
-    .map((s) => ({ label: s.label, items: (s.entries ?? []).map((e) => buildItem(s.label, e)) }));
+    .map((s) => ({ label: s.label, items: (s.entries ?? []).map((e, i) => buildItem(s.list, i, e)) }));
   const all = built.flatMap((s) => s.items);
   // A multiattack step names another entry of the same stat block; link the ones that roll.
   for (const item of all) {
@@ -217,8 +248,8 @@ function resolve(entry: StatBlockEntry, option: ActionOption | undefined): StatB
 }
 
 function start(item: Item, option: ActionOption | undefined) {
-  if (!item.available) return;
-  open.value = { key: item.key, base: item.entry, resolved: resolve(item.entry, option) };
+  if (!item.usable) return;
+  open.value = { key: item.key, list: item.list, base: item.entry, resolved: resolve(item.entry, option) };
 }
 
 /** A multiattack step opens its entry's panel; an entry with choices asks for the choice first. */
@@ -229,10 +260,13 @@ function openStep(target: Item) {
 
 function spendOpen() {
   if (!open.value) return;
-  const base = open.value.base;
+  const { base, list } = open.value;
+  // The first roll commits the entry: it draws on the shared pool it belongs to.
+  if (list === "legendary_actions") store.spendLegendaryActions(combatant.instance_id, legendaryCost(base));
+  if (list === "lair_actions") store.markLairFired();
   const { recharge, uses } = base.structured;
   if (!recharge && !uses) return;
-  store.useAction(combatant.instance_id, base.name, actionLimit(base));
+  store.useAction(combatant.instance_id, actionUseKey(list, base), actionLimit(base));
 }
 </script>
 

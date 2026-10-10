@@ -98,7 +98,11 @@ function isAlreadyStructured(block: Record<string, unknown>): boolean {
  * `extracted` holds this row's extractions keyed by `entryKey`. A non-object block
  * (a null column, a malformed value) is returned untouched.
  */
-export function expandStatBlock(block: unknown, extracted?: Map<string, ExtractedAction>): ExpandResult {
+export function expandStatBlock(
+  block: unknown,
+  extracted?: Map<string, ExtractedAction>,
+  options: { keepLegacyStrings: boolean } = { keepLegacyStrings: true },
+): ExpandResult {
   const stats = emptyStats();
   if (!isRecord(block)) return { next: block, changed: false, alreadyStructured: true, stats };
 
@@ -122,9 +126,14 @@ export function expandStatBlock(block: unknown, extracted?: Map<string, Extracte
   }
 
   const structured: Record<string, unknown> = { ...structureStatBlock(input as ProseStatBlockFields) };
-  // Expand keeps the old strings (only those that existed) so the write is purely additive.
-  for (const key of DEFENSE_STRING_KEYS) {
-    if (key in block) structured[key] = block[key];
+  // Before the contract migration the old strings stay (only those that existed),
+  // so the write is purely additive for the client that is live. After it, a row
+  // converted late (a straggler the old client wrote in between) drops them, as the
+  // migration did for everyone else.
+  if (options.keepLegacyStrings) {
+    for (const key of DEFENSE_STRING_KEYS) {
+      if (key in block) structured[key] = block[key];
+    }
   }
 
   for (const list of LIST_KEYS) {

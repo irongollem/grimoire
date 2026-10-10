@@ -272,6 +272,32 @@ describe("useActionResolution", () => {
       expect(settleSave(results[3], 12).success).toBe(false);
     });
 
+    it("never lets the attacker's roll-mode toggle reach the targets' own saves", async () => {
+      sources();
+      promptRoll.mockResolvedValue(d20(10, 2));
+      const leaked = { dmMode: "advantage" as const };
+      await useActionResolution().resolveSaves({
+        entry: breath,
+        targets: [combatant("g", { monster_id: "m-goblin", conditions: ["Restrained"] }), combatant("o", { monster_id: "m-goblin" })],
+        ...leaked,
+      });
+      expect(promptRoll).toHaveBeenNthCalledWith(1, expect.objectContaining({ mode: "disadvantage" }));
+      expect(promptRoll).toHaveBeenNthCalledWith(2, expect.objectContaining({ mode: "normal" }));
+    });
+
+    it("halves the rolled damage once on a successful half save", () => {
+      const store = sources();
+      const saver = combatant("b", { monster_id: "m-goblin" });
+      store.combatants = [saver];
+      const base = { dc: 13, ability: "dex" as const, bonus: 0, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
+      const [applied] = useActionResolution().applySaveOutcome({
+        entry: breath,
+        damageParts: [{ amount: 7, type: "fire" }, { amount: 7, type: "poison" }],
+        results: [{ ...base, target: saver, success: true }],
+      });
+      expect(applied.damage?.total).toBe(7);
+    });
+
     it("gives Restrained dex saves disadvantage and leaves a cancelled roll unresolved", async () => {
       sources();
       promptRoll.mockResolvedValueOnce(null);

@@ -264,7 +264,7 @@ const canRollConcentration = computed(() =>
 async function rollConcentration() {
   const applied = appliedResult.value;
   if (!applied) return;
-  const check = await resolution.rollConcentration({ target: applied.target, damage: applied.total, dmMode, silent });
+  const check = await resolution.rollConcentration({ target: applied.target, damage: applied.total, silent });
   if (check) concentration.value = check;
 }
 </script>

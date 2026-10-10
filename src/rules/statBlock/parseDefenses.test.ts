@@ -93,3 +93,19 @@ describe("formatting", () => {
     expect(formatDefenseList([])).toBe("");
   });
 });
+
+describe("qualified condition immunities", () => {
+  it("keeps a condition that only sometimes applies as a note, not an immunity the runner would always enforce", () => {
+    const d = parseDefenses({ condition_immunities: "charmed, poisoned (while Assassinate is active)" });
+    expect(d.condition_immunities).toEqual(["Charmed"]);
+    expect(d.notes).toContain("poisoned (while Assassinate is active)");
+    const raging = parseDefenses({ condition_immunities: "frightened while raging" });
+    expect(raging.condition_immunities).toEqual([]);
+    expect(raging.notes).toContain("frightened while raging");
+  });
+
+  it("still reads plain condition words and the 'the X condition' form", () => {
+    expect(parseDefenses({ condition_immunities: "the poisoned condition, paralysis" }).condition_immunities).toEqual(["Poisoned", "Paralyzed"]);
+    expect(parseDefenses({ condition_immunities: "frightened, prone poisoned" }).condition_immunities).toEqual(["Frightened", "Prone", "Poisoned"]);
+  });
+});

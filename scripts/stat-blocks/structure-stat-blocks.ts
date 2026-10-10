@@ -9,9 +9,9 @@
  *   npm run stat-blocks:structure -- --check --production # read production, write nothing
  *   npm run stat-blocks:structure -- --write              # update the local stack
  *   npm run stat-blocks:structure -- --write --production --yes-production
- *   --table library_monsters|monsters|npcs|companions     # repeatable; default all four
+ *   --table library_monsters|monsters|npcs|companions|hall_of_heroes  # repeatable; default all five
  *
- * User tables (`monsters`, `npcs`, `companions`) hold real accounts' content, so
+ * User tables (`monsters`, `npcs`, `companions`, `hall_of_heroes`) hold real accounts' content, so
  * this script prints counts and nothing else: no names, no prose, no error bodies.
  * Only the `stat_block` column is ever written, one row per request, by primary key.
  */

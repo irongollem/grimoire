@@ -118,3 +118,12 @@ describe("contractBlocker (the contract migration's refusal rule)", () => {
     expect(contractBlocker(next)).toBeNull();
   });
 });
+
+describe("expandStatBlock after the contract", () => {
+  it("drops the old strings when asked, and the result passes the contract rule", () => {
+    const { next } = expandStatBlock({ damage_resistances: "fire", condition_immunities: "poisoned" }, undefined, { keepLegacyStrings: false });
+    expect(next).not.toHaveProperty("damage_resistances");
+    expect(next).not.toHaveProperty("condition_immunities");
+    expect(contractBlocker(next)).toBeNull();
+  });
+});

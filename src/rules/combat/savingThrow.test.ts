@@ -26,6 +26,35 @@ describe("saveRollMode", () => {
   });
 });
 
+describe("saveRollMode stacking", () => {
+  it("any advantage with any disadvantage is straight, whatever the order", () => {
+    // Restrained on a Dex save (dis) + DM advantage -> straight; a further source must not flip it.
+    expect(saveRollMode({ conditions: ["Restrained", "Exhausted 3"], ability: "dex", ruleset: "2014", dmMode: "advantage" }).mode).toBe("normal");
+    expect(saveRollMode({ conditions: ["Restrained"], ability: "dex", ruleset: "2014", dmMode: "disadvantage" }).mode).toBe("disadvantage");
+  });
+});
+
+describe("listedSaveBonus forms", () => {
+  it.each([
+    ["Con +5, Wis +3", "con", 5],
+    ["Constitution +6, Wisdom +4", "wis", 4],
+    ["Con+5", "con", 5],
+    ["CON +5", "con", 5],
+    ["Dex +3 (advantage vs. traps)", "dex", 3],
+    ["Str -1", "str", -1],
+    ["Str \u22121", "str", -1],
+    ["Intelligence +7", "int", 7],
+    ["Charisma+2", "cha", 2],
+  ] as const)("%s -> %s %i", (text, ability, bonus) => {
+    expect(listedSaveBonus({ saving_throws: text }, ability)).toBe(bonus);
+  });
+  it("falls through to the modifier for an ability not listed", () => {
+    const block = { str: 10, dex: 14, con: 10, int: 10, wis: 10, cha: 10, saving_throws: "Constitution +6, Wisdom +4" };
+    expect(saveBonusFromStatBlock(block, "con")).toBe(6);
+    expect(saveBonusFromStatBlock(block, "dex")).toBe(2);
+  });
+});
+
 describe("resolveSave", () => {
   it("meets DC", () => expect(resolveSave({ d20: 8, bonus: 5, dc: 13 }).success).toBe(true));
   it("below DC", () => expect(resolveSave({ d20: 7, bonus: 5, dc: 13 }).success).toBe(false));

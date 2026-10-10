@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   actionAvailability,
+  actionUseKey,
   actionLimit,
   reduceEncounterTurn,
   type EncounterTurnCommand,
@@ -410,16 +411,26 @@ describe("limited abilities", () => {
     const fire = entry("Fire Breath", breath.recharge ? { recharge: breath.recharge } : {});
     const bolt = entry("Bolt", { uses: { count: 3, per: "day" } });
     const plain = entry("Bite", {});
-    const c = combatant("a", { action_uses: { "Fire Breath": { used: 1, ...breath }, Bolt: { used: 2, per_day: 3 } } });
-    expect(actionAvailability(c, fire)).toEqual({ available: false, label: "Recharge 5–6 · spent" });
-    expect(actionAvailability(combatant("z"), fire)).toEqual({ available: true, label: "Recharge 5–6" });
-    expect(actionAvailability(c, bolt)).toEqual({ available: true, label: "1/3 left" });
-    expect(actionAvailability(combatant("z", { action_uses: { Bolt: { used: 3, per_day: 3 } } }), bolt)).toEqual({
-      available: false,
-      label: "0/3 left",
+    const c = combatant("a", {
+      action_uses: { "actions/Fire Breath": { used: 1, ...breath }, "actions/Bolt": { used: 2, per_day: 3 } },
     });
-    expect(actionAvailability(c, plain)).toEqual({ available: true, label: null });
+    expect(actionAvailability(c, fire, "actions")).toEqual({ available: false, label: "Recharge 5–6 · spent" });
+    expect(actionAvailability(combatant("z"), fire, "actions")).toEqual({ available: true, label: "Recharge 5–6" });
+    expect(actionAvailability(c, bolt, "actions")).toEqual({ available: true, label: "1/3 left" });
+    expect(
+      actionAvailability(combatant("z", { action_uses: { "actions/Bolt": { used: 3, per_day: 3 } } }), bolt, "actions"),
+    ).toEqual({ available: false, label: "0/3 left" });
+    expect(actionAvailability(c, plain, "actions")).toEqual({ available: true, label: null });
     expect(actionLimit(bolt)).toEqual({ per_day: 3 });
     expect(actionLimit(fire)).toEqual({ recharge: { min: 5, max: 6 } });
+  });
+
+  it("keeps one tally per list, so a Tail Attack in Actions and in Legendary Actions do not collide", () => {
+    const tail = entry("Tail Attack", { recharge: breath.recharge });
+    expect(actionUseKey("actions", tail)).toBe("actions/Tail Attack");
+    expect(actionUseKey("legendary_actions", tail)).toBe("legendary_actions/Tail Attack");
+    const c = combatant("a", { action_uses: { [actionUseKey("actions", tail)]: { used: 1, ...breath } } });
+    expect(actionAvailability(c, tail, "actions").available).toBe(false);
+    expect(actionAvailability(c, tail, "legendary_actions").available).toBe(true);
   });
 });

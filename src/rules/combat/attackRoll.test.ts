@@ -29,6 +29,21 @@ describe("attackRollMode", () => {
     const r = attackRollMode({ ...base, attackerConditions: ["Poisoned", "Prone"], targetConditions: ["Stunned", "Blinded"] });
     expect(r.mode).toBe("normal");
   });
+  it("a late source never flips an already cancelled roll", () => {
+    // Poisoned attacker (dis) vs Stunned (adv) + Prone within 5 ft (adv): straight, not advantage.
+    const r = attackRollMode({ ...base, attackerConditions: ["Poisoned"], targetConditions: ["Stunned", "Prone"] });
+    expect(r.mode).toBe("normal");
+    expect(r.reasons).toHaveLength(3);
+  });
+  it("ranged, Poisoned, Restrained target, enemy adjacent: one advantage, two disadvantages -> straight", () => {
+    const r = attackRollMode({
+      ...base,
+      delivery: "ranged",
+      attackerConditions: ["Poisoned"],
+      targetConditions: ["Restrained"],
+    });
+    expect(r.mode).toBe("normal");
+  });
   it("DM override cancels a condition", () => {
     expect(attackRollMode({ ...base, attackerConditions: ["Poisoned"], dmMode: "advantage" }).mode).toBe("normal");
   });
