@@ -58,7 +58,7 @@ export interface LiveDrag {
 export interface UseRegionPointerOptions extends UseRegionNavPointerOptions {
   /** Whether a cell `cellAt` resolved is one of the whole cells the
    *  calibration actually lays across the image — painting's own
-   *  addressability guard (`isCellOnImageGrid`). */
+   *  addressability guard. */
   isPaintable(cell: CellKey): boolean;
   /** The same event as a continuous, unsnapped grid point (pen/template
    *  space) — callers here snap it themselves via the pure `snapPoint`. */

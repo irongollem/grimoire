@@ -18,12 +18,13 @@
  * point: the bugs live in the text of files that never import each other.
  */
 
-/// <reference types="node" />
-// This file is under `src/`, so `tsconfig.app.json` owns it — and that config
-// deliberately has no `types: ["node"]`, because Node globals must not resolve
-// inside browser code. This is the one `src/` file that genuinely runs in Node
-// (it shells out to `git ls-files` and reads the repo from disk), so it pulls
-// the node types in for itself rather than widening the app config for everyone.
+/// <reference types="vite/client" />
+// A Node check over the repo's text (it shells out to `git ls-files` and reads
+// files from disk), so it lives with the other Node tooling, where
+// `tsconfig.node.json` and the node test project own it. It sat in
+// `src/__tests__/` until #999 5.2, pulling node types into the browser config
+// for itself. The one browser type it needs is `import.meta.glob`, which
+// `manualLoader` (imported for its real page ids) uses.
 
 import { describe, it, expect } from "vitest";
 import { parse } from "@vue/compiler-sfc";
@@ -41,7 +42,7 @@ import { THEMES } from "@/lib/themes";
 const REPO_ROOT = process.cwd();
 
 /** This file, repo-relative — see the filter in `trackedFiles`. */
-const SELF = "src/__tests__/crossArtifactInvariants.test.ts";
+const SELF = "scripts/crossArtifactInvariants.test.ts";
 
 /**
  * Every name this repo can render as a component: the basename of each .vue file,

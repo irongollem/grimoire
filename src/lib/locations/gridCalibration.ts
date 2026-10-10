@@ -20,8 +20,8 @@
 // (0,0) corresponds to; see that field's docstring in `location.types.ts`
 // for why the two can differ (bake padding).
 //
-// Lives in `lib/locations/` because that is who uses it: `MapRegionsLayer`
-// and `siteMap`. It sat at the root of `lib/` from
+// Lives in `lib/locations/` because that is who uses it: the site map's layers
+// (`MapRegionsLayer`, `MapPreparedLayer`), the plan canvas and doors. It sat at the root of `lib/` from
 // #805 to #868 on the promise that encounters and the cartographer would
 // import it too; they never did (the battle map has its own
 // `lib/battlemap/gridCalibration.ts`, and the player plan stopped needing an

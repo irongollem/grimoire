@@ -446,9 +446,9 @@ export const buttonVariants = cva(
       { variant: "ghost", tone: "danger", class: "hover:text-destructive" },
       /**
        * The "add another one" affordance — `text-muted-foreground hover:text-primary`,
-       * 10 sites across 8 files (QuestObjectivesList, DiceRoller, EncounterLoot,
-       * RewardCurrencyPoolsEditor…). Only expressible once `neutral` became the
-       * default tone; before that this rule would have repainted every ghost button.
+       * used for add rows such as QuestObjectivesList, DiceRoller and EncounterLoot.
+       * Only expressible once `neutral` became the default tone; before that this
+       * rule would have repainted every ghost button.
        */
       { variant: "ghost", tone: "primary", class: "hover:text-primary" },
       /**

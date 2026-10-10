@@ -126,7 +126,7 @@ esac
 # Tests are colocated next to the module they cover, never in a __tests__ dir.
 case "$file" in
   */__tests__/*)
-    note "Tests are colocated next to the module they cover — never a __tests__/ directory. (src/__tests__/crossArtifactInvariants.test.ts is the one deliberate exception: it belongs to no single module.)"
+    note "Tests are colocated next to the module they cover — never a __tests__/ directory."
     ;;
 esac
 
