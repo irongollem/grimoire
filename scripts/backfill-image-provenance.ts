@@ -34,6 +34,7 @@
  * Usage:
  *   npm run backfill:image-provenance -- --out report.json
  *   npm run backfill:image-provenance -- --write --yes-production
+ *   npm run backfill:image-provenance -- --library-is-ai --write --yes-production
  *
  * `--fail-on-dead` (#952) makes the scan a check: after it, exit with status 1 when
  * any referenced image is unreadable, naming each one's bucket, stem and the
@@ -45,6 +46,17 @@
  * the scan itself is satisfied by any original of a stem, which is right for
  * reading a mark and would hide a dead `.png` behind a live `.webp`.
  * `npm run check:images` is this, as a dry run.
+ *
+ * `--library-is-ai` is a one-off backfill of the canonical `srd/` art that
+ * existed on 10 Oct 2026: an image that carries no packet, has no row and was
+ * uploaded before `LIBRARY_AI_CUTOFF` is recorded as OpenAI image output
+ * (`libraryArtProvenance`). That art was made by Dungeon Grimoire with OpenAI's
+ * image models, most of it before marking began, so its bytes cannot say so;
+ * the maintainer's call (10 Oct 2026). It is bounded by date, not a rule that
+ * unmarked library art is AI, because the hope is to pay artists for library
+ * art one day and their work must never be labelled AI by default. An image
+ * with no Last-Modified cannot be placed before the cutoff and is left alone,
+ * and a row already in the registry is never touched.
  *
  * `--library-owner <uuid>` names the owner of canonical `srd/` art; by default
  * it is the app admin when exactly one exists. `--limit <n>` scans only the
@@ -386,6 +398,32 @@ export function toRegistryRow(entry: PlanEntry): { bucket: string; stem: string;
   return { bucket: entry.bucket, stem: entry.stem, user_id: entry.user_id, provenance: entry.provenance };
 }
 
+/** True for canonical library art, which only the admin can write. */
+export function isLibraryStem(stem: string): boolean {
+  return stem.startsWith("srd/");
+}
+
+/** `--library-is-ai` covers only canonical art uploaded before this instant (see the header). */
+export const LIBRARY_AI_CUTOFF = new Date("2026-10-11T00:00:00Z");
+
+/**
+ * The record `--library-is-ai` gives canonical art with no packet: OpenAI image
+ * output, dated by the object's Last-Modified (its upload, the nearest thing to
+ * a generation date the bytes keep). Null when the date is missing, unreadable
+ * or not before the cutoff: that image is not part of the backfill.
+ */
+export function libraryArtProvenance(lastModified: string | null): AiProvenance | null {
+  const date = lastModified ? new Date(lastModified) : null;
+  if (!date || isNaN(date.getTime()) || date >= LIBRARY_AI_CUTOFF) return null;
+  return {
+    generatorType: "library-art",
+    provider: "openai",
+    model: "gpt-image",
+    generatedAt: date.toISOString(),
+    edited: false,
+  };
+}
+
 /** Reads the AI packet out of image bytes. Null when the image carries none, or is not a known format. */
 export function readProvenanceFromBytes(bytes: Uint8Array): AiProvenance | null {
   const format = sniffImageFormat(bytes);
@@ -405,7 +443,7 @@ export function isLoopbackUrl(url: string): boolean {
 // I/O shell
 
 export type FetchOutcome =
-  | { kind: "bytes"; bytes: Uint8Array; url: string }
+  | { kind: "bytes"; bytes: Uint8Array; url: string; lastModified: string | null }
   | { kind: "missing" }
   | { kind: "error"; message: string };
 
@@ -417,7 +455,9 @@ export async function fetchBytes(url: string): Promise<FetchOutcome> {
   for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt++) {
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-      if (response.ok) return { kind: "bytes", bytes: new Uint8Array(await response.arrayBuffer()), url };
+      if (response.ok) {
+        return { kind: "bytes", bytes: new Uint8Array(await response.arrayBuffer()), url, lastModified: response.headers.get("last-modified") };
+      }
       if (response.status === 404 || response.status === 400) return { kind: "missing" };
       message = `HTTP ${response.status}`;
       if (response.status !== 429 && response.status < 500) return { kind: "error", message };
@@ -522,6 +562,7 @@ async function main(): Promise<void> {
       "library-owner": { type: "string" },
       limit: { type: "string" },
       "fail-on-dead": { type: "boolean", default: false },
+      "library-is-ai": { type: "boolean", default: false },
     },
   });
   const url = process.env.VITE_SUPABASE_URL;
@@ -562,6 +603,7 @@ async function main(): Promise<void> {
   const unreadable: Report["unreadable"] = [];
   const noOwner: Report["noOwner"] = [];
   let unmarked = 0;
+  let libraryDefaulted = 0;
   let done = 0;
   await pooled(targets, CONCURRENCY, async (target) => {
     const outcome = await fetchOriginal(target);
@@ -587,12 +629,17 @@ async function main(): Promise<void> {
     if (deadPaths.length > 0) {
       unreadable.push({ bucket: target.bucket, stem: target.stem, reason: "404", sources: target.sources, survivor: "sibling", deadPaths });
     }
-    const found = readProvenanceFromBytes(outcome.bytes);
+    const registered = registry.get(`${target.bucket}\u0000${target.stem}`) ?? null;
+    let found = readProvenanceFromBytes(outcome.bytes);
+    if (!found && values["library-is-ai"] && isLibraryStem(target.stem) && !registered) {
+      found = libraryArtProvenance(outcome.lastModified);
+      if (found) libraryDefaulted++;
+    }
     if (!found) {
       unmarked++;
       return;
     }
-    const entry = planEntry(target, found, registry.get(`${target.bucket}\u0000${target.stem}`) ?? null);
+    const entry = planEntry(target, found, registered);
     if (entry.verdict === "no-owner") noOwner.push({ bucket: target.bucket, stem: target.stem, sources: target.sources });
     entries.push(entry);
   });
@@ -610,6 +657,7 @@ async function main(): Promise<void> {
     referenceDeadSiblingSurvives: categorizeUnreadable(unreadable).referenceDeadSiblingSurvives.length,
     noOwner: count("no-owner"),
     unmarked,
+    libraryArtRecordedAsAi: libraryDefaulted,
   };
   console.log(JSON.stringify(summary, null, 2));
   if (missingColumns.length > 0) console.log(`Columns not found: ${missingColumns.join(", ")}`);

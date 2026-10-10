@@ -81,6 +81,7 @@
         <div v-else class="absolute inset-0 bg-black/50 flex items-center justify-center">
           <span class="text-caption text-white italic">Uploading…</span>
         </div>
+        <AiImageBadge :src="imageUrl" />
       </div>
       <button
         type="button"
@@ -110,6 +111,7 @@ import type { BucketId } from "@/lib/storage";
 import { ref, computed, useId } from "vue";
 import { IconAddImage } from '@/lib/icons';
 import { useImageUpload } from "@/composables/useImageUpload";
+import AiImageBadge from "./AiImageBadge.vue";
 import FocalPointPicker from "./FocalPointPicker.vue";
 
 const imageUrl = defineModel<string | null>({ required: true });

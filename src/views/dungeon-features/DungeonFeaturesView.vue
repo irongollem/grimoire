@@ -68,6 +68,7 @@
               :placeholder="placeholderUrl('dungeonfeature')"
               class="group-hover:scale-105 transition-transform duration-300"
             />
+            <AiImageBadge :src="feature.image_url" />
             <!-- Type badge -->
             <span
               class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
@@ -112,6 +113,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";

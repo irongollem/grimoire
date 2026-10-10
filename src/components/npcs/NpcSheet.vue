@@ -9,14 +9,16 @@
   <div class="flex flex-col gap-6 lg:h-full lg:flex-row lg:gap-6 lg:overflow-hidden">
     <!-- Col 1 / top: portrait + badges, never scrolls on desktop -->
     <div class="flex flex-col gap-3 lg:w-52 lg:shrink-0 lg:pb-6">
-      <FocalImage
-        :src="displayPortrait"
-        :focal-point="displayFocalPoint"
-        format="portrait"
-        :lightbox="true"
-        :placeholder="placeholderUrl('npc')"
-        class="w-full rounded-lg overflow-hidden max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0"
-      />
+      <div class="relative w-full rounded-lg overflow-hidden max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0">
+        <FocalImage
+          :src="displayPortrait"
+          :focal-point="displayFocalPoint"
+          format="portrait"
+          :lightbox="true"
+          :placeholder="placeholderUrl('npc')"
+        />
+        <AiImageBadge :src="displayPortrait" />
+      </div>
       <div class="flex flex-wrap gap-1">
         <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.status }}</span>
         <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.relationship }}</span>
@@ -49,6 +51,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import NpcTabContent from "@/components/npcs/NpcTabContent.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";

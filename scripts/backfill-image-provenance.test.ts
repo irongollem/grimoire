@@ -9,8 +9,10 @@ import {
   type Unreadable,
   collectTargets,
   IMAGE_COLUMNS,
+  isLibraryStem,
   isLoopbackUrl,
   isVariantPath,
+  libraryArtProvenance,
   parseImageUrl,
   planEntry,
   readProvenanceFromBytes,
@@ -293,5 +295,32 @@ describe("dead image reporting (#952)", () => {
     expect(deadExitCode(true, [renamed])).toBe(1);
     expect(deadExitCode(true, [])).toBe(0);
     expect(deadExitCode(false, [dead, restorable])).toBe(0);
+  });
+});
+
+describe("--library-is-ai", () => {
+  it("applies to canonical srd/ art only", () => {
+    expect(isLibraryStem("srd/3f2a")).toBe(true);
+    expect(isLibraryStem("0b6f5c1e-1111-4222-8333-944455556666/3f2a")).toBe(false);
+    expect(isLibraryStem("srdx/3f2a")).toBe(false);
+    // A root-level object named srd.webp has the stem "srd" and is not in the folder.
+    expect(isLibraryStem("srd")).toBe(false);
+  });
+
+  it("records OpenAI image output dated by the object's Last-Modified", () => {
+    expect(libraryArtProvenance("Tue, 12 May 2026 10:00:00 GMT")).toEqual({
+      generatorType: "library-art",
+      provider: "openai",
+      model: "gpt-image",
+      generatedAt: "2026-05-12T10:00:00.000Z",
+      edited: false,
+    });
+  });
+
+  it("leaves out anything uploaded on or after the cutoff, or with no readable date", () => {
+    expect(libraryArtProvenance("Sat, 11 Oct 2026 00:00:00 GMT")).toBeNull();
+    expect(libraryArtProvenance("Mon, 01 Mar 2027 09:00:00 GMT")).toBeNull();
+    expect(libraryArtProvenance(null)).toBeNull();
+    expect(libraryArtProvenance("not a date")).toBeNull();
   });
 });

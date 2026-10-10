@@ -52,6 +52,7 @@
           >Click to set focus</span
         >
       </div>
+      <AiImageBadge :src="src" />
     </div>
 
     <!-- Clear button -->
@@ -68,6 +69,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 
 const focalPoint = defineModel<{ x: number; y: number } | null>({ required: true });
 const { imageClass, clearable = true } = defineProps<{

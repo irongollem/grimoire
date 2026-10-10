@@ -3,14 +3,16 @@
     <div class="grid grid-cols-1 gap-6" :class="{ 'lg:grid-cols-[18.75rem_1fr]': !compact }">
       <!-- Left: image -->
       <div v-if="!compact" class="flex flex-col gap-3">
-        <FocalImage
-          :src="spell.image_url"
-          :focal-point="spell.image_focal_point"
-          format="portrait"
-          :lightbox="true"
-          :placeholder="placeholderUrl('spell')"
-          class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[80vh]"
-        />
+        <div class="relative w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[80vh]">
+          <FocalImage
+            :src="spell.image_url"
+            :focal-point="spell.image_focal_point"
+            format="portrait"
+            :lightbox="true"
+            :placeholder="placeholderUrl('spell')"
+          />
+          <AiImageBadge :src="spell.image_url" />
+        </div>
         <div
           class="rounded-lg border border-primary/30 bg-card p-3 flex flex-col gap-1.5 font-stat text-base"
         >
@@ -64,7 +66,7 @@
             </dd>
           </dl>
           <!-- FocalImage fills its parent, so the thumbnail's size lives on a wrapper. -->
-          <div class="aspect-3/4 w-20 shrink-0 overflow-hidden rounded-lg">
+          <div class="relative aspect-3/4 w-20 shrink-0 overflow-hidden rounded-lg">
             <FocalImage
               :src="spell.image_url"
               :focal-point="spell.image_focal_point"
@@ -73,6 +75,7 @@
               :placeholder="placeholderUrl('spell')"
               :alt="`${spell.name}, enlarge`"
             />
+            <AiImageBadge :src="spell.image_url" />
           </div>
         </div>
 
@@ -191,6 +194,7 @@
 import { computed } from "vue";
 import { IconParty, IconUser } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import {
   needsConcentrationNote,

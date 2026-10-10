@@ -100,6 +100,7 @@
         >
           <IconReveal class="size-3.5 text-primary" aria-label="Shared with players" />
         </span>
+        <AiImageBadge :src="imageUrl" />
       </div>
 
       <div class="flex flex-1 flex-col gap-0.5 p-3">
@@ -118,6 +119,7 @@
 </template>
 
 <script setup lang="ts">
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { IconCompassRose, IconReveal } from "@/lib/icons";
 

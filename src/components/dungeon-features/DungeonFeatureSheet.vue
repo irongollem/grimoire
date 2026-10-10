@@ -15,7 +15,7 @@
     <!-- Identity: image + name / type / tags -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="p-4 flex gap-4">
-        <div class="shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
+        <div class="relative shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
           <FocalImage
             :src="feature.image_url"
             :alt="feature.name"
@@ -25,6 +25,7 @@
             :placeholder="placeholderUrl('dungeonfeature')"
             class="w-full h-full"
           />
+          <AiImageBadge :src="feature.image_url" />
         </div>
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="text-heading-lg font-bold text-foreground leading-tight">{{ feature.name }}</h1>
@@ -125,6 +126,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
 import type { DungeonFeature } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityPlacements from "@/components/locations/EntityPlacements.vue";

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import AiGeneratedBadge from "./AiGeneratedBadge.vue";
+import { useAiLabelPrefs } from "@/composables/ai/useAiLabelPrefs";
 
 function mountBadge(props: Record<string, unknown>) {
   return mount(AiGeneratedBadge, { props: props as never });
@@ -21,5 +22,23 @@ describe("AiGeneratedBadge", () => {
 
   it("renders nothing for a null record", () => {
     expect(mountBadge({ variant: "chip", provenance: null }).find("span").exists()).toBe(false);
+  });
+});
+
+describe("AiGeneratedBadge with labels switched off", () => {
+  afterEach(() => useAiLabelPrefs().setShowAiLabels(true));
+
+  it("hides both variants for this viewer and shows them again when switched back on", async () => {
+    const { setShowAiLabels } = useAiLabelPrefs();
+    setShowAiLabels(false);
+    const chip = mountBadge({ variant: "chip", provenance: { provider: "openai" } });
+    const line = mountBadge({ variant: "line", provenance: { edited: false } });
+    expect(chip.find("span").exists()).toBe(false);
+    expect(line.find("p").exists()).toBe(false);
+    expect(localStorage.getItem("grimoire_show_ai_labels")).toBe("false");
+
+    setShowAiLabels(true);
+    await chip.vm.$nextTick();
+    expect(chip.find("span").exists()).toBe(true);
   });
 });

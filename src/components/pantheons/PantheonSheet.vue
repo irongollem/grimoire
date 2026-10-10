@@ -14,6 +14,7 @@
           :lightbox="true"
           class="w-full h-full"
         />
+        <AiImageBadge v-if="pantheon.emblem_url" :src="pantheon.emblem_url" />
         <div
           v-else
           class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground/40"
@@ -69,6 +70,7 @@
 </template>
 
 <script setup lang="ts">
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconFire, IconSun } from '@/lib/icons';

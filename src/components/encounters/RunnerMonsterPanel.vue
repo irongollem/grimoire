@@ -1,13 +1,15 @@
 <template>
   <div class="detail-scroll">
-    <FocalImage
-      v-if="combatant.wildshape?.beast_image_url ?? combatant.portrait_url"
-      :src="(combatant.wildshape?.beast_image_url ?? combatant.portrait_url)!"
-      :alt="combatant.name"
-      :focal-point="combatant.wildshape?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
-      format="portrait"
-      class="detail-portrait"
-    />
+    <div v-if="combatant.wildshape?.beast_image_url ?? combatant.portrait_url" class="relative">
+      <FocalImage
+        :src="(combatant.wildshape?.beast_image_url ?? combatant.portrait_url)!"
+        :alt="combatant.name"
+        :focal-point="combatant.wildshape?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
+        format="portrait"
+        class="detail-portrait"
+      />
+      <AiImageBadge :src="combatant.wildshape?.beast_image_url ?? combatant.portrait_url" />
+    </div>
     <p class="detail-meta">
       {{ monster.size }} {{ monster.monster_type
       }}<span v-if="monster.alignment"> · {{ monster.alignment }}</span>
@@ -75,6 +77,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import type { SaveEntry } from "@/rules/characterChecks";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";

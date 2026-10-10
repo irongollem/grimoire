@@ -33,6 +33,7 @@
         >
           <LoadingSpinner />
         </div>
+        <AiImageBadge :src="form.emblem_url" />
       </div>
       <input
         ref="fileInput"
@@ -173,6 +174,7 @@
 </template>
 
 <script setup lang="ts">
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCopy, IconDelete, IconSave, IconShield } from '@/lib/icons';

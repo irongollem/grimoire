@@ -1,13 +1,13 @@
 <template>
   <span
-    v-if="provenance && variant === 'chip'"
+    v-if="shown && variant === 'chip'"
     class="absolute bottom-1.5 inline-flex items-center gap-0.5 rounded bg-black/60 px-1 py-0.5 text-label text-white/90 print:hidden"
     :class="corner === 'left' ? 'left-1.5' : 'right-1.5'"
     :title="tooltipText"
   ><IconGenerate class="h-2.5 w-2.5 shrink-0" />AI</span>
 
   <p
-    v-else-if="provenance && variant === 'line'"
+    v-else-if="shown && variant === 'line'"
     class="flex items-center gap-1 text-caption text-muted-foreground/70 italic"
     :title="tooltipText"
   ><IconGenerate class="h-2.5 w-2.5 shrink-0" />{{ lineText }}</p>
@@ -15,8 +15,11 @@
 
 <script setup lang="ts">
 /*
-  EU AI Act Art 50(4) disclosure: the display of an AI provenance record
-  (see context/compliance/provenance-architecture.md §7). Two variants:
+  The visible AI label: the display of an AI provenance record (see
+  context/compliance/provenance-architecture.md §7). The legal duty is the
+  machine-readable mark in the file (Art 50(2)); this label is the readable
+  courtesy on top of it, on by default, and each viewer may switch it off for
+  their own screen (`useAiLabelPrefs`). Two variants:
 
   - `chip`   small muted overlay for images, on screen only: it never prints
              (the maintainer's call, 29 Sep 2026; printed cards carry no
@@ -29,7 +32,8 @@
   This component only renders a record it is given. Image badges go through
   `AiImageBadge`, which finds the record by the image's URL.
 
-  Both variants render nothing when `provenance` is null or undefined. Callers
+  Both variants render nothing when `provenance` is null or undefined, or when
+  the viewer has turned AI labels off. Callers
   decide visibility by whether they pass a record at all (same pattern as
   `EntityNewDot`'s `isNew` prop), so a generator's own authoring surface simply
   never mounts this component instead of hiding it conditionally.
@@ -41,6 +45,7 @@
 */
 import { computed } from "vue";
 import { IconGenerate } from "@/lib/icons";
+import { useAiLabelPrefs } from "@/composables/ai/useAiLabelPrefs";
 
 /** Display-only projection of `AiProvenance` (src/ai/provenance.ts) — every field optional, so a caller that only knows the provider (e.g. minis) can still show a badge. */
 export interface AiBadgeProvenance {
@@ -57,6 +62,9 @@ const { variant, provenance, corner = "right" } = defineProps<{
   /** Bottom corner the `chip` sits in; `left` for hosts whose right corner is taken (the NPC card's mini button). */
   corner?: "left" | "right";
 }>();
+
+const { showAiLabels } = useAiLabelPrefs();
+const shown = computed(() => !!provenance && showAiLabels.value);
 
 const lineText = computed(() =>
   provenance?.edited ? "AI-assisted, edited by the DM" : "Drafted with AI assistance",

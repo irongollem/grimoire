@@ -16,7 +16,7 @@
               @click="sheetArtTab = tab"
             >{{ tab }}</button>
           </div>
-          <div class="w-full rounded-lg overflow-hidden" style="aspect-ratio: 2/3; max-height: 75vh">
+          <div class="relative w-full rounded-lg overflow-hidden" style="aspect-ratio: 2/3; max-height: 75vh">
             <FocalImage
               :src="sheetArtTab === 'identified' ? item.image_url : item.mundane_image_url"
               :focal-point="sheetArtTab === 'identified' ? item.image_focal_point : item.mundane_image_focal_point"
@@ -24,11 +24,12 @@
               :lightbox="true"
               class="h-full"
             />
+            <AiImageBadge :src="sheetArtTab === 'identified' ? item.image_url : item.mundane_image_url" />
           </div>
         </template>
         <div
           v-else
-          class="w-full rounded-lg overflow-hidden"
+          class="relative w-full rounded-lg overflow-hidden"
           style="aspect-ratio: 2/3; max-height: 75vh"
         >
           <FocalImage
@@ -39,6 +40,7 @@
             :placeholder="placeholderUrl('item')"
             class="h-full"
           />
+          <AiImageBadge :src="item.image_url" />
         </div>
         <!-- Rarity badge -->
         <div
@@ -270,6 +272,7 @@ import { storeToRefs } from "pinia";
 import { IconPackage, IconParty, IconShop, IconUser } from '@/lib/icons';
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import WeaponMasteryBadge from "@/components/items/WeaponMasteryBadge.vue";
 import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";

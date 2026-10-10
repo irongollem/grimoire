@@ -18,7 +18,7 @@ const row = { id: "n1", name: "Maera", status: "alive", relationship: "ally", ta
 function mountSheet(full?: Npc) {
   return mount(NpcSheet, {
     props: { npc: row, full },
-    global: { stubs: { FocalImage: true, NpcTabContent: TabContentStub, DmNoteBox: DmNoteBoxStub } },
+    global: { stubs: { FocalImage: true, AiImageBadge: true, NpcTabContent: TabContentStub, DmNoteBox: DmNoteBoxStub } },
   });
 }
 

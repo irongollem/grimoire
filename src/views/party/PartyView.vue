@@ -84,11 +84,14 @@
       </div>
 
       <div v-if="groupPortraitUrl" class="p-4 flex justify-center">
-        <img
-          :src="groupPortraitUrl"
-          alt="Party group portrait"
-          class="w-full max-w-3xl rounded-md object-cover"
-        />
+        <div class="relative w-full max-w-3xl">
+          <img
+            :src="groupPortraitUrl"
+            alt="Party group portrait"
+            class="w-full rounded-md object-cover"
+          />
+          <AiImageBadge :src="groupPortraitUrl" />
+        </div>
       </div>
       <div v-else-if="!generating" class="px-4 py-6 text-center">
         <p class="text-body text-muted-foreground italic">No group portrait yet.</p>
@@ -103,6 +106,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconBeast, IconGenerate, IconNavFallen, IconUpload } from '@/lib/icons';
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";

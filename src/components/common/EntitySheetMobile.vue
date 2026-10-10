@@ -100,6 +100,8 @@
       />
       <!-- Gradient fading into the page background -->
       <div class="hero-fade pointer-events-none absolute inset-x-0 bottom-0 h-2/3" />
+      <!-- Top corner: the bottom carries the name and pills. -->
+      <AiImageBadge :src="image" class="top-2 bottom-auto!" />
 
       <!-- Overlaid identity -->
       <div class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 px-4 pb-3">
@@ -168,6 +170,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useScroll } from "@vueuse/core";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
 import FocalImage from "@/components/common/FocalImage.vue";

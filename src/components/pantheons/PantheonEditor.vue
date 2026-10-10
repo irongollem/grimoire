@@ -32,6 +32,7 @@
           <div v-if="uploading" class="absolute inset-0 bg-black/60 flex items-center justify-center">
             <LoadingSpinner />
           </div>
+          <AiImageBadge :src="form.emblem_url" />
         </div>
         <input ref="fileInput" type="file" accept="image/*" class="sr-only" @change="onFileSelected" />
         <AppButton
@@ -93,6 +94,7 @@
 </template>
 
 <script setup lang="ts">
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { IconFire } from '@/lib/icons';

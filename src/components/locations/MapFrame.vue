@@ -92,6 +92,10 @@
       <slot v-if="!imageFailed" />
     </div>
 
+    <!-- On the untransformed frame so it stays put under pan/zoom; left because the zoom controls hold bottom-right.
+         Keyed to the Picture (scan or AI render) — the Drawing is the DM's own bake. -->
+    <AiImageBadge v-if="siteMapLayers.picture" :src="stack.picture?.url" corner="left" />
+
     <!-- Zoom controls overlay (always-reachable; keyboard-accessible) -->
     <div class="absolute bottom-2 right-2 z-30 flex flex-col gap-1">
       <AppButton
@@ -128,6 +132,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { storeToRefs } from "pinia";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import MapStackImage from "@/components/locations/MapStackImage.vue";
 import { IconMap } from "@/lib/icons";

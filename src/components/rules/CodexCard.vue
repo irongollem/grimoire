@@ -7,7 +7,7 @@
     <!-- aspect-3/4 matches the portrait focal-point format so the smart-crop
          centring math aligns with the actual display dimensions (previously h-44
          produced a ~1:1 container on mobile, mismatching the 2:3 crop target). -->
-    <div class="aspect-3/4 w-full shrink-0 overflow-hidden bg-muted">
+    <div class="relative aspect-3/4 w-full shrink-0 overflow-hidden bg-muted">
       <FocalImage
         v-if="imageUrl"
         :src="imageUrl"
@@ -19,6 +19,7 @@
       <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/20">
         <component :is="fallbackIcon ?? IconBookMarked" class="h-10 w-10" />
       </div>
+      <AiImageBadge :src="imageUrl" />
     </div>
     <div class="h-14 px-3 flex items-center gap-2 overflow-hidden">
       <div class="flex-1 min-w-0">
@@ -37,6 +38,7 @@
 <script setup lang="ts">
 import type { Component } from "vue";
 import { IconBookMarked } from '@/lib/icons';
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 
 const { imageUrl, focalPoint, fallbackIcon, title, subtitle, meta, badge, count } = defineProps<{
