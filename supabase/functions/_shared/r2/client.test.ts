@@ -118,6 +118,13 @@ describe("headObject", () => {
     });
   });
 
+  it("passes Last-Modified through as sent, and null when absent", async () => {
+    stubFetch({ "content-length": "42", "last-modified": "Sat, 03 Oct 2026 21:52:46 GMT" });
+    expect((await headObject(config, "app-art/assets/foo.webp"))?.lastModified).toBe("Sat, 03 Oct 2026 21:52:46 GMT");
+    stubFetch({ "content-length": "42" });
+    expect((await headObject(config, "app-art/assets/foo.webp"))?.lastModified).toBeNull();
+  });
+
   it("returns null for a 404", () => {
     stubFetch({}, 404);
     return headObject(config, "app-art/assets/missing.webp").then((result) => {

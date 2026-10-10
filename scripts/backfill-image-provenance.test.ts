@@ -24,6 +24,7 @@ import {
   type RegisteredRow,
   type Target,
   libraryArtCounts,
+  r2LastModified,
 } from "./backfill-image-provenance";
 import { embedProvenance } from "../supabase/functions/_shared/provenance/embed.ts";
 import type { AiProvenance } from "../supabase/functions/_shared/provenance/types.ts";
@@ -387,5 +388,29 @@ describe("libraryArtCounts", () => {
       libraryArtDatedByOriginal: 1,
       libraryArtDateUnknown: 1,
     });
+  });
+});
+
+describe("r2LastModified", () => {
+  const target = { bucket: "monster-images", originalPaths: ["srd/abc.webp"], stem: "srd/abc" };
+  const head = (found: Record<string, string | null>) => async (key: string) =>
+    key in found ? { size: 1, etag: null, lastModified: found[key] } : null;
+
+  it("dates the same object the CDN served: the first candidate path R2 holds", async () => {
+    const date = "Sat, 03 Oct 2026 21:52:46 GMT";
+    expect(await r2LastModified(target, head({ "monster-images/srd/abc.webp": date }))).toBe(date);
+  });
+
+  it("falls through to a sibling extension only when the referenced file is absent", async () => {
+    const date = "Mon, 05 Oct 2026 10:00:00 GMT";
+    expect(await r2LastModified(target, head({ "monster-images/srd/abc.png": date }))).toBe(date);
+  });
+
+  it("treats a failing HEAD as no date for that path, and nothing found as null", async () => {
+    const failing = async (key: string) => {
+      if (key.endsWith(".webp")) throw new Error("R2 HEAD failed (500)");
+      return null;
+    };
+    expect(await r2LastModified(target, failing)).toBeNull();
   });
 });

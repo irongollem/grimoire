@@ -56,7 +56,12 @@
  * unmarked library art is AI, because the hope is to pay artists for library
  * art one day and their work must never be labelled AI by default. An image
  * with no Last-Modified cannot be placed before the cutoff and is left alone,
- * and a row already in the registry is never touched. The recorded date is the
+ * and a row already in the registry is never touched. The CDN Worker in front
+ * of R2 sends an etag but no Last-Modified, so when the served file carries
+ * none the date comes from a signed HEAD on the same object in R2 (the R2_*
+ * variables in .env.local; without them the art stays unmarked and the run
+ * says so). An R2 time from before the bulk copy is the copy's stamp, which the
+ * rule below already records as an unknown date. The recorded date is the
  * Last-Modified of the original a row points at, and only when it postdates the
  * bulk copy into R2 (`R2_COPY_COMPLETED`); any other answer (a guessed sibling
  * extension, a copy-time stamp) records the art as AI with an unknown date. The
@@ -73,6 +78,8 @@ import { parseArgs } from "node:util";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { LOCAL_BUCKETS } from "./dev-buckets.data.ts";
 import { pooled } from "./lib/pool.ts";
+import { headObject, type HeadResult } from "../supabase/functions/_shared/r2/client.ts";
+import { r2ConfigFrom, r2ObjectKey } from "../supabase/functions/_shared/r2/config.ts";
 import { readXmpFromJpeg, readXmpFromPng, readXmpFromWebp } from "../supabase/functions/_shared/provenance/embed.ts";
 import { imageProvenanceStem } from "../supabase/functions/_shared/provenance/key.ts";
 import { sniffImageFormat } from "../supabase/functions/_shared/provenance/sniff.ts";
@@ -261,9 +268,33 @@ function urlPrefixOf(url: string, ref: ImageRef): string {
 
 /** The original-object URLs to try for a target, in order: known originals first, then stem + each extension. */
 export function candidateUrls(target: Target): string[] {
-  const paths = [...target.originalPaths, ...ORIGINAL_EXTENSIONS.map((ext) => `${target.stem}.${ext}`)];
-  const unique = [...new Set(paths)];
-  return unique.map((path) => pathUrl(target, path));
+  return candidatePaths(target).map((path) => pathUrl(target, path));
+}
+
+/** The object paths `candidateUrls` tries, in the same order. */
+export function candidatePaths(target: Pick<Target, "originalPaths" | "stem">): string[] {
+  return [...new Set([...target.originalPaths, ...ORIGINAL_EXTENSIONS.map((ext) => `${target.stem}.${ext}`)])];
+}
+
+/**
+ * The Last-Modified R2 holds for a target: the first candidate path that exists,
+ * which is the same object `fetchOriginal` read (the CDN serves R2, in the same
+ * order). A HEAD that fails counts as no date for that path, never a crash.
+ */
+export async function r2LastModified(
+  target: Pick<Target, "bucket" | "originalPaths" | "stem">,
+  head: (key: string) => Promise<HeadResult | null>,
+): Promise<string | null> {
+  for (const path of candidatePaths(target)) {
+    let found: HeadResult | null;
+    try {
+      found = await head(r2ObjectKey(target.bucket, path));
+    } catch {
+      continue;
+    }
+    if (found) return found.lastModified;
+  }
+  return null;
 }
 
 /** The URL of an object path next to where the target's first URL was stored. */
@@ -615,6 +646,7 @@ async function main(): Promise<void> {
       "library-is-ai": { type: "boolean", default: false },
     },
   });
+  const r2 = r2ConfigFrom((name) => process.env[name]);
   const url = process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
@@ -630,6 +662,9 @@ async function main(): Promise<void> {
 
   const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   let libraryOwner: string | null = null;
+  if (values["library-is-ai"] && r2 === null) {
+    console.log("R2_* variables are not set, so library art read through the CDN (which sends no Last-Modified) cannot be dated and stays unmarked.");
+  }
   const explicitOwner = values["library-owner"];
   if (explicitOwner !== undefined) {
     if (!UUID.test(explicitOwner)) throw new Error("--library-owner must be a uuid.");
@@ -682,7 +717,10 @@ async function main(): Promise<void> {
     const registered = registry.get(`${target.bucket}\u0000${target.stem}`) ?? null;
     let found = readProvenanceFromBytes(outcome.bytes);
     if (!found && values["library-is-ai"] && isLibraryStem(target.stem) && !registered) {
-      found = libraryArtProvenance(outcome.lastModified, isReferencedOriginal(target, outcome.url));
+      // The CDN sends no Last-Modified, so a library image read through it is
+      // dated from R2, which holds the same object.
+      const lastModified = outcome.lastModified ?? (r2 === null ? null : await r2LastModified(target, (key) => headObject(r2, key)));
+      found = libraryArtProvenance(lastModified, isReferencedOriginal(target, outcome.url));
       if (found) {
         libraryDefaulted.add(`${target.bucket}\u0000${target.stem}`);
       }

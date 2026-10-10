@@ -105,6 +105,8 @@ export interface HeadResult {
    * MD5 for objects this client did not itself PUT that way — none does today.
    */
   readonly etag: string | null;
+  /** The `Last-Modified` header as sent (the object's upload time in R2), or null when absent. Never coerced to a date. */
+  readonly lastModified: string | null;
 }
 
 /** Null when the object does not exist — the "already copied?" check. */
@@ -130,6 +132,7 @@ export async function headObject(config: R2Config, key: string): Promise<HeadRes
   return {
     size: contentLength === null ? null : Number(contentLength),
     etag: rawEtag === null ? null : rawEtag.replace(/^W\//, "").replace(/^"|"$/g, ""),
+    lastModified: response.headers.get("last-modified"),
   };
 }
 

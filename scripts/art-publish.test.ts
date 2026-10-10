@@ -29,7 +29,7 @@ function makeDeps(overrides: Partial<PublishDeps> = {}): PublishDeps {
 describe("art-publish publish()", () => {
   it("skips an object that already exists at the same size (HEAD hit)", async () => {
     const deps = makeDeps({
-      headObject: vi.fn(async () => ({ size: Buffer.from("fake-bytes").byteLength, etag: null })),
+      headObject: vi.fn(async () => ({ size: Buffer.from("fake-bytes").byteLength, etag: null, lastModified: null })),
     });
 
     const result = await publish([ENTRY], R2, { dryRun: false, verify: false, concurrency: 4 }, deps);
@@ -94,7 +94,7 @@ describe("art-publish matchesStored via publish() — ETag", () => {
   it("skips when the ETag matches, without reading the object", async () => {
     const deps = makeDeps({
       readFile: vi.fn(() => BYTES),
-      headObject: vi.fn(async () => ({ size: BYTES.byteLength, etag: md5(BYTES) })),
+      headObject: vi.fn(async () => ({ size: BYTES.byteLength, etag: md5(BYTES), lastModified: null })),
     });
 
     const result = await publish([ENTRY], R2, { dryRun: false, verify: false, concurrency: 4 }, deps);
@@ -109,7 +109,7 @@ describe("art-publish matchesStored via publish() — ETag", () => {
       readFile: vi.fn(() => BYTES),
       // Same byte length as BYTES, but a different ETag: a stale or corrupted
       // object the old size-only check would have wrongly called "stored".
-      headObject: vi.fn(async () => ({ size: BYTES.byteLength, etag: md5(Buffer.from("wrong-byte")) })),
+      headObject: vi.fn(async () => ({ size: BYTES.byteLength, etag: md5(Buffer.from("wrong-byte")), lastModified: null })),
     });
 
     const result = await publish([ENTRY], R2, { dryRun: false, verify: false, concurrency: 4 }, deps);
@@ -121,7 +121,7 @@ describe("art-publish matchesStored via publish() — ETag", () => {
   it("falls back to size comparison when the ETag is absent — previous behaviour", async () => {
     const deps = makeDeps({
       readFile: vi.fn(() => BYTES),
-      headObject: vi.fn(async () => ({ size: BYTES.byteLength, etag: null })),
+      headObject: vi.fn(async () => ({ size: BYTES.byteLength, etag: null, lastModified: null })),
     });
 
     const result = await publish([ENTRY], R2, { dryRun: false, verify: false, concurrency: 4 }, deps);
@@ -155,7 +155,7 @@ describe("art-publish when R2 reports no size", () => {
     return {
       deps: makeDeps({
         readFile: vi.fn(() => BYTES),
-        headObject: vi.fn(async () => ({ size: null, etag: null })),
+        headObject: vi.fn(async () => ({ size: null, etag: null, lastModified: null })),
         getObject: vi.fn(async () => remote),
       }),
       options: { dryRun: false, verify, concurrency: 4 },
