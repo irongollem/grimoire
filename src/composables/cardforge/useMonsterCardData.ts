@@ -7,7 +7,9 @@ import {
   truncateCard,
 } from "@/types/card.types";
 import { extractTiptapText } from "@/lib/utils";
-import { parseDamageGroups, type DamageGroup } from "@/lib/damageIcons";
+import type { DamageGroup } from "@/lib/damageIcons";
+import type { DamageDefense, StatBlockEntry } from "@/types/statBlock.types";
+import { formatDefenseList } from "@/rules/statBlock/parseDefenses";
 import { parseSpeed } from "@/lib/movement";
 import { parseSenses, type SenseEntry } from "@/lib/senses";
 import { parseDiceAvg } from "@/lib/dice/dice";
@@ -20,17 +22,22 @@ export interface CardStatRow {
   senses?: SenseEntry[];
 }
 
-/**
- * Build a damage stat row: icon groups when types are recognized, plain text
- * otherwise, and nothing for empty/junk values (e.g. a stray "[]").
- */
-function damageRow(label: string, raw: string | undefined): CardStatRow | null {
-  if (!raw) return null;
-  const groups = parseDamageGroups(raw);
-  if (groups.length) return { label, value: raw, damage: groups };
-  const value = raw.trim();
-  if (!value || value === "[]") return null;
-  return { label, value };
+/** Compact card qualifier for one defense: "nonmagical", "nonmagical (non-silvered)", or its note. */
+function defenseQualifier(d: DamageDefense): string {
+  if (d.unless?.includes("magical")) {
+    if (d.unless.includes("silvered")) return "nonmagical (non-silvered)";
+    if (d.unless.includes("adamantine")) return "nonmagical (non-adamantine)";
+    return "nonmagical";
+  }
+  if (d.unless?.length) return d.unless.map((u) => `non-${u}`).join(", ");
+  return d.note ?? "";
+}
+
+/** Build a damage stat row from typed defenses; nothing when the list is empty. */
+function damageRow(label: string, list: DamageDefense[]): CardStatRow | null {
+  if (!list.length) return null;
+  const damage: DamageGroup[] = list.map((d) => ({ types: d.types, qualifier: defenseQualifier(d) }));
+  return { label, value: formatDefenseList(list), damage };
 }
 
 /**
@@ -111,11 +118,11 @@ export function useMonsterCardData(
           .join(", "),
       });
     }
-    const vuln = damageRow("Vuln.", sb.damage_vulnerabilities);
+    const vuln = damageRow("Vuln.", sb.defenses.vulnerabilities);
     if (vuln) rows.push(vuln);
-    const resist = damageRow("Resist.", sb.damage_resistances);
+    const resist = damageRow("Resist.", sb.defenses.resistances);
     if (resist) rows.push(resist);
-    const immune = damageRow("Immune", sb.damage_immunities);
+    const immune = damageRow("Immune", sb.defenses.immunities);
     if (immune) rows.push(immune);
     if (sb.languages) rows.push({ label: "Lang.", value: sb.languages });
     if (sb.senses)
@@ -128,10 +135,10 @@ export function useMonsterCardData(
     if (!sb) return [];
     const tarotMode = toValue(tarot) ?? false;
     const acts = sb.actions ?? [];
-    const isMulti = (a: { name: string }) => /^multiattack/i.test(a.name);
-    // signature actions (breath weapons, recharge powers) — keep these, they were
+    const isMulti = (a: StatBlockEntry) => a.structured.kind === "multiattack";
+    // signature actions (breath weapons, recharge powers) are kept, they were
     // being sliced off after Multiattack + the first couple of basic attacks
-    const isKey = (a: { name: string }) => /\b(breath|recharge)\b/i.test(a.name);
+    const isKey = (a: StatBlockEntry) => a.structured.recharge !== undefined;
     const ordered = [
       ...acts.filter(isMulti),
       ...acts.filter((a) => isKey(a) && !isMulti(a)),

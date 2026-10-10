@@ -25,8 +25,6 @@
       :combatant="selectedCombatant"
       :monster="selectedMonster"
       @roll-check="performCheck"
-      @roll-attack="rollAttack"
-      @roll-damage="rollActionDamage"
       @spend-legendary="store.spendLegendaryActions(selectedCombatant!.instance_id, $event)"
     />
 
@@ -36,8 +34,6 @@
       :combatant="selectedCombatant"
       :npc="selectedNpc"
       @roll-check="performCheck"
-      @roll-attack="rollAttack"
-      @roll-damage="rollActionDamage"
     />
 
     <!-- Companion -->
@@ -46,8 +42,6 @@
       :combatant="selectedCombatant"
       :companion="selectedCompanion"
       @roll-check="performCheck"
-      @roll-attack="rollAttack"
-      @roll-damage="rollActionDamage"
     />
 
     <!-- Player -->
@@ -186,7 +180,8 @@
 
 <script setup lang="ts">
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import { ref, computed } from "vue";
+import { ref, computed, provide } from "vue";
+import { RUNNER_ROLL_CONTEXT } from "@/components/encounters/runnerResolve";
 import RunnerRollBanner from "@/components/encounters/RunnerRollBanner.vue";
 import type { CheckResult } from "@/components/encounters/RunnerRollBanner.vue";
 import RunnerRollModeToggle from "@/components/encounters/RunnerRollModeToggle.vue";
@@ -236,6 +231,9 @@ const selectedTrap = computed(() =>
 const chatMode = ref<ChatMode>("public");
 const rollMode = ref<CheckMode>("normal");
 const lastCheck = ref<CheckResult | null>(null);
+
+// Stat-block actions roll through the resolve panel, which reads the DM's mode and chat setting from here.
+provide(RUNNER_ROLL_CONTEXT, { rollMode, silent: computed(() => chatMode.value === "silent") });
 
 const { promptRoll } = usePromptedRoll();
 

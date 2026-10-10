@@ -14,13 +14,14 @@
  * Wrapped in try/catch throughout: private browsing or a blocked storage API
  * must degrade to "the age question can reappear," never to a crash.
  */
+import { safeSessionStorage } from "@/lib/safeLocalStorage";
 
 const KEY = "grimoire:age-gate";
 
 /** Record that this browser session answered "under 16" to the age question. */
 export function rememberUnder16(): void {
   try {
-    sessionStorage.setItem(KEY, "under16");
+    safeSessionStorage().setItem(KEY, "under16");
   } catch {
     // Storage unavailable — the age question simply reappears on reload.
   }
@@ -29,7 +30,7 @@ export function rememberUnder16(): void {
 /** Whether this browser session already answered "under 16." */
 export function wasAnsweredUnder16(): boolean {
   try {
-    return sessionStorage.getItem(KEY) === "under16";
+    return safeSessionStorage().getItem(KEY) === "under16";
   } catch {
     return false;
   }
@@ -38,7 +39,7 @@ export function wasAnsweredUnder16(): boolean {
 /** Forgets the answer — only meaningful for tests; nothing in the app clears it mid-session. */
 export function clearAgeGateChoice(): void {
   try {
-    sessionStorage.removeItem(KEY);
+    safeSessionStorage().removeItem(KEY);
   } catch {
     // See above.
   }

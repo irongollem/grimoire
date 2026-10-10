@@ -105,6 +105,7 @@
 </template>
 
 <script setup lang="ts">
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { IconMessage } from '@/lib/icons';
 import { railTransition } from "@/lib/motion";
@@ -139,7 +140,7 @@ function clampTabTop(v: number): number {
 }
 
 function getInitialTop(): number {
-  const stored = localStorage.getItem(CHAT_TAB_TOP_KEY);
+  const stored = safeLocalStorage().getItem(CHAT_TAB_TOP_KEY);
   if (stored) {
     const v = parseFloat(stored);
     if (!isNaN(v)) return clampTabTop(v);
@@ -171,7 +172,7 @@ function onPointerUp(e: PointerEvent) {
   if (!dragState.value) return;
   const delta = Math.abs(e.clientY - dragState.value.startY);
   const wasTap = delta < 6;
-  localStorage.setItem(CHAT_TAB_TOP_KEY, String(tabTop.value));
+  safeLocalStorage().setItem(CHAT_TAB_TOP_KEY, String(tabTop.value));
   dragState.value = null;
   window.removeEventListener("pointermove", onPointerMove);
   window.removeEventListener("pointerup", onPointerUp);

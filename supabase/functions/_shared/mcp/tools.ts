@@ -159,7 +159,7 @@ function coerceField(name: string, f: FieldDef, raw: unknown): unknown {
       }
       const problem = f.check?.(raw);
       if (problem) throw new Error(`Field "${name}": ${problem}`);
-      return raw;
+      return f.transform ? f.transform(raw) : raw;
     }
   }
 }

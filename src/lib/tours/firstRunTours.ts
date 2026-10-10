@@ -4,7 +4,7 @@
  * driver.js wiring itself lives in FirstRunTour.vue; this module holds
  * everything that can be unit-tested without a live driver instance.
  *
- * Mechanism: WelcomeView sets `localStorage[TOUR_FLAG_KEY]` to a TourKind
+ * Mechanism: WelcomeView sets `the TOUR_FLAG_KEY storage entry` to a TourKind
  * right before routing a brand-new account to its first real screen.
  * FirstRunTour.vue watches the route, and once it lands on that kind's
  * target route, starts the matching tour and clears the flag on finish.

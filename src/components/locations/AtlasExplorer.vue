@@ -206,7 +206,8 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
-import { useLocalStorage } from "@vueuse/core";
+import { useStorage } from "@vueuse/core";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/AppButton.vue";
@@ -252,7 +253,7 @@ const TREE_MIN = 240;
 const TREE_MAX = 720;
 const TREE_DEFAULT = 448; // the old fixed max-w-md
 const clampWidth = (w: number) => Math.round(Math.min(TREE_MAX, Math.max(TREE_MIN, w)));
-const treeWidth = useLocalStorage("grimoire-atlas-tree-width", TREE_DEFAULT);
+const treeWidth = useStorage("grimoire-atlas-tree-width", TREE_DEFAULT, safeLocalStorage());
 const dragging = ref(false);
 let dragStartX = 0;
 let dragStartW = 0;

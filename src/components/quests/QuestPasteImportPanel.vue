@@ -189,6 +189,7 @@
 </template>
 
 <script setup lang="ts">
+import { safeSessionStorage } from "@/lib/safeLocalStorage";
 /**
  * The "paste a page" entry point in the create-quest flow (#839) — a third
  * way to start a quest, beside typing one (`QuestFlowStarter.vue`'s own
@@ -294,7 +295,7 @@ watch(
     if (hydratedSession || !id) return;
     hydratedSession = true;
     try {
-      myRowId.value = sessionStorage.getItem(`${SESSION_PREFIX}${id}`);
+      myRowId.value = safeSessionStorage().getItem(`${SESSION_PREFIX}${id}`);
     } catch {
       // Private browsing or a blocked storage API — treat as "no stored id".
     }
@@ -307,8 +308,8 @@ function rememberRow(id: string | null): void {
   const cid = campaignId.value;
   if (!cid) return;
   try {
-    if (id) sessionStorage.setItem(`${SESSION_PREFIX}${cid}`, id);
-    else sessionStorage.removeItem(`${SESSION_PREFIX}${cid}`);
+    if (id) safeSessionStorage().setItem(`${SESSION_PREFIX}${cid}`, id);
+    else safeSessionStorage().removeItem(`${SESSION_PREFIX}${cid}`);
   } catch {
     // See above.
   }

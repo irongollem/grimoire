@@ -352,6 +352,7 @@ import { isQuotaExceeded } from "@/lib/quotaError";
 import type { SoundCategory } from "@/types/sound.types";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { localKeyModeChosen } from "@/lib/localKeyVault";
 
 const spotifyStore = useSpotifyStore();
 const { costOf } = useAiCredits();
@@ -710,7 +711,7 @@ async function handleSubmit() {
     const originatingPageId = pageId ?? null;
 
     const promptOverride = editedPrompt.value?.trim() || null;
-    const isLocalMode = typeof localStorage !== "undefined" && localStorage.getItem("grimoire_key_local_mode") === "local";
+    const isLocalMode = localKeyModeChosen();
 
     // Server path: structuring and Lyria both run in generate-music's worker,
     // and useMusicGeneration waits on the job at module level, so the DM can

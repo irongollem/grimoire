@@ -224,6 +224,7 @@ import { toTiptapJson } from '@/ai/useNpcGeneration'
 import { markEdited } from '@/ai/provenance'
 import { deepEqual } from '@/lib/utils'
 import { useRecordDraft, cloneDraftValue } from '@/composables/useRecordDraft'
+import { emptyDefenses } from '@/types/statBlock.types'
 import DraftConflictNotice from '@/components/common/DraftConflictNotice.vue'
 import type { NpcAiGenerated } from '@/ai/types'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/npcs/useNpcs'
@@ -401,6 +402,7 @@ async function promoteToMonster() {
         str: 10, dex: 10, con: 10,
         int: 10, wis: 10, cha: 10,
         challenge_rating: '0',
+        defenses: emptyDefenses(),
       },
     })
     form.linked_monster_id = monster.id
@@ -446,28 +448,8 @@ function applyMonster(m: Monster) {
 
   const msb = m.stat_block
   hasStatBlock.value = true
-  Object.assign(statBlock.value, {
-    armor_class:        msb.armor_class,
-    hit_points:         msb.hit_points,
-    speed:              msb.speed,
-    str: msb.str, dex: msb.dex, con: msb.con,
-    int: msb.int, wis: msb.wis, cha: msb.cha,
-    challenge_rating:   msb.challenge_rating,
-    skills:             msb.skills ? { ...msb.skills } : undefined,
-    senses:             msb.senses,
-    languages:          msb.languages,
-    damage_vulnerabilities: msb.damage_vulnerabilities,
-    damage_resistances: msb.damage_resistances,
-    damage_immunities:  msb.damage_immunities,
-    condition_immunities: msb.condition_immunities,
-    special_abilities:  msb.special_abilities ? [...msb.special_abilities] : [],
-    actions:            msb.actions ? [...msb.actions] : [],
-    bonus_actions:      msb.bonus_actions ? [...msb.bonus_actions] : [],
-    reactions:          msb.reactions ? [...msb.reactions] : [],
-    legendary_actions:  msb.legendary_actions ? [...msb.legendary_actions] : [],
-    lair_actions:       msb.lair_actions ? [...msb.lair_actions] : [],
-    spellcasting:       msb.spellcasting,
-  })
+  // The whole structured block comes across: every list, the typed defenses and each entry's roll.
+  Object.assign(statBlock.value, toStatBlockDraft(msb))
 }
 
 // ── Form state ────────────────────────────────────────────────────────────────
@@ -492,10 +474,8 @@ function toStatBlockDraft(sb: StatBlock | null | undefined): StatBlock {
     proficiency_bonus: sb?.proficiency_bonus,
     saving_throws: cloneDraftValue(sb?.saving_throws),
     skills: sb?.skills ? { ...sb.skills } : undefined,
-    damage_vulnerabilities: sb?.damage_vulnerabilities,
-    damage_resistances: sb?.damage_resistances,
-    damage_immunities: sb?.damage_immunities,
-    condition_immunities: sb?.condition_immunities,
+    initiative_bonus: sb?.initiative_bonus,
+    defenses: sb?.defenses ? cloneDraftValue(sb.defenses) : emptyDefenses(),
     senses: sb?.senses,
     languages: sb?.languages,
     special_abilities: sb?.special_abilities ? [...sb.special_abilities] : [],
@@ -504,6 +484,7 @@ function toStatBlockDraft(sb: StatBlock | null | undefined): StatBlock {
     reactions: sb?.reactions ? [...sb.reactions] : [],
     legendary_actions: sb?.legendary_actions ? [...sb.legendary_actions] : [],
     lair_actions: sb?.lair_actions ? [...sb.lair_actions] : [],
+    legendary_resistance: sb?.legendary_resistance,
     spellcasting: cloneDraftValue(sb?.spellcasting),
   }
 }
@@ -594,26 +575,7 @@ function applyTemplate(id: string) {
   if (!tpl) return
   const sb = tpl.stat_block
   hasStatBlock.value = true
-  Object.assign(statBlock.value, {
-    armor_class: sb.armor_class,
-    hit_points: sb.hit_points,
-    speed: sb.speed,
-    str: sb.str, dex: sb.dex, con: sb.con,
-    int: sb.int, wis: sb.wis, cha: sb.cha,
-    challenge_rating: sb.challenge_rating,
-    proficiency_bonus: sb.proficiency_bonus,
-    saving_throws: sb.saving_throws,
-    skills: sb.skills ? { ...sb.skills } : undefined,
-    damage_resistances: sb.damage_resistances,
-    damage_immunities: sb.damage_immunities,
-    condition_immunities: sb.condition_immunities,
-    senses: sb.senses,
-    languages: sb.languages,
-    special_abilities: sb.special_abilities ? [...sb.special_abilities] : [],
-    actions: sb.actions ? [...sb.actions] : [],
-    legendary_actions: sb.legendary_actions ? [...sb.legendary_actions] : [],
-    spellcasting: sb.spellcasting,
-  })
+  Object.assign(statBlock.value, toStatBlockDraft(sb))
 }
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
@@ -628,13 +590,12 @@ function buildStatBlock(d: NpcDraft): StatBlock | null {
     str: sb.str, dex: sb.dex, con: sb.con,
     int: sb.int, wis: sb.wis, cha: sb.cha,
     challenge_rating: sb.challenge_rating,
+    defenses: sb.defenses,
     ...(sb.proficiency_bonus ? { proficiency_bonus: sb.proficiency_bonus } : {}),
     ...(sb.saving_throws ? { saving_throws: sb.saving_throws } : {}),
     ...(sb.skills && Object.keys(sb.skills).length ? { skills: sb.skills } : {}),
-    ...(sb.damage_vulnerabilities ? { damage_vulnerabilities: sb.damage_vulnerabilities } : {}),
-    ...(sb.damage_resistances ? { damage_resistances: sb.damage_resistances } : {}),
-    ...(sb.damage_immunities ? { damage_immunities: sb.damage_immunities } : {}),
-    ...(sb.condition_immunities ? { condition_immunities: sb.condition_immunities } : {}),
+    ...(sb.initiative_bonus !== undefined && sb.initiative_bonus !== null ? { initiative_bonus: sb.initiative_bonus } : {}),
+    ...(sb.legendary_resistance ? { legendary_resistance: sb.legendary_resistance } : {}),
     ...(sb.senses ? { senses: sb.senses } : {}),
     ...(sb.languages ? { languages: sb.languages } : {}),
     ...(sb.special_abilities?.length ? { special_abilities: sb.special_abilities } : {}),

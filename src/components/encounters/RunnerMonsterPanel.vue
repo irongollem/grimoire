@@ -45,14 +45,13 @@
       <p class="detail-line"><span>Senses</span>{{ monster.stat_block.senses }}</p>
     </template>
     <p v-if="monster.stat_block?.languages" class="detail-line"><span>Languages</span>{{ monster.stat_block.languages }}</p>
-    <p v-if="monster.stat_block?.damage_resistances" class="detail-line"><span>Resistances</span>{{ monster.stat_block.damage_resistances }}</p>
-    <p v-if="monster.stat_block?.damage_immunities" class="detail-line"><span>Immunities</span>{{ monster.stat_block.damage_immunities }}</p>
-    <p v-if="monster.stat_block?.condition_immunities" class="detail-line"><span>Cond. Immune</span>{{ monster.stat_block.condition_immunities }}</p>
-    <RunnerTraitSection
-      :sections="traitSections"
-      @roll-attack="(bonus, name) => emit('roll-attack', bonus, name)"
-      @roll-damage="(desc, name) => emit('roll-damage', desc, name)"
-    />
+    <template v-if="monster.stat_block">
+      <p v-if="monster.stat_block.defenses.resistances.length" class="detail-line"><span>Resistances</span>{{ formatDefenseList(monster.stat_block.defenses.resistances) }}</p>
+      <p v-if="monster.stat_block.defenses.vulnerabilities.length" class="detail-line"><span>Vulnerabilities</span>{{ formatDefenseList(monster.stat_block.defenses.vulnerabilities) }}</p>
+      <p v-if="monster.stat_block.defenses.immunities.length" class="detail-line"><span>Immunities</span>{{ formatDefenseList(monster.stat_block.defenses.immunities) }}</p>
+      <p v-if="monster.stat_block.defenses.condition_immunities.length" class="detail-line"><span>Cond. Immune</span>{{ formatConditionImmunities(monster.stat_block.defenses.condition_immunities) }}</p>
+    </template>
+    <RunnerActionList :combatant="combatant" :sections="actionSections" />
     <template v-if="monster.stat_block?.spellcasting?.entries?.length">
       <div class="detail-divider" />
       <SpellcastingList :spellcasting="monster.stat_block.spellcasting" />
@@ -75,7 +74,9 @@ import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import type { SaveEntry } from "@/rules/characterChecks";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
-import RunnerTraitSection from "@/components/encounters/RunnerTraitSection.vue";
+import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
+import { listedSaveBonus, saveBonusFromStatBlock } from "@/rules/combat/savingThrow";
+import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";
 import RunnerLegendaryActions from "@/components/encounters/RunnerLegendaryActions.vue";
 import type { Monster } from "@/types/monster.types";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -87,8 +88,6 @@ const { combatant, monster } = defineProps<{
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];
-  "roll-attack": [bonus: number, name: string];
-  "roll-damage": [desc: string, name: string];
   "spend-legendary": [count: number];
 }>();
 
@@ -105,15 +104,6 @@ function abilityMod(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
-function parseSaveString(s: string): Record<string, number> {
-  const result: Record<string, number> = {};
-  for (const part of s.split(",")) {
-    const m = part.trim().match(/^(\w+)\s+([+-]\d+)$/);
-    if (m) result[m[1].toLowerCase()] = Number(m[2]);
-  }
-  return result;
-}
-
 const monsterScores = computed(() => {
   const sb = monster.stat_block;
   return {
@@ -124,11 +114,12 @@ const monsterScores = computed(() => {
 
 const monsterSaves = computed<Record<string, SaveEntry>>(() => {
   const sb = monster.stat_block;
-  const parsed = sb?.saving_throws ? parseSaveString(sb.saving_throws) : {};
   return Object.fromEntries(
     ABILITY_KEYS.map((s) => {
       const base = abilityMod(sb?.[s.key] ?? 10);
-      return [s.key, { bonus: parsed[s.key] ?? base, proficient: s.key in parsed }];
+      const bonus = sb ? saveBonusFromStatBlock(sb, s.key) : base;
+      // Proficient means the stat block prints this save, whatever its number.
+      return [s.key, { bonus, proficient: sb ? listedSaveBonus(sb, s.key) !== null : false }];
     }),
   );
 });
@@ -142,16 +133,16 @@ const skillEntries = computed(() => {
   }));
 });
 
-const traitSections = computed(() => {
+const actionSections = computed(() => {
   const sb = monster.stat_block;
   if (!sb) return [];
   return [
-    { label: "Special Abilities", traits: sb.special_abilities },
-    { label: "Actions", traits: sb.actions },
-    { label: "Bonus Actions", traits: sb.bonus_actions },
-    { label: "Reactions", traits: sb.reactions },
-    { label: "Legendary Actions", traits: sb.legendary_actions },
-    { label: "Lair Actions", traits: sb.lair_actions },
+    { label: "Special Abilities", list: "special_abilities" as const, entries: sb.special_abilities },
+    { label: "Actions", list: "actions" as const, entries: sb.actions },
+    { label: "Bonus Actions", list: "bonus_actions" as const, entries: sb.bonus_actions },
+    { label: "Reactions", list: "reactions" as const, entries: sb.reactions },
+    { label: "Legendary Actions", list: "legendary_actions" as const, entries: sb.legendary_actions },
+    { label: "Lair Actions", list: "lair_actions" as const, entries: sb.lair_actions },
   ];
 });
 </script>

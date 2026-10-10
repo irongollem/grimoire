@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { wrapUserInput, buildCampaignContext } from "./utils";
@@ -19,7 +20,6 @@ import { ROLL_TABLE_DIE_MAX, validateEntryRanges } from "@/types/rollTable.types
 import type { RollTableDie, RollTableEntry } from "@/types/rollTable.types";
 import { buildAiProvenance } from "@/ai/provenance";
 
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -53,9 +53,7 @@ export function useRollTableGeneration() {
     startAiQuotes();
 
     try {
-      const isLocalMode =
-        typeof localStorage !== "undefined" &&
-        localStorage.getItem(LOCAL_MODE_KEY) === "local";
+      const isLocalMode = await textRunsOnLocalKey();
 
       const result = isLocalMode
         ? await generateClientSide(userPrompt, options)

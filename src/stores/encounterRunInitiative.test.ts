@@ -94,3 +94,29 @@ describe("runner initiative", () => {
     expect(store.combatants.map((c) => c.initiative)).toEqual([null, 13]);
   });
 });
+
+describe("runner turn reducer wiring", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
+  it("nextTurn fires an auto event on the new turn and clears surprise at turn end", () => {
+    const store = useEncounterRunStore();
+    store.combatants = [monster("a", { initiative: 20, surprised: true }), monster("b", { initiative: 5 })];
+    store.started = true;
+    store.round = 1;
+    store.events = [
+      {
+        id: "e1",
+        name: "Round two",
+        trigger: { type: "round_start", round: 2 },
+        fire_once: true,
+        actions: [{ type: "broadcast_message", message: "Round two!" }],
+      } as unknown as (typeof store.events)[number],
+    ];
+    store.nextTurn();
+    expect(store.combatants.find((c) => c.instance_id === "a")?.surprised).toBe(false);
+    expect(store.activeIndex).toBe(1);
+    store.nextTurn();
+    expect(store.round).toBe(2);
+    expect(store.eventsFired).toContain("e1");
+  });
+});

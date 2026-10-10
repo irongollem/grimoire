@@ -51,6 +51,7 @@
  *   omitted would never exercise that path at all.
  */
 import type { MonsterStatBlock } from "@/types/monster.types";
+import type { ProseStatBlockFields } from "@/rules/statBlock/structureStatBlock";
 
 /** Identifies this script's own row (for idempotent replace) and, on
  *  `monsters`, this script's own rows (for `--clear`). Never matched against
@@ -714,7 +715,8 @@ export const FIXTURE_CAMPAIGN_GOBLINS: Array<{
   alignment: string;
   tags: string[];
   notes: string;
-  stat_block: MonsterStatBlock;
+  /** Prose, like the extracted payload above; `dev-import-fixture.ts` structures it as it writes the row. */
+  stat_block: Omit<MonsterStatBlock, keyof ProseStatBlockFields> & ProseStatBlockFields;
 }> = [
   {
     suffix: "scout",

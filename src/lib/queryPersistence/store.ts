@@ -53,13 +53,27 @@ function txDone(tx: IDBTransaction): Promise<void> {
   });
 }
 
+/**
+ * The browser's IndexedDB, or undefined where it has none or will not hand it
+ * over: Firefox throws a SecurityError on reading `indexedDB` itself when site
+ * data is blocked (#1043), so even `typeof indexedDB` cannot be trusted.
+ */
+export function indexedDbFactory(): IDBFactory | undefined {
+  try {
+    return typeof indexedDB === "undefined" ? undefined : indexedDB;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Rejects when IndexedDB is missing or the open fails; callers degrade to network-only. */
 export function openQueryStore(): Promise<QueryStore> {
-  if (typeof indexedDB === "undefined") {
+  const factory = indexedDbFactory();
+  if (!factory) {
     return Promise.reject(new Error("IndexedDB unavailable"));
   }
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = factory.open(DB_NAME, 1);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {

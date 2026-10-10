@@ -16,6 +16,7 @@ import {
 import type { CaptchaSource } from "@/lib/auth/captcha";
 import type { CampaignMember, CampaignRole } from "@/types/campaign.types";
 import type { ChildAccountLink } from "@/types/childAccount.types";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 /**
  * How long a boot waits on a token refresh before it starts on the stored
@@ -377,7 +378,7 @@ export const useAuthStore = defineStore("auth", () => {
         return;
       }
       setTimeout(() => {
-        const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
+        const storedCampaignId = safeLocalStorage().getItem("grimoire_active_campaign") ?? undefined;
         void loadIdentity(userId, storedCampaignId);
       }, 0);
     } else {
@@ -420,7 +421,7 @@ export const useAuthStore = defineStore("auth", () => {
 
         if (user.value) {
           const storedCampaignId =
-            localStorage.getItem("grimoire_active_campaign") ?? undefined;
+            safeLocalStorage().getItem("grimoire_active_campaign") ?? undefined;
           const userId = user.value.id;
           const snapshot = readAuthSnapshot(userId, storedCampaignId);
           if (snapshot) {
@@ -507,7 +508,7 @@ export const useAuthStore = defineStore("auth", () => {
         session.value = data.session;
         setCachedUser(data.user);
         const storedCampaignId =
-          localStorage.getItem("grimoire_active_campaign") ?? undefined;
+          safeLocalStorage().getItem("grimoire_active_campaign") ?? undefined;
         await loadIdentity(data.user.id, storedCampaignId);
       }
     } finally {

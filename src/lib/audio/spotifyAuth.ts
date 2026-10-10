@@ -1,3 +1,4 @@
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 // Spotify PKCE OAuth helpers — no client secret required.
 //
 // Setup: create an app at https://developer.spotify.com/dashboard
@@ -125,9 +126,9 @@ export async function buildAuthUrl(clientId: string): Promise<string> {
   const state = generateOAuthState();
   // localStorage (not sessionStorage) so the verifier survives when iOS PWA
   // hands the Spotify callback off to Safari and back — different session contexts.
-  localStorage.setItem(VERIFIER_KEY, verifier);
-  localStorage.setItem(CLIENT_ID_KEY, clientId);
-  localStorage.setItem(STATE_KEY, state);
+  safeLocalStorage().setItem(VERIFIER_KEY, verifier);
+  safeLocalStorage().setItem(CLIENT_ID_KEY, clientId);
+  safeLocalStorage().setItem(STATE_KEY, state);
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -145,13 +146,13 @@ export async function buildAuthUrl(clientId: string): Promise<string> {
 
 /** Exchange an auth response for tokens after validating its CSRF state. */
 export async function exchangeCode(code: string, state: string | undefined, clientId?: string): Promise<SpotifyTokens> {
-  const expectedState = localStorage.getItem(STATE_KEY);
-  localStorage.removeItem(STATE_KEY);
+  const expectedState = safeLocalStorage().getItem(STATE_KEY);
+  safeLocalStorage().removeItem(STATE_KEY);
   if (!expectedState || !state || state !== expectedState) {
     throw new Error("Spotify login state did not match. Please start the connection again.");
   }
 
-  const verifier = localStorage.getItem(VERIFIER_KEY);
+  const verifier = safeLocalStorage().getItem(VERIFIER_KEY);
   // The verifier lives in localStorage, which is per-origin. If the login began
   // on one host and the callback landed on another (an apex → app redirect, say),
   // it is simply not here — worth naming, because it looks nothing like a
@@ -161,10 +162,10 @@ export async function exchangeCode(code: string, state: string | undefined, clie
       `No PKCE verifier found for ${window.location.origin}. If the login started on a different domain, the redirect URI registered with Spotify must point at this one.`,
     );
   }
-  localStorage.removeItem(VERIFIER_KEY);
-  const stored = localStorage.getItem(CLIENT_ID_KEY);
+  safeLocalStorage().removeItem(VERIFIER_KEY);
+  const stored = safeLocalStorage().getItem(CLIENT_ID_KEY);
   const id = clientId ?? (stored === null ? "" : stored);
-  localStorage.removeItem(CLIENT_ID_KEY);
+  safeLocalStorage().removeItem(CLIENT_ID_KEY);
   if (!id) throw new Error("No Spotify client ID available for the token exchange.");
 
   const res = await spotifyFetch("https://accounts.spotify.com/api/token", {
@@ -217,11 +218,11 @@ async function refreshAccessToken(clientId: string, refreshToken: string): Promi
 // ── Token storage ─────────────────────────────────────────────────────────
 
 export function storeTokens(tokens: SpotifyTokens): void {
-  localStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
+  safeLocalStorage().setItem(TOKEN_KEY, JSON.stringify(tokens));
 }
 
 export function getStoredTokens(): SpotifyTokens | null {
-  const raw = localStorage.getItem(TOKEN_KEY);
+  const raw = safeLocalStorage().getItem(TOKEN_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as SpotifyTokens;
@@ -231,7 +232,7 @@ export function getStoredTokens(): SpotifyTokens | null {
 }
 
 export function clearTokens(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  safeLocalStorage().removeItem(TOKEN_KEY);
 }
 
 /**

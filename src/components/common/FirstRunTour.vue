@@ -4,6 +4,7 @@
 </template>
 
 <script setup lang="ts">
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 // First-run guided tours (#729). Mounted once in App.vue for the app's whole
 // lifetime — see firstRunTours.ts for the mechanism this implements and the
 // step definitions themselves.
@@ -29,7 +30,7 @@ let awaitingDom = false;
 
 function readFlag(): string | null {
   try {
-    return localStorage.getItem(TOUR_FLAG_KEY);
+    return safeLocalStorage().getItem(TOUR_FLAG_KEY);
   } catch {
     return null; // storage disabled/unavailable — treat as "no tour pending"
   }
@@ -37,7 +38,7 @@ function readFlag(): string | null {
 
 function clearFlag(): void {
   try {
-    localStorage.removeItem(TOUR_FLAG_KEY);
+    safeLocalStorage().removeItem(TOUR_FLAG_KEY);
   } catch {
     /* nothing to clear */
   }

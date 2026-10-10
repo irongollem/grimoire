@@ -189,7 +189,7 @@ describe("buildMonsterCombatants", () => {
   });
 
   it("only seeds a legendary-action pool when includeLegendaryActions is set and the monster has legendary actions", () => {
-    const withLegendary = monster({ stat_block: { ...monster().stat_block, legendary_actions: [{ name: "Bite", description: "" }] } });
+    const withLegendary = monster({ stat_block: { ...monster().stat_block, legendary_actions: [{ name: "Bite", description: "", structured: { kind: "other", source: "manual" } }] } });
 
     const noFlag = buildMonsterCombatants(withLegendary, { factionId: "f1", count: 1, started: false });
     expect(noFlag[0].legendary_action_cap).toBeUndefined();

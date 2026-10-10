@@ -1,3 +1,4 @@
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 /**
  * Whether the soundboard bypasses the Web Audio graph and plays elements
  * directly. See `audioDirectOutput.ts` for what that buys and what it costs.
@@ -17,7 +18,7 @@ const STORAGE_KEY = "grimoire.audioOutput.direct";
  */
 export function getDirectOutputEnabled(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "true";
+    return safeLocalStorage().getItem(STORAGE_KEY) === "true";
   } catch {
     // Private browsing, or storage disabled entirely.
     return false;
@@ -26,7 +27,7 @@ export function getDirectOutputEnabled(): boolean {
 
 export function setDirectOutputEnabled(enabled: boolean): void {
   try {
-    localStorage.setItem(STORAGE_KEY, String(enabled));
+    safeLocalStorage().setItem(STORAGE_KEY, String(enabled));
   } catch {
     /* nothing to do — the in-memory ref still holds for this session */
   }

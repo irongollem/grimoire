@@ -44,6 +44,7 @@
 </template>
 
 <script setup lang="ts">
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import DemoCampaignOffer from "@/components/campaign/DemoCampaignOffer.vue";
@@ -62,7 +63,7 @@ const { url: discordUrl, visible: showDiscord } = useDiscordInvite();
 function choose(mode: "dm" | "player") {
   ui.userMode = mode;
   // A separate tour runner reads this to launch the first-run walkthrough.
-  localStorage.setItem(TOUR_FLAG_KEY, mode);
+  safeLocalStorage().setItem(TOUR_FLAG_KEY, mode);
   router.push({ name: mode === "dm" ? "dashboard" : "play-home" });
 }
 
@@ -70,7 +71,7 @@ async function onDemoLoaded(campaign: Campaign) {
   // Same as choosing DM: the first-run tour should run over the demo's real
   // content rather than an empty dashboard.
   ui.userMode = "dm";
-  localStorage.setItem(TOUR_FLAG_KEY, "dm");
+  safeLocalStorage().setItem(TOUR_FLAG_KEY, "dm");
   campaignStore.switchToCampaign(campaign);
   await router.push({ name: "dashboard" });
 }

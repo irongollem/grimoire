@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyCampaignFilter, audioRefusal, callTool, listTools, resolveClassDefinition, resolveImageColumn, validateFields } from "./tools.ts";
+import { emptyDefenses, type Defenses, type StatBlockEntry } from "../../../../src/types/statBlock.types.ts";
 import { CREATABLE_TYPES, ENTITY_REGISTRY, ENTITY_TYPES } from "./registry.ts";
 
 const quest = ENTITY_REGISTRY.quest;
@@ -106,7 +107,8 @@ describe("validateFields — create", () => {
 
   it("passes json fields through but rejects a stringified payload", () => {
     const sb = { armor_class: 15, hit_points: "8d8+16", challenge_rating: "5" };
-    expect(validateFields(monster, { name: "Owlbear", stat_block: sb }, { partial: false }).stat_block).toEqual(sb);
+    expect(validateFields(monster, { name: "Owlbear", stat_block: sb }, { partial: false }).stat_block)
+      .toEqual({ ...sb, defenses: emptyDefenses() });
     expect(validateFields(item, { name: "Sword", damage_rolls: [{ dice: "1d8", type: "slashing" }] }, { partial: false })
       .damage_rolls).toEqual([{ dice: "1d8", type: "slashing" }]);
     // The classic near-miss: JSON.stringify'ing the value before sending it.
@@ -131,8 +133,41 @@ describe("validateFields — create", () => {
       condition_immunities: "charmed, frightened", initiative_bonus: null,
       actions: [{ name: "Snatch", description: "Melee attack." }],
     };
-    expect(validateFields(monster, { name: "Memory-Magpie", stat_block: good }, { partial: false }).stat_block)
-      .toEqual(good);
+    const stored = validateFields(monster, { name: "Memory-Magpie", stat_block: good }, { partial: false })
+      .stat_block as Record<string, unknown>;
+    expect(stored.saving_throws).toBe("Dex +6");
+    expect(stored.condition_immunities).toBeUndefined();
+    expect((stored.defenses as Defenses).condition_immunities).toEqual(["Charmed", "Frightened"]);
+  });
+
+  const BITE = "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 8 (1d10 + 3) piercing damage.";
+  const stat = (extra: Record<string, unknown>) =>
+    validateFields(monster, { name: "Wolf", stat_block: { armor_class: 13, ...extra } }, { partial: false })
+      .stat_block as Record<string, unknown> & { actions: StatBlockEntry[] };
+
+  it("stores a prose stat block structured: an attack becomes kind attack, modifiers become defenses", () => {
+    const stored = stat({ actions: [{ name: "Bite", description: BITE }], damage_resistances: "fire" });
+    expect(stored.actions[0].structured.kind).toBe("attack");
+    expect(stored.actions[0].structured.attack?.bonus).toBe(5);
+    expect(stored.damage_resistances).toBeUndefined();
+    expect((stored.defenses as Defenses).resistances[0].types).toEqual(["fire"]);
+  });
+
+  it("round-trips a stored block: sending back what get returned keeps it intact", () => {
+    const once = stat({ actions: [{ name: "Bite", description: BITE }], damage_immunities: "poison" });
+    const twice = stat(once);
+    expect(twice).toEqual(once);
+  });
+
+  it("rejects garbage defenses or structured payloads", () => {
+    const bad = (extra: Record<string, unknown>) => () => stat(extra);
+    expect(bad({ defenses: "fire" })).toThrow(/defenses must be an object/);
+    expect(bad({ defenses: { resistances: [{ types: "fire" }], immunities: [], vulnerabilities: [], condition_immunities: [] } }))
+      .toThrow(/defenses\.resistances\[0\] must be/);
+    expect(bad({ actions: [{ name: "Bite", description: BITE, structured: { kind: "bogus", source: "parsed" } }] }))
+      .toThrow(/actions\[0\]\.structured kind must be one of/);
+    expect(bad({ actions: [{ name: "Bite", description: BITE, structured: "attack" }] }))
+      .toThrow(/actions\[0\]\.structured must be an object/);
   });
 
   it("refuses a type with no create block", () => {

@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildCampaignContext, wrapUserInput } from "./utils";
@@ -10,7 +11,6 @@ import { buildNpcVoiceProfile } from "@/lib/npcs/buildNpcVoiceProfile";
 import type { Npc } from "@/types/npc.types";
 import type { NpcVoiceAiResult } from "./types";
 
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 const MAX_LINES = 3;
 
 /**
@@ -59,9 +59,7 @@ export function useNpcVoiceCoach() {
     }
 
     try {
-      const isLocalMode =
-        typeof localStorage !== "undefined" &&
-        localStorage.getItem(LOCAL_MODE_KEY) === "local";
+      const isLocalMode = await textRunsOnLocalKey();
 
       const result = isLocalMode
         ? await suggestClientSide(npc, situation)

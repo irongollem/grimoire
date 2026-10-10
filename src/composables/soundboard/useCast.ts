@@ -22,6 +22,7 @@
  * people who actually use it.
  */
 
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, computed, watch } from "vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 
@@ -147,7 +148,7 @@ function browserSupportsCast(): boolean {
 
 function hasCastBefore(): boolean {
   try {
-    return localStorage.getItem(CAST_USED_KEY) === "1";
+    return safeLocalStorage().getItem(CAST_USED_KEY) === "1";
   } catch {
     return false;
   }
@@ -155,7 +156,7 @@ function hasCastBefore(): boolean {
 
 function rememberCastUse(): void {
   try {
-    localStorage.setItem(CAST_USED_KEY, "1");
+    safeLocalStorage().setItem(CAST_USED_KEY, "1");
   } catch {
     // Private mode or blocked storage: this viewer just loads on click next time.
   }

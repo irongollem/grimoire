@@ -148,3 +148,55 @@ describe("mapOpen5eV2Monster — size", () => {
     ).toThrow(/Colossal/);
   });
 });
+
+describe("mapOpen5eV2Monster — structured actions (#1017)", () => {
+  const SCIMITAR =
+    "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) slashing damage.";
+
+  it("structures an attack action from its prose, ignoring Open5e's own attack data", () => {
+    const monster = mapOpen5eV2Monster(
+      record({
+        document: document2014,
+        key: "srd_goblin",
+        // Open5e's structured attack data for this creature is wrong (thunder, no
+        // damage bonus); the mapper must not read it.
+        attacks: [{ name: "Scimitar", damage_type: "thunder", damage_bonus: 0 }],
+        actions: [{ name: "Scimitar", desc: SCIMITAR, action_type: "ACTION" }],
+      }) as Parameters<typeof mapOpen5eV2Monster>[0],
+    );
+    const scimitar = monster.stat_block.actions?.[0]?.structured;
+    expect(scimitar?.kind).toBe("attack");
+    expect(scimitar?.attack?.bonus).toBe(4);
+    expect(scimitar?.attack?.hit[0]).toEqual({ dice: "1d6+2", type: "slashing" });
+    expect(scimitar?.source).toBe("parsed");
+  });
+
+  it("turns Open5e's display modifier strings into defenses", () => {
+    const monster = mapOpen5eV2Monster(
+      record({
+        resistances_and_immunities: { damage_immunities_display: "fire, poison", condition_immunities_display: "charmed" },
+      }) as Parameters<typeof mapOpen5eV2Monster>[0],
+    );
+    expect(monster.stat_block.defenses.immunities[0]?.types).toEqual(["fire", "poison"]);
+    expect(monster.stat_block.defenses.condition_immunities).toEqual(["Charmed"]);
+    expect("damage_immunities" in monster.stat_block).toBe(false);
+  });
+});
+
+describe("mapOpen5eV2Monster — legendary action cost", () => {
+  it("puts back the printed '(Costs N Actions)' Open5e strips from SRD names, so the cost is in the prose", () => {
+    const wing = "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 22 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone.";
+    const monster = mapOpen5eV2Monster({
+      ...record(),
+      actions: [
+        { name: "Detect", desc: "The dragon makes a Wisdom (Perception) check.", action_type: "LEGENDARY_ACTION", legendary_action_cost: 1 },
+        { name: "Wing Attack", desc: wing, action_type: "LEGENDARY_ACTION", legendary_action_cost: 2 },
+        { name: "Bite", desc: "Melee Weapon Attack: +14 to hit, reach 10 ft., one target. Hit: 19 (2d10 + 8) piercing damage.", action_type: "ACTION", legendary_action_cost: 1 },
+      ],
+    } as Parameters<typeof mapOpen5eV2Monster>[0]);
+    const legendary = monster.stat_block.legendary_actions ?? [];
+    expect(legendary.map((e) => e.name)).toEqual(["Detect", "Wing Attack (Costs 2 Actions)"]);
+    expect(legendary[1].structured.legendary_cost).toBe(2);
+    expect(legendary[0].structured.legendary_cost).toBe(1);
+  });
+});

@@ -265,24 +265,47 @@
                     <p class="text-caption font-semibold text-foreground shrink-0">{{ t.name }}.</p>
                     <div class="flex gap-1.5 flex-wrap">
                       <AppButton
-                        v-if="parseAttackBonus(t.description) !== null"
-                        v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollAttack(parseAttackBonus(t.description) ?? 0, t.name, m); } }"
+                        v-if="t.attackBonus !== null"
+                        v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollEntryAttack(t, m); } }"
                         variant="tinted"
                         size="xs"
                         tone="caution"
                         emphasis="outline"
-                        :label="`⚔ ${(parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : ''}${parseAttackBonus(t.description) ?? 0}`"
+                        :label="`⚔ ${signedBonus(t.attackBonus)}`"
                       />
+                      <span
+                        v-if="structuredSaveLabel(t.structured)"
+                        class="text-label text-muted-foreground self-center"
+                      >{{ structuredSaveLabel(t.structured) }}</span>
                       <AppButton
-                        v-if="hasRollableDice(t.description)"
+                        v-if="damageFor(t.structured)"
                         variant="tinted"
                         size="xs"
                         tone="danger"
                         emphasis="outline"
-                        :label="`🎲 ${actionDiceLabel(t.description)}`"
-                        @click.stop="rollActionDamage(t.description, t.name)"
+                        :label="`🎲 ${damageFor(t.structured)?.label}`"
+                        @click.stop="rollActionDamage(t.structured, t.name)"
                       />
                     </div>
+                  </div>
+                  <div
+                    v-for="opt in structuredOptionEntries(t.structured)"
+                    :key="opt.name"
+                    class="flex items-center gap-2 flex-wrap mt-1 pl-3"
+                  >
+                    <span class="text-caption text-foreground">{{ opt.name }}</span>
+                    <span v-if="structuredSaveLabel(opt.structure)" class="text-label text-muted-foreground">
+                      {{ structuredSaveLabel(opt.structure) }}
+                    </span>
+                    <AppButton
+                      v-if="damageFor(opt.structure)"
+                      variant="tinted"
+                      size="xs"
+                      tone="danger"
+                      emphasis="outline"
+                      :label="`🎲 ${damageFor(opt.structure)?.label}`"
+                      @click.stop="rollActionDamage(opt.structure, `${t.name}: ${opt.name}`)"
+                    />
                   </div>
                   <p class="text-caption text-muted-foreground leading-relaxed mt-0.5">{{ t.description }}</p>
                 </div>
@@ -327,8 +350,10 @@ import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
-import { parseExpression } from "@/lib/dice/dice";
-import type { DieSize } from "@/lib/dice/dice";
+import { parsedToCounts } from "@/lib/dice/dice";
+import { combineDamageParts, structuredAttackBonus, structuredDamageParts, structuredOptionEntries, structuredSaveLabel } from "@/lib/statBlock/structuredRolls";
+import type { CombinedDamage } from "@/lib/statBlock/structuredRolls";
+import type { ActionStructure, StatBlockEntry } from "@/types/statBlock.types";
 import { formatHitPoints } from "@/lib/utils";
 import { crBg, crText } from "@/lib/monsterDisplay";
 import { rollParsed } from "@/lib/dice/roller";
@@ -565,20 +590,17 @@ function openLightbox(monster: PlayerVisibleMonster | null, discovery: Discovere
 // ── Roll helpers ──────────────────────────────────────────────────────────────
 const lastRoll = ref<{ label: string; total: number } | null>(null);
 
-function parseAttackBonus(desc: string): number | null {
-  const m = desc.match(/([+-]\d+)\s+to\s+hit/i);
-  return m ? parseInt(m[1]) : null;
+function signedBonus(n: number): string {
+  return n >= 0 ? `+${n}` : `${n}`;
 }
-function hasRollableDice(desc: string): boolean {
-  const parsed = parseExpression(desc);
-  return !!parsed && parsed.terms.length > 0;
+function damageFor(structure: ActionStructure): CombinedDamage | null {
+  return combineDamageParts(structuredDamageParts(structure));
 }
-function actionDiceLabel(desc: string): string {
-  const parsed = parseExpression(desc);
-  if (!parsed || !parsed.terms.length) return "";
-  const diceStr = parsed.terms.map((t) => `${t.count}d${t.sides}`).join("+");
-  const mod = parsed.modifier;
-  return diceStr + (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : "");
+
+/** The roll-mode callback is a closure, which the template's `v-if` does not narrow; check here. */
+function rollEntryAttack(entry: { name: string; attackBonus: number | null }, mode: RollMode | null) {
+  if (entry.attackBonus === null) return;
+  void rollAttack(entry.attackBonus, entry.name, mode);
 }
 
 async function rollAttack(attackBonus: number, actionName: string, override: RollMode | null = null) {
@@ -609,21 +631,15 @@ async function rollCheck(modifier: number, label: string, override: RollMode | n
   if (result) lastRoll.value = { label: fullLabel, total: result.total };
 }
 
-async function rollActionDamage(desc: string, actionName: string) {
-  const parsed = parseExpression(desc);
-  if (!parsed || !parsed.terms.length) return;
-  const label = `${actionName} (${actionDiceLabel(desc)})`;
+async function rollActionDamage(structure: ActionStructure, actionName: string) {
+  const damage = damageFor(structure);
+  if (!damage) return;
+  const { parsed } = damage;
+  const label = `${actionName} (${damage.label})`;
 
-  const counts: Partial<Record<DieSize, number>> = {};
-  for (const t of parsed.terms) {
-    if ([4, 6, 8, 10, 12, 20, 100].includes(t.sides)) {
-      const k = t.sides as DieSize;
-      counts[k] = (counts[k] ?? 0) + t.count;
-    }
-  }
-
+  const counts = parsedToCounts(parsed.terms);
   if (Object.keys(counts).length === 0) {
-    // Non-standard dice — fallback
+    // Non-standard dice (or a flat amount): no physical-dice prompt, roll it directly
     const { total, breakdown } = rollParsed(parsed);
     lastRoll.value = { label, total };
     sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }, null, member.value?.name).catch((e) => reportChatFailure(e, "post the roll to the chat"));
@@ -648,12 +664,15 @@ const lightboxScores = computed(() => {
 const lightboxTraitSections = computed(() => {
   const sb = lightbox.value?.monster?.stat_block;
   if (!sb) return [];
+  // The bonus is read once per entry so the template's `v-if` narrows it to a number.
+  const withBonus = (list: StatBlockEntry[] | undefined) =>
+    (list ?? []).map((entry) => ({ ...entry, attackBonus: structuredAttackBonus(entry.structured) }));
   return [
-    { label: "Special Abilities", traits: sb.special_abilities },
-    { label: "Actions",           traits: sb.actions },
-    { label: "Bonus Actions",     traits: sb.bonus_actions },
-    { label: "Reactions",         traits: sb.reactions },
-    { label: "Legendary Actions", traits: sb.legendary_actions },
-  ].filter((s) => s.traits?.length);
+    { label: "Special Abilities", traits: withBonus(sb.special_abilities) },
+    { label: "Actions",           traits: withBonus(sb.actions) },
+    { label: "Bonus Actions",     traits: withBonus(sb.bonus_actions) },
+    { label: "Reactions",         traits: withBonus(sb.reactions) },
+    { label: "Legendary Actions", traits: withBonus(sb.legendary_actions) },
+  ].filter((s) => s.traits.length);
 });
 </script>

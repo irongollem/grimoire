@@ -1,4 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 /**
  * The session auth-js has stored on this device, read without its lock and
@@ -42,7 +43,7 @@ function isStoredSession(value: unknown): value is Session {
 /** A miss on anything unreadable: absent, malformed, or storage unavailable. */
 export function readPersistedSession(
   key: string,
-  storage: Pick<Storage, "getItem"> = localStorage,
+  storage: Pick<Storage, "getItem"> = safeLocalStorage(),
 ): Session | null {
   try {
     const raw = storage.getItem(key);

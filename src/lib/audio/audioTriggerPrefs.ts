@@ -1,3 +1,4 @@
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 /**
  * Whether campaign events are allowed to drive the soundboard.
  *
@@ -14,7 +15,7 @@ const STORAGE_KEY = "grimoire.audioTriggers.enabled";
  */
 export function getAudioTriggersEnabled(): boolean {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeLocalStorage().getItem(STORAGE_KEY);
     return raw === null ? true : raw === "true";
   } catch {
     // Private browsing, or storage disabled entirely. Fall back to the default
@@ -25,7 +26,7 @@ export function getAudioTriggersEnabled(): boolean {
 
 export function setAudioTriggersEnabled(enabled: boolean): void {
   try {
-    localStorage.setItem(STORAGE_KEY, String(enabled));
+    safeLocalStorage().setItem(STORAGE_KEY, String(enabled));
   } catch {
     /* nothing to do — the in-memory ref still holds for this session */
   }

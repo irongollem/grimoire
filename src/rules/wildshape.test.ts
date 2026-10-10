@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { emptyDefenses } from "@/types/statBlock.types";
 import {
   availableWildShapeForms,
   druidProfile,
@@ -34,6 +35,7 @@ function beast(overrides: Partial<Monster["stat_block"]> & { monster_type?: Mons
       speed: "40 ft.",
       str: 10, dex: 10, con: 10, int: 2, wis: 12, cha: 6,
       challenge_rating: "1/4",
+      defenses: emptyDefenses(),
       ...statOverrides,
     },
     notes: null,

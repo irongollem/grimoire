@@ -1,6 +1,7 @@
 import { ref, readonly } from "vue";
 import { THEMES, DEFAULT_THEME_ID } from "@/lib/themes";
 import type { GrimoireTheme } from "@/lib/themes";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 // The theme runtime: module-level state plus the functions that apply it to the
 // document. Pinia stores need to set and read the theme and must not import a
@@ -15,20 +16,18 @@ const OVERRIDE_KEY = "grimoire-theme-override";
 
 export type ThemeOverride = "campaign" | "light" | "dark" | "system";
 
-const ls = typeof localStorage !== "undefined" ? localStorage : null;
-
-const activeId = ref<string>(ls?.getItem(STORAGE_KEY) ?? DEFAULT_THEME_ID);
+const activeId = ref<string>(safeLocalStorage().getItem(STORAGE_KEY) ?? DEFAULT_THEME_ID);
 /** The theme the campaign asked for, before the player's override. STORAGE_KEY
  *  holds the *applied* theme, so re-resolving from it would compound overrides:
  *  "dark" then "light" must land on the campaign's light member, which the
  *  applied dark id alone cannot tell apart from a dark campaign theme. */
 const CAMPAIGN_KEY = "grimoire-campaign-theme";
 const campaignThemeId = ref<string>(
-  ls?.getItem(CAMPAIGN_KEY) ?? ls?.getItem(STORAGE_KEY) ?? DEFAULT_THEME_ID,
+  safeLocalStorage().getItem(CAMPAIGN_KEY) ?? safeLocalStorage().getItem(STORAGE_KEY) ?? DEFAULT_THEME_ID,
 );
 
 const themeOverride = ref<ThemeOverride>(
-  (ls?.getItem(OVERRIDE_KEY) as ThemeOverride) ?? "campaign",
+  (safeLocalStorage().getItem(OVERRIDE_KEY) as ThemeOverride) ?? "campaign",
 );
 
 /**
@@ -92,8 +91,8 @@ function applyTheme(theme: GrimoireTheme) {
     root.style.setProperty(prop, value);
   }
   root.setAttribute("data-theme", theme.id);
-  localStorage.setItem(STORAGE_KEY, theme.id);
-  localStorage.setItem(
+  safeLocalStorage().setItem(STORAGE_KEY, theme.id);
+  safeLocalStorage().setItem(
     SPLASH_COLORS_KEY,
     JSON.stringify({ background: theme.vars["--background"], primary: theme.vars["--primary"], mode: theme.mode }),
   );
@@ -103,7 +102,7 @@ function applyTheme(theme: GrimoireTheme) {
 /** Set theme — respects the player override if active. */
 export function setTheme(id: string) {
   campaignThemeId.value = id;
-  localStorage.setItem(CAMPAIGN_KEY, id);
+  safeLocalStorage().setItem(CAMPAIGN_KEY, id);
   const resolved = resolveThemeId(id);
   const theme = THEMES.find((t) => t.id === resolved);
   if (theme) applyTheme(theme);
@@ -112,7 +111,7 @@ export function setTheme(id: string) {
 /** Persist the player's override and immediately reapply the campaign theme. */
 export function setOverride(override: ThemeOverride) {
   themeOverride.value = override;
-  localStorage.setItem(OVERRIDE_KEY, override);
+  safeLocalStorage().setItem(OVERRIDE_KEY, override);
   // Re-apply with the campaign's theme — the override will resolve it
   setTheme(campaignThemeId.value);
 }

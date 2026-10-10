@@ -40,6 +40,7 @@
  */
 import type { AiProvenance } from "@/ai/provenance";
 import type { MonsterStatBlock } from "@/types/monster.types";
+import type { ProseStatBlockFields } from "@/rules/statBlock/structureStatBlock";
 import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult } from "@/ai/types";
 import type { ArchiveManifest } from "@/lib/archiveImport/archiveManifest";
 
@@ -115,6 +116,15 @@ export const PROSE_FIELD_LIMIT = 600;
  * stub, and a required field the document does not contain is an invitation to
  * invent one.
  */
+/**
+ * A stat block as a model or a document gives it: prose. The four damage and
+ * condition modifier lines are strings and every action is `{ name, description }`;
+ * code turns that into the stored `MonsterStatBlock` with `structureStatBlock`
+ * (#1017), never the model.
+ */
+export type ExtractedStatBlock = Partial<Omit<MonsterStatBlock, keyof ProseStatBlockFields>> &
+  ProseStatBlockFields;
+
 export interface ExtractedMonster {
   name: string;
   /** Free text as printed ("Large fiend (demon)"); the mapper resolves it to the enum. */
@@ -125,7 +135,7 @@ export interface ExtractedMonster {
   description?: string;
   habitat?: string;
   /** Partial: a page break can cost the reactions block without costing the rest. */
-  stat_block?: Partial<MonsterStatBlock>;
+  stat_block?: ExtractedStatBlock;
 }
 
 export interface ExtractedNpc {

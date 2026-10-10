@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { ComplicationAiResult } from "./types";
@@ -11,7 +12,6 @@ import { isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useCampaignStore } from "@/stores/campaign";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -71,9 +71,7 @@ export function useComplicationGeneration() {
     startAiQuotes();
 
     try {
-      const isLocalMode =
-        typeof localStorage !== "undefined" &&
-        localStorage.getItem(LOCAL_MODE_KEY) === "local";
+      const isLocalMode = await textRunsOnLocalKey();
       if (isLocalMode) {
         throw new Error(
           "Complications need the server so they can draw on your bestiary and cast. They aren't available in local-key mode. " +

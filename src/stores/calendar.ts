@@ -3,6 +3,7 @@ import { ref, computed, watch } from "vue";
 import { getCalendarAdapter, listCalendarAdapters } from "@/calendars/index";
 import type { CalendarAdapter } from "@/types/calendar.types";
 import type { SettingCalendarDef } from "@/settings/types";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 export type CalendarView = "month" | "timeline";
 // Number of years shown in timeline. Sub-year values: 1/12 ≈ 0.083 (1 month), 1 = 1 year.
@@ -14,7 +15,7 @@ const DEFAULT_ZOOM = 10 / 365; // 1 week (weekSize / 365 for Harptos)
 
 function loadPosition(): { year: number; month: number; calendarId: string; zoom: number } {
   try {
-    const saved = localStorage.getItem(POSITION_KEY);
+    const saved = safeLocalStorage().getItem(POSITION_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
@@ -51,7 +52,7 @@ export const useCalendarStore = defineStore("calendar", () => {
   const currentMonth = ref<number>(savedPos.month);
 
   watch([activeCalendarId, currentYear, currentMonth, timelineZoom], ([calendarId, year, month, zoom]) => {
-    localStorage.setItem(POSITION_KEY, JSON.stringify({ calendarId, year, month, zoom }));
+    safeLocalStorage().setItem(POSITION_KEY, JSON.stringify({ calendarId, year, month, zoom }));
   });
 
   const adapter = computed<CalendarAdapter>(() =>

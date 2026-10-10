@@ -47,7 +47,7 @@
  */
 import type { QueryPersister } from "@tanstack/vue-query";
 import { containsEphemeral } from "./ephemeral";
-import { openQueryStore } from "./store";
+import { indexedDbFactory, openQueryStore } from "./store";
 import type { QueryStore } from "./store";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -116,7 +116,7 @@ export function createQueryPersistence(options: QueryPersistenceOptions): QueryP
     storePromise ??= openQueryStore().catch((error: unknown) => {
       unavailable = true;
       // Missing IndexedDB is normal (SSR, some private modes); anything else is worth hearing about.
-      if (typeof indexedDB !== "undefined") report(error);
+      if (indexedDbFactory()) report(error);
       return null;
     });
     return storePromise;

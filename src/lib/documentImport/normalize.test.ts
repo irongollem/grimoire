@@ -13,6 +13,7 @@ import {
 } from "@/lib/documentImport/normalize";
 import { IMPORT_ENTITY_KINDS, PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
 import type { AiProvenance } from "@/ai/provenance";
+import { emptyDefenses } from "@/types/statBlock.types";
 import type { MonsterStatBlock } from "@/types/monster.types";
 import type { CombatantDef } from "@/types/encounter.types";
 
@@ -72,6 +73,7 @@ describe("mapExtractedMonster", () => {
       wis: 10,
       cha: 8,
       challenge_rating: "6",
+      defenses: emptyDefenses(),
     });
     expect(links).toEqual({});
   });
@@ -101,6 +103,7 @@ describe("mapExtractedMonster", () => {
       wis: 10,
       cha: 10,
       challenge_rating: "0",
+      defenses: emptyDefenses(),
     });
   });
 
@@ -136,6 +139,31 @@ describe("mapExtractedMonster", () => {
       PROVENANCE,
     );
     expect(row.stat_block.actions?.[0]?.description).toBe(longAction);
+  });
+
+  it("stores the stat block structured: an extracted attack becomes kind attack, modifier lines become defenses", () => {
+    const { row } = mapExtractedMonster(
+      {
+        name: "Wolf",
+        stat_block: {
+          actions: [
+            {
+              name: "Bite",
+              description:
+                "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 7 (2d4 + 2) piercing damage.",
+            },
+          ],
+          damage_resistances: "fire",
+        },
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    const bite = row.stat_block.actions?.[0]?.structured;
+    expect(bite?.kind).toBe("attack");
+    expect(bite?.attack?.bonus).toBe(4);
+    expect(row.stat_block.defenses.resistances[0]?.types).toEqual(["fire"]);
+    expect("damage_resistances" in row.stat_block).toBe(false);
   });
 });
 

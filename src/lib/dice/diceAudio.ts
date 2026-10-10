@@ -1,5 +1,6 @@
 // Synthesized dice sounds via Web Audio API — no audio files needed.
 import { getAudioContext, primeAudioContext } from "@/lib/audio/audioContext";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 export { primeAudioContext as primeDiceAudio };
 
@@ -10,22 +11,20 @@ const MODE_KEY = "grimoire_dice_mode";
 
 export type DiceMode = "tool" | "physical";
 
-const ls = typeof localStorage !== "undefined" ? localStorage : null;
-
 export function getDiceAudioEnabled(): boolean {
-  return ls?.getItem(PREF_KEY) !== "false"; // default on
+  return safeLocalStorage().getItem(PREF_KEY) !== "false"; // default on
 }
 
 export function setDiceAudioEnabled(enabled: boolean): void {
-  ls?.setItem(PREF_KEY, String(enabled));
+  safeLocalStorage().setItem(PREF_KEY, String(enabled));
 }
 
 export function getDiceMode(): DiceMode {
-  return ls?.getItem(MODE_KEY) === "physical" ? "physical" : "tool";
+  return safeLocalStorage().getItem(MODE_KEY) === "physical" ? "physical" : "tool";
 }
 
 export function setDiceModePref(mode: DiceMode): void {
-  ls?.setItem(MODE_KEY, mode);
+  safeLocalStorage().setItem(MODE_KEY, mode);
 }
 
 // ── Synthesis helpers ────────────────────────────────────────────────────────

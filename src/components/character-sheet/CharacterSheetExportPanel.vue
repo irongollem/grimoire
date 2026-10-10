@@ -104,6 +104,7 @@
 </template>
 
 <script setup lang="ts">
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, computed, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -157,7 +158,7 @@ const classInput = computed<SheetClassInput | null>(() =>
 
 function read<T extends string>(prefix: string, fallback: T): T {
   if (!storageKey) return fallback;
-  return (localStorage.getItem(`${prefix}-${storageKey}`) as T | null) ?? fallback;
+  return (safeLocalStorage().getItem(`${prefix}-${storageKey}`) as T | null) ?? fallback;
 }
 
 const pageSize = ref<SheetPageSize>("A4");
@@ -166,9 +167,9 @@ const mode = ref<SheetMode>(read<SheetMode>("cs-mode", "clean"));
 const theme = ref<SheetTheme>(read<SheetTheme>("cs-theme", "default"));
 const illustratedTheme = ref<IllustratedTheme>(read<IllustratedTheme>("cs-illus-theme", "classic"));
 
-watch(mode, (v) => storageKey && localStorage.setItem(`cs-mode-${storageKey}`, v));
-watch(theme, (v) => storageKey && localStorage.setItem(`cs-theme-${storageKey}`, v));
-watch(illustratedTheme, (v) => storageKey && localStorage.setItem(`cs-illus-theme-${storageKey}`, v));
+watch(mode, (v) => storageKey && safeLocalStorage().setItem(`cs-mode-${storageKey}`, v));
+watch(theme, (v) => storageKey && safeLocalStorage().setItem(`cs-theme-${storageKey}`, v));
+watch(illustratedTheme, (v) => storageKey && safeLocalStorage().setItem(`cs-illus-theme-${storageKey}`, v));
 
 const { isGenerating, exportPdf } = useCharacterSheetPdf();
 
