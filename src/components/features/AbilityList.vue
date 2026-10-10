@@ -4,7 +4,7 @@
   </div>
 
   <EmptyState
-    v-else-if="filtered.length === 0 && !ui.featuresHasActiveFilters"
+    v-else-if="filtered.length === 0 && !codexUi.featuresHasActiveFilters"
     title="No abilities yet"
     description="Add class features, special abilities, and passive traits here. Custom subclasses and classes can then reference them by name."
   >
@@ -40,17 +40,17 @@ import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FeatureListRow from "@/components/features/FeatureListRow.vue";
-import { useUiStore } from "@/stores/ui";
+import { useCodexUiStore } from "@/stores/ui/codex";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { ACTIVATION_LABELS } from "@/types/feature.types";
 
-const ui = useUiStore();
+const codexUi = useCodexUiStore();
 const { data: all, isLoading } = useAllFeatures();
 
 /** Abilities are the granted features; the feats have their own tab. */
 const filtered = computed(() => {
-  const search = ui.featuresSearch.toLowerCase();
-  const activation = ui.featuresFilterActivation;
+  const search = codexUi.featuresSearch.toLowerCase();
+  const activation = codexUi.featuresFilterActivation;
   return (all.value ?? []).filter(f => {
     if (f.kind !== "feature") return false;
     if (activation === "passive" ? !!f.mechanics.activation : activation !== "all" && f.mechanics.activation !== activation) return false;

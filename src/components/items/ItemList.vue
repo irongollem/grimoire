@@ -215,7 +215,7 @@ const {
   rarityFilter: string;
   sourceFilter: string;
   /** One `itemScopeOf` classification to show, or "" for everything usable
-   *  in the active campaign (see `useUiStore`'s `vaultFilterScope`). */
+   *  in the active campaign (see `useItemsUiStore`'s `vaultFilterScope`). */
   scopeFilter: ItemScope | "";
   /** Bulk-selection mode is on (#875). Library/reference rows (non-UUID ids)
    *  never enter selection mode regardless of this flag — see the template. */

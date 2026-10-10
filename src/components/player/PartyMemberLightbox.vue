@@ -204,7 +204,7 @@ import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useSpecies, useSpeciesByIds } from "@/composables/rules/useSpecies";
@@ -228,7 +228,7 @@ defineEmits<{ close: [] }>();
 // One character shown: everything below reads its build rules in the character's own edition.
 provideCharacterRuleset(() => props.member);
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const campaign = useCampaignStore();
 const { data: speciesById } = useSpeciesByIds(() => [props.member?.species_id]);
 const speciesName = computed(() =>
@@ -252,9 +252,9 @@ const showNumericHp = computed(() =>
 );
 
 const viewerMemberId = computed(() =>
-  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId ?? null,
+  appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId ?? null,
 );
-const viewerIsDm = computed(() => !ui.dmPreviewMode && auth.isDM);
+const viewerIsDm = computed(() => !appUi.dmPreviewMode && auth.isDM);
 
 const displaySpeciesId = computed(() =>
   props.member ? (getDisplaySpeciesId(props.member, viewerMemberId.value, viewerIsDm.value) ?? "") : "",

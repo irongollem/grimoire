@@ -66,12 +66,12 @@
           fill="muted"
           block
           class="justify-start py-2"
-          :class="ui.playerSpellOpenLevels.includes(group.level) ? 'rounded-t-lg rounded-b-none border-b-0' : 'rounded-lg'"
-          @click="ui.togglePlayerSpellLevel(group.level)"
+          :class="playerUi.playerSpellOpenLevels.includes(group.level) ? 'rounded-t-lg rounded-b-none border-b-0' : 'rounded-lg'"
+          @click="playerUi.togglePlayerSpellLevel(group.level)"
         >
           <IconChevronRight
             class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform"
-            :class="ui.playerSpellOpenLevels.includes(group.level) ? 'rotate-90' : ''"
+            :class="playerUi.playerSpellOpenLevels.includes(group.level) ? 'rotate-90' : ''"
           />
 
           <!-- Label -->
@@ -87,7 +87,7 @@
 
         <!-- Spell rows -->
         <div
-          v-show="ui.playerSpellOpenLevels.includes(group.level)"
+          v-show="playerUi.playerSpellOpenLevels.includes(group.level)"
           class="rounded-b-lg border border-t-0 border-border bg-card divide-y divide-border overflow-hidden"
         >
           <div
@@ -349,7 +349,7 @@ import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages"
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useSpellSlotWrite } from "@/composables/spells/useSpellSlotWrite";
 import { useConcentration } from "@/composables/party/useConcentration";
-import { useUiStore } from "@/stores/ui";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import { SCHOOL_BG } from "@/types/spell.types";
 import { parseExpression, parsedToCounts, scaleExpression } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
@@ -431,7 +431,7 @@ const thisMember = computed(() =>
     ? (partyList.value.find((m) => m.id === props.partyMemberId) ?? null)
     : null,
 );
-const ui = useUiStore();
+const playerUi = usePlayerUiStore();
 const toast = useToast();
 const { ruleset } = useRuleset();
 const { candidate: replacementCandidate, choose: chooseReplacement, clear: clearReplacement } = useSpellReplacement();

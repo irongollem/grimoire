@@ -41,7 +41,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import { isPlayerArea } from "@/router/lens";
 import { useMentionName } from "@/composables/notes/useMentionName";
 import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
@@ -76,7 +76,7 @@ const displayName = computed(() => resolvedName.value ?? "???");
 
 const router = useRouter();
 const route = useRoute();
-const ui = useUiStore();
+const playerUi = usePlayerUiStore();
 
 // DM side has per-entity detail routes — append the ID.
 const DM_ENTITY_ROUTES: Record<EntityType, string> = {
@@ -103,7 +103,7 @@ function navigate() {
     // Locations open in a quick-view dialog over the current page rather than
     // yanking the player off to the Atlas list (issue #442).
     if (entityType.value === "location") {
-      ui.openPlayerLocationDialog(entityId.value);
+      playerUi.openPlayerLocationDialog(entityId.value);
       return;
     }
     const target = PLAYER_LIST_ROUTES[entityType.value];

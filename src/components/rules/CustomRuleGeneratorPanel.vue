@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.customRuleGeneratorOpen"
+    v-model:open="generatorsUi.customRuleGeneratorOpen"
     v-model:concept="concept"
     title="House Rule Generator"
     concept-placeholder="Sanity: characters who witness horrors lose Lucidity, and at low Lucidity they struggle to act. Rest and calming rituals restore it…"
@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useToast } from "@/composables/useToast";
 import { useCreateRule } from "@/composables/rules/useRules";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -47,7 +47,7 @@ import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useCustomRuleGeneration } from "@/ai/useCustomRuleGeneration";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const toast = useToast();
 const { mutateAsync: createRule } = useCreateRule();
@@ -111,7 +111,7 @@ async function save(result: Generated) {
   if (!rule) return;
 
   completedEntityId.value = rule.id;
-  ui.customRuleGeneratorOpen = false;
+  generatorsUi.customRuleGeneratorOpen = false;
   router.push(`/rules/${rule.id}`);
 }
 </script>

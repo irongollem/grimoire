@@ -58,7 +58,7 @@
         :icon="IconGenerate"
         title="Draft with AI"
         blurb="A player handout, faction dossier or session recap, written from your campaign's own NPCs, places and notes."
-        @click="ui.scriptoriumDraftOpen = true"
+        @click="generatorsUi.scriptoriumDraftOpen = true"
       />
       <input
         ref="fileInput"
@@ -80,9 +80,9 @@ import { docTypeColor, docTypeLabel } from "@/lib/scriptorium/editorConstants";
 import TemplateGalleryActionCard from "./TemplateGalleryActionCard.vue";
 import { IconGenerate, IconUpload } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const templates = SCRIPTORIUM_TEMPLATES;
 const campaign = useCampaignStore();
 

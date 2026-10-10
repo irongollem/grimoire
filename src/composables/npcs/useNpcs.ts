@@ -4,7 +4,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useToast } from "@/composables/useToast";
 import { loadSettingContent } from "@/settings/content";
 import { NPC_LIST_COLUMNS } from "@/types/npc.types";
@@ -310,11 +310,11 @@ export function useDeleteNpc() {
 
 export function useSharedNpcs() {
   const campaign = useCampaignStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   // In DM preview the caller is the DM (party_member_id null), so the projection
   // needs the previewed member id to know whose view to render.
-  const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
+  const previewMemberId = computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
   return useQuery({
     queryKey: computed(() => [PLAYER_NPCS_KEY, campaignId.value, previewMemberId.value] as const),
     queryFn: async ({ queryKey: [, cid, previewId] }) => {
@@ -337,8 +337,8 @@ export function useSharedNpcs() {
 
 /** Fetch player-visible NPCs at specific location IDs (for player atlas). */
 export function useSharedNpcsByLocations(locationIds: Ref<string[]>) {
-  const ui = useUiStore();
-  const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
+  const appUi = useAppUiStore();
+  const previewMemberId = computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
   return useQuery({
     queryKey: computed(() => [PLAYER_NPCS_KEY, "by-locations", locationIds.value, previewMemberId.value] as const),
     queryFn: async ({ queryKey: [, , ids, previewId] }) => {

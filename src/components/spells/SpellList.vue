@@ -161,7 +161,7 @@ import EntityMobileGrid from "@/components/common/EntityMobileGrid.vue";
 import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 import SpellGridCard from "@/components/spells/SpellGridCard.vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useSpellReplacement } from "@/composables/party/useSpellReplacement";
 import { useRuleset } from "@/composables/rules/useRuleset";
@@ -329,10 +329,10 @@ const GRID_ROW_PX = 277;
 // rows have no room for.
 const isMobile = useIsMobile();
 const mobileLayout = computed(() => isMobile.value && !playerMemberId);
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const layout = computed({
-  get: () => ui.entityListLayout,
-  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+  get: () => appUi.entityListLayout,
+  set: (v: "rows" | "gallery") => { appUi.entityListLayout = v; },
 });
 
 function mobileSubtitle(spell: SpellBrowseRow): string {

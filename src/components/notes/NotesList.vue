@@ -3,13 +3,13 @@
     <!-- Filters -->
     <ListFilterBar
       class="mb-5"
-      :has-active-filters="ui.notesHasActiveFilters"
-      @clear="ui.resetNotesFilters()"
+      :has-active-filters="notesUi.notesHasActiveFilters"
+      @clear="notesUi.resetNotesFilters()"
     >
-      <ListSearchInput v-model="ui.notesSearchQuery" placeholder="Search notes…" />
+      <ListSearchInput v-model="notesUi.notesSearchQuery" placeholder="Search notes…" />
       <SortControl v-model:sort-by="sortBy" v-model:sort-dir="sortDir" :options="SORT_OPTIONS" />
       <ListFilterGroup
-        v-model="ui.notesFilterCategory"
+        v-model="notesUi.notesFilterCategory"
         :options="CATEGORY_OPTIONS"
         aria-label="Note category filter"
       />
@@ -18,7 +18,7 @@
     <ListSkeleton v-if="isLoading" variant="text" />
 
     <EmptyState
-      v-else-if="!filtered.length && !ui.notesHasActiveFilters"
+      v-else-if="!filtered.length && !notesUi.notesHasActiveFilters"
       title="No notes yet"
       description="Begin recording your campaign's history, lore, and secrets."
     >
@@ -87,7 +87,7 @@ import { VueDraggable } from "vue-draggable-plus";
 import { IconNavNotes } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { useNotes, useReorderNotes } from "@/composables/notes/useNotes";
-import { useUiStore } from "@/stores/ui";
+import { useNotesUiStore } from "@/stores/ui/notes";
 import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import SortControl from "@/components/common/SortControl.vue";
@@ -144,8 +144,8 @@ const { mutate: reorder } = useReorderNotes();
 
 // Search + category live in the store so they survive navigating into a note
 // and back (Filter State Pattern) — the same place the sort already lived.
-const ui = useUiStore();
-const { notesSortBy: sortBy, notesSortDir: sortDir } = storeToRefs(ui);
+const notesUi = useNotesUiStore();
+const { notesSortBy: sortBy, notesSortDir: sortDir } = storeToRefs(notesUi);
 
 const lockedNoteIds = computed((): Set<string> => {
   const q = noteQuota.value;
@@ -159,9 +159,9 @@ const lockedNoteIds = computed((): Set<string> => {
 
 const filtered = computed((): Note[] => {
   let list = notes.value ?? [];
-  if (ui.notesFilterCategory !== "all") list = list.filter((n) => n.category === ui.notesFilterCategory);
-  if (ui.notesSearchQuery.trim()) {
-    const q = ui.notesSearchQuery.trim().toLowerCase();
+  if (notesUi.notesFilterCategory !== "all") list = list.filter((n) => n.category === notesUi.notesFilterCategory);
+  if (notesUi.notesSearchQuery.trim()) {
+    const q = notesUi.notesSearchQuery.trim().toLowerCase();
     list = list.filter((n) =>
       n.title.toLowerCase().includes(q) ||
       n.tags.some((t) => t.toLowerCase().includes(q))

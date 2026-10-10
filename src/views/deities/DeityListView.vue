@@ -26,7 +26,7 @@
         v-if="campaign.isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.deityGeneratorOpen = true"
+        @click="generatorsUi.deityGeneratorOpen = true"
       />
       <ListActionButton
         variant="primary"
@@ -39,15 +39,15 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="ui.deitiesHasActiveFilters"
-        @clear="ui.resetDeitiesFilters()"
+        :has-active-filters="deitiesUi.deitiesHasActiveFilters"
+        @clear="deitiesUi.resetDeitiesFilters()"
       >
-        <ListSearchInput v-model="ui.deitiesSearch" placeholder="Filter deities…" />
-        <ListFilterSelect v-model="ui.deitiesFilterDomain" aria-label="Domain filter">
+        <ListSearchInput v-model="deitiesUi.deitiesSearch" placeholder="Filter deities…" />
+        <ListFilterSelect v-model="deitiesUi.deitiesFilterDomain" aria-label="Domain filter">
           <option value="">All domains</option>
           <option v-for="d in CLERIC_DOMAINS" :key="d" :value="d">{{ d }}</option>
         </ListFilterSelect>
-        <ListFilterSelect v-model="ui.deitiesFilterPantheon" aria-label="Pantheon filter">
+        <ListFilterSelect v-model="deitiesUi.deitiesFilterPantheon" aria-label="Pantheon filter">
           <option value="">All pantheons</option>
           <option v-for="p in pantheons" :key="p.id" :value="p.id">{{ p.name }}</option>
         </ListFilterSelect>
@@ -166,7 +166,9 @@ import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconAdd, IconFire, IconGenerate, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities, useUpdateDeity } from "@/composables/deities/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
+import { useDeitiesUiStore } from "@/stores/ui/deities";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSettingContent } from "@/composables/campaign/useSettingContent";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -188,7 +190,9 @@ import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import EntityMobileGrid from "@/components/common/EntityMobileGrid.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
+const deitiesUi = useDeitiesUiStore();
+const generatorsUi = useGeneratorUiStore();
 const campaign = useCampaignStore();
 const { data: deities, isLoading } = useAllDeities();
 const { data: pantheons } = useAllPantheons();
@@ -208,10 +212,10 @@ const hasSetting = computed(() => {
 });
 
 const filtered = computed(() => {
-  const q = ui.deitiesSearch.trim().toLowerCase();
+  const q = deitiesUi.deitiesSearch.trim().toLowerCase();
   return (deities.value ?? []).filter((d) => {
-    if (ui.deitiesFilterDomain && !d.domains.includes(ui.deitiesFilterDomain)) return false;
-    if (ui.deitiesFilterPantheon && d.pantheon_id !== ui.deitiesFilterPantheon) return false;
+    if (deitiesUi.deitiesFilterDomain && !d.domains.includes(deitiesUi.deitiesFilterDomain)) return false;
+    if (deitiesUi.deitiesFilterPantheon && d.pantheon_id !== deitiesUi.deitiesFilterPantheon) return false;
     if (q) {
       const haystack = [d.name, d.titles, d.portfolio, ...(d.alternate_names ?? []), ...(d.tags ?? [])]
         .filter(Boolean)
@@ -225,9 +229,9 @@ const filtered = computed(() => {
 
 const isMobile = useIsMobile();
 const layout = computed({
-  get: () => ui.entityListLayout,
+  get: () => appUi.entityListLayout,
   set: (v: "rows" | "gallery") => {
-    ui.entityListLayout = v;
+    appUi.entityListLayout = v;
   },
 });
 

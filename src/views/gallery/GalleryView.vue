@@ -133,7 +133,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import { IconNavGallery, IconSearch, IconExternalLink, IconDelete } from "@/lib/icons";
-import { useUiStore } from "@/stores/ui";
+import { useGalleryUiStore } from "@/stores/ui/gallery";
 import { useConfirm } from "@/composables/useConfirm";
 import { timeAgo } from "@/lib/utils";
 import { useGalleryImages, useDeleteGalleryImage, type GalleryImage } from "@/composables/ai/useGalleryImages";
@@ -141,8 +141,8 @@ import { KIND_META, IMAGE_GEN_KINDS, type ImageGenKind } from "@/composables/ai/
 
 const router = useRouter();
 const { confirm } = useConfirm();
-const ui = useUiStore();
-const { galleryActiveKind, gallerySearch, galleryHasActiveFilters } = storeToRefs(ui);
+const galleryUi = useGalleryUiStore();
+const { galleryActiveKind, gallerySearch, galleryHasActiveFilters } = storeToRefs(galleryUi);
 
 const { query, images, countsByKind } = useGalleryImages();
 const isPending = query.isPending;
@@ -157,7 +157,7 @@ const search = computed({
   set: (v) => { gallerySearch.value = v; },
 });
 const hasActiveFilters = galleryHasActiveFilters;
-const resetGalleryFilters = () => ui.resetGalleryFilters();
+const resetGalleryFilters = () => galleryUi.resetGalleryFilters();
 
 const tabs = computed(() => [
   { key: "all", label: "All", count: images.value.length },

@@ -6,7 +6,7 @@ import { loadLibraryMonstersByIds, useMonstersByIds } from "@/composables/monste
 import { isUuid } from "@/lib/library/contentIdentity";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import type { PlayerVisibleMonster } from "@/types/monster.types";
 
 /** Same keys the by-ids readers use, so an edit's prefix invalidation reaches them. */
@@ -32,10 +32,10 @@ const ART_ENTRIES_KEY = ["library-monster-art", "entries"] as const;
 export function usePlayerMonstersByIds(
   ids: MaybeRefOrGetter<readonly (string | null | undefined)[]>,
 ): { data: ComputedRef<Map<string, PlayerVisibleMonster>>; isLoading: ComputedRef<boolean> } {
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const auth = useAuthStore();
   const campaign = useCampaignStore();
-  const viewerIsDm = () => ui.dmPreviewMode || auth.isDM;
+  const viewerIsDm = () => appUi.dmPreviewMode || auth.isDM;
 
   const unique = computed(() => [...new Set(toValue(ids).filter((id): id is string => !!id))].sort());
   const dmIds = computed(() => (viewerIsDm() ? unique.value : []));

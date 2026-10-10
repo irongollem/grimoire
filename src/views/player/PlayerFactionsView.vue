@@ -15,7 +15,7 @@
       <!-- Filter bar -->
       <div class="flex flex-wrap items-center gap-2">
         <AppInput
-          v-model="ui.playerFactionsSearch"
+          v-model="playerUi.playerFactionsSearch"
           type="search"
           placeholder="Filter factions…"
           tone="card"
@@ -23,12 +23,12 @@
           class="flex-1 min-w-40"
         />
         <AppButton
-          v-if="ui.playerFactionsHasActiveFilters"
+          v-if="playerUi.playerFactionsHasActiveFilters"
           variant="subtle"
           size="sm"
           label="Clear"
           class="shrink-0"
-          @click="ui.resetPlayerFactionsFilters()"
+          @click="playerUi.resetPlayerFactionsFilters()"
         />
       </div>
 
@@ -181,7 +181,8 @@ import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs, usePlayerFactionPartyMembers } from "@/composables/factions/useFactions";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import type { Faction } from "@/types/faction.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -191,14 +192,15 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 
 const auth = useAuthStore();
-const ui   = useUiStore();
+const appUi = useAppUiStore();
+const playerUi = usePlayerUiStore();
 const { data: factions, isLoading } = usePlayerVisibleFactions();
 
 const selected = ref<Faction | null>(null);
 
 // In DM preview, use the previewed party member; otherwise use the real player's link.
 const myMemberId = computed(() => {
-  if (ui.dmPreviewMode) return ui.dmPreviewPartyMemberId ?? "";
+  if (appUi.dmPreviewMode) return appUi.dmPreviewPartyMemberId ?? "";
   return auth.linkedPartyMemberId ?? "";
 });
 const { data: myFactionMemberships } = usePartyMemberFactions(myMemberId);
@@ -248,7 +250,7 @@ const visibleFactionNpcs = computed(() =>
 );
 
 const filtered = computed(() => {
-  const q = ui.playerFactionsSearch.toLowerCase().trim();
+  const q = playerUi.playerFactionsSearch.toLowerCase().trim();
   if (!q) return sortedFactions.value;
   return sortedFactions.value.filter(
     (f) =>

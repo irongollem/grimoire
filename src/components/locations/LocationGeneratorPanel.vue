@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.locationGeneratorOpen"
+    v-model:open="generatorsUi.locationGeneratorOpen"
     v-model:concept="concept"
     v-model:generate-image="generateImage"
     title="Location Generator"
@@ -48,7 +48,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateLocation, useLocationTree } from "@/composables/locations/useLocations";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
@@ -69,13 +69,13 @@ import { placeRoute } from "@/lib/locations/placeRoute";
 
 const TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS) as [LocationType, string][];
 
-const ui       = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
 const campaign = useCampaignStore();
 const { mutateAsync: createLocation } = useCreateLocation();
 const { logImageGeneration } = useImageGenerationLog();
 // Mounted on every DM page — only fetch the parent-location tree once the panel opens.
-const { locationOptions } = useLocationTree(() => ui.locationGeneratorOpen);
+const { locationOptions } = useLocationTree(() => generatorsUi.locationGeneratorOpen);
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useLocationGeneration();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
@@ -185,7 +185,7 @@ async function generateAndCreate() {
   }
 
   completedEntityId.value = location.id;
-  ui.locationGeneratorOpen = false;
+  generatorsUi.locationGeneratorOpen = false;
   router.push(placeRoute(location.id));
 }
 </script>

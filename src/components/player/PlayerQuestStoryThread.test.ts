@@ -4,7 +4,7 @@ import PlayerQuestStoryThread from "./PlayerQuestStoryThread.vue";
 import type { PlayerQuestBeat } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({ openChat: vi.fn() }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ openChat: mocks.openChat }) }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ openChat: mocks.openChat }) }));
 
 function beat(overrides: Partial<PlayerQuestBeat> = {}): PlayerQuestBeat {
   return {

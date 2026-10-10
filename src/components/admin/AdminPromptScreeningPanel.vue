@@ -203,7 +203,7 @@
  * the eight prompts it shipped with.
  *
  * Both the day-window and surface filters are local component state rather
- * than `useUiStore`. The surface filter genuinely fits the Filter State
+ * than a domain UI store. The surface filter genuinely fits the Filter State
  * Pattern (it filters the list already on this page) and belongs in the
  * store — it stays local here only because `src/stores/ui.ts` was in flight
  * with another agent's uncommitted work at the time this was written. See

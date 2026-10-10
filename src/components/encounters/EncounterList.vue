@@ -145,7 +145,7 @@ import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useEncounterQuestLinks } from "@/composables/quests/useQuests";
 import { useEncountersInRollTables } from "@/composables/dungeon-features/useRollTables";
-import { useUiStore } from "@/stores/ui";
+import { useEncountersUiStore } from "@/stores/ui/encounters";
 import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import VirtualGrid from "@/components/common/VirtualGrid.vue";
@@ -162,7 +162,7 @@ function handleNew() {
   router.push("/encounters/new");
 }
 
-const ui = useUiStore();
+const encountersUi = useEncountersUiStore();
 
 // Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` this grid used to carry.
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
@@ -173,9 +173,9 @@ const encounterKey = (encounter: EncounterListRow) => encounter.id;
 // restored scroll lands, since coming back from a detail re-renders every
 // unmeasured row above the viewport.
 const ENCOUNTER_ROW_PX = 127;
-const search = computed(() => ui.encountersSearch);
-const hideFinished = computed(() => ui.encountersHideFinished);
-const questFilter = computed(() => ui.encountersFilterQuestId);
+const search = computed(() => encountersUi.encountersSearch);
+const hideFinished = computed(() => encountersUi.encountersHideFinished);
+const questFilter = computed(() => encountersUi.encountersFilterQuestId);
 
 const { data: encounters, isLoading } = useEncounters();
 const { data: npcs } = useNpcs();

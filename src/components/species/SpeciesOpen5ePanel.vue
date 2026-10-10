@@ -1,15 +1,15 @@
 <template>
   <Transition name="fade">
     <div
-      v-if="ui.speciesOpen5ePanelOpen"
+      v-if="speciesUi.speciesOpen5ePanelOpen"
       class="fixed inset-0 bg-black/60 z-40"
-      @click="ui.speciesOpen5ePanelOpen = false"
+      @click="speciesUi.speciesOpen5ePanelOpen = false"
     />
   </Transition>
 
   <Transition name="slide-right">
     <aside
-      v-if="ui.speciesOpen5ePanelOpen"
+      v-if="speciesUi.speciesOpen5ePanelOpen"
       class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border z-50 flex flex-col"
     >
       <!-- Header -->
@@ -21,7 +21,7 @@
           icon-size="lg"
           :icon="IconClose"
           aria-label="Close"
-          @click="ui.speciesOpen5ePanelOpen = false"
+          @click="speciesUi.speciesOpen5ePanelOpen = false"
         />
       </div>
 
@@ -95,7 +95,7 @@ import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { IconClose, IconDownload, IconSearch } from '@/lib/icons';
-import { useUiStore } from "@/stores/ui";
+import { useSpeciesUiStore } from "@/stores/ui/species";
 import { useCreateSpecies, useUpdateSpecies, useAllSpecies } from "@/composables/rules/useSpecies";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -103,7 +103,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { buildImportedFields, buildCreateOnlyDefaults } from "@/lib/library/open5eSpeciesImport";
 import type { Open5eRace } from "@/lib/library/open5eSpeciesImport";
 
-const ui = useUiStore();
+const speciesUi = useSpeciesUiStore();
 const router = useRouter();
 const { mutateAsync: createSpecies } = useCreateSpecies();
 const { mutateAsync: updateSpecies } = useUpdateSpecies();
@@ -165,7 +165,7 @@ async function importRace(race: Open5eRace) {
   importing.value = true;
   try {
     const id = await upsertRace(race);
-    ui.speciesOpen5ePanelOpen = false;
+    speciesUi.speciesOpen5ePanelOpen = false;
     router.push(`/species/${id}?edit=true`);
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Import failed.";

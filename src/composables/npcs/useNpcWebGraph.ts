@@ -5,7 +5,7 @@ import { ForceLayout } from "v-network-graph/lib/force-layout";
 import { factionClusteringForce } from "@/lib/npcWeb/factionClustering";
 import { dimNonMembers } from "@/lib/npcWeb/focus";
 import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
-import { useUiStore } from "@/stores/ui";
+import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { NPC_RELATIONSHIP_INVERSE, NPC_RELATIONSHIP_TYPE_VAR } from "@/types/npc.types";
 import type { NpcListRow, NpcPcNote, NpcRelation, NpcRelationshipType } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
@@ -118,7 +118,7 @@ function npcMatchesSearch(npc: { name: string; disguise_name?: string | null }, 
 }
 
 export function useNpcWebGraph(input: NpcWebGraphInput) {
-  const ui = useUiStore();
+  const npcsUi = useNpcsUiStore();
 
   // Node colours come from the shared relationship ramp, resolved to concrete
   // values because the graph paints to SVG attributes (#742).
@@ -132,12 +132,12 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
   // carried no relationship information since.
   const graphNodes = computed<Record<string, NpcWebNode>>(() => {
     const nodes: Record<string, NpcWebNode> = {};
-    const q = ui.npcWebSearch.trim();
+    const q = npcsUi.npcWebSearch.trim();
     const pinned = input.pinnedKeys();
     const focused = input.focusedKeys();
 
-    const locationDescendants = ui.npcWebFilterLocation
-      ? input.getDescendantIds(ui.npcWebFilterLocation)
+    const locationDescendants = npcsUi.npcWebFilterLocation
+      ? input.getDescendantIds(npcsUi.npcWebFilterLocation)
       : null;
 
     for (const npc of input.npcs() ?? []) {
@@ -146,7 +146,7 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       if (locationDescendants && !locationDescendants.has(npc.location_id ?? "")) continue;
       // Attitude, set by clicking the legend. PCs are exempt below: they have no
       // attitude toward the party, being the party.
-      if (ui.npcWebFilterRelationship && npc.relationship !== ui.npcWebFilterRelationship) continue;
+      if (npcsUi.npcWebFilterRelationship && npc.relationship !== npcsUi.npcWebFilterRelationship) continue;
       nodes[key] = {
         name: npc.name,
         nodeType: "npc",
@@ -156,7 +156,7 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       };
     }
 
-    if (ui.npcWebShowPcs) {
+    if (npcsUi.npcWebShowPcs) {
       for (const pc of input.partyMembers() ?? []) {
         const key = `pc:${pc.id}`;
         if (q && !pc.name.toLowerCase().includes(q.toLowerCase()) && !pinned.has(key)) continue;
@@ -191,9 +191,9 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
     for (const rel of input.relations() ?? []) {
       const rawType = rel.relationship_type as NpcRelationshipType;
       if (
-        ui.npcWebFilterType &&
-        rawType !== ui.npcWebFilterType &&
-        NPC_RELATIONSHIP_INVERSE[rawType] !== ui.npcWebFilterType
+        npcsUi.npcWebFilterType &&
+        rawType !== npcsUi.npcWebFilterType &&
+        NPC_RELATIONSHIP_INVERSE[rawType] !== npcsUi.npcWebFilterType
       ) {
         continue;
       }
@@ -210,9 +210,9 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       }
     }
 
-    if (ui.npcWebShowPcs) {
+    if (npcsUi.npcWebShowPcs) {
       for (const note of input.pcNotes() ?? []) {
-        if (ui.npcWebFilterType && note.relationship_type !== ui.npcWebFilterType) continue;
+        if (npcsUi.npcWebFilterType && note.relationship_type !== npcsUi.npcWebFilterType) continue;
         const npcKey = `npc:${note.npc_id}`;
         const pcKey = `pc:${note.party_member_id}`;
         const key = `${npcKey}--${pcKey}`;

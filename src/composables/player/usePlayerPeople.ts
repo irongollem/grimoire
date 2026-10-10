@@ -5,7 +5,7 @@ import { usePlayerNpcRatings } from "@/composables/player/usePlayerNpcRatings";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { buildPeopleGroups } from "@/lib/npcs/peopleLedger";
 import { defaultSortDir, effectivePeopleSort, type PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";
-import { useUiStore } from "@/stores/ui";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import type { PlayerNpc } from "@/types/npc.types";
 
 export interface PeoplePlace {
@@ -23,14 +23,14 @@ export const PEOPLE_SORT_OPTIONS = [
 
 /**
  * The player People page's search, sort, filter and grouping, over the people
- * the ledger holds. Filter state lives in `useUiStore`, so it survives
+ * the ledger holds. Filter state lives in a domain UI store, so it survives
  * navigation; this only reads it.
  */
 export function usePlayerPeople(
   allNpcs: MaybeRefOrGetter<readonly PlayerNpc[]>,
   ledgerNpcs: MaybeRefOrGetter<readonly PlayerNpc[]>,
 ) {
-  const ui = useUiStore();
+  const playerUi = usePlayerUiStore();
   const { data: sharedLocations } = useSharedLocations();
   const { getRating, ratingTick } = usePlayerNpcRatings(() => [...toValue(allNpcs)]);
 
@@ -66,23 +66,23 @@ export function usePlayerPeople(
     places.value.length ? PEOPLE_SORT_OPTIONS : PEOPLE_SORT_OPTIONS.filter((o) => o.value !== "location"),
   );
   const effectiveSort = computed(() =>
-    effectivePeopleSort(ui.playerPeopleSortBy, ui.playerPeopleSortDir, places.value.length > 0),
+    effectivePeopleSort(playerUi.playerPeopleSortBy, playerUi.playerPeopleSortDir, places.value.length > 0),
   );
   const effectiveSortBy = computed<PlayerNpcSortField>({
     get: () => effectiveSort.value.field,
     set: (field) => {
-      ui.playerPeopleSortBy = field;
+      playerUi.playerPeopleSortBy = field;
     },
   });
   watch(
-    () => ui.playerPeopleSortBy,
+    () => playerUi.playerPeopleSortBy,
     (field) => {
-      ui.playerPeopleSortDir = defaultSortDir(field);
+      playerUi.playerPeopleSortDir = defaultSortDir(field);
     },
   );
 
   function matches(npc: PlayerNpc): boolean {
-    const q = ui.playerPeopleSearch.trim().toLowerCase();
+    const q = playerUi.playerPeopleSearch.trim().toLowerCase();
     if (q) {
       const visible = (f: string) => npc.player_visible_fields.includes(f);
       const parts = [
@@ -94,20 +94,20 @@ export function usePlayerPeople(
     }
     // Relationship and status are always shown to players (unknown = soft-hidden),
     // so they are not gated on player_visible_fields.
-    if (ui.playerPeopleFilterRelationship !== "all" && npc.relationship !== ui.playerPeopleFilterRelationship) {
+    if (playerUi.playerPeopleFilterRelationship !== "all" && npc.relationship !== playerUi.playerPeopleFilterRelationship) {
       return false;
     }
-    if (ui.playerPeopleFilterStatus !== "all" && npc.status !== ui.playerPeopleFilterStatus) return false;
-    if (ui.playerPeopleFilterLocation && npc.location_id !== ui.playerPeopleFilterLocation) return false;
+    if (playerUi.playerPeopleFilterStatus !== "all" && npc.status !== playerUi.playerPeopleFilterStatus) return false;
+    if (playerUi.playerPeopleFilterLocation && npc.location_id !== playerUi.playerPeopleFilterLocation) return false;
     return true;
   }
 
   /** Filters that live in the sheet on a phone (search stays on the page). */
   const activeFilterCount = computed(
     () =>
-      Number(ui.playerPeopleFilterRelationship !== "all") +
-      Number(ui.playerPeopleFilterStatus !== "all") +
-      Number(ui.playerPeopleFilterLocation !== ""),
+      Number(playerUi.playerPeopleFilterRelationship !== "all") +
+      Number(playerUi.playerPeopleFilterStatus !== "all") +
+      Number(playerUi.playerPeopleFilterLocation !== ""),
   );
 
   const filtered = computed(() => toValue(ledgerNpcs).filter(matches));

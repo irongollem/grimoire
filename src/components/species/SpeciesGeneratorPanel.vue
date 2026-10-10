@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.speciesGeneratorOpen"
+    v-model:open="generatorsUi.speciesGeneratorOpen"
     v-model:concept="concept"
     v-model:generate-image="generateImage"
     title="Species Generator"
@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useToast } from "@/composables/useToast";
 import { useCreateSpecies } from "@/composables/rules/useSpecies";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -45,7 +45,7 @@ import { useSpeciesGeneration } from "@/ai/useSpeciesGeneration";
 import { SPECIES_SIZES } from "@/lib/codex/speciesAi";
 import type { SpeciesSize } from "@/types/species.types";
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const toast = useToast();
 const { mutateAsync: createSpecies } = useCreateSpecies();
@@ -102,7 +102,7 @@ async function save(draft: Generated) {
   if (!species) return;
 
   completedEntityId.value = species.id;
-  ui.speciesGeneratorOpen = false;
+  generatorsUi.speciesGeneratorOpen = false;
   router.push(`/species/${species.id}`);
 }
 </script>

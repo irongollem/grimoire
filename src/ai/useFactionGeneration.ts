@@ -7,7 +7,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -18,7 +18,7 @@ registerAiGenerator({
   label: "Faction",
   entityRoute: (id) => `/factions/${id}`,
   openPanel: () => {
-    useUiStore().factionGeneratorOpen = true;
+    useGeneratorUiStore().factionGeneratorOpen = true;
   },
 });
 

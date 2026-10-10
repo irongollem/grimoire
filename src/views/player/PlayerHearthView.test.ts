@@ -15,8 +15,8 @@ const state = vi.hoisted(() => ({
 vi.mock("@/stores/auth", () => ({
   useAuthStore: () => ({ linkedPartyMemberId: state.linkedPartyMemberId }),
 }));
-vi.mock("@/stores/ui", () => ({
-  useUiStore: () => ({
+vi.mock("@/stores/ui/app", () => ({
+  useAppUiStore: () => ({
     get dmPreviewMode() { return state.dmPreviewMode; },
     get dmPreviewPartyMemberId() { return state.dmPreviewPartyMemberId; },
   }),

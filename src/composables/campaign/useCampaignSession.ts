@@ -2,7 +2,7 @@ import { computed, ref, watch, onUnmounted, toValue, type MaybeRefOrGetter } fro
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { QUEST_RUNTIME_QUERY_KEYS } from "@/lib/campaignLiveSync/registry";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
@@ -16,8 +16,8 @@ import type { CampaignSession, CampaignSessionEnded, PlayerSessionState } from "
  * default surface) reads one row and one subscription, not one each.
  *
  * The live session is the one open row of the `campaign_sessions` log (started,
- * not ended). The row is the authority; `useUiStore().sessionRunning` is only its mirror,
- * so `ui.dmMode` stays the cheap synchronous read the five existing consumers
+ * not ended). The row is the authority; `useAppUiStore().sessionRunning` is only its mirror,
+ * so `appUi.dmMode` stays the cheap synchronous read the five existing consumers
  * already use. Nothing else may write that mirror — see the store.
  */
 let refCount = 0;
@@ -42,7 +42,7 @@ function adopt(row: CampaignSession | null) {
   const open = row && isOpen(row) ? row : null;
   session.value = open;
   loaded.value = true;
-  useUiStore().sessionRunning = open !== null;
+  useAppUiStore().sessionRunning = open !== null;
 }
 
 /** The open session was deleted from the log. */

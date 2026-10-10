@@ -22,7 +22,7 @@ vi.mock("@/composables/useToast", () => ({
     fromError: (e: unknown) => (e instanceof Error ? e.message : "failed"),
   }),
 }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => mocks.ui }));
+vi.mock("@/stores/ui/generators", () => ({ useGeneratorUiStore: () => mocks.ui }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     isAiEnabled: true,

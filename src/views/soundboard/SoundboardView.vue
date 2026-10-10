@@ -20,20 +20,20 @@
         aria-label="Board settings"
         tooltip="Board settings: pad size, triggers, sharing"
         class="hidden sm:flex"
-        @click="ui.soundboardSettingsOpen = true"
+        @click="soundboardUi.soundboardSettingsOpen = true"
       />
 
       <!-- The mixer drawer toggle — same idea as the chat toggle. -->
       <AppButton
-        :variant="ui.soundboardMixerOpen ? 'tinted' : 'subtle'"
+        :variant="soundboardUi.soundboardMixerOpen ? 'tinted' : 'subtle'"
         tone="primary"
         emphasis="soft"
         size="sm"
         :icon="IconMixer"
         label="Mixer"
-        :tooltip="ui.soundboardMixerOpen ? 'Close the mixer' : 'Open the mixer'"
+        :tooltip="soundboardUi.soundboardMixerOpen ? 'Close the mixer' : 'Open the mixer'"
         class="hidden lg:flex"
-        @click="ui.soundboardMixerOpen = !ui.soundboardMixerOpen"
+        @click="soundboardUi.soundboardMixerOpen = !soundboardUi.soundboardMixerOpen"
       />
 
       <!-- Spotify connect/disconnect (only for the owner user) -->
@@ -82,7 +82,7 @@
 
       <SoundboardWidgetToggle icon-only />
       <ListActionButton
-        v-if="ui.soundboardViewMode === 'sounds'"
+        v-if="soundboardUi.soundboardViewMode === 'sounds'"
         variant="primary"
         :icon="IconAdd"
         :label="soundQuota?.unlimited === false ? `Add Sound (${soundQuota.current}/${soundQuota.limit})` : 'Add Sound'"
@@ -107,23 +107,23 @@
          vanishing when you switch to Scenes shifted the whole page, and a
          scene list you cannot search is a scene list you scroll. -->
     <div class="mt-3 flex flex-wrap items-center gap-2">
-      <ListSearchInput v-model="ui.soundboardSearchQuery" :placeholder="searchPlaceholder" />
+      <ListSearchInput v-model="soundboardUi.soundboardSearchQuery" :placeholder="searchPlaceholder" />
       <SoundCategoryFilter
-        v-if="ui.soundboardViewMode === 'sounds'"
-        v-model="ui.soundboardFilterCategory"
+        v-if="soundboardUi.soundboardViewMode === 'sounds'"
+        v-model="soundboardUi.soundboardFilterCategory"
       />
       <button
-        v-if="ui.soundboardHasActiveFilters"
+        v-if="soundboardUi.soundboardHasActiveFilters"
         class="rounded-md border border-border px-2 py-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
-        @click="ui.resetSoundboardFilters()"
+        @click="soundboardUi.resetSoundboardFilters()"
       >
         Clear
       </button>
       <span class="flex-1" />
       <!-- Says what the key caps mean, and that the order is the DM's to set. -->
-      <p v-if="ui.soundboardViewMode === 'sounds'" class="hidden text-caption text-muted-foreground md:block">
+      <p v-if="soundboardUi.soundboardViewMode === 'sounds'" class="hidden text-caption text-muted-foreground md:block">
         Keys <b class="text-gold-400">1–9</b> fire the first nine in this order
-        <span v-if="!ui.soundboardHasActiveFilters"> · drag to reorder</span>
+        <span v-if="!soundboardUi.soundboardHasActiveFilters"> · drag to reorder</span>
       </p>
     </div>
 
@@ -138,7 +138,7 @@
            attribute fallthrough onto the rail's root. -->
       <div class="min-w-0 flex-1 basis-0 overflow-hidden">
         <SoundboardPageTabs
-          v-model="ui.soundboardActivePage"
+          v-model="soundboardUi.soundboardActivePage"
           :pages="pages ?? []"
           :highlight-drops="draggingCard"
           :drop-target="dragOverPage"
@@ -153,8 +153,8 @@
           :icon="mode.icon"
           :label="mode.label"
           collapse-label-on-mobile
-          :active="ui.soundboardViewMode === mode.id"
-          @click="ui.soundboardViewMode = mode.id"
+          :active="soundboardUi.soundboardViewMode === mode.id"
+          @click="soundboardUi.soundboardViewMode = mode.id"
         />
       </div>
     </div>
@@ -176,10 +176,10 @@
     <!-- One panel, filtered by type — scenes and playlists are the same table
          and the same card; only the question being asked differs. -->
     <PlaylistsPanel
-      v-if="ui.soundboardViewMode !== 'sounds'"
-      :page-id="ui.soundboardActivePage"
-      :playlist-type="ui.soundboardViewMode === 'scenes' ? 'ambient' : 'music'"
-      :filter="ui.soundboardSearchQuery"
+      v-if="soundboardUi.soundboardViewMode !== 'sounds'"
+      :page-id="soundboardUi.soundboardActivePage"
+      :playlist-type="soundboardUi.soundboardViewMode === 'scenes' ? 'ambient' : 'music'"
+      :filter="soundboardUi.soundboardSearchQuery"
       :create-signal="createPlaylistSignal"
     />
 
@@ -193,7 +193,7 @@
          bare Perform pad to match the mode. -->
     <div v-if="isPending" role="status" class="grid gap-3" :class="gridClass">
       <span class="sr-only">Loading…</span>
-      <template v-if="ui.soundboardBoardMode === 'arrange'">
+      <template v-if="soundboardUi.soundboardBoardMode === 'arrange'">
         <div
           v-for="n in 8"
           :key="n"
@@ -208,7 +208,7 @@
           v-for="n in 12"
           :key="n"
           class="rounded-md"
-          :class="PAD_SKELETON_HEIGHT[ui.soundboardPadSize]"
+          :class="PAD_SKELETON_HEIGHT[soundboardUi.soundboardPadSize]"
         />
       </template>
     </div>
@@ -216,7 +216,7 @@
     <!-- Empty state. The starter scenes lead rather than the Add button: a DM
          on day one has nothing to add yet, and "build your own library" is the
          work this feature is supposed to remove. -->
-    <div v-else-if="filtered.length === 0 && !ui.soundboardHasActiveFilters" class="space-y-4">
+    <div v-else-if="filtered.length === 0 && !soundboardUi.soundboardHasActiveFilters" class="space-y-4">
       <StarterScenesCard />
       <EmptyState
         icon="music"
@@ -238,7 +238,7 @@
     <template v-else>
       <!-- Drag hint when filters are active -->
       <p
-        v-if="ui.soundboardHasActiveFilters"
+        v-if="soundboardUi.soundboardHasActiveFilters"
         class="mb-2 text-caption text-muted-foreground italic"
       >
         Clear filters to reorder cards.
@@ -248,7 +248,7 @@
         v-model="orderedSounds"
         class="grid gap-3"
         :class="gridClass"
-        :disabled="ui.soundboardHasActiveFilters"
+        :disabled="soundboardUi.soundboardHasActiveFilters"
         handle=".drag-handle"
         :animation="150"
         ghost-class="opacity-40"
@@ -260,7 +260,7 @@
                the board is setup, not performance, and on a small pad an
                overlaid handle would sit on top of the name. -->
           <div
-            v-if="!ui.soundboardHasActiveFilters && ui.soundboardBoardMode === 'arrange'"
+            v-if="!soundboardUi.soundboardHasActiveFilters && soundboardUi.soundboardBoardMode === 'arrange'"
             class="drag-handle absolute top-2 inset-s-2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
             title="Drag to reorder"
           >
@@ -269,8 +269,8 @@
           <SoundCard
             :sound="sound"
             :show-delete="true"
-            :mode="ui.soundboardBoardMode"
-            :pad-size="ui.soundboardPadSize"
+            :mode="soundboardUi.soundboardBoardMode"
+            :pad-size="soundboardUi.soundboardPadSize"
             @delete="handleDelete"
           >
             <!-- The number key that fires this card. Shown rather than
@@ -295,7 +295,7 @@
            the floating widget is the mixer surface. -->
       <Transition v-bind="railTransition()">
         <aside
-          v-if="ui.soundboardMixerOpen"
+          v-if="soundboardUi.soundboardMixerOpen"
           class="sticky top-0 hidden shrink-0 pl-4 lg:block"
           aria-label="Mixer"
         >
@@ -318,7 +318,7 @@
                 icon-size="sm"
                 aria-label="Close the mixer"
                 tooltip="Close the mixer"
-                @click="ui.soundboardMixerOpen = false"
+                @click="soundboardUi.soundboardMixerOpen = false"
               />
             </div>
             <div class="px-3 py-2">
@@ -329,8 +329,8 @@
       </Transition>
     </div>
     <BoardSettingsDialog
-      :open="ui.soundboardSettingsOpen"
-      @close="ui.soundboardSettingsOpen = false"
+      :open="soundboardUi.soundboardSettingsOpen"
+      @close="soundboardUi.soundboardSettingsOpen = false"
     />
   </ListPageLayout>
 </template>
@@ -345,7 +345,7 @@ import { railTransition } from "@/lib/motion";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useSoundboardHotkeys } from "@/composables/soundboard/useSoundboardHotkeys";
 import { storeToRefs } from "pinia";
@@ -384,7 +384,7 @@ import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
 import BoardSettingsDialog from "@/components/soundboard/BoardSettingsDialog.vue";
 import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";
 
-const ui = useUiStore();
+const soundboardUi = useSoundboardUiStore();
 const soundboardStore = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
 const auth = useAuthStore();
@@ -411,7 +411,7 @@ watch(
     if ((p ?? []).length === 0) {
       autoInitDone.value = true;
       createDefaultPage({ name: "Main", sort_order: 0 }).then((newPage) => {
-        ui.soundboardActivePage = newPage.id;
+        soundboardUi.soundboardActivePage = newPage.id;
         return bulkAssign({ pageId: newPage.id, campaignId: activeCampaignId.value! });
       });
     }
@@ -422,8 +422,8 @@ watch(
 // generation can be reopened from the badge on any page.
 function openAddSound() {
   if (!canCreateSound.value) { showSoundPaywall.value = true; return; }
-  ui.addSoundPageId = newSoundPageId.value;
-  ui.addSoundDialogOpen = true;
+  soundboardUi.addSoundPageId = newSoundPageId.value;
+  soundboardUi.addSoundDialogOpen = true;
 }
 
 // Page to assign new sounds to:
@@ -431,7 +431,7 @@ function openAddSound() {
 // - "All" with exactly 1 page → auto-assign to that page
 // - "All" with multiple pages → unassigned (null)
 const newSoundPageId = computed(() => {
-  if (ui.soundboardActivePage !== null) return ui.soundboardActivePage;
+  if (soundboardUi.soundboardActivePage !== null) return soundboardUi.soundboardActivePage;
   if ((pages.value?.length ?? 0) === 1) return pages.value![0].id;
   return null;
 });
@@ -451,10 +451,10 @@ const gridClass = computed(() => {
   // with the mixer sidebar, and hardcoded breakpoints left a wide screen with
   // three columns and a lane of dead space beside them. This fills whatever
   // width it is actually given.
-  if (ui.soundboardBoardMode === "arrange") {
+  if (soundboardUi.soundboardBoardMode === "arrange") {
     return "grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]";
   }
-  switch (ui.soundboardPadSize) {
+  switch (soundboardUi.soundboardPadSize) {
     case "sm": return "grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))]";
     case "lg": return "grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]";
     default:   return "grid-cols-[repeat(auto-fill,minmax(9.25rem,1fr))]";
@@ -464,7 +464,7 @@ const gridClass = computed(() => {
 const { quota: playlistQuota } = useQuota("soundboard_playlists");
 
 const newPlaylistLabel = computed(() => {
-  const base = ui.soundboardViewMode === "scenes" ? "New Scene" : "New Playlist";
+  const base = soundboardUi.soundboardViewMode === "scenes" ? "New Scene" : "New Playlist";
   const q = playlistQuota.value;
   // Same shape as Add Sound: the count rides on the button now that the panel
   // caption that used to carry it is gone.
@@ -472,7 +472,7 @@ const newPlaylistLabel = computed(() => {
 });
 
 const searchPlaceholder = computed(() => {
-  switch (ui.soundboardViewMode) {
+  switch (soundboardUi.soundboardViewMode) {
     case "scenes": return "Search scenes…";
     case "playlists": return "Search playlists…";
     default: return "Search sounds…";
@@ -486,15 +486,15 @@ const filtered = computed(() => {
   let list = (sounds.value ?? []).filter((s) => s.source_type !== "spotify");
 
   // Filter by active page (null = "All", shows everything)
-  if (ui.soundboardActivePage !== null) {
-    list = list.filter((s) => s.page_id === ui.soundboardActivePage);
+  if (soundboardUi.soundboardActivePage !== null) {
+    list = list.filter((s) => s.page_id === soundboardUi.soundboardActivePage);
   }
 
-  if (ui.soundboardFilterCategory !== "all") {
-    list = list.filter((s) => s.category === ui.soundboardFilterCategory);
+  if (soundboardUi.soundboardFilterCategory !== "all") {
+    list = list.filter((s) => s.category === soundboardUi.soundboardFilterCategory);
   }
 
-  const q = ui.soundboardSearchQuery.trim().toLowerCase();
+  const q = soundboardUi.soundboardSearchQuery.trim().toLowerCase();
   if (q) {
     list = list.filter((s) => s.name.toLowerCase().includes(q));
   }
@@ -577,9 +577,9 @@ const createPlaylistSignal = ref(0);
 
 // The mobile FAB's create lands here and fans out by tab.
 watch(
-  () => ui.soundboardCreateSignal,
+  () => soundboardUi.soundboardCreateSignal,
   () => {
-    if (ui.soundboardViewMode === "sounds") openAddSound();
+    if (soundboardUi.soundboardViewMode === "sounds") openAddSound();
     else createPlaylistSignal.value++;
   },
 );

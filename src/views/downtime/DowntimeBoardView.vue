@@ -18,11 +18,11 @@ import {
   isResolvableRewardType,
 } from "@/lib/downtime/downtimeReward";
 import { useDowntimeDraws, useDowntimeOutcomes, useDeckBacks } from "@/composables/downtime/useDowntime";
-import { useUiStore } from "@/stores/ui";
+import { useDowntimeUiStore } from "@/stores/ui/downtime";
 import { DOWNTIME_DRAW_STATUSES, DOWNTIME_DRAW_STATUS_LABELS } from "@/types/downtime.types";
 import type { DowntimeDraw, DowntimeRewardType } from "@/types/downtime.types";
 
-const ui = useUiStore();
+const downtimeUi = useDowntimeUiStore();
 // Hidden from the sidebar when off, but a bookmarked URL still lands here.
 const isEnabled = useIsRuleEnabled("downtime");
 const { data: party, isPending: partyPending } = useActiveParty();
@@ -39,12 +39,12 @@ const { rewardName } = useDowntimeRewardName(() =>
 const { data: backs } = useDeckBacks();
 
 const filterStatus = computed({
-  get: () => ui.downtimeFilterStatus,
-  set: (v) => (ui.downtimeFilterStatus = v),
+  get: () => downtimeUi.downtimeFilterStatus,
+  set: (v) => (downtimeUi.downtimeFilterStatus = v),
 });
 const filterCharacter = computed({
-  get: () => ui.downtimeFilterCharacter,
-  set: (v) => (ui.downtimeFilterCharacter = v),
+  get: () => downtimeUi.downtimeFilterCharacter,
+  set: (v) => (downtimeUi.downtimeFilterCharacter = v),
 });
 
 /** A character deleted out from under a draw must read as absent. */
@@ -172,11 +172,11 @@ function rewardPending(rewardType: DowntimeRewardType | null, rewardId: string |
         </div>
 
         <AppButton
-          v-if="ui.downtimeHasActiveFilters"
+          v-if="downtimeUi.downtimeHasActiveFilters"
           variant="subtle"
           size="sm"
           label="Clear"
-          @click="ui.resetDowntimeFilters()"
+          @click="downtimeUi.resetDowntimeFilters()"
         />
       </div>
 

@@ -93,7 +93,7 @@
  * `monsterPull.ts` for why those two axes and not habitat.
  *
  * Filter-state decision: CR band and type stay local `ref`s, not
- * `useUiStore`. The Filter State Pattern is for a filter over a list already
+ * a domain UI store. The Filter State Pattern is for a filter over a list already
  * on the page — this card never shows a list at all, only the single result
  * of the last pull. The two controls instead shape what the *next* random
  * draw is allowed to land on, which is the "popup of candidates" shape the

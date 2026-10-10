@@ -51,7 +51,7 @@
                 :active="campaign === o.id"
                 :aria-pressed="campaign === o.id"
                 :label="o.name"
-                @click="ui.hallCampaign = o.id"
+                @click="hallUi.hallCampaign = o.id"
               />
               <AppButton
                 variant="subtle"
@@ -59,7 +59,7 @@
                 :active="campaign === 'all'"
                 :aria-pressed="campaign === 'all'"
                 label="All my campaigns"
-                @click="ui.hallCampaign = 'all'"
+                @click="hallUi.hallCampaign = 'all'"
               />
             </template>
             <template v-else>
@@ -69,7 +69,7 @@
                 :active="campaign === 'all'"
                 :aria-pressed="campaign === 'all'"
                 label="All campaigns"
-                @click="ui.hallCampaign = 'all'"
+                @click="hallUi.hallCampaign = 'all'"
               />
               <AppButton
                 v-for="o in options"
@@ -79,12 +79,12 @@
                 :active="campaign === o.id"
                 :aria-pressed="campaign === o.id"
                 :label="o.name"
-                @click="ui.hallCampaign = o.id"
+                @click="hallUi.hallCampaign = o.id"
               />
             </template>
           </div>
-          <SegmentedControl v-model="ui.hallKind" :options="KIND_OPTIONS" size="sm" aria-label="Kind" />
-          <AppButton v-if="ui.hasHallFiltersActive" variant="ghost" size="sm" label="Clear" @click="ui.resetHallFilters()" />
+          <SegmentedControl v-model="hallUi.hallKind" :options="KIND_OPTIONS" size="sm" aria-label="Kind" />
+          <AppButton v-if="hallUi.hasHallFiltersActive" variant="ghost" size="sm" label="Clear" @click="hallUi.resetHallFilters()" />
         </div>
 
         <p v-if="shown.length === 0" class="text-center text-body italic text-muted-foreground">
@@ -167,7 +167,7 @@ import { effectiveHallCampaign, filterHall, hallCampaignOptions } from "@/lib/me
 import { candleCounts, hiddenFromMe, onTheWall, pendingKeepPrompts, splitWall, wallTally } from "@/lib/memorials/wall";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useHallUiStore } from "@/stores/ui/hall";
 import type { CharacterMemorial, MemorialKind, MemorialMourner } from "@/types/memorial.types";
 
 /**
@@ -193,7 +193,7 @@ const KIND_OPTIONS: ReadonlyArray<{ value: MemorialKind | "all"; label: string }
 
 const auth = useAuthStore();
 const campaignStore = useCampaignStore();
-const ui = useUiStore();
+const hallUi = useHallUiStore();
 const toast = useToast();
 const { activeThemeId } = useTheme();
 const darkStyle = computed(() => darkTwinStyle(activeThemeId.value));
@@ -238,9 +238,9 @@ const scoped = computed(() =>
 
 const options = computed(() => hallCampaignOptions(scoped.value));
 const campaign = computed(() =>
-  effectiveHallCampaign(ui.hallCampaign, props.scope, campaignStore.activeCampaignId, options.value),
+  effectiveHallCampaign(hallUi.hallCampaign, props.scope, campaignStore.activeCampaignId, options.value),
 );
-const shown = computed(() => filterHall(scoped.value, campaign.value, ui.hallKind));
+const shown = computed(() => filterHall(scoped.value, campaign.value, hallUi.hallKind));
 const split = computed(() => splitWall(shown.value, userId.value));
 const tally = computed(() => wallTally(shown.value));
 

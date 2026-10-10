@@ -8,7 +8,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useItemsUiStore } from "@/stores/ui/items";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 export interface ItemGenerationOptions {
@@ -26,7 +26,7 @@ registerAiGenerator({
   label: "Item",
   entityRoute: (id) => `/vault/${id}`,
   openPanel: () => {
-    useUiStore().itemGeneratorOpen = true;
+    useItemsUiStore().itemGeneratorOpen = true;
   },
 });
 

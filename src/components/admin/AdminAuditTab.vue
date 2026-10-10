@@ -23,11 +23,11 @@
         </option>
       </AppSelect>
       <AppButton
-        v-if="ui.adminAuditHasActiveFilters"
+        v-if="adminUi.adminAuditHasActiveFilters"
         variant="subtle"
         size="sm"
         label="Clear"
-        @click="ui.resetAdminAuditFilters()"
+        @click="adminUi.resetAdminAuditFilters()"
       />
     </div>
 
@@ -97,7 +97,7 @@ import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import { useUiStore } from "@/stores/ui";
+import { useAdminUiStore } from "@/stores/ui/admin";
 import { useAdminUsers } from "@/composables/admin/useAdminUsers";
 import {
   useAdminAuditLog,
@@ -108,8 +108,8 @@ import {
   type AdminAuditEntry,
 } from "@/composables/admin/useAdminAuditLog";
 
-const ui = useUiStore();
-const { adminAuditSearch: search, adminAuditFilterAction: filterAction } = storeToRefs(ui);
+const adminUi = useAdminUiStore();
+const { adminAuditSearch: search, adminAuditFilterAction: filterAction } = storeToRefs(adminUi);
 
 const auditQuery = useAdminAuditLog();
 const usersQuery = useAdminUsers();

@@ -39,7 +39,7 @@ import ScriptoriumDocumentList from "@/components/scriptorium/ScriptoriumDocumen
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useAbove } from "@/composables/useBreakpoint";
 
 const router = useRouter();
@@ -50,7 +50,7 @@ const campaign = useCampaignStore();
 
 // The dialog checks the quota again before it spends anything, so no gate here.
 function handleDraft() {
-  useUiStore().scriptoriumDraftOpen = true;
+  useGeneratorUiStore().scriptoriumDraftOpen = true;
 }
 
 function handleNew() {

@@ -100,12 +100,19 @@ are on screen together in Build, so splitting them would buy little.
 | `cardForge.ts`, `calendar.ts`, `scratchpad.ts` | | under 250 |
 
 `ui.ts` is the Filter State Pattern doing what it says: every list's filters in
-one store. At 43 filter sets that one store is the whole app's session UI, and
-any edit to one list's filters re-renders every reader of the store, wherever
-it is. The pattern's intent (filters survive navigation in the session, not in
-localStorage) does not need one store; one Pinia store per domain under
-`stores/ui/` keeps the same intent and lets a list import only its own.
-Changing that is a change to a CLAUDE.md rule, so it is the maintainer's call.
+one store. At 43 filter sets that one store is the whole app's session UI: it
+ships in the boot bundle whichever page loads, and a list's state sits among
+284 unrelated members. (It does not cost re-renders: Pinia tracks each member
+separately, so a component only reacts to what it reads. The first draft of
+this review said otherwise.) The pattern's intent (filters survive navigation
+in the session, not in localStorage) does not need one store; one Pinia store
+per domain under `stores/ui/` keeps the same intent and lets a list import only
+its own.
+
+**Done (5.2.5, the maintainer's call):** 29 domain stores plus `app.ts` for
+the shell state, storage keys unchanged; 238 consumers rewritten; the Filter
+State Pattern in CLAUDE.md names the domain stores. Boot payload 420.1 →
+415.9 kB gzip.
 
 ## 5. Folder sizing
 
@@ -194,7 +201,7 @@ others are candidates only when work next touches them.
 | 2 | 5.2.2 | Move the single-consumer `lib` root modules into their folders (table in section 5) | The placement rule holds again; `lib` root down to ~67 | Low; import paths only | S | No |
 | 3 | 5.2.3 | `AiGeneratorPanels.vue` to `src/ai/`; the 13 `common` → `campaign`/`spells` edges resolved | `common` imports no domain; a depcruise rule can then hold it | Low | S | No |
 | 4 | 5.2.4 | Subfolders for `components/common` (primitives, entity pickers, stat display, list scaffolding, rich text, images) | A 134-file bucket becomes navigable | Low, but touches ~600 import sites | M | Decided: the grouping in the 10 Oct proposal |
-| 5 | 5.2.5 | Split `stores/ui.ts` into one filter store per domain under `stores/ui/` | A list imports only its own filters; the largest file in `src` goes | Medium; 179 importers, and the Filter State Pattern rule in CLAUDE.md changes | M | Decided: yes |
+| 5 | 5.2.5 | ~~Split `stores/ui.ts` into one filter store per domain under `stores/ui/`~~ Done | A list imports only its own filters; the largest file in `src` goes | Medium; 179 importers, and the Filter State Pattern rule in CLAUDE.md changes | M | Done |
 | 6 | 5.2.6 | ~~One name per domain: `play`/`player`, `pantheons`/`deities`~~ `play` merged into `player`; pantheons are their own entity, not a duplicate. Left: `calendars/` into `lib/calendar` | The tree reads as one map | Low; renames | S | Decided |
 | 7 | 5.2.7 | Subfolders by surface for `components/quests` (110) and `components/locations` (81), following the design frames | Navigable domain folders | Low | M | No |
 | 8 | 5.2.8 | ~~Remove the #330 Paged.js harness (`views/spike/`, `lib/scriptorium/spike/`)~~ Removed, the maintainer's call: Scriptorium ships Paged.js itself | Less dev-only code | None | XS | Done |

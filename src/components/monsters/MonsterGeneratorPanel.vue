@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.monsterGeneratorOpen"
+    v-model:open="monstersUi.monsterGeneratorOpen"
     v-model:concept="concept"
     v-model:generate-image="generateImage"
     title="Monster Generator"
@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import { ref, reactive } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useMonstersUiStore } from "@/stores/ui/monsters";
 import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -62,7 +62,7 @@ import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useMonsterGeneration } from "@/ai/useMonsterGeneration";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 
-const ui = useUiStore();
+const monstersUi = useMonstersUiStore();
 const router = useRouter();
 const { generateAndCreateMonster } = useGenerateMonster();
 // `isGenerating`/`completedEntityId`/`concept` are the shared generation
@@ -106,8 +106,8 @@ async function generateAndCreate() {
   // so there is nothing further to do here on a `null` id.
   if (!id) return;
 
-  if (ui.monsterGeneratorOpen) {
-    ui.monsterGeneratorOpen = false;
+  if (monstersUi.monsterGeneratorOpen) {
+    monstersUi.monsterGeneratorOpen = false;
     router.push(`/monsters/${id}`);
   } else {
     completedEntityId.value = id;

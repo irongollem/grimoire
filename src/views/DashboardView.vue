@@ -180,7 +180,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { VueDraggable } from "vue-draggable-plus";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -252,7 +252,7 @@ const SAVE_DEBOUNCE_MS = 500;
 
 const route = useRoute();
 const router = useRouter();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const toast = useToast();
 
 const VIEW_OPTIONS = [
@@ -263,7 +263,7 @@ const VIEW_OPTIONS = [
 const view = computed<DashboardSurface>(() => {
   if (route.query.view === "prep") return "prep";
   if (route.query.view === "session") return "session";
-  return ui.sessionRunning ? "session" : "prep";
+  return appUi.sessionRunning ? "session" : "prep";
 });
 
 const { widgets, newWidgetIds, dense, saveLayout, resetLayout } = useDashboardLayout(view);
@@ -377,7 +377,7 @@ function selectView(next: DashboardSurface) {
   const { view: _view, ...query } = route.query;
   // The derived default is the one worth having, so choosing the side the
   // session would have picked anyway clears the override rather than pinning it.
-  const derived = ui.sessionRunning ? "session" : "prep";
+  const derived = appUi.sessionRunning ? "session" : "prep";
   void router.replace({ query: next === derived ? query : { ...query, view: next } });
 }
 

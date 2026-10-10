@@ -9,7 +9,7 @@ import {
   NPC_UNNAMED_IN_PROSE,
 } from "@/lib/npcDisplay";
 import type { RevealAdapter } from "@/lib/reveal";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import type { NpcListRow } from "@/types/npc.types";
 
 /**
@@ -42,7 +42,7 @@ export function useNpcReveal(npc: () => NpcListRow) {
   const { data: partyData } = useParty();
   const { sendNarrativeEvent } = useCampaignMessages();
   const { reportChatFailure } = useChatSendFailure();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
 
   /** Local optimistic state, so a toggle lands without waiting for the refetch. */
   const visibleTo = ref<string[]>([...npc().player_visible_to]);
@@ -73,7 +73,7 @@ export function useNpcReveal(npc: () => NpcListRow) {
         ? [...visibleTo.value, memberId]
         : visibleTo.value.filter((id) => id !== memberId);
       const nextFields = apply(next);
-      if (adding && ui.dmMode === "play") {
+      if (adding && appUi.dmMode === "play") {
         const who = (partyData.value ?? []).find(
           (m) => m.id === memberId,
         )?.name;
@@ -86,7 +86,7 @@ export function useNpcReveal(npc: () => NpcListRow) {
     setWholeParty: () => {
       const wasHidden = visibleTo.value.length === 0;
       const nextFields = apply((partyData.value ?? []).map((m) => m.id));
-      if (wasHidden && ui.dmMode === "play") {
+      if (wasHidden && appUi.dmMode === "play") {
         sendNarrativeEvent(
           `The party encounters ${announcedName(nextFields)}.`,
           npc().id,
@@ -150,7 +150,7 @@ export function useNpcReveal(npc: () => NpcListRow) {
   function setRevealed(next: boolean) {
     isRevealed.value = next;
     updateNpc({ id: npc().id, update: { is_revealed: next } });
-    if (next && ui.dmMode === "play") {
+    if (next && appUi.dmMode === "play") {
       const seen = { ...npc(), player_visible_fields: fields.value };
       const cover = getNpcPlayerFacingName({ ...seen, is_revealed: false });
       const revealed = getNpcPlayerFacingName({ ...seen, is_revealed: true });

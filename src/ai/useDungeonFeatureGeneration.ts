@@ -6,7 +6,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
 import { normalizeDungeonFeature } from "@/lib/dungeon-features/featureAi";
 import type { DungeonFeatureAiResult } from "@/lib/dungeon-features/featureAi";
@@ -20,7 +20,7 @@ registerAiGenerator({
   label: "Feature",
   entityRoute: (id) => `/dungeon-features/${id}`,
   openPanel: () => {
-    useUiStore().dungeonFeatureGeneratorOpen = true;
+    useGeneratorUiStore().dungeonFeatureGeneratorOpen = true;
   },
 });
 

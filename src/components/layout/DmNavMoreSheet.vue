@@ -60,7 +60,7 @@
     </div>
 
     <p class="mt-4 px-1 text-center text-caption-sm text-muted-foreground/60">
-      Dot = currently pinned to the {{ ui.dmMode === "play" ? "session" : "prep" }} bar.
+      Dot = currently pinned to the {{ appUi.dmMode === "play" ? "session" : "prep" }} bar.
     </p>
 
     <AppButton
@@ -142,7 +142,7 @@ import SessionRail from "./SessionRail.vue";
 import { IconAdd, IconBug, IconNote, IconRefresh, IconShieldCheck } from "@/lib/icons";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useScratchpadStore } from "@/stores/scratchpad";
@@ -175,7 +175,7 @@ const bugReportMounted = useLazyMount(bugReportOpen);
 const vPrefetch = usePrefetchOnIntent();
 const route = useRoute();
 const router = useRouter();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();
 const scratchpad = useScratchpadStore();

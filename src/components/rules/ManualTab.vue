@@ -7,15 +7,15 @@
     >
       <ListFilterBar
         class="mb-1"
-        :has-active-filters="ui.manualHasActiveFilters"
-        @clear="ui.resetManualFilters()"
+        :has-active-filters="rulesUi.manualHasActiveFilters"
+        @clear="rulesUi.resetManualFilters()"
       >
         <template #above>
-          <ListSearchInput v-model="ui.manualSearch" :inline="false" placeholder="Search manual…" />
+          <ListSearchInput v-model="rulesUi.manualSearch" :inline="false" placeholder="Search manual…" />
         </template>
       </ListFilterBar>
 
-      <template v-if="ui.manualSearch.trim()">
+      <template v-if="rulesUi.manualSearch.trim()">
         <AppButton
           v-for="page in searchResults"
           :key="page.id"
@@ -111,7 +111,7 @@ import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconBookMarked, IconChevronLeft, IconPopulate } from '@/lib/icons';
 import { manualSections } from "@/lib/manualLoader";
-import { useUiStore } from "@/stores/ui";
+import { useRulesUiStore } from "@/stores/ui/rules";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
@@ -150,10 +150,10 @@ watch(selectedId, () => {
 });
 
 // Filter State Pattern — the manual query survives navigating away and back.
-const ui = useUiStore();
+const rulesUi = useRulesUiStore();
 
 const searchResults = computed(() => {
-  const q = ui.manualSearch.trim().toLowerCase();
+  const q = rulesUi.manualSearch.trim().toLowerCase();
   if (!q) return allPages.value;
   return allPages.value.filter(
     (p) =>

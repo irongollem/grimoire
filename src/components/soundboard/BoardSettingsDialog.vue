@@ -32,13 +32,13 @@
              rival to AppButton's gold `active` tint, which is the app's one
              selected treatment. -->
         <SegmentedControl
-          :model-value="ui.soundboardPadSize"
+          :model-value="soundboardUi.soundboardPadSize"
           :options="PAD_SIZES"
           size="sm"
-          @update:model-value="(v) => (ui.soundboardPadSize = v)"
+          @update:model-value="(v) => (soundboardUi.soundboardPadSize = v)"
         />
         <p class="text-caption text-muted-foreground">
-          {{ PAD_SIZES.find((p) => p.value === ui.soundboardPadSize)?.hint }}
+          {{ PAD_SIZES.find((p) => p.value === soundboardUi.soundboardPadSize)?.hint }}
         </p>
       </section>
 
@@ -101,7 +101,7 @@ import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import type { PadSize } from "@/types/sound.types";
-import { useUiStore } from "@/stores/ui";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 
 const PAD_SIZES = [
   { value: "sm", label: "Small", hint: "Name and colour only. Fits the most on screen." },
@@ -120,7 +120,7 @@ const PAD_SIZES = [
 const { open } = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 
-const ui = useUiStore();
+const soundboardUi = useSoundboardUiStore();
 const store = useSoundboardStore();
 const { audioTriggersEnabled, setAudioTriggersEnabled } = useAudioTriggerPrefs();
 const { broadcasting, broadcastError, setBroadcasting } = useSoundboardBroadcast();

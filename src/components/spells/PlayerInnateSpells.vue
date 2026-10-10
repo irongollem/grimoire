@@ -18,12 +18,12 @@
         <!-- Source header -->
         <button
           class="w-full flex items-center gap-2 px-3 py-2 rounded-t-lg bg-muted/40 border border-border hover:bg-muted/60 transition-colors"
-          :class="ui.playerInnateOpenSources.includes(group.label) ? 'rounded-t-lg border-b-0' : 'rounded-lg'"
-          @click="ui.togglePlayerInnateSource(group.label)"
+          :class="playerUi.playerInnateOpenSources.includes(group.label) ? 'rounded-t-lg border-b-0' : 'rounded-lg'"
+          @click="playerUi.togglePlayerInnateSource(group.label)"
         >
           <IconChevronRight
             class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform"
-            :class="ui.playerInnateOpenSources.includes(group.label) ? 'rotate-90' : ''"
+            :class="playerUi.playerInnateOpenSources.includes(group.label) ? 'rotate-90' : ''"
           />
           <span class="text-label-lg font-bold text-foreground">
             {{ group.label }}
@@ -38,7 +38,7 @@
 
         <!-- Spell rows -->
         <div
-          v-show="ui.playerInnateOpenSources.includes(group.label)"
+          v-show="playerUi.playerInnateOpenSources.includes(group.label)"
           class="rounded-b-lg border border-t-0 border-border bg-card divide-y divide-border overflow-hidden"
         >
           <div
@@ -177,7 +177,7 @@ import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages"
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import { useUiStore } from "@/stores/ui";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import { SCHOOL_BG } from "@/types/spell.types";
 import { parseExpression, parsedToCounts } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
@@ -204,7 +204,7 @@ const props = defineProps<{
   spellSaveDc: number | null;
 }>();
 
-const ui = useUiStore();
+const playerUi = usePlayerUiStore();
 const toast = useToast();
 
 const { data: allEntries } = useCharacterSpellsWithDetails(

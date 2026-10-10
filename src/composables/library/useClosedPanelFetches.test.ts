@@ -35,7 +35,7 @@ vi.mock("@/composables/library/useEnabledSources", () => ({
 }));
 vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ ruleset: ref("2024") }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: null }) }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ dmPreviewMode: false }) }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ dmPreviewMode: false }) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ isAppAdmin: false }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ show: vi.fn() }) }));
 

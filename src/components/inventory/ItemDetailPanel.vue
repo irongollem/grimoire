@@ -398,7 +398,7 @@ import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useMarkRead } from "@/composables/player/useReadItems";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
 import { parseExpression, parsedToCounts } from "@/lib/dice/dice";
@@ -432,13 +432,13 @@ const emit = defineEmits<{
 // follows the identical `isDM && !dmPreviewMode` gate) and for DM preview —
 // mirror ItemSheet.vue's split rather than assuming a single audience.
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
 
-const isRealDm = computed(() => auth.isDM && !ui.dmPreviewMode);
+const isRealDm = computed(() => auth.isDM && !appUi.dmPreviewMode);
 const dmUserId = computed(() => activeCampaign.value?.user_id ?? null);
 const authorPartyMemberId = computed(() =>
-  isRealDm.value ? null : (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId),
+  isRealDm.value ? null : (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId),
 );
 const canWriteEntries = computed(() => isRealDm.value || (props.vaultItem?.content_player_writable ?? false));
 const canModerate = computed(() => isRealDm.value);

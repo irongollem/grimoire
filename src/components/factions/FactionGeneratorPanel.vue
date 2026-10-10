@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.factionGeneratorOpen"
+    v-model:open="generatorsUi.factionGeneratorOpen"
     v-model:concept="concept"
     v-model:generate-image="generateImage"
     title="Faction Generator"
@@ -56,7 +56,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCreateFaction, useAddFactionNpc, useAddFactionLocation } from "@/composables/factions/useFactions";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -71,7 +71,7 @@ import { FACTION_TYPES, FACTION_ALIGNMENTS } from "@/types/faction.types";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useLocationTree } from "@/composables/locations/useLocations";
 
-const ui       = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
 const { mutateAsync: createFaction }    = useCreateFaction();
 const { mutateAsync: addFactionNpc }    = useAddFactionNpc();
@@ -79,7 +79,7 @@ const { mutateAsync: addFactionLocation } = useAddFactionLocation();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useFactionGeneration();
 
 // Mounted on every DM page — only fetch the dropdown data once the panel opens.
-const panelOpen           = () => ui.factionGeneratorOpen;
+const panelOpen           = () => generatorsUi.factionGeneratorOpen;
 const { data: npcs }      = useNpcs(panelOpen);
 const { locationOptions } = useLocationTree(panelOpen);
 
@@ -160,7 +160,7 @@ async function generateAndCreate() {
   ]);
 
   completedEntityId.value = faction.id;
-  ui.factionGeneratorOpen = false;
+  generatorsUi.factionGeneratorOpen = false;
   router.push(`/factions/${faction.id}`);
 }
 </script>

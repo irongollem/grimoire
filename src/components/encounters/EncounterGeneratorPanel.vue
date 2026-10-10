@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.encounterGeneratorOpen"
+    v-model:open="generatorsUi.encounterGeneratorOpen"
     v-model:concept="concept"
     title="Encounter Generator"
     concept-placeholder="Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight…"
@@ -155,7 +155,7 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckCircle, IconWarning } from "@/lib/icons";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCreateEncounter } from "@/composables/encounters/useEncounters";
 import { useEncounterGeneration } from "@/ai/useEncounterGeneration";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -189,7 +189,7 @@ const DIFFICULTY_OPTIONS: { value: EncounterDifficultyOption; label: string }[] 
   { value: "deadly", label: "Deadly" },
 ];
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 
 const {
@@ -210,7 +210,7 @@ const { mutateAsync: createEncounter } = useCreateEncounter();
 // closed meanwhile), or a result is held. A closed, idle panel fetches nothing
 // (#972) — the panel is mounted on every DM page.
 const { data: monsters, isLoading: monstersLoading } = useMonsterIndex(() => ({
-  enabled: ui.encounterGeneratorOpen || isGenerating.value || !!result.value,
+  enabled: generatorsUi.encounterGeneratorOpen || isGenerating.value || !!result.value,
 }));
 const { data: party } = useActiveParty();
 const { data: companions } = useCompanions();
@@ -363,7 +363,7 @@ async function createEncounterFromResult() {
 
 function viewCreated() {
   if (!createdEncounterId.value) return;
-  ui.encounterGeneratorOpen = false;
+  generatorsUi.encounterGeneratorOpen = false;
   // Straight into the editor, not the read-only sheet. A generated encounter
   // is a draft: the DM has to review the AI's picks, swap what doesn't fit and
   // hand-add anything that wasn't in the Bestiary — all of which is edit-mode

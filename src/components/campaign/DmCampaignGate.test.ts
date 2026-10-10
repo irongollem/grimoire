@@ -4,7 +4,7 @@ import { defineComponent, h } from "vue";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
 import DmCampaignGate from "./DmCampaignGate.vue";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 
 /**
  * DM mode requires a campaign. A player-only account that clicked "DM" could
@@ -79,7 +79,7 @@ beforeEach(() => {
 
 describe("DmCampaignGate", () => {
   it("stands in for the page and opens the new-campaign flow when the DM lens holds no campaign", async () => {
-    useUiStore().userMode = "dm";
+    useAppUiStore().userMode = "dm";
     mocks.campaigns = [];
     mocks.isSuccess = true;
     const wrapper = render();
@@ -91,7 +91,7 @@ describe("DmCampaignGate", () => {
   });
 
   it("renders the page while the campaign list is still loading", async () => {
-    useUiStore().userMode = "dm";
+    useAppUiStore().userMode = "dm";
     const wrapper = render();
     await flushPromises();
 
@@ -99,7 +99,7 @@ describe("DmCampaignGate", () => {
   });
 
   it("renders the page for a DM who has campaigns", async () => {
-    useUiStore().userMode = "dm";
+    useAppUiStore().userMode = "dm";
     mocks.campaigns = [{ id: "c1" }];
     mocks.isSuccess = true;
     const wrapper = render();
@@ -109,7 +109,7 @@ describe("DmCampaignGate", () => {
   });
 
   it("lets account-scoped and admin routes through", async () => {
-    useUiStore().userMode = "dm";
+    useAppUiStore().userMode = "dm";
     mocks.campaigns = [];
     mocks.isSuccess = true;
 
@@ -121,7 +121,7 @@ describe("DmCampaignGate", () => {
   });
 
   it("does nothing in the player lens, where an empty DM list means nothing", async () => {
-    useUiStore().userMode = "player";
+    useAppUiStore().userMode = "player";
     mocks.campaigns = [];
     mocks.isSuccess = true;
     const wrapper = render();

@@ -33,10 +33,10 @@
         class="mt-1"
         role="group"
         aria-label="Can you make it?"
-        :disabled="ui.dmPreviewMode"
+        :disabled="appUi.dmPreviewMode"
         @update:model-value="answer"
       />
-      <p v-if="ui.dmPreviewMode" class="text-caption italic text-muted-foreground">The player answers here.</p>
+      <p v-if="appUi.dmPreviewMode" class="text-caption italic text-muted-foreground">The player answers here.</p>
       <p v-if="rsvp.isError.value" class="text-caption text-destructive" role="alert">
         Your answer did not save. Try again.
       </p>
@@ -61,7 +61,7 @@ import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { IconClock } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import {
@@ -94,7 +94,7 @@ const RSVP_OPTIONS = [
 ] as const;
 
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const campaign = useCampaignStore();
 const today = useLocalToday();
 const { data: proposals, isLoading: proposalsLoading } = useSessionProposals();
@@ -112,7 +112,7 @@ const tally = computed(() =>
     : { yes: 0, answered: 0, total: 0 },
 );
 const mine = computed(() =>
-  session.value && !ui.dmPreviewMode ? myRsvp(availability.value ?? [], session.value.id, auth.user?.id) : null,
+  session.value && !appUi.dmPreviewMode ? myRsvp(availability.value ?? [], session.value.id, auth.user?.id) : null,
 );
 const choice = computed<Choice | "">(() => (mine.value === null ? "" : mine.value ? "in" : "out"));
 
@@ -129,7 +129,7 @@ const countdown = computed(() =>
 function answer(value: Choice | "") {
   const target = session.value;
   const campaignId = campaign.activeCampaignId;
-  if (ui.dmPreviewMode || !target || !campaignId || value === "") return;
+  if (appUi.dmPreviewMode || !target || !campaignId || value === "") return;
   rsvp.mutate({ session_proposal_id: target.id, campaign_id: campaignId, available: value === "in" });
 }
 </script>

@@ -16,7 +16,7 @@
         </div>
         <AppButton v-if="w.to" variant="subtle" size="md" :to="w.to" :label="w.action" />
         <!-- Quiet, not gilt: the claim itself happens in chat, where the race is. -->
-        <AppButton v-else variant="subtle" size="md" :label="w.action" @click="ui.openChatAt(w.messageId)" />
+        <AppButton v-else variant="subtle" size="md" :label="w.action" @click="appUi.openChatAt(w.messageId)" />
       </li>
     </ul>
     <p v-else class="px-1 text-body text-muted-foreground">Nothing waiting for you.</p>
@@ -32,7 +32,7 @@ import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import { useCampaignMessages, loadChatHistory } from "@/composables/campaign/useCampaignMessages";
 import { usePlayerUnread } from "@/composables/player/usePlayerUnread";
 import { openTableItems, type WaitingItem } from "@/lib/hearth/waitingItems";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 
 /**
  * What the table has put in front of this player. Handouts open their page.
@@ -42,7 +42,7 @@ import { useUiStore } from "@/stores/ui";
  */
 const { startedAt } = defineProps<{ startedAt: string | null }>();
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const { items: unread } = usePlayerUnread();
 const { messages, myUserId } = useCampaignMessages();
 // This surface reads the message list itself, so it asks for the history the

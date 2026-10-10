@@ -7,7 +7,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -18,7 +18,7 @@ registerAiGenerator({
   label: "Puzzle",
   entityRoute: (id) => `/puzzles/${id}`,
   openPanel: () => {
-    useUiStore().puzzleGeneratorOpen = true;
+    usePuzzlesUiStore().puzzleGeneratorOpen = true;
   },
 });
 

@@ -50,18 +50,18 @@ import AppButton from "@/components/common/AppButton.vue";
 import DemoCampaignOffer from "@/components/campaign/DemoCampaignOffer.vue";
 import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
 import { IconDM, IconUserRound } from "@/lib/icons";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { TOUR_FLAG_KEY } from "@/lib/tours/firstRunTours";
 import type { Campaign } from "@/types/campaign.types";
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const router = useRouter();
 const campaignStore = useCampaignStore();
 const { url: discordUrl, visible: showDiscord } = useDiscordInvite();
 
 function choose(mode: "dm" | "player") {
-  ui.userMode = mode;
+  appUi.userMode = mode;
   // A separate tour runner reads this to launch the first-run walkthrough.
   safeLocalStorage().setItem(TOUR_FLAG_KEY, mode);
   router.push({ name: mode === "dm" ? "dashboard" : "play-home" });
@@ -70,7 +70,7 @@ function choose(mode: "dm" | "player") {
 async function onDemoLoaded(campaign: Campaign) {
   // Same as choosing DM: the first-run tour should run over the demo's real
   // content rather than an empty dashboard.
-  ui.userMode = "dm";
+  appUi.userMode = "dm";
   safeLocalStorage().setItem(TOUR_FLAG_KEY, "dm");
   campaignStore.switchToCampaign(campaign);
   await router.push({ name: "dashboard" });

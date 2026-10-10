@@ -42,7 +42,7 @@ import {
   preloadStack,
 } from "@/lib/locations/mapZoom";
 import { prefersReducedMotion } from "@/lib/motion";
-import { useUiStore } from "@/stores/ui";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
 
 const { plan, settling = false, compact = false } = defineProps<{
@@ -66,7 +66,7 @@ const descending = plan.direction === "in";
 // The same layer toggles `MapFrame` reads (#884), so a DM who has hidden the
 // Drawing (or the Picture beneath it) sees that same choice honoured through
 // the transition rather than a flash of a layer that isn't normally shown.
-const { siteMapLayers } = storeToRefs(useUiStore());
+const { siteMapLayers } = storeToRefs(useLocationsUiStore());
 const visibleLayers = computed(() => ({ picture: siteMapLayers.value.picture, drawing: siteMapLayers.value.drawing }));
 
 /**

@@ -321,7 +321,7 @@ function rulesForSpace(spaceId: string): QuestConsequence[] {
 }
 // Which bound space's rule editor is open — at most one at a time, like the
 // zone panel's own `expandedId`. Ephemeral UI state, not a list filter, so a
-// local ref rather than `useUiStore` (Filter State Pattern governs filters
+// local ref rather than a domain UI store (Filter State Pattern governs filters
 // over the list on screen, not a row's own disclosure toggle).
 const expandedRulesSpaceId = ref<string | null>(null);
 

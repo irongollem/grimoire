@@ -10,7 +10,7 @@
     <!-- No character linked -->
     <div v-if="!member" class="text-center py-16 space-y-4">
       <p class="text-heading text-muted-foreground">No character linked</p>
-      <template v-if="ui.dmPreviewMode">
+      <template v-if="appUi.dmPreviewMode">
         <p class="text-body text-muted-foreground italic">Select a character above to preview their sheet.</p>
       </template>
       <template v-else>
@@ -83,7 +83,7 @@
           class="rounded-md border border-border/50 bg-muted/40 p-1"
         />
         <div v-if="!hidePlayerActions && member" class="flex items-center gap-2 max-sm:w-full sm:ml-auto">
-          <AppButton v-if="!ui.dmPreviewMode" to="/play/champions" variant="subtle" size="sm" class="max-sm:flex-1" label="My Characters" />
+          <AppButton v-if="!appUi.dmPreviewMode" to="/play/champions" variant="subtle" size="sm" class="max-sm:flex-1" label="My Characters" />
           <AppButton :to="{ name: 'play-character-sheet' }" variant="subtle" size="sm" class="max-sm:flex-1" label="Export Sheet" />
           <OverflowMenu
             v-if="canRetire"
@@ -151,7 +151,7 @@ import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
 import { scrollParentOf } from "@/lib/scrollParent";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
@@ -186,14 +186,14 @@ const props = defineProps<{ memberId?: string; hidePlayerActions?: boolean }>();
 const emit = defineEmits<{ (e: "level-up"): void }>();
 
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const campaign = useCampaignStore();
 
 // The character is resolved first so its ruleset scope is provided before any
 // composable below (or any child) reads an edition. See useRuleset.ts.
 const { data: partyMembers } = useParty();
 const resolvedMemberId = computed(() =>
-  props.memberId ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId),
+  props.memberId ?? (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId),
 );
 const member = computed<PartyMember | null>(() =>
   resolvedMemberId.value && partyMembers.value
@@ -206,7 +206,7 @@ provideCharacterRuleset(() => member.value);
 const { data: dmRules }     = useRules();
 const { data: playerRules } = usePlayerVisibleRules();
 const customTrackers = computed(() => {
-  const rules = ui.dmPreviewMode ? (dmRules.value ?? []) : (playerRules.value ?? []);
+  const rules = appUi.dmPreviewMode ? (dmRules.value ?? []) : (playerRules.value ?? []);
   return rules
     .filter((r) => r.tracker !== null)
     .map((r) => ({ ruleId: r.id, def: r.tracker! }));
@@ -233,7 +233,7 @@ const {
 const { isDruid } = useWildshapeDruid(resolvedMemberId, () => member.value);
 
 const isOwner = computed(
-  () => !ui.dmPreviewMode && !!auth.linkedPartyMemberId && auth.linkedPartyMemberId === member.value?.id,
+  () => !appUi.dmPreviewMode && !!auth.linkedPartyMemberId && auth.linkedPartyMemberId === member.value?.id,
 );
 
 // ── Memorial (#982) ───────────────────────────────────────────────────────────
@@ -252,11 +252,11 @@ const memorialViewer = computed<"dm" | "owner" | "other">(() =>
 );
 const retireOpen = ref(false);
 /** Only the owner retires from here; marking a character fallen is the DM's, on the party page. */
-const canRetire = computed(() => memberOwnedByMe.value && !ui.dmPreviewMode && !memorialInEffect.value);
+const canRetire = computed(() => memberOwnedByMe.value && !appUi.dmPreviewMode && !memorialInEffect.value);
 
 // The owner edits their own character; the DM does from the preview and from the
 // party page (the only place a memberId is passed in). Anyone else reads.
-const canManage = computed(() => isOwner.value || ui.dmPreviewMode || !!props.memberId);
+const canManage = computed(() => isOwner.value || appUi.dmPreviewMode || !!props.memberId);
 
 // ── Shapeshifter ───────────────────────────────────────────────────────────────
 const trueSpeciesId = computed(() => member.value?.species_id ?? "");

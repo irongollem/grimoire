@@ -4,7 +4,7 @@
     Backgrounds, Classes, and Archetypes. Same tabbed shell as the Rules
     Reliquary, with each tab a self-contained list + import flow.
 
-    Tab state is kept in `useUiStore.codexActiveTab` so navigating away and
+    Tab state is kept in `useCodexUiStore.codexActiveTab` so navigating away and
     back preserves which compendium you were on. The URL path segment
     (/codex/species, /codex/backgrounds, …) is the source of truth — we
     sync the tab ref to it on mount + watch, and each tab click pushes a
@@ -42,7 +42,7 @@
           v-if="activeTab === 'species'"
           :icon="IconDownload"
           label="Import Open5e"
-          @click="ui.speciesOpen5ePanelOpen = true"
+          @click="speciesUi.speciesOpen5ePanelOpen = true"
         />
         <ListActionButton
           v-if="activeTab === 'species'"
@@ -55,7 +55,7 @@
           v-if="activeTab === 'species' && isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
-          @click="ui.speciesGeneratorOpen = true"
+          @click="generatorsUi.speciesGeneratorOpen = true"
         />
         <ListActionButton
           v-if="activeTab === 'species'"
@@ -72,7 +72,7 @@
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
-            @click="ui.backgroundGeneratorOpen = true"
+            @click="generatorsUi.backgroundGeneratorOpen = true"
           />
           <ListActionButton
             variant="primary"
@@ -89,7 +89,7 @@
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
-            @click="ui.customClassGeneratorOpen = true"
+            @click="generatorsUi.customClassGeneratorOpen = true"
           />
           <ListActionButton
             variant="primary"
@@ -106,7 +106,7 @@
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
-            @click="ui.customSubclassGeneratorOpen = true"
+            @click="generatorsUi.customSubclassGeneratorOpen = true"
           />
           <ListActionButton
             variant="primary"
@@ -123,7 +123,7 @@
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
-            @click="ui.classFeatureGeneratorOpen = true"
+            @click="generatorsUi.classFeatureGeneratorOpen = true"
           />
           <ListActionButton
             variant="primary"
@@ -152,53 +152,53 @@
     <template #filters>
       <ListFilterBar
         v-if="activeTab === 'species'"
-        :has-active-filters="ui.speciesHasActiveFilters"
-        @clear="ui.resetSpeciesFilters()"
+        :has-active-filters="speciesUi.speciesHasActiveFilters"
+        @clear="speciesUi.resetSpeciesFilters()"
       >
-        <ListSearchInput v-model="ui.speciesSearch" placeholder="Search species…" />
+        <ListSearchInput v-model="speciesUi.speciesSearch" placeholder="Search species…" />
         <ListFilterGroup
-          v-model="ui.speciesFilterSize"
+          v-model="speciesUi.speciesFilterSize"
           :options="SIZE_OPTIONS"
           aria-label="Species size filter"
         />
       </ListFilterBar>
       <ListFilterBar
         v-else-if="activeTab === 'backgrounds'"
-        :has-active-filters="ui.backgroundsHasActiveFilters"
-        @clear="ui.resetBackgroundsFilters()"
+        :has-active-filters="codexUi.backgroundsHasActiveFilters"
+        @clear="codexUi.resetBackgroundsFilters()"
       >
-        <ListSearchInput v-model="ui.backgroundsSearch" placeholder="Search backgrounds…" />
+        <ListSearchInput v-model="codexUi.backgroundsSearch" placeholder="Search backgrounds…" />
         <ListFilterGroup
-          v-model="ui.backgroundsFilterSource"
+          v-model="codexUi.backgroundsFilterSource"
           :options="BACKGROUND_SOURCE_OPTIONS"
           aria-label="Background source filter"
         />
       </ListFilterBar>
       <ListFilterBar
         v-else-if="activeTab === 'classes'"
-        :has-active-filters="ui.customClassesHasActiveFilters"
-        @clear="ui.resetCustomClassesFilters()"
+        :has-active-filters="codexUi.customClassesHasActiveFilters"
+        @clear="codexUi.resetCustomClassesFilters()"
       >
-        <ListSearchInput v-model="ui.customClassesSearch" placeholder="Search classes…" />
+        <ListSearchInput v-model="codexUi.customClassesSearch" placeholder="Search classes…" />
       </ListFilterBar>
       <ListFilterBar
         v-else-if="activeTab === 'archetypes'"
-        :has-active-filters="ui.archetypesHasActiveFilters"
-        @clear="ui.resetArchetypesFilters()"
+        :has-active-filters="codexUi.archetypesHasActiveFilters"
+        @clear="codexUi.resetArchetypesFilters()"
       >
-        <ListSearchInput v-model="ui.archetypesSearch" placeholder="Search archetypes…" />
-        <ListFilterSelect v-model="ui.archetypesFilterClass">
+        <ListSearchInput v-model="codexUi.archetypesSearch" placeholder="Search archetypes…" />
+        <ListFilterSelect v-model="codexUi.archetypesFilterClass">
           <option value="all">All classes</option>
           <option v-for="cls in archetypeClassNames" :key="cls" :value="cls">{{ cls }}</option>
         </ListFilterSelect>
       </ListFilterBar>
       <ListFilterBar
         v-else-if="activeTab === 'abilities'"
-        :has-active-filters="ui.featuresHasActiveFilters"
-        @clear="ui.resetFeaturesFilters()"
+        :has-active-filters="codexUi.featuresHasActiveFilters"
+        @clear="codexUi.resetFeaturesFilters()"
       >
-        <ListSearchInput v-model="ui.featuresSearch" placeholder="Search abilities…" />
-        <ListFilterSelect v-model="ui.featuresFilterActivation">
+        <ListSearchInput v-model="codexUi.featuresSearch" placeholder="Search abilities…" />
+        <ListFilterSelect v-model="codexUi.featuresFilterActivation">
           <option value="all">All activations</option>
           <option value="passive">Passive</option>
           <option v-for="a in ACTIVATIONS" :key="a" :value="a">{{ ACTIVATION_LABELS[a] }}</option>
@@ -206,15 +206,15 @@
       </ListFilterBar>
       <ListFilterBar
         v-else-if="activeTab === 'feats'"
-        :has-active-filters="ui.featsHasActiveFilters"
-        @clear="ui.resetFeatsFilters()"
+        :has-active-filters="codexUi.featsHasActiveFilters"
+        @clear="codexUi.resetFeatsFilters()"
       >
-        <ListSearchInput v-model="ui.featsSearch" placeholder="Search feats…" />
-        <ListFilterSelect v-model="ui.featsFilterCategory">
+        <ListSearchInput v-model="codexUi.featsSearch" placeholder="Search feats…" />
+        <ListFilterSelect v-model="codexUi.featsFilterCategory">
           <option value="all">All categories</option>
           <option v-for="c in FEAT_CATEGORIES" :key="c" :value="c">{{ FEAT_CATEGORY_LABELS[c] }}</option>
         </ListFilterSelect>
-        <ListFilterSelect v-model="ui.featsFilterEdition">
+        <ListFilterSelect v-model="codexUi.featsFilterEdition">
           <option value="all">Both editions</option>
           <option value="2014">2014</option>
           <option value="2024">2024</option>
@@ -260,7 +260,9 @@ import ClassList from "@/components/levelup/ClassList.vue";
 import ArchetypeList from "@/components/levelup/ArchetypeList.vue";
 import AbilityList from "@/components/features/AbilityList.vue";
 import FeatList from "@/components/feats/FeatList.vue";
-import { useUiStore } from "@/stores/ui";
+import { useCodexUiStore } from "@/stores/ui/codex";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useSpeciesUiStore } from "@/stores/ui/species";
 import { useAvailableLibrarySpeciesSources } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
@@ -286,7 +288,9 @@ const SIZE_OPTIONS = [
   { value: "large", label: "Large" },
 ] as const;
 
-const ui = useUiStore();
+const codexUi = useCodexUiStore();
+const generatorsUi = useGeneratorUiStore();
+const speciesUi = useSpeciesUiStore();
 const isAiEnabled = computed(() => useCampaignStore().isAiEnabled);
 const auth = useAuthStore();
 const { data: speciesSourceData, isLoading: speciesSourcesLoading } = useAvailableLibrarySpeciesSources();
@@ -295,7 +299,7 @@ const route = useRoute();
 const router = useRouter();
 
 const activeTab = computed<TabId>({
-  get: () => ui.codexActiveTab as TabId,
+  get: () => codexUi.codexActiveTab as TabId,
   set: (id) => selectTab(id),
 });
 
@@ -310,14 +314,14 @@ const MANUAL_PAGE_BY_TAB: Record<TabId, string> = {
 const manualPage = computed(() => MANUAL_PAGE_BY_TAB[activeTab.value]);
 
 function tabFromRoute(): TabId {
-  const p = (route.params.tab as string | undefined) ?? ui.codexActiveTab;
+  const p = (route.params.tab as string | undefined) ?? codexUi.codexActiveTab;
   return (["species", "backgrounds", "classes", "archetypes", "abilities", "feats"] as TabId[]).includes(p as TabId)
     ? (p as TabId)
     : "species";
 }
 
-onMounted(() => { ui.codexActiveTab = tabFromRoute(); });
-watch(() => route.params.tab, () => { ui.codexActiveTab = tabFromRoute(); });
+onMounted(() => { codexUi.codexActiveTab = tabFromRoute(); });
+watch(() => route.params.tab, () => { codexUi.codexActiveTab = tabFromRoute(); });
 
 function selectTab(id: TabId) {
   if (id === activeTab.value) return;

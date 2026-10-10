@@ -17,10 +17,10 @@
         :search="search"
         :type-filter="typeFilter"
         :type-options="TYPE_OPTIONS"
-        :has-active-filters="ui.playerLocationsHasActiveFilters"
+        :has-active-filters="playerUi.playerLocationsHasActiveFilters"
         @update:search="search = $event"
         @update:type-filter="typeFilter = $event"
-        @clear="ui.resetPlayerLocationsFilters()"
+        @clear="playerUi.resetPlayerLocationsFilters()"
       />
 
       <!-- Favourites pinned section -->
@@ -163,7 +163,7 @@ import { IconNavAtlas } from '@/lib/icons';
 import { useReadItems, useMarkRead } from "@/composables/player/useReadItems";
 import { useSharedLocations } from "@/composables/locations/useLocations";
 import { usePlayerFavourites } from "@/composables/player/usePlayerFavourites";
-import { useUiStore } from "@/stores/ui";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import { useSharedNpcsByLocations } from "@/composables/npcs/useNpcs";
 import { useCampaignStore } from "@/stores/campaign";
 import { storeToRefs } from "pinia";
@@ -204,14 +204,14 @@ const { mutate: markRead } = useMarkRead();
 const route = useRoute();
 const router = useRouter();
 
-const ui = useUiStore();
+const playerUi = usePlayerUiStore();
 const search = computed({
-  get: () => ui.playerLocationsSearch,
-  set: (v) => { ui.playerLocationsSearch = v; },
+  get: () => playerUi.playerLocationsSearch,
+  set: (v) => { playerUi.playerLocationsSearch = v; },
 });
 const typeFilter = computed({
-  get: () => ui.playerLocationsFilterType,
-  set: (v) => { ui.playerLocationsFilterType = v; },
+  get: () => playerUi.playerLocationsFilterType,
+  set: (v) => { playerUi.playerLocationsFilterType = v; },
 });
 const lightboxSrc = ref<string | null>(null);
 
@@ -255,12 +255,12 @@ const favouriteLocations = computed(() =>
 );
 
 const childrenOpen = computed({
-  get: () => ui.atlasChildrenOpen,
-  set: (v) => { ui.atlasChildrenOpen = v; },
+  get: () => playerUi.atlasChildrenOpen,
+  set: (v) => { playerUi.atlasChildrenOpen = v; },
 });
 const detailOpen = computed({
-  get: () => ui.atlasDetailOpen,
-  set: (v) => { ui.atlasDetailOpen = v; },
+  get: () => playerUi.atlasDetailOpen,
+  set: (v) => { playerUi.atlasDetailOpen = v; },
 });
 const fullSizeMaps = ref(new Set<string>());
 

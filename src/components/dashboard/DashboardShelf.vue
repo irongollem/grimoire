@@ -108,7 +108,7 @@
  * searchable set — and an add-picker that empties itself on select is a named,
  * sanctioned pattern (see `StoreInventory`'s "Add item to inventory…" box in
  * CLAUDE.md). That is also why `picked` and the combobox's own query are local
- * refs and not `useUiStore` state: the Filter State Pattern governs filters
+ * refs and not domain UI store state: the Filter State Pattern governs filters
  * over the list *on the page*, and this filters a popup of candidates.
  *
  * Still purely presentational: it emits `add` and `reset`, and the view owns

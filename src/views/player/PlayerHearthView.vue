@@ -8,7 +8,7 @@
 
     <!-- DM preview with nobody picked: the same note the character sheet gives. -->
     <p
-      v-if="!member && ui.dmPreviewMode"
+      v-if="!member && appUi.dmPreviewMode"
       class="py-12 text-center text-body italic text-muted-foreground"
     >
       Select a character above to preview their Hearth.
@@ -95,7 +95,7 @@ import { usePlayerSessionState } from "@/composables/campaign/useCampaignSession
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import type { PartyMember } from "@/types/party.types";
 
 /**
@@ -108,7 +108,7 @@ import type { PartyMember } from "@/types/party.types";
  * on screen, which an `order`-based reshuffle would break.
  */
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const campaign = useCampaignStore();
 
 const campaignName = computed(() => campaign.activeCampaign?.name ?? "Hearth");
@@ -116,7 +116,7 @@ const campaignName = computed(() => campaign.activeCampaign?.name ?? "Hearth");
 // Resolved exactly as the character sheet does, so preview mode shows the
 // previewed player's Hearth.
 const { data: party, isError: partyFailed } = useActiveParty();
-const memberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
+const memberId = computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
 const member = computed<PartyMember | null>(() =>
   memberId.value && party.value ? (party.value.find((m) => m.id === memberId.value) ?? null) : null,
 );
@@ -151,7 +151,7 @@ usePlayerCalendarEventsRange(
 );
 // The Hearth does not mount the notes list in DM preview (they are the
 // player's private notes), so neither may this read.
-useMyRecentNotes(3, () => !ui.dmPreviewMode);
+useMyRecentNotes(3, () => !appUi.dmPreviewMode);
 const isRunning = computed(() => session.value?.isRunning === true);
 const startedAt = computed(() => session.value?.startedAt ?? null);
 </script>

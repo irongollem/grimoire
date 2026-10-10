@@ -5,7 +5,7 @@
 
   <!-- Empty state -->
   <div
-    v-else-if="filtered.length === 0 && !ui.archetypesHasActiveFilters"
+    v-else-if="filtered.length === 0 && !codexUi.archetypesHasActiveFilters"
     class="flex flex-col items-center gap-6 py-12 px-4 text-center"
   >
     <div class="space-y-2">
@@ -99,14 +99,14 @@ import { RouterLink } from "vue-router";
 import { IconAdd, IconChevronRight, IconPopulate } from '@/lib/icons';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
-import { useUiStore } from "@/stores/ui";
+import { useCodexUiStore } from "@/stores/ui/codex";
 import { useAllCustomSubclasses, useCreateCustomSubclass } from "@/composables/rules/useCustomSubclasses";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { useCreateFeature } from "@/composables/rules/useFeatures";
 import { toPlainText } from "@/ai/utils";
 import type { CustomSubclass } from "@/levelup/customTypes";
 
-const ui = useUiStore();
+const codexUi = useCodexUiStore();
 const { data: all, isLoading } = useAllCustomSubclasses();
 const { mutateAsync: create } = useCreateCustomSubclass();
 const { mutateAsync: createFeature } = useCreateFeature();
@@ -156,8 +156,8 @@ async function createExample() {
 
 const filtered = computed<CustomSubclass[]>(() => {
   const items = all.value ?? [];
-  const search = ui.archetypesSearch.toLowerCase();
-  const cls = ui.archetypesFilterClass;
+  const search = codexUi.archetypesSearch.toLowerCase();
+  const cls = codexUi.archetypesFilterClass;
   return items.filter(sc => {
     if (cls !== "all" && sc.class_name !== cls) return false;
     if (search && !sc.subclass_name.toLowerCase().includes(search) && !sc.class_name.toLowerCase().includes(search)) return false;

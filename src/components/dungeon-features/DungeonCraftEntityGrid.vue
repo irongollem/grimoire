@@ -142,7 +142,7 @@ const searchModel = computed({
 });
 
 // ── Bulk scope (#875) ──────────────────────────────────────────────────────
-// Selection state lives here (not `useUiStore`): it is transient and per-visit,
+// Selection state lives here (not a domain UI store): it is transient and per-visit,
 // not a filter over the list. Always constructed — cheap, and keeps composable
 // calls unconditional — but only surfaced in the template when `table` is set,
 // so a grid without it behaves exactly as it did before this feature existed.

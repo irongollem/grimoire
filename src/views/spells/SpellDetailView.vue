@@ -61,7 +61,7 @@ import { useDetailModal } from "@/composables/useDetailModal";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { spellLevelLabel } from "@/types/spell.types";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import MobileEditBar from "@/components/common/MobileEditBar.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
@@ -72,8 +72,8 @@ import SpellSheet from "@/components/spells/SpellSheet.vue";
 import SpellSheetMobile from "@/components/spells/SpellSheetMobile.vue";
 
 const auth = useAuthStore();
-const ui = useUiStore();
-const canEdit = computed(() => auth.isDM && !ui.dmPreviewMode);
+const appUi = useAppUiStore();
+const canEdit = computed(() => auth.isDM && !appUi.dmPreviewMode);
 
 const route = useRoute();
 const router = useRouter();

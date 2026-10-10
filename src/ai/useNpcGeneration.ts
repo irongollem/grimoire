@@ -15,7 +15,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import {
   captureImageGenerationContext,
@@ -33,7 +33,7 @@ registerAiGenerator({
   label: "NPC",
   entityRoute: (id) => `/npcs/${id}`,
   openPanel: () => {
-    useUiStore().npcGeneratorOpen = true;
+    useNpcsUiStore().npcGeneratorOpen = true;
   },
 });
 

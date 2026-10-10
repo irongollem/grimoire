@@ -45,7 +45,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useParty } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
@@ -58,13 +58,13 @@ import CharacterSheetExportPanel from "@/components/character-sheet/CharacterShe
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 
 // Derive the member ID from auth — never trust URL params for this
 // (issue #419: players can only export their own sheet).
 // DM preview mode uses dmPreviewPartyMemberId so DMs can see the player view.
 const linkedMemberId = computed(() =>
-  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
+  appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
 );
 
 const { data: partyMembers, isLoading } = useParty();

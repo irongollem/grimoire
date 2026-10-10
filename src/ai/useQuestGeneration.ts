@@ -12,7 +12,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useQuestsUiStore } from "@/stores/ui/quests";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
 import { logUsage } from "@/composables/ai/useAiCredits";
@@ -29,7 +29,7 @@ registerAiGenerator({
   label: "Quest",
   entityRoute: (id) => `/quests/${id}`,
   openPanel: () => {
-    useUiStore().questGeneratorOpen = true;
+    useQuestsUiStore().questGeneratorOpen = true;
   },
 });
 

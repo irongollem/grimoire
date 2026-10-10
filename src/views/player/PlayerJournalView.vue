@@ -4,11 +4,11 @@
     <PageHeader flush title="Journal" description="Your notes, quests and handouts from the adventure.">
       <template #actions>
         <AppButton
-          v-if="ui.journalHasActiveFilters && (activeTab === 'mine' || activeTab === 'party')"
+          v-if="notesUi.journalHasActiveFilters && (activeTab === 'mine' || activeTab === 'party')"
           variant="subtle"
           size="md"
           label="Clear"
-          @click="ui.resetJournalFilters()"
+          @click="notesUi.resetJournalFilters()"
         />
         <SortControl
           v-if="showSort"
@@ -256,7 +256,7 @@ import {
   useReorderJournalEntries,
   JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST,
 } from "@/composables/notes/usePlayerJournal";
-import { useUiStore } from "@/stores/ui";
+import { useNotesUiStore } from "@/stores/ui/notes";
 import { storeToRefs } from "pinia";
 import { sortEntities, type SortField } from "@/lib/noteSort";
 import { useReadItems, useMarkRead } from "@/composables/player/useReadItems";
@@ -316,8 +316,8 @@ const { mutateAsync: del }    = useDeleteJournalEntry();
 const { mutate: reorderJournal } = useReorderJournalEntries();
 
 // ── Sort ────────────────────────────────────────────────────────────────────────
-const ui = useUiStore();
-const { journalSortBy: sortBy, journalSortDir: sortDir, journalFilterCategory: filterCategory } = storeToRefs(ui);
+const notesUi = useNotesUiStore();
+const { journalSortBy: sortBy, journalSortDir: sortDir, journalFilterCategory: filterCategory } = storeToRefs(notesUi);
 
 const SORT_OPTIONS_FULL = [
   { value: "created", label: "Created" },
@@ -445,7 +445,7 @@ const questGroups = computed<[string, Quest[]][]>(() => [
 ]);
 
 // ── Filters ───────────────────────────────────────────────────────────────────
-// filterCategory lives in useUiStore (Filter State Pattern) — survives navigation.
+// filterCategory lives in a domain UI store (Filter State Pattern) — survives navigation.
 
 const visibleEntries = computed(() => {
   let entries = activeTab.value === "mine"

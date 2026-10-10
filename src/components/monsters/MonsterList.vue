@@ -140,7 +140,8 @@ import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import EntityMobileGrid from "@/components/common/EntityMobileGrid.vue";
 import { IconNavBestiary } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
+import { useMonstersUiStore } from "@/stores/ui/monsters";
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { fetchResolvedMonster, RESOLVED_MONSTER_QUERY_KEY } from "@/composables/monsters/useMonsters";
 import { useMonsterBrowse } from "@/composables/monsters/useMonsterBrowse";
@@ -173,10 +174,11 @@ function handleNew() {
   router.push("/monsters/new");
 }
 
-const ui = useUiStore();
-const search = computed(() => ui.monstersSearch);
-const typeFilter = computed(() => ui.monstersFilterType);
-const sourceFilter = computed(() => ui.monstersFilterSource);
+const appUi = useAppUiStore();
+const monstersUi = useMonstersUiStore();
+const search = computed(() => monstersUi.monstersSearch);
+const typeFilter = computed(() => monstersUi.monstersFilterType);
+const sourceFilter = computed(() => monstersUi.monstersFilterSource);
 const isMobile = useIsMobile();
 
 // Desktop row height before a row is measured (px); the phone layouts' live in
@@ -190,8 +192,8 @@ const desktopColumns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const monsterKey = (monster: MonsterBrowseRow) => monster.id;
 
 const layout = computed({
-  get: () => ui.entityListLayout,
-  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+  get: () => appUi.entityListLayout,
+  set: (v: "rows" | "gallery") => { appUi.entityListLayout = v; },
 });
 
 // The page is one server page at a time (#972): `browse_monsters` owns
@@ -202,9 +204,9 @@ const {
   rows, total, scopeTotal, selectableIds, lockedIds, ready,
   hasNextPage, isFetchingNextPage, fetchNextPage, isLoading, error,
 } = useMonsterBrowse(() => ({
-  search: ui.monstersSearch,
-  source: ui.monstersFilterSource,
-  type: ui.monstersFilterType,
+  search: monstersUi.monstersSearch,
+  source: monstersUi.monstersFilterSource,
+  type: monstersUi.monstersFilterType,
 }));
 
 // ── Discovery ────────────────────────────────────────────────────────────────
@@ -250,7 +252,7 @@ function monsterSubtitle(monster: MonsterBrowseRow): string {
 
 // ── Bulk selection (#875) ───────────────────────────────────────────────────
 //
-// Owned here, not in useUiStore: transient per-visit selection, not a list
+// Owned here, not in a domain UI store: transient per-visit selection, not a list
 // filter. Shared/library monsters (monster.is_shared) are never selectable —
 // the same flag MonsterGridCard already reads to show its "Reference" chip
 // and hide the Edit action, so this reuses an existing distinction rather

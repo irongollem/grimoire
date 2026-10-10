@@ -1,5 +1,5 @@
 <template>
-  <AppModal :open="ui.addSoundDialogOpen" size="md" @close="close">
+  <AppModal :open="soundboardUi.addSoundDialogOpen" size="md" @close="close">
     <ModalHeader
       title="Add Sound"
       :icon="IconMusic"
@@ -13,7 +13,7 @@
          swallows its Save button. -->
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
       <SoundForm
-        :page-id="ui.addSoundPageId"
+        :page-id="soundboardUi.addSoundPageId"
         :gemini-api-key="campaignStore.decryptedGeminiKey || null"
         :campaign-id="campaignStore.activeCampaignId"
         @saved="close"
@@ -28,17 +28,17 @@ import { IconMusic } from '@/lib/icons';
 import SoundForm from "./SoundForm.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
-import { useUiStore } from "@/stores/ui";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { useCampaignStore } from "@/stores/campaign";
 
 // Mounted app-wide in AiGeneratorPanels and opened through the ui store, so
 // the AiGenerationBadge can reopen it from any page after a background music
 // generation fails. Its content only mounts while open (AppModal's v-if), so
 // SoundForm's window drop listeners never run app-wide.
-const ui = useUiStore();
+const soundboardUi = useSoundboardUiStore();
 const campaignStore = useCampaignStore();
 
 function close() {
-  ui.addSoundDialogOpen = false;
+  soundboardUi.addSoundDialogOpen = false;
 }
 </script>

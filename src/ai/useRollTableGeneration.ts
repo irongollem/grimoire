@@ -12,7 +12,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
 import { logUsage } from "@/composables/ai/useAiCredits";
@@ -30,7 +30,7 @@ registerAiGenerator({
   label: "Roll Table",
   entityRoute: (id) => `/roll-tables/${id}`,
   openPanel: () => {
-    useUiStore().rollTableGeneratorOpen = true;
+    useGeneratorUiStore().rollTableGeneratorOpen = true;
   },
 });
 

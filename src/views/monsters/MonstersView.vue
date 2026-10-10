@@ -31,7 +31,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.monsterGeneratorOpen = true"
+        @click="monstersUi.monsterGeneratorOpen = true"
       />
       <ListActionButton
         :active="monsterListRef?.selecting ?? false"
@@ -50,12 +50,12 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="ui.monstersHasActiveFilters"
-        @clear="ui.resetMonstersFilters()"
+        :has-active-filters="monstersUi.monstersHasActiveFilters"
+        @clear="monstersUi.resetMonstersFilters()"
       >
-        <ListSearchInput v-model="ui.monstersSearch" placeholder="Search monsters…" />
+        <ListSearchInput v-model="monstersUi.monstersSearch" placeholder="Search monsters…" />
         <ListFilterSelect
-          v-model="ui.monstersFilterSource"
+          v-model="monstersUi.monstersFilterSource"
           aria-label="Source filter"
         >
           <option value="all">All sources</option>
@@ -73,7 +73,7 @@
           touch devices (keeps iOS wheel / Android bottom-sheet).
         -->
         <ListFilterSelect
-          v-model="ui.monstersFilterType"
+          v-model="monstersUi.monstersFilterType"
           aria-label="Monster type filter"
         >
           <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
@@ -94,7 +94,7 @@
             class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <AppInput
-            v-model="ui.monstersSearch"
+            v-model="monstersUi.monstersSearch"
             type="search"
             inputmode="search"
             tone="card"
@@ -104,7 +104,7 @@
             class="h-11 pl-9 pr-9"
           />
           <AppButton
-            v-if="ui.monstersSearch"
+            v-if="monstersUi.monstersSearch"
             variant="ghost"
             size="icon-xs"
             shape="pill"
@@ -112,7 +112,7 @@
             :icon="IconClose"
             icon-size="md"
             aria-label="Clear search"
-            @click="ui.monstersSearch = ''"
+            @click="monstersUi.monstersSearch = ''"
           />
         </div>
 
@@ -164,7 +164,7 @@
           variant="link"
           size="inline"
           label="Clear all"
-          @click="ui.resetMonstersFilters()"
+          @click="monstersUi.resetMonstersFilters()"
         />
       </div>
     </div>
@@ -181,7 +181,7 @@
       <div class="flex flex-col gap-4 py-1">
         <div>
           <p class="mb-1.5 text-label-lg font-semibold text-muted-foreground">Source</p>
-          <ListFilterSelect v-model="ui.monstersFilterSource" aria-label="Source filter" class="w-full">
+          <ListFilterSelect v-model="monstersUi.monstersFilterSource" aria-label="Source filter" class="w-full">
             <option value="all">All sources</option>
             <option value="custom">Custom</option>
             <option
@@ -193,7 +193,7 @@
         </div>
         <div>
           <p class="mb-1.5 text-label-lg font-semibold text-muted-foreground">Type</p>
-          <ListFilterSelect v-model="ui.monstersFilterType" aria-label="Monster type filter" class="w-full">
+          <ListFilterSelect v-model="monstersUi.monstersFilterType" aria-label="Monster type filter" class="w-full">
             <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
           </ListFilterSelect>
         </div>
@@ -204,7 +204,7 @@
           <button
             type="button"
             class="h-11 flex-1 rounded-xl border border-border bg-card text-heading-sm font-semibold text-muted-foreground"
-            @click="ui.resetMonstersFilters()"
+            @click="monstersUi.resetMonstersFilters()"
           >
             Clear all
           </button>
@@ -237,7 +237,7 @@
           block
           v-if="isAiEnabled"
           label="Generate"
-          @click="overflowOpen = false; ui.monsterGeneratorOpen = true"
+          @click="overflowOpen = false; monstersUi.monsterGeneratorOpen = true"
         >
           <template #icon><IconGenerate class="size-5 shrink-0 text-muted-foreground" /></template>
         </AppButton>
@@ -295,7 +295,7 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
 import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
-import { useUiStore } from "@/stores/ui";
+import { useMonstersUiStore } from "@/stores/ui/monsters";
 import { useCampaignStore } from "@/stores/campaign";
 import { useRouter } from "vue-router";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -308,7 +308,7 @@ import { useEnabledSources, useAvailableLibrarySources } from "@/composables/lib
 const IconFilter = IconSettings;
 
 const router = useRouter();
-const ui = useUiStore();
+const monstersUi = useMonstersUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { canCreate } = useQuota("monsters");
@@ -365,9 +365,9 @@ const typeLabel = (v: string) => TYPE_OPTIONS.find((o) => o.value === v)?.label 
 
 const activeChips = computed(() => {
   const chips: Array<{ key: string; label: string; clear: () => void }> = [];
-  if (ui.monstersSearch) chips.push({ key: "search", label: `"${ui.monstersSearch}"`, clear: () => { ui.monstersSearch = ""; } });
-  if (ui.monstersFilterSource !== "all") chips.push({ key: "source", label: sourceLabel(ui.monstersFilterSource), clear: () => { ui.monstersFilterSource = "all"; } });
-  if (ui.monstersFilterType !== "all") chips.push({ key: "type", label: typeLabel(ui.monstersFilterType), clear: () => { ui.monstersFilterType = "all"; } });
+  if (monstersUi.monstersSearch) chips.push({ key: "search", label: `"${monstersUi.monstersSearch}"`, clear: () => { monstersUi.monstersSearch = ""; } });
+  if (monstersUi.monstersFilterSource !== "all") chips.push({ key: "source", label: sourceLabel(monstersUi.monstersFilterSource), clear: () => { monstersUi.monstersFilterSource = "all"; } });
+  if (monstersUi.monstersFilterType !== "all") chips.push({ key: "type", label: typeLabel(monstersUi.monstersFilterType), clear: () => { monstersUi.monstersFilterType = "all"; } });
   return chips;
 });
 
@@ -378,8 +378,8 @@ const activeFilterCount = computed(() =>
 // Live "Show N" count: the server's total for the filters, the same query the
 // list under it reads (identical key, one request).
 const { total: matchCount } = useMonsterBrowse(() => ({
-  search: ui.monstersSearch,
-  source: ui.monstersFilterSource,
-  type: ui.monstersFilterType,
+  search: monstersUi.monstersSearch,
+  source: monstersUi.monstersFilterSource,
+  type: monstersUi.monstersFilterType,
 }));
 </script>

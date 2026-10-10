@@ -73,7 +73,7 @@ import { IconClose } from "@/lib/icons";
 import { useStarterScenes } from "@/composables/soundboard/useStarterScenes";
 import { STARTER_SCENES } from "@/data/starterScenes";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 
 const STARTER_SCENE_TOTAL = STARTER_SCENES.length;
 
@@ -89,16 +89,16 @@ const { addScenes, isAdding, addedCount, errorMessage, canAdd, missingScenes, ha
 
 const justAdded = ref(false);
 
-const ui = useUiStore();
+const soundboardUi = useSoundboardUiStore();
 const { activeCampaignId } = storeToRefs(useCampaignStore());
 
 const dismissed = computed(
-  () => activeCampaignId.value !== null && ui.isStarterSceneOfferDismissed(activeCampaignId.value),
+  () => activeCampaignId.value !== null && soundboardUi.isStarterSceneOfferDismissed(activeCampaignId.value),
 );
 
 function dismiss(): void {
   if (activeCampaignId.value === null) return;
-  ui.dismissStarterSceneOffer(activeCampaignId.value);
+  soundboardUi.dismissStarterSceneOffer(activeCampaignId.value);
 }
 
 const heading = computed(() =>

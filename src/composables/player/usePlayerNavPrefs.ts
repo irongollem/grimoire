@@ -4,7 +4,7 @@ import { ref, computed } from "vue";
 import { ALL_PLAYER_NAV, type PlayerNavItem } from "@/lib/playerNav";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 
 const NAV_ORDER_KEY = "grimoire_nav_order_v2";
 // Pre-#977 key: stored `to` paths, where "/play" meant the character sheet.
@@ -80,13 +80,13 @@ export function usePlayerNavPrefs() {
   // `defaultEnabled`, so an on-by-default tab never flickers out and back in.
   const { data: campaignRules } = useOptionalRules();
   const auth = useAuthStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
 
   const visibleNav = computed(() => {
     // No campaign membership (#729): every campaign-scoped tab would only
     // bounce off the router guard back to the pool, so show the pool alone.
     // DM preview keeps the full nav — the preview *is* a membership's view.
-    if (!auth.isPlayer && !ui.dmPreviewMode) {
+    if (!auth.isPlayer && !appUi.dmPreviewMode) {
       return sortedNav.value.filter((item) => item.standalone);
     }
     return sortedNav.value.filter(

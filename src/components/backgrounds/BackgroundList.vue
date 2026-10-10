@@ -8,13 +8,13 @@
          cannot add one, so pointing them at /backgrounds/new sent them to a
          DM route. -->
     <EmptyState
-      v-else-if="!filtered.length && !ui.backgroundsHasActiveFilters && readonly"
+      v-else-if="!filtered.length && !codexUi.backgroundsHasActiveFilters && readonly"
       title="No backgrounds available"
       description="Your DM hasn't added any backgrounds to this campaign yet."
     />
 
     <EmptyState
-      v-else-if="!filtered.length && !ui.backgroundsHasActiveFilters"
+      v-else-if="!filtered.length && !codexUi.backgroundsHasActiveFilters"
       title="No backgrounds yet"
       description="Build your own."
     >
@@ -160,7 +160,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconCheck, IconEdit } from '@/lib/icons';
-import { useUiStore } from "@/stores/ui";
+import { useCodexUiStore } from "@/stores/ui/codex";
 import { isLibraryBackground, useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
@@ -176,7 +176,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
 const emit = defineEmits<{ select: [bg: Background] }>();
 
-const ui = useUiStore();
+const codexUi = useCodexUiStore();
 const { data: backgrounds, isLoading } = useBackgrounds();
 
 function profsSummary(b: Background): string {
@@ -192,14 +192,14 @@ function profsSummary(b: Background): string {
 const filtered = computed(() => {
   let list = backgrounds.value ?? [];
 
-  if (ui.backgroundsFilterSource === "custom") {
+  if (codexUi.backgroundsFilterSource === "custom") {
     list = list.filter((b) => !isLibraryBackground(b));
-  } else if (ui.backgroundsFilterSource === "library") {
+  } else if (codexUi.backgroundsFilterSource === "library") {
     list = list.filter((b) => isLibraryBackground(b));
   }
 
-  if (ui.backgroundsSearch.trim()) {
-    const q = ui.backgroundsSearch.trim().toLowerCase();
+  if (codexUi.backgroundsSearch.trim()) {
+    const q = codexUi.backgroundsSearch.trim().toLowerCase();
     list = list.filter((b) => {
       if (b.name.toLowerCase().includes(q)) return true;
       if (b.source?.toLowerCase().includes(q)) return true;

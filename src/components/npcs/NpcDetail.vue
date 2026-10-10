@@ -230,7 +230,7 @@ import type { NpcAiGenerated } from '@/ai/types'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/npcs/useNpcs'
 import { useCampaignMessages } from '@/composables/campaign/useCampaignMessages'
 import { useChatSendFailure } from '@/composables/campaign/chatSendErrors'
-import { useUiStore } from '@/stores/ui'
+import { useAppUiStore } from '@/stores/ui/app'
 import { useLocationTree } from '@/composables/locations/useLocations'
 import { useCreateMonster } from '@/composables/monsters/useMonsters'
 import { useMonsterIndex } from '@/composables/monsters/useMonsterIndex'
@@ -298,7 +298,7 @@ const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc()
 const { mutateAsync: updateNpc, isPending: isUpdating } = useUpdateNpc()
 const { mutateAsync: deleteNpc } = useDeleteNpc()
 const { mutateAsync: createMonster } = useCreateMonster()
-const ui = useUiStore()
+const appUi = useAppUiStore()
 const { sendNarrativeEvent } = useCampaignMessages()
 const { reportChatFailure } = useChatSendFailure()
 const isPromoting = ref(false)
@@ -682,7 +682,7 @@ async function save() {
       router.push(`/npcs/${created.id}`)
     }
 
-    if (becameVisible && ui.dmMode === 'play') {
+    if (becameVisible && appUi.dmMode === 'play') {
       // The announced name is the projection's, not the draft's: an NPC saved
       // with an unrevealed alter ego is announced under its cover, and one
       // whose "Name" field the DM left unticked is announced under none. The

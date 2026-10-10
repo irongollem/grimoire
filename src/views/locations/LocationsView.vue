@@ -28,7 +28,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.locationGeneratorOpen = true"
+        @click="generatorsUi.locationGeneratorOpen = true"
       />
       <ListActionButton
         variant="primary"
@@ -41,11 +41,11 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="ui.locationsHasActiveFilters"
-        @clear="ui.resetLocationsFilters()"
+        :has-active-filters="locationsUi.locationsHasActiveFilters"
+        @clear="locationsUi.resetLocationsFilters()"
       >
-        <ListSearchInput v-model="ui.locationsSearch" placeholder="Search locations…" />
-        <ListFilterSelect v-model="ui.locationsFilterType" aria-label="Location type filter">
+        <ListSearchInput v-model="locationsUi.locationsSearch" placeholder="Search locations…" />
+        <ListFilterSelect v-model="locationsUi.locationsFilterType" aria-label="Location type filter">
           <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
         </ListFilterSelect>
       </ListFilterBar>
@@ -72,11 +72,13 @@ import AtlasExplorer from "@/components/locations/AtlasExplorer.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/locations/useLocations";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 import { useCampaignStore } from "@/stores/campaign";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
+const locationsUi = useLocationsUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("locations", "/locations/new");

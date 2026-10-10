@@ -11,7 +11,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { getTextProvider } from "./providers";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
@@ -29,7 +29,7 @@ registerAiGenerator({
   label: "Encounter",
   entityRoute: (id) => `/encounters/${id}`,
   openPanel: () => {
-    useUiStore().encounterGeneratorOpen = true;
+    useGeneratorUiStore().encounterGeneratorOpen = true;
   },
 });
 

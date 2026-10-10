@@ -11,7 +11,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { getTextProvider } from "./providers";
 import { wrapUserInput } from "./utils";
 import { logUsage } from "@/composables/ai/useAiCredits";
@@ -33,7 +33,7 @@ registerAiGenerator({
   label: "Trap",
   entityRoute: (id) => `/traps/${id}`,
   openPanel: () => {
-    useUiStore().trapGeneratorOpen = true;
+    useGeneratorUiStore().trapGeneratorOpen = true;
   },
 });
 

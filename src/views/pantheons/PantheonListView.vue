@@ -18,10 +18,10 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="ui.pantheonsHasActiveFilters"
-        @clear="ui.resetPantheonsFilters()"
+        :has-active-filters="deitiesUi.pantheonsHasActiveFilters"
+        @clear="deitiesUi.resetPantheonsFilters()"
       >
-        <ListSearchInput v-model="ui.pantheonsSearch" placeholder="Filter pantheons…" />
+        <ListSearchInput v-model="deitiesUi.pantheonsSearch" placeholder="Filter pantheons…" />
       </ListFilterBar>
     </template>
 
@@ -95,9 +95,9 @@ import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import VirtualGrid from "@/components/common/VirtualGrid.vue";
-import { useUiStore } from "@/stores/ui";
+import { useDeitiesUiStore } from "@/stores/ui/deities";
 
-const ui = useUiStore();
+const deitiesUi = useDeitiesUiStore();
 const { data: pantheons, isLoading } = useAllPantheons();
 const { data: deities } = useAllDeities();
 const { mutate: updatePantheon } = useUpdatePantheon();
@@ -109,7 +109,7 @@ function revealPantheon(id: string, playerVisibleTo: string[]) {
 const { showPaywall, handleNew } = useCreateGate("pantheons", "/pantheons/new");
 
 const filtered = computed(() => {
-  const q = ui.pantheonsSearch.trim().toLowerCase();
+  const q = deitiesUi.pantheonsSearch.trim().toLowerCase();
   return (pantheons.value ?? []).filter((p) => {
     if (q && !p.name.toLowerCase().includes(q) && !p.tags.some((t) => t.toLowerCase().includes(q))) return false;
     return true;

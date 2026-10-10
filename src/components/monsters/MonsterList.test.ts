@@ -88,13 +88,14 @@ vi.mock("@/composables/billing/useQuota", () => ({
   useQuota: () => ({ canCreate: ref(true), quota: ref(null) }),
 }));
 
-const ui = {
+const monstersUi = {
   monstersSearch: "",
   monstersFilterType: "all",
   monstersFilterSource: "all",
-  entityListLayout: "rows",
 };
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ui }));
+const appUi = { entityListLayout: "rows" };
+vi.mock("@/stores/ui/monsters", () => ({ useMonstersUiStore: () => monstersUi }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => appUi }));
 
 vi.mock("@/stores/campaign", () => ({
   // Wrapped in `reactive()`, exactly like a real Pinia store: `storeToRefs`

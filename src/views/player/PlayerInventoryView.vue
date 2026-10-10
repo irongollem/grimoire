@@ -111,7 +111,7 @@
       :inv="selectedInv"
       :vault-item="selectedVaultItem"
       :attuned-count="attunedItems.length"
-      :can-identify="auth.isDM && !ui.dmPreviewMode"
+      :can-identify="auth.isDM && !appUi.dmPreviewMode"
       :equip-options="selectedEquipOptions"
       @close="selectedInv = null"
       @unequip="unequipOpenItem"
@@ -144,7 +144,7 @@ import {
   carryCapacity,
 } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
@@ -179,7 +179,7 @@ import PlayerSlotEquipModal from "@/components/player/PlayerSlotEquipModal.vue";
 
 // ── Stores / composables ───────────────────────────────────────────────────────
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
 // `catalogue` is what the add pickers offer, slim (#972); `allItems` is what a carried row
@@ -219,7 +219,7 @@ const route = useRoute();
 const resolvedMemberId = computed(() => {
   const requested = route.query.memberId;
   if (auth.isDM && typeof requested === "string" && requested !== "") return requested;
-  return ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId;
+  return appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId;
 });
 
 const member = computed<PartyMember | null>(

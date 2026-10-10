@@ -250,7 +250,7 @@ import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useToast } from "@/composables/useToast";
 import { useNpcs, useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { hitPointsToMax } from "@/lib/dice/dice";
@@ -328,7 +328,7 @@ const toast = useToast();
 // DM-preview counts as player (WYSIWYG); captured at setup — the role can't
 // change while the form is open.
 const auth = useAuthStore();
-const viewerIsDm = !useUiStore().dmPreviewMode && auth.isDM;
+const viewerIsDm = !useAppUiStore().dmPreviewMode && auth.isDM;
 const dmNpcsQuery     = viewerIsDm ? useNpcs() : null;
 const sharedNpcsQuery = viewerIsDm ? null : useSharedNpcs();
 

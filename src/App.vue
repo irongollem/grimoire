@@ -68,7 +68,7 @@ import { useAuthStore } from "@/stores/auth";
 
 import { useMediaSession } from "@/composables/soundboard/useMediaSession";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
 import { createRealtimeHeal } from "@/lib/realtimeHeal";
@@ -89,7 +89,7 @@ const bundleImportOpen = ref(false);
 const bundleImportMounted = useLazyMount(bundleImportOpen);
 watch(pendingBundleFile, (f) => { if (f) bundleImportOpen.value = true; });
 const campaignStore = useCampaignStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 
 // A campaign the current lens does not hold must never become the active one
 // (#729). `campaigns_member_select` lets a player read the campaign row of
@@ -114,7 +114,7 @@ const ui = useUiStore();
 // covers that, and covers it synchronously. `auth.membership` stays in the
 // dependency list because `knownRoleInCampaign` reads it.
 watch(
-  [() => ui.userMode, () => auth.membership, () => campaignStore.activeCampaignId],
+  [() => appUi.userMode, () => auth.membership, () => campaignStore.activeCampaignId],
   ([mode, , activeId]) => {
     if (mode !== "dm" && mode !== "player") return;
     if (!activeId) return;
@@ -142,7 +142,7 @@ const campaignIdToFetch = computed<string | null>(() => {
   // watcher above undoes.
   const fallback = auth.membership;
   if (!fallback) return null;
-  if (ui.userMode && fallback.role !== ui.userMode) return null;
+  if (appUi.userMode && fallback.role !== appUi.userMode) return null;
   return fallback.campaign_id;
 });
 

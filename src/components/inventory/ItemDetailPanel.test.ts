@@ -32,8 +32,8 @@ vi.mock("pinia", async (importOriginal) => ({
 vi.mock("@/stores/auth", () => ({
   useAuthStore: () => reactive({ isDM: false, linkedPartyMemberId: "pm-1" }),
 }));
-vi.mock("@/stores/ui", () => ({
-  useUiStore: () => reactive({ dmPreviewMode: false, dmPreviewPartyMemberId: null }),
+vi.mock("@/stores/ui/app", () => ({
+  useAppUiStore: () => reactive({ dmPreviewMode: false, dmPreviewPartyMemberId: null }),
 }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => reactive({ activeCampaignId: "campaign-1", activeCampaign: { user_id: "dm-1" } }),

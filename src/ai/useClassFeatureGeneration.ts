@@ -2,7 +2,7 @@ import { generateEntityText } from "./entityTextGeneration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import { featureInsertFromAi, type FeatureAiResult } from "@/lib/codex/featureAi";
 import type { ClassFeatureInsert } from "@/types/feature.types";
@@ -16,7 +16,7 @@ registerAiGenerator({
   label: "Ability",
   entityRoute: (id) => `/features/${id}`,
   openPanel: () => {
-    useUiStore().classFeatureGeneratorOpen = true;
+    useGeneratorUiStore().classFeatureGeneratorOpen = true;
   },
 });
 

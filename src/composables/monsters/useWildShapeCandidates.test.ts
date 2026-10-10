@@ -28,7 +28,7 @@ vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ rul
 
 import { useWildShapeCandidates } from "./useWildShapeCandidates";
 import { wildShapeRules } from "@/rules/wildshape";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 
 const rules = wildShapeRules({ edition: "2024", druidLevel: 4, isCircleOfMoon: false, wisMod: 0 });
@@ -86,7 +86,7 @@ describe("useWildShapeCandidates", () => {
 
   it("a DM reads the whole index and never the player projection", async () => {
     const { data } = run(() => {
-      useUiStore().dmPreviewMode = true;
+      useAppUiStore().dmPreviewMode = true;
       useCampaignStore().activeCampaignId = "camp-1";
       return useWildShapeCandidates(() => rules, () => ({ enabled: true }));
     });

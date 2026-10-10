@@ -10,8 +10,8 @@ import type { PlayerSitePlan, PlayerSitePlanSpace } from "./usePlayerVisibleSite
 const dmPreviewMode = ref(false);
 const dmPreviewPartyMemberId = ref<string | null>(null);
 
-vi.mock("@/stores/ui", () => ({
-  useUiStore: () => ({
+vi.mock("@/stores/ui/app", () => ({
+  useAppUiStore: () => ({
     get dmPreviewMode() { return dmPreviewMode.value; },
     get dmPreviewPartyMemberId() { return dmPreviewPartyMemberId.value; },
   }),

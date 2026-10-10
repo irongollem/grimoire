@@ -6,7 +6,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
 import {
   buildDeityConstraints,
@@ -22,7 +22,7 @@ registerAiGenerator({
   label: "Deity",
   entityRoute: (id) => `/deities/${id}`,
   openPanel: () => {
-    useUiStore().deityGeneratorOpen = true;
+    useGeneratorUiStore().deityGeneratorOpen = true;
   },
 });
 

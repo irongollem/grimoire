@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.classFeatureGeneratorOpen"
+    v-model:open="generatorsUi.classFeatureGeneratorOpen"
     v-model:concept="concept"
     title="Ability Generator"
     concept-placeholder="A ranger's trick for turning a fallen tree into cover in a single breath, usable a few times between rests…"
@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useToast } from "@/composables/useToast";
 import { useCreateFeature } from "@/composables/rules/useFeatures";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
@@ -48,7 +48,7 @@ import { useClassFeatureGeneration } from "@/ai/useClassFeatureGeneration";
 import { ACTIVATIONS, type Activation } from "@/rules/features/mechanics.types";
 import { ACTIVATION_LABELS } from "@/types/feature.types";
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const toast = useToast();
 const { mutateAsync: createFeature } = useCreateFeature();
@@ -105,7 +105,7 @@ async function save(draft: Generated) {
   if (!feature) return;
 
   completedEntityId.value = feature.id;
-  ui.classFeatureGeneratorOpen = false;
+  generatorsUi.classFeatureGeneratorOpen = false;
   router.push(`/features/${feature.id}`);
 }
 </script>

@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.recipeGeneratorOpen"
+    v-model:open="generatorsUi.recipeGeneratorOpen"
     v-model:concept="concept"
     title="Recipe Generator"
     concept-placeholder="A smoky draught brewed from ember-moss and wyrm scale that lets the drinker breathe fire once, found only in the fire-scarred Ashen Reach…"
@@ -87,7 +87,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
@@ -118,7 +118,7 @@ import {
 } from "@/lib/crafting/recipeAi";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
 const toast = useToast();
@@ -138,7 +138,7 @@ const {
 } = useRecipeGeneration();
 
 // Mounted on every DM page: only fetch the item catalogue once the panel opens.
-const { data: items } = useItemIndex(() => ({ enabled: ui.recipeGeneratorOpen }));
+const { data: items } = useItemIndex(() => ({ enabled: generatorsUi.recipeGeneratorOpen }));
 
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
@@ -284,7 +284,7 @@ async function createAll() {
   creating.value = false;
   pending.value = null;
   completedEntityId.value = recipeId;
-  ui.recipeGeneratorOpen = false;
+  generatorsUi.recipeGeneratorOpen = false;
   router.push(`/crafting/${recipeId}`);
 }
 </script>

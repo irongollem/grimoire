@@ -17,12 +17,12 @@
 
     <!-- Filter bar -->
     <ListFilterBar
-      :has-active-filters="ui.speciesHasActiveFilters"
-      @clear="ui.resetSpeciesFilters()"
+      :has-active-filters="speciesUi.speciesHasActiveFilters"
+      @clear="speciesUi.resetSpeciesFilters()"
     >
-      <ListSearchInput v-model="ui.speciesSearch" placeholder="Search species…" />
+      <ListSearchInput v-model="speciesUi.speciesSearch" placeholder="Search species…" />
       <ListFilterGroup
-        v-model="ui.speciesFilterSize"
+        v-model="speciesUi.speciesFilterSize"
         :options="SIZE_OPTIONS"
         aria-label="Species size filter"
       />
@@ -133,7 +133,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import PickerCharacterNotFound from "@/components/player/PickerCharacterNotFound.vue";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useSpeciesUiStore } from "@/stores/ui/species";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import SpeciesList from "@/components/species/SpeciesList.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -158,7 +158,7 @@ const SIZE_OPTIONS = [
 ] as const;
 
 const router = useRouter();
-const ui = useUiStore();
+const speciesUi = useSpeciesUiStore();
 const { mutateAsync: update } = useUpdatePartyMember();
 
 // Member first, then the scope. Which character this acts on is decided once, for all

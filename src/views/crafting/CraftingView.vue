@@ -27,7 +27,7 @@
         v-if="campaign.isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.recipeGeneratorOpen = true"
+        @click="generatorsUi.recipeGeneratorOpen = true"
       />
       <ListActionButton
         variant="primary"
@@ -40,7 +40,7 @@
     <!-- Discipline tabs (body content) -->
     <div class="flex flex-wrap gap-1 mb-6 rounded-md border border-border p-1 bg-muted w-fit max-w-full overflow-x-auto">
       <SegmentedControl
-        v-model="ui.workshopActiveTab"
+        v-model="craftingUi.workshopActiveTab"
         :options="workshopTabOptions"
         size="sm"
         wrap
@@ -176,17 +176,19 @@ import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import VirtualGrid from "@/components/common/VirtualGrid.vue";
-import { useUiStore } from "@/stores/ui";
+import { useCraftingUiStore } from "@/stores/ui/crafting";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { CraftingRecipe } from "@/types/crafting.types";
 
-const ui = useUiStore();
+const craftingUi = useCraftingUiStore();
+const generatorsUi = useGeneratorUiStore();
 const campaign = useCampaignStore();
 const auth = useAuthStore();
 
 const activeDiscipline = computed(() =>
-  ui.workshopActiveTab === "all" ? null : getDiscipline(ui.workshopActiveTab),
+  craftingUi.workshopActiveTab === "all" ? null : getDiscipline(craftingUi.workshopActiveTab),
 );
 
 const workshopTabOptions = computed(() => [
@@ -240,9 +242,9 @@ async function handleImport() {
 }
 
 const disciplineRecipes = computed(() =>
-  ui.workshopActiveTab === "all"
+  craftingUi.workshopActiveTab === "all"
     ? (recipes.value ?? [])
-    : (recipes.value ?? []).filter((r) => r.discipline === ui.workshopActiveTab),
+    : (recipes.value ?? []).filter((r) => r.discipline === craftingUi.workshopActiveTab),
 );
 
 // The whole recipe list is in hand, so only the scroll position needs

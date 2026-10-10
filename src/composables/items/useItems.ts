@@ -6,7 +6,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { createIdBatcher } from "@/lib/batchById";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useToast } from "@/composables/useToast";
 import { isUuid } from "@/lib/library/contentIdentity";
 
@@ -115,7 +115,7 @@ async function fetchPlayerVisibleItems(): Promise<Item[]> {
 }
 
 export function usePlayerItemProjection(getOptions?: () => { enabled?: boolean }) {
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const isEnabled = () => getOptions?.().enabled !== false;
 
   // Real player → gated projection. DM preview → the DM's own rows (the DM
@@ -125,19 +125,19 @@ export function usePlayerItemProjection(getOptions?: () => { enabled?: boolean }
   const projectionQuery = useQuery({
     queryKey: [QUERY_KEY, "player-visible"],
     queryFn: fetchPlayerVisibleItems,
-    enabled: () => isEnabled() && !ui.dmPreviewMode,
+    enabled: () => isEnabled() && !appUi.dmPreviewMode,
     staleTime: Infinity,
   });
   const baseQuery = useQuery({
     queryKey: [QUERY_KEY],
     queryFn: fetchItems,
-    enabled: () => isEnabled() && ui.dmPreviewMode,
+    enabled: () => isEnabled() && appUi.dmPreviewMode,
     staleTime: Infinity,
   });
   /** The player's custom items; the source to resolve held ids in. */
-  const data = computed(() => (ui.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value));
+  const data = computed(() => (appUi.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value));
   const isLoading = computed(() =>
-    ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value,
+    appUi.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value,
   );
 
   /**
@@ -152,7 +152,7 @@ export function usePlayerItemProjection(getOptions?: () => { enabled?: boolean }
    * here. See `useSharedStoreItems`.
    */
   async function refetch(): Promise<void> {
-    await (ui.dmPreviewMode ? baseQuery.refetch() : projectionQuery.refetch());
+    await (appUi.dmPreviewMode ? baseQuery.refetch() : projectionQuery.refetch());
   }
 
   return { data, isLoading, refetch };

@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.dungeonFeatureGeneratorOpen"
+    v-model:open="generatorsUi.dungeonFeatureGeneratorOpen"
     v-model:concept="concept"
     v-model:generate-image="generateImage"
     title="Feature Generator"
@@ -41,7 +41,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useCreateDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
@@ -56,7 +56,7 @@ import { useDungeonFeatureGeneration } from "@/ai/useDungeonFeatureGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TRIGGERS } from "@/types/dungeonFeature.types";
 
-const ui       = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
 const campaign = useCampaignStore();
 const toast = useToast();
@@ -163,7 +163,7 @@ async function save(result: Generated) {
   }
 
   completedEntityId.value = feature.id;
-  ui.dungeonFeatureGeneratorOpen = false;
+  generatorsUi.dungeonFeatureGeneratorOpen = false;
   router.push(`/dungeon-features/${feature.id}`);
 }
 </script>

@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
   journalSuccess: true,
 }));
 
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ dmPreviewMode: state.preview }) }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ dmPreviewMode: state.preview }) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "dm" } }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 vi.mock("@/composables/notes/usePlayerJournal", () => ({

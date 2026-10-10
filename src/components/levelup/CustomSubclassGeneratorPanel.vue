@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.customSubclassGeneratorOpen"
+    v-model:open="generatorsUi.customSubclassGeneratorOpen"
     v-model:concept="concept"
     title="Archetype Generator"
     concept-placeholder="Smiths who forge their own armour from the embers of fallen comrades, growing stronger with every name they carry…"
@@ -72,7 +72,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -87,7 +87,7 @@ import { useCustomSubclassGeneration } from "@/ai/useCustomSubclassGeneration";
 import { subclassWithFeatureIds, type SubclassDraft } from "@/lib/codex/subclassAi";
 import { createWithFeatures } from "@/lib/codex/featureBatch";
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const toast = useToast();
 
@@ -98,7 +98,7 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 
 // Both lists are the campaign-gated ones the class pickers use, so a class the DM
 // switched off is not offered. Mounted on every DM page: fetch only once opened.
-const panelOpen = () => ui.customSubclassGeneratorOpen;
+const panelOpen = () => generatorsUi.customSubclassGeneratorOpen;
 const { data: systemClasses } = useCampaignSystemClasses(panelOpen);
 const { data: customClasses } = useCampaignCustomClasses(panelOpen);
 
@@ -164,7 +164,7 @@ async function createAll() {
     });
     pending.value = null;
     completedEntityId.value = created.id;
-    ui.customSubclassGeneratorOpen = false;
+    generatorsUi.customSubclassGeneratorOpen = false;
     router.push(`/levelup/custom/${created.id}`);
   } catch (e) {
     toast.error(toast.fromError(e));

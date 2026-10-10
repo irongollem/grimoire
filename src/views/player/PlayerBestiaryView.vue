@@ -26,7 +26,7 @@
           <div class="relative flex-1">
             <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <AppInput
-              v-model="ui.playerBestiarySearch"
+              v-model="playerUi.playerBestiarySearch"
               type="text"
               tone="card"
               size="body"
@@ -35,11 +35,11 @@
             />
           </div>
           <AppButton
-            v-if="ui.playerBestiaryHasActiveFilters"
+            v-if="playerUi.playerBestiaryHasActiveFilters"
             variant="subtle"
             size="sm"
             label="Clear"
-            @click="ui.resetPlayerBestiaryFilters()"
+            @click="playerUi.resetPlayerBestiaryFilters()"
           />
         </div>
 
@@ -88,7 +88,7 @@
       </div>
 
       <!-- DM: share all eligible beasts with this druid -->
-      <div v-if="!is2024 && ui.dmPreviewMode && isDruid && unsharedEligibleBeasts.length > 0" class="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
+      <div v-if="!is2024 && appUi.dmPreviewMode && isDruid && unsharedEligibleBeasts.length > 0" class="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
         <p class="text-caption text-muted-foreground italic">{{ unsharedEligibleBeasts.length }} eligible beast{{ unsharedEligibleBeasts.length === 1 ? '' : 's' }} not yet shared</p>
         <AppButton
           variant="tinted"
@@ -124,7 +124,7 @@
               <MonsterFormCard :monster="entry.monster" :name="entry.name" :image-url="entry.imageUrl" :reveal-stats="true" />
               <!-- DM pin button (preview mode only) -->
               <button
-                v-if="ui.dmPreviewMode"
+                v-if="appUi.dmPreviewMode"
                 type="button"
                 class="absolute top-1.5 right-1.5 z-10 p-0.5 rounded bg-primary/20 text-primary hover:bg-destructive/20 hover:text-destructive transition-colors"
                 title="Unpin form"
@@ -158,7 +158,7 @@
               >{{ entry.usesCost }} uses</span>
               <!-- DM pin button (preview mode only) -->
               <AppButton
-                v-if="ui.dmPreviewMode"
+                v-if="appUi.dmPreviewMode"
                 variant="ghost"
                 tone="primary"
                 fill="tone"
@@ -346,7 +346,8 @@ import { useWildShapeCandidates } from "@/composables/monsters/useWildShapeCandi
 import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { useParty } from "@/composables/party/useParty";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
@@ -378,7 +379,8 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 interface BestiaryEntry { discovery: DiscoveredMonster; monster: PlayerVisibleMonster | null }
 interface FormEntry { monster: PlayerVisibleMonster; name: string; imageUrl: string | null; usesCost: number }
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
+const playerUi = usePlayerUiStore();
 const auth = useAuthStore();
 const { sendRoll } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
@@ -391,7 +393,7 @@ const { data: playerPinnedForms } = usePinnedForms();
 const { mutate: togglePinnedForm } = useTogglePinnedForm();
 
 // Resolve current party member
-const memberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
+const memberId = computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
 const member = computed(() => partyMembers.value?.find((m) => m.id === memberId.value) ?? null);
 
 // ── Class detection ───────────────────────────────────────────────────────────
@@ -440,7 +442,7 @@ const discoveredMonsterKeys = computed<Set<string>>(() => {
 // Pinned forms for the current party member (player view or DM preview)
 const visiblePins = computed(() => {
   const pins = playerPinnedForms.value ?? [];
-  return ui.dmPreviewMode ? pins.filter((p) => p.party_member_id === ui.dmPreviewPartyMemberId) : pins;
+  return appUi.dmPreviewMode ? pins.filter((p) => p.party_member_id === appUi.dmPreviewPartyMemberId) : pins;
 });
 const knownIds = computed(() => new Set(knownFormIds(member.value?.class_choices)));
 const heldIds = computed<string[]>(() => [
@@ -452,8 +454,8 @@ const { data: heldMonsters } = usePlayerMonstersByIds(heldIds);
 
 // ── Bestiary tab ─────────────────────────────────────────────────────────────
 function isVisibleToPreviewMember(d: DiscoveredMonster): boolean {
-  if (!ui.dmPreviewMode || !ui.dmPreviewPartyMemberId) return true;
-  return d.visible_to === null || d.visible_to.includes(ui.dmPreviewPartyMemberId);
+  if (!appUi.dmPreviewMode || !appUi.dmPreviewPartyMemberId) return true;
+  return d.visible_to === null || d.visible_to.includes(appUi.dmPreviewPartyMemberId);
 }
 
 const resolved = computed<BestiaryEntry[]>(() =>
@@ -474,7 +476,7 @@ const discoveryKey = (entry: BestiaryEntry) => entry.discovery.id;
 // wraps makes a card taller; rows are re-measured as they mount.
 const DISCOVERY_ROW_PX = 102;
 
-const search = refDebounced(computed(() => ui.playerBestiarySearch), 300);
+const search = refDebounced(computed(() => playerUi.playerBestiarySearch), 300);
 const filtered = computed(() => {
   if (!search.value.trim()) return resolved.value;
   const q = search.value.trim().toLowerCase();
@@ -502,7 +504,7 @@ const pinnedMonsterIds = computed(() => new Set(pinnedFormMonsters.value.map((e)
 // has to see beasts nobody has met, so there are no ids to ask for. A player
 // never reaches it (enabled only in DM preview of a 2014 druid).
 const { data: legalForms } = useWildShapeCandidates(() => wildshapeRules.value, () => ({
-  enabled: ui.dmPreviewMode && isDruid.value && !is2024.value,
+  enabled: appUi.dmPreviewMode && isDruid.value && !is2024.value,
 }));
 const unsharedEligibleBeasts = computed(() => {
   if (!isDruid.value) return [];
@@ -513,7 +515,7 @@ const sharingBeasts = ref(false);
 const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 
 async function shareAllEligibleBeasts() {
-  const memberId = ui.dmPreviewPartyMemberId;
+  const memberId = appUi.dmPreviewPartyMemberId;
   if (!memberId || !unsharedEligibleBeasts.value.length) return;
   sharingBeasts.value = true;
   try {
@@ -547,7 +549,7 @@ const wildForms    = computed(() => [...pinnedForms.value, ...eligibleForms.valu
 
 // DM preview: toggle pin
 function togglePin(monster: PlayerVisibleMonster) {
-  const memberId = ui.dmPreviewPartyMemberId;
+  const memberId = appUi.dmPreviewPartyMemberId;
   if (!memberId) return;
   const existing = (playerPinnedForms.value ?? []).find((p) =>
     monster.is_shared ? p.library_monster_id === monster.id : p.monster_id === monster.id,

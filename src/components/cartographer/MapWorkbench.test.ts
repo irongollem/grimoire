@@ -207,7 +207,7 @@ describe("MapWorkbench", () => {
   // staying in view mode everywhere else) — stubbed out here since these two
   // tests are only about the toolbox column above it, not the inspector.
   // SiteMapRegionList/SiteMapZoneList (#884 S11, the Plan's own Spaces/Zones
-  // panels) are stubbed for the same reason: they reach for `useUiStore`
+  // panels) are stubbed for the same reason: they reach for a domain UI store
   // (Pinia) and `useQuests`/`useQuestBeat`/`useQuestBeats` (TanStack Query),
   // neither of which this prop-surface smoke test installs.
   const editModeStubs = {

@@ -182,7 +182,7 @@ import { deriveQuestRouteGates, draftRouteGate, validateGateDrafts, type GateCon
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { extractTiptapText } from "@/lib/utils";
-import { useUiStore } from "@/stores/ui";
+import { useQuestsUiStore } from "@/stores/ui/quests";
 import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow";
 import { isDuplicateQuestEdge } from "@/lib/quests/mutations";
 import { defaultThreadId } from "@/lib/quests/threads";
@@ -209,8 +209,8 @@ const router = useRouter();
 const isMobile = useIsMobile();
 // Switching to the quest overview unmounts this component, so the selection has
 // to be held outside it or every flip back lands on a blank inspector.
-const ui = useUiStore();
-const restoredSelection = ui.questFlowSelectionFor(questId);
+const questsUi = useQuestsUiStore();
+const restoredSelection = questsUi.questFlowSelectionFor(questId);
 const selectedBeatId = ref<string | null>(restoredSelection?.beatId ?? null);
 const selectedEdgeId = ref<string | null>(restoredSelection?.edgeId ?? null);
 const saveError = ref("");
@@ -619,7 +619,7 @@ const initialBeatId = typeof route.query.beat === "string" ? route.query.beat : 
 if (initialBeatId) selectedBeatId.value = initialBeatId;
 
 watch([selectedBeatId, selectedEdgeId], ([beatId, edgeId]) => {
-  ui.questFlowSelection = { questId, beatId, edgeId };
+  questsUi.questFlowSelection = { questId, beatId, edgeId };
 }, { immediate: true });
 
 let focusedOnOpen = false;

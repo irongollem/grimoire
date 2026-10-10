@@ -1,5 +1,5 @@
 <template>
-  <GeneratorPanelFrame :open="ui.npcGeneratorOpen" title="NPC Generator" @close="handleClose">
+  <GeneratorPanelFrame :open="npcsUi.npcGeneratorOpen" title="NPC Generator" @close="handleClose">
     <NpcGeneratorForm
       v-model:concept="concept"
       :quick-form="quickForm"
@@ -49,7 +49,7 @@
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconGenerate } from "@/lib/icons";
-import { useUiStore } from "@/stores/ui";
+import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { useCreateNpc } from "@/composables/npcs/useNpcs";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
@@ -89,7 +89,7 @@ function randomName(): string {
   return `${first} ${last}`;
 }
 
-const ui = useUiStore();
+const npcsUi = useNpcsUiStore();
 const router = useRouter();
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc();
 const { logImageGeneration } = useImageGenerationLog();
@@ -105,7 +105,7 @@ const {
 // This panel is mounted on every DM page (DefaultLayout) so background
 // generation survives navigation, but its dropdown data is only read while the
 // panel is open. Gate the fetches on that so a closed panel costs no egress.
-const panelOpen = () => ui.npcGeneratorOpen;
+const panelOpen = () => npcsUi.npcGeneratorOpen;
 const { locationOptions } = useLocationTree(panelOpen);
 const { data: factions } = useAllFactions(panelOpen);
 const { mutateAsync: addFactionNpc } = useAddFactionNpc();
@@ -148,11 +148,11 @@ const effectiveCreditCost = computed<number | null>(() => {
 const isFullyByok = computed(() => textIsByok.value && (!generateImage.value || imageIsByok.value));
 
 function dismissToBackground() {
-  ui.npcGeneratorOpen = false;
+  npcsUi.npcGeneratorOpen = false;
 }
 
 function handleClose() {
-  ui.npcGeneratorOpen = false;
+  npcsUi.npcGeneratorOpen = false;
 }
 
 function buildAiPrompt(): string {
@@ -257,8 +257,8 @@ async function generateAndCreate() {
 
   await applyPostCreate(created.id);
 
-  if (ui.npcGeneratorOpen) {
-    ui.npcGeneratorOpen = false;
+  if (npcsUi.npcGeneratorOpen) {
+    npcsUi.npcGeneratorOpen = false;
     router.push(`/npcs/${created.id}`);
   } else {
     completedNpcId.value = created.id;
@@ -337,7 +337,7 @@ async function quickCreate() {
 
   const created = await createNpc(payload);
   await applyPostCreate(created.id);
-  ui.npcGeneratorOpen = false;
+  npcsUi.npcGeneratorOpen = false;
   router.push(`/npcs/${created.id}`);
 }
 </script>

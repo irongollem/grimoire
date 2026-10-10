@@ -111,7 +111,7 @@
                   label="Edit"
                 />
                 <OverflowMenu
-                  v-if="!ui.dmPreviewMode"
+                  v-if="!appUi.dmPreviewMode"
                   :label="`More actions for ${char.name}`"
                   :items="menuItems(char)"
                   @select="(key) => onMenu(key, char)"
@@ -129,7 +129,7 @@
       </div>
 
       <!-- Offered by DM -->
-      <div v-if="!ui.dmPreviewMode && offeredCharacters?.length" class="space-y-3">
+      <div v-if="!appUi.dmPreviewMode && offeredCharacters?.length" class="space-y-3">
         <div class="flex items-center gap-2">
           <h2 class="text-heading-sm font-semibold text-foreground">Available from your DM</h2>
           <span class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{{ offeredCharacters.length }}</span>
@@ -208,7 +208,7 @@ import { useCampaignStore } from '@/stores/campaign';
 import CharacterEditionNotice from '@/components/player/CharacterEditionNotice.vue';
 import CharacterApprovalNotice from '@/components/player/CharacterApprovalNotice.vue';
 import { isApprovalWait, useCampaignPendingContentReviews } from '@/composables/party/useCharacterContentReviews';
-import { useUiStore } from '@/stores/ui';
+import { useAppUiStore } from '@/stores/ui/app';
 import AppButton from '@/components/common/AppButton.vue';
 import OverflowMenu, { type OverflowMenuEntry } from '@/components/common/OverflowMenu.vue';
 import { useToast } from '@/composables/useToast';
@@ -219,7 +219,7 @@ import { activeMembers } from "@/composables/party/useActiveParty";
 import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 
 const auth = useAuthStore();
-const ui   = useUiStore();
+const appUi = useAppUiStore();
 const { activeCampaign } = storeToRefs(useCampaignStore());
 const { data: myChars,        isPending: myPending }  = useMyCharacters();
 const { data: allChars,       isPending: allPending }  = useParty();
@@ -233,15 +233,15 @@ const offeredCharacters = computed(() => {
 const { data: memorials } = useCampaignMemorials();
 const activeOf = (members: PartyMember[] | undefined) =>
   members && memorials.value ? activeMembers(members, memorials.value) : members;
-const characters = computed(() => activeOf(ui.dmPreviewMode ? allChars.value : myChars.value));
+const characters = computed(() => activeOf(appUi.dmPreviewMode ? allChars.value : myChars.value));
 const laidToRest = computed(() => {
   const mine = myChars.value;
-  if (ui.dmPreviewMode || !mine || !memorials.value) return [];
+  if (appUi.dmPreviewMode || !mine || !memorials.value) return [];
   const active = new Set(activeMembers(mine, memorials.value).map((c) => c.id));
   return mine.filter((c) => !active.has(c.id));
 });
 const speciesNameOf = useSpeciesNames(() => [...(characters.value ?? []), ...(offeredCharacters.value ?? [])]);
-const isPending  = computed(() => ui.dmPreviewMode ? allPending.value : myPending.value);
+const isPending  = computed(() => appUi.dmPreviewMode ? allPending.value : myPending.value);
 const { mutateAsync: setActiveChar } = useSetActiveCharacter();
 const { mutateAsync: assumeChar }    = useAssumeCharacter();
 
@@ -272,7 +272,7 @@ function charSummary(char: PartyMember, species: string | null): string {
 }
 
 async function setActive(id: string) {
-  if (ui.dmPreviewMode) return;
+  if (appUi.dmPreviewMode) return;
   settingActive.value = id;
   setActiveError.value = '';
   try {

@@ -37,7 +37,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.itemGeneratorOpen = true"
+        @click="itemsUi.itemGeneratorOpen = true"
       />
       <ListActionButton
         variant="primary"
@@ -125,37 +125,37 @@ import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";
-import { useUiStore } from "@/stores/ui";
+import { useItemsUiStore } from "@/stores/ui/items";
 import { useAvailableLibraryItemSources } from "@/composables/library/useEnabledSources";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
 
-const ui = useUiStore();
+const itemsUi = useItemsUiStore();
 const search = computed({
-  get: () => ui.vaultSearch,
-  set: (v) => { ui.vaultSearch = v; },
+  get: () => itemsUi.vaultSearch,
+  set: (v) => { itemsUi.vaultSearch = v; },
 });
 const typeFilter = computed({
-  get: () => ui.vaultFilterType,
-  set: (v) => { ui.vaultFilterType = v; },
+  get: () => itemsUi.vaultFilterType,
+  set: (v) => { itemsUi.vaultFilterType = v; },
 });
 const rarityFilter = computed({
-  get: () => ui.vaultFilterRarity,
-  set: (v) => { ui.vaultFilterRarity = v; },
+  get: () => itemsUi.vaultFilterRarity,
+  set: (v) => { itemsUi.vaultFilterRarity = v; },
 });
 const sourceFilter = computed({
-  get: () => ui.vaultFilterSource,
-  set: (v) => { ui.vaultFilterSource = v; },
+  get: () => itemsUi.vaultFilterSource,
+  set: (v) => { itemsUi.vaultFilterSource = v; },
 });
 const scopeFilter = computed({
-  get: () => ui.vaultFilterScope,
-  set: (v) => { ui.vaultFilterScope = v; },
+  get: () => itemsUi.vaultFilterScope,
+  set: (v) => { itemsUi.vaultFilterScope = v; },
 });
 
-const hasActiveFilters = computed(() => ui.vaultHasActiveFilters);
-function clearFilters() { ui.resetVaultFilters(); }
+const hasActiveFilters = computed(() => itemsUi.vaultHasActiveFilters);
+function clearFilters() { itemsUi.resetVaultFilters(); }
 
 // ── Sources panel ────────────────────────────────────────────────────────────
 // The enable/disable wiring (campaign-scoped) now lives inside SourcesPickerPanel.

@@ -96,11 +96,11 @@
         size="icon-xs"
         tooltip="Open chat"
         class="relative"
-        @click="ui.toggleChat()"
+        @click="appUi.toggleChat()"
       >
         <template #icon>
           <IconMessage class="h-4 w-4" />
-          <span v-if="ui.chatHasUnread" class="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
+          <span v-if="appUi.chatHasUnread" class="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
         </template>
       </AppButton>
 
@@ -120,15 +120,15 @@
 
     <!-- DM preview banner -->
     <div
-      v-if="ui.dmPreviewMode"
+      v-if="appUi.dmPreviewMode"
       class="bg-tone-caution px-4 py-2 flex items-center gap-3 shrink-0"
     >
       <IconReveal class="h-3.5 w-3.5 text-on-caution/70 shrink-0" />
       <span class="text-label-lg text-on-caution font-semibold shrink-0">Previewing as:</span>
       <select
-        :value="ui.dmPreviewPartyMemberId ?? ''"
+        :value="appUi.dmPreviewPartyMemberId ?? ''"
         class="flex-1 min-w-0 max-w-48 bg-on-caution/10 border border-on-caution/20 rounded px-2 py-0.5 text-caption text-on-caution focus:outline-none focus:ring-1 focus:ring-on-caution/30"
-        @change="ui.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
+        @change="appUi.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
       >
         <option value="">Pick a character</option>
         <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
@@ -354,7 +354,8 @@ import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { usePlayerSessionState, formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
 import { prefersReducedMotion } from "@/lib/motion";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import { useParty } from "@/composables/party/useParty";
@@ -377,7 +378,8 @@ import { activeThemeId } from "@/lib/themeRuntime";
 import { darkChromeStyle } from "@/lib/memorials/hallGround";
 
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
+const playerUi = usePlayerUiStore();
 const campaign = useCampaignStore();
 // Players are where child accounts live, so this menu is the one the
 // child-account gate in useDiscordInvite matters most for.
@@ -422,10 +424,10 @@ const router = useRouter();
 const { data: partyMembers } = useParty();
 
 watch(
-  [() => ui.dmPreviewMode, partyMembers],
+  [() => appUi.dmPreviewMode, partyMembers],
   ([previewMode, members]) => {
-    if (previewMode && !ui.dmPreviewPartyMemberId && members?.length) {
-      ui.dmPreviewPartyMemberId = members[0].id;
+    if (previewMode && !appUi.dmPreviewPartyMemberId && members?.length) {
+      appUi.dmPreviewPartyMemberId = members[0].id;
     }
   },
   { immediate: true },
@@ -533,7 +535,7 @@ const showMore = ref(false);
 const showMenu = ref(false);
 const showCampaignSheet = ref(false);
 const campaignSheetMounted = useLazyMount(showCampaignSheet);
-const locationDialogOpen = computed(() => ui.playerLocationDialogId !== null);
+const locationDialogOpen = computed(() => playerUi.playerLocationDialogId !== null);
 const locationDialogMounted = useLazyMount(locationDialogOpen);
 const { unreadPaths } = usePlayerUnread();
 watch(() => route.path, () => { showMore.value = false; });
@@ -550,7 +552,7 @@ watch(
 );
 
 function exitPreview() {
-  ui.exitDmPreview();
+  appUi.exitDmPreview();
   router.push({ name: "dashboard" });
 }
 

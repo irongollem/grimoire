@@ -288,7 +288,7 @@ import PlayerJournalDmModal from "./PlayerJournalDmModal.vue";
 import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { isInDisguise } from "@/lib/partyMemberDisplay";
@@ -336,7 +336,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const campaign = useCampaignStore();
 const auth = useAuthStore();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
@@ -519,7 +519,7 @@ function companionSourceLink(c: Companion): string {
 }
 
 function previewAsPlayer() {
-  ui.enterDmPreview(member.id);
+  appUi.enterDmPreview(member.id);
   router.push({ name: "play-character" });
 }
 </script>

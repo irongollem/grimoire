@@ -35,7 +35,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 vi.mock("@/lib/queueEmbeddings", () => ({ queueEmbeddingsInBackground: mocks.queueEmbeddings }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: null }) }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({}) }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({}) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: String }) }));
 vi.mock("@/lib/storage", () => ({ deleteByPublicUrl: vi.fn() }));
 vi.mock("@/lib/reorder", () => ({ persistReorder: vi.fn(), toReorderEntries: vi.fn() }));

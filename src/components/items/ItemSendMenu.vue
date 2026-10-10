@@ -107,7 +107,7 @@
 import { ref } from "vue";
 import { IconArchive, IconChevronDown, IconChevronRight, IconComment, IconHand, IconUser } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
@@ -118,7 +118,7 @@ import type { PartyMember } from "@/types/party.types";
 
 const props = defineProps<{ item: Item }>();
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const { data: party } = useActiveParty();
 const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 const { sendItemDrop } = useCampaignMessages();
@@ -226,7 +226,7 @@ async function dropInChat() {
       props.item.tags?.includes("container") ?? false,
     );
     open.value = false;
-    ui.openChat();
+    appUi.openChat();
   } catch (e) {
     reportChatFailure(e, "drop the item to the chat");
   } finally {

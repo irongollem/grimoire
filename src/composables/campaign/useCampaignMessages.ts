@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata, LootChestMetadata } from "@/types/chat.types";
@@ -314,16 +314,16 @@ export function useCampaignMessages() {
 
   const campaign = useCampaignStore();
   const auth = useAuthStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   // Both lists are read only to resolve a name or a previewed player (#999), so
   // they load only when there is one to resolve: a linked or previewed
   // character for the sender name, preview mode for the whisper filter, or the
   // chat panel being open. Anything else sends under the account's own name and
   // needs neither. A disabled query still serves a list another surface cached.
   const { data: partyMembers } = useParty(
-    () => ui.chatOpen || (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId) != null,
+    () => appUi.chatOpen || (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId) != null,
   );
-  const { data: campaignMembers } = useCampaignMembers(() => ui.chatOpen || ui.dmPreviewMode);
+  const { data: campaignMembers } = useCampaignMembers(() => appUi.chatOpen || appUi.dmPreviewMode);
 
   async function ensureMessage(messageId: string) {
     if (messages.value.some((message) => message.id === messageId)) return;
@@ -341,9 +341,9 @@ export function useCampaignMessages() {
 
   // Name resolution priority: NPC persona → previewed character → linked character → display name
   function getSenderName() {
-    if (ui.dmTalkAsNpcName) return ui.dmTalkAsNpcName;
-    const memberId = ui.dmPreviewMode
-      ? ui.dmPreviewPartyMemberId
+    if (appUi.dmTalkAsNpcName) return appUi.dmTalkAsNpcName;
+    const memberId = appUi.dmPreviewMode
+      ? appUi.dmPreviewPartyMemberId
       : auth.linkedPartyMemberId;
     if (memberId && partyMembers.value) {
       const character = partyMembers.value.find(m => m.id === memberId);
@@ -355,14 +355,14 @@ export function useCampaignMessages() {
   // In preview mode the DM sees only what the previewed player would see:
   // public messages + whispers addressed to that player's user_id.
   const previewedUserId = computed(() => {
-    if (!ui.dmPreviewMode || !ui.dmPreviewPartyMemberId) return null;
+    if (!appUi.dmPreviewMode || !appUi.dmPreviewPartyMemberId) return null;
     return campaignMembers.value?.find(
-      m => m.party_member_id === ui.dmPreviewPartyMemberId,
+      m => m.party_member_id === appUi.dmPreviewPartyMemberId,
     )?.user_id ?? null;
   });
 
   const visibleMessages = computed(() => {
-    if (!ui.dmPreviewMode) return messages.value;
+    if (!appUi.dmPreviewMode) return messages.value;
     const pid = previewedUserId.value;
     return messages.value.filter(
       m => m.recipient_user_id === null || m.recipient_user_id === pid,
@@ -376,7 +376,7 @@ export function useCampaignMessages() {
     for (const m of unreadProbe.value) byId.set(m.id, m);
     for (const m of visibleMessages.value) byId.set(m.id, m);
     const all = [...byId.values()].sort(compareMessages);
-    if (!ui.dmPreviewMode) return all;
+    if (!appUi.dmPreviewMode) return all;
     const pid = previewedUserId.value;
     return all.filter(m => m.recipient_user_id === null || m.recipient_user_id === pid);
   });

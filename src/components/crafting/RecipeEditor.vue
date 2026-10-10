@@ -230,7 +230,7 @@ import {
   getDiscipline,
 } from "@/lib/crafting/disciplines";
 import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
-import { useUiStore } from "@/stores/ui";
+import { useCraftingUiStore } from "@/stores/ui/crafting";
 import { markEdited } from "@/ai/provenance";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { inventoryItemRef, itemRefColumns, sameItemRef } from "@/lib/itemRef";
@@ -259,7 +259,7 @@ const emit = defineEmits<{ saved: [id: string] }>();
 const isNew = computed(() => !props.recipe);
 const recipeId = computed(() => props.recipe?.id);
 
-const ui = useUiStore();
+const craftingUi = useCraftingUiStore();
 
 const { data: allItems } = useItemIndex();
 
@@ -331,7 +331,7 @@ const {
       : {
           name: "",
           description: "",
-          discipline: (ui.workshopActiveTab !== "all" ? ui.workshopActiveTab : "smithing") as CraftingDiscipline,
+          discipline: (craftingUi.workshopActiveTab !== "all" ? craftingUi.workshopActiveTab : "smithing") as CraftingDiscipline,
           dc: 10,
           crafting_time: 1,
           crafting_time_unit: "days",

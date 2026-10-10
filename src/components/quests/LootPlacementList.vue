@@ -21,7 +21,7 @@
       </div>
       <AppButton v-if="entry.delivery_state === 'held'" label="Drop" size="xs" :loading="dispatching === entry.id" @click="dispatch(entry.id)" />
       <AppButton v-if="entry.delivery_state === 'held'" label="Remove" size="xs" variant="subtle" :loading="removingId === entry.id" @click="remove(entry.id)" />
-      <AppButton v-else-if="entry.dispatch_message_id && entry.delivery_state !== 'message_removed'" label="Open chat card" size="xs" variant="subtle" @click="ui.openChatAt(entry.dispatch_message_id)" />
+      <AppButton v-else-if="entry.dispatch_message_id && entry.delivery_state !== 'message_removed'" label="Open chat card" size="xs" variant="subtle" @click="appUi.openChatAt(entry.dispatch_message_id)" />
     </li>
   </ul>
   <p v-else class="text-caption italic text-muted-foreground">{{ emptyLabel }}</p>
@@ -52,7 +52,7 @@
  */
 import { computed, ref } from "vue";
 import { useDeleteLootPlacement, useDispatchLoot } from "@/composables/quests/useQuestFlow";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import type { LootPlacement, LootPlacementDeliveryState } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 
@@ -63,7 +63,7 @@ const { title, emptyLabel, loot } = defineProps<{
 }>();
 const emit = defineEmits<{ dropped: [] }>();
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const deleteLoot = useDeleteLootPlacement();
 const dispatchLoot = useDispatchLoot();
 

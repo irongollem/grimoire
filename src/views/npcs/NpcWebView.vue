@@ -2,18 +2,18 @@
   <div class="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
     <!-- Top bar -->
     <NpcWebTopBar
-      v-model:search-query="ui.npcWebSearch"
-      v-model:show-pcs="ui.npcWebShowPcs"
-      v-model:location-filter="ui.npcWebFilterLocation"
-      v-model:type-filter="ui.npcWebFilterType"
-      v-model:focus-faction="ui.npcWebFocusFaction"
-      v-model:relationship-filter="ui.npcWebFilterRelationship"
+      v-model:search-query="npcsUi.npcWebSearch"
+      v-model:show-pcs="npcsUi.npcWebShowPcs"
+      v-model:location-filter="npcsUi.npcWebFilterLocation"
+      v-model:type-filter="npcsUi.npcWebFilterType"
+      v-model:focus-faction="npcsUi.npcWebFocusFaction"
+      v-model:relationship-filter="npcsUi.npcWebFilterRelationship"
       :location-options="locationOptions"
       :type-options="typeOptions"
       :faction-options="factionOptions"
       :legend-items="legendItems"
-      :has-active-filters="ui.npcWebHasActiveFilters"
-      @clear="ui.resetNpcWebFilters()"
+      :has-active-filters="npcsUi.npcWebHasActiveFilters"
+      @clear="npcsUi.resetNpcWebFilters()"
     />
 
     <!-- Graph area (fills remaining space; panel overlays it so the graph never resizes) -->
@@ -293,7 +293,7 @@ import { useAllFactions } from "@/composables/factions/useFactions";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { useIsTouch } from "@/composables/useBreakpoint";
 import { prefersReducedMotion } from "@/lib/motion";
-import { useUiStore } from "@/stores/ui";
+import { useNpcsUiStore } from "@/stores/ui/npcs";
 import {
   NPC_RELATIONSHIP_LABELS,
   NPC_RELATIONSHIP_TYPE_LABELS,
@@ -303,10 +303,10 @@ import {
 import type { NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 
 // ── Filters ───────────────────────────────────────────────────────────────────
-// In useUiStore (Filter State Pattern), so opening an NPC from the web and
+// In a domain UI store (Filter State Pattern), so opening an NPC from the web and
 // coming back does not drop the query and the location/type narrowing.
 
-const ui = useUiStore();
+const npcsUi = useNpcsUiStore();
 const router = useRouter();
 const isTouch = useIsTouch();
 
@@ -401,7 +401,7 @@ const factionGroups = computed(() => {
     else groups.set(factionId, new Set([nodeKey]));
   };
   for (const row of factionNpcs.value ?? []) add(row.faction_id, `npc:${row.npc_id}`);
-  if (ui.npcWebShowPcs) {
+  if (npcsUi.npcWebShowPcs) {
     for (const row of factionPartyMembers.value ?? []) add(row.faction_id, `pc:${row.party_member_id}`);
   }
   return groups;
@@ -426,13 +426,13 @@ const factionGroups = computed(() => {
  * more than they have a presence.
  */
 const focusedKeys = computed(() => {
-  const id = ui.npcWebFocusFaction;
+  const id = npcsUi.npcWebFocusFaction;
   if (!id) return new Set<string>();
   return new Set(factionGroups.value.get(id) ?? []);
 });
 
 const focusedFactionName = computed(
-  () => factionOptions.value.find((f) => f.id === ui.npcWebFocusFaction)?.name ?? "",
+  () => factionOptions.value.find((f) => f.id === npcsUi.npcWebFocusFaction)?.name ?? "",
 );
 
 /**
@@ -485,7 +485,7 @@ const focusHullPaths = computed(() => {
  * on this graph the same text would be noise on every node at once.
  */
 const focusedMemberships = computed(() => {
-  const id = ui.npcWebFocusFaction;
+  const id = npcsUi.npcWebFocusFaction;
   const out = new Map<string, string>();
   if (!id) return out;
 
@@ -544,7 +544,7 @@ const pcPortraits = computed(() => {
     dimmed: boolean;
   }[] = [];
 
-  if (!ui.npcWebShowPcs) return out;
+  if (!npcsUi.npcWebShowPcs) return out;
 
   for (const pc of partyMembers.value ?? []) {
     if (!pc.portrait_url) continue;

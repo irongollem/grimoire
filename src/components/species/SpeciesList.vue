@@ -21,13 +21,13 @@
     <!-- Nothing to pick: the DM disabled every species for this campaign. The
          codex CTA below is DM-only, so select mode gets its own message. -->
     <EmptyState
-      v-else-if="!filtered.length && !ui.speciesHasActiveFilters && selectMode"
+      v-else-if="!filtered.length && !speciesUi.speciesHasActiveFilters && selectMode"
       title="No species available"
       description="Your DM hasn't enabled any species for this campaign yet."
     />
 
     <EmptyState
-      v-else-if="!filtered.length && !ui.speciesHasActiveFilters"
+      v-else-if="!filtered.length && !speciesUi.speciesHasActiveFilters"
       title="No species yet"
       description="Build your own or import from Open5e."
     >
@@ -177,7 +177,7 @@
 import { computed, watch } from "vue";
 import { IconCheck, IconEdit } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
-import { useUiStore } from "@/stores/ui";
+import { useSpeciesUiStore } from "@/stores/ui/species";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { allowedSpecies } from "@/lib/campaignContentGating";
@@ -201,7 +201,7 @@ import { useCampaignStore } from "@/stores/campaign";
 const { selectMode } = defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
 const emit = defineEmits<{ select: [species: Species] }>();
 
-const ui = useUiStore();
+const speciesUi = useSpeciesUiStore();
 const { activeCampaign, activeCampaignId } = storeToRefs(useCampaignStore());
 // Picking (select mode) obeys the campaign's blocklist; browsing the codex does
 // not, because the DM still needs to open and edit a species they switched off
@@ -216,17 +216,17 @@ const browsableSpecies = computed(() =>
 const filtered = computed(() => {
   let list = selectMode ? campaignSpecies.value : browsableSpecies.value;
 
-  if (ui.speciesFilterSize !== "all") {
-    list = list.filter((s) => s.size === ui.speciesFilterSize);
+  if (speciesUi.speciesFilterSize !== "all") {
+    list = list.filter((s) => s.size === speciesUi.speciesFilterSize);
   }
 
-  if (ui.speciesFilterSource !== "all") {
-    const q = ui.speciesFilterSource.toLowerCase();
+  if (speciesUi.speciesFilterSource !== "all") {
+    const q = speciesUi.speciesFilterSource.toLowerCase();
     list = list.filter((s) => s.source?.toLowerCase().includes(q));
   }
 
-  if (ui.speciesSearch.trim()) {
-    const q = ui.speciesSearch.trim().toLowerCase();
+  if (speciesUi.speciesSearch.trim()) {
+    const q = speciesUi.speciesSearch.trim().toLowerCase();
     list = list.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||

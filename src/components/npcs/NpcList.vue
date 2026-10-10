@@ -148,7 +148,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 import { useNpcPcNotesByPartyMember } from "@/composables/npcs/useNpcPcNotes";
 import { useAllLocations, useLocationTree } from "@/composables/locations/useLocations";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
@@ -200,12 +200,12 @@ const { data: npcs, isLoading } = useNpcs();
 // Resting on a card warms the detail route and its reads (id record, DM note,
 // backlinks), so the open finds them in flight or done (#999).
 const vPrefetch = usePrefetchOnIntent();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const isMobile = useIsMobile();
 const layout = computed({
-  get: () => ui.entityListLayout,
+  get: () => appUi.entityListLayout,
   set: (v: "rows" | "gallery") => {
-    ui.entityListLayout = v;
+    appUi.entityListLayout = v;
   },
 });
 
@@ -325,7 +325,7 @@ function isShared(npc: NpcListRow): boolean {
 
 // ── Bulk selection (#885) ───────────────────────────────────────────────────
 //
-// Owned here, not in useUiStore: transient per-visit selection, not a list
+// Owned here, not in a domain UI store: transient per-visit selection, not a list
 // filter — mirrors MonsterList.vue. Unlike monsters, no NPC row is shared/
 // library content, so every filtered row is selectable.
 const bulk = useBulkSelection();

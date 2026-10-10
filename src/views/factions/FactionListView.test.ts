@@ -41,7 +41,8 @@ const ui = {
   factionsHasActiveFilters: false,
   resetFactionsFilters: vi.fn(),
 };
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ui }));
+vi.mock("@/stores/ui/factions", () => ({ useFactionsUiStore: () => ui }));
+vi.mock("@/stores/ui/generators", () => ({ useGeneratorUiStore: () => ({ factionGeneratorOpen: false }) }));
 
 const aiFlag = vi.hoisted(() => ({ on: false }));
 vi.mock("@/stores/campaign", () => ({

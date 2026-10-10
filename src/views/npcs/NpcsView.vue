@@ -24,7 +24,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.npcGeneratorOpen = true"
+        @click="npcsUi.npcGeneratorOpen = true"
       />
       <ListActionButton
         :active="npcListRef?.selecting ?? false"
@@ -291,7 +291,7 @@
           block
           v-if="isAiEnabled"
           label="Generate"
-          @click="overflowOpen = false; ui.npcGeneratorOpen = true"
+          @click="overflowOpen = false; npcsUi.npcGeneratorOpen = true"
         >
           <template #icon><IconGenerate class="size-5 shrink-0 text-muted-foreground" /></template>
         </AppButton>
@@ -357,7 +357,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useParty } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useUiStore } from "@/stores/ui";
+import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import { usePopulateSettingNpcs } from "@/composables/npcs/useNpcs";
@@ -371,7 +371,7 @@ const IconFilter = IconSettings;
 
 type LocationOption = { id: string; name: string; depth: number };
 
-const ui = useUiStore();
+const npcsUi = useNpcsUiStore();
 const campaign = useCampaignStore();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("npcs", "/npcs/new");
@@ -440,17 +440,17 @@ const SORT_OPTIONS = [
   { value: "location", label: "Location" },
 ] as const satisfies ReadonlyArray<{ value: "name" | "location"; label: string }>;
 
-const search = computed({ get: () => ui.npcsSearchQuery, set: (v) => { ui.npcsSearchQuery = v; } });
-const statusFilter = computed({ get: () => ui.npcsFilterStatus, set: (v: NpcStatus | "all") => { ui.npcsFilterStatus = v; } });
-const relFilter = computed({ get: () => ui.npcsFilterRelationship, set: (v: NpcRelationship | "all") => { ui.npcsFilterRelationship = v; } });
-const locationFilter = computed({ get: () => ui.npcsFilterLocation, set: (v) => { ui.npcsFilterLocation = v; } });
-const partyMemberFilter = computed({ get: () => ui.npcsFilterPartyMember, set: (v) => { ui.npcsFilterPartyMember = v; } });
-const sortBy = computed({ get: () => ui.npcsFilterSortBy, set: (v) => { ui.npcsFilterSortBy = v; } });
+const search = computed({ get: () => npcsUi.npcsSearchQuery, set: (v) => { npcsUi.npcsSearchQuery = v; } });
+const statusFilter = computed({ get: () => npcsUi.npcsFilterStatus, set: (v: NpcStatus | "all") => { npcsUi.npcsFilterStatus = v; } });
+const relFilter = computed({ get: () => npcsUi.npcsFilterRelationship, set: (v: NpcRelationship | "all") => { npcsUi.npcsFilterRelationship = v; } });
+const locationFilter = computed({ get: () => npcsUi.npcsFilterLocation, set: (v) => { npcsUi.npcsFilterLocation = v; } });
+const partyMemberFilter = computed({ get: () => npcsUi.npcsFilterPartyMember, set: (v) => { npcsUi.npcsFilterPartyMember = v; } });
+const sortBy = computed({ get: () => npcsUi.npcsFilterSortBy, set: (v) => { npcsUi.npcsFilterSortBy = v; } });
 
 const partyOptions = computed(() => (party.value ?? []).map((m) => ({ id: m.id, name: m.name })));
 
-const hasActiveFilters = computed(() => ui.npcsHasActiveFilters);
-function clearFilters() { ui.resetNpcsFilters(); }
+const hasActiveFilters = computed(() => npcsUi.npcsHasActiveFilters);
+function clearFilters() { npcsUi.resetNpcsFilters(); }
 
 // ── Mobile filter chrome ────────────────────────────────────────────────────
 

@@ -9,9 +9,9 @@
 
     <template #actions>
       <ListActionButton
-        v-if="ui.cartographerHasActiveFilters"
+        v-if="cartographerUi.cartographerHasActiveFilters"
         label="Clear"
-        @click="ui.resetCartographerFilters"
+        @click="cartographerUi.resetCartographerFilters"
       />
       <ListActionButton
         label="Tile Packs"
@@ -33,7 +33,7 @@
     <template v-else-if="maps?.length">
       <div class="flex flex-wrap items-center gap-2 mb-4">
         <AppInput
-          v-model="ui.cartographerSearch"
+          v-model="cartographerUi.cartographerSearch"
           type="search"
           tone="card"
           size="body"
@@ -110,7 +110,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { IconAdd, IconNavCartographer } from "@/lib/icons";
 
 import { useDungeonMaps } from "@/composables/cartographer/useDungeonMaps";
-import { useUiStore } from "@/stores/ui";
+import { useCartographerUiStore } from "@/stores/ui/cartographer";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -122,12 +122,12 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 
 const router = useRouter();
-const ui = useUiStore();
+const cartographerUi = useCartographerUiStore();
 const { data: maps, isLoading } = useDungeonMaps();
 
 const filteredMaps = computed(() => {
   let list = maps.value ?? [];
-  const q = ui.cartographerSearch.toLowerCase().trim();
+  const q = cartographerUi.cartographerSearch.toLowerCase().trim();
   if (q) {
     list = list.filter(
       (m) =>

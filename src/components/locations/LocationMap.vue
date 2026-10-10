@@ -231,7 +231,7 @@ import { isSiteType } from "@/lib/locations/tiers";
 import type { RoutePoint } from "@/lib/locations/mapRoute";
 import type { MapStack } from "@/lib/locations/mapStack";
 import type { RoomFacts } from "@/lib/locations/planCanvas";
-import { useUiStore } from "@/stores/ui";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { GridCalibration, LocationType, MapPin as MapPinType } from "@/types/location.types";
 import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
@@ -349,8 +349,8 @@ const emit = defineEmits<{
   "layer-counts": [counts: { spaces: number; ways: number; zones: number; prepared: number }];
 }>();
 
-const uiStore = useUiStore();
-const { siteMapLayers } = storeToRefs(uiStore);
+const locationsUi = useLocationsUiStore();
+const { siteMapLayers } = storeToRefs(locationsUi);
 
 const frameRef = ref<InstanceType<typeof MapFrame> | null>(null);
 const pinsLayerRef = ref<InstanceType<typeof MapPinsLayer> | null>(null);
@@ -507,7 +507,7 @@ watch(
   layerCounts,
   (counts) => {
     emit("layer-counts", counts);
-    uiStore.revealPopulatedSiteMapLayers(counts);
+    locationsUi.revealPopulatedSiteMapLayers(counts);
   },
   { immediate: true },
 );

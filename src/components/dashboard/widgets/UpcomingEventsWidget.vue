@@ -29,11 +29,11 @@
              every filtered list offers the same way out, and a card that
              invented its own would be the one place it did not. -->
         <AppButton
-          v-if="ui.upcomingEventsHasActiveFilters"
+          v-if="calendarUi.upcomingEventsHasActiveFilters"
           variant="link"
           size="inline-xs"
           label="Clear"
-          @click="ui.resetUpcomingEventsFilters()"
+          @click="calendarUi.resetUpcomingEventsFilters()"
         />
         <AppButton to="/calendar" variant="link" size="inline-xs" label="Calendar →" />
       </div>
@@ -78,7 +78,7 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useCalendarEventsRange } from "@/composables/calendar/useCalendarEvents";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useCalendarUiStore } from "@/stores/ui/calendar";
 import { useCalendarStore } from "@/stores/calendar";
 import { nextUpcomingEvents, formatDaysUntil, type CalendarToday } from "@/lib/calendar/upcoming";
 import { eventColor, type CalendarEvent, type CalendarEventType } from "@/types/calendar.types";
@@ -121,17 +121,17 @@ const today = computed<CalendarToday>(() => ({
 }));
 
 /**
- * In `useUiStore`, not a local ref: this filters the list already on the card,
+ * In a domain UI store, not a local ref: this filters the list already on the card,
  * which is exactly what the Filter State Pattern governs. The sanctioned
  * exceptions are dialog-scoped searches and add-pickers that empty themselves,
  * and this is neither — so it survives navigating away from the dashboard and
  * back, without pinning itself into localStorage forever.
  */
-const ui = useUiStore();
+const calendarUi = useCalendarUiStore();
 const selectedType = computed<CalendarEventType | "all">({
-  get: () => ui.upcomingEventsFilterType,
+  get: () => calendarUi.upcomingEventsFilterType,
   set: (value) => {
-    ui.upcomingEventsFilterType = value;
+    calendarUi.upcomingEventsFilterType = value;
   },
 });
 

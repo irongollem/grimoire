@@ -79,7 +79,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { IconLoot, IconNavigate, IconScrollText } from "@/lib/icons";
 import { prefersReducedMotion } from "@/lib/motion";
 import { groupPlayerBeatsByThread } from "@/lib/quests/playerThreads";
@@ -88,7 +88,7 @@ import type { PlayerQuestBeat } from "@/types/quest.types";
 
 const props = defineProps<{ beats: PlayerQuestBeat[] }>();
 const reducedMotion = prefersReducedMotion();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 
 const columns = computed(() => groupPlayerBeatsByThread(props.beats));
 
@@ -101,6 +101,6 @@ const gridStyle = computed(() => ({
 // journal only ever shows what a beat paid out, never the claiming UI itself.
 // The player's chat is the sheet the header bubble opens; there is no chat page.
 function goToChat() {
-  ui.openChat();
+  appUi.openChat();
 }
 </script>

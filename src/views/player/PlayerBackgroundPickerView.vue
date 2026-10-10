@@ -15,12 +15,12 @@
 
     <!-- Filter bar -->
     <ListFilterBar
-      :has-active-filters="ui.backgroundsHasActiveFilters"
-      @clear="ui.resetBackgroundsFilters()"
+      :has-active-filters="codexUi.backgroundsHasActiveFilters"
+      @clear="codexUi.resetBackgroundsFilters()"
     >
-      <ListSearchInput v-model="ui.backgroundsSearch" placeholder="Search backgrounds…" />
+      <ListSearchInput v-model="codexUi.backgroundsSearch" placeholder="Search backgrounds…" />
       <ListFilterGroup
-        v-model="ui.backgroundsFilterSource"
+        v-model="codexUi.backgroundsFilterSource"
         :options="BACKGROUND_SOURCE_OPTIONS"
         aria-label="Background source filter"
       />
@@ -134,7 +134,7 @@ import PickerCharacterNotFound from "@/components/player/PickerCharacterNotFound
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
-import { useUiStore } from "@/stores/ui";
+import { useCodexUiStore } from "@/stores/ui/codex";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useBackground } from "@/composables/rules/useBackgrounds";
 import { BACKGROUND_SOURCE_OPTIONS } from "@/components/backgrounds/backgroundSourceOptions";
@@ -167,7 +167,7 @@ import type { SaveKey } from "@/types/party.types";
 import type { Background } from "@/types/background.types";
 
 const router = useRouter();
-const ui = useUiStore();
+const codexUi = useCodexUiStore();
 const queryClient = useQueryClient();
 const { mutateAsync: update } = useUpdatePartyMember();
 

@@ -138,7 +138,7 @@ import MapStackImage from "@/components/locations/MapStackImage.vue";
 import { IconMap } from "@/lib/icons";
 import { MAP_IMAGE_COMPACT_SIZING } from "@/lib/locations/mapZoom";
 import type { MapStack } from "@/lib/locations/mapStack";
-import { useUiStore } from "@/stores/ui";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 
 const { stack, compact, placing = false } = defineProps<{
   stack: MapStack;
@@ -153,7 +153,7 @@ const { stack, compact, placing = false } = defineProps<{
   placing?: boolean;
 }>();
 
-const { siteMapLayers } = storeToRefs(useUiStore());
+const { siteMapLayers } = storeToRefs(useLocationsUiStore());
 
 const emit = defineEmits<{
   /**

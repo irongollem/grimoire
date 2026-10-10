@@ -22,7 +22,7 @@ function beat(overrides: Partial<PlayerQuestBeat> = {}): PlayerQuestBeat {
 mocks.beats = [beat()];
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: mocks.push }) }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ dmPreviewPartyMemberId: null, enterDmPreview: mocks.enterDmPreview }) }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ dmPreviewPartyMemberId: null, enterDmPreview: mocks.enterDmPreview }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { value: [{ id: "member-1", name: "Mira" }, { id: "member-2", name: "Hidden" }] } }) }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   usePlayerQuestBeats: (_questId: unknown, previewRef: unknown) => {

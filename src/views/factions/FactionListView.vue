@@ -17,7 +17,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.factionGeneratorOpen = true"
+        @click="generatorsUi.factionGeneratorOpen = true"
       />
       <ListActionButton
         :active="selecting"
@@ -36,11 +36,11 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="ui.factionsHasActiveFilters"
-        @clear="ui.resetFactionsFilters()"
+        :has-active-filters="factionsUi.factionsHasActiveFilters"
+        @clear="factionsUi.resetFactionsFilters()"
       >
-        <ListSearchInput v-model="ui.factionsSearch" placeholder="Filter factions…" />
-        <ListFilterSelect v-model="ui.factionsFilterType" aria-label="Faction type filter">
+        <ListSearchInput v-model="factionsUi.factionsSearch" placeholder="Filter factions…" />
+        <ListFilterSelect v-model="factionsUi.factionsFilterType" aria-label="Faction type filter">
           <option value="">All types</option>
           <option v-for="t in FACTION_TYPES" :key="t" :value="t">{{ t }}</option>
         </ListFilterSelect>
@@ -138,7 +138,8 @@ import { ref, computed, watch } from "vue";
 import { IconAdd, IconCheck, IconGenerate, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/factions/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
-import { useUiStore } from "@/stores/ui";
+import { useFactionsUiStore } from "@/stores/ui/factions";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -165,7 +166,8 @@ import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignF
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 import { bulkScopeAllowsGeneral } from "@/composables/campaign/useBulkCampaignScope";
 
-const ui = useUiStore();
+const factionsUi = useFactionsUiStore();
+const generatorsUi = useGeneratorUiStore();
 const campaign = useCampaignStore();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
@@ -185,9 +187,9 @@ const { showPaywall, handleNew, gateQuotaError } = useCreateGate("factions", "/f
 const hasSetting = computed(() => !!getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 
 const filtered = computed(() => {
-  const q = ui.factionsSearch.trim().toLowerCase();
+  const q = factionsUi.factionsSearch.trim().toLowerCase();
   return (factions.value ?? []).filter((f) => {
-    if (ui.factionsFilterType && f.faction_type !== ui.factionsFilterType) return false;
+    if (factionsUi.factionsFilterType && f.faction_type !== factionsUi.factionsFilterType) return false;
     if (q && !f.name.toLowerCase().includes(q) && !f.tags.some((t) => t.toLowerCase().includes(q))) return false;
     return true;
   });
@@ -236,7 +238,7 @@ async function handlePopulate() {
 
 // ── Bulk selection (#885) ───────────────────────────────────────────────────
 //
-// Owned here, not in useUiStore: transient per-visit selection, not a list
+// Owned here, not in a domain UI store: transient per-visit selection, not a list
 // filter — mirrors MonsterList.vue/NpcList.vue. No faction row is shared/
 // library content, so every filtered row is selectable.
 const {

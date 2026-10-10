@@ -25,7 +25,7 @@ import { dmNoteColumnQuery } from "@/composables/notes/useDmNote";
  * every list composable named below and the boot budget has no room for them.
  *
  * Which destinations are here, and why the others are not:
- * - Only list reads whose key does not depend on `useUiStore` filters. Every
+ * - Only list reads whose key does not depend on a domain UI store filters. Every
  *   list below filters client-side, so the key is the campaign alone and there
  *   is nothing to guess about what the page will ask for.
  * - Calendar, Soundboard, Sessions, Crafting, Interlude, Pantheon and the

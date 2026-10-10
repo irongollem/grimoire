@@ -1,6 +1,6 @@
 import { computed, ref, watch, onScopeDispose } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { requestAudioTheme, releaseAudioTheme, type AudioThemeRequest } from "@/lib/audio/audioTriggers";
 import { buildAtlasIndex } from "@/lib/locations/tree";
@@ -91,13 +91,13 @@ export function resolvePartyAmbience(
  */
 export function usePartyAmbience(): void {
   const campaign = useCampaignStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
 
   // Deferred until a session is actually running, the same way the generator
   // panels in DefaultLayout defer their own fetch: most Tuesdays never need
   // this list, and once it is fetched it is the same cached list the Atlas
   // and every location editor already share (shared query key).
-  const { data: locations } = useAllLocations(() => ui.sessionRunning);
+  const { data: locations } = useAllLocations(() => appUi.sessionRunning);
 
   // Rebuilt from the same list `buildAtlasIndex` already knows how to index —
   // reused rather than a second parent-chasing lookup, per `lib/locations/tree.ts`.
@@ -115,9 +115,9 @@ export function usePartyAmbience(): void {
   const active = ref<AudioThemeRequest | null>(null);
 
   watch(
-    [() => ui.sessionRunning, partyLocation, locationsById],
+    [() => appUi.sessionRunning, partyLocation, locationsById],
     () => {
-      const next = resolvePartyAmbience(ui.sessionRunning, partyLocation.value, locationsById.value);
+      const next = resolvePartyAmbience(appUi.sessionRunning, partyLocation.value, locationsById.value);
       const previous = active.value;
       if (previous?.sourceId === next?.sourceId) {
         active.value = next;

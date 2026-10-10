@@ -128,7 +128,7 @@
         <div class="relative flex-1 min-w-48">
           <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <AppInput
-            v-model="ui.playerSpellsSearch"
+            v-model="playerUi.playerSpellsSearch"
             tone="card"
             size="body"
             placeholder="Search by name…"
@@ -137,34 +137,34 @@
         </div>
         <!-- Level -->
         <SegmentedControl
-          :model-value="ui.playerSpellsLevelFilter"
+          :model-value="playerUi.playerSpellsLevelFilter"
           :options="LEVEL_FILTERS"
           @update:model-value="setLevelFilter"
         />
         <!-- School -->
-        <AppSelect v-model="ui.playerSpellsSchoolFilter">
+        <AppSelect v-model="playerUi.playerSpellsSchoolFilter">
           <option value="">All Schools</option>
           <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
         </AppSelect>
         <!-- Class -->
-        <AppSelect v-model="ui.playerSpellsClassFilter">
+        <AppSelect v-model="playerUi.playerSpellsClassFilter">
           <option v-for="c in availableSpellClasses" :key="c" :value="c">{{ c }}</option>
         </AppSelect>
         <AppButton
-          v-if="ui.playerSpellsHasActiveFilters"
+          v-if="playerUi.playerSpellsHasActiveFilters"
           variant="subtle"
           size="sm"
           label="Clear"
           class="shrink-0"
-          @click="ui.resetPlayerSpellsFilters()"
+          @click="playerUi.resetPlayerSpellsFilters()"
         />
       </div>
 
       <SpellList
         :search="search"
-        :level-filter="ui.playerSpellsLevelFilter"
-        :school-filter="ui.playerSpellsSchoolFilter"
-        :class-filter="ui.playerSpellsClassFilter"
+        :level-filter="playerUi.playerSpellsLevelFilter"
+        :school-filter="playerUi.playerSpellsSchoolFilter"
+        :class-filter="playerUi.playerSpellsClassFilter"
         :extra-ids="browseExpandedIds"
         :source-filter="'all'"
         :player-member-id="resolvedMemberId ?? undefined"
@@ -193,7 +193,7 @@ import { useRoute } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { refDebounced } from "@vueuse/core";
 import { IconGenerate, IconSearch } from '@/lib/icons';
-import { useUiStore } from "@/stores/ui";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import { fetchSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
 import { useAssignCharacterSpellSource, useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
@@ -246,7 +246,7 @@ const LEVEL_FILTERS = [
   { value: "7", label: "7" }, { value: "8", label: "8" }, { value: "9", label: "9" },
 ];
 
-const ui = useUiStore();
+const playerUi = usePlayerUiStore();
 
 // Which character this acts on is decided once, for all three pickers
 // (usePickerCharacter): ?memberId= for a benched or pool character, refused when
@@ -324,10 +324,10 @@ const availableSpellClasses = computed(() => {
 
 const browseSourceClassId = computed(() =>
   (characterClasses.value ?? []).find(
-    (entry) => entry.class_name === ui.playerSpellsClassFilter,
+    (entry) => entry.class_name === playerUi.playerSpellsClassFilter,
   )?.id ?? null,
 );
-const browseClassName = computed(() => ui.playerSpellsClassFilter);
+const browseClassName = computed(() => playerUi.playerSpellsClassFilter);
 const browseClassEntry = computed(() => (characterClasses.value ?? []).find(
   entry => entry.id === browseSourceClassId.value,
 ));
@@ -456,7 +456,7 @@ const browseClassSpells = computed(() => classSpells.value.filter((spell) => {
   if (browseSourceClassId.value) return spell.source_class_id === browseSourceClassId.value;
   // Legacy class spells predate source_class_id; associate them with the
   // character's original class until the player explicitly re-sources them.
-  return !spell.source_class_id && ui.playerSpellsClassFilter === memberClass.value;
+  return !spell.source_class_id && playerUi.playerSpellsClassFilter === memberClass.value;
 }));
 const browseKnownSpellIds = computed(() => browseClassSpells.value.map((spell) => spell.spell_id));
 const browsePreparedSpellIds = computed(() =>
@@ -465,7 +465,7 @@ const browsePreparedSpellIds = computed(() =>
 const browseClassSpellDetails = computed(() => (characterSpellsDetails.value ?? []).filter(spell => {
   if (spell.source_type && spell.source_type !== "class") return false;
   if (browseSourceClassId.value) return spell.source_class_id === browseSourceClassId.value;
-  return !spell.source_class_id && ui.playerSpellsClassFilter === memberClass.value;
+  return !spell.source_class_id && playerUi.playerSpellsClassFilter === memberClass.value;
 }));
 const browseKnownCantripCount = computed(() => browseClassSpellDetails.value.filter(spell => spell.spell?.level === 0).length);
 const browsePreparedSpellCount = computed(() => browseClassSpellDetails.value.filter(spell =>
@@ -563,14 +563,14 @@ watch(casterType, () => {
 });
 
 // ── Filters (browse tab) ───────────────────────────────────────────────────────
-// Filter state lives in useUiStore so it survives navigation within a session.
-const search = refDebounced(computed(() => ui.playerSpellsSearch), 400);
+// Filter state lives in a domain UI store so it survives navigation within a session.
+const search = refDebounced(computed(() => playerUi.playerSpellsSearch), 400);
 
 // When the previewed character changes, reset everything. The class filter goes
 // to "" so the watcher below picks the new character's primary class once its
 // rows are in; seeding it here would read a class that has not loaded yet.
 watch(resolvedMemberId, () => {
-  ui.playerSpellsClassFilter = "";
+  playerUi.playerSpellsClassFilter = "";
   userSelectedTab.value = false;
   activeTab.value = defaultTab.value;
 });
@@ -579,11 +579,11 @@ watch(resolvedMemberId, () => {
 // (class rows can arrive after the party, so this reruns as they land), and
 // never retain a filter from a previously viewed character.
 watch([availableSpellClasses, memberClass, resolvedMemberId], ([classes]) => {
-  if (classes.includes(ui.playerSpellsClassFilter)) return;
-  ui.playerSpellsClassFilter = classes.includes(memberClass.value) ? memberClass.value : (classes[0] ?? "");
+  if (classes.includes(playerUi.playerSpellsClassFilter)) return;
+  playerUi.playerSpellsClassFilter = classes.includes(memberClass.value) ? memberClass.value : (classes[0] ?? "");
 }, { immediate: true });
 
 function setLevelFilter(value: string) {
-  ui.playerSpellsLevelFilter = value;
+  playerUi.playerSpellsLevelFilter = value;
 }
 </script>

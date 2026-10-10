@@ -256,7 +256,7 @@
     >
       <span class="text-label text-muted-foreground shrink-0">As:</span>
       <EntityCombobox
-        :model-value="ui.dmTalkAsNpcId"
+        :model-value="appUi.dmTalkAsNpcId"
         :options="props.npcs"
         placeholder="Myself"
         @update:model-value="onTalkAsChange"
@@ -376,13 +376,13 @@ import { useItemIndex } from "@/composables/items/useItemIndex";
 import { COINS, type CoinKey, toCP } from "@/rules/currency";
 import { useAuthStore } from "@/stores/auth";
 import { useWhisperTarget } from "@/composables/campaign/useWhisperRecipients";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
 
 function onTalkAsChange(id: string) {
   const npc = id ? props.npcs.find(n => n.id === id) : null;
-  ui.setDmTalkAsNpc(id, npc?.name ?? null);
+  appUi.setDmTalkAsNpc(id, npc?.name ?? null);
 }
 
 const props = defineProps<{

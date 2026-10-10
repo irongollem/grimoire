@@ -12,10 +12,10 @@
           variant="subtle"
           size="sm"
           class="shrink-0"
-          :active="ui.playerCraftingActiveTab === 'all'"
+          :active="craftingUi.playerCraftingActiveTab === 'all'"
           :icon="IconListView"
           label="All"
-          @click="ui.playerCraftingActiveTab = 'all'"
+          @click="craftingUi.playerCraftingActiveTab = 'all'"
         />
         <AppButton
           v-for="d in availableDisciplines"
@@ -24,10 +24,10 @@
           size="sm"
           class="shrink-0"
           :class="isTabDimmed(d) ? 'opacity-60' : ''"
-          :active="ui.playerCraftingActiveTab === d.id"
+          :active="craftingUi.playerCraftingActiveTab === d.id"
           :icon="d.icon"
           :tooltip="!hasProficiency(d.tools) ? `No ${d.tools[0]} proficiency: no proficiency bonus` : d.label"
-          @click="ui.playerCraftingActiveTab = d.id"
+          @click="craftingUi.playerCraftingActiveTab = d.id"
         >
           <span>{{ d.label }}<span v-if="!hasProficiency(d.tools)" class="text-eyebrow text-muted-foreground/60 ml-1">NO PROF</span></span>
         </AppButton>
@@ -211,11 +211,13 @@ import { useParty } from "@/composables/party/useParty";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
+import { useCraftingUiStore } from "@/stores/ui/crafting";
 import type { CraftingRecipe, CraftingDiscipline, CraftingIngredient, CraftingModifier, CraftingOutput, CraftingAttemptResult } from "@/types/crafting.types";
 
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
+const craftingUi = useCraftingUiStore();
 const { data: recipes } = usePlayerCraftingRecipes();
 const { data: projection } = usePlayerItemProjection();
 const { map: recipeItemNames } = useCraftableOutputItems();
@@ -226,7 +228,7 @@ const attemptRecipe = ref<CraftingRecipe | null>(null);
 
 // Resolve current party member
 const member = computed(() => {
-  const memberId = ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId;
+  const memberId = appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId;
   return partyMembers.value?.find((m) => m.id === memberId) ?? null;
 });
 
@@ -243,7 +245,7 @@ const availableDisciplines = computed(() => {
 });
 
 const activeDiscipline = computed(() =>
-  ui.playerCraftingActiveTab === "all" ? null : getDiscipline(ui.playerCraftingActiveTab as CraftingDiscipline),
+  craftingUi.playerCraftingActiveTab === "all" ? null : getDiscipline(craftingUi.playerCraftingActiveTab as CraftingDiscipline),
 );
 
 // Discipline used for the attempt dialog — derived from the recipe being attempted
@@ -278,9 +280,9 @@ function hasTools(tools: string[]): boolean {
 }
 
 const disciplineRecipes = computed(() =>
-  ui.playerCraftingActiveTab === "all"
+  craftingUi.playerCraftingActiveTab === "all"
     ? (recipes.value ?? [])
-    : (recipes.value ?? []).filter((r) => r.discipline === ui.playerCraftingActiveTab),
+    : (recipes.value ?? []).filter((r) => r.discipline === craftingUi.playerCraftingActiveTab),
 );
 
 // Windowed rather than mounted whole: a recipe card is ~5ms of mount work (47
@@ -373,7 +375,7 @@ function canCraft(recipe: CraftingRecipe): boolean {
 // Dims a tab for a discipline the character has no proficiency in — but only
 // while it isn't the selected tab, matching the old ternary's precedence.
 function isTabDimmed(d: DisciplineConfig): boolean {
-  return ui.playerCraftingActiveTab !== d.id && !hasProficiency(d.tools);
+  return craftingUi.playerCraftingActiveTab !== d.id && !hasProficiency(d.tools);
 }
 
 function renderDescription(content: string | null): string {

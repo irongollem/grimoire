@@ -61,7 +61,7 @@
             <PeopleLedger
               v-else
               :groups="groups"
-              :view="ui.playerPeopleView"
+              :view="playerUi.playerPeopleView"
               :selected-id="isLg ? activeId : null"
               :get-rating="getRating"
               :is-new="isNpcNew"
@@ -127,7 +127,8 @@ import { IconAdd } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import { useCampaignStore } from "@/stores/campaign";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
@@ -156,13 +157,14 @@ import { healthVisibilityOf } from "@/lib/healthVisibility";
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
+const playerUi = usePlayerUiStore();
 const campaign = useCampaignStore();
 const isLg = useAbove("lg");
 const groupPortraitUrl = computed(() => campaign.activeCampaign?.group_portrait_url ?? null);
 const lightboxSrc = ref<string | null>(null);
 const viewerMemberId = computed(() =>
-  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
+  appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
 );
 
 const { data: members, isLoading: partyLoading } = useActiveParty();

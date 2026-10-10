@@ -79,7 +79,7 @@ import LibraryFocalQueueViewer from "@/components/admin/LibraryFocalQueueViewer.
 import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useLibraryFocalQueue } from "@/composables/library/useLibraryFocalQueue";
-import { useUiStore } from "@/stores/ui";
+import { useAdminUiStore } from "@/stores/ui/admin";
 import {
   entryLabel,
   filterByStatus,
@@ -99,10 +99,10 @@ const STATUS_OPTIONS = [
   { value: "all", label: "All" },
 ] as const satisfies readonly { value: FocalStatus; label: string }[];
 
-const ui = useUiStore();
+const adminUi = useAdminUiStore();
 const { focalQueueKind: kind, focalQueueStatus: status, focalQueueHasActiveFilters: hasActiveFilters } =
-  storeToRefs(ui);
-const resetFilters = ui.resetFocalQueueFilters;
+  storeToRefs(adminUi);
+const resetFilters = adminUi.resetFocalQueueFilters;
 
 const { query, entries } = useLibraryFocalQueue(kind);
 

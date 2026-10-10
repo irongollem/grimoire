@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.puzzleGeneratorOpen"
+    v-model:open="puzzlesUi.puzzleGeneratorOpen"
     v-model:concept="concept"
     v-model:generate-image="generateImage"
     title="Puzzle Generator"
@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreatePuzzle } from "@/composables/dungeon-features/usePuzzles";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -53,7 +53,7 @@ import { usePuzzleGeneration } from "@/ai/usePuzzleGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
 
-const ui       = useUiStore();
+const puzzlesUi = usePuzzlesUiStore();
 const router   = useRouter();
 const campaign = useCampaignStore();
 const { mutateAsync: createPuzzle } = useCreatePuzzle();
@@ -122,7 +122,7 @@ async function generateAndCreate() {
   }
 
   completedEntityId.value = puzzle.id;
-  ui.puzzleGeneratorOpen = false;
+  puzzlesUi.puzzleGeneratorOpen = false;
   router.push(`/puzzles/${puzzle.id}`);
 }
 </script>

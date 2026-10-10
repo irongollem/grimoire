@@ -6,7 +6,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
 import { speciesInsertFromAi, type SpeciesAiResult } from "@/lib/codex/speciesAi";
 import type { SpeciesInsert, SpeciesSize } from "@/types/species.types";
@@ -19,7 +19,7 @@ registerAiGenerator({
   label: "Species",
   entityRoute: (id) => `/species/${id}`,
   openPanel: () => {
-    useUiStore().speciesGeneratorOpen = true;
+    useGeneratorUiStore().speciesGeneratorOpen = true;
   },
 });
 

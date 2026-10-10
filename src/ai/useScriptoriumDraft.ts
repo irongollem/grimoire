@@ -9,7 +9,7 @@ import type {
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { localKeyModeChosen } from "@/lib/localKeyVault";
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -20,7 +20,7 @@ registerAiGenerator({
   label: "Document",
   entityRoute: (id) => `/scriptorium/${id}`,
   openPanel: () => {
-    useUiStore().scriptoriumDraftOpen = true;
+    useGeneratorUiStore().scriptoriumDraftOpen = true;
   },
 });
 

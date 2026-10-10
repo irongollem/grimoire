@@ -147,7 +147,7 @@ export async function resolveRoleInCampaign(
  * clears it when it unmounts, which makes it one-shot — it explains the
  * navigation that just happened and does not follow the user around.
  *
- * Module-level rather than in `useUiStore`, and the honest reason is
+ * Module-level rather than in a domain UI store, and the honest reason is
  * cohesion, not necessity — the guard reaches Pinia perfectly well two lines
  * above, so this is not the `pendingBundleFile` case of code that runs before
  * the app has a store. Either would work identically. It lives here so the

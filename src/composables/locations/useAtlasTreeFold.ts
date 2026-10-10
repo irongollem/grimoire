@@ -1,11 +1,11 @@
 import { computed, ref, watch, type Ref } from "vue";
-import { useUiStore } from "@/stores/ui";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 
 /**
  * Whether the Atlas tree column is on screen, which has three inputs that used
  * to share one stored flag.
  *
- * 1. **The DM's own fold**, `ui.locationsTreeCollapsed`. Stored, and written
+ * 1. **The DM's own fold**, `locationsUi.locationsTreeCollapsed`. Stored, and written
  *    only by the two chevrons.
  * 2. **A pane that wants the width**: a site's Map tab, or a site being run.
  *    This is derived from where the DM is and is never stored. It used to be
@@ -20,7 +20,7 @@ import { useUiStore } from "@/stores/ui";
  *    clearing the filters, puts the layout back the way it was.
  */
 export function useAtlasTreeFold(paneWantsWidth: Readonly<Ref<boolean>>) {
-  const ui = useUiStore();
+  const locationsUi = useLocationsUiStore();
 
   const reopenedBesidePane = ref(false);
   watch(paneWantsWidth, (wants) => {
@@ -32,26 +32,26 @@ export function useAtlasTreeFold(paneWantsWidth: Readonly<Ref<boolean>>) {
   // arrival. Only a change made here opens the results.
   const resultsOpen = ref(false);
   watch(
-    () => [ui.locationsSearch, ui.locationsFilterType],
+    () => [locationsUi.locationsSearch, locationsUi.locationsFilterType],
     () => {
-      resultsOpen.value = ui.locationsHasActiveFilters;
+      resultsOpen.value = locationsUi.locationsHasActiveFilters;
     },
   );
 
   const treeFolded = computed(() => {
     if (resultsOpen.value) return false;
-    return paneWantsWidth.value ? !reopenedBesidePane.value : ui.locationsTreeCollapsed;
+    return paneWantsWidth.value ? !reopenedBesidePane.value : locationsUi.locationsTreeCollapsed;
   });
 
   function foldTree() {
     resultsOpen.value = false;
     if (paneWantsWidth.value) reopenedBesidePane.value = false;
-    else ui.locationsTreeCollapsed = true;
+    else locationsUi.locationsTreeCollapsed = true;
   }
 
   function unfoldTree() {
     if (paneWantsWidth.value) reopenedBesidePane.value = true;
-    else ui.locationsTreeCollapsed = false;
+    else locationsUi.locationsTreeCollapsed = false;
   }
 
   function closeResults() {

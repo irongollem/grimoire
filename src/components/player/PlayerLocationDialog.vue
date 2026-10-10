@@ -55,7 +55,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import { useSharedLocations } from "@/composables/locations/useLocations";
 import { useSharedNpcsByLocations } from "@/composables/npcs/useNpcs";
 import { useMarkRead } from "@/composables/player/useReadItems";
@@ -69,15 +69,15 @@ import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 
-const ui = useUiStore();
+const playerUi = usePlayerUiStore();
 const router = useRouter();
 const { mutate: markRead } = useMarkRead();
 
 const { data: locations, isLoading } = useSharedLocations();
 
-const open = computed(() => ui.playerLocationDialogId !== null);
+const open = computed(() => playerUi.playerLocationDialogId !== null);
 const loc = computed(() =>
-  (locations.value ?? []).find((l) => l.id === ui.playerLocationDialogId) ?? null,
+  (locations.value ?? []).find((l) => l.id === playerUi.playerLocationDialogId) ?? null,
 );
 
 const sharedChildIds = computed(() => new Set((locations.value ?? []).map((l) => l.id)));
@@ -111,18 +111,18 @@ function goToChild(childId: string) {
   // Pins reference child locations — if the child is also shared, swap the
   // dialog to it; otherwise leave the current view in place.
   if (locations.value?.some((l) => l.id === childId)) {
-    ui.openPlayerLocationDialog(childId);
+    playerUi.openPlayerLocationDialog(childId);
   }
 }
 
 function viewInAtlas() {
-  const id = ui.playerLocationDialogId;
+  const id = playerUi.playerLocationDialogId;
   close();
   if (id) void router.push({ path: "/play/atlas", query: { open: id } });
 }
 
 function close() {
-  ui.closePlayerLocationDialog();
+  playerUi.closePlayerLocationDialog();
   lightboxSrc.value = null;
   selectedNpc.value = null;
 }

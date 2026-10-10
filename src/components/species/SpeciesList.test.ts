@@ -58,7 +58,7 @@ const ui = {
   speciesFilterSource: "all",
   speciesHasActiveFilters: false,
 };
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ui }));
+vi.mock("@/stores/ui/species", () => ({ useSpeciesUiStore: () => ui }));
 
 vi.mock("@/stores/campaign", () => ({
   // Wrapped in `reactive()`, exactly like a real Pinia store: `storeToRefs`

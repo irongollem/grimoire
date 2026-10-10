@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.customClassGeneratorOpen"
+    v-model:open="generatorsUi.customClassGeneratorOpen"
     v-model:concept="concept"
     title="Class Generator"
     concept-placeholder="A warrior-priest of the Ashen Reach who tends the last forge-fires, shields allies with cinders, and burns bright at a cost to herself…"
@@ -83,7 +83,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -106,7 +106,7 @@ import {
 import { createWithFeatures } from "@/lib/codex/featureBatch";
 import type { HitDie } from "@/levelup/customTypes";
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const toast = useToast();
 
@@ -170,7 +170,7 @@ async function createAll() {
     });
     pending.value = null;
     completedEntityId.value = created.id;
-    ui.customClassGeneratorOpen = false;
+    generatorsUi.customClassGeneratorOpen = false;
     router.push(`/levelup/classes/${created.id}`);
   } catch (e) {
     toast.error(toast.fromError(e));

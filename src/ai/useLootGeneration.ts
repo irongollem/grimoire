@@ -9,7 +9,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import type { LootCrTier } from "@/types/lootTable.types";
 
@@ -23,7 +23,7 @@ registerAiGenerator({
   label: "Loot Table",
   entityRoute: (id) => `/loot-tables/${id}`,
   openPanel: () => {
-    useUiStore().lootTableGeneratorOpen = true;
+    useGeneratorUiStore().lootTableGeneratorOpen = true;
   },
 });
 
