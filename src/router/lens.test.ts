@@ -75,7 +75,6 @@ const UNFENCED = [
   "oauth-consent",
   "spotify-callback",
   "admin",
-  "spike-pagedjs",
   "sheet-calibration",
   "component-catalogue",
   "not-found",

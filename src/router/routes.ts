@@ -1052,20 +1052,11 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true, title: "Admin" },
   },
 
-  // Dev-only: the Paged.js spike harness (SCRIPTORIUM_PLAN.md §3 / issue #330),
-  // sheet calibration, and the component catalogue (#622). Registered in dev and
-  // in Vercel preview builds — so a PR's preview can be used to review them — but
-  // never in production.
+  // Dev-only: sheet calibration and the component catalogue (#622). Registered
+  // in dev and in Vercel preview builds — so a PR's preview can be used to review
+  // them — but never in production.
   ...(import.meta.env.DEV || __PREVIEW_BUILD__
     ? [
-        {
-          path: "/spike/pagedjs",
-          name: "spike-pagedjs",
-          // No auth: lets headless Chrome print-to-PDF hit it directly.
-          // Dev-only — this route does not exist in production builds.
-          component: () => import("@/views/spike/SpikePagedJsView.vue"),
-          meta: { requiresAuth: false, title: "Paged.js Spike" },
-        },
         {
           path: "/dev/sheet-calibration",
           name: "sheet-calibration",
