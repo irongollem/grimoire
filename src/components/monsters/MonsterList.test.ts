@@ -41,7 +41,11 @@ function monster(overrides: Partial<Monster> = {}): Monster {
 // boolean unwraps correctly and reliably forces the desktop grid branch,
 // which is the one under test here (MonsterGridCard/EntityMobileCard belong
 // to other files and are stubbed away below).
-vi.mock("@vueuse/core", () => ({ useMediaQuery: () => false }));
+// FocalImage mounts the AI chip, whose module reads `useStorage`: keep the real exports.
+vi.mock("@vueuse/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vueuse/core")>()),
+  useMediaQuery: () => false,
+}));
 
 const monstersData = ref<Monster[]>([]);
 const PAGE = 48;

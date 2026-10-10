@@ -62,7 +62,11 @@ function npc(overrides: Partial<Npc> = {}): Npc {
 // unwraps correctly regardless of the real `useMediaQuery`'s `ComputedRef`
 // return type.
 let mobileMode = false;
-vi.mock("@vueuse/core", () => ({ useMediaQuery: () => mobileMode }));
+// FocalImage mounts the AI chip, whose module reads `useStorage`: keep the real exports.
+vi.mock("@vueuse/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vueuse/core")>()),
+  useMediaQuery: () => mobileMode,
+}));
 
 const routerPush = vi.fn();
 const routerReplace = vi.fn();

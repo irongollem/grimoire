@@ -197,14 +197,16 @@
 
         <div class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
           <MiniPortraitOverlay :source="{ table: 'monsters', id: lightboxMiniSourceId }" badge-position="bottom-right">
+            <!-- Left, not right: the mini badge owns bottom-right. Both bottom corners are taken (CR left, mini badge right), so the chip stacks above the CR one. -->
             <FocalImage
               :src="lightbox?.imageUrl"
               :alt="lightbox?.name"
               format="landscape"
               :focal-point="lightbox?.monster?.portrait_focal_point"
               :placeholder="placeholderUrl('monster')"
+              ai-badge="left"
+              ai-badge-class="bottom-9!"
             />
-            <!-- Left, not right: the mini badge owns bottom-right here. -->
             <!--
               `stat_block` is optional-chained because the player projection
               nulls it whole when the DM has not revealed a creature's stats
@@ -218,8 +220,6 @@
               class="absolute bottom-2 left-2 px-2 py-0.5 rounded text-label font-bold text-white"
               :class="crBg(lightbox.monster.stat_block?.challenge_rating)"
             >CR {{ crText(lightbox.monster.stat_block?.challenge_rating) }}</span>
-            <!-- Both bottom corners are taken (CR left, mini badge right), so the chip stacks above the CR one. -->
-            <AiImageBadge corner="left" class="bottom-9!" :src="lightbox?.imageUrl" />
           </MiniPortraitOverlay>
         </div>
 
@@ -343,7 +343,6 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import MonsterFormCard from "@/components/monsters/MonsterFormCard.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

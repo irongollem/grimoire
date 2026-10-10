@@ -33,8 +33,8 @@
             :focal-point="feature.image_focal_point"
             :placeholder="placeholderUrl('dungeonfeature')"
             class="group-hover:scale-105 transition-transform duration-300"
+            ai-badge="right"
           />
-          <AiImageBadge :src="feature.image_url" />
           <span
             class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
             :class="DUNGEON_FEATURE_TYPE_BG[feature.feature_type]"
@@ -64,7 +64,6 @@ import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFea
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_BG } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import PlacedInLine from "./PlacedInLine.vue";

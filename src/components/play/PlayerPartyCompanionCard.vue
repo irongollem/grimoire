@@ -11,6 +11,7 @@
         :focal-point="companion.portrait_focal_point ?? null"
         :placeholder="placeholderUrl('companion')"
         class="group-hover:scale-105 transition-transform duration-300"
+        ai-badge="right"
       />
       <!-- One stack, not two corners: on a phone-width card "Animal Companion"
            alone spans most of the image, and a second chip pinned to the other
@@ -26,7 +27,6 @@
           title="Not with the party right now"
         >Elsewhere</span>
       </div>
-      <AiImageBadge :src="companion.portrait_url" />
     </div>
     <div class="p-2.5 flex flex-col gap-1.5">
       <div>
@@ -69,7 +69,6 @@
 
 <script setup lang="ts">
 import { IconShield } from "@/lib/icons";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useHpDisplay } from "@/composables/play/useHpDisplay";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";

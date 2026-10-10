@@ -32,8 +32,8 @@
                     format="portrait"
                     :focal-point="portrait.focalPoint"
                     class="w-full h-full"
+                    ai-badge="right"
                   />
-                  <AiImageBadge :src="portrait.src" />
                 </div>
                 <div class="p-3 space-y-2">
                   <!-- You badge + name + class/level -->
@@ -201,7 +201,6 @@ import { formPortrait } from "@/lib/wildshapePortrait";
 import { IconClose, IconShield } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useAuthStore } from "@/stores/auth";

@@ -12,7 +12,10 @@ import {
   isLibraryStem,
   isLoopbackUrl,
   isVariantPath,
+  isReferencedOriginal,
   libraryArtProvenance,
+  R2_COPY_COMPLETED,
+  UNKNOWN_GENERATED_AT,
   parseImageUrl,
   planEntry,
   readProvenanceFromBytes,
@@ -307,20 +310,47 @@ describe("--library-is-ai", () => {
     expect(isLibraryStem("srd")).toBe(false);
   });
 
-  it("records OpenAI image output dated by the object's Last-Modified", () => {
-    expect(libraryArtProvenance("Tue, 12 May 2026 10:00:00 GMT")).toEqual({
+  it("records OpenAI image output dated by the original's own Last-Modified", () => {
+    expect(libraryArtProvenance("Tue, 25 Aug 2026 10:00:00 GMT", true)).toEqual({
       generatorType: "library-art",
       provider: "openai",
       model: "gpt-image",
-      generatedAt: "2026-05-12T10:00:00.000Z",
+      generatedAt: "2026-08-25T10:00:00.000Z",
       edited: false,
     });
   });
 
+  it("does not date art from an object that is not the referenced original", () => {
+    const record = libraryArtProvenance("Tue, 25 Aug 2026 10:00:00 GMT", false);
+    expect(record?.provider).toBe("openai");
+    expect(record?.generatedAt).toBe(UNKNOWN_GENERATED_AT);
+  });
+
+  it("does not date art from a Last-Modified left by the bulk copy into R2", () => {
+    const copied = new Date(R2_COPY_COMPLETED.getTime() - 1000).toUTCString();
+    expect(libraryArtProvenance(copied, true)?.generatedAt).toBe(UNKNOWN_GENERATED_AT);
+  });
+
   it("leaves out anything uploaded on or after the cutoff, or with no readable date", () => {
-    expect(libraryArtProvenance("Sat, 11 Oct 2026 00:00:00 GMT")).toBeNull();
-    expect(libraryArtProvenance("Mon, 01 Mar 2027 09:00:00 GMT")).toBeNull();
-    expect(libraryArtProvenance(null)).toBeNull();
-    expect(libraryArtProvenance("not a date")).toBeNull();
+    for (const trusted of [true, false]) {
+      expect(libraryArtProvenance("Sat, 11 Oct 2026 00:00:00 GMT", trusted)).toBeNull();
+      expect(libraryArtProvenance("Mon, 01 Mar 2027 09:00:00 GMT", trusted)).toBeNull();
+      expect(libraryArtProvenance(null, trusted)).toBeNull();
+      expect(libraryArtProvenance("not a date", trusted)).toBeNull();
+    }
+  });
+
+  it("treats only a URL a row points at as the original", () => {
+    const target: Target = {
+      bucket: "monster-images",
+      stem: "srd/abc",
+      originalPaths: ["srd/abc.webp"],
+      urlPrefix: `${ORIGIN}/monster-images/`,
+      owner: null,
+      sources: [],
+    };
+    expect(isReferencedOriginal(target, `${ORIGIN}/monster-images/srd/abc.webp`)).toBe(true);
+    expect(isReferencedOriginal(target, `${ORIGIN}/monster-images/srd/abc.png`)).toBe(false);
+    expect(isReferencedOriginal(target, `${ORIGIN}/monster-images/srd/abc_w400.webp`)).toBe(false);
   });
 });

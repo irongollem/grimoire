@@ -51,6 +51,8 @@
         :focal-point="focalPoint"
         :placeholder="placeholder"
         class="transition-transform duration-300 group-hover:scale-105"
+        :ai-badge="$slots['image-overlay'] ? 'left' : 'right'"
+        :ai-badge-class="$slots['image-footer'] ? 'bottom-9!' : undefined"
       />
       <!--
         The stance/CR pill shares the action chips' treatment — same 1.5rem
@@ -86,14 +88,9 @@
         so the entity decides what earns the space; items spend it on a type
         icon plus the name.
       -->
-      <!-- Overlays that sit on the artwork itself (the spell Learn button), unlike the footer strip they add no gradient. -->
+      <!-- Overlays that sit on the artwork itself (the spell Learn button), unlike the footer strip they add no gradient.
+           The AI chip (on FocalImage above) moves to the left corner when one is rendered, and lifts over the footer strip. -->
       <slot name="image-overlay" />
-      <!-- Left when an overlay owns the bottom-right corner; lifted clear of the footer strip's name. -->
-      <AiImageBadge
-        :src="imageUrl"
-        :corner="$slots['image-overlay'] ? 'left' : 'right'"
-        :class="$slots['image-footer'] ? 'bottom-9!' : undefined"
-      />
 
       <div
         v-if="$slots['image-footer']"
@@ -119,7 +116,6 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { IconLock } from "@/lib/icons";
 import { rememberModalOrigin } from "@/lib/modalOrigin";

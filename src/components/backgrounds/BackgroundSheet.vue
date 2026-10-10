@@ -21,7 +21,7 @@
     <!-- Identity card -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="p-4 flex gap-4">
-        <div class="relative shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
+        <div class="shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
           <FocalImage
             :src="background.image_url"
             :alt="background.name"
@@ -30,8 +30,8 @@
             :lightbox="true"
             :placeholder="placeholderUrl('background')"
             class="w-full h-full"
+            ai-badge="right"
           />
-          <AiImageBadge :src="background.image_url" />
         </div>
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="text-heading-lg font-bold text-foreground leading-tight">{{ background.name }}</h1>
@@ -261,7 +261,6 @@
 </template>
 
 <script setup lang="ts">
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAddItem, IconClose, IconDelete, IconEdit } from '@/lib/icons';

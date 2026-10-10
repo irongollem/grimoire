@@ -42,7 +42,6 @@ function mountCard(n: PlayerNpc) {
       plugins: [queryPlugin()],
       stubs: {
         MiniPortraitOverlay: PassThrough,
-        FocalImage: true,
         NpcRatingStars: true,
         EntityNewDot: true,
       },

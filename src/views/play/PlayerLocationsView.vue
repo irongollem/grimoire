@@ -133,8 +133,8 @@
           :alt="watchingLocation.name"
           format="landscape"
           class="w-full h-full"
+          ai-badge="right"
         />
-        <AiImageBadge :src="watchingLocation.image_url" />
       </div>
       <div class="px-4 py-4 flex flex-col gap-4">
         <p v-if="watchingLocation?.player_summary" class="text-body text-foreground italic">
@@ -179,7 +179,6 @@ import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import PlayerLocationFiltersBar from "@/components/play/PlayerLocationFiltersBar.vue";

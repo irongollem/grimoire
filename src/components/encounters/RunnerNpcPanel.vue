@@ -1,15 +1,14 @@
 <template>
   <div class="detail-scroll">
-    <div v-if="portrait.src" class="relative">
-      <FocalImage
-        :src="portrait.src"
-        :alt="portrait.alt"
-        :focal-point="portrait.focalPoint"
-        format="portrait"
-        class="detail-portrait"
-      />
-      <AiImageBadge :src="portrait.src" />
-    </div>
+    <FocalImage
+      v-if="portrait.src"
+      :src="portrait.src"
+      :alt="portrait.alt"
+      :focal-point="portrait.focalPoint"
+      format="portrait"
+      class="detail-portrait"
+      ai-badge="right"
+    />
     <p class="detail-meta">
       {{ [npc.race, npc.occupation].filter(Boolean).join(' · ') }}
       <span v-if="npc.alignment"> · {{ npc.alignment }}</span>
@@ -57,7 +56,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";

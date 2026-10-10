@@ -80,7 +80,7 @@ function makeItem(overrides: Partial<ItemBrowseRow> = {}): ItemBrowseRow {
   };
 }
 
-const globalStubs = { stubs: { RouterLink: RouterLinkStub, AiImageBadge: true } };
+const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
 
 // VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so
 // every box reads 0 tall and nothing would render. Give the scroller (the

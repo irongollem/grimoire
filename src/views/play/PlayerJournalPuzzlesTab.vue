@@ -19,9 +19,8 @@
           :focal-point="puzzle.image_focal_point"
           :placeholder="placeholderUrl('enigma')"
           class="group-hover:scale-105 transition-transform duration-300"
+          ai-badge="left"
         />
-        <!-- Left corner: the difficulty tag owns the bottom-right. -->
-        <AiImageBadge v-if="puzzle.image_url" corner="left" :src="puzzle.image_url" />
         <span
           class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
           :class="PUZZLE_TYPE_BG[puzzle.puzzle_type]"
@@ -49,7 +48,6 @@ import ListSkeleton from "@/components/common/ListSkeleton.vue";
 import { RouterLink } from 'vue-router';
 import { IconPuzzle } from '@/lib/icons';
 import FocalImage from '@/components/common/FocalImage.vue';
-import AiImageBadge from '@/components/common/AiImageBadge.vue';
 import EntityNewDot from '@/components/common/EntityNewDot.vue';
 import { useReadItems } from '@/composables/play/useReadItems';
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from '@/types/puzzle.types';

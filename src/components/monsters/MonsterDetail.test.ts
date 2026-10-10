@@ -51,7 +51,11 @@ function monster(overrides: Partial<Monster> = {}): Monster {
   } as Monster;
 }
 
-vi.mock("@vueuse/core", () => ({ useMediaQuery: () => false }));
+// FocalImage mounts the AI chip, whose module reads `useStorage`: keep the real exports.
+vi.mock("@vueuse/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vueuse/core")>()),
+  useMediaQuery: () => false,
+}));
 
 const routerPush = vi.fn();
 const routerReplace = vi.fn();

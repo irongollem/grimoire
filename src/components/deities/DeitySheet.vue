@@ -15,8 +15,8 @@
           :lightbox="true"
           :placeholder="placeholderUrl('deity')"
           class="w-full h-full"
+          ai-badge="right"
         />
-        <AiImageBadge :src="deity.portrait_url" />
       </div>
 
       <!-- Holy symbol image -->

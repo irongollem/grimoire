@@ -80,6 +80,8 @@
           :render-width="300"
           lightbox
           class="h-full w-full transition-transform duration-300 group-hover:scale-105"
+          ai-badge="right"
+          ai-badge-class="bottom-14!"
         />
 
         <!-- Kind badge -->
@@ -113,8 +115,6 @@
           <p class="text-caption-sm text-white/90 line-clamp-2 leading-tight">{{ img.prompt || '—' }}</p>
           <p class="text-caption-sm text-white/50">{{ timeAgo(img.created_at) }}</p>
         </div>
-        <!-- Lifted above the caption gradient, which runs up to three lines. -->
-        <AiImageBadge :src="img.image_url" class="bottom-14!" />
       </div>
     </div>
   </PageHeader>
@@ -124,7 +124,6 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import FocalImage from "@/components/common/FocalImage.vue";

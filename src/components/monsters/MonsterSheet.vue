@@ -10,16 +10,15 @@
            most of the panel and the stat block fell off the bottom. At `lg` the
            12.5rem column decides the height anyway, so nothing changes there. -->
       <div class="flex flex-col gap-3">
-        <div class="relative w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-112">
-          <FocalImage
-            :src="monster.image_url"
-            :focal-point="monster.portrait_focal_point"
-            format="portrait"
-            :lightbox="true"
-            :placeholder="placeholderUrl('monster')"
-          />
-          <AiImageBadge :src="monster.image_url" />
-        </div>
+        <FocalImage
+          :src="monster.image_url"
+          :focal-point="monster.portrait_focal_point"
+          format="portrait"
+          :lightbox="true"
+          :placeholder="placeholderUrl('monster')"
+          class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-112"
+          ai-badge="right"
+        />
         <div v-if="monster.tags?.length" class="flex flex-wrap gap-1">
           <span
             v-for="tag in monster.tags"
@@ -132,7 +131,6 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconEncounter, IconPackage } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";

@@ -56,7 +56,11 @@
  * unmarked library art is AI, because the hope is to pay artists for library
  * art one day and their work must never be labelled AI by default. An image
  * with no Last-Modified cannot be placed before the cutoff and is left alone,
- * and a row already in the registry is never touched.
+ * and a row already in the registry is never touched. The recorded date is the
+ * Last-Modified of the original a row points at, and only when it postdates the
+ * bulk copy into R2 (`R2_COPY_COMPLETED`); any other answer (a guessed sibling
+ * extension, a copy-time stamp) records the art as AI with an unknown date. The
+ * dry run reports both counts (`libraryArtDatedByOriginal`, `libraryArtDateUnknown`).
  *
  * `--library-owner <uuid>` names the owner of canonical `srd/` art; by default
  * it is the app admin when exactly one exists. `--limit <n>` scans only the
@@ -407,21 +411,45 @@ export function isLibraryStem(stem: string): boolean {
 export const LIBRARY_AI_CUTOFF = new Date("2026-10-11T00:00:00Z");
 
 /**
- * The record `--library-is-ai` gives canonical art with no packet: OpenAI image
- * output, dated by the object's Last-Modified (its upload, the nearest thing to
- * a generation date the bytes keep). Null when the date is missing, unreadable
- * or not before the cutoff: that image is not part of the backfill.
+ * The R2 migration (#577) copied every existing object into R2 in bulk and
+ * finished on 7 Aug 2026. The CDN serves R2, so an object older than that
+ * answers with the copy's Last-Modified, not its upload. A Last-Modified before
+ * this instant therefore dates nothing; one after it is a direct upload.
  */
-export function libraryArtProvenance(lastModified: string | null): AiProvenance | null {
+export const R2_COPY_COMPLETED = new Date("2026-08-08T00:00:00Z");
+
+/** `generatedAt` for art whose generation date cannot be read. The registry only requires the key; the badge omits the "Generated" line for an empty value. */
+export const UNKNOWN_GENERATED_AT = "";
+
+/**
+ * The record `--library-is-ai` gives canonical art with no packet: OpenAI image
+ * output. Null when the Last-Modified is missing, unreadable or not before the
+ * cutoff: that image is not part of the backfill.
+ *
+ * The date is the object's Last-Modified (its upload, the nearest thing to a
+ * generation date the bytes keep) only when that header dates the original:
+ * `datesOriginal` is true when it came from an object a row actually points at
+ * (not a guessed sibling extension that may be a later re-upload), and the
+ * value is after the bulk copy into R2. Otherwise the art is still recorded as
+ * AI (it is, and leaving it unlabelled would be the worse error) but with an
+ * unknown generation date rather than a wrong one.
+ */
+export function libraryArtProvenance(lastModified: string | null, datesOriginal: boolean): AiProvenance | null {
   const date = lastModified ? new Date(lastModified) : null;
   if (!date || isNaN(date.getTime()) || date >= LIBRARY_AI_CUTOFF) return null;
+  const dated = datesOriginal && date >= R2_COPY_COMPLETED;
   return {
     generatorType: "library-art",
     provider: "openai",
     model: "gpt-image",
-    generatedAt: date.toISOString(),
+    generatedAt: dated ? date.toISOString() : UNKNOWN_GENERATED_AT,
     edited: false,
   };
+}
+
+/** True when `url` is one of the objects a row points at, so its headers describe the original and not a guessed sibling. */
+export function isReferencedOriginal(target: Pick<Target, "originalPaths" | "urlPrefix">, url: string): boolean {
+  return target.originalPaths.some((path) => pathUrl(target, path) === url);
 }
 
 /** Reads the AI packet out of image bytes. Null when the image carries none, or is not a known format. */
@@ -604,6 +632,7 @@ async function main(): Promise<void> {
   const noOwner: Report["noOwner"] = [];
   let unmarked = 0;
   let libraryDefaulted = 0;
+  let libraryDateUnknown = 0;
   let done = 0;
   await pooled(targets, CONCURRENCY, async (target) => {
     const outcome = await fetchOriginal(target);
@@ -632,8 +661,11 @@ async function main(): Promise<void> {
     const registered = registry.get(`${target.bucket}\u0000${target.stem}`) ?? null;
     let found = readProvenanceFromBytes(outcome.bytes);
     if (!found && values["library-is-ai"] && isLibraryStem(target.stem) && !registered) {
-      found = libraryArtProvenance(outcome.lastModified);
-      if (found) libraryDefaulted++;
+      found = libraryArtProvenance(outcome.lastModified, isReferencedOriginal(target, outcome.url));
+      if (found) {
+        libraryDefaulted++;
+        if (found.generatedAt === UNKNOWN_GENERATED_AT) libraryDateUnknown++;
+      }
     }
     if (!found) {
       unmarked++;
@@ -658,6 +690,8 @@ async function main(): Promise<void> {
     noOwner: count("no-owner"),
     unmarked,
     libraryArtRecordedAsAi: libraryDefaulted,
+    libraryArtDatedByOriginal: libraryDefaulted - libraryDateUnknown,
+    libraryArtDateUnknown: libraryDateUnknown,
   };
   console.log(JSON.stringify(summary, null, 2));
   if (missingColumns.length > 0) console.log(`Columns not found: ${missingColumns.join(", ")}`);

@@ -70,7 +70,7 @@
     </template>
 
     <!-- The player portal's Learn / Prepare control, over the art's corner. -->
-    <template #image-overlay>
+    <template v-if="$slots.overlay" #image-overlay>
       <slot name="overlay" />
     </template>
   </EntityGridCard>

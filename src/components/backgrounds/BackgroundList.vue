@@ -68,8 +68,8 @@
             :focal-point="b.focal_point"
             :placeholder="placeholderUrl('background')"
             class="group-hover:scale-105 transition-transform duration-300"
+            ai-badge="right"
           />
-          <AiImageBadge :src="b.image_url" />
         </div>
 
         <div class="p-3 flex flex-col gap-1.5 flex-1">
@@ -155,7 +155,6 @@
 </template>
 
 <script setup lang="ts">
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { computed } from "vue";
 import { IconCheck, IconEdit } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";

@@ -97,14 +97,21 @@
         :render-width="600"
         :placeholder="placeholder"
         class="absolute inset-0"
+        ai-badge="right"
+        ai-badge-class="z-10"
       />
       <!-- Gradient fading into the page background -->
       <div class="hero-fade pointer-events-none absolute inset-x-0 bottom-0 h-2/3" />
-      <!-- Top corner: the bottom carries the name and pills. -->
-      <AiImageBadge :src="image" class="top-2 bottom-auto!" />
 
-      <!-- Overlaid identity -->
-      <div class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 px-4 pb-3">
+      <!--
+        Overlaid identity. The AI chip sits in the hero's bottom-right corner,
+        the only part of the hero that neither the fixed app bar (top, with the
+        More and Reveal buttons) nor the scroll-away name covers; `pr-12` keeps
+        long names and subtitles from running underneath it. The chip lives in
+        FocalImage, which paints before the fade and this block, so it carries
+        `z-10` to stay on top of both.
+      -->
+      <div class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 pr-12 pl-4 pb-3">
         <div v-if="$slots.pills" class="flex flex-wrap items-center gap-1.5">
           <slot name="pills" />
         </div>
@@ -170,7 +177,6 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useScroll } from "@vueuse/core";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
 import FocalImage from "@/components/common/FocalImage.vue";
