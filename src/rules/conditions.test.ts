@@ -12,81 +12,89 @@ import {
   getExhaustionLevel,
   setExhaustionLevel,
   isExhaustion,
+  EXHAUSTION,
+  hasCondition,
+  findCondition,
+  conditionNames,
+  withCondition,
+  withoutCondition,
+  toggleCondition,
+  sameConditions,
   MAX_EXHAUSTION,
 } from "@/rules/conditions";
 
 describe("hasSaveDisadvantage", () => {
   it("gives no disadvantage with no relevant conditions", () => {
     expect(hasSaveDisadvantage([], "dex", "2014")).toBe(false);
-    expect(hasSaveDisadvantage(["Poisoned"], "con", "2014")).toBe(false);
+    expect(hasSaveDisadvantage([{ name: "Poisoned" }], "con", "2014")).toBe(false);
   });
 
   it("Restrained → disadvantage on DEX saves only (both editions)", () => {
-    expect(hasSaveDisadvantage(["Restrained"], "dex", "2014")).toBe(true);
-    expect(hasSaveDisadvantage(["Restrained"], "str", "2014")).toBe(false);
-    expect(hasSaveDisadvantage(["Restrained"], "con", "2014")).toBe(false);
-    expect(hasSaveDisadvantage(["Restrained"], "dex", "2024")).toBe(true);
+    expect(hasSaveDisadvantage([{ name: "Restrained" }], "dex", "2014")).toBe(true);
+    expect(hasSaveDisadvantage([{ name: "Restrained" }], "str", "2014")).toBe(false);
+    expect(hasSaveDisadvantage([{ name: "Restrained" }], "con", "2014")).toBe(false);
+    expect(hasSaveDisadvantage([{ name: "Restrained" }], "dex", "2024")).toBe(true);
   });
 
   it("2014 (default): Exhaustion 3+ → disadvantage on ALL saves", () => {
-    expect(hasSaveDisadvantage(["Exhaustion 3"], "wis", "2014")).toBe(true);
-    expect(hasSaveDisadvantage(["Exhaustion 5"], "dex", "2014")).toBe(true);
-    expect(hasSaveDisadvantage(["Exhaustion 3"], "wis", "2014")).toBe(true);
+    expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 3 }], "wis", "2014")).toBe(true);
+    expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 5 }], "dex", "2014")).toBe(true);
+    expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 3 }], "wis", "2014")).toBe(true);
   });
 
   it("2014: Exhaustion below 3 → no save disadvantage", () => {
-    expect(hasSaveDisadvantage(["Exhaustion 2"], "wis", "2014")).toBe(false);
+    expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 2 }], "wis", "2014")).toBe(false);
   });
 
   it("2024: Exhaustion never causes save disadvantage (numeric penalty instead)", () => {
-    expect(hasSaveDisadvantage(["Exhaustion 3"], "wis", "2024")).toBe(false);
-    expect(hasSaveDisadvantage(["Exhaustion 6"], "con", "2024")).toBe(false);
+    expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 3 }], "wis", "2024")).toBe(false);
+    expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 6 }], "con", "2024")).toBe(false);
   });
 
   it("is case-insensitive on the ability key", () => {
-    expect(hasSaveDisadvantage(["Restrained"], "DEX", "2014")).toBe(true);
+    expect(hasSaveDisadvantage([{ name: "Restrained" }], "DEX", "2014")).toBe(true);
   });
 });
 
 describe("hasAttackDisadvantage", () => {
   it("base condition set applies under both editions", () => {
-    expect(hasAttackDisadvantage(["Blinded"], "2014")).toBe(true);
-    expect(hasAttackDisadvantage(["Blinded"], "2024")).toBe(true);
+    expect(hasAttackDisadvantage([{ name: "Blinded" }], "2014")).toBe(true);
+    expect(hasAttackDisadvantage([{ name: "Blinded" }], "2024")).toBe(true);
     expect(hasAttackDisadvantage([], "2014")).toBe(false);
   });
 
   it("2014 (default): Exhaustion 3+ also imposes attack disadvantage", () => {
-    expect(hasAttackDisadvantage(["Exhaustion 3"], "2014")).toBe(true);
-    expect(hasAttackDisadvantage(["Exhaustion 1"], "2014")).toBe(false);
+    expect(hasAttackDisadvantage([{ name: "Exhaustion", level: 3 }], "2014")).toBe(true);
+    expect(hasAttackDisadvantage([{ name: "Exhaustion", level: 1 }], "2014")).toBe(false);
   });
 
   it("2024: Exhaustion never causes attack disadvantage", () => {
-    expect(hasAttackDisadvantage(["Exhaustion 3"], "2024")).toBe(false);
-    expect(hasAttackDisadvantage(["Exhaustion 6"], "2024")).toBe(false);
+    expect(hasAttackDisadvantage([{ name: "Exhaustion", level: 3 }], "2024")).toBe(false);
+    expect(hasAttackDisadvantage([{ name: "Exhaustion", level: 6 }], "2024")).toBe(false);
   });
 });
 
 describe("hasCheckDisadvantage", () => {
   it("base condition set applies under both editions", () => {
-    expect(hasCheckDisadvantage(["Frightened"], "2014")).toBe(true);
-    expect(hasCheckDisadvantage(["Frightened"], "2024")).toBe(true);
+    expect(hasCheckDisadvantage([{ name: "Frightened" }], "2014")).toBe(true);
+    expect(hasCheckDisadvantage([{ name: "Frightened" }], "2024")).toBe(true);
   });
 
   it("2014 (default): any Exhaustion level gives check disadvantage", () => {
-    expect(hasCheckDisadvantage(["Exhaustion 1"], "2014")).toBe(true);
+    expect(hasCheckDisadvantage([{ name: "Exhaustion", level: 1 }], "2014")).toBe(true);
     expect(hasCheckDisadvantage([], "2014")).toBe(false);
   });
 
   it("2024: Exhaustion never causes check disadvantage", () => {
-    expect(hasCheckDisadvantage(["Exhaustion 1"], "2024")).toBe(false);
-    expect(hasCheckDisadvantage(["Exhaustion 6"], "2024")).toBe(false);
+    expect(hasCheckDisadvantage([{ name: "Exhaustion", level: 1 }], "2024")).toBe(false);
+    expect(hasCheckDisadvantage([{ name: "Exhaustion", level: 6 }], "2024")).toBe(false);
   });
 });
 
 describe("exhaustion models — 2014 (disadvantage tiers) vs 2024 (flat penalty)", () => {
   it("2014: getExhaustionD20Penalty and getExhaustionSpeedPenaltyFt are always 0 (that edition uses disadvantage flags instead)", () => {
     for (const level of [1, 3, 6]) {
-      const conditions = [`Exhausted ${level}`];
+      const conditions = [{ name: "Exhaustion", level }];
       expect(getExhaustionD20Penalty(conditions, "2014")).toBe(0);
       expect(getExhaustionD20Penalty(conditions, "2014")).toBe(0);
       expect(getExhaustionSpeedPenaltyFt(conditions, "2014")).toBe(0);
@@ -94,16 +102,16 @@ describe("exhaustion models — 2014 (disadvantage tiers) vs 2024 (flat penalty)
   });
 
   it("2024: getExhaustionD20Penalty is a flat −2 per level", () => {
-    expect(getExhaustionD20Penalty(["Exhausted 1"], "2024")).toBe(-2);
-    expect(getExhaustionD20Penalty(["Exhausted 3"], "2024")).toBe(-6);
-    expect(getExhaustionD20Penalty(["Exhausted 6"], "2024")).toBe(-12);
+    expect(getExhaustionD20Penalty([{ name: "Exhaustion", level: 1 }], "2024")).toBe(-2);
+    expect(getExhaustionD20Penalty([{ name: "Exhaustion", level: 3 }], "2024")).toBe(-6);
+    expect(getExhaustionD20Penalty([{ name: "Exhaustion", level: 6 }], "2024")).toBe(-12);
     expect(getExhaustionD20Penalty([], "2024")).toBe(0);
   });
 
   it("2024: getExhaustionSpeedPenaltyFt is a flat −5 ft per level", () => {
-    expect(getExhaustionSpeedPenaltyFt(["Exhausted 1"], "2024")).toBe(5);
-    expect(getExhaustionSpeedPenaltyFt(["Exhausted 3"], "2024")).toBe(15);
-    expect(getExhaustionSpeedPenaltyFt(["Exhausted 6"], "2024")).toBe(30);
+    expect(getExhaustionSpeedPenaltyFt([{ name: "Exhaustion", level: 1 }], "2024")).toBe(5);
+    expect(getExhaustionSpeedPenaltyFt([{ name: "Exhaustion", level: 3 }], "2024")).toBe(15);
+    expect(getExhaustionSpeedPenaltyFt([{ name: "Exhaustion", level: 6 }], "2024")).toBe(30);
   });
 
   it("MAX_EXHAUSTION is 6 for both editions", () => {
@@ -111,10 +119,11 @@ describe("exhaustion models — 2014 (disadvantage tiers) vs 2024 (flat penalty)
   });
 
   it("exhaustion level storage/parsing is edition-agnostic", () => {
-    expect(isExhaustion("Exhausted 3")).toBe(true);
-    expect(getExhaustionLevel(["Exhausted 4"])).toBe(4);
-    expect(setExhaustionLevel([], 6)).toEqual(["Exhausted 6"]);
-    expect(setExhaustionLevel(["Exhausted 6"], 7)).toEqual(["Exhausted 6"]); // clamped
+    expect(isExhaustion({ name: "Exhaustion", level: 3 })).toBe(true);
+    expect(isExhaustion({ name: "Poisoned" })).toBe(false);
+    expect(getExhaustionLevel([{ name: "Exhaustion", level: 4 }])).toBe(4);
+    expect(setExhaustionLevel([], 6)).toEqual([{ name: "Exhaustion", level: 6 }]);
+    expect(setExhaustionLevel([{ name: "Exhaustion", level: 6 }], 7)).toEqual([{ name: "Exhaustion", level: 6 }]); // clamped
   });
 });
 
@@ -149,9 +158,13 @@ describe("getConditions / getCondition resolver", () => {
     expect(cond?.effects.length).toBeGreaterThan(0);
   });
 
-  it("handles the Exhausted N storage format by falling back to the Exhaustion entry, for both editions", () => {
-    expect(getCondition("Exhausted 3", "2014")?.id).toBe("exhaustion");
-    expect(getCondition("Exhausted 3", "2024")?.id).toBe("exhaustion");
+  it("resolves Exhaustion directly, for both editions", () => {
+    expect(getCondition("Exhaustion", "2014")?.id).toBe("exhaustion");
+    expect(getCondition("Exhaustion", "2024")?.id).toBe("exhaustion");
+  });
+
+  it("no longer resolves the retired \"Exhaustion\" string", () => {
+    expect(getCondition("Exhausted 3", "2014")).toBeUndefined();
   });
 
   it("returns undefined for an unknown condition name", () => {
@@ -160,14 +173,14 @@ describe("getConditions / getCondition resolver", () => {
 });
 
 describe("getConditionDescription", () => {
-  it("injects the level header for Exhausted N under both editions", () => {
-    expect(getConditionDescription("Exhausted 2", "2014")).toContain("level 2 of 6");
-    expect(getConditionDescription("Exhausted 2", "2024")).toContain("level 2 of 6");
+  it("injects the level header for Exhaustion under both editions", () => {
+    expect(getConditionDescription(EXHAUSTION, "2014", 2)).toContain("level 2 of 6");
+    expect(getConditionDescription(EXHAUSTION, "2024", 2)).toContain("level 2 of 6");
   });
 
   it("2014 and 2024 text differ for a condition whose wording changed (Exhaustion)", () => {
-    const text2014 = getConditionDescription("Exhausted 3", "2014");
-    const text2024 = getConditionDescription("Exhausted 3", "2024");
+    const text2014 = getConditionDescription(EXHAUSTION, "2014", 3);
+    const text2024 = getConditionDescription(EXHAUSTION, "2024", 3);
     expect(text2014).not.toBe(text2024);
   });
 
@@ -177,11 +190,89 @@ describe("getConditionDescription", () => {
 });
 
 describe("getConditionShort", () => {
-  it("2014 Exhausted N returns the matching per-level bullet", () => {
-    expect(getConditionShort("Exhausted 2", "2014")).toContain("Speed halved");
+  it("2014 Exhaustion returns the matching per-level bullet", () => {
+    expect(getConditionShort(EXHAUSTION, "2014", 2)).toContain("Speed halved");
   });
 
-  it("2024 Exhausted N returns the computed uniform penalty summary", () => {
-    expect(getConditionShort("Exhausted 3", "2024")).toBe("−6 to all d20 Tests, −15 ft Speed");
+  it("2024 Exhaustion returns the computed uniform penalty summary", () => {
+    expect(getConditionShort(EXHAUSTION, "2024", 3)).toBe("−6 to all d20 Tests, −15 ft Speed");
+  });
+});
+
+describe("condition record helpers", () => {
+  const src = { id: "vex", spell: "Hold Person" };
+
+  it("hasCondition / findCondition / conditionNames read by name", () => {
+    const list = [{ name: "Prone" }, { name: "Stunned", source: src }];
+    expect(hasCondition(list, "Prone")).toBe(true);
+    expect(hasCondition(list, "Blinded")).toBe(false);
+    expect(findCondition(list, "Stunned")?.source).toEqual(src);
+    expect(findCondition(list, "Blinded")).toBeUndefined();
+    expect(conditionNames(list)).toEqual(["Prone", "Stunned"]);
+  });
+
+  it("withCondition replaces the same-named record in place", () => {
+    const list = [{ name: "Prone" }, { name: "Stunned" }, { name: "Blinded" }];
+    const next = withCondition(list, { name: "Stunned", source: src });
+    expect(next).toEqual([{ name: "Prone" }, { name: "Stunned", source: src }, { name: "Blinded" }]);
+    expect(list[1]).toEqual({ name: "Stunned" }); // input untouched
+  });
+
+  it("withCondition appends a new name", () => {
+    expect(withCondition([{ name: "Prone" }], { name: "Blinded" })).toEqual([
+      { name: "Prone" },
+      { name: "Blinded" },
+    ]);
+  });
+
+  it("withoutCondition drops by name", () => {
+    expect(withoutCondition([{ name: "Prone" }, { name: "Blinded" }], "Prone")).toEqual([
+      { name: "Blinded" },
+    ]);
+  });
+
+  it("toggleCondition removes when present, appends a bare record when absent", () => {
+    expect(toggleCondition([{ name: "Prone" }], "Prone")).toEqual([]);
+    expect(toggleCondition([{ name: "Prone" }], "Blinded")).toEqual([
+      { name: "Prone" },
+      { name: "Blinded" },
+    ]);
+  });
+
+  it("sameConditions compares records and order", () => {
+    expect(sameConditions([{ name: "A" }, { name: "B" }], [{ name: "A" }, { name: "B" }])).toBe(true);
+    expect(sameConditions([{ name: "A" }, { name: "B" }], [{ name: "B" }, { name: "A" }])).toBe(false);
+    expect(sameConditions([{ name: "A" }], [{ name: "A", level: 1 }])).toBe(false);
+    expect(sameConditions([{ name: "A" }], [])).toBe(false);
+  });
+
+  it("getExhaustionLevel is 0 when absent", () => {
+    expect(getExhaustionLevel([{ name: "Prone" }])).toBe(0);
+  });
+
+  it("setExhaustionLevel keeps position and other fields", () => {
+    const list = [
+      { name: "Prone" },
+      { name: "Exhaustion", level: 2, source: src },
+      { name: "Blinded" },
+    ];
+    expect(setExhaustionLevel(list, 3)).toEqual([
+      { name: "Prone" },
+      { name: "Exhaustion", level: 3, source: src },
+      { name: "Blinded" },
+    ]);
+  });
+
+  it("setExhaustionLevel 0 removes the record, and clamps below 0", () => {
+    const list = [{ name: "Prone" }, { name: "Exhaustion", level: 2 }];
+    expect(setExhaustionLevel(list, 0)).toEqual([{ name: "Prone" }]);
+    expect(setExhaustionLevel(list, -4)).toEqual([{ name: "Prone" }]);
+  });
+
+  it("setExhaustionLevel appends when absent", () => {
+    expect(setExhaustionLevel([{ name: "Prone" }], 1)).toEqual([
+      { name: "Prone" },
+      { name: "Exhaustion", level: 1 },
+    ]);
   });
 });

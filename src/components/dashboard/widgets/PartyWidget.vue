@@ -63,7 +63,7 @@
         </div>
         <!-- Conditions + Curses -->
         <div v-if="member.conditions?.length || member.curses?.length" class="flex flex-wrap gap-1">
-          <span v-for="cond in member.conditions" :key="cond" class="px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 text-label text-destructive">{{ cond }}</span>
+          <span v-for="cond in member.conditions" :key="cond.name" class="px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 text-label text-destructive">{{ cond.name }}</span>
           <span v-for="curse in member.curses" :key="curse" class="px-1.5 py-0.5 rounded bg-tone-arcane/10 border border-tone-arcane/30 text-label text-ink-arcane">Cursed: {{ curse }}</span>
         </div>
         <!-- DM tracker buttons -->

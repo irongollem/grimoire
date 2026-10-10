@@ -1,5 +1,6 @@
 import type { RollMode } from "@/lib/dice/dice";
-import { hasAttackDisadvantage } from "@/rules/conditions";
+import { hasAttackDisadvantage, hasCondition } from "@/rules/conditions";
+import type { AppliedCondition } from "@/types/condition.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 /** Target conditions that give attackers advantage (SRD: Blinded, Paralyzed, Petrified, Restrained, Stunned, Unconscious). */
@@ -16,8 +17,8 @@ export const ATTACK_ADV_TARGET_CONDITIONS = new Set<string>([
 export const AUTO_CRIT_TARGET_CONDITIONS = new Set<string>(["Paralyzed", "Unconscious"]);
 
 export interface AttackRollModeInput {
-  attackerConditions: string[];
-  targetConditions: string[];
+  attackerConditions: readonly AppliedCondition[];
+  targetConditions: readonly AppliedCondition[];
   delivery: "melee" | "ranged";
   /** An enemy of the attacker (ranged) or the attacker itself (vs. Prone) is within 5 feet; the caller decides. */
   withinFiveFeet: boolean;
@@ -45,15 +46,15 @@ export function attackRollMode(input: AttackRollModeInput): { mode: RollMode; re
   };
 
   if (hasAttackDisadvantage(attackerConditions, ruleset)) add("disadvantage", "attacker's conditions impose disadvantage");
-  if (attackerConditions.includes("Invisible")) add("advantage", "attacker Invisible");
+  if (hasCondition(attackerConditions, "Invisible")) add("advantage", "attacker Invisible");
 
-  const advTarget = targetConditions.filter((c) => ATTACK_ADV_TARGET_CONDITIONS.has(c));
-  if (advTarget.length > 0) add("advantage", `target ${advTarget.join(", ")}`);
-  if (targetConditions.includes("Invisible")) add("disadvantage", "target Invisible");
+  const advTarget = targetConditions.filter((c) => ATTACK_ADV_TARGET_CONDITIONS.has(c.name));
+  if (advTarget.length > 0) add("advantage", `target ${advTarget.map((c) => c.name).join(", ")}`);
+  if (hasCondition(targetConditions, "Invisible")) add("disadvantage", "target Invisible");
 
   // Prone: melee within 5 ft is easy, anything from farther is hard (SRD Prone).
   // The SRD wording is "attacker is within 5 feet"; a ranged attack from there also counts.
-  if (targetConditions.includes("Prone")) {
+  if (hasCondition(targetConditions, "Prone")) {
     if (withinFiveFeet) add("advantage", "target Prone within 5 ft");
     else add("disadvantage", "target Prone beyond 5 ft");
   }
@@ -67,8 +68,8 @@ export function attackRollMode(input: AttackRollModeInput): { mode: RollMode; re
 }
 
 /** A hit on a Paralyzed or Unconscious target from within 5 ft is a critical hit (SRD conditions). */
-export function autoCritOnHit(targetConditions: string[], withinFiveFeet: boolean): boolean {
-  return withinFiveFeet && targetConditions.some((c) => AUTO_CRIT_TARGET_CONDITIONS.has(c));
+export function autoCritOnHit(targetConditions: readonly AppliedCondition[], withinFiveFeet: boolean): boolean {
+  return withinFiveFeet && targetConditions.some((c) => AUTO_CRIT_TARGET_CONDITIONS.has(c.name));
 }
 
 export interface AttackResolution {

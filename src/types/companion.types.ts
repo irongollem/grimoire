@@ -1,3 +1,4 @@
+import type { AppliedCondition } from "@/types/condition.types";
 import type { MonsterStatBlock } from "@/types/monster.types";
 
 export type CompanionType = "familiar" | "animal_companion" | "mount" | "ally" | "sidekick";
@@ -41,7 +42,7 @@ export interface Companion {
   current_hp: number;
   ac: number;
   speed: number;
-  conditions: string[];
+  conditions: AppliedCondition[];
   /** false = elsewhere (another room, stabled, dismissed) — skips new encounters. Toggleable by DM and owning player (#569). */
   combat_ready: boolean;
   sort_order: number;

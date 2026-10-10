@@ -3,6 +3,7 @@ import {
   CHECK_DIS_CONDITIONS,
   getExhaustionLevel,
 } from "@/rules/conditions";
+import type { AppliedCondition } from "@/types/condition.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 /** The kinds of d20 roll a condition can impose disadvantage on. */
@@ -16,9 +17,9 @@ const TARGET_ORDER: readonly DisadvantageTarget[] = [
 ];
 
 /** The conditions on a character that impose disadvantage, with what each affects. */
-function sources(conditions: string[], ruleset: RulesetKey): { name: string; targets: Set<DisadvantageTarget> }[] {
+function sources(conditions: readonly AppliedCondition[], ruleset: RulesetKey): { name: string; targets: Set<DisadvantageTarget> }[] {
   const out: { name: string; targets: Set<DisadvantageTarget> }[] = [];
-  for (const name of conditions) {
+  for (const { name } of conditions) {
     const targets = new Set<DisadvantageTarget>();
     if (ATTACK_DIS_CONDITIONS.has(name)) targets.add("attack rolls");
     if (CHECK_DIS_CONDITIONS.has(name)) targets.add("ability checks");
@@ -50,7 +51,7 @@ function joinWords(words: string[]): string {
  * when nothing imposes disadvantage on those rolls.
  */
 export function disadvantageNote(
-  conditions: string[],
+  conditions: readonly AppliedCondition[],
   ruleset: RulesetKey,
   shown: readonly DisadvantageTarget[],
 ): string {

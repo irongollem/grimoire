@@ -93,6 +93,9 @@
       </div>
     </div>
 
+    <!-- Rolls the turn hooks left to the DM, and conditions that just ended -->
+    <RunnerDueConditions />
+
     <!-- Body: list + optional detail panel -->
     <div class="runner-body-wrap">
       <!-- Initiative list -->
@@ -169,6 +172,8 @@ import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers"
 import { useRunnerPartySync } from "@/composables/encounters/useRunnerPartySync";
 import { useEvergreenWildShape } from "@/composables/encounters/useEvergreenWildShape";
 import RunnerCombatantList from "./RunnerCombatantList.vue";
+import RunnerDueConditions from "./RunnerDueConditions.vue";
+import { withoutDue } from "@/lib/encounters/conditionSources";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
 import RunnerBossMechanics from "./RunnerBossMechanics.vue";
@@ -512,7 +517,7 @@ async function handleEndCombat() {
     ...playerCombatants.map((c) =>
       writePartyMember(c.party_member_id!, {
         current_hp: c.hp,
-        conditions: c.conditions,
+        conditions: withoutDue(c.conditions),
         curses: c.curses,
         // The roll was for this fight; the next lobby starts blank.
         current_initiative: null,
@@ -525,7 +530,7 @@ async function handleEndCombat() {
         id: c.companion_id!,
         update: {
           current_hp: c.hp,
-          conditions: c.conditions,
+          conditions: withoutDue(c.conditions),
         },
       }),
     ),
@@ -623,9 +628,17 @@ async function handleEndCombat() {
   @apply flex flex-1 min-h-0 overflow-hidden;
 }
 
+/* A phone has no room for side columns: the list, then the events and traps,
+   scroll as one column. The stat block still overlays it (RunnerEntityDetail). */
 @media (max-width: 639px) {
   .runner-body-wrap {
     position: relative;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .runner-body {
+    flex: none;
+    overflow: visible;
   }
 }
 

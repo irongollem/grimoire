@@ -1,4 +1,5 @@
 import type { ParsedExpression } from "@/lib/dice/dice";
+import type { AppliedCondition } from "@/types/condition.types";
 import type { DamageType } from "@/types/damage.types";
 import type { AttackStructure, DamagePart, SaveStructure, SrdConditionName } from "@/types/statBlock.types";
 import { autoCritOnHit, resolveAttack } from "./attackRoll.ts";
@@ -35,7 +36,7 @@ export function resolveAttackAction(input: {
   attack: AttackStructure;
   d20: number;
   targetAc: number;
-  targetConditions: string[];
+  targetConditions: readonly AppliedCondition[];
   withinFiveFeet: boolean;
   penalty?: number;
 }): { roll: ReturnType<typeof resolveAttack>; damageToRoll: Array<{ part: DamagePart; parsed: ParsedExpression }> | null } {
@@ -53,7 +54,7 @@ export function resolveSaveAction(input: {
   save: SaveStructure;
   d20: number;
   saveBonus: number;
-  targetConditions: string[];
+  targetConditions: readonly AppliedCondition[];
   penalty?: number;
 }): { roll: ReturnType<typeof resolveSave>; damageMultiplier: 1 | 0.5 | 0; conditionsImposed: SrdConditionName[] } {
   const { save } = input;

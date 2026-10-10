@@ -8,6 +8,8 @@ import type { PartyMemberUpdate } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import type { DyingOutcome } from "@/rules/dying";
+import type { AppliedCondition } from "@/types/condition.types";
+import { holdsConcentration, type ConditionEndReason } from "@/rules/conditionDurations";
 import {
   reduceEncounterTurn,
   type ActionLimit,
@@ -66,6 +68,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const availableNpcs = ref<NpcListRow[]>([]);
   const pendingBroadcasts = ref<string[]>([]);
   /** Recharge rolls from the most recent turn start, for the runner to show ("Fire Breath recharged on a 5"). Replaced at every turn start that rolled one. */
+  /** condition_ended events: replaced at every next_turn / reshuffle_initiative with that turn's
+   *  endings; other commands that end conditions (save resolution, concentration, source down or
+   *  removed) append. Cleared by `reset()`. */
+  const lastConditionEvents = ref<Array<{ instanceId: string; name: string; reason: ConditionEndReason }>>([]);
+  /** Concentration saves owed by stat-block holders that took damage (#1018), until the DM settles each. */
+  const concentrationChecks = ref<Array<{ key: string; instanceId: string; damage: number }>>([]);
+  let concentrationSeq = 0;
   const lastRechargeEvents = ref<Array<{ instanceId: string; action: string; roll: number; recharged: boolean }>>([]);
 
   // Boss-fight mechanics state
@@ -96,6 +105,16 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   );
 
   const activeCombatant = computed(() => sortedCombatants.value[activeIndex.value] ?? null);
+
+  /** Conditions owing the DM a roll, in initiative order: one entry per (combatant, condition, what). */
+  const dueConditions = computed(() =>
+    sortedCombatants.value.flatMap((c) =>
+      c.conditions.flatMap((condition) => [
+        ...(condition.due?.save ? [{ instanceId: c.instance_id, combatantName: c.name, condition, what: "save" as const }] : []),
+        ...(condition.due?.damage ? [{ instanceId: c.instance_id, combatantName: c.name, condition, what: "damage" as const }] : []),
+      ]),
+    ),
+  );
 
   /** Falls back to an automatic d20 + modifier when no roller is registered —
    *  used by mid-combat spawns too (a modal per spawned goblin would stall the turn). */
@@ -145,10 +164,25 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     // Exactly this turn's rolls: a turn that rolled none must clear the old lines,
     // or "still spent" lingers for rounds. Other commands leave it alone.
     if (command.type === "next_turn" || command.type === "reshuffle_initiative") lastRechargeEvents.value = recharges;
+    const endings = raised.flatMap((e) =>
+      e.type === "condition_ended" ? [{ instanceId: e.instanceId, name: e.name, reason: e.reason }] : [],
+    );
+    if (command.type === "next_turn" || command.type === "reshuffle_initiative") lastConditionEvents.value = endings;
+    else if (endings.length > 0) lastConditionEvents.value = [...lastConditionEvents.value, ...endings];
     for (const event of raised) {
       if (event.type === "player_persist") persistHandler?.(event.partyMemberId, event.patch);
       else if (event.type === "check_events") checkNow = true;
+      else if (event.type === "concentration_check_due") {
+        concentrationSeq += 1;
+        concentrationChecks.value = [
+          ...concentrationChecks.value,
+          { key: `conc-${concentrationSeq}`, instanceId: event.instanceId, damage: event.damage },
+        ];
+      }
     }
+    // A check is owed only while its holder is still in the fight and still holds something.
+    const stale = concentrationChecks.value.filter((k) => !holdsConcentration(combatants.value, k.instanceId));
+    if (stale.length > 0) concentrationChecks.value = concentrationChecks.value.filter((k) => !stale.includes(k));
     if (checkNow) checkEvents();
     return raised;
   }
@@ -323,18 +357,37 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     dispatch({ type: "set_max_hp", instanceId, value });
   }
 
-  function toggleCondition(instanceId: string, condition: string) {
-    dispatch({ type: "toggle_condition", instanceId, condition });
+  function applyCondition(instanceId: string, condition: AppliedCondition) {
+    dispatch({ type: "apply_condition", instanceId, condition });
+  }
+
+  function removeCondition(instanceId: string, name: string) {
+    dispatch({ type: "remove_condition", instanceId, name });
   }
 
   /** Replace a combatant's full conditions array — used when several
    *  entries change at once (e.g. exhaustion replacement). */
-  function setConditions(instanceId: string, conditions: string[]) {
+  function setConditions(instanceId: string, conditions: AppliedCondition[]) {
     dispatch({ type: "set_conditions", instanceId, conditions });
   }
 
+  /** The DM's roll for a "save ends" condition. */
+  function resolveConditionSave(instanceId: string, name: string, success: boolean) {
+    dispatch({ type: "resolve_condition_save", instanceId, name, success });
+  }
+
+  /** Clears an ongoing-damage debt; the damage itself goes through `adjustHp` first. */
+  function settleOngoingDamage(instanceId: string, name: string) {
+    dispatch({ type: "settle_ongoing_damage", instanceId, name });
+  }
+
+  /** Ends what a combatant's concentration was holding on others (all of it, or one spell's). */
+  function endConcentration(instanceId: string, spell?: string) {
+    dispatch({ type: "end_concentration", instanceId, spell });
+  }
+
   /** Adopt conditions from party_members without persisting the same row. */
-  function ingestConditions(instanceId: string, conditions: string[]) {
+  function ingestConditions(instanceId: string, conditions: AppliedCondition[]) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     c.conditions = [...conditions];
@@ -402,6 +455,14 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         started: started.value,
       }),
     );
+  }
+
+  /** Settles one owed concentration save; a lost one ends what the holder was concentrating on. */
+  function resolveConcentrationCheck(key: string, kept: boolean) {
+    const check = concentrationChecks.value.find((k) => k.key === key);
+    if (!check) return;
+    concentrationChecks.value = concentrationChecks.value.filter((k) => k.key !== key);
+    if (!kept) endConcentration(check.instanceId);
   }
 
   /** Removes a combatant from the roster entirely — used to pull a benched
@@ -504,6 +565,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     availableNpcs.value = [];
     pendingBroadcasts.value = [];
     lastRechargeEvents.value = [];
+    lastConditionEvents.value = [];
+    concentrationChecks.value = [];
     rollingInitiative.value = false;
     randomizeInitiativeEachRound.value = false;
     lairEnabled.value = false;
@@ -603,6 +666,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     availableNpcs,
     pendingBroadcasts,
     lastRechargeEvents,
+    lastConditionEvents,
+    dueConditions,
     // Boss mechanics state
     lairEnabled,
     lairOwnerInstanceId,
@@ -630,8 +695,14 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     ingestTempHp,
     ingestHp,
     ingestDeathSaves,
-    toggleCondition,
+    applyCondition,
+    removeCondition,
     setConditions,
+    resolveConditionSave,
+    settleOngoingDamage,
+    endConcentration,
+    concentrationChecks,
+    resolveConcentrationCheck,
     ingestConditions,
     ingestWildshape,
     addCurse,

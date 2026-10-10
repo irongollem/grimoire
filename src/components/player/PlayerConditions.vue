@@ -13,17 +13,21 @@
     <!-- Other condition chips -->
     <div
       v-for="cond in member.conditions.filter((c) => !isExhaustion(c))"
-      :key="cond"
-      class="flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 pl-2.5 pr-1 py-0.5"
+      :key="cond.name"
+      class="flex items-center gap-1 rounded-2xl border border-destructive/40 bg-destructive/10 pl-2.5 pr-1 py-0.5"
     >
-      <span
-        class="text-label-lg text-destructive leading-none"
-        :title="getConditionDescription(cond, ruleset)"
-      >{{ cond }}</span>
+      <div class="flex flex-col">
+        <span
+          class="text-label-lg text-destructive leading-none"
+          :title="getConditionDescription(cond.name, ruleset)"
+        >{{ cond.name }}</span>
+        <span v-if="describeConditionEnd(cond, () => null)" class="text-caption text-muted-foreground">{{ describeConditionEnd(cond, () => null) }}</span>
+        <span v-if="cond.ongoing" class="text-caption text-muted-foreground">{{ describeOngoing(cond.ongoing) }}</span>
+      </div>
       <button
         class="relative flex items-center justify-center w-4 h-4 rounded-full text-destructive/50 hover:text-destructive hover:bg-destructive/20 transition-colors text-sm leading-none before:absolute before:-inset-3.5 before:content-[''] md:before:hidden"
         title="Remove condition"
-        @click="removeCondition(cond)"
+        @click="removeCondition(cond.name)"
       >×</button>
     </div>
 
@@ -102,7 +106,9 @@ import {
   getExhaustionLevel,
   setExhaustionLevel,
   isExhaustion,
+  withoutCondition,
 } from "@/rules/conditions";
+import { describeConditionEnd, describeOngoing } from "@/rules/conditionLabels";
 import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
@@ -126,15 +132,15 @@ const status = computed(() =>
 
 // ── Condition helpers ─────────────────────────────────────────────────────────
 
-const exhaustionLevel = computed(() => getExhaustionLevel(props.member.conditions ?? []));
+const exhaustionLevel = computed(() => getExhaustionLevel(props.member.conditions));
 
 async function removeCondition(cond: string) {
-  const updated = (props.member.conditions ?? []).filter(c => c !== cond);
+  const updated = withoutCondition(props.member.conditions, cond);
   await updateMember({ id: props.member.id, update: { conditions: updated } });
 }
 
 async function setExhaustion(level: number) {
-  const updated = setExhaustionLevel(props.member.conditions ?? [], level);
+  const updated = setExhaustionLevel(props.member.conditions, level);
   await updateMember({ id: props.member.id, update: { conditions: updated } });
 }
 
@@ -153,7 +159,7 @@ async function rollDeathSave() {
   const d = r.breakdown.find(b => !b.dropped)!.val;
   const rolled = deathSaveRollOutcome(
     { successes: props.member.death_save_successes, failures: props.member.death_save_failures },
-    props.member.conditions ?? [],
+    props.member.conditions,
     d,
   );
   const outcome = rolled.label;

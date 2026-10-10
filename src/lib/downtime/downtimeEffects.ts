@@ -1,3 +1,5 @@
+import { EXHAUSTION, getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
+import type { AppliedCondition } from "@/types/condition.types";
 import { COIN_KEYS, type CoinKey, type DowntimeEffect } from "@/types/downtime.types";
 
 /**
@@ -82,19 +84,28 @@ export function applyHpEffects(
  * Add every ticked `condition` to the character's condition list, de-duplicated
  * case-insensitively so "Poisoned" never lands twice. Order is preserved:
  * existing conditions first, then newly-applied ones in effect order.
+ *
+ * Exhaustion is the exception to the de-dupe: it stacks, so each ticked
+ * Exhaustion effect raises the level by one (capped at 6) instead of being
+ * skipped as a duplicate.
  */
 export function applyConditionEffects(
-  conditions: readonly string[],
+  conditions: readonly AppliedCondition[],
   effects: readonly DowntimeEffect[],
-): string[] {
-  const next = [...conditions];
-  const seen = new Set(next.map((c) => c.toLowerCase()));
+): AppliedCondition[] {
+  let next = [...conditions];
+  const seen = new Set(next.map((c) => c.name.toLowerCase()));
   for (const effect of effects) {
     if (effect.kind !== "condition" || !effect.applied) continue;
     const key = effect.condition.toLowerCase();
+    if (key === "exhaustion" || key === "exhausted") {
+      next = setExhaustionLevel(next, getExhaustionLevel(next) + 1);
+      seen.add(EXHAUSTION.toLowerCase());
+      continue;
+    }
     if (seen.has(key)) continue;
     seen.add(key);
-    next.push(effect.condition);
+    next.push({ name: effect.condition });
   }
   return next;
 }

@@ -13,6 +13,8 @@
 // There is no dead/stable column: dead is 0 HP with 3 failures, stable is 0 HP with 3
 // successes. `dyingStatus` is the ONE place that says so; every screen asks it.
 
+import { withCondition, withoutCondition } from "@/rules/conditions";
+import type { AppliedCondition } from "@/types/condition.types";
 import { applyDamage, applyHealing, type HpPools } from "@/rules/hitPoints";
 
 export const UNCONSCIOUS = "Unconscious";
@@ -44,7 +46,7 @@ export type DyingOutcome =
 export interface DyingInput {
   pools: HpPools;
   saves: DeathSaves;
-  conditions: readonly string[];
+  conditions: readonly AppliedCondition[];
 }
 
 export interface DyingResult {
@@ -55,16 +57,15 @@ export interface DyingResult {
   /** The hit ended the Wild Shape form. */
   reverted: boolean;
   saves: DeathSaves;
-  conditions: string[];
+  conditions: AppliedCondition[];
   outcome: DyingOutcome;
 }
 
-function withCondition(conditions: readonly string[], name: string): string[] {
-  return conditions.includes(name) ? [...conditions] : [...conditions, name];
-}
-
-function withoutCondition(conditions: readonly string[], name: string): string[] {
-  return conditions.filter((c) => c !== name);
+/** Add Unconscious unless it is already there: an existing record may carry a source, so it is kept as it is. */
+function withUnconscious(conditions: readonly AppliedCondition[]): AppliedCondition[] {
+  return conditions.some((c) => c.name === UNCONSCIOUS)
+    ? [...conditions]
+    : withCondition(conditions, { name: UNCONSCIOUS });
 }
 
 /**
@@ -123,12 +124,12 @@ export function damageOutcome(
   const carry = pools.beast ? out.hp_damage - pools.beast.hp : out.hp_damage;
   const excess = carry - pools.current_hp;
   if (excess >= pools.max_hp) {
-    return { ...result, saves: { successes: 0, failures: 3 }, conditions: withCondition(conditions, UNCONSCIOUS), outcome: "died" };
+    return { ...result, saves: { successes: 0, failures: 3 }, conditions: withUnconscious(conditions), outcome: "died" };
   }
   return {
     ...result,
     saves: { successes: 0, failures: 0 },
-    conditions: withCondition(conditions, UNCONSCIOUS),
+    conditions: withUnconscious(conditions),
     outcome: "dropped",
   };
 }
@@ -163,10 +164,10 @@ export function healingOutcome(input: DyingInput, amount: number): DyingResult {
 }
 
 /** The DM brings a dead character back: 1 HP, saves cleared, no longer Unconscious. */
-export function reviveOutcome(conditions: readonly string[]): {
+export function reviveOutcome(conditions: readonly AppliedCondition[]): {
   current_hp: number;
   saves: DeathSaves;
-  conditions: string[];
+  conditions: AppliedCondition[];
 } {
   return { current_hp: 1, saves: { successes: 0, failures: 0 }, conditions: withoutCondition(conditions, UNCONSCIOUS) };
 }
@@ -174,9 +175,9 @@ export function reviveOutcome(conditions: readonly string[]): {
 /** A death save roll. Nat 20 is back up at 1 HP; nat 1 is two failures; 10+ a success. */
 export function deathSaveRollOutcome(
   saves: DeathSaves,
-  conditions: readonly string[],
+  conditions: readonly AppliedCondition[],
   d20: number,
-): { saves: DeathSaves; conditions: string[]; current_hp: number | null; label: string } {
+): { saves: DeathSaves; conditions: AppliedCondition[]; current_hp: number | null; label: string } {
   if (d20 === 20) {
     return {
       saves: { successes: 0, failures: 0 },

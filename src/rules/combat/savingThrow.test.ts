@@ -3,34 +3,34 @@ import { autoFailsSave, listedSaveBonus, resolveSave, saveBonusFromStatBlock, sa
 
 describe("autoFailsSave", () => {
   it.each([
-    [["Stunned"], "dex", true],
-    [["Paralyzed"], "str", true],
-    [["Petrified"], "dex", true],
-    [["Unconscious"], "str", true],
-    [["Stunned"], "wis", false],
-    [["Prone"], "dex", false],
+    [[{ name: "Stunned" }], "dex", true],
+    [[{ name: "Paralyzed" }], "str", true],
+    [[{ name: "Petrified" }], "dex", true],
+    [[{ name: "Unconscious" }], "str", true],
+    [[{ name: "Stunned" }], "wis", false],
+    [[{ name: "Prone" }], "dex", false],
   ] as const)("%j %s", (c, a, e) => expect(autoFailsSave([...c], a)).toBe(e));
 });
 
 describe("saveRollMode", () => {
   it("Restrained disadvantages Dex only", () => {
-    expect(saveRollMode({ conditions: ["Restrained"], ability: "dex", ruleset: "2014" }).mode).toBe("disadvantage");
-    expect(saveRollMode({ conditions: ["Restrained"], ability: "wis", ruleset: "2014" }).mode).toBe("normal");
+    expect(saveRollMode({ conditions: [{ name: "Restrained" }], ability: "dex", ruleset: "2014" }).mode).toBe("disadvantage");
+    expect(saveRollMode({ conditions: [{ name: "Restrained" }], ability: "wis", ruleset: "2014" }).mode).toBe("normal");
   });
   it("2014 exhaustion 3 vs 2024", () => {
-    expect(saveRollMode({ conditions: ["Exhausted 3"], ability: "con", ruleset: "2014" }).mode).toBe("disadvantage");
-    expect(saveRollMode({ conditions: ["Exhausted 3"], ability: "con", ruleset: "2024" }).mode).toBe("normal");
+    expect(saveRollMode({ conditions: [{ name: "Exhaustion", level: 3 }], ability: "con", ruleset: "2014" }).mode).toBe("disadvantage");
+    expect(saveRollMode({ conditions: [{ name: "Exhaustion", level: 3 }], ability: "con", ruleset: "2024" }).mode).toBe("normal");
   });
   it("DM advantage cancels", () => {
-    expect(saveRollMode({ conditions: ["Restrained"], ability: "dex", ruleset: "2014", dmMode: "advantage" }).mode).toBe("normal");
+    expect(saveRollMode({ conditions: [{ name: "Restrained" }], ability: "dex", ruleset: "2014", dmMode: "advantage" }).mode).toBe("normal");
   });
 });
 
 describe("saveRollMode stacking", () => {
   it("any advantage with any disadvantage is straight, whatever the order", () => {
     // Restrained on a Dex save (dis) + DM advantage -> straight; a further source must not flip it.
-    expect(saveRollMode({ conditions: ["Restrained", "Exhausted 3"], ability: "dex", ruleset: "2014", dmMode: "advantage" }).mode).toBe("normal");
-    expect(saveRollMode({ conditions: ["Restrained"], ability: "dex", ruleset: "2014", dmMode: "disadvantage" }).mode).toBe("disadvantage");
+    expect(saveRollMode({ conditions: [{ name: "Restrained" }, { name: "Exhaustion", level: 3 }], ability: "dex", ruleset: "2014", dmMode: "advantage" }).mode).toBe("normal");
+    expect(saveRollMode({ conditions: [{ name: "Restrained" }], ability: "dex", ruleset: "2014", dmMode: "disadvantage" }).mode).toBe("disadvantage");
   });
 });
 

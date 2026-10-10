@@ -182,7 +182,7 @@ How it resolves now:
 
 ## Named limits (current)
 
-- **`gold`, `hp`, and `condition` effects are applied programmatically** (`party_members` carries `cp/sp/ep/gp/pp`, `current_hp`/`max_hp`, and `conditions[]`). Only **`item`** stays a DM checklist: an `item` effect names an `item_id` + qty to drop into inventory, which needs an inventory insert and an item-name the effect doesn't carry, so no seed emits one and the DM hands items over by choice. HP clamps to `[0, max_hp]`; conditions de-dupe case-insensitively.
+- **`gold`, `hp`, and `condition` effects are applied programmatically** (`party_members` carries `cp/sp/ep/gp/pp`, `current_hp`/`max_hp`, and `conditions`, an array of `AppliedCondition` records; a condition effect adds `{ name }`, and an Exhaustion effect raises the level). Only **`item`** stays a DM checklist: an `item` effect names an `item_id` + qty to drop into inventory, which needs an inventory insert and an item-name the effect doesn't carry, so no seed emits one and the DM hands items over by choice. HP clamps to `[0, max_hp]`; conditions de-dupe case-insensitively.
 - **Item rewards mint a catalog `items` row**, they do **not** auto-add to a character's inventory (that would mutate a sheet without a tick, and the Workshop is the intended handoff — a Phase 3 "reuse Workshop" nicety).
 - Seed backs are bounded to the reward kinds we can build from a template (`npc`/`item`/`note`); **prepped** backs can point at any of the six `DowntimeRewardType`s (the DB CHECK allows all), and the prep UI (`DeckBacksPanel`) currently offers `npc`/`item`/`note` pickers.
 - No AI outcome drafting. No Cardforge export. No conditioned card backs (per-player / per-location).

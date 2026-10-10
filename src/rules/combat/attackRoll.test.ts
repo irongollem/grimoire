@@ -5,19 +5,19 @@ const base = { attackerConditions: [], targetConditions: [], delivery: "melee" a
 
 describe("attackRollMode", () => {
   it.each([
-    ["attacker Poisoned", { attackerConditions: ["Poisoned"] }, "disadvantage"],
-    ["attacker Prone", { attackerConditions: ["Prone"] }, "disadvantage"],
-    ["attacker Invisible", { attackerConditions: ["Invisible"] }, "advantage"],
-    ["target Stunned", { targetConditions: ["Stunned"] }, "advantage"],
-    ["target Restrained", { targetConditions: ["Restrained"] }, "advantage"],
-    ["target Invisible", { targetConditions: ["Invisible"] }, "disadvantage"],
-    ["target Prone within 5ft", { targetConditions: ["Prone"] }, "advantage"],
-    ["target Prone far", { targetConditions: ["Prone"], withinFiveFeet: false }, "disadvantage"],
+    ["attacker Poisoned", { attackerConditions: [{ name: "Poisoned" }] }, "disadvantage"],
+    ["attacker Prone", { attackerConditions: [{ name: "Prone" }] }, "disadvantage"],
+    ["attacker Invisible", { attackerConditions: [{ name: "Invisible" }] }, "advantage"],
+    ["target Stunned", { targetConditions: [{ name: "Stunned" }] }, "advantage"],
+    ["target Restrained", { targetConditions: [{ name: "Restrained" }] }, "advantage"],
+    ["target Invisible", { targetConditions: [{ name: "Invisible" }] }, "disadvantage"],
+    ["target Prone within 5ft", { targetConditions: [{ name: "Prone" }] }, "advantage"],
+    ["target Prone far", { targetConditions: [{ name: "Prone" }], withinFiveFeet: false }, "disadvantage"],
     ["ranged with enemy adjacent", { delivery: "ranged" as const }, "disadvantage"],
     ["ranged far, nothing else", { delivery: "ranged" as const, withinFiveFeet: false }, "normal"],
-    ["2014 exhaustion 3", { attackerConditions: ["Exhausted 3"] }, "disadvantage"],
-    ["2014 exhaustion 2", { attackerConditions: ["Exhausted 2"] }, "normal"],
-    ["2024 exhaustion 3 gives no disadvantage", { attackerConditions: ["Exhausted 3"], ruleset: "2024" as const }, "normal"],
+    ["2014 exhaustion 3", { attackerConditions: [{ name: "Exhaustion", level: 3 }] }, "disadvantage"],
+    ["2014 exhaustion 2", { attackerConditions: [{ name: "Exhaustion", level: 2 }] }, "normal"],
+    ["2024 exhaustion 3 gives no disadvantage", { attackerConditions: [{ name: "Exhaustion", level: 3 }], ruleset: "2024" as const }, "normal"],
     ["DM advantage", { dmMode: "advantage" as const }, "advantage"],
   ])("%s", (_n, over, mode) => {
     const r = attackRollMode({ ...base, ...over });
@@ -26,12 +26,12 @@ describe("attackRollMode", () => {
   });
 
   it("advantage and disadvantage cancel regardless of count", () => {
-    const r = attackRollMode({ ...base, attackerConditions: ["Poisoned", "Prone"], targetConditions: ["Stunned", "Blinded"] });
+    const r = attackRollMode({ ...base, attackerConditions: [{ name: "Poisoned" }, { name: "Prone" }], targetConditions: [{ name: "Stunned" }, { name: "Blinded" }] });
     expect(r.mode).toBe("normal");
   });
   it("a late source never flips an already cancelled roll", () => {
     // Poisoned attacker (dis) vs Stunned (adv) + Prone within 5 ft (adv): straight, not advantage.
-    const r = attackRollMode({ ...base, attackerConditions: ["Poisoned"], targetConditions: ["Stunned", "Prone"] });
+    const r = attackRollMode({ ...base, attackerConditions: [{ name: "Poisoned" }], targetConditions: [{ name: "Stunned" }, { name: "Prone" }] });
     expect(r.mode).toBe("normal");
     expect(r.reasons).toHaveLength(3);
   });
@@ -39,25 +39,25 @@ describe("attackRollMode", () => {
     const r = attackRollMode({
       ...base,
       delivery: "ranged",
-      attackerConditions: ["Poisoned"],
-      targetConditions: ["Restrained"],
+      attackerConditions: [{ name: "Poisoned" }],
+      targetConditions: [{ name: "Restrained" }],
     });
     expect(r.mode).toBe("normal");
   });
   it("DM override cancels a condition", () => {
-    expect(attackRollMode({ ...base, attackerConditions: ["Poisoned"], dmMode: "advantage" }).mode).toBe("normal");
+    expect(attackRollMode({ ...base, attackerConditions: [{ name: "Poisoned" }], dmMode: "advantage" }).mode).toBe("normal");
   });
   it("names the prone cause", () => {
-    expect(attackRollMode({ ...base, targetConditions: ["Prone"] }).reasons).toContain("target Prone within 5 ft");
+    expect(attackRollMode({ ...base, targetConditions: [{ name: "Prone" }] }).reasons).toContain("target Prone within 5 ft");
   });
 });
 
 describe("autoCritOnHit", () => {
   it.each([
-    [["Paralyzed"], true, true],
-    [["Unconscious"], true, true],
-    [["Paralyzed"], false, false],
-    [["Stunned"], true, false],
+    [[{ name: "Paralyzed" }], true, true],
+    [[{ name: "Unconscious" }], true, true],
+    [[{ name: "Paralyzed" }], false, false],
+    [[{ name: "Stunned" }], true, false],
     [[], true, false],
   ])("%j within5=%s", (c, w, e) => expect(autoCritOnHit(c, w)).toBe(e));
 });

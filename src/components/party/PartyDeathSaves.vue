@@ -71,7 +71,7 @@ async function revive() {
     title: "Revive character?",
     confirmLabel: "Revive",
   }))) return;
-  const r = reviveOutcome(member.conditions ?? []);
+  const r = reviveOutcome(member.conditions);
   try {
     await updateMember({
       id: member.id,

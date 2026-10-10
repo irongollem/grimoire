@@ -1,7 +1,7 @@
 import { SRD_CONDITIONS_2014 } from "@/data/srdConditions2014";
 import { SRD_CONDITIONS_2024 } from "@/data/srdConditions2024";
 import { CONDITION_PATCHES } from "@/data/conditionPatches";
-import type { Condition } from "@/types/condition.types";
+import type { AppliedCondition, Condition } from "@/types/condition.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 export type { Condition };
@@ -11,9 +11,9 @@ export type { Condition };
  * SRD names plus "Hidden" — a non-SRD tracking marker for a creature that has
  * taken the Hide action (its rules text lives in `CONDITION_PATCHES`, since
  * Open5e has no such entry). Exhaustion is a single entry, not split by level:
- * storage still uses `"Exhausted N"` so the level rides with the condition
- * string, but the picker treats it as one option; the chip UI shows the
- * current level with inline −/+ controls (see `getExhaustionLevel` /
+ * it is stored as one record named "Exhaustion" whose `level` is 1 to 6, and
+ * the picker treats it as one option; the chip UI shows the current level
+ * with inline −/+ controls (see `getExhaustionLevel` /
  * `setExhaustionLevel` below). The name list itself doesn't vary between
  * editions.
  */
@@ -41,39 +41,96 @@ export type ConditionName = (typeof CONDITIONS)[number];
 /** Max exhaustion level — 6 in both the 2014 and 2024 rules; at 6 the character dies. */
 export const MAX_EXHAUSTION = 6;
 
-/** True when the stored string encodes any exhaustion level. */
-export function isExhaustion(condition: string): boolean {
-  return /^Exhaust(ed|ion)\s+\d$/i.test(condition);
+/** The name of the one record that carries a level (1 to 6) instead of being on or off. */
+export const EXHAUSTION = "Exhaustion";
+
+export function isExhaustion(c: AppliedCondition): boolean {
+  return c.name === EXHAUSTION;
 }
 
-/** Extract the level from a stored exhaustion string, or 0 if not present. */
-export function parseExhaustionLevel(condition: string): number {
-  const m = condition.match(/^Exhaust(?:ed|ion)\s+(\d)$/i);
-  return m ? parseInt(m[1], 10) : 0;
+export function hasCondition(list: readonly AppliedCondition[], name: string): boolean {
+  return list.some((c) => c.name === name);
+}
+
+export function findCondition(
+  list: readonly AppliedCondition[],
+  name: string,
+): AppliedCondition | undefined {
+  return list.find((c) => c.name === name);
+}
+
+export function conditionNames(list: readonly AppliedCondition[]): string[] {
+  return list.map((c) => c.name);
+}
+
+/** Replace the record with the same name in place, else append. Returns a new array. */
+export function withCondition(
+  list: readonly AppliedCondition[],
+  condition: AppliedCondition,
+): AppliedCondition[] {
+  const at = list.findIndex((c) => c.name === condition.name);
+  if (at === -1) return [...list, condition];
+  return list.map((c, i) => (i === at ? condition : c));
+}
+
+export function withoutCondition(
+  list: readonly AppliedCondition[],
+  name: string,
+): AppliedCondition[] {
+  return list.filter((c) => c.name !== name);
+}
+
+/** Remove `name` if present, else append `{ name }`. */
+export function toggleCondition(
+  list: readonly AppliedCondition[],
+  name: string,
+): AppliedCondition[] {
+  return hasCondition(list, name) ? withoutCondition(list, name) : [...list, { name }];
+}
+
+/**
+ * Structural equality (same records, same order), for change detection. Key
+ * order is ignored on purpose: a record read back from a jsonb column comes
+ * back with its keys reordered, and it is still the same record.
+ */
+export function sameConditions(
+  a: readonly AppliedCondition[],
+  b: readonly AppliedCondition[],
+): boolean {
+  return a.length === b.length && a.every((c, i) => sameJson(c, b[i]));
+}
+
+function sameJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const keysA = Object.keys(a).filter((k) => (a as Record<string, unknown>)[k] !== undefined);
+  const keysB = Object.keys(b).filter((k) => (b as Record<string, unknown>)[k] !== undefined);
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every((k) => sameJson((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
 }
 
 /** Current exhaustion level on a creature, or 0 if none. */
-export function getExhaustionLevel(conditions: string[]): number {
-  for (const c of conditions) {
-    const level = parseExhaustionLevel(c);
-    if (level > 0) return level;
-  }
-  return 0;
+export function getExhaustionLevel(list: readonly AppliedCondition[]): number {
+  return findCondition(list, EXHAUSTION)?.level ?? 0;
 }
 
 /**
  * Returns a new conditions array with exhaustion set to `level`. `level=0`
- * removes exhaustion entirely; values outside [0, MAX_EXHAUSTION] are
- * clamped. Any existing exhaustion entries are replaced (there's never
- * more than one active at a time). The storage shape (level number, max 6)
- * is identical between editions — only what each level *means* differs,
- * which is handled by the ruleset-aware effect helpers below.
+ * removes the record entirely; values outside [0, MAX_EXHAUSTION] are clamped.
+ * An existing record keeps its position and its other fields (source, ends);
+ * otherwise `{ name: "Exhaustion", level }` is appended. The level range (max 6)
+ * is identical between editions; only what each level *means* differs, which
+ * is handled by the ruleset-aware effect helpers below.
  */
-export function setExhaustionLevel(conditions: string[], level: number): string[] {
-  const without = conditions.filter((c) => !isExhaustion(c));
+export function setExhaustionLevel(
+  list: readonly AppliedCondition[],
+  level: number,
+): AppliedCondition[] {
   const clamped = Math.max(0, Math.min(MAX_EXHAUSTION, level));
-  if (clamped === 0) return without;
-  return [...without, `Exhausted ${clamped}`];
+  if (clamped === 0) return withoutCondition(list, EXHAUSTION);
+  const existing = findCondition(list, EXHAUSTION);
+  return withCondition(list, { ...existing, name: EXHAUSTION, level: clamped });
 }
 
 // ── Edition-keyed condition data resolver ──────────────────────────────────────
@@ -119,55 +176,47 @@ function conditionsByName(ruleset: RulesetKey): Map<string, Condition> {
 /**
  * Returns the baked SRD reference entry for a condition name under the given
  * ruleset ('2014' default, matching the campaign-ruleset default elsewhere —
- * see `src/composables/rules/useRuleset.ts`), handling Grimoire's Exhausted N
- * split by falling back to the single "Exhaustion" entry when the name
- * starts with "Exhaust".
+ * see `src/composables/rules/useRuleset.ts`).
  */
 export function getCondition(name: string, ruleset: RulesetKey): Condition | undefined {
-  const byName = conditionsByName(ruleset);
-  const direct = byName.get(name.toLowerCase());
-  if (direct) return direct;
-  if (name.toLowerCase().startsWith("exhaust")) {
-    return byName.get("exhaustion");
-  }
-  return undefined;
+  return conditionsByName(ruleset).get(name.toLowerCase());
 }
 
 /**
  * Full rules text for a condition, suitable for a native tooltip
- * (`<span title>`). Exhausted N injects the current level header so the
- * tooltip reads naturally even though the underlying rules data is for
+ * (`<span title>`). Exhaustion with a `level` injects the current level header
+ * so the tooltip reads naturally even though the underlying rules data is for
  * the composite Exhaustion condition.
  */
-export function getConditionDescription(name: string, ruleset: RulesetKey): string {
+export function getConditionDescription(
+  name: string,
+  ruleset: RulesetKey,
+  level?: number,
+): string {
   const cond = getCondition(name, ruleset);
   if (!cond) return name;
-
-  const levelMatch = name.match(/^Exhausted\s+(\d)$/i);
-  if (levelMatch) {
-    return `${name} (level ${levelMatch[1]} of 6).\n\n${cond.description}`;
+  if (cond.name === EXHAUSTION && level !== undefined) {
+    return `${EXHAUSTION} (level ${level} of ${MAX_EXHAUSTION}).\n\n${cond.description}`;
   }
   return cond.description;
 }
 
 /**
- * First effect bullet — a terse one-line summary useful for tight contexts
+ * First effect bullet, a terse one-line summary useful for tight contexts
  * (chip tooltips when we don't want the full wall of text). 2024's
- * Exhausted N has no per-level effect table (every level shares the same
+ * Exhaustion has no per-level effect table (every level shares the same
  * uniform penalty), so this returns a computed penalty summary rather than
  * trying to match a "Level N" bullet the way the 2014 data does.
  */
-export function getConditionShort(name: string, ruleset: RulesetKey): string {
+export function getConditionShort(name: string, ruleset: RulesetKey, level?: number): string {
   const cond = getCondition(name, ruleset);
   if (!cond) return name;
-  const levelMatch = name.match(/^Exhausted\s+(\d)$/i);
-  if (levelMatch) {
-    const lvl = parseInt(levelMatch[1], 10);
+  if (cond.name === EXHAUSTION && level !== undefined) {
     if (ruleset === "2024") {
-      return `−${lvl * 2} to all d20 Tests, −${lvl * 5} ft Speed`;
+      return `−${level * 2} to all d20 Tests, −${level * 5} ft Speed`;
     }
     // Effects array holds "Level N — …" lines; return the matching one.
-    const match = cond.effects.find((e) => e.startsWith(`Level ${lvl}`));
+    const match = cond.effects.find((e) => e.startsWith(`Level ${level}`));
     return match ?? cond.effects[0] ?? cond.description;
   }
   return cond.effects[0] ?? cond.description;
@@ -201,8 +250,8 @@ export const CHECK_DIS_CONDITIONS = new Set<string>([
  * Under 2024, Exhaustion never causes disadvantage — it's a flat −2×level
  * penalty on every d20 Test instead (see `getExhaustionD20Penalty`).
  */
-export function hasAttackDisadvantage(conditions: string[], ruleset: RulesetKey): boolean {
-  if (conditions.some((c) => ATTACK_DIS_CONDITIONS.has(c))) return true;
+export function hasAttackDisadvantage(conditions: readonly AppliedCondition[], ruleset: RulesetKey): boolean {
+  if (conditions.some((c) => ATTACK_DIS_CONDITIONS.has(c.name))) return true;
   if (ruleset === "2014" && getExhaustionLevel(conditions) >= 3) return true;
   return false;
 }
@@ -213,8 +262,8 @@ export function hasAttackDisadvantage(conditions: string[], ruleset: RulesetKey)
  * ability checks. Under 2024, Exhaustion contributes a numeric penalty
  * instead (see `getExhaustionD20Penalty`), never disadvantage.
  */
-export function hasCheckDisadvantage(conditions: string[], ruleset: RulesetKey): boolean {
-  if (conditions.some((c) => CHECK_DIS_CONDITIONS.has(c))) return true;
+export function hasCheckDisadvantage(conditions: readonly AppliedCondition[], ruleset: RulesetKey): boolean {
+  if (conditions.some((c) => CHECK_DIS_CONDITIONS.has(c.name))) return true;
   if (ruleset === "2014" && getExhaustionLevel(conditions) >= 1) return true;
   return false;
 }
@@ -227,12 +276,12 @@ export function hasCheckDisadvantage(conditions: string[], ruleset: RulesetKey):
  * penalty instead — see `getExhaustionD20Penalty`).
  */
 export function hasSaveDisadvantage(
-  conditions: string[],
+  conditions: readonly AppliedCondition[],
   ability: string,
   ruleset: RulesetKey,
 ): boolean {
   if (ruleset === "2014" && getExhaustionLevel(conditions) >= 3) return true;
-  if (ability.toLowerCase() === "dex" && conditions.includes("Restrained")) return true;
+  if (ability.toLowerCase() === "dex" && hasCondition(conditions, "Restrained")) return true;
   return false;
 }
 
@@ -244,7 +293,7 @@ export function hasSaveDisadvantage(
  * / `hasSaveDisadvantage` instead) or when there's no active exhaustion.
  * Always ≤ 0 — add it directly to a roll modifier.
  */
-export function getExhaustionD20Penalty(conditions: string[], ruleset: RulesetKey): number {
+export function getExhaustionD20Penalty(conditions: readonly AppliedCondition[], ruleset: RulesetKey): number {
   if (ruleset !== "2024") return 0;
   const level = getExhaustionLevel(conditions);
   return level > 0 ? level * -2 : 0;
@@ -257,7 +306,7 @@ export function getExhaustionD20Penalty(conditions: string[], ruleset: RulesetKe
  * app — the SRD text alone documents them for 2014. Returns 0 under 2014 or
  * when there's no active exhaustion.
  */
-export function getExhaustionSpeedPenaltyFt(conditions: string[], ruleset: RulesetKey): number {
+export function getExhaustionSpeedPenaltyFt(conditions: readonly AppliedCondition[], ruleset: RulesetKey): number {
   if (ruleset !== "2024") return 0;
   return getExhaustionLevel(conditions) * 5;
 }

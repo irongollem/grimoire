@@ -190,6 +190,7 @@ const canApply = computed(
 function apply() {
   if (!results.value || applied.value || !canApply.value) return;
   applied.value = resolution.applySaveOutcome({
+    attacker,
     entry,
     results: results.value,
     damageParts: amounts.value ? toDamageAmounts(amounts.value) : [],

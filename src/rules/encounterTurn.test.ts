@@ -8,6 +8,7 @@ import {
   type EncounterTurnEvent,
   type EncounterTurnState,
 } from "@/rules/encounterTurn";
+import type { AppliedCondition } from "@/types/condition.types";
 import type { RunCombatant, WildshapeState } from "@/types/encounter.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
 
@@ -207,7 +208,7 @@ describe("hit points and dying", () => {
 
   it("set_hp clamps, puts a PC down at 0 and stands them up above 0", () => {
     const down = run(stateOf([pc("p-1", { hp: 5 })]), { type: "set_hp", instanceId: "p-1", value: -3 });
-    expect(find(down.state, "p-1")).toMatchObject({ hp: 0, conditions: ["Unconscious"] });
+    expect(find(down.state, "p-1")).toMatchObject({ hp: 0, conditions: [{ name: "Unconscious" }] });
     const up = run(down.state, { type: "set_hp", instanceId: "p-1", value: 4 });
     expect(find(up.state, "p-1")).toMatchObject({ hp: 4, conditions: [] });
     expect(up.events.at(-1)).toEqual({ type: "check_events", reason: "hp" });
@@ -253,13 +254,27 @@ describe("wild shape", () => {
 });
 
 describe("conditions, flags and pools", () => {
-  it("toggles and replaces conditions, persisting players", () => {
-    const on = run(stateOf([pc("p-1")]), { type: "toggle_condition", instanceId: "p-1", condition: "Prone" });
-    expect(find(on.state, "p-1").conditions).toEqual(["Prone"]);
-    const off = run(on.state, { type: "toggle_condition", instanceId: "p-1", condition: "Prone" });
+  it("applies, removes and replaces conditions, persisting players", () => {
+    const on = run(stateOf([pc("p-1")]), { type: "apply_condition", instanceId: "p-1", condition: { name: "Prone" } });
+    expect(find(on.state, "p-1").conditions).toEqual([{ name: "Prone" }]);
+    expect(on.events[0]).toMatchObject({ type: "player_persist", patch: { conditions: [{ name: "Prone" }] } });
+    const off = run(on.state, { type: "remove_condition", instanceId: "p-1", name: "Prone" });
     expect(find(off.state, "p-1").conditions).toEqual([]);
-    const set = run(off.state, { type: "set_conditions", instanceId: "p-1", conditions: ["Exhaustion 2"] });
-    expect(set.events[0]).toMatchObject({ patch: { conditions: ["Exhaustion 2"] } });
+    const set = run(off.state, {
+      type: "set_conditions",
+      instanceId: "p-1",
+      conditions: [{ name: "Exhaustion", level: 2 }],
+    });
+    expect(set.events[0]).toMatchObject({ patch: { conditions: [{ name: "Exhaustion", level: 2 }] } });
+  });
+
+  it("a freshly applied condition owes nothing and is not armed", () => {
+    const { state } = run(stateOf([combatant("m")]), {
+      type: "apply_condition",
+      instanceId: "m",
+      condition: { name: "Dazed", ends: { kind: "turn", at: "end", of: "self", armed: true }, due: { save: true } },
+    });
+    expect(find(state, "m").conditions).toEqual([{ name: "Dazed", ends: { kind: "turn", at: "end", of: "self", armed: false } }]);
   });
 
   it("toggles surprise and reaction", () => {
@@ -326,7 +341,7 @@ describe("purity", () => {
       { type: "adjust_hp", instanceId: "p-1", delta: -9 },
       { type: "set_hp", instanceId: "p-1", value: 0 },
       { type: "set_max_hp", instanceId: "m", value: 3 },
-      { type: "toggle_condition", instanceId: "p-1", condition: "Prone" },
+      { type: "apply_condition", instanceId: "p-1", condition: { name: "Prone" } },
       { type: "spend_legendary_actions", instanceId: "m", cost: 1 },
       { type: "mark_lair_fired" },
       { type: "reshuffle_initiative" },
@@ -432,5 +447,146 @@ describe("limited abilities", () => {
     const c = combatant("a", { action_uses: { [actionUseKey("actions", tail)]: { used: 1, ...breath } } });
     expect(actionAvailability(c, tail, "actions").available).toBe(false);
     expect(actionAvailability(c, tail, "legendary_actions").available).toBe(true);
+  });
+});
+
+describe("condition durations in the turn flow", () => {
+  const holdPerson: AppliedCondition = {
+    name: "Paralyzed",
+    source: { id: "caster", spell: "Hold Person", concentration: true },
+    ends: { kind: "save", ability: "wis", dc: 15, at: "end" },
+  };
+  const ended = (events: EncounterTurnEvent[]) => events.filter((e) => e.type === "condition_ended");
+
+  it("a save-ends condition falls due at the end of its bearer's turn and a successful save removes it", () => {
+    const start = stateOf([combatant("m", { initiative: 20, conditions: [holdPerson] }), combatant("o", { initiative: 5 })]);
+    const turn = run(start, { type: "next_turn" });
+    expect(turn.events).toContainEqual({ type: "condition_save_due", instanceId: "m", name: "Paralyzed", ability: "wis", dc: 15 });
+    expect(find(turn.state, "m").conditions[0]).toMatchObject({ due: { save: true } });
+    const failed = run(turn.state, { type: "resolve_condition_save", instanceId: "m", name: "Paralyzed", success: false });
+    expect(find(failed.state, "m").conditions).toEqual([holdPerson]);
+    const saved = run(turn.state, { type: "resolve_condition_save", instanceId: "m", name: "Paralyzed", success: true });
+    expect(find(saved.state, "m").conditions).toEqual([]);
+    expect(saved.events).toContainEqual({ type: "condition_ended", instanceId: "m", name: "Paralyzed", reason: "saved" });
+  });
+
+  it("until the end of the source's next turn: survives the turn it was applied in, expires at the end of the next", () => {
+    const start = stateOf([combatant("s", { initiative: 20 }), combatant("t", { initiative: 10 })]);
+    const applied = run(start, {
+      type: "apply_condition",
+      instanceId: "t",
+      condition: { name: "Marked", source: { id: "s" }, ends: { kind: "turn", at: "end", of: "source" } },
+    });
+    const first = run(applied.state, { type: "next_turn" }); // s's turn ends
+    expect(find(first.state, "t").conditions).toHaveLength(1);
+    const second = run(first.state, { type: "next_turn" }); // t's turn ends, round 2: s's turn starts and arms it
+    expect(find(second.state, "t").conditions[0]).toMatchObject({ ends: { armed: true } });
+    const third = run(second.state, { type: "next_turn" }); // s's turn ends
+    expect(find(third.state, "t").conditions).toEqual([]);
+    expect(ended(third.events)).toEqual([{ type: "condition_ended", instanceId: "t", name: "Marked", reason: "expired" }]);
+  });
+
+  it("rounds count down on the source's turns", () => {
+    const start = stateOf([
+      combatant("s", { initiative: 20 }),
+      combatant("t", { initiative: 10, conditions: [{ name: "Blessed", source: { id: "s" }, ends: { kind: "rounds", remaining: 2 } }] }),
+    ]);
+    const r2 = run(run(run(start, { type: "next_turn" }).state, { type: "next_turn" }).state, { type: "next_turn" });
+    expect(find(r2.state, "t").conditions[0]).toMatchObject({ ends: { remaining: 1 } });
+    const r3a = run(r2.state, { type: "next_turn" });
+    const r3 = run(r3a.state, { type: "next_turn" });
+    expect(find(r3.state, "t").conditions).toEqual([]);
+    expect(ended([...r3a.events, ...r3.events])).toHaveLength(1);
+  });
+
+  it("ongoing damage falls due at the start of the bearer's turn", () => {
+    const burning: AppliedCondition = { name: "Burning", ongoing: { dice: "1d6", type: "fire", at: "start" } };
+    const start = stateOf([combatant("a", { initiative: 20 }), combatant("b", { initiative: 10, conditions: [burning] })]);
+    const { state, events } = run(start, { type: "next_turn" });
+    expect(events).toContainEqual({ type: "ongoing_damage_due", instanceId: "b", name: "Burning", dice: "1d6", damageType: "fire" });
+    expect(find(state, "b").conditions[0]).toMatchObject({ due: { damage: true } });
+    const settled = run(state, { type: "settle_ongoing_damage", instanceId: "b", name: "Burning" });
+    expect(find(settled.state, "b").conditions).toEqual([burning]);
+  });
+
+  it("start_combat runs the first combatant's start hooks", () => {
+    const burning: AppliedCondition = { name: "Burning", ongoing: { dice: "1d6", type: "fire", at: "start" } };
+    const { events } = run(stateOf([combatant("a", { conditions: [burning] })], { started: false }), { type: "start_combat" });
+    expect(types(events)).toContain("ongoing_damage_due");
+  });
+
+  it("a PC's condition change from a turn edge is persisted as records", () => {
+    const stun: AppliedCondition = { name: "Stunned", ends: { kind: "turn", at: "start", of: "self" } };
+    const start = stateOf([combatant("m", { initiative: 20 }), pc("p-1", { initiative: 10, conditions: [stun] })]);
+    const { events } = run(start, { type: "next_turn" });
+    expect(events).toContainEqual({ type: "player_persist", partyMemberId: "pm-p-1", patch: { conditions: [] } });
+  });
+
+  it("a concentrating source dropping to 0 HP ends the conditions it holds on others", () => {
+    const start = stateOf([
+      combatant("caster", { hp: 5, concentration: null }),
+      combatant("t", { conditions: [holdPerson, { name: "Poisoned" }] }),
+    ]);
+    const { state, events } = run(start, { type: "adjust_hp", instanceId: "caster", delta: -9 });
+    expect(find(state, "t").conditions).toEqual([{ name: "Poisoned" }]);
+    expect(ended(events)).toEqual([{ type: "condition_ended", instanceId: "t", name: "Paralyzed", reason: "source_down" }]);
+    const still = run(start, { type: "adjust_hp", instanceId: "caster", delta: -2 });
+    expect(find(still.state, "t").conditions).toHaveLength(2);
+  });
+
+  it("end_concentration with a spell ends only that spell's conditions", () => {
+    const other: AppliedCondition = { name: "Slowed", source: { id: "caster", spell: "Slow", concentration: true } };
+    const start = stateOf([
+      combatant("caster", { concentration: { spellId: null, spellName: "Hold Person", castAtLevel: 2, startedRound: 1, appliedEffectIds: [] } }),
+      combatant("t", { conditions: [holdPerson, other] }),
+    ]);
+    const one = run(start, { type: "end_concentration", instanceId: "caster", spell: "Hold Person" });
+    expect(find(one.state, "t").conditions).toEqual([other]);
+    expect(find(one.state, "caster").concentration).toBeNull();
+    const all = run(start, { type: "end_concentration", instanceId: "caster" });
+    expect(find(all.state, "t").conditions).toEqual([]);
+    expect(ended(all.events)).toHaveLength(2);
+  });
+
+  it("removing a source ends what rode on it, and persists players", () => {
+    const anchored: AppliedCondition = { name: "Marked", source: { id: "caster" }, ends: { kind: "turn", at: "end", of: "source" } };
+    const plain: AppliedCondition = { name: "Cursed", source: { id: "caster" } };
+    const start = stateOf([combatant("caster", { initiative: 20 }), pc("p-1", { initiative: 5, conditions: [holdPerson, anchored, plain] })]);
+    const { state, events } = run(start, { type: "remove_combatant", instanceId: "caster" });
+    expect(find(state, "p-1").conditions).toEqual([plain]);
+    expect(ended(events).map((e) => e.reason)).toEqual(["source_removed", "source_removed"]);
+    expect(events).toContainEqual({ type: "player_persist", partyMemberId: "pm-p-1", patch: { conditions: [plain] } });
+  });
+
+  it("stepping back runs no hooks", () => {
+    const stun: AppliedCondition = { name: "Stunned", ends: { kind: "turn", at: "start", of: "self" } };
+    const start = stateOf([combatant("a", { initiative: 20 }), combatant("b", { initiative: 10, conditions: [stun] })], { activeIndex: 1 });
+    const { state, events } = run(start, { type: "prev_turn" });
+    expect(events).toEqual([]);
+    expect(find(state, "b").conditions).toEqual([stun]);
+  });
+});
+
+describe("concentration_check_due", () => {
+  const held: AppliedCondition = { name: "Paralyzed", source: { id: "mage", spell: "Hold Person", concentration: true } };
+  const due = (events: EncounterTurnEvent[]) => events.filter((e) => e.type === "concentration_check_due");
+  const roster = (mage: Partial<RunCombatant> = {}) => [combatant("mage", mage), combatant("t", { conditions: [held] })];
+
+  it("is raised for a holder that takes damage and stays up", () => {
+    const { events } = reduceEncounterTurn(stateOf(roster()), { type: "adjust_hp", instanceId: "mage", delta: -4 });
+    expect(due(events)).toEqual([{ type: "concentration_check_due", instanceId: "mage", damage: 4 }]);
+  });
+
+  it("is not raised for healing, a non-holder, or a party member", () => {
+    expect(due(reduceEncounterTurn(stateOf(roster({ hp: 5 })), { type: "adjust_hp", instanceId: "mage", delta: 3 }).events)).toEqual([]);
+    expect(due(reduceEncounterTurn(stateOf(roster()), { type: "adjust_hp", instanceId: "t", delta: -3 }).events)).toEqual([]);
+    const heroRoster = [pc("mage"), combatant("t", { conditions: [held] })];
+    expect(due(reduceEncounterTurn(stateOf(heroRoster), { type: "adjust_hp", instanceId: "mage", delta: -3 }).events)).toEqual([]);
+  });
+
+  it("is not raised when the hit drops the holder to 0, which ends what it holds instead", () => {
+    const { events } = reduceEncounterTurn(stateOf(roster()), { type: "adjust_hp", instanceId: "mage", delta: -10 });
+    expect(due(events)).toEqual([]);
+    expect(events).toContainEqual({ type: "condition_ended", instanceId: "t", name: "Paralyzed", reason: "source_down" });
   });
 });

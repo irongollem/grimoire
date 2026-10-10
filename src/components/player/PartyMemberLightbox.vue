@@ -97,8 +97,8 @@
               <!-- Right column: conditions + description + notes -->
               <div class="flex-1 p-4 space-y-4 border-t sm:border-t-0 border-border">
                 <div v-if="member.conditions?.length" class="flex flex-wrap gap-1.5">
-                  <span v-for="cond in member.conditions" :key="cond"
-                    class="text-label px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">{{ cond }}</span>
+                  <span v-for="cond in member.conditions" :key="cond.name"
+                    class="text-label px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">{{ cond.name }}</span>
                 </div>
 
                 <div v-if="member.player_description">

@@ -24,7 +24,7 @@ if (!found) throw new Error("No condition differs between editions; the test has
 const condition: string = found;
 
 function member(ruleset: RulesetKey, campaignId: string | null): PartyMember {
-  return { id: "m1", ruleset, campaign_id: campaignId, conditions: [condition], curses: [] } as unknown as PartyMember;
+  return { id: "m1", ruleset, campaign_id: campaignId, conditions: [{ name: condition }], curses: [] } as unknown as PartyMember;
 }
 
 function seatCampaign(ruleset: RulesetKey) {

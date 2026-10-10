@@ -3,13 +3,15 @@ import { createPinia, setActivePinia } from "pinia";
 import { defineComponent, nextTick, ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import type { RunCombatant } from "@/types/encounter.types";
+import type { AppliedCondition } from "@/types/condition.types";
 
 interface Row {
   id: string;
   current_hp: number;
   temp_hp: number;
   current_initiative: number | null;
-  conditions: string[];
+  conditions: AppliedCondition[];
+  concentration: { spellName: string } | null;
   wildshape_state: null;
   death_save_successes: number;
   death_save_failures: number;
@@ -73,6 +75,7 @@ function row(over: Partial<Row>): Row {
     temp_hp: 0,
     current_initiative: null,
     conditions: [],
+    concentration: null,
     wildshape_state: null,
     death_save_successes: 0,
     death_save_failures: 0,
@@ -133,17 +136,17 @@ describe("useRunnerPartySync re-reads", () => {
 
     ring(); // a player's initiative roll rings; its read starts
     await flushPromises();
-    store.toggleCondition("p-1", "Prone"); // persist starts, not yet committed
+    store.applyCondition("p-1", { name: "Prone" }); // persist starts, not yet committed
     reads.shift()!([row({})]); // the read returns A without Prone
     await flushPromises();
-    expect(store.combatants[0]!.conditions).toEqual(["Prone"]);
+    expect(store.combatants[0]!.conditions).toEqual([{ name: "Prone" }]);
 
     // The write commits and the read that follows applies the row as it is now.
     writes.splice(0).forEach((done) => done());
     await flushPromises();
-    reads.shift()!([row({ conditions: ["Prone"] })]);
+    reads.shift()!([row({ conditions: [{ name: "Prone" }] })]);
     await flushPromises();
-    expect(store.combatants[0]!.conditions).toEqual(["Prone"]);
+    expect(store.combatants[0]!.conditions).toEqual([{ name: "Prone" }]);
   });
 
   it("re-reads a member dropped because its write settled mid-read, even if no ring is owed", async () => {
@@ -151,25 +154,71 @@ describe("useRunnerPartySync re-reads", () => {
 
     ring();
     await flushPromises();
-    store.toggleCondition("p-1", "Prone");
+    store.applyCondition("p-1", { name: "Prone" });
     writes.splice(0).forEach((done) => done()); // write settles while the read is out
     await flushPromises();
     reads.shift()!([row({})]); // stale: read before the write settled
     await flushPromises();
-    expect(store.combatants[0]!.conditions).toEqual(["Prone"]);
+    expect(store.combatants[0]!.conditions).toEqual([{ name: "Prone" }]);
     expect(reads).toHaveLength(1); // the retry was issued without a ring
-    reads.shift()!([row({ conditions: ["Prone"] })]);
+    reads.shift()!([row({ conditions: [{ name: "Prone" }] })]);
     await flushPromises();
-    expect(store.combatants[0]!.conditions).toEqual(["Prone"]);
+    expect(store.combatants[0]!.conditions).toEqual([{ name: "Prone" }]);
   });
 
   it("still ingests what changed outside the runner when this client is not writing", async () => {
     const store = await setup(20);
     ring();
     await flushPromises();
-    reads.shift()!([row({ temp_hp: 4, conditions: ["Poisoned"], current_hp: 12 })]);
+    reads.shift()!([row({ temp_hp: 4, conditions: [{ name: "Poisoned" }], current_hp: 12 })]);
     await nextTick();
     await flushPromises();
-    expect(store.combatants[0]).toMatchObject({ hp: 12, temp_hp: 4, conditions: ["Poisoned"] });
+    expect(store.combatants[0]).toMatchObject({ hp: 12, temp_hp: 4, conditions: [{ name: "Poisoned" }] });
+  });
+});
+
+describe("useRunnerPartySync concentration (#1018)", () => {
+  beforeEach(() => {
+    reads.length = 0;
+    writes.length = 0;
+    ringListeners.length = 0;
+    vi.useFakeTimers();
+  });
+
+  const hold = { name: "Paralyzed", source: { id: "p-1", spell: "Hold Person", concentration: true } };
+
+  async function setupConcentrating() {
+    setActivePinia(createPinia());
+    const store = useEncounterRunStore();
+    store.combatants = [player(20), { ...player(20), instance_id: "g-1", type: "monster", party_member_id: undefined, name: "Goblin", conditions: [hold] }];
+    mount(defineComponent({ setup() { useRunnerPartySync(ref(true)); return () => null; } }));
+    await flushPromises();
+    reads.shift()!([row({ concentration: { spellName: "Hold Person" } })]);
+    await flushPromises();
+    return store;
+  }
+
+  it("ends what a PC's concentration held when the sheet stops concentrating", async () => {
+    const store = await setupConcentrating();
+    expect(store.combatants[1]!.conditions).toHaveLength(1); // the first read only records
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ concentration: null })]);
+    await flushPromises();
+    expect(store.combatants[1]!.conditions).toEqual([]);
+  });
+
+  it("ends it when the PC swaps to another spell, and leaves it alone while unchanged", async () => {
+    const store = await setupConcentrating();
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ concentration: { spellName: "Hold Person" } })]);
+    await flushPromises();
+    expect(store.combatants[1]!.conditions).toHaveLength(1);
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ concentration: { spellName: "Bless" } })]);
+    await flushPromises();
+    expect(store.combatants[1]!.conditions).toEqual([]);
   });
 });

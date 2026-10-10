@@ -19,6 +19,7 @@ import {
   hasApplicableMemberEffect,
 } from "@/lib/downtime/downtimeEffects";
 import { DOWNTIME_SEEDS } from "@/data/downtimeSeeds";
+import type { AppliedCondition } from "@/types/condition.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type {
   CoinKey,
@@ -358,7 +359,7 @@ export function useApplyEffects() {
       const row = member as Record<CoinKey, number> & {
         current_hp: number;
         max_hp: number;
-        conditions: string[];
+        conditions: AppliedCondition[];
       };
 
       const coins = applyCoinEffects(
@@ -366,7 +367,7 @@ export function useApplyEffects() {
         args.effects,
       );
       const currentHp = applyHpEffects(row.current_hp, row.max_hp, args.effects);
-      const conditions = applyConditionEffects(row.conditions ?? [], args.effects);
+      const conditions = applyConditionEffects(row.conditions, args.effects);
 
       const { error: writeError } = await supabase
         .from("party_members")

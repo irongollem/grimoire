@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-3">
-    <PlayerRollModeControl :conditions="member.conditions ?? []" :shown="CHECK_TARGETS" />
+    <PlayerRollModeControl :conditions="member.conditions" :shown="CHECK_TARGETS" />
 
     <!-- Passives -->
     <div class="rounded-lg border border-border bg-card px-4 py-2.5 flex flex-wrap gap-x-6 gap-y-1">

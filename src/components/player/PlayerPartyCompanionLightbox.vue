@@ -111,15 +111,16 @@
       />
       <span
         v-for="cond in companion.conditions.filter((c) => isOwner ? !isExhaustion(c) : true)"
-        :key="cond"
+        :key="cond.name"
         class="flex items-center gap-1 text-label px-1.5 py-0.5 rounded bg-destructive/10 text-destructive"
+        :title="describeConditionEnd(cond, () => null) ?? undefined"
       >
-        {{ cond }}
+        {{ cond.name }}
         <AppButton
           v-if="isOwner"
           variant="link" tone="danger" size="inline-xs"
-          :aria-label="`Remove ${cond}`"
-          @click="removeCondition(cond)"
+          :aria-label="`Remove ${cond.name}`"
+          @click="removeCondition(cond.name)"
         >×</AppButton>
       </span>
     </div>
@@ -178,7 +179,11 @@ import {
   getExhaustionLevel,
   setExhaustionLevel,
   isExhaustion,
+  hasCondition,
+  withCondition,
+  withoutCondition,
 } from "@/rules/conditions";
+import { describeConditionEnd } from "@/rules/conditionLabels";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
 
@@ -226,7 +231,7 @@ const availableConditions = computed(() => {
   const hasExhaustion = getExhaustionLevel(companion.conditions) > 0;
   return CONDITIONS.filter((c) => {
     if (c === "Exhaustion") return !hasExhaustion;
-    return !companion.conditions.includes(c);
+    return !hasCondition(companion.conditions, c);
   });
 });
 
@@ -263,7 +268,7 @@ async function addCondition() {
   if (newCondition.value === "Exhaustion") {
     if (!await setExhaustion(1)) return;
   } else {
-    const updated = [...companion.conditions, newCondition.value];
+    const updated = withCondition(companion.conditions, { name: newCondition.value });
     try {
       await updateCompanion({ id: companion.id, update: { conditions: updated } });
     } catch (error) {
@@ -277,7 +282,7 @@ async function addCondition() {
 
 async function removeCondition(cond: string) {
   if (!companion) return;
-  const updated = companion.conditions.filter((c) => c !== cond);
+  const updated = withoutCondition(companion.conditions, cond);
   try {
     await updateCompanion({ id: companion.id, update: { conditions: updated } });
   } catch (error) {

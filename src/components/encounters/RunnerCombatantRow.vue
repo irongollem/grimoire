@@ -116,37 +116,7 @@
 
       <!-- Conditions -->
       <div class="conditions-cell" @click.stop>
-        <ExhaustionChip
-          v-if="getExhaustionLevel(displayConditions) > 0"
-          variant="amber"
-          :level="getExhaustionLevel(displayConditions)"
-          @update="(lvl) => onExhaustionChange(lvl)"
-        />
-        <span
-          v-for="cond in nonExhaustion(displayConditions)"
-          :key="cond"
-          class="cond-badge"
-          :title="`${cond}: click to remove\n\n${getConditionDescription(cond, ruleset)}`"
-          @click="store.toggleCondition(combatant.instance_id, cond)"
-        >{{ cond }} ×</span>
-        <span
-          v-if="pcConcentration"
-          class="conc-chip"
-          :title="`Concentrating on ${pcConcentration}: click to drop`"
-          @click="dropCombatantConcentration"
-        >✦ {{ pcConcentration }} ×</span>
-        <button
-          v-if="store.started"
-          type="button"
-          class="reaction-chip"
-          :class="combatant.reactionUsed ? 'reaction-used' : 'reaction-ready'"
-          :title="combatant.reactionUsed ? 'Reaction used: click to restore' : 'Reaction available: click to mark used'"
-          @click="store.toggleReaction(combatant.instance_id)"
-        >⚡</button>
-        <ConditionPicker
-          :conditions="displayConditions"
-          @pick="onConditionPickerPick"
-        />
+        <RunnerConditionBadges :combatant="combatant" />
       </div>
     </div>
 
@@ -182,13 +152,10 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
-import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
-import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
+import RunnerConditionBadges from "@/components/encounters/RunnerConditionBadges.vue";
 import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
 import RunnerRollStatus from "@/components/encounters/RunnerRollStatus.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
-import { getExhaustionLevel, getConditionDescription } from "@/rules/conditions";
 import { useRunnerCombatant } from "@/composables/encounters/useRunnerCombatant";
 import type { RunCombatant } from "@/types/encounter.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -203,7 +170,6 @@ const { combatant, selectedId } = defineProps<{
 const emit = defineEmits<{ select: [id: string | null] }>();
 
 const store = useEncounterRunStore();
-const { ruleset } = useTableRuleset();
 
 const {
   wildshape,
@@ -211,12 +177,9 @@ const {
   displayMaxHp,
   displayTempHp,
   displayAc,
-  displayConditions,
-  pcConcentration,
   factionColor,
   revealBtnClass,
   revealBtnTitle,
-  nonExhaustion,
   flashInfo,
   clearFlash,
   handleAdjustHp,
@@ -228,9 +191,6 @@ const {
   quickDamage,
   quickHeal,
   quickTemp,
-  onExhaustionChange,
-  onConditionPickerPick,
-  dropCombatantConcentration,
   handleCycleReveal,
 } = useRunnerCombatant(() => combatant);
 
@@ -289,19 +249,6 @@ function toggleDetail() {
   @apply text-label text-muted-foreground/50 px-1 py-0.5 rounded border border-dashed border-muted-foreground/20 hover:text-ink-caution hover:border-tone-caution/40 transition-colors;
 }
 
-.cond-badge {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded text-label font-semibold bg-tone-caution/20 text-ink-caution  border border-tone-caution/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
-}
-
-.conc-chip {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded text-label font-semibold bg-tone-arcane/20 text-ink-arcane  border border-tone-arcane/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
-}
-
-.reaction-chip {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded text-label font-semibold border transition-colors cursor-pointer;
-}
-.reaction-ready { @apply bg-tone-info/10 text-ink-info border-tone-info/30 hover:bg-tone-info/20; }
-.reaction-used  { @apply bg-muted text-muted-foreground/40 border-border line-through hover:bg-tone-danger/10 hover:text-destructive hover:border-tone-danger/30; }
 
 /* ── Shared HP styles ───────────────────────────────────────────────────── */
 .hp-btn {

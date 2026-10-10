@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formHpPools } from "@/rules/hitPoints";
+import type { AppliedCondition } from "@/types/condition.types";
 import {
   damageOutcome,
   deathSaveRollOutcome,
@@ -10,7 +11,7 @@ import {
 } from "@/rules/dying";
 
 const fresh = { successes: 0, failures: 0 };
-function pc(hp: number, max = 10, temp = 0, saves = fresh, conditions: string[] = []) {
+function pc(hp: number, max = 10, temp = 0, saves = fresh, conditions: AppliedCondition[] = []) {
   return { pools: formHpPools({ current_hp: hp, max_hp: max, temp_hp: temp }, null), saves, conditions };
 }
 
@@ -28,7 +29,7 @@ describe("damageOutcome", () => {
     const r = damageOutcome(pc(10), { amount: 12 });
     expect(r.current_hp).toBe(0);
     expect(r.outcome).toBe("dropped");
-    expect(r.conditions).toContain("Unconscious");
+    expect(r.conditions).toContainEqual({ name: "Unconscious" });
     expect(r.saves).toEqual(fresh);
   });
 
@@ -62,7 +63,7 @@ describe("damageOutcome", () => {
   });
 
   it("damage at 0 HP is one failure, two on a critical", () => {
-    expect(damageOutcome(pc(0, 10, 0, fresh, ["Unconscious"]), { amount: 3 }).saves.failures).toBe(1);
+    expect(damageOutcome(pc(0, 10, 0, fresh, [{ name: "Unconscious" }]), { amount: 3 }).saves.failures).toBe(1);
     const crit = damageOutcome(pc(0, 10, 0, { successes: 1, failures: 0 }), { amount: 3, critical: true });
     expect(crit.saves).toEqual({ successes: 1, failures: 2 });
     expect(crit.outcome).toBe("dying-worse");
@@ -129,19 +130,19 @@ describe("damageOutcome", () => {
 
 describe("healingOutcome", () => {
   it("healing from 0 clears saves and Unconscious", () => {
-    const r = healingOutcome(pc(0, 10, 0, { successes: 2, failures: 2 }, ["Unconscious", "Poisoned"]), 2);
+    const r = healingOutcome(pc(0, 10, 0, { successes: 2, failures: 2 }, [{ name: "Unconscious" }, { name: "Poisoned" }]), 2);
     expect(r.current_hp).toBe(2);
     expect(r.saves).toEqual(fresh);
-    expect(r.conditions).toEqual(["Poisoned"]);
+    expect(r.conditions).toEqual([{ name: "Poisoned" }]);
     expect(r.outcome).toBe("revived-by-healing");
   });
 
   it("healing a stable creature wakes it", () => {
-    expect(healingOutcome(pc(0, 10, 0, { successes: 3, failures: 0 }, ["Unconscious"]), 1).outcome).toBe("revived-by-healing");
+    expect(healingOutcome(pc(0, 10, 0, { successes: 3, failures: 0 }, [{ name: "Unconscious" }]), 1).outcome).toBe("revived-by-healing");
   });
 
   it("healing the dead does nothing", () => {
-    const r = healingOutcome(pc(0, 10, 0, { successes: 0, failures: 3 }, ["Unconscious"]), 5);
+    const r = healingOutcome(pc(0, 10, 0, { successes: 0, failures: 3 }, [{ name: "Unconscious" }]), 5);
     expect(r.current_hp).toBe(0);
     expect(r.outcome).toBe("healing-refused-dead");
   });
@@ -155,11 +156,11 @@ describe("healingOutcome", () => {
 
 describe("reviveOutcome and death save rolls", () => {
   it("revive returns 1 HP, clears saves, removes Unconscious", () => {
-    expect(reviveOutcome(["Unconscious", "Prone"])).toEqual({ current_hp: 1, saves: fresh, conditions: ["Prone"] });
+    expect(reviveOutcome([{ name: "Unconscious" }, { name: "Prone" }])).toEqual({ current_hp: 1, saves: fresh, conditions: [{ name: "Prone" }] });
   });
 
   it("rolls follow the book", () => {
-    expect(deathSaveRollOutcome(fresh, ["Unconscious"], 20)).toMatchObject({ current_hp: 1, conditions: [] });
+    expect(deathSaveRollOutcome(fresh, [{ name: "Unconscious" }], 20)).toMatchObject({ current_hp: 1, conditions: [] });
     expect(deathSaveRollOutcome(fresh, [], 1).saves.failures).toBe(2);
     expect(deathSaveRollOutcome(fresh, [], 10).saves.successes).toBe(1);
     expect(deathSaveRollOutcome(fresh, [], 9).saves.failures).toBe(1);
@@ -171,5 +172,20 @@ describe("describeDamageOutcome", () => {
   it("speaks plainly and stays quiet when nothing happened", () => {
     expect(describeDamageOutcome("Rosie", 70, "died")).toBe("Rosie took 70 damage and died.");
     expect(describeDamageOutcome("Rosie", 3, null)).toBeNull();
+  });
+});
+
+describe("Unconscious as a record", () => {
+  it("keeps an existing Unconscious record, source and all, when dropping again", () => {
+    const sourced = { name: "Unconscious", source: { id: "vex", spell: "Sleep" } };
+    const r = damageOutcome(pc(3, 10, 0, fresh, [sourced]), { amount: 5 });
+    expect(r.outcome).toBe("dropped");
+    expect(r.conditions).toEqual([sourced]);
+  });
+
+  it("clears the Unconscious record on revive and keeps the rest", () => {
+    expect(reviveOutcome([{ name: "Unconscious", source: { id: "vex" } }, { name: "Prone" }]).conditions).toEqual([
+      { name: "Prone" },
+    ]);
   });
 });

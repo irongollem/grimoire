@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { MAX_EXHAUSTION, getConditionDescription } from "@/rules/conditions";
+import { EXHAUSTION, MAX_EXHAUSTION, getConditionDescription } from "@/rules/conditions";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useIsTouch } from "@/composables/useBreakpoint";
 
@@ -57,7 +57,7 @@ const emit = defineEmits<{
 
 const { ruleset } = useTableRuleset();
 
-const tooltip = computed(() => getConditionDescription(`Exhausted ${level}`, ruleset.value));
+const tooltip = computed(() => getConditionDescription(EXHAUSTION, ruleset.value, level));
 
 const wrapperClass = computed(() => {
   const base = "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5";

@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-3">
-    <PlayerRollModeControl :conditions="member.conditions ?? []" :shown="ROLL_TARGETS" />
+    <PlayerRollModeControl :conditions="member.conditions" :shown="ROLL_TARGETS" />
 
     <!-- ── Hide action / hidden state ────────────────────────────────────────── -->
     <!-- Take the Hide action (rolls Dexterity (Stealth) + marks the Hidden
@@ -361,6 +361,7 @@ import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { PlayerVisibleMonster } from "@/types/monster.types";
+import { hasCondition, withCondition, withoutCondition } from "@/rules/conditions";
 import type { ActionStructure, StatBlockEntry } from "@/types/statBlock.types";
 import { combineDamageParts, structuredAttackBonus, structuredDamageParts, structuredOptionEntries, structuredSaveLabel } from "@/lib/statBlock/structuredRolls";
 import type { CombinedDamage } from "@/lib/statBlock/structuredRolls";
@@ -412,7 +413,7 @@ const attackBadgeLabel = computed(() => {
 // character is marked with the "Hidden" condition (a shared, DM-visible chip);
 // making any attack clears it again (see rollAttackWith).
 const stealthBonus = computed(() => skillCheckBonus(props.member, "stealth"));
-const isHidden = computed(() => (props.member.conditions ?? []).includes("Hidden"));
+const isHidden = computed(() => hasCondition(props.member.conditions, "Hidden"));
 const hiding = ref(false);
 const characterRuleset = computed(() => props.member.ruleset);
 
@@ -438,15 +439,15 @@ const checkBadgeLabel = computed(() => {
 });
 
 async function markHidden() {
-  const conditions = props.member.conditions ?? [];
-  if (conditions.includes("Hidden")) return;
-  await updateMember({ id: props.member.id, update: { conditions: [...conditions, "Hidden"] } });
+  const conditions = props.member.conditions;
+  if (hasCondition(conditions, "Hidden")) return;
+  await updateMember({ id: props.member.id, update: { conditions: withCondition(conditions, { name: "Hidden" }) } });
 }
 
 async function clearHidden() {
-  const conditions = props.member.conditions ?? [];
-  if (!conditions.includes("Hidden")) return;
-  await updateMember({ id: props.member.id, update: { conditions: conditions.filter((c) => c !== "Hidden") } });
+  const conditions = props.member.conditions;
+  if (!hasCondition(conditions, "Hidden")) return;
+  await updateMember({ id: props.member.id, update: { conditions: withoutCondition(conditions, "Hidden") } });
 }
 
 async function takeHideAction(override: RollMode | null = null) {

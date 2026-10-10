@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { conditionNames } from "@/rules/conditions";
 import { createPinia, setActivePinia } from "pinia";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -44,16 +45,16 @@ describe("runner adjustHp for a player combatant", () => {
   it("dropping adds Unconscious, and healing removes it with the saves", () => {
     const store = setup(player(10));
     expect(store.adjustHp("p-1", -12)).toBe("dropped");
-    expect(store.combatants[0]!.conditions).toContain("Unconscious");
+    expect(conditionNames(store.combatants[0]!.conditions)).toContain("Unconscious");
     store.adjustHp("p-1", -3);
     expect(store.combatants[0]!.death_saves.failures).toBe(1);
     expect(store.adjustHp("p-1", 2)).toBe("revived-by-healing");
     expect(store.combatants[0]!.death_saves).toEqual({ successes: 0, failures: 0 });
-    expect(store.combatants[0]!.conditions).not.toContain("Unconscious");
+    expect(conditionNames(store.combatants[0]!.conditions)).not.toContain("Unconscious");
   });
 
   it("an ordinary hit on a conscious player writes HP only, not the runner's copy of their conditions", () => {
-    const store = setup({ ...player(10), conditions: ["Prone"] });
+    const store = setup({ ...player(10), conditions: [{ name: "Prone" }] });
     store.adjustHp("p-1", -3);
     const patch = persist.mock.calls[0]![1] as Record<string, unknown>;
     expect(patch).toMatchObject({ current_hp: 7 });

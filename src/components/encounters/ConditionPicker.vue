@@ -1,56 +1,91 @@
 <template>
-  <div ref="root" class="condition-picker-wrap">
-    <button
-      type="button"
-      class="picker-trigger"
-      :class="open ? 'picker-trigger-open' : ''"
-      :title="open ? 'Close condition picker' : 'Add / remove conditions'"
+  <div ref="triggerRef" class="condition-picker-wrap">
+    <AppButton
+      variant="subtle"
+      size="icon-2xs"
+      shape="pill"
+      :active="open"
+      class="border-dashed"
+      :tooltip="open ? 'Close condition picker' : 'Add or remove conditions'"
+      aria-haspopup="dialog"
+      :aria-expanded="open"
       @click.stop="open = !open"
-    >+</button>
-
-    <Transition name="picker-fade">
-      <div v-if="open" class="picker-popover" @click.stop>
-        <div class="picker-grid">
-          <button
-            v-for="cond in CONDITIONS"
-            :key="cond"
-            type="button"
-            class="picker-chip"
-            :class="isActive(cond) ? 'picker-chip-active' : 'picker-chip-inactive'"
-            :title="getConditionShort(cond, ruleset)"
-            @click.stop="emit('pick', cond)"
-          >{{ cond }}</button>
-        </div>
-      </div>
-    </Transition>
+    >+</AppButton>
   </div>
+
+  <!-- Teleported: the runner's panels clip anything absolute inside them. -->
+  <Teleport to="body">
+    <div
+      v-if="open"
+      ref="floatingRef"
+      :style="floatingStyle"
+      data-slip
+      class="picker-popover"
+      role="dialog"
+      aria-label="Conditions"
+      @click.stop
+    >
+      <div class="picker-grid">
+        <AppButton
+          v-for="cond in CONDITIONS"
+          :key="cond"
+          :variant="isActive(cond) ? 'tinted' : 'subtle'"
+          tone="caution"
+          :emphasis="isActive(cond) ? 'strong' : 'soft'"
+          size="xs"
+          :tooltip="getConditionShort(cond, ruleset)"
+          :label="cond"
+          class="picker-chip"
+          @click.stop="emit('pick', cond)"
+        />
+      </div>
+      <AppButton
+        variant="menu"
+        tone="arcane"
+        size="xs"
+        block
+        class="mt-1"
+        label="Custom…"
+        tooltip="A condition of your own, or one with a duration, a source or ongoing damage"
+        @click.stop="onCustom"
+      />
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { onClickOutside } from "@vueuse/core";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
-import { CONDITIONS, getExhaustionLevel, getConditionShort } from "@/rules/conditions";
+import { CONDITIONS, getExhaustionLevel, getConditionShort, hasCondition } from "@/rules/conditions";
 import type { ConditionName } from "@/rules/conditions";
+import type { AppliedCondition } from "@/types/condition.types";
 
 const props = defineProps<{
-  /** Current active conditions for this combatant (the raw string[] from state). */
-  conditions: string[];
+  /** Current conditions on this combatant. */
+  conditions: AppliedCondition[];
 }>();
 
 const emit = defineEmits<{
   pick: [name: ConditionName];
+  /** Open the editor for a new, named condition, anchored to `anchor`. */
+  custom: [anchor: Element | null];
 }>();
 
 const { ruleset } = useTableRuleset();
 const open = ref(false);
-const root = ref<HTMLElement | null>(null);
-
-onClickOutside(root, () => { open.value = false; });
+const triggerRef = ref<HTMLElement | null>(null);
+const { floatingRef, floatingStyle } = useAnchoredPopover(triggerRef, open, () => { open.value = false; });
 
 function isActive(cond: ConditionName): boolean {
   if (cond === "Exhaustion") return getExhaustionLevel(props.conditions) > 0;
-  return props.conditions.includes(cond);
+  return hasCondition(props.conditions, cond);
+}
+
+function onCustom() {
+  open.value = false;
+  emit("custom", triggerRef.value);
 }
 
 /** Called from parent to close the picker (e.g. after a pick is handled). */
@@ -63,25 +98,13 @@ defineExpose({ close });
 @reference "@/assets/main.css";
 
 .condition-picker-wrap {
-  position: relative;
   display: inline-flex;
 }
 
-.picker-trigger {
-  @apply w-5 h-5 rounded-full border border-dashed border-border text-muted-foreground text-label-lg flex items-center justify-center hover:border-primary hover:text-primary transition-colors;
-}
-
-.picker-trigger-open {
-  @apply border-primary text-primary bg-primary/10;
-}
-
 .picker-popover {
-  position: absolute;
-  bottom: calc(100% + 0.375rem);
-  left: 0;
-  z-index: 50;
-  @apply bg-card border border-border rounded-lg shadow-xl p-2;
+  z-index: 300;
   min-width: 14rem;
+  @apply bg-card border border-border rounded-lg shadow-xl p-2;
 }
 
 .picker-grid {
@@ -91,27 +114,8 @@ defineExpose({ close });
 }
 
 .picker-chip {
-  @apply text-label font-semibold px-1.5 py-1 rounded border transition-colors text-center cursor-pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.picker-chip-active {
-  @apply bg-tone-caution/20 text-ink-caution  border-tone-caution/50 hover:bg-destructive/15 hover:text-destructive hover:border-destructive/40;
-}
-
-.picker-chip-inactive {
-  @apply bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground hover:border-border;
-}
-
-.picker-fade-enter-active,
-.picker-fade-leave-active {
-  transition: opacity 0.1s ease, transform 0.1s ease;
-}
-.picker-fade-enter-from,
-.picker-fade-leave-to {
-  opacity: 0;
-  transform: translateY(0.25rem);
 }
 </style>

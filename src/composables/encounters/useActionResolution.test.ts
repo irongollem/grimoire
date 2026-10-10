@@ -128,7 +128,7 @@ describe("useActionResolution", () => {
       const out = await useActionResolution().resolveAttack({
         attacker: combatant("wolf"),
         entry: bite,
-        target: combatant("pc", { ac: "10", conditions: ["Paralyzed"] }),
+        target: combatant("pc", { ac: "10", conditions: [{ name: "Paralyzed" }] }),
         withinFiveFeet: true,
       });
       expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ mode: "advantage" }));
@@ -137,7 +137,7 @@ describe("useActionResolution", () => {
 
     it("applies the 2024 exhaustion penalty to the attacker's roll, not in 2014", async () => {
       promptRoll.mockResolvedValue(d20(10, 1));
-      const attacker = combatant("wolf", { conditions: ["Exhausted 2"] });
+      const attacker = combatant("wolf", { conditions: [{ name: "Exhaustion", level: 2 }] });
       const target = combatant("pc", { ac: "15" });
       const out = await useActionResolution().resolveAttack({ attacker, entry: bite, target, withinFiveFeet: false });
       expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ modifier: 1 }));
@@ -255,7 +255,7 @@ describe("useActionResolution", () => {
       promptRoll.mockResolvedValueOnce(d20(8, 2)).mockResolvedValueOnce(d20(10, 4));
       const goblin = combatant("g", { monster_id: "m-goblin" });
       const ogre = combatant("o", { monster_id: "m-ogre" });
-      const stunned = combatant("s", { monster_id: "m-goblin", conditions: ["Stunned"] });
+      const stunned = combatant("s", { monster_id: "m-goblin", conditions: [{ name: "Stunned" }] });
       const hero = combatant("h", { type: "player", party_member_id: "pm" });
       const { resolveSaves, settleSave } = useActionResolution();
       const results = await resolveSaves({ entry: breath, targets: [goblin, ogre, stunned, hero] });
@@ -278,7 +278,7 @@ describe("useActionResolution", () => {
       const leaked = { dmMode: "advantage" as const };
       await useActionResolution().resolveSaves({
         entry: breath,
-        targets: [combatant("g", { monster_id: "m-goblin", conditions: ["Restrained"] }), combatant("o", { monster_id: "m-goblin" })],
+        targets: [combatant("g", { monster_id: "m-goblin", conditions: [{ name: "Restrained" }] }), combatant("o", { monster_id: "m-goblin" })],
         ...leaked,
       });
       expect(promptRoll).toHaveBeenNthCalledWith(1, expect.objectContaining({ mode: "disadvantage" }));
@@ -291,6 +291,7 @@ describe("useActionResolution", () => {
       store.combatants = [saver];
       const base = { dc: 13, ability: "dex" as const, bonus: 0, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
       const [applied] = useActionResolution().applySaveOutcome({
+        attacker: combatant("x"),
         entry: breath,
         damageParts: [{ amount: 7, type: "fire" }, { amount: 7, type: "poison" }],
         results: [{ ...base, target: saver, success: true }],
@@ -303,7 +304,7 @@ describe("useActionResolution", () => {
       promptRoll.mockResolvedValueOnce(null);
       const [r] = await useActionResolution().resolveSaves({
         entry: breath,
-        targets: [combatant("g", { monster_id: "m-goblin", conditions: ["Restrained"] })],
+        targets: [combatant("g", { monster_id: "m-goblin", conditions: [{ name: "Restrained" }] })],
       });
       expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ mode: "disadvantage" }));
       expect(r.success).toBeNull();
@@ -322,6 +323,7 @@ describe("useActionResolution", () => {
       const { applySaveOutcome } = useActionResolution();
       const base = { dc: 13, ability: "dex" as const, bonus: 0, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
       const applied = applySaveOutcome({
+        attacker: combatant("x"),
         entry: breath,
         damageParts: [{ amount: 15, type: "cold" }],
         results: [
@@ -341,13 +343,16 @@ describe("useActionResolution", () => {
       expect([hp("a"), hp("b"), hp("c"), hp("d")]).toEqual([15, 23, 23, 30]);
       expect(applied[0].conditionsApplied).toEqual(["Poisoned", "Prone"]);
       expect(applied[2]).toMatchObject({ conditionsApplied: ["Prone"], conditionsImmune: ["Poisoned"] });
-      expect(store.combatants.find((c) => c.instance_id === "a")?.conditions).toEqual(["Poisoned", "Prone"]);
+      expect(store.combatants.find((c) => c.instance_id === "a")?.conditions).toEqual([
+        { name: "Poisoned", source: { id: "x", spell: "Frost Breath" } },
+        { name: "Prone", source: { id: "x", spell: "Frost Breath" } },
+      ]);
       expect(store.combatants.find((c) => c.instance_id === "b")?.conditions).toEqual([]);
     });
 
     it("a successful save against a no-damage save takes nothing, and an existing condition is not toggled off", () => {
       const store = sources();
-      const prone = combatant("p", { monster_id: "m-goblin", conditions: ["Prone"] });
+      const prone = combatant("p", { monster_id: "m-goblin", conditions: [{ name: "Prone" }] });
       store.combatants = [prone];
       const base = { dc: 13, ability: "dex" as const, bonus: 0, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
       const web: StatBlockEntry = {
@@ -355,10 +360,10 @@ describe("useActionResolution", () => {
         structured: { ...breath.structured, save: { ability: "dex", dc: 13, fail: [], success: "none", conditions: ["Prone"] } },
       };
       const { applySaveOutcome } = useActionResolution();
-      const [saved] = applySaveOutcome({ entry: web, damageParts: [], results: [{ ...base, target: prone, success: true }] });
+      const [saved] = applySaveOutcome({ attacker: combatant("x"), entry: web, damageParts: [], results: [{ ...base, target: prone, success: true }] });
       expect(saved).toMatchObject({ share: "none", damage: null, conditionsApplied: [] });
-      applySaveOutcome({ entry: web, damageParts: [], results: [{ ...base, target: prone, success: false }] });
-      expect(store.combatants[0].conditions).toEqual(["Prone"]);
+      applySaveOutcome({ attacker: combatant("x"), entry: web, damageParts: [], results: [{ ...base, target: prone, success: false }] });
+      expect(store.combatants[0].conditions).toEqual([{ name: "Prone" }]);
     });
   });
 
@@ -375,6 +380,64 @@ describe("useActionResolution", () => {
         useActionResolution().rollConcentration({ target: combatant("h", { type: "player", party_member_id: "pm" }), damage: 5 }),
       ).rejects.toThrow(/no stat block/);
     });
+  });
+});
+
+describe("useActionResolution condition saves (#1018)", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    promptRoll.mockReset();
+    ruleset.value = "2024";
+    const store = useEncounterRunStore();
+    store.availableMonsters = [monsterSource("m-goblin")];
+  });
+
+  const goblin = () => combatant("g", { monster_id: "m-goblin" });
+
+  it("rolls a monster's save against the condition's DC and reports success", async () => {
+    promptRoll.mockResolvedValue(d20(12, 2));
+    const out = await useActionResolution().rollConditionSave({ target: goblin(), ability: "wis", dc: 14, label: "Paralyzed" });
+    expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ modifier: 0 }));
+    expect(out).toEqual({ total: 12, success: false });
+    promptRoll.mockResolvedValue(d20(15));
+    const pass = await useActionResolution().rollConditionSave({ target: goblin(), ability: "wis", dc: 14, label: "Paralyzed" });
+    expect(pass).toEqual({ total: 15, success: true });
+  });
+
+  it("fails automatically, without a die, a paralyzed creature's Strength or Dexterity save", async () => {
+    const store = useEncounterRunStore();
+    store.combatants = [combatant("g", { monster_id: "m-goblin", conditions: [{ name: "Paralyzed" }] })];
+    const out = await useActionResolution().rollConditionSave({ target: goblin(), ability: "dex", dc: 10, label: "Burning" });
+    expect(out).toEqual({ total: null, success: false });
+    expect(promptRoll).not.toHaveBeenCalled();
+  });
+
+  it("returns null for a party member (the player rolls at the table) and for a cancelled roll", async () => {
+    const hero = combatant("h", { type: "player", party_member_id: "pm" });
+    expect(await useActionResolution().rollConditionSave({ target: hero, ability: "wis", dc: 14, label: "x" })).toBeNull();
+    promptRoll.mockResolvedValue(null);
+    expect(await useActionResolution().rollConditionSave({ target: goblin(), ability: "wis", dc: 14, label: "x" })).toBeNull();
+  });
+
+  it("offers the damage-time concentration DC only to a combatant with a concentration of its own: a holder is prompted by the turn reducer", () => {
+    const store = useEncounterRunStore();
+    const mage = combatant("mage", { monster_id: "m-goblin" });
+    const held = combatant("g", { monster_id: "m-goblin", conditions: [{ name: "Paralyzed", source: { id: "mage", spell: "Hold Person", concentration: true } }] });
+    store.combatants = [mage, held];
+    const { applyDamage, defensesFor } = useActionResolution();
+    const hit = applyDamage({ target: mage, parts: [{ amount: 4, type: null }], defenses: defensesFor(mage) });
+    expect(hit.concentrationDc).toBeNull();
+    expect(store.concentrationChecks).toEqual([expect.objectContaining({ instanceId: "mage", damage: 4 })]);
+  });
+
+  it("a lost concentration roll does not end conditions itself: the due strip resolves the check", async () => {
+    const store = useEncounterRunStore();
+    const held = combatant("g", { monster_id: "m-goblin", conditions: [{ name: "Paralyzed", source: { id: "mage", spell: "Hold Person", concentration: true } }] });
+    store.combatants = [combatant("mage", { monster_id: "m-goblin" }), held];
+    promptRoll.mockResolvedValue(d20(1));
+    const check = await useActionResolution().rollConcentration({ target: store.combatants[0]!, damage: 4 });
+    expect(check?.maintained).toBe(false);
+    expect(store.combatants[1]!.conditions).toHaveLength(1);
   });
 });
 

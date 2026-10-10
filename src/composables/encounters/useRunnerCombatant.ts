@@ -6,14 +6,7 @@ import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredM
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { effectiveArmorClass } from "@/lib/encounters/actionTargeting";
-import {
-  getExhaustionLevel,
-  setExhaustionLevel,
-  isExhaustion,
-} from "@/rules/conditions";
-import type { ConditionName } from "@/rules/conditions";
 import { applyDamage, displayTempHp as calcDisplayTempHp, formHpPools } from "@/rules/hitPoints";
-import { CONCENTRATION_BREAKING_CONDITIONS } from "@/composables/party/useConcentration";
 import { describeDamageOutcome } from "@/rules/dying";
 import { useToast } from "@/composables/useToast";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
@@ -77,22 +70,6 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     return effectiveArmorClass(c, m ? { ac: acFor(m), beastAc: m.wildshape_state?.beast_ac ?? null } : undefined);
   });
 
-  const displayConditions = computed((): string[] => {
-    const c = combatant.value;
-    if (c.type === "player") {
-      const m = partyMap.value.get(c.party_member_id ?? "");
-      return m?.conditions ?? c.conditions;
-    }
-    return c.conditions;
-  });
-
-  const pcConcentration = computed((): string | null => {
-    const c = combatant.value;
-    if (!c.party_member_id) return null;
-    const m = partyList.value?.find((p) => p.id === c.party_member_id);
-    return m?.concentration?.spellName ?? null;
-  });
-
   function combatantInitials(): string {
     return combatant.value.name
       .split(" ")
@@ -116,10 +93,6 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     if (state === "revealed") return "Revealed. Click to hide";
     if (state === "unseen") return "Unseen. Click to reveal";
     return "Hidden. Click to show slot";
-  }
-
-  function nonExhaustion(conditions: string[]): string[] {
-    return conditions.filter((c) => !isExhaustion(c));
   }
 
   // ── Flash overlay ─────────────────────────────────────────────────────────
@@ -231,43 +204,6 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     quickAmount.value = null;
   }
 
-  // ── Conditions ────────────────────────────────────────────────────────────
-
-  function onExhaustionChange(newLevel: number) {
-    store.setConditions(
-      combatant.value.instance_id,
-      setExhaustionLevel(displayConditions.value, newLevel),
-    );
-  }
-
-  async function onConditionPickerPick(name: ConditionName) {
-    if (name === "Exhaustion") {
-      onExhaustionChange(getExhaustionLevel(displayConditions.value) > 0 ? 0 : 1);
-    } else {
-      const wasActive = displayConditions.value.includes(name);
-      store.toggleCondition(combatant.value.instance_id, name);
-      if (!wasActive && CONCENTRATION_BREAKING_CONDITIONS.includes(name)) {
-        const c = combatant.value;
-        const member = c.party_member_id
-          ? (partyList.value?.find((m) => m.id === c.party_member_id) ?? null)
-          : null;
-        if (member?.concentration) {
-          await endConcentration(member, { reason: name.toLowerCase() });
-        }
-      }
-    }
-  }
-
-  // ── Concentration ─────────────────────────────────────────────────────────
-
-  async function dropCombatantConcentration() {
-    const c = combatant.value;
-    if (!c.party_member_id) return;
-    const member = partyList.value?.find((m) => m.id === c.party_member_id);
-    if (!member?.concentration) return;
-    await endConcentration(member, { reason: "dropped" });
-  }
-
   // ── Reveal ────────────────────────────────────────────────────────────────
 
   async function handleCycleReveal() {
@@ -288,13 +224,10 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     displayMaxHp,
     displayTempHp,
     displayAc,
-    displayConditions,
-    pcConcentration,
     combatantInitials,
     factionColor,
     revealBtnClass,
     revealBtnTitle,
-    nonExhaustion,
     flashInfo,
     clearFlash,
     handleAdjustHp,
@@ -306,9 +239,6 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     quickDamage,
     quickHeal,
     quickTemp,
-    onExhaustionChange,
-    onConditionPickerPick,
-    dropCombatantConcentration,
     handleCycleReveal,
   };
 }

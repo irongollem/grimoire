@@ -264,6 +264,7 @@ import type { Companion, CompanionInsert, CompanionType, CompanionSourceType } f
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
+import type { AppliedCondition } from "@/types/condition.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import FocalPointPicker from "@/components/common/media/FocalPointPicker.vue";
 import StatBlockDefenseFields from "@/components/common/statblock/StatBlockDefenseFields.vue";
@@ -373,7 +374,7 @@ interface CompanionDraft {
   portraitUrl: string | null;
   focalPoint: { x: number; y: number } | null;
   // Not on this form, but the payload carries them, so the draft must too.
-  conditions: string[];
+  conditions: AppliedCondition[];
   sortOrder: number;
   hasStatBlock: boolean;
   sb: {

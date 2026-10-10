@@ -94,7 +94,7 @@ describe("applyHpEffects", () => {
 
 describe("applyConditionEffects", () => {
   it("adds a ticked condition", () => {
-    expect(applyConditionEffects([], [condition("Exhaustion")])).toEqual(["Exhaustion"]);
+    expect(applyConditionEffects([], [condition("Exhaustion")])).toEqual([{ name: "Exhaustion", level: 1 }]);
   });
 
   it("ignores un-ticked conditions", () => {
@@ -102,25 +102,41 @@ describe("applyConditionEffects", () => {
   });
 
   it("does not duplicate an existing condition (case-insensitive)", () => {
-    expect(applyConditionEffects(["Poisoned"], [condition("poisoned")])).toEqual(["Poisoned"]);
+    expect(applyConditionEffects([{ name: "Poisoned" }], [condition("poisoned")])).toEqual([{ name: "Poisoned" }]);
   });
 
   it("de-duplicates two ticked effects for the same condition", () => {
-    expect(applyConditionEffects([], [condition("Exhaustion"), condition("Exhaustion")])).toEqual([
-      "Exhaustion",
+    expect(applyConditionEffects([], [condition("Poisoned"), condition("Poisoned")])).toEqual([
+      { name: "Poisoned" },
     ]);
+  });
+
+  it("raises an existing Exhaustion level by one per ticked effect, capped at 6", () => {
+    expect(
+      applyConditionEffects([{ name: "Exhaustion", level: 2 }], [condition("Exhaustion")]),
+    ).toEqual([{ name: "Exhaustion", level: 3 }]);
+    expect(applyConditionEffects([], [condition("Exhaustion"), condition("Exhaustion")])).toEqual([
+      { name: "Exhaustion", level: 2 },
+    ]);
+    expect(
+      applyConditionEffects([{ name: "Exhaustion", level: 6 }], [condition("Exhaustion")]),
+    ).toEqual([{ name: "Exhaustion", level: 6 }]);
   });
 
   it("preserves existing conditions and appends new ones in order", () => {
     expect(
-      applyConditionEffects(["Prone"], [condition("Poisoned"), condition("Exhaustion")]),
-    ).toEqual(["Prone", "Poisoned", "Exhaustion"]);
+      applyConditionEffects([{ name: "Prone" }], [condition("Poisoned"), condition("Exhaustion")]),
+    ).toEqual([
+      { name: "Prone" },
+      { name: "Poisoned" },
+      { name: "Exhaustion", level: 1 },
+    ]);
   });
 
   it("does not mutate the input array", () => {
-    const conditions = ["Prone"];
+    const conditions = [{ name: "Prone" }];
     applyConditionEffects(conditions, [condition("Poisoned")]);
-    expect(conditions).toEqual(["Prone"]);
+    expect(conditions).toEqual([{ name: "Prone" }]);
   });
 });
 

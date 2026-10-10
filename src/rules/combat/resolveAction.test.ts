@@ -1,3 +1,4 @@
+import type { AppliedCondition } from "@/types/condition.types";
 import { describe, expect, it } from "vitest";
 import type { AttackStructure, SaveStructure } from "@/types/statBlock.types";
 import { halveDamage, halveParts, resolveAttackAction, resolveSaveAction } from "./resolveAction.ts";
@@ -31,17 +32,17 @@ describe("resolveAttackAction", () => {
     expect(r.damageToRoll?.[0].parsed.modifier).toBe(3);
   });
   it("hit on a Paralyzed adjacent target auto-crits", () => {
-    const r = resolveAttackAction({ ...input, d20: 12, targetConditions: ["Paralyzed"] });
+    const r = resolveAttackAction({ ...input, d20: 12, targetConditions: [{ name: "Paralyzed" }] });
     expect(r.roll.critical).toBe(true);
     expect(r.damageToRoll?.[0].parsed.terms[0].count).toBe(2);
   });
   it("no auto-crit at range", () => {
-    expect(resolveAttackAction({ ...input, d20: 12, targetConditions: ["Paralyzed"], withinFiveFeet: false }).roll.critical).toBe(false);
+    expect(resolveAttackAction({ ...input, d20: 12, targetConditions: [{ name: "Paralyzed" }], withinFiveFeet: false }).roll.critical).toBe(false);
   });
 });
 
 describe("resolveSaveAction", () => {
-  const base = { save, saveBonus: 2, targetConditions: [] as string[] };
+  const base = { save, saveBonus: 2, targetConditions: [] as AppliedCondition[] };
   it("failure: full damage plus conditions", () => {
     const r = resolveSaveAction({ ...base, d20: 5 });
     expect(r).toMatchObject({ damageMultiplier: 1, conditionsImposed: ["Prone"] });
@@ -53,12 +54,12 @@ describe("resolveSaveAction", () => {
     expect(resolveSaveAction({ ...base, save: { ...save, success: "none" }, d20: 12 }).damageMultiplier).toBe(0);
   });
   it("auto-fails Dex while Stunned despite a natural 20", () => {
-    const r = resolveSaveAction({ ...base, d20: 20, saveBonus: 10, targetConditions: ["Stunned"] });
+    const r = resolveSaveAction({ ...base, d20: 20, saveBonus: 10, targetConditions: [{ name: "Stunned" }] });
     expect(r.roll.success).toBe(false);
     expect(r.damageMultiplier).toBe(1);
   });
   it("Stunned does not auto-fail a Wis save", () => {
-    const r = resolveSaveAction({ ...base, save: { ...save, ability: "wis" }, d20: 20, targetConditions: ["Stunned"] });
+    const r = resolveSaveAction({ ...base, save: { ...save, ability: "wis" }, d20: 20, targetConditions: [{ name: "Stunned" }] });
     expect(r.roll.success).toBe(true);
   });
 });

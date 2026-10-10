@@ -62,9 +62,10 @@
               >{{ combatant.type === "player" ? "PC" : "NPC" }}</span>
               <span
                 v-for="cond in combatant.conditions"
-                :key="cond"
+                :key="cond.name"
                 class="shrink-0 text-label px-1.5 py-0.5 rounded bg-tone-caution/15 text-ink-caution"
-              >{{ cond }}</span>
+                :title="describeConditionEnd(cond, nameOf) ?? undefined"
+              >{{ cond.name }}</span>
             </div>
             <div
               v-if="healthVis === 'strategic' || (healthVis === 'immersive' && combatant.type === 'player')"
@@ -106,6 +107,7 @@ import type { PartyMember } from "@/types/party.types";
 import { displayTempHp as calcDisplayTempHp } from "@/rules/hitPoints";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { formPortrait } from "@/lib/wildshapePortrait";
+import { describeConditionEnd, type NameOf } from "@/rules/conditionLabels";
 
 const {
   visibleCombatants,
@@ -121,6 +123,9 @@ const {
   healthVis: HealthVisibility;
   partyMap: Map<string, PartyMember>;
 }>();
+
+/** A source that is hidden from this viewer is absent from the list, so it stays unnamed. */
+const nameOf: NameOf = (id) => visibleCombatants.find((c) => c.instance_id === id)?.name ?? null;
 
 defineEmits<{ "combatant-click": [combatant: RunCombatant] }>();
 

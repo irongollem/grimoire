@@ -1,18 +1,19 @@
 import type { RollMode } from "@/lib/dice/dice";
-import { hasSaveDisadvantage } from "@/rules/conditions";
+import { hasCondition, hasSaveDisadvantage } from "@/rules/conditions";
+import type { AppliedCondition } from "@/types/condition.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { SaveAbility } from "@/types/statBlock.types";
 
 /** These conditions make the creature automatically fail Strength and Dexterity saves (SRD). */
 export const AUTO_FAIL_STR_DEX_CONDITIONS = new Set<string>(["Paralyzed", "Stunned", "Petrified", "Unconscious"]);
 
-export function autoFailsSave(conditions: string[], ability: SaveAbility): boolean {
+export function autoFailsSave(conditions: readonly AppliedCondition[], ability: SaveAbility): boolean {
   if (ability !== "str" && ability !== "dex") return false;
-  return conditions.some((c) => AUTO_FAIL_STR_DEX_CONDITIONS.has(c));
+  return conditions.some((c) => AUTO_FAIL_STR_DEX_CONDITIONS.has(c.name));
 }
 
 export function saveRollMode(input: {
-  conditions: string[];
+  conditions: readonly AppliedCondition[];
   ability: SaveAbility;
   ruleset: RulesetKey;
   dmMode?: RollMode;
@@ -25,7 +26,7 @@ export function saveRollMode(input: {
   if (hasSaveDisadvantage(conditions, ability, ruleset)) {
     hasDisadvantage = true;
     reasons.push(
-      ability === "dex" && conditions.includes("Restrained")
+      ability === "dex" && hasCondition(conditions, "Restrained")
         ? "Restrained on a Dexterity save"
         : "Exhaustion imposes disadvantage on saves",
     );

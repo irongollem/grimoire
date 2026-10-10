@@ -29,6 +29,7 @@
 import { ref, computed } from "vue";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useConcentration } from "@/composables/party/useConcentration";
+import { sameConditions } from "@/rules/conditions";
 import { betterTempHp, formHpPools } from "@/rules/hitPoints";
 import { damageOutcome, describeDamageOutcome, healingOutcome } from "@/rules/dying";
 import { useToast } from "@/composables/useToast";
@@ -79,7 +80,7 @@ const hitsDyingBody = computed(() => member.current_hp <= 0 && !wildshape);
 const dyingInput = computed(() => ({
   pools: hpPools.value,
   saves: { successes: member.death_save_successes, failures: member.death_save_failures },
-  conditions: member.conditions ?? [],
+  conditions: member.conditions,
 }));
 
 async function applyDamage() {
@@ -100,7 +101,7 @@ async function applyDamage() {
   }
   if (out.saves.successes !== member.death_save_successes) update.death_save_successes = out.saves.successes;
   if (out.saves.failures !== member.death_save_failures) update.death_save_failures = out.saves.failures;
-  if (out.conditions.length !== (member.conditions ?? []).length) update.conditions = out.conditions;
+  if (!sameConditions(out.conditions, member.conditions)) update.conditions = out.conditions;
   await updateMember({ id: member.id, update });
   const message = describeDamageOutcome(member.name, dmg, out.outcome);
   if (message) toast.info(message);

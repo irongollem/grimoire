@@ -1,3 +1,4 @@
+import type { AppliedCondition } from "@/types/condition.types";
 import type { LevelChoiceRecord } from "@/rules/features/levelUpChoices";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { WildshapeState } from "@/types/encounter.types";
@@ -160,7 +161,7 @@ export interface PartyMember {
   proficiency_bonus: number;
   skill_proficiencies: SkillProficiencies;
   saving_throw_proficiencies: SaveKey[];
-  conditions: string[];
+  conditions: AppliedCondition[];
   curses: string[];       // curse names, e.g. ["Mummy Rot", "Bestow Curse"]
   inspiration: boolean;
   death_save_successes: number;

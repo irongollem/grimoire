@@ -408,4 +408,14 @@ function toggleTrapDetail(id: string) {
   overflow: hidden;
 }
 
+
+/* Below the list on a phone, full width (EncounterRunner stacks the body). */
+@media (max-width: 639px) {
+  .events-panel,
+  .side-column {
+    width: auto;
+    border-left: none;
+    border-top: 1px solid theme(colors.border / 100%);
+  }
+}
 </style>

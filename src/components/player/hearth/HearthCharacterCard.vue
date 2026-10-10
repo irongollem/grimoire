@@ -58,8 +58,8 @@
       <span v-if="exhaustion > 0" class="inline-flex items-center gap-1.5 text-ink-caution">
         <i class="inline-block h-1.5 w-1.5 rotate-45 bg-current" aria-hidden="true" />Exhaustion {{ exhaustion }}
       </span>
-      <span v-for="c in otherConditions" :key="c" class="inline-flex items-center gap-1.5 text-ink-caution">
-        <i class="inline-block h-1.5 w-1.5 rotate-45 bg-current" aria-hidden="true" />{{ c }}
+      <span v-for="c in otherConditions" :key="c.name" class="inline-flex items-center gap-1.5 text-ink-caution">
+        <i class="inline-block h-1.5 w-1.5 rotate-45 bg-current" aria-hidden="true" />{{ c.name }}
       </span>
       <span v-if="slotGroups.length" class="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
         <span class="text-eyebrow text-muted-foreground">Slots</span>
@@ -96,7 +96,7 @@ import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { characterSummary } from "@/lib/partyMemberDisplay";
 import { formPortrait } from "@/lib/wildshapePortrait";
-import { getExhaustionLevel } from "@/rules/conditions";
+import { getExhaustionLevel, isExhaustion } from "@/rules/conditions";
 import type { PartyMember } from "@/types/party.types";
 
 /**
@@ -127,7 +127,7 @@ const summary = computed(() =>
 
 const exhaustion = computed(() => getExhaustionLevel(member.conditions));
 const otherConditions = computed(() =>
-  member.conditions.filter((c) => !/^Exhaust(?:ed|ion)\s+\d$/i.test(c)),
+  member.conditions.filter((c) => !isExhaustion(c)),
 );
 
 const ORDINALS = ["", "1st", "2nd", "3rd"];

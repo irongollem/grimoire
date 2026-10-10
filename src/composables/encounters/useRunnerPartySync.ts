@@ -5,6 +5,8 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
 import { deepEqual } from "@/lib/utils";
+import { sameConditions } from "@/rules/conditions";
+import type { AppliedCondition } from "@/types/condition.types";
 import type { WildshapeState } from "@/types/encounter.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
 
@@ -115,12 +117,16 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     void writePartyMember(id, update);
   });
 
+  // The spell each member was last read concentrating on (null: none). Absent until first read.
+  const lastConcentration = new Map<string, string | null>();
+
   interface PartyMemberSyncRow {
     id: string;
     current_hp: number;
     temp_hp: number;
     current_initiative: number | null;
-    conditions: string[];
+    conditions: AppliedCondition[];
+    concentration: { spellName: string } | null;
     wildshape_state: WildshapeState | null;
     death_save_successes: number;
     death_save_failures: number;
@@ -145,6 +151,17 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     if (!sameConditions(combatant.conditions, row.conditions)) {
       store.ingestConditions(combatant.instance_id, row.conditions);
     }
+
+    // A spell the player stopped concentrating on, or swapped for another, on
+    // their own sheet (or through any runner path that ends it via the sheet):
+    // what that concentration held on others ends with it (#1018). The first
+    // read of a member only records what they hold.
+    const spell = row.concentration?.spellName ?? null;
+    if (lastConcentration.has(row.id)) {
+      const before = lastConcentration.get(row.id) ?? null;
+      if (before !== null && before !== spell) store.endConcentration(combatant.instance_id, before);
+    }
+    lastConcentration.set(row.id, spell);
 
     // A form the player took or dropped on their own sheet. Compared
     // structurally: the row is jsonb, whose key order is Postgres's own, never
@@ -182,10 +199,6 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     }
   }
 
-  function sameConditions(left: string[], right: string[]): boolean {
-    return left.length === right.length && left.every((condition, index) => condition === right[index]);
-  }
-
   /**
    * Re-derive every party member's synced fields from the DB. The runner had no
    * recovery at all before this: a DM whose socket dropped mid-combat kept
@@ -199,7 +212,7 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     const startedAt = tick;
     const { data, error } = await supabase
       .from("party_members")
-      .select("id, current_hp, temp_hp, current_initiative, conditions, wildshape_state, death_save_successes, death_save_failures")
+      .select("id, current_hp, temp_hp, current_initiative, conditions, concentration, wildshape_state, death_save_successes, death_save_failures")
       .eq("campaign_id", campaignId);
     if (error) throw error;
     if (campaignId !== subscribedCampaignId) return false;

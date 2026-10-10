@@ -278,6 +278,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useToast } from "@/composables/useToast";
+import { sameConditions } from "@/rules/conditions";
 import { damageOutcome, describeDamageOutcome, healingOutcome } from "@/rules/dying";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
@@ -403,7 +404,7 @@ const hitsDyingBody = computed(() => member.current_hp <= 0 && member.death_save
 const dyingInput = computed(() => ({
   pools: hpPools.value,
   saves: { successes: member.death_save_successes, failures: member.death_save_failures },
-  conditions: member.conditions ?? [],
+  conditions: member.conditions,
 }));
 
 /**
@@ -423,7 +424,7 @@ async function dealDamage() {
   }
   if (out.saves.successes !== member.death_save_successes) update.death_save_successes = out.saves.successes;
   if (out.saves.failures !== member.death_save_failures) update.death_save_failures = out.saves.failures;
-  if (out.conditions.length !== (member.conditions ?? []).length) update.conditions = out.conditions;
+  if (!sameConditions(out.conditions, member.conditions)) update.conditions = out.conditions;
   await updateMember({ id: member.id, update });
   hpInput.value = 0;
   criticalHit.value = false;

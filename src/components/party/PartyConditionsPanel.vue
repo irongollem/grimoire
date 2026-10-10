@@ -7,12 +7,16 @@
     />
     <span
       v-for="cond in nonExhaustionConditions"
-      :key="cond"
-      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/30 text-label font-semibold text-destructive"
-      :title="getConditionDescription(cond, ruleset)"
+      :key="cond.name"
+      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-2xl bg-destructive/10 border border-destructive/30 text-label font-semibold text-destructive"
+      :title="getConditionDescription(cond.name, ruleset)"
     >
-      {{ cond }}
-      <AppButton variant="link" tone="danger" size="inline-xs" label="×" @click="removeCondition(cond)" />
+      <span class="flex flex-col">
+        {{ cond.name }}
+        <span v-if="endText(cond)" class="text-caption font-normal text-muted-foreground">{{ endText(cond) }}</span>
+        <span v-if="cond.ongoing" class="text-caption font-normal text-muted-foreground">{{ describeOngoing(cond.ongoing) }}</span>
+      </span>
+      <AppButton variant="link" tone="danger" size="inline-xs" label="×" @click="removeCondition(cond.name)" />
     </span>
 
     <span
@@ -105,7 +109,12 @@ import {
   getExhaustionLevel,
   setExhaustionLevel,
   isExhaustion,
+  hasCondition,
+  withCondition,
+  withoutCondition,
 } from "@/rules/conditions";
+import { describeConditionEnd, describeOngoing } from "@/rules/conditionLabels";
+import type { AppliedCondition } from "@/types/condition.types";
 import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
 import type { PartyMember } from "@/types/party.types";
 
@@ -122,11 +131,15 @@ const curseInputEl = ref<AppInputHandle | null>(null);
 
 const nonExhaustionConditions = computed(() => member.conditions.filter((c) => !isExhaustion(c)));
 
+function endText(cond: AppliedCondition): string | null {
+  return describeConditionEnd(cond, () => null);
+}
+
 const availableConditions = computed(() => {
   const hasExhaustion = getExhaustionLevel(member.conditions) > 0;
   return CONDITIONS.filter((c) => {
     if (c === "Exhaustion") return !hasExhaustion;
-    return !member.conditions.includes(c);
+    return !hasCondition(member.conditions, c);
   });
 });
 
@@ -136,11 +149,11 @@ async function addCondition(condition: string) {
     await setExhaustion(1);
     return;
   }
-  await updateMember({ id: member.id, update: { conditions: [...member.conditions, condition] } });
+  await updateMember({ id: member.id, update: { conditions: withCondition(member.conditions, { name: condition }) } });
 }
 
 async function removeCondition(condition: string) {
-  await updateMember({ id: member.id, update: { conditions: member.conditions.filter((c) => c !== condition) } });
+  await updateMember({ id: member.id, update: { conditions: withoutCondition(member.conditions, condition) } });
 }
 
 async function setExhaustion(level: number) {
@@ -158,9 +171,9 @@ async function addCurse() {
   const name = curseInputText.value.trim();
   if (!name) { curseInputOpen.value = false; return; }
   const curses = [...(member.curses ?? []), name];
-  const conditions = member.conditions.includes("Cursed")
+  const conditions = hasCondition(member.conditions, "Cursed")
     ? member.conditions
-    : [...member.conditions, "Cursed"];
+    : withCondition(member.conditions, { name: "Cursed" });
   await updateMember({ id: member.id, update: { curses, conditions } });
   curseInputOpen.value = false;
   curseInputText.value = "";
@@ -170,7 +183,7 @@ async function removeCurse(curse: string) {
   const curses = (member.curses ?? []).filter((c) => c !== curse);
   const conditions = curses.length
     ? member.conditions
-    : member.conditions.filter((c) => c !== "Cursed");
+    : withoutCondition(member.conditions, "Cursed");
   await updateMember({ id: member.id, update: { curses, conditions } });
 }
 </script>

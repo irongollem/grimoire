@@ -1149,7 +1149,7 @@ Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `
 | `proficiency_bonus`             | int    | Computed from level                                    |
 | `saving_throw_proficiencies`    | text[] | Ability keys (`["str","con"]`), never names such as "Wisdom" |
 | `skill_proficiencies`           | jsonb  | `Record<skill, "none"\|"proficient"\|"expertise">`     |
-| `conditions`                    | text[] | Active conditions (includes Exhaustion 1–6)            |
+| `conditions`                    | jsonb  | `AppliedCondition[]` records (#1018): name, Exhaustion `level`, source, what ends it, ongoing damage |
 | `curses`                        | text[] | Named curses                                           |
 | `death_save_successes/failures` | int    | 0–3                                                    |
 | `inspiration`                   | bool   | Inspiration token                                      |

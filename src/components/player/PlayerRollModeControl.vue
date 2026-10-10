@@ -40,10 +40,11 @@ import {
   setNextRollMode,
 } from "@/composables/dice/useNextRollMode";
 import { disadvantageNote, type DisadvantageTarget } from "@/rules/rollModeNotes";
+import type { AppliedCondition } from "@/types/condition.types";
 import type { RollMode } from "@/lib/dice/roller";
 
 const { conditions, shown } = defineProps<{
-  conditions: string[];
+  conditions: AppliedCondition[];
   /** The kinds of roll this surface makes, so the sentence names only what applies here. */
   shown: readonly DisadvantageTarget[];
 }>();

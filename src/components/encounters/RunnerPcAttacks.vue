@@ -142,6 +142,7 @@
 </template>
 
 <script setup lang="ts">
+import { hasCondition, withoutCondition } from "@/rules/conditions";
 import { computed, ref } from "vue";
 import type { PartyMember } from "@/types/party.types";
 import type { Item } from "@/types/item.types";
@@ -213,9 +214,8 @@ const { mutateAsync: updateMember } = useUpdatePartyMember();
 // clearHidden, but only fires once a roll has actually resolved (see
 // `onAttackResolved`), since a cancelled physical-dice prompt shouldn't reveal.
 async function clearHidden() {
-  const conditions = member.conditions ?? [];
-  if (!conditions.includes("Hidden")) return;
-  await updateMember({ id: member.id, update: { conditions: conditions.filter((c) => c !== "Hidden") } });
+  if (!hasCondition(member.conditions, "Hidden")) return;
+  await updateMember({ id: member.id, update: { conditions: withoutCondition(member.conditions, "Hidden") } });
 }
 
 function onAttackResolved(rolled: boolean) {

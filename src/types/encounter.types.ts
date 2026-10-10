@@ -1,3 +1,4 @@
+import type { AppliedCondition } from "@/types/condition.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 import type { AiProvenance } from "@/ai/provenance";
 export type { RewardCurrencyPool };
@@ -187,7 +188,7 @@ export interface RunCombatant {
   hp: number;
   max_hp: number;
   ac: string;
-  conditions: string[];
+  conditions: AppliedCondition[];
   curses: string[];
   death_saves: { successes: number; failures: number };
   // back-references

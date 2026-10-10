@@ -1,4 +1,5 @@
 import type { ActionUse, RunCombatant, WildshapeState } from "@/types/encounter.types";
+import type { AppliedCondition, TurnEdge } from "@/types/condition.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
 import type { StatBlockListKey } from "@/rules/statBlock/parseAction";
 import { rechargeSucceeds } from "@/rules/combat/recharge";
@@ -7,6 +8,14 @@ import type { PartyMemberUpdate } from "@/types/party.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { applyDamage, applyHealing, betterTempHp, formHpPools } from "@/rules/hitPoints";
 import { damageOutcome, healingOutcome, UNCONSCIOUS, type DyingOutcome } from "@/rules/dying";
+import { hasCondition, sameConditions, withCondition, withoutCondition } from "@/rules/conditions";
+import {
+  conditionsAtTurnEdge,
+  endSourcedConditions,
+  holdsConcentration,
+  type ConditionEvent,
+  type ConditionPassResult,
+} from "@/rules/conditionDurations";
 import { rollAllInitiativeValues, findFirstActiveIndex, stepTurnIndex } from "@/rules/encounterCombatLogic";
 
 /**
@@ -16,8 +25,10 @@ import { rollAllInitiativeValues, findFirstActiveIndex, stepTurnIndex } from "@/
  * The Pinia store (`stores/encounterRun`) is a thin shell that feeds it
  * commands; a test, a server function or an AI DM can drive a turn through the
  * same code. Turn boundaries are explicit events (`turn_ended`, `turn_started`,
- * `round_started`) so rules that hang off them (condition durations, #1018)
- * have one place to hook.
+ * `round_started`) so rules that hang off them have one place to hook: condition
+ * durations (#1018, `rules/conditionDurations`) run at every `turn_ended` and
+ * `turn_started` this reducer raises, and surface what they ended or what the
+ * DM now owes a roll for as `condition_*` / `ongoing_damage_due` events.
  *
  * The input state is never mutated. Combatants a command touches are replaced
  * by fresh objects; everything else is shared with the input.
@@ -50,8 +61,17 @@ export type EncounterTurnCommand =
   | { type: "set_hp"; instanceId: string; value: number }
   | { type: "set_max_hp"; instanceId: string; value: number }
   | { type: "set_temp_hp"; instanceId: string; value: number }
-  | { type: "toggle_condition"; instanceId: string; condition: string }
-  | { type: "set_conditions"; instanceId: string; conditions: string[] }
+  /** A freshly applied condition owes nothing yet: `armed` and `due` are dropped. */
+  | { type: "apply_condition"; instanceId: string; condition: AppliedCondition }
+  | { type: "remove_condition"; instanceId: string; name: string }
+  /** Replaces the whole list (exhaustion levels). */
+  | { type: "set_conditions"; instanceId: string; conditions: AppliedCondition[] }
+  /** The DM's roll for a "save ends" condition: success ends it, failure clears the debt until the next edge. */
+  | { type: "resolve_condition_save"; instanceId: string; name: string; success: boolean }
+  /** The damage itself is applied by the caller through `adjust_hp` first; this clears the debt. */
+  | { type: "settle_ongoing_damage"; instanceId: string; name: string }
+  /** Concentration broke: ends what this combatant's concentration was holding on others. */
+  | { type: "end_concentration"; instanceId: string; spell?: string }
   | { type: "enter_wildshape"; instanceId: string; form: WildshapeState; wildshapesUsed: number; tempHp?: number }
   | { type: "revert_wildshape"; instanceId: string }
   | { type: "toggle_surprised"; instanceId: string }
@@ -90,7 +110,15 @@ export type EncounterTurnEvent =
   /** A spent recharge ability stayed spent on this d6. */
   | { type: "recharge_failed"; instanceId: string; action: string; roll: number }
   /** The caller should evaluate event triggers now (round or HP just changed). */
-  | { type: "check_events"; reason: "turn" | "hp" };
+  | { type: "check_events"; reason: "turn" | "hp" }
+  /** A condition ended, and why. */
+  | Extract<ConditionEvent, { type: "condition_ended" }>
+  /** The bearer owes a repeat save against a condition. */
+  | Extract<ConditionEvent, { type: "condition_save_due" }>
+  /** The bearer takes a condition's ongoing damage. */
+  | Extract<ConditionEvent, { type: "ongoing_damage_due" }>
+  /** A stat-block combatant holding concentration conditions on others took `damage` and is still up: it owes a Constitution save. */
+  | { type: "concentration_check_due"; instanceId: string; damage: number };
 
 export interface EncounterTurnDeps {
   /** Injected d20 for the per-round initiative reshuffle. Defaults to `rollDie(20)`. */
@@ -107,7 +135,9 @@ export interface EncounterTurnResult {
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 /** A working copy of a combatant, with every nested value a command may touch
- *  copied too, so mutating it can never reach the input state. */
+ *  copied too, so mutating it can never reach the input state. Conditions are
+ *  immutable records (they are replaced, never edited), so a shallow copy of the
+ *  array is enough. */
 function draft(c: RunCombatant): RunCombatant {
   const copy: RunCombatant = { ...c, conditions: [...c.conditions], death_saves: { ...c.death_saves } };
   if (c.wildshape) copy.wildshape = { ...c.wildshape };
@@ -127,6 +157,21 @@ function replaceCombatant(list: readonly RunCombatant[], next: RunCombatant): Ru
 function persist(events: EncounterTurnEvent[], c: RunCombatant, patch: PartyMemberUpdate) {
   if (c.type !== "player" || !c.party_member_id) return;
   events.push({ type: "player_persist", partyMemberId: c.party_member_id, patch });
+}
+
+/** Folds a condition pass into the event list: its events, and a write for every party member whose conditions changed. */
+function report(result: ConditionPassResult, events: EncounterTurnEvent[]): RunCombatant[] {
+  events.push(...result.events);
+  for (const id of result.changed) {
+    const c = result.combatants.find((x) => x.instance_id === id);
+    if (c) persist(events, c, { conditions: [...c.conditions] });
+  }
+  return result.combatants;
+}
+
+/** Runs the condition hooks for one turn edge and reports what they did. */
+function runEdge(combatants: RunCombatant[], edge: TurnEdge, instanceId: string, events: EncounterTurnEvent[]): RunCombatant[] {
+  return report(conditionsAtTurnEdge(combatants, edge, instanceId), events);
 }
 
 /** A party member (not a companion or monster) is the only combatant that dies by the death-save rules. */
@@ -226,6 +271,7 @@ function reshuffle(state: EncounterTurnState, deps: EncounterTurnDeps, events: E
   if (first) {
     events.push({ type: "turn_started", instanceId: first.instance_id });
     combatants = replaceCombatant(combatants, rechargeAtTurnStart(refreshTurnStart(first), deps, events));
+    combatants = runEdge(combatants, "start", first.instance_id, events);
   }
   return { ...state, combatants, activeIndex };
 }
@@ -236,16 +282,13 @@ function reshuffle(state: EncounterTurnState, deps: EncounterTurnDeps, events: E
  * PC changes neither, and writing the runner's copy back anyway would undo a
  * condition the player toggled on their own sheet a moment earlier.
  */
-function adoptDying(c: RunCombatant, saves: { successes: number; failures: number }, conditions: string[]): PartyMemberUpdate {
+function adoptDying(c: RunCombatant, saves: { successes: number; failures: number }, conditions: AppliedCondition[]): PartyMemberUpdate {
   const patch: PartyMemberUpdate = {};
   if (saves.successes !== c.death_saves.successes || saves.failures !== c.death_saves.failures) {
     patch.death_save_successes = saves.successes;
     patch.death_save_failures = saves.failures;
   }
-  const had = new Set(c.conditions);
-  if (conditions.length !== had.size || conditions.some((name) => !had.has(name))) {
-    patch.conditions = [...conditions];
-  }
+  if (!sameConditions(c.conditions, conditions)) patch.conditions = [...conditions];
   c.death_saves = { ...saves };
   c.conditions = [...conditions];
   return patch;
@@ -269,10 +312,14 @@ function nextTurn(state: EncounterTurnState, deps: EncounterTurnDeps, events: En
   // Clear surprise on the combatant whose turn is ending — surprised creatures
   // can't act on their first turn, but the flag lifts at its end per 5e RAW.
   // (Cleared even when nobody is alive to take the next turn.)
-  if (step && ending) events.push({ type: "turn_ended", instanceId: ending.instance_id });
-  if (ending?.surprised) {
-    combatants = replaceCombatant(combatants, { ...ending, surprised: false });
-    events.push({ type: "surprise_cleared", instanceId: ending.instance_id });
+  if (step && ending) {
+    events.push({ type: "turn_ended", instanceId: ending.instance_id });
+    combatants = runEdge(combatants, "end", ending.instance_id, events);
+  }
+  const endingNow = ending && combatants.find((c) => c.instance_id === ending.instance_id);
+  if (endingNow?.surprised) {
+    combatants = replaceCombatant(combatants, { ...endingNow, surprised: false });
+    events.push({ type: "surprise_cleared", instanceId: endingNow.instance_id });
   }
   if (!step) return { ...state, combatants };
 
@@ -295,10 +342,9 @@ function nextTurn(state: EncounterTurnState, deps: EncounterTurnDeps, events: En
   const starting = sortCombatantsByInitiative(next.combatants)[step.sortedIndex];
   if (starting) {
     events.push({ type: "turn_started", instanceId: starting.instance_id });
-    next = {
-      ...next,
-      combatants: replaceCombatant(next.combatants, rechargeAtTurnStart(refreshTurnStart(starting), deps, events)),
-    };
+    let started = replaceCombatant(next.combatants, rechargeAtTurnStart(refreshTurnStart(starting), deps, events));
+    started = runEdge(started, "start", starting.instance_id, events);
+    next = { ...next, combatants: started };
   }
   events.push({ type: "check_events", reason: "turn" });
   return { ...next, activeIndex: step.sortedIndex };
@@ -364,10 +410,12 @@ function setHp(c: RunCombatant, value: number, events: EncounterTurnEvent[]) {
       // The DM setting HP directly still follows the rules: reaching 0 puts the
       // character down, and any HP above 0 stands them up with clean saves.
       if (c.hp <= 0 && before > 0) {
-        const conditions = c.conditions.includes(UNCONSCIOUS) ? c.conditions : [...c.conditions, UNCONSCIOUS];
+        const conditions = hasCondition(c.conditions, UNCONSCIOUS)
+          ? c.conditions
+          : withCondition(c.conditions, { name: UNCONSCIOUS });
         dyingPatch = adoptDying(c, { successes: 0, failures: 0 }, conditions);
       } else if (c.hp > 0 && before <= 0) {
-        const conditions = c.conditions.filter((x) => x !== UNCONSCIOUS);
+        const conditions = withoutCondition(c.conditions, UNCONSCIOUS);
         dyingPatch = adoptDying(c, { successes: 0, failures: 0 }, conditions);
       }
     }
@@ -393,6 +441,57 @@ function setMaxHp(c: RunCombatant, value: number, events: EncounterTurnEvent[]) 
     persist(events, c, { current_hp: c.hp, max_hp: max });
   }
   events.push({ type: "check_events", reason: "hp" });
+}
+
+/** Drops one debt from a condition, and the `due` key once it owes nothing. */
+function clearDue(c: AppliedCondition, key: "save" | "damage"): AppliedCondition {
+  const { due, ...rest } = c;
+  if (!due) return c;
+  const left = { ...due, [key]: undefined };
+  return left.save || left.damage ? { ...rest, due: { ...(left.save && { save: true }), ...(left.damage && { damage: true }) } } : rest;
+}
+
+/**
+ * A source that drops to 0 HP loses its concentration, and with it the
+ * conditions that rode on it. Only the combatant's own HP counts: a beast form
+ * absorbing the hit leaves `hp` where it was.
+ */
+function afterHpEdit(
+  before: EncounterTurnState,
+  after: EncounterTurnState,
+  instanceId: string,
+  events: EncounterTurnEvent[],
+): EncounterTurnState {
+  const was = before.combatants.find((c) => c.instance_id === instanceId);
+  const now = after.combatants.find((c) => c.instance_id === instanceId);
+  if (!was || !now || was.hp <= 0 || now.hp > 0) return after;
+  const combatants = report(
+    endSourcedConditions(after.combatants, instanceId, "source_down", { concentrationOnly: true }),
+    events,
+  );
+  return { ...after, combatants };
+}
+
+/**
+ * A non-party holder of concentration conditions that took damage and is still
+ * standing owes a concentration save (the DC is edition-dependent, so the
+ * caller works it out). One check per damage instance. A hit that drops it to
+ * 0 HP ends what it holds instead (`afterHpEdit`). Party members keep their
+ * concentration on `party_members` and are handled elsewhere.
+ */
+function concentrationCheckAfterDamage(
+  after: EncounterTurnState,
+  instanceId: string,
+  delta: number,
+  events: EncounterTurnEvent[],
+): EncounterTurnState {
+  if (delta >= 0) return after;
+  const now = after.combatants.find((c) => c.instance_id === instanceId);
+  if (!now || now.party_member_id || now.hp <= 0) return after;
+  if (holdsConcentration(after.combatants, instanceId)) {
+    events.push({ type: "concentration_check_due", instanceId, damage: -delta });
+  }
+  return after;
 }
 
 /** Commands that edit one combatant through a working copy. */
@@ -428,7 +527,10 @@ export function reduceEncounterTurn(
       const next: EncounterTurnState = { ...state, started: true, activeIndex: 0, round: 1 };
       events.push({ type: "round_started", round: 1 });
       const first = sortCombatantsByInitiative(next.combatants)[0];
-      if (first) events.push({ type: "turn_started", instanceId: first.instance_id });
+      if (first) {
+        events.push({ type: "turn_started", instanceId: first.instance_id });
+        next.combatants = runEdge(next.combatants, "start", first.instance_id, events);
+      }
       return done(next);
     }
     case "next_turn":
@@ -437,6 +539,8 @@ export function reduceEncounterTurn(
       const sorted = sortCombatantsByInitiative(state.combatants);
       const step = stepTurnIndex(sorted, state.activeIndex, -1);
       if (!step) return done(state);
+      // Stepping back runs no condition hooks: it does not undo an expiry or
+      // un-arm a condition. The DM re-applies what a misclick ended.
       const round = step.wrapped && state.round > 1 ? state.round - 1 : state.round;
       return done({ ...state, round, activeIndex: step.sortedIndex });
     }
@@ -447,9 +551,16 @@ export function reduceEncounterTurn(
         c.initiative = command.value;
       }));
     case "adjust_hp":
-      return done(editCombatant(state, command.instanceId, (c) => adjustHp(c, command.delta, command.critical, events)));
+      return done(
+        concentrationCheckAfterDamage(
+          afterHpEdit(state, editCombatant(state, command.instanceId, (c) => adjustHp(c, command.delta, command.critical, events)), command.instanceId, events),
+          command.instanceId,
+          command.delta,
+          events,
+        ),
+      );
     case "set_hp":
-      return done(editCombatant(state, command.instanceId, (c) => setHp(c, command.value, events)));
+      return done(afterHpEdit(state, editCombatant(state, command.instanceId, (c) => setHp(c, command.value, events)), command.instanceId, events));
     case "set_max_hp":
       return done(editCombatant(state, command.instanceId, (c) => setMaxHp(c, command.value, events)));
     case "set_temp_hp":
@@ -458,11 +569,17 @@ export function reduceEncounterTurn(
         c.temp_hp = betterTempHp(c.temp_hp ?? 0, command.value) || undefined;
         persist(events, c, { temp_hp: c.temp_hp ?? 0 });
       }));
-    case "toggle_condition":
+    case "apply_condition":
       return done(editCombatant(state, command.instanceId, (c) => {
-        c.conditions = c.conditions.includes(command.condition)
-          ? c.conditions.filter((x) => x !== command.condition)
-          : [...c.conditions, command.condition];
+        const { due: _due, ...fresh } = command.condition;
+        const record: AppliedCondition =
+          fresh.ends?.kind === "turn" ? { ...fresh, ends: { ...fresh.ends, armed: false } } : fresh;
+        c.conditions = withCondition(c.conditions, record);
+        persist(events, c, { conditions: [...c.conditions] });
+      }));
+    case "remove_condition":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        c.conditions = withoutCondition(c.conditions, command.name);
         persist(events, c, { conditions: [...c.conditions] });
       }));
     case "set_conditions":
@@ -470,6 +587,41 @@ export function reduceEncounterTurn(
         c.conditions = [...command.conditions];
         persist(events, c, { conditions: [...c.conditions] });
       }));
+    case "resolve_condition_save":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        const found = c.conditions.find((x) => x.name === command.name);
+        if (!found) return;
+        if (command.success) {
+          c.conditions = withoutCondition(c.conditions, command.name);
+          events.push({ type: "condition_ended", instanceId: c.instance_id, name: command.name, reason: "saved" });
+        } else {
+          c.conditions = withCondition(c.conditions, clearDue(found, "save"));
+        }
+        persist(events, c, { conditions: [...c.conditions] });
+      }));
+    case "settle_ongoing_damage":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        const found = c.conditions.find((x) => x.name === command.name);
+        if (!found) return;
+        c.conditions = withCondition(c.conditions, clearDue(found, "damage"));
+        persist(events, c, { conditions: [...c.conditions] });
+      }));
+    case "end_concentration": {
+      const found = state.combatants.find((x) => x.instance_id === command.instanceId);
+      if (!found) return done(state);
+      const pass = endSourcedConditions(state.combatants, command.instanceId, "concentration", {
+        spell: command.spell,
+        concentrationOnly: true,
+      });
+      let combatants = report(pass, events);
+      if (found.concentration) {
+        combatants = replaceCombatant(
+          combatants,
+          { ...combatants.find((x) => x.instance_id === command.instanceId) ?? found, concentration: null },
+        );
+      }
+      return done({ ...state, combatants });
+    }
     case "enter_wildshape":
       return done(editCombatant(state, command.instanceId, (c) => {
         // Player's real hp/max_hp/ac are NEVER modified — beast form is a self-contained overlay.
@@ -548,7 +700,15 @@ export function reduceEncounterTurn(
         (c) => c.instance_id === command.instanceId,
       );
       if (removedSortedIndex < 0) return done(state);
-      const combatants = state.combatants.filter((c) => c.instance_id !== command.instanceId);
+      // What the leaver was holding or anchoring on others has nothing left to count on.
+      const combatants = report(
+        endSourcedConditions(
+          state.combatants.filter((c) => c.instance_id !== command.instanceId),
+          command.instanceId,
+          "source_removed",
+        ),
+        events,
+      );
       const shifted = removedSortedIndex < state.activeIndex ? state.activeIndex - 1 : state.activeIndex;
       return done({ ...state, combatants, activeIndex: Math.min(shifted, Math.max(0, combatants.length - 1)) });
     }

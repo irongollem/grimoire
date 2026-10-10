@@ -29,12 +29,12 @@ describe("resolveConcentration", () => {
 
 describe("concentrationBreaksOn", () => {
   it.each([
-    [["Incapacitated"], true],
-    [["Unconscious"], true],
-    [["Paralyzed"], true],
-    [["Petrified"], true],
-    [["Stunned"], true],
-    [["Prone", "Poisoned"], false],
+    [[{ name: "Incapacitated" }], true],
+    [[{ name: "Unconscious" }], true],
+    [[{ name: "Paralyzed" }], true],
+    [[{ name: "Petrified" }], true],
+    [[{ name: "Stunned" }], true],
+    [[{ name: "Prone" }, { name: "Poisoned" }], false],
     [[], false],
   ])("%j", (c, e) => expect(concentrationBreaksOn(c)).toBe(e));
 });

@@ -1,3 +1,4 @@
+import type { AppliedCondition } from "@/types/condition.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 /** Incapacitated ends concentration; these all include Incapacitated (SRD), so list them. */
@@ -9,8 +10,8 @@ export const CONCENTRATION_BREAKING_CONDITIONS = new Set<string>([
   "Stunned",
 ]);
 
-export function concentrationBreaksOn(conditions: string[]): boolean {
-  return conditions.some((c) => CONCENTRATION_BREAKING_CONDITIONS.has(c));
+export function concentrationBreaksOn(conditions: readonly AppliedCondition[]): boolean {
+  return conditions.some((c) => CONCENTRATION_BREAKING_CONDITIONS.has(c.name));
 }
 
 /** DC 10 or half the damage, whichever is higher; 2024 caps it at 30. */

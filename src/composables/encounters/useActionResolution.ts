@@ -9,9 +9,9 @@ import { useArmorClass } from "@/composables/party/useArmorClass";
 import { attackRollMode, autoCritOnHit, resolveAttack as resolveAttackRoll } from "@/rules/combat/attackRoll";
 import { concentrationDc, resolveConcentration } from "@/rules/combat/concentration";
 import { halveParts, resolveSaveAction } from "@/rules/combat/resolveAction";
-import { autoFailsSave, saveBonusFromStatBlock, saveRollMode } from "@/rules/combat/savingThrow";
+import { autoFailsSave, resolveSave, saveBonusFromStatBlock, saveRollMode } from "@/rules/combat/savingThrow";
 import { applyDefenses, damageRollsFor, type AppliedPart } from "@/rules/combat/typedDamage";
-import { getExhaustionD20Penalty, getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
+import { getExhaustionD20Penalty, getExhaustionLevel, hasCondition, setExhaustionLevel } from "@/rules/conditions";
 import type { DyingOutcome } from "@/rules/dying";
 import type { Companion } from "@/types/companion.types";
 import type { DamageType } from "@/types/damage.types";
@@ -116,6 +116,13 @@ export interface ConcentrationCheck {
   total: number;
   maintained: boolean;
   roll: RollResult;
+}
+
+/** A repeat save against a condition's own DC (#1018). */
+export interface ConditionSaveRoll {
+  /** Null when no die was rolled (an automatic failure). */
+  total: number | null;
+  success: boolean;
 }
 
 interface RollOptions {
@@ -297,6 +304,10 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
     return amounts;
   }
 
+  function concentrates(c: RunCombatant): boolean {
+    return !!live(c).concentration;
+  }
+
   /**
    * Run damage through the target's defenses and take it off its HP. A
    * concentrating target gets the Constitution save DC to offer, but only when
@@ -323,7 +334,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
       total: result.total,
       notes: result.notes,
       dying,
-      concentrationDc: live(target).concentration && result.total > 0 ? concentrationDc(result.total, ruleset.value) : null,
+      concentrationDc: concentrates(target) && result.total > 0 ? concentrationDc(result.total, ruleset.value) : null,
     };
   }
 
@@ -348,6 +359,26 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
     const natural = keptD20(roll);
     const check = resolveConcentration({ damage: input.damage, d20: natural, conSaveBonus: bonus, ruleset: ruleset.value, penalty });
     return { ...check, natural, roll };
+  }
+
+  /**
+   * Roll the repeat save of a "save ends" condition (#1018). Null when the
+   * combatant has no stat block (a party member: the player rolls at the table)
+   * or the DM cancels the roll prompt; an automatic failure comes back failed
+   * without a die.
+   */
+  async function rollConditionSave(
+    input: { target: RunCombatant; ability: SaveAbility; dc: number; label: string } & RollOptions,
+  ): Promise<ConditionSaveRoll | null> {
+    const target = live(input.target);
+    const bonus = saveBonusFor(target, input.ability);
+    if (bonus === null) return null;
+    if (autoFailsSave(target.conditions, input.ability)) return { total: null, success: false };
+    const { mode } = saveRollMode({ conditions: target.conditions, ability: input.ability, ruleset: ruleset.value });
+    const penalty = getExhaustionD20Penalty(target.conditions, ruleset.value);
+    const roll = await rollD20(input.label, bonus + penalty, mode, target.name, input);
+    if (!roll) return null;
+    return resolveSave({ d20: keptD20(roll), bonus, dc: input.dc, penalty });
   }
 
   /**
@@ -405,14 +436,19 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
     return { ...result, total, success: !result.autoFail && total >= result.dc };
   }
 
-  /** Give a failed target a condition, once. Exhaustion goes up a level instead of stacking a second entry. */
-  function impose(target: RunCombatant, condition: SrdConditionName) {
+  /**
+   * Give a failed target a condition, once, recording who applied it and with
+   * what (#1018). Exhaustion goes up a level instead of stacking a second entry.
+   */
+  function impose(target: RunCombatant, condition: SrdConditionName, actor: RunCombatant, spell: string) {
     const current = live(target).conditions;
     if (condition === "Exhaustion") {
       store.setConditions(target.instance_id, setExhaustionLevel(current, getExhaustionLevel(current) + 1));
       return;
     }
-    if (!current.includes(condition)) store.toggleCondition(target.instance_id, condition);
+    if (!hasCondition(current, condition)) {
+      store.applyCondition(target.instance_id, { name: condition, source: { id: actor.instance_id, spell } });
+    }
   }
 
   /**
@@ -424,6 +460,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
    * alone (`share: null`).
    */
   function applySaveOutcome(input: {
+    attacker: RunCombatant;
     entry: StatBlockEntry;
     results: SaveTargetResult[];
     damageParts: DamageAmount[];
@@ -449,7 +486,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
       const { apply, immune } = result.success
         ? { apply: [], immune: [] }
         : filterImmuneConditions(save.conditions, defenses);
-      for (const condition of apply) impose(target, condition);
+      for (const condition of apply) impose(target, condition, input.attacker, input.entry.name);
       return { target, share, damage, conditionsApplied: apply, conditionsImmune: immune };
     });
   }
@@ -463,6 +500,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
     rollDamage,
     applyDamage,
     rollConcentration,
+    rollConditionSave,
     resolveSaves,
     settleSave,
     applySaveOutcome,

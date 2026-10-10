@@ -246,6 +246,8 @@ import {
   getExhaustionLevel,
   setExhaustionLevel,
   getExhaustionD20Penalty,
+  hasCondition as hasConditionRecord,
+  withCondition,
 } from "@/rules/conditions";
 import type { PartyMember } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
@@ -315,7 +317,7 @@ function openConditionPicker() {
 
 const filteredConditions = computed(() => {
   const q = conditionSearch.value.toLowerCase();
-  const hasExhaustion = getExhaustionLevel(props.member.conditions ?? []) > 0;
+  const hasExhaustion = getExhaustionLevel(props.member.conditions) > 0;
   return CONDITIONS.filter((c) => {
     if (!c.toLowerCase().includes(q)) return false;
     if (c === "Exhaustion") return !hasExhaustion;
@@ -323,15 +325,15 @@ const filteredConditions = computed(() => {
   });
 });
 function hasCondition(cond: string) {
-  if (cond === "Exhaustion") return getExhaustionLevel(props.member.conditions ?? []) > 0;
-  return props.member.conditions?.includes(cond) ?? false;
+  if (cond === "Exhaustion") return getExhaustionLevel(props.member.conditions) > 0;
+  return hasConditionRecord(props.member.conditions, cond);
 }
 async function addCondition(cond: string) {
   if (hasCondition(cond)) return;
   showConditionPicker.value = false;
   const updated = cond === "Exhaustion"
-    ? setExhaustionLevel(props.member.conditions ?? [], 1)
-    : [...(props.member.conditions ?? []), cond];
+    ? setExhaustionLevel(props.member.conditions, 1)
+    : withCondition(props.member.conditions, { name: cond });
   await updateMember({ id: props.member.id, update: { conditions: updated } });
 }
 
@@ -455,7 +457,7 @@ const hpBarColor = computed(() => {
 });
 
 const { ruleset } = useTableRuleset();
-const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(props.member.conditions ?? [], ruleset.value));
+const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(props.member.conditions, ruleset.value));
 
 async function clearTempHp() {
   await updateMember({ id: props.member.id, update: { temp_hp: 0 } });

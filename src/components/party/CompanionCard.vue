@@ -145,12 +145,12 @@
       />
       <span
         v-for="cond in companion.conditions.filter((c) => !isExhaustion(c))"
-        :key="cond"
+        :key="cond.name"
         class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 text-label text-destructive"
-        :title="getConditionDescription(cond, ruleset)"
+        :title="getConditionDescription(cond.name, ruleset)"
       >
-        {{ cond }}
-        <button type="button" class="leading-none hover:opacity-70" @click="removeCondition(cond)">×</button>
+        {{ cond.name }}
+        <button type="button" class="leading-none hover:opacity-70" @click="removeCondition(cond.name)">×</button>
       </span>
       <AppButton
         v-if="!addingCondition"
@@ -204,6 +204,9 @@ import {
   getExhaustionLevel,
   setExhaustionLevel,
   isExhaustion,
+  hasCondition,
+  withCondition,
+  withoutCondition,
 } from "@/rules/conditions";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
@@ -258,7 +261,7 @@ const availableConditions = computed(() => {
   const hasExhaustion = getExhaustionLevel(props.companion.conditions) > 0;
   return CONDITIONS.filter((c) => {
     if (c === "Exhaustion") return !hasExhaustion;
-    return !props.companion.conditions.includes(c);
+    return !hasCondition(props.companion.conditions, c);
   });
 });
 
@@ -287,7 +290,7 @@ async function addCondition() {
   if (newCondition.value === "Exhaustion") {
     await setExhaustion(1);
   } else {
-    const updated = [...props.companion.conditions, newCondition.value];
+    const updated = withCondition(props.companion.conditions, { name: newCondition.value });
     await updateCompanion({ id: props.companion.id, update: { conditions: updated } });
   }
   newCondition.value = "";
@@ -295,7 +298,7 @@ async function addCondition() {
 }
 
 async function removeCondition(cond: string) {
-  const updated = props.companion.conditions.filter((c) => c !== cond);
+  const updated = withoutCondition(props.companion.conditions, cond);
   await updateCompanion({ id: props.companion.id, update: { conditions: updated } });
 }
 
