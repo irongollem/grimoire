@@ -18,6 +18,16 @@
 --
 -- hnsw.iterative_scan exists from pgvector 0.8.0. Fail with the remedy rather
 -- than with pgvector's own "invalid configuration parameter" on an older one.
+-- hnsw.* is a parameter pgvector registers when its library loads, and a
+-- session that has not used the vector type yet has not loaded it. Postgres
+-- then treats hnsw.iterative_scan as an unknown placeholder, which only a
+-- superuser may set, so the ALTER FUNCTION ... SET below fails with
+-- "permission denied to set parameter" for the migration role. That is exactly
+-- the session `db push` opens for a release that carries only this file (the
+-- #1046 release failed on it); a fresh CI stack never saw it because earlier
+-- migrations had already loaded the library. Touching the type loads it.
+select '[1]'::extensions.vector;
+
 do $$
 declare
   v int[] := string_to_array(
