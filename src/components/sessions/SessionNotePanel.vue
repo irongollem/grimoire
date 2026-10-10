@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
-import HearthSection from "@/components/play/hearth/HearthSection.vue";
+import HearthSection from "@/components/player/hearth/HearthSection.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useNotes, useUpdateNote } from "@/composables/notes/useNotes";

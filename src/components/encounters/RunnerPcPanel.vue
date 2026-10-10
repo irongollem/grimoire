@@ -121,7 +121,7 @@ import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { wildshapeStateFor } from "@/rules/wildshape";
-import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
+import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { useToast } from "@/composables/useToast";
 import { fetchLibraryMonsterArtEntry, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";

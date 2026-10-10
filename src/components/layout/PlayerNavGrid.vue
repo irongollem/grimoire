@@ -49,7 +49,7 @@ import { useRoute } from "vue-router";
 import { IconChevronRight, IconNavCampaign, IconRefresh } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
-import { usePlayerNavPrefs } from "@/composables/play/usePlayerNavPrefs";
+import { usePlayerNavPrefs } from "@/composables/player/usePlayerNavPrefs";
 import { isNavItemActive } from "@/lib/playerNav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";

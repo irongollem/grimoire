@@ -268,7 +268,7 @@ import { benchedMessage, useBenchedAfterAttach } from "@/composables/party/useBe
 import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
 import { wasAnsweredUnder16 } from "@/lib/ageGateSession";
 import AppButton from "@/components/common/AppButton.vue";
-import RulesetBounceDialog from "@/components/play/RulesetBounceDialog.vue";
+import RulesetBounceDialog from "@/components/player/RulesetBounceDialog.vue";
 import { parseRulesetBounce, rulesetYear } from "@/composables/party/useCharacterRuleset";
 import { replayStartingGrants } from "@/composables/party/useCharacterEquipmentSeeding";
 import type { PartyMember } from "@/types/party.types";

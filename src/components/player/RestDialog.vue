@@ -167,7 +167,7 @@ import { abilityModifier } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
 import type { DieSize } from "@/lib/dice/dice";
-import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
+import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
 
 const props = defineProps<{
   member: PartyMember;

@@ -61,7 +61,7 @@ import {
 } from "@/lib/icons";
 import { JOURNAL_CATEGORIES } from "@/composables/notes/usePlayerJournal";
 import type { PlayerJournalEntry, JournalCategory } from "@/composables/notes/usePlayerJournal";
-import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
+import { useReadItems, useMarkRead } from "@/composables/player/useReadItems";
 import JournalCard from "@/components/player/JournalCard.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import AppModal from "@/components/common/AppModal.vue";

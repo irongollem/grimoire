@@ -499,7 +499,7 @@ The alter-ego system integrates transparently: if the NPC is not yet revealed (`
 
 ### The People ledger (#987)
 
-`PlayerPartyView` wires it; the parts are in `src/components/play/people/` and the rules are pure functions in `src/lib/npcs/peopleLedger.ts` (tested).
+`PlayerPartyView` wires it; the parts are in `src/components/player/people/` and the rules are pure functions in `src/lib/npcs/peopleLedger.ts` (tested).
 
 **New to you** (`NewToYouStrip`, `NewToYouCard`, `useNewToYou`). `classifyPeople` splits the player's NPCs three ways:
 

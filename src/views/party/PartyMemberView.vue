@@ -62,7 +62,7 @@ import { computed, ref, defineAsyncComponent } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { IconEdit } from '@/lib/icons';
 import { useParty } from "@/composables/party/useParty";
-import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
+import PlayerCharacterView from "@/views/player/PlayerCharacterView.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/OverflowMenu.vue";
 import SetDownDialog from "@/components/memorials/SetDownDialog.vue";

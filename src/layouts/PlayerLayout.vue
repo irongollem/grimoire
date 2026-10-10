@@ -359,13 +359,13 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
-import { usePlayerRemovalGuard } from "@/composables/play/usePlayerRemovalGuard";
+import { usePlayerRemovalGuard } from "@/composables/player/usePlayerRemovalGuard";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
 import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
-import { usePlayerUnread } from "@/composables/play/usePlayerUnread";
+import { usePlayerUnread } from "@/composables/player/usePlayerUnread";
 import ModeToggle from "@/components/layout/ModeToggle.vue";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
 import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
@@ -393,7 +393,7 @@ const BugReportModal = defineAsyncComponent(
 // RPC, the player's campaign list) that cost a request on every cold load of the
 // portal for a panel most sessions never show.
 const PlayerLocationDialog = defineAsyncComponent(
-  () => import("@/components/play/PlayerLocationDialog.vue"),
+  () => import("@/components/player/PlayerLocationDialog.vue"),
 );
 const PlayerCampaignsSheet = defineAsyncComponent(
   () => import("@/components/layout/PlayerCampaignsSheet.vue"),

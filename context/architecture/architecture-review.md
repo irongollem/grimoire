@@ -80,7 +80,7 @@ gzip). What is left is pages that mount children nobody can see at once:
 | Static `.vue` imports | Page | Shown how |
 | --------------------- | ---- | --------- |
 | 18 | `views/campaign/CampaignSettingsView.vue` | 14 tabs, one `v-if` branch each |
-| 20 | `views/play/PlayerCharacterView.vue` | 6 tabs behind `activeTab`, a dialog |
+| 20 | `views/player/PlayerCharacterView.vue` | 6 tabs behind `activeTab`, a dialog |
 | 23 | `components/quests/QuestRunCockpit.vue` | sheets, drawers and dialogs on toggles; one already async |
 | 20 | `views/soundboard/SoundboardView.vue` | playlists panel per view mode, paywall and settings dialogs |
 

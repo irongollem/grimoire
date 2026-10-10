@@ -310,7 +310,7 @@ Read these five files first — they cover the entire data and component surface
 | `/notes`      | `notes`       | `src/views/notes/NotesView.vue`      | DM (requiresAuth)       |
 | `/notes/new`  | `note-new`    | `src/views/notes/NoteDetailView.vue` | DM                      |
 | `/notes/:id`  | `note-detail` | `src/views/notes/NoteDetailView.vue` | DM                      |
-| `/play/notes` | `play-notes`  | `src/views/play/PlayerNotesView.vue` | Player (requiresPlayer) |
+| `/play/notes` | `play-notes`  | `src/views/player/PlayerNotesView.vue` | Player (requiresPlayer) |
 
 ### Database Table: `notes`
 
@@ -471,7 +471,7 @@ All note creation and editing happens here. Key integrations:
 - Save → `router.push("/notes")`
 - Delete → `router.push("/notes")`
 
-### Player-Facing Notes View — `src/views/play/PlayerNotesView.vue`
+### Player-Facing Notes View — `src/views/player/PlayerNotesView.vue`
 
 - Players read notes through `usePlayerVisibleNotes()` (`get_player_visible_notes`, key `[PLAYER_NOTES_KEY, campaignId, previewMemberId]`, refreshed by the `notes_player` doorbell); `useNotes()` is the DM's table read
 - Read-only accordion list: pinned-first sort, expand to `RichTextViewer`
@@ -486,7 +486,7 @@ Separate from DM notes — entirely player-owned.
 ### Route
 
 `/play/journal` (embedded tab in player portal, `requiresPlayer`)
-View: `src/views/play/PlayerJournalView.vue`
+View: `src/views/player/PlayerJournalView.vue`
 
 ### Database Table: `player_journal_entries`
 
@@ -542,7 +542,7 @@ TanStack Query key: `"player_journal"`.
 | Route            | Name            | Component                               | Access                  |
 | ---------------- | --------------- | --------------------------------------- | ----------------------- |
 | `/calendar`      | `calendar`      | `src/views/calendar/CalendarView.vue`   | DM (requiresAuth)       |
-| `/play/calendar` | `play-calendar` | `src/views/play/PlayerCalendarView.vue` | Player (requiresPlayer) |
+| `/play/calendar` | `play-calendar` | `src/views/player/PlayerCalendarView.vue` | Player (requiresPlayer) |
 
 ### Player Calendar (`/play/calendar`)
 

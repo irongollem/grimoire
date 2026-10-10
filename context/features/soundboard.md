@@ -273,7 +273,7 @@ A DM can share **the music slot only** with players in the portal. `soundboard_b
 | -------------------------------------------- | ------------------------------------------------------------ |
 | `src/lib/audio/broadcastOffset.ts`                 | Pure: anchor → current position, and the resync threshold      |
 | `src/composables/soundboard/useSoundboardBroadcast.ts`  | DM side. Module-level `broadcasting` flag + the upsert         |
-| `src/composables/play/usePlayerAudioStream.ts`    | Player side. Realtime subscription and the element             |
+| `src/composables/player/usePlayerAudioStream.ts`    | Player side. Realtime subscription and the element             |
 | `src/components/soundboard/PlayerAudioStream.vue` | Player UI, mounted in `PlayerLayout`                      |
 
 ### Four decisions worth not undoing

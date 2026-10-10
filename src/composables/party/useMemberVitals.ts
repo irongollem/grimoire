@@ -1,7 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { useWildshapeForm } from "@/composables/party/useWildshapeForm";
-import { useHpDisplay } from "@/composables/play/useHpDisplay";
+import { useHpDisplay } from "@/composables/player/useHpDisplay";
 import { walkingSpeed } from "@/lib/movement";
 import { effectiveAbilityScores } from "@/rules/characterChecks";
 import { memberInitiativeModifier } from "@/rules/initiative";

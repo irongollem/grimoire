@@ -15,7 +15,7 @@ vi.mock("@/composables/campaign/useCampaignMessages", () => ({
 vi.mock("@/composables/dice/usePromptedRoll", () => ({
   usePromptedRoll: () => ({ promptRoll: vi.fn() }),
 }));
-vi.mock("@/composables/play/useReadItems", () => ({
+vi.mock("@/composables/player/useReadItems", () => ({
   useMarkRead: () => ({ mutate: vi.fn() }),
 }));
 vi.mock("@tanstack/vue-query", () => ({

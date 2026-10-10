@@ -1,0 +1,678 @@
+<template>
+  <div class="space-y-4 pb-8">
+    <PageHeader flush title="Bestiary" description="Creatures your party has met." />
+    <!-- Tabs: only when there is a second one (Forms, for a character who
+         qualifies). A lone "Bestiary" chip under the Bestiary title read as a
+         second title. -->
+    <SegmentedControl
+      v-if="visibleTabOptions.length > 1"
+      :model-value="activeTab"
+      :options="visibleTabOptions"
+      size="md"
+      @update:model-value="(v) => (activeTab = v as 'bestiary' | 'forms')"
+    />
+
+    <!-- ── BESTIARY TAB ──────────────────────────────────────────── -->
+    <template v-if="activeTab === 'bestiary'">
+      <ListSkeleton v-if="isLoadingDiscoveries" variant="grid" :count="8" />
+
+      <div v-else-if="!resolved.length" class="text-center py-16 space-y-2">
+        <p class="text-heading text-muted-foreground">No creatures discovered yet</p>
+        <p class="text-body text-muted-foreground italic">Monsters you encounter will appear here.</p>
+      </div>
+
+      <template v-else>
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <AppInput
+              v-model="ui.playerBestiarySearch"
+              type="text"
+              tone="card"
+              size="body"
+              placeholder="Search bestiary…"
+              class="pl-8"
+            />
+          </div>
+          <AppButton
+            v-if="ui.playerBestiaryHasActiveFilters"
+            variant="subtle"
+            size="sm"
+            label="Clear"
+            @click="ui.resetPlayerBestiaryFilters()"
+          />
+        </div>
+
+        <VirtualGrid
+          :items="filtered"
+          :item-key="discoveryKey"
+          :columns="discoveryColumns"
+          :estimate-row-height="DISCOVERY_ROW_PX"
+        >
+          <template #default="{ item: entry }">
+          <div
+            class="group relative rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+            @click="openLightbox(entry.monster, entry.discovery)"
+          >
+            <span
+              v-if="isNew(entry.discovery.id, entry.discovery.discovered_at)"
+              class="absolute top-1.5 left-1.5 z-10 h-2.5 w-2.5 rounded-full bg-destructive"
+              title="New"
+            />
+            <MonsterFormCard
+              :monster="entry.monster"
+              :name="entry.monster?.name ?? 'Unknown creature'"
+              :image-url="entry.monster?.image_url ?? null"
+              :reveal-stats="entry.discovery.reveal_stats"
+            />
+          </div>
+          </template>
+        </VirtualGrid>
+      </template>
+    </template>
+
+    <!-- ── WILD FORMS TAB ────────────────────────────────────────── -->
+    <template v-else-if="activeTab === 'forms'">
+      <div class="flex items-start gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3">
+        <div class="flex-1 min-w-0">
+          <p class="text-caption font-semibold text-foreground">
+            {{ member?.['class'] }} · Level {{ member?.level }}
+          </p>
+          <p v-if="isDruid" class="text-caption text-muted-foreground italic mt-0.5">
+            Max CR {{ maxWildshapeCrDisplay }}
+            <template v-if="is2024 && wildshapeRules.knownForms"> · Knows {{ knownCount }} of {{ wildshapeRules.knownForms }} forms</template>
+            <template v-if="!wildshapeRules.flyAllowed || !wildshapeRules.swimAllowed"> · no {{ wildshapeRules.swimAllowed ? "fly" : wildshapeRules.flyAllowed ? "swim" : "fly/swim" }} speed</template>
+          </p>
+        </div>
+        <span v-if="isDruid && isCircleOfMoon" class="text-eyebrow px-1.5 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
+      </div>
+
+      <!-- DM: share all eligible beasts with this druid -->
+      <div v-if="!is2024 && ui.dmPreviewMode && isDruid && unsharedEligibleBeasts.length > 0" class="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
+        <p class="text-caption text-muted-foreground italic">{{ unsharedEligibleBeasts.length }} eligible beast{{ unsharedEligibleBeasts.length === 1 ? '' : 's' }} not yet shared</p>
+        <AppButton
+          variant="tinted"
+          tone="primary"
+          emphasis="outline"
+          size="xs"
+          :disabled="sharingBeasts"
+          :label="sharingBeasts ? 'Sharing…' : 'Share all eligible beasts'"
+          @click="shareAllEligibleBeasts"
+        />
+      </div>
+
+      <div v-if="wildForms.length === 0" class="text-center py-16 space-y-2">
+        <p class="text-heading text-muted-foreground">No available forms</p>
+        <p class="text-body text-muted-foreground italic">
+          <template v-if="isDruid && is2024">Learn forms on the Wild Shape tab of your character sheet, or ask your DM to pin forms for you.</template>
+          <template v-else-if="isDruid">Discover beasts to unlock wild shapes, or ask your DM to pin forms for you.</template>
+          <template v-else>Your DM can pin forms for you here.</template>
+        </p>
+      </div>
+
+      <template v-else>
+        <!-- Pinned section -->
+        <template v-if="pinnedForms.length">
+          <p class="text-eyebrow text-muted-foreground">PINNED BY DM</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div
+              v-for="entry in pinnedForms"
+              :key="entry.monster.id"
+              class="group relative rounded-lg border border-primary/30 bg-card overflow-hidden cursor-pointer hover:border-primary/60 transition-colors"
+              @click="openLightbox(entry.monster, null)"
+            >
+              <MonsterFormCard :monster="entry.monster" :name="entry.name" :image-url="entry.imageUrl" :reveal-stats="true" />
+              <!-- DM pin button (preview mode only) -->
+              <button
+                v-if="ui.dmPreviewMode"
+                type="button"
+                class="absolute top-1.5 right-1.5 z-10 p-0.5 rounded bg-primary/20 text-primary hover:bg-destructive/20 hover:text-destructive transition-colors"
+                title="Unpin form"
+                @click.stop="togglePin(entry.monster)"
+              >
+                <IconPin class="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Eligible section -->
+        <template v-if="eligibleForms.length">
+          <p class="text-eyebrow text-muted-foreground mt-2">
+            {{ is2024 ? `KNOWN FORMS · ${knownCount} OF ${wildshapeRules.knownForms ?? 0}` : "ELIGIBLE FORMS" }}
+          </p>
+          <p v-if="is2024" class="text-caption text-muted-foreground italic -mt-2">
+            Learn or replace forms on the Wild Shape tab of your character sheet.
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div
+              v-for="entry in eligibleForms"
+              :key="entry.monster.id"
+              class="group relative rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+              @click="openLightbox(entry.monster, null)"
+            >
+              <MonsterFormCard :monster="entry.monster" :name="entry.name" :image-url="entry.imageUrl" :reveal-stats="true" />
+              <span
+                v-if="entry.usesCost > 1"
+                class="absolute bottom-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded bg-card/90 border border-border text-eyebrow text-foreground"
+              >{{ entry.usesCost }} uses</span>
+              <!-- DM pin button (preview mode only) -->
+              <AppButton
+                v-if="ui.dmPreviewMode"
+                variant="ghost"
+                tone="primary"
+                fill="tone"
+                size="icon-xs"
+                class="absolute top-1.5 right-1.5 z-10 bg-card/80 [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+                tooltip="Pin form"
+                :icon="IconPin"
+                icon-size="xs"
+                @click.stop="togglePin(entry.monster)"
+              />
+            </div>
+          </div>
+        </template>
+      </template>
+    </template>
+
+    <!-- ── LIGHTBOX ──────────────────────────────────────────────── -->
+    <AppModal :open="!!lightbox" size="md" align="sheet" :labelled-by="lightboxHeadingId" @close="lightbox = null">
+      <!--
+        The image and stat block scroll together, same as the pre-shell design.
+        The close button shares this scrolling div as its positioned ancestor
+        (rather than a wrapper outside it), which is why it stays pinned to the
+        corner instead of scrolling away with the content.
+      -->
+      <div class="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <!-- z-40 keeps this above the mini viewer's z-30 backdrop. -->
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          class="absolute top-3 right-3 z-40"
+          aria-label="Close"
+          :icon="IconClose"
+          icon-size="md"
+          @click="lightbox = null"
+        />
+
+        <div class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
+          <MiniPortraitOverlay :source="{ table: 'monsters', id: lightboxMiniSourceId }" badge-position="bottom-right">
+            <!-- Left, not right: the mini badge owns bottom-right. Both bottom corners are taken (CR left, mini badge right), so the chip stacks above the CR one. -->
+            <FocalImage
+              :src="lightbox?.imageUrl"
+              :alt="lightbox?.name"
+              format="landscape"
+              :focal-point="lightbox?.monster?.portrait_focal_point"
+              :placeholder="placeholderUrl('monster')"
+              ai-badge="left"
+              ai-badge-class="bottom-9!"
+            />
+            <!--
+              `stat_block` is optional-chained because the player projection
+              nulls it whole when the DM has not revealed a creature's stats
+              (`get_player_visible_monsters`, gated on `reveal_stats`). Opening
+              the lightbox on an unrevealed monster used to crash the page —
+              `crBg`/`crText` have always handled a missing CR, rendering
+              "CR ???"; only these call sites assumed one was there.
+            -->
+            <span
+              v-if="lightbox?.monster"
+              class="absolute bottom-2 left-2 px-2 py-0.5 rounded text-label font-bold text-white"
+              :class="crBg(lightbox.monster.stat_block?.challenge_rating)"
+            >CR {{ crText(lightbox.monster.stat_block?.challenge_rating) }}</span>
+          </MiniPortraitOverlay>
+        </div>
+
+        <div class="p-4 space-y-4">
+          <div>
+            <h2 :id="lightboxHeadingId" class="text-heading-lg font-bold text-foreground">{{ lightbox?.name }}</h2>
+            <p v-if="lightbox?.monster" class="text-body text-muted-foreground italic capitalize">
+              {{ lightbox.monster.size }} {{ lightbox.monster.monster_type }}<span v-if="lightbox.monster.alignment && (lightbox.revealStats ?? activeTab === 'forms')"> · {{ lightbox.monster.alignment }}</span>
+            </p>
+          </div>
+
+          <!--
+            The stat block is checked alongside `revealStats` because only
+            one of the two is something this template can know. They move
+            together in the projection; assuming so is what crashed here.
+          -->
+          <template v-if="lightbox?.monster?.stat_block && (lightbox.revealStats ?? activeTab === 'forms')">
+            <div class="flex gap-4 text-heading-sm">
+              <div class="text-center">
+                <p class="text-2xs text-muted-foreground tracking-wider">AC</p>
+                <p class="font-bold">{{ lightbox.monster.stat_block.armor_class }}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-2xs text-muted-foreground tracking-wider">HP</p>
+                <p class="font-bold">{{ formatHitPoints(lightbox.monster.stat_block.hit_points) }}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-2xs text-muted-foreground tracking-wider">SPD</p>
+                <p class="font-bold">{{ lightbox.monster.stat_block.speed }}</p>
+              </div>
+            </div>
+            <AbilityScoreTable
+              :scores="lightboxScores"
+              :roll-mode-picker="true"
+              @roll-ability="(_k, label, modifier, m) => rollCheck(modifier, `${label} Check`, m)"
+              @roll-save="(_k, label, bonus, m) => rollCheck(bonus, `${label} Save`, m)"
+            />
+            <template v-for="section in lightboxTraitSections" :key="section.label">
+              <div class="border-t border-border pt-3">
+                <p class="text-label text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
+                <div v-for="t in section.traits" :key="t.name" class="mb-3 last:mb-0">
+                  <div class="flex items-start gap-2 flex-wrap">
+                    <p class="text-caption font-semibold text-foreground shrink-0">{{ t.name }}.</p>
+                    <div class="flex gap-1.5 flex-wrap">
+                      <AppButton
+                        v-if="t.attackBonus !== null"
+                        v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollEntryAttack(t, m); } }"
+                        variant="tinted"
+                        size="xs"
+                        tone="caution"
+                        emphasis="outline"
+                        :label="`⚔ ${signedBonus(t.attackBonus)}`"
+                      />
+                      <span
+                        v-if="structuredSaveLabel(t.structured)"
+                        class="text-label text-muted-foreground self-center"
+                      >{{ structuredSaveLabel(t.structured) }}</span>
+                      <AppButton
+                        v-if="damageFor(t.structured)"
+                        variant="tinted"
+                        size="xs"
+                        tone="danger"
+                        emphasis="outline"
+                        :label="`🎲 ${damageFor(t.structured)?.label}`"
+                        @click.stop="rollActionDamage(t.structured, t.name)"
+                      />
+                    </div>
+                  </div>
+                  <div
+                    v-for="opt in structuredOptionEntries(t.structured)"
+                    :key="opt.name"
+                    class="flex items-center gap-2 flex-wrap mt-1 pl-3"
+                  >
+                    <span class="text-caption text-foreground">{{ opt.name }}</span>
+                    <span v-if="structuredSaveLabel(opt.structure)" class="text-label text-muted-foreground">
+                      {{ structuredSaveLabel(opt.structure) }}
+                    </span>
+                    <AppButton
+                      v-if="damageFor(opt.structure)"
+                      variant="tinted"
+                      size="xs"
+                      tone="danger"
+                      emphasis="outline"
+                      :label="`🎲 ${damageFor(opt.structure)?.label}`"
+                      @click.stop="rollActionDamage(opt.structure, `${t.name}: ${opt.name}`)"
+                    />
+                  </div>
+                  <p class="text-caption text-muted-foreground leading-relaxed mt-0.5">{{ t.description }}</p>
+                </div>
+              </div>
+            </template>
+            <div v-if="lastRoll" class="border-t border-border pt-3 flex items-center justify-between">
+              <span class="text-caption text-muted-foreground italic">{{ lastRoll.label }}</span>
+              <span class="text-heading font-bold text-foreground">{{ lastRoll.total }}</span>
+            </div>
+          </template>
+
+          <PlayerNotesWidget
+            v-if="lightbox?.monster"
+            entity-type="monster"
+            :entity-id="lightbox.entityId"
+          />
+        </div>
+      </div>
+    </AppModal>
+  </div>
+</template>
+
+<script setup lang="ts">
+import ListSkeleton from "@/components/common/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import PageHeader from "@/components/common/PageHeader.vue";
+import { ref, computed, useId } from "vue";
+import { refDebounced } from "@vueuse/core";
+import { IconClose, IconPin, IconSearch } from '@/lib/icons';
+import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
+import { useReadItems, useMarkRead } from "@/composables/player/useReadItems";
+import { usePinnedForms, useTogglePinnedForm } from "@/composables/player/usePinnedForms";
+import { availableWildShapeForms, knownFormIds, wildShapeFormCost } from "@/rules/wildshape";
+import { useRuleset } from "@/composables/rules/useRuleset";
+import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
+import { useWildShapeCandidates } from "@/composables/monsters/useWildShapeCandidates";
+import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
+import { useParty } from "@/composables/party/useParty";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
+import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
+import { parsedToCounts } from "@/lib/dice/dice";
+import { combineDamageParts, structuredAttackBonus, structuredDamageParts, structuredOptionEntries, structuredSaveLabel } from "@/lib/statBlock/structuredRolls";
+import type { CombinedDamage } from "@/lib/statBlock/structuredRolls";
+import type { ActionStructure, StatBlockEntry } from "@/types/statBlock.types";
+import { formatHitPoints } from "@/lib/utils";
+import { crBg, crText } from "@/lib/monsterDisplay";
+import { rollParsed } from "@/lib/dice/roller";
+import type { RollMode } from "@/lib/dice/roller";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
+import type { DiscoveredMonster, PlayerVisibleMonster } from "@/types/monster.types";
+import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
+import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import MonsterFormCard from "@/components/monsters/MonsterFormCard.vue";
+import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+// `PlayerVisibleMonster`, not `Monster` (#842): everything on this view comes
+// from `usePlayerMonstersByIds`, whose projection nulls `stat_block` for a
+// creature the DM has not revealed. The compiler now says so at every site.
+interface BestiaryEntry { discovery: DiscoveredMonster; monster: PlayerVisibleMonster | null }
+interface FormEntry { monster: PlayerVisibleMonster; name: string; imageUrl: string | null; usesCost: number }
+
+const ui = useUiStore();
+const auth = useAuthStore();
+const { sendRoll } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
+const { promptRoll } = usePromptedRoll();
+const { data: discoveries, isLoading: isLoadingDiscoveries } = usePlayerDiscoveries();
+const { isNew } = useReadItems("discovery");
+const { mutate: markRead } = useMarkRead();
+const { data: partyMembers } = useParty();
+const { data: playerPinnedForms } = usePinnedForms();
+const { mutate: togglePinnedForm } = useTogglePinnedForm();
+
+// Resolve current party member
+const memberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
+const member = computed(() => partyMembers.value?.find((m) => m.id === memberId.value) ?? null);
+
+// ── Class detection ───────────────────────────────────────────────────────────
+// Druid and ranger are read from the class rows: party_members.class only
+// mirrors the primary row, so a Fighter 6 / Druid 2 would otherwise never see
+// the Wild Forms tab.
+const {
+  isDruid,
+  isCircleOfMoon,
+  rules: wildshapeRules,
+  maxCrDisplay: maxWildshapeCrDisplay,
+} = useWildshapeDruid(memberId, () => member.value);
+const { is2024 } = useRuleset();
+const { data: characterClasses } = useCharacterClasses(memberId);
+const isRanger   = computed(() =>
+  (characterClasses.value ?? []).some((cc) => cc.class_name.toLowerCase().includes("ranger")),
+);
+
+const showFormTab = computed(() => isDruid.value || isRanger.value);
+
+const visibleTabs = computed(() => {
+  const tabs: { id: string; label: string }[] = [{ id: "bestiary", label: "Bestiary" }];
+  if (showFormTab.value || (playerPinnedForms.value?.length ?? 0) > 0) {
+    tabs.push({ id: "forms", label: "Wild Forms" });
+  }
+  return tabs;
+});
+
+const visibleTabOptions = computed(() => visibleTabs.value.map((tab) => ({ value: tab.id, label: tab.label })));
+
+const activeTab = ref<"bestiary" | "forms">("bestiary");
+
+// ── Which monsters this view holds ids for ────────────────────────────────────
+// Only these are read (#972): what the player has met, what is pinned for them,
+// and, for a druid, the 2024 Known Forms roster.
+// Build a set of discovered monster keys visible to the current (preview) player
+const discoveredMonsterKeys = computed<Set<string>>(() => {
+  const s = new Set<string>();
+  for (const d of (discoveries.value ?? []).filter(isVisibleToPreviewMember)) {
+    if (d.monster_id) s.add(d.monster_id);
+    if (d.library_monster_id)   s.add(d.library_monster_id);
+  }
+  return s;
+});
+
+// Pinned forms for the current party member (player view or DM preview)
+const visiblePins = computed(() => {
+  const pins = playerPinnedForms.value ?? [];
+  return ui.dmPreviewMode ? pins.filter((p) => p.party_member_id === ui.dmPreviewPartyMemberId) : pins;
+});
+const knownIds = computed(() => new Set(knownFormIds(member.value?.class_choices)));
+const heldIds = computed<string[]>(() => [
+  ...discoveredMonsterKeys.value,
+  ...visiblePins.value.map((p) => p.library_monster_id ?? p.monster_id),
+  ...(isDruid.value ? knownIds.value : []),
+].filter((id): id is string => !!id));
+const { data: heldMonsters } = usePlayerMonstersByIds(heldIds);
+
+// ── Bestiary tab ─────────────────────────────────────────────────────────────
+function isVisibleToPreviewMember(d: DiscoveredMonster): boolean {
+  if (!ui.dmPreviewMode || !ui.dmPreviewPartyMemberId) return true;
+  return d.visible_to === null || d.visible_to.includes(ui.dmPreviewPartyMemberId);
+}
+
+const resolved = computed<BestiaryEntry[]>(() =>
+  (discoveries.value ?? []).filter(isVisibleToPreviewMember).map((d) => {
+    const id = d.library_monster_id ?? d.monster_id;
+    const monster: PlayerVisibleMonster | null = id ? (heldMonsters.value.get(id) ?? null) : null;
+    return { discovery: d, monster };
+  }),
+);
+
+// The party's bestiary grows with every encounter, so the discoveries grid is
+// windowed (the Wild Shape picks below are a handful and stay plain grids).
+// Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` it replaced.
+const discoveryColumns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const discoveryKey = (entry: BestiaryEntry) => entry.discovery.id;
+// Row height before it is measured (px): 2 border + 4 CR rule (h-1) + 96
+// portrait (h-24, taller than the p-3 text column beside it) = 102. A name that
+// wraps makes a card taller; rows are re-measured as they mount.
+const DISCOVERY_ROW_PX = 102;
+
+const search = refDebounced(computed(() => ui.playerBestiarySearch), 300);
+const filtered = computed(() => {
+  if (!search.value.trim()) return resolved.value;
+  const q = search.value.trim().toLowerCase();
+  return resolved.value.filter(
+    (e) => (e.monster?.name ?? "").toLowerCase().includes(q) || (e.monster?.monster_type ?? "").toLowerCase().includes(q),
+  );
+});
+
+// ── Wild Forms tab ───────────────────────────────────────────────────────────
+
+// Pinned forms for the current party member (player view or DM preview)
+const pinnedFormMonsters = computed<FormEntry[]>(() => {
+  return visiblePins.value.flatMap((pin) => {
+    const pinId = pin.library_monster_id ?? pin.monster_id;
+    const monster = pinId ? (heldMonsters.value.get(pinId) ?? null) : null;
+    if (!monster) return [];
+    return [{ monster, name: monster.name, imageUrl: monster.image_url ?? null, usesCost: wildShapeFormCost(monster, wildshapeRules.value) ?? 1 }];
+  });
+});
+
+const pinnedMonsterIds = computed(() => new Set(pinnedFormMonsters.value.map((e) => e.monster.id)));
+
+// DM: eligible beasts not yet shared with the previewed party member
+// The ONE whole-list read on this view: the DM preview's "share all eligible"
+// has to see beasts nobody has met, so there are no ids to ask for. A player
+// never reaches it (enabled only in DM preview of a 2014 druid).
+const { data: legalForms } = useWildShapeCandidates(() => wildshapeRules.value, () => ({
+  enabled: ui.dmPreviewMode && isDruid.value && !is2024.value,
+}));
+const unsharedEligibleBeasts = computed(() => {
+  if (!isDruid.value) return [];
+  return legalForms.value.filter((m) => !discoveredMonsterKeys.value.has(m.id));
+});
+
+const sharingBeasts = ref(false);
+const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
+
+async function shareAllEligibleBeasts() {
+  const memberId = ui.dmPreviewPartyMemberId;
+  if (!memberId || !unsharedEligibleBeasts.value.length) return;
+  sharingBeasts.value = true;
+  try {
+    await autoDiscover({ monsters: unsharedEligibleBeasts.value, partyMemberIds: [memberId] });
+  } finally {
+    sharingBeasts.value = false;
+  }
+}
+
+// The same list the sheet and the runner build (`availableWildShapeForms`), so the
+// three cannot disagree: 2014 discovered or pinned, 2024 known or pinned. The pinned
+// ones already show in their own section above.
+const knownCount = computed(() => knownIds.value.size);
+
+const eligibleBeastForms = computed<FormEntry[]>(() => {
+  if (!isDruid.value) return [];
+  return availableWildShapeForms({
+    monsters: [...heldMonsters.value.values()],
+    rules: wildshapeRules.value,
+    discoveredIds: discoveredMonsterKeys.value,
+    pinnedIds: pinnedMonsterIds.value,
+    knownIds: knownIds.value,
+  })
+    .filter(({ monster }) => !pinnedMonsterIds.value.has(monster.id))
+    .map(({ monster, usesCost }) => ({ monster, name: monster.name, imageUrl: monster.image_url ?? null, usesCost }));
+});
+
+const pinnedForms  = computed(() => pinnedFormMonsters.value);
+const eligibleForms = computed(() => eligibleBeastForms.value);
+const wildForms    = computed(() => [...pinnedForms.value, ...eligibleForms.value]);
+
+// DM preview: toggle pin
+function togglePin(monster: PlayerVisibleMonster) {
+  const memberId = ui.dmPreviewPartyMemberId;
+  if (!memberId) return;
+  const existing = (playerPinnedForms.value ?? []).find((p) =>
+    monster.is_shared ? p.library_monster_id === monster.id : p.monster_id === monster.id,
+  );
+  togglePinnedForm({ monster, partyMemberId: memberId, existing });
+}
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+interface LightboxState {
+  monster: PlayerVisibleMonster | null;
+  name: string;
+  imageUrl: string | null;
+  revealStats: boolean | null;
+  entityId: string;
+}
+const lightbox = ref<LightboxState | null>(null);
+const lightboxHeadingId = useId();
+
+// Shared library monsters carry text ids (`srd_owlbear`) while `minis.source_id`
+// is a uuid, so only a campaign-owned monster can ever have a mini. An empty id
+// leaves useMiniForSource disabled, which renders the portrait untouched.
+const lightboxMiniSourceId = computed(() => {
+  const m = lightbox.value?.monster;
+  return m && !m.is_shared ? m.id : "";
+});
+
+function openLightbox(monster: PlayerVisibleMonster | null, discovery: DiscoveredMonster | null) {
+  if (!monster && !discovery) return;
+  if (discovery) markRead({ entityType: "discovery", entityId: discovery.id });
+  lastRoll.value = null;
+  lightbox.value = {
+    monster,
+    name: monster?.name ?? "Unknown creature",
+    imageUrl: monster?.image_url ?? null,
+    revealStats: discovery?.reveal_stats ?? null,
+    entityId: discovery?.monster_id ?? discovery?.library_monster_id ?? monster?.id ?? "",
+  };
+}
+
+// ── Roll helpers ──────────────────────────────────────────────────────────────
+const lastRoll = ref<{ label: string; total: number } | null>(null);
+
+function signedBonus(n: number): string {
+  return n >= 0 ? `+${n}` : `${n}`;
+}
+function damageFor(structure: ActionStructure): CombinedDamage | null {
+  return combineDamageParts(structuredDamageParts(structure));
+}
+
+/** The roll-mode callback is a closure, which the template's `v-if` does not narrow; check here. */
+function rollEntryAttack(entry: { name: string; attackBonus: number | null }, mode: RollMode | null) {
+  if (entry.attackBonus === null) return;
+  void rollAttack(entry.attackBonus, entry.name, mode);
+}
+
+async function rollAttack(attackBonus: number, actionName: string, override: RollMode | null = null) {
+  const mode: RollMode = override ?? "normal";
+  const modeTag = mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
+  const label = `${actionName} Attack${modeTag}`;
+  const result = await promptRoll({
+    counts: { 20: 1 },
+    modifier: attackBonus,
+    label,
+    mode,
+    senderName: member.value?.name,
+  });
+  if (result) lastRoll.value = { label, total: result.total };
+}
+
+async function rollCheck(modifier: number, label: string, override: RollMode | null = null) {
+  const mode: RollMode = override ?? "normal";
+  const modeTag = mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
+  const fullLabel = `${lightbox.value?.name ?? "Monster"} ${label}${modeTag}`;
+  const result = await promptRoll({
+    counts: { 20: 1 },
+    modifier,
+    label: fullLabel,
+    mode,
+    senderName: member.value?.name,
+  });
+  if (result) lastRoll.value = { label: fullLabel, total: result.total };
+}
+
+async function rollActionDamage(structure: ActionStructure, actionName: string) {
+  const damage = damageFor(structure);
+  if (!damage) return;
+  const { parsed } = damage;
+  const label = `${actionName} (${damage.label})`;
+
+  const counts = parsedToCounts(parsed.terms);
+  if (Object.keys(counts).length === 0) {
+    // Non-standard dice (or a flat amount): no physical-dice prompt, roll it directly
+    const { total, breakdown } = rollParsed(parsed);
+    lastRoll.value = { label, total };
+    sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }, null, member.value?.name).catch((e) => reportChatFailure(e, "post the roll to the chat"));
+    return;
+  }
+
+  const result = await promptRoll({
+    counts,
+    modifier: parsed.modifier,
+    label,
+    senderName: member.value?.name,
+    isDamage: true,
+  });
+  if (result) lastRoll.value = { label, total: result.total };
+}
+
+const lightboxScores = computed(() => {
+  const s = lightbox.value?.monster?.stat_block;
+  return { str: s?.str ?? 10, dex: s?.dex ?? 10, con: s?.con ?? 10, int: s?.int ?? 10, wis: s?.wis ?? 10, cha: s?.cha ?? 10 };
+});
+
+const lightboxTraitSections = computed(() => {
+  const sb = lightbox.value?.monster?.stat_block;
+  if (!sb) return [];
+  // The bonus is read once per entry so the template's `v-if` narrows it to a number.
+  const withBonus = (list: StatBlockEntry[] | undefined) =>
+    (list ?? []).map((entry) => ({ ...entry, attackBonus: structuredAttackBonus(entry.structured) }));
+  return [
+    { label: "Special Abilities", traits: withBonus(sb.special_abilities) },
+    { label: "Actions",           traits: withBonus(sb.actions) },
+    { label: "Bonus Actions",     traits: withBonus(sb.bonus_actions) },
+    { label: "Reactions",         traits: withBonus(sb.reactions) },
+    { label: "Legendary Actions", traits: withBonus(sb.legendary_actions) },
+  ].filter((s) => s.traits.length);
+});
+</script>

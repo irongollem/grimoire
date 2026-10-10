@@ -1,0 +1,16 @@
+<template>
+  <CharacterEditTabs v-if="isEditMode" />
+  <CharacterCreateWizard v-else />
+</template>
+
+<script setup lang="ts">
+import { provide } from "vue";
+import { useCharacterCreationForm, CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
+import CharacterEditTabs from "@/components/player/CharacterEditTabs.vue";
+import CharacterCreateWizard from "@/components/player/CharacterCreateWizard.vue";
+
+const form = useCharacterCreationForm();
+provide(CHARACTER_FORM_KEY, form);
+
+const { isEditMode } = form;
+</script>

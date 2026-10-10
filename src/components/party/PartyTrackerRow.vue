@@ -283,7 +283,7 @@ import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { describeAc } from "@/rules/armorClass";
-import { useReadItems } from "@/composables/play/useReadItems";
+import { useReadItems } from "@/composables/player/useReadItems";
 import PlayerJournalDmModal from "./PlayerJournalDmModal.vue";
 import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";

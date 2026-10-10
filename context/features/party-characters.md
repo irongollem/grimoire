@@ -1088,7 +1088,7 @@ The player can toggle their own disguise on/off using DB functions `set_shapeshi
 
 ## Printable Character Sheet Export (PDF)
 
-Both the DM (`/party/:partyMemberId/sheet` → `views/publishing/CharacterSheetView.vue`) and players (`/play` → `views/play/PlayerCharacterSheetView.vue`, own character only) can export a printable PDF. Both views are thin wrappers around the shared **`CharacterSheetExportPanel.vue`** (toolbar + live preview + export), which persists the export-screen prefs per character in `localStorage` (`cs-mode-*`, `cs-theme-*`, `cs-illus-theme-*`).
+Both the DM (`/party/:partyMemberId/sheet` → `views/publishing/CharacterSheetView.vue`) and players (`/play` → `views/player/PlayerCharacterSheetView.vue`, own character only) can export a printable PDF. Both views are thin wrappers around the shared **`CharacterSheetExportPanel.vue`** (toolbar + live preview + export), which persists the export-screen prefs per character in `localStorage` (`cs-mode-*`, `cs-theme-*`, `cs-illus-theme-*`).
 
 The pipeline is `composables/party/useCharacterSheetPdf.ts` → off-screen `createApp()` → `html2canvas` → `jsPDF`. It iterates every `.cs-page` element the renderer emits, so adding pages requires no pipeline changes.
 

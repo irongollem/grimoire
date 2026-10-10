@@ -77,7 +77,7 @@ see "Naming the reward" below before writing a third copy.
 
 ### Views
 
-- **Player** — `src/views/play/PlayerDowntimeView.vue`, route `/play/downtime`, nav in `src/lib/playerNav.ts`. Red unread dots via `useReadItems("downtime_outcome")` (the generic `player_read_items` table; no schema change).
+- **Player** — `src/views/player/PlayerDowntimeView.vue`, route `/play/downtime`, nav in `src/lib/playerNav.ts`. Red unread dots via `useReadItems("downtime_outcome")` (the generic `player_read_items` table; no schema change).
 - **DM** — `src/views/downtime/DowntimeBoardView.vue`, route `/downtime`, nav in `src/lib/nav.ts`. Filter state in `useUiStore` (`downtimeFilterStatus`, `downtimeFilterCharacter`, `downtimeHasActiveFilters`, `resetDowntimeFilters`) + a **Clear** button.
 
 Nav entries reuse `IconNavCalendar` — no downtime-specific glyph exists yet.

@@ -396,7 +396,7 @@ import { useToast } from "@/composables/useToast";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import { useMarkRead } from "@/composables/play/useReadItems";
+import { useMarkRead } from "@/composables/player/useReadItems";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";

@@ -125,9 +125,9 @@ import type { PartyMember } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import { useDiscoveredKeys } from "@/composables/encounters/useDiscoveredMonsters";
-import { useDmPinnedForms, useTogglePinnedForm } from "@/composables/play/usePinnedForms";
+import { useDmPinnedForms, useTogglePinnedForm } from "@/composables/player/usePinnedForms";
 import { availableWildShapeForms, knownFormIds, wildShapeFormCost } from "@/rules/wildshape";
-import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
+import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 
 const { combatant, member, monsters } = defineProps<{

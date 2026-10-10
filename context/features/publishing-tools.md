@@ -460,7 +460,7 @@ The Reliquary's Custom Rules tab has a **Generate** action (`RulesView.vue`, `ui
 
 Route: within player portal (`/play/...`)
 
-File: `src/views/play/PlayerReliquaryView.vue`
+File: `src/views/player/PlayerReliquaryView.vue`
 
 A read-only rules reference for players. Tabs:
 

@@ -48,7 +48,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import PlayerWildShapeSlotTrade from "@/components/player/PlayerWildShapeSlotTrade.vue";
-import { useWildShapeExchange, type WildShapeExchangeAction } from "@/composables/play/useWildShapeExchange";
+import { useWildShapeExchange, type WildShapeExchangeAction } from "@/composables/player/useWildShapeExchange";
 import { useToast } from "@/composables/useToast";
 import { slotPool } from "@/rules/spellSlots";
 import type { WildShapeRules } from "@/rules/wildshape";

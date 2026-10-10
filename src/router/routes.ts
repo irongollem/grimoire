@@ -75,19 +75,19 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/play",
     name: "play",
-    component: () => import("@/views/play/PlayerHearthView.vue"),
+    component: () => import("@/views/player/PlayerHearthView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Hearth" },
   },
   {
     path: "/play/character",
     name: "play-character",
-    component: () => import("@/views/play/PlayerCharacterView.vue"),
+    component: () => import("@/views/player/PlayerCharacterView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Your Character" },
   },
   {
     path: "/play/home",
     name: "play-home",
-    component: () => import("@/views/play/PlayerHomeView.vue"),
+    component: () => import("@/views/player/PlayerHomeView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Adventurer's Rest" },
   },
   {
@@ -95,7 +95,7 @@ export const routes: RouteRecordRaw[] = [
     // still reaches the names of their characters (#982).
     path: "/play/fallen",
     name: "play-fallen",
-    component: () => import("@/views/play/PlayerFallenView.vue"),
+    component: () => import("@/views/player/PlayerFallenView.vue"),
     // fillsMain: the stone wall is the page's ground edge to edge. darkChrome: the wall is always
     // dark, so the bars around it go dark with it.
     meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Hall of the Fallen", fillsMain: true, darkChrome: true },
@@ -103,37 +103,37 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/play/champions",
     name: "play-champions",
-    component: () => import("@/views/play/PlayerChampionsView.vue"),
+    component: () => import("@/views/player/PlayerChampionsView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Champions" },
   },
   {
     path: "/play/character/create",
     name: "play-character-create",
-    component: () => import("@/views/play/PlayerCharacterCreateView.vue"),
+    component: () => import("@/views/player/PlayerCharacterCreateView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Create Character" },
   },
   {
     path: "/play/character/edit",
     name: "play-character-edit",
-    component: () => import("@/views/play/PlayerCharacterCreateView.vue"),
+    component: () => import("@/views/player/PlayerCharacterCreateView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Edit Character" },
   },
   {
     path: "/play/character/levelup",
     name: "play-character-levelup",
-    component: () => import("@/views/play/PlayerLevelUpView.vue"),
+    component: () => import("@/views/player/PlayerLevelUpView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Level Up" },
   },
   {
     path: "/play/character/sheet",
     name: "play-character-sheet",
-    component: () => import("@/views/play/PlayerCharacterSheetView.vue"),
+    component: () => import("@/views/player/PlayerCharacterSheetView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Character Sheet" },
   },
   {
     path: "/play/party",
     name: "play-party",
-    component: () => import("@/views/play/PlayerPartyView.vue"),
+    component: () => import("@/views/player/PlayerPartyView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Party" },
   },
   {
@@ -143,13 +143,13 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/play/quests/:id",
     name: "play-quest-detail",
-    component: () => import("@/views/play/PlayerQuestDetailView.vue"),
+    component: () => import("@/views/player/PlayerQuestDetailView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Quest" },
   },
   {
     path: "/play/journal",
     name: "play-journal",
-    component: () => import("@/views/play/PlayerJournalView.vue"),
+    component: () => import("@/views/player/PlayerJournalView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Journal" },
   },
   // fullscreenMobile: the reader draws its own phone header (back, title), so
@@ -157,7 +157,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/play/handouts/:id",
     name: "play-handout",
-    component: () => import("@/views/play/PlayerHandoutView.vue"),
+    component: () => import("@/views/player/PlayerHandoutView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Handout", fullscreenMobile: true },
   },
   {
@@ -167,43 +167,43 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/play/inventory",
     name: "play-inventory",
-    component: () => import("@/views/play/PlayerInventoryView.vue"),
+    component: () => import("@/views/player/PlayerInventoryView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Inventory" },
   },
   {
     path: "/play/background",
     name: "play-background",
-    component: () => import("@/views/play/PlayerBackgroundPickerView.vue"),
+    component: () => import("@/views/player/PlayerBackgroundPickerView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Choose Background" },
   },
   {
     path: "/play/species",
     name: "play-species",
-    component: () => import("@/views/play/PlayerSpeciesPickerView.vue"),
+    component: () => import("@/views/player/PlayerSpeciesPickerView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Choose Species" },
   },
   {
     path: "/play/crafting",
     name: "play-crafting",
-    component: () => import("@/views/play/PlayerCraftingView.vue"),
+    component: () => import("@/views/player/PlayerCraftingView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Workshop" },
   },
   {
     path: "/play/downtime",
     name: "play-downtime",
-    component: () => import("@/views/play/PlayerDowntimeView.vue"),
+    component: () => import("@/views/player/PlayerDowntimeView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "The Interlude" },
   },
   {
     path: "/play/encounter",
     name: "player-encounter",
-    component: () => import("@/views/play/PlayerEncounterView.vue"),
+    component: () => import("@/views/player/PlayerEncounterView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Live Encounter" },
   },
   {
     path: "/play/encounter/map",
     name: "player-encounter-map",
-    component: () => import("@/views/play/PlayerEncounterMapView.vue"),
+    component: () => import("@/views/player/PlayerEncounterMapView.vue"),
     // fillsMain: the map draws its own frame edge to edge, so the player layout
     // gives it the whole content area instead of a padded column of no height.
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Battle Map", fillsMain: true },
@@ -211,7 +211,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/play/factions",
     name: "play-factions",
-    component: () => import("@/views/play/PlayerFactionsView.vue"),
+    component: () => import("@/views/player/PlayerFactionsView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Factions" },
   },
   {
@@ -221,43 +221,43 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/play/puzzles/:id",
     name: "play-puzzle-detail",
-    component: () => import("@/views/play/PlayerPuzzleDetailView.vue"),
+    component: () => import("@/views/player/PlayerPuzzleDetailView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Puzzle" },
   },
   {
     path: "/play/rules",
     name: "play-rules",
-    component: () => import("@/views/play/PlayerReliquaryView.vue"),
+    component: () => import("@/views/player/PlayerReliquaryView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Reliquary" },
   },
   {
     path: "/play/atlas",
     name: "play-atlas",
-    component: () => import("@/views/play/PlayerLocationsView.vue"),
+    component: () => import("@/views/player/PlayerLocationsView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Atlas" },
   },
   {
     path: "/play/bestiary",
     name: "play-bestiary",
-    component: () => import("@/views/play/PlayerBestiaryView.vue"),
+    component: () => import("@/views/player/PlayerBestiaryView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Bestiary" },
   },
   {
     path: "/play/spells",
     name: "play-spells",
-    component: () => import("@/views/play/PlayerSpellsView.vue"),
+    component: () => import("@/views/player/PlayerSpellsView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Spellbook" },
   },
   {
     path: "/play/calendar",
     name: "play-calendar",
-    component: () => import("@/views/play/PlayerCalendarView.vue"),
+    component: () => import("@/views/player/PlayerCalendarView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Calendar" },
   },
   {
     path: "/play/settings",
     name: "play-settings",
-    component: () => import("@/views/play/PlayerSettingsView.vue"),
+    component: () => import("@/views/player/PlayerSettingsView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Settings" },
   },
 
@@ -501,7 +501,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/party/new",
     name: "party-member-new",
-    component: () => import("@/views/play/PlayerCharacterCreateView.vue"),
+    component: () => import("@/views/player/PlayerCharacterCreateView.vue"),
     meta: { requiresAuth: true, title: "Create Character" },
   },
   {
