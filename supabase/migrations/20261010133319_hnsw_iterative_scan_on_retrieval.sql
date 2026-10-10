@@ -40,6 +40,14 @@ begin
 end;
 $$;
 
+-- Load pgvector in this session first. Until its library is loaded,
+-- `hnsw.iterative_scan` is an unknown placeholder, and Postgres lets only a
+-- superuser attach an unknown parameter to a function: production's migration
+-- role is not one, so the first release of this file failed with "permission
+-- denied to set parameter" while every local and CI run (as a superuser) passed.
+-- Using any vector value loads the library and registers the setting.
+select '[1]'::extensions.vector;
+
 alter function public.match_library_monsters(extensions.vector, text[], text, text, integer)
   set hnsw.iterative_scan = strict_order;
 alter function public.match_custom_monsters(extensions.vector, uuid, uuid, text, text, integer)
