@@ -124,6 +124,7 @@
       </div>
 
       <QuestRunPrepSheet
+        v-if="prepSheetMounted"
         v-model:open="prepSheetOpen"
         :quest-id="anchorQuestId"
         :thread-id="threadId"
@@ -139,7 +140,7 @@
         @switch-thread="switchThread"
         @open-next="openNextFromPrep"
       />
-      <QuestRunNextSheet v-model:open="nextSheetOpen" v-bind="outcomeStripProps" :thread-badge="currentThreadBadge" v-on="outcomeStripListeners" />
+      <QuestRunNextSheet v-if="nextSheetMounted" v-model:open="nextSheetOpen" v-bind="outcomeStripProps" :thread-badge="currentThreadBadge" v-on="outcomeStripListeners" />
 
       <QuestRunJumpPanel v-if="jumpOpen" v-model="jumpSearch" :targets="rankedJumpTargets" @close="jumpOpen = false" @jump="jump" />
       <QuestRunContainedTool
@@ -210,6 +211,7 @@ import { refDebounced } from "@vueuse/core";
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
 import { useHotkeys } from "@/composables/useHotkeys";
+import { useLazyMount } from "@/composables/useLazyMount";
 import { useBelow } from "@/composables/useBreakpoint";
 import { useCampaignStore } from "@/stores/campaign";
 import {
@@ -247,19 +249,24 @@ import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 import QuestFoldRow from "../board/QuestFoldRow.vue";
 import QuestRunHeldPayoff from "./QuestRunHeldPayoff.vue";
 import QuestRunSessionPanel from "./QuestRunSessionPanel.vue";
-import QuestRunPrepSheet from "./QuestRunPrepSheet.vue";
-import QuestRunNextSheet from "./QuestRunNextSheet.vue";
-import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunObjectivesLedger from "./QuestRunObjectivesLedger.vue";
 import QuestRunClocks from "./QuestRunClocks.vue";
 import QuestSettledPrompt from "./QuestSettledPrompt.vue";
 import QuestRunStorySoFar from "./QuestRunStorySoFar.vue";
 import QuestRunOpenChains from "./QuestRunOpenChains.vue";
 import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";
-import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 import QuestRunToolLoadError from "./QuestRunToolLoadError.vue";
-import QuestAdvanceDialog from "./QuestAdvanceDialog.vue";
 import QuestSiteHandoff from "./QuestSiteHandoff.vue";
+
+// Sheets, panels and dialogs that are closed when the cockpit opens load on
+// first use rather than riding in the page's chunk. The two sheets hold their
+// own tab and scroll state, so they mount through a latch (useLazyMount) and
+// stay mounted after closing; the panel and dialogs already unmount on close.
+const QuestRunPrepSheet = defineAsyncComponent(() => import("./QuestRunPrepSheet.vue"));
+const QuestRunNextSheet = defineAsyncComponent(() => import("./QuestRunNextSheet.vue"));
+const QuestRunJumpPanel = defineAsyncComponent(() => import("./QuestRunJumpPanel.vue"));
+const QuestAdvanceDialog = defineAsyncComponent(() => import("./QuestAdvanceDialog.vue"));
+const QuestPlayerPreviewDrawer = defineAsyncComponent(() => import("./QuestPlayerPreviewDrawer.vue"));
 
 const QuestRunContainedTool = defineAsyncComponent({
   loader: () => import("./QuestRunContainedTool.vue"),
@@ -336,6 +343,8 @@ const heldPayoffOpen = ref(false);
 const sessionOpen = ref(false);
 const prepSheetOpen = ref(false);
 const nextSheetOpen = ref(false);
+const prepSheetMounted = useLazyMount(prepSheetOpen);
+const nextSheetMounted = useLazyMount(nextSheetOpen);
 
 const context = computed(() => contextQuery.data.value ?? null);
 const currentBeat = computed(() => {

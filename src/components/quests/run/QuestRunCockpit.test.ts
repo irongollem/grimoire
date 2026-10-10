@@ -3,15 +3,10 @@ import { nextTick, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestRunCockpit from "./QuestRunCockpit.vue";
 import QuestRunSessionPanel from "./QuestRunSessionPanel.vue";
-import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";
-import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 import QuestRunOpenChains from "./QuestRunOpenChains.vue";
 import QuestThreadBar from "../flow/QuestThreadBar.vue";
-import QuestAdvanceDialog from "./QuestAdvanceDialog.vue";
-import QuestRunPrepSheet from "./QuestRunPrepSheet.vue";
-import QuestRunNextSheet from "./QuestRunNextSheet.vue";
 import DockBar from "@/components/common/DockBar.vue";
 
 const mocks = vi.hoisted(() => ({
@@ -95,6 +90,19 @@ const runningContext = () => ({
   threads: [{ id: "thread-1", label: "Main", status: "live", created_at: "2026-01-01T00:00:00Z", current_beat_id: "b1", current_beat_title: "Opening", runtime_status: "running", version: 4 }],
   held: [],
 });
+
+// The sheets, panel and dialogs are async components, so their chunk has to
+// load before they can be found: wait for the dynamic imports, then the render.
+// An async component renders as a stub of its wrapper under shallowMount, so what
+// the parent passes arrives as attrs (kebab-cased, as compiled), not declared props.
+function attr(name: string): string {
+  return name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+}
+
+async function settleAsync() {
+  await vi.dynamicImportSettled();
+  await flushPromises();
+}
 
 describe("QuestRunCockpit", () => {
   beforeEach(() => {
@@ -218,8 +226,8 @@ describe("QuestRunCockpit", () => {
     await flushPromises();
 
     session.vm.$emit("jump");
-    await wrapper.vm.$nextTick();
-    wrapper.findComponent(QuestRunJumpPanel).vm.$emit("jump", { quest_id: "q1", beat_id: "b9" }, "A detour", true);
+    await settleAsync();
+    wrapper.findComponent({ name: "QuestRunJumpPanel" }).vm.$emit("jump", { quest_id: "q1", beat_id: "b9" }, "A detour", true);
     await wrapper.vm.$nextTick();
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "jump", questId: "q1", targetBeatId: "b9", pushReturn: true }));
 
@@ -237,23 +245,23 @@ describe("QuestRunCockpit", () => {
     mocks.context.value = runningContext();
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     wrapper.findComponent(QuestRunOutcomeStrip).vm.$emit("choose", "e1");
-    await wrapper.vm.$nextTick();
+    await settleAsync();
     expect(mocks.mutateAsync).not.toHaveBeenCalledWith(expect.objectContaining({ command: "advance" }));
-    const dialog = wrapper.findComponent(QuestAdvanceDialog);
-    expect(dialog.props("open")).toBe(true);
-    expect(dialog.props("preselectedEdgeId")).toBe("e1");
-    expect(dialog.props("improvise")).toBe(false);
+    const dialog = wrapper.findComponent({ name: "QuestAdvanceDialog" });
+    expect(dialog.vm.$attrs[attr("open")]).toBe(true);
+    expect(dialog.vm.$attrs[attr("preselectedEdgeId")]).toBe("e1");
+    expect(dialog.vm.$attrs[attr("improvise")]).toBe(false);
   });
 
   it("opens the Advance dialog with its improvise option selected from Something else…", async () => {
     mocks.context.value = runningContext();
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     wrapper.findComponent(QuestRunOutcomeStrip).vm.$emit("something-else");
-    await wrapper.vm.$nextTick();
-    const dialog = wrapper.findComponent(QuestAdvanceDialog);
-    expect(dialog.props("open")).toBe(true);
-    expect(dialog.props("improvise")).toBe(true);
-    expect(dialog.props("preselectedEdgeId")).toBeUndefined();
+    await settleAsync();
+    const dialog = wrapper.findComponent({ name: "QuestAdvanceDialog" });
+    expect(dialog.vm.$attrs[attr("open")]).toBe(true);
+    expect(dialog.vm.$attrs[attr("improvise")]).toBe(true);
+    expect(dialog.vm.$attrs[attr("preselectedEdgeId")]).toBeUndefined();
   });
 
   it("canonicalizes a refreshed Run URL to the persisted current beat", () => {
@@ -294,12 +302,12 @@ describe("QuestRunCockpit", () => {
       props: { anchorQuestId: "q1", visibleTo: [] },
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Preview as players")!.trigger("click");
-    await wrapper.vm.$nextTick();
-    const preview = wrapper.findComponent(QuestPlayerPreviewDrawer);
+    await settleAsync();
+    const preview = wrapper.findComponent({ name: "QuestPlayerPreviewDrawer" });
     // The cockpit used to follow a campaign-wide cursor, so a beat from q2 could
     // be current here and the preview would silently switch audience with it.
-    expect(preview.props("questId")).toBe("q1");
-    expect(preview.props("visibleTo")).toEqual(["anchor-player"]);
+    expect(preview.vm.$attrs[attr("questId")]).toBe("q1");
+    expect(preview.vm.$attrs[attr("visibleTo")]).toEqual(["anchor-player"]);
   });
 
   it("renders the current beat from the live beat row after an in-place save", () => {
@@ -402,8 +410,8 @@ describe("QuestRunCockpit", () => {
       props: { anchorQuestId: "q1", visibleTo: ["anchor-player"] },
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Preview as players")!.trigger("click");
-    await wrapper.vm.$nextTick();
-    expect(wrapper.findComponent(QuestPlayerPreviewDrawer).props("visibleTo")).toEqual(["anchor-player"]);
+    await settleAsync();
+    expect(wrapper.findComponent({ name: "QuestPlayerPreviewDrawer" }).vm.$attrs[attr("visibleTo")]).toEqual(["anchor-player"]);
   });
 
   it("defaults to the quest's oldest live thread and passes it through to every runtime command", async () => {
@@ -452,30 +460,43 @@ describe("QuestRunCockpit", () => {
       });
       const buttons = wrapper.findAllComponents({ name: "AppButton" });
       await buttons.find((button) => button.props("label") === "What happens next · 1")!.trigger("click");
-      expect(wrapper.findComponent(QuestRunNextSheet).props("open")).toBe(true);
+      await settleAsync();
+      expect(wrapper.findComponent({ name: "QuestRunNextSheet" }).vm.$attrs[attr("open")]).toBe(true);
       await buttons.find((button) => button.props("ariaLabel") === "Prep")!.trigger("click");
-      expect(wrapper.findComponent(QuestRunPrepSheet).props("open")).toBe(true);
+      await settleAsync();
+      expect(wrapper.findComponent({ name: "QuestRunPrepSheet" }).vm.$attrs[attr("open")]).toBe(true);
     });
 
     it("hands off from Prep's footer to the What-happens-next sheet", async () => {
+      mocks.belowXl = true;
       mocks.context.value = runningContext();
-      const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
-      wrapper.findComponent(QuestRunPrepSheet).vm.$emit("update:open", true);
-      await wrapper.vm.$nextTick();
-      wrapper.findComponent(QuestRunPrepSheet).vm.$emit("open-next");
-      await wrapper.vm.$nextTick();
-      expect(wrapper.findComponent(QuestRunPrepSheet).props("open")).toBe(false);
-      expect(wrapper.findComponent(QuestRunNextSheet).props("open")).toBe(true);
+      const wrapper = shallowMount(QuestRunCockpit, {
+        props: { anchorQuestId: "q1" },
+        global: { stubs: { DockBar: false } },
+      });
+      // The sheets load on first open, so Prep is opened from the dock like a DM would.
+      await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("ariaLabel") === "Prep")!.trigger("click");
+      await settleAsync();
+      wrapper.findComponent({ name: "QuestRunPrepSheet" }).vm.$emit("open-next");
+      await settleAsync();
+      expect(wrapper.findComponent({ name: "QuestRunPrepSheet" }).vm.$attrs[attr("open")]).toBe(false);
+      expect(wrapper.findComponent({ name: "QuestRunNextSheet" }).vm.$attrs[attr("open")]).toBe(true);
     });
 
     it("opens the Advance dialog from the Next sheet's choose, same as the rail's outcome strip", async () => {
+      mocks.belowXl = true;
       mocks.context.value = runningContext();
-      const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
-      wrapper.findComponent(QuestRunNextSheet).vm.$emit("choose", "e1");
-      await wrapper.vm.$nextTick();
-      const dialog = wrapper.findComponent(QuestAdvanceDialog);
-      expect(dialog.props("open")).toBe(true);
-      expect(dialog.props("preselectedEdgeId")).toBe("e1");
+      const wrapper = shallowMount(QuestRunCockpit, {
+        props: { anchorQuestId: "q1" },
+        global: { stubs: { DockBar: false } },
+      });
+      await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "What happens next · 1")!.trigger("click");
+      await settleAsync();
+      wrapper.findComponent({ name: "QuestRunNextSheet" }).vm.$emit("choose", "e1");
+      await settleAsync();
+      const dialog = wrapper.findComponent({ name: "QuestAdvanceDialog" });
+      expect(dialog.vm.$attrs[attr("open")]).toBe(true);
+      expect(dialog.vm.$attrs[attr("preselectedEdgeId")]).toBe("e1");
     });
 
     it("folds Held payoff and Session, and hides the Held payoff fold entirely when nothing is held", () => {
