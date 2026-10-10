@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   application:
-    name: Application — lint, tests, build
+    name: Application — lint, build
     runs-on: ubuntu-latest
     # Ceilings, not estimates (these jobs take 2–7 minutes): the default is six
     # hours, and a hung `supabase start` or deploy would sit on it.
@@ -41,8 +41,6 @@ jobs:
       # here instead of accumulating until someone measures again.
       - name: Import graph (dependency-cruiser)
         run: npm run arch:graph
-      - name: Unit tests (vitest)
-        run: npm test
       - name: Typecheck and build (vue-tsc, vite)
         # Placeholders, not secrets: the app refuses to start without these, and
         # the boot budget refuses to measure a build of an app that cannot
@@ -60,6 +58,30 @@ jobs:
       # on every build.
       - name: Runtime APIs older browsers lack
         run: npm run check:runtime-apis
+
+  # Vitest in three shards on three runners. On one runner it was most of this
+  # workflow's critical path (about 4.5 of the application job's 7 minutes),
+  # and most of that is per-file setup (import and environment), which divides
+  # cleanly. fail-fast is off so one red shard still lets the others report
+  # every failure in the same run. The release jobs need all three.
+  unit-tests:
+    name: Unit tests (vitest ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Unit tests (vitest, shard ${{ matrix.shard }} of 3)
+        run: npx vitest run --shard=${{ matrix.shard }}/3
 
   # Everything that needs a real Postgres: the migration-version guard, a
   # full replay of every migration, pgTAP, the embed check, the content-
@@ -306,7 +328,7 @@ jobs:
   production-release:
     name: Release backend — migrations, Edge Functions
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-changes.outputs.supabase == 'true'
-    needs: [application, database, release-changes]
+    needs: [application, unit-tests, database, release-changes]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -465,7 +487,7 @@ jobs:
       && needs.application.result == 'success'
       && needs.database.result == 'success'
       && (needs.production-release.result == 'success' || needs.production-release.result == 'skipped')
-    needs: [application, database, release-changes, production-release]
+    needs: [application, unit-tests, database, release-changes, production-release]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Records each release on GitHub's Production deployments page. Vercel's own
