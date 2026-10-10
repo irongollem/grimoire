@@ -9,7 +9,9 @@
       - footer   — pinned action row (e.g. "Clear all" / "Show N")
   -->
   <Teleport to="body">
-    <Transition name="sheet">
+    <!-- appear: a sheet that mounts already open (a lazy panel latched open on
+         its first use) still slides in rather than popping into place. -->
+    <Transition name="sheet" appear>
       <div
         v-if="open"
         class="fixed inset-0 z-50 flex flex-col justify-end"

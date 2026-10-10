@@ -160,6 +160,7 @@ import type { PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/rules/useRules";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { lazyPanel } from "@/components/common/feedback/lazyPanel";
 import { useBelow } from "@/composables/useBreakpoint";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import RollToast from "@/components/common/feedback/RollToast.vue";
@@ -178,11 +179,12 @@ import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 
 // Skills is the tab the sheet opens on and stays static; the others, the
 // shapeshifter section and the retire dialog load when first shown.
-const PlayerCombatTab = defineAsyncComponent(() => import("@/components/player/PlayerCombatTab.vue"));
-const PlayerFeaturesTab = defineAsyncComponent(() => import("@/components/player/PlayerFeaturesTab.vue"));
+
+const PlayerCombatTab = lazyPanel(() => import("@/components/player/PlayerCombatTab.vue"));
+const PlayerFeaturesTab = lazyPanel(() => import("@/components/player/PlayerFeaturesTab.vue"));
 const PlayerAppearanceSection = defineAsyncComponent(() => import("@/components/player/PlayerAppearanceSection.vue"));
-const PlayerLoreTab = defineAsyncComponent(() => import("@/components/player/PlayerLoreTab.vue"));
-const PlayerWildShapeTab = defineAsyncComponent(() => import("@/components/player/PlayerWildShapeTab.vue"));
+const PlayerLoreTab = lazyPanel(() => import("@/components/player/PlayerLoreTab.vue"));
+const PlayerWildShapeTab = lazyPanel(() => import("@/components/player/PlayerWildShapeTab.vue"));
 const SetDownDialog = defineAsyncComponent(() => import("@/components/memorials/SetDownDialog.vue"));
 
 const props = defineProps<{ memberId?: string; hidePlayerActions?: boolean }>();

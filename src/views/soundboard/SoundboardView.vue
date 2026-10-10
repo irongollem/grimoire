@@ -94,7 +94,7 @@
         variant="primary"
         :icon="IconAdd"
         :label="newPlaylistLabel"
-        @click="createPlaylistSignal++"
+        @click="createPlaylistPending = true"
       />
     </template>
 
@@ -180,7 +180,8 @@
       :page-id="soundboardUi.soundboardActivePage"
       :playlist-type="soundboardUi.soundboardViewMode === 'scenes' ? 'ambient' : 'music'"
       :filter="soundboardUi.soundboardSearchQuery"
-      :create-signal="createPlaylistSignal"
+      :create-pending="createPlaylistPending"
+      @create-handled="createPlaylistPending = false"
     />
 
     <template v-else>
@@ -581,15 +582,20 @@ function stopDragTracking(): void {
 }
 
 onBeforeUnmount(stopDragTracking);
-/** Bumped by the head's New Scene/Playlist button; the panel owns the dialog. */
-const createPlaylistSignal = ref(0);
+/**
+ * Set by the head's New Scene/Playlist button; the panel owns the dialog and
+ * clears it once opened. A flag rather than a counter because the panel loads
+ * on demand: a click before its chunk arrives must still open the dialog when
+ * it mounts, which a bump watched only after mount would lose.
+ */
+const createPlaylistPending = ref(false);
 
 // The mobile FAB's create lands here and fans out by tab.
 watch(
   () => soundboardUi.soundboardCreateSignal,
   () => {
     if (soundboardUi.soundboardViewMode === "sounds") openAddSound();
-    else createPlaylistSignal.value++;
+    else createPlaylistPending.value = true;
   },
 );
 const { mutate: moveSoundToPage } = useMoveSound();

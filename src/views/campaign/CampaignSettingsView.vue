@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from "vue";
+import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignPendingContentReviews } from "@/composables/party/useCharacterContentReviews";
@@ -107,23 +107,25 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import { lazyPanel } from "@/components/common/feedback/lazyPanel";
 import DetailsTab from "@/components/campaign/DetailsTab.vue";
 
 // Only the Details tab (the default) is in the page chunk; every other tab loads
 // the first time it is opened.
-const DangerZoneTab = defineAsyncComponent(() => import("@/components/campaign/DangerZoneTab.vue"));
-const MembersTab = defineAsyncComponent(() => import("@/components/campaign/MembersTab.vue"));
-const InvitesTab = defineAsyncComponent(() => import("@/components/campaign/InvitesTab.vue"));
-const SchedulingTab = defineAsyncComponent(() => import("@/components/campaign/SchedulingTab.vue"));
-const RulesTab = defineAsyncComponent(() => import("@/components/campaign/RulesTab.vue"));
-const ClassesTab = defineAsyncComponent(() => import("@/components/campaign/ClassesTab.vue"));
-const SpeciesTab = defineAsyncComponent(() => import("@/components/campaign/SpeciesTab.vue"));
-const AiTab = defineAsyncComponent(() => import("@/components/campaign/AiTab.vue"));
-const AiConnectionTab = defineAsyncComponent(() => import("@/components/campaign/AiConnectionTab.vue"));
-const SpotifyTab = defineAsyncComponent(() => import("@/components/campaign/SpotifyTab.vue"));
-const BackupTab = defineAsyncComponent(() => import("@/components/campaign/BackupTab.vue"));
-const WorldBundleTab = defineAsyncComponent(() => import("@/components/campaign/WorldBundleTab.vue"));
-const DocumentImportTab = defineAsyncComponent(() => import("@/components/campaign/DocumentImportTab.vue"));
+
+const DangerZoneTab = lazyPanel(() => import("@/components/campaign/DangerZoneTab.vue"));
+const MembersTab = lazyPanel(() => import("@/components/campaign/MembersTab.vue"));
+const InvitesTab = lazyPanel(() => import("@/components/campaign/InvitesTab.vue"));
+const SchedulingTab = lazyPanel(() => import("@/components/campaign/SchedulingTab.vue"));
+const RulesTab = lazyPanel(() => import("@/components/campaign/RulesTab.vue"));
+const ClassesTab = lazyPanel(() => import("@/components/campaign/ClassesTab.vue"));
+const SpeciesTab = lazyPanel(() => import("@/components/campaign/SpeciesTab.vue"));
+const AiTab = lazyPanel(() => import("@/components/campaign/AiTab.vue"));
+const AiConnectionTab = lazyPanel(() => import("@/components/campaign/AiConnectionTab.vue"));
+const SpotifyTab = lazyPanel(() => import("@/components/campaign/SpotifyTab.vue"));
+const BackupTab = lazyPanel(() => import("@/components/campaign/BackupTab.vue"));
+const WorldBundleTab = lazyPanel(() => import("@/components/campaign/WorldBundleTab.vue"));
+const DocumentImportTab = lazyPanel(() => import("@/components/campaign/DocumentImportTab.vue"));
 
 type SettingsTab =
   | "details"

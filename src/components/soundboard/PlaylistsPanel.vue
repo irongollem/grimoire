@@ -104,20 +104,19 @@ import SoundCard from "./SoundCard.vue";
 import PlaylistEditorDialog from "./PlaylistEditorDialog.vue";
 import StarterScenesCard from "./StarterScenesCard.vue";
 
-const { pageId, playlistType, filter = "", createSignal = 0 } = defineProps<{
+const { pageId, playlistType, filter = "", createPending = false } = defineProps<{
   pageId: string | null;
   /** Which peer this panel is showing — scenes are ambient, playlists are music. */
   playlistType: PlaylistType;
   /** Free-text search from the shared filter row: matches name and theme tags. */
   filter?: string;
-  /** Bumped by the page head's create button; the panel owns dialog and gating. */
-  createSignal?: number;
+  /** Set by the page head's create button; the panel owns dialog and gating,
+   *  and reports back once it has acted so the page can clear the flag. */
+  createPending?: boolean;
 }>();
 
-watch(
-  () => createSignal,
-  () => openNewPlaylist(),
-);
+const emit = defineEmits<{ "create-handled": [] }>();
+
 
 // A scene is a room, a playlist is a running order — the shared vocabulary
 // lives in playlistPeers so the dialog behind this panel says the same word.
@@ -176,6 +175,18 @@ function openNewPlaylist() {
   if (!canCreatePlaylist.value) { showPlaylistPaywall.value = true; return; }
   showEditor.value = true;
 }
+
+// Immediate: the panel loads on demand, so a create asked for before it
+// mounted is still pending when it arrives and must open now.
+watch(
+  () => createPending,
+  (pending) => {
+    if (!pending) return;
+    openNewPlaylist();
+    emit("create-handled");
+  },
+  { immediate: true },
+);
 
 function startEdit(pl: SoundboardPlaylist) {
   editTarget.value = pl;
