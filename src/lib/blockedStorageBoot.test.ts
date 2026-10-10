@@ -68,9 +68,18 @@ describe("boot with site data blocked", () => {
     const { useCalendarStore } = await import("@/stores/calendar");
     const { readStoredSession } = await import("@/lib/supabase");
 
+    // Every domain UI store, built rather than only imported: five of them read
+    // `useStorage` in setup, and a raw localStorage read there would only throw
+    // once the store is constructed.
+    const uiStores = (await Promise.all(Object.values(UI_STORE_MODULES).map((load) => load())))
+      .flatMap((mod) => Object.values(mod as Record<string, unknown>))
+      .filter((hook): hook is () => unknown => typeof hook === "function");
+    expect(uiStores.length).toBeGreaterThanOrEqual(29);
+
     expect(() => {
       useAuthStore();
       useAppUiStore();
+      for (const useStore of uiStores) useStore();
       useCardForgeStore();
       useCalendarStore();
     }).not.toThrow();

@@ -5,6 +5,15 @@ import type { FocalKind, FocalStatus } from "@/lib/library/focalQueue";
 import type { AdminAuditAction } from "@/composables/admin/useAdminAuditLog";
 
 export const useAdminUiStore = defineStore("ui:admin", () => {
+  // Admin → Prompt Screening: the surface filter over the report already on
+  // the panel. The panel's day window stays local: it sets the RPC's report
+  // range rather than filtering a fetched list.
+  const promptScreeningSurface = ref<string | null>(null);
+  const promptScreeningHasActiveFilters = computed(() => promptScreeningSurface.value !== null);
+  function resetPromptScreeningFilters() {
+    promptScreeningSurface.value = null;
+  }
+
   // Admin focal-point queue (#965)
   const focalQueueKind = ref<FocalKind>("monster");
   const focalQueueStatus = ref<FocalStatus>("unchecked");
@@ -45,6 +54,9 @@ export const useAdminUiStore = defineStore("ui:admin", () => {
   }
 
   return {
+    promptScreeningSurface,
+    promptScreeningHasActiveFilters,
+    resetPromptScreeningFilters,
     focalQueueKind,
     focalQueueStatus,
     focalQueueHasActiveFilters,
