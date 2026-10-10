@@ -113,7 +113,7 @@
  */
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconBrush, IconFog, IconGrid, IconImage, IconParty, IconReveal } from "@/lib/icons";
 import { useBelow } from "@/composables/useBreakpoint";
 import { useLocationsUiStore } from "@/stores/ui/locations";

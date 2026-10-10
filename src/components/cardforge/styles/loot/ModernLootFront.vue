@@ -49,7 +49,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Item } from "@/types/item.types";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import { extractTiptapText } from "@/lib/utils";
 import { accentForItem, paper } from "../tokens.shared";
 import { useItemCardData } from "@/composables/cardforge/useItemCardData";

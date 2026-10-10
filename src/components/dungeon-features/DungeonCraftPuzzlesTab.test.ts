@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DungeonCraftPuzzlesTab from "./DungeonCraftPuzzlesTab.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import type { PuzzleRoom } from "@/types/puzzle.types";
 

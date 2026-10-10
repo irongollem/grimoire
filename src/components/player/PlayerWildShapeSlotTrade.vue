@@ -20,8 +20,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watchEffect } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { slotPool, spellSlotKey } from "@/rules/spellSlots";
 import type { SpellSlotEntry } from "@/types/party.types";
 

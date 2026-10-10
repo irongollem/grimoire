@@ -94,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
+import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { IconFire } from '@/lib/icons';
@@ -104,13 +104,13 @@ import { useToast } from "@/composables/useToast";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useCreatePantheon, useUpdatePantheon, useDeletePantheon } from "@/composables/deities/useDeities";
 import type { Pantheon } from "@/types/deity.types";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 
 const { pantheon, isNew } = defineProps<{ pantheon: Pantheon | null; isNew: boolean }>();
 

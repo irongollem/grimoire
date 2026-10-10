@@ -252,8 +252,8 @@ import EncounterCombatantList from "@/components/player/EncounterCombatantList.v
 import PlayerNpcLightbox from "@/components/player/PlayerNpcLightbox.vue";
 import EncounterCombatantLightbox from "@/components/player/EncounterCombatantLightbox.vue";
 import TurnTimer from "@/components/encounters/TurnTimer.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useToast } from "@/composables/useToast";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { primaryImage } from "@/lib/locations/mapStack";

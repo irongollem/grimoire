@@ -32,7 +32,7 @@ import {
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
-import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
+import EntityLinkSection from "@/components/common/entity/EntityLinkSection.vue";
 
 const props = defineProps<{ factionId: string }>();
 

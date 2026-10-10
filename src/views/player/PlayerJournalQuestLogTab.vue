@@ -36,10 +36,10 @@
 </template>
 
 <script setup lang="ts">
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import { RouterLink } from 'vue-router';
 import { IconChevronRight, IconScrollText } from '@/lib/icons';
-import EntityNewDot from '@/components/common/EntityNewDot.vue';
+import EntityNewDot from '@/components/common/entity/EntityNewDot.vue';
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from '@/types/quest.types';
 import type { Quest } from '@/types/quest.types';
 

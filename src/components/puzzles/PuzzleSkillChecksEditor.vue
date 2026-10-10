@@ -44,9 +44,9 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconClose } from "@/lib/icons";
 import { PUZZLE_SKILLS } from "@/types/puzzle.types";
 import type { PuzzleSkillCheck } from "@/types/puzzle.types";

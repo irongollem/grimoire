@@ -66,8 +66,8 @@
 import { computed } from "vue";
 import { IconCompassRose, IconUser } from '@/lib/icons';
 import { artUrl } from "@/lib/assets/artUrl";
-import FocalImage from "@/components/common/FocalImage.vue";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import NpcRatingStars from "@/components/player/NpcRatingStars.vue";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";

@@ -236,14 +236,14 @@ import {
   useDeleteHero,
 } from "@/composables/party/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
-import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import ImageUpload from "@/components/common/ImageUpload.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import ImageUpload from "@/components/common/media/ImageUpload.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { HallOfHeroInsert } from "@/types/npc.types";
 import { DND_SETTINGS } from "@/data/dndSettings";
 

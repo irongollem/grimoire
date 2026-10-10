@@ -16,8 +16,8 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useNote } from "@/composables/notes/useNotes";
-import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import NoteEditor from "@/components/notes/NoteEditor.vue";
 import NoteSheet from "@/components/notes/NoteSheet.vue";
 import { useNoteSession } from "@/composables/notes/useNoteSession";

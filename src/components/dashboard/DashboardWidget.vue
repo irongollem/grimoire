@@ -147,8 +147,8 @@ import { cn } from "@/lib/utils";
 import { IconChevronDown, IconChevronUp } from "@/lib/icons";
 import { playBlockResize, revealIfOutOfView } from "@/lib/motion";
 import { useAbove } from "@/composables/useBreakpoint";
-import AppButton from "@/components/common/AppButton.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 
 /**
  * The one dashboard card.

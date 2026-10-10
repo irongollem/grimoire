@@ -210,9 +210,9 @@ import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarEvents } from "@/composables/calendar/useCalendarEvents";
 import { linkedEntityType, linkedEntityId, eventColor } from "@/types/calendar.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
 
 const { eventsOverride = null, readOnly = false } = defineProps<{

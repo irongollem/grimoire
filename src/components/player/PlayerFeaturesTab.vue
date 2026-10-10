@@ -117,7 +117,7 @@ import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "@/composables/useToast";
 import { rulesetRules } from "@/composables/party/useCharacterRuleset";
-import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
+import RulesetReviewBanner from "@/components/common/feedback/RulesetReviewBanner.vue";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
 import PlayerFlexibleCasting from "./PlayerFlexibleCasting.vue";
 import PlayerSorcererFeatures from "./PlayerSorcererFeatures.vue";

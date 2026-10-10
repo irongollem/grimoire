@@ -42,7 +42,7 @@
  * that lifting it into its own component would trade three call sites for
  * one prop-only wrapper, not remove a duplicated recipe.
  */
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconClose, IconQuest } from "@/lib/icons";
 import type { RouteLocationRaw } from "vue-router";
 

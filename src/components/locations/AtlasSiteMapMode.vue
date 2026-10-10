@@ -264,7 +264,7 @@
  */
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import AtlasMapZoom from "@/components/locations/AtlasMapZoom.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
@@ -276,7 +276,7 @@ import CartographerAiStyleModal from "@/components/cartographer/CartographerAiSt
 import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
 import MapWorkbench from "@/components/cartographer/MapWorkbench.vue";
 import SiteLevelPicker from "@/components/locations/SiteLevelPicker.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useAddSiteLevel } from "@/composables/locations/useAddSiteLevel";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import { useCampaignStore } from "@/stores/campaign";

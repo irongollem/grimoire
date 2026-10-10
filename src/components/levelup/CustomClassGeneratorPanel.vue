@@ -84,9 +84,9 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";

@@ -77,8 +77,8 @@ import type { QuestRunBranchChoice } from "@/lib/quests/run";
 import { summarizeRoutePayoff } from "@/lib/quests/run";
 import { routeCondition } from "@/lib/quests/ledger";
 import { IconLinkAlt as IconParallel } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const props = defineProps<{ status: QuestRuntimeStatus; outgoing: QuestRunBranchChoice[]; disabled?: boolean; headless?: boolean }>();
 const navigationDisabled = computed(() => props.disabled || props.status !== "running");

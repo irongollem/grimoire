@@ -41,8 +41,8 @@
 
 <script setup lang="ts">
 import { IconClose, IconShield } from '@/lib/icons';
-import AppButton from '@/components/common/AppButton.vue';
-import FocalImage from '@/components/common/FocalImage.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import FocalImage from '@/components/common/media/FocalImage.vue';
 
 interface PcPanelData {
   id: string;

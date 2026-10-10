@@ -54,7 +54,7 @@ import { computed, ref } from "vue";
 import { useDeleteLootPlacement, useDispatchLoot } from "@/composables/quests/useQuestFlow";
 import { useAppUiStore } from "@/stores/ui/app";
 import type { LootPlacement, LootPlacementDeliveryState } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { title, emptyLabel, loot } = defineProps<{
   title: string;

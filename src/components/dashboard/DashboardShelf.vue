@@ -115,8 +115,8 @@
  * `useDashboardLayout`, the undo toast and the pre-reset snapshot.
  */
 import { computed, ref, watch } from "vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconPack, IconReset } from "@/lib/icons";
 import { isDefaultLayout, shelfWidgets } from "@/lib/dashboard/arrangeOps";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";

@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { legalUrl } from "@/lib/marketing";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 
 // EU right-of-withdrawal waiver — its own checkbox, separate from the Stripe ToS
 // consent; the timestamped record is written server-side at checkout creation.

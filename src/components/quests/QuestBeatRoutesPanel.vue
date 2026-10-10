@@ -48,7 +48,7 @@ import { isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
 import { pluralizeCount } from "@/lib/utils";
 import { IconAdd, IconLayers, IconShuffle } from "@/lib/icons";
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { beat, edges, beats } = defineProps<{
   beat: QuestBeat;

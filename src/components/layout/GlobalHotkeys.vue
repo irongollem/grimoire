@@ -12,7 +12,7 @@
 // away from it first. Same reason the soundboard widget lives there.
 import { ref } from "vue";
 import SoundPalette from "@/components/soundboard/SoundPalette.vue";
-import HotkeyCheatSheet from "@/components/common/HotkeyCheatSheet.vue";
+import HotkeyCheatSheet from "@/components/common/overlays/HotkeyCheatSheet.vue";
 import { useHotkeys } from "@/composables/useHotkeys";
 
 const paletteOpen = ref(false);

@@ -125,7 +125,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch } from "vue";
 import { IconClose, IconHide, IconNavigate, IconReveal, IconScan } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { MapPin as MapPinType, LocationType } from "@/types/location.types";
 

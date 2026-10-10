@@ -145,8 +145,8 @@ import { useOpenQuestThread, useQuestThreads } from "@/composables/quests/useQue
 import { threadBadges, threadTitle } from "@/lib/quests/threads";
 import { drawerTransition } from "@/lib/motion";
 import { IconAdd } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import QuestThreadOpenForm from "./QuestThreadOpenForm.vue";
 
 const { questId, campaignId, threadId } = defineProps<{ questId: string; campaignId: string; threadId: string }>();

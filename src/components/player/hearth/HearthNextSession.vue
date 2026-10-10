@@ -57,7 +57,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { IconClock } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";

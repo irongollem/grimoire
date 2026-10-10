@@ -270,11 +270,11 @@ import { useParty } from "@/composables/party/useParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Background } from "@/types/background.types";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

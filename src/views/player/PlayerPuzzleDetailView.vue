@@ -111,9 +111,9 @@ import { IconChevronLeft, IconPuzzle } from '@/lib/icons';
 import { usePlayerVisiblePuzzle } from "@/composables/dungeon-features/usePuzzles";
 import { useMarkRead } from "@/composables/player/useReadItems";
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 
 const route = useRoute();
 const id    = computed(() => route.params.id as string);

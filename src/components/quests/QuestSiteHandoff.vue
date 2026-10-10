@@ -336,9 +336,9 @@
  */
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DockBar from "@/components/common/DockBar.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
 import SiteRoomList from "@/components/locations/SiteRoomList.vue";

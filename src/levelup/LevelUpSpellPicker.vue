@@ -69,8 +69,8 @@
 </template>
 
 <script setup lang="ts">
-import WizardStepCard from "@/components/common/WizardStepCard.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import WizardStepCard from "@/components/common/wizard/WizardStepCard.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 interface SpellEntry {
   id: string;

@@ -145,12 +145,12 @@ import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/p
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
 import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import ListFilterGroup from "@/components/common/list/ListFilterGroup.vue";
 import {
   applyBackgroundProfs,
   computeRemovals,

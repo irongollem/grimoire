@@ -219,9 +219,9 @@
  */
 import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import SiteMapRoomRules from "@/components/locations/SiteMapRoomRules.vue";
 import { IconAdd, IconDelete, IconDoor, IconGridView, IconPen } from "@/lib/icons";
 import { isSiteType } from "@/lib/locations/tiers";

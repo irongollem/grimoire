@@ -36,9 +36,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconAdd } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import FeatureListRow from "@/components/features/FeatureListRow.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
 import { useAllFeatures } from "@/composables/rules/useFeatures";

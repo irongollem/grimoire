@@ -155,8 +155,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { IconChevronRight } from '@/lib/icons';
-import EntityCombobox from '@/components/common/EntityCombobox.vue';
-import AppButton from '@/components/common/AppButton.vue';
+import EntityCombobox from '@/components/common/controls/EntityCombobox.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
 import { useParty, useUpdatePartyMember } from '@/composables/party/useParty';
 import { useNpcsByLocations } from '@/composables/npcs/useNpcs';
 import { useEncountersByLocation } from '@/composables/encounters/useEncounters';

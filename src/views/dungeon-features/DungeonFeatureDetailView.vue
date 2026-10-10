@@ -24,8 +24,8 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
-import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import DungeonFeatureEditor from "@/components/dungeon-features/DungeonFeatureEditor.vue";
 import DungeonFeatureSheet from "@/components/dungeon-features/DungeonFeatureSheet.vue";

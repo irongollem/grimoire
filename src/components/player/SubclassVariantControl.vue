@@ -21,7 +21,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useCharacterClasses, useUpdateCharacterClass } from "@/composables/party/useCharacterClasses";
 import { useAllCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { useToast } from "@/composables/useToast";

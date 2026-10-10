@@ -80,13 +80,13 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import type { BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";

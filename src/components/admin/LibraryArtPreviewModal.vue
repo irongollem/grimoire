@@ -29,7 +29,7 @@
  * `height="content"`: an admin flicks through many of these, and most are short.
  */
 import { computed } from "vue";
-import EntityDetailModal from "@/components/common/EntityDetailModal.vue";
+import EntityDetailModal from "@/components/common/overlays/EntityDetailModal.vue";
 import MonsterSheet from "@/components/monsters/MonsterSheet.vue";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
 import { monsterIdentityLine } from "@/lib/monsterDisplay";

@@ -15,8 +15,8 @@
 </template>
 
 <script setup lang="ts">
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { ACTIVATIONS, type SubAction, type UsesCost } from "@/rules/features/mechanics.types";
 import { ACTIVATION_LABELS } from "@/types/feature.types";
 import MechField from "./MechField.vue";

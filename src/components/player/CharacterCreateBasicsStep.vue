@@ -84,10 +84,10 @@
 </template>
 
 <script setup lang="ts">
-import ImageUpload from "@/components/common/ImageUpload.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import ImageUpload from "@/components/common/media/ImageUpload.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();

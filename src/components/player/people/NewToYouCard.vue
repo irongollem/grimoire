@@ -27,7 +27,7 @@ export interface NewToYouCover {
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import { artUrl } from "@/lib/assets/artUrl";
 import { cardTurnStyle, prefersReducedMotion } from "@/lib/motion";
 import { npcRelationshipBg } from "@/lib/npcDisplay";

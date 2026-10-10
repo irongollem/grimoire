@@ -41,7 +41,7 @@
  * one active) because that decision needs the Atlas index, which this
  * component has no business holding.
  */
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconAdd, IconGrid } from "@/lib/icons";
 
 export interface SiteLevelSummary {

@@ -171,15 +171,15 @@ import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import MentionTextarea from "@/components/common/MentionTextarea.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import TagInput from "@/components/common/TagInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
 
 const TONES = CHRONICLER_TONES;
 

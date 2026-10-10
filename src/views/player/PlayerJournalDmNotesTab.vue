@@ -46,13 +46,13 @@
 </template>
 
 <script setup lang="ts">
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { IconPin, IconPopulate } from '@/lib/icons';
 import JournalCard from '@/components/player/JournalCard.vue';
-import EntityNewDot from '@/components/common/EntityNewDot.vue';
-import RichTextViewer from '@/components/common/RichTextViewer.vue';
-import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue';
+import EntityNewDot from '@/components/common/entity/EntityNewDot.vue';
+import RichTextViewer from '@/components/common/richtext/RichTextViewer.vue';
+import AiGeneratedBadge from '@/components/common/ai/AiGeneratedBadge.vue';
 import type { NoteCategory } from '@/types/notes.types';
 import type { Note } from '@/types/notes.types';
 import type { Component } from 'vue';

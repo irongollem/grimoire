@@ -342,18 +342,18 @@ import {
   IconAdd, IconCheck, IconClose, IconGenerate, IconLayers,
   IconNetwork, IconPopulate, IconSearch, IconSettings,
 } from '@/lib/icons';
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterGroup from "@/components/common/list/ListFilterGroup.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import NpcRelationshipFilter from "@/components/npcs/NpcRelationshipFilter.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useParty } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -361,7 +361,7 @@ import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import { usePopulateSettingNpcs } from "@/composables/npcs/useNpcs";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useDetailModal } from "@/composables/useDetailModal";
 

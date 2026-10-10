@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DungeonCraftTrapsTab from "./DungeonCraftTrapsTab.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import { useTrapsUiStore } from "@/stores/ui/traps";
 import type { Trap } from "@/types/trap.types";
 

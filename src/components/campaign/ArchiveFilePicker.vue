@@ -36,7 +36,7 @@
  * an unreadable zip) shows here as `error`.
  */
 import { ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconArchive, IconUpload } from "@/lib/icons";
 
 defineProps<{ reading: boolean; error: string | null }>();

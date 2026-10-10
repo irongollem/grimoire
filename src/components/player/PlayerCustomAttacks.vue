@@ -126,9 +126,9 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { IconAdd, IconDelete, IconEdit, IconLightning, IconSword } from "@/lib/icons";
 import { rollParsed } from "@/lib/dice/roller";
 import { combineModes } from "@/lib/dice/dice";

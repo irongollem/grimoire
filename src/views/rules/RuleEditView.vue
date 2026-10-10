@@ -460,15 +460,15 @@ import { RULE_CATEGORIES } from "@/types/rule.types";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import type { TrackerDef, TrackerLevel, DmButton, AbilityCode } from "@/types/rule.types";
-import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 
 const SAVE_ABILITIES = [
   { value: "STR", label: "STR" },

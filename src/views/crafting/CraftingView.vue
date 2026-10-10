@@ -164,18 +164,18 @@
 import { computed, ref } from "vue";
 
 import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconGenerate, IconListView, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines";
 import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe, useRevealAllRecipes } from "@/composables/crafting/useCrafting";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";
 import { useScrollRestore } from "@/composables/useScrollRestore";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useCraftingUiStore } from "@/stores/ui/crafting";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";

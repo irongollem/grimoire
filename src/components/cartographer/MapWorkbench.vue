@@ -333,11 +333,11 @@ import {
   IconSplitCell,
 } from "@/lib/icons";
 
-import type { AppInputHandle } from "@/components/common/fieldVariants";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import CartographerToolPalette, { type ToolGroup } from "@/components/cartographer/CartographerToolPalette.vue";
 import CartographerPlanPalette from "@/components/cartographer/CartographerPlanPalette.vue";
 import CartographerInspectorPanel from "@/components/cartographer/CartographerInspectorPanel.vue";

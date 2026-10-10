@@ -138,10 +138,10 @@
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import PageHeader from "@/components/common/PageHeader.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import BirthMonthField from "@/components/auth/BirthMonthField.vue";
 import { useToast } from "@/composables/useToast";
 import { legalUrl } from "@/lib/marketing";

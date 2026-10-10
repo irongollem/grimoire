@@ -219,10 +219,10 @@ import {
   type AbilityKey, type AsiMode,
 } from "@/rules/characterCreation";
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 
 const scoreModeOptions = SCORE_MODES.map((mode) => ({ value: mode.id, label: mode.label }));
 

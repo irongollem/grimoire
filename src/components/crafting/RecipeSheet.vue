@@ -123,12 +123,12 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteRecipe, useRecipeIngredients, useRecipeOutputs, useRecipeModifiers, useUpdateRecipe } from "@/composables/crafting/useCrafting";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { getDiscipline } from "@/lib/crafting/disciplines";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import type { CraftingRecipe } from "@/types/crafting.types";
 
 const props = defineProps<{ recipe: CraftingRecipe }>();

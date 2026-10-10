@@ -113,9 +113,9 @@ import { IconBookMarked, IconChevronLeft, IconPopulate } from '@/lib/icons';
 import { manualSections } from "@/lib/manualLoader";
 import { useRulesUiStore } from "@/stores/ui/rules";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const route = useRoute();
 const router = useRouter();

@@ -39,9 +39,9 @@ import { useQuestBeatFill, type QuestBeatFilled } from "@/ai/useQuestBeatFill";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import type { BeatFillContext } from "@/lib/quests/beatFill";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 
 const { questId, context, hasText } = defineProps<{
   questId: string;

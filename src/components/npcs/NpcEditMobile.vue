@@ -301,22 +301,22 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import type { Npc, NpcInsert, NpcStatus, StatBlock } from "@/types/npc.types";
 import type { MonsterIndexEntry } from "@/types/monster.types";
 import type { LocationSummary } from "@/types/location.types";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
-import AppButton from "@/components/common/AppButton.vue";
-import MobileEditBar from "@/components/common/MobileEditBar.vue";
-import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
-import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import MobileEditBar from "@/components/common/entity/MobileEditBar.vue";
+import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
+import StatBlockEditor from "@/components/common/statblock/StatBlockEditor.vue";
 import NpcIdentitySection from "./NpcIdentitySection.vue";
-import RelationshipWheel from "@/components/common/RelationshipWheel.vue";
+import RelationshipWheel from "@/components/common/entity/RelationshipWheel.vue";
 import NpcLoreTab from "./NpcLoreTab.vue";
 import NpcRelationsSection from "./NpcRelationsSection.vue";
 import AccordionSection from "@/components/common/AccordionSection.vue";

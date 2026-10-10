@@ -188,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
+import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { IconSun } from '@/lib/icons';
@@ -202,15 +202,15 @@ import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { buildEntityContext } from "@/ai/utils";
 import { deityImageContextParts } from "@/lib/deities/deityAi";
 import { deepEqual } from "@/lib/utils";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 
 const { deity, isNew } = defineProps<{ deity: Deity | null; isNew: boolean }>();
 

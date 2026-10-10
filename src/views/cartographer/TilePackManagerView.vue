@@ -177,10 +177,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import PageHeader from "@/components/common/PageHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useTilePacks } from "@/composables/cartographer/useTilePacks";

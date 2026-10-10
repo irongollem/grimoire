@@ -71,9 +71,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
-import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import type { SaveEntry } from "@/rules/characterChecks";
-import SpellcastingList from "@/components/common/SpellcastingList.vue";
+import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import { listedSaveBonus, saveBonusFromStatBlock } from "@/rules/combat/savingThrow";
 import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";

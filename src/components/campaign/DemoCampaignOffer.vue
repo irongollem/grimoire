@@ -42,7 +42,7 @@
  * new campaign back via `loaded` and lets the caller finish the job.
  */
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconNavCampaign } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useDemoStatus, useLoadDemoCampaign } from "@/composables/campaign/useDemoCampaign";

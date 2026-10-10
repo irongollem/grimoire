@@ -106,7 +106,7 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watchEffect } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useDmNoteTouches } from "@/composables/notes/useDmNoteTouches";
 import { useAbove } from "@/composables/useBreakpoint";
 import { useHotkeys } from "@/composables/useHotkeys";

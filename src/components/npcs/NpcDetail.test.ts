@@ -124,7 +124,7 @@ vi.mock("@/composables/useToast", () => ({
   }),
 }));
 
-vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
+vi.mock("@/components/common/overlays/CopyToCampaignDialog.vue", () => ({
   default: defineComponent({
     name: "CopyToCampaignDialog",
     props: ["open", "table", "ids", "label"],

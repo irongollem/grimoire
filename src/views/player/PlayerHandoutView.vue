@@ -34,9 +34,9 @@
 import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { IconScrollText } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import ScriptoriumReader from "@/components/scriptorium/ScriptoriumReader.vue";
 import { usePlayerHandout } from "@/composables/scriptorium/usePlayerHandouts";
 import { useMarkRead } from "@/composables/player/useReadItems";

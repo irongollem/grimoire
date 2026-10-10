@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { legalUrl } from "@/lib/marketing";
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import AccountSummarySection from "@/components/account/AccountSummarySection.vue";
 import AiLabelsSetting from "@/components/account/AiLabelsSetting.vue";
 import PlayerSettingsDisplayName from "@/components/player/PlayerSettingsDisplayName.vue";

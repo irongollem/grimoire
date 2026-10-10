@@ -106,14 +106,14 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconBeast, IconGenerate, IconNavFallen, IconUpload } from '@/lib/icons';
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
-import PageHeader from "@/components/common/PageHeader.vue";
+import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import CharacterApprovalQueue from "@/components/campaign/CharacterApprovalQueue.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
 import PartyMilestonesPanel from "@/components/party/PartyMilestonesPanel.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useGroupPortrait } from "@/composables/party/useGroupPortrait";

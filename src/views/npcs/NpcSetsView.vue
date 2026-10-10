@@ -74,12 +74,12 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconChevronLeft, IconLayers } from "@/lib/icons";
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import NpcSetCard from "@/components/npcs/NpcSetCard.vue";
 import NpcSetEditorModal from "@/components/npcs/NpcSetEditorModal.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";

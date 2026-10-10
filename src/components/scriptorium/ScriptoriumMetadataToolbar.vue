@@ -78,10 +78,10 @@
 import { computed } from "vue";
 import { DOC_TYPE_OPTIONS } from "@/lib/scriptorium/editorConstants";
 import { IconSave, IconDelete } from "@/lib/icons";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import HandoutShareControl from "@/components/scriptorium/HandoutShareControl.vue";
 import type { ShareableHandout } from "@/composables/scriptorium/useHandoutShare";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";

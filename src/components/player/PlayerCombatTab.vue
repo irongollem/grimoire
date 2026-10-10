@@ -325,7 +325,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { IconHide, IconLightning, IconReveal, IconSend, IconSword } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { rollParsed } from "@/lib/dice/roller";
 import { combineModes, parsedToCounts } from "@/lib/dice/dice";
 import type { RollMode } from "@/lib/dice/roller";

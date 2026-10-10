@@ -33,7 +33,7 @@ const dismissed = reactive(new Set<string>());
  * only shows for a quest still `active`.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useQuest, useQuestObjectives, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useToast } from "@/composables/useToast";
 import { isLedgerSettled } from "@/lib/quests/objectives";

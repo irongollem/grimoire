@@ -23,7 +23,7 @@
  * round trip.
  */
 import { ref, computed, type HTMLAttributes } from "vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 import { cn } from "@/lib/utils";

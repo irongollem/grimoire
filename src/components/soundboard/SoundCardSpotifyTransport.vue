@@ -154,7 +154,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSoundPlayback } from "@/composables/soundboard/useSoundPlayback";

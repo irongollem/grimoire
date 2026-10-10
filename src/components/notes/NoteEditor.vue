@@ -167,10 +167,10 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRecordDraft } from "@/composables/useRecordDraft";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import { useRoute, useRouter, type RouteLocationNormalized } from "vue-router";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
-import RichTextEditor from "../common/RichTextEditor.vue";
+import RichTextEditor from "../common/richtext/RichTextEditor.vue";
 import InlineCalendarEventModal from "@/components/calendar/InlineCalendarEventModal.vue";
 import ChroniclerGenerateDialog from "./ChroniclerGenerateDialog.vue";
 import ChroniclerLibraryPicker from "./ChroniclerLibraryPicker.vue";
@@ -178,11 +178,11 @@ import ChroniclerWriteDialog from "./ChroniclerWriteDialog.vue";
 import NoteSessionDatesPanel from "./NoteSessionDatesPanel.vue";
 import NoteSessionPicker from "./NoteSessionPicker.vue";
 import { IconDelete, IconGenerate, IconImages, IconNote, IconPin, IconSave } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import {
   useCreateNote,
   useUpdateNote,
@@ -207,7 +207,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { storeToRefs } from "pinia";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 
 const CATEGORIES: { value: NoteCategory; label: string }[] = [

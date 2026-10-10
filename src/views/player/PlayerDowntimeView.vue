@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import DowntimeActivityCard from "@/components/downtime/DowntimeActivityCard.vue";
 import DowntimeOutcomeVignette from "@/components/downtime/DowntimeOutcomeVignette.vue";
-import RuleDisabledNotice from "@/components/common/RuleDisabledNotice.vue";
+import RuleDisabledNotice from "@/components/common/feedback/RuleDisabledNotice.vue";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";

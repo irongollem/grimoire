@@ -116,8 +116,8 @@
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { IconAdd, IconChevronRight, IconCopy } from '@/lib/icons';
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
 import { useAllCustomClasses, useAllSystemClasses, useCreateCustomClass } from "@/composables/rules/useCustomClasses";
 import type { CustomClass, SystemClass } from "@/levelup/customTypes";

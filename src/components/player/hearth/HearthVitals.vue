@@ -48,7 +48,7 @@ import { computed, ref } from "vue";
 import HearthSection from "./HearthSection.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
 import PlayerHpControls from "@/components/player/PlayerHpControls.vue";
-import RollToast, { type RollResult } from "@/components/common/RollToast.vue";
+import RollToast, { type RollResult } from "@/components/common/feedback/RollToast.vue";
 import { useMemberVitals } from "@/composables/party/useMemberVitals";
 import type { PartyMember } from "@/types/party.types";
 

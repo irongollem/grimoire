@@ -113,13 +113,13 @@ import { useDungeonMaps } from "@/composables/cartographer/useDungeonMaps";
 import { useCartographerUiStore } from "@/stores/ui/cartographer";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 
-import PageHeader from "@/components/common/PageHeader.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const router = useRouter();
 const cartographerUi = useCartographerUiStore();

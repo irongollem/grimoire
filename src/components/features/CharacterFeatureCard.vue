@@ -81,8 +81,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconChevronDown, IconGenerate } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import FeatureUsesControl from "@/components/features/FeatureUsesControl.vue";
 import type { FeaturePick } from "@/components/features/featurePicks";
 import type { GrantedFeature, ResourcePool } from "@/rules/features/characterFeatures";

@@ -86,7 +86,7 @@
  */
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { IconEncounter, IconUser } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useLocation, useLocations } from "@/composables/locations/useLocations";

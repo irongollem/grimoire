@@ -166,8 +166,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconChevronRight, IconClose, IconGenerate, IconWand } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import type { ButtonFill, ButtonTone, ButtonVariant } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import type { ButtonFill, ButtonTone, ButtonVariant } from "@/components/common/controls/appButtonVariants";
 import {
   useCharacterSpellsWithDetails,
   useRemoveCharacterSpellById,

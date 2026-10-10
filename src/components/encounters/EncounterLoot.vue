@@ -152,10 +152,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { IconAdd, IconClose, IconCoins, IconLoot, IconMinus, IconPackage } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import type { Item, ItemIndexEntry } from "@/types/item.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 

@@ -213,11 +213,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { IconCheck } from "@/lib/icons";

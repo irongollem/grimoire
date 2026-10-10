@@ -93,9 +93,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import RunnerAppliedLine from "@/components/encounters/RunnerAppliedLine.vue";
 import RunnerAttackOutcome, { type AttackChoice } from "@/components/encounters/RunnerAttackOutcome.vue";
 import RunnerDamageAmounts from "@/components/encounters/RunnerDamageAmounts.vue";

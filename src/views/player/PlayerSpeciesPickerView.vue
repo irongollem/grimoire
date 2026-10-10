@@ -129,20 +129,20 @@
 </template>
 
 <script setup lang="ts">
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import PickerCharacterNotFound from "@/components/player/PickerCharacterNotFound.vue";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useSpeciesUiStore } from "@/stores/ui/species";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import SpeciesList from "@/components/species/SpeciesList.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import ListFilterGroup from "@/components/common/list/ListFilterGroup.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { Species } from "@/types/species.types";
 import { applySpeciesSpellGrants, removeSpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
 import { usePickerCharacter } from "@/composables/party/usePickerCharacter";

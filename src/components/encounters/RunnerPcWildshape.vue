@@ -117,7 +117,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import type { SaveEntry } from "@/rules/characterChecks";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import { listedSaveBonus, saveBonusFromStatBlock } from "@/rules/combat/savingThrow";

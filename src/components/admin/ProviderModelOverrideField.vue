@@ -5,7 +5,7 @@
  * styler's and the Chronicler's image models. Empty is a real setting
  * ("fall back"), so the parent saves a blank box as null, never "".
  */
-import AppInput from "@/components/common/AppInput.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const { label, listId, options, placeholder, hint } = defineProps<{
   label: string;

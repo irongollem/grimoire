@@ -77,7 +77,7 @@ vi.mock("@/composables/library/useEnabledSources", () => ({
 // The dialog's own picker/plan/confirm behaviour (composables hitting
 // supabase) is CopyToCampaignDialog.test.ts's job — this stand-in only lets
 // this file assert the props ItemsView hands it and drive its `copied` event.
-vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
+vi.mock("@/components/common/overlays/CopyToCampaignDialog.vue", () => ({
   default: defineComponent({
     name: "CopyToCampaignDialog",
     props: ["open", "table", "ids", "label"],

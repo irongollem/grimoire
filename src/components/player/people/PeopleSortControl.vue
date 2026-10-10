@@ -12,8 +12,8 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { IconChevronDown, IconChevronUp } from "@/lib/icons";
 import type { SortDir } from "@/lib/noteSort";
 import type { PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";

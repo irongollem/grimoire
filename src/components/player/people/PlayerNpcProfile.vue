@@ -45,10 +45,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { formatMetDate } from "@/components/player/people/peopleParty";
-import RelationshipMark from "@/components/common/RelationshipMark.vue";
+import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
 import NpcRatingStars from "@/components/player/NpcRatingStars.vue";
 import { useMyNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
 import { useMyNpcRevealMoments } from "@/composables/npcs/useNpcReveals";

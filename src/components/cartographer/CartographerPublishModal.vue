@@ -84,12 +84,12 @@
  * "mount the modal from a thin wrapper" instruction.
  */
 import { computed, ref, watch } from "vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import PublishPlanPreview from "@/components/cartographer/PublishPlanPreview.vue";
 import PublishPlanRows from "@/components/cartographer/PublishPlanRows.vue";
 import { IconLocation, IconUpload } from "@/lib/icons";

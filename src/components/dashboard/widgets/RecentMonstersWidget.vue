@@ -40,7 +40,7 @@ import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useCampaignDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { deriveRecentMonsters, RECENT_MONSTERS_LIMIT } from "@/lib/dashboard/recentMonsters";
 import { timeAgo } from "@/lib/utils";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

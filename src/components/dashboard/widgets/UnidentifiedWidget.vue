@@ -30,7 +30,7 @@
 import { computed } from "vue";
 import { useParty } from "@/composables/party/useParty";
 import { usePartyInventory, useUpdateInventoryItem } from "@/composables/items/usePartyInventory";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 
 /** Loot the party is carrying that nobody has identified yet — a standing job

@@ -38,7 +38,7 @@
  * sit on one line.
  */
 import { computed } from "vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 
 const { revealed } = defineProps<{ revealed: boolean }>();
 const emit = defineEmits<{ change: [boolean] }>();

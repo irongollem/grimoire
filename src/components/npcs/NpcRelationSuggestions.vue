@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { IconCheck } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { NPC_RELATIONSHIP_TYPE_LABELS, NPC_RELATIONSHIP_TYPE_VAR } from "@/types/npc.types";
 import type { ResolvedSuggestion } from "@/ai/useNpcRelationshipSuggestions";
 

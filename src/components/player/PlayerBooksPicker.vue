@@ -32,8 +32,8 @@
 // The player's own book picker (not a table's): one place that decides popover
 // versus sheet, so the pool page and the character wizard cannot drift apart.
 import { ref } from "vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
-import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
+import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
 import { useAvailablePlayerBooks } from "@/composables/library/useEnabledSources";
 import { useIsMobile } from "@/composables/useBreakpoint";
 

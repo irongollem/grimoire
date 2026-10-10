@@ -131,7 +131,7 @@ Audio binds to campaign events by **theme label**, never by a foreign key to one
 | `src/lib/audio/audioTriggers.ts`                 | The bus: `requestAudioTheme` / `requestAudioCue` / `releaseAudioTheme` / `onAudioTrigger` |
 | `src/composables/soundboard/useAudioThemeTriggers.ts` | The only consumer. Mounted once in `DefaultLayout`. Also exports `useAudioTriggerPrefs` and `useActiveAudioTriggers` |
 | `src/lib/audio/audioTriggerPrefs.ts`             | The DM's on/off switch, localStorage, default on                                        |
-| `src/components/common/ThemeInput.vue`     | Free-text label with datalist suggestions, shared by the encounter and location editors |
+| `src/components/common/controls/ThemeInput.vue`     | Free-text label with datalist suggestions, shared by the encounter and location editors |
 
 **Slots.** An encounter drives `music`; a location drives `ambient`. They compose deliberately — dungeon ambience keeps running underneath battle music — and neither can ever contend for the other's channel. `resolveAudioTheme` will not look in the other slot even when its own has no answer.
 

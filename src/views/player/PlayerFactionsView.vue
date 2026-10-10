@@ -170,10 +170,10 @@
 </template>
 
 <script setup lang="ts">
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed } from "vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { IconClose, IconShield } from '@/lib/icons';
@@ -184,12 +184,12 @@ import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { usePlayerUiStore } from "@/stores/ui/player";
 import type { Faction } from "@/types/faction.types";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
-import RelationshipMark from "@/components/common/RelationshipMark.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
+import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const auth = useAuthStore();
 const appUi = useAppUiStore();

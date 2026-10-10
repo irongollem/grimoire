@@ -63,8 +63,8 @@
 import { computed, defineAsyncComponent, ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 import { useQuota } from "@/composables/billing/useQuota";

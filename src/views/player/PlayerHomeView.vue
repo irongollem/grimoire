@@ -111,9 +111,9 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconDM } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import PlayerBooksPanel from "@/components/player/PlayerBooksPanel.vue";
 import CharacterPoolCard from "@/components/player/CharacterPoolCard.vue";
 import CampaignLensNotice from "@/components/campaign/CampaignLensNotice.vue";

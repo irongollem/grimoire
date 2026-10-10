@@ -207,10 +207,10 @@ import {
   ITEM_RARITY_LABELS,
 } from '@/types/item.types';
 import type { LootEntry, LootEntryType } from '@/types/lootTable.types';
-import AppButton from '@/components/common/AppButton.vue';
-import AppInput from '@/components/common/AppInput.vue';
-import AppSelect from '@/components/common/AppSelect.vue';
-import EntityCombobox from '@/components/common/EntityCombobox.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import AppInput from '@/components/common/controls/AppInput.vue';
+import AppSelect from '@/components/common/controls/AppSelect.vue';
+import EntityCombobox from '@/components/common/controls/EntityCombobox.vue';
 
 const { entries, itemOptions, entriesError, randomPoolSizes } = defineProps<{
   entries: LootEntry[];

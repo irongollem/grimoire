@@ -28,7 +28,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { computeFit, type FitChild } from "@/lib/cardforge/fitText";
 import { tokenizeRich, type DamageToken } from "@/lib/damageIcons";
-import DamageIcon from "@/components/common/DamageIcon.vue";
+import DamageIcon from "@/components/common/statblock/DamageIcon.vue";
 
 /** One entry — an optional bold lead-in name plus its body text. */
 export interface FitEntry {

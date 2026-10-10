@@ -164,12 +164,12 @@ import { useCodexUiStore } from "@/stores/ui/codex";
 import { isLibraryBackground, useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { Background } from "@/types/background.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

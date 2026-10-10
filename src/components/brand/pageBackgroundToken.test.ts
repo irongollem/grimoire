@@ -28,14 +28,14 @@ const ALLOWED: Record<string, string> = {
   "src/views/dev/ComponentCatalogueView.vue": "full-page view root",
   "src/components/npcs/NpcEditMobile.vue": "full-screen mobile editor root",
   "src/components/monsters/MonsterEditMobile.vue": "full-screen mobile editor root",
-  "src/components/common/EntitySheetMobile.vue": "the phone read sheets' page body",
+  "src/components/common/entity/EntitySheetMobile.vue": "the phone read sheets' page body",
   "src/components/npcs/NpcWebTopBar.vue": "page-edge top bar of the NPC web view",
-  "src/components/common/ListPageLayout.vue": "sticky page header of a list page",
-  "src/components/common/PageHeader.vue": "page header chrome",
-  "src/components/common/RouteSkeleton.vue": "stands in for the page while a route loads",
+  "src/components/common/list/ListPageLayout.vue": "sticky page header of a list page",
+  "src/components/common/list/PageHeader.vue": "page header chrome",
+  "src/components/common/feedback/RouteSkeleton.vue": "stands in for the page while a route loads",
   "src/components/scriptorium/ScriptoriumReader.vue": "the reader fills the whole page pane",
   "src/components/locations/AtlasMapZoom.vue": "opaque absolute inset-0 layer that replaces the map pane",
-  "src/components/common/fieldVariants.ts": "tone.default is the field-on-a-page recipe; Vellum overrides it",
+  "src/components/common/controls/fieldVariants.ts": "tone.default is the field-on-a-page recipe; Vellum overrides it",
 };
 
 const SCANNED_EXTENSIONS = new Set([".ts", ".vue"]);

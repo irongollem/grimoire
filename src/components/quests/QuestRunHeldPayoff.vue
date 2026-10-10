@@ -51,7 +51,7 @@ import { useFireHeldConsequence } from "@/composables/quests/useQuestThreads";
 import { describeHeldLoot, describeHeldPayoff } from "@/lib/quests/run";
 import { IconClock, IconCoins, IconPackage, IconPackageOpen } from "@/lib/icons";
 import type { LootPlacement, LootPlacementKind, QuestHeldPayoff } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { campaignId, questId, loot, held } = defineProps<{
   campaignId: string;

@@ -105,16 +105,16 @@ import { IconCopy, IconDelete, IconDocument, IconEdit, IconSave } from '@/lib/ic
 import { useResolvedItem, useCustomizeLibraryItem } from "@/composables/items/useItems";
 import { useToast } from "@/composables/useToast";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
-import PageHeader from "@/components/common/PageHeader.vue";
-import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import PageHeaderAction from "@/components/common/list/PageHeaderAction.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import ItemDetail from "@/components/items/ItemDetail.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
 import ItemSendMenu from "@/components/items/ItemSendMenu.vue";
-import EntitySendMenu from "@/components/common/EntitySendMenu.vue";
+import EntitySendMenu from "@/components/common/entity/EntitySendMenu.vue";
 
 const route = useRoute();
 const router = useRouter();

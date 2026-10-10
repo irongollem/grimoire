@@ -73,8 +73,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { IconDelete, IconSearch } from "@/lib/icons";
 import { inventoryItemRef } from "@/lib/itemRef";
 import type { ItemRefColumns } from "@/lib/itemRef";

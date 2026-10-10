@@ -158,10 +158,10 @@
 import { ref, type Component as VueComponent } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { IconCaravan, IconCircle, IconCoins, IconComponent, IconDocument, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconNavItemVault, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
-import EntityGridCard from "@/components/common/EntityGridCard.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/controls/appButtonVariants";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { ItemType } from "@/types/item.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
@@ -196,10 +196,10 @@ import { useItemBrowse } from "@/composables/items/useItemBrowse";
 import { fetchResolvedItem, resolvedItemKey } from "@/composables/items/useItems";
 import type { ItemScope } from "@/lib/items/itemScope";
 import { ITEM_RARITY_LABELS, RARITY_BG } from "@/types/item.types";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useAutoFillColumns } from "@/composables/useGridColumns";
-import EmptyState from "@/components/common/EmptyState.vue";
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 
 const {
   search,

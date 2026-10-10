@@ -217,12 +217,12 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconDelete, IconLock, IconTool } from '@/lib/icons';
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import EntityEditorActionBar from "@/components/common/entity/EntityEditorActionBar.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import RecipeOutputsPanel from "@/components/crafting/RecipeOutputsPanel.vue";
 import RecipeIngredientsPanel from "@/components/crafting/RecipeIngredientsPanel.vue";
 import {

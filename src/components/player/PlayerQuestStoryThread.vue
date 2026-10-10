@@ -83,7 +83,7 @@ import { useAppUiStore } from "@/stores/ui/app";
 import { IconLoot, IconNavigate, IconScrollText } from "@/lib/icons";
 import { prefersReducedMotion } from "@/lib/motion";
 import { groupPlayerBeatsByThread } from "@/lib/quests/playerThreads";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { PlayerQuestBeat } from "@/types/quest.types";
 
 const props = defineProps<{ beats: PlayerQuestBeat[] }>();

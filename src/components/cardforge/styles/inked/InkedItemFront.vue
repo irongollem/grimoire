@@ -35,7 +35,7 @@
 
 <script setup lang="ts">
 import type { Item } from "@/types/item.types";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import InkedShell from "./InkedShell.vue";
 import { accentForItem } from "../tokens.shared";
 import { useItemCardData } from "@/composables/cardforge/useItemCardData";

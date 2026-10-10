@@ -311,12 +311,12 @@ import {
   IconShuffle,
   IconWarning,
 } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 
 /** A route's destination, counted with the noun its own type calls for (#887)
  *  — "3 grounds" for a wood, "3 rooms" otherwise. The runtime RPC carries

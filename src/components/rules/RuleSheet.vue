@@ -88,8 +88,8 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteRule } from "@/composables/rules/useRules";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { Rule } from "@/types/rule.types";
 
 const props = defineProps<{ rule: Rule }>();

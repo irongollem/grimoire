@@ -49,7 +49,7 @@ vi.mock("@/components/campaign/NewCampaignModal.vue", () => ({
 // pricing and the child-account flag over the network: requests nothing here
 // answers, which the test DOM then aborts at teardown with a stack trace in
 // the middle of an otherwise green run.
-vi.mock("@/components/common/PaywallModal.vue", () => ({
+vi.mock("@/components/common/overlays/PaywallModal.vue", () => ({
   __esModule: true,
   default: defineComponent({
     props: { modelValue: Boolean },

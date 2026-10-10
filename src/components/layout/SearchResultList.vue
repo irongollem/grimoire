@@ -73,7 +73,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import SearchProUpsellRow from "@/components/layout/SearchProUpsellRow.vue";
 import type { SearchGroup, SearchHit, SearchThumbnails } from "@/composables/useGlobalSearch";
 

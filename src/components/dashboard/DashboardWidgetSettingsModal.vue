@@ -54,9 +54,9 @@
  * disagree.
  */
 import { computed } from "vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconSettings } from "@/lib/icons";
 import { WIDGET_SETTINGS_COMPONENTS } from "@/components/dashboard/widgetComponents";
 import { widgetById } from "@/lib/dashboard/widgetCatalog";

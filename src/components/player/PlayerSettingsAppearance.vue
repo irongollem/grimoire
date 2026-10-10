@@ -68,10 +68,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { IconReset } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import type { ThemeOverride } from "@/lib/themeRuntime";

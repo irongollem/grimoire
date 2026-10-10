@@ -53,8 +53,8 @@
  * list: a site has a handful of levels and nothing to search, and on a phone
  * it opens the OS picker.
  */
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconAdd, IconLayers } from "@/lib/icons";
 import type { Location } from "@/types/location.types";
 

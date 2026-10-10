@@ -30,8 +30,8 @@
 
 <script setup lang="ts">
 import HearthSection from "./HearthSection.vue";
-import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
-import RollToast from "@/components/common/RollToast.vue";
+import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
+import RollToast from "@/components/common/feedback/RollToast.vue";
 import SkillRollList from "@/components/player/SkillRollList.vue";
 import { useCharacterRolls } from "@/composables/party/useCharacterRolls";
 import type { PartyMember } from "@/types/party.types";

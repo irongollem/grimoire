@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import HearthSection from "./HearthSection.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import PlayerSpellSlotStrip from "@/components/spells/PlayerSpellSlotStrip.vue";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useSpellSlotWrite } from "@/composables/spells/useSpellSlotWrite";

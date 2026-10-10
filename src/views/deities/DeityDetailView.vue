@@ -78,13 +78,13 @@ import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconDocument, IconEdit } from '@/lib/icons';
 import { useDeity, useUpdateDeity } from "@/composables/deities/useDeities";
-import PageHeader from "@/components/common/PageHeader.vue";
-import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import PageHeaderAction from "@/components/common/list/PageHeaderAction.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import DeityEditor from "@/components/deities/DeityEditor.vue";
 import DeitySheet from "@/components/deities/DeitySheet.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 
 const route     = useRoute();
 const router    = useRouter();

@@ -25,7 +25,7 @@ vi.mock("@/composables/campaign/useArchiveImport", () => ({
 vi.mock("@/composables/campaign/useImportQuotaRoom", () => ({
   useImportQuotaRoom: () => ({ roomFor: computed(() => mocks.room.value), isLoading: ref(false) }),
 }));
-vi.mock("@/components/common/RichTextViewer.vue", () => ({ default: { template: "<div />" } }));
+vi.mock("@/components/common/richtext/RichTextViewer.vue", () => ({ default: { template: "<div />" } }));
 
 import ArchiveReviewStep from "./ArchiveReviewStep.vue";
 

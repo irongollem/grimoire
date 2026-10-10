@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import LearnedKindMark from "@/components/sessions/LearnedKindMark.vue";
 import LearnedSessionSelect from "@/components/sessions/LearnedSessionSelect.vue";
 import SessionLearnedAdd from "@/components/sessions/SessionLearnedAdd.vue";

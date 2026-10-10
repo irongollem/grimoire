@@ -42,7 +42,7 @@
 
 <script setup lang="ts">
 import { computed, type Component } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 export type ToolGroup = "draw" | "structure" | "view";
 

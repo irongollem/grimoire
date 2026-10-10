@@ -102,7 +102,7 @@
  */
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, ref, useTemplateRef } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconGenerate, IconUpload } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";

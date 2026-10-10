@@ -53,10 +53,10 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import PeopleSortControl from "@/components/player/people/PeopleSortControl.vue";
 import type { PeoplePlace } from "@/composables/player/usePlayerPeople";
 import { IconMixer, IconSearch } from "@/lib/icons";

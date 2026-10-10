@@ -63,9 +63,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
-import SettingsToggleRow from "@/components/common/SettingsToggleRow.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
+import SettingsToggleRow from "@/components/common/settings/SettingsToggleRow.vue";
 import { usePlayerCombatPrefs } from "@/composables/player/usePlayerCombatPrefs";
 import { useDicePrefs } from "@/composables/dice/useDicePrefs";
 import { useChildAccount } from "@/composables/account/useChildAccount";

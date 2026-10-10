@@ -50,10 +50,10 @@
 
 <script setup lang="ts">
 import { IconAdd, IconDelete } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { RECHARGES, type FeatureUses, type Recharge } from "@/rules/features/mechanics.types";
 import MechField from "./MechField.vue";
 import UsesAmountEditor from "./UsesAmountEditor.vue";

@@ -139,10 +139,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { UseMutationReturnType } from "@tanstack/vue-query";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import HallCardSlot from "@/components/memorials/HallCardSlot.vue";
 import HallCell from "@/components/memorials/HallCell.vue";
 import HallHeader from "@/components/memorials/HallHeader.vue";

@@ -38,7 +38,7 @@
  * Renders nothing for a quest without clocks.
  */
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useToast } from "@/composables/useToast";
 import { useQuestClocks, useTickQuestClock } from "@/composables/quests/useQuestClocks";
 import { IconAdd, IconMinus } from "@/lib/icons";

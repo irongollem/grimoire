@@ -155,8 +155,8 @@
 </template>
 
 <script setup lang="ts">
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import PageHeader from "@/components/common/PageHeader.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconNavAtlas } from '@/lib/icons';
@@ -174,13 +174,13 @@ import { extractTiptapText } from "@/lib/utils";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { Location, LocationType } from "@/types/location.types";
 
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import ImageLightbox from "@/components/common/ImageLightbox.vue";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
+import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import PlayerLocationFiltersBar from "@/components/player/PlayerLocationFiltersBar.vue";
 import PlayerLocationCard from "@/components/player/PlayerLocationCard.vue";
 import PlayerLocationDetailPanel from "@/components/player/PlayerLocationDetailPanel.vue";

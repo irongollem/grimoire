@@ -77,8 +77,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconChevronDown, IconReveal, IconStar } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import { LOCATION_TYPE_COLORS, LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 

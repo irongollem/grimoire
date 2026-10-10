@@ -87,11 +87,11 @@
 
 <script setup lang="ts">
 import { computed, reactive } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import EntitySheetMobile from "@/components/common/EntitySheetMobile.vue";
-import QuickFact from "@/components/common/QuickFact.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntitySheetMobile from "@/components/common/entity/EntitySheetMobile.vue";
+import QuickFact from "@/components/common/entity/QuickFact.vue";
 import AccordionSection from "@/components/common/AccordionSection.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { IconEdit } from "@/lib/icons";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";

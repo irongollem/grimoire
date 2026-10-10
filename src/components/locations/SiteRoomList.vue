@@ -105,10 +105,10 @@
  */
 import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { IconCoins, IconGenerate, IconHide, IconShieldCheck } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useAllLocations, useFetchLocation, useUpdateLocation } from "@/composables/locations/useLocations";

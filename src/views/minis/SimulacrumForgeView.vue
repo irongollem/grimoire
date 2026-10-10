@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import SimulacrumTeaser from "@/components/simulacrum/SimulacrumTeaser.vue";
 import SimulacrumWizard from "@/components/simulacrum/SimulacrumWizard.vue";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";

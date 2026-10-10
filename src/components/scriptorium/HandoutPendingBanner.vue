@@ -13,8 +13,8 @@
  * its own; the button opens the same confirmation as sharing does.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import CautionNotice from "@/components/common/CautionNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import CautionNotice from "@/components/common/feedback/CautionNotice.vue";
 import HandoutShareDialog from "@/components/scriptorium/HandoutShareDialog.vue";
 import { usePendingHandoutReveals, type ShareableHandout } from "@/composables/scriptorium/useHandoutShare";
 import { describePending } from "@/lib/scriptorium/handoutShareSummary";

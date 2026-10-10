@@ -29,6 +29,6 @@
 
 <script setup lang="ts">
 import { legalUrl } from "@/lib/marketing";
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import AccountSettings from "@/components/account/AccountSettings.vue";
 </script>

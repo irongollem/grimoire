@@ -50,9 +50,9 @@ import {
 } from "@/composables/factions/useFactions";
 import { NPC_FACTION_ROLES, NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } from "@/types/faction.types";
 import type { FactionNpc, Faction } from "@/types/faction.types";
-import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import EntityLinkSection from "@/components/common/entity/EntityLinkSection.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 
 const props = defineProps<{ npcId: string }>();
 

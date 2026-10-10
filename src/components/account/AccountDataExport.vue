@@ -33,8 +33,8 @@
  * the export has to be the thing a user meets first rather than the thing they
  * wish they had found.
  */
-import SettingsSection from "@/components/common/SettingsSection.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useDataExport } from "@/composables/account/useDataExport";
 
 const { exporting, error, exportData } = useDataExport();

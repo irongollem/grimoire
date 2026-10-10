@@ -193,8 +193,8 @@
 </template>
 
 <script setup lang="ts">
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import PageHeader from "@/components/common/PageHeader.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
@@ -209,10 +209,10 @@ import CharacterEditionNotice from '@/components/player/CharacterEditionNotice.v
 import CharacterApprovalNotice from '@/components/player/CharacterApprovalNotice.vue';
 import { isApprovalWait, useCampaignPendingContentReviews } from '@/composables/party/useCharacterContentReviews';
 import { useAppUiStore } from '@/stores/ui/app';
-import AppButton from '@/components/common/AppButton.vue';
-import OverflowMenu, { type OverflowMenuEntry } from '@/components/common/OverflowMenu.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import OverflowMenu, { type OverflowMenuEntry } from '@/components/common/overlays/OverflowMenu.vue';
 import { useToast } from '@/composables/useToast';
-import FocalImage from '@/components/common/FocalImage.vue';
+import FocalImage from '@/components/common/media/FocalImage.vue';
 import type { PartyMember } from '@/types/party.types';
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { activeMembers } from "@/composables/party/useActiveParty";

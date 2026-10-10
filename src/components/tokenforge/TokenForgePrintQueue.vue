@@ -54,9 +54,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import {
   TOKEN_PRINT_SIZES,
   TOKEN_BACK_STYLES,

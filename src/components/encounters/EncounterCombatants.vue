@@ -208,9 +208,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { IconAdd, IconClose, IconMinus, IconSearch } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import type { CombatantDef, FactionDef } from "@/types/encounter.types";
 import { crToXp } from "@/types/encounter.types";
 import type { Monster, MonsterIndexEntry } from "@/types/monster.types";

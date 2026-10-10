@@ -165,10 +165,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import type { IdentityFormSlice } from "./partyMemberForm.types";
 import { buildEntityContext } from "@/ai/utils";

@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconUpload } from "@/lib/icons";
 import {
   useBulkPublishLibraryArtDefaults,

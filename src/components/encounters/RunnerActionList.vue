@@ -94,7 +94,7 @@
 
 <script setup lang="ts">
 import { computed, inject, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import RunnerResolvePanel from "@/components/encounters/RunnerResolvePanel.vue";
 import { RUNNER_ROLL_CONTEXT } from "@/components/encounters/runnerResolve";
 import { describeStructure } from "@/lib/statBlock/describeStructure";

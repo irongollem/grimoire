@@ -80,10 +80,10 @@
  * archive import itself stays free and AI-free.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import ProFeatureGate from "@/components/billing/ProFeatureGate.vue";
 import { IconGenerate } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";

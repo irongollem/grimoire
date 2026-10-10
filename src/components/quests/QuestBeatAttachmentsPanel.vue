@@ -90,7 +90,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useCreateQuestBeatAttachment, useDeleteQuestBeatAttachment, useSetQuestBeatAttachmentRequired } from "@/composables/quests/useQuestFlow";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useCreateEncounter, useEncounters } from "@/composables/encounters/useEncounters";
 import { useAllFactions } from "@/composables/factions/useFactions";
@@ -108,10 +108,10 @@ import { IconCheck, IconWarning } from "@/lib/icons";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import { SKILLS } from "@/types/party.types";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType, QuestCheckAttachmentMetadata } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import QuestRunContainedTool from "./QuestRunContainedTool.vue";
 
 const props = defineProps<{ beat: QuestBeat; attachments: QuestBeatAttachmentSummary[] }>();

@@ -60,8 +60,8 @@
  * can watch; playing it is `QuestRunClocks.vue` in the cockpit.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useCreateQuestClock, useDeleteQuestClock, useQuestClocks } from "@/composables/quests/useQuestClocks";

@@ -73,7 +73,7 @@
  */
 import { computed, ref } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import RuleTrackerPanel from "@/components/rules/RuleTrackerPanel.vue";
 import { useRules } from "@/composables/rules/useRules";
 import { useActiveParty } from "@/composables/party/useActiveParty";

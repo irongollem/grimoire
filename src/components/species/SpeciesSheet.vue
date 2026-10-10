@@ -131,9 +131,9 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteSpecies } from "@/composables/rules/useSpecies";
 import type { Species } from "@/types/species.types";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ species: Species; isShared?: boolean }>();

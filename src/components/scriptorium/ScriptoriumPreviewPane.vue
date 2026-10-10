@@ -112,9 +112,9 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import OverflowMenu from "@/components/common/OverflowMenu.vue";
-import type { OverflowMenuEntry } from "@/components/common/OverflowMenu.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import OverflowMenu from "@/components/common/overlays/OverflowMenu.vue";
+import type { OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import { IconExport, IconZoomIn, IconZoomOut } from "@/lib/icons";
 import { docTypeLabel, docTypeColor } from "@/lib/scriptorium/editorConstants";
 import { useScriptoriumZoom } from "@/composables/scriptorium/useScriptoriumZoom";

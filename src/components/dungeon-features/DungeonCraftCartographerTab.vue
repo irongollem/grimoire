@@ -37,8 +37,8 @@
 import { RouterLink, useRouter } from "vue-router";
 import { useDungeonMaps } from "@/composables/cartographer/useDungeonMaps";
 import type { DungeonMap } from "@/types/dungeonMap.types";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
 
 const router = useRouter();
 const { data: cartographerMaps, isLoading: cartographerMapsLoading } = useDungeonMaps();

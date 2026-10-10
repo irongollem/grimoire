@@ -60,10 +60,10 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconGenerate, IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
-import TabBar from "@/components/common/TabBar.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ScreenTab from "@/components/rules/ScreenTab.vue";
 import CompendiumTab from "@/components/rules/CompendiumTab.vue";

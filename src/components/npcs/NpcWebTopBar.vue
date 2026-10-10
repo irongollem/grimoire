@@ -116,11 +116,11 @@
 import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
 import { IconChevronLeft, IconShield } from '@/lib/icons';
-import AppButton from '@/components/common/AppButton.vue';
-import ListFilterBar from '@/components/common/ListFilterBar.vue';
-import EntityCombobox from '@/components/common/EntityCombobox.vue';
-import ListFilterSelect from '@/components/common/ListFilterSelect.vue';
-import ListSearchInput from '@/components/common/ListSearchInput.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import ListFilterBar from '@/components/common/list/ListFilterBar.vue';
+import EntityCombobox from '@/components/common/controls/EntityCombobox.vue';
+import ListFilterSelect from '@/components/common/list/ListFilterSelect.vue';
+import ListSearchInput from '@/components/common/list/ListSearchInput.vue';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import type { NpcRelationship, NpcRelationshipType } from '@/types/npc.types';
 

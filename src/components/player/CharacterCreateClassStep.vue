@@ -216,9 +216,9 @@ import { CLASS_SKILL_CHOICES, FALLBACK_SKILL_DATA } from "@/data/classSkillChoic
 import type { SkillKey } from "@/data/classSkillChoices";
 import LevelUpSubclassPicker from "@/levelup/LevelUpSubclassPicker.vue";
 import LevelUpSubclassSpells from "@/levelup/LevelUpSubclassSpells.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import TagPickerInput from "@/components/common/TagPickerInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import TagPickerInput from "@/components/common/controls/TagPickerInput.vue";
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();

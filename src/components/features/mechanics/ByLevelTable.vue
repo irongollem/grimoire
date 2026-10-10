@@ -44,8 +44,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { IconAdd, IconDelete } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { deepEqual } from "@/lib/utils";
 import { nextLevel, recordFromRows, rowsFromRecord, type LevelRow } from "./byLevelRows";
 

@@ -11,7 +11,7 @@ import { useAppUiStore } from "@/stores/ui/app";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
 import DashboardCustomizeFrame from "@/components/dashboard/DashboardCustomizeFrame.vue";
 import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import { DEFAULT_LAYOUTS } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardSurface } from "@/lib/dashboard/widgetCatalog";

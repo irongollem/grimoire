@@ -42,7 +42,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { RULESET_OPTIONS, type RulesetKey } from "@/types/ruleset.types";
 
 const { modelValue, disabled = false, label = "Rules edition", notes } = defineProps<{

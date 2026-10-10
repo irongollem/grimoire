@@ -40,9 +40,9 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { IconClose, IconLock } from "@/lib/icons";
 import { useDmNote } from "@/composables/notes/useDmNote";
 import { useScratchpadStore } from "@/stores/scratchpad";

@@ -84,7 +84,7 @@
  * the row holds only the manifest.
  */
 import { computed, reactive, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import ArchiveReviewRow from "@/components/campaign/ArchiveReviewRow.vue";
 import ImportQuotaWarning from "@/components/campaign/ImportQuotaWarning.vue";
 import { IconUpload } from "@/lib/icons";

@@ -47,8 +47,8 @@
  * and a refused write changes nothing.
  */
 import { ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { useUpdateQuestClock } from "@/composables/quests/useQuestClocks";
 import { useToast } from "@/composables/useToast";
 import { IconClose } from "@/lib/icons";

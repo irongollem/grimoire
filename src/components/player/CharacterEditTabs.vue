@@ -182,14 +182,14 @@ import type { PartyMember } from "@/types/party.types";
 import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
-import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import ImageUpload from "@/components/common/ImageUpload.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import TagPickerInput from "@/components/common/TagPickerInput.vue";
+import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import ImageUpload from "@/components/common/media/ImageUpload.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import TagPickerInput from "@/components/common/controls/TagPickerInput.vue";
 
 const form = inject(CHARACTER_FORM_KEY)!;
 const {

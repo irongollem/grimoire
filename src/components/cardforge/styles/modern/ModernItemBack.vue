@@ -39,7 +39,7 @@ import { computed } from "vue";
 import type { Item } from "@/types/item.types";
 import { extractTiptapText } from "@/lib/utils";
 import ModernShell from "./ModernShell.vue";
-import DamageIcon from "@/components/common/DamageIcon.vue";
+import DamageIcon from "@/components/common/statblock/DamageIcon.vue";
 import { accentForItem } from "../tokens.shared";
 import { useItemCardData } from "@/composables/cardforge/useItemCardData";
 

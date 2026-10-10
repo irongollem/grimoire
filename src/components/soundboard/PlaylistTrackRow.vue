@@ -189,8 +189,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconDrag, IconClose, IconRepeat, IconPlay, IconStop, IconDice, IconChevronRight } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import type { Sound, PlaylistTrackLayer } from "@/types/sound.types";
 

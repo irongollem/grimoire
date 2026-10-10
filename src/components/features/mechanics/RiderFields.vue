@@ -67,9 +67,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { RIDER_TARGETS, type DamageRider, type RiderDice, type RiderTarget, type UsesCost } from "@/rules/features/mechanics.types";
 import { RIDER_DICE_KINDS, riderDiceOfKind } from "./mechanicsDraft";
 import MechField from "./MechField.vue";

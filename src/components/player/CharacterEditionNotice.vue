@@ -33,8 +33,8 @@
  * Informational only when the table takes both editions.
  */
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import CautionNotice from "@/components/common/CautionNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import CautionNotice from "@/components/common/feedback/CautionNotice.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { rulesetRules, rulesetYear, useConvertCharacterRuleset } from "@/composables/party/useCharacterRuleset";

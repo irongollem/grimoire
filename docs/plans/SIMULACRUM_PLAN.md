@@ -39,13 +39,13 @@ anything "-forge" (Cardforge owns the suffix) and "Foundry" (FoundryVTT collisio
 
 Entry: a **"Mini"** action (Vitruvian icon + short label; "make me a mini" was
 the working description, too verbose for a button) next to "Generate with AI" in
-`src/components/common/EntityImageBlock.vue` — automatically appears on NPCs
+`src/components/common/entity/EntityImageBlock.vue` — automatically appears on NPCs
 (`portrait_url`), monsters (`image_url`), and party members (`portrait_url`).
 Opens the wizard (modal route), source portrait + entity context prefilled.
 
 Icon: the **Vitruvian Man** (the Westworld host-fabrication vibe — our own
 rendition of da Vinci's public-domain motif, not HBO's trademarked logo mark).
-Wrapper `src/components/common/VitruvianIcon.vue` (MaskIcon pattern, inherits
+Wrapper `src/components/common/media/VitruvianIcon.vue` (MaskIcon pattern, inherits
 `currentColor` / font-size like `DamageIcon`) reads
 `public/assets/simulacrum/vitruvian.svg` — traced from the generated art in
 `art-src/vitruvian 1.png` via the standard potrace → `scripts/glyphs` `svg`

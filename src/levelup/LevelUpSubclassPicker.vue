@@ -22,8 +22,8 @@
 </template>
 
 <script setup lang="ts">
-import AppSelect from "@/components/common/AppSelect.vue";
-import WizardStepCard from "@/components/common/WizardStepCard.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import WizardStepCard from "@/components/common/wizard/WizardStepCard.vue";
 
 const props = defineProps<{
   selectedId: string;

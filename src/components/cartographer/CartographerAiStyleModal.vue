@@ -177,10 +177,10 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { IconGenerate } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useConfirm } from "@/composables/useConfirm";
 

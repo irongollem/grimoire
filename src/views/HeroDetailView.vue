@@ -167,10 +167,10 @@ import { IconAdd, IconEdit } from '@/lib/icons';
 import { useHallOfHero, useImportHero } from "@/composables/party/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { DND_SETTINGS } from "@/data/dndSettings";
 

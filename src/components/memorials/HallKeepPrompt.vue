@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { CharacterMemorial } from "@/types/memorial.types";
 
 /** Asked once per memorial after the owner leaves its campaign (#982): the wall outlives a membership. */

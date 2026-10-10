@@ -53,8 +53,8 @@
 
 <script setup lang="ts">
 import { ref, computed, useId, watchEffect } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
 import { SCHOOL_BG } from "@/types/spell.types";
 import { scaleExpression } from "@/lib/dice/dice";
 import { spellSlotKey, slotPool } from "@/rules/spellSlots";

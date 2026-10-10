@@ -32,8 +32,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import RevealControl from "@/components/common/RevealControl.vue";
-import RevealOption from "@/components/common/RevealOption.vue";
+import RevealControl from "@/components/common/reveal/RevealControl.vue";
+import RevealOption from "@/components/common/reveal/RevealOption.vue";
 import { useParty } from "@/composables/party/useParty";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { arrayRevealAdapter } from "@/lib/reveal";

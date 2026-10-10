@@ -23,7 +23,7 @@ import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { NpcListRow } from "@/types/npc.types";
 import type { Trap } from "@/types/trap.types";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import EncounterRunner from "@/components/encounters/EncounterRunner.vue";
 
 const props = defineProps<{ encounterId: string }>();

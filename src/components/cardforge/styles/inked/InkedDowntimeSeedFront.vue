@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import type { DowntimeSeed } from "@/types/downtime.types";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import InkedShell from "./InkedShell.vue";
 import { accentForDowntimeSeed } from "../tokens.shared";
 import { useDowntimeSeedCardData } from "@/composables/cardforge/useDowntimeSeedCardData";

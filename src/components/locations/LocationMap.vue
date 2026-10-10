@@ -212,7 +212,7 @@
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { IconClose, IconLocation, IconRuler } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import MapFrame from "@/components/locations/MapFrame.vue";
 import MapMeasureLayer from "@/components/locations/MapMeasureLayer.vue";

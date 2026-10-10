@@ -300,8 +300,8 @@ import { ref, computed } from "vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
 import "@/assets/vendor/datepicker.css";
 import { IconAdd, IconAddEvent, IconCalendar, IconCalendarCheck, IconCheck, IconClose, IconCopy, IconDelete, IconDownload, IconEdit, IconRefresh, IconRemoveEvent } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import {
   useSessionProposals,
   useAllSessionAvailability,

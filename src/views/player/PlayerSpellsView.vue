@@ -186,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import PickerCharacterNotFound from "@/components/player/PickerCharacterNotFound.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute } from "vue-router";
@@ -206,11 +206,11 @@ import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
 import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import { rulesetRules } from "@/composables/party/useCharacterRuleset";
-import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import RulesetReviewBanner from "@/components/common/feedback/RulesetReviewBanner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import type { Spell } from "@/types/spell.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import { SPELL_SCHOOLS, computeMaxPrepared } from "@/types/spell.types";

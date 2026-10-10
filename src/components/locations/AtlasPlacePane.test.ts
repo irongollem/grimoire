@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
 import { ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import AtlasPlacePane from "./AtlasPlacePane.vue";
 import { buildAtlasIndex } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";

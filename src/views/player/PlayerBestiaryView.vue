@@ -329,10 +329,10 @@
 </template>
 
 <script setup lang="ts">
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed, useId } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { IconClose, IconPin, IconSearch } from '@/lib/icons';
@@ -361,13 +361,13 @@ import { rollParsed } from "@/lib/dice/roller";
 import type { RollMode } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import type { DiscoveredMonster, PlayerVisibleMonster } from "@/types/monster.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
+import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import MonsterFormCard from "@/components/monsters/MonsterFormCard.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";

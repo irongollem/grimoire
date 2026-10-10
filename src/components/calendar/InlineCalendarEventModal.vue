@@ -104,13 +104,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCreateCalendarEvent } from "@/composables/calendar/useCalendarEvents";
 import { useCampaignStore } from "@/stores/campaign";

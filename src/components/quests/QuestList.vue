@@ -130,12 +130,12 @@ import {
 import { useParty } from "@/composables/party/useParty";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { useQuestsUiStore } from "@/stores/ui/quests";
-import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import QuestKanbanBoard from "@/components/quests/QuestKanbanBoard.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { timeAgo } from "@/lib/utils";
 import { filterQuestBoard } from "@/lib/quests/board";

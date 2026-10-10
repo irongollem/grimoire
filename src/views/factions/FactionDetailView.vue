@@ -55,8 +55,8 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useFaction } from "@/composables/factions/useFactions";
-import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import FactionEditor from "@/components/factions/FactionEditor.vue";
 import FactionSheet from "@/components/factions/FactionSheet.vue";
 import FactionMembersSection from "@/components/factions/FactionMembersSection.vue";
@@ -65,7 +65,7 @@ import FactionLocationsSection from "@/components/factions/FactionLocationsSecti
 import FactionItemsSection from "@/components/factions/FactionItemsSection.vue";
 import FactionRelationsSection from "@/components/factions/FactionRelationsSection.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
+import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 
 const route     = useRoute();
 const isNew     = computed(() => route.name === "faction-new");

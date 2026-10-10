@@ -13,7 +13,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import BrandLogo from "@/components/brand/BrandLogo.vue";
 import { reloadApp } from "@/composables/useAppUpdate";

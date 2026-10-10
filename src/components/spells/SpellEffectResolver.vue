@@ -69,11 +69,11 @@ import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useToast } from "@/composables/useToast";
 import { metamagicReminders, metamagicTargetBonus } from "@/rules/metamagicPolicy";
 import { useRuleset } from "@/composables/rules/useRuleset";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 
 const { spell, castLevel, characterLevel, spellcastingModifier = 0, damageTypeOverride = null, metamagicNames = [] } = defineProps<{
   spell: Spell | null;

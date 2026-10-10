@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import AppInput from "@/components/common/AppInput.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const { armorClass = "" } = defineProps<{
   armorClass?: string;

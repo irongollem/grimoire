@@ -15,7 +15,7 @@
 
 <script setup lang="ts" generic="T">
 import { IconAdd, IconDelete } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 /** The frame for a list of repeated parts (riders, sub-actions, choices): numbered cards, one add button. */
 defineProps<{ items: readonly T[]; itemLabel: string; addLabel: string }>();

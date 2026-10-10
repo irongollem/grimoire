@@ -30,7 +30,7 @@ Invite links can be configured with roles (`player`), labels, expiry dates, and 
 Shared pieces the player pages are built from, so a new page reaches for them rather than re-deriving:
 
 - **`PageHeader flush`** for any list or tool page in the padded player shell; the phone header already names the page, so never add a second title (see Player Navigation).
-- **`OverflowMenu`** (`src/components/common/`) holds a card's secondary actions in one menu, destructive ones last. Champions and pool cards use it; a card shows one clear primary action beside it.
+- **`OverflowMenu`** (`src/components/common/overlays/`) holds a card's secondary actions in one menu, destructive ones last. Champions and pool cards use it; a card shows one clear primary action beside it.
 - **`RichTextEditor toolbar="focus"`** shows a field's toolbar only while it has focus, as one sideways-scrolling row; the default stays the full toolbar for every other caller. The Lore tab uses it.
 - **`TabBar`** takes a per-tab `dot` for "something new inside" and fades the edges of a sideways-scrolling row, keeping the selected tab in view.
 - **Touch targets:** controls that mis-tap mid-fight (HP amount and buttons, condition remove, exhaustion and death-save pips, inventory slots) get a 44px target on a phone without changing how they look.

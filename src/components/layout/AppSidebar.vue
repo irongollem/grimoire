@@ -215,15 +215,15 @@ import { usePwaInstall } from "@/composables/usePwaInstall";
 import { onClickOutside } from "@vueuse/core";
 import { useAuthStore } from "@/stores/auth";
 import { useUpdateCampaignMember } from "@/composables/campaign/useCampaignMembers";
-import LegalFooterLinks from "@/components/common/LegalFooterLinks.vue";
+import LegalFooterLinks from "@/components/layout/LegalFooterLinks.vue";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
 import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
 import { NAV_GROUPS, navItemHiddenByFlag } from "@/lib/nav";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { cn } from "@/lib/utils";
 import AccountMenuItem from "./AccountMenuItem.vue";
 import NavItem from "./NavItem.vue";
@@ -231,7 +231,7 @@ import CampaignSwitcher from "./CampaignSwitcher.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import DmScratchpadToggle from "@/components/notes/DmScratchpadToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
-import DiceRoller from "@/components/common/DiceRoller.vue";
+import DiceRoller from "@/components/common/dice/DiceRoller.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import SessionRail from "./SessionRail.vue";
 import ModeToggle from "./ModeToggle.vue";
@@ -244,7 +244,7 @@ const { url: discordUrl, visible: showDiscord } = useDiscordInvite();
 // weight. Latched rather than mirrored so a half-typed report survives a
 // close/reopen, exactly as the always-mounted version did.
 const BugReportModal = defineAsyncComponent(
-  () => import("@/components/common/BugReportModal.vue"),
+  () => import("@/components/common/overlays/BugReportModal.vue"),
 );
 
 const bugReportOpen = ref(false);

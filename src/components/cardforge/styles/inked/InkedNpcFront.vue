@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import type { Npc } from "@/types/npc.types";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import InkedShell from "./InkedShell.vue";
 import { accentForNpc } from "../tokens.shared";
 import { useNpcCardData } from "@/composables/cardforge/useNpcCardData";

@@ -47,8 +47,8 @@
 <script setup lang="ts">
 import { useRoute } from "vue-router";
 import { IconChevronRight, IconNavCampaign, IconRefresh } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import { usePlayerNavPrefs } from "@/composables/player/usePlayerNavPrefs";
 import { isNavItemActive } from "@/lib/playerNav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";

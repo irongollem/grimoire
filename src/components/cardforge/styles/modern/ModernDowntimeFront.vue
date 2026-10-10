@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import type { DowntimeActivity } from "@/types/downtime.types";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import ModernShell from "./ModernShell.vue";
 import { accentForDowntime } from "../tokens.shared";
 import { useDowntimeCardData } from "@/composables/cardforge/useDowntimeCardData";

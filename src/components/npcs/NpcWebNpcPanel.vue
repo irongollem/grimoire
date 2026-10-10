@@ -89,8 +89,8 @@
 <script setup lang="ts">
 import { npcRelationshipBg, npcRelationshipText } from "@/lib/npcDisplay";
 import { IconClose, IconEdit, IconInfo } from '@/lib/icons';
-import AppButton from '@/components/common/AppButton.vue';
-import FocalImage from '@/components/common/FocalImage.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import FocalImage from '@/components/common/media/FocalImage.vue';
 import {
   type NpcRelationship,
   type NpcRelationshipType,

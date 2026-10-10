@@ -19,8 +19,8 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import type { ButtonSize } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import type { ButtonSize } from "@/components/common/controls/appButtonVariants";
 import { formatCombo, isMacPlatform } from "@/lib/hotkeys";
 import { IconNote } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";

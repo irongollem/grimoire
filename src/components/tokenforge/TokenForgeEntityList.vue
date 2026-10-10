@@ -60,9 +60,9 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconUpload } from "@/lib/icons";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import type { TokenEntity } from "@/lib/tokenRenderer";
 
 const {

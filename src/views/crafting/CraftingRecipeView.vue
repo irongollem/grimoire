@@ -12,8 +12,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
-import PageHeader from "@/components/common/PageHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import RecipeEditor from "@/components/crafting/RecipeEditor.vue";
 import RecipeSheet from "@/components/crafting/RecipeSheet.vue";
 import { useCraftingRecipe } from "@/composables/crafting/useCrafting";

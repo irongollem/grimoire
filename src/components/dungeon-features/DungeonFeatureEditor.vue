@@ -163,13 +163,13 @@ import {
 import type { DungeonFeature, DungeonFeatureTrigger, FeatureGlyph } from "@/types/dungeonFeature.types";
 import { markEdited } from "@/ai/provenance";
 import type { AiProvenance } from "@/ai/provenance";
-import ImageUpload from "@/components/common/ImageUpload.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import ImageUpload from "@/components/common/media/ImageUpload.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 
 const props = defineProps<{ feature: DungeonFeature | null; isNew: boolean }>();
 

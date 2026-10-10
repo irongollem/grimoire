@@ -95,11 +95,11 @@ import { IconSettings } from "@/lib/icons";
 import { useAudioTriggerPrefs } from "@/composables/soundboard/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/soundboard/useSoundboardBroadcast";
 import { useSoundboardStore } from "@/stores/soundboard";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import type { PadSize } from "@/types/sound.types";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 

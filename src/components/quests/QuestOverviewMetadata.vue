@@ -81,13 +81,13 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
-import TagInput from "@/components/common/TagInput.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
 import { useNpc, useNpcs } from "@/composables/npcs/useNpcs";

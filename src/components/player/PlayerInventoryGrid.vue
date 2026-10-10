@@ -216,8 +216,8 @@ import type { PartyMember } from '@/types/party.types';
 import type { Item, ItemIndexEntry } from '@/types/item.types';
 import ContainerSection from '@/components/inventory/ContainerSection.vue';
 import ItemRow from '@/components/inventory/ItemRow.vue';
-import AppButton from '@/components/common/AppButton.vue';
-import AppInput from '@/components/common/AppInput.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import AppInput from '@/components/common/controls/AppInput.vue';
 import { inventoryItemRef, contentItemIds, holderItemIds } from '@/lib/itemRef';
 
 const {

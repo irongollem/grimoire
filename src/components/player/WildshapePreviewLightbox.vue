@@ -92,9 +92,9 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
-import EntityLightbox from "@/components/common/EntityLightbox.vue";
-import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityLightbox from "@/components/common/overlays/EntityLightbox.vue";
+import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
 import type { PlayerVisibleMonster } from "@/types/monster.types";
 
 const { beast, canWildshape } = defineProps<{

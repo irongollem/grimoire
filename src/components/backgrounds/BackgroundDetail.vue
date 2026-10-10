@@ -146,12 +146,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import ImageUpload from "@/components/common/ImageUpload.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import TagPickerInput from "@/components/common/TagPickerInput.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import ImageUpload from "@/components/common/media/ImageUpload.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import TagPickerInput from "@/components/common/controls/TagPickerInput.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import { useConfirm } from "@/composables/useConfirm";
 import {

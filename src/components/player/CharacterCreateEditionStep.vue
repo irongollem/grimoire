@@ -28,7 +28,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import PlayerBooksPicker from "@/components/player/PlayerBooksPicker.vue";
 import { useUserEnabledSources } from "@/composables/library/useEnabledSources";
 import RulesetPicker from "@/components/rules/RulesetPicker.vue";

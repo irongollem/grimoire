@@ -133,7 +133,7 @@
  */
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, ref, type Component } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconCheck, IconWarning, IconClose, IconRefresh, IconCircle } from "@/lib/icons";
 import { useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { libraryPackObjectPath } from "@/composables/cartographer/useLibraryTilePacks";

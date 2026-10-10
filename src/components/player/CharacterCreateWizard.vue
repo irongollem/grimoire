@@ -89,7 +89,7 @@ import { WIZARD_STEPS, WIZARD_STEPS_EDIT } from "@/rules/characterCreation";
 import { useConfirm } from "@/composables/useConfirm";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
 import { prefersReducedMotion } from "@/lib/motion";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import CharacterCreateEditionStep from "@/components/player/CharacterCreateEditionStep.vue";
 import CharacterCreateBasicsStep from "@/components/player/CharacterCreateBasicsStep.vue";
 import CharacterCreateAbilitiesStep from "@/components/player/CharacterCreateAbilitiesStep.vue";

@@ -54,8 +54,8 @@
  *  they manage. Reachable from `/account` in both the DM and player lens. */
 import { computed } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import PageHeader from "@/components/common/PageHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import FamilyRequests from "@/components/account/FamilyRequests.vue";
 import FamilyChildCard from "@/components/account/FamilyChildCard.vue";
 import { useFamily } from "@/composables/account/useFamily";

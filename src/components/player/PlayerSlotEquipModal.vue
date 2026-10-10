@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { PartyInventoryItem, InventorySlot } from "@/types/inventory.types";
 
 const { slot, slotItem, candidates } = defineProps<{

@@ -75,8 +75,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconCopy, IconDownload, IconInfo } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import TokenForgeTokenSettings from "@/components/tokenforge/TokenForgeTokenSettings.vue";
 
 const ART_CHOICE_OPTIONS: ReadonlyArray<SegmentedOption<"picture" | "cutout">> = [

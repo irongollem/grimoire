@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 import { legalUrl } from "@/lib/marketing";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 
 // The one clickwrap every account-creating form shows — the public signup and
 // the invite-link join both create accounts, and the join form once did so with

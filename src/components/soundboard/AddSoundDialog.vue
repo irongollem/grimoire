@@ -26,8 +26,8 @@
 <script setup lang="ts">
 import { IconMusic } from '@/lib/icons';
 import SoundForm from "./SoundForm.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { useCampaignStore } from "@/stores/campaign";
 

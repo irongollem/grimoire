@@ -50,9 +50,9 @@ import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
 import { groupPlayerBeatsByThread } from "@/lib/quests/playerThreads";
 import { useAppUiStore } from "@/stores/ui/app";
 import type { QuestBeatVisibility } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import PlayerQuestStoryThread from "@/components/player/PlayerQuestStoryThread.vue";
 
 const props = defineProps<{

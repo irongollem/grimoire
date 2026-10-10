@@ -117,8 +117,8 @@ export function changeRoute(kind: ContentKind, memberId: string): RouteLocationR
  * Change links: the DM looking at the same sheet decides in the approval queue.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import CautionNotice from "@/components/common/CautionNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import CautionNotice from "@/components/common/feedback/CautionNotice.vue";
 import {
   contentKindLabel,
   pendingReviews,

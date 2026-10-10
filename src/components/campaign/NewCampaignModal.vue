@@ -117,18 +117,18 @@
 <script setup lang="ts">
 import { DEFAULT_THEME_ID } from "@/lib/themes";
 import { ref, watch } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { listCalendarAdapters, getCalendarAdapter, createDefaultCustomCalendarDef } from "@/calendars/index";
 import { getSetting, listSettings } from "@/settings/index";
 import type { SettingCalendarDef } from "@/settings/types";
 import { useCreateCampaign, useClaimOrphanedData } from "@/composables/campaign/useCampaigns";
 import { isQuotaExceeded } from "@/lib/quotaError";
-import PaywallModal from "@/components/common/PaywallModal.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
 import DemoCampaignOffer from "@/components/campaign/DemoCampaignOffer.vue";
 import type { Campaign } from "@/types/campaign.types";

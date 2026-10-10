@@ -101,10 +101,10 @@ import { describeQuestConsequenceAction } from "@/lib/quests/consequences";
 import { deriveBeatRecordStates, describeBeatRecordState, type BeatRecordKind, type BeatRecordState } from "@/lib/quests/backfill";
 import { timeAgo } from "@/lib/utils";
 import type { Quest } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 
 /**
  * The prep-time counterpart to the Run cockpit's verb machine (#796): a DM

@@ -344,10 +344,10 @@ import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconReveal, IconSettingsAlt } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
-import AppButton from "@/components/common/AppButton.vue";
-import RouteSkeleton from "@/components/common/RouteSkeleton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import RouteSkeleton from "@/components/common/feedback/RouteSkeleton.vue";
 import { navigationPending } from "@/router/navigationPending";
-import DiceRoller from "@/components/common/DiceRoller.vue";
+import DiceRoller from "@/components/common/dice/DiceRoller.vue";
 import { useNeedsInitiativeRoll } from "@/composables/encounters/useNeedsInitiativeRoll";
 import { usePlayerEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
@@ -388,7 +388,7 @@ const { url: discordUrl, visible: showDiscord } = useDiscordInvite();
 // weight. Latched rather than mirrored so a half-typed report survives a
 // close/reopen, exactly as the always-mounted version did.
 const BugReportModal = defineAsyncComponent(
-  () => import("@/components/common/BugReportModal.vue"),
+  () => import("@/components/common/overlays/BugReportModal.vue"),
 );
 
 // #999: both mount only on first open. Each owns a query (the shared-locations

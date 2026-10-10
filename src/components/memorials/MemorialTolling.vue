@@ -55,9 +55,9 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, reactive, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import MemorialCameo from "@/components/memorials/MemorialCameo.vue";
 import MemorialCandle from "@/components/memorials/MemorialCandle.vue";
 import { useCampaignMemorials, useLightCandle, useMarkTolled, useMyMournerRows } from "@/composables/memorials/useMemorials";

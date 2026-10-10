@@ -64,13 +64,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
-import PageHeader from "@/components/common/PageHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import VitruvianIcon from "@/components/common/media/VitruvianIcon.vue";
 import MiniCard from "@/components/simulacrum/MiniCard.vue";
 import { IconSearch } from "@/lib/icons";
 import { useMinisUiStore } from "@/stores/ui/minis";

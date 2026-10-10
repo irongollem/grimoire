@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { CalendarEventType } from "@/types/calendar.types";
 
 /**

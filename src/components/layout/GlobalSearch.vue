@@ -97,10 +97,10 @@ import { failedGroupsMessage, useGlobalSearch } from "@/composables/useGlobalSea
 import { useHotkeys } from "@/composables/useHotkeys";
 import { formatCombo, isMacPlatform } from "@/lib/hotkeys";
 import type { SearchGroup } from "@/composables/useGlobalSearch";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import SearchResultList from "@/components/layout/SearchResultList.vue";
-import type { AppInputHandle } from "@/components/common/fieldVariants";
+import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 
 const { hotkey = true } = defineProps<{
   hotkey?: boolean;

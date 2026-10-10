@@ -160,8 +160,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import LevelUpChoices from "@/components/features/LevelUpChoices.vue";
 import { ABILITY_STATS, SLOT_LEVEL_LABELS, type AbilityKey } from "@/rules/characterCreation";
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";

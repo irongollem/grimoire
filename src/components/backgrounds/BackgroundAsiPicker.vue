@@ -53,8 +53,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import type { ButtonVariants } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import type { ButtonVariants } from "@/components/common/controls/appButtonVariants";
 import {
   ABILITY_TO_SAVE_KEY,
   isValidAsiChoice,

@@ -25,7 +25,7 @@
  * shows, and `dismissProUpsell` remembers "don't show again" in this browser.
  */
 import { RouterLink } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconClose } from "@/lib/icons";
 
 const { inset = "sm" } = defineProps<{

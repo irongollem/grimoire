@@ -264,10 +264,10 @@ import { computed, ref, useId, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconChevronLeft, IconClose, IconLocation, IconMonster, IconScrollText, IconUser } from '@/lib/icons';
 import { countObjectivesComplete } from "@/lib/quests/objectives";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/controls/appButtonVariants";
+import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import QuestObjectiveStatusMark from "@/components/quests/QuestObjectiveStatusMark.vue";
 import {
   usePlayerVisibleQuest,
@@ -283,8 +283,8 @@ import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } fro
 import { resolveQuestSiteLocationId } from "@/lib/quests/playerSite";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { PlayerNpc } from "@/types/npc.types";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import PlayerQuestStoryThread from "@/components/player/PlayerQuestStoryThread.vue";
 import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
 

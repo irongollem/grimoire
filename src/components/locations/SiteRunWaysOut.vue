@@ -57,7 +57,7 @@
  * can still tell it was ever locked at all.
  */
 import { computed, reactive } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import PlacementRow from "@/components/locations/PlacementRow.vue";
 import { IconHide, IconLock, IconNavigate } from "@/lib/icons";
 import { DOOR_KIND_ICONS, doorSubtitle, doorsOfSpace } from "@/lib/locations/doors";

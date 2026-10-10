@@ -25,7 +25,7 @@
  * resolution.
  */
 import { useAgeQuestion } from "@/composables/auth/useAgeQuestion";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import BirthMonthField from "@/components/auth/BirthMonthField.vue";
 
 const { buttonClass = "" } = defineProps<{

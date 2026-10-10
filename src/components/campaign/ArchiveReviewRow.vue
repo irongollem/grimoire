@@ -36,7 +36,7 @@
  * editor, since the body is the DM's own writing and is kept whole.
  */
 import { computed, useId } from "vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import ImportDecisionChoice from "@/components/campaign/ImportDecisionChoice.vue";
 import ImportReviewCard from "@/components/campaign/ImportReviewCard.vue";
 import { previewSections } from "@/lib/archiveImport/archivePreview";

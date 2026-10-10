@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { reactive, ref, computed, defineComponent, h } from "vue";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import MonsterList from "./MonsterList.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { Monster } from "@/types/monster.types";
 
 function monster(overrides: Partial<Monster> = {}): Monster {
@@ -129,7 +129,7 @@ vi.mock("@/composables/useToast", () => ({
 // supabase) is CopyToCampaignDialog.test.ts's job — this stand-in only lets
 // this file assert the props MonsterList hands it and drive its `copied` /
 // `quota-exceeded` events (#598).
-vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
+vi.mock("@/components/common/overlays/CopyToCampaignDialog.vue", () => ({
   default: defineComponent({
     name: "CopyToCampaignDialog",
     props: ["open", "table", "ids", "label"],

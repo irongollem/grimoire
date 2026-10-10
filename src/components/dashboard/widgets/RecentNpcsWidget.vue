@@ -35,7 +35,7 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useRecentNpcs } from "@/composables/dashboard/useRecentNpcs";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

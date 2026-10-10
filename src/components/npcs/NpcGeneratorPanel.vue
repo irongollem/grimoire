@@ -61,11 +61,11 @@ import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/np
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
-import AppButton from "@/components/common/AppButton.vue";
-import GeneratorPanelFrame from "@/components/common/GeneratorPanelFrame.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import GeneratorPanelFrame from "@/components/common/ai/GeneratorPanelFrame.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllFactions, useAddFactionNpc } from "@/composables/factions/useFactions";

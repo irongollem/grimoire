@@ -98,8 +98,8 @@ import { ref, computed } from "vue";
 import { useAdminUsers, type AdminUser } from "@/composables/admin/useAdminUsers";
 import { accountDeletionErrorMessage } from "@/composables/account/useAccountDeletion";
 import { useConfirm } from "@/composables/useConfirm";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import type { PlanId } from "@/types/subscription.types";
 
 const usersQuery = useAdminUsers();

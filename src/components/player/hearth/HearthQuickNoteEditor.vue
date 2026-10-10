@@ -16,9 +16,9 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import {
   useCreateJournalEntry,
   useUpdateJournalEntry,

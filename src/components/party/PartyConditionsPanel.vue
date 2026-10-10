@@ -93,9 +93,9 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
 import { IconAdd } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import type { AppInputHandle } from "@/components/common/fieldVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
@@ -106,7 +106,7 @@ import {
   setExhaustionLevel,
   isExhaustion,
 } from "@/rules/conditions";
-import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
+import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
 import type { PartyMember } from "@/types/party.types";
 
 const { member } = defineProps<{ member: PartyMember }>();

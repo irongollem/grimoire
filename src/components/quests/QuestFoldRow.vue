@@ -53,7 +53,7 @@
 import { computed, type Component } from "vue";
 import { drawerTransition } from "@/lib/motion";
 import { IconChevronDown } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { title, caption, icon, tone = "muted" } = defineProps<{
   title: string;

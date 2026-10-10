@@ -49,7 +49,7 @@ import { computed } from "vue";
 import type { Npc } from "@/types/npc.types";
 import ModernShell from "./ModernShell.vue";
 import FitText, { type FitEntry } from "../../FitText.vue";
-import SenseIcon from "@/components/common/SenseIcon.vue";
+import SenseIcon from "@/components/common/statblock/SenseIcon.vue";
 import { accentForNpc } from "../tokens.shared";
 import { useNpcCardData } from "@/composables/cardforge/useNpcCardData";
 

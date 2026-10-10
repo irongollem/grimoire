@@ -1026,7 +1026,7 @@ that panel — only a fresh generation sets `showResult` — so closing it is th
 end of a paid render, and it was never uploaded anywhere to recover it from. A
 stray click beside the panel used to do that silently. The rule is general (see
 `AppModal`'s `backdropDismiss` docstring) and pinned by
-`src/components/common/appModalPaidBackdrop.test.ts`, which fails if any modal
+`src/components/common/overlays/appModalPaidBackdrop.test.ts`, which fails if any modal
 that prices, shows or runs a generation ships without the prop.
 
 #### Atlas Build's second entry point (site map workbench)

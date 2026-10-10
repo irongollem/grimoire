@@ -130,11 +130,11 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconEncounter, IconPackage } from '@/lib/icons';
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
-import TraitList from "@/components/common/TraitList.vue";
-import SpellcastingList from "@/components/common/SpellcastingList.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
+import TraitList from "@/components/common/statblock/TraitList.vue";
+import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import { useEncountersByMonster } from "@/composables/encounters/useEncounters";
 import { useMonsterDescription } from "@/composables/monsters/useMonsterDescription";
 import { useMonsterLootTables } from "@/composables/dungeon-features/useLootTables";

@@ -45,11 +45,11 @@
  * the document's last update, so an edit by the DM reads as fresh and relights
  * the dot (same live rule as the DM Notes tab).
  */
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { RouterLink } from "vue-router";
 import { IconChevronRight, IconScrollText } from "@/lib/icons";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import { docTypeColor, docTypeLabel } from "@/lib/scriptorium/editorConstants";
 import type { PlayerHandoutSummary } from "@/composables/scriptorium/usePlayerHandouts";
 

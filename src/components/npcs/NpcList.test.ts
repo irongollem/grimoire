@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { reactive, ref, defineComponent, h } from "vue";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import NpcList from "./NpcList.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { Npc } from "@/types/npc.types";
 
 function npc(overrides: Partial<Npc> = {}): Npc {
@@ -111,7 +111,7 @@ vi.mock("@/composables/useToast", () => ({
 // supabase) is CopyToCampaignDialog.test.ts's job — this stand-in only lets
 // this file assert the props NpcList hands it and drive its `copied` /
 // `quota-exceeded` events (#885).
-vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
+vi.mock("@/components/common/overlays/CopyToCampaignDialog.vue", () => ({
   default: defineComponent({
     name: "CopyToCampaignDialog",
     props: ["open", "table", "ids", "label"],

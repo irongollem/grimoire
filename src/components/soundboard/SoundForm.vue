@@ -310,16 +310,16 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconGenerate } from "@/lib/icons";
-import ProBadge from "@/components/common/ProBadge.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
-import type { AppInputHandle } from "@/components/common/fieldVariants";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import MentionTextarea from "@/components/common/MentionTextarea.vue";
+import ProBadge from "@/components/billing/ProBadge.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import type { SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
+import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
 import { useCreateSound, useSoundUpload } from "@/composables/soundboard/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSubscription } from "@/composables/billing/useSubscription";
@@ -347,7 +347,7 @@ import { useMusicGeneration } from "@/ai/useMusicGeneration";
 import { currentLoadingQuote, startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import SoundProviderBrowser from "@/components/soundboard/SoundProviderBrowser.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import type { SoundCategory } from "@/types/sound.types";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";

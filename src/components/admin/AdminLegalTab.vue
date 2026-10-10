@@ -90,9 +90,9 @@
  * comes from `TERMS_CHANGES`, the same list the in-app gate shows.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import CautionNotice from "@/components/common/CautionNotice.vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import CautionNotice from "@/components/common/feedback/CautionNotice.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useSendTermsNotice, useTermsNoticeStatus } from "@/composables/admin/useTermsNotice";

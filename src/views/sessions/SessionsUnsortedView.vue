@@ -78,9 +78,9 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watchEffect } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import PageHeader from "@/components/common/PageHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import LearnedKindMark from "@/components/sessions/LearnedKindMark.vue";
 import LearnedSessionSelect from "@/components/sessions/LearnedSessionSelect.vue";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";

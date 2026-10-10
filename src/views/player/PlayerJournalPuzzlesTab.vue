@@ -44,11 +44,11 @@
 </template>
 
 <script setup lang="ts">
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import { RouterLink } from 'vue-router';
 import { IconPuzzle } from '@/lib/icons';
-import FocalImage from '@/components/common/FocalImage.vue';
-import EntityNewDot from '@/components/common/EntityNewDot.vue';
+import FocalImage from '@/components/common/media/FocalImage.vue';
+import EntityNewDot from '@/components/common/entity/EntityNewDot.vue';
 import { useReadItems } from '@/composables/player/useReadItems';
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from '@/types/puzzle.types';
 import type { PuzzleRoom } from '@/types/puzzle.types';

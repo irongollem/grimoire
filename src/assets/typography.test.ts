@@ -130,8 +130,8 @@ const ROLE = /^text-(eyebrow|label|label-lg|heading-xs|heading-sm|heading|headin
  * `[data-size]` attributes rather than the class.
  */
 const CONTROL_RECIPES = new Set([
-  "src/components/common/appButtonVariants.ts",
-  "src/components/common/fieldVariants.ts",
+  "src/components/common/controls/appButtonVariants.ts",
+  "src/components/common/controls/fieldVariants.ts",
 ]);
 
 function trackedSources(): string[] {

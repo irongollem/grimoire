@@ -190,9 +190,9 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, useId } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppModal from "@/components/common/AppModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
 import { IconCheckCircle, IconClose, IconCloseCircle, IconDiceRoll, IconWarning } from '@/lib/icons';
 import { getDiscipline } from "@/lib/crafting/disciplines";
 import { useAttemptCraft } from "@/composables/crafting/useCrafting";

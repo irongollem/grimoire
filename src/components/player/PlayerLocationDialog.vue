@@ -61,13 +61,13 @@ import { useSharedNpcsByLocations } from "@/composables/npcs/useNpcs";
 import { useMarkRead } from "@/composables/player/useReadItems";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { PlayerNpc } from "@/types/npc.types";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import PlayerLocationDetailPanel from "@/components/player/PlayerLocationDetailPanel.vue";
 import PlayerNpcLightbox from "@/components/player/PlayerNpcLightbox.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import ImageLightbox from "@/components/common/ImageLightbox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
 
 const playerUi = usePlayerUiStore();
 const router = useRouter();

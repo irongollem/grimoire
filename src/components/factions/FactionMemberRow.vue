@@ -62,9 +62,9 @@
 
 <script setup lang="ts">
 import { type Component, computed } from "vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import {
   NPC_FACTION_ROLES,
   NPC_FACTION_STATUSES,

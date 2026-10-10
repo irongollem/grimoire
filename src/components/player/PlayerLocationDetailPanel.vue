@@ -102,11 +102,11 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import PlayerStoreWares from "@/components/locations/PlayerStoreWares.vue";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";

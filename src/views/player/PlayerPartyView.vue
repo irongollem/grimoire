@@ -119,13 +119,13 @@
 </template>
 
 <script setup lang="ts">
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import PageHeader from "@/components/common/PageHeader.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import ImageLightbox from "@/components/common/ImageLightbox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { usePlayerUiStore } from "@/stores/ui/player";

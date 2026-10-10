@@ -63,12 +63,12 @@ import { useRoute, RouterLink } from "vue-router";
 import { IconEdit } from '@/lib/icons';
 import { useParty } from "@/composables/party/useParty";
 import PlayerCharacterView from "@/views/player/PlayerCharacterView.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/OverflowMenu.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import SetDownDialog from "@/components/memorials/SetDownDialog.vue";
 import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
+import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 
 // Lazy-load to avoid pulling Tiptap into the same chunk (prevents TDZ init error)
 const PartyMemberForm = defineAsyncComponent(

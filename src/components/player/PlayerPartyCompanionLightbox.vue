@@ -164,12 +164,12 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconShield, IconEdit, IconClose } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityLightbox from "@/components/common/EntityLightbox.vue";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
-import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityLightbox from "@/components/common/overlays/EntityLightbox.vue";
+import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
+import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
 import { useUpdateCompanion, useDeleteCompanion } from "@/composables/encounters/useCompanions";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";

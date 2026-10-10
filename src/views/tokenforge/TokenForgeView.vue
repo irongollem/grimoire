@@ -168,10 +168,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import { IconUserCircle } from '@/lib/icons';
-import PageHeader from "@/components/common/PageHeader.vue";
-import TabBar from "@/components/common/TabBar.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import type { TabItem } from "@/components/common/TabBar.vue";
+import type { TabItem } from "@/components/common/controls/TabBar.vue";
 import { useParty } from "@/composables/party/useParty";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useToast } from "@/composables/useToast";
@@ -185,7 +185,7 @@ import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import CoinFace from "@/components/mint/CoinFace.vue";
 import { COIN_METALS, COIN_PRINT_SIZES } from "@/types/coin.types";
 import type { CoinDesign } from "@/types/coin.types";
-import PaintPortraitButton from "@/components/common/PaintPortraitButton.vue";
+import PaintPortraitButton from "@/components/common/ai/PaintPortraitButton.vue";
 import { useMissingPortrait } from "@/ai/useMissingPortrait";
 import { npcImageContext, partyMemberImageContext, monsterImageContext } from "@/ai/entityImageContext";
 import TokenForgeTokenPreview from "@/components/tokenforge/TokenForgeTokenPreview.vue";

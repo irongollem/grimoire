@@ -46,8 +46,8 @@
 import { computed } from "vue";
 import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
-import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
-import SpellcastingList from "@/components/common/SpellcastingList.vue";
+import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
+import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";
 import type { NpcListRow } from "@/types/npc.types";

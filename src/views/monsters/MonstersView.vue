@@ -284,21 +284,21 @@ import {
   IconAdd, IconCheck, IconClose, IconGenerate, IconLibrary,
   IconSearch, IconSettings,
 } from '@/lib/icons';
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
-import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
+import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
 import { useMonstersUiStore } from "@/stores/ui/monsters";
 import { useCampaignStore } from "@/stores/campaign";
 import { useRouter } from "vue-router";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useMonsterBrowse } from "@/composables/monsters/useMonsterBrowse";
 import { useEnabledSources, useAvailableLibrarySources } from "@/composables/library/useEnabledSources";

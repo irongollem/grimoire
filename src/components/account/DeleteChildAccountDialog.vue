@@ -33,10 +33,10 @@
 <script setup lang="ts">
 /** The typed-name delete confirmation opened from a child's card (#919). */
 import { ref, watch } from "vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ConfirmByNameInput from "@/components/common/controls/ConfirmByNameInput.vue";
 import { useToast } from "@/composables/useToast";
 import { IconDelete } from "@/lib/icons";
 import { useAccountDeletion } from "@/composables/account/useAccountDeletion";

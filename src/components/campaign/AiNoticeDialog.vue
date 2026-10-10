@@ -48,9 +48,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconInfo, IconExternalLink } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import { useAiAcknowledgements, type AiAcknowledgementKind } from "@/composables/ai/useAiAcknowledgements";
 import { AI_USE_NOTICE_VERSION, AI_LIKENESS_NOTICE_VERSION, AI_PRO_REOFFER_NOTICE_VERSION } from "@/lib/legal";
 

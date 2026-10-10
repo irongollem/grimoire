@@ -196,19 +196,19 @@
 </template>
 
 <script setup lang="ts">
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { createReusableTemplate } from "@vueuse/core";
 import { ref, computed, watch } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import { IconDrag, IconLock, IconPopulate, IconReveal, IconSave } from '@/lib/icons';
-import AppButton from '@/components/common/AppButton.vue';
-import AppCheckbox from '@/components/common/AppCheckbox.vue';
-import AppInput from '@/components/common/AppInput.vue';
-import AppSelect from '@/components/common/AppSelect.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import AppCheckbox from '@/components/common/controls/AppCheckbox.vue';
+import AppInput from '@/components/common/controls/AppInput.vue';
+import AppSelect from '@/components/common/controls/AppSelect.vue';
 import JournalCard from '@/components/player/JournalCard.vue';
-import RichTextEditor from '@/components/common/RichTextEditor.vue';
-import RichTextViewer from '@/components/common/RichTextViewer.vue';
+import RichTextEditor from '@/components/common/richtext/RichTextEditor.vue';
+import RichTextViewer from '@/components/common/richtext/RichTextViewer.vue';
 import { JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST } from '@/composables/notes/usePlayerJournal';
 import type { JournalCategory, PlayerJournalEntry } from '@/composables/notes/usePlayerJournal';
 import type { SortField } from '@/lib/noteSort';

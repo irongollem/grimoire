@@ -56,7 +56,7 @@
 import { computed } from "vue";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { deriveDyingPartyMembers } from "@/lib/dashboard/deathSaves";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

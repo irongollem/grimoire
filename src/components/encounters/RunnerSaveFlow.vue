@@ -84,8 +84,8 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import RunnerAppliedLine from "@/components/encounters/RunnerAppliedLine.vue";
 import RunnerDamageAmounts from "@/components/encounters/RunnerDamageAmounts.vue";
 import RunnerResolveTargets from "@/components/encounters/RunnerResolveTargets.vue";

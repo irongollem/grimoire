@@ -27,8 +27,8 @@
 import { computed } from "vue";
 import type { RouteLocationRaw } from "vue-router";
 import HearthSection from "./HearthSection.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import { useCampaignMessages, loadChatHistory } from "@/composables/campaign/useCampaignMessages";
 import { usePlayerUnread } from "@/composables/player/usePlayerUnread";
 import { openTableItems, type WaitingItem } from "@/lib/hearth/waitingItems";

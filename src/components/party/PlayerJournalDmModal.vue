@@ -63,9 +63,9 @@ import { JOURNAL_CATEGORIES } from "@/composables/notes/usePlayerJournal";
 import type { PlayerJournalEntry, JournalCategory } from "@/composables/notes/usePlayerJournal";
 import { useReadItems, useMarkRead } from "@/composables/player/useReadItems";
 import JournalCard from "@/components/player/JournalCard.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 
 const { playerName, entries } = defineProps<{
   playerName: string;

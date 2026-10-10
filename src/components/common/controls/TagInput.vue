@@ -1,0 +1,151 @@
+<template>
+  <div ref="rootEl" class="relative">
+    <!-- The wrapper is the field (it carries the box), so it takes the field hooks
+         and Vellum draws it as a line on a card or a slip on the bare page; the
+         input inside is `bare` so it gets the DM's hand without a second line. -->
+    <div
+      data-field="tags"
+      data-field-size="body"
+      data-field-tone="card"
+      class="flex flex-wrap items-center gap-1 min-h-9.5 bg-card border border-border rounded-md px-2 py-1 cursor-text"
+      @click="inputRef?.focus()"
+    >
+      <span
+        v-for="tag in model"
+        :key="tag"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted text-label-lg text-muted-foreground"
+      >
+        {{ tag }}
+        <AppButton variant="ghost" tone="danger" size="inline-xs" label="×" @click.stop="remove(tag)" />
+      </span>
+      <input
+        v-no-pwm
+        ref="inputRef"
+        v-model="inputVal"
+        data-field="input"
+        data-field-size="body"
+        data-field-tone="bare"
+        :placeholder="model.length ? '' : placeholder"
+        class="bg-transparent border-none outline-none text-body text-foreground placeholder:text-muted-foreground/60 min-w-24 flex-1"
+        @keydown.enter.prevent="addFromInput"
+        @keydown.comma.prevent="addFromInput"
+        @paste.prevent="handlePaste"
+        @focus="onFocus"
+        @blur="onBlur"
+      />
+    </div>
+
+    <!-- Suggestions dropdown — teleported to body to escape overflow:hidden parents -->
+    <Teleport to="body">
+      <div
+        v-if="open && filteredSuggestions.length"
+        :style="dropdownStyle"
+        data-slip class="fixed z-9999 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
+      >
+        <AppButton
+          v-for="s in filteredSuggestions"
+          :key="s"
+          variant="menu"
+          size="body"
+          block
+          class="capitalize"
+          @mousedown.prevent="addTag(s)"
+        >{{ s }}</AppButton>
+      </div>
+    </Teleport>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, nextTick, onUnmounted } from "vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { normalizeTag } from "@/lib/tags";
+
+const { placeholder = "Add tag...", suggestions = [] } = defineProps<{
+  placeholder?: string;
+  suggestions?: string[];
+}>();
+
+const model = defineModel<string[]>({ required: true, default: () => [] });
+
+const inputVal  = ref("");
+const open      = ref(false);
+const inputRef  = ref<HTMLInputElement | null>(null);
+const rootEl    = ref<HTMLElement | null>(null);
+const dropdownStyle = ref<Record<string, string>>({});
+
+const DROPDOWN_MAX_H = 192; // matches max-h-48
+
+const filteredSuggestions = computed(() => {
+  if (!suggestions.length) return [];
+  const q = inputVal.value.toLowerCase().trim();
+  return suggestions.filter(
+    (s) => !model.value.includes(s) && (q === "" || s.toLowerCase().includes(q)),
+  );
+});
+
+function updatePosition() {
+  const el = inputRef.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  // Use the root wrapper width so dropdown matches the full tag-input width
+  const rootRect = rootEl.value?.getBoundingClientRect() ?? rect;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const openUpward = spaceBelow < DROPDOWN_MAX_H && rect.top > spaceBelow;
+  dropdownStyle.value = openUpward
+    ? { bottom: `${window.innerHeight - rootRect.top + 4}px`, left: `${rootRect.left}px`, width: `${rootRect.width}px` }
+    : { top: `${rootRect.bottom + 4}px`,                       left: `${rootRect.left}px`, width: `${rootRect.width}px` };
+}
+
+function onFocus() {
+  if (!suggestions.length) return;
+  open.value = true;
+  nextTick(updatePosition);
+}
+
+function onBlur() {
+  setTimeout(() => { open.value = false; }, 150);
+}
+
+watch(open, (val) => {
+  if (val) {
+    nextTick(updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+  } else {
+    window.removeEventListener("scroll", updatePosition, true);
+  }
+});
+
+onUnmounted(() => window.removeEventListener("scroll", updatePosition, true));
+
+function addTag(tag: string) {
+  const clean = normalizeTag(tag);
+  if (clean && !model.value.includes(clean)) {
+    model.value = [...model.value, clean];
+  }
+  inputVal.value = "";
+}
+
+function handlePaste(e: ClipboardEvent) {
+  const text = e.clipboardData?.getData("text") ?? "";
+  const newTags = text
+    .split(",")
+    .map(normalizeTag)
+    .filter((t) => t && !model.value.includes(t));
+  if (newTags.length) model.value = [...model.value, ...newTags];
+  inputVal.value = "";
+}
+
+function addFromInput() {
+  const newTags = inputVal.value
+    .split(",")
+    .map(normalizeTag)
+    .filter((t) => t && !model.value.includes(t));
+  if (newTags.length) model.value = [...model.value, ...newTags];
+  inputVal.value = "";
+}
+
+function remove(tag: string) {
+  model.value = model.value.filter((t) => t !== tag);
+}
+</script>

@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import HearthSection from "@/components/player/hearth/HearthSection.vue";
 import { usePlayerUnread, type UnreadItem } from "@/composables/player/usePlayerUnread";
 import { IconNote, IconPuzzle, IconQuest, IconScrollText } from "@/lib/icons";

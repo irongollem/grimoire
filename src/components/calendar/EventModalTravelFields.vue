@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { LOCATION_TYPE_LABELS, type LocationType } from "@/types/location.types";
 
 interface Location {

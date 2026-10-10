@@ -32,8 +32,8 @@
 </template>
 
 <script setup lang="ts">
-import TagInput from "@/components/common/TagInput.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 
 const SAVE_KEYS = [
   { key: "Strength",     label: "STR" },

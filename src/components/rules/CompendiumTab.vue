@@ -95,10 +95,10 @@ import { ref, computed } from "vue";
 import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
 import { useLibraryRules } from "@/composables/rules/useRules";
 import { useRulesUiStore } from "@/stores/ui/rules";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { LibraryRule } from "@/types/rule.types";
 
 const { data: libraryRules, isLoading, error } = useLibraryRules();

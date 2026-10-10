@@ -18,7 +18,7 @@ function queryPlugin(): [typeof VueQueryPlugin, { queryClient: QueryClient }] {
 }
 import { defineComponent } from "vue";
 import PlayerNpcCard from "./PlayerNpcCard.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
+import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import type { PlayerNpc } from "@/types/npc.types";
 
 const PassThrough = defineComponent({ template: "<div><slot /></div>" });

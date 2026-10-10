@@ -31,9 +31,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import PageHeader from "@/components/common/PageHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import SessionDetailsForm from "@/components/sessions/SessionDetailsForm.vue";
 import SessionNotePanel from "@/components/sessions/SessionNotePanel.vue";
 import SessionLearned from "@/components/sessions/SessionLearned.vue";

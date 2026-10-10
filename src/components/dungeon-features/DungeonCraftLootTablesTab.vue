@@ -64,9 +64,9 @@ import { RouterLink, useRouter } from "vue-router";
 import { useLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useDungeonFeaturesUiStore } from "@/stores/ui/dungeonFeatures";
 import { LOOT_CR_TIERS, LOOT_CR_TIER_LABELS } from "@/types/lootTable.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 
 const router = useRouter();

@@ -89,7 +89,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import { IconChevronRight } from "@/lib/icons";
 import { useMemberVitals } from "@/composables/party/useMemberVitals";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";

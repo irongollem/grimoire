@@ -99,8 +99,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
-import AppButton from "@/components/common/AppButton.vue";
-import CautionNotice from "@/components/common/CautionNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import CautionNotice from "@/components/common/feedback/CautionNotice.vue";
 import CharacterContentItemDialog from "@/components/campaign/CharacterContentItemDialog.vue";
 import {
   CONTENT_REVIEWS_KEY,

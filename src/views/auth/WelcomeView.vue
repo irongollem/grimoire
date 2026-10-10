@@ -46,7 +46,7 @@
 <script setup lang="ts">
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useRouter } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DemoCampaignOffer from "@/components/campaign/DemoCampaignOffer.vue";
 import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
 import { IconDM, IconUserRound } from "@/lib/icons";

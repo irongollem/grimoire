@@ -23,7 +23,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { AbilityKey } from "@/rules/characterCreation";
 import type { AbilityPick } from "./choiceValue";
 

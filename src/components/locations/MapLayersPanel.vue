@@ -272,11 +272,11 @@
  */
 import { computed, ref, watch } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
 import PlayerSitePlan from "@/components/player/PlayerSitePlan.vue";
 import { useConfirm } from "@/composables/useConfirm";

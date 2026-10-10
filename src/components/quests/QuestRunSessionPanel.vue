@@ -27,7 +27,7 @@
  */
 import { computed } from "vue";
 import type { QuestRuntimeStatus } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const props = defineProps<{ status: QuestRuntimeStatus; hasPrevious: boolean; disabled?: boolean; headless?: boolean }>();
 const navigationDisabled = computed(() => props.disabled || props.status !== "running");

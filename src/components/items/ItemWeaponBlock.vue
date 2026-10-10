@@ -49,11 +49,11 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
-import DiceExprInput from "@/components/common/DiceExprInput.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import DamageRollsInput from "@/components/common/controls/DamageRollsInput.vue";
+import DiceExprInput from "@/components/common/dice/DiceExprInput.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types";
 import type { DamageRoll } from "@/lib/dice/dice";
 import type { WeaponMasteryProperty } from "@/types/item.types";

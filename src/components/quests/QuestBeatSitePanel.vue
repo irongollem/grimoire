@@ -121,8 +121,8 @@ import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import { IconCheck, IconDungeon, IconWarning } from "@/lib/icons";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { QuestBeat } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 
 const { beat } = defineProps<{ beat: QuestBeat }>();
 const { locationOptions } = useLocationTree();

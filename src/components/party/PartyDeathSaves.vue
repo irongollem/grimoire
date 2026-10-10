@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import SetDownDialog from "@/components/memorials/SetDownDialog.vue";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useConfirm } from "@/composables/useConfirm";

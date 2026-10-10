@@ -214,8 +214,8 @@
  * range rather than filtering an already-fetched list.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconShieldCheck, IconWarning } from "@/lib/icons";
 import {
   usePromptScreening,

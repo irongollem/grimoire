@@ -142,9 +142,9 @@
 import { computed, type Component } from "vue";
 import { useRouter, type RouteLocationRaw } from "vue-router";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import {
   IconHand,
   IconReveal,

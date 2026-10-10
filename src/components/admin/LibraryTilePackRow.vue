@@ -99,7 +99,7 @@
  * spinner for one pack's publish.
  */
 import { ref, computed, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconGlobe, IconArchive, IconDelete, IconChevronUp, IconChevronDown, IconGenerate, IconEdit } from "@/lib/icons";
 import { describeLibraryPackError, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
 import { useConfirm } from "@/composables/useConfirm";

@@ -35,7 +35,7 @@
  * being a scroll.
  */
 import { computed } from "vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { DM_SCREEN_TABLE_OPTIONS, parseDmScreenCardSettings } from "@/lib/dashboard/dmScreenCard";
 
 const { modelValue } = defineProps<{

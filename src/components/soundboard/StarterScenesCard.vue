@@ -68,7 +68,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { storeToRefs } from "pinia";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconClose } from "@/lib/icons";
 import { useStarterScenes } from "@/composables/soundboard/useStarterScenes";
 import { STARTER_SCENES } from "@/data/starterScenes";

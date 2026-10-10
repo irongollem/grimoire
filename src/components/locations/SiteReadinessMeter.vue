@@ -48,7 +48,7 @@
  * disagree about the same site.
  */
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useBelow } from "@/composables/useBreakpoint";
 import { IconMap } from "@/lib/icons";
 import type { SiteReadiness } from "@/lib/locations/siteReadiness";

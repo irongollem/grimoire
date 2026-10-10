@@ -60,7 +60,7 @@
  * kinds are restored from the manifest by page `ref`) or by abandoning it.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import ArchiveFilePicker from "@/components/campaign/ArchiveFilePicker.vue";
 import ArchiveResultStep from "@/components/campaign/ArchiveResultStep.vue";
 import ArchiveReviewStep from "@/components/campaign/ArchiveReviewStep.vue";

@@ -30,11 +30,11 @@ Top importees by distinct importers:
 
 | Importers | Module | Reading |
 | --------- | ------ | ------- |
-| 668 | `components/common/AppButton.vue` | primitive |
+| 668 | `components/common/controls/AppButton.vue` | primitive |
 | 582 | `lib/icons.ts` | primitive |
 | 306 | `stores/campaign.ts` (357 lines) | the active campaign id; small and central, fine |
 | 267 | `lib/supabase.ts` | primitive |
-| 254 | `components/common/AppInput.vue` | primitive |
+| 254 | `components/common/controls/AppInput.vue` | primitive |
 | 179 | `stores/ui.ts` (1,515 lines) | the outlier, section 4 |
 | 128 | `stores/auth.ts` (679 lines) | expected |
 | 94 / 90 / 83 / 64 | `useRuleset`, `useParty`, `useLocations`, `useNpcs` | entity data access, read by everything, as the composables rule expects |
@@ -133,7 +133,7 @@ rule says belong in a folder:
 | `realtimeChannel` | `useCampaignLiveSync`, `useCampaignPresence` | `lib/campaignLiveSync/` |
 | `manualLoader` | `components/rules/ManualTab.vue` | `lib/rules/` |
 | `classChoices` | `components/player/PlayerChoicesCard.vue` | `lib/codex/` or `rules/` |
-| `focalZoom` | `components/common/FocalImage.vue` | beside it, or `lib/image/` |
+| `focalZoom` | `components/common/media/FocalImage.vue` | beside it, or `lib/image/` |
 | `authSnapshot`, `authIdentityChange`, `sessionRecovery`, `persistedSession`, `authAwareFetch`, `requestDeadline` | the auth store, `main.ts`, each other | `lib/auth/` (already exists, holds `captcha`) |
 | `pendingImages`, `floatingPosition` | one root composable each | stay: they serve a root composable that has no domain either |
 
@@ -199,8 +199,8 @@ others are candidates only when work next touches them.
 | ---- | ----- | --------- | ------- | ---- | ---- | --------------- |
 | 1 | 5.2.1 | Async tabs: `CampaignSettingsView` (14), `PlayerCharacterView` (6), `QuestRunCockpit` sheets, `SoundboardView` dialogs | Smaller route chunks on four heavy pages | Low; one serial chunk wave on tab open, prefetchable | S | No |
 | 2 | 5.2.2 | Move the single-consumer `lib` root modules into their folders (table in section 5) | The placement rule holds again; `lib` root down to ~67 | Low; import paths only | S | No |
-| 3 | 5.2.3 | `AiGeneratorPanels.vue` to `src/ai/`; the 13 `common` → `campaign`/`spells` edges resolved | `common` imports no domain; a depcruise rule can then hold it | Low | S | No |
-| 4 | 5.2.4 | Subfolders for `components/common` (primitives, entity pickers, stat display, list scaffolding, rich text, images) | A 134-file bucket becomes navigable | Low, but touches ~600 import sites | M | Decided: the grouping in the 10 Oct proposal |
+| 3 | 5.2.3 | ~~`AiGeneratorPanels.vue` to `src/ai/`~~ moved with 5.2.4; the 13 `common` → `campaign`/`spells` edges resolved | `common` imports no domain; a depcruise rule can then hold it | Low | S | No |
+| 4 | 5.2.4 | ~~Subfolders for `components/common` (primitives, entity pickers, stat display, list scaffolding, rich text, images)~~ Done: 13 subfolders (`controls`, `overlays`, `feedback`, `list`, `entity`, `statblock`, `ai`, `reveal`, `media`, `richtext`, `dice`, `settings`, `wizard`); three components stay in the root | A 134-file bucket becomes navigable | Low, but touches ~600 import sites | M | Done |
 | 5 | 5.2.5 | ~~Split `stores/ui.ts` into one filter store per domain under `stores/ui/`~~ Done | A list imports only its own filters; the largest file in `src` goes | Medium; 179 importers, and the Filter State Pattern rule in CLAUDE.md changes | M | Done |
 | 6 | 5.2.6 | ~~One name per domain: `play`/`player`, `pantheons`/`deities`~~ `play` merged into `player`; pantheons are their own entity, not a duplicate. Left: `calendars/` into `lib/calendar` | The tree reads as one map | Low; renames | S | Decided |
 | 7 | 5.2.7 | Subfolders by surface for `components/quests` (110) and `components/locations` (81), following the design frames | Navigable domain folders | Low | M | No |

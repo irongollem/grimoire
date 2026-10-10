@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import EntityCombobox from '@/components/common/EntityCombobox.vue'
+import EntityCombobox from '@/components/common/controls/EntityCombobox.vue'
 import NpcFactionsSection from '@/components/factions/NpcFactionsSection.vue'
 import type { LocationSummary } from '@/types/location.types'
 

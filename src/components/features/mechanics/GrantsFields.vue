@@ -23,8 +23,8 @@
 </template>
 
 <script setup lang="ts">
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import TagPickerInput from "@/components/common/TagPickerInput.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import TagPickerInput from "@/components/common/controls/TagPickerInput.vue";
 import type { SkillKey } from "@/data/classSkillChoices";
 import { LANGUAGE_GROUPS, TOOL_PROFICIENCY_GROUPS } from "@/lib/proficiency-lists";
 import type { FeatureGrants } from "@/rules/features/mechanics.types";

@@ -199,10 +199,10 @@
 import { ref, computed, defineAsyncComponent } from "vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { IconClose, IconShield } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/controls/appButtonVariants";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
@@ -218,7 +218,7 @@ import type { Species } from "@/types/species.types";
 // The notes widget holds the rich text editor. This lightbox is reachable from the
 // player layout (the encounter panel), so a static import kept the whole editor on
 // every player page; it loads when a lightbox actually shows the notes (#999).
-const PlayerNotesWidget = defineAsyncComponent(() => import("@/components/common/PlayerNotesWidget.vue"));
+const PlayerNotesWidget = defineAsyncComponent(() => import("@/components/player/PlayerNotesWidget.vue"));
 
 const props = defineProps<{ member: PartyMember | null }>();
 // A wild-shaped member wears the beast's face, as on their sheet.

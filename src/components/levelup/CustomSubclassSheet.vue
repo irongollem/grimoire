@@ -84,8 +84,8 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteCustomSubclass } from "@/composables/rules/useCustomSubclasses";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { CustomSubclass } from "@/levelup/customTypes";
 
 const props = defineProps<{ sub: CustomSubclass }>();

@@ -80,9 +80,9 @@ import { useRouter } from 'vue-router'
 import { IconArchive } from '@/lib/icons'
 import { useAllDmCampaigns, useArchiveCampaign } from '@/composables/campaign/useCampaigns'
 import { useCampaignStore } from '@/stores/campaign'
-import AppButton from '@/components/common/AppButton.vue'
-import AppModal from '@/components/common/AppModal.vue'
-import ModalHeader from '@/components/common/ModalHeader.vue'
+import AppButton from '@/components/common/controls/AppButton.vue'
+import AppModal from '@/components/common/overlays/AppModal.vue'
+import ModalHeader from '@/components/common/overlays/ModalHeader.vue'
 
 /** `childAccount`: a young player's account, which must never be shown wording
  *  about plans, Pro or upgrading (#928), so it gets neutral copy and no upgrade

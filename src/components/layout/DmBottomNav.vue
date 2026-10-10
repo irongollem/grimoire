@@ -101,7 +101,7 @@ import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { sessionTabs, type NavItem } from "@/lib/nav";
 import { useAbove } from "@/composables/useBreakpoint";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
-import DiceRoller from "@/components/common/DiceRoller.vue";
+import DiceRoller from "@/components/common/dice/DiceRoller.vue";
 import DmNavMoreSheet from "./DmNavMoreSheet.vue";
 
 const vPrefetch = usePrefetchOnIntent();

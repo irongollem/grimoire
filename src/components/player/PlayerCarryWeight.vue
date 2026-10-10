@@ -110,8 +110,8 @@ import { computed } from 'vue';
 import { formatWeightLb } from '@/lib/utils';
 import DollFigure from '@/components/party/DollFigure.vue';
 import type { DollPicture } from '@/lib/paperDoll/dollStack';
-import AppButton from '@/components/common/AppButton.vue';
-import AppInput from '@/components/common/AppInput.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import AppInput from '@/components/common/controls/AppInput.vue';
 
 type BurdenLevel = 'unencumbered' | 'encumbered' | 'heavily_encumbered' | 'over_encumbered';
 

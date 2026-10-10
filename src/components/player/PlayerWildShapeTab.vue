@@ -151,7 +151,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import PlayerWildShapeKnownForms from "@/components/player/PlayerWildShapeKnownForms.vue";
 import PlayerWildShapeResurgence from "@/components/player/PlayerWildShapeResurgence.vue";
 import PlayerWildShapeSlotTrade from "@/components/player/PlayerWildShapeSlotTrade.vue";

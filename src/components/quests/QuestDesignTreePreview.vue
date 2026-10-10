@@ -69,7 +69,7 @@
 import { computed } from "vue";
 import { planSpineBeats, planSpineRoutes, deriveObjectiveStatuses } from "@/lib/quests/spine";
 import QuestObjectiveStatusMark from "@/components/quests/QuestObjectiveStatusMark.vue";
-import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
+import GeneratedEntityChips from "@/components/common/ai/GeneratedEntityChips.vue";
 import type { ResolvedEntity } from "@/ai/resolveGeneratedEntities";
 import type { QuestDesignTree, QuestDesignDiff } from "@/lib/quests/designer";
 

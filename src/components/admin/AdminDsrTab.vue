@@ -124,10 +124,10 @@
  */
 import { computed, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
 import DsrRequestRow from "@/components/admin/DsrRequestRow.vue";
 import { useAdminUiStore } from "@/stores/ui/admin";
 import { useAdminUsers } from "@/composables/admin/useAdminUsers";

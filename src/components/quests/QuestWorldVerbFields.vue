@@ -33,9 +33,9 @@
 </template>
 
 <script setup lang="ts">
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import type { WorldVerbTargets } from "@/composables/quests/useWorldVerbTargets";
 import { NO_QUEST_CLOCKS_NOTE, RELATIONSHIP_SHIFT_OPTIONS } from "@/lib/quests/consequences";
 import type { QuestConsequenceAction } from "@/types/quest.types";

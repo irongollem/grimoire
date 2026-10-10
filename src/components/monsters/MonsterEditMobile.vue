@@ -267,18 +267,18 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import MobileEditBar from "@/components/common/MobileEditBar.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import MobileEditBar from "@/components/common/entity/MobileEditBar.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import StatBlockEditor from "@/components/common/statblock/StatBlockEditor.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import type { LocationSummary } from "@/types/location.types";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";

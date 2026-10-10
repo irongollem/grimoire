@@ -132,8 +132,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import MapStackImage from "@/components/locations/MapStackImage.vue";
 import { IconMap } from "@/lib/icons";
 import { MAP_IMAGE_COMPACT_SIZING } from "@/lib/locations/mapZoom";

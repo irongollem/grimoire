@@ -99,8 +99,8 @@
  * A container's own header uses the same menu with `asContainer`.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariants";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import {
   IconArrowUp,

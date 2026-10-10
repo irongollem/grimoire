@@ -36,8 +36,8 @@
 
 <script setup lang="ts">
 import { computed, watch } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import WizardStepCard from "@/components/common/WizardStepCard.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import WizardStepCard from "@/components/common/wizard/WizardStepCard.vue";
 import type { DueChoice, OptionContext, SwapOffer } from "@/rules/features/levelUpChoices";
 import type { ClassFeature } from "@/types/feature.types";
 import ChoicePicker from "./ChoicePicker.vue";

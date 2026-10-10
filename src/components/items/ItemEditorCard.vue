@@ -51,7 +51,7 @@
  * conditional on the toggle, so absorbing it here would only re-hide that
  * variation rather than remove it.
  */
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 
 const {
   title,

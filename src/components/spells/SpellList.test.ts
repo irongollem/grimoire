@@ -3,8 +3,8 @@ import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import SpellList from "./SpellList.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { SpellBrowseRow } from "@/types/spell.types";
 
 /** happy-dom ships no IntersectionObserver; the sentinel is not under test. */

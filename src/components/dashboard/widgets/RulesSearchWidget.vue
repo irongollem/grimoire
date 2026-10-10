@@ -105,8 +105,8 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconSearch } from "@/lib/icons";
 import { useLibraryRules } from "@/composables/rules/useRules";
 import { useRulesUiStore } from "@/stores/ui/rules";

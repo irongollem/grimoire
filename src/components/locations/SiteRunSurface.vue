@@ -138,7 +138,7 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { RouteLocationRaw } from "vue-router";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
 import SiteRoomList from "@/components/locations/SiteRoomList.vue";

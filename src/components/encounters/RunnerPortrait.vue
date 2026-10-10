@@ -17,7 +17,7 @@
   decided once instead of in four byte-identical copies. Renders nothing when
   the combatant has no picture.
 */
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 
 const { src, alt, focalPoint = null } = defineProps<{
   src: string | null | undefined;

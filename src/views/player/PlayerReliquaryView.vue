@@ -14,11 +14,11 @@
 </template>
 
 <script setup lang="ts">
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
-import TabBar from "@/components/common/TabBar.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
 import ScreenTab from "@/components/rules/ScreenTab.vue";
 import CompendiumTab from "@/components/rules/CompendiumTab.vue";
 import CodexTab from "@/components/rules/CodexTab.vue";

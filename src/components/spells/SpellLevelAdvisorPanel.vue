@@ -270,10 +270,10 @@
 
 <script setup lang="ts">
 import { IconChevronDown, IconTip } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import DiceInput from "@/components/common/DiceInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import DiceInput from "@/components/common/dice/DiceInput.vue";
 import { parseDiceAvg, DAMAGE_BENCHMARKS } from "@/lib/spells/spellAdvisor";
 import type { AdvisorState, AdvisorResult, SchoolTip, RefSpells } from "./spellAdvisorTypes";
 

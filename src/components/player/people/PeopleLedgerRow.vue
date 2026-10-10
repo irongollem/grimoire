@@ -52,9 +52,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
-import RelationshipMark from "@/components/common/RelationshipMark.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
+import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import { IconUser } from "@/lib/icons";
 import {
   getNpcDisplayFocalPoint,

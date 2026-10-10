@@ -238,7 +238,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
 import { IconHide, IconReveal } from '@/lib/icons';
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
@@ -255,14 +255,14 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { useAiAcknowledgements } from "@/composables/ai/useAiAcknowledgements";
 import { AI_USE_NOTICE_VERSION } from "@/lib/legal";
-import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
+import AiUsageStatsPanel from "@/components/common/ai/AiUsageStatsPanel.vue";
 import AiNoticeDialog from "@/components/campaign/AiNoticeDialog.vue";
-import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import ProFeatureGate from "@/components/billing/ProFeatureGate.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 
 const { isPro } = useSubscription();
 const { isChild } = useChildAccount();

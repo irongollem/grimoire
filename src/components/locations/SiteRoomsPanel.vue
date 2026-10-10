@@ -164,9 +164,9 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { IconAdd, IconClose, IconDrag, IconEdit, IconLoot, IconShieldCheck } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";

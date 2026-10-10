@@ -181,10 +181,10 @@ import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 
 import { useRoute, useRouter } from "vue-router";
 import { VueDraggable } from "vue-draggable-plus";
 import { useAppUiStore } from "@/stores/ui/app";
-import PageHeader from "@/components/common/PageHeader.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import DashboardCustomizeFrame from "@/components/dashboard/DashboardCustomizeFrame.vue";
 import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
 import DashboardWidgetSettingsModal from "@/components/dashboard/DashboardWidgetSettingsModal.vue";

@@ -3,7 +3,7 @@ import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref, computed } from "vue";
 import ItemList from "./ItemList.vue";
 import { IconDocument } from "@/lib/icons";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { ItemBrowseFilters } from "@/composables/items/useItemBrowse";
 import type { ItemBrowseRow } from "@/types/item.types";
 

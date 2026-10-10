@@ -280,30 +280,30 @@ import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { storeToRefs } from "pinia";
 import { IconCopy, IconGenerate } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
-import EntitySendMenu from "@/components/common/EntitySendMenu.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
+import EntitySendMenu from "@/components/common/entity/EntitySendMenu.vue";
 import MonsterEditMobile from "@/components/monsters/MonsterEditMobile.vue";
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useCampaignStore } from "@/stores/campaign";
 import type { MonsterAiGenerated } from "@/ai/types";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import type { LocationSummary } from "@/types/location.types";
-import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
-import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
-import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
+import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
+import EntityEditorActionBar from "@/components/common/entity/EntityEditorActionBar.vue";
+import StatBlockEditor from "@/components/common/statblock/StatBlockEditor.vue";
 import {
   useCreateMonster,
   useUpdateMonster,
@@ -322,8 +322,8 @@ import type {
   MonsterSize,
   MonsterStatBlock,
 } from "@/types/monster.types";
-import PaywallModal from "@/components/common/PaywallModal.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { useToast } from "@/composables/useToast";

@@ -84,7 +84,7 @@
 <script setup lang="ts">
 import { COINS, type CoinKey } from '@/rules/currency';
 import { IconMessage } from '@/lib/icons';
-import AppButton from '@/components/common/AppButton.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
 import CoinRow from '@/components/inventory/CoinRow.vue';
 
 const {

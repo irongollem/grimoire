@@ -113,17 +113,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { IconAdd, IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import ItemList from "@/components/items/ItemList.vue";
-import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
-import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
+import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
+import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";
 import { useItemsUiStore } from "@/stores/ui/items";
 import { useAvailableLibraryItemSources } from "@/composables/library/useEnabledSources";

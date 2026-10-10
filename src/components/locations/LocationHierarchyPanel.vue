@@ -199,9 +199,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { IconAdd, IconChevronUp, IconClose, IconLink, IconLocation } from '@/lib/icons';
-import AppButton from '@/components/common/AppButton.vue';
-import AppInput from '@/components/common/AppInput.vue';
-import EntityCombobox from '@/components/common/EntityCombobox.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import AppInput from '@/components/common/controls/AppInput.vue';
+import EntityCombobox from '@/components/common/controls/EntityCombobox.vue';
 import { useLocations, useUpdateLocation } from '@/composables/locations/useLocations';
 import { placeRoute } from '@/lib/locations/placeRoute';
 import {

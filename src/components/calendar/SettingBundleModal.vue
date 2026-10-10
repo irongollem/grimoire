@@ -101,9 +101,9 @@ import { useCalendarStore } from "@/stores/calendar";
 import { useCreateCalendarEvent } from "@/composables/calendar/useCalendarEvents";
 import { SETTING_BUNDLES } from "@/data/bundles/index";
 import type { BundleEvent } from "@/data/bundles/index";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 
 const open = defineModel<boolean>({ required: true });
 

@@ -101,12 +101,12 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import { fieldVariants } from "@/components/common/fieldVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import { fieldVariants } from "@/components/common/controls/fieldVariants";
 import MemorialCard from "@/components/memorials/MemorialCard.vue";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCampaignMemorials, useEditMemorialAccount, useSetCharacterDown } from "@/composables/memorials/useMemorials";

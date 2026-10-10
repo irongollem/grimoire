@@ -81,12 +81,12 @@
 </template>
 
 <script setup lang="ts">
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { IconPopulate } from '@/lib/icons';
-import AppButton from '@/components/common/AppButton.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
 import JournalCard from '@/components/player/JournalCard.vue';
-import RichTextViewer from '@/components/common/RichTextViewer.vue';
+import RichTextViewer from '@/components/common/richtext/RichTextViewer.vue';
 import { JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST } from '@/composables/notes/usePlayerJournal';
 import type { JournalCategory, PlayerJournalEntry } from '@/composables/notes/usePlayerJournal';
 import type { Component } from 'vue';

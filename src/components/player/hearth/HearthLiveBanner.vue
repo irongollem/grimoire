@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useIntervalFn, useNow } from "@vueuse/core";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
 import { useSessionProposals } from "@/composables/calendar/useScheduling";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";

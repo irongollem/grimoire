@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import RoomAmbienceCell from "./RoomAmbienceCell.vue";
-import ThemeInput from "@/components/common/ThemeInput.vue";
+import ThemeInput from "@/components/common/controls/ThemeInput.vue";
 import type { ResolvedAmbience } from "@/lib/locations/ambience";
 
 /**

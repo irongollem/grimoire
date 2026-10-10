@@ -38,7 +38,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import HearthSection from "@/components/player/hearth/HearthSection.vue";
 import { usePlayerUnread } from "@/composables/player/usePlayerUnread";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";

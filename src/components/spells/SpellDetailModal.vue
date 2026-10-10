@@ -37,9 +37,9 @@
  * which the detail page shares.
  */
 import { computed, toRef } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import EntityDetailModal from "@/components/common/EntityDetailModal.vue";
+import EntityDetailModal from "@/components/common/overlays/EntityDetailModal.vue";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
 import { useSpellWithArt } from "@/composables/spells/useSpellWithArt";
 import { IconEdit } from "@/lib/icons";

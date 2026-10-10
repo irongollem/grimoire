@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import RevealedFieldsPanel from "@/components/common/RevealedFieldsPanel.vue";
+import RevealedFieldsPanel from "@/components/common/reveal/RevealedFieldsPanel.vue";
 import NpcDisguisePanel from "@/components/npcs/NpcDisguisePanel.vue";
 import NpcPartyRow from "@/components/npcs/NpcPartyRow.vue";
 import { useNpcPcNotes } from "@/composables/npcs/useNpcPcNotes";

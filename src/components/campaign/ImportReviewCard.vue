@@ -38,8 +38,8 @@
  * two-thousand-page export's previews) waits until a row is opened.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import type { ButtonTone } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import type { ButtonTone } from "@/components/common/controls/appButtonVariants";
 import { IconChevronDown } from "@/lib/icons";
 
 const { heading, status, regionId, autoExpand = false } = defineProps<{

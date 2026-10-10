@@ -116,7 +116,7 @@ import { IconCheck, IconEdit, IconNetwork as IconThread, IconPlay, IconWarning }
 import { threadBadges, type ThreadTone } from "@/lib/quests/threads";
 import type { QuestBeatSegment, QuestBoardSummary } from "@/lib/quests/board";
 import type { Quest } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { quest, summary } = defineProps<{
   quest: Quest;

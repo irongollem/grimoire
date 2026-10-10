@@ -280,12 +280,12 @@ import { useBackground } from "@/composables/rules/useBackgrounds";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useAllDeities } from "@/composables/deities/useDeities";
 import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import type { PartyMember } from "@/types/party.types";
 
 const { member, isOwner } = defineProps<{ member: PartyMember; isOwner: boolean }>();

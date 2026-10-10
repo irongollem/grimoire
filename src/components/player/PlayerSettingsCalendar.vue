@@ -42,8 +42,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
 import { IconAddEvent, IconCheck, IconCopy } from "@/lib/icons";
 import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";

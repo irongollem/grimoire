@@ -14,7 +14,7 @@
 // elsewhere (structure derivation, dirty tracking) keeps working unchanged.
 
 import { computed, customRef, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
-import type { AppInputHandle } from "@/components/common/fieldVariants";
+import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import type { Tool } from "@/cartographer/tools";
 import { pinchOf, pinchViewport, zoomAtPoint, type Pinch, type Viewport } from "@/cartographer/viewport";
 import { resolveKeyAction } from "@/cartographer/keymap";

@@ -100,7 +100,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
-import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
 import type { RollResult } from "@/lib/dice/dice";
 import type { SaveEntry } from "@/rules/characterChecks";

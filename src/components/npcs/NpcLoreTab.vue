@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import RichTextEditor from '@/components/common/RichTextEditor.vue'
+import RichTextEditor from '@/components/common/richtext/RichTextEditor.vue'
 import { useEntityMentionItems } from '@/composables/notes/useEntityMentionItems'
 
 // NPC lore is a DM-only surface (this tab is never mounted from /play), so the

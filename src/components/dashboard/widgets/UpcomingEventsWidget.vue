@@ -82,8 +82,8 @@ import { useCalendarUiStore } from "@/stores/ui/calendar";
 import { useCalendarStore } from "@/stores/calendar";
 import { nextUpcomingEvents, formatDaysUntil, type CalendarToday } from "@/lib/calendar/upcoming";
 import { eventColor, type CalendarEvent, type CalendarEventType } from "@/types/calendar.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 
 /**

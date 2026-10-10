@@ -178,7 +178,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import LevelUpChoices from "@/components/features/LevelUpChoices.vue";
 import type { ChoiceValue } from "@/components/features/choiceValue";
 import LevelUpClassPicker from "./LevelUpClassPicker.vue";

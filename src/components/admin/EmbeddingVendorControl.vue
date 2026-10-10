@@ -75,8 +75,8 @@
 // instead of merely caught after the fact.
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/admin/useAdminProviders";
 import { useConfirm } from "@/composables/useConfirm";
 import { useEmbeddingBackfill } from "@/composables/admin/useEmbeddingBackfill";

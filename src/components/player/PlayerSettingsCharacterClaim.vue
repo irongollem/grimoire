@@ -57,8 +57,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconCheck, IconUser } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { useParty } from "@/composables/party/useParty";

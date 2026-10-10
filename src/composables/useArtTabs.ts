@@ -1,5 +1,5 @@
 import { computed, ref } from "vue";
-import type { ImageVariant } from "@/components/common/EntityImageBlock.vue";
+import type { ImageVariant } from "@/components/common/entity/EntityImageBlock.vue";
 
 /**
  * The Picture / Cutout tab over one `EntityImageBlock` (#917).

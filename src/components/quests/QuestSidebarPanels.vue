@@ -81,7 +81,7 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import { IconAdd, IconChevronRight } from "@/lib/icons";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { QuestStatus } from "@/types/quest.types";
 

@@ -231,7 +231,7 @@ A DM can hand a campaign to any other member from **Settings → Danger Zone**
 (`src/components/campaign/TransferOwnershipPanel.vue`). They pick the new DM from the
 member list, optionally tick *"Leave the campaign as well"*, and type the campaign name
 to confirm — the same gate the delete flow uses, shared via
-`src/components/common/ConfirmByNameInput.vue`. If any monsters or traps are scoped
+`src/components/common/controls/ConfirmByNameInput.vue`. If any monsters or traps are scoped
 exclusively to the campaign, a radio group makes them choose what happens to their
 originals: keep globally, move to another campaign they own (a picker appears; the
 option is hidden when they own no other campaign), or delete. The choice is typed as

@@ -37,7 +37,7 @@ import { computed, ref } from "vue";
 import { useTrackerStates, useApplyTrackerDelta } from "@/composables/dashboard/useTrackerState";
 import { useRules } from "@/composables/rules/useRules";
 import { trackerInitialValue } from "@/lib/rules/trackerValue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { DmButton } from "@/types/rule.types";
 
 const props = defineProps<{

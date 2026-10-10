@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import RestDialog from "@/components/player/RestDialog.vue";
 import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/party/useParty";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";

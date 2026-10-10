@@ -70,13 +70,13 @@ import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import type { BeatFillContext } from "@/lib/quests/beatFill";
 import type { QuestBeatFilled } from "@/ai/useQuestBeatFill";
 import type { QuestBeat } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import QuestBeatFillBar from "@/components/quests/QuestBeatFillBar.vue";
-import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
-import MentionTextarea from "@/components/common/MentionTextarea.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
+import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 
 // `fillContext` is the quest's flow around this beat, supplied by the page that

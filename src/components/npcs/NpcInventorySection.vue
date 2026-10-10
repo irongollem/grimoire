@@ -71,8 +71,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconDelete, IconLoot } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/items/useNpcInventory";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";

@@ -29,8 +29,8 @@
  */
 import { computed } from "vue";
 import type { RouteLocationRaw } from "vue-router";
-import SettingsSection from "@/components/common/SettingsSection.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useChildAccount } from "@/composables/account/useChildAccount";
 import { isUnsafeAccountEmail } from "@/lib/accountLabel";

@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import SpellDetailView from "./SpellDetailView.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import type { Spell } from "@/types/spell.types";
 
 const mocks = vi.hoisted(() => ({

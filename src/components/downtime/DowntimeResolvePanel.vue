@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import DowntimeActivityCard from "./DowntimeActivityCard.vue";
 import { getDowntimeActivity } from "@/data/downtimeActivities";
 import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
@@ -13,7 +13,7 @@ import { useDowntimeGeneration } from "@/ai/useDowntimeGeneration";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import type { AiProvenance } from "@/ai/provenance";
 import type { DowntimeDeckBack, DowntimeDraw, DowntimeEffect, DrawResult } from "@/types/downtime.types";

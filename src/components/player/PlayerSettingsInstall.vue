@@ -29,8 +29,8 @@
 <script setup lang="ts">
 import { IconDownload } from "@/lib/icons";
 import { usePwaInstall } from "@/composables/usePwaInstall";
-import AppButton from "@/components/common/AppButton.vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
 
 const { canInstall, hasNativePrompt, install } = usePwaInstall();
 </script>

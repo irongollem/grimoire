@@ -49,8 +49,8 @@
  * that turns a bare `user_id` into a name) and `timeAgo`.
  */
 import { computed, type Component } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import type { ButtonTone, ButtonEmphasis } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import type { ButtonTone, ButtonEmphasis } from "@/components/common/controls/appButtonVariants";
 import { IconLoot, IconScan, IconShieldCheck } from "@/lib/icons";
 import { timeAgo } from "@/lib/utils";
 import { useToast } from "@/composables/useToast";

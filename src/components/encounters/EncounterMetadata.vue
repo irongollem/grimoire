@@ -43,8 +43,8 @@
 </template>
 
 <script setup lang="ts">
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 
 const {
   name,

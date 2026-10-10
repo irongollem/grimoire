@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { reactive, ref, defineComponent, h } from "vue";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import SpeciesList from "./SpeciesList.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { Species } from "@/types/species.types";
 
 /** A valid-looking uuid (matches `isUuid`'s v4 pattern) for a custom row. */
@@ -93,7 +93,7 @@ vi.mock("@/composables/useToast", () => ({
 // this file assert the props SpeciesList hands it and drive its `copied`
 // event (#598). species carries no enforce_quota trigger, so unlike
 // MonsterList there is no quota-exceeded path to cover here.
-vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
+vi.mock("@/components/common/overlays/CopyToCampaignDialog.vue", () => ({
   default: defineComponent({
     name: "CopyToCampaignDialog",
     props: ["open", "table", "ids", "label", "labelPlural"],

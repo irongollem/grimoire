@@ -125,8 +125,8 @@ import { useToast } from "@/composables/useToast";
 import type { CampaignUpdate } from "@/types/campaign.types";
 import RulesetPicker from "@/components/rules/RulesetPicker.vue";
 import RulesEditionMismatchList from "@/components/campaign/RulesEditionMismatchList.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 
 const allRules = listOptionalRules();
 const { data: campaignRules } = useOptionalRules();

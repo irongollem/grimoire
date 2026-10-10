@@ -37,7 +37,7 @@
 import type { QuestRuntimeStatus } from "@/types/quest.types";
 import type { QuestRunBranchChoice } from "@/lib/quests/run";
 import type { ThreadBadge } from "@/lib/quests/threads";
-import MobileSheet from "@/components/common/MobileSheet.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";
 
 defineProps<{

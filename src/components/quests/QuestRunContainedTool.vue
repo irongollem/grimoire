@@ -142,10 +142,10 @@ import { releaseAudioTheme, requestAudioCue } from "@/lib/audio/audioTriggers";
 import type { QuestBeatAttachmentSummary, QuestCheckAttachmentMetadata } from "@/types/quest.types";
 import type { Sound } from "@/types/sound.types";
 import { IconDice } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityLightbox from "@/components/common/EntityLightbox.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityLightbox from "@/components/common/overlays/EntityLightbox.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import HandoutShareControl from "@/components/scriptorium/HandoutShareControl.vue";
 import ScriptoriumDocumentView from "@/components/scriptorium/ScriptoriumDocumentView.vue";
 

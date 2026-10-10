@@ -107,9 +107,9 @@ import type { Item, ItemIndexEntry } from "@/types/item.types";
 import { formatWeightLb, parseWeightLb } from "@/lib/utils";
 import ItemRow from "./ItemRow.vue";
 import ItemRowMenu, { type MoveTarget } from "./ItemRowMenu.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import type { AppInputHandle } from "@/components/common/fieldVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import { inventoryItemRef, contentItemIds, holderItemIds } from "@/lib/itemRef";
 
 const props = defineProps<{

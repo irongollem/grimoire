@@ -63,10 +63,10 @@
 </template>
 
 <script setup lang="ts">
-import WizardStepCard from "@/components/common/WizardStepCard.vue";
-import CalloutChip from "@/components/common/CalloutChip.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
+import WizardStepCard from "@/components/common/wizard/WizardStepCard.vue";
+import CalloutChip from "@/components/common/feedback/CalloutChip.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 
 const {
   hitDie,

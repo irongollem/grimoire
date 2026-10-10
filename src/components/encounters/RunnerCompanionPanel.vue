@@ -31,7 +31,7 @@
 import { computed } from "vue";
 import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
-import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import type { Companion } from "@/types/companion.types";
 import type { RunCombatant } from "@/types/encounter.types";

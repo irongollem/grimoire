@@ -103,9 +103,9 @@ import {
 } from "@/composables/useImageUpload";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import { formatChatTimestamp } from "@/lib/utils";
-import AppButton from "@/components/common/AppButton.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import type { Item, ItemEntry } from "@/types/item.types";
 
 const {

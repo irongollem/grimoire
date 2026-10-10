@@ -106,7 +106,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconArchive, IconChevronDown, IconChevronRight, IconComment, IconHand, IconUser } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";

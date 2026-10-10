@@ -36,7 +36,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAddUser, IconBug, IconCoins, IconDocument, IconGridView, IconLibrary, IconParty, IconSettings, IconShieldCheck, IconTag } from "@/lib/icons";
-import TabBar from "@/components/common/TabBar.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
 import AdminPlansTab     from "@/components/admin/AdminPlansTab.vue";
 import AdminUsersTab     from "@/components/admin/AdminUsersTab.vue";
 import AdminInvitesTab   from "@/components/admin/AdminInvitesTab.vue";

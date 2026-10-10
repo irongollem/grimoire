@@ -78,9 +78,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";
-import EntityGridCard from "@/components/common/EntityGridCard.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
 import { IconEdit } from "@/lib/icons";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { SCHOOL_BG, spellLevelLabel, spellLevelOrdinal } from "@/types/spell.types";

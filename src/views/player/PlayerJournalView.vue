@@ -226,20 +226,20 @@
 </template>
 
 <script setup lang="ts">
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLocation, IconLock, IconMessage, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
-import TabBar from "@/components/common/TabBar.vue";
-import SortControl from "@/components/common/SortControl.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
+import SortControl from "@/components/common/controls/SortControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import { useRecordDraft } from "@/composables/useRecordDraft";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import PlayerJournalMyTab from "./PlayerJournalMyTab.vue";
 import PlayerJournalPartyTab from "./PlayerJournalPartyTab.vue";
 import PlayerJournalDmNotesTab from "./PlayerJournalDmNotesTab.vue";
@@ -278,7 +278,7 @@ import { usePlayerEntityMentionItems } from "@/composables/player/usePlayerEntit
 import type { NoteCategory } from "@/types/notes.types";
 import { useAuthStore } from "@/stores/auth";
 import { useMemberByUserId } from "@/composables/campaign/useCampaignMembers";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
 
 // ── Mention items ─────────────────────────────────────────────────────────────

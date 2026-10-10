@@ -165,11 +165,11 @@ import { usePopulateRollTables } from "@/composables/dungeon-features/useRollTab
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import { useCampaignStore } from "@/stores/campaign";
-import PageHeader from "@/components/common/PageHeader.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import TabBar from "@/components/common/TabBar.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
 
 import DungeonCraftFeaturesTab from "@/components/dungeon-features/DungeonCraftFeaturesTab.vue";
 import DungeonCraftTrapsTab from "@/components/dungeon-features/DungeonCraftTrapsTab.vue";

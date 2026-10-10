@@ -321,9 +321,9 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import { useKeyedRecordDrafts } from "@/composables/admin/useKeyedRecordDrafts";
 import { useAdminKeys, PROVIDERS } from "@/composables/admin/useAdminKeys";
 import type { KeyProvider } from "@/composables/admin/useAdminKeys";

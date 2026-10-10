@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import HearthNextSession from "@/components/player/hearth/HearthNextSession.vue";
 import HearthSection from "@/components/player/hearth/HearthSection.vue";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";

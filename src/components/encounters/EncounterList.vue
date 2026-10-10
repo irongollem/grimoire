@@ -130,7 +130,7 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconCheckDouble, IconLock, IconMonster, IconNavEncounters, IconParty } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useRunningEncounters } from "@/composables/encounters/useEncounterLive";
 import { DIFFICULTY_COLORS } from "@/types/encounter.types";
@@ -146,11 +146,11 @@ import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useEncounterQuestLinks } from "@/composables/quests/useQuests";
 import { useEncountersInRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useEncountersUiStore } from "@/stores/ui/encounters";
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 
 const router = useRouter();

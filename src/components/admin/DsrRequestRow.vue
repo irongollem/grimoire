@@ -71,8 +71,8 @@
  * which is the whole reason this table does not cascade.
  */
 import { computed, onUnmounted, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import {
   DSR_OUTCOME_LABELS,
   DSR_OUTCOMES,

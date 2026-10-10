@@ -79,8 +79,8 @@
 
 <script setup lang="ts">
 import { IconDelete, IconGenerate, IconSave, IconScrollText } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import EntitySendMenu from "@/components/common/EntitySendMenu.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntitySendMenu from "@/components/common/entity/EntitySendMenu.vue";
 
 defineProps<{
   hasSpell: boolean;

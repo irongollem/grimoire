@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import HearthSection from "@/components/player/hearth/HearthSection.vue";
 import type { PartyEntry } from "@/components/player/people/peopleParty";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";

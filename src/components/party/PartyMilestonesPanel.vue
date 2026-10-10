@@ -65,8 +65,8 @@
 import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconClose } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import { timeAgo } from "@/lib/utils";

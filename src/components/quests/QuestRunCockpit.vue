@@ -237,11 +237,11 @@ import { rankQuestJumpTargets, soleOpenOutgoingEdgeId, type RankedQuestJumpTarge
 import { threadBadge, threadTone } from "@/lib/quests/threads";
 import type { QuestBeatAttachmentSummary, QuestRuntimeCommand } from "@/types/quest.types";
 import { IconClipboard, IconClock, IconLinkAlt, IconPackage } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DockBar from "@/components/common/DockBar.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import QuestThreadBar from "./QuestThreadBar.vue";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 import QuestFoldRow from "./QuestFoldRow.vue";

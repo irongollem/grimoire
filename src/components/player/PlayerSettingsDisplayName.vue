@@ -28,9 +28,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconCheck, IconSave } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";

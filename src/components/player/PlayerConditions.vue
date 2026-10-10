@@ -103,8 +103,8 @@ import {
   setExhaustionLevel,
   isExhaustion,
 } from "@/rules/conditions";
-import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { deathSaveRollOutcome, dyingStatus } from "@/rules/dying";
 

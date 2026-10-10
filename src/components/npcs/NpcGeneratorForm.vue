@@ -231,7 +231,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { IconGenerate } from "@/lib/icons";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
 import type { NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
@@ -240,11 +240,11 @@ import { NPC_FACTION_ROLES } from "@/types/faction.types";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import type { Location } from "@/types/location.types";
 

@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import DiceResult from "@/components/common/DiceResult.vue";
+import DiceResult from "@/components/common/dice/DiceResult.vue";
 
 export interface CheckResult {
   total: number;

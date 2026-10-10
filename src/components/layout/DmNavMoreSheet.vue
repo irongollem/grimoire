@@ -132,8 +132,8 @@
 <script setup lang="ts">
 import { computed, ref, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
@@ -165,7 +165,7 @@ const emit = defineEmits<{ "update:open": [boolean] }>();
 // weight. Latched rather than mirrored so a half-typed report survives a
 // close/reopen, exactly as the always-mounted version did.
 const BugReportModal = defineAsyncComponent(
-  () => import("@/components/common/BugReportModal.vue"),
+  () => import("@/components/common/overlays/BugReportModal.vue"),
 );
 
 const bugReportOpen = ref(false);

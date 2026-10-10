@@ -215,7 +215,7 @@
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useIsMobile } from '@/composables/useBreakpoint'
@@ -225,7 +225,7 @@ import { markEdited } from '@/ai/provenance'
 import { deepEqual } from '@/lib/utils'
 import { useRecordDraft, cloneDraftValue } from '@/composables/useRecordDraft'
 import { emptyDefenses } from '@/types/statBlock.types'
-import DraftConflictNotice from '@/components/common/DraftConflictNotice.vue'
+import DraftConflictNotice from '@/components/common/feedback/DraftConflictNotice.vue'
 import type { NpcAiGenerated } from '@/ai/types'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/npcs/useNpcs'
 import { useCampaignMessages } from '@/composables/campaign/useCampaignMessages'
@@ -250,16 +250,16 @@ import NpcEditMobile from '@/components/npcs/NpcEditMobile.vue'
 import type { Npc, NpcInsert, StatBlock } from '@/types/npc.types'
 import type { Monster } from '@/types/monster.types'
 import { useCampaignStore } from '@/stores/campaign'
-import EntityCombobox from '@/components/common/EntityCombobox.vue'
-import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
-import PaywallModal from '@/components/common/PaywallModal.vue'
-import CopyToCampaignDialog from '@/components/common/CopyToCampaignDialog.vue'
+import EntityCombobox from '@/components/common/controls/EntityCombobox.vue'
+import PlayerNotesWidget from '@/components/player/PlayerNotesWidget.vue'
+import PaywallModal from '@/components/common/overlays/PaywallModal.vue'
+import CopyToCampaignDialog from '@/components/common/overlays/CopyToCampaignDialog.vue'
 import { useCopyEntityToCampaign } from '@/composables/campaign/useCopyEntityToCampaign'
 import { isQuotaExceeded } from '@/lib/quotaError'
 import { getNpcDisplayName, getNpcPlayerFacingName, NPC_UNNAMED_IN_PROSE } from '@/lib/npcDisplay'
-import TabBar from '@/components/common/TabBar.vue'
+import TabBar from '@/components/common/controls/TabBar.vue'
 import DmNoteBox from '@/components/notes/DmNoteBox.vue'
-import StatBlockEditor from '@/components/common/StatBlockEditor.vue'
+import StatBlockEditor from '@/components/common/statblock/StatBlockEditor.vue'
 
 const { confirm, notify } = useConfirm();
 const showPaywall = ref(false);

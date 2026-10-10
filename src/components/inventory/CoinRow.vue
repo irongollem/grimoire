@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconAdd, IconMinus } from '@/lib/icons';
 
 const props = defineProps<{ label: string; symbol: string; color: string; value: number }>();

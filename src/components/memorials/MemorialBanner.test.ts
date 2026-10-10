@@ -13,7 +13,7 @@ vi.mock("@/composables/memorials/useMemorials", () => ({
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: confirmFn }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: () => "x" }) }));
-vi.mock("@/components/common/FocalImage.vue", () => ({ default: { template: "<div />" } }));
+vi.mock("@/components/common/media/FocalImage.vue", () => ({ default: { template: "<div />" } }));
 
 function memorial(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial {
   return {

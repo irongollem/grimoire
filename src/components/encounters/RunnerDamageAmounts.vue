@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import AppInput from "@/components/common/AppInput.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import type { AppliedPart } from "@/rules/combat/typedDamage";
 import type { EditableAmount } from "@/components/encounters/runnerResolve";
 

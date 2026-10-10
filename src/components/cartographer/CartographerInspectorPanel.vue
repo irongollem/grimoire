@@ -268,12 +268,12 @@
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref } from "vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import type { AppInputHandle } from "@/components/common/fieldVariants";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 
 const CAVE_RADIUS_OPTIONS = [3, 5, 7, 9].map((size) => ({ value: size, label: String(size) }));
 

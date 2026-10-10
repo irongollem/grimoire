@@ -76,10 +76,10 @@
  * toast rather than being pre-validated client-side.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
 import PlacementRow from "@/components/locations/PlacementRow.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { IconClose } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useToast } from "@/composables/useToast";

@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import DowntimeResolvePanel from "@/components/downtime/DowntimeResolvePanel.vue";
 import DeckBacksPanel from "@/components/downtime/DeckBacksPanel.vue";
 import DowntimeOutcomeVignette from "@/components/downtime/DowntimeOutcomeVignette.vue";
 import GrantDowntimeButton from "@/components/downtime/GrantDowntimeButton.vue";
-import RuleDisabledNotice from "@/components/common/RuleDisabledNotice.vue";
+import RuleDisabledNotice from "@/components/common/feedback/RuleDisabledNotice.vue";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import { useParty } from "@/composables/party/useParty";
 import { useActiveParty } from "@/composables/party/useActiveParty";

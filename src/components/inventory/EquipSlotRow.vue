@@ -25,7 +25,7 @@
  * well is 2.75rem tall, a fingertip.
  */
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 
 const {

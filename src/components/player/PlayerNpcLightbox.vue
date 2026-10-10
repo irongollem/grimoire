@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import EntityLightbox from "@/components/common/EntityLightbox.vue";
+import EntityLightbox from "@/components/common/overlays/EntityLightbox.vue";
 import PlayerNpcProfile from "@/components/player/people/PlayerNpcProfile.vue";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import type { PlayerNpc } from "@/types/npc.types";

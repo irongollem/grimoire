@@ -89,8 +89,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconChevronRight } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import {
   BLEND_MODES,
   BLEND_MODE_LABELS,

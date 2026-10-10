@@ -35,8 +35,8 @@
  * ghost button, which is the recipe-in-a-class-string this sweep exists to remove.
  */
 import { IconCast } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import type { ButtonSize, ButtonVariant } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import type { ButtonSize, ButtonVariant } from "@/components/common/controls/appButtonVariants";
 import { useCast } from "@/composables/soundboard/useCast";
 
 const { variant = "ghost", size = "icon-2xs" } = defineProps<{

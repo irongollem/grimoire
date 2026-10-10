@@ -35,7 +35,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import QuestConvergeControl from "./QuestConvergeControl.vue";
 import { IconDungeon, IconReveal } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";

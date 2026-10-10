@@ -27,8 +27,8 @@
 
 <script setup lang="ts">
 import { IconFeather } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import { useReadItems } from "@/composables/player/useReadItems";
 import type { Item } from "@/types/item.types";
 

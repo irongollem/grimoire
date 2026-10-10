@@ -76,7 +76,7 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import type { EdgeTreatmentOptions } from "@/lib/illuminate/edgeTreatment";
 
 const EDGE_KEYS = ["top", "right", "bottom", "left"] as const;

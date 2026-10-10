@@ -185,7 +185,7 @@ import { IconPlay, IconPause, IconStop, IconSkipBack, IconSkipForward, IconEdit,
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useActiveAudioTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
 import type { PlaylistTrackWithSound, SoundboardPlaylist } from "@/types/sound.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import CastButton from "./CastButton.vue";
 import CausedByChip from "./CausedByChip.vue";
 

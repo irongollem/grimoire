@@ -71,12 +71,12 @@
  */
 import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
-import AppButton from "@/components/common/AppButton.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import LibraryFocalQueueViewer from "@/components/admin/LibraryFocalQueueViewer.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useLibraryFocalQueue } from "@/composables/library/useLibraryFocalQueue";
 import { useAdminUiStore } from "@/stores/ui/admin";
