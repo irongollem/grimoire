@@ -40,7 +40,8 @@ as $$
            coalesce(own.image_url, can.image_url, lm.image_url) as image_url,
            coalesce(own.portrait_focal_point, can.portrait_focal_point, lm.portrait_focal_point) as portrait_focal_point,
            null::timestamptz as created_at,
-           0 as origin
+           0 as origin,
+           lm.id as lib_id, null::uuid as own_id
       from public.library_monsters lm
       left join public.library_monster_art_canonical can on can.entry_id = lm.id
       left join public.library_monster_art own on own.entry_id = lm.id and own.user_id = auth.uid()
@@ -50,7 +51,8 @@ as $$
     select m.id::text as id, m.name, m.size, m.monster_type, m.habitat, m.source, m.source_title,
            false as is_shared, m.tags, m.image_url, m.portrait_focal_point,
            m.created_at,
-           1 as origin
+           1 as origin,
+           null::text as lib_id, m.id as own_id
       from public.monsters m
      where m.user_id = auth.uid()
        and not m.open5e_import
@@ -77,17 +79,13 @@ as $$
   ),
   -- The stat summary is read for the page's rows only. `filtered` is used twice
   -- (the page and the totals), so it is materialised, and reading the stat
-  -- block there unpacked it for every monster in scope on every page.
+  -- block there unpacked it for every monster in scope on every page. Each row
+  -- carries its key typed for its own table, so the join needs no cast.
   paged as (
-    select p.*, sb -> 'challenge_rating' as challenge_rating, sb -> 'armor_class' as armor_class,
-           sb -> 'hit_points' as hit_points
+    select p.*, coalesce(lm.stat_block, m.stat_block) as sb
       from page p
-      cross join lateral (
-        select case when p.is_shared
-                    then (select lm.stat_block from public.library_monsters lm where lm.id = p.id)
-                    else (select m.stat_block from public.monsters m where m.id = p.id::uuid)
-               end as sb
-      ) s
+      left join public.library_monsters lm on lm.id = p.lib_id
+      left join public.monsters m on m.id = p.own_id
   )
   select jsonb_build_object(
     'rows', coalesce((
@@ -95,7 +93,8 @@ as $$
                'id', id, 'name', name, 'size', size, 'monster_type', monster_type, 'habitat', habitat,
                'source', source, 'source_title', source_title, 'is_shared', is_shared, 'tags', tags,
                'image_url', image_url, 'portrait_focal_point', portrait_focal_point,
-               'challenge_rating', challenge_rating, 'armor_class', armor_class, 'hit_points', hit_points)
+               'challenge_rating', sb -> 'challenge_rating', 'armor_class', sb -> 'armor_class',
+               'hit_points', sb -> 'hit_points')
              order by lower(name), name, origin, id)
         from paged), '[]'::jsonb)
   ) || case when greatest(p_offset, 0) = 0 then jsonb_build_object(

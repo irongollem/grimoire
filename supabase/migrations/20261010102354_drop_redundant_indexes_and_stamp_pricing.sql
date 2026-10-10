@@ -7,6 +7,12 @@
 -- uniqueness. Checked against production's pg_index on 10 Oct 2026, not the
 -- migration history.
 
+-- A drop holds ACCESS EXCLUSIVE until commit, and one of these tables is
+-- campaign_members, which every membership check in RLS reads. Waiting behind a
+-- long reader would queue the whole app behind this migration, so it gives up
+-- instead and the deploy can be retried.
+set local lock_timeout = '5s';
+
 -- Exact duplicates: identical columns, operator class and predicate.
 drop index if exists public.app_invites_token_idx;              -- app_invites_token_key (unique constraint)
 drop index if exists public.campaign_invites_token_idx;         -- campaign_invites_token_key (unique constraint)
