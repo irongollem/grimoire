@@ -89,9 +89,9 @@
         tone="danger"
         size="xs"
         :tooltip="action.description"
-        :disabled="actionCost(action.name) > (legendary.legendary_actions_remaining ?? 0)"
+        :disabled="actionCost(action) > (legendary.legendary_actions_remaining ?? 0)"
         @click="fireLegendaryAction(legendary.instance_id, legendary.name, action)"
-      ><span>{{ action.name }}<span v-if="actionCost(action.name) > 1" class="ml-1 text-muted-foreground">(×{{ actionCost(action.name) }})</span></span></AppButton>
+      ><span>{{ action.name }}<span v-if="actionCost(action) > 1" class="ml-1 text-muted-foreground">(×{{ actionCost(action) }})</span></span></AppButton>
     </div>
   </div>
 </template>
@@ -102,6 +102,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import AppButton from "@/components/common/AppButton.vue";
+import type { StatBlockEntry } from "@/types/statBlock.types";
 
 const store = useEncounterRunStore();
 // Chat posting is best-effort from the runner — sendSystemMessage no-ops
@@ -141,16 +142,12 @@ function getLegendaryActions(monsterId: string | undefined) {
   return monster?.stat_block?.legendary_actions ?? [];
 }
 
-/**
- * Parse "(Costs 2 Actions)" from an action name and return the cost.
- * 5e monster stat blocks encode cost in the action name, per MM.
- */
-function actionCost(name: string): number {
-  const match = name.match(/costs (\d+) actions?/i);
-  return match ? parseInt(match[1], 10) : 1;
+/** How many of the pool a legendary action spends; unstated means one. */
+function actionCost(action: StatBlockEntry): number {
+  return action.structured.legendary_cost ?? 1;
 }
 
-async function fireLairAction(action: { name: string; description: string }) {
+async function fireLairAction(action: StatBlockEntry) {
   const owner = store.combatants.find((c) => c.instance_id === store.lairOwnerInstanceId);
   if (!owner) return;
   store.markLairFired();
@@ -159,8 +156,8 @@ async function fireLairAction(action: { name: string; description: string }) {
   );
 }
 
-async function fireLegendaryAction(instanceId: string, name: string, action: { name: string; description: string }) {
-  const cost = actionCost(action.name);
+async function fireLegendaryAction(instanceId: string, name: string, action: StatBlockEntry) {
+  const cost = actionCost(action);
   const spent = store.spendLegendaryActions(instanceId, cost);
   if (spent === 0) return;
   await sendSystemMessage(`uses legendary action: ${action.name}`, `⚔ ${name}`).catch((e) =>

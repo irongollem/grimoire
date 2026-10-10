@@ -10,6 +10,12 @@
 // (src/types/monster.types.ts) is enforced at the door rather than tolerated by
 // every reader.
 //
+// A client may send either form (#1017): the prose form (the four modifier
+// strings, entries of {name, description}) or the stored form a `get` returned
+// (a `defenses` object, entries that also carry `structured`). This file only
+// proves the shape is structurally sound; whether a structure is *true* to its
+// prose is the parser's prose check, run by `structureStatBlock` on write.
+//
 // Presence is not checked — a name-only stub is a legitimate monster — only the
 // type of each key that is sent.
 
@@ -46,6 +52,49 @@ const ENTRY_LIST_KEYS = [
   "legendary_actions",
   "lair_actions",
 ];
+
+const ACTION_KINDS = ["attack", "save", "multiattack", "other"];
+const ACTION_SOURCES = ["parsed", "extracted", "manual"];
+const DEFENSE_LISTS = ["resistances", "immunities", "vulnerabilities"] as const;
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function isStringArray(v: unknown): boolean {
+  return Array.isArray(v) && v.every((x) => typeof x === "string");
+}
+
+/** Structural check of a stored `defenses` object; null when it conforms. */
+function defensesProblem(d: unknown): string | null {
+  if (!isRecord(d)) return `defenses must be an object, not ${kindOf(d)}.`;
+  for (const key of DEFENSE_LISTS) {
+    const list = d[key];
+    if (!Array.isArray(list)) return `defenses.${key} must be an array, not ${kindOf(list)}.`;
+    const bad = list.findIndex((e) => !isRecord(e) || !isStringArray(e.types));
+    if (bad !== -1) return `defenses.${key}[${bad}] must be {types: string[]}.`;
+  }
+  if (!isStringArray(d.condition_immunities)) return "defenses.condition_immunities must be an array of strings.";
+  if ("notes" in d && typeof d.notes !== "string") return "defenses.notes must be a string.";
+  return null;
+}
+
+/** Structural check of an entry's stored `structured` payload; null when it conforms. */
+function structuredProblem(s: unknown): string | null {
+  if (!isRecord(s)) return `must be an object, not ${kindOf(s)}.`;
+  if (typeof s.kind !== "string" || !ACTION_KINDS.includes(s.kind)) {
+    return `kind must be one of: ${ACTION_KINDS.join(", ")}.`;
+  }
+  if (typeof s.source !== "string" || !ACTION_SOURCES.includes(s.source)) {
+    return `source must be one of: ${ACTION_SOURCES.join(", ")}.`;
+  }
+  for (const key of ["attack", "save", "recharge", "uses"]) {
+    if (key in s && !isRecord(s[key])) return `${key} must be an object, not ${kindOf(s[key])}.`;
+  }
+  if ("multiattack" in s && !Array.isArray(s.multiattack)) return "multiattack must be an array.";
+  if ("legendary_cost" in s && typeof s.legendary_cost !== "number") return "legendary_cost must be a number.";
+  return null;
+}
 
 function kindOf(v: unknown): string {
   if (v === null) return "null";
@@ -93,6 +142,16 @@ export function monsterStatBlockProblem(sb: object): string | null {
         typeof (e as Record<string, unknown>).description !== "string",
     );
     if (bad !== -1) return `${key}[${bad}] must be {name, description} with string values.`;
+    for (const [i, e] of list.entries()) {
+      const entry = e as Record<string, unknown>;
+      if (entry.structured === undefined) continue;
+      const problem = structuredProblem(entry.structured);
+      if (problem) return `${key}[${i}].structured ${problem}`;
+    }
+  }
+  if ("defenses" in block) {
+    const problem = defensesProblem(block.defenses);
+    if (problem) return problem;
   }
   return null;
 }

@@ -15,6 +15,7 @@
 //     signed upload, and a bare URL write would let a caller point an entity at
 //     any object it likes. `get_image` reads art; writing it stays in the UI.
 
+import { structureStatBlock, type ProseStatBlockFields } from "../../../../src/rules/statBlock/structureStatBlock.ts";
 import { monsterStatBlockProblem } from "./statBlockShape.ts";
 
 /**
@@ -59,6 +60,12 @@ export interface FieldDef {
    * readers depend on leaf types the generic check cannot see.
    */
   check?: (value: object) => string | null;
+  /**
+   * Rewrites a `json` value after `check` passes and before it is written. For a
+   * payload that is stored in a derived form the client need not (or cannot) send:
+   * the monster stat block arrives as prose and is stored structured (#1017).
+   */
+  transform?: (value: object) => object;
   /** Short hint surfaced in the tool description. */
   description?: string;
 }
@@ -449,8 +456,13 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
           shape:
             "{armor_class#,hit_points,speed,str#,dex#,con#,int#,wis#,cha#,challenge_rating}",
           check: monsterStatBlockProblem,
+          // Prose in, structured out: the shape check above proved the fields'
+          // types, and the parser's prose check decides what each action's
+          // structure may claim. A `structured`/`defenses` the client sends back
+          // from `get` is kept where it still holds.
+          transform: (value) => structureStatBlock(value as ProseStatBlockFields),
           description:
-            'hit_points is a dice expression ("8d8+16"), challenge_rating a string ("5", "1/2"). Optional: saving_throws as ONE string ("Dex +6, Wis +3"), skills as {"perception": "+3", "sleight_of_hand": "+6"}, senses, languages, damage_resistances/immunities/vulnerabilities and condition_immunities as comma-separated strings ("charmed, frightened"), special_abilities/actions/bonus_actions/reactions/legendary_actions/lair_actions (each [{name,description}]). Omitted = an empty stat block.',
+            'hit_points is a dice expression ("8d8+16"), challenge_rating a string ("5", "1/2"). Optional: saving_throws as ONE string ("Dex +6, Wis +3"), skills as {"perception": "+3", "sleight_of_hand": "+6"}, senses, languages, damage_resistances/immunities/vulnerabilities and condition_immunities as comma-separated strings ("charmed, frightened"), special_abilities/actions/bonus_actions/reactions/legendary_actions/lair_actions (each [{name,description}]). Send PROSE: the server reads the attack bonus of each action, damage, save DC and recharge out of its description and stores the structured form, and turns the four modifier strings into a `defenses` object. A stat block read back with `get` (entries with `structured`, a `defenses` object) may be sent as it is; those are preserved where they still match the description. Omitted = an empty stat block.',
         },
         description: { type: "text" },
         notes: { type: "text", description: "DM-facing tactics and lair notes." },

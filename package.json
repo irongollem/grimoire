@@ -54,6 +54,8 @@
     "backfill:image-provenance": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/backfill-image-provenance.ts",
     "dev:demo": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/dev-demo-campaign.ts",
     "dev:campaigns": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/dev-campaigns.ts",
+    "stat-blocks:structure": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/stat-blocks/structure-stat-blocks.ts",
+    "stat-blocks:release": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/stat-blocks/release.ts",
     "dev:library": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/dev-library.ts",
     "dev:import-fixture": "tsx --tsconfig tsconfig.node.json scripts/dev-import-fixture.ts",
     "perf": "tsx --tsconfig tsconfig.node.json scripts/perf/run.ts",

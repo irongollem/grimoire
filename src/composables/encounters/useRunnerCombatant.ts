@@ -5,6 +5,7 @@ import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useArmorClass } from "@/composables/party/useArmorClass";
+import { effectiveArmorClass } from "@/lib/encounters/actionTargeting";
 import {
   getExhaustionLevel,
   setExhaustionLevel,
@@ -72,11 +73,8 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
 
   const displayAc = computed((): string => {
     const c = combatant.value;
-    if (c.type === "player") {
-      const m = partyMap.value.get(c.party_member_id ?? "");
-      if (m) return m.wildshape_state?.beast_ac ?? String(acFor(m));
-    }
-    return c.wildshape?.beast_ac ?? c.ac;
+    const m = c.type === "player" ? partyMap.value.get(c.party_member_id ?? "") : undefined;
+    return effectiveArmorClass(c, m ? { ac: acFor(m), beastAc: m.wildshape_state?.beast_ac ?? null } : undefined);
   });
 
   const displayConditions = computed((): string[] => {

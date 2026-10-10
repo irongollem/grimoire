@@ -4,7 +4,7 @@ import { setNextRollMode } from "@/composables/dice/useNextRollMode";
 import { useWildshapeForm } from "@/composables/party/useWildshapeForm";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RollResult } from "@/components/common/RollToast.vue";
-import { combineModes, type RollMode } from "@/lib/dice/roller";
+import { combineModes, type RollMode } from "@/lib/dice/dice";
 import { effectiveAbilityScores, savingThrowEntries } from "@/rules/characterChecks";
 import {
   getExhaustionD20Penalty,

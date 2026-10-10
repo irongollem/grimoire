@@ -108,22 +108,7 @@
           <span class="field-label">Skills</span>
           <AppInput v-model="skillsText" tone="filled" size="body" placeholder="Perception +3, Stealth +5" />
         </label>
-        <label class="block">
-          <span class="field-label">Damage Vulnerabilities</span>
-          <AppInput v-model="sb.damage_vulnerabilities" tone="filled" size="body" placeholder="bludgeoning" />
-        </label>
-        <label class="block">
-          <span class="field-label">Damage Resistances</span>
-          <AppInput v-model="sb.damage_resistances" tone="filled" size="body" placeholder="fire, cold" />
-        </label>
-        <label class="block">
-          <span class="field-label">Damage Immunities</span>
-          <AppInput v-model="sb.damage_immunities" tone="filled" size="body" placeholder="poison, psychic" />
-        </label>
-        <label class="block">
-          <span class="field-label">Condition Immunities</span>
-          <AppInput v-model="sb.condition_immunities" tone="filled" size="body" placeholder="charmed, exhaustion" />
-        </label>
+        <StatBlockDefenseFields v-model="sb.defenses" />
         <label class="block">
           <span class="field-label">Senses</span>
           <AppInput v-model="sb.senses" tone="filled" size="body" placeholder="darkvision 60 ft., passive Perception 13" />
@@ -138,10 +123,10 @@
 
       <!-- Trait sections -->
       <section class="flex flex-col gap-4">
-        <TraitSection v-model="sb.special_abilities" label="Special Abilities" />
-        <TraitSection v-model="sb.actions" label="Actions" />
-        <TraitSection v-model="sb.bonus_actions" label="Bonus Actions" />
-        <TraitSection v-model="sb.reactions" label="Reactions" />
+        <StatBlockEntrySection v-model="sb.special_abilities" label="Special Abilities" list="special_abilities" :siblings="siblings" />
+        <StatBlockEntrySection v-model="sb.actions" label="Actions" list="actions" :siblings="siblings" />
+        <StatBlockEntrySection v-model="sb.bonus_actions" label="Bonus Actions" list="bonus_actions" :siblings="siblings" />
+        <StatBlockEntrySection v-model="sb.reactions" label="Reactions" list="reactions" :siblings="siblings" />
       </section>
 
       <!-- Legendary -->
@@ -161,12 +146,12 @@
             @focus="($event.target as HTMLInputElement).select()"
           />
         </label>
-        <TraitSection v-model="sb.legendary_actions" label="Legendary Actions" />
+        <StatBlockEntrySection v-model="sb.legendary_actions" label="Legendary Actions" list="legendary_actions" :siblings="siblings" />
       </section>
 
       <!-- Lair -->
       <section v-if="showLair">
-        <TraitSection v-model="sb.lair_actions" label="Lair Actions" />
+        <StatBlockEntrySection v-model="sb.lair_actions" label="Lair Actions" list="lair_actions" :siblings="siblings" />
       </section>
 
       <!-- Spellcasting -->
@@ -189,7 +174,8 @@ import AppInput from "@/components/common/AppInput.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
 import SpeedGrid from "@/components/common/SpeedGrid.vue";
 import SpellcastingSection from "@/components/common/SpellcastingSection.vue";
-import TraitSection from "@/components/npcs/TraitSection.vue";
+import StatBlockDefenseFields from "@/components/common/StatBlockDefenseFields.vue";
+import StatBlockEntrySection from "@/components/common/StatBlockEntrySection.vue";
 import type { MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 
@@ -202,6 +188,13 @@ const { sb } = defineProps<{
 }>();
 
 defineOptions({ inheritAttrs: false });
+
+/** Names across every list, so a Multiattack can be checked against the actions it names. */
+const siblings = computed(() =>
+  [sb.special_abilities, sb.actions, sb.bonus_actions, sb.reactions, sb.legendary_actions, sb.lair_actions].flatMap(
+    (list) => (list ?? []).map((e) => e.name),
+  ),
+);
 
 const skillsText = computed({
   get: () => skillsToString(sb.skills),

@@ -34,11 +34,7 @@
         @roll-ability="(_, label, mod) => emit('roll-check', mod, label + ' Check')"
         @roll-save="(_, label, bonus) => emit('roll-check', bonus, label + ' Save')"
       />
-      <RunnerTraitSection
-        :sections="wildshapeTraitSections"
-        @roll-attack="(bonus, name) => emit('roll-attack', bonus, name)"
-        @roll-damage="(desc, name) => emit('roll-damage', desc, name)"
-      />
+      <RunnerActionList :combatant="combatant" :sections="wildshapeActionSections" />
     </template>
   </template>
 
@@ -123,7 +119,8 @@
 import { ref, computed } from "vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import type { SaveEntry } from "@/rules/characterChecks";
-import RunnerTraitSection from "@/components/encounters/RunnerTraitSection.vue";
+import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
+import { listedSaveBonus, saveBonusFromStatBlock } from "@/rules/combat/savingThrow";
 import type { PartyMember } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
@@ -141,8 +138,6 @@ const { combatant, member, monsters } = defineProps<{
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];
-  "roll-attack": [bonus: number, name: string];
-  "roll-damage": [desc: string, name: string];
   "revert-wildshape": [];
   "enter-wildshape": [monster: Monster];
 }>();
@@ -240,15 +235,6 @@ function abilityMod(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
-function parseSaveString(s: string): Record<string, number> {
-  const result: Record<string, number> = {};
-  for (const part of s.split(",")) {
-    const m = part.trim().match(/^(\w+)\s+([+-]\d+)$/);
-    if (m) result[m[1].toLowerCase()] = Number(m[2]);
-  }
-  return result;
-}
-
 const wildshapeScores = computed(() => {
   const sb = wildshapeMonster.value?.stat_block;
   return {
@@ -259,24 +245,25 @@ const wildshapeScores = computed(() => {
 
 const wildshapeSaves = computed<Record<string, SaveEntry>>(() => {
   const sb = wildshapeMonster.value?.stat_block;
-  const parsed = sb?.saving_throws ? parseSaveString(sb.saving_throws) : {};
   return Object.fromEntries(
     ABILITY_KEYS.map((s) => {
       const base = abilityMod(sb?.[s.key] ?? 10);
-      return [s.key, { bonus: parsed[s.key] ?? base, proficient: s.key in parsed }];
+      const bonus = sb ? saveBonusFromStatBlock(sb, s.key) : base;
+      // Proficient means the stat block prints this save, whatever its number.
+      return [s.key, { bonus, proficient: sb ? listedSaveBonus(sb, s.key) !== null : false }];
     }),
   );
 });
 
-const wildshapeTraitSections = computed(() => {
+const wildshapeActionSections = computed(() => {
   const sb = wildshapeMonster.value?.stat_block;
   if (!sb) return [];
   return [
-    { label: "Special Abilities", traits: sb.special_abilities },
-    { label: "Actions", traits: sb.actions },
-    { label: "Bonus Actions", traits: sb.bonus_actions },
-    { label: "Reactions", traits: sb.reactions },
-    { label: "Legendary Actions", traits: sb.legendary_actions },
+    { label: "Special Abilities", list: "special_abilities" as const, entries: sb.special_abilities },
+    { label: "Actions", list: "actions" as const, entries: sb.actions },
+    { label: "Bonus Actions", list: "bonus_actions" as const, entries: sb.bonus_actions },
+    { label: "Reactions", list: "reactions" as const, entries: sb.reactions },
+    { label: "Legendary Actions", list: "legendary_actions" as const, entries: sb.legendary_actions },
   ];
 });
 </script>

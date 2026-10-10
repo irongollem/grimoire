@@ -81,8 +81,6 @@
       :member="member"
       :monsters="monsters"
       @roll-check="(mod, label) => emit('roll-check', mod, label)"
-      @roll-attack="(bonus, name) => emit('roll-attack', bonus, name)"
-      @roll-damage="(desc, name) => emit('roll-damage', desc, name)"
       @revert-wildshape="store.revertWildshape(combatant.instance_id)"
       @enter-wildshape="handleWildshape"
     />

@@ -162,6 +162,21 @@ export interface WildshapeState {
   beast_ac: string;      // AC of the beast
 }
 
+/**
+ * How often one limited ability (a stat-block entry with a recharge or a
+ * per-day count) has been used this fight. Keyed on the combatant by the entry's
+ * printed name. DM-only: players never see which of a monster's abilities are
+ * spent.
+ */
+export interface ActionUse {
+  /** Times used since it last recharged (or since the fight began). */
+  used: number;
+  /** "Recharge 5-6": a spent ability rolls a d6 at the start of its owner's turn. */
+  recharge?: { min: number; max: number };
+  /** "3/Day": exhausted once `used` reaches this. Never resets during combat. */
+  per_day?: number;
+}
+
 // Live combatant during a run (ephemeral — not stored in DB)
 export interface RunCombatant {
   instance_id: string;      // unique: "m-{defId}-{index}" or "p-{memberId}"
@@ -228,6 +243,8 @@ export interface RunCombatant {
   // players — who don't have access to the monsters table — render Large+
   // tokens at the correct footprint.
   footprint?: number;
+  // Limited abilities (recharge, N/day) used so far, keyed by the entry's printed name.
+  action_uses?: Record<string, ActionUse>;
 }
 
 // ── XP / CR tables (D&D 5e) ──────────────────────────────────────────────────

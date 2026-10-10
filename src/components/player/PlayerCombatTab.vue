@@ -70,21 +70,58 @@
             <div v-for="action in section.entries" :key="action.name" class="px-4 py-3">
               <div class="flex items-start justify-between gap-2 mb-1.5">
                 <span class="text-body text-foreground font-semibold">{{ action.name }}</span>
-                <AppButton
-                  v-if="parseBeastAttackBonus(action.description) !== null"
-                  variant="subtle"
-                  fill="muted"
-                  size="md"
-                  class="shrink-0"
-                  v-roll-mode="(mode: RollMode | null) => rollBeastAttack(action.name, parseBeastAttackBonus(action.description)!, mode)"
-                >
-                  <IconSword class="h-3 w-3 text-muted-foreground" />
-                  <span class="text-label-lg text-foreground">Attack</span>
-                  <span class="text-label-lg " :class="parseBeastAttackBonus(action.description)! >= 0 ? 'text-elven-green' : 'text-destructive'">
-                    {{ signedNum(parseBeastAttackBonus(action.description)!) }}
+                <div class="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
+                  <span v-if="structuredSaveLabel(action.structured)" class="text-label text-muted-foreground">
+                    {{ structuredSaveLabel(action.structured) }}
                   </span>
-                  <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
-                </AppButton>
+                  <AppButton
+                    v-if="action.attackBonus !== null"
+                    variant="subtle"
+                    fill="muted"
+                    size="md"
+                    class="shrink-0"
+                    v-roll-mode="(mode: RollMode | null) => rollEntryAttack(action, mode)"
+                  >
+                    <IconSword class="h-3 w-3 text-muted-foreground" />
+                    <span class="text-label-lg text-foreground">Attack</span>
+                    <span class="text-label-lg " :class="action.attackBonus >= 0 ? 'text-elven-green' : 'text-destructive'">
+                      {{ signedNum(action.attackBonus) }}
+                    </span>
+                    <span v-if="attackBadgeLabel" class="text-label text-ink-caution">{{ attackBadgeLabel }}</span>
+                  </AppButton>
+                  <AppButton
+                    v-if="beastDamage(action.structured)"
+                    variant="subtle"
+                    fill="muted"
+                    size="md"
+                    class="shrink-0"
+                    :label="`Damage ${beastDamage(action.structured)?.label}`"
+                    @click="rollBeastDamage(action.name, action.structured)"
+                  />
+                </div>
+              </div>
+              <div v-if="structuredOptionEntries(action.structured).length" class="flex flex-col gap-1.5 mb-1.5">
+                <div
+                  v-for="opt in structuredOptionEntries(action.structured)"
+                  :key="opt.name"
+                  class="flex items-center justify-between gap-2"
+                >
+                  <span class="text-caption text-foreground">{{ opt.name }}</span>
+                  <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                    <span v-if="structuredSaveLabel(opt.structure)" class="text-label text-muted-foreground">
+                      {{ structuredSaveLabel(opt.structure) }}
+                    </span>
+                    <AppButton
+                      v-if="beastDamage(opt.structure)"
+                      variant="subtle"
+                      fill="muted"
+                      size="md"
+                      class="shrink-0"
+                      :label="`Damage ${beastDamage(opt.structure)?.label}`"
+                      @click="rollBeastDamage(`${action.name}: ${opt.name}`, opt.structure)"
+                    />
+                  </div>
+                </div>
               </div>
               <p class="text-caption text-muted-foreground leading-relaxed">{{ action.description }}</p>
             </div>
@@ -289,8 +326,9 @@
 import { computed, ref, watch } from "vue";
 import { IconHide, IconLightning, IconReveal, IconSend, IconSword } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
-import { rollParsed, combineModes } from "@/lib/dice/roller";
-import type { RollMode, DieSize } from "@/lib/dice/roller";
+import { rollParsed } from "@/lib/dice/roller";
+import { combineModes, parsedToCounts } from "@/lib/dice/dice";
+import type { RollMode } from "@/lib/dice/roller";
 import type { ParsedExpression } from "@/lib/dice/dice";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerItemProjection } from "@/composables/items/useItems";
@@ -323,6 +361,9 @@ import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { PlayerVisibleMonster } from "@/types/monster.types";
+import type { ActionStructure, StatBlockEntry } from "@/types/statBlock.types";
+import { combineDamageParts, structuredAttackBonus, structuredDamageParts, structuredOptionEntries, structuredSaveLabel } from "@/lib/statBlock/structuredRolls";
+import type { CombinedDamage } from "@/lib/statBlock/structuredRolls";
 import {
   signedNum,
   weaponAbilityMod as libWeaponAbilityMod,
@@ -541,20 +582,30 @@ const improvisedAttackMod = computed(() => libImprovisedAttackMod(props.member.s
 const beastActionSections = computed(() => {
   const sb = props.wildshapeMonster?.stat_block;
   if (!sb) return [];
+  // The bonus is read once per entry so the template's `v-if` narrows it to a number.
+  const withBonus = (list: StatBlockEntry[] | undefined) =>
+    (list ?? []).map((entry) => ({ ...entry, attackBonus: structuredAttackBonus(entry.structured) }));
   return [
-    { label: "Actions",       entries: sb.actions       ?? [] },
-    { label: "Bonus Actions", entries: sb.bonus_actions ?? [] },
-    { label: "Reactions",     entries: sb.reactions     ?? [] },
+    { label: "Actions",       entries: withBonus(sb.actions) },
+    { label: "Bonus Actions", entries: withBonus(sb.bonus_actions) },
+    { label: "Reactions",     entries: withBonus(sb.reactions) },
   ];
 });
 
-/** Extracts the attack bonus from a beast action description, e.g. "+4 to hit" → 4 */
-function parseBeastAttackBonus(desc: string): number | null {
-  const m = desc.match(/\+(\d+)\s+to\s+hit/i);
-  if (m) return parseInt(m[1], 10);
-  const m2 = desc.match(/-(\d+)\s+to\s+hit/i);
-  if (m2) return -parseInt(m2[1], 10);
-  return null;
+function beastDamage(structure: ActionStructure): CombinedDamage | null {
+  return combineDamageParts(structuredDamageParts(structure));
+}
+
+function rollBeastDamage(name: string, structure: ActionStructure) {
+  const damage = beastDamage(structure);
+  if (!damage) return;
+  return rollDamageLabelled(damage.parsed, 0, `${name} · Damage`);
+}
+
+/** The roll-mode callback is a closure, which the template's `v-if` does not narrow; check here. */
+function rollEntryAttack(entry: { name: string; attackBonus: number | null }, mode: RollMode | null) {
+  if (entry.attackBonus === null) return;
+  void rollBeastAttack(entry.name, entry.attackBonus, mode);
 }
 
 async function rollBeastAttack(name: string, bonus: number, override: RollMode | null = null) {
@@ -630,19 +681,8 @@ async function rollThrowAttack(inv: PartyInventoryItem, item: Item | null, overr
   await throwWeapon(inv, item, props.member.name);
 }
 
-function parsedToCounts(parsed: ParsedExpression): Partial<Record<DieSize, number>> {
-  const counts: Partial<Record<DieSize, number>> = {};
-  for (const t of parsed.terms) {
-    if ([4, 6, 8, 10, 12, 20, 100].includes(t.sides)) {
-      const k = t.sides as DieSize;
-      counts[k] = (counts[k] ?? 0) + t.count;
-    }
-  }
-  return counts;
-}
-
 async function rollDamageLabelled(parsed: ParsedExpression, mod: number, label: string) {
-  const counts = parsedToCounts(parsed);
+  const counts = parsedToCounts(parsed.terms);
   if (Object.keys(counts).length === 0) {
     const { total: diceTotal, breakdown } = rollParsed(parsed);
     const total = diceTotal + mod;

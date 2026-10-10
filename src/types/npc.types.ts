@@ -1,4 +1,5 @@
 import type { AiProvenance } from "@/ai/provenance";
+import type { MonsterStatBlock } from "@/types/monster.types";
 import type { SuggestedRelationshipType } from "@edge-shared/npcRelationshipSuggestions.ts";
 
 export type NpcStatus = "alive" | "dead" | "missing" | "unknown";
@@ -148,37 +149,12 @@ export interface SpellcastingBlock {
   entries: SpellcastingEntry[];
 }
 
-export interface StatBlock {
-  armor_class: number;
-  hit_points: string; // pure dice expr, e.g. "8d8+16"
-  speed: string; // e.g. "30 ft."
-  str: number;
-  dex: number;
-  con: number;
-  int: number;
-  wis: number;
-  cha: number;
-  challenge_rating: string; // e.g. "5" or "1/2"
-  proficiency_bonus?: number; // e.g. 3 (overrides CR-derived default)
-  // 2024 stat blocks print a flat "Initiative +N" derived from DEX + proficiency
-  // (and sometimes more). Absent/null means "derive from DEX mod" (2014 behavior).
-  initiative_bonus?: number | null;
-  saving_throws?: string; // e.g. "Con +5, Wis +3"
-  skills?: Record<string, string>;
-  damage_vulnerabilities?: string;
-  damage_resistances?: string;
-  damage_immunities?: string;
-  condition_immunities?: string;
-  senses?: string;
-  languages?: string;
-  special_abilities?: Array<{ name: string; description: string }>;
-  actions?: Array<{ name: string; description: string }>;
-  bonus_actions?: Array<{ name: string; description: string }>;
-  reactions?: Array<{ name: string; description: string }>;
-  legendary_actions?: Array<{ name: string; description: string }>;
-  lair_actions?: Array<{ name: string; description: string }>;
-  spellcasting?: SpellcastingBlock;
-}
+/**
+ * An NPC's combat stat block. The same shape as a monster's: one type, so the
+ * runner, the editor and the structured-action parser (#1017) never have to
+ * know which table a block came from.
+ */
+export type StatBlock = MonsterStatBlock;
 
 export interface Npc {
   id: string;

@@ -16,6 +16,7 @@ import { useCreateMonster } from "@/composables/monsters/useMonsters";
 import { useCampaignStore } from "@/stores/campaign";
 import { useMonsterGeneration, type MonsterGenerationOptions } from "@/ai/useMonsterGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { structureStatBlock } from "@/rules/statBlock/structureStatBlock";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 
 export interface GenerateMonsterOutcome {
@@ -75,7 +76,8 @@ export function useGenerateMonster() {
       image_url: result.image_url ?? null,
       cutout_url: null, // AI generation doesn't produce a cutout (#917 story 1 — art layers only)
       portrait_focal_point: null,
-      stat_block: result.stat_block,
+      // The model writes prose; code structures it (#1017).
+      stat_block: structureStatBlock(result.stat_block),
       ai_provenance: result.ai_provenance ?? null,
     });
 

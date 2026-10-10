@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildRunCombatants, legendaryActionCaps, type RunCombatantSources } from "./buildRunCombatants";
 import type { CombatantDef } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
+import { emptyDefenses } from "@/types/statBlock.types";
 
 const CAMPAIGN = "campaign-here";
 const OTHER_CAMPAIGN = "campaign-elsewhere";
@@ -13,6 +14,7 @@ function statBlock(overrides: Partial<Monster["stat_block"]> = {}): Monster["sta
     speed: "30 ft.",
     str: 10, dex: 14, con: 12, int: 6, wis: 10, cha: 8,
     challenge_rating: "1/2",
+    defenses: emptyDefenses(),
     ...overrides,
   };
 }
@@ -246,7 +248,7 @@ describe("legendaryActionCaps", () => {
   it("caps only the combatants whose stat block declares legendary actions", () => {
     const boss = monster({
       id: "m-lich",
-      stat_block: statBlock({ legendary_actions: [{ name: "Cantrip", description: "…" }] }),
+      stat_block: statBlock({ legendary_actions: [{ name: "Cantrip", description: "…", structured: { kind: "other", source: "manual" } }] }),
     });
     const combatants = buildRunCombatants(sources({
       encounter: {

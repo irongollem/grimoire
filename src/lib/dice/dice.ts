@@ -61,6 +61,20 @@ export interface RollResult {
 
 export const ALL_DICE: DieSize[] = [4, 6, 8, 10, 12, 20, 100];
 
+/**
+ * Combine two roll modes per 5e RAW: any advantage + any disadvantage cancel to
+ * normal, regardless of how many of each. Used to merge a player-chosen mode
+ * (from the long-press / right-click picker) with a condition-imposed one.
+ */
+export function combineModes(a: RollMode, b: RollMode): RollMode {
+  const adv = a === "advantage" || b === "advantage";
+  const dis = a === "disadvantage" || b === "disadvantage";
+  if (adv && dis) return "normal";
+  if (adv) return "advantage";
+  if (dis) return "disadvantage";
+  return "normal";
+}
+
 export function rollDie(sides: number): number {
   return Math.floor(Math.random() * sides) + 1;
 }
