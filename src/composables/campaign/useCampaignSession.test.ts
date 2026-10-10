@@ -1,7 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const rpc = vi.fn();
-vi.mock("@/lib/supabase", () => ({ supabase: { rpc: (...args: unknown[]) => rpc(...args) } }));
+// The open session the log read returns: refetchCampaignSession asks for the
+// campaign's one started, unended row.
+let openRow: CampaignSession | null = null;
+const sessionRead = {
+  select: () => sessionRead,
+  eq: () => sessionRead,
+  not: () => sessionRead,
+  is: () => sessionRead,
+  maybeSingle: () => Promise.resolve({ data: openRow, error: null }),
+};
+vi.mock("@/lib/supabase", () => ({
+  supabase: { rpc: (...args: unknown[]) => rpc(...args), from: () => sessionRead },
+}));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "campaign-1" }) }));
 vi.mock("@/composables/campaign/useCampaignBroadcast", () => ({ sendCampaignAnnouncement: vi.fn() }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({ QUEST_RUNTIME_QUERY_KEYS: [] }));
@@ -9,22 +21,26 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({ QUEST_RUNTIME_QUERY_KEYS: 
 import { createPinia, setActivePinia } from "pinia";
 import { useUiStore } from "@/stores/ui";
 import {
-  adoptLoggedSession,
   dropLoggedSession,
   ensureCampaignSession,
   formatSessionElapsed,
   isSessionStale,
+  refetchCampaignSession,
   STALE_SESSION_HOURS,
 } from "./useCampaignSession";
 import type { CampaignSession } from "@/types/session.types";
 
-beforeEach(() => {
+/** Reads the live session the way a ring or a reconcile does. */
+async function readSession(open: CampaignSession | null): Promise<void> {
+  openRow = open;
+  await refetchCampaignSession("campaign-1");
+}
+
+beforeEach(async () => {
   setActivePinia(createPinia());
   rpc.mockReset();
-  // Clear the module's live session through the real API: adopt a throwaway
-  // open row, then drop it.
-  adoptLoggedSession(row({ id: "reset", started_at: "2026-01-01T00:00:00Z", ended_at: null }));
-  dropLoggedSession("reset");
+  // Clear the module's live session through the real API: the log has no open row.
+  await readSession(null);
 });
 
 const AT = (iso: string) => Date.parse(iso);
@@ -114,26 +130,24 @@ describe("isSessionStale", () => {
 });
 
 describe("the live session is the open log row", () => {
-  it("adopts an open row and mirrors it as running", () => {
-    adoptLoggedSession(row({ id: "s15", number: 15 }));
+  it("adopts an open row and mirrors it as running", async () => {
+    await readSession(row({ id: "s15", number: 15 }));
     expect(useUiStore().sessionRunning).toBe(true);
   });
 
-  it("clears when the adopted row is closed, and ignores edits to past sessions", () => {
-    adoptLoggedSession(row({ id: "s15", number: 15 }));
-    adoptLoggedSession(row({ id: "s14", number: 14, ended_at: "2026-09-01T22:00:00.000Z" }));
-    expect(useUiStore().sessionRunning).toBe(true);
-    adoptLoggedSession(row({ id: "s15", number: 15, ended_at: "2026-10-06T22:00:00.000Z" }));
+  it("clears once the log has no open row", async () => {
+    await readSession(row({ id: "s15", number: 15 }));
+    await readSession(null);
     expect(useUiStore().sessionRunning).toBe(false);
   });
 
-  it("never treats a hand-logged past session as running", () => {
-    adoptLoggedSession(row({ id: "past", started_at: null, played_on: "2026-09-01" }));
+  it("never treats a hand-logged past session as running", async () => {
+    await readSession(row({ id: "past", started_at: null, played_on: "2026-09-01" }));
     expect(useUiStore().sessionRunning).toBe(false);
   });
 
-  it("clears when the open row is deleted", () => {
-    adoptLoggedSession(row({ id: "s15" }));
+  it("clears when the open row is deleted", async () => {
+    await readSession(row({ id: "s15" }));
     dropLoggedSession("someone-else");
     expect(useUiStore().sessionRunning).toBe(true);
     dropLoggedSession("s15");
@@ -143,7 +157,7 @@ describe("the live session is the open log row", () => {
 
 describe("ensureCampaignSession", () => {
   it("reuses the open session without calling the database", async () => {
-    adoptLoggedSession(row({ id: "s15" }));
+    await readSession(row({ id: "s15" }));
     expect(await ensureCampaignSession("campaign-1")).toEqual({ id: "s15", started: false });
     expect(rpc).not.toHaveBeenCalled();
   });

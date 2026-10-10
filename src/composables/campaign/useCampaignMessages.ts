@@ -1,7 +1,7 @@
 import { itemRefColumns } from "@/lib/itemRef";
 import { ref, computed, watch, effectScope } from "vue";
 import { supabase } from "@/lib/supabase";
-import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
+import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -22,14 +22,12 @@ const messages = ref<CampaignMessage[]>([]);
 const loading  = ref(false);
 const loadingOlder = ref(false);
 const hasOlder = ref(false);
-let realtimeChannel: RealtimeChannelHandle | null = null;
+let stopListening: (() => void) | null = null;
 let subscribedCampaignId: string | null = null;
 let generation = 0; // incremented each subscribe(); callbacks ignore stale gens
-let reconnectAttempts = 0;
 let latestFetchId = 0;
 let deletedMessageIds = new Set<string>();
 let oldestCursor: Pick<CampaignMessage, "created_at" | "id"> | null = null;
-const MAX_RECONNECT = 5;
 
 // ── Closed-chat cost (#999) ────────────────────────────────────────────────────
 // The chat is mounted on every page so it can raise the unread dot, but until
@@ -71,7 +69,20 @@ function isVisibleToCurrentUser(msg: Pick<CampaignMessage, "type" | "recipient_u
   return msg.recipient_user_id === null || auth.isDM || msg.recipient_user_id === uid || msg.user_id === uid;
 }
 
-async function fetchMessages(campaignId: string, expectedGeneration = generation, resetPagination = false) {
+/**
+ * After a ring, drop loaded rows that the newest window no longer contains.
+ * Only rows at or after the window's oldest entry can be judged (older ones are
+ * simply outside it); a short page means the window holds everything.
+ */
+function dropVanished(page: CampaignMessage[]) {
+  const inPage = new Set(page.map((m) => m.id));
+  const oldest = page.length === LIMIT ? page[page.length - 1] : null;
+  messages.value = messages.value.filter(
+    (m) => inPage.has(m.id) || (oldest !== null && compareMessages(m, oldest) < 0),
+  );
+}
+
+async function fetchMessages(campaignId: string, expectedGeneration = generation, resetPagination = false, prune = false) {
   if (expectedGeneration !== generation || campaignId !== subscribedCampaignId) return;
   const fetchId = ++latestFetchId;
   loading.value = true;
@@ -102,6 +113,7 @@ async function fetchMessages(campaignId: string, expectedGeneration = generation
           : null;
         hasOlder.value = page.length === LIMIT;
       }
+      if (prune) dropVanished(page);
       mergeMessages(page);
     }
   } catch {
@@ -139,11 +151,11 @@ async function fetchProbe(campaignId: string, expectedGeneration = generation) {
 
 /** Read whatever the current state calls for: the full window once the list has
  *  been wanted, the narrow unread probe until then. */
-function refresh(campaignId: string, gen: number, resetPagination = false) {
+function refresh(campaignId: string, gen: number, resetPagination = false, prune = false) {
   if (historyWanted) {
     historyLoadedFor = campaignId;
     unreadProbe.value = [];
-    void fetchMessages(campaignId, gen, resetPagination);
+    void fetchMessages(campaignId, gen, resetPagination, prune);
   } else {
     void fetchProbe(campaignId, gen);
   }
@@ -196,10 +208,18 @@ async function loadOlder() {
   }
 }
 
+/**
+ * Listen for the campaign's rings (the doorbell, #999 4.2) instead of a channel
+ * of our own. A ring names the table, never the row, so the answer to "something
+ * changed in chat" is a read of the newest window: one request per ring, which
+ * replaces the old per-row INSERT/UPDATE/DELETE payloads. The window is merged
+ * under the loaded list, so older pages the user scrolled back to survive, and
+ * the pruning pass below drops rows another client deleted (a merge alone would
+ * keep them). The channel itself belongs to useCampaignLiveSync, which also
+ * tells us through `onCampaignReconcile` when rings may have been missed.
+ */
 function subscribe(campaignId: string, clearMessages = false) {
-  // stop() detaches recovery listeners before removing the channel, so its
-  // intentional CLOSED status cannot trigger a replacement reconnect.
-  realtimeChannel?.stop();
+  stopListening?.();
   subscribedCampaignId = campaignId;
   const myGen = ++generation;
   if (clearMessages) {
@@ -211,89 +231,22 @@ function subscribe(campaignId: string, clearMessages = false) {
     hasOlder.value = false;
     loadingOlder.value = false;
   }
-  realtimeChannel = createRealtimeChannel({
-    topic: `campaign-messages:${campaignId}`,
-    reconcile: () => {
-      if (myGen === generation && subscribedCampaignId === campaignId) {
-        refresh(campaignId, myGen);
-      }
-    },
-    bind: (channel) => channel
-      .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "campaign_messages", filter: `campaign_id=eq.${campaignId}` },
-      (payload) => {
-        if (myGen !== generation || subscribedCampaignId !== campaignId) return;
-        const msg = payload.new as CampaignMessage;
-        // Replace optimistic entry with the confirmed DB version (which has full JSONB)
-        const existingIdx = messages.value.findIndex(m => m.id === msg.id);
-        if (existingIdx >= 0) {
-          messages.value[existingIdx] = msg;
-          deletedMessageIds.delete(msg.id);
-          return;
-        }
-        if (isVisibleToCurrentUser(msg)) {
-          messages.value.push(msg);
-          messages.value.sort(compareMessages);
-          deletedMessageIds.delete(msg.id);
-        }
-      },
-    )
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "campaign_messages", filter: `campaign_id=eq.${campaignId}` },
-      (payload) => {
-        if (myGen !== generation || subscribedCampaignId !== campaignId) return;
-        const updated = payload.new as CampaignMessage;
-        const idx = messages.value.findIndex(m => m.id === updated.id);
-        if (idx >= 0) {
-          // An UPDATE payload omits any column Postgres left unchanged and
-          // stored out-of-line (TOAST) — `message` is free text and
-          // `metadata` is jsonb, so either can qualify (e.g. a claim-state
-          // edit to `metadata` that leaves a long `message` untouched). Merge
-          // over the cached message rather than trusting the payload as
-          // complete.
-          messages.value[idx] = { ...messages.value[idx], ...updated };
-          deletedMessageIds.delete(updated.id);
-        }
-      },
-    )
-    .on(
-      "postgres_changes",
-      { event: "DELETE", schema: "public", table: "campaign_messages", filter: `campaign_id=eq.${campaignId}` },
-      (payload) => {
-        if (myGen !== generation || subscribedCampaignId !== campaignId) return;
-        const deletedId = (payload.old as { id: string }).id;
-        deletedMessageIds.add(deletedId);
-        messages.value = messages.value.filter(m => m.id !== deletedId);
-        unreadProbe.value = unreadProbe.value.filter(m => m.id !== deletedId);
-      },
-    ),
-    onStatus: (status) => {
-      // CLOSED fires whenever we call removeChannel() ourselves — ignore it.
-      // Only reconnect on genuine transport errors for the current generation.
-      if (myGen !== generation) return;
-      // A rejoin the transport made on its own (no error surfaced here) still
-      // means missed inserts; the heal turns that into a refetch.
-      if (status === "SUBSCRIBED") {
-        reconnectAttempts = 0;
-        return;
-      }
-      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        if (reconnectAttempts >= MAX_RECONNECT) {
-          return;
-        }
-        reconnectAttempts++;
-        // Exponential backoff: 2s, 4s, 8s … capped at 30s
-        const delay = Math.min(2000 * Math.pow(2, reconnectAttempts - 1), 30_000);
-        setTimeout(async () => {
-          if (!subscribedCampaignId || myGen !== generation) return;
-          subscribe(campaignId);
-          if (subscribedCampaignId === campaignId) refresh(campaignId, generation);
-        }, delay);
-      }
-    },
+  const current = () => myGen === generation && subscribedCampaignId === campaignId;
+  const offRing = onCampaignRing(["campaign_messages"], (ring) => {
+    if (ring.campaignId !== campaignId || !current()) return;
+    // This tab's own sends, claims and deletes already updated the list from
+    // their responses; a refetch would only repeat them.
+    if (ring.own) return;
+    refresh(campaignId, myGen, false, true);
   });
+  const offReconcile = onCampaignReconcile((id) => {
+    if (id !== campaignId || !current()) return;
+    refresh(campaignId, myGen, false, true);
+  });
+  stopListening = () => {
+    offRing();
+    offReconcile();
+  };
 }
 
 // Boot the subscription once when the campaign changes (shared watcher).
@@ -321,12 +274,11 @@ function ensureWatcher() {
   watch(
     () => campaign.activeCampaignId,
     (id) => {
-      reconnectAttempts = 0;
       if (!id) {
         generation++;
         latestFetchId++;
-        realtimeChannel?.stop();
-        realtimeChannel = null;
+        stopListening?.();
+        stopListening = null;
         subscribedCampaignId = null;
         messages.value = [];
         unreadProbe.value = [];

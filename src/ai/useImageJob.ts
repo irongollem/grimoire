@@ -8,7 +8,7 @@ interface ImageJobRow {
 
 /**
  * Waits for an async image_generation_jobs row to settle.
- * Subscribes via Realtime and polls every 4s as a fallback (waitForRow).
+ * Polls the row through waitForRow, at its default interval, until it settles.
  * Resolves with the URL on `ready`, rejects on `failed` or timeout.
  */
 export function waitForImageJob(

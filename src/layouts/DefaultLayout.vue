@@ -121,7 +121,6 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { useDueConsequences } from "@/composables/quests/useDueConsequences";
-import { usePartyLive } from "@/composables/party/useParty";
 import { isOverQuota, useQuota } from "@/composables/billing/useQuota";
 import { initPlaceholderFocalPoints } from "@/lib/placeholderFocalPoints";
 import { afterFirstPaint } from "@/lib/afterFirstPaint";
@@ -195,7 +194,6 @@ const returnTo = computed(() => typeof route.query.returnTo === "string"
 
 useCampaignPresence();
 useCampaignLiveSync();
-usePartyLive();
 
 // Fires any quest consequence whose in-world date has arrived, whichever of
 // the campaign's two "today" writers moved it there (#794).

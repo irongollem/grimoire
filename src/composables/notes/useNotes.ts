@@ -166,9 +166,9 @@ export function useNotes(enabled: () => boolean = () => true) {
 
 /**
  * The newest pinned notes, for the dashboard. The three narrow readers below
- * sit under `["notes", campaignId, ...]`, three or more segments, so the
- * realtime reducer for exact note rows (two segments) leaves them alone and
- * `invalidateNarrowNoteCaches` refetches them on any note change instead.
+ * sit under `["notes", campaignId, ...]`, so a `notes` ring refreshes them with
+ * the rest of the root, and `invalidateNarrowNoteCaches` refetches them on this
+ * tab's own note changes.
  */
 export function usePinnedNotes(limit: number) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());

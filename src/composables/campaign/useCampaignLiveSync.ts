@@ -1,50 +1,33 @@
-// Subscribes to postgres_changes for all shared campaign tables so every
-// connected client (DM + players) sees updates without waiting for stale time.
-// Mounted once in DefaultLayout (DM) and PlayerLayout (players).
-// Uses reference counting so both layouts can call it safely — only one
-// Supabase channel exists at a time.
+// Listens to the campaign's doorbell so every connected client (DM + players)
+// sees updates without waiting for stale time. Mounted once in DefaultLayout
+// (DM) and PlayerLayout (players). Uses reference counting so both layouts can
+// call it safely, and only one Supabase channel exists at a time.
+//
+// The channel is a private Broadcast topic, `doorbellTopic(id)`. The database rings
+// it once per transaction, at commit, with the name of what changed and the tab
+// that changed it, never a row (migration 20261009233206). Each ring is turned
+// into a refetch of the queries that read that signal, so the client reads its
+// own data through its own RLS. This replaced row subscriptions, whose Realtime poller was
+// 91% of all database time (#999 4.2).
 import { watch, onUnmounted } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import {
   createRealtimeChannel,
   type RealtimeChannelHandle,
 } from "@/lib/realtimeChannel";
+import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { adoptLoggedSession, dropLoggedSession, refetchCampaignSession } from "@/composables/campaign/useCampaignSession";
-import type { CampaignSession } from "@/types/session.types";
+import { refetchCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useAuthStore } from "@/stores/auth";
-import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Campaign } from "@/types/campaign.types";
-import { RECONCILE_KEYS, PLAYER_ONLY_SIGNALS, SIGNAL_KEYS, SYNC_TABLES } from "@/lib/campaignLiveSync/registry";
-import { applyCampaignRealtimeWorld } from "@/lib/campaignLiveSync/campaignRealtimeWorld";
-import { DM_NOTE_COLUMN_TABLES, dmNoteColumnKeyForTouch } from "@/lib/dmNotes/registry";
-import { dispatchCampaignRealtimePlayer } from "@/lib/campaignLiveSync/campaignRealtimePlayer";
-import { dispatchCampaignRealtimeSystem } from "@/lib/campaignLiveSync/campaignRealtimeSystems";
+import { RECONCILE_KEYS, SIGNAL_KEYS } from "@/lib/campaignLiveSync/registry";
+import { doorbellTopic, emitCampaignReconcile, emitCampaignRing } from "@/lib/campaignLiveSync/rings";
+import { DM_NOTE_COLUMN_TABLES } from "@/lib/dmNotes/registry";
 
 let activeChannel: RealtimeChannelHandle | null = null;
 let refCount = 0;
 let stopWatcher: (() => void) | null = null;
 let clearPendingInvalidations: (() => void) | null = null;
-
-function sortPartyInventory(items: PartyInventoryItem[]): PartyInventoryItem[] {
-  return items.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
-}
-
-function upsertPartyInventoryItem(
-  items: PartyInventoryItem[] | undefined,
-  item: PartyInventoryItem,
-  isUpdate: boolean,
-): PartyInventoryItem[] | undefined {
-  // Do not create a partial cache before its initial query has loaded.
-  if (!items) return items;
-  const cached = items.find((existing) => existing.id === item.id);
-  // An UPDATE payload omits any column Postgres left unchanged and stored
-  // out-of-line (TOAST) — `notes` is free text and can exceed that threshold.
-  // Merge over the cached item rather than trusting the payload as complete.
-  const merged = isUpdate && cached ? { ...cached, ...item } : item;
-  const withoutItem = items.filter((existing) => existing.id !== item.id);
-  return sortPartyInventory([...withoutItem, merged]);
-}
 
 export function useCampaignLiveSync() {
   const campaign = useCampaignStore();
@@ -61,6 +44,21 @@ export function useCampaignLiveSync() {
     if (activeChannel) { activeChannel.stop(); activeChannel = null; }
   };
 
+  // The campaign row arrives as a ring too, and a ring carries no row, so the
+  // one row is read again and merged into the store's copy and the list cache.
+  const refreshCampaignRow = async (campaignId: string) => {
+    const { data, error } = await supabase.from("campaigns").select("*").eq("id", campaignId).maybeSingle();
+    if (error) throw error;
+    if (!data || campaign.activeCampaignId !== campaignId) return;
+    const updated = data as Campaign;
+    if (campaign.activeCampaign) {
+      campaign.activeCampaign = { ...campaign.activeCampaign, ...updated };
+    }
+    qc.setQueryData<Campaign[]>(["campaigns"], (old) =>
+      old?.map((entry) => entry.id === updated.id ? { ...entry, ...updated } : entry),
+    );
+  };
+
   // Only the first caller sets up the watcher + channel
   if (refCount === 1) {
     const unwatch = watch(
@@ -69,13 +67,11 @@ export function useCampaignLiveSync() {
         teardown();
         if (!campaignId) return;
 
-        const f = `campaign_id=eq.${campaignId}`;
-        // Coalesce bursts of realtime events (bulk reorders, multi-row inserts
-        // emit one event per row) into a single refetch per key — otherwise a
-        // 50-row write storms every connected client with 50 refetches.
+        // Coalesce bursts of rings (a bulk write can ring several signals that
+        // share a key root) into a single refetch per key.
         const pendingKeys = new Set<string>();
         let flushTimer: ReturnType<typeof setTimeout> | null = null;
-        const invalidate = (key: string) => () => {
+        const invalidate = (key: string) => {
           pendingKeys.add(key);
           if (flushTimer) clearTimeout(flushTimer);
           flushTimer = setTimeout(() => {
@@ -92,132 +88,50 @@ export function useCampaignLiveSync() {
         };
 
         // Self-heal: re-derive every synced key from the DB after any gap in the
-        // event stream (socket drop, network loss, a backgrounded tab whose
-        // socket the browser froze). invalidateQueries only refetches ACTIVE
+        // ring stream (socket drop, network loss, a backgrounded tab whose
+        // socket the browser froze). A ring is not replayed, so a missed one is
+        // only recovered here. invalidateQueries only refetches ACTIVE
         // observers, so the cost is bounded to whatever is currently on screen.
         activeChannel = createRealtimeChannel({
-          topic: `campaign_live_sync:${campaignId}`,
+          topic: doorbellTopic(campaignId),
+          isPrivate: true,
           reconcile: () => {
             for (const k of RECONCILE_KEYS) void qc.invalidateQueries({ queryKey: [k] });
-            // Not a query, so invalidation cannot reach it — re-read the row.
+            // Not queries, so invalidation cannot reach them: re-read directly.
             void refetchCampaignSession(campaignId);
+            void refreshCampaignRow(campaignId);
+            emitCampaignReconcile(campaignId);
           },
-          bind: (initialChannel) => {
-            let channel = initialChannel;
-            for (const [table, key] of SYNC_TABLES) {
-              channel = channel.on("postgres_changes", { event: "*", schema: "public", table, filter: f }, (payload) => {
-                if (campaign.activeCampaignId !== campaignId) return;
-                // A DM note column rides on the entity's own row; whatever the
-                // reducers below do with that row, the open note re-reads.
-                if (DM_NOTE_COLUMN_TABLES.has(table)) {
-                  const row = (payload.new ?? payload.old) as { id?: string } | null;
-                  if (row?.id) void qc.invalidateQueries({ queryKey: ["dm-note", table, row.id] });
-                }
-                // The DM's own touch names the note they just saved, which
-                // reaches their other device even where the entity's table is
-                // not on this channel (dmNoteColumnKeyForTouch).
-                if (table === "dm_note_touches") {
-                  const touch = payload.new as { entity_type?: string; entity_id?: string } | null;
-                  const key = touch?.entity_type && touch.entity_id
-                    ? dmNoteColumnKeyForTouch(touch.entity_type, touch.entity_id)
-                    : null;
-                  if (key) void qc.invalidateQueries({ queryKey: key });
-                }
-                const change = {
-                  eventType: payload.eventType,
-                  new: payload.new,
-                  old: payload.old,
-                };
-                const context = {
-                  campaignId,
-                  currentUserId: auth.user?.id ?? null,
-                  isDM: auth.isDM,
-                };
-                const handled = applyCampaignRealtimeWorld(qc, table, change as never, context)
-                  || dispatchCampaignRealtimePlayer(qc, context, table, change as never)
-                  || dispatchCampaignRealtimeSystem(qc, table, change as never, context);
-                if (!handled) invalidate(key)();
-              });
+          bind: (channel) => channel.on("broadcast", { event: "ring" }, ({ payload }) => {
+            if (campaign.activeCampaignId !== campaignId) return;
+            const ring = emitCampaignRing(campaignId, payload);
+            // This tab's own request caused it, and its own mutation already
+            // refreshed what it changed. Refetching a record mid-autosave is
+            // exactly what that skip avoids.
+            if (!ring || ring.own) return;
+            const { table } = ring;
+
+            // A DM note column rides on the entity's own row, and a ring names
+            // no row, so every open note of that table re-reads.
+            if (DM_NOTE_COLUMN_TABLES.has(table)) void qc.invalidateQueries({ queryKey: ["dm-note", table] });
+            // A DM's touch restamps whatever note they just saved, which
+            // reaches their other device where the entity's own table is not
+            // a signal. The touch names no note here, so all of them re-read.
+            if (table === "dm_note_touches") void qc.invalidateQueries({ queryKey: ["dm-note"] });
+
+            // The live session (#758) is the one open row of the session log. It
+            // feeds a store rather than a query, so it is re-read, and the log
+            // list with it. Players cannot read the table; they refetch their
+            // projection through the keys below.
+            if (table === "campaign_sessions") {
+              void qc.invalidateQueries({ queryKey: ["campaign-sessions"] });
+              if (auth.isDM) void refetchCampaignSession(campaignId);
             }
-            return channel
-              // The doorbell (migration 20260904230420). Every subscription here
-              // is filtered on campaign_id, and Realtime matches that filter
-              // against the changed row — which, for a DELETE on an RLS table, is
-              // trimmed to the primary key before it is sent. No campaign_id in
-              // the payload means no match, so *no delete has ever arrived* on
-              // any of these tables; `replica identity full` cannot change it.
-              // A trigger writes the fact of the change to a row that can be
-              // filtered, and this refetches what it names.
-              .on("postgres_changes", { event: "*", schema: "public", table: "campaign_sync", filter: f }, (payload) => {
-                if (campaign.activeCampaignId !== campaignId) return;
-                // INSERT for a campaign's first-ever signal, UPDATE thereafter.
-                const changed = (payload.new as { changed_table?: string } | null)?.changed_table;
-                const keys = changed ? SIGNAL_KEYS.get(changed) : undefined;
-                if (!keys) return;
-                if (changed && auth.isDM && PLAYER_ONLY_SIGNALS.has(changed)) return;
-                for (const key of keys) invalidate(key)();
-              })
-              // Party-inventory events have the exact query shape, so apply every
-              // normal change directly instead of making every player poll.
-              .on("postgres_changes", { event: "INSERT", schema: "public", table: "party_inventory", filter: f }, (payload) => {
-                if (campaign.activeCampaignId !== campaignId) return;
-                const inserted = payload.new as PartyInventoryItem;
-                qc.setQueryData<PartyInventoryItem[]>(["party-inventory", campaignId], (old) =>
-                  upsertPartyInventoryItem(old, inserted, false),
-                );
-              })
-              .on("postgres_changes", { event: "UPDATE", schema: "public", table: "party_inventory", filter: f }, (payload) => {
-                if (campaign.activeCampaignId !== campaignId) return;
-                const updated = payload.new as PartyInventoryItem;
-                qc.setQueryData<PartyInventoryItem[]>(["party-inventory", campaignId], (old) => {
-                  return upsertPartyInventoryItem(old, updated, true);
-                });
-              })
-              // No DELETE handler here on purpose. A filtered delete never
-              // arrives (see the doorbell above), and the doorbell names only the
-              // table, so a removed item is refetched rather than spliced out.
-          // A newly-claimed/crafted item only becomes RLS-visible to a player once
-          // its party_inventory row exists, but the ["items"] query is staleTime:Infinity
-          // and never refetches on its own — so refresh it on any inventory INSERT,
-          // otherwise the item shows no weight/name/stat-block until a full reload.
-              .on("postgres_changes", { event: "INSERT", schema: "public", table: "party_inventory", filter: f }, invalidate("items"))
-          // The live session (#758) is the one open row of the session log. It
-          // feeds a store rather than only a list query, so it gets its own
-          // handler instead of a SYNC_TABLES entry — but it rides this same
-          // subscription, because a second channel per campaign buys nothing.
-              .on("postgres_changes", { event: "*", schema: "public", table: "campaign_sessions", filter: f }, (payload) => {
-                if (campaign.activeCampaignId !== campaignId) return;
-                // The log changed (a number edited, a past session added): the
-                // list re-reads. Any event, whatever it was about.
-                void qc.invalidateQueries({ queryKey: ["campaign-sessions"] });
-                // DELETE cannot reach a campaign_id-filtered subscription at all
-                // (see the doorbell above), so that branch is unreachable today;
-                // it stays because the payload shape must still be handled if the
-                // row ever arrives by another route.
-                if (payload.eventType === "DELETE") {
-                  const gone = payload.old as Partial<CampaignSession>;
-                  if (gone.id) dropLoggedSession(gone.id);
-                  return;
-                }
-                // Only an open row is the live session, and only the row that
-                // closes the adopted one clears it: `adoptLoggedSession` knows.
-                adoptLoggedSession(payload.new as CampaignSession);
-              })
-          // campaigns table uses `id` as the campaign identifier (not campaign_id)
-              .on("postgres_changes", { event: "UPDATE", schema: "public", table: "campaigns", filter: `id=eq.${campaignId}` }, (payload) => {
-                if (campaign.activeCampaignId !== campaignId) return;
-                const updated = payload.new as Campaign;
-                if (updated && campaign.activeCampaign) {
-                  campaign.activeCampaign = {
-                    ...campaign.activeCampaign,
-                    ...updated,
-                  };
-                }
-                qc.setQueryData<Campaign[]>(["campaigns"], (old) =>
-                  old?.map((entry) => entry.id === updated.id ? { ...entry, ...updated } : entry),
-                );
-              });
-          },
+            if (table === "campaigns") void refreshCampaignRow(campaignId);
+
+            const keys = SIGNAL_KEYS.get(table);
+            if (keys) for (const key of keys) invalidate(key);
+          }),
         });
       },
       { immediate: true },

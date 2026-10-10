@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   DM_NOTE_COLUMN_TABLES,
   DM_NOTE_ENTITIES,
-  dmNoteColumnKeyForTouch,
   dmNoteEntry,
   type DmNoteEntityType,
 } from "./registry";
@@ -38,13 +37,6 @@ describe("dm note registry", () => {
       else expect(store.campaignTable, type).toEqual(expect.any(String));
     }
     expect(DM_NOTE_ENTITIES.party_member.store).toEqual({ kind: "entity_note", campaignTable: "party_members" });
-  });
-
-  it("maps a touch to the column note it makes stale, including tables off the live channel", () => {
-    expect(dmNoteColumnKeyForTouch("trap", "t1")).toEqual(["dm-note", "traps", "t1"]);
-    expect(dmNoteColumnKeyForTouch("monster", "m1")).toEqual(["dm-note", "monsters", "m1"]);
-    expect(dmNoteColumnKeyForTouch("faction", "f1")).toBeNull();
-    expect(dmNoteColumnKeyForTouch("constructor", "x")).toBeNull();
   });
 
   it("builds routes", () => {

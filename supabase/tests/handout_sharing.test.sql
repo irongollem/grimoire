@@ -1,6 +1,8 @@
 begin;
--- This file reads campaign_sync inside its own transaction. The doorbell is
--- written at commit (20261008234009), so drain its queue per statement instead.
+-- This file reads the doorbell's rings (realtime.messages) inside its own
+-- transaction. The rings are sent at commit (20261009233206), so drain the queue
+-- per statement instead. Rings are read as a set ("a ring for X was sent"):
+-- inserted_at is constant inside a transaction, so their order cannot be read.
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
@@ -222,20 +224,20 @@ select is(
 
 reset role;
 
-delete from public.campaign_sync where campaign_id = '97000000-0000-4000-8000-000000000010';
+delete from realtime.messages where topic = 'doorbell:97000000-0000-4000-8000-000000000010';
 update public.scriptorium_documents set title = 'DM draft, edited' where id = '97000000-0000-4000-8000-000000000081';
 select is_empty(
-  $$ select 1 from public.campaign_sync where campaign_id = '97000000-0000-4000-8000-000000000010' $$,
+  $$ select 1 from realtime.messages where topic = 'doorbell:97000000-0000-4000-8000-000000000010' and event = 'ring' $$,
   'an autosave of an unshared draft rings nothing');
 
 update public.scriptorium_documents
    set player_visible_to = array['97000000-0000-4000-8000-000000000031']::uuid[]
  where id = '97000000-0000-4000-8000-000000000081';
-select is(
-  (select changed_table from public.campaign_sync where campaign_id = '97000000-0000-4000-8000-000000000010'),
-  'scriptorium_documents', 'sharing rings the campaign');
+select ok(
+  exists (select 1 from realtime.messages where topic = 'doorbell:97000000-0000-4000-8000-000000000010' and event = 'ring' and extension = 'broadcast' and payload ->> 'table' = 'scriptorium_documents'),
+  'sharing rings the campaign');
 
-delete from public.campaign_sync where campaign_id = '97000000-0000-4000-8000-000000000010';
+delete from realtime.messages where topic = 'doorbell:97000000-0000-4000-8000-000000000010';
 update public.scriptorium_documents
    set campaign_id = '97000000-0000-4000-8000-000000000011'
  where id = '97000000-0000-4000-8000-000000000081';
@@ -243,9 +245,9 @@ select is(
   (select player_visible_to from public.scriptorium_documents where id = '97000000-0000-4000-8000-000000000081'),
   '{}'::uuid[], 'moving a shared document to another campaign withdraws it');
 
-select is(
-  (select changed_table from public.campaign_sync where campaign_id = '97000000-0000-4000-8000-000000000010'),
-  'scriptorium_documents', 'and rings the campaign it left');
+select ok(
+  exists (select 1 from realtime.messages where topic = 'doorbell:97000000-0000-4000-8000-000000000010' and event = 'ring' and extension = 'broadcast' and payload ->> 'table' = 'scriptorium_documents'),
+  'and rings the campaign it left');
 
 update public.scriptorium_documents
    set campaign_id = '97000000-0000-4000-8000-000000000010',

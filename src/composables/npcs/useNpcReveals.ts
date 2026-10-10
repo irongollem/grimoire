@@ -13,8 +13,9 @@ const QUERY_KEY = "npc-reveals";
 /**
  * When each character first met an NPC (`npc_reveals`), keyed by party member.
  * The DM may read every row of their campaign. The rows are written by DB
- * triggers alongside `npcs` / `locations` updates, so `campaignRealtimeWorld`
- * invalidates this root on those events rather than this query polling.
+ * triggers alongside `npcs` / `locations` updates, and `npc_reveals` rings the
+ * campaign doorbell, which refreshes this root (SIGNAL_KEYS) rather than this
+ * query polling.
  */
 export function useNpcReveals(npcId: Ref<string> | string) {
   const idRef = isRef(npcId) ? npcId : ref(npcId);

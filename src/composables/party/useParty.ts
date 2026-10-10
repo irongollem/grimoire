@@ -1,4 +1,4 @@
-import { computed, watch, onUnmounted } from "vue";
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -6,10 +6,6 @@ import { useAuthStore } from "@/stores/auth";
 import type { PartyMember, PartyMemberInsert, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { useToast } from "@/composables/useToast";
-import {
-  createRealtimeChannel,
-  type RealtimeChannelHandle,
-} from "@/lib/realtimeChannel";
 
 const QUERY_KEY = "party";
 
@@ -221,88 +217,6 @@ export function useConvertSorceryPoints() {
       };
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  });
-}
-
-// Keeps the party query fresh across browsers — e.g. DM damage updates the player's sheet.
-export function usePartyLive() {
-  const campaign = useCampaignStore();
-  const auth = useAuthStore();
-  const queryClient = useQueryClient();
-  let live: RealtimeChannelHandle | null = null;
-  const uid = Math.random().toString(36).slice(2, 8);
-
-  watch(
-    () => campaign.activeCampaignId,
-    (campaignId) => {
-      live?.stop();
-      live = null;
-      if (!campaignId) return;
-      live = createRealtimeChannel({
-        topic: `party_members_live:${campaignId}:${uid}`,
-        reconcile: () => {
-          void queryClient.invalidateQueries({ queryKey: [QUERY_KEY, campaignId] });
-          void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY, campaignId] });
-        },
-        bind: (channel) => channel.on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "party_members",
-            filter: `campaign_id=eq.${campaignId}` },
-          (payload) => {
-            if (campaign.activeCampaignId !== campaignId) return;
-            // A filtered DELETE never arrives, and a character leaving this
-            // campaign arrives only at the one it joined: both ring the
-            // `party_members` doorbell instead (#1026), which refetches these
-            // lists through useCampaignLiveSync.
-            if (payload.eventType === "DELETE") return;
-            const row = payload.new as PartyMember;
-            const isUpdate = payload.eventType === "UPDATE";
-            const sortMembers = (list: PartyMember[]) =>
-              list.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
-
-            // An UPDATE payload omits any column Postgres left unchanged and
-            // stored out-of-line (TOAST) — a party member's backstory,
-            // personality and description fields are exactly that shape.
-            // Merge over an already-cached copy of the row; when the row is
-            // new to a particular list (it only just started matching that
-            // list's filter), the payload cannot be trusted as complete, so
-            // that list is invalidated instead of getting a partial row.
-            const patchList = (queryKey: readonly unknown[], old: PartyMember[] | undefined, include: boolean) => {
-              if (!old) return old;
-              const cached = old.find((member) => member.id === row.id);
-              const withoutRow = old.filter((member) => member.id !== row.id);
-              if (!include) return withoutRow;
-              if (isUpdate && !cached) {
-                void queryClient.invalidateQueries({ queryKey, exact: true });
-                return old;
-              }
-              const merged = isUpdate && cached
-                ? { ...cached, ...(payload.new as PartyMember) }
-                : (payload.new as PartyMember);
-              return sortMembers([...withoutRow, merged]);
-            };
-
-            queryClient.setQueryData<PartyMember[]>([QUERY_KEY, campaignId], (old) =>
-              patchList([QUERY_KEY, campaignId], old, true));
-
-            const includeMine = row.owner_user_id === auth.user?.id || row.id === auth.linkedPartyMemberId;
-            for (const query of queryClient.getQueryCache().findAll({ queryKey: [MY_CHARS_KEY, campaignId] })) {
-              queryClient.setQueryData<PartyMember[]>(query.queryKey, (old) =>
-                patchList(query.queryKey, old, includeMine));
-            }
-
-            queryClient.setQueryData<PartyMember[]>([OFFERED_KEY, campaignId], (old) =>
-              patchList([OFFERED_KEY, campaignId], old, row.is_dm_managed && row.owner_user_id === null));
-          },
-        ),
-      });
-    },
-    { immediate: true },
-  );
-
-  onUnmounted(() => {
-    live?.stop();
-    live = null;
   });
 }
 

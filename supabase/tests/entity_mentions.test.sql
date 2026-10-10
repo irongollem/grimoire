@@ -1,6 +1,8 @@
 begin;
--- This file reads campaign_sync inside its own transaction. The doorbell is
--- written at commit (20261008234009), so drain its queue per statement instead.
+-- This file reads the doorbell's rings (realtime.messages) inside its own
+-- transaction. The rings are sent at commit (20261009233206), so drain the queue
+-- per statement instead. Rings are read as a set ("a ring for X was sent"):
+-- inserted_at is constant inside a transaction, so their order cannot be read.
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
@@ -82,8 +84,11 @@ update public.notes set campaign_id = '97200000-0000-4000-8000-000000000010' whe
 select is((select count(*)::int from public.entity_mentions where source_id = '97200000-0000-4000-8000-000000000030'), 1, 'moving it back into a campaign indexes it again');
 
 -- The doorbell rings for the campaign when the index changes.
+delete from realtime.messages where topic = 'doorbell:97200000-0000-4000-8000-000000000010';
+update public.notes set campaign_id = null where id = '97200000-0000-4000-8000-000000000030';
+update public.notes set campaign_id = '97200000-0000-4000-8000-000000000010' where id = '97200000-0000-4000-8000-000000000030';
 select ok(
-  (select changed_table = 'entity_mentions' from public.campaign_sync where campaign_id = '97200000-0000-4000-8000-000000000010'),
+  exists (select 1 from realtime.messages where topic = 'doorbell:97200000-0000-4000-8000-000000000010' and event = 'ring' and extension = 'broadcast' and payload ->> 'table' = 'entity_mentions'),
   'a change to the index rings entity_mentions for its campaign'
 );
 

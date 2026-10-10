@@ -9,7 +9,7 @@ const mocked = vi.hoisted(() => {
     channel,
     channelFactory: vi.fn(() => channel),
     removeChannel: vi.fn(),
-    realtime: { channels: [] as unknown[] },
+    realtime: { channels: [] as unknown[], setAuth: vi.fn(() => Promise.resolve()) },
     statusCallback: undefined as ((status: string, error?: Error) => void) | undefined,
   };
 });
@@ -125,5 +125,35 @@ describe("createRealtimeChannel", () => {
     createRealtimeChannel({ topic: "b", bind: (channel) => channel });
 
     expect(mocked.channelFactory).toHaveBeenCalledTimes(2);
+  });
+
+  it("joins a public channel by default, without asking for auth", () => {
+    createRealtimeChannel({ topic: "public-topic", bind: (channel) => channel });
+
+    expect(mocked.channelFactory).toHaveBeenCalledWith("public-topic");
+    expect(mocked.realtime.setAuth).not.toHaveBeenCalled();
+  });
+
+  it("joins a private channel only after the socket has its token", async () => {
+    createRealtimeChannel({ topic: "doorbell:abc", isPrivate: true, bind: (channel) => channel });
+
+    expect(mocked.realtime.setAuth).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(mocked.channelFactory).toHaveBeenCalledOnce());
+    expect(mocked.channelFactory).toHaveBeenCalledWith("doorbell:abc", { config: { private: true } });
+  });
+
+  it("still joins a private channel when the token fetch fails", async () => {
+    mocked.realtime.setAuth.mockRejectedValueOnce(new Error("no session"));
+    createRealtimeChannel({ topic: "doorbell:abc", isPrivate: true, bind: (channel) => channel });
+
+    await vi.waitFor(() => expect(mocked.channelFactory).toHaveBeenCalledOnce());
+  });
+
+  it("does not join a private channel that was stopped while waiting for auth", async () => {
+    createRealtimeChannel({ topic: "doorbell:abc", isPrivate: true, bind: (channel) => channel }).stop();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mocked.channelFactory).not.toHaveBeenCalled();
   });
 });

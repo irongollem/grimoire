@@ -40,8 +40,8 @@ const SCULPT_TIMEOUT_MS = 15 * 60 * 1000;
 const SCULPT_POLL_MS = 4_000;
 
 /**
- * Waits for a `minis` row to leave the sculpting/downloading states. Realtime
- * UPDATE subscription + 4s poll fallback via waitForRow — select "*" so the
+ * Waits for a `minis` row to leave the sculpting/downloading states, polling it
+ * every 4s through waitForRow (a sculpt takes minutes) with select "*", so the
  * resolved row is the full mini, ready to hand straight back to the caller.
  * Resolves with the full mini row on "ready", rejects on "failed" or timeout.
  */

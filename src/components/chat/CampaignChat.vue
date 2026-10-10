@@ -445,7 +445,7 @@ async function handleBuyPlayerOffer({ messageId }: { messageId: string }) {
   }
 
   // Money + item moved server-side; refresh the buyer's own caches. The seller's
-  // client picks up their new balance via usePartyLive realtime.
+  // client refetches its party on the party_members ring.
   void queryClient.invalidateQueries({ queryKey: ["party"] });
   void queryClient.invalidateQueries({ queryKey: ["party-inventory"] });
 }

@@ -1,6 +1,6 @@
 import { watch, onMounted, onUnmounted, type Ref } from "vue";
 import { supabase } from "@/lib/supabase";
-import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
+import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
@@ -18,7 +18,8 @@ interface DeathSaves { successes: number; failures: number }
  *   persistence (HP, temp HP, conditions, wildshape, …) routed through the
  *   party-member mutation so the party query cache is invalidated on every
  *   write. The store stays UI-only.
- * - Inbound: a Realtime channel ingests temp HP, player-rolled initiative
+ * - Inbound: a party_members ring from the campaign doorbell (a ring names the
+ *   table, never the row) triggers a re-read that ingests temp HP, player-rolled initiative
  *   (#504), and HP edits made outside the runner.
  *
  * lastWrittenHp tracks the HP values we've sent to the DB so the Realtime echo
@@ -75,7 +76,7 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     },
   );
 
-  let partyMembersRealtime: RealtimeChannelHandle | null = null;
+  let stopRings: (() => void) | null = null;
   let subscribedCampaignId: string | null = null;
 
   store.setPersistHandler((id, update) => {
@@ -183,6 +184,8 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
       lastWrittenHp.delete(row.id);
       return;
     }
+    // An HP change still waiting for its debounced write is newer than this read.
+    if (partyHpQueue.has(row.id)) return;
     if (combatant && combatant.hp !== row.current_hp) {
       store.ingestHp(combatant.instance_id, row.current_hp);
     }
@@ -198,16 +201,21 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
    * showing the HP, temp HP and initiative from whenever the gap started, with
    * a page reload as the only way out.
    */
-  async function resyncPartyFromDb(campaignId: string): Promise<void> {
+  async function resyncPartyFromDb(campaignId: string, afterGap = true): Promise<void> {
     const { data, error } = await supabase
       .from("party_members")
       .select("id, current_hp, temp_hp, current_initiative, conditions, wildshape_state, death_save_successes, death_save_failures")
       .eq("campaign_id", campaignId);
     if (error) throw error;
     if (campaignId !== subscribedCampaignId) return;
-    // A gap may have swallowed echoes; the rows just read are the truth now.
-    wildshapeEchoes.clear();
-    deathSaveEchoes.clear();
+    // After a gap the echoes of our own writes may never come, and the rows just
+    // read are the truth now. After a ring the ledgers stay: the read may still
+    // predate a later write of ours, and `isOwn` is what keeps it from putting
+    // the older value back.
+    if (afterGap) {
+      wildshapeEchoes.clear();
+      deathSaveEchoes.clear();
+    }
     for (const row of (data ?? []) as PartyMemberSyncRow[]) applyPartyRow(row);
   }
 
@@ -238,28 +246,42 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     if (!campaignId) return;
     subscribedCampaignId = campaignId;
     void resyncPartyFromDb(campaignId);
-    partyMembersRealtime = createRealtimeChannel({
-      topic: `runner_party_members:${campaignId}`,
-      reconcile: () => void resyncPartyFromDb(campaignId),
-      bind: (channel) => channel.on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "party_members",
-          filter: `campaign_id=eq.${campaignId}` },
-        (payload) => {
-          if (subscribedCampaignId === campaignId) {
-            applyPartyRow(payload.new as PartyMemberSyncRow);
-          }
-        },
-      ),
+    // Not skipped for this tab's own rings: they are the echo of the runner's own
+    // writes, which the ledgers above consume. Rings come in bursts (a round of
+    // HP writes), so one read runs at a time and a ring landing meanwhile
+    // schedules exactly one more.
+    let reading = false;
+    let again = false;
+    const reread = async () => {
+      if (reading) { again = true; return; }
+      reading = true;
+      try {
+        do {
+          again = false;
+          await resyncPartyFromDb(campaignId, false);
+        } while (again && subscribedCampaignId === campaignId);
+      } catch (error) {
+        // Surface it to Sentry without an unhandled rejection from a listener.
+        setTimeout(() => { throw error; });
+      } finally {
+        reading = false;
+      }
+    };
+    const offRing = onCampaignRing(["party_members"], (ring) => {
+      if (ring.campaignId === campaignId && subscribedCampaignId === campaignId) void reread();
     });
+    const offReconcile = onCampaignReconcile((id) => {
+      if (id === campaignId && subscribedCampaignId === campaignId) void resyncPartyFromDb(campaignId);
+    });
+    stopRings = () => { offRing(); offReconcile(); };
   });
 
   onUnmounted(() => {
     store.setPersistHandler(null);
     subscribedCampaignId = null;
     if (partyHpTimer) clearTimeout(partyHpTimer);
-    partyMembersRealtime?.stop();
-    partyMembersRealtime = null;
+    stopRings?.();
+    stopRings = null;
   });
 
   return { cancelPendingHpFlush, clearPartyInitiatives };

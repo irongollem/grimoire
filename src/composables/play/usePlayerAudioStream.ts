@@ -1,7 +1,7 @@
 import { ref, computed, onUnmounted, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
-import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
+import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
 import { broadcastOffsetSeconds, shouldResync } from "@/lib/audio/broadcastOffset";
 import type { SoundboardBroadcast } from "@/types/sound.types";
@@ -92,11 +92,13 @@ export function usePlayerAudioStream() {
   let subscribedCampaignId: string | null = null;
 
   async function load(campaignId: string): Promise<void> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("soundboard_broadcast")
       .select("*")
       .eq("campaign_id", campaignId)
       .maybeSingle();
+    // A failed read says nothing about what the DM is sharing; keep what we have.
+    if (error) throw error;
     // A prior campaign's initial/recovery fetch may complete after the player
     // switches campaign. Its row must never restart or replace current audio.
     if (campaignId === subscribedCampaignId) {
@@ -105,37 +107,35 @@ export function usePlayerAudioStream() {
     }
   }
 
-  let realtime: RealtimeChannelHandle | null = null;
+  let stopListening: (() => void) | null = null;
 
   function subscribe(campaignId: string): void {
     unsubscribe();
     subscribedCampaignId = campaignId;
     void load(campaignId);
-    // Recovery re-reads the broadcast row, so a player who dropped mid-session
-    // lands back on whatever the DM is actually playing instead of a track that
-    // stopped being shared while they were disconnected.
+    // A `soundboard_broadcast` ring means the DM changed what is shared (the
+    // row itself never travels), so re-read it. Not skipped for this tab's own
+    // rings: a player never writes the row, and a DM previewing wants it too.
     //
-    // Left on the default hidden threshold rather than reconciling on every
-    // return to the tab: load() calls apply(), which seeks and plays, so a
-    // refetch per alt-tab would be audible.
-    realtime = createRealtimeChannel({
-      topic: `soundboard_broadcast:${campaignId}`,
-      reconcile: () => void load(campaignId),
-      bind: (channel) => channel.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "soundboard_broadcast", filter: `campaign_id=eq.${campaignId}` },
-        (payload) => {
-          broadcast.value = payload.eventType === "DELETE" ? null : (payload.new as SoundboardBroadcast);
-          apply();
-        },
-      ),
+    // Reconcile re-reads the row as well, so a player who dropped mid-session
+    // lands back on whatever the DM is actually playing instead of a track that
+    // stopped being shared while they were disconnected. The campaign channel
+    // reconciles only on a rejoin or a long sleep, not on every return to the
+    // tab, and that is what we want: load() calls apply(), which seeks and
+    // plays, so a refetch per alt-tab would be audible.
+    const offRing = onCampaignRing(["soundboard_broadcast"], (ring) => {
+      if (ring.campaignId === campaignId && subscribedCampaignId === campaignId) void load(campaignId);
     });
+    const offReconcile = onCampaignReconcile((id) => {
+      if (id === campaignId && subscribedCampaignId === campaignId) void load(campaignId);
+    });
+    stopListening = () => { offRing(); offReconcile(); };
   }
 
   function unsubscribe(): void {
     subscribedCampaignId = null;
-    realtime?.stop();
-    realtime = null;
+    stopListening?.();
+    stopListening = null;
   }
 
   watch(

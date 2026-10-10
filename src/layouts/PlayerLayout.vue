@@ -357,7 +357,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/campaign/useCampaigns";
-import { useParty, usePartyLive } from "@/composables/party/useParty";
+import { useParty } from "@/composables/party/useParty";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { usePlayerRemovalGuard } from "@/composables/play/usePlayerRemovalGuard";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
@@ -432,7 +432,6 @@ watch(
 );
 
 useCampaignPresence();
-usePartyLive();
 useCampaignLiveSync();
 usePlayerRemovalGuard();
 

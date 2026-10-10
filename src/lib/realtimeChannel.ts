@@ -8,6 +8,16 @@ type Channel = ReturnType<typeof supabase.channel>;
 
 export interface RealtimeChannelOptions {
   topic: string;
+  /**
+   * Join as a private channel, which Realtime authorizes against RLS on
+   * `realtime.messages` for the signed-in user. Default is a public channel.
+   * realtime-js sends the current access token in the join payload and pushes
+   * a refreshed one on a joined channel, but the token is fetched
+   * asynchronously when the socket connects, so a private join first awaits
+   * `setAuth()`; otherwise the first join could go out without a token and be
+   * refused.
+   */
+  isPrivate?: boolean;
   /** Add the feature's typed postgres/broadcast handlers. */
   bind: (channel: Channel) => Channel;
   /**
@@ -61,16 +71,26 @@ export function createRealtimeChannel(
 
   const start = () => {
     if (stopped) return;
-    channel = options.bind(supabase.channel(topic)).subscribe((status, error) => {
+    const created = options.isPrivate
+      ? supabase.channel(topic, { config: { private: true } })
+      : supabase.channel(topic);
+    channel = options.bind(created).subscribe((status, error) => {
       if (stopped) return;
       heal?.onStatus(status);
       options.onStatus?.(status, error);
     });
   };
 
+  const begin = () => {
+    if (!options.isPrivate) return start();
+    // A failed token fetch must not strand the channel: join anyway and let the
+    // status callback report the refusal.
+    void supabase.realtime.setAuth().catch(() => undefined).then(start);
+  };
+
   const previous = leaving.get(topic);
-  if (previous) void previous.then(start);
-  else start();
+  if (previous) void previous.then(begin);
+  else begin();
 
   return {
     reconcile: () => heal?.reconcile(),

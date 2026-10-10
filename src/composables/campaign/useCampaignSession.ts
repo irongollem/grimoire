@@ -38,16 +38,6 @@ function isOpen(row: CampaignSession | null): boolean {
   return !!row && row.started_at !== null && row.ended_at === null;
 }
 
-/**
- * Take a row from the log as the truth about the live session. Only an open row
- * can be the live session; a row that closes the adopted one clears it, and any
- * other row (an edit to a past session) leaves the live session alone.
- */
-export function adoptLoggedSession(row: CampaignSession): void {
-  if (isOpen(row)) adopt(row);
-  else if (session.value?.id === row.id) adopt(null);
-}
-
 function adopt(row: CampaignSession | null) {
   const open = row && isOpen(row) ? row : null;
   session.value = open;
@@ -281,10 +271,9 @@ export function formatSessionElapsed(
  * back strictly less than the row (the DM-only policy on `campaign_sessions` is
  * unchanged), and zero rows when no session is open.
  *
- * Refreshed by the `campaign_sync` doorbell, not by this table's row events:
- * the channel carries those only for readers RLS lets through, and a player is
- * not one. The doorbell names the table without the row, so a start or end
- * reaches players as it happens rather than on a poll.
+ * Refreshed by the `campaign_sessions` ring on the campaign channel, not by a
+ * read of the table: a player cannot read it. The ring names the table without
+ * the row, so a start or end reaches players as it happens rather than on a poll.
  */
 export function usePlayerSessionState(campaignId: MaybeRefOrGetter<string | null>) {
   return useQuery({
