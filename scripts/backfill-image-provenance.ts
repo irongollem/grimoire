@@ -355,6 +355,28 @@ export interface PlanEntry {
   previous: AiProvenance | null;
 }
 
+/**
+ * What the `--library-is-ai` default actually records: only the library images
+ * it labelled whose verdict is insert or correct, the rows `--write` sends. An
+ * image labelled AI but stopped at "no owner" is written nowhere and is already
+ * listed under `noOwner`, so counting it here would report a backfill as done
+ * that wrote nothing.
+ */
+export function libraryArtCounts(
+  entries: readonly PlanEntry[],
+  defaulted: ReadonlySet<string>,
+): { libraryArtRecordedAsAi: number; libraryArtDatedByOriginal: number; libraryArtDateUnknown: number } {
+  const recorded = entries.filter(
+    (e) => (e.verdict === "insert" || e.verdict === "correct") && defaulted.has(`${e.bucket}\u0000${e.stem}`),
+  );
+  const unknown = recorded.filter((e) => e.provenance.generatedAt === UNKNOWN_GENERATED_AT).length;
+  return {
+    libraryArtRecordedAsAi: recorded.length,
+    libraryArtDatedByOriginal: recorded.length - unknown,
+    libraryArtDateUnknown: unknown,
+  };
+}
+
 export interface RegisteredRow {
   bucket: string;
   stem: string;
@@ -631,8 +653,7 @@ async function main(): Promise<void> {
   const unreadable: Report["unreadable"] = [];
   const noOwner: Report["noOwner"] = [];
   let unmarked = 0;
-  let libraryDefaulted = 0;
-  let libraryDateUnknown = 0;
+  const libraryDefaulted = new Set<string>();
   let done = 0;
   await pooled(targets, CONCURRENCY, async (target) => {
     const outcome = await fetchOriginal(target);
@@ -663,8 +684,7 @@ async function main(): Promise<void> {
     if (!found && values["library-is-ai"] && isLibraryStem(target.stem) && !registered) {
       found = libraryArtProvenance(outcome.lastModified, isReferencedOriginal(target, outcome.url));
       if (found) {
-        libraryDefaulted++;
-        if (found.generatedAt === UNKNOWN_GENERATED_AT) libraryDateUnknown++;
+        libraryDefaulted.add(`${target.bucket}\u0000${target.stem}`);
       }
     }
     if (!found) {
@@ -689,9 +709,7 @@ async function main(): Promise<void> {
     referenceDeadSiblingSurvives: categorizeUnreadable(unreadable).referenceDeadSiblingSurvives.length,
     noOwner: count("no-owner"),
     unmarked,
-    libraryArtRecordedAsAi: libraryDefaulted,
-    libraryArtDatedByOriginal: libraryDefaulted - libraryDateUnknown,
-    libraryArtDateUnknown: libraryDateUnknown,
+    ...libraryArtCounts(entries, libraryDefaulted),
   };
   console.log(JSON.stringify(summary, null, 2));
   if (missingColumns.length > 0) console.log(`Columns not found: ${missingColumns.join(", ")}`);

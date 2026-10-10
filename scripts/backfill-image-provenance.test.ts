@@ -23,6 +23,7 @@ import {
   toRegistryRow,
   type RegisteredRow,
   type Target,
+  libraryArtCounts,
 } from "./backfill-image-provenance";
 import { embedProvenance } from "../supabase/functions/_shared/provenance/embed.ts";
 import type { AiProvenance } from "../supabase/functions/_shared/provenance/types.ts";
@@ -352,5 +353,39 @@ describe("--library-is-ai", () => {
     expect(isReferencedOriginal(target, `${ORIGIN}/monster-images/srd/abc.webp`)).toBe(true);
     expect(isReferencedOriginal(target, `${ORIGIN}/monster-images/srd/abc.png`)).toBe(false);
     expect(isReferencedOriginal(target, `${ORIGIN}/monster-images/srd/abc_w400.webp`)).toBe(false);
+  });
+});
+
+describe("libraryArtCounts", () => {
+  const prov = (generatedAt: string): AiProvenance => ({
+    generatorType: "library-art",
+    provider: "openai",
+    model: "gpt-image",
+    generatedAt,
+    edited: false,
+  });
+  const entry = (stem: string, verdict: "insert" | "correct" | "skip" | "no-owner", generatedAt: string) => ({
+    bucket: "monster-images",
+    stem,
+    verdict,
+    provenance: prov(generatedAt),
+    user_id: null,
+    previous: null,
+  });
+
+  it("counts only the defaulted images that --write records", () => {
+    const entries = [
+      entry("srd/a", "insert", "2026-08-01T00:00:00.000Z"),
+      entry("srd/b", "correct", ""),
+      entry("srd/c", "no-owner", "2026-08-01T00:00:00.000Z"),
+      entry("srd/d", "skip", "2026-08-01T00:00:00.000Z"),
+      entry("srd/e", "insert", "2026-08-01T00:00:00.000Z"),
+    ];
+    const defaulted = new Set(["srd/a", "srd/b", "srd/c", "srd/d"].map((stem) => `monster-images\u0000${stem}`));
+    expect(libraryArtCounts(entries, defaulted)).toEqual({
+      libraryArtRecordedAsAi: 2,
+      libraryArtDatedByOriginal: 1,
+      libraryArtDateUnknown: 1,
+    });
   });
 });

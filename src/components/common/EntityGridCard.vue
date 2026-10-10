@@ -51,8 +51,14 @@
         :focal-point="focalPoint"
         :placeholder="placeholder"
         class="transition-transform duration-300 group-hover:scale-105"
-        :ai-badge="$slots['image-overlay'] ? 'left' : 'right'"
-        :ai-badge-class="$slots['image-footer'] ? 'bottom-9!' : undefined"
+      />
+      <!-- A sibling of the image, not FocalImage's own label: the image scales on hover,
+           and a transformed element keeps the chip under the z-2 card link exactly while
+           the pointer is over the card, which hides the tooltip that names the model. -->
+      <AiImageBadge
+        :src="imageUrl"
+        :corner="$slots['image-overlay'] ? 'left' : 'right'"
+        :class="['z-10', $slots['image-footer'] && 'bottom-9!']"
       />
       <!--
         The stance/CR pill shares the action chips' treatment — same 1.5rem
@@ -117,6 +123,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { IconLock } from "@/lib/icons";
 import { rememberModalOrigin } from "@/lib/modalOrigin";
 

@@ -80,7 +80,9 @@ function makeItem(overrides: Partial<ItemBrowseRow> = {}): ItemBrowseRow {
   };
 }
 
-const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
+// EntityGridCard draws the AI chip itself (it reads provenance through TanStack Query,
+// which these tests mount without).
+const globalStubs = { stubs: { RouterLink: RouterLinkStub, AiImageBadge: true } };
 
 // VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so
 // every box reads 0 tall and nothing would render. Give the scroller (the

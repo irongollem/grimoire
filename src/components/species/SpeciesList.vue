@@ -87,7 +87,6 @@
               format="landscape"
               :focal-point="s.focal_point"
               class="group-hover:scale-105 transition-transform duration-300"
-              ai-badge="right"
             />
             <div
               v-else
@@ -95,6 +94,10 @@
             >
               {{ s.name.charAt(0).toUpperCase() }}
             </div>
+            <!-- A sibling of the image, not FocalImage's own label: the image scales on hover,
+                 and a transformed element keeps the chip under the card's z-2 link exactly while
+                 the pointer is over the card, which hides the tooltip that names the model. -->
+            <AiImageBadge v-if="s.image_url" :src="s.image_url" corner="right" class="z-10" />
           </div>
 
           <div class="p-3 flex flex-col gap-2 flex-1">
@@ -184,6 +187,7 @@ import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { storeToRefs } from "pinia";
 import BulkScopeBar from "@/components/common/BulkScopeBar.vue";

@@ -68,8 +68,11 @@
             :focal-point="b.focal_point"
             :placeholder="placeholderUrl('background')"
             class="group-hover:scale-105 transition-transform duration-300"
-            ai-badge="right"
           />
+          <!-- A sibling of the image, not FocalImage's own label: the image scales on hover,
+               and a transformed element keeps the chip under the card's z-2 link exactly while
+               the pointer is over the card, which hides the tooltip that names the model. -->
+          <AiImageBadge :src="b.image_url" corner="right" class="z-10" />
         </div>
 
         <div class="p-3 flex flex-col gap-1.5 flex-1">
@@ -165,6 +168,7 @@ import VirtualGrid from "@/components/common/VirtualGrid.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import type { Background } from "@/types/background.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";

@@ -1,14 +1,6 @@
 <template>
   <div class="detail-scroll">
-    <FocalImage
-      v-if="portrait.src"
-      :src="portrait.src"
-      :alt="portrait.alt"
-      :focal-point="portrait.focalPoint"
-      format="portrait"
-      class="detail-portrait"
-      ai-badge="right"
-    />
+    <RunnerPortrait :src="portrait.src" :alt="portrait.alt" :focal-point="portrait.focalPoint" />
     <p class="detail-meta">
       {{ [npc.race, npc.occupation].filter(Boolean).join(' · ') }}
       <span v-if="npc.alignment"> · {{ npc.alignment }}</span>
@@ -55,7 +47,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
@@ -94,10 +86,6 @@ const traitSections = computed(() => {
   @apply flex-1 overflow-y-auto p-3 flex flex-col gap-2;
 }
 
-.detail-portrait {
-  @apply w-full rounded-md object-cover mb-1 overflow-hidden;
-  max-height: 12.5rem;
-}
 
 .detail-meta {
   @apply text-caption text-muted-foreground italic capitalize;

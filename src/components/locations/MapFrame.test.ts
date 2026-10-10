@@ -49,6 +49,18 @@ describe("MapFrame", () => {
     expect(wrapper.find("[data-testid='overlay']").exists()).toBe(false);
   });
 
+  it("labels a loaded Picture as AI, and drops the label when the Picture fails to load", async () => {
+    const wrapper = mount(MapFrame, { props: { stack: stackFor("https://example.test/map.webp") } });
+    await wrapper.find("img").trigger("load");
+    expect(wrapper.findComponent({ name: "AiImageBadge" }).exists()).toBe(true);
+
+    const broken = mount(MapFrame, { props: { stack: stackFor("https://example.test/broken.webp") } });
+    await broken.find("img").trigger("error");
+    // An 'AI' chip over "Map unavailable" would label a picture nobody can see.
+    expect(broken.text()).toContain("Map unavailable");
+    expect(broken.findComponent({ name: "AiImageBadge" }).exists()).toBe(false);
+  });
+
   it("clears the failed state and tries again when the stack's primary layer changes", async () => {
     const wrapper = mount(MapFrame, {
       props: { stack: stackFor("https://example.test/broken.webp") },
