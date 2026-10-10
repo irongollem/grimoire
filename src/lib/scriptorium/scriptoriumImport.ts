@@ -22,6 +22,8 @@ import type { Quest, QuestObjective } from "@/types/quest.types";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 import type { ScriptoriumDocType, ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
 import { escapeHtml } from "@/lib/escapeHtml";
+import type { Defenses } from "@/types/statBlock.types";
+import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";
 import { entityArtFiguresHtml } from "./entityArt";
 
 // ── Output type ───────────────────────────────────────────────────────────────
@@ -296,10 +298,7 @@ interface BuildStatBlockOpts {
   proficiencyBonus?: number;
   challengeRating: string;
   skills?: Record<string, string>;
-  damageVulnerabilities?: string;
-  damageResistances?: string;
-  damageImmunities?: string;
-  conditionImmunities?: string;
+  defenses?: Defenses;
   senses?: string;
   languages?: string;
   sections: StatBlockSection[];
@@ -317,8 +316,7 @@ function buildStatBlockInnerHtml(opts: Omit<BuildStatBlockOpts, "theme"> & { the
   const {
     name, typeLine, theme, armorClass, hitPoints, speed, abilities,
     initiativeOverride, savingThrows, proficiencyBonus, challengeRating,
-    skills, damageVulnerabilities, damageResistances, damageImmunities,
-    conditionImmunities, senses, languages, sections,
+    skills, defenses, senses, languages, sections,
   } = opts;
 
   let html = `<p class="sc-statblock-name">${name}</p>\n`;
@@ -357,14 +355,18 @@ function buildStatBlockInnerHtml(opts: Omit<BuildStatBlockOpts, "theme"> & { the
       .join(", ");
     html += `<p class="sc-statblock-prop"><strong>Skills</strong> ${skillsStr}</p>\n`;
   }
-  if (damageVulnerabilities)
-    html += `<p class="sc-statblock-prop"><strong>Damage Vulnerabilities</strong> ${damageVulnerabilities}</p>\n`;
-  if (damageResistances)
-    html += `<p class="sc-statblock-prop"><strong>Damage Resistances</strong> ${damageResistances}</p>\n`;
-  if (damageImmunities)
-    html += `<p class="sc-statblock-prop"><strong>Damage Immunities</strong> ${damageImmunities}</p>\n`;
-  if (conditionImmunities)
-    html += `<p class="sc-statblock-prop"><strong>Condition Immunities</strong> ${conditionImmunities}</p>\n`;
+  if (defenses) {
+    const defenseRows: Array<[string, string]> = [
+      ["Damage Vulnerabilities", formatDefenseList(defenses.vulnerabilities)],
+      ["Damage Resistances", formatDefenseList(defenses.resistances)],
+      ["Damage Immunities", formatDefenseList(defenses.immunities)],
+      ["Condition Immunities", formatConditionImmunities(defenses.condition_immunities)],
+    ];
+    for (const [label, text] of defenseRows) {
+      if (text) html += `<p class="sc-statblock-prop"><strong>${label}</strong> ${escapeHtml(text)}</p>\n`;
+    }
+    if (defenses.notes) html += `<p class="sc-statblock-prop">${escapeHtml(defenses.notes)}</p>\n`;
+  }
   if (senses) html += `<p class="sc-statblock-prop"><strong>Senses</strong> ${senses}</p>\n`;
   if (languages) html += `<p class="sc-statblock-prop"><strong>Languages</strong> ${languages}</p>\n`;
 
@@ -620,10 +622,7 @@ const npcFormatter: AssetFormatter<{ npc: Npc; locationName?: string | null }> =
         proficiencyBonus: sb.proficiency_bonus,
         challengeRating: sb.challenge_rating,
         skills: sb.skills,
-        damageVulnerabilities: sb.damage_vulnerabilities,
-        damageResistances: sb.damage_resistances,
-        damageImmunities: sb.damage_immunities,
-        conditionImmunities: sb.condition_immunities,
+        defenses: sb.defenses,
         senses: sb.senses,
         languages: sb.languages,
         sections,
@@ -703,10 +702,7 @@ const monsterFormatter: AssetFormatter<Monster> = {
       proficiencyBonus: sb.proficiency_bonus,
       challengeRating: sb.challenge_rating,
       skills: sb.skills,
-      damageVulnerabilities: sb.damage_vulnerabilities,
-      damageResistances: sb.damage_resistances,
-      damageImmunities: sb.damage_immunities,
-      conditionImmunities: sb.condition_immunities,
+      defenses: sb.defenses,
       senses: sb.senses,
       languages: sb.languages,
       sections,

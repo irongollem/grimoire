@@ -19,7 +19,7 @@ function readString(data: Record<string, unknown>, key: string): string | null {
 }
 
 /**
- * `ExtractedMonster.stat_block` is a nested `Partial<MonsterStatBlock>`, not
+ * `ExtractedMonster.stat_block` is a nested prose `ExtractedStatBlock`, not
  * a top-level field — `challenge_rating` has no field of its own on the
  * payload the way `monster_type`/`size`/`alignment`/`habitat` do, since a
  * page's stat block is the one place 5e ever prints a CR.

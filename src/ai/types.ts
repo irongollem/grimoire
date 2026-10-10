@@ -1,5 +1,6 @@
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import type { MonsterType, MonsterSize, MonsterStatBlock } from "@/types/monster.types";
+import type { ProseStatBlockFields } from "@/rules/statBlock/structureStatBlock";
 import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { SpellSchool } from "@/types/spell.types";
 import type { DamageRoll } from "@/lib/dice/dice";
@@ -36,6 +37,14 @@ export interface NpcAiGenerated extends NpcAiResult {
   disguise_portrait_url?: string | null;
 }
 
+/**
+ * A generated stat block, as the model writes it: prose. The four damage and
+ * condition modifier lines are strings and each action is `{ name, description }`.
+ * Callers store it through `structureStatBlock` (#1017); the model is never asked
+ * for the structured payload.
+ */
+export type AiMonsterStatBlock = Omit<MonsterStatBlock, keyof ProseStatBlockFields> & ProseStatBlockFields;
+
 export interface MonsterAiResult {
   name: string;
   monster_type: MonsterType;
@@ -47,7 +56,7 @@ export interface MonsterAiResult {
   description: string;
   /** Plain text — convert to Tiptap JSON before writing to form */
   notes: string;
-  stat_block: MonsterStatBlock;
+  stat_block: AiMonsterStatBlock;
   /** Subject description for image generation */
   image_prompt: string;
   /** Built by `generate-entity-text` (or buildAiProvenance() on the local-key path). */

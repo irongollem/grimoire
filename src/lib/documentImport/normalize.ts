@@ -59,6 +59,7 @@ import type {
   ExtractedItem,
   ExtractedLocation,
   ExtractedMonster,
+  ExtractedStatBlock,
   ExtractedNpc,
   ExtractedPayloadMap,
   ExtractedQuest,
@@ -66,6 +67,7 @@ import type {
   ExtractedSpell,
   ImportEntityKind,
 } from "@/types/documentImport.types";
+import { structureStatBlock } from "@/rules/statBlock/structureStatBlock";
 import { PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
 import type { CombatantDef, EncounterInsert } from "@/types/encounter.types";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
@@ -260,14 +262,14 @@ export const LOCATION_TYPES = Object.keys(LOCATION_TYPE_LABELS) as LocationType[
  * complete block before saving, so the column default exists only as a
  * last-resort safety net, not something callers are meant to rely on.
  *
- * `ExtractedMonster.stat_block` is `Partial<MonsterStatBlock>` because a page
+ * `ExtractedMonster.stat_block` is a partial, prose-shaped `ExtractedStatBlock` because a page
  * break can cost the extractor the reactions block without costing the rest.
  * Any required field it didn't recover is filled here with a value chosen to
  * read as obviously placeholder rather than plausible — average ability
  * scores, CR 0 — so a DM reviewing the import isn't misled into thinking the
  * extractor actually read a stat off the page that it did not.
  */
-const BLANK_MONSTER_STAT_BLOCK: MonsterStatBlock = {
+const BLANK_MONSTER_STAT_BLOCK = {
   armor_class: 10,
   hit_points: "1",
   speed: "30 ft.",
@@ -301,8 +303,8 @@ const BLANK_MONSTER_STAT_BLOCK: MonsterStatBlock = {
  *
  * Already-correct map form passes through untouched, so running twice is safe.
  */
-function coerceStatBlock(partial: Partial<MonsterStatBlock> | undefined): MonsterStatBlock {
-  const merged = { ...BLANK_MONSTER_STAT_BLOCK, ...partial };
+function coerceStatBlock(partial: ExtractedStatBlock | undefined): MonsterStatBlock {
+  const merged: ExtractedStatBlock & typeof BLANK_MONSTER_STAT_BLOCK = { ...BLANK_MONSTER_STAT_BLOCK, ...partial };
   const skills: unknown = merged.skills;
   if (Array.isArray(skills)) {
     const record: Record<string, string> = {};
@@ -317,7 +319,9 @@ function coerceStatBlock(partial: Partial<MonsterStatBlock> | undefined): Monste
     }
     merged.skills = record;
   }
-  return merged;
+  // Prose in, structured out (#1017): every action gets its checked structure and
+  // the four modifier lines become `defenses`. The extractor never produces either.
+  return structureStatBlock(merged);
 }
 
 // ── Monsters ─────────────────────────────────────────────────────────────────

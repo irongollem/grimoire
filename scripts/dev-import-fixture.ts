@@ -31,6 +31,7 @@
  * Loopback-only, through the shared guard in `lib/dev-stack.ts`.
  */
 import { parseArgs } from "node:util";
+import { structureStatBlock } from "../src/rules/statBlock/structureStatBlock.ts";
 import { quote, sql } from "./lib/dev-db.ts";
 import {
   buildFixtureExtraction,
@@ -198,6 +199,8 @@ function ensureFixtureGoblins(dbUrl: string, ownerId: string, campaignId: string
         and source = ${quote(FIXTURE_MONSTER_SOURCE_MARKER)};`,
   );
 
+  // The fixture data is prose, like what the importer extracts; the rows a DM
+  // owns are stored structured (#1017), so the two paths are exercised alike.
   for (const goblin of FIXTURE_CAMPAIGN_GOBLINS) {
     sql(
       dbUrl,
@@ -206,7 +209,7 @@ function ensureFixtureGoblins(dbUrl: string, ownerId: string, campaignId: string
        values (
          ${quote(ownerId)}, ${quote(campaignId)}, 'Goblin', ${quote(goblin.monster_type)},
          ${quote(goblin.size)}, ${quote(goblin.alignment)}, ${quote(`{${goblin.tags.join(",")}}`)}::text[],
-         ${quote(JSON.stringify(goblin.stat_block))}::jsonb, ${quote(goblin.notes)},
+         ${quote(JSON.stringify(structureStatBlock(goblin.stat_block)))}::jsonb, ${quote(goblin.notes)},
          ${quote(FIXTURE_MONSTER_SOURCE_MARKER)}
        );`,
     );

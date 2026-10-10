@@ -7,13 +7,16 @@ import type { Trap } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
-import { applyDamage, applyHealing, betterTempHp, formHpPools } from "@/rules/hitPoints";
-import { damageOutcome, healingOutcome, UNCONSCIOUS, type DyingOutcome } from "@/rules/dying";
+import type { DyingOutcome } from "@/rules/dying";
+import {
+  reduceEncounterTurn,
+  type ActionLimit,
+  type EncounterTurnCommand,
+  type EncounterTurnEvent,
+  type EncounterTurnState,
+} from "@/rules/encounterTurn";
 import {
   rollInitiativeValue,
-  rollAllInitiativeValues,
-  findFirstActiveIndex,
-  stepTurnIndex,
   evaluateTrigger,
   buildMonsterCombatants,
   buildNpcCombatants,
@@ -49,13 +52,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     initiativeRoller = roller;
   }
 
-  /** The store is the immediate source of truth for DM display; this call
-   *  persists the change so the player's sheet and future sessions see it too. */
-  function persistPlayer(c: RunCombatant, patch: PartyMemberUpdate) {
-    if (c.type !== "player" || !c.party_member_id) return;
-    persistHandler?.(c.party_member_id, patch);
-  }
-
   const encounterId = ref<string | null>(null);
   const encounterName = ref("");
   const round = ref(1);
@@ -69,13 +65,15 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const availableMonsters = ref<Monster[]>([]);
   const availableNpcs = ref<NpcListRow[]>([]);
   const pendingBroadcasts = ref<string[]>([]);
+  /** Recharge rolls from the most recent turn start, for the runner to show ("Fire Breath recharged on a 5"). Replaced at every turn start that rolled one. */
+  const lastRechargeEvents = ref<Array<{ instanceId: string; action: string; roll: number; recharged: boolean }>>([]);
 
   // Boss-fight mechanics state
   const lairEnabled = ref(false);
   /** instance_id of the combatant whose stat_block.lair_actions should fire at init 20. */
   const lairOwnerInstanceId = ref<string | null>(null);
   /** Rounds in which a lair action has already been used. Keyed by round number. */
-  const lairFiredRounds = ref<Set<number>>(new Set());
+  const lairFiredRounds = ref<number[]>([]);
 
   // Sorted by initiative desc, players-first on tie, dex_mod desc (shared comparator)
   const sortedCombatants = computed(() => sortCombatantsByInitiative(combatants.value));
@@ -114,25 +112,50 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     randomizeInitiativeEachRound.value = value;
   }
 
-  /** Refill the per-turn pools a combatant regains at the start of its turn
-   *  (5e RAW: reaction resets, legendary actions refill). */
-  function refreshTurnStart(c: RunCombatant | undefined) {
-    if (!c) return;
-    c.reactionUsed = false;
-    if (typeof c.legendary_action_cap === "number") {
-      c.legendary_actions_remaining = c.legendary_action_cap;
+  /** Runs a command through the pure turn reducer (`rules/encounterTurn`), adopts
+   *  the resulting state, then acts on the events it raised: player changes go to
+   *  the registered persist handler, and `check_events` runs the event triggers
+   *  once the new state is in place. Returns the events for callers that need
+   *  an outcome (HP changes, legendary spend). */
+  function dispatch(command: EncounterTurnCommand): EncounterTurnEvent[] {
+    const before: EncounterTurnState = {
+      combatants: combatants.value,
+      round: round.value,
+      activeIndex: activeIndex.value,
+      started: started.value,
+      randomizeInitiativeEachRound: randomizeInitiativeEachRound.value,
+      lairEnabled: lairEnabled.value,
+      lairOwnerInstanceId: lairOwnerInstanceId.value,
+      lairFiredRounds: lairFiredRounds.value,
+    };
+    const { state, events: raised } = reduceEncounterTurn(before, command);
+    if (state.combatants !== before.combatants) combatants.value = state.combatants;
+    round.value = state.round;
+    activeIndex.value = state.activeIndex;
+    started.value = state.started;
+    lairEnabled.value = state.lairEnabled;
+    lairOwnerInstanceId.value = state.lairOwnerInstanceId;
+    if (state.lairFiredRounds !== before.lairFiredRounds) lairFiredRounds.value = state.lairFiredRounds;
+    let checkNow = false;
+    const recharges = raised.flatMap((e) =>
+      e.type === "action_recharged" || e.type === "recharge_failed"
+        ? [{ instanceId: e.instanceId, action: e.action, roll: e.roll, recharged: e.type === "action_recharged" }]
+        : [],
+    );
+    if (recharges.length > 0) lastRechargeEvents.value = recharges;
+    for (const event of raised) {
+      if (event.type === "player_persist") persistHandler?.(event.partyMemberId, event.patch);
+      else if (event.type === "check_events") checkNow = true;
     }
+    if (checkNow) checkEvents();
+    return raised;
   }
 
   /** Re-roll everyone's initiative silently (auto d20 — never a physical-dice
    *  prompt, since this fires once per round) and hand the turn to the top of
    *  the freshly-sorted order. */
   function reshuffleInitiative() {
-    const rolled = rollAllInitiativeValues(combatants.value);
-    for (const c of combatants.value) c.initiative = rolled.get(c.instance_id) ?? c.initiative;
-    const sorted = sortedCombatants.value;
-    activeIndex.value = findFirstActiveIndex(sorted);
-    refreshTurnStart(sorted[activeIndex.value]);
+    dispatch({ type: "reshuffle_initiative" });
   }
 
   /** True while a roll is in flight. In physical-dice mode that means a
@@ -212,168 +235,38 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     if (!started.value) await rollAllInitiatives();
     // Combat starts even if the DM cancelled a manual-entry prompt: anyone left
     // without a value sorts to the end of the order and can be typed in there.
-    started.value = true;
-    activeIndex.value = 0;
-    round.value = 1;
+    dispatch({ type: "start_combat" });
   }
 
   function setInitiative(instanceId: string, value: number) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (c) c.initiative = value;
+    dispatch({ type: "set_initiative", instanceId, value });
   }
 
   function nextTurn() {
-    const sorted = sortedCombatants.value;
-
-    // Clear surprise on the combatant whose turn is ending — surprised creatures
-    // can't act on their first turn, but the flag lifts at its end per 5e RAW.
-    const endingCombatant = sorted[activeIndex.value];
-    if (endingCombatant?.surprised) endingCombatant.surprised = false;
-
-    const step = stepTurnIndex(sorted, activeIndex.value, 1);
-    if (!step) return;
-
-    if (step.wrapped) {
-      round.value++;
-      // New round: with random initiative on, re-roll and re-sort, then start
-      // from the top of the new order (which also refreshes that combatant's
-      // per-turn pools). Nothing below applies since the order just changed.
-      if (randomizeInitiativeEachRound.value) {
-        reshuffleInitiative();
-        checkEvents();
-        return;
-      }
-    }
-    activeIndex.value = step.sortedIndex;
-
-    // At the start of each combatant's turn: refresh their reaction and
-    // legendary action pool (5e RAW: reactions reset at start of YOUR turn).
-    refreshTurnStart(sorted[step.sortedIndex]);
-    checkEvents();
+    dispatch({ type: "next_turn" });
   }
 
   function prevTurn() {
-    const sorted = sortedCombatants.value;
-    const step = stepTurnIndex(sorted, activeIndex.value, -1);
-    if (!step) return;
-    if (step.wrapped && round.value > 1) round.value--;
-    activeIndex.value = step.sortedIndex;
+    dispatch({ type: "prev_turn" });
   }
 
-  /**
-   * `tempHp` is what the edition grants on assuming a form (2024: druid level,
-   * Moon 3x); 0 means nothing, and temp HP never stacks, so the better value wins.
-   */
   function enterWildshape(instanceId: string, form: WildshapeState, wildshapesUsed: number, tempHp = 0) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    // Player's real hp/max_hp/ac are NEVER modified — beast form is a self-contained overlay.
-    // Reverting is simply clearing this field; nothing needs restoring.
-    c.wildshape = { ...form };
-    const patch: Parameters<typeof persistPlayer>[1] = { wildshape_state: c.wildshape, wildshapes_used: wildshapesUsed };
-    if (tempHp > 0) {
-      c.temp_hp = betterTempHp(c.temp_hp ?? 0, tempHp) || undefined;
-      patch.temp_hp = c.temp_hp ?? 0;
-    }
-    persistPlayer(c, patch);
+    dispatch({ type: "enter_wildshape", instanceId, form, wildshapesUsed, tempHp });
   }
 
   function revertWildshape(instanceId: string) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c?.wildshape) return;
-    // Real stats were never touched — just remove the overlay.
-    c.wildshape = undefined;
-    persistPlayer(c, { wildshape_state: null });
-  }
-
-  /** A party member (not a companion or monster) is the only combatant that dies by the death-save rules. */
-  function usesDeathSaves(c: RunCombatant): boolean {
-    return c.type === "player" && !!c.party_member_id;
-  }
-
-  /**
-   * Adopt the result of a dying-rules calculation onto a player combatant, and
-   * return only what it changed, for the write. An ordinary hit on a conscious
-   * PC changes neither, and writing the runner's copy back anyway would undo a
-   * condition the player toggled on their own sheet a moment earlier.
-   */
-  function adoptDying(
-    c: RunCombatant,
-    saves: { successes: number; failures: number },
-    conditions: string[],
-  ): PartyMemberUpdate {
-    const patch: PartyMemberUpdate = {};
-    if (saves.successes !== c.death_saves.successes || saves.failures !== c.death_saves.failures) {
-      patch.death_save_successes = saves.successes;
-      patch.death_save_failures = saves.failures;
-    }
-    const had = new Set(c.conditions);
-    if (conditions.length !== had.size || conditions.some((name) => !had.has(name))) {
-      patch.conditions = conditions;
-    }
-    c.death_saves = { ...saves };
-    c.conditions = conditions;
-    return patch;
+    dispatch({ type: "revert_wildshape", instanceId });
   }
 
   /** Returns the dying outcome for a player combatant (so the caller can say what happened), else null. */
   function adjustHp(instanceId: string, delta: number, options?: { critical?: boolean }): DyingOutcome {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return null;
-    const pools = formHpPools({ current_hp: c.hp, max_hp: c.max_hp, temp_hp: c.temp_hp ?? 0 }, c.wildshape);
-    let outcome: DyingOutcome = null;
-    let dyingPatch: PartyMemberUpdate = {};
-    if (delta < 0) {
-      // Temp HP absorbs first, then the beast form, then real HP (5e RAW).
-      if (usesDeathSaves(c)) {
-        const out = damageOutcome(
-          { pools, saves: c.death_saves, conditions: c.conditions },
-          { amount: -delta, critical: options?.critical },
-        );
-        c.temp_hp = out.temp_hp || undefined;
-        c.hp = out.current_hp;
-        if (out.reverted) revertWildshape(instanceId);
-        else if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
-        dyingPatch = adoptDying(c, out.saves, out.conditions);
-        outcome = out.outcome;
-      } else {
-        const out = applyDamage(pools, -delta);
-        c.temp_hp = out.temp_hp || undefined;
-        c.hp = out.current_hp;
-        if (out.reverted) revertWildshape(instanceId); // clears c.wildshape
-        else if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
-      }
-    } else if (usesDeathSaves(c)) {
-      const out = healingOutcome({ pools, saves: c.death_saves, conditions: c.conditions }, delta);
-      outcome = out.outcome;
-      if (out.outcome !== "healing-refused-dead") {
-        c.hp = out.current_hp;
-        if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
-        dyingPatch = adoptDying(c, out.saves, out.conditions);
-      }
-    } else {
-      const out = applyHealing(pools, delta);
-      c.hp = out.current_hp;
-      if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
-    }
-    if (c.type === "player") {
-      persistPlayer(c, {
-        current_hp: c.hp,
-        temp_hp: c.temp_hp ?? 0,
-        wildshape_state: c.wildshape ?? null,
-        ...dyingPatch,
-      });
-    }
-    checkEvents();
-    return outcome;
+    const raised = dispatch({ type: "adjust_hp", instanceId, delta, critical: options?.critical });
+    const dying = raised.find((e) => e.type === "dying_outcome");
+    return dying ? dying.outcome : null;
   }
 
   function setTempHp(instanceId: string, value: number) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    // Temp HP doesn't stack — take the higher value
-    c.temp_hp = betterTempHp(c.temp_hp ?? 0, value) || undefined;
-    persistPlayer(c, { temp_hp: c.temp_hp ?? 0 });
+    dispatch({ type: "set_temp_hp", instanceId, value });
   }
 
   /** Adopt a temp-HP value that came FROM party_members (the player changed it on
@@ -419,71 +312,23 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   function setHp(instanceId: string, value: number) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    const before = c.hp;
-    let dyingPatch: PartyMemberUpdate = {};
-    if (c.wildshape && c.wildshape.beast_max_hp !== null) {
-      c.wildshape.beast_hp = Math.min(c.wildshape.beast_max_hp, Math.max(0, value));
-      if (c.wildshape.beast_hp === 0) revertWildshape(instanceId);
-    } else {
-      c.hp = Math.min(c.max_hp, Math.max(0, value));
-      // A 2024 form ends when the character themself reaches 0.
-      if (c.wildshape && c.hp === 0) revertWildshape(instanceId);
-      if (usesDeathSaves(c)) {
-        // The DM setting HP directly still follows the rules: reaching 0 puts the
-        // character down, and any HP above 0 stands them up with clean saves.
-        if (c.hp <= 0 && before > 0) {
-          const conditions = c.conditions.includes(UNCONSCIOUS) ? c.conditions : [...c.conditions, UNCONSCIOUS];
-          dyingPatch = adoptDying(c, { successes: 0, failures: 0 }, conditions);
-        } else if (c.hp > 0 && before <= 0) {
-          const conditions = c.conditions.filter((x) => x !== UNCONSCIOUS);
-          dyingPatch = adoptDying(c, { successes: 0, failures: 0 }, conditions);
-        }
-      }
-    }
-    persistPlayer(c, { current_hp: c.hp, wildshape_state: c.wildshape ?? null, ...dyingPatch });
-    checkEvents();
+    dispatch({ type: "set_hp", instanceId, value });
   }
 
   // DM edits a combatant's max HP on the fly (e.g. a monster that spawned with the
-  // wrong HP, or scaling a fight live). Edits the beast overlay when wildshaped,
-  // real max otherwise. A combatant that was at full stays full at the new max so
-  // bumping a 2/2 monster to 11 gives it 11/11, not 2/11.
+  // wrong HP, or scaling a fight live); see `setMaxHp` in rules/encounterTurn.
   function setMaxHp(instanceId: string, value: number) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    const max = Math.max(1, Math.floor(value));
-    if (c.wildshape && c.wildshape.beast_hp !== null && c.wildshape.beast_max_hp !== null) {
-      const wasFull = c.wildshape.beast_hp >= c.wildshape.beast_max_hp;
-      c.wildshape.beast_max_hp = max;
-      c.wildshape.beast_hp = wasFull ? max : Math.min(c.wildshape.beast_hp, max);
-      persistPlayer(c, { wildshape_state: c.wildshape });
-    } else {
-      const wasFull = c.hp >= c.max_hp;
-      c.max_hp = max;
-      c.hp = wasFull ? max : Math.min(c.hp, max);
-      persistPlayer(c, { current_hp: c.hp, max_hp: max });
-    }
-    checkEvents();
+    dispatch({ type: "set_max_hp", instanceId, value });
   }
 
   function toggleCondition(instanceId: string, condition: string) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    const idx = c.conditions.indexOf(condition);
-    if (idx >= 0) c.conditions.splice(idx, 1);
-    else c.conditions.push(condition);
-    persistPlayer(c, { conditions: c.conditions });
+    dispatch({ type: "toggle_condition", instanceId, condition });
   }
 
   /** Replace a combatant's full conditions array — used when several
    *  entries change at once (e.g. exhaustion replacement). */
   function setConditions(instanceId: string, conditions: string[]) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    c.conditions = conditions;
-    persistPlayer(c, { conditions: c.conditions });
+    dispatch({ type: "set_conditions", instanceId, conditions });
   }
 
   /** Adopt conditions from party_members without persisting the same row. */
@@ -558,20 +403,9 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   /** Removes a combatant from the roster entirely — used to pull a benched
-   *  companion out of the lobby (round 0). `activeIndex` is an index into
-   *  `sortedCombatants`, so we re-derive the removed entry's sorted position
-   *  first and shift/clamp accordingly; safe to call after combat has started
-   *  too, though nothing currently does so. */
+   *  companion out of the lobby (round 0). */
   function removeCombatant(instanceId: string) {
-    const removedSortedIndex = sortedCombatants.value.findIndex((c) => c.instance_id === instanceId);
-    const idx = combatants.value.findIndex((c) => c.instance_id === instanceId);
-    if (idx < 0) return;
-    combatants.value.splice(idx, 1);
-    if (removedSortedIndex >= 0 && removedSortedIndex < activeIndex.value) {
-      activeIndex.value--;
-    }
-    const maxIndex = Math.max(0, sortedCombatants.value.length - 1);
-    activeIndex.value = Math.min(activeIndex.value, maxIndex);
+    dispatch({ type: "remove_combatant", instanceId });
   }
 
   /** Adds a companion combatant to the roster — the counterpart to the
@@ -667,30 +501,36 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     availableMonsters.value = [];
     availableNpcs.value = [];
     pendingBroadcasts.value = [];
+    lastRechargeEvents.value = [];
     rollingInitiative.value = false;
     randomizeInitiativeEachRound.value = false;
     lairEnabled.value = false;
     lairOwnerInstanceId.value = null;
-    lairFiredRounds.value = new Set();
+    lairFiredRounds.value = [];
   }
 
   // ── Boss mechanics ───────────────────────────────────────────────────────────
 
   function setBossMechanics(opts: { lairEnabled: boolean; lairOwnerInstanceId: string | null }) {
-    lairEnabled.value = opts.lairEnabled;
-    lairOwnerInstanceId.value = opts.lairOwnerInstanceId;
+    dispatch({ type: "set_boss_mechanics", ...opts });
   }
 
   function toggleSurprised(instanceId: string) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    c.surprised = !c.surprised;
+    dispatch({ type: "toggle_surprised", instanceId });
+  }
+
+  /** Marks one use of a limited ability; `limit` comes from `actionLimit(entry)`. */
+  function useAction(instanceId: string, action: string, limit: ActionLimit) {
+    dispatch({ type: "use_action", instanceId, action, limit });
+  }
+
+  /** DM override: the ability is available again. */
+  function restoreAction(instanceId: string, action: string) {
+    dispatch({ type: "restore_action", instanceId, action });
   }
 
   function toggleReaction(instanceId: string) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    c.reactionUsed = !c.reactionUsed;
+    dispatch({ type: "toggle_reaction", instanceId });
   }
 
   /** Seed legendary-action state on every combatant whose monster has a
@@ -698,35 +538,26 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
    *  monsters are loaded so the runner knows who gets a pool. */
   function primeLegendaryActions(caps: Record<string, number>) {
     // caps: instance_id → cap (typically 3). Missing entries get no pool.
-    for (const c of combatants.value) {
-      const cap = caps[c.instance_id];
-      if (cap && cap > 0) {
-        c.legendary_action_cap = cap;
-        c.legendary_actions_remaining = cap;
-      }
-    }
+    dispatch({ type: "prime_legendary_actions", caps });
   }
 
   /** Spend N legendary actions from `instanceId` — clamped at zero. Returns
    *  the actual amount spent (0 if there weren't enough). */
   function spendLegendaryActions(instanceId: string, cost: number): number {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c || typeof c.legendary_actions_remaining !== "number") return 0;
-    const available = c.legendary_actions_remaining;
-    const spent = Math.min(available, cost);
-    c.legendary_actions_remaining = available - spent;
-    return spent;
+    const raised = dispatch({ type: "spend_legendary_actions", instanceId, cost });
+    const spent = raised.find((e) => e.type === "legendary_spent");
+    return spent ? spent.spent : 0;
   }
 
   const lairCanFireThisRound = computed(() =>
     lairEnabled.value
       && lairOwnerInstanceId.value !== null
-      && !lairFiredRounds.value.has(round.value)
+      && !lairFiredRounds.value.includes(round.value)
       && (combatants.value.find((c) => c.instance_id === lairOwnerInstanceId.value)?.hp ?? 0) > 0,
   );
 
   function markLairFired() {
-    lairFiredRounds.value = new Set([...lairFiredRounds.value, round.value]);
+    dispatch({ type: "mark_lair_fired" });
   }
 
   function hydrateFromLive(state: {
@@ -767,6 +598,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     availableMonsters,
     availableNpcs,
     pendingBroadcasts,
+    lastRechargeEvents,
     // Boss mechanics state
     lairEnabled,
     lairOwnerInstanceId,
@@ -819,6 +651,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setBossMechanics,
     toggleSurprised,
     toggleReaction,
+    useAction,
+    restoreAction,
     primeLegendaryActions,
     spendLegendaryActions,
     markLairFired,

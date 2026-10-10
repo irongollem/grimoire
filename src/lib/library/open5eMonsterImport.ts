@@ -8,12 +8,18 @@ import {
   slugifyKey,
 } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
+import { structureStatBlock, type ProseStatBlockFields } from "@/rules/statBlock/structureStatBlock";
 import type { MonsterInsert, MonsterStatBlock, MonsterSize, MonsterType } from "@/types/monster.types";
+
+/** The stat block as Open5e's prose gives it, before `structureStatBlock` (#1017). */
+type ProseMonsterStatBlock = Omit<MonsterStatBlock, keyof ProseStatBlockFields> & ProseStatBlockFields;
 
 interface Open5eV2Action {
   name: string;
   desc: string;
   action_type: "ACTION" | "BONUS_ACTION" | "REACTION" | "LEGENDARY_ACTION" | string;
+  /** How many legendary actions this one costs. Set (1) on every action, meaningful on LEGENDARY_ACTION. */
+  legendary_action_cost?: number | null;
 }
 
 interface Open5eV2Monster {
@@ -107,9 +113,27 @@ function toSkills(skills: Record<string, number> | undefined): Record<string, st
   return Object.keys(result).length ? result : undefined;
 }
 
+// Open5e v2 has no lair-action type: a scan of every creature (18 pages, ~12,000
+// actions, 7 Oct 2026) found only ACTION, BONUS_ACTION, REACTION and
+// LEGENDARY_ACTION, and no action named for a lair. So `lair_actions` is not mapped
+// from the API; there is nothing to map. It is a DM-authored list.
 function actionsOf(monster: Open5eV2Monster, type: string) {
   const rows = (monster.actions ?? []).filter(action => action.action_type === type);
-  return rows.length ? rows.map(action => ({ name: action.name, description: action.desc })) : undefined;
+  return rows.length ? rows.map(action => ({ name: printedName(action), description: action.desc })) : undefined;
+}
+
+/**
+ * The action's name as the book prints it. Open5e strips "(Costs 2 Actions)" from
+ * SRD legendary actions and keeps the cost in `legendary_action_cost` instead, so
+ * the SRD's Wing Attack arrived costing 1. Putting the parenthetical back gives the
+ * reader the printed text and gives the structured-action parser (#1017) the cost
+ * as prose it can check, rather than a number from a field it cannot.
+ */
+function printedName(action: Open5eV2Action): string {
+  const cost = action.legendary_action_cost;
+  if (action.action_type !== "LEGENDARY_ACTION" || typeof cost !== "number" || cost <= 1) return action.name;
+  if (/\(\s*costs\s+\d/i.test(action.name)) return action.name;
+  return `${action.name} (Costs ${cost} Actions)`;
 }
 
 function senses(monster: Open5eV2Monster): string | undefined {
@@ -145,7 +169,7 @@ export function mapOpen5eV2Monster(
   const count = legendaryResistance?.name.match(/\((\d+)\s*\/\s*day/i)?.[1];
   const scores = monster.ability_scores;
   const ruleset = rulesetForDocument(monster.document);
-  const statBlock: MonsterStatBlock = {
+  const statBlock: ProseMonsterStatBlock = {
     armor_class: monster.armor_class ?? 10,
     hit_points: monster.hit_dice ? `${monster.hit_points} (${monster.hit_dice})` : String(monster.hit_points),
     // `speed` holds the creature's NATIVE speeds; `speed_all` additionally
@@ -207,7 +231,10 @@ export function mapOpen5eV2Monster(
     source_title: monster.document.display_name || monster.document.name,
     source_url: monster.document.permalink ?? null,
     tags: [],
-    stat_block: statBlock,
+    // Open5e's own `attacks[]` is deliberately not read: it is wrong (the 2014
+    // goblin Scimitar is typed thunder with no damage bonus). The parser reads the
+    // prose and its prose check vouches for the result.
+    stat_block: structureStatBlock(statBlock),
     notes: null,
     image_url: null,
     cutout_url: null, // Open5e has no cutout art (#917 story 1)

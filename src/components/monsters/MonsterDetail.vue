@@ -327,6 +327,8 @@ import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { useToast } from "@/composables/useToast";
+import { structureStatBlock } from "@/rules/statBlock/structureStatBlock";
+import { emptyDefenses } from "@/types/statBlock.types";
 
 const ALIGNMENTS = [
   "Lawful Good",
@@ -436,10 +438,7 @@ function defaultSb(): MonsterStatBlock {
     challenge_rating: "1/4",
     saving_throws: "",
     skills: {},
-    damage_vulnerabilities: "",
-    damage_resistances: "",
-    damage_immunities: "",
-    condition_immunities: "",
+    defenses: emptyDefenses(),
     senses: "",
     languages: "",
     special_abilities: [],
@@ -521,7 +520,8 @@ function onAiGenerated(result: MonsterAiGenerated) {
     form.portrait_focal_point = null;
   }
   form.ai_provenance = result.ai_provenance ?? null;
-  Object.assign(form.sb, defaultSb(), result.stat_block);
+  // The model writes prose; every entry is read and checked before it lands in the form.
+  Object.assign(form.sb, defaultSb(), structureStatBlock(result.stat_block));
 }
 
 const { mutateAsync: create } = useCreateMonster();

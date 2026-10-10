@@ -1,6 +1,7 @@
 import type { SpellcastingBlock } from "@/types/npc.types";
 import type { VersionedContentMetadata } from "@/types/content.types";
 import type { AiProvenance } from "@/ai/provenance";
+import type { Defenses, StatBlockEntry } from "@/types/statBlock.types";
 
 export const MONSTER_TYPES = [
   "aberration",
@@ -49,19 +50,17 @@ export interface MonsterStatBlock {
   initiative_bonus?: number | null;
   saving_throws?: string; // e.g. "Con +5, Wis +3"
   skills?: Record<string, string>; // e.g. { perception: '+3', stealth: '+5' }
-  damage_vulnerabilities?: string;
-  damage_resistances?: string;
-  damage_immunities?: string;
-  condition_immunities?: string;
+  /** Resistances, immunities, vulnerabilities and condition immunities, typed (#1017). */
+  defenses: Defenses;
   senses?: string;
   languages?: string;
-  special_abilities?: Array<{ name: string; description: string }>;
-  actions?: Array<{ name: string; description: string }>;
-  bonus_actions?: Array<{ name: string; description: string }>;
-  reactions?: Array<{ name: string; description: string }>;
+  special_abilities?: StatBlockEntry[];
+  actions?: StatBlockEntry[];
+  bonus_actions?: StatBlockEntry[];
+  reactions?: StatBlockEntry[];
   legendary_resistance?: number;
-  legendary_actions?: Array<{ name: string; description: string }>;
-  lair_actions?: Array<{ name: string; description: string }>;
+  legendary_actions?: StatBlockEntry[];
+  lair_actions?: StatBlockEntry[];
   spellcasting?: SpellcastingBlock;
 }
 

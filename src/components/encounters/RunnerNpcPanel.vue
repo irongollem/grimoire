@@ -35,14 +35,11 @@
       />
       <p v-if="npc.stat_block.senses" class="detail-line"><span>Senses</span>{{ npc.stat_block.senses }}</p>
       <p v-if="npc.stat_block.languages" class="detail-line"><span>Languages</span>{{ npc.stat_block.languages }}</p>
-      <p v-if="npc.stat_block.damage_resistances" class="detail-line"><span>Resistances</span>{{ npc.stat_block.damage_resistances }}</p>
-      <p v-if="npc.stat_block.damage_immunities" class="detail-line"><span>Immunities</span>{{ npc.stat_block.damage_immunities }}</p>
-      <p v-if="npc.stat_block.condition_immunities" class="detail-line"><span>Cond. Immune</span>{{ npc.stat_block.condition_immunities }}</p>
-      <RunnerTraitSection
-        :sections="traitSections"
-        @roll-attack="(bonus, name) => emit('roll-attack', bonus, name)"
-        @roll-damage="(desc, name) => emit('roll-damage', desc, name)"
-      />
+      <p v-if="npc.stat_block.defenses.resistances.length" class="detail-line"><span>Resistances</span>{{ formatDefenseList(npc.stat_block.defenses.resistances) }}</p>
+      <p v-if="npc.stat_block.defenses.vulnerabilities.length" class="detail-line"><span>Vulnerabilities</span>{{ formatDefenseList(npc.stat_block.defenses.vulnerabilities) }}</p>
+      <p v-if="npc.stat_block.defenses.immunities.length" class="detail-line"><span>Immunities</span>{{ formatDefenseList(npc.stat_block.defenses.immunities) }}</p>
+      <p v-if="npc.stat_block.defenses.condition_immunities.length" class="detail-line"><span>Cond. Immune</span>{{ formatConditionImmunities(npc.stat_block.defenses.condition_immunities) }}</p>
+      <RunnerActionList :combatant="combatant" :sections="actionSections" />
       <template v-if="npc.stat_block?.spellcasting?.entries?.length">
         <div class="detail-divider" />
         <SpellcastingList :spellcasting="npc.stat_block.spellcasting" />
@@ -58,7 +55,8 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
-import RunnerTraitSection from "@/components/encounters/RunnerTraitSection.vue";
+import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
+import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";
 import type { NpcListRow } from "@/types/npc.types";
 import type { RunCombatant } from "@/types/encounter.types";
 
@@ -71,18 +69,16 @@ const portrait = computed(() => formPortrait(combatant, combatant.wildshape));
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];
-  "roll-attack": [bonus: number, name: string];
-  "roll-damage": [desc: string, name: string];
 }>();
 
-const traitSections = computed(() => {
+const actionSections = computed(() => {
   const sb = npc.stat_block;
   if (!sb) return [];
   return [
-    { label: "Special Abilities", traits: sb.special_abilities },
-    { label: "Actions",           traits: sb.actions },
-    { label: "Legendary Actions", traits: sb.legendary_actions },
-  ].filter((s) => s.traits?.length);
+    { label: "Special Abilities", entries: sb.special_abilities },
+    { label: "Actions", entries: sb.actions },
+    { label: "Legendary Actions", entries: sb.legendary_actions },
+  ];
 });
 </script>
 

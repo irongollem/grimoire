@@ -35,7 +35,7 @@
 import { computed } from "vue";
 import SkillRollRow from "@/components/player/SkillRollRow.vue";
 import type { RollMode } from "@/lib/dice/roller";
-import { combineModes } from "@/lib/dice/roller";
+import { combineModes } from "@/lib/dice/dice";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";

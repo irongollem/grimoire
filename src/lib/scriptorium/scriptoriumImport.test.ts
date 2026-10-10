@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { emptyDefenses, type Defenses } from "@/types/statBlock.types";
 import { describe, it, expect } from "vitest";
 import {
   formatNpcForScriptorium,
@@ -66,6 +67,7 @@ function monster(overrides: Partial<Monster> = {}): Monster {
       int: 3,
       wis: 12,
       cha: 7,
+      defenses: emptyDefenses(),
     },
     ...overrides,
   } as unknown as Monster;
@@ -120,7 +122,7 @@ describe("formatMonsterForScriptorium — stat block frame (#915 story 6)", () =
     "roll spelled out in prose, plus a second sentence of exactly the same sort so the whole entry runs long. ";
 
   it("stays the column size for many SHORT trait/action entries (text length, not item count, decides)", () => {
-    const trait = { name: "Trait", description: "Does a thing." };
+    const trait = { name: "Trait", description: "Does a thing.", structured: { kind: "other" as const, source: "manual" as const } };
     const many: Partial<MonsterStatBlock> = {
       special_abilities: [trait, trait, trait],
       actions: [trait, trait, trait, trait],
@@ -131,7 +133,7 @@ describe("formatMonsterForScriptorium — stat block frame (#915 story 6)", () =
   });
 
   it("switches to the wide size once the stat block's own text passes the length threshold", () => {
-    const long = { name: "Trait", description: LONG_DESCRIPTION };
+    const long = { name: "Trait", description: LONG_DESCRIPTION, structured: { kind: "other" as const, source: "manual" as const } };
     const many: Partial<MonsterStatBlock> = {
       special_abilities: [long, long, long],
       actions: [long, long, long],
@@ -147,6 +149,7 @@ describe("formatMonsterForScriptorium — stat block frame (#915 story 6)", () =
   // Marzipan Sentry and Toffee Maw overflowed at the single threshold.
   it("goes wide at a shorter length when lore makes the entry heading visible", () => {
     const medium = {
+      structured: { kind: "other" as const, source: "manual" as const },
       name: "Trait",
       description:
         "A mid-length trait that runs to a couple of sentences, long enough that four of them together " +
@@ -174,6 +177,25 @@ describe("formatMonsterForScriptorium — stat block frame (#915 story 6)", () =
     );
     expect(content).toContain("Stealth +6");
     expect(content).not.toContain("stealth +6");
+  });
+
+  it("renders typed defenses as escaped property lines", () => {
+    const defenses: Defenses = {
+      resistances: [{ types: ["cold"] }],
+      immunities: [{ types: ["poison"] }],
+      vulnerabilities: [],
+      condition_immunities: ["Charmed"],
+      notes: "<b>Fey Resilience</b>",
+    };
+    const { content } = formatMonsterForScriptorium(
+      monster({ stat_block: { ...monster().stat_block, defenses } }),
+    );
+    expect(content).toContain("Damage Resistances</strong> cold");
+    expect(content).toContain("Damage Immunities</strong> poison");
+    expect(content).toContain("Condition Immunities</strong> charmed");
+    expect(content).not.toContain("Damage Vulnerabilities");
+    expect(content).toContain("&lt;b&gt;Fey Resilience&lt;/b&gt;");
+    expect(content).not.toContain("<b>Fey Resilience</b>");
   });
 
   it("adds an Initiative line derived from DEX when onednd2024 and none is stored", () => {
@@ -213,8 +235,8 @@ describe("formatMonsterForScriptorium — stat block frame (#915 story 6)", () =
       monster({
         stat_block: {
           ...monster().stat_block,
-          special_abilities: [{ name: "Keen Smell", description: "Advantage on smell checks." }],
-          actions: [{ name: "Bite", description: "Melee attack." }],
+          special_abilities: [{ name: "Keen Smell", description: "Advantage on smell checks.", structured: { kind: "other" as const, source: "manual" as const } }],
+          actions: [{ name: "Bite", description: "Melee attack.", structured: { kind: "other" as const, source: "manual" as const } }],
         },
       }),
     );
@@ -334,6 +356,7 @@ describe("formatMonsterForScriptorium — entry composition (heading, lore, art)
 
   it("uses the wide entry class for a long stat block, still with no column-break", () => {
     const long = {
+      structured: { kind: "other" as const, source: "manual" as const },
       name: "Trait",
       description:
         "This trait's description runs on at considerable length, well past what a single short line would " +

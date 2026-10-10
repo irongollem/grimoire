@@ -204,16 +204,13 @@
             <label class="text-label-lg font-semibold text-muted-foreground">Languages</label>
             <input v-model="sb.languages" placeholder="Common" class="sb-input" />
           </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-label-lg font-semibold text-muted-foreground">Damage Resistances</label>
-            <input v-model="sb.damage_resistances" class="sb-input" />
-          </div>
+          <StatBlockDefenseFields v-model="sb.defenses" />
         </div>
 
         <!-- Special abilities -->
-        <TraitSection v-model="sb.special_abilities" label="Special Abilities" />
-        <TraitSection v-model="sb.actions" label="Actions" />
-        <TraitSection v-model="sb.reactions" label="Reactions" />
+        <StatBlockEntrySection v-model="sb.special_abilities" label="Special Abilities" list="special_abilities" :siblings="siblings" />
+        <StatBlockEntrySection v-model="sb.actions" label="Actions" list="actions" :siblings="siblings" />
+        <StatBlockEntrySection v-model="sb.reactions" label="Reactions" list="reactions" :siblings="siblings" />
       </template>
 
       <!-- The DM's note saves on its own, so it needs a saved companion to hang
@@ -261,7 +258,7 @@ import {
   COMPANION_TYPES,
   COMPANION_TYPE_LABELS,
 } from "@/types/companion.types";
-import { useRecordDraft } from "@/composables/useRecordDraft";
+import { cloneDraftValue, useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
 import type { Companion, CompanionInsert, CompanionType, CompanionSourceType } from "@/types/companion.types";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
@@ -269,7 +266,9 @@ import type { StatBlock } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
-import TraitSection from "@/components/npcs/TraitSection.vue";
+import StatBlockDefenseFields from "@/components/common/StatBlockDefenseFields.vue";
+import StatBlockEntrySection from "@/components/common/StatBlockEntrySection.vue";
+import { type Defenses, type StatBlockEntry, emptyDefenses } from "@/types/statBlock.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
@@ -385,10 +384,10 @@ interface CompanionDraft {
     skills: string;
     senses: string;
     languages: string;
-    damage_resistances: string;
-    special_abilities: Array<{ name: string; description: string }>;
-    actions: Array<{ name: string; description: string }>;
-    reactions: Array<{ name: string; description: string }>;
+    defenses: Defenses;
+    special_abilities: StatBlockEntry[];
+    actions: StatBlockEntry[];
+    reactions: StatBlockEntry[];
   };
 }
 
@@ -424,7 +423,7 @@ function toCompanionDraft(c: Companion | null): CompanionDraft {
       skills:             skillsToString(stat?.skills),
       senses:             stat?.senses ?? "",
       languages:          stat?.languages ?? "",
-      damage_resistances: stat?.damage_resistances ?? "",
+      defenses:           stat?.defenses ? cloneDraftValue(stat.defenses) : emptyDefenses(),
       special_abilities:  stat?.special_abilities ? stat.special_abilities.map((t) => ({ ...t })) : [],
       actions:            stat?.actions ? stat.actions.map((t) => ({ ...t })) : [],
       reactions:          stat?.reactions ? stat.reactions.map((t) => ({ ...t })) : [],
@@ -462,6 +461,9 @@ const focalPoint        = field("focalPoint");
 const hasStatBlock      = field("hasStatBlock");
 // Computed, not a captured reference: a merge can replace draft.sb whole.
 const sb                = computed(() => draft.sb);
+const siblings          = computed(() =>
+  [...draft.sb.special_abilities, ...draft.sb.actions, ...draft.sb.reactions].map((e) => e.name),
+);
 
 const conflictLabels = computed(() => {
   const labels: Partial<Record<keyof CompanionDraft, string>> = {
@@ -513,7 +515,7 @@ function applyStatBlockFromMonster(statBlock: MonsterStatBlock) {
     skills:             skillsToString(statBlock.skills),
     senses:             statBlock.senses ?? "",
     languages:          statBlock.languages ?? "",
-    damage_resistances: statBlock.damage_resistances ?? "",
+    defenses:           cloneDraftValue(statBlock.defenses),
     special_abilities:  statBlock.special_abilities ? [...statBlock.special_abilities] : [],
     actions:            statBlock.actions ? [...statBlock.actions] : [],
     reactions:          statBlock.reactions ? [...statBlock.reactions] : [],
@@ -531,10 +533,10 @@ function buildStatBlock(d: CompanionDraft): MonsterStatBlock | null {
     str: sb.str, dex: sb.dex, con: sb.con,
     int: sb.int, wis: sb.wis, cha: sb.cha,
     challenge_rating:   sb.challenge_rating,
+    defenses:           sb.defenses,
     ...(Object.keys(skillsRecord).length ? { skills: skillsRecord } : {}),
     ...(sb.senses             ? { senses: sb.senses } : {}),
     ...(sb.languages          ? { languages: sb.languages } : {}),
-    ...(sb.damage_resistances ? { damage_resistances: sb.damage_resistances } : {}),
     ...(sb.special_abilities?.length ? { special_abilities: sb.special_abilities } : {}),
     ...(sb.actions?.length    ? { actions: sb.actions } : {}),
     ...(sb.reactions?.length  ? { reactions: sb.reactions } : {}),

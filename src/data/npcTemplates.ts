@@ -1,4 +1,5 @@
 import type { StatBlock } from "@/types/npc.types";
+import { type ProseStatBlockFields, structureStatBlock } from "@/rules/statBlock/structureStatBlock";
 
 export interface NpcTemplate {
   id: string;
@@ -7,8 +8,12 @@ export interface NpcTemplate {
   stat_block: StatBlock;
 }
 
-// SRD 5.1 stat blocks — open content
-export const NPC_TEMPLATES: NpcTemplate[] = [
+/** The authored form: prose entries and the four defense strings, as printed in the SRD. */
+type ProseStatBlock = Omit<StatBlock, keyof ProseStatBlockFields> & ProseStatBlockFields;
+
+// SRD 5.1 stat blocks — open content. Authored as prose; `NPC_TEMPLATES` below is
+// the same data read through the stat-block parser, which is what consumers get.
+const PROSE_TEMPLATES: Array<Omit<NpcTemplate, "stat_block"> & { stat_block: ProseStatBlock }> = [
   // ── Townsfolk ────────────────────────────────────────────────────────────
   {
     id: "commoner",
@@ -689,6 +694,11 @@ export const NPC_TEMPLATES: NpcTemplate[] = [
     },
   },
 ];
+
+export const NPC_TEMPLATES: NpcTemplate[] = PROSE_TEMPLATES.map((t) => ({
+  ...t,
+  stat_block: structureStatBlock(t.stat_block),
+}));
 
 export const NPC_TEMPLATE_CATEGORIES = [...new Set(NPC_TEMPLATES.map((t) => t.category))];
 

@@ -26,7 +26,9 @@
  */
 
 import { fetchOpen5eDocuments, fetchOpen5eMonsters } from "@/lib/library/open5eMonsterImport";
-import type { MonsterInsert } from "@/types/monster.types";
+import { structureStatBlock } from "@/rules/statBlock/structureStatBlock";
+import type { MonsterInsert, MonsterStatBlock } from "@/types/monster.types";
+import type { ActionStructure, StatBlockEntry } from "@/types/statBlock.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import { fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, stableSrdId } from "@/lib/library/open5eApi";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -84,6 +86,79 @@ type SeededMonster = Omit<MappedMonster, "habitat" | "tags" | "notes" | "image_u
 export function seedRow(monster: MappedMonster, id: string): SeededMonster {
   const { habitat: _habitat, tags: _tags, notes: _notes, image_url: _imageUrl, cutout_url: _cutoutUrl, ...open5eFields } = monster;
   return { ...open5eFields, id };
+}
+
+// ── structures better than the parser's ───────────────────────────────────────
+
+const ENTRY_LISTS = [
+  "special_abilities",
+  "actions",
+  "bonus_actions",
+  "reactions",
+  "legendary_actions",
+  "lair_actions",
+] as const;
+
+/** What a stored row holds for one entry: the old prose shape has no `structured`. */
+function isSettledStructure(value: unknown): value is ActionStructure {
+  if (typeof value !== "object" || value === null) return false;
+  const source = (value as { source?: unknown }).source;
+  return source === "extracted" || source === "manual";
+}
+
+/**
+ * Carries the structures an agent (`extracted`) or a DM (`manual`) settled over
+ * from the stored row onto a freshly mapped one (#1017). The mapper's structures
+ * are all `parsed`; without this a re-seed would replace a hand-checked structure
+ * with whatever the parser makes of the prose. An entry matches on list + name +
+ * description, so a changed description (a new edition's wording) gets a fresh
+ * parse. `structureStatBlock` then keeps the carried structure only if it still
+ * passes the prose check (`manual` is always kept).
+ *
+ * `existing` is whatever the table holds, which may predate the structured shape
+ * entirely, so it is read defensively rather than trusted as a `MonsterStatBlock`.
+ */
+export function preserveSettledStructures(fresh: MonsterStatBlock, existing: unknown): MonsterStatBlock {
+  if (typeof existing !== "object" || existing === null) return fresh;
+  const old = existing as Record<string, unknown>;
+  const carried: Partial<Record<(typeof ENTRY_LISTS)[number], StatBlockEntry[]>> = {};
+  let any = false;
+  for (const list of ENTRY_LISTS) {
+    const entries = fresh[list];
+    if (!entries) continue;
+    const oldEntries = Array.isArray(old[list]) ? (old[list] as Array<Partial<StatBlockEntry>>) : [];
+    carried[list] = entries.map((entry) => {
+      const match = oldEntries.find(
+        (o) => o.name === entry.name && o.description === entry.description && isSettledStructure(o.structured),
+      );
+      if (!match || !isSettledStructure(match.structured)) return entry;
+      any = true;
+      return { ...entry, structured: match.structured };
+    });
+  }
+  return any ? structureStatBlock({ ...fresh, ...carried }) : fresh;
+}
+
+interface ExistingStatBlockRow {
+  source_record_key: string;
+  stat_block: unknown;
+}
+
+/** The stored stat blocks of the rows about to be re-seeded, keyed by `source_record_key`. */
+async function fetchExistingStatBlocks(
+  supabase: SupabaseClient,
+  documentKeys: readonly string[],
+): Promise<Map<string, unknown>> {
+  const rows = await fetchAllRows<ExistingStatBlockRow>((from, to) =>
+    supabase
+      .from("library_monsters")
+      .select("source_record_key,stat_block")
+      .in("source_document_key", [...documentKeys])
+      .order("id")
+      .range(from, to)
+      .returns<ExistingStatBlockRow[]>(),
+  );
+  return new Map(rows.map((row) => [row.source_record_key, row.stat_block]));
 }
 
 // ── art backfill from library_monster_art_canonical ───────────────────────────────
@@ -204,7 +279,15 @@ async function main(): Promise<void> {
   const supabase = createServiceClient(env);
 
   console.log("Step 2: Upserting to library_monsters table…");
-  await upsertBatch(supabase, "library_monsters", rows, "source_document_key,source_record_key", { insertOnly: parsed.insertOnly });
+  const existing = await fetchExistingStatBlocks(supabase, documentKeys);
+  const seeded = rows.map((row) => ({
+    ...row,
+    // Every row has a key (checked when it was mapped); the guard is for the type.
+    stat_block: row.source_record_key
+      ? preserveSettledStructures(row.stat_block, existing.get(row.source_record_key))
+      : row.stat_block,
+  }));
+  await upsertBatch(supabase, "library_monsters", seeded, "source_document_key,source_record_key", { insertOnly: parsed.insertOnly });
   console.log(`  Done — ${rows.length} rows upserted.\n`);
 
   console.log("Step 3: Backfilling art from library_monster_art_canonical…");

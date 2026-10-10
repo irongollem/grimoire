@@ -28,22 +28,23 @@
         <dt class="font-semibold shrink-0">Skills</dt>
         <dd>{{ skillsLine }}</dd>
       </div>
-      <div v-if="sb.damage_vulnerabilities" class="flex gap-1.5">
+      <div v-if="vulnerabilitiesLine" class="flex gap-1.5">
         <dt class="font-semibold shrink-0">Damage Vulnerabilities</dt>
-        <dd>{{ sb.damage_vulnerabilities }}</dd>
+        <dd>{{ vulnerabilitiesLine }}</dd>
       </div>
-      <div v-if="sb.damage_resistances" class="flex gap-1.5">
+      <div v-if="resistancesLine" class="flex gap-1.5">
         <dt class="font-semibold shrink-0">Damage Resistances</dt>
-        <dd>{{ sb.damage_resistances }}</dd>
+        <dd>{{ resistancesLine }}</dd>
       </div>
-      <div v-if="sb.damage_immunities" class="flex gap-1.5">
+      <div v-if="immunitiesLine" class="flex gap-1.5">
         <dt class="font-semibold shrink-0">Damage Immunities</dt>
-        <dd>{{ sb.damage_immunities }}</dd>
+        <dd>{{ immunitiesLine }}</dd>
       </div>
-      <div v-if="sb.condition_immunities" class="flex gap-1.5">
+      <div v-if="conditionImmunitiesLine" class="flex gap-1.5">
         <dt class="font-semibold shrink-0">Condition Immunities</dt>
-        <dd>{{ sb.condition_immunities }}</dd>
+        <dd>{{ conditionImmunitiesLine }}</dd>
       </div>
+      <p v-if="sb.defenses.notes" class="text-muted-foreground">{{ sb.defenses.notes }}</p>
       <div v-if="sb.senses" class="flex gap-1.5">
         <dt class="font-semibold shrink-0">Senses</dt>
         <dd>{{ sb.senses }}</dd>
@@ -68,6 +69,7 @@ import { computed } from "vue";
 import { skillsToString, formatHitPoints } from "@/lib/utils";
 import type { MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
+import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";
 import type { RollMode } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
@@ -126,6 +128,10 @@ const savesObj = computed<Record<string, SaveEntry>>(() => {
   return result;
 });
 
+const vulnerabilitiesLine = computed(() => formatDefenseList(props.sb.defenses.vulnerabilities));
+const resistancesLine = computed(() => formatDefenseList(props.sb.defenses.resistances));
+const immunitiesLine = computed(() => formatDefenseList(props.sb.defenses.immunities));
+const conditionImmunitiesLine = computed(() => formatConditionImmunities(props.sb.defenses.condition_immunities));
 const skillsLine = computed(() => skillsToString(props.sb.skills));
 
 // 2024 stat blocks print a flat Initiative bonus; 2014 stat blocks (and NPCs

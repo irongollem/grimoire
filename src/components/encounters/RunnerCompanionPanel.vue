@@ -30,11 +30,7 @@
         @roll-save="(_, label, bonus) => emit('roll-check', bonus, label + ' Save')"
       />
     </template>
-    <RunnerTraitSection
-      :sections="traitSections"
-      @roll-attack="(bonus, name) => emit('roll-attack', bonus, name)"
-      @roll-damage="(desc, name) => emit('roll-damage', desc, name)"
-    />
+    <RunnerActionList :combatant="combatant" :sections="actionSections" />
   </div>
 </template>
 
@@ -43,7 +39,7 @@ import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
-import RunnerTraitSection from "@/components/encounters/RunnerTraitSection.vue";
+import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import type { Companion } from "@/types/companion.types";
 import type { RunCombatant } from "@/types/encounter.types";
 
@@ -56,20 +52,18 @@ const portrait = computed(() => formPortrait(combatant, combatant.wildshape));
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];
-  "roll-attack": [bonus: number, name: string];
-  "roll-damage": [desc: string, name: string];
 }>();
 
-const traitSections = computed(() => {
+const actionSections = computed(() => {
   const sb = companion.stat_block;
   if (!sb) return [];
   return [
-    { label: "Special Abilities", traits: sb.special_abilities },
-    { label: "Actions",           traits: sb.actions },
-    { label: "Bonus Actions",     traits: sb.bonus_actions },
-    { label: "Reactions",         traits: sb.reactions },
-    { label: "Legendary Actions", traits: sb.legendary_actions },
-  ].filter((s) => s.traits?.length);
+    { label: "Special Abilities", entries: sb.special_abilities },
+    { label: "Actions", entries: sb.actions },
+    { label: "Bonus Actions", entries: sb.bonus_actions },
+    { label: "Reactions", entries: sb.reactions },
+    { label: "Legendary Actions", entries: sb.legendary_actions },
+  ];
 });
 </script>
 
