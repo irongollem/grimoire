@@ -3,8 +3,22 @@
   <div v-if="variant === 'popover'" ref="rootRef" class="relative shrink-0">
     <slot name="trigger" :open="open" :toggle="toggle" />
 
+    <!-- On a phone the trigger usually sits at the left of a wrapped action
+         row, so a 20rem panel hung off its right edge ran off the screen and
+         under the list. The same rows open as a sheet there instead. -->
+    <MobileSheet v-if="isMobile" v-model:open="open" :title="title">
+      <SourcesPickerPanel
+        variant="sheet"
+        :scope="scope"
+        :description="description"
+        :empty-message="emptyMessage"
+        :available-sources="availableSources"
+        :is-loading="isLoading"
+      />
+    </MobileSheet>
+
     <div
-      v-show="open"
+      v-show="open && !isMobile"
       data-slip class="absolute right-0 top-full mt-1 z-50 w-80 rounded-md border border-border bg-popover shadow-lg"
     >
       <div class="p-3 border-b border-border">
@@ -92,6 +106,10 @@ import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { onClickOutside } from "@vueuse/core";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
+// Itself, for the phone sheet: the sheet variant is this component's own list.
+import SourcesPickerPanel from "./SourcesPickerPanel.vue";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import { useToast } from "@/composables/useToast";
 import {
   STANDALONE_LIBRARY_SLUGS,
@@ -134,7 +152,10 @@ const {
 const toast = useToast();
 const open = ref(false);
 const rootRef = ref<HTMLElement | null>(null);
-onClickOutside(rootRef, () => { open.value = false; });
+const isMobile = useIsMobile();
+// The sheet is teleported, so a tap inside it is "outside" the root; it owns
+// its own dismissal.
+onClickOutside(rootRef, () => { if (!isMobile.value) open.value = false; });
 function toggle() { open.value = !open.value; }
 
 // Scope-specific, not entity-specific, so the panel owns this wiring directly
