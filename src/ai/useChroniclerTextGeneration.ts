@@ -5,7 +5,7 @@ import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
 import { wrapUserInput, AI_PROMPT_LIMIT_CHRONICLE } from "./utils";
-import { mentionedLocationIds, mentionedMonsterIds, mentionedNpcIds, parseSceneEntities, type ResolvedEntity } from "./sceneEntities";
+import { mentionedLocationIds, mentionedMonsterIds, mentionedNpcIds, parseSceneEntities, type ResolvedSceneEntity } from "./sceneEntities";
 import { fetchNpcAppearances } from "@/composables/npcs/useNpcFields";
 import type { NpcListRow } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
@@ -35,7 +35,7 @@ const TONE_INSTRUCTIONS: Record<ChroniclerTone, string> = {
 };
 
 
-function buildEntityDescriptions(entities: ResolvedEntity[]): string {
+function buildEntityDescriptions(entities: ResolvedSceneEntity[]): string {
   if (entities.length === 0) return "No specific entities mentioned.";
   return entities
     .map((e) => `- ${e.label}${e.textDescription && e.textDescription !== e.label ? `: ${e.textDescription}` : ""}`)
@@ -135,7 +135,7 @@ export function useChroniclerTextGeneration() {
   async function generateServerSide(params: {
     rawText: string;
     tone: ChroniclerTone;
-    entities: ResolvedEntity[];
+    entities: ResolvedSceneEntity[];
     campaignId: string;
     existingTags: string[];
     excludeNoteId?: string;
@@ -167,7 +167,7 @@ export function useChroniclerTextGeneration() {
   async function generateClientSide(params: {
     rawText: string;
     tone: ChroniclerTone;
-    entities: ResolvedEntity[];
+    entities: ResolvedSceneEntity[];
     settingPrompt: string;
     existingTags: string[];
   }): Promise<ChroniclerTextResult> {

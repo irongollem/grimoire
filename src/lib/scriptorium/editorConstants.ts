@@ -6,7 +6,7 @@
  * the physical page sizes if a new size is added.
  */
 
-import type { ScriptoriumPageSize, ScriptoriumDocType } from "@/types/scriptorium.types";
+import type { ScriptoriumPageSize, ScriptoriumDocType, ScriptoriumTheme } from "@/types/scriptorium.types";
 
 export const EDITOR_PAGE_DIMENSIONS_PX: Record<
   ScriptoriumPageSize,
@@ -24,8 +24,8 @@ export const IMAGE_SIZES = [
   { label: "XL", w: 650 },
 ] as const;
 
-export const THEMES = ["onednd2024", "phb2014"] as const;
-export type ScriptoriumTheme = (typeof THEMES)[number];
+// Held to the one `ScriptoriumTheme` union in types/scriptorium.types.ts.
+export const THEMES = ["onednd2024", "phb2014"] as const satisfies readonly ScriptoriumTheme[];
 
 export const ZOOM_STEPS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0] as const;
 export const ZOOM_MIN = 0.25;

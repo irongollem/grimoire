@@ -1632,8 +1632,8 @@ regardless of which surface authored it, via the shared
 `describeQuestConsequenceAction` — a world-action rule created on
 `QuestRulesPanel.vue` shows there too, just not addable from the room.
 
-**One room surface, two callers.** `SiteRoomList.vue`, `SiteRunWaysOut.vue`
-and `SiteRunRoomStack.vue` (`src/components/locations/`) are now shared
+**One room surface, two callers.** `SiteRoomList.vue` (`src/components/locations/site/`), `SiteRunWaysOut.vue`
+and `SiteRunRoomStack.vue` (`src/components/locations/run/`) are now shared
 verbatim between `QuestSiteHandoff` and `SiteRunSurface`'s Atlas Run action —
 before #868, only the room list itself was shared (#850 story H); the room
 card and its ways-out were each hand-rolled per caller. There is now exactly

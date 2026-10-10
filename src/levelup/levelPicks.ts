@@ -1,4 +1,4 @@
-import type { SkillKey } from "@/data/classSkillChoices";
+import type { SkillKey } from "@/types/party.types";
 import type { AbilityKey } from "@/rules/characterCreation";
 import {
   abilityDeltaFor,

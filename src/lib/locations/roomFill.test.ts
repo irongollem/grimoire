@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildRoomFillConstraints, neighboursOf, normalizeRoomFill, roomFillToTiptap } from "./roomFill";
-import type { DoorEdge, RoomNeighbour } from "./roomFill";
+import type { RoomFillDoorEdge, RoomNeighbour } from "./roomFill";
 import type { Location } from "@/types/location.types";
 
 function tiptap(text: string): string {
@@ -47,7 +47,7 @@ describe("neighboursOf", () => {
   const a = { id: "a", name: "A" };
   const b = { id: "b", name: "B" };
   it("follows outgoing doors and two-way incoming ones, not one-way incoming", () => {
-    const doors: DoorEdge[] = [
+    const doors: RoomFillDoorEdge[] = [
       { ...base, from_location_id: "a", to_location_id: "b", from_location: a, to_location: b },
       { ...base, from_location_id: "b", to_location_id: "a", from_location: b, to_location: a, is_one_way: true },
       { ...base, from_location_id: "b", to_location_id: "a", from_location: b, to_location: a, door_kind: "stair" },

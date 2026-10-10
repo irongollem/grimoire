@@ -89,13 +89,13 @@
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RevealOption from "@/components/common/reveal/RevealOption.vue";
 import { IconParty } from "@/lib/icons";
-import type { RevealAdapter, RevealState } from "@/lib/reveal";
+import type { RevealAdapter, PartyRevealState } from "@/lib/reveal";
 import type { PartyMember } from "@/types/party.types";
 
 const { adapter } = defineProps<{
   party: PartyMember[];
   adapter: RevealAdapter;
-  state: RevealState;
+  state: PartyRevealState;
 }>();
 
 const emit = defineEmits<{ close: [] }>();

@@ -34,7 +34,7 @@ const ALLOWED: Record<string, string> = {
   "src/components/common/list/PageHeader.vue": "page header chrome",
   "src/components/common/feedback/RouteSkeleton.vue": "stands in for the page while a route loads",
   "src/components/scriptorium/ScriptoriumReader.vue": "the reader fills the whole page pane",
-  "src/components/locations/AtlasMapZoom.vue": "opaque absolute inset-0 layer that replaces the map pane",
+  "src/components/locations/atlas/AtlasMapZoom.vue": "opaque absolute inset-0 layer that replaces the map pane",
   "src/components/common/controls/fieldVariants.ts": "tone.default is the field-on-a-page recipe; Vellum overrides it",
 };
 

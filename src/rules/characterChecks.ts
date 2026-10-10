@@ -1,4 +1,4 @@
-import type { AbilityScores } from "@/rules/skillCheck";
+import type { AbilityScores } from "@/types/multiclass.types";
 import { abilityMod } from "@/rules/weaponAttack";
 import type { PartyMember, SaveKey } from "@/types/party.types";
 

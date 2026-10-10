@@ -1,6 +1,6 @@
 import { ref, watch, onUnmounted } from "vue";
 import { supabase } from "@/lib/supabase";
-import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
+import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/campaignLiveSync/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 

@@ -286,7 +286,7 @@ import TagInput from "@/components/common/controls/TagInput.vue";
 import LootTableEntryEditor from "@/components/dungeon-features/LootTableEntryEditor.vue";
 import LootTableRollPanel from "@/components/dungeon-features/LootTableRollPanel.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import EntityPlacements from "@/components/locations/EntityPlacements.vue";
+import EntityPlacements from "@/components/locations/place/EntityPlacements.vue";
 import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 

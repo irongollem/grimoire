@@ -20,12 +20,12 @@ export interface CustomRuleDraft {
   title: string;
   category: RuleCategory | null;
   /** Tiptap document (an object, as the `rules.content` jsonb column holds). */
-  content: TiptapDoc;
+  content: RuleContentDoc;
   tags: string[];
   tracker: TrackerDef | null;
 }
 
-export interface TiptapDoc {
+export interface RuleContentDoc {
   type: "doc";
   content: Array<Record<string, unknown>>;
 }
@@ -192,7 +192,7 @@ function paragraphs(body: string): Array<Record<string, unknown>> {
     .map((p) => ({ type: "paragraph", content: [{ type: "text", text: p }] }));
 }
 
-function buildContent(summary: string, trigger: string, effect: string, exceptions: string): TiptapDoc {
+function buildContent(summary: string, trigger: string, effect: string, exceptions: string): RuleContentDoc {
   const content: Array<Record<string, unknown>> = [];
   if (summary) content.push(...paragraphs(summary));
   const sections: Array<[string, string]> = [

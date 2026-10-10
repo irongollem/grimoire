@@ -33,7 +33,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
-import { manualSections } from "@/lib/manualLoader";
+import { manualSections } from "@/lib/rules/manualLoader";
 import { THEMES } from "@/lib/themes";
 
 // Not `import.meta.url` — under Vitest's module runner that is an http:// URL,

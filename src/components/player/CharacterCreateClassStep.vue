@@ -213,7 +213,7 @@ import { SAVE_STATS, PROF_LEVELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import { CLASS_SKILL_CHOICES, FALLBACK_SKILL_DATA } from "@/data/classSkillChoices";
-import type { SkillKey } from "@/data/classSkillChoices";
+import type { SkillKey } from "@/types/party.types";
 import LevelUpSubclassPicker from "@/levelup/LevelUpSubclassPicker.vue";
 import LevelUpSubclassSpells from "@/levelup/LevelUpSubclassSpells.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";

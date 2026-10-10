@@ -60,7 +60,7 @@ export function yamlString(value: string): string {
   return `"${escaped}"`;
 }
 
-export type FrontmatterValue = string | number | string[] | null | undefined;
+export type VaultFrontmatterValue = string | number | string[] | null | undefined;
 
 /**
  * Builds a `---`-fenced YAML frontmatter block from ordered `[key, value]`
@@ -69,7 +69,7 @@ export type FrontmatterValue = string | number | string[] | null | undefined;
  * `key: []` so a reader can tell "no tags" from "tags never considered".
  * Numbers are written bare (YAML needs no quoting for those).
  */
-export function buildFrontmatter(fields: Array<[string, FrontmatterValue]>): string {
+export function buildFrontmatter(fields: Array<[string, VaultFrontmatterValue]>): string {
   const lines: string[] = [];
   for (const [key, value] of fields) {
     if (value === null || value === undefined) continue;

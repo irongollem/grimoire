@@ -3,15 +3,15 @@
 // encoding is a simple semicolon-joined list, compact enough for the
 // 50–100 cell battle maps that fit in a browser viewport.
 
-export type CellKey = string; // "x,y"
+export type FogCellKey = string; // "x,y"
 
-export function encodeFogMask(mask: Set<CellKey>): string {
+export function encodeFogMask(mask: Set<FogCellKey>): string {
   return [...mask].join(";");
 }
 
-export function decodeFogMask(encoded: string | null | undefined): Set<CellKey> {
+export function decodeFogMask(encoded: string | null | undefined): Set<FogCellKey> {
   if (!encoded) return new Set();
-  const result = new Set<CellKey>();
+  const result = new Set<FogCellKey>();
   for (const tok of encoded.split(";")) {
     if (/^-?\d+,-?\d+$/.test(tok)) result.add(tok);
   }
@@ -46,13 +46,13 @@ export interface BrushInput {
  * included. A 1-cell brush returns just the cursor's cell; a 3-cell brush
  * covers ~3.14 cells in a roughly circular pattern.
  */
-export function roundBrushCells(input: BrushInput): Set<CellKey> {
+export function roundBrushCells(input: BrushInput): Set<FogCellKey> {
   if (input.cellPx <= 0 || input.brushCells <= 0) return new Set();
   const radius = input.brushCells / 2; // in cell units
   const cursorCellX = (input.pixelX - input.originX) / input.cellPx;
   const cursorCellY = (input.pixelY - input.originY) / input.cellPx;
   const span = Math.ceil(radius);
-  const result = new Set<CellKey>();
+  const result = new Set<FogCellKey>();
   for (let dy = -span; dy <= span; dy++) {
     for (let dx = -span; dx <= span; dx++) {
       const cellX = Math.floor(cursorCellX) + dx;
@@ -74,13 +74,13 @@ export function roundBrushCells(input: BrushInput): Set<CellKey> {
  * brush sizes are clamped down to the previous odd number so the brush
  * always has a well-defined centre cell.
  */
-export function cellBrushCells(input: BrushInput): Set<CellKey> {
+export function cellBrushCells(input: BrushInput): Set<FogCellKey> {
   if (input.cellPx <= 0 || input.brushCells <= 0) return new Set();
   const size = input.brushCells % 2 === 0 ? input.brushCells - 1 : input.brushCells;
   const half = (size - 1) / 2;
   const cursorCellX = Math.floor((input.pixelX - input.originX) / input.cellPx);
   const cursorCellY = Math.floor((input.pixelY - input.originY) / input.cellPx);
-  const result = new Set<CellKey>();
+  const result = new Set<FogCellKey>();
   for (let dy = -half; dy <= half; dy++) {
     for (let dx = -half; dx <= half; dx++) {
       result.add(`${cursorCellX + dx},${cursorCellY + dy}`);
@@ -89,13 +89,13 @@ export function cellBrushCells(input: BrushInput): Set<CellKey> {
   return result;
 }
 
-export type BrushMode = "reveal" | "rehide";
+export type FogBrushMode = "reveal" | "rehide";
 
 export function applyBrush(
-  mask: Set<CellKey>,
-  brushed: Set<CellKey>,
-  mode: BrushMode,
-): Set<CellKey> {
+  mask: Set<FogCellKey>,
+  brushed: Set<FogCellKey>,
+  mode: FogBrushMode,
+): Set<FogCellKey> {
   const next = new Set(mask);
   if (mode === "reveal") {
     for (const k of brushed) next.add(k);
@@ -117,7 +117,7 @@ export function applyBrush(
 //
 // This is resolution-agnostic by construction: a site's fog mask keys on
 // room cells, an encounter's on grid cells, but both are Sets of the same
-// `CellKey` ("x,y") shape, so the exact same functions below serve both —
+// `FogCellKey` ("x,y") shape, so the exact same functions below serve both —
 // "two resolutions of one layer, not two features."
 
 /** A revealed cell is fully dark within this fraction of a cell, measured
@@ -152,7 +152,7 @@ const NEIGHBOR_SIDES: ReadonlyArray<{ dx: number; dy: number; side: FeatherSide 
  * diagonal touch is a corner case this pass doesn't model, same as the
  * maintainer's "no walls, no viewing angles" ruling.
  */
-export function featherEdges(mask: Set<CellKey>): FeatherEdge[] {
+export function featherEdges(mask: Set<FogCellKey>): FeatherEdge[] {
   const edges: FeatherEdge[] = [];
   for (const key of mask) {
     const [xs, ys] = key.split(",");
@@ -222,7 +222,7 @@ export function featherRect(edge: FeatherEdge, cellPx: number, originX: number, 
 export function fogOpacityAt(
   pixelX: number,
   pixelY: number,
-  mask: Set<CellKey>,
+  mask: Set<FogCellKey>,
   cellPx: number,
   originX: number,
   originY: number,
@@ -260,7 +260,7 @@ function featherFalloff(dist: number): number {
  */
 export function revealedCombatants<T extends { position?: { x: number; y: number } | null }>(
   combatants: readonly T[],
-  mask: Set<CellKey>,
+  mask: Set<FogCellKey>,
 ): T[] {
   return combatants.filter((c) => !c.position || mask.has(`${c.position.x},${c.position.y}`));
 }

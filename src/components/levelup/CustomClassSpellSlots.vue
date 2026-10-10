@@ -154,7 +154,8 @@
 import { computed } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import type { CasterType, PreparedAbility } from "@/levelup/customTypes";
+import type { PreparedAbility } from "@/levelup/customTypes";
+import type { CasterType } from "@/types/spell.types";
 
 const CASTER_TYPE_OPTIONS = [
   { value: "prepared" as CasterType, label: "Prepared (Cleric, Druid)" },

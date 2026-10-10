@@ -259,7 +259,7 @@ import {
   useRestoreCampaign,
 } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
-import { getCalendarAdapter } from "@/calendars/index";
+import { getCalendarAdapter } from "@/settings/index";
 import type { Campaign } from "@/types/campaign.types";
 import { useQuota } from "@/composables/billing/useQuota";
 import AppButton from "@/components/common/controls/AppButton.vue";

@@ -68,7 +68,7 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
-import AtlasExplorer from "@/components/locations/AtlasExplorer.vue";
+import AtlasExplorer from "@/components/locations/atlas/AtlasExplorer.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/locations/useLocations";

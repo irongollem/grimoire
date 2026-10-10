@@ -206,7 +206,7 @@ $$;
 
 ```text
 src/composables/
-├── useRealtime.ts                    # NEVER BUILT — the shared channel wrapper landed as lib/realtimeChannel.ts instead
+├── useRealtime.ts                    # NEVER BUILT — the shared channel wrapper landed as lib/campaignLiveSync/realtimeChannel.ts instead
 ├── campaign/useCampaignPresence.ts   # Who's online (Presence)
 ├── encounters/useEncounterLive.ts    # Encounter runner real-time: Broadcast + Postgres Changes on encounter_state
 └── campaign/useCampaignBroadcast.ts  # DM → players notifications

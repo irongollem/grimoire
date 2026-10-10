@@ -5,7 +5,7 @@ import {
   getLocalImageJob as getCentralLocalImageJob,
 } from "@/ai/useImageGeneration";
 import { waitForImageJob } from "@/ai/useImageJob";
-import type { ResolvedEntity } from "@/ai/sceneEntities";
+import type { ResolvedSceneEntity } from "@/ai/sceneEntities";
 
 // ── Image generation ──────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ export function getLocalImageJob(jobId: string): Promise<string> | undefined {
  */
 export async function startChroniclerImage(params: {
   sceneText: string;
-  entities: ResolvedEntity[];
+  entities: ResolvedSceneEntity[];
   size: ChroniclerSize;
   kind?: ImageJobKind;
   /** The saved note this render's anchor lives in — lets the server swap
@@ -54,7 +54,7 @@ export async function startChroniclerImage(params: {
  */
 export async function generateChroniclerImage(params: {
   sceneText: string;
-  entities: ResolvedEntity[];
+  entities: ResolvedSceneEntity[];
   size: ChroniclerSize;
   kind?: ImageJobKind;
 }): Promise<string> {

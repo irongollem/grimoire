@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import {
   createRealtimeChannel,
   type RealtimeChannelHandle,
-} from "@/lib/realtimeChannel";
+} from "@/lib/campaignLiveSync/realtimeChannel";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { refetchCampaignSession } from "@/composables/campaign/useCampaignSession";

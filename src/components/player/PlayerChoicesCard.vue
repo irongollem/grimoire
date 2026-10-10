@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { isInternalChoiceKey } from "@/lib/classChoices";
+import { isInternalChoiceKey } from "@/lib/player/classChoices";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import type { SaveKey } from "@/types/party.types";
 

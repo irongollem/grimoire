@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignPendingContentReviews } from "@/composables/party/useCharacterContentReviews";
@@ -108,19 +108,22 @@ import PageHeader from "@/components/common/list/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import DetailsTab from "@/components/campaign/DetailsTab.vue";
-import DangerZoneTab from "@/components/campaign/DangerZoneTab.vue";
-import MembersTab from "@/components/campaign/MembersTab.vue";
-import InvitesTab from "@/components/campaign/InvitesTab.vue";
-import SchedulingTab from "@/components/campaign/SchedulingTab.vue";
-import RulesTab from "@/components/campaign/RulesTab.vue";
-import ClassesTab from "@/components/campaign/ClassesTab.vue";
-import SpeciesTab from "@/components/campaign/SpeciesTab.vue";
-import AiTab from "@/components/campaign/AiTab.vue";
-import AiConnectionTab from "@/components/campaign/AiConnectionTab.vue";
-import SpotifyTab from "@/components/campaign/SpotifyTab.vue";
-import BackupTab from "@/components/campaign/BackupTab.vue";
-import WorldBundleTab from "@/components/campaign/WorldBundleTab.vue";
-import DocumentImportTab from "@/components/campaign/DocumentImportTab.vue";
+
+// Only the Details tab (the default) is in the page chunk; every other tab loads
+// the first time it is opened.
+const DangerZoneTab = defineAsyncComponent(() => import("@/components/campaign/DangerZoneTab.vue"));
+const MembersTab = defineAsyncComponent(() => import("@/components/campaign/MembersTab.vue"));
+const InvitesTab = defineAsyncComponent(() => import("@/components/campaign/InvitesTab.vue"));
+const SchedulingTab = defineAsyncComponent(() => import("@/components/campaign/SchedulingTab.vue"));
+const RulesTab = defineAsyncComponent(() => import("@/components/campaign/RulesTab.vue"));
+const ClassesTab = defineAsyncComponent(() => import("@/components/campaign/ClassesTab.vue"));
+const SpeciesTab = defineAsyncComponent(() => import("@/components/campaign/SpeciesTab.vue"));
+const AiTab = defineAsyncComponent(() => import("@/components/campaign/AiTab.vue"));
+const AiConnectionTab = defineAsyncComponent(() => import("@/components/campaign/AiConnectionTab.vue"));
+const SpotifyTab = defineAsyncComponent(() => import("@/components/campaign/SpotifyTab.vue"));
+const BackupTab = defineAsyncComponent(() => import("@/components/campaign/BackupTab.vue"));
+const WorldBundleTab = defineAsyncComponent(() => import("@/components/campaign/WorldBundleTab.vue"));
+const DocumentImportTab = defineAsyncComponent(() => import("@/components/campaign/DocumentImportTab.vue"));
 
 type SettingsTab =
   | "details"

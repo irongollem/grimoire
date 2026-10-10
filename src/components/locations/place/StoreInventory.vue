@@ -1,0 +1,377 @@
+<template>
+  <div class="flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <span class="text-label-lg font-semibold text-muted-foreground">Inventory</span>
+    </div>
+
+    <!-- Item list -->
+    <div v-if="items?.length" class="flex flex-col gap-1.5">
+      <div
+        v-for="si in items"
+        :key="si.id"
+        class="flex flex-col rounded-md border border-border bg-card overflow-hidden"
+      >
+        <!-- Main row -->
+        <div class="flex items-center gap-2 px-3 py-2">
+          <!-- Visibility toggle -->
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            class="shrink-0"
+            :tooltip="si.visible ? 'Visible (click to hide)' : 'Under the counter (click to show)'"
+            @click="toggleVisible(si)"
+          >
+            <template #icon>
+              <IconReveal v-if="si.visible" class="h-3.5 w-3.5" />
+              <IconHide v-else class="h-3.5 w-3.5 opacity-40" />
+            </template>
+          </AppButton>
+
+          <!-- Item name + type (tap to preview) -->
+          <button
+            type="button"
+            class="flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+            @click="selected = si"
+          >
+            <span class="text-caption font-semibold text-foreground truncate block">{{ si.item.name }}</span>
+            <span class="text-caption-sm text-muted-foreground italic">
+              {{ ITEM_TYPE_LABELS[si.item.item_type] }}
+              <span v-if="!si.visible" class="text-ink-caution/70"> · under the counter</span>
+            </span>
+          </button>
+
+          <!-- Price -->
+          <div class="flex items-center gap-1 shrink-0">
+            <AppInput
+              :model-value="si.price_override ?? si.item.cost ?? ''"
+              :model-modifiers="{ lazy: true }"
+              type="text"
+              placeholder="Price…"
+              :title="rarityPriceHint(si.item.rarity)"
+              tone="default"
+              size="caption"
+              align="right"
+              :block="false"
+              class="w-20 placeholder:text-muted-foreground/50"
+              @update:model-value="(value) => onPriceCommit(si, value)"
+            />
+          </div>
+
+          <!-- Post to chat -->
+          <AppButton
+            variant="ghost"
+            tone="success"
+            :active="offeringId === si.id"
+            size="icon-xs"
+            class="shrink-0"
+            :tooltip="offeringId === si.id ? 'Cancel offer' : 'Post vendor offer to chat'"
+            :icon="IconShop"
+            @click="toggleOffer(si)"
+          />
+
+          <!-- Remove -->
+          <AppButton
+            variant="ghost"
+            tone="danger"
+            size="icon-xs"
+            class="shrink-0"
+            tooltip="Remove from store"
+            :icon="IconClose"
+            @click="remove(si.id)"
+          />
+        </div>
+
+        <!-- Inline offer form -->
+        <div v-if="offeringId === si.id" class="border-t border-border/60 bg-muted/20 px-3 py-2 space-y-2">
+          <p class="text-eyebrow text-ink-success/80">Vendor Offer</p>
+          <AppInput
+            v-model="offerDesc"
+            type="text"
+            tone="muted"
+            size="body"
+            placeholder="Description shown in chat…"
+          />
+          <!-- Coin price inputs -->
+          <div class="grid grid-cols-5 gap-1">
+            <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
+              <span class="text-label font-bold" :class="coin.color">{{ coin.symbol }}</span>
+              <AppInput
+                v-model.number="offerPrice[coin.key]"
+                type="number" min="0"
+                tone="muted"
+                size="xs"
+                align="center"
+              />
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <AppButton
+              variant="tinted"
+              tone="success"
+              emphasis="solid"
+              size="xs"
+              class="flex-1"
+              :disabled="!offerDesc.trim() || !offerHasPrice"
+              label="Post to Chat"
+              @click="postOffer(si)"
+            />
+            <AppButton
+              variant="subtle"
+              size="xs"
+              label="Cancel"
+              @click="offeringId = null"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p v-else class="text-caption text-muted-foreground italic">No items yet.</p>
+
+    <!-- Manual add (search) -->
+    <div class="relative">
+      <div class="flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
+        <IconAdd class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <AppInput
+          v-model="search"
+          type="text"
+          tone="bare"
+          size="xs"
+          :block="false"
+          placeholder="Add item to inventory…"
+          class="flex-1 px-0 text-caption"
+          @focus="dropdownOpen = true"
+          @input="dropdownOpen = true"
+          @blur="onSearchBlur"
+          @keydown.escape="dropdownOpen = false"
+        />
+      </div>
+      <div
+        v-if="dropdownOpen && searchResults.length"
+        data-slip class="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover shadow-lg overflow-hidden max-h-48 overflow-y-auto"
+      >
+        <AppButton
+          v-for="item in searchResults"
+          :key="item.id"
+          variant="menu"
+          size="body"
+          block
+          @mousedown.prevent="addItem(item)"
+        >
+          <span class="text-caption font-semibold text-foreground truncate flex-1">{{ item.name }}</span>
+          <span class="text-caption-sm text-muted-foreground shrink-0">{{ ITEM_TYPE_LABELS[item.item_type] }}</span>
+          <span v-if="item.cost" class="text-caption-sm text-muted-foreground/70 shrink-0">{{ item.cost }}</span>
+        </AppButton>
+      </div>
+    </div>
+
+    <!-- Quick fill -->
+    <div class="flex items-center gap-1.5 flex-wrap">
+      <AppInput
+        v-model.number="fillCount"
+        type="number"
+        min="1"
+        max="20"
+        tone="muted"
+        size="xs"
+        align="center"
+        :block="false"
+        class="w-10"
+      />
+      <span class="text-caption text-muted-foreground">×</span>
+      <AppSelect v-model="fillRarity" size="sm" tone="filled">
+        <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
+      </AppSelect>
+      <AppSelect v-model="fillType" size="sm" tone="filled">
+        <option value="">any type</option>
+        <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
+      </AppSelect>
+      <AppButton
+        variant="primary"
+        size="sm"
+        :disabled="fillPoolSize === 0 || isFilling"
+        :icon="IconShuffle"
+        :label="isFilling ? 'Filling…' : 'Fill'"
+        @click="quickFill"
+      />
+      <span class="text-caption-sm text-muted-foreground italic">
+        {{ fillPoolSize }} available
+      </span>
+    </div>
+  </div>
+
+  <!-- Item detail modal -->
+  <AppModal :open="!!selected" size="lg" align="sheet" @close="selected = null">
+    <template v-if="selected">
+      <ModalHeader :title="selected.item.name" closeable @close="selected = null">
+        <template #actions>
+          <span class="text-caption text-muted-foreground shrink-0">
+            {{ selected.price_override ?? selected.item.cost ?? '—' }}
+          </span>
+        </template>
+      </ModalHeader>
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+        <ItemSheet :item="selected.item" :price-override="selected.price_override" />
+      </div>
+    </template>
+  </AppModal>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, reactive } from "vue";
+import { IconAdd, IconClose, IconHide, IconReveal, IconShop, IconShuffle } from '@/lib/icons';
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ItemSheet from "@/components/items/ItemSheet.vue";
+import { useItemIndex } from "@/composables/items/useItemIndex";
+import {
+  useStoreItems,
+  useAddStoreItem,
+  useAddStoreItems,
+  useUpdateStoreItem,
+  useRemoveStoreItem,
+} from "@/composables/items/useStoreItems";
+import type { StoreItem } from "@/composables/items/useStoreItems";
+import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
+import type { ItemIndexEntry } from "@/types/item.types";
+import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES, RARITY_PRICE_HINTS } from "@/types/item.types";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
+import { COINS, parseCoinText } from "@/rules/currency";
+import type { CoinKey } from "@/types/downtime.types";
+
+const props = defineProps<{ locationId: string; ownerNpcName?: string | null }>();
+
+const locationIdRef = computed(() => props.locationId);
+
+const { data: items } = useStoreItems(locationIdRef);
+const { data: allItems } = useItemIndex();
+const { mutate: add } = useAddStoreItem();
+const { mutate: addMany, isPending: isFilling } = useAddStoreItems();
+const { mutate: update } = useUpdateStoreItem(locationIdRef);
+const { mutate: removeItem } = useRemoveStoreItem(locationIdRef);
+const { sendVendorOffer } = useCampaignMessages();
+const { reportChatFailure } = useChatSendFailure();
+
+// ── Add item search ─────────────────────────────────────────────────────────────
+const search = ref("");
+const dropdownOpen = ref(false);
+
+const existingItemIds = computed(() =>
+  new Set((items.value ?? []).map((si) => inventoryItemRef(si)).filter((id): id is string => id !== null)),
+);
+
+const searchResults = computed(() => {
+  const q = search.value.toLowerCase().trim();
+  return (allItems.value ?? [])
+    .filter((i) => !existingItemIds.value.has(i.id) && (q === "" || i.name.toLowerCase().includes(q)))
+    .slice(0, 10);
+});
+
+function addItem(item: ItemIndexEntry) {
+  search.value = "";
+  dropdownOpen.value = false;
+  // Library content is referenced directly (#819) rather than cloned into
+  // the vault first — itemRefColumns routes to whichever column applies.
+  add({ location_id: props.locationId, ...itemRefColumns(item.id) });
+}
+
+function onSearchBlur() {
+  setTimeout(() => { dropdownOpen.value = false; }, 150);
+}
+
+// ── Toggle visibility ───────────────────────────────────────────────────────────
+function toggleVisible(si: StoreItem) {
+  update({ id: si.id, update: { visible: !si.visible } });
+}
+
+// ── Price override ──────────────────────────────────────────────────────────────
+function onPriceCommit(si: StoreItem, value: string) {
+  const val = value.trim() || null;
+  const effective = val === si.item.cost ? null : val;
+  if (effective !== si.price_override) {
+    update({ id: si.id, update: { price_override: effective } });
+  }
+}
+
+// ── Remove ──────────────────────────────────────────────────────────────────────
+function remove(id: string) {
+  removeItem(id);
+}
+
+function rarityPriceHint(rarity: string | null | undefined): string {
+  return RARITY_PRICE_HINTS[(rarity ?? "") as keyof typeof RARITY_PRICE_HINTS] ?? "";
+}
+
+// ── Quick fill ──────────────────────────────────────────────────────────────────
+const fillCount  = ref(3);
+const fillRarity = ref("uncommon");
+const fillType   = ref("");
+
+const fillPool = computed(() =>
+  (allItems.value ?? []).filter(
+    (i) =>
+      !existingItemIds.value.has(i.id) &&
+      i.rarity === fillRarity.value &&
+      (fillType.value === "" || i.item_type === fillType.value),
+  ),
+);
+const fillPoolSize = computed(() => fillPool.value.length);
+
+function quickFill() {
+  const pool = [...fillPool.value];
+  // Fisher-Yates shuffle then take fillCount
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  // The input's max attribute doesn't stop typed values — clamp to 1..20.
+  const count = Math.min(Math.max(1, Math.floor(fillCount.value || 1)), 20);
+  const picks = pool.slice(0, count);
+  if (picks.length === 0) return;
+  // Library rows reference directly now (#819) — no clone-to-vault step.
+  addMany(picks.map((item) => ({ location_id: props.locationId, ...itemRefColumns(item.id) })));
+}
+
+// ── Vendor offer form ───────────────────────────────────────────────────────────
+
+const selected = ref<StoreItem | null>(null);
+
+const offeringId  = ref<string | null>(null);
+const offerDesc   = ref("");
+const offerPrice  = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+const offerHasPrice = computed(() => COINS.some(c => offerPrice[c.key] > 0));
+
+function toggleOffer(si: StoreItem) {
+  if (offeringId.value === si.id) {
+    offeringId.value = null;
+    return;
+  }
+  offeringId.value = si.id;
+  offerDesc.value = si.item.name;
+  const priceText = si.price_override ?? si.item.cost ?? "";
+  const parsed = parseCoinText(priceText);
+  COINS.forEach(c => { offerPrice[c.key] = parsed[c.key]; });
+}
+
+async function postOffer(si: StoreItem) {
+  if (!offerDesc.value.trim() || !offerHasPrice.value) return;
+  try {
+    await sendVendorOffer(
+      offerDesc.value.trim(),
+      si.item.name,
+      si.item_id,
+      offerPrice.pp, offerPrice.gp, offerPrice.ep, offerPrice.sp, offerPrice.cp,
+      props.ownerNpcName ?? undefined,
+    );
+  } catch (e) {
+    // Keep the offer form open so the DM can retry without retyping it.
+    reportChatFailure(e, "post the offer to the chat");
+    return;
+  }
+  offeringId.value = null;
+}
+</script>
