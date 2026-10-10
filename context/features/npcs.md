@@ -35,7 +35,7 @@ The list is windowed (`VirtualGrid`): only the rows near the viewport are mounte
 
 ### Filtering and Sorting
 
-All filter state is stored in `useUiStore` and survives navigation within the session.
+All filter state is stored in `useNpcsUiStore` and survives navigation within the session.
 
 | Filter       | Type         | Options                                                                      |
 | ------------ | ------------ | ---------------------------------------------------------------------------- |
@@ -427,7 +427,7 @@ groups that could no longer appear and coloured them with hexes nothing was pain
 | Legend                     | One swatch per relationship, built from `NPC_RELATIONSHIP_LABELS` + the ramp tokens. **Clickable**: shows only NPCs of that attitude, click again to release. Unselected swatches fade, the same grammar the faction focus uses |
 | Clear                      | Appears when any of the four is active; calls `resetNpcWebFilters()`                 |
 
-All four live in `useUiStore` (`npcWebSearch`, `npcWebShowPcs`, `npcWebFilterLocation`, `npcWebFilterType`) and survive navigating to an NPC sheet and back (#723). A graph is not a list, which is why the Filter State Pattern audit skipped it — but the filters are filters, so it gets the same treatment. `NpcWebTopBar` stays prop/emit-driven (the view owns where the state lives) and bridges to the `ListSearchInput` / `ListFilterSelect` v-models with local writable computeds.
+All four live in `useNpcsUiStore` (`npcWebSearch`, `npcWebShowPcs`, `npcWebFilterLocation`, `npcWebFilterType`) and survive navigating to an NPC sheet and back (#723). A graph is not a list, which is why the Filter State Pattern audit skipped it — but the filters are filters, so it gets the same treatment. `NpcWebTopBar` stays prop/emit-driven (the view owns where the state lives) and bridges to the `ListSearchInput` / `ListFilterSelect` v-models with local writable computeds.
 
 ### Side Panel
 
@@ -511,7 +511,7 @@ A card turns once (`cardTurnStyle`, 520 ms, instant under reduced motion), then 
 
 **The ledger** (`PeopleLedger`, `PeopleLedgerRow`, `usePlayerPeople`). `buildPeopleGroups` groups by the sort: **Place** (one rubric per place, "in {parent}" when the parent is shared too, "Whereabouts unknown" last, rating then name inside), **Met** (one group per session: "Session 14" with its title and date, newest first, two sessions sharing a number kept apart; people met outside any session under "Before the log", last), or flat for **Rating** (default) and **Name**. Every order ends on the name. A row: portrait plate, name ("???" when not shared), species · occupation, the relationship mark (`RelationshipMark`, `components/common/`, shared with the faction list and sheet), `statusWord` (nothing for "alive"; dead also strikes the name through and greys the portrait), and the player's stars. **Portraits** (`ui.playerPeopleView`) shows the same groups as `PlayerNpcCard`s.
 
-Sort, view and filters live in `useUiStore` (`playerPeopleSortBy` / `SortDir` / `View`, `playerPeopleFilter*`); sort and view are not part of Clear. Place is offered only when some NPC shows a location, and every place comparison reads only a location the player may see.
+Sort, view and filters live in `usePlayerUiStore` (`playerPeopleSortBy` / `SortDir` / `View`, `playerPeopleFilter*`); sort and view are not part of Clear. Place is offered only when some NPC shows a location, and every place comparison reads only a location the player may see.
 
 `npc_reveals` (migration `20261005220422`) holds one row per (NPC, party member): the first moment that member could see the NPC, whether it was shared with them directly or through its location's "share linked NPCs". Since `20261006072853` each row also carries `session_id` (the session open when it was written, else the next one started; see [`sessions.md`](sessions.md)) and `approximate`, and the DM may move a reveal to another session (`update` of `session_id` alone). The player's ledger labels sessions through `get_player_sessions`. Triggers on `npcs` and `locations` are its only writers; `on conflict do nothing` keeps the first moment, so unsharing and sharing again does not move it. A player reads only their own rows, the DM the whole campaign's (for preview). Reveals that existed before the table were backfilled with the NPC's `created_at`, the closest evidence left. `useSharedNpcs` is the projection alone, one request. Only the People page needs the moments, so `useMyNpcRevealMoments` (in `useNpcReveals.ts`) reads them separately, scoped to the campaign and the viewer's member (the previewed one in DM preview, the linked one otherwise), and `PlayerPartyView` sets `revealed_at` on its NPCs via `withRevealMoments`. The query key sits under `player-npcs`, so the `npcs_player` and `locations_player` doorbells refresh it with the projection. Other surfaces that render `PlayerNpcProfile` (lightboxes) get no `revealed_at`, so they show no "met" date.
 

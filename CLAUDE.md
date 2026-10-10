@@ -303,7 +303,7 @@ Deliberate departures from the rules above and in the feature docs. They look li
   - **Grep finds authorization badly.** The codebase uses four idioms (`auth.uid()`, `auth.jwt()`, `private.*`, `is_app_admin()`), and a body with none visible may be gated inside a `private.*` helper. Read the body before reporting a hole.
   - **Prefer `SECURITY INVOKER` where RLS already authorizes.** Every definer is a place where one bug bypasses RLS; a function that does not need to be one should not be.
 
-- **Transient searches stay out of `useUiStore`, and that is not a Filter State Pattern violation.** The pattern governs filters *over the list on the page*. Two shapes are exempt and must not be "fixed" into the store: **dialog-scoped searches** (`NpcSetEditorModal`, `AssetInsertPanel`, `WorldBundleTab`), where a modal reopening with a stale query is the bug rather than the feature; and **add-pickers that empty themselves on select** — `StoreInventory`'s "Add item to inventory…" box filters a dropdown of items to *add*, and `addItem()` clears it, so persisting it would reopen the panel with a stale query and a poised dropdown. Same for the picker primitives (`EntityCombobox`, `TagPickerInput`, `GlobalSearch`).
+- **Transient searches stay out of the UI stores, and that is not a Filter State Pattern violation.** The pattern governs filters *over the list on the page*. Two shapes are exempt and must not be "fixed" into the store: **dialog-scoped searches** (`NpcSetEditorModal`, `AssetInsertPanel`, `WorldBundleTab`), where a modal reopening with a stale query is the bug rather than the feature; and **add-pickers that empty themselves on select** — `StoreInventory`'s "Add item to inventory…" box filters a dropdown of items to *add*, and `addItem()` clears it, so persisting it would reopen the panel with a stale query and a poised dropdown. Same for the picker primitives (`EntityCombobox`, `TagPickerInput`, `GlobalSearch`).
 
   The test is what the box filters: **the list already on screen → store; a popup of candidates → local `ref`.** A variable named `search` proves nothing either way — #723 listed `StoreInventory` as a violation on the strength of the name, and it was the one entry on that list that turned out not to be a list filter at all.
 
@@ -525,10 +525,12 @@ If two pieces of UI share structure and differ only in a few values, the structu
 
 ## Filter State Pattern
 
-Any list view with filters **must** store its state in `useUiStore` (`src/stores/ui.ts`) — not in local `ref`s, not in `useLocalStorage`. This ensures filters survive navigation within a session without permanently polluting localStorage.
+Any list view with filters **must** store its state in its domain's UI store under `src/stores/ui/` (`useNpcsUiStore` in `npcs.ts`, `useQuestsUiStore` in `quests.ts`, …) — not in local `ref`s, not in `useLocalStorage`. This ensures filters survive navigation within a session without permanently polluting localStorage.
+
+One store per domain, named for the domain folder the list belongs to, not one store for the app: until #999 5.2.5 every list's filters shared a single 1,500-line `useUiStore` imported by 179 modules, so a list re-rendered on any other list's filter change and nobody could find their own. App-wide shell state that is not a filter (the chat panel, DM preview, DM/player mode, session state) lives in `useAppUiStore` (`app.ts`). A new domain gets a new file; a store reads another store's state through its hook, as `soundboard.ts` reads `dmMode` from `app.ts`. Keep `useStorage` keys stable when moving state between stores: the key, not the store, is what a user's saved state hangs on.
 
 **Required for every filter set:**
 
-1. Add state refs + a `hasActiveFilters` computed + a `reset*Filters()` function to `useUiStore`
+1. Add state refs + a `hasActiveFilters` computed + a `reset*Filters()` function to the domain's UI store (`src/stores/ui/<domain>.ts`)
 2. Wire the view/component to the store via writable `computed` getters/setters
 3. Show a **Clear** button (visible only when `hasActiveFilters` is true) that calls `reset*Filters()`

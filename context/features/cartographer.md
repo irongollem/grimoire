@@ -639,7 +639,7 @@ Every mutation is a `Command` with `apply()` and `revert()`. Commands stacked in
 
 ### Filter state
 
-Map list filters (search by name, tag, pack) → `useUiStore`, with `hasActiveFilters` + `resetCartographerFilters()` per the CLAUDE.md rule.
+Map list filters (search by name, tag, pack) → `useCartographerUiStore`, with `hasActiveFilters` + `resetCartographerFilters()` per the CLAUDE.md rule.
 
 ---
 
@@ -1227,7 +1227,7 @@ This appendix tracks where the implementation actually lives so future agents do
 
 - [src/lib/icons.ts](../../src/lib/icons.ts) — added `IconBrush`, `IconEraser`, `IconHand`, `IconWall`, `IconDoor`, `IconCube`.
 - [src/router/routes.ts](../../src/router/routes.ts) — added three Cartographer routes.
-- [src/stores/ui.ts](../../src/stores/ui.ts) — added `cartographerSearch`, `cartographerFilterPack`, `cartographerHasActiveFilters`, `resetCartographerFilters`.
+- [src/stores/ui/cartographer.ts](../../src/stores/ui/cartographer.ts) — added `cartographerSearch`, `cartographerFilterPack`, `cartographerHasActiveFilters`, `resetCartographerFilters`.
 - [src/views/dungeon-features/DungeonCraftView.vue](../../src/views/dungeon-features/DungeonCraftView.vue) — added the **Cartographer** tab (6th) with embedded map list.
 
 ### Placeholder-asset behaviour
@@ -1255,7 +1255,7 @@ The migration file is in place but **not yet applied to the remote Supabase proj
 - [x] List + editor views with floor brush, pan, zoom, per-cell hash variant.
 - [x] Save/load via TanStack Query composable.
 - [x] DC hub tab integration (6th tab).
-- [x] Filter state in `useUiStore`.
+- [x] Filter state in `useCartographerUiStore`.
 - [x] Stale `pack_id` placeholder rendering.
 - [ ] **Pending user action**: run `supabase db push` to apply migration.
 - [ ] **Pending external work**: real WebP assets in the AI-gen pipeline.

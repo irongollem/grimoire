@@ -131,7 +131,7 @@ Traps are dangerous mechanisms placed in dungeons. They carry full D&D 5e combat
 
 ### How DMs use them
 
-- Browse the Traproom tab (filtered by type and/or keyword) — search and type filter live in `useUiStore` (`trapsSearch`/`trapsFilterType`, Filter State Pattern), so they survive navigating into a trap and back; a **Clear** button appears once `trapsHasActiveFilters` is true, same pattern as the Loot Tables tab. The list is also implicitly scoped by campaign — general traps plus the active campaign's own, same as the Bestiary (`combat-encounters.md`) — with no "show all campaigns" override.
+- Browse the Traproom tab (filtered by type and/or keyword) — search and type filter live in `useTrapsUiStore` (`trapsSearch`/`trapsFilterType`, Filter State Pattern), so they survive navigating into a trap and back; a **Clear** button appears once `trapsHasActiveFilters` is true, same pattern as the Loot Tables tab. The list is also implicitly scoped by campaign — general traps plus the active campaign's own, same as the Bestiary (`combat-encounters.md`) — with no "show all campaigns" override.
 - Tap any card to open `/traps/:id`.
 - The detail view renders a **TrapSheet** in view mode and a **TrapEditor** in edit mode (`?edit=true`).
 - New traps open at `/traps/new`.
@@ -197,7 +197,7 @@ Both are colour-coded; the card thumbnail shows the type badge top-left and the 
 
 #### Creating and editing puzzles
 
-- Browse the Enigmarium tab (filterable by type, difficulty, and keyword) — search, type filter and difficulty filter live in `useUiStore` (`puzzlesSearch`/`puzzlesFilterType`/`puzzlesFilterDifficulty`, Filter State Pattern), so they survive navigating into a puzzle and back; a **Clear** button appears once `puzzlesHasActiveFilters` is true, same pattern as the Loot Tables tab. The list is also implicitly scoped by campaign — general puzzles plus the active campaign's own, same as the Bestiary and Traproom — with no "show all campaigns" override.
+- Browse the Enigmarium tab (filterable by type, difficulty, and keyword) — search, type filter and difficulty filter live in `usePuzzlesUiStore` (`puzzlesSearch`/`puzzlesFilterType`/`puzzlesFilterDifficulty`, Filter State Pattern), so they survive navigating into a puzzle and back; a **Clear** button appears once `puzzlesHasActiveFilters` is true, same pattern as the Loot Tables tab. The list is also implicitly scoped by campaign — general puzzles plus the active campaign's own, same as the Bestiary and Traproom — with no "show all campaigns" override.
 - Tap any card to open `/puzzles/:id`.
 - The detail view has an inline **view/edit toggle** — existing puzzles open in view mode.
 - New puzzles open at `/puzzles/new`.

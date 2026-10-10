@@ -65,7 +65,7 @@ The DM membership is created automatically by the `create_dm_membership` trigger
 ## Role System
 
 **The DM/Player mode lens (#729).** Above the per-campaign role sits a
-persisted, user-level mode: `useUiStore().userMode` (`"dm" | "player" | ""`,
+persisted, user-level mode: `useAppUiStore().userMode` (`"dm" | "player" | ""`,
 localStorage `grimoire:user-mode`). It is a *lens, never a grant* —
 `campaign_members.role` remains the truth RLS and capability checks key off;
 the mode only decides which home the user lands on (`/dashboard` vs

@@ -89,7 +89,7 @@ Nothing is written from two of these. In particular `LocationEditor` never sends
 - **No stub/`empty` marker.** An earlier version flagged places with no description, children, map or tags. It was removed rather than tuned: the predicate reads four fields, three of which the tree does not display, so a row marked "empty" beside an unmarked sibling looked arbitrary — the sibling had a description you could not see. A marker needing knowledge the surface withholds is noise however accurate it is.
 - **The sigil is size-capped by a wrapper `div`, not by a class on `FocalImage`.** `FocalImage`'s root is `w-full h-full` and is not run through `cn()`, so a size class passed to it does not override — it coexists, and `w-full` wins. Passing `h-14 w-14` directly rendered the coat of arms at pane width and pushed every child row out of view.
 
-**Filter state**: `locationsSearch` / `locationsFilterType` as before, plus `locationsExpanded`, `locationsSelectedId` and `locationsPaneMode` in `useUiStore`. Expansion is deliberately **not** cleared by `resetLocationsFilters()` — clearing a search should return you to the tree you had, not collapse the world. Searching flattens the tree to a match list (same behaviour as the player atlas), because hiding a branch that contains a match makes the match unreachable.
+**Filter state**: `locationsSearch` / `locationsFilterType` as before, plus `locationsExpanded`, `locationsSelectedId` and `locationsPaneMode` in `useLocationsUiStore`. Expansion is deliberately **not** cleared by `resetLocationsFilters()` — clearing a search should return you to the tree you had, not collapse the world. Searching flattens the tree to a match list (same behaviour as the player atlas), because hiding a branch that contains a match makes the match unreachable.
 
 **Tree fold** (`useAtlasTreeFold`, `composables/locations/`). Whether the tree column is on screen has three inputs, and only the first is stored:
 
@@ -299,7 +299,7 @@ Cover: rendering is exercised by `src/cartographer/renderMap.test.ts`, unchanged
 - **Provenance and identity across a re-publish**: `derived_from` (`dm` | `floodfill` | `annotation`, default `dm`) is a one-way ratchet — anything the DM has touched reads `dm` and is never overwritten by a re-publish, only offered — and `cell_signature` is a stable hash of the derived cell set, so "the Cistern shifted one east" is recognised as the same room rather than one deletion plus one creation. Both are null for every hand-traced region, forever.
 - **`vertices`** is the pen tool's ring — an ordered array of `[x, y]` grid points, halves allowed. Null means a plain painted region (`cells` is authoritative, exactly as before this migration); set means `cells` is *derived* from the ring and cached, so everything downstream keeps asking "which cells?" and always gets an answer. See "Tracing" below.
 
-Client side: `src/lib/locations/zones.ts` (pure — `ZONE_KIND_FILL` colours, `zoneSummary()` for the one-line read-out, `isPlayerVisible()`, `emptyZoneInsert()`), `SiteMapZoneList.vue` (the zone-CRUD sibling of `SiteMapRegionList`, mounted alongside it by `LocationMap.vue` in browse mode — same lifted-`activeRegionId` convention, same per-kind payload editor with fields that vary by `zone_kind`), `SiteMapLayerBar.vue` (the layer toggles, reading/writing `useUiStore().siteMapLayers` — `spaces`, `ways`, `zones`, `prepared`, `grid`, no v-model needed since every flag is session UI state), and `SiteMapLegend.vue`. Zones are DM ink by default (`visible_to_players` absent means false, not unknown); the player-visible projection clips a shown zone to the party's own explored cells (see "The player's plan is composed, not masked" below).
+Client side: `src/lib/locations/zones.ts` (pure — `ZONE_KIND_FILL` colours, `zoneSummary()` for the one-line read-out, `isPlayerVisible()`, `emptyZoneInsert()`), `SiteMapZoneList.vue` (the zone-CRUD sibling of `SiteMapRegionList`, mounted alongside it by `LocationMap.vue` in browse mode — same lifted-`activeRegionId` convention, same per-kind payload editor with fields that vary by `zone_kind`), `SiteMapLayerBar.vue` (the layer toggles, reading/writing `useLocationsUiStore().siteMapLayers` — `spaces`, `ways`, `zones`, `prepared`, `grid`, no v-model needed since every flag is session UI state), and `SiteMapLegend.vue`. Zones are DM ink by default (`visible_to_players` absent means false, not unknown); the player-visible projection clips a shown zone to the party's own explored cells (see "The player's plan is composed, not masked" below).
 
 **A populated layer reveals itself (#880, resurfaced after #884).** `siteMapLayers.zones`
 and `siteMapLayers.prepared` both default to off (see `SiteMapLayerBar.vue`'s
@@ -322,7 +322,7 @@ Browse hit the exact #880 symptom again, just from a different door: nothing
 wrong with the tool, a layer nobody had ever explicitly shown. Restoring
 `revealLayerForRegionRole` verbatim would have been legacy code guarding a
 trigger that can't fire any more, so the replacement is keyed on *content*
-instead of *role*: `useUiStore().revealPopulatedSiteMapLayers(counts)`, called
+instead of *role*: `useLocationsUiStore().revealPopulatedSiteMapLayers(counts)`, called
 from the same `watch(layerCounts, …, { immediate: true })` in `LocationMap.vue`
 that already emits `layer-counts`, turns a layer on when its count is above
 zero and it's still off. This also covers `prepared`, which shares the exact
@@ -406,7 +406,7 @@ Players see only locations explicitly shared with them (`player_visible_to` cont
 - **Main bar** (click) — expands/collapses child locations; shows a chevron indicator when shared children exist
 - **Details button** (Eye icon, right side) — toggles an inline detail panel below the entry
 
-Collapse/detail open state is persisted in `useUiStore` (`atlasChildrenOpen`, `atlasDetailOpen`) so it survives in-session navigation.
+Collapse/detail open state is persisted in `usePlayerUiStore` (`atlasChildrenOpen`, `atlasDetailOpen`) so it survives in-session navigation.
 
 **Filter bar:** text search (name, player_summary, and optionally shared description) + type dropdown; when filtering, the tree flattens to a simple matched list. A "Close all" button collapses all open panels.
 
@@ -472,7 +472,7 @@ Route: `/factions` (list), `/factions/new`, `/factions/:id`, `/factions/:id?edit
 
 **List page** (`FactionListView.vue`)
 
-- Filter bar: text search (name, tags) + type dropdown; state in `useUiStore` with Clear button
+- Filter bar: text search (name, tags) + type dropdown; state in `useFactionsUiStore` with Clear button
 - "Populate Setting" button — bulk-inserts seed factions for the active campaign's setting (only shown when the campaign has a recognised `calendar_id` with faction seed data); idempotent, deduplicates by name
 - Responsive grid (1–3 columns) of `EntityListRow` (`src/components/common/EntityListRow.vue`) — the shared horizontal row: 3rem emblem tile (or a fallback icon), truncating name, subtitle, tags (`maxTags`, default 3), an `#actions` slot at the trailing edge, and the chevron. `PantheonListView` is the same component with a different fallback icon and subtitle; the two had each written the same forty lines and had already drifted (one passed `render-width` to `FocalImage`, the other did not)
 - The row's reveal goes in `#actions` as the `inline` form, **not** `overlay`, and lands in the trailing group beside the chevron. `overlay` is the dark-scrim chip and the scrim is only correct on top of artwork — on a faction row there is none behind it, so it read as a black square on parchment and its gold "shared" state disappeared into its own backdrop. On the title line it was also vertically adrift from the chevron and, being `shrink-0` beside a `truncate` name, cost the longer names a word. The controls and chevron are one group so the pair spends a single `gap-3`; split into two row children the extra gap came straight back out of the names
@@ -544,7 +544,7 @@ shell the NPC and monster grids use:
   a `+N` overflow
 
 Filters (`deitiesFilterDomain`, `deitiesFilterPantheon`) and search live in
-`useUiStore` as the Filter State Pattern requires. "Reveal All"
+`useDeitiesUiStore` as the Filter State Pattern requires. "Reveal All"
 (`useRevealAllDeities`) shares every deity in the campaign with the whole party
 in one action — the pantheon is usually common knowledge, and setting it row by
 row was the most-repeated reveal in the app.
@@ -650,7 +650,7 @@ The search box (⌘K, `GlobalSearch.vue`, and the dashboard's Jump to… card) f
 - **Setting seed data**: Atlas and Factions both ship "Populate Setting" buttons that bulk-seed campaign-appropriate locations/factions from static data keyed by `calendar_id`.
 - **Planar cosmology**: "Populate Planes" seeds all 21 standard D&D planes with correct parent hierarchy (e.g. Astral Sea as parent of outer planes).
 - **Store/vendor integration**: Store, Tavern, and Inn location types support a `StoreInventory` component (on Overview, restockable without opening Details) with an optional proprietor NPC set in Details. When Reveal's **Wares** switch (`is_inventory_shared`) is on, the wares list appears in the player portal.
-- **Collapsible player atlas**: the player-facing Atlas keeps tree expand/collapse and detail-panel open state in `useUiStore` so the player's navigation context survives tab switching.
+- **Collapsible player atlas**: the player-facing Atlas keeps tree expand/collapse and detail-panel open state in `usePlayerUiStore` so the player's navigation context survives tab switching.
 
 ---
 

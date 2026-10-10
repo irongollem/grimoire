@@ -34,7 +34,7 @@ Say **session** for the first. Do not say "play mode" — `/play` belongs to the
 - **Backup and export** carry the log. A backup restores sessions before notes and remaps both links; an older backup's `session_num` becomes sessions the way the migration did. Markdown export writes `session` and `session_title` for a session note.
 
 - **Composable**: `useCampaignSession()` in `src/composables/campaign/` is a module-level singleton owning the first read and the commands (`start(options)`, `end()`). It has **no channel of its own**: the table rides the campaign doorbell in `useCampaignLiveSync`, which calls `refetchCampaignSession()` on each `campaign_sessions` ring and on reconnect. It is handled by hand rather than only through `SIGNAL_KEYS` because it feeds a store ref, not a list query, the same shape as the `campaigns` re-read beside it.
-- **Store mirror**: `useUiStore().sessionRunning`, written only by the composable. `ui.dmMode` is a **read-only computed** over it, so the five consumers below keep the cheap synchronous read they always had while the only way to change it is starting or ending a session.
+- **Store mirror**: `useAppUiStore().sessionRunning`, written only by the composable. `dmMode` is a **read-only computed** over it, so the five consumers below keep the cheap synchronous read they always had while the only way to change it is starting or ending a session.
 - **The log's reads** are in `src/composables/sessions/`: `useCampaignSessions()` (the DM's log, newest first; takes an `enabled` getter so the Start dialog, mounted app-wide, reads it only while open) with its update, create-past and delete mutations, and `usePlayerSessions()` (the player labels).
 - **Helpers**: `formatSessionElapsed`, `isSessionStale` (six hours), `ensureCampaignSession` (plain function: callers are event handlers, not component setups, and must not take a subscription they never release).
 
@@ -46,7 +46,7 @@ Say **session** for the first. Do not say "play mode" — `/play` belongs to the
 | Bottom-bar tab pool | `SESSION_TAB_ROUTES` in `lib/nav.ts` → `DmBottomNav.vue` |
 | Centre FAB (＋ vs dice) | `DmBottomNav.vue` |
 | Quest landing surface + tab label | `QuestDetailView.vue` |
-| Soundboard Arrange/Perform | `soundboardBoardMode` in `stores/ui.ts` → `SoundboardView.vue` |
+| Soundboard Arrange/Perform | `soundboardBoardMode` in `stores/ui/soundboard.ts` → `SoundboardView.vue` |
 
 Chat is **NPCs only**. Locations, items, quests and encounters have never announced — out of scope for #133, and now the odd ones out.
 

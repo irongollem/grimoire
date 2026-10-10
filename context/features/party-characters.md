@@ -163,7 +163,7 @@ There is no Location tab or free-text equipment fields on this form. A member's 
 
 **Route:** `/codex/:tab` — `CharacterCodexView.vue`
 
-The Character Codex is the DM-facing compendium for all character creation options. It uses a tabbed layout at `/codex/species`, `/codex/backgrounds`, `/codex/classes`, `/codex/archetypes`, `/codex/abilities` and `/codex/feats`. Tab state is stored in `useUiStore.codexActiveTab` and synced to the URL so deep links work. DMs see create/import buttons; players (if they access this route) see read-only lists.
+The Character Codex is the DM-facing compendium for all character creation options. It uses a tabbed layout at `/codex/species`, `/codex/backgrounds`, `/codex/classes`, `/codex/archetypes`, `/codex/abilities` and `/codex/feats`. Tab state is stored in `useCodexUiStore.codexActiveTab` and synced to the URL so deep links work. DMs see create/import buttons; players (if they access this route) see read-only lists.
 
 ### Species Tab
 
@@ -210,7 +210,7 @@ Filterable by search and source (Custom / Library). **Backgrounds live in the sh
 
 ### Classes Tab
 
-Lists both the official classes (`system_classes` plus the official non-SRD rows in `custom_classes`, read-only for everyone but the admin) and custom classes (`custom_classes`, editable). Filtered by text search with filter state in `useUiStore`.
+Lists both the official classes (`system_classes` plus the official non-SRD rows in `custom_classes`, read-only for everyone but the admin) and custom classes (`custom_classes`, editable). Filtered by text search with filter state in `useCodexUiStore`.
 
 There is no per-account "Import from Open5e" button on this tab any more. Official classes, subclasses, features and feats are one shared set that the admin writes from **Admin → Content → Import from Open5e** (see [Class features, subclass features and feats (#976)](#class-features-subclass-features-and-feats-976)).
 
@@ -258,7 +258,7 @@ A custom feature (`FeatureDetail`) carries the same campaign-scope dropdown as c
 
 ### Feats Tab
 
-Feats are `class_features` rows with `kind = 'feat'` (`FeatList` in `src/components/feats/`, editor `FeatFields`, filters by category and edition kept in `useUiStore` as `featsSearch`, `featsFilterCategory`, `featsFilterEdition`). The feat editor has the Abilities fields plus **category** (2024 Origin, General, Fighting Style, Epic Boon; 2014 feats have none), **prerequisites** (structured and enforced at level-up, with the book's wording kept in `prerequisite`), **repeatable** and **ability increase** (the half-feat's +1, or the 2024 Ability Score Improvement feat's +2 that may split). New feats are created at `/feats/new`.
+Feats are `class_features` rows with `kind = 'feat'` (`FeatList` in `src/components/feats/`, editor `FeatFields`, filters by category and edition kept in `useCodexUiStore` as `featsSearch`, `featsFilterCategory`, `featsFilterEdition`). The feat editor has the Abilities fields plus **category** (2024 Origin, General, Fighting Style, Epic Boon; 2014 feats have none), **prerequisites** (structured and enforced at level-up, with the book's wording kept in `prerequisite`), **repeatable** and **ability increase** (the half-feat's +1, or the 2024 Ability Score Improvement feat's +2 that may split). New feats are created at `/feats/new`.
 
 ---
 
@@ -296,7 +296,7 @@ Cards displayed in a responsive grid. Each card shows:
 - **"Add to Campaign"** button (disabled without an active campaign) — imports the hero as an NPC into the campaign's NPC list and navigates to `/npcs`
 - Edit and Delete buttons (app admin only)
 
-**Filters:** Text search (name, species, occupation, tags) and setting filter dropdown. Filter state lives in `useUiStore.hallOfHeroesSearch` and `.hallOfHeroesFilterSetting`.
+**Filters:** Text search (name, species, occupation, tags) and setting filter dropdown. Filter state lives in `useHallUiStore.hallOfHeroesSearch` and `.hallOfHeroesFilterSetting`.
 
 **"Sync All Settings"** (app admin) — runs `usePopulateAllSettingHeroes`, a bulk seeding operation.
 
