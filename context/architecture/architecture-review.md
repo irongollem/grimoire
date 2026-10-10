@@ -21,7 +21,7 @@ below is a layering violation in that sense. The question here is the next one u
 | 3 | Mounting | B | Every one of the 141 routes is lazy, and so are the layouts; a few tab pages still mount every tab statically |
 | 4 | Stores | C+ | Nine stores, seven of them fine; `ui.ts` is the largest file in `src` (1,515 lines, 166 refs, 43 `reset*Filters`, imported by 179 modules across 73 areas) and `soundboard.ts` the second (1,306) |
 | 5 | Folder sizing | B- | `components/common` holds 134 components flat; `lib` root holds 77 modules, a third of them single-consumer; the rest of the tree is sized well |
-| 6 | Naming and placement | B | One domain split across two spellings in `lib` (fixed here), pantheons/deities split across trees, a spike view routed in production |
+| 6 | Naming and placement | B | One domain split across two spellings in `lib` (fixed here), the player portal under two names (`play`/`player`, merged here) |
 | 7 | Dead code | B+ | 12 unreferenced modules found; all removed here |
 
 ## 1. Hubs
@@ -59,7 +59,7 @@ play ↔ player (22 / 10), campaign ↔ party (10 / 10). The first two are the
 is a zoomed-in beat, the Cartographer runs inside Build. They are one model
 with three surfaces, and a boundary between them would be invented.
 
-`play` (the portal's views) and `player` (its components) are one domain under
+`play` (the portal's views) and `player` (its components) were one domain under
 two names; see 6.
 
 Two upward reaches out of `components/common`:
@@ -134,10 +134,16 @@ rule says belong in a folder:
 
 - `lib/dungeonFeatures/featureAi.ts` beside `lib/dungeon-features/` (one domain,
   two spellings). **Fixed here**: moved into `lib/dungeon-features/`.
-- `components/pantheons` and `views/pantheons` beside `composables/deities` and
-  `components/deities`: one domain under two names, as `play` and `player` are.
-- `views/spike/SpikePagedJsView.vue` is routed in production
-  (`routes.ts:1066`, `requiresAuth: false`, "Paged.js Spike").
+- `components/play`, `views/play` and `composables/play` beside
+  `components/player`: the player portal under two names. **Merged into
+  `player`** (5.2.6, the maintainer's call); the route stays `/play`.
+- `pantheons` and `deities` are not a duplicate: a pantheon is a group of
+  deities, its own entity with its own list and sheet. Pantheon data access
+  lives in `composables/deities/` because it is about deities.
+- `views/spike/SpikePagedJsView.vue` (the Paged.js harness from #330, closed
+  June 2026) is registered only in dev and Vercel preview builds
+  (`routes.ts`, behind `import.meta.env.DEV || __PREVIEW_BUILD__`), not in
+  production. The first draft of this review said otherwise.
 - `calendars/` (2 files, its own barrel) beside `lib/calendar`,
   `components/calendar` and `settings/*.calendar.ts`.
 - `composables/` root held 26 modules against CLAUDE.md's list of 25:
@@ -188,8 +194,8 @@ others are candidates only when work next touches them.
 | 2 | 5.2.2 | Move the single-consumer `lib` root modules into their folders (table in section 5) | The placement rule holds again; `lib` root down to ~67 | Low; import paths only | S | No |
 | 3 | 5.2.3 | `AiGeneratorPanels.vue` to `src/ai/`; the 13 `common` → `campaign`/`spells` edges resolved | `common` imports no domain; a depcruise rule can then hold it | Low | S | No |
 | 4 | 5.2.4 | Subfolders for `components/common` (primitives, entity pickers, stat display, list scaffolding, rich text, images) | A 134-file bucket becomes navigable | Low, but touches ~600 import sites | M | Yes: the grouping |
-| 5 | 5.2.5 | Split `stores/ui.ts` into one filter store per domain under `stores/ui/` | A list imports only its own filters; the largest file in `src` goes | Medium; 179 importers, and the Filter State Pattern rule in CLAUDE.md changes | M | Yes: a CLAUDE.md rule |
-| 6 | 5.2.6 | One name per domain: `play`/`player`, `pantheons`/`deities`; `calendars/` into `lib/calendar` | The tree reads as one map | Low; renames | S | Yes: which name wins |
+| 5 | 5.2.5 | Split `stores/ui.ts` into one filter store per domain under `stores/ui/` | A list imports only its own filters; the largest file in `src` goes | Medium; 179 importers, and the Filter State Pattern rule in CLAUDE.md changes | M | Decided: yes |
+| 6 | 5.2.6 | ~~One name per domain: `play`/`player`, `pantheons`/`deities`~~ `play` merged into `player`; pantheons are their own entity, not a duplicate. Left: `calendars/` into `lib/calendar` | The tree reads as one map | Low; renames | S | Decided |
 | 7 | 5.2.7 | Subfolders by surface for `components/quests` (110) and `components/locations` (81), following the design frames | Navigable domain folders | Low | M | No |
-| 8 | 5.2.8 | Remove or gate `views/spike/SpikePagedJsView.vue` | No spike in production | None | XS | Yes: is the spike done |
+| 8 | 5.2.8 | Remove the #330 Paged.js harness (`views/spike/`, `lib/scriptorium/spike/`), dev and preview only, now that Scriptorium ships Paged.js | Less dev-only code | None | XS | Yes: is the harness still used |
 | 9 | 5.2.9 | The fifteen twice-defined exported type names: rename the local ones | No two meanings for one name | Low | S | No |
