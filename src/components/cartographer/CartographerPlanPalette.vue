@@ -74,10 +74,10 @@
 // names a location.
 import { IconDoor, IconEraser, IconFill, IconHighlight, IconSplitCell } from "@/lib/icons";
 import type { AppIcon } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { TEMPLATE_SHAPE_LABELS, TEMPLATE_SHAPES } from "@/composables/locations/useRegionPen";
 import { PLAN_TOOLS, TRACE_TOOL_OPTIONS, type PlanTool } from "@/composables/cartographer/usePlanPalette";
 import { ZONE_KINDS, ZONE_KIND_LABELS, type ZoneKind } from "@/types/locationMapRegion.types";

@@ -56,9 +56,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { IconClose, IconLinkAlt } from '@/lib/icons';
-import AppButton from '@/components/common/AppButton.vue';
-import AppInput from '@/components/common/AppInput.vue';
-import AppSelect from '@/components/common/AppSelect.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import AppInput from '@/components/common/controls/AppInput.vue';
+import AppSelect from '@/components/common/controls/AppSelect.vue';
 import type { NpcRelationshipType } from '@/types/npc.types';
 
 const {

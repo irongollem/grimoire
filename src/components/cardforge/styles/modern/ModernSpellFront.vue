@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import type { Spell } from "@/types/spell.types";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import ModernShell from "./ModernShell.vue";
 import { accentForSpell } from "../tokens.shared";
 import { useSpellCardData } from "@/composables/cardforge/useSpellCardData";

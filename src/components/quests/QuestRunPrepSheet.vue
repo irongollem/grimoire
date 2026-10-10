@@ -56,9 +56,9 @@
 import { computed, ref } from "vue";
 import type { CampaignLiveQuest, QuestBeat, QuestConsequence, QuestObjective, QuestRuntimeChoice, QuestThreadCursor } from "@/types/quest.types";
 import { IconLinkAlt } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import QuestRunObjectivesLedger from "./QuestRunObjectivesLedger.vue";
 import QuestRunStorySoFar from "./QuestRunStorySoFar.vue";
 import QuestRunOpenChains from "./QuestRunOpenChains.vue";

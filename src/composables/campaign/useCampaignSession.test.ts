@@ -19,7 +19,7 @@ vi.mock("@/composables/campaign/useCampaignBroadcast", () => ({ sendCampaignAnno
 vi.mock("@/composables/quests/useQuestFlow", () => ({ QUEST_RUNTIME_QUERY_KEYS: [] }));
 
 import { createPinia, setActivePinia } from "pinia";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import {
   dropLoggedSession,
   ensureCampaignSession,
@@ -132,26 +132,26 @@ describe("isSessionStale", () => {
 describe("the live session is the open log row", () => {
   it("adopts an open row and mirrors it as running", async () => {
     await readSession(row({ id: "s15", number: 15 }));
-    expect(useUiStore().sessionRunning).toBe(true);
+    expect(useAppUiStore().sessionRunning).toBe(true);
   });
 
   it("clears once the log has no open row", async () => {
     await readSession(row({ id: "s15", number: 15 }));
     await readSession(null);
-    expect(useUiStore().sessionRunning).toBe(false);
+    expect(useAppUiStore().sessionRunning).toBe(false);
   });
 
   it("never treats a hand-logged past session as running", async () => {
     await readSession(row({ id: "past", started_at: null, played_on: "2026-09-01" }));
-    expect(useUiStore().sessionRunning).toBe(false);
+    expect(useAppUiStore().sessionRunning).toBe(false);
   });
 
   it("clears when the open row is deleted", async () => {
     await readSession(row({ id: "s15" }));
     dropLoggedSession("someone-else");
-    expect(useUiStore().sessionRunning).toBe(true);
+    expect(useAppUiStore().sessionRunning).toBe(true);
     dropLoggedSession("s15");
-    expect(useUiStore().sessionRunning).toBe(false);
+    expect(useAppUiStore().sessionRunning).toBe(false);
   });
 });
 

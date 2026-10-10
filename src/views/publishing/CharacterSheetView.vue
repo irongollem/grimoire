@@ -66,11 +66,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, RouterLink } from "vue-router";
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useParty } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";

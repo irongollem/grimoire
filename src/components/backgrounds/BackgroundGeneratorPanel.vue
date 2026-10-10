@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.backgroundGeneratorOpen"
+    v-model:open="generatorsUi.backgroundGeneratorOpen"
     v-model:concept="concept"
     title="Background Generator"
     concept-placeholder="A former lamplighter of the river district who learned which windows stay dark, and why…"
@@ -30,11 +30,11 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useToast } from "@/composables/useToast";
 import { useCreateBackground } from "@/composables/rules/useBackgrounds";
-import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
@@ -42,7 +42,7 @@ import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useBackgroundGeneration } from "@/ai/useBackgroundGeneration";
 import { SKILLS } from "@/types/party.types";
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const toast = useToast();
 const { mutateAsync: createBackground } = useCreateBackground();
@@ -97,7 +97,7 @@ async function save(draft: Generated) {
   if (!background) return;
 
   completedEntityId.value = background.id;
-  ui.backgroundGeneratorOpen = false;
+  generatorsUi.backgroundGeneratorOpen = false;
   router.push(`/backgrounds/${background.id}`);
 }
 </script>

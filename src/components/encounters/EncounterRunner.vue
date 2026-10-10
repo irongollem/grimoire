@@ -46,7 +46,7 @@
           class="go-live-btn"
           :class="isLive ? 'live-active' : ''"
           :disabled="goingLive"
-          :title="isLive ? 'Live' : ui.sessionRunning ? 'Go Live' : 'Go Live (also starts the session)'"
+          :title="isLive ? 'Live' : appUi.sessionRunning ? 'Go Live' : 'Go Live (also starts the session)'"
           @click="handleGoLive"
         >
           <IconLive class="h-3.5 w-3.5" />
@@ -157,7 +157,7 @@ import { buildNpcSyncUpdate } from "@/lib/encounters/npcEncounterSync";
 import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
@@ -181,7 +181,7 @@ const router = useRouter();
 const route = useRoute();
 const encounterId = computed(() => route.params.id as string);
 const campaign = useCampaignStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const toast = useToast();
 const { isLive, goLive, schedulePush, endLive } = useEncounterLive(encounterId.value);
 const goingLive = ref(false);

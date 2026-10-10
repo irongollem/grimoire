@@ -9,6 +9,8 @@ lives in three focused docs — read only the one your problem points at:
 | [integrations.md](integrations.md) | Every third party: call direction, credentials, failure symptoms |
 | [release-pipeline.md](release-pipeline.md) | CI/CD, the two deploy pipelines, the three skew windows |
 | [boundary-drift.md](boundary-drift.md) | Where the code already deviates from this map — verified holds, known breaks, re-run instructions |
+| [database-review.md](database-review.md) | Graded review of the table setup (#999 3.4) and its follow-ups |
+| [architecture-review.md](architecture-review.md) | Graded review of hubs, coupling, mounting and file structure (#999 5.2) and its follow-ups |
 
 Per-feature depth (file paths, tables, composables) stays in
 [`../features/`](../features/index.md); DB security rules in `CLAUDE.md`.

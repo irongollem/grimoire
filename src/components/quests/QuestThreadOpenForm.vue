@@ -43,9 +43,9 @@
  * and the actual mutation — this component only names the fields and the
  * two actions.
  */
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 
 const { options, pending = false, layout = "row" } = defineProps<{
   options: Array<{ id: string; name: string }>;

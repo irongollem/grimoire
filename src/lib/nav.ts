@@ -346,7 +346,7 @@ export const NAV_GROUPS: NavGroup[] = [
 // Flat list kept for any consumers that still need it
 export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
-/** Which half of a session the DM is in. Mirrors `useUiStore().dmMode`. */
+/** Which half of a session the DM is in. Mirrors `useAppUiStore().dmMode`. */
 export type DmMode = "prep" | "play";
 
 /**

@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.lootTableGeneratorOpen"
+    v-model:open="generatorsUi.lootTableGeneratorOpen"
     v-model:concept="concept"
     title="Loot Table Generator"
     concept-placeholder="The smugglers' vault beneath the Rusty Anchor: coin, contraband, one thing they stole and couldn't sell…"
@@ -162,15 +162,15 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { IconAdd, IconCheckCircle, IconCoins, IconWarning } from "@/lib/icons";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useCreateLootTable } from "@/composables/dungeon-features/useLootTables";
 import { useLootGeneration } from "@/ai/useLootGeneration";
 import { resolveGeneratedLoot, type ResolvedLootEntry } from "@/ai/resolveGeneratedLoot";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
@@ -186,12 +186,12 @@ import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_TEXT, type ItemRarity } fr
 
 const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
 // Mounted on every DM page — the vault catalogue is multiple MB, so only fetch
 // it once the panel is actually open (same guard the other panels use).
-const { data: vaultItems } = useItemIndex(() => ({ enabled: ui.lootTableGeneratorOpen }));
+const { data: vaultItems } = useItemIndex(() => ({ enabled: generatorsUi.lootTableGeneratorOpen }));
 
 const {
   isGenerating,
@@ -346,7 +346,7 @@ async function createTable() {
 
 function viewCreated() {
   if (!createdTableId.value) return;
-  ui.lootTableGeneratorOpen = false;
+  generatorsUi.lootTableGeneratorOpen = false;
   router.push(`/loot-tables/${createdTableId.value}`);
 }
 </script>

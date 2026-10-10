@@ -193,9 +193,9 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconClose, IconEdit } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useUpdateCompanion } from "@/composables/encounters/useCompanions";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
@@ -206,13 +206,13 @@ import {
   isExhaustion,
 } from "@/rules/conditions";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
+import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
 import {
   COMPANION_TYPE_LABELS,
   COMPANION_TYPE_COLORS,
 } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 
 const props = defineProps<{
   companion: Companion;

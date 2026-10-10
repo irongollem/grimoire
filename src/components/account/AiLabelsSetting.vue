@@ -15,8 +15,8 @@
   account page, which both lenses reach, and on the player settings page,
   where a player looks for display options first.
 */
-import SettingsSection from "@/components/common/SettingsSection.vue";
-import SettingsToggleRow from "@/components/common/SettingsToggleRow.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
+import SettingsToggleRow from "@/components/common/settings/SettingsToggleRow.vue";
 import { useAiLabelPrefs } from "@/composables/ai/useAiLabelPrefs";
 
 const { showAiLabels, setShowAiLabels } = useAiLabelPrefs();

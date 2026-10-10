@@ -25,8 +25,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { SPELL_COMPONENTS } from "@/types/spell.types";
 
 const { components, material } = defineProps<{

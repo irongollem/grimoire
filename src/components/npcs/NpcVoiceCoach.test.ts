@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import NpcVoiceCoach from "./NpcVoiceCoach.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import type { Npc } from "@/types/npc.types";
 
 /**

@@ -37,7 +37,7 @@
  * here to acknowledge or clear.
  */
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { fullCampaignUrl } from "./demoTeaser";
 

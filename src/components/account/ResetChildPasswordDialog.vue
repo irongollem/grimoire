@@ -51,10 +51,10 @@
 <script setup lang="ts">
 /** The small dialog "Reset password" opens from a child's card (#919). */
 import { computed, ref, watch } from "vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useToast } from "@/composables/useToast";
 import { IconKey } from "@/lib/icons";
 import {

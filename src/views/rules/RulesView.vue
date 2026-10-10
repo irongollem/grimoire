@@ -23,7 +23,7 @@
               v-if="campaignStore.isAiEnabled"
               :icon="IconGenerate"
               label="Generate"
-              @click="ui.customRuleGeneratorOpen = true"
+              @click="generatorsUi.customRuleGeneratorOpen = true"
             />
             <ListActionButton
               variant="primary"
@@ -60,10 +60,10 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconGenerate, IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
-import ListActionButton from "@/components/common/ListActionButton.vue";
-import { useUiStore } from "@/stores/ui";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
-import TabBar from "@/components/common/TabBar.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ScreenTab from "@/components/rules/ScreenTab.vue";
 import CompendiumTab from "@/components/rules/CompendiumTab.vue";
@@ -82,7 +82,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 const route = useRoute();
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const campaignStore = useCampaignStore();
 const router = useRouter();
 

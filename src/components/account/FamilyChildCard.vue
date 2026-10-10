@@ -53,7 +53,7 @@
  * of these is a `v-for` over a card, not a combined block in `FamilyView`.
  */
 import { ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import FamilyChildTables from "@/components/account/FamilyChildTables.vue";
 import ResetChildPasswordDialog from "@/components/account/ResetChildPasswordDialog.vue";
 import DeleteChildAccountDialog from "@/components/account/DeleteChildAccountDialog.vue";

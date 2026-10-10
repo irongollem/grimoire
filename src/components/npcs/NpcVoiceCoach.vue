@@ -96,9 +96,9 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useNpcVoiceCoach } from "@/ai/useNpcVoiceCoach";
-import AppButton from "@/components/common/AppButton.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import type { Npc } from "@/types/npc.types";
 
 const { npc } = defineProps<{ npc: Npc }>();

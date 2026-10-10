@@ -28,8 +28,8 @@
 
 <script setup lang="ts">
 import { IconAdd, IconDelete } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import type { UsesCost } from "@/rules/features/mechanics.types";
 import MechField from "./MechField.vue";
 

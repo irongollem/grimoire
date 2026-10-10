@@ -31,7 +31,7 @@ vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
   useRouter: () => ({ push: mocks.push }),
 }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => mocks.ui }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => mocks.ui }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => mocks.campaign }));
 
 describe("QuestFlowStarter", () => {

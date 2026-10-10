@@ -63,7 +63,7 @@
  * way out (so the stored copy players read is never staler than the write).
  */
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import MapScaleDialog from "@/components/locations/MapScaleDialog.vue";
 import {

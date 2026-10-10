@@ -87,7 +87,7 @@ import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed } from "vue";
 import { useItem, useResolvedItem, usePlayerItemProjection } from "@/composables/items/useItems";
 import { isUuid } from "@/lib/library/contentIdentity";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,

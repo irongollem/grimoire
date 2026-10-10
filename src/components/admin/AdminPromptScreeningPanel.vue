@@ -202,20 +202,15 @@
  * `supabase/functions/_shared/moderation.ts` from real traffic instead of
  * the eight prompts it shipped with.
  *
- * Both the day-window and surface filters are local component state rather
- * than `useUiStore`. The surface filter genuinely fits the Filter State
- * Pattern (it filters the list already on this page) and belongs in the
- * store — it stays local here only because `src/stores/ui.ts` was in flight
- * with another agent's uncommitted work at the time this was written. See
- * this file's PR/session notes for the store addition to merge in once that
- * lands: `promptScreeningSurface` ref + `resetPromptScreeningFilters()`,
- * mirroring `adminAuditFilterAction` / `resetAdminAuditFilters` in ui.ts.
- * The day-window is left local either way — it drives the RPC's own report
- * range rather than filtering an already-fetched list.
+ * The surface filter filters the report already on this panel, so it lives in
+ * the admin UI store (Filter State Pattern) and survives leaving the Admin page.
+ * The day window stays local: it sets the RPC's own report range rather than
+ * filtering an already-fetched list.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import { storeToRefs } from "pinia";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconShieldCheck, IconWarning } from "@/lib/icons";
 import {
   usePromptScreening,
@@ -231,16 +226,15 @@ import {
   type PromptScreeningRow,
   type PromptScreeningWindowDays,
 } from "@/composables/admin/usePromptScreening";
+import { useAdminUiStore } from "@/stores/ui/admin";
 
 const windowDays = ref<PromptScreeningWindowDays>(30);
-const selectedType = ref<string | null>(null);
+const adminUi = useAdminUiStore();
+const { promptScreeningSurface: selectedType, promptScreeningHasActiveFilters: hasActiveFilters } =
+  storeToRefs(adminUi);
+const resetFilters = adminUi.resetPromptScreeningFilters;
 const query = usePromptScreening(windowDays, selectedType);
 const hints = computed(() => query.data.value);
-
-const hasActiveFilters = computed(() => selectedType.value !== null);
-function resetFilters() {
-  selectedType.value = null;
-}
 
 /** Every surface seen anywhere in the window, so the picker still shows the
  *  active filter even if this window happens to have zero matches for it. */

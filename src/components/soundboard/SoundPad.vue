@@ -128,7 +128,7 @@
 import { computed } from "vue";
 import { IconRepeat, IconMusicNote, IconMusic, IconWind, IconLightning } from "@/lib/icons";
 import { canAnimate, whenSettled } from "@/lib/motion";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSoundPlayback } from "@/composables/soundboard/useSoundPlayback";
 import { usePadLoopGesture } from "@/composables/soundboard/usePadLoopGesture";

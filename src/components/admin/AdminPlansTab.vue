@@ -251,9 +251,9 @@
 
 <script setup lang="ts">
 import { reactive, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import { useKeyedRecordDrafts } from "@/composables/admin/useKeyedRecordDrafts";
 import { useAdminPlans } from "@/composables/admin/useAdminPlans";
 import { useGenerationCreditCosts } from "@/composables/billing/useCreditConfig";

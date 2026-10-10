@@ -1,7 +1,7 @@
 # Session mode
 
 The design behind [#758](https://github.com/irongollem/grimoire/issues/758),
-shipped. `useUiStore().dmMode` survives as a **read-only computed** over the
+shipped. `useAppUiStore().dmMode` survives as a **read-only computed** over the
 row below, so the five surfaces that read it never had to change.
 
 A **session** is the stretch of real time in which a DM is running the game for

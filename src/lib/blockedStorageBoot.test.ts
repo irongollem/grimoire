@@ -34,8 +34,11 @@ afterAll(() => {
   }
 });
 
+const UI_STORE_MODULES = import.meta.glob(["@/stores/ui/*.ts", "!@/stores/ui/*.test.ts"]);
+
 describe("boot with site data blocked", () => {
   it("evaluates the boot modules", async () => {
+    expect(Object.keys(UI_STORE_MODULES).length).toBeGreaterThanOrEqual(29);
     await expect(
       Promise.all([
         import("@/lib/themeRuntime"),
@@ -46,7 +49,8 @@ describe("boot with site data blocked", () => {
         import("@/stores/auth"),
         import("@/stores/campaign"),
         import("@/stores/calendar"),
-        import("@/stores/ui"),
+        // Every domain UI store, found rather than listed, so a new one is covered.
+        ...Object.values(UI_STORE_MODULES).map((load) => load()),
         import("@/stores/cardForge"),
         import("@/stores/soundboard"),
         import("@/stores/spotify"),
@@ -59,14 +63,23 @@ describe("boot with site data blocked", () => {
     setActivePinia(createPinia());
     const { useAuthStore } = await import("@/stores/auth");
     const { useCampaignStore } = await import("@/stores/campaign");
-    const { useUiStore } = await import("@/stores/ui");
+    const { useAppUiStore } = await import("@/stores/ui/app");
     const { useCardForgeStore } = await import("@/stores/cardForge");
     const { useCalendarStore } = await import("@/stores/calendar");
     const { readStoredSession } = await import("@/lib/supabase");
 
+    // Every domain UI store, built rather than only imported: five of them read
+    // `useStorage` in setup, and a raw localStorage read there would only throw
+    // once the store is constructed.
+    const uiStores = (await Promise.all(Object.values(UI_STORE_MODULES).map((load) => load())))
+      .flatMap((mod) => Object.values(mod as Record<string, unknown>))
+      .filter((hook): hook is () => unknown => typeof hook === "function");
+    expect(uiStores.length).toBeGreaterThanOrEqual(29);
+
     expect(() => {
       useAuthStore();
-      useUiStore();
+      useAppUiStore();
+      for (const useStore of uiStores) useStore();
       useCardForgeStore();
       useCalendarStore();
     }).not.toThrow();

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import { cardTurnStyle } from "@/lib/motion";
 import { RISK_LABELS } from "@/data/downtimeActivities";
 import type { DowntimeActivity } from "@/types/downtime.types";

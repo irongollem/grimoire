@@ -45,8 +45,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
-import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
+import VitruvianIcon from "@/components/common/media/VitruvianIcon.vue";
+import AiGeneratedBadge from "@/components/common/ai/AiGeneratedBadge.vue";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { IconClose, IconDownload } from "@/lib/icons";
 import { useMiniForSource } from "@/composables/simulacrum/useMiniForSource";

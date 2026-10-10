@@ -80,9 +80,9 @@
 import { computed, ref } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { CONSEQUENCES_BY_LOCATIONS_KEY, useCreateQuestConsequence, useDeleteQuestConsequence } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
 import { describeQuestConsequenceAction, isObjectiveConsequenceAction, QUEST_CONSEQUENCE_ACTION_LABELS } from "@/lib/quests/consequences";

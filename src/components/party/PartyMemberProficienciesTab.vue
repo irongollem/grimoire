@@ -70,8 +70,8 @@
 </template>
 
 <script setup lang="ts">
-import TagPickerInput from "@/components/common/TagPickerInput.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import TagPickerInput from "@/components/common/controls/TagPickerInput.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import type { ProficienciesFormSlice } from "./partyMemberForm.types";

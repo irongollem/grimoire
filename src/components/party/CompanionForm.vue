@@ -241,7 +241,7 @@
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { IconAddImage, IconClose } from '@/lib/icons';
 import { useCreateCompanion, useUpdateCompanion } from "@/composables/encounters/useCompanions";
 import { fetchResolvedMonster } from "@/composables/monsters/useMonsters";
@@ -250,7 +250,7 @@ import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useToast } from "@/composables/useToast";
 import { useNpcs, useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { hitPointsToMax } from "@/lib/dice/dice";
@@ -259,23 +259,23 @@ import {
   COMPANION_TYPE_LABELS,
 } from "@/types/companion.types";
 import { cloneDraftValue, useRecordDraft } from "@/composables/useRecordDraft";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import type { Companion, CompanionInsert, CompanionType, CompanionSourceType } from "@/types/companion.types";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
-import FocalImage from "@/components/common/FocalImage.vue";
-import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
-import StatBlockDefenseFields from "@/components/common/StatBlockDefenseFields.vue";
-import StatBlockEntrySection from "@/components/common/StatBlockEntrySection.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import FocalPointPicker from "@/components/common/media/FocalPointPicker.vue";
+import StatBlockDefenseFields from "@/components/common/statblock/StatBlockDefenseFields.vue";
+import StatBlockEntrySection from "@/components/common/statblock/StatBlockEntrySection.vue";
 import { type Defenses, type StatBlockEntry, emptyDefenses } from "@/types/statBlock.types";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import DiceExprInput from "@/components/common/DiceExprInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import DiceExprInput from "@/components/common/dice/DiceExprInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from "@/lib/utils";
 
 function extractDice(val: string): string {
@@ -328,7 +328,7 @@ const toast = useToast();
 // DM-preview counts as player (WYSIWYG); captured at setup — the role can't
 // change while the form is open.
 const auth = useAuthStore();
-const viewerIsDm = !useUiStore().dmPreviewMode && auth.isDM;
+const viewerIsDm = !useAppUiStore().dmPreviewMode && auth.isDM;
 const dmNpcsQuery     = viewerIsDm ? useNpcs() : null;
 const sharedNpcsQuery = viewerIsDm ? null : useSharedNpcs();
 

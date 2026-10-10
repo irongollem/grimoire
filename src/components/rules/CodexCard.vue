@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import type { Component } from "vue";
 import { IconBookMarked } from '@/lib/icons';
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 
 const { imageUrl, focalPoint, fallbackIcon, title, subtitle, meta, badge, count } = defineProps<{
   imageUrl?: string | null;

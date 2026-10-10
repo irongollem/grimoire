@@ -168,7 +168,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useModeSwitch } from "@/composables/useModeSwitch";
@@ -182,9 +182,9 @@ import {
   EMPTY_HOMEBREW_COUNTS,
   type TransferScopedDisposition,
 } from "@/lib/campaign/campaignHomebrewDisposition";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import ConfirmByNameInput from "@/components/common/controls/ConfirmByNameInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();

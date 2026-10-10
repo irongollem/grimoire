@@ -381,9 +381,9 @@
 <script setup lang="ts">
 import { computed, useTemplateRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import TabBar from "@/components/common/TabBar.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
 import AtlasScaleRail from "@/components/locations/AtlasScaleRail.vue";
 import AtlasSiteMapMode from "@/components/locations/AtlasSiteMapMode.vue";
 import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";

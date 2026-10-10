@@ -1,0 +1,159 @@
+<template>
+  <div class="px-4 pb-4 flex flex-col gap-4">
+    <!-- Sigil + player summary -->
+    <div class="flex items-start gap-3 pt-1">
+      <button
+        v-if="loc.image_url"
+        type="button"
+        class="relative w-14 shrink-0 rounded-md overflow-hidden aspect-3/4 cursor-zoom-in"
+        @click="$emit('lightbox', loc.image_url!)"
+      >
+        <FocalImage
+          :src="loc.image_url"
+          :alt="loc.name"
+          format="portrait"
+          :focal-point="null"
+          ai-badge="right"
+        />
+      </button>
+      <p v-if="loc.player_summary" class="text-body text-foreground italic flex-1">
+        {{ loc.player_summary }}
+      </p>
+    </div>
+
+    <!-- A site with a plan gets the composed plan (#868): the projection
+         withholds its picture, and get_player_visible_site_state hands back
+         only the rooms the party has walked. PlayerSiteMap renders nothing
+         until there is something earned to draw. -->
+    <PlayerSiteMap v-if="isSiteType(loc.location_type) && loc.is_map_shared" :site-location-id="loc.id" />
+
+    <!-- Map (suppressed for battle maps and when the DM hasn't shared it) -->
+    <div v-if="hasAnyMapLayer(loc) && loc.is_map_shared && !loc.is_battle_map">
+      <LocationMap
+        :stack="mapStack"
+        :pins="playerPins"
+        :children="[]"
+        mode="view"
+        :show-hidden-pins="false"
+        :compact="!isFullSize"
+        :shared-child-ids="sharedChildIds"
+        @pin-click="$emit('pin-click', $event)"
+        @pin-go="$emit('pin-go', $event)"
+        @pin-watch="$emit('pin-watch', $event)"
+      />
+      <div class="flex items-center justify-between mt-1">
+        <p v-if="!playerPins.length" class="text-caption text-muted-foreground italic">
+          No pins placed yet.
+        </p>
+        <span v-else />
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          :label="isFullSize ? 'Compact' : 'Full size'"
+          @click="$emit('toggle-map-size', loc.id)"
+        />
+      </div>
+    </div>
+
+    <!-- Full description (when shared) -->
+    <div v-if="loc.is_description_shared && loc.description" class="border-t border-border pt-3">
+      <p class="text-label text-muted-foreground mb-1">Description</p>
+      <RichTextViewer :content="loc.description" />
+    </div>
+
+    <!-- Wares (store / tavern / inn when inventory shared) -->
+    <div v-if="isStoreType && loc.is_inventory_shared" class="border-t border-border pt-3">
+      <p class="text-label text-muted-foreground mb-2">Wares</p>
+      <PlayerStoreWares :location-id="loc.id" />
+    </div>
+
+    <!-- Linked NPCs (when shared) -->
+    <div v-if="loc.is_npcs_shared" class="border-t border-border pt-3">
+      <p class="text-label text-muted-foreground mb-2">People in the Area</p>
+      <div v-if="npcs.length" class="flex flex-col gap-1.5">
+        <AppButton
+          v-for="npc in npcs"
+          :key="npc.id"
+          variant="menu"
+          surface="muted"
+          size="md"
+          block
+          class="border border-border"
+          @click="$emit('open-npc', npc)"
+        >
+          <div class="flex-1 min-w-0">
+            <p class="text-caption font-semibold text-foreground truncate">{{ getNpcDisplayName(npc) ?? "???" }}</p>
+            <p v-if="npc.occupation || npc.race" class="text-caption text-muted-foreground italic truncate">
+              {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
+            </p>
+          </div>
+        </AppButton>
+      </div>
+      <p v-else class="text-caption text-muted-foreground italic">No one here yet.</p>
+    </div>
+
+    <PlayerNotesWidget
+      entity-type="location"
+      :entity-id="loc.id"
+      placeholder="Notes about this place…"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import PlayerStoreWares from "@/components/locations/PlayerStoreWares.vue";
+import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
+import LocationMap from "@/components/locations/LocationMap.vue";
+import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
+import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
+import { isSiteType } from "@/lib/locations/tiers";
+import { getNpcDisplayName } from "@/lib/npcDisplay";
+import { STORE_LOCATION_TYPES } from "@/types/location.types";
+import type { Location } from "@/types/location.types";
+import type { PlayerNpc } from "@/types/npc.types";
+
+const { loc, npcs = [], sharedChildIds, sharedChildren, isFullSize = false } = defineProps<{
+  loc: Location;
+  npcs?: PlayerNpc[];
+  sharedChildIds: Set<string>;
+  /** Live shared child locations keyed by id. Used to re-hydrate each pin's
+   *  denormalised name/type/image from current data — the stored snapshot in
+   *  `map_pins` goes stale when a child's image is later replaced (its old
+   *  storage file is deleted), which is what players saw as broken pin images. */
+  sharedChildren?: Map<string, Location>;
+  isFullSize?: boolean;
+}>();
+
+defineEmits<{
+  lightbox: [src: string];
+  'toggle-map-size': [id: string];
+  'pin-click': [childId: string];
+  'pin-go': [childId: string];
+  'pin-watch': [childId: string];
+  'open-npc': [npc: PlayerNpc];
+}>();
+
+const isStoreType = computed(() => STORE_LOCATION_TYPES.has(loc.location_type));
+const mapStack = computed(() => buildMapStack(loc));
+const playerPins = computed(() =>
+  (loc.map_pins ?? [])
+    .filter((p) => p.visible_to_players)
+    .map((p) => {
+      // Re-hydrate from live child data when the child is shared; otherwise keep
+      // the stored snapshot (the design intent for unshared sub-locations).
+      const child = sharedChildren?.get(p.child_location_id);
+      return child
+        ? {
+            ...p,
+            child_name: child.name,
+            child_type: child.location_type,
+            child_image_url: child.image_url ?? null,
+          }
+        : p;
+    }),
+);
+</script>

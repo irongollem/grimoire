@@ -3,8 +3,8 @@ import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DungeonCraftTrapsTab from "./DungeonCraftTrapsTab.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
-import { useUiStore } from "@/stores/ui";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
+import { useTrapsUiStore } from "@/stores/ui/traps";
 import type { Trap } from "@/types/trap.types";
 
 function trap(overrides: Partial<Trap> = {}): Trap {
@@ -81,22 +81,22 @@ describe("DungeonCraftTrapsTab — filter state (Filter State Pattern)", () => {
 
   it("shows Clear once a filter is set, and it resets the store's trap filters", async () => {
     const wrapper = mountTab();
-    const ui = useUiStore();
-    ui.trapsFilterType = "mechanical";
+    const trapsUi = useTrapsUiStore();
+    trapsUi.trapsFilterType = "mechanical";
     await wrapper.vm.$nextTick();
 
     expect(findExact(wrapper, "Clear")).toBeDefined();
     await findExact(wrapper, "Clear")!.trigger("click");
 
-    expect(ui.trapsFilterType).toBe("");
-    expect(ui.trapsHasActiveFilters).toBe(false);
+    expect(trapsUi.trapsFilterType).toBe("");
+    expect(trapsUi.trapsHasActiveFilters).toBe(false);
   });
 
   it("filters the grid by the store's type filter", async () => {
     mocks.traps = [trap({ id: "t1", trap_type: "Mechanical" }), trap({ id: "t2", trap_type: "Magical" })];
     const wrapper = mountTab();
-    const ui = useUiStore();
-    ui.trapsFilterType = "Magical";
+    const trapsUi = useTrapsUiStore();
+    trapsUi.trapsFilterType = "Magical";
     await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).not.toContain("Poison Dart Wall");
@@ -105,8 +105,8 @@ describe("DungeonCraftTrapsTab — filter state (Filter State Pattern)", () => {
   it("survives being torn down and remounted — the filter is not a local ref", async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
-    const ui = useUiStore();
-    ui.trapsSearch = "dart";
+    const trapsUi = useTrapsUiStore();
+    trapsUi.trapsSearch = "dart";
 
     const wrapper = mount(DungeonCraftTrapsTab, {
       global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, RouterLink: true } },
@@ -116,7 +116,7 @@ describe("DungeonCraftTrapsTab — filter state (Filter State Pattern)", () => {
     const remounted = mount(DungeonCraftTrapsTab, {
       global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, RouterLink: true } },
     });
-    expect(useUiStore().trapsSearch).toBe("dart");
+    expect(useTrapsUiStore().trapsSearch).toBe("dart");
     remounted.unmount();
   });
 });

@@ -9,7 +9,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.encounterGeneratorOpen = true"
+        @click="generatorsUi.encounterGeneratorOpen = true"
       />
       <ListActionButton
         variant="primary"
@@ -22,12 +22,12 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="ui.encountersHasActiveFilters"
-        @clear="ui.resetEncountersFilters()"
+        :has-active-filters="encountersUi.encountersHasActiveFilters"
+        @clear="encountersUi.resetEncountersFilters()"
       >
-        <ListSearchInput v-model="ui.encountersSearch" placeholder="Search encounters…" />
+        <ListSearchInput v-model="encountersUi.encountersSearch" placeholder="Search encounters…" />
         <ListFilterSelect
-          v-model="ui.encountersFilterQuestId"
+          v-model="encountersUi.encountersFilterQuestId"
           aria-label="Quest filter"
         >
           <option value="all">All quests</option>
@@ -43,10 +43,10 @@
         <AppButton
           size="md"
           :icon="IconCheckDouble"
-          :label="ui.encountersHideFinished ? 'Active' : 'All'"
-          :tooltip="ui.encountersHideFinished ? 'Show all encounters' : 'Hide finished encounters'"
-          :variant="ui.encountersHideFinished ? 'primary' : 'subtle'"
-          @click="ui.encountersHideFinished = !ui.encountersHideFinished"
+          :label="encountersUi.encountersHideFinished ? 'Active' : 'All'"
+          :tooltip="encountersUi.encountersHideFinished ? 'Show all encounters' : 'Hide finished encounters'"
+          :variant="encountersUi.encountersHideFinished ? 'primary' : 'subtle'"
+          @click="encountersUi.encountersHideFinished = !encountersUi.encountersHideFinished"
         />
       </ListFilterBar>
     </template>
@@ -61,22 +61,24 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckDouble, IconGenerate } from '@/lib/icons';
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import EncounterList from "@/components/encounters/EncounterList.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useUiStore } from "@/stores/ui";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import { useEncountersUiStore } from "@/stores/ui/encounters";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { useQuests } from "@/composables/quests/useQuests";
 import { useQuota } from "@/composables/billing/useQuota";
 
 const router = useRouter();
-const ui = useUiStore();
+const encountersUi = useEncountersUiStore();
+const generatorsUi = useGeneratorUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { data: quests } = useQuests();

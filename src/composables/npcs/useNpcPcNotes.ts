@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import type { NpcPcNote, NpcPcNoteUpsert, NpcRelationshipType } from "@/types/npc.types";
 
 const QUERY_KEY = "npc_pc_notes";
@@ -129,9 +129,9 @@ export function useNpcPcNotesByPartyMember(partyMemberId: string | Ref<string>) 
 export function useMyNpcPcNote(npcId: string | Ref<string>) {
   const idRef = isRef(npcId) ? npcId : ref(npcId);
   const auth = useAuthStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const partyMemberId = computed(() =>
-    ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
+    appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
   );
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, "mine", idRef.value, partyMemberId.value] as const),

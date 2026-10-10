@@ -76,8 +76,8 @@ import { useCardForgeData } from "@/composables/cardforge/useCardForgeData";
 import { deckBackById } from "@/components/cardforge/styles/loot/deckBacks";
 import CardForgeDeckBackPicker from "./CardForgeDeckBackPicker.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 
 const store = useCardForgeStore();
 const { selectedSubjects } = useCardForgeData();

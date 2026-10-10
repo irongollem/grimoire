@@ -29,10 +29,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { useWriteLastWords } from "@/composables/memorials/useMemorials";
 import { useToast } from "@/composables/useToast";
 import { writtenOrNull } from "@/lib/memorials/writing";

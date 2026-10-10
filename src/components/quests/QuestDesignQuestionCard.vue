@@ -29,8 +29,8 @@
  * exactly one of the two into the cumulative answer the next turn sends).
  */
 import { ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import type { QuestDesignQuestion } from "@/lib/quests/designer";
 
 const { question, aboutTitle } = defineProps<{

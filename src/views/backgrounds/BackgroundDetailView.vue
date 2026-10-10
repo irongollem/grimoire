@@ -17,10 +17,10 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { isLibraryBackground, useBackground } from "@/composables/rules/useBackgrounds";
-import AppButton from "@/components/common/AppButton.vue";
-import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import DetailActions from "@/components/common/DetailActions.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import DetailActions from "@/components/common/entity/DetailActions.vue";
 import BackgroundDetail from "@/components/backgrounds/BackgroundDetail.vue";
 import BackgroundSheet from "@/components/backgrounds/BackgroundSheet.vue";
 

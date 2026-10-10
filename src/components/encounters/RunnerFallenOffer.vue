@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { RunCombatant } from "@/types/encounter.types";
 
 /**

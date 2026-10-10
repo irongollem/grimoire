@@ -86,11 +86,11 @@
  * against the live entries keeps "next" meaning what the admin saw.
  */
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import FocalPointPicker from "@/components/common/media/FocalPointPicker.vue";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useLibraryFocalQueue } from "@/composables/library/useLibraryFocalQueue";
 import {

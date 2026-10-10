@@ -9,9 +9,9 @@ import {
   CrosshairIcon,
 } from "@lucide/vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import FocalImage from "@/components/common/FocalImage.vue";
-import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import FocalPointPicker from "@/components/common/media/FocalPointPicker.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

@@ -3,8 +3,8 @@ import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DungeonCraftPuzzlesTab from "./DungeonCraftPuzzlesTab.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
-import { useUiStore } from "@/stores/ui";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
+import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import type { PuzzleRoom } from "@/types/puzzle.types";
 
 function puzzle(overrides: Partial<PuzzleRoom> = {}): PuzzleRoom {
@@ -80,22 +80,22 @@ describe("DungeonCraftPuzzlesTab — filter state (Filter State Pattern)", () =>
 
   it("shows Clear once a filter is set, and it resets the store's puzzle filters", async () => {
     const wrapper = mountTab();
-    const ui = useUiStore();
-    ui.puzzlesFilterType = "riddle";
+    const puzzlesUi = usePuzzlesUiStore();
+    puzzlesUi.puzzlesFilterType = "riddle";
     await wrapper.vm.$nextTick();
 
     expect(findExact(wrapper, "Clear")).toBeDefined();
     await findExact(wrapper, "Clear")!.trigger("click");
 
-    expect(ui.puzzlesFilterType).toBe("");
-    expect(ui.puzzlesHasActiveFilters).toBe(false);
+    expect(puzzlesUi.puzzlesFilterType).toBe("");
+    expect(puzzlesUi.puzzlesHasActiveFilters).toBe(false);
   });
 
   it("filters the grid by the store's type filter", async () => {
     mocks.puzzles = [puzzle({ id: "p1", puzzle_type: "Logic" }), puzzle({ id: "p2", puzzle_type: "Physical" })];
     const wrapper = mountTab();
-    const ui = useUiStore();
-    ui.puzzlesFilterType = "Physical";
+    const puzzlesUi = usePuzzlesUiStore();
+    puzzlesUi.puzzlesFilterType = "Physical";
     await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).not.toContain("Riddle of the Sphinx");
@@ -104,8 +104,8 @@ describe("DungeonCraftPuzzlesTab — filter state (Filter State Pattern)", () =>
   it("survives being torn down and remounted — the filter is not a local ref", async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
-    const ui = useUiStore();
-    ui.puzzlesSearch = "sphinx";
+    const puzzlesUi = usePuzzlesUiStore();
+    puzzlesUi.puzzlesSearch = "sphinx";
 
     const wrapper = mount(DungeonCraftPuzzlesTab, {
       global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, PaywallModal: true, RouterLink: true } },
@@ -115,7 +115,7 @@ describe("DungeonCraftPuzzlesTab — filter state (Filter State Pattern)", () =>
     const remounted = mount(DungeonCraftPuzzlesTab, {
       global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, PaywallModal: true, RouterLink: true } },
     });
-    expect(useUiStore().puzzlesSearch).toBe("sphinx");
+    expect(usePuzzlesUiStore().puzzlesSearch).toBe("sphinx");
     remounted.unmount();
   });
 });

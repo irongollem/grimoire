@@ -80,13 +80,13 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import type { BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
@@ -142,7 +142,7 @@ const searchModel = computed({
 });
 
 // ── Bulk scope (#875) ──────────────────────────────────────────────────────
-// Selection state lives here (not `useUiStore`): it is transient and per-visit,
+// Selection state lives here (not a domain UI store): it is transient and per-visit,
 // not a filter over the list. Always constructed — cheap, and keeps composable
 // calls unconditional — but only surfaced in the template when `table` is set,
 // so a grid without it behaves exactly as it did before this feature existed.

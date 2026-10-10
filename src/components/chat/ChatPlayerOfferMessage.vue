@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { IconTag } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { COINS } from '@/rules/currency';
 import type { PlayerOfferMetadata } from '@/types/chat.types';
 

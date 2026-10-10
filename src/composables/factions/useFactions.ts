@@ -3,7 +3,7 @@ import { computed, toValue, type Ref, type MaybeRefOrGetter } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { PLAYER_FACTIONS_KEY } from "@/lib/campaignLiveSync/registry";
 import { loadSettingContent } from "@/settings/content";
 import { matchSettingRowIds, stampSettingSource } from "@/lib/populateSetting/settingContent";
@@ -85,9 +85,9 @@ export function useFaction(id: MaybeRefOrGetter<string>) {
  */
 export function usePlayerVisibleFactions() {
   const campaign = useCampaignStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
-  const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
+  const previewMemberId = computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
   return useQuery({
     queryKey: computed(() => [PLAYER_FACTIONS_KEY, campaignId.value, previewMemberId.value] as const),
     queryFn: async ({ queryKey: [, cid, previewId] }) => {

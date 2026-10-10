@@ -77,10 +77,10 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import CalloutChip from "@/components/common/CalloutChip.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import WizardStepCard from "@/components/common/WizardStepCard.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import CalloutChip from "@/components/common/feedback/CalloutChip.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import WizardStepCard from "@/components/common/wizard/WizardStepCard.vue";
 import { IconChevronDown } from "@/lib/icons";
 import type { GrantedFeature } from "@/rules/features/characterFeatures";
 import type { PoolChange, ScalingChange } from "./levelUpProjection";

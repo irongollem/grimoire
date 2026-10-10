@@ -180,13 +180,13 @@ import { reactive, computed, watch, ref } from "vue";
 import { IconLibrary } from '@/lib/icons';
 import type { Editor } from "@tiptap/vue-3";
 import type { CoverPageAttrs, CoverPageVariant } from "@/lib/tiptap/coverPage";
-import ImageUpload from "@/components/common/ImageUpload.vue";
-import ArtPickerModal from "@/components/common/ArtPickerModal.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import ImageUpload from "@/components/common/media/ImageUpload.vue";
+import ArtPickerModal from "@/components/common/overlays/ArtPickerModal.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const props = defineProps<{
   show: boolean;

@@ -58,7 +58,7 @@ import { parseStoredContent, emptyDoc } from "@/lib/scriptorium/documentContent"
 import type { ReadableScriptoriumDocument, ScriptoriumTheme } from "@/types/scriptorium.types";
 import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
 import { SCRIPTORIUM_AUDIENCE_KEY, type ScriptoriumAudience } from "@/lib/scriptorium/audience";
-import EmptyState from "@/components/common/EmptyState.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { IconWarning } from "@/lib/icons";
 
 // Renamed from the prop's own name to avoid shadowing the global `document`.

@@ -152,12 +152,12 @@
  * DM reaches a later step the candidates are almost always already in.
  */
 import { computed, reactive, ref, useId, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import WizardStepIndicator from "@/components/common/WizardStepIndicator.vue";
-import type { WizardStep } from "@/components/common/WizardStepIndicator.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import WizardStepIndicator from "@/components/common/wizard/WizardStepIndicator.vue";
+import type { WizardStep } from "@/components/common/wizard/WizardStepIndicator.vue";
 import ImportKindReview from "@/components/campaign/ImportKindReview.vue";
 import { getEntityKindEntry, listEntityKindsInWizardOrder } from "@/lib/documentImport/entityKinds";
 import { sanitizeEntities, type UsableEntity } from "@/lib/documentImport/sanitizeEntities";

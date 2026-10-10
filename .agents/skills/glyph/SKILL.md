@@ -27,7 +27,7 @@ damage types, standalone SVGs). The deterministic steps are `scripts/glyphs/cli.
 | `crafting`   | `src/lib/crafting/craftingGlyphs.generated.ts`| `src/lib/crafting/craftingIcons.ts` `IconCraft*`, `src/lib/crafting/disciplines.ts` |
 | `dice`       | `src/lib/dice/diceGlyphs.generated.ts`        | `src/lib/dice/dieIcons.ts` `IconDie*` (d2-d12, d100), `DiceRoller.vue`, `QuickDiceWidget.vue` |
 | `dice-d20`   | `src/lib/diceGlyphs.d20.generated.ts`         | `src/lib/icons.ts` `IconDice` / `IconDiceRoll`; `dieIcons.ts` re-exports it as `IconDie20` |
-| damage types | `public/assets/damage-types/<type>.svg`       | `src/components/common/DamageIcon.vue`                                    |
+| damage types | `public/assets/damage-types/<type>.svg`       | `src/components/common/statblock/DamageIcon.vue`                                    |
 
 **Where a glyph module is imported decides which chunk carries it.** `icons.ts`
 has ~560 importers, so anything it imports lands in the entry chunk whole (a

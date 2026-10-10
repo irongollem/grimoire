@@ -152,8 +152,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import type { CasterType, PreparedAbility } from "@/levelup/customTypes";
 
 const CASTER_TYPE_OPTIONS = [

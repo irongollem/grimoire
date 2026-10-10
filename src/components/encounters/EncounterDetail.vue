@@ -276,9 +276,9 @@ import type {
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import type { RewardCurrencyPool } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import EncounterMetadata from "@/components/encounters/EncounterMetadata.vue";
 import EncounterCombatants from "@/components/encounters/EncounterCombatants.vue";
@@ -290,9 +290,9 @@ import EncounterLoot from "@/components/encounters/EncounterLoot.vue";
 import EncounterTraps from "@/components/encounters/EncounterTraps.vue";
 import EncounterPartyRoster from "@/components/encounters/EncounterPartyRoster.vue";
 import EncounterBossMechanics from "@/components/encounters/EncounterBossMechanics.vue";
-import ThemeInput from "@/components/common/ThemeInput.vue";
+import ThemeInput from "@/components/common/controls/ThemeInput.vue";
 import EncounterLinkedQuests from "@/components/encounters/EncounterLinkedQuests.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 
 const showPaywall = ref(false);

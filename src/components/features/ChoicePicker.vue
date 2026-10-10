@@ -135,12 +135,12 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import type { AbilityKey } from "@/rules/characterCreation";
 import type { ChoiceOption, DueChoice, OptionContext } from "@/rules/features/levelUpChoices";
 import type { ClassFeature } from "@/types/feature.types";

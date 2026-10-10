@@ -1,0 +1,125 @@
+<template>
+  <div
+    class="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 shadow-sm"
+  >
+    <span aria-live="polite" class="text-label-lg text-foreground">{{ count }} selected</span>
+
+    <!-- Nothing on screen can be re-scoped: every row here belongs to the
+         shared library, which no campaign owns. Said out loud rather than
+         leaving the DM to tick at cards that will not tick (#875). -->
+    <span v-if="selectableCount === 0" class="text-caption text-muted-foreground">
+      Nothing here can be moved: these entries come from the shared library.
+    </span>
+    <template v-else>
+      <AppButton variant="ghost" size="sm" label="Select all shown" tooltip="Selects every row matching the current filters, not only what's painted on screen" @click="emit('select-all')" />
+      <AppButton variant="ghost" size="sm" label="Clear" :disabled="count === 0" @click="emit('clear')" />
+    </template>
+
+    <div class="ml-auto flex flex-wrap items-center gap-2">
+      <AppButton
+        v-if="selectableCount > 0"
+        variant="primary"
+        size="sm"
+        :label="campaignName ? `Move to ${campaignName}` : 'Move to campaign'"
+        :disabled="!campaignName || busy || count === 0"
+        :tooltip="campaignName ? undefined : 'No active campaign. Switch to one to move rows there'"
+        @click="onMoveToCampaign"
+      />
+      <AppButton
+        v-if="selectableCount > 0 && allowGeneralScope"
+        variant="outline"
+        size="sm"
+        label="Make available in all campaigns"
+        :disabled="busy || count === 0"
+        @click="emit('move', null)"
+      />
+      <AppButton
+        v-if="selectableCount > 0"
+        variant="outline"
+        size="sm"
+        label="Copy to campaign…"
+        tooltip="Makes an independent copy somewhere else; the original stays where it is"
+        :disabled="busy || count === 0"
+        @click="emit('copy')"
+      />
+      <AppButton variant="ghost" size="sm" label="Done" @click="emit('stop')" />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+/**
+ * Bulk selection toolbar (#875) — docked above the grid it governs (`sticky`,
+ * never `fixed`, matching `DockBar`'s docking idiom). Offers exactly the two
+ * scopes `CampaignScopeField` offers a single row: the active campaign, or
+ * "every campaign" (`campaign_id: null`) — never a third option, so there is
+ * no campaign picker here either.
+ *
+ * `campaignName` is display-only, resolved by the caller; the actual id to
+ * move rows to is read from the campaign store directly, the same dependency
+ * `CampaignScopeField` already has — the bar always means "the active
+ * campaign", never an arbitrary one.
+ *
+ * **Copy is the exception to that, and deliberately so (#598).** "Copy to
+ * campaign…" opens `CopyToCampaignDialog`, which does offer a picker of every
+ * campaign the account DMs. The no-picker rule above exists so the bulk and
+ * single-row *scope* controls cannot come to mean different things — both
+ * answer "where does this row live", and `CampaignScopeField` can only say
+ * "here" or "everywhere". Copy answers a different question: it creates a new
+ * row somewhere the original is not, so there is no single-row scope control
+ * for it to diverge from, and "the active campaign" is precisely the one place
+ * a copy is never wanted. The asymmetry that leaves — you may copy into any
+ * campaign but still move only between the active one and general — is the
+ * shape of #596's decision, not an oversight to tidy up here.
+ *
+ * **`allowGeneralScope` narrows the pair to one option, and that is a
+ * different kind of exception again (#885).** NPCs and factions carry
+ * campaign-scoped children — `npc_inventory`, `faction_deities` — whose own
+ * `campaign_id` is **NOT NULL**. There is no such thing as an inventory line
+ * or a deity link belonging to every campaign at once, so "Make available in
+ * all campaigns" cannot be offered for those two lists: not because the
+ * entity row itself couldn't take a null `campaign_id`, but because a row it
+ * owns cannot. This is not a third scope and does not touch the no-picker
+ * rule above — it is the same two-option pair with one option suppressed
+ * when it is known in advance to fail. Default `true` so the other eight
+ * callers' bars are unchanged; `useBulkCampaignScope.ts`'s
+ * `bulkScopeAllowsGeneral(table)` is where the "known in advance" part is
+ * decided, so a caller never re-derives the reasoning itself.
+ */
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { useCampaignStore } from "@/stores/campaign";
+
+const { count, busy = false, campaignName, selectableCount, allowGeneralScope = true } = defineProps<{
+  count: number;
+  busy?: boolean;
+  /** How many rows on screen could be selected at all. Zero means every row
+   *  here is shared-library content, which no campaign owns — the bar says so
+   *  instead of offering actions that cannot apply. Required: all five
+   *  callers already compute this, so a caller that "does not know" is a bug
+   *  to fix at the call site, not a default to fall back on. */
+  selectableCount: number;
+  /** The active campaign's name, or null when there is no active campaign.
+   *  Resolved by the caller (mirrors CampaignScopeField's own lookup). */
+  campaignName: string | null;
+  /** False to hide "Make available in all campaigns" outright — for a list
+   *  whose rows can carry a NOT-NULL-campaign_id child, where that action
+   *  would always fail. See the docstring above (#885). Defaults to true so
+   *  the other eight callers keep their existing two-option bar. */
+  allowGeneralScope?: boolean;
+}>();
+
+const emit = defineEmits<{
+  "select-all": [];
+  clear: [];
+  stop: [];
+  move: [campaignId: string | null];
+  copy: [];
+}>();
+
+const campaignStore = useCampaignStore();
+
+function onMoveToCampaign() {
+  if (!campaignName) return;
+  emit("move", campaignStore.activeCampaignId);
+}
+</script>

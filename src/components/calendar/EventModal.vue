@@ -204,14 +204,14 @@
 <script setup lang="ts">
 import { watch, computed, ref, useId } from "vue";
 import { IconClose, IconGenerate, IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import { useNote } from "@/composables/notes/useNotes";
 import { useNoteSession } from "@/composables/notes/useNoteSession";
 import { sessionShortLabel } from "@/lib/sessions/sessionLabel";

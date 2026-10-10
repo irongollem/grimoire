@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import WithdrawalConsent from "@/components/billing/WithdrawalConsent.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useCreditPacks } from "@/composables/billing/useCreditConfig";

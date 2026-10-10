@@ -3,10 +3,10 @@
     <!-- Filters bar -->
     <ListFilterBar
       class="mb-5"
-      :has-active-filters="ui.scriptoriumHasActiveFilters"
-      @clear="ui.resetScriptoriumFilters()"
+      :has-active-filters="scriptoriumUi.scriptoriumHasActiveFilters"
+      @clear="scriptoriumUi.resetScriptoriumFilters()"
     >
-      <ListSearchInput v-model="ui.scriptoriumSearch" placeholder="Search documents…" />
+      <ListSearchInput v-model="scriptoriumUi.scriptoriumSearch" placeholder="Search documents…" />
       <!--
         Ten doc types is past what a segmented group can hold: joined segments
         do not wrap, so at md widths the tail gets clipped. Same call the
@@ -27,7 +27,7 @@
     <ListSkeleton v-if="isLoading" variant="text" />
 
     <EmptyState
-      v-else-if="!filtered.length && !ui.scriptoriumHasActiveFilters"
+      v-else-if="!filtered.length && !scriptoriumUi.scriptoriumHasActiveFilters"
       title="The scriptorium awaits"
       :description="canWrite
         ? 'Craft monsters, spells, items, and adventure documents with the look of the official books.'
@@ -181,22 +181,22 @@ import { ref, computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { IconDelete, IconFaction, IconLock, IconNavScriptorium, IconShare } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import {
   useScriptoriumDocuments,
   useDeleteScriptoriumDocument,
 } from "@/composables/scriptorium/useScriptorium";
-import { useUiStore } from "@/stores/ui";
+import { useScriptoriumUiStore } from "@/stores/ui/scriptorium";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useAbove } from "@/composables/useBreakpoint";
 import type { ScriptoriumDocType, ScriptoriumDocumentSummary } from "@/types/scriptorium.types";
@@ -265,16 +265,16 @@ const DOC_TYPE_VAR: Record<ScriptoriumDocType, string> = {
 };
 
 // Filter State Pattern — search + type survive opening a document and coming back.
-const ui = useUiStore();
+const scriptoriumUi = useScriptoriumUiStore();
 
 // ListFilterSelect models a plain string; the store keeps the narrower union.
 const typeFilter = computed({
-  get: () => ui.scriptoriumFilterType as string,
-  set: (v) => { ui.scriptoriumFilterType = v as ScriptoriumDocType | "all"; },
+  get: () => scriptoriumUi.scriptoriumFilterType as string,
+  set: (v) => { scriptoriumUi.scriptoriumFilterType = v as ScriptoriumDocType | "all"; },
 });
 const scopeFilter = computed({
-  get: () => ui.scriptoriumFilterScope,
-  set: (v) => { ui.scriptoriumFilterScope = v; },
+  get: () => scriptoriumUi.scriptoriumFilterScope,
+  set: (v) => { scriptoriumUi.scriptoriumFilterScope = v; },
 });
 
 const { data: docs, isLoading } = useScriptoriumDocuments();
@@ -314,19 +314,19 @@ async function confirmDelete(id: string, title: string) {
 
 const filtered = computed(() => {
   let list = docs.value ?? [];
-  list = ui.scriptoriumFilterScope
-    ? list.filter((d) => documentScopeOf(d, activeCampaignId.value) === ui.scriptoriumFilterScope)
+  list = scriptoriumUi.scriptoriumFilterScope
+    ? list.filter((d) => documentScopeOf(d, activeCampaignId.value) === scriptoriumUi.scriptoriumFilterScope)
     : list.filter((d) => isDocumentUsableIn(d, activeCampaignId.value));
-  if (ui.scriptoriumSearch.trim()) {
-    const q = ui.scriptoriumSearch.trim().toLowerCase();
+  if (scriptoriumUi.scriptoriumSearch.trim()) {
+    const q = scriptoriumUi.scriptoriumSearch.trim().toLowerCase();
     list = list.filter(
       (d) =>
         d.title.toLowerCase().includes(q) ||
         d.tags.some((t) => t.toLowerCase().includes(q)),
     );
   }
-  if (ui.scriptoriumFilterType !== "all")
-    list = list.filter((d) => d.doc_type === ui.scriptoriumFilterType);
+  if (scriptoriumUi.scriptoriumFilterType !== "all")
+    list = list.filter((d) => d.doc_type === scriptoriumUi.scriptoriumFilterType);
   return list;
 });
 

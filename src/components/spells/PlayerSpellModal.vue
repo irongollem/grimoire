@@ -40,9 +40,9 @@ import { computed } from "vue";
 import { spellLevelLabel } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconWand } from "@/lib/icons";
 
 const props = defineProps<{

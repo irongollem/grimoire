@@ -71,7 +71,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconPause, IconPlay } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { CATEGORY_SPINE } from "@/lib/audio/soundCategories";
 import type { ProviderHit } from "@/lib/audio/providers";
 

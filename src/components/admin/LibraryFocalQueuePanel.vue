@@ -71,15 +71,15 @@
  */
 import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
-import AppButton from "@/components/common/AppButton.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import LibraryFocalQueueViewer from "@/components/admin/LibraryFocalQueueViewer.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useLibraryFocalQueue } from "@/composables/library/useLibraryFocalQueue";
-import { useUiStore } from "@/stores/ui";
+import { useAdminUiStore } from "@/stores/ui/admin";
 import {
   entryLabel,
   filterByStatus,
@@ -99,10 +99,10 @@ const STATUS_OPTIONS = [
   { value: "all", label: "All" },
 ] as const satisfies readonly { value: FocalStatus; label: string }[];
 
-const ui = useUiStore();
+const adminUi = useAdminUiStore();
 const { focalQueueKind: kind, focalQueueStatus: status, focalQueueHasActiveFilters: hasActiveFilters } =
-  storeToRefs(ui);
-const resetFilters = ui.resetFocalQueueFilters;
+  storeToRefs(adminUi);
+const resetFilters = adminUi.resetFocalQueueFilters;
 
 const { query, entries } = useLibraryFocalQueue(kind);
 

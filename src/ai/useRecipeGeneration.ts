@@ -2,7 +2,7 @@ import { generateEntityText } from "./entityTextGeneration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import { normalizeRecipeAi, type RecipeAiResult } from "@/lib/crafting/recipeAi";
@@ -15,7 +15,7 @@ registerAiGenerator({
   label: "Recipe",
   entityRoute: (id) => `/crafting/${id}`,
   openPanel: () => {
-    useUiStore().recipeGeneratorOpen = true;
+    useGeneratorUiStore().recipeGeneratorOpen = true;
   },
 });
 

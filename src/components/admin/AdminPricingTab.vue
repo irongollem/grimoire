@@ -212,12 +212,12 @@ import { useAdminProviders, PROVIDER_LABELS } from "@/composables/admin/useAdmin
 import { useCheckoutConfig } from "@/composables/billing/useCheckoutConfig";
 import { useAdminCalibration } from "@/composables/admin/useAdminCalibration";
 import type { CalibrationHint } from "@/composables/admin/useAdminCalibration";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import { useKeyedRecordDrafts } from "@/composables/admin/useKeyedRecordDrafts";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import AdminPromptScreeningPanel from "@/components/admin/AdminPromptScreeningPanel.vue";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 

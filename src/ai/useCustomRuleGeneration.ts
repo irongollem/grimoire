@@ -6,7 +6,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import type { AiProvenance } from "./provenance";
 import { normalizeCustomRule, type CustomRuleDraft } from "@/lib/rules/customRuleAi";
@@ -18,7 +18,7 @@ registerAiGenerator({
   label: "House rule",
   entityRoute: (id) => `/rules/${id}`,
   openPanel: () => {
-    useUiStore().customRuleGeneratorOpen = true;
+    useGeneratorUiStore().customRuleGeneratorOpen = true;
   },
 });
 

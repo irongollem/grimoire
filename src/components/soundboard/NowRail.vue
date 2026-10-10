@@ -97,7 +97,7 @@
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { IconSkipBack, IconSkipForward, IconStop, IconWind } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { useActiveAudioTriggers } from "@/composables/soundboard/useAudioThemeTriggers";

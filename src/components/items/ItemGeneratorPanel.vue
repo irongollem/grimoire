@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.itemGeneratorOpen"
+    v-model:open="itemsUi.itemGeneratorOpen"
     v-model:concept="concept"
     v-model:generate-image="generateImage"
     title="Item Generator"
@@ -53,12 +53,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useItemsUiStore } from "@/stores/ui/items";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateItem } from "@/composables/items/useItems";
-import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
@@ -71,7 +71,7 @@ import {
   ITEM_RARITY_LABELS,
 } from "@/types/item.types";
 
-const ui = useUiStore();
+const itemsUi = useItemsUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
 const { mutateAsync: createItem } = useCreateItem();
@@ -141,8 +141,8 @@ async function generateAndCreate() {
     campaign_id: campaign.activeCampaignId ?? null,
   });
 
-  if (ui.itemGeneratorOpen) {
-    ui.itemGeneratorOpen = false;
+  if (itemsUi.itemGeneratorOpen) {
+    itemsUi.itemGeneratorOpen = false;
     router.push(`/vault/${created.id}`);
   } else {
     completedEntityId.value = created.id;

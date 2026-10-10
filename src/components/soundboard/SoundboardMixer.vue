@@ -90,7 +90,7 @@
           type="button"
           class="flex w-full items-center gap-1.5 border-t border-border/50 pt-1.5 text-left text-2xs text-muted-foreground transition-colors hover:text-foreground"
           title="Open board settings"
-          @click="ui.soundboardSettingsOpen = true"
+          @click="soundboardUi.soundboardSettingsOpen = true"
         >
           <IconSettings class="h-3 w-3 shrink-0" />
           <span>
@@ -119,7 +119,7 @@ import { computed, ref } from "vue";
 import { IconChevronRight, IconSettings, IconWarning } from "@/lib/icons";
 import { drawerTransition } from "@/lib/motion";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useUiStore } from "@/stores/ui";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { useAudioTriggerPrefs } from "@/composables/soundboard/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/soundboard/useSoundboardBroadcast";
 import type { AudioBus } from "@/lib/audio/audioEngine";
@@ -146,7 +146,7 @@ const { collapsible = false } = defineProps<{
 // for as long as it had two call sites.
 
 const store = useSoundboardStore();
-const ui = useUiStore();
+const soundboardUi = useSoundboardUiStore();
 // Read-only here; the dialog owns changing them.
 const { audioTriggersEnabled } = useAudioTriggerPrefs();
 const { broadcasting, broadcastError } = useSoundboardBroadcast();

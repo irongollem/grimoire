@@ -182,7 +182,7 @@ import { deriveQuestRouteGates, draftRouteGate, validateGateDrafts, type GateCon
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { extractTiptapText } from "@/lib/utils";
-import { useUiStore } from "@/stores/ui";
+import { useQuestsUiStore } from "@/stores/ui/quests";
 import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow";
 import { isDuplicateQuestEdge } from "@/lib/quests/mutations";
 import { defaultThreadId } from "@/lib/quests/threads";
@@ -191,9 +191,9 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { type QuestBeat, type QuestGateMode, type QuestRouteEffect, type QuestRouteKind } from "@/types/quest.types";
 import type { LocationSummary } from "@/types/location.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import QuestFlowCanvas from "./QuestFlowCanvas.vue";
 import QuestBeatComposer from "./QuestBeatComposer.vue";
 import QuestGraphOutline from "./QuestGraphOutline.vue";
@@ -209,8 +209,8 @@ const router = useRouter();
 const isMobile = useIsMobile();
 // Switching to the quest overview unmounts this component, so the selection has
 // to be held outside it or every flip back lands on a blank inspector.
-const ui = useUiStore();
-const restoredSelection = ui.questFlowSelectionFor(questId);
+const questsUi = useQuestsUiStore();
+const restoredSelection = questsUi.questFlowSelectionFor(questId);
 const selectedBeatId = ref<string | null>(restoredSelection?.beatId ?? null);
 const selectedEdgeId = ref<string | null>(restoredSelection?.edgeId ?? null);
 const saveError = ref("");
@@ -619,7 +619,7 @@ const initialBeatId = typeof route.query.beat === "string" ? route.query.beat : 
 if (initialBeatId) selectedBeatId.value = initialBeatId;
 
 watch([selectedBeatId, selectedEdgeId], ([beatId, edgeId]) => {
-  ui.questFlowSelection = { questId, beatId, edgeId };
+  questsUi.questFlowSelection = { questId, beatId, edgeId };
 }, { immediate: true });
 
 let focusedOnOpen = false;

@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { computed, toRef } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useCharacterFeatures } from "@/composables/features/useCharacterFeatures";
 import { useFeatureUses } from "@/composables/features/useFeatureUses";
 import { useToast } from "@/composables/useToast";

@@ -105,7 +105,7 @@ import DmBottomNav from "@/components/layout/DmBottomNav.vue";
 import StaleSessionPrompt from "@/components/layout/StaleSessionPrompt.vue";
 import DmCampaignGate from "@/components/campaign/DmCampaignGate.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
-import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
+import AiGenerationBadge from "@/components/common/ai/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
 import DmScratchpad from "@/components/notes/DmScratchpad.vue";
 import GlobalHotkeys from "@/components/layout/GlobalHotkeys.vue";
@@ -127,7 +127,7 @@ import { afterFirstPaint } from "@/lib/afterFirstPaint";
 import { activeThemeId } from "@/lib/themeRuntime";
 import { darkChromeStyle } from "@/lib/memorials/hallGround";
 import { safeQuestReturnTo } from "@/lib/quests/navigation";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useBackgroundIndexing } from "@/composables/ai/useBackgroundIndexing";
 
 // Async, and it must stay async: statically importing the generator panels
@@ -142,7 +142,7 @@ import { useBackgroundIndexing } from "@/composables/ai/useBackgroundIndexing";
 // stays: a latch, never a mirror, so the guarantee holds and a closed panel's
 // credit, provider and party reads stay off the boot.)
 const AiGeneratorPanels = defineAsyncComponent(
-  () => import("@/components/common/AiGeneratorPanels.vue"),
+  () => import("@/ai/AiGeneratorPanels.vue"),
 );
 
 // Background work starts after first paint and an idle moment (#999): the

@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import type { SessionRecap } from "@/lib/sessions/sessionLog";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 /** The status a log row wears: the running one in oxblood, a written recap in
  *  success, a gap in caution. A label, not a control, so it takes no pointer. */

@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconClose } from "@/lib/icons";
 import { useCloseQuestThread } from "@/composables/quests/useQuestThreads";
 import { useConfirm } from "@/composables/useConfirm";

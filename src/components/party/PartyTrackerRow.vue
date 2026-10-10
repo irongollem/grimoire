@@ -274,27 +274,27 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconGenerate, IconLocation, IconReveal, IconScrollText } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useToast } from "@/composables/useToast";
 import { damageOutcome, describeDamageOutcome, healingOutcome } from "@/rules/dying";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { describeAc } from "@/rules/armorClass";
-import { useReadItems } from "@/composables/play/useReadItems";
+import { useReadItems } from "@/composables/player/useReadItems";
 import PlayerJournalDmModal from "./PlayerJournalDmModal.vue";
 import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { isInDisguise } from "@/lib/partyMemberDisplay";
 import { effectiveLocationId as deriveEffectiveLocationId } from "@/lib/partyPosition";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { walkingSpeed } from "@/lib/movement";
 import DollAskNotice from "./DollAskNotice.vue";
@@ -336,7 +336,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const campaign = useCampaignStore();
 const auth = useAuthStore();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
@@ -519,7 +519,7 @@ function companionSourceLink(c: Companion): string {
 }
 
 function previewAsPlayer() {
-  ui.enterDmPreview(member.id);
+  appUi.enterDmPreview(member.id);
   router.push({ name: "play-character" });
 }
 </script>

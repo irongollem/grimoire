@@ -26,11 +26,11 @@
         <option v-for="t in LOOT_CR_TIERS" :key="t" :value="t">{{ LOOT_CR_TIER_LABELS[t] }}</option>
       </AppSelect>
       <AppButton
-        v-if="ui.lootTablesHasActiveFilters"
+        v-if="dungeonFeaturesUi.lootTablesHasActiveFilters"
         variant="subtle"
         size="body"
         label="Clear"
-        @click="ui.resetLootTablesFilters()"
+        @click="dungeonFeaturesUi.resetLootTablesFilters()"
       />
     </template>
     <template #card="{ selecting, isSelected, toggle }">
@@ -62,19 +62,19 @@ import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { RouterLink, useRouter } from "vue-router";
 import { useLootTables } from "@/composables/dungeon-features/useLootTables";
-import { useUiStore } from "@/stores/ui";
+import { useDungeonFeaturesUiStore } from "@/stores/ui/dungeonFeatures";
 import { LOOT_CR_TIERS, LOOT_CR_TIER_LABELS } from "@/types/lootTable.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 
 const router = useRouter();
-const ui = useUiStore();
+const dungeonFeaturesUi = useDungeonFeaturesUiStore();
 const { data: lootTables, isLoading: lootTablesLoading } = useLootTables();
 // Filter state lives in the UI store, not local refs, so it survives
 // navigating into a table and back without outliving the session.
-const { lootTablesSearch, lootTablesTierFilter } = storeToRefs(ui);
+const { lootTablesSearch, lootTablesTierFilter } = storeToRefs(dungeonFeaturesUi);
 
 const filteredLootTables = computed(() => {
   let list = lootTables.value ?? [];

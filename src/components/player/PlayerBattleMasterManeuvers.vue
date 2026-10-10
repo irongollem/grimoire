@@ -66,8 +66,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconChevronDown } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { BattleManeuver } from "@/data/battleMasterManeuvers";
 
 const { knownManeuvers, availableToLearn } = defineProps<{

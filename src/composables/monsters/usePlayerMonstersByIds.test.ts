@@ -44,7 +44,7 @@ vi.mock("@/lib/supabase", () => {
 });
 
 import { usePlayerMonstersByIds } from "./usePlayerMonstersByIds";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 
 const UUID_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -118,7 +118,7 @@ describe("usePlayerMonstersByIds", () => {
 
   it("delegates to the by-id owner read for a DM preview, skipping the projection", async () => {
     const { data } = run(() => {
-      useUiStore().dmPreviewMode = true;
+      useAppUiStore().dmPreviewMode = true;
       useCampaignStore().activeCampaignId = "camp-1";
       return usePlayerMonstersByIds([UUID_A]);
     });

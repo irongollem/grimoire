@@ -17,7 +17,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.factionGeneratorOpen = true"
+        @click="generatorsUi.factionGeneratorOpen = true"
       />
       <ListActionButton
         :active="selecting"
@@ -36,11 +36,11 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="ui.factionsHasActiveFilters"
-        @clear="ui.resetFactionsFilters()"
+        :has-active-filters="factionsUi.factionsHasActiveFilters"
+        @clear="factionsUi.resetFactionsFilters()"
       >
-        <ListSearchInput v-model="ui.factionsSearch" placeholder="Filter factions…" />
-        <ListFilterSelect v-model="ui.factionsFilterType" aria-label="Faction type filter">
+        <ListSearchInput v-model="factionsUi.factionsSearch" placeholder="Filter factions…" />
+        <ListFilterSelect v-model="factionsUi.factionsFilterType" aria-label="Faction type filter">
           <option value="">All types</option>
           <option v-for="t in FACTION_TYPES" :key="t" :value="t">{{ t }}</option>
         </ListFilterSelect>
@@ -138,34 +138,36 @@ import { ref, computed, watch } from "vue";
 import { IconAdd, IconCheck, IconGenerate, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/factions/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
-import { useUiStore } from "@/stores/ui";
+import { useFactionsUiStore } from "@/stores/ui/factions";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
-import EntityListRow from "@/components/common/EntityListRow.vue";
-import RelationshipMark from "@/components/common/RelationshipMark.vue";
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
-import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 import { bulkScopeAllowsGeneral } from "@/composables/campaign/useBulkCampaignScope";
 
-const ui = useUiStore();
+const factionsUi = useFactionsUiStore();
+const generatorsUi = useGeneratorUiStore();
 const campaign = useCampaignStore();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
@@ -185,9 +187,9 @@ const { showPaywall, handleNew, gateQuotaError } = useCreateGate("factions", "/f
 const hasSetting = computed(() => !!getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 
 const filtered = computed(() => {
-  const q = ui.factionsSearch.trim().toLowerCase();
+  const q = factionsUi.factionsSearch.trim().toLowerCase();
   return (factions.value ?? []).filter((f) => {
-    if (ui.factionsFilterType && f.faction_type !== ui.factionsFilterType) return false;
+    if (factionsUi.factionsFilterType && f.faction_type !== factionsUi.factionsFilterType) return false;
     if (q && !f.name.toLowerCase().includes(q) && !f.tags.some((t) => t.toLowerCase().includes(q))) return false;
     return true;
   });
@@ -236,7 +238,7 @@ async function handlePopulate() {
 
 // ── Bulk selection (#885) ───────────────────────────────────────────────────
 //
-// Owned here, not in useUiStore: transient per-visit selection, not a list
+// Owned here, not in a domain UI store: transient per-visit selection, not a list
 // filter — mirrors MonsterList.vue/NpcList.vue. No faction row is shared/
 // library content, so every filtered row is selectable.
 const {

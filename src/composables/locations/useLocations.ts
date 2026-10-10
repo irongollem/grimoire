@@ -5,7 +5,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { createIdBatcher } from "@/lib/batchById";
 import { MissingRowError } from "@/lib/queryRetry";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useToast } from "@/composables/useToast";
 import type { GridCalibration, Location, LocationInsert, LocationSummary, LocationUpdate, MapScale } from "@/types/location.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
@@ -475,10 +475,10 @@ export function useUpdateLocation() {
  */
 export function useSharedLocations() {
   const campaign = useCampaignStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared", ui.dmPreviewMode] as const),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared", appUi.dmPreviewMode] as const),
     queryFn: async ({ queryKey: [, cid, , dmPreviewMode] }) => {
       if (cid === null) throw new Error("useSharedLocations fetched without an active campaign");
       if (dmPreviewMode) {
@@ -513,9 +513,9 @@ export function useSharedLocations() {
  */
 export function usePlayerVisibleLocation(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "player-one", idRef.value, ui.dmPreviewMode] as const),
+    queryKey: computed(() => [QUERY_KEY, "player-one", idRef.value, appUi.dmPreviewMode] as const),
     queryFn: async ({ queryKey: [, , locationId, dmPreviewMode] }) => {
       // DM preview: the DM owns the row, read it from the base table (the
       // projection would return nothing — the DM isn't a campaign_member).

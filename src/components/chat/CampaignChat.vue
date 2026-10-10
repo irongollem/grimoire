@@ -2,7 +2,7 @@
   <!-- ── Side panel (md+): part of document flow, squashes content ── -->
   <Transition v-bind="railTransition()">
     <aside
-      v-if="ui.chatOpen"
+      v-if="appUi.chatOpen"
       class="hidden w-80 shrink-0 md:flex"
       :class="contained ? 'h-full min-h-0' : 'sticky top-0 h-dvh'"
     >
@@ -22,8 +22,8 @@
         :members="members"
         :party="party"
         :npcs="npcs"
-        :focus-message-id="ui.chatFocusMessageId"
-        :focus-request="ui.chatFocusRequest"
+        :focus-message-id="appUi.chatFocusMessageId"
+        :focus-request="appUi.chatFocusRequest"
         :send-text="handleSend"
         @send-roll="handleRoll"
         @delete="handleDelete"
@@ -37,7 +37,7 @@
         @send-vendor-offer="handleSendVendorOffer"
         @buy-player-offer="handleBuyPlayerOffer"
         @load-older="loadOlder"
-        @close="ui.chatOpen = false"
+        @close="appUi.chatOpen = false"
       />
       </div>
     </aside>
@@ -46,7 +46,7 @@
   <!-- ── Right-edge tab (always visible when panel is closed, unless hideTab) ── -->
   <Transition name="tab-fade">
     <button
-      v-if="!ui.chatOpen && !hideTab"
+      v-if="!appUi.chatOpen && !hideTab"
       type="button"
       class="chat-no-print fixed right-[env(safe-area-inset-right)] z-40 flex flex-col items-center gap-1.5 px-2 py-3 rounded-l-xl border border-r-0 border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shadow-lg select-none"
       :style="{ top: tabTop + 'px', touchAction: 'none' }"
@@ -55,7 +55,7 @@
     >
       <div class="relative">
         <IconMessage class="h-4 w-4" />
-        <span v-if="ui.chatHasUnread" class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
+        <span v-if="appUi.chatHasUnread" class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
       </div>
     </button>
   </Transition>
@@ -63,14 +63,14 @@
   <!-- ── Mobile: overlay backdrop + slide-up panel ── -->
   <Transition name="fade">
     <div
-      v-if="ui.chatOpen"
+      v-if="appUi.chatOpen"
       class="chat-no-print fixed inset-0 z-40 bg-black/40 md:hidden"
-      @click="ui.chatOpen = false"
+      @click="appUi.chatOpen = false"
     />
   </Transition>
   <Transition name="slide-up">
     <div
-      v-if="ui.chatOpen"
+      v-if="appUi.chatOpen"
       class="chat-no-print fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] inset-x-0 z-50 flex flex-col bg-card border-t border-border rounded-t-2xl md:hidden"
       style="height: 65vh"
     >
@@ -83,8 +83,8 @@
         :members="members"
         :party="party"
         :npcs="npcs"
-        :focus-message-id="ui.chatFocusMessageId"
-        :focus-request="ui.chatFocusRequest"
+        :focus-message-id="appUi.chatFocusMessageId"
+        :focus-request="appUi.chatFocusRequest"
         :send-text="handleSend"
         @send-roll="handleRoll"
         @delete="handleDelete"
@@ -98,7 +98,7 @@
         @send-vendor-offer="handleSendVendorOffer"
         @buy-player-offer="handleBuyPlayerOffer"
         @load-older="loadOlder"
-        @close="ui.chatOpen = false"
+        @close="appUi.chatOpen = false"
       />
     </div>
   </Transition>
@@ -111,7 +111,7 @@ import { IconMessage } from '@/lib/icons';
 import { railTransition } from "@/lib/motion";
 import { loadReadMarker, resolveChatUnread, saveReadMarker, type ReadMarker } from "@/components/chat/chatUnread";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignMessages, loadChatHistory } from "@/composables/campaign/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
@@ -188,7 +188,7 @@ function onPointerUp(e: PointerEvent) {
       (ce) => { ce.stopImmediatePropagation(); ce.preventDefault(); },
       { once: true, capture: true },
     );
-    ui.toggleChat();
+    appUi.toggleChat();
   }
 }
 
@@ -197,7 +197,7 @@ onUnmounted(() => {
   window.removeEventListener("pointerup", onPointerUp);
 });
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const auth = useAuthStore();
 const campaign = useCampaignStore();
 const { messages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
@@ -209,7 +209,7 @@ const { reportChatFailure, reportMessageFailure } = useChatSendFailure();
 // own UI and its claim handlers. Gate them on the panel actually being open —
 // otherwise every page load pulled the full item catalogue (plus the SRD item
 // table) and every NPC row for a panel the user never opened.
-const chatOpen = () => ui.chatOpen;
+const chatOpen = () => appUi.chatOpen;
 const { data: members } = useCampaignMembers(chatOpen);
 const { data: party }    = useParty(chatOpen);
 // Both lookups below resolve an item a chat message already names, so they read exactly
@@ -221,7 +221,7 @@ const namedItemIds = computed(() =>
     return [];
   }),
 );
-const { data: namedItems } = useItemsByIds(namedItemIds, () => ({ enabled: ui.chatOpen }));
+const { data: namedItems } = useItemsByIds(namedItemIds, () => ({ enabled: appUi.chatOpen }));
 const { data: npcsData } = useNpcs(chatOpen);
 const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
 const { mutateAsync: updatePartyMember }   = useUpdatePartyMember();
@@ -245,19 +245,19 @@ const npcs = computed(() =>
 // subsequent line. Re-sync it whenever the list changes; setDmTalkAsNpc no-ops
 // when nothing moved.
 watch(npcs, (list) => {
-  if (!ui.dmTalkAsNpcId) return;
-  const npc = list.find((n) => n.id === ui.dmTalkAsNpcId);
+  if (!appUi.dmTalkAsNpcId) return;
+  const npc = list.find((n) => n.id === appUi.dmTalkAsNpcId);
   // Only when the NPC is actually in the list. A miss means the query is
   // between fetches (or the NPC was deleted), and blanking the name there would
   // silently drop the DM's chosen persona back to their own name mid-sentence.
-  if (npc) ui.setDmTalkAsNpc(npc.id, npc.name);
+  if (npc) appUi.setDmTalkAsNpc(npc.id, npc.name);
 });
 
 // The dot is a read position, not a transition (chatUnread.ts). `messages` is
 // mutated in place (push + sort), so watch what the position depends on: the
 // newest message, how many there are (a refetch can add older ones without
 // changing the newest), whether the chat is on screen, and the campaign.
-const chatViewing = computed(() => ui.chatOpen);
+const chatViewing = computed(() => appUi.chatOpen);
 let markerKey: string | null = null;
 let marker: ReadMarker | null = null;
 
@@ -265,7 +265,7 @@ function syncChatUnread() {
   const userId = auth.user?.id;
   const campaignId = campaign.activeCampaignId;
   if (!userId || !campaignId) {
-    ui.chatHasUnread = false;
+    appUi.chatHasUnread = false;
     return;
   }
   const key = `${userId}:${campaignId}`;
@@ -282,7 +282,7 @@ function syncChatUnread() {
     viewing: chatViewing.value,
     myUserId: userId,
   });
-  ui.chatHasUnread = result.unread;
+  appUi.chatHasUnread = result.unread;
   if (result.marker && result.marker !== marker) {
     marker = result.marker;
     saveReadMarker(userId, campaignId, result.marker);
@@ -299,12 +299,12 @@ watch(
 // the dot runs off a narrow probe of the newest rows (`unreadMessages`).
 watch(chatViewing, (open) => { if (open) loadChatHistory(); }, { immediate: true });
 
-watch(() => ui.chatFocusRequest, () => {
-  if (ui.chatFocusMessageId) void ensureMessage(ui.chatFocusMessageId).catch(() => { /* chat keeps its current window */ });
+watch(() => appUi.chatFocusRequest, () => {
+  if (appUi.chatFocusMessageId) void ensureMessage(appUi.chatFocusMessageId).catch(() => { /* chat keeps its current window */ });
 });
 
 function resolveClaimerName(): string {
-  if (ui.dmTalkAsNpcName) return ui.dmTalkAsNpcName;
+  if (appUi.dmTalkAsNpcName) return appUi.dmTalkAsNpcName;
   if (auth.linkedPartyMemberId) {
     const character = (party.value ?? []).find(p => p.id === auth.linkedPartyMemberId);
     if (character?.name) return character.name;

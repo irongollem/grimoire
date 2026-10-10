@@ -115,9 +115,9 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter, type LocationQueryValue } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import IllustratedSheet from "@/components/character-sheet/illustrated/IllustratedSheet.vue";
 import {
   PAGE_PX,

@@ -43,8 +43,8 @@
 
 <script setup lang="ts">
 import type { Monster } from "@/types/monster.types";
-import FocalImage from "@/components/common/FocalImage.vue";
-import MovementIcon from "@/components/common/MovementIcon.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import MovementIcon from "@/components/common/statblock/MovementIcon.vue";
 import ModernShell from "./ModernShell.vue";
 import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/cardforge/useMonsterCardData";

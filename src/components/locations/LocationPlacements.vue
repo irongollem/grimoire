@@ -83,7 +83,7 @@
  * room; it does not delete the trap/feature/table itself.
  */
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
 import PlacementRow from "@/components/locations/PlacementRow.vue";
 import LocationPlacementAdd from "@/components/locations/LocationPlacementAdd.vue";

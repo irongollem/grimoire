@@ -3,7 +3,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useToast } from "@/composables/useToast";
 import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
 import type {
@@ -191,9 +191,9 @@ export function useQuests() {
  */
 export function usePlayerVisibleQuests() {
   const campaign = useCampaignStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
-  const previewId = computed(() => ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null);
+  const previewId = computed(() => appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null);
   return useQuery({
     queryKey: computed(() => [QUESTS_KEY, campaignId.value, "player-visible", previewId.value] as const),
     queryFn: async ({ queryKey: [, cid, , previewMemberId] }) => {
@@ -219,8 +219,8 @@ export function usePlayerVisibleQuests() {
  */
 export function usePlayerVisibleQuest(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
-  const ui = useUiStore();
-  const previewId = computed(() => ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null);
+  const appUi = useAppUiStore();
+  const previewId = computed(() => appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null);
   return useQuery({
     queryKey: computed(() => [QUESTS_KEY, "player-one", idRef.value, previewId.value] as const),
     queryFn: async ({ queryKey: [, , qid, previewMemberId] }) => {

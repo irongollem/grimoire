@@ -23,8 +23,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import EntityLightbox from "@/components/common/EntityLightbox.vue";
-import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import EntityLightbox from "@/components/common/overlays/EntityLightbox.vue";
+import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import type { RunCombatant } from "@/types/encounter.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { formPortrait } from "@/lib/wildshapePortrait";

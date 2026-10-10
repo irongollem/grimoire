@@ -352,16 +352,16 @@ import { IconClose } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
 import { isQuotaExceeded } from "@/lib/quotaError";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { ref, computed, toRefs } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
-import DiceExprInput from "@/components/common/DiceExprInput.vue";
-import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
+import DiceExprInput from "@/components/common/dice/DiceExprInput.vue";
+import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import ItemWeaponBlock from "@/components/items/ItemWeaponBlock.vue";
 import ItemArmorBlock from "@/components/items/ItemArmorBlock.vue";
 import ItemEditorCard from "@/components/items/ItemEditorCard.vue";
@@ -374,9 +374,9 @@ import { storeToRefs } from "pinia";
 import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { formatItemForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
-import WeightInput from "@/components/common/WeightInput.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import WeightInput from "@/components/common/controls/WeightInput.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import {
   cleanupRemovedRichTextImages,
   removeRichTextImages,
@@ -400,7 +400,7 @@ import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 
 const props = defineProps<{ item: Item | null; prefillName?: string }>();
 const router = useRouter();

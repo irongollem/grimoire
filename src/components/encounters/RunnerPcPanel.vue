@@ -100,7 +100,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
-import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
+import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
 import type { RollResult } from "@/lib/dice/dice";
 import type { SaveEntry } from "@/rules/characterChecks";
@@ -121,7 +121,7 @@ import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { wildshapeStateFor } from "@/rules/wildshape";
-import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
+import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { useToast } from "@/composables/useToast";
 import { fetchLibraryMonsterArtEntry, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";

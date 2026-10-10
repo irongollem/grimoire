@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useNotes } from "@/composables/notes/useNotes";

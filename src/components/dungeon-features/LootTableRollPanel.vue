@@ -106,7 +106,7 @@ import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages"
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import type { LootTable } from "@/types/lootTable.types";
 import type { LootChestMetadata } from "@/types/chat.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import LootTableDropDialog from "./LootTableDropDialog.vue";
 
 const { table, itemsById, entriesError, isNew, summaryDropPercent } = defineProps<{

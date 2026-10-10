@@ -71,7 +71,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 

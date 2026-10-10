@@ -262,7 +262,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { getCalendarAdapter } from "@/calendars/index";
 import type { Campaign } from "@/types/campaign.types";
 import { useQuota } from "@/composables/billing/useQuota";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 // The card sits beside three modals at the top level, so Vue cannot pick a
 // root for a caller's class on its own; the More sheet's full-bleed
@@ -320,7 +320,7 @@ const showModal = ref(false);
 // useProPricing, and it only opens when a free account hits the campaign
 // quota. Mounting it eagerly cost a request on every cold DM load.
 const PaywallModal = defineAsyncComponent(
-  () => import("@/components/common/PaywallModal.vue"),
+  () => import("@/components/common/overlays/PaywallModal.vue"),
 );
 const showPaywall = ref(false);
 const paywallMounted = useLazyMount(showPaywall);

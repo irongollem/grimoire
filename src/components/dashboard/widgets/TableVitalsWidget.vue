@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useActiveParty } from "@/composables/party/useActiveParty";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import {
   buildTableVitalsRows,
   type TableVitalsConcentration,

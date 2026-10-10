@@ -100,8 +100,8 @@ import { useDeleteFeature } from "@/composables/rules/useFeatures";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { parseMechanics } from "@/rules/features/mechanics";
 import { ACTIVATION_LABELS, FEAT_CATEGORY_LABELS, type ClassFeature } from "@/types/feature.types";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import MechanicsSummary from "@/components/features/mechanics/MechanicsSummary.vue";
 import { describeAbilityIncrease, describePrerequisites, summarizeMechanics, type SummaryGroup } from "@/components/features/mechanics/mechanicsSummary";
 

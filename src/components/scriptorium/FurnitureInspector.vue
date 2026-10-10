@@ -127,9 +127,9 @@
 <script setup lang="ts">
 import { computed, ref, onBeforeUnmount } from "vue";
 import { IconClose, IconDelete } from "@/lib/icons";
-import ImageUpload from "@/components/common/ImageUpload.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import ImageUpload from "@/components/common/media/ImageUpload.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { WATERCOLOR_COUNT } from "@/data/watercolorAssets";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
 

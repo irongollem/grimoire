@@ -124,15 +124,15 @@
  */
 import { computed, ref, watch } from "vue";
 import { useQuery } from "@tanstack/vue-query";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import TagInput from "@/components/common/TagInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
 import LibraryTilePackSlotGrid from "./LibraryTilePackSlotGrid.vue";
 import { IconGenerate, IconSave } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { fieldVariants } from "@/components/common/fieldVariants";
+import { fieldVariants } from "@/components/common/controls/fieldVariants";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
 import { describeLibraryPackError, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";

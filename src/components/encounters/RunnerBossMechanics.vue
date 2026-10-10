@@ -101,7 +101,7 @@ import { ref, computed } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { StatBlockEntry } from "@/types/statBlock.types";
 
 const store = useEncounterRunStore();

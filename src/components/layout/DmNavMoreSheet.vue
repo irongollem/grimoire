@@ -60,7 +60,7 @@
     </div>
 
     <p class="mt-4 px-1 text-center text-caption-sm text-muted-foreground/60">
-      Dot = currently pinned to the {{ ui.dmMode === "play" ? "session" : "prep" }} bar.
+      Dot = currently pinned to the {{ appUi.dmMode === "play" ? "session" : "prep" }} bar.
     </p>
 
     <AppButton
@@ -132,8 +132,8 @@
 <script setup lang="ts">
 import { computed, ref, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
@@ -142,7 +142,7 @@ import SessionRail from "./SessionRail.vue";
 import { IconAdd, IconBug, IconNote, IconRefresh, IconShieldCheck } from "@/lib/icons";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useScratchpadStore } from "@/stores/scratchpad";
@@ -165,7 +165,7 @@ const emit = defineEmits<{ "update:open": [boolean] }>();
 // weight. Latched rather than mirrored so a half-typed report survives a
 // close/reopen, exactly as the always-mounted version did.
 const BugReportModal = defineAsyncComponent(
-  () => import("@/components/common/BugReportModal.vue"),
+  () => import("@/components/common/overlays/BugReportModal.vue"),
 );
 
 const bugReportOpen = ref(false);
@@ -175,7 +175,7 @@ const bugReportMounted = useLazyMount(bugReportOpen);
 const vPrefetch = usePrefetchOnIntent();
 const route = useRoute();
 const router = useRouter();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();
 const scratchpad = useScratchpadStore();

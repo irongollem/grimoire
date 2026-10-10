@@ -100,7 +100,7 @@
  * what the map is MADE of — Picture, Drawing, Plan — and is why this bar's
  * own header no longer says "Layers" too: the two sat one row apart with the
  * same word over both, which is exactly the ambiguity a DM reading either
- * one needed not to have. Reads and writes `useUiStore.siteMapLayers`
+ * one needed not to have. Reads and writes `useLocationsUiStore().siteMapLayers`
  * directly rather than taking a v-model: every layer flag is session UI
  * state exactly like `locationsPaneMode`, and `LocationMap.vue` forwards the
  * same store values into `MapRegionsLayer`, so there is nothing for a
@@ -113,10 +113,10 @@
  */
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconBrush, IconFog, IconGrid, IconImage, IconParty, IconReveal } from "@/lib/icons";
 import { useBelow } from "@/composables/useBreakpoint";
-import { useUiStore } from "@/stores/ui";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 
 const { counts, layers, played } = defineProps<{
   counts: { spaces: number; ways: number; zones: number; prepared: number };
@@ -138,9 +138,9 @@ const { counts, layers, played } = defineProps<{
 const isBelowSm = useBelow("sm");
 const pillSize = computed(() => (isBelowSm.value ? "sm" : "xs"));
 
-const uiStore = useUiStore();
-const { siteMapLayers } = storeToRefs(uiStore);
-const { toggleSiteMapLayer } = uiStore;
+const locationsUi = useLocationsUiStore();
+const { siteMapLayers } = storeToRefs(locationsUi);
+const { toggleSiteMapLayer } = locationsUi;
 
 /** Swatches match the fill each layer paints on the map — `ZONE_KIND_FILL`
  *  covers terrain/hazard/light/trigger/marker individually, but the layer

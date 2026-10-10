@@ -28,8 +28,8 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
-import type { ButtonTone } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import type { ButtonTone } from "@/components/common/controls/appButtonVariants";
 
 export type CheckMode = "normal" | "advantage" | "disadvantage";
 export type ChatMode = "public" | "silent";

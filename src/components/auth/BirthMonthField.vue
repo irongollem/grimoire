@@ -24,7 +24,7 @@
  * server keeps even less (`child_accounts.adult_on`, and nothing for adults).
  */
 import { computed } from "vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 
 const { legend = "When were you born?" } = defineProps<{ legend?: string }>();
 

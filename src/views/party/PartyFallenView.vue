@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import HallOfTheFallen from "@/components/memorials/HallOfTheFallen.vue";
 import SetDownDialog from "@/components/memorials/SetDownDialog.vue";
 import { IconChevronLeft } from "@/lib/icons";

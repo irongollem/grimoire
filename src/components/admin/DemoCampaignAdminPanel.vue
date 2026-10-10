@@ -46,7 +46,7 @@
  * for an admin whenever a template exists, offered or not.
  */
 import { ref } from "vue";
-import SettingsToggleRow from "@/components/common/SettingsToggleRow.vue";
+import SettingsToggleRow from "@/components/common/settings/SettingsToggleRow.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useDemoStatus, useSetDemoOffered } from "@/composables/campaign/useDemoCampaign";

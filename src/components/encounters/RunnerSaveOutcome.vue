@@ -42,9 +42,9 @@
 
 <script setup lang="ts">
 import { reactive } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import type { SaveTargetResult } from "@/composables/encounters/useActionResolution";
 
 const CHOICES = [

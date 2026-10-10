@@ -43,7 +43,7 @@ import { ref } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
 import { IconAdd } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import LocationLootForm from "@/components/locations/LocationLootForm.vue";
 import LootPlacementList from "@/components/quests/LootPlacementList.vue";
 import type { LootPlacement } from "@/types/quest.types";

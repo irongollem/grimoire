@@ -40,8 +40,8 @@
 import { computed, reactive } from "vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
 import "@/assets/vendor/datepicker.css";
-import AppInput from "@/components/common/AppInput.vue";
-import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import { useUpdateCampaignSession } from "@/composables/sessions/useCampaignSessions";
 import { useSessionProposals } from "@/composables/calendar/useScheduling";
 import { useAutosave } from "@/composables/useAutosave";

@@ -44,9 +44,9 @@ import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useToast } from "@/composables/useToast";
 import { levelForXp } from "@/types/party.types";
 import type { PartyMember } from "@/types/party.types";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const { party } = defineProps<{ party: PartyMember[] }>();
 

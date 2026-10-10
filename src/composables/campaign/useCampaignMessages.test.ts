@@ -33,8 +33,8 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => mocks.campaignStor
 vi.mock("@/stores/auth", () => ({
   useAuthStore: () => ({ user: { id: "u1" }, isDM: false, profile: null }),
 }));
-vi.mock("@/stores/ui", () => ({
-  useUiStore: () => ({ dmPreviewMode: false }),
+vi.mock("@/stores/ui/app", () => ({
+  useAppUiStore: () => ({ dmPreviewMode: false }),
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { value: [] } }) }));
 vi.mock("@/composables/campaign/useCampaignMembers", () => ({

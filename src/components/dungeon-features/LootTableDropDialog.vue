@@ -109,12 +109,12 @@ import { computed, ref } from 'vue';
 import { IconClose, IconPackageOpen, IconWarning } from '@/lib/icons';
 import { formatCoinParts } from '@/rules/currency';
 import { useImageUpload } from '@/composables/useImageUpload';
-import FocalImage from '@/components/common/FocalImage.vue';
-import AppButton from '@/components/common/AppButton.vue';
-import AppInput from '@/components/common/AppInput.vue';
-import AppModal from '@/components/common/AppModal.vue';
-import ModalHeader from '@/components/common/ModalHeader.vue';
-import { CARD_OVERLAY_SCRIM } from '@/components/common/appButtonVariants';
+import FocalImage from '@/components/common/media/FocalImage.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import AppInput from '@/components/common/controls/AppInput.vue';
+import AppModal from '@/components/common/overlays/AppModal.vue';
+import ModalHeader from '@/components/common/overlays/ModalHeader.vue';
+import { CARD_OVERLAY_SCRIM } from '@/components/common/controls/appButtonVariants';
 import type { LootChestAtom } from '@/types/chat.types';
 import { unresolvedReasonLabel, type RolledUnresolvedEntry } from '@/lib/dungeon-features/lootTableRoll';
 

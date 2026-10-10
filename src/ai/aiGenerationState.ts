@@ -9,7 +9,7 @@
  * 3. Call `startAiQuotes()` when generation begins and `stopAiQuotes()` when it ends.
  * 4. Mount the generator's panel component in `DefaultLayout.vue` (always-mounted so
  *    generation survives navigation).
- * 5. Add the panel's open flag to `useUiStore` and pass `openPanel` to the registration.
+ * 5. Add the panel's open flag to `useGeneratorUiStore` and pass `openPanel` to the registration.
  *
  * That's all — the `AiGenerationBadge` will discover it automatically via the registry.
  */

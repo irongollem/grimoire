@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { rulesetRules, rulesetYear, useConvertCharacterRuleset } from "@/composables/party/useCharacterRuleset";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";

@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 // `PlayerVisibleMonster` rather than `Monster` (#842): this card renders on
 // player surfaces, where the projection nulls `stat_block` for an unrevealed
 // creature. A full `Monster` still satisfies it, so DM callers are unaffected —

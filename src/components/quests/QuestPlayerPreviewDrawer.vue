@@ -48,11 +48,11 @@ import { useRouter } from "vue-router";
 import { useParty } from "@/composables/party/useParty";
 import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
 import { groupPlayerBeatsByThread } from "@/lib/quests/playerThreads";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import type { QuestBeatVisibility } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import PlayerQuestStoryThread from "@/components/player/PlayerQuestStoryThread.vue";
 
 const props = defineProps<{
@@ -63,10 +63,10 @@ const props = defineProps<{
   draftVisibility?: QuestBeatVisibility | null;
 }>();
 const emit = defineEmits<{ close: [] }>();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const router = useRouter();
 const { data: party } = useParty();
-const audienceId = ref(ui.dmPreviewPartyMemberId ?? "");
+const audienceId = ref(appUi.dmPreviewPartyMemberId ?? "");
 const audienceOptions = computed(() => (party.value ?? []).filter((member) => props.visibleTo.includes(member.id)));
 const audience = computed(() => audienceOptions.value.find((member) => member.id === audienceId.value) ?? null);
 // The `<select>` needs "" for its empty option, but the RPC parameter is a uuid
@@ -87,7 +87,7 @@ watch(audienceOptions, (options) => {
 
 function openActualRoute() {
   if (!audienceId.value) return;
-  ui.enterDmPreview(audienceId.value);
+  appUi.enterDmPreview(audienceId.value);
   void router.push(`/play/quests/${props.questId}`);
 }
 function onKeydown(event: KeyboardEvent) { if (event.key === "Escape") emit("close"); }

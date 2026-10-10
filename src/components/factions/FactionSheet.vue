@@ -82,10 +82,10 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteFaction } from "@/composables/factions/useFactions";
 import type { Faction } from "@/types/faction.types";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import RelationshipMark from "@/components/common/RelationshipMark.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import FactionDeitiesSection from "@/components/factions/FactionDeitiesSection.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

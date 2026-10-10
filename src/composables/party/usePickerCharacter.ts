@@ -1,7 +1,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter, type RouteLocationRaw } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useMyCharacters, useParty } from "@/composables/party/useParty";
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
 import type { PartyMember } from "@/types/party.types";
@@ -66,7 +66,7 @@ export function usePickerCharacter() {
   const route = useRoute();
   const router = useRouter();
   const auth = useAuthStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const { data: party } = useParty();
   const { data: mine, isLoading: mineLoading } = useMyCharacters();
   const { data: pool, isLoading: poolLoading } = useCharacterPool();
@@ -76,8 +76,8 @@ export function usePickerCharacter() {
   const target = computed(() =>
     resolvePickerTarget({
       requested: requested.value,
-      dmPreview: ui.dmPreviewMode,
-      dmPreviewId: ui.dmPreviewPartyMemberId,
+      dmPreview: appUi.dmPreviewMode,
+      dmPreviewId: appUi.dmPreviewPartyMemberId,
       activeId: auth.linkedPartyMemberId,
       ownedIds: ownedIds.value,
     }),
@@ -92,7 +92,7 @@ export function usePickerCharacter() {
     if (!id) return null;
     return party.value?.find((m) => m.id === id) ?? pool.value?.find((m) => m.id === id) ?? mine.value?.find((m) => m.id === id) ?? null;
   });
-  const isOtherCharacter = computed(() => !ui.dmPreviewMode && resolvedMemberId.value !== auth.linkedPartyMemberId);
+  const isOtherCharacter = computed(() => !appUi.dmPreviewMode && resolvedMemberId.value !== auth.linkedPartyMemberId);
 
   /** Where to go after changing `m`. */
   function afterChangeRoute(m: PartyMember): RouteLocationRaw {

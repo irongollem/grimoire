@@ -109,14 +109,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { IconGenerate } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";

@@ -33,8 +33,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconAdd } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { DEFAULT_ASI_LEVELS, findOfficialAsiFeature, withFeatureAtLevels } from "@/lib/codex/asiFeature";

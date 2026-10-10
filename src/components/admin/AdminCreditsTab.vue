@@ -149,10 +149,10 @@ import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed } from "vue";
 import { useAdminUsers } from "@/composables/admin/useAdminUsers";
 import { useUserLedger } from "@/composables/admin/useUserLedger";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AiUsageStatsPanel from "@/components/common/ai/AiUsageStatsPanel.vue";
 import CreditPackRefundList from "@/components/admin/CreditPackRefundList.vue";
 import AbuseGuardConfig from "@/components/admin/AbuseGuardConfig.vue";
 

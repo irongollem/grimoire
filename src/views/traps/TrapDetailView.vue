@@ -24,8 +24,8 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useTrap } from "@/composables/dungeon-features/useTraps";
-import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import TrapEditor from "@/components/traps/TrapEditor.vue";
 import TrapSheet from "@/components/traps/TrapSheet.vue";

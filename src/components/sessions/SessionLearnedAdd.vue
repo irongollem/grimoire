@@ -40,9 +40,9 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useShareCandidates, type ShareKind } from "@/composables/sessions/useShareCandidates";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { useFileShared } from "@/composables/sessions/useSessionLearned";

@@ -29,7 +29,7 @@ The Bestiary (`/monsters`) is the DM's custom monster compendium. It is a union 
 
 The shared `library_monsters` table behind the Open5e-sourced content is seeded dual-edition by `npm run seed-library-monsters` — 325 `srd-2014` + 331 `srd-2024` rows (see the SRD seed pipeline note in `items-spells-crafting.md`, #560). Every library row carries a `description` (Tiptap JSON, the lore beside the sheet's stat block; `notes` is "DM Notes" and stays empty on library rows): Open5e v1 lore where the book is open content and Open5e has it, otherwise original text written for Grimoire on 4 Oct 2026, never paraphrased from a book. Library reads never carry it (`LIBRARY_MONSTER_COLUMNS` in `useMonsters.ts`: no list or picker renders it, and 3,541 lore texts are megabytes); `MonsterSheet` reads it for the one creature on screen through `useLibraryMonsterDescription`. It feeds the monster embedding like a homebrew monster's does, and **Customize** fetches it and copies it into the DM's own monster.
 
-**List filters** (stored in `useUiStore`):
+**List filters** (stored in `useMonstersUiStore`):
 
 - Text search
 - Source: All / SRD / Custom (desktop-only pill group)

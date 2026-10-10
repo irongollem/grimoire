@@ -121,7 +121,7 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteCustomClass } from "@/composables/rules/useCustomClasses";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { CustomClass } from "@/levelup/customTypes";
 
 const props = defineProps<{ cls: CustomClass }>();

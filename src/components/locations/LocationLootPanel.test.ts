@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }) }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ openChatAt: vi.fn() }) }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ openChatAt: vi.fn() }) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "dm" } }) }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useCreateLootPlacement: () => ({ mutateAsync: mocks.create }),

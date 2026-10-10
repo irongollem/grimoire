@@ -27,10 +27,10 @@
  * selects (#972, story 11). The parent renders it in Build only.
  */
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import type { SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { IconDungeon, IconLoot, IconTable, IconTrap } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useCreateLocationPlacement } from "@/composables/locations/useLocationPlacements";

@@ -30,8 +30,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useCharacterDoll } from "@/composables/party/useCharacterDoll";
 import type { PartyMember } from "@/types/party.types";

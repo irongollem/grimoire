@@ -161,9 +161,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconLibrary, IconLink, IconGridView } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import type { Editor } from "@tiptap/core";
 import type { FurnitureKind } from "@/types/scriptorium.types";
 import {

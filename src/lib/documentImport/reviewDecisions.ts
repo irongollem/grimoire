@@ -13,7 +13,7 @@
  *   - the two group actions, "Ignore all" and "Reset to suggested"
  *     (`ignoreAllDecisions`, `resetToSuggestedDecisions`)
  */
-import type { ButtonTone } from "@/components/common/appButtonVariants";
+import type { ButtonTone } from "@/components/common/controls/appButtonVariants";
 import { defaultDecision, type EntityCandidate, type EntityMatchKind, type ImportDecision } from "./entityMatching";
 import type { UsableEntity } from "./sanitizeEntities";
 import type { ImportEntityKind } from "@/types/documentImport.types";

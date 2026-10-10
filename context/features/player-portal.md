@@ -30,7 +30,7 @@ Invite links can be configured with roles (`player`), labels, expiry dates, and 
 Shared pieces the player pages are built from, so a new page reaches for them rather than re-deriving:
 
 - **`PageHeader flush`** for any list or tool page in the padded player shell; the phone header already names the page, so never add a second title (see Player Navigation).
-- **`OverflowMenu`** (`src/components/common/`) holds a card's secondary actions in one menu, destructive ones last. Champions and pool cards use it; a card shows one clear primary action beside it.
+- **`OverflowMenu`** (`src/components/common/overlays/`) holds a card's secondary actions in one menu, destructive ones last. Champions and pool cards use it; a card shows one clear primary action beside it.
 - **`RichTextEditor toolbar="focus"`** shows a field's toolbar only while it has focus, as one sideways-scrolling row; the default stays the full toolbar for every other caller. The Lore tab uses it.
 - **`TabBar`** takes a per-tab `dot` for "something new inside" and fades the edges of a sideways-scrolling row, keeping the selected tab in view.
 - **Touch targets:** controls that mis-tap mid-fight (HP amount and buttons, condition remove, exhaustion and death-save pips, inventory slots) get a 44px target on a phone without changing how they look.
@@ -136,7 +136,7 @@ Every player-side picker obeys the DM's per-campaign gates (#566) — the specie
 
 Route: `/play/party` (`PlayerPartyView.vue`)
 
-Two parts: **Your company**, a slim strip of the party, and **People**, the ledger of everyone the party has met (#987, design: People ledger canvas). The components live in `src/components/play/people/`; the view only wires data and the lightboxes.
+Two parts: **Your company**, a slim strip of the party, and **People**, the ledger of everyone the party has met (#987, design: People ledger canvas). The components live in `src/components/player/people/`; the view only wires data and the lightboxes.
 
 **Your company** (`PeopleCompanyStrip`): the group portrait (when there is one) as a wider first tile, then each member and their companions, as small portrait plates with names; your own character first, marked "You". A thin HP bar follows the same visibility rule as before. Tapping opens the member, companion or group-portrait lightbox, which hold the detail the old full-size cards showed:
 
@@ -438,9 +438,9 @@ Interactive map/location browser. Shows only locations the DM has shared (`useSh
   - People in the area (linked NPCs, when `is_npcs_shared`)
   - Player notes widget
 - Map pins can navigate to a child location ("Go") or open a Watch panel with art + summary + notes
-- **Favourites** — star icon on every location card; starred locations appear in a pinned section above the main list (hidden when searching/filtering); persisted in `player_favourites` table (`entity_type = 'location'`); composable: `usePlayerFavourites('location')` in `src/composables/play/usePlayerFavourites.ts`
+- **Favourites** — star icon on every location card; starred locations appear in a pinned section above the main list (hidden when searching/filtering); persisted in `player_favourites` table (`entity_type = 'location'`); composable: `usePlayerFavourites('location')` in `src/composables/player/usePlayerFavourites.ts`
 
-**Location quick-view dialog** (`PlayerLocationDialog.vue`, mounted once in `PlayerLayout`): clicking an `@location` chip in any player-portal rich text (journal, quests, etc.) opens this dialog over the current page instead of navigating to the Atlas (issue #442). Driven by `useUiStore().playerLocationDialogId` (set by `EntityMentionChip.navigate()` for `location` chips in `/play/*`). It resolves the location from `useSharedLocations()`, reuses `PlayerLocationDetailPanel` + `PlayerPartyNpcLightbox`, marks the location read, lets map-pin clicks swap to shared child locations, and offers a "View in Atlas →" link that deep-links to `/play/atlas?open=<id>`. Other entity-chip types still navigate to their list pages.
+**Location quick-view dialog** (`PlayerLocationDialog.vue`, mounted once in `PlayerLayout`): clicking an `@location` chip in any player-portal rich text (journal, quests, etc.) opens this dialog over the current page instead of navigating to the Atlas (issue #442). Driven by `usePlayerUiStore().playerLocationDialogId` (set by `EntityMentionChip.navigate()` for `location` chips in `/play/*`). It resolves the location from `useSharedLocations()`, reuses `PlayerLocationDetailPanel` + `PlayerPartyNpcLightbox`, marks the location read, lets map-pin clicks swap to shared child locations, and offers a "View in Atlas →" link that deep-links to `/play/atlas?open=<id>`. Other entity-chip types still navigate to their list pages.
 
 ### Bestiary
 

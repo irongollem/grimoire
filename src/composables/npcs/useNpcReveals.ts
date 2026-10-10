@@ -6,7 +6,7 @@ import { earliestRevealPerNpc } from "@/lib/npcs/peopleLedger";
 import { PLAYER_NPCS_KEY } from "@/lib/campaignLiveSync/registry";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 
 const QUERY_KEY = "npc-reveals";
 
@@ -46,9 +46,9 @@ export function useNpcReveals(npcId: Ref<string> | string) {
  */
 export function useMyNpcRevealMoments() {
   const campaign = useCampaignStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const auth = useAuthStore();
-  const memberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
+  const memberId = computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
   return useQuery({
     queryKey: computed(() => [PLAYER_NPCS_KEY, campaign.activeCampaignId, "reveals", memberId.value] as const),
     queryFn: async ({ queryKey: [, cid, , member] }) => {

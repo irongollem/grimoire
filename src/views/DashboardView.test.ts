@@ -7,11 +7,11 @@ import PrepGapsWidget from "@/components/dashboard/widgets/PrepGapsWidget.vue";
 import SessionWidget from "@/components/dashboard/widgets/SessionWidget.vue";
 import NextSessionWidget from "@/components/dashboard/widgets/NextSessionWidget.vue";
 import LiveEncounterBanner from "@/components/dashboard/widgets/LiveEncounterBanner.vue";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
 import DashboardCustomizeFrame from "@/components/dashboard/DashboardCustomizeFrame.vue";
 import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
-import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import { DEFAULT_LAYOUTS } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardSurface } from "@/lib/dashboard/widgetCatalog";
@@ -63,7 +63,7 @@ vi.mock("@/composables/useToast", () => ({
   }),
 }));
 
-let ui: ReturnType<typeof useUiStore>;
+let appUi: ReturnType<typeof useAppUiStore>;
 
 /** The Customize / Done toggle in the header's action slot. */
 const customizeButton = (wrapper: ReturnType<typeof mountView>) =>
@@ -85,7 +85,7 @@ const mountView = () =>
 describe("DashboardView", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
-    ui = useUiStore();
+    appUi = useAppUiStore();
     mocks.route.query = {};
     mocks.replace.mockReset();
     mocks.widgetsFor = (surface) => DEFAULT_LAYOUTS[surface as DashboardSurface].widgets;
@@ -106,7 +106,7 @@ describe("DashboardView", () => {
   });
 
   it("shows what is in front of you once a session starts", async () => {
-    ui.sessionRunning = true;
+    appUi.sessionRunning = true;
     const wrapper = mountView();
     await wrapper.vm.$nextTick();
     expect(wrapper.findComponent(SessionWidget).exists()).toBe(true);
@@ -116,11 +116,11 @@ describe("DashboardView", () => {
 
   // A DM mid-session must be able to check the gaps without ending the table.
   it("lets the query override the session", () => {
-    ui.sessionRunning = true;
+    appUi.sessionRunning = true;
     mocks.route.query = { view: "prep" };
     expect(mountView().findComponent(PrepGapsWidget).exists()).toBe(true);
 
-    ui.sessionRunning = false;
+    appUi.sessionRunning = false;
     mocks.route.query = { view: "session" };
     expect(mountView().findComponent(SessionWidget).exists()).toBe(true);
   });
@@ -136,7 +136,7 @@ describe("DashboardView", () => {
   // rather than pinning it — otherwise a DM who toggled back and forth once
   // would stay frozen on that side for the rest of the evening.
   it("clears the override when it agrees with the session", () => {
-    ui.sessionRunning = true;
+    appUi.sessionRunning = true;
     mocks.route.query = { view: "prep", foo: "bar" };
     const wrapper = mountView();
     wrapper.findComponent({ name: "SegmentedControl" }).vm.$emit("update:modelValue", "session");
@@ -154,7 +154,7 @@ describe("DashboardView", () => {
     );
     expect(renderedOrder).toEqual(expectedOrder);
 
-    ui.sessionRunning = true;
+    appUi.sessionRunning = true;
     const sessionWrapper = mountView();
     expect(sessionWrapper.findComponent(WIDGET_COMPONENTS["live-encounter"]).exists()).toBe(true);
     expect(sessionWrapper.findComponent(WIDGET_COMPONENTS["recent-npcs"]).exists()).toBe(true);

@@ -51,7 +51,7 @@ export interface DashboardLayout {
    * being the engine overriding them and becomes them trading order for
    * density, deliberately and reversibly.
    *
-   * Lives on the layout rather than in `useUiStore` because it is part of the
+   * Lives on the layout rather than in a domain UI store because it is part of the
    * arrangement: it persists per user × campaign × surface with everything
    * else, and Reset clears it along with the rest.
    */

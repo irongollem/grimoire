@@ -127,7 +127,7 @@
 <script setup lang="ts">
 import { ref, shallowRef, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import IlluminatePreviewPanel from "@/components/illuminate/IlluminatePreviewPanel.vue";
 import IlluminateControlsPanel from "@/components/illuminate/IlluminateControlsPanel.vue";

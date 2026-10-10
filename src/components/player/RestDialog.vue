@@ -157,9 +157,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useClassHitDice } from "@/composables/party/useClassHitDice";
@@ -167,7 +167,7 @@ import { abilityModifier } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
 import type { DieSize } from "@/lib/dice/dice";
-import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
+import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
 
 const props = defineProps<{
   member: PartyMember;

@@ -95,8 +95,8 @@
  * so there the button is present but inert, and its tooltip says why.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { IconHide, IconReveal } from "@/lib/icons";
 import { NPC_PLAYER_FIELDS, type NpcPlayerFieldKey } from "@/lib/npcDisplay";

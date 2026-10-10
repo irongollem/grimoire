@@ -149,9 +149,9 @@
 import { computed } from "vue";
 import { ATTACK_TYPES, SAVE_ATTRIBUTES, SAVE_EFFECTS, AOE_SHAPES } from "@/types/spell.types";
 import type { SpellSchool } from "@/types/spell.types";
-import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import DamageRollsInput from "@/components/common/controls/DamageRollsInput.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { DamageRoll } from "@/lib/dice/dice";
 
 const {

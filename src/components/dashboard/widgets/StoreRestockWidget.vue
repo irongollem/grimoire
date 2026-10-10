@@ -55,7 +55,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useStoreStockCounts } from "@/composables/items/useStoreItems";
 import { buildStoreRestockRows, storeLocations } from "@/lib/dashboard/storeRestock";

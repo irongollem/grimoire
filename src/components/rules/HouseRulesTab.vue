@@ -132,14 +132,14 @@
 
 <script setup lang="ts">
 import { ref, computed, shallowRef } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
 import { IconChevronRight } from '@/lib/icons';
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { usePlayerVisibleRules } from "@/composables/rules/useRules";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { listOptionalRules } from "@/rules/optionalRules";

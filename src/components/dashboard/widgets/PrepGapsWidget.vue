@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useQuests } from "@/composables/quests/useQuests";

@@ -38,7 +38,7 @@
  * error it computes from an unsaved form, and the widget has no form. Each
  * owns its trigger; this owns the answer.
  */
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { RollTableRollResult } from "@/lib/dungeon-features/rollTableRoll";
 
 defineProps<{ result: RollTableRollResult }>();

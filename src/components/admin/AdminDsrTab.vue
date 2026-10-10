@@ -72,11 +72,11 @@
         <option value="answered">Answered</option>
       </AppSelect>
       <AppButton
-        v-if="ui.adminDsrHasActiveFilters"
+        v-if="adminUi.adminDsrHasActiveFilters"
         variant="subtle"
         size="sm"
         label="Clear"
-        @click="ui.resetAdminDsrFilters()"
+        @click="adminUi.resetAdminDsrFilters()"
       />
     </div>
 
@@ -124,12 +124,12 @@
  */
 import { computed, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
 import DsrRequestRow from "@/components/admin/DsrRequestRow.vue";
-import { useUiStore } from "@/stores/ui";
+import { useAdminUiStore } from "@/stores/ui/admin";
 import { useAdminUsers } from "@/composables/admin/useAdminUsers";
 import {
   DSR_DEADLINE_DAYS,
@@ -144,8 +144,8 @@ import {
   type DsrRequestType,
 } from "@/composables/admin/useDsrRequests";
 
-const ui = useUiStore();
-const { adminDsrSearch: search, adminDsrFilterStatus: filterStatus } = storeToRefs(ui);
+const adminUi = useAdminUiStore();
+const { adminDsrSearch: search, adminDsrFilterStatus: filterStatus } = storeToRefs(adminUi);
 
 const requestsQuery = useDsrRequests();
 const usersQuery = useAdminUsers();

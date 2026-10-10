@@ -85,7 +85,7 @@
 import { computed, nextTick, ref, watch, type Component } from "vue";
 import { IconSearch, IconMusicNote, IconWind, IconLightning, IconMusic, IconListOrdered } from "@/lib/icons";
 import SoundPaletteRow from "./SoundPaletteRow.vue";
-import AppModal from "@/components/common/AppModal.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { usePlaylists, useFetchPlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";

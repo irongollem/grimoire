@@ -23,14 +23,14 @@
  * round trip.
  */
 import { ref, computed, type HTMLAttributes } from "vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import { useUiStore } from "@/stores/ui";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 import { cn } from "@/lib/utils";
 
 const { class: className } = defineProps<{ class?: HTMLAttributes["class"] }>();
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const { switchMode } = useModeSwitch();
 
 const switching = ref(false);
@@ -42,10 +42,10 @@ const MODE_OPTIONS = [
 
 // SegmentedControl needs modelValue and options to share one generic type;
 // widening to plain string (as CampaignScopeField's scopeValue does) lets
-// ui.userMode's "" (no mode chosen yet) pass through as "neither selected"
+// appUi.userMode's "" (no mode chosen yet) pass through as "neither selected"
 // without also having to declare "" as a selectable option.
 const modeValue = computed<string>({
-  get: () => ui.userMode,
+  get: () => appUi.userMode,
   set: (target) => {
     if (target !== "dm" && target !== "player") return;
     void applySwitch(target);

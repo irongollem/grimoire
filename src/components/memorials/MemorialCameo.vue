@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import MemorialLaurel from "@/components/memorials/MemorialLaurel.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { MemorialKind } from "@/types/memorial.types";

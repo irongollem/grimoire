@@ -1,4 +1,4 @@
-import type { ImageVariant } from "@/components/common/EntityImageBlock.vue";
+import type { ImageVariant } from "@/components/common/entity/EntityImageBlock.vue";
 
 /**
  * The True Form / Cutout / Alter Ego tab over an NPC's portrait art (#917

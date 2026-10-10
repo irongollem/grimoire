@@ -2,7 +2,7 @@ import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import FactionGeneratorPanel from "./FactionGeneratorPanel.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 
 const mocks = vi.hoisted(() => ({
   createFaction: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
   useRouter: () => ({ push: mocks.push }),
 }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ factionGeneratorOpen: true }) }));
+vi.mock("@/stores/ui/generators", () => ({ useGeneratorUiStore: () => ({ factionGeneratorOpen: true }) }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },

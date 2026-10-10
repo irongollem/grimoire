@@ -58,8 +58,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { ABILITY_KEYS, ABILITY_LABELS } from "@/types/card.types";
 import type { UsesAmount } from "@/rules/features/mechanics.types";
 import { AMOUNT_KINDS, amountOfKind } from "./mechanicsDraft";

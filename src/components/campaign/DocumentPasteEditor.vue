@@ -51,7 +51,7 @@
  * case.
  */
 import { ref } from "vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { sourceHtmlToTiptapContent } from "@/lib/tiptap/sourceHtml";
 
 const { placeholder = "Copy the whole page from your source and paste it here…" } = defineProps<{

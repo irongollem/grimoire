@@ -178,11 +178,11 @@
 
 <script setup lang="ts">
 import { IconHide, IconReveal } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
 import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
 import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
 import RunnerRollStatus from "@/components/encounters/RunnerRollStatus.vue";

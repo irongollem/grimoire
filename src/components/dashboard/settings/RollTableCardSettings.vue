@@ -27,7 +27,7 @@
  * looking at; an empty picker with a "Search…" prompt reads as broken.
  */
 import { computed } from "vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { parseRollTableCardSettings } from "@/lib/dashboard/rollTableCard";
 

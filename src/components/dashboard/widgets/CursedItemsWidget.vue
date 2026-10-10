@@ -58,7 +58,7 @@ import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { buildCursedItems } from "@/lib/dashboard/cursedItems";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 
 /**

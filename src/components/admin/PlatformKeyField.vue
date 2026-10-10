@@ -51,8 +51,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconHide, IconReveal } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { useAdminKeys } from "@/composables/admin/useAdminKeys";
 import type { KeyProvider } from "@/composables/admin/useAdminKeys";
 

@@ -306,13 +306,13 @@ import {
   IconRefresh,
   IconUpload,
 } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import ProFeatureGate from "@/components/billing/ProFeatureGate.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import DocumentImportWizard from "@/components/campaign/DocumentImportWizard.vue";
 import DocumentImportPasteStep from "@/components/campaign/DocumentImportPasteStep.vue";
 import ArchiveImportPanel from "@/components/campaign/ArchiveImportPanel.vue";

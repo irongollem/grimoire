@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.deityGeneratorOpen"
+    v-model:open="generatorsUi.deityGeneratorOpen"
     v-model:concept="concept"
     v-model:generate-image="generateImage"
     title="Deity Generator"
@@ -51,13 +51,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useToast } from "@/composables/useToast";
 import { useCreateDeity, useAllDeities, useAllPantheons } from "@/composables/deities/useDeities";
-import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
@@ -68,7 +68,7 @@ import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { useCreateEntityNote } from "@/composables/notes/useEntityNotes";
 import { CLERIC_DOMAINS, DEITY_ALIGNMENTS } from "@/types/deity.types";
 
-const ui       = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
 const toast = useToast();
 const { mutateAsync: createDeity } = useCreateDeity();
@@ -77,7 +77,7 @@ const { logImageGeneration } = useImageGenerationLog();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useDeityGeneration();
 
 // Mounted on every DM page: only fetch the pantheons and deities once the panel opens.
-const panelOpen = () => ui.deityGeneratorOpen;
+const panelOpen = () => generatorsUi.deityGeneratorOpen;
 const { data: pantheons } = useAllPantheons(panelOpen);
 const { data: deities } = useAllDeities(panelOpen);
 
@@ -197,7 +197,7 @@ async function save(draft: DeityDraft) {
   }
 
   completedEntityId.value = deity.id;
-  ui.deityGeneratorOpen = false;
+  generatorsUi.deityGeneratorOpen = false;
   router.push(`/deities/${deity.id}`);
 }
 </script>

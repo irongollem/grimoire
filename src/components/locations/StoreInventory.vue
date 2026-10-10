@@ -220,11 +220,11 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
 import { IconAdd, IconClose, IconHide, IconReveal, IconShop, IconShuffle } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import {

@@ -25,7 +25,7 @@ vi.mock("@/composables/memorials/useMemorials", () => ({
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: () => "x" }) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => authState }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
-vi.mock("@/components/common/FocalImage.vue", () => ({ default: { template: "<div />" } }));
+vi.mock("@/components/common/media/FocalImage.vue", () => ({ default: { template: "<div />" } }));
 
 /** A fallen character's memorial for the notice to show; override what a test is about. */
 function fallen(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial {

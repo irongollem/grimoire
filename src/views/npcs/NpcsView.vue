@@ -24,7 +24,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.npcGeneratorOpen = true"
+        @click="npcsUi.npcGeneratorOpen = true"
       />
       <ListActionButton
         :active="npcListRef?.selecting ?? false"
@@ -291,7 +291,7 @@
           block
           v-if="isAiEnabled"
           label="Generate"
-          @click="overflowOpen = false; ui.npcGeneratorOpen = true"
+          @click="overflowOpen = false; npcsUi.npcGeneratorOpen = true"
         >
           <template #icon><IconGenerate class="size-5 shrink-0 text-muted-foreground" /></template>
         </AppButton>
@@ -342,26 +342,26 @@ import {
   IconAdd, IconCheck, IconClose, IconGenerate, IconLayers,
   IconNetwork, IconPopulate, IconSearch, IconSettings,
 } from '@/lib/icons';
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import MobileSheet from "@/components/common/MobileSheet.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterGroup from "@/components/common/list/ListFilterGroup.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import NpcRelationshipFilter from "@/components/npcs/NpcRelationshipFilter.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useParty } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useUiStore } from "@/stores/ui";
+import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import { usePopulateSettingNpcs } from "@/composables/npcs/useNpcs";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useDetailModal } from "@/composables/useDetailModal";
 
@@ -371,7 +371,7 @@ const IconFilter = IconSettings;
 
 type LocationOption = { id: string; name: string; depth: number };
 
-const ui = useUiStore();
+const npcsUi = useNpcsUiStore();
 const campaign = useCampaignStore();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("npcs", "/npcs/new");
@@ -440,17 +440,17 @@ const SORT_OPTIONS = [
   { value: "location", label: "Location" },
 ] as const satisfies ReadonlyArray<{ value: "name" | "location"; label: string }>;
 
-const search = computed({ get: () => ui.npcsSearchQuery, set: (v) => { ui.npcsSearchQuery = v; } });
-const statusFilter = computed({ get: () => ui.npcsFilterStatus, set: (v: NpcStatus | "all") => { ui.npcsFilterStatus = v; } });
-const relFilter = computed({ get: () => ui.npcsFilterRelationship, set: (v: NpcRelationship | "all") => { ui.npcsFilterRelationship = v; } });
-const locationFilter = computed({ get: () => ui.npcsFilterLocation, set: (v) => { ui.npcsFilterLocation = v; } });
-const partyMemberFilter = computed({ get: () => ui.npcsFilterPartyMember, set: (v) => { ui.npcsFilterPartyMember = v; } });
-const sortBy = computed({ get: () => ui.npcsFilterSortBy, set: (v) => { ui.npcsFilterSortBy = v; } });
+const search = computed({ get: () => npcsUi.npcsSearchQuery, set: (v) => { npcsUi.npcsSearchQuery = v; } });
+const statusFilter = computed({ get: () => npcsUi.npcsFilterStatus, set: (v: NpcStatus | "all") => { npcsUi.npcsFilterStatus = v; } });
+const relFilter = computed({ get: () => npcsUi.npcsFilterRelationship, set: (v: NpcRelationship | "all") => { npcsUi.npcsFilterRelationship = v; } });
+const locationFilter = computed({ get: () => npcsUi.npcsFilterLocation, set: (v) => { npcsUi.npcsFilterLocation = v; } });
+const partyMemberFilter = computed({ get: () => npcsUi.npcsFilterPartyMember, set: (v) => { npcsUi.npcsFilterPartyMember = v; } });
+const sortBy = computed({ get: () => npcsUi.npcsFilterSortBy, set: (v) => { npcsUi.npcsFilterSortBy = v; } });
 
 const partyOptions = computed(() => (party.value ?? []).map((m) => ({ id: m.id, name: m.name })));
 
-const hasActiveFilters = computed(() => ui.npcsHasActiveFilters);
-function clearFilters() { ui.resetNpcsFilters(); }
+const hasActiveFilters = computed(() => npcsUi.npcsHasActiveFilters);
+function clearFilters() { npcsUi.resetNpcsFilters(); }
 
 // ── Mobile filter chrome ────────────────────────────────────────────────────
 

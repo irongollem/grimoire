@@ -41,7 +41,7 @@ import { computed } from "vue";
 import type { Spell } from "@/types/spell.types";
 import { extractTiptapText } from "@/lib/utils";
 import InkedShell from "./InkedShell.vue";
-import DamageIcon from "@/components/common/DamageIcon.vue";
+import DamageIcon from "@/components/common/statblock/DamageIcon.vue";
 import { accentForSpell } from "../tokens.shared";
 import { useSpellCardData } from "@/composables/cardforge/useSpellCardData";
 

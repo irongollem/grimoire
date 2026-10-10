@@ -39,8 +39,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconPopOut } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import type { ButtonSize } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import type { ButtonSize } from "@/components/common/controls/appButtonVariants";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 

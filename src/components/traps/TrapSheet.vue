@@ -162,9 +162,9 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteTrap } from "@/composables/dungeon-features/useTraps";
 import { CR_XP } from "@/types/encounter.types";
 import type { Trap } from "@/types/trap.types";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityPlacements from "@/components/locations/EntityPlacements.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

@@ -183,8 +183,8 @@
 import { computed } from 'vue';
 import { IconChevronDown, IconLoot } from '@/lib/icons';
 import ChatItemDropDetails from '@/components/chat/ChatItemDropDetails.vue';
-import AppButton from '@/components/common/AppButton.vue';
-import EntityCombobox from '@/components/common/EntityCombobox.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import EntityCombobox from '@/components/common/controls/EntityCombobox.vue';
 import { inventoryItemRef } from '@/lib/itemRef';
 import type { ItemDropMetadata } from '@/types/chat.types';
 

@@ -28,7 +28,7 @@
  * so an empty picker never reads as broken.
  */
 import { computed } from "vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useRules } from "@/composables/rules/useRules";
 import { parseRuleTrackerCardSettings } from "@/lib/dashboard/ruleTrackerCard";
 

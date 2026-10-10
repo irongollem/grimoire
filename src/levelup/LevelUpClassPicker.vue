@@ -53,9 +53,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import WizardStepCard from "@/components/common/WizardStepCard.vue";
-import CalloutChip from "@/components/common/CalloutChip.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import WizardStepCard from "@/components/common/wizard/WizardStepCard.vue";
+import CalloutChip from "@/components/common/feedback/CalloutChip.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { CharacterClass } from "@/types/multiclass.types";
 
 const {

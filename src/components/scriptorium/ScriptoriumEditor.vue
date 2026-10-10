@@ -187,7 +187,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, nextTick, onUnmounted, provide, toRefs, watch } from "vue";
 import { useRecordDraft } from "@/composables/useRecordDraft";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
@@ -218,16 +218,16 @@ import type {
 import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
 import BlockPickerPanel from "@/components/scriptorium/BlockPickerPanel.vue";
 import CoverPageInspector from "@/components/scriptorium/CoverPageInspector.vue";
-import ArtPickerModal from "@/components/common/ArtPickerModal.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import ArtPickerModal from "@/components/common/overlays/ArtPickerModal.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import HandoutPendingBanner from "@/components/scriptorium/HandoutPendingBanner.vue";
 import ScriptoriumMetadataToolbar from "@/components/scriptorium/ScriptoriumMetadataToolbar.vue";
 import ScriptoriumEditorToolbar from "@/components/scriptorium/ScriptoriumEditorToolbar.vue";
 import ScriptoriumPreviewPane from "@/components/scriptorium/ScriptoriumPreviewPane.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useEnhanceAvailable } from "@/ai/useTextEnhancement";
-import TextEnhanceBubble from "@/components/common/TextEnhanceBubble.vue";
+import TextEnhanceBubble from "@/components/common/ai/TextEnhanceBubble.vue";
 import type { JSONContent } from "@tiptap/core";
 import type { ScriptoriumTemplateSettings } from "@/data/scriptoriumTemplates/types";
 import type { PageFurnitureItem, FurnitureKind, FurnitureAnchor } from "@/types/scriptorium.types";
@@ -237,7 +237,7 @@ import FurnitureInspector from "@/components/scriptorium/FurnitureInspector.vue"
 import { collectEntityRefs, resolveEntityEmbeds } from "@/lib/scriptorium/entityEmbeds";
 import { useEntityEmbedData } from "@/composables/scriptorium/useEntityEmbedData";
 import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
-import EmptyState from "@/components/common/EmptyState.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { IconWarning } from "@/lib/icons";
 import { markEdited } from "@/ai/provenance";
 

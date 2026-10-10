@@ -123,10 +123,10 @@
  * generator instead.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { drawerTransition } from "@/lib/motion";
 import type { EntityKindEntry } from "@/lib/documentImport/entityKinds";
 import ImportDecisionChoice from "@/components/campaign/ImportDecisionChoice.vue";

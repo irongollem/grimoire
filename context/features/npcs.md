@@ -35,7 +35,7 @@ The list is windowed (`VirtualGrid`): only the rows near the viewport are mounte
 
 ### Filtering and Sorting
 
-All filter state is stored in `useUiStore` and survives navigation within the session.
+All filter state is stored in `useNpcsUiStore` and survives navigation within the session.
 
 | Filter       | Type         | Options                                                                      |
 | ------------ | ------------ | ---------------------------------------------------------------------------- |
@@ -124,7 +124,7 @@ lets the buttons wrap and keeps the page's own name (see the note in
 
 **Portrait tabs**: "True Form", "Cutout" and "Alter Ego" (#917 story 4) — the tab ids/labels are shared between the desktop sidebar (`NpcSidebar.vue`) and the phone editor (`NpcEditMobile.vue`) via `npcArtTabs.ts` so the two cannot drift. True Form and Alter Ego each have a separate `ImageUpload` with focal-point setter. The Cutout tab edits `cutout_url` — the true form alone on a transparent background, always of the true form (a disguise has no cutout of its own) — with no focal point and no Simulacrum "Mini" entry point; in place of "Generate with AI" it offers "Cut out from picture", which makes the cutout from the saved portrait through the `generate-cutout` edge function (platform credits, `entity_cutout`); and `expect-transparency` is set so `EntityImageBlock` warns if the uploaded image has no transparent background. The alter-ego tab is pre-selected if the NPC already has `disguise_name` or `disguise_portrait_url`.
 
-**Party Stance** (relationship): `RelationshipWheel` (`components/common/`, also the faction editor's Party standing control, #1011): the five 5e attitudes (Hostile, Unfriendly, Indifferent, Friendly, Helpful), each coloured from its `--relationship-*` token. `unknown` is the unset state rather than a sixth choice.
+**Party Stance** (relationship): `RelationshipWheel` (`components/common/entity/`, also the faction editor's Party standing control, #1011): the five 5e attitudes (Hostile, Unfriendly, Indifferent, Friendly, Helpful), each coloured from its `--relationship-*` token. `unknown` is the unset state rather than a sixth choice.
 
 **Status**: four coloured toggle buttons — Alive (green), Dead (red), Missing (amber), Unknown (grey).
 
@@ -427,7 +427,7 @@ groups that could no longer appear and coloured them with hexes nothing was pain
 | Legend                     | One swatch per relationship, built from `NPC_RELATIONSHIP_LABELS` + the ramp tokens. **Clickable**: shows only NPCs of that attitude, click again to release. Unselected swatches fade, the same grammar the faction focus uses |
 | Clear                      | Appears when any of the four is active; calls `resetNpcWebFilters()`                 |
 
-All four live in `useUiStore` (`npcWebSearch`, `npcWebShowPcs`, `npcWebFilterLocation`, `npcWebFilterType`) and survive navigating to an NPC sheet and back (#723). A graph is not a list, which is why the Filter State Pattern audit skipped it — but the filters are filters, so it gets the same treatment. `NpcWebTopBar` stays prop/emit-driven (the view owns where the state lives) and bridges to the `ListSearchInput` / `ListFilterSelect` v-models with local writable computeds.
+All four live in `useNpcsUiStore` (`npcWebSearch`, `npcWebShowPcs`, `npcWebFilterLocation`, `npcWebFilterType`) and survive navigating to an NPC sheet and back (#723). A graph is not a list, which is why the Filter State Pattern audit skipped it — but the filters are filters, so it gets the same treatment. `NpcWebTopBar` stays prop/emit-driven (the view owns where the state lives) and bridges to the `ListSearchInput` / `ListFilterSelect` v-models with local writable computeds.
 
 ### Side Panel
 
@@ -499,7 +499,7 @@ The alter-ego system integrates transparently: if the NPC is not yet revealed (`
 
 ### The People ledger (#987)
 
-`PlayerPartyView` wires it; the parts are in `src/components/play/people/` and the rules are pure functions in `src/lib/npcs/peopleLedger.ts` (tested).
+`PlayerPartyView` wires it; the parts are in `src/components/player/people/` and the rules are pure functions in `src/lib/npcs/peopleLedger.ts` (tested).
 
 **New to you** (`NewToYouStrip`, `NewToYouCard`, `useNewToYou`). `classifyPeople` splits the player's NPCs three ways:
 
@@ -509,9 +509,9 @@ The alter-ego system integrates transparently: if the NPC is not yet revealed (`
 
 A card turns once (`cardTurnStyle`, 520 ms, instant under reduced motion), then the NPC is marked read and the card stays turned in the strip for the rest of the visit. Nothing is classified until the read map has loaded, or every NPC would flash face down. The unread dot survives on ledger rows for an NPC the DM edited since the player last looked.
 
-**The ledger** (`PeopleLedger`, `PeopleLedgerRow`, `usePlayerPeople`). `buildPeopleGroups` groups by the sort: **Place** (one rubric per place, "in {parent}" when the parent is shared too, "Whereabouts unknown" last, rating then name inside), **Met** (one group per session: "Session 14" with its title and date, newest first, two sessions sharing a number kept apart; people met outside any session under "Before the log", last), or flat for **Rating** (default) and **Name**. Every order ends on the name. A row: portrait plate, name ("???" when not shared), species · occupation, the relationship mark (`RelationshipMark`, `components/common/`, shared with the faction list and sheet), `statusWord` (nothing for "alive"; dead also strikes the name through and greys the portrait), and the player's stars. **Portraits** (`ui.playerPeopleView`) shows the same groups as `PlayerNpcCard`s.
+**The ledger** (`PeopleLedger`, `PeopleLedgerRow`, `usePlayerPeople`). `buildPeopleGroups` groups by the sort: **Place** (one rubric per place, "in {parent}" when the parent is shared too, "Whereabouts unknown" last, rating then name inside), **Met** (one group per session: "Session 14" with its title and date, newest first, two sessions sharing a number kept apart; people met outside any session under "Before the log", last), or flat for **Rating** (default) and **Name**. Every order ends on the name. A row: portrait plate, name ("???" when not shared), species · occupation, the relationship mark (`RelationshipMark`, `components/common/entity/`, shared with the faction list and sheet), `statusWord` (nothing for "alive"; dead also strikes the name through and greys the portrait), and the player's stars. **Portraits** (`ui.playerPeopleView`) shows the same groups as `PlayerNpcCard`s.
 
-Sort, view and filters live in `useUiStore` (`playerPeopleSortBy` / `SortDir` / `View`, `playerPeopleFilter*`); sort and view are not part of Clear. Place is offered only when some NPC shows a location, and every place comparison reads only a location the player may see.
+Sort, view and filters live in `usePlayerUiStore` (`playerPeopleSortBy` / `SortDir` / `View`, `playerPeopleFilter*`); sort and view are not part of Clear. Place is offered only when some NPC shows a location, and every place comparison reads only a location the player may see.
 
 `npc_reveals` (migration `20261005220422`) holds one row per (NPC, party member): the first moment that member could see the NPC, whether it was shared with them directly or through its location's "share linked NPCs". Since `20261006072853` each row also carries `session_id` (the session open when it was written, else the next one started; see [`sessions.md`](sessions.md)) and `approximate`, and the DM may move a reveal to another session (`update` of `session_id` alone). The player's ledger labels sessions through `get_player_sessions`. Triggers on `npcs` and `locations` are its only writers; `on conflict do nothing` keeps the first moment, so unsharing and sharing again does not move it. A player reads only their own rows, the DM the whole campaign's (for preview). Reveals that existed before the table were backfilled with the NPC's `created_at`, the closest evidence left. `useSharedNpcs` is the projection alone, one request. Only the People page needs the moments, so `useMyNpcRevealMoments` (in `useNpcReveals.ts`) reads them separately, scoped to the campaign and the viewer's member (the previewed one in DM preview, the linked one otherwise), and `PlayerPartyView` sets `revealed_at` on its NPCs via `withRevealMoments`. The query key sits under `player-npcs`, so the `npcs_player` and `locations_player` doorbells refresh it with the projection. Other surfaces that render `PlayerNpcProfile` (lightboxes) get no `revealed_at`, so they show no "met" date.
 

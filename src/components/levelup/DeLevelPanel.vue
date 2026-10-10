@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { ref, computed, toRef } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { supabase } from "@/lib/supabase";
 import { SKILLS } from "@/types/party.types";
 import type { PartyMember } from "@/types/party.types";

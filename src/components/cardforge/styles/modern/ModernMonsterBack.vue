@@ -59,8 +59,8 @@ import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
 import ModernShell from "./ModernShell.vue";
 import FitText, { type FitEntry } from "../../FitText.vue";
-import DamageIcon from "@/components/common/DamageIcon.vue";
-import SenseIcon from "@/components/common/SenseIcon.vue";
+import DamageIcon from "@/components/common/statblock/DamageIcon.vue";
+import SenseIcon from "@/components/common/statblock/SenseIcon.vue";
 import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/cardforge/useMonsterCardData";
 

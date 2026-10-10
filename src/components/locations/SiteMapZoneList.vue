@@ -184,10 +184,10 @@
  * `SiteMapRegionList`.
  */
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
 import {
   dmEdit,

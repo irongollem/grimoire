@@ -37,9 +37,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconGenerate } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";

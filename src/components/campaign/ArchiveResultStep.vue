@@ -69,7 +69,7 @@
  * that stayed plain text, and the optional AI pass.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import ArchiveAiExtract from "@/components/campaign/ArchiveAiExtract.vue";
 import { IconChevronDown, IconChevronRight, IconExternalLink } from "@/lib/icons";
 import type { ArchiveSweepRun } from "@/composables/campaign/useArchiveImport";

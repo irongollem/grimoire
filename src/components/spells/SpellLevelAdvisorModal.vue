@@ -239,12 +239,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconTip } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import DiceInput from "@/components/common/DiceInput.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import DiceInput from "@/components/common/dice/DiceInput.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import { SPELL_SCHOOLS } from "@/types/spell.types";
 import type { SpellSchool } from "@/types/spell.types";
 import { parseDiceAvg } from "@/lib/spells/spellAdvisor";

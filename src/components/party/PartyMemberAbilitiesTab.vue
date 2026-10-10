@@ -164,8 +164,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import type { AbilitiesFormSlice } from "./partyMemberForm.types";
 import type { SkillProficiencies } from "@/types/party.types";
 import type { AcBreakdown } from "@/rules/armorClass";

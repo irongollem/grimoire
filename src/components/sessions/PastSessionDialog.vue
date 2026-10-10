@@ -19,9 +19,9 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { IconScrollText } from "@/lib/icons";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import PastSessionFields, { isPastSessionComplete, pastSessionInput, type PastSessionDraft } from "@/components/sessions/PastSessionFields.vue";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import type { PastSessionInput } from "@/composables/sessions/useCampaignSessions";

@@ -6,7 +6,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import { backgroundInsertFromAi, type BackgroundAiResult } from "@/lib/codex/backgroundAi";
 import type { BackgroundInsert } from "@/types/background.types";
@@ -19,7 +19,7 @@ registerAiGenerator({
   label: "Background",
   entityRoute: (id) => `/backgrounds/${id}`,
   openPanel: () => {
-    useUiStore().backgroundGeneratorOpen = true;
+    useGeneratorUiStore().backgroundGeneratorOpen = true;
   },
 });
 

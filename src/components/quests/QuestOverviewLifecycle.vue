@@ -126,11 +126,11 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useToast } from "@/composables/useToast";
 import { isQuotaExceeded } from "@/lib/quotaError";
-import AppInput from "@/components/common/AppInput.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import { IconAdd, IconClose, IconHide, IconReveal } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";

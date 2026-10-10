@@ -94,9 +94,9 @@ import { reactive, ref, computed } from 'vue';
 import { ALL_DICE } from '@/lib/dice/dice';
 import type { DieSize, RollMode } from '@/lib/dice/dice';
 import { IconAdd, IconMinus } from '@/lib/icons';
-import AppButton from '@/components/common/AppButton.vue';
-import AppInput from '@/components/common/AppInput.vue';
-import SegmentedControl from '@/components/common/SegmentedControl.vue';
+import AppButton from '@/components/common/controls/AppButton.vue';
+import AppInput from '@/components/common/controls/AppInput.vue';
+import SegmentedControl from '@/components/common/controls/SegmentedControl.vue';
 
 const emit = defineEmits<{
   roll: [payload: { counts: Partial<Record<DieSize, number>>; modifier: number; mode: RollMode }];

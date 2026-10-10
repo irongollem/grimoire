@@ -63,9 +63,9 @@
  */
 import { computed, defineAsyncComponent, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconAdd, IconDM, IconUserRound } from "@/lib/icons";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 import { useLazyMount } from "@/composables/useLazyMount";
@@ -82,7 +82,7 @@ const DemoCampaignOffer = defineAsyncComponent(
   () => import("@/components/campaign/DemoCampaignOffer.vue"),
 );
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const route = useRoute();
 const router = useRouter();
 const campaignStore = useCampaignStore();
@@ -93,7 +93,7 @@ const { data: archived } = useDmArchivedCampaigns();
 
 const blocking = computed(
   () =>
-    ui.userMode === "dm" &&
+    appUi.userMode === "dm" &&
     !route.meta.accountScoped &&
     !route.meta.requiresAdmin &&
     isSuccess.value &&
@@ -106,7 +106,7 @@ const showModal = ref(false);
 // useProPricing, and it only opens when a free account hits the campaign
 // quota. Mounting it eagerly cost a request on every cold DM load.
 const PaywallModal = defineAsyncComponent(
-  () => import("@/components/common/PaywallModal.vue"),
+  () => import("@/components/common/overlays/PaywallModal.vue"),
 );
 const showPaywall = ref(false);
 const paywallMounted = useLazyMount(showPaywall);

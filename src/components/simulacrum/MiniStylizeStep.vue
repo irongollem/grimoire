@@ -72,10 +72,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { IconGenerate } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";

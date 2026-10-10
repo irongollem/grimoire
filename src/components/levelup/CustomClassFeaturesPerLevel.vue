@@ -68,9 +68,9 @@
 import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconAdd } from "@/lib/icons";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AddAsiAction from "@/components/levelup/AddAsiAction.vue";
 import type { RulesetKey } from "@/types/ruleset.types";
 

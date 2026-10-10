@@ -2,7 +2,7 @@ import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MonsterGeneratorPanel from "./MonsterGeneratorPanel.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 
 const mocks = vi.hoisted(() => ({
@@ -26,7 +26,7 @@ vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
   useRouter: () => ({ push: mocks.push }),
 }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ monsterGeneratorOpen: true }) }));
+vi.mock("@/stores/ui/monsters", () => ({ useMonstersUiStore: () => ({ monsterGeneratorOpen: true }) }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },

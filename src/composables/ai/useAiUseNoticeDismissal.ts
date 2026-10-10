@@ -5,8 +5,8 @@ import type { Campaign } from "@/types/campaign.types";
  * Whether the once-per-account AI-use notice (see `AiUseNoticeGate.vue`) has
  * been dismissed *without* being acknowledged during this browser session.
  *
- * Module-scoped ref, not `useUiStore` and not `localStorage` — same pattern as
- * `useCast.ts`'s device-singleton state. `useUiStore` is for list-filter/UI
+ * Module-scoped ref, not a domain UI store and not `localStorage` — same pattern as
+ * `useCast.ts`'s device-singleton state. The domain UI stores are for list-filter/UI
  * state that survives navigation (Filter State Pattern); this is a one-shot
  * "don't nag again this load" flag, and it must NOT survive a reload/new tab —
  * an unacknowledged campaign has to keep prompting until the user actually

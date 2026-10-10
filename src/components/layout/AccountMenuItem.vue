@@ -38,7 +38,7 @@
  * 2.5.3 (Label in Name) for the one row that has a tooltip at all.
  */
 import type { Component } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { cn } from "@/lib/utils";
 import type { RouteLocationRaw } from "vue-router";
 

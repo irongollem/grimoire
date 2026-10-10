@@ -43,9 +43,9 @@
  * `useMonsterWithArt` does, for this and for the detail page alike.
  */
 import { computed, toRef } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import EntityDetailModal from "@/components/common/EntityDetailModal.vue";
+import EntityDetailModal from "@/components/common/overlays/EntityDetailModal.vue";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import MonsterSheet from "@/components/monsters/MonsterSheet.vue";
 import { useMonsterWithArt } from "@/composables/monsters/useMonsters";

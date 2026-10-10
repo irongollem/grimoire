@@ -80,9 +80,9 @@
 </template>
 
 <script setup lang="ts">
-import EntityImageBlock from '@/components/common/EntityImageBlock.vue'
-import RelationshipWheel from '@/components/common/RelationshipWheel.vue'
-import TagInput from '@/components/common/TagInput.vue'
+import EntityImageBlock from '@/components/common/entity/EntityImageBlock.vue'
+import RelationshipWheel from '@/components/common/entity/RelationshipWheel.vue'
+import TagInput from '@/components/common/controls/TagInput.vue'
 import type { NpcStatus, NpcRelationship } from '@/types/npc.types'
 import { NPC_ART_VARIANTS, type NpcArtTab } from '@/components/npcs/npcArtTabs'
 

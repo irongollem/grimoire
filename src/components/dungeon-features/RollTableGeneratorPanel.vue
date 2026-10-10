@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.rollTableGeneratorOpen"
+    v-model:open="generatorsUi.rollTableGeneratorOpen"
     v-model:concept="concept"
     title="Roll Table Generator"
     concept-placeholder="Forest road at night, bandits active in the region, levels 3–5…"
@@ -104,7 +104,7 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckCircle } from "@/lib/icons";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations } from "@/composables/locations/useLocations";
@@ -112,10 +112,10 @@ import { useAllFactions } from "@/composables/factions/useFactions";
 import { useCreateRollTable } from "@/composables/dungeon-features/useRollTables";
 import { useRollTableGeneration } from "@/ai/useRollTableGeneration";
 import { resolveGeneratedEntities, type ResolvedEntity, ENTITY_KIND_ROUTE } from "@/ai/resolveGeneratedEntities";
-import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
+import GeneratedEntityChips from "@/components/common/ai/GeneratedEntityChips.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
@@ -125,11 +125,11 @@ import type { RollTableDie } from "@/types/rollTable.types";
 const DIE_OPTIONS: RollTableDie[] = ["1d6", "1d8", "1d10", "1d12", "1d20"];
 const dieOptions = DIE_OPTIONS.map((d) => ({ value: d, label: d }));
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
 // Mounted on every DM page — only fetch the dropdown data once the panel opens.
-const panelOpen = () => ui.rollTableGeneratorOpen;
+const panelOpen = () => generatorsUi.rollTableGeneratorOpen;
 const { data: npcs } = useNpcs(panelOpen);
 const { data: locations } = useAllLocations(panelOpen);
 const { data: factions } = useAllFactions(panelOpen);
@@ -164,7 +164,7 @@ const resolvedEntities = computed<ResolvedEntity[]>(() =>
 
 function goToEntity(entity: ResolvedEntity) {
   if (!entity.id) return;
-  ui.rollTableGeneratorOpen = false;
+  generatorsUi.rollTableGeneratorOpen = false;
   router.push(`${ENTITY_KIND_ROUTE[entity.kind]}/${entity.id}`);
 }
 
@@ -221,7 +221,7 @@ async function createTable() {
 
 function viewCreated() {
   if (!createdTableId.value) return;
-  ui.rollTableGeneratorOpen = false;
+  generatorsUi.rollTableGeneratorOpen = false;
   router.push(`/roll-tables/${createdTableId.value}`);
 }
 </script>

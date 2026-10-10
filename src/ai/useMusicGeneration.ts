@@ -3,7 +3,7 @@ import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useQueryClient, type QueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { useUiStore } from "@/stores/ui";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import type { SoundCategory } from "@/types/sound.types";
 import type { FallbackPromptRequest, MusicLengthSeconds, MusicVocals } from "@/lib/audio/aiMusic";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
@@ -64,7 +64,7 @@ registerAiGenerator({
   // Sounds have no page of their own; the finished track is on the board.
   entityRoute: () => "/soundboard",
   openPanel: () => {
-    useUiStore().addSoundDialogOpen = true;
+    useSoundboardUiStore().addSoundDialogOpen = true;
   },
 });
 

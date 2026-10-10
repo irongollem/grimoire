@@ -99,8 +99,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconMinus, IconTrap } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import TrapPreviewModal from "@/components/traps/TrapPreviewModal.vue";
 import { crToXp } from "@/types/encounter.types";
 import type { Trap } from "@/types/trap.types";

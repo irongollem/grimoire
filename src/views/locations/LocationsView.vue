@@ -28,7 +28,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.locationGeneratorOpen = true"
+        @click="generatorsUi.locationGeneratorOpen = true"
       />
       <ListActionButton
         variant="primary"
@@ -41,11 +41,11 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="ui.locationsHasActiveFilters"
-        @clear="ui.resetLocationsFilters()"
+        :has-active-filters="locationsUi.locationsHasActiveFilters"
+        @clear="locationsUi.resetLocationsFilters()"
       >
-        <ListSearchInput v-model="ui.locationsSearch" placeholder="Search locations…" />
-        <ListFilterSelect v-model="ui.locationsFilterType" aria-label="Location type filter">
+        <ListSearchInput v-model="locationsUi.locationsSearch" placeholder="Search locations…" />
+        <ListFilterSelect v-model="locationsUi.locationsFilterType" aria-label="Location type filter">
           <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
         </ListFilterSelect>
       </ListFilterBar>
@@ -62,21 +62,23 @@ import { computed } from "vue";
 import { useToast } from "@/composables/useToast";
 import { pluralizeCount } from "@/lib/utils";
 import { IconAdd, IconFaction, IconGenerate, IconPopulate } from '@/lib/icons';
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import AtlasExplorer from "@/components/locations/AtlasExplorer.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/locations/useLocations";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 import { useCampaignStore } from "@/stores/campaign";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 
-const ui = useUiStore();
+const generatorsUi = useGeneratorUiStore();
+const locationsUi = useLocationsUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("locations", "/locations/new");

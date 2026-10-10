@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import MemorialCameo from "@/components/memorials/MemorialCameo.vue";
 import { useRestoreCharacter } from "@/composables/memorials/useMemorials";
 import { useConfirm } from "@/composables/useConfirm";

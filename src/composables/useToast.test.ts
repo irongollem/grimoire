@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { useToast } from "./useToast";
-import ToastHost from "@/components/common/ToastHost.vue";
+import ToastHost from "@/components/common/feedback/ToastHost.vue";
 
 describe("useToast", () => {
   // `toasts` is a module-level singleton (see useToast.ts) shared by every

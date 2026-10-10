@@ -49,7 +49,7 @@ import { IconDungeon, IconParty } from "@/lib/icons";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import { threadBadge, type ThreadLike } from "@/lib/quests/threads";
 import { QUEST_BEAT_KIND_LABELS } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { title, kind, visibility, current, presentation, editable = true, deletable = true, threads = [], gated = false, isEntry = false } = defineProps<{ title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean; threads?: ThreadLike[]; gated?: boolean; isEntry?: boolean }>();
 const emit = defineEmits<{ select: []; open: []; delete: []; "create-next": [] }>();

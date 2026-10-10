@@ -83,15 +83,15 @@
     >
       <AtlasTree
         :index="index"
-        :expanded="ui.locationsExpanded"
+        :expanded="locationsUi.locationsExpanded"
         :selected-id="selectedId"
         :matches="matches"
-        :is-filtered="ui.locationsHasActiveFilters"
+        :is-filtered="locationsUi.locationsHasActiveFilters"
         :total-count="allLocations.length"
         :today-year="todayYear"
         @select="select"
-        @toggle="ui.toggleLocationExpanded"
-        @collapse-all="ui.collapseAllLocations()"
+        @toggle="locationsUi.toggleLocationExpanded"
+        @collapse-all="locationsUi.collapseAllLocations()"
         @collapse-tree="foldTree"
       />
     </div>
@@ -195,10 +195,10 @@
         v-else
         :index="index"
         :location="selected"
-        :pane-mode="ui.locationsPaneMode"
+        :pane-mode="locationsUi.locationsPaneMode"
         :today-year="todayYear"
         @select="select"
-        @update:pane-mode="ui.locationsPaneMode = $event"
+        @update:pane-mode="locationsUi.locationsPaneMode = $event"
       />
     </div>
   </div>
@@ -210,9 +210,9 @@ import { useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
-import AppButton from "@/components/common/AppButton.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
 import AtlasPlacePane from "@/components/locations/AtlasPlacePane.vue";
 import AtlasTree from "@/components/locations/AtlasTree.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
@@ -231,7 +231,7 @@ import { ancestorIds, buildAtlasIndex } from "@/lib/locations/tree";
 import { chooseMatchTerm } from "@/lib/locations/matchTerm";
 import { scrollParentOf } from "@/lib/scrollParent";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 
 // ── Resizable tree column (desktop) ────────────────────────────────────────
 // Shape of a half-open tree for the loading placeholder: depth indents the row,
@@ -283,7 +283,7 @@ function startDrag(e: PointerEvent) {
 }
 onBeforeUnmount(stopDrag);
 
-const ui = useUiStore();
+const locationsUi = useLocationsUiStore();
 const route = useRoute();
 const router = useRouter();
 const { todayYear } = storeToRefs(useCampaignStore());
@@ -292,7 +292,7 @@ const { data: locations, isLoading } = useAllLocations();
 const allLocations = computed(() => locations.value ?? []);
 const index = computed(() => buildAtlasIndex(allLocations.value));
 
-const selectedId = computed(() => ui.locationsSelectedId);
+const selectedId = computed(() => locationsUi.locationsSelectedId);
 // The tree list is slim (#972); the pane, the editor and the run surface show
 // a place in full, so the selected place is read by id. The slim row only
 // decides *whether* a place is selected, never what the pane renders.
@@ -326,7 +326,7 @@ const running = computed(() => route.query.run === "true" && selectedIsSite.valu
 // `useAtlasTreeFold` for why this must not touch the DM's own fold.
 const paneWantsWidth = computed(() => {
   if (!selectedId.value || editing.value) return false;
-  return running.value || (ui.locationsPaneMode === "map" && selectedIsSite.value);
+  return running.value || (locationsUi.locationsPaneMode === "map" && selectedIsSite.value);
 });
 const { treeFolded, resultsOpen, foldTree, unfoldTree, closeResults } =
   useAtlasTreeFold(paneWantsWidth);
@@ -339,16 +339,16 @@ const { treeFolded, resultsOpen, foldTree, unfoldTree, closeResults } =
  * what made the list slow. These rows are text and a colour dot, so paging them
  * would add machinery to solve a cost that no longer exists.
  */
-const searchText = computed(() => ui.locationsSearch);
+const searchText = computed(() => locationsUi.locationsSearch);
 const { matchedIds: textMatchedIds, matchedTerm } = useLocationTextSearch(searchText);
 
 const matches = computed(() => {
-  if (!ui.locationsHasActiveFilters) return [];
-  const type = ui.locationsFilterType;
+  if (!locationsUi.locationsHasActiveFilters) return [];
+  const type = locationsUi.locationsFilterType;
   // One term for name, tag and text matching alike, so the list moves in one
   // step when the database answer lands and never mixes two terms.
   const { term, useTextMatches } = chooseMatchTerm(
-    ui.locationsSearch,
+    locationsUi.locationsSearch,
     matchedTerm.value,
     LOCATION_TEXT_SEARCH_MIN_LENGTH,
   );
@@ -386,7 +386,7 @@ function select(id: string) {
 function clearSelection() {
   // Forget it too, or "All places" would be undone by the restore below the
   // next time the Atlas is opened — an exit the user cannot take.
-  ui.locationsLastSelectedId = null;
+  locationsUi.locationsLastSelectedId = null;
   // Every per-place mode flag goes with the place it was opened for — left
   // in place, `edit`/`run`/`build` would attach themselves to whatever the
   // DM selects next, editing or running a place they never asked to.
@@ -411,7 +411,7 @@ watch(
   [() => route.query.at, index],
   ([at, idx]) => {
     if (restoredLastSelection || typeof at === "string") return;
-    const remembered = ui.locationsLastSelectedId;
+    const remembered = locationsUi.locationsLastSelectedId;
     if (!remembered) return;
     // The index is empty until the locations query resolves, and this watcher
     // runs immediately. Treating that first empty tick as "the place is gone"
@@ -424,7 +424,7 @@ watch(
     // campaign that is no longer the active one. Now that the index is loaded
     // it is the authority, so an id it does not know is forgotten.
     if (!idx.byId.has(remembered)) {
-      ui.locationsLastSelectedId = null;
+      locationsUi.locationsLastSelectedId = null;
       return;
     }
     router.replace({ query: { ...route.query, at: remembered } });
@@ -436,18 +436,18 @@ watch(
   [() => route.query.at, index],
   ([at, idx]) => {
     const id = typeof at === "string" && idx.byId.has(at) ? at : null;
-    ui.locationsSelectedId = id;
+    locationsUi.locationsSelectedId = id;
     // Only remember a real place. Clearing is handled by `clearSelection`, so a
     // null here is either the empty list or an id that no longer resolves —
     // neither of which should overwrite a good memory.
     if (id) {
-      ui.locationsLastSelectedId = id;
+      locationsUi.locationsLastSelectedId = id;
       restoredLastSelection = true;
     }
     // Opening a place also opens the branch holding it, so dismissing a search
     // leaves the tree showing where you actually are rather than collapsed —
     // and a deep link or a Back lands with its ancestors already unfolded.
-    if (id) ui.revealLocationPath(ancestorIds(idx, id));
+    if (id) locationsUi.revealLocationPath(ancestorIds(idx, id));
   },
   { immediate: true },
 );

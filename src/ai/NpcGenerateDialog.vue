@@ -83,11 +83,11 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { IconGenerate } from '@/lib/icons';
 import { AI_PROMPT_LIMIT } from "./utils";
 

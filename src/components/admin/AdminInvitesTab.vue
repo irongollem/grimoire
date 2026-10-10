@@ -120,8 +120,8 @@ import { ref, computed } from "vue";
 import { IconAdd, IconCheck, IconCopy, IconDelete } from "@/lib/icons";
 import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/admin/useAppInvites";
 import type { AppInvite, GrantedPlan } from "@/composables/admin/useAppInvites";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const invitesQuery = useAppInvites();
 const createInvite = useCreateAppInvite();

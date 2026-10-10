@@ -26,8 +26,8 @@ vi.mock("@/composables/party/useParty", () => ({
     ]),
   }),
 }));
-vi.mock("@/stores/ui", () => ({
-  useUiStore: () => ({
+vi.mock("@/stores/ui/app", () => ({
+  useAppUiStore: () => ({
     get dmMode() {
       return mocks.dmMode.value;
     },

@@ -46,8 +46,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import PastSessionFields, { isPastSessionComplete, pastSessionInput, type PastSessionDraft } from "@/components/sessions/PastSessionFields.vue";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import { useNotes } from "@/composables/notes/useNotes";

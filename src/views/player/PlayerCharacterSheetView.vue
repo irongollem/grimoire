@@ -1,0 +1,93 @@
+<template>
+  <div class="space-y-4 pb-8">
+    <PageHeader flush title="Character Sheet" description="Print or save your sheet as a PDF." />
+    <!-- No character linked -->
+    <div v-if="!linkedMemberId" class="flex flex-col items-center gap-4 py-16 text-center">
+      <p class="font-fell text-base text-muted-foreground italic">No character linked to your account.</p>
+      <RouterLink to="/play/character" class="text-label-lg text-primary hover:underline">← Back</RouterLink>
+    </div>
+
+    <div v-else-if="isLoading" class="flex justify-center py-16">
+      <LoadingSpinner />
+    </div>
+
+    <div v-else-if="!member" class="flex flex-col items-center gap-4 py-16 text-center">
+      <p class="font-fell text-base text-muted-foreground italic">Character not found.</p>
+      <RouterLink to="/play/character" class="text-label-lg text-primary hover:underline">← Back</RouterLink>
+    </div>
+
+    <template v-else>
+      <!-- Keyed on the member so the panel reloads its per-character prefs when DM
+           preview mode switches to a different party member (PlayerLayout.vue's
+           preview-member picker changes this without a route navigation). -->
+      <CharacterSheetExportPanel
+        :key="member.id"
+        :member="member"
+        :inventory="inventory"
+        :storage-key="member.id"
+        :species-name="speciesName"
+        :background-name="backgroundName"
+        :items="items"
+      >
+        <template #back>
+          <RouterLink
+            to="/play/character"
+            class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
+          >← Back</RouterLink>
+        </template>
+      </CharacterSheetExportPanel>
+    </template>
+  </div>
+</template>
+
+<script setup lang="ts">
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import { computed } from "vue";
+import { RouterLink } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
+import { useAppUiStore } from "@/stores/ui/app";
+import { useParty } from "@/composables/party/useParty";
+import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
+import { usePartyInventory } from "@/composables/items/usePartyInventory";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { inventoryItemRef } from "@/lib/itemRef";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
+import { useBackgroundNameMap } from "@/composables/rules/useBackgrounds";
+import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+
+const auth = useAuthStore();
+const appUi = useAppUiStore();
+
+// Derive the member ID from auth — never trust URL params for this
+// (issue #419: players can only export their own sheet).
+// DM preview mode uses dmPreviewPartyMemberId so DMs can see the player view.
+const linkedMemberId = computed(() =>
+  appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
+);
+
+const { data: partyMembers, isLoading } = useParty();
+const member = computed(() =>
+  partyMembers.value?.find((m) => m.id === linkedMemberId.value) ?? null,
+);
+// Anything below that reads through useRuleset reads the character's edition, not the table's (useRuleset.ts).
+provideCharacterRuleset(() => member.value);
+const { data: inventoryItems } = usePartyInventory();
+const { data: speciesById } = useSpeciesByIds(() => [member.value?.species_id]);
+const backgroundMap = useBackgroundNameMap(() => [member.value?.background_id]);
+
+const inventory = computed(() =>
+  (inventoryItems.value ?? []).filter((i) => i.carried_by === linkedMemberId.value),
+);
+// Carried rows resolve in the player projection, plus library ids read by id (#961, #972).
+const { data: projection } = usePlayerItemProjection();
+const { items } = useStoredItemRefs(() => inventory.value.map(inventoryItemRef), projection);
+
+const speciesName = computed(() =>
+  member.value?.species_id ? (speciesById.value.get(member.value.species_id)?.name ?? null) : null,
+);
+const backgroundName = computed(() =>
+  member.value?.background_id ? (backgroundMap.value.get(member.value.background_id) ?? null) : null,
+);
+</script>

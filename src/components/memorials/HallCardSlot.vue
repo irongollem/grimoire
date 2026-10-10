@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import CardFlip from "@/components/common/CardFlip.vue";
+import CardFlip from "@/components/common/media/CardFlip.vue";
 import MemorialCard from "@/components/memorials/MemorialCard.vue";
 import type { CharacterMemorial } from "@/types/memorial.types";
 

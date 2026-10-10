@@ -46,8 +46,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watchEffect } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useConvertSorceryPoints } from "@/composables/party/useParty";
 import { useToast } from "@/composables/useToast";
 import { spellSlotKey, slotPool } from "@/rules/spellSlots";

@@ -2,7 +2,7 @@ import { computed, isRef, ref } from "vue";
 import type { Ref } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
 import type { ZoneKind } from "@/types/locationMapRegion.types";
@@ -120,7 +120,7 @@ async function fetchPlayerSitePlan(
  * `previewPartyMemberId` mirrors `usePlayerQuestBeats`'s own parameter, the
  * existing DM-preview mechanism — not a second one invented for this widget.
  * Pass an explicit ref to preview a specific character regardless of global
- * state; omit it and a DM's own `ui.dmPreviewMode` is read instead, so
+ * state; omit it and a DM's own `appUi.dmPreviewMode` is read instead, so
  * `/play/quests/:id` keeps showing the composed plan once a DM has entered
  * preview via "Open actual player route". Without this fallback the RPC
  * would see the DM's own `campaign_members` row, whose `party_member_id` is
@@ -139,8 +139,8 @@ export function usePlayerVisibleSiteState(
   enabled?: Ref<boolean>,
 ) {
   const idRef = isRef(siteLocationId) ? siteLocationId : ref(siteLocationId);
-  const ui = useUiStore();
-  const previewId = computed(() => previewPartyMemberId?.value ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
+  const appUi = useAppUiStore();
+  const previewId = computed(() => previewPartyMemberId?.value ?? (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, idRef.value, previewId.value] as const),
     queryFn: ({ queryKey: [, siteLocationId, previewMemberId] }) =>

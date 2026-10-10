@@ -117,7 +117,7 @@ import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "@/composables/useToast";
 import { rulesetRules } from "@/composables/party/useCharacterRuleset";
-import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
+import RulesetReviewBanner from "@/components/common/feedback/RulesetReviewBanner.vue";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
 import PlayerFlexibleCasting from "./PlayerFlexibleCasting.vue";
 import PlayerSorcererFeatures from "./PlayerSorcererFeatures.vue";
@@ -149,7 +149,7 @@ import { useRuleset } from "@/composables/rules/useRuleset";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { useBackground } from "@/composables/rules/useBackgrounds";
 import { abilityBonusesForChoice, parseBackgroundAsiChoice } from "@/rules/backgroundAsi";
-import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/play/useRulesetReviews";
+import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/player/useRulesetReviews";
 
 // `canManage` is the page's write signal: the character's owner, or the DM
 // managing it (the same signal the Wild Shape tab gets). Only then does the tab

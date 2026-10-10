@@ -94,11 +94,11 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { IconGenerate } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { AI_PROMPT_LIMIT } from "./utils";
 
 const PROMPT_LIMIT = AI_PROMPT_LIMIT;

@@ -192,8 +192,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconParty, IconUser } from '@/lib/icons';
-import FocalImage from "@/components/common/FocalImage.vue";
-import TraitList from "@/components/common/TraitList.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import TraitList from "@/components/common/statblock/TraitList.vue";
 import {
   needsConcentrationNote,
   spellCastingTime,
@@ -201,7 +201,7 @@ import {
   spellDuration,
   spellRange,
 } from "@/lib/spells/spellFacts";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { useSpellKnowers } from "@/composables/party/useCharacterSpells";
 import { useNpcSpellCasters } from "@/composables/npcs/useNpcs";
 import { SCHOOL_TEXT, ATTACK_TYPES, spellLevelOrdinal, spellSourceLabel } from "@/types/spell.types";

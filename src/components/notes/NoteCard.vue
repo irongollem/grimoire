@@ -92,7 +92,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import { useUpdateNote } from "@/composables/notes/useNotes";
 import { IconDrag, IconLock, IconPin } from "@/lib/icons";
 import { timeAgo, extractTiptapText } from "@/lib/utils";

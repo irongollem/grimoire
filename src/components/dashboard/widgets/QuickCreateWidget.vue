@@ -29,7 +29,7 @@
  * place the DM already knows, not a new place.
  */
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import {
   IconNavNpcs,
   IconNavQuests,

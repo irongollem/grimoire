@@ -1,7 +1,7 @@
 import type { Router, RouteLocationNormalized } from "vue-router";
 import type { QueryClient } from "@tanstack/vue-query";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { preloadLayout } from "@/layouts/layoutLoader";
 import {
@@ -44,11 +44,11 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
     // predate the mode (or a fresh device) infer it once from the loaded
     // membership; an account with no membership anywhere gets the /welcome
     // first-run choice instead of silently landing on the DM dashboard.
-    const ui = useUiStore();
-    if (auth.isAuthenticated && !ui.userMode) {
-      ui.userMode = (await auth.inferUserMode()) ?? "";
+    const appUi = useAppUiStore();
+    if (auth.isAuthenticated && !appUi.userMode) {
+      appUi.userMode = (await auth.inferUserMode()) ?? "";
     }
-    const mode = ui.userMode;
+    const mode = appUi.userMode;
     const home = () =>
       mode === "player"
         ? { name: auth.isPlayer ? "play" : "play-home" }
@@ -89,14 +89,14 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
     // Exceptions:
     //   - DM preview mode lets the DM browse the full player portal
     //   - A memberId query param means the DM is managing a specific character
-    if (mode === "dm" && inPlayerArea && !ui.dmPreviewMode && !dmManagingMember) {
+    if (mode === "dm" && inPlayerArea && !appUi.dmPreviewMode && !dmManagingMember) {
       return { name: "dashboard" };
     }
 
     // Campaign-scoped player routes need an actual membership; the
     // playerStandalone ones (character pool, create/edit and its pickers)
     // exist precisely for the member-of-nothing player (#730).
-    if (to.meta.requiresPlayer && !to.meta.playerStandalone && !auth.isPlayer && !ui.dmPreviewMode && !dmManagingMember) {
+    if (to.meta.requiresPlayer && !to.meta.playerStandalone && !auth.isPlayer && !appUi.dmPreviewMode && !dmManagingMember) {
       return { name: "play-home" };
     }
 

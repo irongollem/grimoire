@@ -159,12 +159,12 @@
 </template>
 
 <script setup lang="ts">
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
+import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import type { Deity, Pantheon } from "@/types/deity.types";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import DeityFactionsSection from "@/components/deities/DeityFactionsSection.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

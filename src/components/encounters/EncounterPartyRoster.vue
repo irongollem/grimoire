@@ -114,9 +114,9 @@ import type { CharacterClass } from '@/types/multiclass.types';
 import type { PartyMember } from '@/types/party.types';
 import type { Companion } from '@/types/companion.types';
 import type { FactionDef } from '@/types/encounter.types';
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
-import AppSelect from '@/components/common/AppSelect.vue';
-import AppCheckbox from '@/components/common/AppCheckbox.vue';
+import LoadingSpinner from '@/components/common/feedback/LoadingSpinner.vue';
+import AppSelect from '@/components/common/controls/AppSelect.vue';
+import AppCheckbox from '@/components/common/controls/AppCheckbox.vue';
 
 const {
   party = null,

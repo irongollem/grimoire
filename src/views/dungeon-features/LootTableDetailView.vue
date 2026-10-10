@@ -275,20 +275,20 @@ import {
   ITEM_RARITY_LABELS,
 } from "@/types/item.types";
 import { formatCoinParts } from "@/rules/currency";
-import PageHeader from "@/components/common/PageHeader.vue";
-import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import TagInput from "@/components/common/TagInput.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import PageHeaderAction from "@/components/common/list/PageHeaderAction.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
 import LootTableEntryEditor from "@/components/dungeon-features/LootTableEntryEditor.vue";
 import LootTableRollPanel from "@/components/dungeon-features/LootTableRollPanel.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityPlacements from "@/components/locations/EntityPlacements.vue";
-import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 
 const route   = useRoute();
 const router  = useRouter();

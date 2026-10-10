@@ -165,8 +165,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import MemorialCameo from "@/components/memorials/MemorialCameo.vue";
 import MemorialCandle from "@/components/memorials/MemorialCandle.vue";
 import { IconEdit, IconUndo } from "@/lib/icons";

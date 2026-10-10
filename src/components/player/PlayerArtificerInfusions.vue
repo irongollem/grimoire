@@ -118,10 +118,10 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconChevronDown } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import type { ArtificerInfusion } from "@/data/artificerInfusions";
 import type { ArtificerInfusionView } from "@/composables/party/useArtificerState";
 

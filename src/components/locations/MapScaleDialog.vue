@@ -71,11 +71,11 @@
  * caller's, so it can show a failure and keep the dialog open.
  */
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import TwoPointImagePicker from "@/components/locations/TwoPointImagePicker.vue";
 import { buildMapScale, DISTANCE_UNITS, DISTANCE_UNIT_LABELS, type ImagePoint } from "@/lib/locations/mapScale";
 import type { DistanceUnit } from "@/rules/travelPace";

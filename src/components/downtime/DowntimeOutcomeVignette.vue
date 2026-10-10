@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { getDowntimeActivity } from "@/data/downtimeActivities";
 import { pendingRewardLabel } from "@/lib/downtime/downtimeReward";
 import type { DowntimeOutcome, DowntimeEffect } from "@/types/downtime.types";

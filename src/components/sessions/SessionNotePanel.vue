@@ -44,10 +44,10 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import HearthSection from "@/components/play/hearth/HearthSection.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import HearthSection from "@/components/player/hearth/HearthSection.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { useNotes, useUpdateNote } from "@/composables/notes/useNotes";
 import { useToast } from "@/composables/useToast";
 import { sessionShortLabel } from "@/lib/sessions/sessionLabel";

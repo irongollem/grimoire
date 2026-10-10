@@ -70,7 +70,7 @@ Saves are optimistic and do not invalidate the query afterwards: #763 writes thr
 
 Each widget gets a control pill — grip, width stepper, height stepper, settings gear (configurable widgets only), remove. **It overlays the card's top-right corner.** #763 originally floated it in the row gap above each widget, opening the grid's row spacing to make room, because an overlay covers content — `DashboardWidget` puts its "View all →" link in exactly that corner. #768 reversed that: once widgets had fixed row heights, a wider gap stopped being whitespace and started changing card geometry, so the modes no longer matched. See the height-model note above for the full reasoning. There is now **no spacing difference at all** between the two modes.
 
-**Adding a widget is a picker, not a drawer** — `DashboardShelf.vue` renders an `EntityCombobox` in the header beside the surface toggle. The issue specified a drawer; it was replaced after seeing it run, because a drawer pushed the whole board down on entering the mode, and because #764 grows this catalogue past 25 widgets, where a list of rows is a wall and a searchable picker is not. Options carry title, description, a **New** badge for ids in `newWidgetIds` (#762's merge case 2 — the entire discovery path for future widgets), and a "appears on its own once it has something to show" line for `selfHiding` widgets. It empties itself on select: a sanctioned add-picker, so its query is a local ref and **not** `useUiStore` state — the Filter State Pattern governs filters over the list _on the page_, and this filters a popup of candidates. #765 (drag a widget out of the shelf) was filed against the drawer and closed obsolete with it.
+**Adding a widget is a picker, not a drawer** — `DashboardShelf.vue` renders an `EntityCombobox` in the header beside the surface toggle. The issue specified a drawer; it was replaced after seeing it run, because a drawer pushed the whole board down on entering the mode, and because #764 grows this catalogue past 25 widgets, where a list of rows is a wall and a searchable picker is not. Options carry title, description, a **New** badge for ids in `newWidgetIds` (#762's merge case 2 — the entire discovery path for future widgets), and a "appears on its own once it has something to show" line for `selfHiding` widgets. It empties itself on select: a sanctioned add-picker, so its query is a local ref and **not** UI-store state — the Filter State Pattern governs filters over the list _on the page_, and this filters a popup of candidates. #765 (drag a widget out of the shelf) was filed against the drawer and closed obsolete with it.
 
 **The Customize button carries an `EntityNewDot`** when the picker holds a widget the DM has not seen. Load-bearing, not decoration: #762's merge only re-inserts a widget the surface's defaults ship _visible_, and most of #764's catalogue will not be — a curated default board of seven beats one of thirty. A picker-only widget would otherwise wait inside a mode nobody had a reason to open, leaving #762's "a new widget must be discoverable" promise unmet. The dot hides while customizing, where the options carry their own **New** badges. **So every catalogue issue should say whether its widget ships in `DEFAULT_LAYOUTS` or picker-only** — the two have different discovery paths.
 
@@ -149,7 +149,7 @@ The `?? []` in that widget is load-bearing on `isLoading`: while either query is
 
 "Today" comes from `useCampaignStore().todayYear/todayMonth/todayDay` (`src/stores/campaign.ts:177-179`) — the same source `SessionWidget` already displays and advances. Clicking an event mirrors `CalendarEventRefChip.vue`'s `navigate()` rather than inventing a second way to focus a date.
 
-**The type filter lives in `useUiStore`** (`upcomingEventsFilterType` / `upcomingEventsHasActiveFilters` / `resetUpcomingEventsFilters`) with a **Clear** control that appears only while filtered. It filters the list already on the card, so neither sanctioned exception applies. The Clear looks redundant beside a select whose first option is "All types" and is kept anyway: the point of the rule is that every filtered list offers the same way out, and a card that invented its own would be the one place it did not.
+**The type filter lives in `useCalendarUiStore`** (`upcomingEventsFilterType` / `upcomingEventsHasActiveFilters` / `resetUpcomingEventsFilters`) with a **Clear** control that appears only while filtered. It filters the list already on the card, so neither sanctioned exception applies. The Clear looks redundant beside a select whose first option is "All types" and is kept anyway: the point of the rule is that every filtered list offers the same way out, and a card that invented its own would be the one place it did not.
 
 **How long a month is belongs to the calendar (fixed alongside #764).** `CalendarAdapter` carries an optional `daysInMonth(year, month)`; only `gregorianAdapter` implements it, because Gregorian is the one calendar here that folds its leap day into a month. Every fantasy setting keeps months fixed and puts the leap day in an **intercalary** day — Harptos's Shieldmeet sits after month 7.
 
@@ -310,7 +310,7 @@ Read these five files first — they cover the entire data and component surface
 | `/notes`      | `notes`       | `src/views/notes/NotesView.vue`      | DM (requiresAuth)       |
 | `/notes/new`  | `note-new`    | `src/views/notes/NoteDetailView.vue` | DM                      |
 | `/notes/:id`  | `note-detail` | `src/views/notes/NoteDetailView.vue` | DM                      |
-| `/play/notes` | `play-notes`  | `src/views/play/PlayerNotesView.vue` | Player (requiresPlayer) |
+| `/play/notes` | `play-notes`  | `src/views/player/PlayerNotesView.vue` | Player (requiresPlayer) |
 
 ### Database Table: `notes`
 
@@ -386,7 +386,7 @@ Migration `20260928233906` stripped `label` from mentions already stored; `remap
 
 **`src/views/notes/NotesView.vue`**
 
-- Uses `useQuota("notes")` — shows `PaywallModal` (from `src/components/common/PaywallModal.vue`) when `canCreate` is false
+- Uses `useQuota("notes")` — shows `PaywallModal` (from `src/components/common/overlays/PaywallModal.vue`) when `canCreate` is false
 - Renders `NotesList` inside `ListPageLayout`
 
 **`src/views/notes/NoteDetailView.vue`**
@@ -402,23 +402,23 @@ Migration `20260928233906` stripped `label` from mentions already stored; `remap
 
 - Consumes `useNotes()` and `useQuota("notes")`
 - Client-side filtering: free-text search (title + tags), category pill buttons
-- **Sort:** a `SortControl` (`src/components/common/SortControl.vue`) exposes four modes — Created / Updated / Title A–Z / Manual — with an asc/desc toggle. Sort preference lives in `useUiStore` (`notesSortBy`, `notesSortDir`). Default is **Created, descending** (newest first). Ordering uses the shared `sortEntities` util (`src/lib/noteSort.ts`). Pinned notes float to the top in every mode (rendered as a separate static group); in **Manual** mode only the unpinned remainder is draggable (`VueDraggable`, handle `.note-drag-handle`), persisted via `useReorderNotes()` writing `sort_order = index`.
+- **Sort:** a `SortControl` (`src/components/common/controls/SortControl.vue`) exposes four modes — Created / Updated / Title A–Z / Manual — with an asc/desc toggle. Sort preference lives in `useNotesUiStore` (`notesSortBy`, `notesSortDir`). Default is **Created, descending** (newest first). Ordering uses the shared `sortEntities` util (`src/lib/noteSort.ts`). Pinned notes float to the top in every mode (rendered as a separate static group); in **Manual** mode only the unpinned remainder is draggable (`VueDraggable`, handle `.note-drag-handle`), persisted via `useReorderNotes()` writing `sort_order = index`.
 - Each card is the extracted `NoteCard` (`src/components/notes/NoteCard.vue`), reused by both the static grid and the draggable grid
 - `NoteCard`'s `AudienceRevealControl` is the `inline` form and lives on the **category + session** row, right-aligned — the three things a note _is_, on one line. It used to be an `overlay`-form chip absolutely positioned over the category colour bar, which put an opaque dark square on top of the first word of every title; and the scrim that form wears is for artwork, which a note card has none of. Do not move it back to the card corner: the drag handle (`.note-drag-handle`, Manual sort) already owns the top-right
 - Category colour map: `general=#6b7280`, `session=#2563eb`, `lore=#7c3aed`, `location=#059669`, `quest=#d97706`, `faction=#dc2626`
 - Content preview via `extractTiptapText(note.content)` from `src/lib/utils.ts`
-- Filter state (search + category), sort state and the Clear button all live in `useUiStore` — `notesSearchQuery`, `notesFilterCategory`, `notesHasActiveFilters`, `resetNotesFilters`, `notesSortBy`, `notesSortDir` (#723). The bar itself is the shared `ListFilterBar` / `ListSearchInput` / `ListFilterGroup` trio, not hand-rolled markup
+- Filter state (search + category), sort state and the Clear button all live in `useNotesUiStore` — `notesSearchQuery`, `notesFilterCategory`, `notesHasActiveFilters`, `resetNotesFilters`, `notesSortBy`, `notesSortDir` (#723). The bar itself is the shared `ListFilterBar` / `ListSearchInput` / `ListFilterGroup` trio, not hand-rolled markup
 - **Session sequence:** filter to the Session category + Manual sort to drag session notes into the order they should read (the `Session N` label comes from the linked session and is unaffected — `sort_order` is a separate column)
 
 **`src/components/notes/NoteEditor.vue`**
 
 All note creation and editing happens here. Key integrations:
 
-1. **`RichTextEditor`** (`src/components/common/RichTextEditor.vue`) — full editor with all extensions; uses `allow-calendar-events` prop and `@insert-calendar-event` event to enable the calendar toolbar button; a `toolbar="focus"` prop (the player Lore tab) shows the toolbar only while the field has focus, as one sideways-scrolling row, and every other caller keeps the default
+1. **`RichTextEditor`** (`src/components/common/richtext/RichTextEditor.vue`) — full editor with all extensions; uses `allow-calendar-events` prop and `@insert-calendar-event` event to enable the calendar toolbar button; a `toolbar="focus"` prop (the player Lore tab) shows the toolbar only while the field has focus, as one sideways-scrolling row, and every other caller keeps the default
 
 2. **`InlineCalendarEventModal`** (`src/components/calendar/InlineCalendarEventModal.vue`) — triggered by the calendar toolbar button; on `@event-created` calls `rteRef.value?.insertCalendarEventRef(...)` to embed a `CalendarEventRef` chip in the note body
 
-3. **`AudienceRevealControl`** (`src/components/common/AudienceRevealControl.vue`) — the app's one reveal control (#741), bound to the draft here because the editor owns its Save; `NoteSheet` and `NoteCard` mount the same control bound to the row, so a note can be revealed without opening the editor. Controls `player_visible_to: string[]` (party member IDs). When a note is newly shared on save, `sendCampaignAnnouncement` from `src/composables/campaign/useCampaignBroadcast.ts` broadcasts a message to players. No email: a note is usually shared at the table, and email is for planning only (see [notifications.md](notifications.md))
+3. **`AudienceRevealControl`** (`src/components/common/reveal/AudienceRevealControl.vue`) — the app's one reveal control (#741), bound to the draft here because the editor owns its Save; `NoteSheet` and `NoteCard` mount the same control bound to the row, so a note can be revealed without opening the editor. Controls `player_visible_to: string[]` (party member IDs). When a note is newly shared on save, `sendCampaignAnnouncement` from `src/composables/campaign/useCampaignBroadcast.ts` broadcasts a message to players. No email: a note is usually shared at the table, and email is for planning only (see [notifications.md](notifications.md))
 
 4. **Session date sync — `useNoteCalendarSync()`** (`src/composables/notes/useNoteCalendarSync.ts`), called after every save:
    - If start date is present: creates or updates a `session`-type calendar event (colour `#C9920A`) linked to the note via `linked_note_id`; patches note's `linked_calendar_event_id`
@@ -431,7 +431,7 @@ All note creation and editing happens here. Key integrations:
 
    **Which session — `NoteSessionPicker.vue`** (#985), shown for the session category, replaces the old "#" number field. It lists sessions without a note first, each with its date and whether it has one, and "+ A session that is not in the log yet" adds one in place. `/notes/new` honours `?category=session&session=<id>`, which the Sessions page links to. Cards, sheets, the detail header, the calendar event summary and the player's journal print the linked session's label (`sessionLabel`), never a stored number.
 
-6. **`TagInput`** (`src/components/common/TagInput.vue`) for the `tags` field
+6. **`TagInput`** (`src/components/common/controls/TagInput.vue`) for the `tags` field
 
 7. **VueDatePicker** (`@vuepic/vue-datepicker`) for `session_real_date` — stored as "YYYY-MM-DD" string; lives in `NoteSessionDatesPanel`, which also imports the vendor stylesheet it needs
 
@@ -453,7 +453,7 @@ All note creation and editing happens here. Key integrations:
 
    - **The title line goes to the title field.** The system prompt never asks for a title, but every model opens with one (`# Session 4: The Duke's Blood`), and it was landing in the body while the note's own Title and session link stayed empty. `parseChronicleHeading` (`src/ai/chronicleHeading.ts`, colocated test) lifts it out: a leading H1, or a heading at any level naming a session number — never a later `##`, which is a scene divider. The preview shows both values in editable fields, so what reaches the note is visible before Insert. A title the DM already wrote **keeps the field** and the model's is offered as a one-tap "Use" chip; a session number the model names is looked up in the log and links the chronicle to that session (the Chronicler links, it never writes a number), and applying it also switches `category` to `session`, because `buildPayload()` nulls `session_id` for every other category and it would otherwise be dropped on save. Because the title can now be AI-authored, `save()`'s material-edit diff (#606) covers it as well as the body — but only via `aiTitleSnapshot`, which stays null unless a Chronicle actually wrote the title, so editing a DM-written one never flips `edited: true`.
    - **Stepping back keeps the draft.** "← Edit facts" used to null the generated markdown, so the only way back to it was a second generation and a second charge. The dialog is a `step` ref over a retained draft, with "Back to draft →" returning for free.
-   - **The backdrop does not dismiss** (`:backdrop-dismiss="false"`), and Escape/Cancel confirm once a draft exists. A click landing beside the panel is not a decision to discard a paid narrative. This is now a general rule rather than one dialog's fix — `ChroniclerGenerateDialog` and the cartographer's AI style modals carry it too, it is written up on `AppModal`'s `backdropDismiss` prop, and `src/components/common/appModalPaidBackdrop.test.ts` fails if a modal that prices, shows or runs a generation ships without it.
+   - **The backdrop does not dismiss** (`:backdrop-dismiss="false"`), and Escape/Cancel confirm once a draft exists. A click landing beside the panel is not a decision to discard a paid narrative. This is now a general rule rather than one dialog's fix — `ChroniclerGenerateDialog` and the cartographer's AI style modals carry it too, it is written up on `AppModal`'s `backdropDismiss` prop, and `src/components/common/overlays/appModalPaidBackdrop.test.ts` fails if a modal that prices, shows or runs a generation ships without it.
    - **Leaving the note editor asks** — via `useUnsavedGuard` (`src/composables/useUnsavedGuard.ts`), which registers both `onBeforeRouteLeave` and `onBeforeRouteUpdate`. The update hook is the load-bearing one: dropping `?edit=true` (the browser's Back button) is a same-route update, so a leave guard alone never fires, yet `NoteDetailView`'s `v-if` unmounts the editor and takes the unsaved chronicle with it. The composable was extracted by [#814](https://github.com/irongollem/grimoire/issues/814) and is shared with the cartographer editor; its test drives a real router, because the whole claim is _which hook fires for which navigation_ and a mocked router would only replay the author's assumption.
 
    **Retrieval grounding (#600).** The server path embeds `raw_text` once and injects two independent blocks (either can be present without the other; any failure drops both and degrades to the pre-#600 prompt): the shared campaign-entity block (`_shared/campaignEntityRetrieval.ts`, same as quest/roll-table), and a Chronicler-specific `---BEGIN PRIOR CHRONICLES---` block — up to 6 prior **`category = 'session'` notes only** via `match_campaign_notes` (migration `20260804000001`, `p_categories` predicate in the `WHERE`), re-sorted chronologically (by the linked session's date, since a session number is a label that may repeat or be missing; a note with no session sorts last; the number printed with each snippet is read through `notes.session_id`) with 600-char snippets and an instruction to use them for continuity/callbacks, never re-narration. Every note category is _embedded_ (the corpus also serves #599), but the Chronicler retrieves session notes exclusively: a recap is player-facing prose, and lore/quest/faction/location/general notes are the DM's planning material — an unrevealed twist retrieved from a lore note would surface in the recap as a "callback", leaking the spoiler in the DM's own voice. Do not widen the category list without a per-note "revealed" signal. The note open in the editor is excluded via `exclude_note_id` so a recap never retrieves the note it will be inserted into. Only the DM-authored `notes` table is embedded — never `entity_notes` / `player_journal_entries` (player-authored; #599's exclusion rule). Notes embed on every save (`queueNoteEmbedding` in `useNotes.ts`, plus the downtime seed-reward path) and are the sixth admin backfill target. There is no chip/resolution surface here: the output is prose the DM edits, nothing maps back into rows — grounding is input-side only. Full mechanism: world-building.md's "Retrieval grounding" section.
@@ -471,7 +471,7 @@ All note creation and editing happens here. Key integrations:
 - Save → `router.push("/notes")`
 - Delete → `router.push("/notes")`
 
-### Player-Facing Notes View — `src/views/play/PlayerNotesView.vue`
+### Player-Facing Notes View — `src/views/player/PlayerNotesView.vue`
 
 - Players read notes through `usePlayerVisibleNotes()` (`get_player_visible_notes`, key `[PLAYER_NOTES_KEY, campaignId, previewMemberId]`, refreshed by the `notes_player` doorbell); `useNotes()` is the DM's table read
 - Read-only accordion list: pinned-first sort, expand to `RichTextViewer`
@@ -486,7 +486,7 @@ Separate from DM notes — entirely player-owned.
 ### Route
 
 `/play/journal` (embedded tab in player portal, `requiresPlayer`)
-View: `src/views/play/PlayerJournalView.vue`
+View: `src/views/player/PlayerJournalView.vue`
 
 ### Database Table: `player_journal_entries`
 
@@ -542,7 +542,7 @@ TanStack Query key: `"player_journal"`.
 | Route            | Name            | Component                               | Access                  |
 | ---------------- | --------------- | --------------------------------------- | ----------------------- |
 | `/calendar`      | `calendar`      | `src/views/calendar/CalendarView.vue`   | DM (requiresAuth)       |
-| `/play/calendar` | `play-calendar` | `src/views/play/PlayerCalendarView.vue` | Player (requiresPlayer) |
+| `/play/calendar` | `play-calendar` | `src/views/player/PlayerCalendarView.vue` | Player (requiresPlayer) |
 
 ### Player Calendar (`/play/calendar`)
 
@@ -831,7 +831,7 @@ The inline calendar event reference chip is a custom Tiptap node:
 
 5. **`content` field is Tiptap JSON string**: Use `RichTextViewer` to display, `RichTextEditor` to edit. Never use `<textarea>`. For content previews, use `extractTiptapText(content)` from `src/lib/utils.ts`.
 
-6. **Filter state in NotesList**: search, category and sort are all in `useUiStore` (#723). Before that fix the sort was in the store and the search/category next to it were local `ref`s — half the pattern applied, which is exactly how it survived. Do not reintroduce a local filter `ref` here.
+6. **Filter state in NotesList**: search, category and sort are all in `useNotesUiStore` (#723). Before that fix the sort was in the store and the search/category next to it were local `ref`s — half the pattern applied, which is exactly how it survived. Do not reintroduce a local filter `ref` here.
 
 7. **Notes quota**: `useQuota("notes")` checks the `check_quota` RPC. On quota exceeded, show `PaywallModal` with `resource="notes"`. Both `NotesView` and `NoteEditor` do this independently.
 

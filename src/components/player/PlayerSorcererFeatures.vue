@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { PartyMember } from "@/types/party.types";
 import {
   useActivateInnateSorcery,

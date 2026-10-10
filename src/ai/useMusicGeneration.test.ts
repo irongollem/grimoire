@@ -22,8 +22,8 @@ vi.mock("@tanstack/vue-query", () => ({
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
 }));
 
-vi.mock("@/stores/ui", () => ({
-  useUiStore: () => mocks.ui,
+vi.mock("@/stores/ui/soundboard", () => ({
+  useSoundboardUiStore: () => mocks.ui,
 }));
 
 vi.mock("./useAiGenerationJob", async (importOriginal) => {

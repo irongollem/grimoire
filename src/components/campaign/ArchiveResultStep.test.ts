@@ -27,8 +27,8 @@ vi.mock("@/composables/campaign/useDocumentImport", () => ({
   }),
 }));
 
-vi.mock("@/components/common/GenerationCostBadge.vue", () => ({ default: { props: ["credits"], template: "<span class='cost'>{{ credits }} credits</span>" } }));
-vi.mock("@/components/common/ProFeatureGate.vue", () => ({ default: { props: ["message"], template: "<p class='gate'>{{ message }}</p>" } }));
+vi.mock("@/components/common/ai/GenerationCostBadge.vue", () => ({ default: { props: ["credits"], template: "<span class='cost'>{{ credits }} credits</span>" } }));
+vi.mock("@/components/billing/ProFeatureGate.vue", () => ({ default: { props: ["message"], template: "<p class='gate'>{{ message }}</p>" } }));
 
 import ArchiveResultStep from "./ArchiveResultStep.vue";
 

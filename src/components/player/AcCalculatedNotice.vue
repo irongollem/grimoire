@@ -22,8 +22,8 @@
  * nothing to tell, so the old number is cleared without a word.
  */
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import CautionNotice from "@/components/common/CautionNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import CautionNotice from "@/components/common/feedback/CautionNotice.vue";
 import AcBreakdownList from "@/components/player/AcBreakdownList.vue";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { useUpdatePartyMember } from "@/composables/party/useParty";

@@ -3,7 +3,7 @@ import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { PLAYER_NOTES_KEY } from "@/lib/campaignLiveSync/registry";
 import type { Note, NoteInsert, NoteUpdate } from "@/types/notes.types";
 import { storeToRefs } from "pinia";
@@ -77,8 +77,8 @@ async function fetchSessionRecap(campaignId: string, sessionId: string): Promise
  */
 export function usePlayerVisibleNotes() {
   const campaign = useCampaignStore();
-  const ui = useUiStore();
-  const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
+  const appUi = useAppUiStore();
+  const previewMemberId = computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
   return useQuery({
     queryKey: computed(() => [PLAYER_NOTES_KEY, campaign.activeCampaignId, previewMemberId.value] as const),
     queryFn: async ({ queryKey: [, cid, previewId] }): Promise<Note[]> => {

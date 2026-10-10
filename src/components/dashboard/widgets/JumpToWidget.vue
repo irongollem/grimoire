@@ -57,7 +57,7 @@
  */
 import { computed, ref } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import SearchResultList from "@/components/layout/SearchResultList.vue";
 import { failedGroupsMessage, useGlobalSearch } from "@/composables/useGlobalSearch";
 

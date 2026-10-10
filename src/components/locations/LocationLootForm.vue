@@ -80,12 +80,12 @@ import {
 import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import { formatCoinParts } from "@/rules/currency";
 import { IconClose, IconDiceRoll } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import type { SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import type { LootPlacementKind } from "@/types/quest.types";
 
 const { locationId, campaignId, lootCount } = defineProps<{

@@ -66,8 +66,8 @@
 import { computed, ref, useTemplateRef } from "vue";
 import { useRouter, useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import CaptchaGate from "@/components/auth/CaptchaGate.vue";
 import { authErrorMessage, captchaSource } from "@/lib/auth/captcha";
 

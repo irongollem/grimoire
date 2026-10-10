@@ -89,8 +89,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { RouterLink } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { IconCheck, IconCircle, IconLocation, IconSplitCell } from "@/lib/icons";
 import { timeAgo } from "@/lib/utils";
 import type { SpaceRow } from "@/composables/cartographer/useCartographerStructure";

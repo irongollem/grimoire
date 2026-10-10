@@ -165,10 +165,10 @@ import {
 } from "@/types/quest.types";
 import type { LocationStateFact } from "@/types/locationState.types";
 import { EVENT_TYPE_COLORS, type CalendarEventType } from "@/types/calendar.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { IconLightning } from "@/lib/icons";
 import { DEFAULT_RELATIONSHIP_SHIFT_KEY, RELATIONSHIP_SHIFT_OPTIONS, describeQuestConsequenceAction, isObjectiveConsequenceAction, isTargetedWorldVerb, NO_QUEST_CLOCKS_NOTE, QUEST_CONSEQUENCE_ACTION_LABELS, relationshipShiftPayload, worldVerbInsertFields, worldVerbReady, type WorldVerbDraft } from "@/lib/quests/consequences";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";

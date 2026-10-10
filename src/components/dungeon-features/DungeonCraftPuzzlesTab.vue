@@ -25,11 +25,11 @@
         <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
       </AppSelect>
       <AppButton
-        v-if="ui.puzzlesHasActiveFilters"
+        v-if="puzzlesUi.puzzlesHasActiveFilters"
         variant="subtle"
         size="body"
         label="Clear"
-        @click="ui.resetPuzzlesFilters()"
+        @click="puzzlesUi.resetPuzzlesFilters()"
       />
     </template>
     <template #card="{ selecting, isSelected, toggle }">
@@ -92,21 +92,21 @@ import { directRoomPlacement } from "@/lib/dungeon-features/placedIn";
 import type { PlacedInRoom } from "@/lib/dungeon-features/placedIn";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import type { PuzzleRoom } from "@/types/puzzle.types";
-import { useUiStore } from "@/stores/ui";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import PlacedInLine from "./PlacedInLine.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const { data: puzzles, isLoading: puzzlesLoading } = usePuzzles();
-const ui = useUiStore();
+const puzzlesUi = usePuzzlesUiStore();
 // Filter state lives in the UI store, not local refs, so it survives
 // navigating into a puzzle and back without outliving the session.
-const { puzzlesSearch, puzzlesFilterType, puzzlesFilterDifficulty } = storeToRefs(ui);
+const { puzzlesSearch, puzzlesFilterType, puzzlesFilterDifficulty } = storeToRefs(puzzlesUi);
 
 // ── Placed in (#868, S8, frame 11) ────────────────────────────────────────────
 // Not from `location_placements` — a puzzle anchors via its own

@@ -39,9 +39,9 @@
 
 <script setup lang="ts">
 import { computed, ref, toRef, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useCharacterFeatures } from "@/composables/features/useCharacterFeatures";
 import { useFeatureUses } from "@/composables/features/useFeatureUses";
 import { useSpendFeatureSpellSlot } from "@/composables/features/useSpendFeatureSpellSlot";

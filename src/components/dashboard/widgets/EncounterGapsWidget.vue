@@ -39,7 +39,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { deriveEncounterGapRows, ENCOUNTER_GAP_LABELS, type EncounterGapKind } from "@/lib/dashboard/encounterGaps";
 import DashboardWidget from "../DashboardWidget.vue";

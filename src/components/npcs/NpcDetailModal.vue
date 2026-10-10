@@ -35,8 +35,8 @@
  * having within reach of the artwork, and the sheet itself.
  */
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityDetailModal from "@/components/common/EntityDetailModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityDetailModal from "@/components/common/overlays/EntityDetailModal.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import NpcSheet from "@/components/npcs/NpcSheet.vue";
 import { useNpcOpening } from "@/composables/npcs/useNpcs";

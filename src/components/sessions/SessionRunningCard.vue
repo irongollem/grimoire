@@ -15,7 +15,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useIntervalFn, useNow } from "@vueuse/core";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
 import { sessionLabel } from "@/lib/sessions/sessionLabel";
 import type { CampaignSession } from "@/types/session.types";

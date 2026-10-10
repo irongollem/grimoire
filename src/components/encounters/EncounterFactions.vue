@@ -86,8 +86,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { IconAdd, IconClose } from '@/lib/icons';
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { FactionDef } from "@/types/encounter.types";

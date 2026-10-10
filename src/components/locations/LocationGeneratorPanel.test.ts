@@ -2,7 +2,7 @@ import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LocationGeneratorPanel from "./LocationGeneratorPanel.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 
 const mocks = vi.hoisted(() => ({
   createLocation: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
   useRouter: () => ({ push: mocks.push }),
 }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ locationGeneratorOpen: true }) }));
+vi.mock("@/stores/ui/generators", () => ({ useGeneratorUiStore: () => ({ locationGeneratorOpen: true }) }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },

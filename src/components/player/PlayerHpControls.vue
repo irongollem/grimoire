@@ -34,10 +34,10 @@ import { damageOutcome, describeDamageOutcome, healingOutcome } from "@/rules/dy
 import { useToast } from "@/composables/useToast";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { useBelow } from "@/composables/useBreakpoint";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 
 const { member, wildshape, compact = false } = defineProps<{
   member: PartyMember;

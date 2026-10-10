@@ -78,9 +78,9 @@
  * `PublishPlanPreview` reads the same plan for the picture half.
  */
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import CautionNotice from "@/components/common/CautionNotice.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import CautionNotice from "@/components/common/feedback/CautionNotice.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { IconStar, IconWarning } from "@/lib/icons";
 import { DOOR_KIND_LABELS } from "@/types/locationDoor.types";
 import { LOCATION_PLACEMENT_KIND_LABELS, placementKind, type LocationPlacement } from "@/types/locationPlacement.types";

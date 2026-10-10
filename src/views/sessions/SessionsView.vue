@@ -74,9 +74,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import PageHeader from "@/components/common/PageHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import SessionLogRow from "@/components/sessions/SessionLogRow.vue";
 import SessionRunningCard from "@/components/sessions/SessionRunningCard.vue";
 import PastSessionDialog from "@/components/sessions/PastSessionDialog.vue";

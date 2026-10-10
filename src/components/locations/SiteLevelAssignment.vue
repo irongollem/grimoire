@@ -30,7 +30,7 @@
  * replaces — see `src/lib/locations/levels.ts`).
  */
 import { computed, ref, watch } from "vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
 import { IconLayers } from "@/lib/icons";

@@ -98,8 +98,8 @@ import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import type { ThreadBadge } from "@/lib/quests/threads";
 import { countQuestBeatContentBlocks, deriveQuestBeatPrepGaps, prepFactsOf } from "@/lib/quests/presentation";
 import { useBelow } from "@/composables/useBreakpoint";
-import AppButton from "@/components/common/AppButton.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import QuestFoldRow from "./QuestFoldRow.vue";
 import {
   IconDice,

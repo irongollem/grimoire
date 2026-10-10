@@ -78,8 +78,8 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ isAiEnabled: false, activeCampaignId: ref("campaign-1") }),
 }));
 
-vi.mock("@/stores/ui", () => ({
-  useUiStore: () => ({ dmMode: "prep" }),
+vi.mock("@/stores/ui/app", () => ({
+  useAppUiStore: () => ({ dmMode: "prep" }),
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({
@@ -124,7 +124,7 @@ vi.mock("@/composables/useToast", () => ({
   }),
 }));
 
-vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
+vi.mock("@/components/common/overlays/CopyToCampaignDialog.vue", () => ({
   default: defineComponent({
     name: "CopyToCampaignDialog",
     props: ["open", "table", "ids", "label"],

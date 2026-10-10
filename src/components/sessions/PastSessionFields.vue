@@ -53,7 +53,7 @@ export function pastSessionInput(draft: PastSessionDraft): PastSessionInput | nu
 <script setup lang="ts">
 import { computed } from "vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
-import AppInput from "@/components/common/AppInput.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 /** The parent prefills the number (the log's next) and the day (today). */
 const fields = defineModel<PastSessionDraft>({ required: true });

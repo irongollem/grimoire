@@ -37,15 +37,15 @@
  * which the detail page shares.
  */
 import { computed, toRef } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import EntityDetailModal from "@/components/common/EntityDetailModal.vue";
+import EntityDetailModal from "@/components/common/overlays/EntityDetailModal.vue";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
 import { useSpellWithArt } from "@/composables/spells/useSpellWithArt";
 import { IconEdit } from "@/lib/icons";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { spellLevelLabel } from "@/types/spell.types";
 
 const { id } = defineProps<{ id: string }>();
@@ -53,8 +53,8 @@ const { id } = defineProps<{ id: string }>();
 const emit = defineEmits<{ close: [] }>();
 
 const auth = useAuthStore();
-const ui = useUiStore();
-const canEdit = computed(() => auth.isDM && !ui.dmPreviewMode);
+const appUi = useAppUiStore();
+const canEdit = computed(() => auth.isDM && !appUi.dmPreviewMode);
 
 const { spell, isLibrarySpell, isLoading } = useSpellWithArt(toRef(() => id));
 

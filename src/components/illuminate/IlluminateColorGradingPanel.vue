@@ -72,8 +72,8 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { GRADING_PRESETS, type ColourGradingOptions } from "@/lib/illuminate/colourGrading";
 
 const {

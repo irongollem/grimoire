@@ -96,8 +96,8 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
 import type { SoundLibraryEntry } from "@/types/sound.types";
 
 /**

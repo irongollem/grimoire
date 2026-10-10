@@ -20,7 +20,7 @@ vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRouter: () => ({ push: mocks.push }),
 }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ encounterGeneratorOpen: true }) }));
+vi.mock("@/stores/ui/generators", () => ({ useGeneratorUiStore: () => ({ encounterGeneratorOpen: true }) }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() {

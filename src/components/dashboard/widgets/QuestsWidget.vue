@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 import DashboardQuestRow from "../DashboardQuestRow.vue";
 import { buildQuestRows } from "@/lib/dashboard/questRows";

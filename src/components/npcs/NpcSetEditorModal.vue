@@ -82,13 +82,13 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import { useRecordDraft } from "@/composables/useRecordDraft";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useCreateNpcSet, useUpdateNpcSet } from "@/composables/npcs/useNpcSets";
 import { getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import type { NpcListRow, NpcSet } from "@/types/npc.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

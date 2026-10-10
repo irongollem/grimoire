@@ -149,20 +149,20 @@ import { IconAdd, IconDelete, IconEdit, IconGenerate } from '@/lib/icons';
 import { useHallOfHeroes, useDeleteHero, useImportHero, usePopulateAllSettingHeroes } from "@/composables/party/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import { useHallUiStore } from "@/stores/ui/hall";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import EntityGridCard from "@/components/common/EntityGridCard.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";
+import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { HallOfHero } from "@/types/npc.types";
 import { DND_SETTINGS } from "@/data/dndSettings";
@@ -192,24 +192,24 @@ useScrollRestore("hall-of-heroes", listRef);
 
 const auth = useAuthStore();
 const campaign = useCampaignStore();
-const ui = useUiStore();
+const hallUi = useHallUiStore();
 
 const isAppAdmin = computed(() => auth.isAppAdmin);
 const hasCampaign = computed(() => !!campaign.activeCampaignId);
 const campaignSetting = computed(() => campaign.activeCampaign?.calendar_id ?? null);
 
 const search = computed({
-  get: () => ui.hallOfHeroesSearch,
-  set: (v) => { ui.hallOfHeroesSearch = v; },
+  get: () => hallUi.hallOfHeroesSearch,
+  set: (v) => { hallUi.hallOfHeroesSearch = v; },
 });
 const settingFilter = computed({
-  get: () => ui.hallOfHeroesFilterSetting,
-  set: (v) => { ui.hallOfHeroesFilterSetting = v; },
+  get: () => hallUi.hallOfHeroesFilterSetting,
+  set: (v) => { hallUi.hallOfHeroesFilterSetting = v; },
 });
-const hasActiveFilters = computed(() => ui.hallOfHeroesHasActiveFilters);
+const hasActiveFilters = computed(() => hallUi.hallOfHeroesHasActiveFilters);
 
 function clearFilters() {
-  ui.resetHallOfHeroesFilters();
+  hallUi.resetHallOfHeroesFilters();
 }
 
 const { data: heroes, isLoading } = useHallOfHeroes();

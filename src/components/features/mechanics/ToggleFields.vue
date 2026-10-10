@@ -19,8 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { FeatureToggle, UsesCost } from "@/rules/features/mechanics.types";
 import MechField from "./MechField.vue";
 import UsesCostFields from "./UsesCostFields.vue";

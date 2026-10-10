@@ -7,7 +7,7 @@ import { AI_LIKENESS_NOTICE_VERSION } from "@/lib/legal";
  * `LikenessNoticeGate` mount (the DM shell and the player shell both mount
  * one, same as `AiUseNoticeGate`) and every caller of `ensureLikenessAck`
  * across the app. Mirrors `useAiUseNoticeDismissal`'s device-singleton style,
- * not `useUiStore`/`localStorage` — this is a one-shot per-call gate, not
+ * not a UI store/`localStorage` — this is a one-shot per-call gate, not
  * list-filter state.
  */
 const open = ref(false);

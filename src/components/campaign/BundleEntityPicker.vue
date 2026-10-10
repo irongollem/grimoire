@@ -155,9 +155,9 @@
  */
 import { computed, ref, toRef, watch } from "vue";
 import { IconChevronLeft, IconChevronRight, IconSearch } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { BUNDLE_ENTITY_TYPES, useEntityPickerItems } from "@/composables/campaign/useWorldBundle";
 import type { BundleEntityKey } from "@/composables/campaign/useWorldBundle";
 import type { BundleSelection } from "@/composables/campaign/useBundleSelection";

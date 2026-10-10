@@ -149,19 +149,19 @@ import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell }
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { SCHOOL_BG, spellLevelOrdinal } from "@/types/spell.types";
 import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
-import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
-import EntityMobileGrid from "@/components/common/EntityMobileGrid.vue";
-import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/controls/appButtonVariants";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
+import EntityMobileCard from "@/components/common/entity/EntityMobileCard.vue";
+import EntityMobileGrid from "@/components/common/entity/EntityMobileGrid.vue";
+import MobileEntityMetaRow from "@/components/common/entity/MobileEntityMetaRow.vue";
 import SpellGridCard from "@/components/spells/SpellGridCard.vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useSpellReplacement } from "@/composables/party/useSpellReplacement";
 import { useRuleset } from "@/composables/rules/useRuleset";
@@ -329,10 +329,10 @@ const GRID_ROW_PX = 277;
 // rows have no room for.
 const isMobile = useIsMobile();
 const mobileLayout = computed(() => isMobile.value && !playerMemberId);
-const ui = useUiStore();
+const appUi = useAppUiStore();
 const layout = computed({
-  get: () => ui.entityListLayout,
-  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+  get: () => appUi.entityListLayout,
+  set: (v: "rows" | "gallery") => { appUi.entityListLayout = v; },
 });
 
 function mobileSubtitle(spell: SpellBrowseRow): string {

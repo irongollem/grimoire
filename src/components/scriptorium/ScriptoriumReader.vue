@@ -66,8 +66,8 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
-import AppButton from "@/components/common/AppButton.vue";
-import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariants";
 import { IconChevronLeft } from "@/lib/icons";
 import ScriptoriumDocumentView from "@/components/scriptorium/ScriptoriumDocumentView.vue";
 import { collectReaderToc, type ReaderTocEntry } from "./reader/readerToc";

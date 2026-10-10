@@ -32,8 +32,8 @@
 </template>
 
 <script setup lang="ts">
-import AppCheckbox from '@/components/common/AppCheckbox.vue';
-import EntityCombobox from '@/components/common/EntityCombobox.vue';
+import AppCheckbox from '@/components/common/controls/AppCheckbox.vue';
+import EntityCombobox from '@/components/common/controls/EntityCombobox.vue';
 
 const {
   lairEnabled,

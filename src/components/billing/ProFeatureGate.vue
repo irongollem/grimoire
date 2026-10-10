@@ -1,0 +1,39 @@
+<template>
+  <div class="rounded-xl border border-tone-caution/30 bg-tone-caution/5 p-6 flex flex-col gap-3">
+    <div class="flex items-center gap-2.5">
+      <IconDM class="h-5 w-5 text-ink-caution shrink-0" />
+      <span class="text-heading-sm font-bold text-foreground">Pro feature</span>
+    </div>
+    <p class="text-body text-muted-foreground leading-relaxed">
+      {{ isChild ? "AI features aren't available on young players' accounts." : message }}
+    </p>
+    <AppButton
+      v-if="!isChild"
+      variant="tinted"
+      tone="caution"
+      emphasis="solid"
+      size="md"
+      class="self-start"
+      label="Upgrade to Pro"
+      @click="upgrade"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useRouter } from "vue-router";
+import { IconDM } from "@/lib/icons";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { useChildAccount } from "@/composables/account/useChildAccount";
+
+const { message } = defineProps<{
+  message: string;
+}>();
+
+const { isChild } = useChildAccount();
+
+// See PaywallModal: checkout needs the withdrawal-consent tick from /billing, so
+// this gate routes there rather than 400'ing against stripe-create-checkout.
+const router = useRouter();
+function upgrade() { router.push("/billing"); }
+</script>

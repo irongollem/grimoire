@@ -255,7 +255,7 @@ When working on any feature:
 3. Use `FocalImage` for all images, never `<img>`
 4. Use `TagInput` for all tag fields
 5. Use `EntityCombobox` for entity selection, never `<select>`
-6. Filter state → `useUiStore` (`src/stores/ui.ts`), not local refs
+6. Filter state → the domain's UI store (`src/stores/ui/<domain>.ts`), not local refs
 7. Server state → TanStack Query composables; UI state → Pinia
 8. After create/save/delete → always `router.push('/list-route')`
 9. New tables need RLS + `update_updated_at()` trigger; use `/new-migration` skill for migration files

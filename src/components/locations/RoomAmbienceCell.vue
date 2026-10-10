@@ -62,8 +62,8 @@
  * — one component with a `locationId` prop beats two copies of this branching.
  */
 import { ref, computed } from "vue";
-import ThemeInput from "@/components/common/ThemeInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import ThemeInput from "@/components/common/controls/ThemeInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconEdit, IconMute, IconWind } from "@/lib/icons";
 import type { ResolvedAmbience } from "@/lib/locations/ambience";
 

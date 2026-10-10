@@ -21,11 +21,11 @@
         <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
       </AppSelect>
       <AppButton
-        v-if="ui.trapsHasActiveFilters"
+        v-if="trapsUi.trapsHasActiveFilters"
         variant="subtle"
         size="body"
         label="Clear"
-        @click="ui.resetTrapsFilters()"
+        @click="trapsUi.resetTrapsFilters()"
       />
     </template>
     <template #card="{ selecting, isSelected, toggle }">
@@ -77,21 +77,21 @@ import { RouterLink, useRouter } from "vue-router";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { TRAP_TYPES, TRAP_TYPE_BG } from "@/types/trap.types";
-import { useUiStore } from "@/stores/ui";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import { useTrapsUiStore } from "@/stores/ui/traps";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import PlacedInLine from "./PlacedInLine.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const { data: traps, isLoading: trapsLoading } = useTraps();
-const ui = useUiStore();
+const trapsUi = useTrapsUiStore();
 // Filter state lives in the UI store, not local refs, so it survives
 // navigating into a trap and back without outliving the session.
-const { trapsSearch, trapsFilterType } = storeToRefs(ui);
+const { trapsSearch, trapsFilterType } = storeToRefs(trapsUi);
 
 // ── Placed in (#868, S8, frame 11) ────────────────────────────────────────────
 const trapIds = computed(() => (traps.value ?? []).map((t) => t.id));

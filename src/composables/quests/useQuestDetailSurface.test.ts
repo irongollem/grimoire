@@ -14,8 +14,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("vue-router", () => ({
   useRoute: () => mocks.route,
 }));
-vi.mock("@/stores/ui", () => ({
-  useUiStore: () => ({
+vi.mock("@/stores/ui/app", () => ({
+  useAppUiStore: () => ({
     get dmMode() { return mocks.dmMode; },
   }),
 }));

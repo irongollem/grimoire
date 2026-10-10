@@ -79,8 +79,8 @@
  */
 import { ref, computed } from "vue";
 import { IconAdd, IconDelete } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import SpellsByLevelGrid from "./SpellsByLevelGrid.vue";
 
 defineProps<{ allSpellOptions: { id: string; name: string }[] }>();

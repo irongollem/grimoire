@@ -60,7 +60,7 @@
  * wire the two bulk actions.
  */
 import { computed, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import ImportEntityReviewRow from "@/components/campaign/ImportEntityReviewRow.vue";
 import { useMonsterGenerationCost } from "@/composables/monsters/useMonsterGenerationCost";
 import { getEntityKindEntry } from "@/lib/documentImport/entityKinds";

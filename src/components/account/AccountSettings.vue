@@ -48,9 +48,9 @@ import { ref } from "vue";
 import AccountSummarySection from "@/components/account/AccountSummarySection.vue";
 import AccountDataExport from "@/components/account/AccountDataExport.vue";
 import AiLabelsSetting from "@/components/account/AiLabelsSetting.vue";
-import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import ConfirmByNameInput from "@/components/common/controls/ConfirmByNameInput.vue";
+import SettingsSection from "@/components/common/settings/SettingsSection.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useAccountDeletion } from "@/composables/account/useAccountDeletion";
 import { useChildAccount } from "@/composables/account/useChildAccount";
 

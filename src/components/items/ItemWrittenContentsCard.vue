@@ -50,10 +50,10 @@
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
 import ItemEditorCard from "@/components/items/ItemEditorCard.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import type { Item } from "@/types/item.types";
 
 const { item } = defineProps<{

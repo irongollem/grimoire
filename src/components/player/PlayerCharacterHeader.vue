@@ -254,16 +254,16 @@ import { formPortrait } from "@/lib/wildshapePortrait";
 import { walkingSpeed } from "@/lib/movement";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import AcBreakdownPopover from "@/components/player/AcBreakdownPopover.vue";
 import SubclassVariantControl from "@/components/player/SubclassVariantControl.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { hpTextClass } from "@/components/player/hpDisplay";
 import PlayerHpControls from "@/components/player/PlayerHpControls.vue";
-import type { AppInputHandle } from "@/components/common/fieldVariants";
+import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 
 const props = defineProps<{
   member: PartyMember;

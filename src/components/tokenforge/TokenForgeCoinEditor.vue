@@ -94,8 +94,8 @@
 <script setup lang="ts">
 import { COIN_METALS, COIN_MOTIFS, COIN_PRINT_SIZES } from "@/types/coin.types";
 import type { CoinDesign } from "@/types/coin.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const { coin } = defineProps<{
   coin: CoinDesign;

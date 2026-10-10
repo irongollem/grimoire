@@ -41,7 +41,7 @@
  */
 import { computed } from "vue";
 import QuestChainRow from "./QuestChainRow.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { threadBadges, threadTitle } from "@/lib/quests/threads";
 import { describeThreadCursor } from "@/lib/quests/run";
 import { IconNetwork as IconThread } from "@/lib/icons";

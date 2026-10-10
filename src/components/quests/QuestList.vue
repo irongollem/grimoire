@@ -129,13 +129,13 @@ import {
 } from "@/composables/quests/useQuests";
 import { useParty } from "@/composables/party/useParty";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
-import { useUiStore } from "@/stores/ui";
-import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import { useQuestsUiStore } from "@/stores/ui/quests";
+import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import QuestKanbanBoard from "@/components/quests/QuestKanbanBoard.vue";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { timeAgo } from "@/lib/utils";
 import { filterQuestBoard } from "@/lib/quests/board";
@@ -146,7 +146,7 @@ import {
   type QuestStatus,
 } from "@/types/quest.types";
 
-const ui = useUiStore();
+const questsUi = useQuestsUiStore();
 
 // Mirrors `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`. Only the
 // list mode is windowed; the Kanban board renders its grouped columns whole.
@@ -158,8 +158,8 @@ const questKey = (quest: Quest) => quest.id;
 // restored scroll lands, since coming back from a detail re-renders every
 // unmeasured row above the viewport.
 const QUEST_ROW_PX = 142;
-const search = computed(() => ui.questsSearch);
-const isKanban = computed(() => ui.questsIsKanban);
+const search = computed(() => questsUi.questsSearch);
+const isKanban = computed(() => questsUi.questsIsKanban);
 
 const { data: allQuests, isLoading } = useQuests();
 const { data: party } = useParty(() => isKanban.value);
@@ -171,10 +171,10 @@ const filtered = computed(() => filterQuestBoard(
   allQuests.value ?? [],
   {
     search: search.value,
-    partyOnly: ui.questsPartyFilter,
-    entity: ui.questsEntityFilter,
-    prepGapsOnly: ui.questsPrepGapsFilter,
-    pendingLootOnly: ui.questsLootFilter,
+    partyOnly: questsUi.questsPartyFilter,
+    entity: questsUi.questsEntityFilter,
+    prepGapsOnly: questsUi.questsPrepGapsFilter,
+    pendingLootOnly: questsUi.questsLootFilter,
   },
   { refs: campaignRefs.value ?? [], summaries: boardSummaries.value },
 ));

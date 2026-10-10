@@ -44,8 +44,8 @@
  * so this opens a plain new drawing instead of a half-built promise.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { IconCopy, IconPencilLine } from "@/lib/icons";
 import { useLocations } from "@/composables/locations/useLocations";
 import { useAddSiteLevel } from "@/composables/locations/useAddSiteLevel";

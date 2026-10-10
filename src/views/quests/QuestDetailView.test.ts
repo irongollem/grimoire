@@ -6,7 +6,7 @@ import QuestDetailView from "./QuestDetailView.vue";
 import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
 import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
 import QuestOverviewPanel from "@/components/quests/QuestOverviewPanel.vue";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 
 const mocks = vi.hoisted(() => ({
   route: {
@@ -28,7 +28,7 @@ vi.mock("@/composables/quests/useQuests", () => ({
   }),
 }));
 
-let ui: ReturnType<typeof useUiStore>;
+let appUi: ReturnType<typeof useAppUiStore>;
 
 // The quest is a full page with three permanent tabs, never a modal over the
 // log — "i utterly dont like the quest in a modal. its too much data and
@@ -43,11 +43,11 @@ describe("QuestDetailView", () => {
 
   beforeEach(() => {
     setActivePinia(createPinia());
-    ui = useUiStore();
+    appUi = useAppUiStore();
     mocks.route.name = "quest-detail";
     mocks.route.params = { id: "quest-1" };
     mocks.route.query = {};
-    ui.sessionRunning = false;
+    appUi.sessionRunning = false;
     mocks.replace.mockReset();
   });
 
@@ -61,7 +61,7 @@ describe("QuestDetailView", () => {
     const prep = mountView();
     expect(prep.findComponent({ name: "SegmentedControl" }).props("options")).toEqual(options);
 
-    ui.sessionRunning = true;
+    appUi.sessionRunning = true;
     const playing = mountView();
     expect(playing.findComponent({ name: "SegmentedControl" }).props("options")).toEqual(options);
   });
@@ -75,7 +75,7 @@ describe("QuestDetailView", () => {
   });
 
   it("defaults to the run cockpit while a session is running", () => {
-    ui.sessionRunning = true;
+    appUi.sessionRunning = true;
     const wrapper = mountView();
 
     expect(wrapper.findComponent(QuestRunCockpit).exists()).toBe(true);

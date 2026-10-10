@@ -75,8 +75,8 @@ import { RouterLink } from "vue-router";
 import { IconFire, IconSun } from '@/lib/icons';
 import { useAllDeities } from "@/composables/deities/useDeities";
 import type { Pantheon } from "@/types/deity.types";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 
 const props = defineProps<{ pantheon: Pantheon }>();
 

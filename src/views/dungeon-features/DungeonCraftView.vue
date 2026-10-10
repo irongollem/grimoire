@@ -18,7 +18,7 @@
           v-if="isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
-          @click="ui.dungeonFeatureGeneratorOpen = true"
+          @click="generatorsUi.dungeonFeatureGeneratorOpen = true"
         />
         <ListActionButton
           variant="primary"
@@ -42,7 +42,7 @@
           v-if="isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
-          @click="ui.trapGeneratorOpen = true"
+          @click="generatorsUi.trapGeneratorOpen = true"
         />
         <ListActionButton
           variant="primary"
@@ -67,7 +67,7 @@
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
-            @click="ui.rollTableGeneratorOpen = true"
+            @click="generatorsUi.rollTableGeneratorOpen = true"
           />
           <ListActionButton
             variant="primary"
@@ -92,7 +92,7 @@
           v-if="isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
-          @click="ui.lootTableGeneratorOpen = true"
+          @click="generatorsUi.lootTableGeneratorOpen = true"
         />
         <ListActionButton
           variant="primary"
@@ -127,7 +127,7 @@
           v-if="isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
-          @click="ui.puzzleGeneratorOpen = true"
+          @click="puzzlesUi.puzzleGeneratorOpen = true"
         />
         <ListActionButton
           variant="primary"
@@ -162,13 +162,14 @@ import { usePopulateTraps } from "@/composables/dungeon-features/useTraps";
 import { usePopulatePuzzles } from "@/composables/dungeon-features/usePuzzles";
 import { usePopulateRollTables } from "@/composables/dungeon-features/useRollTables";
 
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import { useCampaignStore } from "@/stores/campaign";
-import PageHeader from "@/components/common/PageHeader.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import TabBar from "@/components/common/TabBar.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
 
 import DungeonCraftFeaturesTab from "@/components/dungeon-features/DungeonCraftFeaturesTab.vue";
 import DungeonCraftTrapsTab from "@/components/dungeon-features/DungeonCraftTrapsTab.vue";
@@ -179,7 +180,8 @@ import DungeonCraftCartographerTab from "@/components/dungeon-features/DungeonCr
 
 const route  = useRoute();
 const router = useRouter();
-const ui     = useUiStore();
+const generatorsUi = useGeneratorUiStore();
+const puzzlesUi = usePuzzlesUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 

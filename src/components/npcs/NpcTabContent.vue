@@ -55,15 +55,15 @@
 import { ref } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import NpcLoreSections from "@/components/npcs/NpcLoreSections.vue";
-import TabBar from "@/components/common/TabBar.vue";
-import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
-import TraitList from "@/components/common/TraitList.vue";
-import SpellcastingList from "@/components/common/SpellcastingList.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
+import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
+import TraitList from "@/components/common/statblock/TraitList.vue";
+import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcPartyTab from "@/components/npcs/NpcPartyTab.vue";
 import NpcRelationsTab from "@/components/npcs/NpcRelationsTab.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
-import EntityBacklinks from "@/components/common/EntityBacklinks.vue";
+import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import type { Npc, NpcListRow } from "@/types/npc.types";
 

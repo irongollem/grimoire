@@ -3,8 +3,8 @@
     <!-- Filters + new button -->
     <ListFilterBar
       class="mb-5"
-      :has-active-filters="ui.customRulesHasActiveFilters"
-      @clear="ui.resetCustomRulesFilters()"
+      :has-active-filters="rulesUi.customRulesHasActiveFilters"
+      @clear="rulesUi.resetCustomRulesFilters()"
     >
       <ListSearchInput v-model="search" placeholder="Search custom rules…" />
       <ListFilterSelect v-model="categoryFilter" aria-label="Rule category filter">
@@ -121,23 +121,23 @@ import { useRules } from "@/composables/rules/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { listOptionalRules } from "@/rules/optionalRules";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import { useUiStore } from "@/stores/ui";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import { useRulesUiStore } from "@/stores/ui/rules";
 
 const { data: rules, isLoading } = useRules();
 const { data: campaignRules } = useOptionalRules();
-const ui = useUiStore();
+const rulesUi = useRulesUiStore();
 const search = computed({
-  get: () => ui.customRulesSearch,
-  set: (v) => { ui.customRulesSearch = v; },
+  get: () => rulesUi.customRulesSearch,
+  set: (v) => { rulesUi.customRulesSearch = v; },
 });
 const categoryFilter = computed({
-  get: () => ui.customRulesFilterCategory,
-  set: (v) => { ui.customRulesFilterCategory = v; },
+  get: () => rulesUi.customRulesFilterCategory,
+  set: (v) => { rulesUi.customRulesFilterCategory = v; },
 });
 
 const enabledBuiltIns = computed(() =>

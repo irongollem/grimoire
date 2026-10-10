@@ -1,0 +1,221 @@
+<template>
+  <div class="space-y-4">
+    <p class="text-body text-muted-foreground italic">
+      {{ isEditMode
+        ? 'Review your changes before saving.'
+        : 'All set. Your scores, hit points and armor come from the choices you made.' }}
+    </p>
+
+    <!-- Summary card -->
+    <div class="rounded-lg border border-border bg-card overflow-hidden">
+
+      <!-- Header -->
+      <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center gap-3">
+        <div v-if="portraitUrl" class="w-10 h-10 rounded-full overflow-hidden shrink-0">
+          <FocalImage :src="portraitUrl" :alt="f.name" format="portrait" :focal-point="focalPoint" />
+        </div>
+        <div>
+          <p class="text-heading-sm font-bold text-foreground">{{ f.name || '—' }}</p>
+          <p class="text-caption text-muted-foreground">
+            Level {{ isEditMode ? f.level : 1 }}
+            {{ [selectedSpecies?.name, f.class].filter(Boolean).join(' ') }}{{ f.subclass ? ` (${f.subclass})` : '' }}
+            {{ f.subrace ? `(${f.subrace})` : '' }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Ability scores -->
+      <div class="px-4 pt-3 pb-2 grid grid-cols-6 gap-2">
+        <div v-for="stat in ABILITY_STATS" :key="stat.key" class="text-center">
+          <p class="text-label text-muted-foreground">{{ stat.label }}</p>
+          <p class="text-heading-sm font-bold">{{ displayScore(stat.key) }}</p>
+          <p class="text-label"
+            :class="totalMod(stat.key) >= 0 ? 'text-ink-success' : 'text-destructive'">
+            {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Derived combat stats (new chars only) -->
+      <div v-if="!isEditMode" class="px-4 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="rounded-md bg-muted/40 p-2 text-center">
+          <p class="text-label text-muted-foreground">MAX HP</p>
+          <p class="text-heading font-bold text-foreground">{{ derivedHp ?? '—' }}</p>
+          <p v-if="selectedClass" class="text-caption-sm text-muted-foreground">d{{ selectedClass.hit_die }} + CON</p>
+          <p v-else class="text-caption-sm text-muted-foreground">pick a class</p>
+        </div>
+        <div class="rounded-md bg-muted/40 p-2 text-center">
+          <p class="text-label text-muted-foreground">ARMOR CLASS</p>
+          <p class="text-heading font-bold text-foreground">{{ derivedAc }}</p>
+          <p class="text-caption-sm text-muted-foreground">10 + DEX</p>
+        </div>
+        <div class="rounded-md bg-muted/40 p-2 text-center">
+          <p class="text-label text-muted-foreground">SPEED</p>
+          <p class="text-heading font-bold text-foreground">{{ derivedSpeed }} ft</p>
+          <p class="text-caption-sm text-muted-foreground">{{ selectedSpecies?.name ?? 'base' }}</p>
+        </div>
+        <div class="rounded-md bg-muted/40 p-2 text-center">
+          <p class="text-label text-muted-foreground">INITIATIVE</p>
+          <p class="text-heading font-bold text-foreground">
+            {{ derivedInitiative >= 0 ? '+' : '' }}{{ derivedInitiative }}
+          </p>
+          <p class="text-caption-sm text-muted-foreground">DEX mod</p>
+        </div>
+      </div>
+
+      <!-- Choices summary row -->
+      <div v-if="selectedBg || f.alignment" class="px-4 pb-3 flex flex-wrap gap-x-4 gap-y-1">
+        <div v-if="selectedBg" class="flex items-center gap-1">
+          <span class="text-label text-muted-foreground">BG</span>
+          <span class="text-caption text-foreground">{{ selectedBg.name }}</span>
+        </div>
+        <div v-if="f.alignment" class="flex items-center gap-1">
+          <span class="text-label text-muted-foreground">ALIGN</span>
+          <span class="text-caption text-foreground">{{ f.alignment }}</span>
+        </div>
+      </div>
+
+      <!-- Spell slots (if class is a caster) -->
+      <div v-if="spellSlotMaxes.some(v => v > 0)" class="px-4 pb-3">
+        <p class="text-label text-muted-foreground mb-1.5">SPELL SLOTS</p>
+        <div class="flex flex-wrap gap-1.5">
+          <span v-for="(max, idx) in spellSlotMaxes" v-show="max > 0" :key="idx"
+            class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary">
+            {{ SLOT_LEVEL_LABELS[idx] }}: {{ max }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Level 1 choices: the class's own questions and the origin feat's, asked as a level-up asks them -->
+    <template v-if="!isEditMode">
+      <p v-if="levelOne.isLoading.value" class="text-body text-muted-foreground italic">
+        Reading your class features…
+      </p>
+      <LevelUpChoices
+        v-model:values="choiceValues"
+        v-model:swaps="swapPicks"
+        v-model:complete="choicesComplete"
+        :due="levelOne.due.value"
+        :swap-offers="levelOne.swapOffers.value"
+        :context="levelOne.optionContext.value"
+        :feats-by-id="levelOne.featuresById.value"
+        :feats-allowed="levelOne.featsAllowed.value"
+        :spell-variant-for="levelOne.spellVariantFor"
+      />
+      <p v-if="levelOne.due.value.length > 0" class="text-caption text-muted-foreground">
+        Choices for later levels are made as you level up.
+      </p>
+    </template>
+
+    <p v-if="originFeatMessage" class="text-body text-ink-caution">
+      {{ originFeatMessage }} Pick another background to go on.
+    </p>
+
+    <!-- Warning: no class selected -->
+    <div v-if="!f.class" class="rounded-lg border border-tone-caution/30 bg-tone-caution/5 p-3 flex items-start gap-2">
+      <span class="text-ink-caution shrink-0 mt-0.5">⚡</span>
+      <p class="text-body text-ink-caution ">
+        No class selected. HP will default to 8. You can set your class later via the Edit screen.
+      </p>
+    </div>
+
+    <p v-if="startingEquipmentDeferred" class="text-body text-muted-foreground">
+      Your starting equipment is added when {{ f.name.trim() || 'this character' }} joins a table.
+    </p>
+
+    <!-- Save actions -->
+    <div v-if="!isEditMode" class="flex flex-col sm:flex-row items-stretch gap-3">
+      <AppButton
+        variant="primary"
+        size="lg"
+        class="flex-1"
+        :disabled="!f.name.trim() || saving || blockedByLevelOne"
+        :label="saving ? 'Creating…' : 'Begin My Adventure'"
+        @click="save(false)"
+      />
+      <AppButton
+        variant="tinted"
+        tone="primary"
+        emphasis="outline"
+        size="lg"
+        class="flex-1"
+        :disabled="!f.name.trim() || saving || blockedByLevelOne"
+        label="Begin + Level Up to 2"
+        @click="save(true)"
+      />
+    </div>
+    <div v-else>
+      <AppButton
+        variant="primary"
+        size="lg"
+        block
+        :disabled="!f.name.trim() || saving"
+        :label="saving ? 'Saving…' : 'Save Character'"
+        @click="save(false)"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import LevelUpChoices from "@/components/features/LevelUpChoices.vue";
+import { ABILITY_STATS, SLOT_LEVEL_LABELS, type AbilityKey } from "@/rules/characterCreation";
+import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
+
+const { form } = defineProps<{ form: CharacterCreationForm }>();
+
+const {
+  f, isEditMode, saving, startingEquipmentDeferred,
+  portraitUrl, focalPoint, spellSlotMaxes,
+  selectedSpecies, selectedBg, selectedClass,
+  selectedSubrace, asiMode,
+  derivedHp, derivedAc, derivedSpeed, derivedInitiative,
+  mod, save, levelOne, blockedByLevelOne, originFeatMessage,
+} = form;
+// Top-level refs, so v-model reaches them in the template.
+const { values: choiceValues, swapPicks, complete: choicesComplete } = levelOne;
+
+// Reuse the same ASI logic to compute displayed scores on the summary card.
+function isStructuredAsi(asi: Record<string, number | string> | null | undefined): boolean {
+  if (!asi) return true;
+  if ("description" in asi) return false;
+  return Object.values(asi).every(v => typeof v === "number");
+}
+
+const asiIsStructured = computed(() =>
+  isStructuredAsi(selectedSpecies.value?.ability_score_increases) &&
+  isStructuredAsi(selectedSubrace.value?.ability_score_increases),
+);
+
+const racialBonusMap = computed((): Partial<Record<AbilityKey, number>> => {
+  if (!asiIsStructured.value || asiMode.value !== "bonus") return {};
+  const abilityKeyMap: Record<string, AbilityKey> = {
+    str: "str", dex: "dex", con: "con", int: "int", wis: "wis", cha: "cha",
+    strength: "str", dexterity: "dex", constitution: "con", intelligence: "int", wisdom: "wis", charisma: "cha",
+  };
+  const map: Partial<Record<AbilityKey, number>> = {};
+  const addAsi = (asi: Record<string, number | string>) => {
+    for (const [k, v] of Object.entries(asi)) {
+      const fk = abilityKeyMap[k.toLowerCase()];
+      if (fk && typeof v === "number") map[fk] = (map[fk] ?? 0) + v;
+    }
+  };
+  const base = selectedSpecies.value?.ability_score_increases;
+  if (base && !("description" in base)) addAsi(base);
+  const sub = selectedSubrace.value?.ability_score_increases;
+  if (sub && !("description" in sub)) addAsi(sub);
+  return map;
+});
+
+function displayScore(key: AbilityKey): number {
+  return f[key] + (racialBonusMap.value[key] ?? 0);
+}
+
+function totalMod(key: AbilityKey): number {
+  return mod(displayScore(key));
+}
+</script>

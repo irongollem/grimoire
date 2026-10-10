@@ -11,7 +11,7 @@ const stores = vi.hoisted(() => ({
   auth: { linkedPartyMemberId: "pm-1" as string | null },
   campaign: { activeCampaignId: "c-1" as string | null },
 }));
-vi.mock("@/stores/ui", () => ({ useUiStore: () => stores.ui }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => stores.ui }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => stores.auth }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => stores.campaign }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ PLAYER_NPCS_KEY: "player-npcs" }));

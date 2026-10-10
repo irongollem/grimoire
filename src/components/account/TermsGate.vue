@@ -122,10 +122,10 @@ import { useAgeQuestion } from "@/composables/auth/useAgeQuestion";
 import { wasAnsweredUnder16 } from "@/lib/ageGateSession";
 import { useTermsGate } from "@/composables/account/useTermsGate";
 import { IconShieldCheck } from "@/lib/icons";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import BirthMonthField from "@/components/auth/BirthMonthField.vue";
 import ParentRequestForm from "@/components/auth/ParentRequestForm.vue";
 

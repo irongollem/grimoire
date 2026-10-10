@@ -239,7 +239,7 @@ import {
   type Quest,
   type QuestStatus,
 } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { quest, party = [], summary, dragging = false, draggable = true } = defineProps<{
   quest: Quest;

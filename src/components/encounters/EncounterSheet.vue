@@ -266,8 +266,8 @@ import { placeRoute } from "@/lib/locations/placeRoute";
 import { formatCoinParts } from "@/rules/currency";
 import { DIFFICULTY_COLORS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
-import AppButton from "@/components/common/AppButton.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import EncounterDifficulty from "@/components/encounters/EncounterDifficulty.vue";
 
 const props = defineProps<{ encounter: Encounter }>();

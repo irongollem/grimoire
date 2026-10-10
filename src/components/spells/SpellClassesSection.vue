@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { SPELL_CLASSES } from "@/types/spell.types";
 
 const { classes } = defineProps<{

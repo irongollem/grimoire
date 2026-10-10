@@ -417,8 +417,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Editor } from "@tiptap/vue-3";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import {
   IMAGE_SIZES,
 } from "@/lib/scriptorium/editorConstants";

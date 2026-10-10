@@ -87,7 +87,7 @@ One model: Google's `lyria-3.5`, called through Google's **Interactions API** (`
 
 ### Views
 
-- `src/views/soundboard/SoundboardView.vue` — the `/soundboard` DM page. Page tabs, a Sounds/Playlists mode toggle, a filter bar (search + category, both in `useUiStore` per the Filter State Pattern), a drag-reorderable sound grid. On first load with zero pages it auto-creates a "Main" page and bulk-assigns every existing sound to it.
+- `src/views/soundboard/SoundboardView.vue` — the `/soundboard` DM page. Page tabs, a Sounds/Playlists mode toggle, a filter bar (search + category, both in `useSoundboardUiStore` per the Filter State Pattern), a drag-reorderable sound grid. On first load with zero pages it auto-creates a "Main" page and bulk-assigns every existing sound to it.
 - `src/views/soundboard/SpotifyCallbackView.vue` — `/spotify/callback` OAuth redirect target; exchanges the PKCE code then routes back to `/soundboard`.
 
 ## Audio Engine
@@ -131,7 +131,7 @@ Audio binds to campaign events by **theme label**, never by a foreign key to one
 | `src/lib/audio/audioTriggers.ts`                 | The bus: `requestAudioTheme` / `requestAudioCue` / `releaseAudioTheme` / `onAudioTrigger` |
 | `src/composables/soundboard/useAudioThemeTriggers.ts` | The only consumer. Mounted once in `DefaultLayout`. Also exports `useAudioTriggerPrefs` and `useActiveAudioTriggers` |
 | `src/lib/audio/audioTriggerPrefs.ts`             | The DM's on/off switch, localStorage, default on                                        |
-| `src/components/common/ThemeInput.vue`     | Free-text label with datalist suggestions, shared by the encounter and location editors |
+| `src/components/common/controls/ThemeInput.vue`     | Free-text label with datalist suggestions, shared by the encounter and location editors |
 
 **Slots.** An encounter drives `music`; a location drives `ambient`. They compose deliberately — dungeon ambience keeps running underneath battle music — and neither can ever contend for the other's channel. `resolveAudioTheme` will not look in the other slot even when its own has no answer.
 
@@ -273,7 +273,7 @@ A DM can share **the music slot only** with players in the portal. `soundboard_b
 | -------------------------------------------- | ------------------------------------------------------------ |
 | `src/lib/audio/broadcastOffset.ts`                 | Pure: anchor → current position, and the resync threshold      |
 | `src/composables/soundboard/useSoundboardBroadcast.ts`  | DM side. Module-level `broadcasting` flag + the upsert         |
-| `src/composables/play/usePlayerAudioStream.ts`    | Player side. Realtime subscription and the element             |
+| `src/composables/player/usePlayerAudioStream.ts`    | Player side. Realtime subscription and the element             |
 | `src/components/soundboard/PlayerAudioStream.vue` | Player UI, mounted in `PlayerLayout`                      |
 
 ### Four decisions worth not undoing

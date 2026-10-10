@@ -127,9 +127,9 @@ import { useRoute, useRouter } from "vue-router";
 
 import { IconSave, IconGenerate, IconUpload } from "@/lib/icons";
 
-import PageHeader from "@/components/common/PageHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
 import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
 import MapWorkbench from "@/components/cartographer/MapWorkbench.vue";

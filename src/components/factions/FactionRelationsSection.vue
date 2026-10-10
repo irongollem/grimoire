@@ -72,9 +72,9 @@ import {
 } from "@/composables/factions/useFactions";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { RELATION_TYPES, relationMeta } from "@/types/faction.types";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 
 const props = defineProps<{ factionId: string }>();
 

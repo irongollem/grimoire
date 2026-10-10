@@ -58,7 +58,7 @@
  * The Remove button only shows where `remove_from_family_campaign` would
  * allow it; the server checks again, so this is presentation, not the guard.
  */
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import {

@@ -7,7 +7,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useSpellsUiStore } from "@/stores/ui/spells";
 import type { SpellSchool } from "@/types/spell.types";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
@@ -28,7 +28,7 @@ registerAiGenerator({
   label: "Spell",
   entityRoute: (id) => `/spells/${id}`,
   openPanel: () => {
-    useUiStore().spellGeneratorOpen = true;
+    useSpellsUiStore().spellGeneratorOpen = true;
   },
 });
 

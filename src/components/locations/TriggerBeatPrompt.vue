@@ -25,7 +25,7 @@
  * bookkeeping, which stays a `watch(currentRoomId, ...)` on the caller's own
  * side rather than moving in here.
  */
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconNavigate } from "@/lib/icons";
 
 export interface TriggerBeatSummary {

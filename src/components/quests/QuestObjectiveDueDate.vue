@@ -41,9 +41,9 @@
  * names come from the campaign's calendar adapter.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { daysInMonth, type CalendarDate } from "@/lib/calendar/dayMath";
 import { IconClose } from "@/lib/icons";
 import { describeDeadline, formatDueDate } from "@/lib/quests/deadlines";

@@ -20,7 +20,7 @@
  * Shown only where it means something (`convergeMatters`).
  */
 import { computed } from "vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { useQuestBeatEdges, useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useToast } from "@/composables/useToast";
 import { CONVERGE_EXPLANATIONS, CONVERGE_OPTIONS, convergeMatters } from "@/lib/quests/converge";

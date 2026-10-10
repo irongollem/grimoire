@@ -68,10 +68,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 
 interface Month {
   num: number;

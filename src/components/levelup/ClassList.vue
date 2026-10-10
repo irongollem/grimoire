@@ -6,7 +6,7 @@
   <template v-else>
     <!-- Empty state (no custom classes and no search active) -->
     <div
-      v-if="filtered.length === 0 && !ui.customClassesHasActiveFilters"
+      v-if="filtered.length === 0 && !codexUi.customClassesHasActiveFilters"
       class="flex flex-col items-center gap-6 py-12 px-4 text-center"
     >
       <div class="space-y-2">
@@ -116,13 +116,13 @@
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { IconAdd, IconChevronRight, IconCopy } from '@/lib/icons';
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
-import { useUiStore } from "@/stores/ui";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import { useCodexUiStore } from "@/stores/ui/codex";
 import { useAllCustomClasses, useAllSystemClasses, useCreateCustomClass } from "@/composables/rules/useCustomClasses";
 import type { CustomClass, SystemClass } from "@/levelup/customTypes";
 
-const ui = useUiStore();
+const codexUi = useCodexUiStore();
 const router = useRouter();
 const { data: all, isLoading } = useAllCustomClasses();
 const { data: system, isLoading: systemLoading } = useAllSystemClasses();
@@ -132,14 +132,14 @@ const duplicating = ref<string | null>(null);
 
 const filtered = computed<CustomClass[]>(() => {
   const items = all.value ?? [];
-  const search = ui.customClassesSearch.toLowerCase();
+  const search = codexUi.customClassesSearch.toLowerCase();
   if (!search) return items;
   return items.filter(c => c.class_name.toLowerCase().includes(search));
 });
 
 const filteredSystem = computed<SystemClass[]>(() => {
   const items = system.value ?? [];
-  const search = ui.customClassesSearch.toLowerCase();
+  const search = codexUi.customClassesSearch.toLowerCase();
   if (!search) return items;
   return items.filter(c => c.class_name.toLowerCase().includes(search));
 });

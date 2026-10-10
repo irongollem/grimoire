@@ -4,7 +4,7 @@ import { computed, shallowRef, ref } from "vue";
  * Bulk row selection for a list view (#875). A plain composable, not a store —
  * each list view calls it and owns its own selection, the same way
  * `useCardForgeStore`'s buckets are per-source rather than shared. Selection
- * is transient and per-visit; it is deliberately NOT a `useUiStore` filter (the
+ * is transient and per-visit; it is deliberately NOT a domain UI store filter (the
  * Filter State Pattern governs filters over the list, which this is not), so
  * navigating away and back starts empty.
  *

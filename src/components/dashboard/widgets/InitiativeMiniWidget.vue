@@ -97,10 +97,10 @@
  * both costs nothing extra — one realtime channel, ref-counted.
  */
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useRunningEncounters } from "@/composables/encounters/useEncounterLive";
 import { deriveInitiativeMiniState, type CombatantHpState } from "@/lib/dashboard/initiativeMini";
-import type { ButtonTone } from "@/components/common/appButtonVariants";
+import type { ButtonTone } from "@/components/common/controls/appButtonVariants";
 import DashboardWidget from "../DashboardWidget.vue";
 
 const { firstRunning } = useRunningEncounters();

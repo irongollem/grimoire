@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.trapGeneratorOpen"
+    v-model:open="generatorsUi.trapGeneratorOpen"
     v-model:concept="concept"
     v-model:generate-image="generateImage"
     title="Trap Generator"
@@ -45,13 +45,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateTrap } from "@/composables/dungeon-features/useTraps";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
-import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { useTrapGeneration } from "@/ai/useTrapGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { TRAP_TYPES, CR_LIST } from "@/types/trap.types";
@@ -59,7 +59,7 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 
-const ui       = useUiStore();
+const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
 const campaign = useCampaignStore();
 const { mutateAsync: createTrap } = useCreateTrap();
@@ -154,7 +154,7 @@ async function generateAndCreate() {
   }
 
   completedEntityId.value = trap.id;
-  ui.trapGeneratorOpen = false;
+  generatorsUi.trapGeneratorOpen = false;
   router.push(`/traps/${trap.id}`);
 }
 </script>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import RunnerPortrait from "./RunnerPortrait.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 
 describe("RunnerPortrait", () => {
   it("renders nothing for a combatant without a picture", () => {

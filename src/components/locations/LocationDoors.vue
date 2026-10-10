@@ -166,13 +166,13 @@
  * Nothing here should ever be renamed to `is_locked` or `is_discovered`.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
 import PlacementRow from "@/components/locations/PlacementRow.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { IconClose, IconHide, IconLock } from "@/lib/icons";
 import { DOOR_KIND_ICONS } from "@/lib/locations/doors";
 import { bindableSpaces } from "@/lib/locations/tiers";

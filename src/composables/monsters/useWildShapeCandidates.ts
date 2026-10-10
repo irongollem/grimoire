@@ -7,7 +7,7 @@ import { parseCr } from "@/lib/utils";
 import { wildShapeCandidateCost, type WildShapeCandidateFields, type WildShapeRules } from "@/rules/wildshape";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import type { MonsterIndexEntry, PlayerVisibleMonster } from "@/types/monster.types";
 
 /** Same key `usePlayerMonstersByIds` reads, so the projection is fetched once. */
@@ -32,11 +32,11 @@ export function useWildShapeCandidates(
   rules: MaybeRefOrGetter<WildShapeRules>,
   getOptions: () => { enabled: boolean },
 ): { data: ComputedRef<WildShapeCandidate[]>; isLoading: ComputedRef<boolean> } {
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const auth = useAuthStore();
   const campaign = useCampaignStore();
   const { ruleset } = useTableRuleset();
-  const viewerIsDm = () => ui.dmPreviewMode || auth.isDM;
+  const viewerIsDm = () => appUi.dmPreviewMode || auth.isDM;
 
   const index = useMonsterIndex(() => ({
     enabled: getOptions().enabled,

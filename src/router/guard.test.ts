@@ -50,7 +50,7 @@ vi.mock("@/layouts/layoutLoader", () => ({ preloadLayout: async () => undefined 
 import { setupRouterGuard } from "./index";
 import { lensRefusal } from "./lens";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 
 const Stub = { template: "<div />" };
@@ -112,7 +112,7 @@ async function signedInDm(campaignId: string | null) {
   // place; every later `initialize()` returns immediately.
   await auth.initialize();
   auth.user = { id: "u1" } as User;
-  useUiStore().userMode = "dm";
+  useAppUiStore().userMode = "dm";
   useCampaignStore().activeCampaignId = campaignId;
 }
 
@@ -225,7 +225,7 @@ describe("the lens fence", () => {
   it("closes a campaign the player lens actually runs", async () => {
     const { router } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
     await signedInDm("c1");
-    useUiStore().userMode = "player";
+    useAppUiStore().userMode = "player";
 
     await router.push("/play/home");
 
@@ -238,7 +238,7 @@ describe("the lens fence", () => {
     // not read the surface's lens as the one being worn.
     const { router, fetchQuery } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
     await signedInDm("c1");
-    useUiStore().dmPreviewMode = true;
+    useAppUiStore().dmPreviewMode = true;
 
     await router.push("/play/home");
 
@@ -252,7 +252,7 @@ async function signedInPlayer() {
   const auth = useAuthStore();
   await auth.initialize();
   auth.user = { id: "u1" } as User;
-  useUiStore().userMode = "player";
+  useAppUiStore().userMode = "player";
 }
 
 describe("account-scoped routes reachable from the player lens (#919)", () => {
@@ -432,7 +432,7 @@ describe("the password reset link", () => {
     const auth = useAuthStore();
     await auth.initialize();
     auth.user = { id: "u1" } as User;
-    useUiStore().userMode = "player";
+    useAppUiStore().userMode = "player";
 
     await router.push("/reset-password");
 

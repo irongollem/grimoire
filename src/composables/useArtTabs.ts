@@ -1,5 +1,5 @@
 import { computed, ref } from "vue";
-import type { ImageVariant } from "@/components/common/EntityImageBlock.vue";
+import type { ImageVariant } from "@/components/common/entity/EntityImageBlock.vue";
 
 /**
  * The Picture / Cutout tab over one `EntityImageBlock` (#917).
@@ -12,7 +12,7 @@ import type { ImageVariant } from "@/components/common/EntityImageBlock.vue";
  * portraits are meant to follow, which is why it lives with the other image
  * primitives rather than under one entity.
  *
- * Plain local state, not a list filter, so it stays out of useUiStore.
+ * Plain local state, not a list filter, so it stays out of a domain UI store.
  */
 export type ArtTab = "picture" | "cutout";
 

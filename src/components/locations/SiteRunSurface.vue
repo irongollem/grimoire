@@ -37,7 +37,7 @@
                (see `LocationMap.vue`'s own docstring) — this is a narrower,
                purpose-built toggle for the fog hint below, not a second copy
                of that bar's Spaces/Ways/Zones/Grid pills. -->
-          <AppCheckbox v-model="ui.siteMapLayers.fog" label="Fog" size="sm" />
+          <AppCheckbox v-model="locationsUi.siteMapLayers.fog" label="Fog" size="sm" />
         </div>
 
         <!-- The fog hint (#884 S11) — drawn straight onto the plan below,
@@ -61,7 +61,7 @@
           run-mode
           :party-room-id="currentRoomId"
           :reachable-room-ids="reachable"
-          :show-fog="ui.siteMapLayers.fog"
+          :show-fog="locationsUi.siteMapLayers.fog"
           :fog-glimpsed-cells="fogGlimpsedCells"
           @move-party="moveTo"
         />
@@ -138,7 +138,7 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { RouteLocationRaw } from "vue-router";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
 import SiteRoomList from "@/components/locations/SiteRoomList.vue";
@@ -158,7 +158,7 @@ import { useLocationStateForRooms, useDoorStateForSite } from "@/composables/loc
 import { useMoveParty } from "@/composables/locations/useMoveParty";
 import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 import { compareSiblings } from "@/lib/locations/tree";
 import { partyRoomInSite, siteReachability } from "@/lib/locations/siteRun";
 import { unwrittenRoomIds } from "@/lib/quests/siteHandoff";
@@ -171,7 +171,7 @@ const { location } = defineProps<{ location: Location }>();
 const route = useRoute();
 const router = useRouter();
 const campaign = useCampaignStore();
-const ui = useUiStore();
+const locationsUi = useLocationsUiStore();
 
 // ── Rooms, in the DM's manual order — the same comparator the Atlas and
 //    SiteRoomsPanel use, so this list matches how the DM already arranged

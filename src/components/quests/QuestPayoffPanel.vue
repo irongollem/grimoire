@@ -152,10 +152,10 @@ import { EVENT_TYPE_COLORS, type CalendarEventType } from "@/types/calendar.type
 import {
   IconAward, IconCalendar, IconCheck, IconClock, IconCoins, IconDocument, IconFaction, IconHand, IconInvite, IconPackage, IconParty, IconPin, IconQuest, IconScrollText, IconSend,
 } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import QuestWorldVerbFields from "./QuestWorldVerbFields.vue";
 
 const { beat, edges, beats, consequences, loot } = defineProps<{

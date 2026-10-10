@@ -96,11 +96,11 @@
         size="icon-xs"
         tooltip="Open chat"
         class="relative"
-        @click="ui.toggleChat()"
+        @click="appUi.toggleChat()"
       >
         <template #icon>
           <IconMessage class="h-4 w-4" />
-          <span v-if="ui.chatHasUnread" class="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
+          <span v-if="appUi.chatHasUnread" class="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
         </template>
       </AppButton>
 
@@ -120,15 +120,15 @@
 
     <!-- DM preview banner -->
     <div
-      v-if="ui.dmPreviewMode"
+      v-if="appUi.dmPreviewMode"
       class="bg-tone-caution px-4 py-2 flex items-center gap-3 shrink-0"
     >
       <IconReveal class="h-3.5 w-3.5 text-on-caution/70 shrink-0" />
       <span class="text-label-lg text-on-caution font-semibold shrink-0">Previewing as:</span>
       <select
-        :value="ui.dmPreviewPartyMemberId ?? ''"
+        :value="appUi.dmPreviewPartyMemberId ?? ''"
         class="flex-1 min-w-0 max-w-48 bg-on-caution/10 border border-on-caution/20 rounded px-2 py-0.5 text-caption text-on-caution focus:outline-none focus:ring-1 focus:ring-on-caution/30"
-        @change="ui.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
+        @change="appUi.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
       >
         <option value="">Pick a character</option>
         <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
@@ -344,28 +344,29 @@ import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconReveal, IconSettingsAlt } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
-import AppButton from "@/components/common/AppButton.vue";
-import RouteSkeleton from "@/components/common/RouteSkeleton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import RouteSkeleton from "@/components/common/feedback/RouteSkeleton.vue";
 import { navigationPending } from "@/router/navigationPending";
-import DiceRoller from "@/components/common/DiceRoller.vue";
+import DiceRoller from "@/components/common/dice/DiceRoller.vue";
 import { useNeedsInitiativeRoll } from "@/composables/encounters/useNeedsInitiativeRoll";
 import { usePlayerEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { usePlayerSessionState, formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
 import { prefersReducedMotion } from "@/lib/motion";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
+import { usePlayerUiStore } from "@/stores/ui/player";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
-import { usePlayerRemovalGuard } from "@/composables/play/usePlayerRemovalGuard";
+import { usePlayerRemovalGuard } from "@/composables/player/usePlayerRemovalGuard";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
 import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
-import { usePlayerUnread } from "@/composables/play/usePlayerUnread";
+import { usePlayerUnread } from "@/composables/player/usePlayerUnread";
 import ModeToggle from "@/components/layout/ModeToggle.vue";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
 import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
@@ -377,7 +378,8 @@ import { activeThemeId } from "@/lib/themeRuntime";
 import { darkChromeStyle } from "@/lib/memorials/hallGround";
 
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
+const playerUi = usePlayerUiStore();
 const campaign = useCampaignStore();
 // Players are where child accounts live, so this menu is the one the
 // child-account gate in useDiscordInvite matters most for.
@@ -386,14 +388,14 @@ const { url: discordUrl, visible: showDiscord } = useDiscordInvite();
 // weight. Latched rather than mirrored so a half-typed report survives a
 // close/reopen, exactly as the always-mounted version did.
 const BugReportModal = defineAsyncComponent(
-  () => import("@/components/common/BugReportModal.vue"),
+  () => import("@/components/common/overlays/BugReportModal.vue"),
 );
 
 // #999: both mount only on first open. Each owns a query (the shared-locations
 // RPC, the player's campaign list) that cost a request on every cold load of the
 // portal for a panel most sessions never show.
 const PlayerLocationDialog = defineAsyncComponent(
-  () => import("@/components/play/PlayerLocationDialog.vue"),
+  () => import("@/components/player/PlayerLocationDialog.vue"),
 );
 const PlayerCampaignsSheet = defineAsyncComponent(
   () => import("@/components/layout/PlayerCampaignsSheet.vue"),
@@ -422,10 +424,10 @@ const router = useRouter();
 const { data: partyMembers } = useParty();
 
 watch(
-  [() => ui.dmPreviewMode, partyMembers],
+  [() => appUi.dmPreviewMode, partyMembers],
   ([previewMode, members]) => {
-    if (previewMode && !ui.dmPreviewPartyMemberId && members?.length) {
-      ui.dmPreviewPartyMemberId = members[0].id;
+    if (previewMode && !appUi.dmPreviewPartyMemberId && members?.length) {
+      appUi.dmPreviewPartyMemberId = members[0].id;
     }
   },
   { immediate: true },
@@ -533,7 +535,7 @@ const showMore = ref(false);
 const showMenu = ref(false);
 const showCampaignSheet = ref(false);
 const campaignSheetMounted = useLazyMount(showCampaignSheet);
-const locationDialogOpen = computed(() => ui.playerLocationDialogId !== null);
+const locationDialogOpen = computed(() => playerUi.playerLocationDialogId !== null);
 const locationDialogMounted = useLazyMount(locationDialogOpen);
 const { unreadPaths } = usePlayerUnread();
 watch(() => route.path, () => { showMore.value = false; });
@@ -550,7 +552,7 @@ watch(
 );
 
 function exitPreview() {
-  ui.exitDmPreview();
+  appUi.exitDmPreview();
   router.push({ name: "dashboard" });
 }
 

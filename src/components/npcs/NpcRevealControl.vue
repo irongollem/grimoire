@@ -29,8 +29,8 @@
 </template>
 
 <script setup lang="ts">
-import RevealControl from "@/components/common/RevealControl.vue";
-import RevealedFieldsPanel from "@/components/common/RevealedFieldsPanel.vue";
+import RevealControl from "@/components/common/reveal/RevealControl.vue";
+import RevealedFieldsPanel from "@/components/common/reveal/RevealedFieldsPanel.vue";
 import NpcAlterEgoControl from "@/components/npcs/NpcAlterEgoControl.vue";
 import { useNpcReveal } from "@/composables/npcs/useNpcReveal";
 import { NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";

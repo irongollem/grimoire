@@ -22,7 +22,7 @@
  * `?? ''` here is the sanctioned null-to-empty-string translation at an edit
  * boundary: the column is nullable, a text input's value is not.
  */
-import AppInput from "@/components/common/AppInput.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 defineProps<{
   /** The stored note, or null when there is none yet. */

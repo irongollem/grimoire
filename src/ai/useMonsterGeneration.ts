@@ -7,7 +7,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useMonstersUiStore } from "@/stores/ui/monsters";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 export interface MonsterGenerationOptions {
@@ -25,7 +25,7 @@ registerAiGenerator({
   label: "Monster",
   entityRoute: (id) => `/monsters/${id}`,
   openPanel: () => {
-    useUiStore().monsterGeneratorOpen = true;
+    useMonstersUiStore().monsterGeneratorOpen = true;
   },
 });
 

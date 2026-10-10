@@ -4,7 +4,7 @@
   </div>
 
   <EmptyState
-    v-else-if="filtered.length === 0 && !ui.featsHasActiveFilters"
+    v-else-if="filtered.length === 0 && !codexUi.featsHasActiveFilters"
     title="No feats yet"
     description="Feats are options a character can take, like Alert or Grappler. Add your own here."
   >
@@ -30,21 +30,21 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconAdd } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import FeatureListRow from "@/components/features/FeatureListRow.vue";
-import { useUiStore } from "@/stores/ui";
+import { useCodexUiStore } from "@/stores/ui/codex";
 import { useAllFeats } from "@/composables/rules/useFeatures";
 import { FEAT_CATEGORY_LABELS } from "@/types/feature.types";
 
-const ui = useUiStore();
+const codexUi = useCodexUiStore();
 const { data: all, isLoading } = useAllFeats();
 
 const filtered = computed(() => {
-  const search = ui.featsSearch.toLowerCase();
-  const category = ui.featsFilterCategory;
-  const edition = ui.featsFilterEdition;
+  const search = codexUi.featsSearch.toLowerCase();
+  const category = codexUi.featsFilterCategory;
+  const edition = codexUi.featsFilterEdition;
   return (all.value ?? []).filter(f => {
     if (category !== "all" && f.feat_category !== category) return false;
     if (edition !== "all" && f.ruleset !== edition) return false;

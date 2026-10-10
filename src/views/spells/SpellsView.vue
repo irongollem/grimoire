@@ -37,7 +37,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.spellGeneratorOpen = true"
+        @click="spellsUi.spellGeneratorOpen = true"
       />
       <ListActionButton
         variant="primary"
@@ -50,25 +50,25 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="ui.spellsHasActiveFilters"
-        @clear="ui.resetSpellsFilters()"
+        :has-active-filters="spellsUi.spellsHasActiveFilters"
+        @clear="spellsUi.resetSpellsFilters()"
       >
-        <ListSearchInput v-model="ui.spellsSearch" placeholder="Search by name…" />
+        <ListSearchInput v-model="spellsUi.spellsSearch" placeholder="Search by name…" />
         <ListFilterGroup
-          :model-value="ui.spellsFilterLevel"
+          :model-value="spellsUi.spellsFilterLevel"
           :options="LEVEL_FILTERS"
           aria-label="Spell level filter"
-          @update:model-value="ui.spellsFilterLevel = $event"
+          @update:model-value="spellsUi.spellsFilterLevel = $event"
         />
-        <ListFilterSelect v-model="ui.spellsFilterSchool" aria-label="School filter">
+        <ListFilterSelect v-model="spellsUi.spellsFilterSchool" aria-label="School filter">
           <option value="">All Schools</option>
           <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
         </ListFilterSelect>
-        <ListFilterSelect v-model="ui.spellsFilterClass" aria-label="Class filter">
+        <ListFilterSelect v-model="spellsUi.spellsFilterClass" aria-label="Class filter">
           <option value="">All Classes</option>
           <option v-for="c in SPELL_CLASSES" :key="c" :value="c">{{ c }}</option>
         </ListFilterSelect>
-        <ListFilterSelect v-model="ui.spellsFilterSource" aria-label="Source filter">
+        <ListFilterSelect v-model="spellsUi.spellsFilterSource" aria-label="Source filter">
           <option value="all">All Sources</option>
           <option value="custom">Custom</option>
           <option
@@ -102,11 +102,11 @@
     />
     <SpellList
       ref="spellListRef"
-      :search="ui.spellsSearch"
-      :level-filter="ui.spellsFilterLevel"
-      :school-filter="ui.spellsFilterSchool"
-      :class-filter="ui.spellsFilterClass"
-      :source-filter="ui.spellsFilterSource"
+      :search="spellsUi.spellsSearch"
+      :level-filter="spellsUi.spellsFilterLevel"
+      :school-filter="spellsUi.spellsFilterSchool"
+      :class-filter="spellsUi.spellsFilterClass"
+      :source-filter="spellsUi.spellsFilterSource"
       :selecting="selecting"
       :selected-ids="selectedIds"
       @toggle-select="toggleRowSelection"
@@ -127,19 +127,19 @@ import { ref, watch, computed } from "vue";
 import { RouterView } from "vue-router";
 import { useDetailModal } from "@/composables/useDetailModal";
 import { IconAdd, IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
-import { useUiStore } from "@/stores/ui";
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import { useSpellsUiStore } from "@/stores/ui/spells";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
-import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListFilterGroup from "@/components/common/list/ListFilterGroup.vue";
+import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import SpellList from "@/components/spells/SpellList.vue";
-import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
-import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
+import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
+import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { useEnabledSources, useAvailableLibrarySpellSources } from "@/composables/library/useEnabledSources";
 import { useBulkSelection } from "@/composables/useBulkSelection";
@@ -147,7 +147,7 @@ import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignF
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
 
-const ui = useUiStore();
+const spellsUi = useSpellsUiStore();
 
 // Whether to keep drawing the grid: behind the read modal yes, under a
 // full-screen takeover no. The detail view asks the same composable.

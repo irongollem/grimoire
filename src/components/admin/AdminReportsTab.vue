@@ -110,7 +110,7 @@
  * what #633 fixed was publishing it, not holding it.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconBug, IconExternalLink, IconImage, IconLightbulb } from "@/lib/icons";
 import { useAdminBugReports, useAdminBugReportScreenshot } from "@/composables/admin/useAdminBugReports";
 import { useAdminUsers } from "@/composables/admin/useAdminUsers";

@@ -8,7 +8,7 @@ import { BEATS_KEY, RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY } from "@/
 import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import type {
   PlayerQuestBeat,
   PlayerQuestBeatVisit,
@@ -966,10 +966,10 @@ export function useQuestBeatTransitionsForQuest(questId: string | Ref<string>) {
 
 export function usePlayerQuestBeats(questId?: string | Ref<string>, previewPartyMemberId?: Ref<string | null>) {
   const campaign = useCampaignStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const id = questId === undefined ? ref("") : asRef(questId);
-  const previewId = computed(() => previewPartyMemberId?.value ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
+  const previewId = computed(() => previewPartyMemberId?.value ?? (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
   return useQuery({
     queryKey: computed(() => [BEATS_KEY, "player", campaignId.value, id.value || null, previewId.value] as const),
     queryFn: async ({ queryKey: [, , cid, qid, previewMemberId] }): Promise<PlayerQuestBeat[]> => {
@@ -988,10 +988,10 @@ export function usePlayerQuestBeats(questId?: string | Ref<string>, previewParty
 
 export function usePlayerQuestBeatHistory(questId?: string | Ref<string>, previewPartyMemberId?: Ref<string | null>) {
   const campaign = useCampaignStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const id = questId === undefined ? ref("") : asRef(questId);
-  const previewId = computed(() => previewPartyMemberId?.value ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
+  const previewId = computed(() => previewPartyMemberId?.value ?? (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
   return useQuery({
     queryKey: computed(() => [TRANSITIONS_KEY, "player", campaignId.value, id.value || null, previewId.value] as const),
     queryFn: async ({ queryKey: [, , cid, qid, previewMemberId] }): Promise<PlayerQuestBeatVisit[]> => {

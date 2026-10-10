@@ -14,7 +14,7 @@ const sessionRunning = ref(false);
 const activeCampaign = ref<{ current_location_id: string | null } | null>(null);
 const locations = ref<Location[]>([]);
 
-vi.mock("@/stores/ui", () => ({ useUiStore: () => reactive({ sessionRunning }) }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => reactive({ sessionRunning }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => reactive({ activeCampaign }) }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: () => ({ data: locations }),

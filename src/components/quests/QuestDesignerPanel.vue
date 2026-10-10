@@ -183,11 +183,11 @@ import {
   type QuestDesignDiff,
   type QuestDesignQuestion,
 } from "@/lib/quests/designer";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import QuestDesignQuestionCard from "./QuestDesignQuestionCard.vue";
 import QuestDesignTreePreview from "./QuestDesignTreePreview.vue";
 import { IconGenerate } from "@/lib/icons";

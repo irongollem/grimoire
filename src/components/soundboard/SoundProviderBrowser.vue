@@ -134,10 +134,10 @@
 import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
 import { refDebounced } from "@vueuse/core";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import SoundProviderRow from "./SoundProviderRow.vue";
 import { useProviderSearch } from "@/composables/soundboard/useProviderSearch";
 import {

@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { sessionLabel } from "@/lib/sessions/sessionLabel";
 import { formatSessionDay } from "@/lib/sessions/sessionPrefill";

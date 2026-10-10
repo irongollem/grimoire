@@ -69,9 +69,9 @@ import { computed, ref, watch } from "vue";
 import { QUEST_BEAT_KINDS, type QuestBeat, type QuestBeatVisibility } from "@/types/quest.types";
 import { questBeatKindLabel, QUEST_BEAT_VISIBILITY_CAPTIONS, QUEST_BEAT_VISIBILITY_LABELS } from "@/lib/quests/presentation";
 import type { LocationSummary } from "@/types/location.types";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { IconLocation, IconQuest, IconReveal } from "@/lib/icons";
 
 type LocationOption = LocationSummary & { depth: number };

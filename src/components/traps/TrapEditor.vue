@@ -375,18 +375,18 @@ import type {
   TrapDcTier,
   TrapSecondaryEffect,
 } from "@/lib/traps/trapAdvisor";
-import ImageUpload from "@/components/common/ImageUpload.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import DiceExprInput from "@/components/common/DiceExprInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import ImageUpload from "@/components/common/media/ImageUpload.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import DiceExprInput from "@/components/common/dice/DiceExprInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 
 const props = defineProps<{ trap: Trap | null; isNew: boolean }>();
 

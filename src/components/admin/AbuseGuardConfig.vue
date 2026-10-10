@@ -51,9 +51,9 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useAbuseGuard, type AbuseGuardConfig } from "@/composables/admin/useAbuseGuard";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const { query, update } = useAbuseGuard();
 

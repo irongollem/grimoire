@@ -70,8 +70,8 @@ import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { functionErrorCode } from "@edge-shared/functionError.ts";
 import { legalUrl } from "@/lib/marketing";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { parentRequestErrorMessage } from "./parentRequestErrors";
 
 const { inviteToken = null, suppressSentState = false } = defineProps<{

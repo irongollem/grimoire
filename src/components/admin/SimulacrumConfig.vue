@@ -72,7 +72,7 @@ import { useFeatureInterestCount } from "@/composables/simulacrum/useFeatureInte
 import { useAdminKeys } from "@/composables/admin/useAdminKeys";
 import { SIMULACRUM_FEATURE_KEY, type SimulacrumMode } from "@/types/mini.types";
 import PlatformKeyField from "@/components/admin/PlatformKeyField.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { query } = useSimulacrumConfig();
 const update = useUpdateSimulacrumMode();

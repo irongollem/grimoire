@@ -182,11 +182,11 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconGenerate } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import NpcRelationSuggestions from "@/components/npcs/NpcRelationSuggestions.vue";
 import {
   useNpcRelations,

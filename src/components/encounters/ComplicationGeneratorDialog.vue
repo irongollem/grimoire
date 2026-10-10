@@ -210,10 +210,10 @@ import { useComplicationGeneration, type ComplicationMode } from "@/ai/useCompli
 import { resolveGeneratedComplication, buildComplicationEvent } from "@/ai/resolveGeneratedComplication";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";

@@ -33,7 +33,7 @@ import { useEncounter } from "@/composables/encounters/useEncounters";
 import EncounterDetail from "@/components/encounters/EncounterDetail.vue";
 import EncounterSheet from "@/components/encounters/EncounterSheet.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 
 const route     = useRoute();
 const isNew     = computed(() => route.name === "encounter-new");

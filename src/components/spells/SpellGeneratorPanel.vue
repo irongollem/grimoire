@@ -1,6 +1,6 @@
 <template>
   <GeneratorPanelShell
-    v-model:open="ui.spellGeneratorOpen"
+    v-model:open="spellsUi.spellGeneratorOpen"
     v-model:concept="concept"
     v-model:generate-image="generateImage"
     title="Spell Generator"
@@ -39,19 +39,19 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useUiStore } from "@/stores/ui";
+import { useSpellsUiStore } from "@/stores/ui/spells";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateSpell } from "@/composables/spells/useSpells";
 import { useSpellGeneration } from "@/ai/useSpellGeneration";
-import AppSelect from "@/components/common/AppSelect.vue";
-import GeneratorPanelShell from "@/components/common/GeneratorPanelShell.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { spellInsertFromAi } from "@/ai/spellAiAdapter";
 import { SPELL_SCHOOLS, type SpellSchool } from "@/types/spell.types";
 
-const ui = useUiStore();
+const spellsUi = useSpellsUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
 const { mutateAsync: createSpell } = useCreateSpell();
@@ -107,8 +107,8 @@ async function generateAndCreate() {
     campaign_id: campaign.activeCampaignId ?? null,
   });
 
-  if (ui.spellGeneratorOpen) {
-    ui.spellGeneratorOpen = false;
+  if (spellsUi.spellGeneratorOpen) {
+    spellsUi.spellGeneratorOpen = false;
     router.push(`/spells/${created.id}`);
   } else {
     completedEntityId.value = created.id;

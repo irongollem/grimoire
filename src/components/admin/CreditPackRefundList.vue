@@ -107,9 +107,9 @@
 import BannerLoader from '@/components/brand/BannerLoader.vue';
 import { computed, ref, toRef } from 'vue'
 import { useAdminRefunds, type PackLot } from '@/composables/admin/useAdminRefunds'
-import AppButton from '@/components/common/AppButton.vue'
-import AppInput from '@/components/common/AppInput.vue'
-import type { ButtonTone } from '@/components/common/appButtonVariants'
+import AppButton from '@/components/common/controls/AppButton.vue'
+import AppInput from '@/components/common/controls/AppInput.vue'
+import type { ButtonTone } from '@/components/common/controls/appButtonVariants'
 
 const { userId } = defineProps<{ userId: string }>()
 

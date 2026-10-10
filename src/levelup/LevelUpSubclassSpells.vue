@@ -24,8 +24,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import WizardStepCard from "@/components/common/WizardStepCard.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import WizardStepCard from "@/components/common/wizard/WizardStepCard.vue";
 import { useSpellIndex } from "@/composables/spells/useSpellIndex";
 import type { CustomSubclass } from "@/levelup/customTypes";
 import { subclassGrantedSpellIds, subclassVariantLabel, subclassVariantOptions } from "./subclassSpells";

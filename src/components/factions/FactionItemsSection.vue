@@ -34,7 +34,7 @@ import {
 } from "@/composables/factions/useFactions";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
-import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
+import EntityLinkSection from "@/components/common/entity/EntityLinkSection.vue";
 
 const props = defineProps<{ factionId: string }>();
 

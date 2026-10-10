@@ -73,8 +73,8 @@
  * and is filtered out of `promptRows` in favour of mounting the real thing.
  */
 import { computed, reactive } from "vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import PlacementRow from "@/components/locations/PlacementRow.vue";
 import LocationLootPanel from "@/components/locations/LocationLootPanel.vue";
 import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";

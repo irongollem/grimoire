@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconChevronDown, IconChevronRight, IconMap } from "@/lib/icons";
 import type { AtlasRow } from "@/lib/locations/tree";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";

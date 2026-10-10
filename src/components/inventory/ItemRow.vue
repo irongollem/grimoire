@@ -134,7 +134,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconAdd, IconArrowUp, IconDelete, IconDocument, IconDrag, IconMinus, IconScissors, IconShop } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import ItemRowMenu, { type MoveTarget } from "./ItemRowMenu.vue";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { InventoryLocation, PartyInventoryItem } from "@/types/inventory.types";

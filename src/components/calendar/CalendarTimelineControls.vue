@@ -42,8 +42,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const { rangeLabel, zoomYears, zoomPresets, initialYear } = defineProps<{
   rangeLabel: string;

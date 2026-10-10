@@ -55,7 +55,7 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { IconGridView } from '@/lib/icons';
-import { usePlayerNavPrefs } from "@/composables/play/usePlayerNavPrefs";
+import { usePlayerNavPrefs } from "@/composables/player/usePlayerNavPrefs";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS, isNavItemActive } from "@/lib/playerNav";
 

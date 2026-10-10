@@ -2,7 +2,7 @@ import { generateEntityText } from "./entityTextGeneration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import {
   classDraftFromAi,
@@ -22,7 +22,7 @@ registerAiGenerator({
   label: "Class",
   entityRoute: (id) => `/levelup/classes/${id}`,
   openPanel: () => {
-    useUiStore().customClassGeneratorOpen = true;
+    useGeneratorUiStore().customClassGeneratorOpen = true;
   },
 });
 

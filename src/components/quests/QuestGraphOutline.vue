@@ -48,7 +48,7 @@
 <script setup lang="ts">
 import { IconCheck, IconClose } from "@/lib/icons";
 import { computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { QuestGraphCommand } from "@/lib/quests/flow";
 import type { QuestBeatPresentation, QuestBeatReach } from "@/lib/quests/presentation";
 import { threadBadge, type ThreadLike } from "@/lib/quests/threads";

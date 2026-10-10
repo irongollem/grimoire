@@ -119,11 +119,11 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
-import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
+import VitruvianIcon from "@/components/common/media/VitruvianIcon.vue";
+import AiGeneratedBadge from "@/components/common/ai/AiGeneratedBadge.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/controls/appButtonVariants";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { IconClose, IconDelete, IconDownload, IconRefresh, IconReveal } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";

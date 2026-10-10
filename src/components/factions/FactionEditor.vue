@@ -174,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
+import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCopy, IconDelete, IconSave, IconShield } from '@/lib/icons';
@@ -189,19 +189,19 @@ import {
 } from "@/composables/factions/useFactions";
 import { FACTION_TYPES, FACTION_ALIGNMENTS, type Faction } from "@/types/faction.types";
 import type { NpcRelationship } from "@/types/npc.types";
-import RelationshipWheel from "@/components/common/RelationshipWheel.vue";
+import RelationshipWheel from "@/components/common/entity/RelationshipWheel.vue";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 

@@ -9,7 +9,7 @@ import type { CharacterMemorial } from "@/types/memorial.types";
 const DOC = (text: string) =>
   JSON.stringify({ type: "doc", content: [{ type: "paragraph", ...(text ? { content: [{ type: "text", text }] } : {}) }] });
 
-vi.mock("@/components/common/FocalImage.vue", () => ({ default: { template: "<div class='focal-stub' />" } }));
+vi.mock("@/components/common/media/FocalImage.vue", () => ({ default: { template: "<div class='focal-stub' />" } }));
 
 /** A fallen character's memorial with every field filled; override what a test is about. */
 function memorial(overrides: Partial<CharacterMemorial> = {}): CharacterMemorial {

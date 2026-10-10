@@ -1,6 +1,6 @@
 import { useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import {
@@ -27,7 +27,7 @@ import {
  * half-known answer.
  */
 export function useModeSwitch() {
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const campaignStore = useCampaignStore();
   const auth = useAuthStore();
   const router = useRouter();
@@ -37,13 +37,13 @@ export function useModeSwitch() {
     target: "dm" | "player",
     options: { navigate?: boolean; rememberCurrentCampaign?: boolean } = {},
   ) {
-    if (ui.userMode === target) return;
+    if (appUi.userMode === target) return;
 
     const memberships = await queryClient
       .fetchQuery({ queryKey: MY_MEMBERSHIPS_KEY, queryFn: fetchMyMemberships })
       .catch(() => null);
 
-    campaignStore.switchUserMode(ui.userMode, target, {
+    campaignStore.switchUserMode(appUi.userMode, target, {
       rememberCurrentCampaign: options.rememberCurrentCampaign ?? true,
       // A failed lookup leaves the set undefined, and the store then refuses
       // to restore anything: an unverifiable campaign costs one click to
@@ -53,8 +53,8 @@ export function useModeSwitch() {
         : undefined,
     });
     auth.clearMembership();
-    ui.userMode = target;
-    ui.exitDmPreview();
+    appUi.userMode = target;
+    appUi.exitDmPreview();
 
     await queryClient.invalidateQueries();
     if (options.navigate ?? true) {

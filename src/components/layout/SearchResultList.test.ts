@@ -4,7 +4,7 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import SearchResultList from "./SearchResultList.vue";
 import type { SearchGroup } from "@/composables/useGlobalSearch";
 
-vi.mock("@/components/common/FocalImage.vue", () => ({
+vi.mock("@/components/common/media/FocalImage.vue", () => ({
   default: { props: ["src", "alt", "focalPoint", "renderWidth", "format"], template: '<img data-testid="thumb" :src="src" :alt="alt" />' },
 }));
 

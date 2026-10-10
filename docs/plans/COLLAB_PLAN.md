@@ -373,7 +373,7 @@ The `encounter:{id}` Broadcast channel and `encounter_state` table are already t
 | `src/stores/auth.ts`                            | Add membership state + role helpers                                                                                                           |
 | `src/router/index.ts`                           | Role-based guard, `/play/*` routes, `/join/:token`                                                                                            |
 | `src/composables/`                              | `useRealtime.ts` (never built — see above), `campaign/useCampaignPresence.ts`, `encounters/useEncounterLive.ts`, `campaign/useCampaignBroadcast.ts`, `campaign/useCampaignMembers.ts`, `items/usePartyInventory.ts` |
-| `src/views/play/`                               | 7 new player portal views                                                                                                                     |
+| `src/views/player/`                               | 7 new player portal views                                                                                                                     |
 | `src/views/auth/JoinCampaign.vue`               | New invite landing                                                                                                                            |
 | `src/components/campaign/`                      | `CampaignSettings.vue`, `InviteManager.vue`, `MemberList.vue`                                                                                 |
 | `src/components/encounters/EncounterRunner.vue` | Add "Go Live" + `useEncounterLive` integration                                                                                                |

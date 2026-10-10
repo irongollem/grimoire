@@ -94,7 +94,7 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconInfo, IconRefresh, IconUploadCloud } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useConfirm } from "@/composables/useConfirm";

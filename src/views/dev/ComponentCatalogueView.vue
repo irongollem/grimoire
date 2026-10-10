@@ -594,25 +594,25 @@ import { useRoute, useRouter } from "vue-router";
 import type { LocationQueryValue } from "vue-router";
 import { IconWand, IconChevronRight, IconDelete, IconClose, IconStar, IconWarning, IconInfo, IconGenerate, IconDM, IconSettings } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import ListSkeleton from "@/components/common/ListSkeleton.vue";
-import SkeletonBlock from "@/components/common/SkeletonBlock.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import { CHECKBOX_SIZES, CHECKBOX_LABEL_ROLES, CHECKBOX_ACCENTS } from "@/components/common/checkboxVariants";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import { HEADER_TONES, type HeaderTone } from "@/components/common/modalHeaderVariants";
-import AppSelect from "@/components/common/AppSelect.vue";
-import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
-import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
-import { SWITCH_SIZES } from "@/components/common/toggleSwitchVariants";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import { CHECKBOX_SIZES, CHECKBOX_LABEL_ROLES, CHECKBOX_ACCENTS } from "@/components/common/controls/checkboxVariants";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import { HEADER_TONES, type HeaderTone } from "@/components/common/overlays/modalHeaderVariants";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import PageHeaderAction from "@/components/common/list/PageHeaderAction.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
+import { SWITCH_SIZES } from "@/components/common/controls/toggleSwitchVariants";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import CatalogueSection from "./CatalogueSection.vue";
 import SpellsByLevelGrid from "@/components/levelup/SpellsByLevelGrid.vue";
@@ -626,8 +626,8 @@ import {
   BUTTON_ACTIVE_FILLS,
   BUTTON_ICON_SIZES,
   type ButtonSize,
-} from "@/components/common/appButtonVariants";
-import { FIELD_SIZES, FIELD_TONES } from "@/components/common/fieldVariants";
+} from "@/components/common/controls/appButtonVariants";
+import { FIELD_SIZES, FIELD_TONES } from "@/components/common/controls/fieldVariants";
 
 // Every height a call site uses, smallest to the loading screen's.
 const LOADER_HEIGHTS = ["h-3", "h-3.5", "h-4", "h-5", "h-6", "h-8", "h-10", "h-14", "h-26"] as const;

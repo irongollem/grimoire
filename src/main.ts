@@ -222,7 +222,7 @@ app.directive("roll-mode", vRollMode);
 // Browser-only setup — directives, PWA install prompt, service worker, and a
 // couple of platform quirks. Loaded after the app is wired up.
 Promise.all([
-  import("@/composables/play/useWakeLock"),
+  import("@/composables/player/useWakeLock"),
   import("./lib/tooltip"),
   import("./directives/tooltip"),
   import("./directives/noPwm"),

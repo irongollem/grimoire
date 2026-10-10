@@ -2,7 +2,7 @@ import { generateEntityText } from "./entityTextGeneration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useUiStore } from "@/stores/ui";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import {
   subclassDraftFromAi,
@@ -19,7 +19,7 @@ registerAiGenerator({
   label: "Archetype",
   entityRoute: (id) => `/levelup/custom/${id}`,
   openPanel: () => {
-    useUiStore().customSubclassGeneratorOpen = true;
+    useGeneratorUiStore().customSubclassGeneratorOpen = true;
   },
 });
 

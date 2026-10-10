@@ -10,8 +10,11 @@ vi.mock("vue-router", () => ({
   useRouter: () => ({ push }),
   useRoute: () => route,
 }));
-vi.mock("@/stores/ui", () => ({
-  useUiStore: () => ({ dmPreviewMode: false, openPlayerLocationDialog: vi.fn() }),
+vi.mock("@/stores/ui/app", () => ({
+  useAppUiStore: () => ({ dmPreviewMode: false }),
+}));
+vi.mock("@/stores/ui/player", () => ({
+  usePlayerUiStore: () => ({ openPlayerLocationDialog: vi.fn() }),
 }));
 
 // The chip resolves its own name now (one mention, one lookup) rather than

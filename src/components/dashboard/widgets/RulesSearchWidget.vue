@@ -79,9 +79,9 @@
  * unchanged rather than inventing a second one.
  *
  * Filter-state decision: this search box stays a local `ref`, not
- * `useUiStore`. The Filter State Pattern is for a filter over the list
+ * a domain UI store. The Filter State Pattern is for a filter over the list
  * already on the page — the sidebar in CompendiumTab is exactly that, which
- * is why `ui.compendiumSearch` exists. This card is the opposite shape: a
+ * is why `rulesUi.compendiumSearch` exists. This card is the opposite shape: a
  * query box that surfaces a small popup of candidates and then sends you
  * *away* to a different page entirely, same as `GlobalSearch.vue` (an
  * explicitly sanctioned exemption) and `EntityCombobox`. Persisting it would
@@ -90,7 +90,7 @@
  *
  * No route or store hook exists to focus one specific rule in the
  * compendium — `CompendiumTab`'s `selected` (CompendiumTab.vue:109) is a
- * local ref with nothing wired to the URL. `ui.compendiumSearch`
+ * local ref with nothing wired to the URL. `rulesUi.compendiumSearch`
  * (CompendiumTab.vue:108,120 — a store field, not a local one, because that
  * one genuinely is a list filter) is the closest available handoff: setting
  * it before navigating lands the DM on the Compendium tab with its own
@@ -105,16 +105,16 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconSearch } from "@/lib/icons";
 import { useLibraryRules } from "@/composables/rules/useRules";
-import { useUiStore } from "@/stores/ui";
+import { useRulesUiStore } from "@/stores/ui/rules";
 import { searchLibraryRules } from "@/lib/dashboard/rulesSearch";
 import type { LibraryRule } from "@/types/rule.types";
 
 const router = useRouter();
-const ui = useUiStore();
+const rulesUi = useRulesUiStore();
 
 /**
  * Edition-scoped: `useLibraryRules` filters `library_rules` on the campaign's
@@ -155,7 +155,7 @@ function excerpt(content: string): string {
 }
 
 function openInCompendium(rule: LibraryRule) {
-  ui.compendiumSearch = rule.name;
+  rulesUi.compendiumSearch = rule.name;
   router.push("/rules?tab=compendium");
 }
 </script>

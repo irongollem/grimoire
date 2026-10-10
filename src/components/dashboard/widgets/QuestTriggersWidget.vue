@@ -46,7 +46,7 @@ import { useCalendarStore } from "@/stores/calendar";
 import { formatDaysUntil, type CalendarToday } from "@/lib/calendar/upcoming";
 import { deriveDueConsequenceRows, type ConsequenceEventRow } from "@/lib/dashboard/questTriggers";
 import { QUEST_CONSEQUENCE_WORLD_ACTIONS } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 
 /**

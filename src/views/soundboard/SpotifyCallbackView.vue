@@ -24,7 +24,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { exchangeCode } from "@/lib/audio/spotifyAuth";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 
 const router = useRouter();
 const route = useRoute();

@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import AcBreakdownList from "@/components/player/AcBreakdownList.vue";
 import type { AcBreakdown } from "@/rules/armorClass";
 

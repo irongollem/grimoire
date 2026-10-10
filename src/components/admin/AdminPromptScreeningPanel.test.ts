@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminPromptScreeningPanel from "./AdminPromptScreeningPanel.vue";
@@ -79,6 +80,7 @@ function row(overrides: Partial<PromptScreeningRow> = {}): PromptScreeningRow {
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   isPending.value = false;
   isError.value = false;
   data.value = undefined;
@@ -261,6 +263,20 @@ describe("AdminPromptScreeningPanel — composition and the surface filter", () 
 
     await chip!.trigger("click");
     expect(wrapper.find('button[aria-label="Clear"]').exists()).toBe(false);
+  });
+
+  it("keeps the surface filter when the panel is left and reopened (Filter State Pattern)", async () => {
+    data.value = hints({
+      total: 30,
+      by_type: [breakdown({ generation_type: "entity_image", screenings: 30 })],
+    });
+    const first = mount(AdminPromptScreeningPanel);
+    await first.findAll("button").find((b) => b.text().includes("Entity Image"))!.trigger("click");
+    expect(first.text()).toContain("Clear");
+    first.unmount();
+
+    const again = mount(AdminPromptScreeningPanel);
+    expect(again.text()).toContain("Clear");
   });
 
   it("shows a filtered-empty state (not the day-one empty state) once a filter matches nothing", async () => {

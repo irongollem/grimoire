@@ -77,11 +77,11 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import AutosaveStatus from "@/components/common/AutosaveStatus.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { useDeleteNpcPcNote, useUpsertNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
 import { isBlankNote } from "@/composables/notes/useMyEntityNote";
 import { useAutosave } from "@/composables/useAutosave";

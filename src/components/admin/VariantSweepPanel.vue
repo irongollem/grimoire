@@ -102,7 +102,7 @@ import {
   sweepTargets, targetLabel, listPathsUnder, planVariantSweep, healVariants,
   type SweepTarget, type MissingVariants,
 } from "@/lib/storage";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 interface SweepRow {
   target: SweepTarget;

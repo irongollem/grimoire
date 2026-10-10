@@ -83,7 +83,7 @@
 import { onMounted, ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { IconCheck, IconCopy } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { OAuthGrant } from "@supabase/supabase-js";
 
 const mcpUrl = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/mcp`;

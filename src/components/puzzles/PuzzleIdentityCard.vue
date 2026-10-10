@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import type { PuzzleRoom } from "@/types/puzzle.types";
-import FocalImage from "@/components/common/FocalImage.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { puzzle } = defineProps<{ puzzle: PuzzleRoom }>();

@@ -52,10 +52,10 @@
  * when it's clicked.
  */
 import { ref, computed } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { IconCheck, IconDocument } from "@/lib/icons";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import type { StagedQuestBeat } from "@/composables/quests/useBeatsStagedAt";

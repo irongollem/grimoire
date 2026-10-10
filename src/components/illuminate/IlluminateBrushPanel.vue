@@ -86,7 +86,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconChevronRight } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { BrushState, BrushType, PressureTarget } from "@/lib/illuminate/brushMask";
 
 const {

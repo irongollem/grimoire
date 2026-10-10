@@ -71,11 +71,11 @@
  */
 import { computed, ref } from "vue";
 import DocumentPasteEditor from "@/components/campaign/DocumentPasteEditor.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import ProFeatureGate from "@/components/billing/ProFeatureGate.vue";
 import { IconGenerate } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useSubscription } from "@/composables/billing/useSubscription";

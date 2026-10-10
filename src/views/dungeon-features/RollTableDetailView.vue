@@ -326,16 +326,16 @@ import { rollOnTable, type RollTableRollResult } from "@/lib/dungeon-features/ro
 import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import TagInput from "@/components/common/TagInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import TagInput from "@/components/common/controls/TagInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityPlacements from "@/components/locations/EntityPlacements.vue";
-import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
-import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
+import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 
 const props = defineProps<{
   /** ID of an existing table to edit. Omit for new-table mode. */

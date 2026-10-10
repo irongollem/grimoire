@@ -1713,7 +1713,7 @@ removed rather than kept dead.
 | ----------------------------- | ---------------------------------------- |
 | `/play/quests`                | redirect → `/play/journal?tab=quest-log` |
 | `/play/journal?tab=quest-log` | `PlayerJournalQuestLogTab.vue`           |
-| `/play/quests/:id`            | `views/play/PlayerQuestDetailView.vue`   |
+| `/play/quests/:id`            | `views/player/PlayerQuestDetailView.vue`   |
 
 The detail view gates on `player_visible_to` being non-empty, then shows title and
 status, giver (NPC lightbox) and primary location (link only if actually shared),

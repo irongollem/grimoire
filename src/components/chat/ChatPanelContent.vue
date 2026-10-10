@@ -256,7 +256,7 @@
     >
       <span class="text-label text-muted-foreground shrink-0">As:</span>
       <EntityCombobox
-        :model-value="ui.dmTalkAsNpcId"
+        :model-value="appUi.dmTalkAsNpcId"
         :options="props.npcs"
         placeholder="Myself"
         @update:model-value="onTalkAsChange"
@@ -342,14 +342,14 @@ import { ref, reactive, computed, watch, nextTick, shallowRef, onMounted } from 
 import { renderChatMessage } from "@/lib/chat/chatMarkdown";
 import { IconClose, IconDelete, IconDiceRoll, IconMessage, IconSend, IconShop } from '@/lib/icons';
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { formatChatTimestamp } from "@/lib/utils";
 import { useLocalePrefs } from "@/composables/useLocalePrefs";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ChatItemDropMessage from "@/components/chat/ChatItemDropMessage.vue";
 import ChatCurrencyDropMessage from "@/components/chat/ChatCurrencyDropMessage.vue";
 import ChatRollMessage from "@/components/chat/ChatRollMessage.vue";
@@ -376,13 +376,13 @@ import { useItemIndex } from "@/composables/items/useItemIndex";
 import { COINS, type CoinKey, toCP } from "@/rules/currency";
 import { useAuthStore } from "@/stores/auth";
 import { useWhisperTarget } from "@/composables/campaign/useWhisperRecipients";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 
-const ui = useUiStore();
+const appUi = useAppUiStore();
 
 function onTalkAsChange(id: string) {
   const npc = id ? props.npcs.find(n => n.id === id) : null;
-  ui.setDmTalkAsNpc(id, npc?.name ?? null);
+  appUi.setDmTalkAsNpc(id, npc?.name ?? null);
 }
 
 const props = defineProps<{

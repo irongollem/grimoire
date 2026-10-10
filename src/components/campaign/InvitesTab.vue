@@ -129,9 +129,9 @@ import {
   useCreateCampaignInvite,
   useRevokeInvite,
 } from "@/composables/campaign/useCampaignMembers";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import type { CampaignInvite } from "@/types/campaign.types";
 
 const invitesQuery = useCampaignInvites();

@@ -172,11 +172,11 @@
 import { ref, computed, watch, shallowRef } from "vue";
 import { useRouter } from "vue-router";
 import { IconUpload } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useImportWorldBundle, BUNDLE_ENTITY_TYPES } from "@/composables/campaign/useWorldBundle";
 import type { BundleEntityKey, BundlePreview } from "@/composables/campaign/useWorldBundle";

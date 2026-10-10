@@ -39,8 +39,8 @@
  * around the app.
  */
 import { computed, onUnmounted } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import NoticeCard from "@/components/common/NoticeCard.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import NoticeCard from "@/components/common/feedback/NoticeCard.vue";
 import { lensRefusal } from "@/router/lens";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 

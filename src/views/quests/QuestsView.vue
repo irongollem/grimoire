@@ -12,7 +12,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.questGeneratorOpen = true"
+        @click="questsUi.questGeneratorOpen = true"
       />
       <ListActionButton
         variant="primary"
@@ -25,11 +25,11 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="ui.questsHasActiveFilters"
-        @clear="ui.resetQuestsFilters()"
+        :has-active-filters="questsUi.questsHasActiveFilters"
+        @clear="questsUi.resetQuestsFilters()"
       >
         <ListSearchInput
-          v-model="ui.questsSearch"
+          v-model="questsUi.questsSearch"
           placeholder="Search quests…"
         />
         <AppButton
@@ -38,13 +38,13 @@
           :mobile-label="filterCounts ? `Party ${filterCounts.party}` : 'Party'"
           variant="subtle"
           size="md"
-          :active="ui.questsPartyFilter"
-          :aria-pressed="ui.questsPartyFilter"
-          @click="ui.questsPartyFilter = !ui.questsPartyFilter"
+          :active="questsUi.questsPartyFilter"
+          :aria-pressed="questsUi.questsPartyFilter"
+          @click="questsUi.questsPartyFilter = !questsUi.questsPartyFilter"
         />
         <EntityCombobox
           v-if="entityOptions?.length"
-          v-model="ui.questsEntityFilter"
+          v-model="questsUi.questsEntityFilter"
           :options="entityOptions"
           placeholder="NPC, faction, or location…"
           class="min-w-48 max-w-full flex-1 sm:max-w-64 sm:flex-none"
@@ -56,9 +56,9 @@
           :mobile-label="filterCounts ? `Gaps ${filterCounts.prepGaps}` : 'Gaps'"
           variant="subtle"
           size="md"
-          :active="ui.questsPrepGapsFilter"
-          :aria-pressed="ui.questsPrepGapsFilter"
-          @click="ui.questsPrepGapsFilter = !ui.questsPrepGapsFilter"
+          :active="questsUi.questsPrepGapsFilter"
+          :aria-pressed="questsUi.questsPrepGapsFilter"
+          @click="questsUi.questsPrepGapsFilter = !questsUi.questsPrepGapsFilter"
         />
         <AppButton
           v-if="boardSummaries !== undefined"
@@ -67,9 +67,9 @@
           :mobile-label="filterCounts ? `Loot ${filterCounts.pendingLoot}` : 'Loot'"
           variant="subtle"
           size="md"
-          :active="ui.questsLootFilter"
-          :aria-pressed="ui.questsLootFilter"
-          @click="ui.questsLootFilter = !ui.questsLootFilter"
+          :active="questsUi.questsLootFilter"
+          :aria-pressed="questsUi.questsLootFilter"
+          @click="questsUi.questsLootFilter = !questsUi.questsLootFilter"
         />
         <!--
           View-toggle — reuses AppButton for consistent styling. Label
@@ -79,12 +79,12 @@
         <AppButton
           size="md"
           variant="subtle"
-          :icon="ui.questsIsKanban ? IconColumns : IconListView"
-          :label="ui.questsIsKanban ? 'Kanban' : 'List'"
+          :icon="questsUi.questsIsKanban ? IconColumns : IconListView"
+          :label="questsUi.questsIsKanban ? 'Kanban' : 'List'"
           :tooltip="
-            ui.questsIsKanban ? 'Switch to list view' : 'Switch to kanban view'
+            questsUi.questsIsKanban ? 'Switch to list view' : 'Switch to kanban view'
           "
-          @click="ui.questsIsKanban = !ui.questsIsKanban"
+          @click="questsUi.questsIsKanban = !questsUi.questsIsKanban"
         />
       </ListFilterBar>
     </template>
@@ -98,23 +98,23 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconAdd, IconColumns, IconGenerate, IconListView, IconLoot, IconParty, IconWarning } from '@/lib/icons';
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
-import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
+import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import QuestList from "@/components/quests/QuestList.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
-import { useUiStore } from "@/stores/ui";
+import { useQuestsUiStore } from "@/stores/ui/quests";
 import { useCampaignStore } from "@/stores/campaign";
 import { useQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/quests/useQuests";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { countQuestBoardFilters } from "@/lib/quests/board";
 
-const ui = useUiStore();
+const questsUi = useQuestsUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { data: entityOptions } = useQuestFilterEntities();
@@ -127,11 +127,11 @@ const { data: boardSummaries } = useQuestBoardSummaries();
 const filterCounts = computed(() => allQuests.value && countQuestBoardFilters(
   allQuests.value,
   {
-    search: ui.questsSearch,
-    partyOnly: ui.questsPartyFilter,
-    entity: ui.questsEntityFilter,
-    prepGapsOnly: ui.questsPrepGapsFilter,
-    pendingLootOnly: ui.questsLootFilter,
+    search: questsUi.questsSearch,
+    partyOnly: questsUi.questsPartyFilter,
+    entity: questsUi.questsEntityFilter,
+    prepGapsOnly: questsUi.questsPrepGapsFilter,
+    pendingLootOnly: questsUi.questsLootFilter,
   },
   { refs: campaignRefs.value ?? [], summaries: boardSummaries.value },
 ));

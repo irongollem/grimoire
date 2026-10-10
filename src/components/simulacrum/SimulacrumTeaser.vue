@@ -22,8 +22,8 @@
 </template>
 
 <script setup lang="ts">
-import EmptyState from "@/components/common/EmptyState.vue";
-import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
+import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import VitruvianIcon from "@/components/common/media/VitruvianIcon.vue";
 import { useMyFeatureInterest, useRegisterFeatureInterest } from "@/composables/simulacrum/useFeatureInterest";
 import { SIMULACRUM_FEATURE_KEY } from "@/types/mini.types";
 

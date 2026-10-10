@@ -139,7 +139,7 @@
 
 <script setup lang="ts">
 import { IconCheck, IconClipboard, IconDownload, IconSave } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import IlluminateBrushPanel from "@/components/illuminate/IlluminateBrushPanel.vue";
 import IlluminateColorGradingPanel from "@/components/illuminate/IlluminateColorGradingPanel.vue";
 import IlluminateVignettePanel from "@/components/illuminate/IlluminateVignettePanel.vue";

@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { h, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 
 // The real CopyToCampaignDialog's setup unconditionally calls useDmCampaigns()
 // (a TanStack Query composable) even while closed, and PaywallModal's setup

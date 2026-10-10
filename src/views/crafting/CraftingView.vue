@@ -27,7 +27,7 @@
         v-if="campaign.isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="ui.recipeGeneratorOpen = true"
+        @click="generatorsUi.recipeGeneratorOpen = true"
       />
       <ListActionButton
         variant="primary"
@@ -40,7 +40,7 @@
     <!-- Discipline tabs (body content) -->
     <div class="flex flex-wrap gap-1 mb-6 rounded-md border border-border p-1 bg-muted w-fit max-w-full overflow-x-auto">
       <SegmentedControl
-        v-model="ui.workshopActiveTab"
+        v-model="craftingUi.workshopActiveTab"
         :options="workshopTabOptions"
         size="sm"
         wrap
@@ -164,29 +164,31 @@
 import { computed, ref } from "vue";
 
 import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconGenerate, IconListView, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
-import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines";
 import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe, useRevealAllRecipes } from "@/composables/crafting/useCrafting";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";
 import { useScrollRestore } from "@/composables/useScrollRestore";
-import VirtualGrid from "@/components/common/VirtualGrid.vue";
-import { useUiStore } from "@/stores/ui";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import { useCraftingUiStore } from "@/stores/ui/crafting";
+import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { CraftingRecipe } from "@/types/crafting.types";
 
-const ui = useUiStore();
+const craftingUi = useCraftingUiStore();
+const generatorsUi = useGeneratorUiStore();
 const campaign = useCampaignStore();
 const auth = useAuthStore();
 
 const activeDiscipline = computed(() =>
-  ui.workshopActiveTab === "all" ? null : getDiscipline(ui.workshopActiveTab),
+  craftingUi.workshopActiveTab === "all" ? null : getDiscipline(craftingUi.workshopActiveTab),
 );
 
 const workshopTabOptions = computed(() => [
@@ -240,9 +242,9 @@ async function handleImport() {
 }
 
 const disciplineRecipes = computed(() =>
-  ui.workshopActiveTab === "all"
+  craftingUi.workshopActiveTab === "all"
     ? (recipes.value ?? [])
-    : (recipes.value ?? []).filter((r) => r.discipline === ui.workshopActiveTab),
+    : (recipes.value ?? []).filter((r) => r.discipline === craftingUi.workshopActiveTab),
 );
 
 // The whole recipe list is in hand, so only the scroll position needs

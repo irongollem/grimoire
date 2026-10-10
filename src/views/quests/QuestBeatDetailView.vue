@@ -250,11 +250,11 @@ import {
   type QuestBeatUpdate,
   type QuestBeatVisibility,
 } from "@/types/quest.types";
-import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import DockBar from "@/components/common/DockBar.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import QuestBeatAttachmentsPanel from "@/components/quests/QuestBeatAttachmentsPanel.vue";
 import QuestBeatFields from "@/components/quests/QuestBeatFields.vue";
 import QuestBeatIdentityFields from "@/components/quests/QuestBeatIdentityFields.vue";

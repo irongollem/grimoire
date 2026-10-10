@@ -68,9 +68,9 @@
 import { ref, computed } from "vue";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { ROLL_TABLE_DICE } from "@/types/rollTable.types";
-import AppSelect from "@/components/common/AppSelect.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import RollTableDetailView from "@/views/dungeon-features/RollTableDetailView.vue";
 

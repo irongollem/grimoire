@@ -322,7 +322,7 @@ import type { Component } from "vue";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarEventsRange } from "@/composables/calendar/useCalendarEvents";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import CalendarTimelineControls from "@/components/calendar/CalendarTimelineControls.vue";
 import CalendarTimelineEventList from "@/components/calendar/CalendarTimelineEventList.vue";
 import { eventColor } from "@/types/calendar.types";

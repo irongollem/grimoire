@@ -83,7 +83,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconDownload } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useExportCampaign } from "@/composables/campaign/useCampaignBackup";
 import { useExportCampaignMarkdown } from "@/composables/campaign/useCampaignMarkdownExport";

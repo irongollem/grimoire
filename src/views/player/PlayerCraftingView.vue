@@ -1,0 +1,392 @@
+<template>
+  <PageHeader flush title="Workshop" description="Your known recipes and craft attempts">
+
+    <div v-if="!member" class="text-body text-muted-foreground italic">
+      No linked character found.
+    </div>
+
+    <template v-else>
+      <!-- Discipline tabs — only disciplines with accessible recipes, plus All -->
+      <div class="flex flex-wrap gap-1 mb-6 overflow-x-auto pb-1">
+        <AppButton
+          variant="subtle"
+          size="sm"
+          class="shrink-0"
+          :active="craftingUi.playerCraftingActiveTab === 'all'"
+          :icon="IconListView"
+          label="All"
+          @click="craftingUi.playerCraftingActiveTab = 'all'"
+        />
+        <AppButton
+          v-for="d in availableDisciplines"
+          :key="d.id"
+          variant="subtle"
+          size="sm"
+          class="shrink-0"
+          :class="isTabDimmed(d) ? 'opacity-60' : ''"
+          :active="craftingUi.playerCraftingActiveTab === d.id"
+          :icon="d.icon"
+          :tooltip="!hasProficiency(d.tools) ? `No ${d.tools[0]} proficiency: no proficiency bonus` : d.label"
+          @click="craftingUi.playerCraftingActiveTab = d.id"
+        >
+          <span>{{ d.label }}<span v-if="!hasProficiency(d.tools)" class="text-eyebrow text-muted-foreground/60 ml-1">NO PROF</span></span>
+        </AppButton>
+      </div>
+
+      <!-- Discipline description (only when a specific discipline is selected) -->
+      <p v-if="activeDiscipline" class="text-body text-muted-foreground italic mb-5">
+        {{ activeDiscipline.description }}
+        <span class="not-italic ml-1">
+          Uses <span class="font-semibold text-foreground">{{ activeDiscipline.ability.toUpperCase() }}</span>
+          ({{ abilityModFor(activeDiscipline) >= 0 ? "+" : "" }}{{ abilityModFor(activeDiscipline) }})
+          <template v-if="hasProficiency(activeDiscipline.tools)">
+            + Proficiency (+{{ member.proficiency_bonus }}).
+          </template>
+          <template v-else>
+            · <span class="text-gold-400">no proficiency bonus</span>.
+          </template>
+        </span>
+      </p>
+
+      <!-- Recipes -->
+      <div v-if="disciplineRecipes.length === 0" class="rounded-lg border border-border border-dashed px-6 py-10 text-center">
+        <component
+          :is="activeDiscipline ? activeDiscipline.icon : IconListView"
+          class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3"
+        />
+        <p class="text-heading-sm font-semibold text-muted-foreground">No recipes known</p>
+        <p class="text-caption text-muted-foreground/60 italic mt-1">
+          {{ activeDiscipline
+            ? `Your DM can share ${activeDiscipline.label.toLowerCase()} recipes with you.`
+            : 'Your DM can share recipes with you.' }}
+        </p>
+      </div>
+
+      <VirtualGrid
+        v-else
+        :items="disciplineRecipes"
+        :item-key="recipeKey"
+        :columns="recipeColumns"
+        :estimate-row-height="RECIPE_ROW_PX"
+        :gap="1"
+      >
+        <template #default="{ item: recipe }">
+        <div
+          class="rounded-lg border border-border bg-card flex flex-col overflow-hidden"
+        >
+          <!-- Card header -->
+          <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-start justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-0.5">
+                <p class="text-heading-xs font-bold text-foreground truncate">{{ recipe.name }}</p>
+                <span
+                  v-if="!activeDiscipline"
+                  class="shrink-0 text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+                >{{ getDiscipline(recipe.discipline).label }}</span>
+              </div>
+              <p class="text-caption text-muted-foreground">
+                DC {{ recipe.dc }} · {{ recipe.crafting_time }} {{ recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, '') }}
+                <span v-if="outputsFor(recipe.id).length"> · → {{ outputsFor(recipe.id).map(o => (o.quantity > 1 ? `${o.quantity}× ` : '') + (itemName(inventoryItemRef(o)))).join(', ') }}</span>
+              </p>
+              <p
+                v-if="recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
+                class="text-caption text-destructive mt-0.5"
+              >Requires {{ getDiscipline(recipe.discipline).tools[0] }}</p>
+              <p
+                v-else-if="!recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
+                class="text-caption text-gold-400 mt-0.5"
+              >No {{ getDiscipline(recipe.discipline).tools[0] }}: disadvantage</p>
+            </div>
+            <span
+              v-if="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools)"
+              class="shrink-0 text-eyebrow px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+              :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} proficiency`"
+            >
+              LOCKED
+            </span>
+            <span
+              v-else-if="recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
+              class="shrink-0 text-eyebrow px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+              :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} in inventory`"
+            >
+              NO TOOLS
+            </span>
+            <span
+              v-else-if="!hasTools(getDiscipline(recipe.discipline).tools)"
+              class="shrink-0 text-eyebrow px-1.5 py-0.5 rounded border border-gold-500/40 text-gold-400 bg-gold-500/10"
+              :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} in inventory: roll at disadvantage`"
+            >
+              DISADV
+            </span>
+          </div>
+
+          <!-- Description -->
+          <div
+            v-if="recipe.description"
+            class="px-4 pt-3 text-body text-muted-foreground italic prose prose-sm prose-invert max-w-none"
+            v-html="renderDescription(recipe.description)"
+          />
+
+          <!-- Ingredients -->
+          <div class="px-4 py-3 flex-1">
+            <p class="text-label font-semibold text-muted-foreground mb-2">INGREDIENTS</p>
+            <div
+              v-for="ing in ingredientsFor(recipe.id)"
+              :key="ing.id"
+              class="flex items-center gap-2 mb-1"
+            >
+              <component
+                :is="hasEnough(ing) ? IconCheckCircle : IconCloseCircle"
+                class="h-3.5 w-3.5 shrink-0"
+                :class="hasEnough(ing) ? 'text-elven-green' : 'text-destructive'"
+              />
+              <span class="text-caption text-foreground flex-1 truncate" :class="{ italic: !inventoryItemRef(ing) }">
+                {{ ingredientLabel(ing) }}
+              </span>
+              <span class="text-label text-muted-foreground shrink-0">
+                {{ ownedCount(ing) }}/{{ ing.quantity }}
+              </span>
+            </div>
+            <p v-if="ingredientsFor(recipe.id).length === 0" class="text-caption text-muted-foreground italic">
+              No ingredients required.
+            </p>
+          </div>
+
+          <!-- Attempt button -->
+          <div class="px-4 py-3 border-t border-border">
+            <AppButton
+              variant="primary"
+              size="md"
+              block
+              :icon="IconDiceRoll"
+              :disabled="!canCraft(recipe)"
+              :tooltip="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools) ? `Requires ${getDiscipline(recipe.discipline).tools[0]} proficiency` : undefined"
+              label="Attempt Craft"
+              @click="openAttempt(recipe)"
+            />
+          </div>
+        </div>
+        </template>
+      </VirtualGrid>
+    </template>
+
+    <!-- Attempt dialog -->
+    <CraftAttemptDialog
+      v-if="attemptRecipe && member && attemptDiscipline"
+      :open="!!attemptRecipe"
+      :recipe="attemptRecipe"
+      :outputs="outputsFor(attemptRecipe.id)"
+      :required-ingredients="ingredientsFor(attemptRecipe.id)"
+      :modifiers="modifiersFor(attemptRecipe.id)"
+      :inventory="myInventory"
+      :all-items="allItems"
+      :item-name-map="recipeItemNames"
+      :member="member"
+      :has-tools="hasTools(attemptDiscipline.tools)"
+      :has-proficiency="hasProficiency(attemptDiscipline.tools)"
+      :workspace-bonus="attemptDiscipline.workspaceBonus"
+      :workspace-label="attemptDiscipline.workspaceLabel"
+      @close="attemptRecipe = null"
+      @done="onDone"
+    />
+  </PageHeader>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from "vue";
+import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
+import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView } from '@/lib/icons';
+import PageHeader from "@/components/common/list/PageHeader.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
+import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines";
+import type { DisciplineConfig } from "@/lib/crafting/disciplines";
+import { canonicalToolName, hasToolProficiency } from "@/rules/toolProficiency";
+import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs, useCraftableOutputItems } from "@/composables/crafting/useCrafting";
+import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import { inventoryItemRef } from "@/lib/itemRef";
+import { usePlayerItemProjection } from "@/composables/items/useItems";
+import { useParty } from "@/composables/party/useParty";
+import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { usePartyInventory } from "@/composables/items/usePartyInventory";
+import { useAuthStore } from "@/stores/auth";
+import { useAppUiStore } from "@/stores/ui/app";
+import { useCraftingUiStore } from "@/stores/ui/crafting";
+import type { CraftingRecipe, CraftingDiscipline, CraftingIngredient, CraftingModifier, CraftingOutput, CraftingAttemptResult } from "@/types/crafting.types";
+
+const auth = useAuthStore();
+const appUi = useAppUiStore();
+const craftingUi = useCraftingUiStore();
+const { data: recipes } = usePlayerCraftingRecipes();
+const { data: projection } = usePlayerItemProjection();
+const { map: recipeItemNames } = useCraftableOutputItems();
+const { data: partyMembers } = useParty();
+const { data: inventory } = usePartyInventory();
+
+const attemptRecipe = ref<CraftingRecipe | null>(null);
+
+// Resolve current party member
+const member = computed(() => {
+  const memberId = appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId;
+  return partyMembers.value?.find((m) => m.id === memberId) ?? null;
+});
+
+const myInventory = computed(() =>
+  (inventory.value ?? []).filter(
+    (i) => i.carried_by === member.value?.id || i.carried_by === null,
+  ),
+);
+
+// Only disciplines that have at least one accessible recipe
+const availableDisciplines = computed(() => {
+  const disciplinesWithRecipes = new Set((recipes.value ?? []).map((r) => r.discipline));
+  return CRAFTING_DISCIPLINES.filter((d) => disciplinesWithRecipes.has(d.id));
+});
+
+const activeDiscipline = computed(() =>
+  craftingUi.playerCraftingActiveTab === "all" ? null : getDiscipline(craftingUi.playerCraftingActiveTab as CraftingDiscipline),
+);
+
+// Discipline used for the attempt dialog — derived from the recipe being attempted
+const attemptDiscipline = computed(() =>
+  attemptRecipe.value ? getDiscipline(attemptRecipe.value.discipline) : null,
+);
+
+// Ability modifier for a given discipline
+function abilityModFor(discipline: DisciplineConfig): number {
+  if (!member.value) return 0;
+  const score = member.value[discipline.ability];
+  return Math.floor((score - 10) / 2);
+}
+
+// Check tool proficiency on character — any accepted tool counts. Both sides
+// are canonicalised inside hasToolProficiency, so a dirty stored value like
+// "Herbalist kit" still satisfies a discipline that requires "Herbalism Kit".
+function hasProficiency(tools: string[]): boolean {
+  return hasToolProficiency(member.value?.tool_proficiencies, tools);
+}
+
+// Check if player has any accepted tool in inventory. The discipline's tool
+// name is canonicalised before the substring match so a differently-cased
+// inventory row (e.g. "Forgery kit") still matches "Forgery Kit".
+function hasTools(tools: string[]): boolean {
+  return tools.some((tool) => {
+    const canonical = canonicalToolName(tool) ?? tool;
+    return myInventory.value.some(
+      (inv) => inv.name.toLowerCase().includes(canonical.toLowerCase()) && !inv.is_ruined,
+    );
+  });
+}
+
+const disciplineRecipes = computed(() =>
+  craftingUi.playerCraftingActiveTab === "all"
+    ? (recipes.value ?? [])
+    : (recipes.value ?? []).filter((r) => r.discipline === craftingUi.playerCraftingActiveTab),
+);
+
+// Windowed rather than mounted whole: a recipe card is ~5ms of mount work (47
+// nodes, an AppButton and three glyph components each), so the 184-recipe "All"
+// tab once rendered as one unbroken 977ms task, which on a low-end Chromebook
+// hung the renderer. Only the rows near the viewport exist now.
+// Mirrors the `grid gap-4 sm:grid-cols-2` it replaced.
+const recipeColumns = useBreakpointColumns({ base: 1, sm: 2 });
+const recipeKey = (recipe: CraftingRecipe) => recipe.id;
+// Row height before a row is measured (px): 270-317px across 176 recipes, 295 the median (a card's height follows its ingredient count), measured at a 390px
+// phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
+// restored scroll lands, since coming back from a detail re-renders every
+// unmeasured row above the viewport.
+const RECIPE_ROW_PX = 295;
+
+const allRecipeIds = computed(() => (recipes.value ?? []).map((r) => r.id));
+const ingredientsMap = useAllRecipeIngredients(allRecipeIds);
+const outputsMap = useAllRecipeOutputs(allRecipeIds);
+
+// Carried rows, ingredients and outputs resolve in the player projection, plus
+// library ids read by id (#961, #972).
+const { items: allItems } = useStoredItemRefs(
+  () => [
+    ...myInventory.value.map(inventoryItemRef),
+    ...[...ingredientsMap.value.values()].flat().map(inventoryItemRef),
+    ...[...outputsMap.value.values()].flat().map(inventoryItemRef),
+  ],
+  projection,
+);
+const modifiersMap = useAllRecipeModifiers(allRecipeIds);
+
+function ingredientsFor(recipeId: string): CraftingIngredient[] {
+  return ingredientsMap.value.get(recipeId) ?? [];
+}
+
+function modifiersFor(recipeId: string): CraftingModifier[] {
+  return modifiersMap.value.get(recipeId) ?? [];
+}
+
+function outputsFor(recipeId: string): CraftingOutput[] {
+  return outputsMap.value.get(recipeId) ?? [];
+}
+
+function itemName(ref: string | null): string {
+  if (!ref) return "Unknown item";
+  return allItems.value.find((i) => i.id === ref)?.name
+    // A recipe output the player has never held isn't in their visible items, so
+    // resolve its name from the craftable-item projection (recipe outputs AND
+    // ingredients) before giving up. It only covers vault items; a
+    // library-referenced ref already resolved above via allItems.
+    ?? recipeItemNames.value.get(ref)
+    ?? "Unknown item";
+}
+
+function ingredientLabel(ing: CraftingIngredient): string {
+  const ref = inventoryItemRef(ing);
+  if (ref) return itemName(ref);
+  if (!ing.tags) return "Any";
+  return `Any "${ing.tags.join(", ")}"`;
+}
+
+function ownedCount(ing: CraftingIngredient): number {
+  const ref = inventoryItemRef(ing);
+  if (ref) {
+    return myInventory.value
+      .filter((i) => inventoryItemRef(i) === ref && !i.is_ruined)
+      .reduce((sum, i) => sum + i.quantity, 0);
+  }
+  // Tag-based: sum all non-ruined inventory items whose vault definition has ALL required tags
+  return myInventory.value
+    .filter((i) => {
+      if (i.is_ruined) return false;
+      const def = allItems.value.find((a) => a.id === inventoryItemRef(i));
+      return ing.tags!.every((t) => def?.tags?.includes(t) ?? false);
+    })
+    .reduce((sum, i) => sum + i.quantity, 0);
+}
+
+function hasEnough(ing: CraftingIngredient): boolean {
+  return ownedCount(ing) >= ing.quantity;
+}
+
+function canCraft(recipe: CraftingRecipe): boolean {
+  const discipline = getDiscipline(recipe.discipline);
+  if (recipe.requires_proficiency && !hasProficiency(discipline.tools)) return false;
+  if (recipe.requires_tools && !hasTools(discipline.tools)) return false;
+  return ingredientsFor(recipe.id).every((ing) => hasEnough(ing));
+}
+
+// Dims a tab for a discipline the character has no proficiency in — but only
+// while it isn't the selected tab, matching the old ternary's precedence.
+function isTabDimmed(d: DisciplineConfig): boolean {
+  return craftingUi.playerCraftingActiveTab !== d.id && !hasProficiency(d.tools);
+}
+
+function renderDescription(content: string | null): string {
+  return renderTiptapHtml(content);
+}
+
+function openAttempt(recipe: CraftingRecipe) {
+  attemptRecipe.value = recipe;
+}
+
+function onDone(_result: CraftingAttemptResult) {
+  attemptRecipe.value = null;
+}
+</script>

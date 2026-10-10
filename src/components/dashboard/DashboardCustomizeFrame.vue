@@ -190,8 +190,8 @@
  * thing underneath is a bordered card or a bare strip of links.
  */
 import { computed, onMounted, onUpdated, ref, useTemplateRef } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariants";
 import {
   IconChevronDown,
   IconChevronLeft,

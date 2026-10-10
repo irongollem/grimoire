@@ -106,8 +106,8 @@
 <script setup lang="ts">
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, computed, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import IllustratedSheetDocument from "@/components/character-sheet/illustrated/IllustratedSheetDocument.vue";
 import type { PartyMember } from "@/types/party.types";

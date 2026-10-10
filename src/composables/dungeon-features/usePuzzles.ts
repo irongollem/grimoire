@@ -7,7 +7,7 @@ import type { Ref } from "vue";
 import { computed, isRef, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 
 const QUERY_KEY = "puzzle_rooms";
@@ -132,10 +132,10 @@ export function useDeletePuzzle() {
  */
 export function usePlayerVisiblePuzzles() {
   const campaign = useCampaignStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const previewPartyMemberId = computed(() =>
-    ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null,
+    appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null,
   );
   return useQuery({
     queryKey: computed(() => [
@@ -168,10 +168,10 @@ export function usePlayerVisiblePuzzles() {
 export function usePlayerVisiblePuzzle(id: string | Ref<string>) {
   const resolved = isRef(id) ? id : ref(id);
   const campaign = useCampaignStore();
-  const ui = useUiStore();
+  const appUi = useAppUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const previewPartyMemberId = computed(() =>
-    ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null,
+    appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null,
   );
   return useQuery({
     queryKey: computed(() => [

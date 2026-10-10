@@ -133,9 +133,9 @@ import { ref, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
 import type { ComponentPublicInstance } from "vue";
 import { IconAdd, IconChevronLeft, IconChevronRight, IconClose, IconDrag } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
-import AppButton from "@/components/common/AppButton.vue";
-import ProBadge from "@/components/common/ProBadge.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ProBadge from "@/components/billing/ProBadge.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import {
   useCreateSoundboardPage,
   useUpdateSoundboardPage,
@@ -143,7 +143,7 @@ import {
   useReorderSoundboardPages,
 } from "@/composables/soundboard/useSoundboardPages";
 import { useQuota } from "@/composables/billing/useQuota";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import type { SoundboardPage } from "@/types/sound.types";
 
 const activePageId = defineModel<string | null>({ required: true });

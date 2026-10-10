@@ -18,7 +18,7 @@
  */
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeader from "@/components/common/list/PageHeader.vue";
 import LocationEditor from "@/components/locations/LocationEditor.vue";
 
 const route = useRoute();

@@ -56,8 +56,8 @@
 <script setup lang="ts">
 import { IconChevronDown, IconChevronUp, IconClose } from "@/lib/icons";
 import type { PuzzleHint } from "@/types/puzzle.types";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 
 defineProps<{
   sortedHints: PuzzleHint[];

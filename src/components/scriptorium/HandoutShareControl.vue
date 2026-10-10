@@ -44,8 +44,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
-import AppButton from "@/components/common/AppButton.vue";
-import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import HandoutShareDialog from "@/components/scriptorium/HandoutShareDialog.vue";
 import { useHandoutSharing, type ShareableHandout } from "@/composables/scriptorium/useHandoutShare";
 import { useCampaignStore } from "@/stores/campaign";

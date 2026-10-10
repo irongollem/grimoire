@@ -113,7 +113,7 @@ This is the same column documented from the Atlas / door-editing side in world-b
 
 **Grounding:** one `generate-entity-text` call with `generator: "feature"`, carrying the campaign setting prompt and the table's ruleset. The system prompt row is `feature` in `ai_system_prompts`. There is no retrieval step; the feature stands alone, so the setting text is all the grounding it needs.
 
-**Validation:** `normalizeDungeonFeature` in `src/lib/dungeonFeatures/featureAi.ts` launders the model's JSON. An unknown feature type falls back to "Other", an unknown trigger or glyph becomes null, the three DCs are clamped to 5-30 (null stays null, since a DC of "does not apply" is meaningful), tags are lowercased, de-duplicated and capped at eight. No usable name is a failed generation, not a blank row.
+**Validation:** `normalizeDungeonFeature` in `src/lib/dungeon-features/featureAi.ts` launders the model's JSON. An unknown feature type falls back to "Other", an unknown trigger or glyph becomes null, the three DCs are clamped to 5-30 (null stays null, since a DC of "does not apply" is meaningful), tags are lowercased, de-duplicated and capped at eight. No usable name is a failed generation, not a blank row.
 
 **Writes:** the panel creates the `dungeon_features` row directly (`useCreateDungeonFeature`), scoped to the active campaign (the editor's Scope control can widen it later). Prose fields (description, contents, notes) go through `toTiptapJson`. `ai_provenance` is stored on the row as the server returned it, and the editor flips `edited` through `markEdited()` the first time the DM saves over it. The illustration is a second step (`generateImage` with purpose `dungeon_feature`, text-only, so the likeness gate does not apply), logged to the Gallery via `logImageGeneration` with `targetColumn: "image_url"`. Image failure is non-fatal: the feature still lands without art. Ledger reason `feature_generation` (credit row "Dungeon Feature Generation", 1 credit); the image charges separately as an image. After create the panel navigates to `/dungeon-features/:id`.
 
@@ -131,7 +131,7 @@ Traps are dangerous mechanisms placed in dungeons. They carry full D&D 5e combat
 
 ### How DMs use them
 
-- Browse the Traproom tab (filtered by type and/or keyword) — search and type filter live in `useUiStore` (`trapsSearch`/`trapsFilterType`, Filter State Pattern), so they survive navigating into a trap and back; a **Clear** button appears once `trapsHasActiveFilters` is true, same pattern as the Loot Tables tab. The list is also implicitly scoped by campaign — general traps plus the active campaign's own, same as the Bestiary (`combat-encounters.md`) — with no "show all campaigns" override.
+- Browse the Traproom tab (filtered by type and/or keyword) — search and type filter live in `useTrapsUiStore` (`trapsSearch`/`trapsFilterType`, Filter State Pattern), so they survive navigating into a trap and back; a **Clear** button appears once `trapsHasActiveFilters` is true, same pattern as the Loot Tables tab. The list is also implicitly scoped by campaign — general traps plus the active campaign's own, same as the Bestiary (`combat-encounters.md`) — with no "show all campaigns" override.
 - Tap any card to open `/traps/:id`.
 - The detail view renders a **TrapSheet** in view mode and a **TrapEditor** in edit mode (`?edit=true`).
 - New traps open at `/traps/new`.
@@ -197,7 +197,7 @@ Both are colour-coded; the card thumbnail shows the type badge top-left and the 
 
 #### Creating and editing puzzles
 
-- Browse the Enigmarium tab (filterable by type, difficulty, and keyword) — search, type filter and difficulty filter live in `useUiStore` (`puzzlesSearch`/`puzzlesFilterType`/`puzzlesFilterDifficulty`, Filter State Pattern), so they survive navigating into a puzzle and back; a **Clear** button appears once `puzzlesHasActiveFilters` is true, same pattern as the Loot Tables tab. The list is also implicitly scoped by campaign — general puzzles plus the active campaign's own, same as the Bestiary and Traproom — with no "show all campaigns" override.
+- Browse the Enigmarium tab (filterable by type, difficulty, and keyword) — search, type filter and difficulty filter live in `usePuzzlesUiStore` (`puzzlesSearch`/`puzzlesFilterType`/`puzzlesFilterDifficulty`, Filter State Pattern), so they survive navigating into a puzzle and back; a **Clear** button appears once `puzzlesHasActiveFilters` is true, same pattern as the Loot Tables tab. The list is also implicitly scoped by campaign — general puzzles plus the active campaign's own, same as the Bestiary and Traproom — with no "show all campaigns" override.
 - Tap any card to open `/puzzles/:id`.
 - The detail view has an inline **view/edit toggle** — existing puzzles open in view mode.
 - New puzzles open at `/puzzles/new`.

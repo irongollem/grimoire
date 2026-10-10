@@ -1,6 +1,8 @@
 /// <reference types="node" />
-// Runs in Node and reads the repo from disk; see the same note in
-// crossArtifactInvariants.test.ts for why it pulls the node types in itself.
+// Runs in Node and reads the repo from disk. `tsconfig.app.json` owns `src/`
+// and deliberately has no node types, so Node globals cannot resolve in browser
+// code; this test sits beside the stylesheet it guards and pulls them in for
+// itself rather than widening that config.
 
 /**
  * House style: no em-dashes in anything a user reads (#968). The maintainer
@@ -128,8 +130,8 @@ const ROLE = /^text-(eyebrow|label|label-lg|heading-xs|heading-sm|heading|headin
  * `[data-size]` attributes rather than the class.
  */
 const CONTROL_RECIPES = new Set([
-  "src/components/common/appButtonVariants.ts",
-  "src/components/common/fieldVariants.ts",
+  "src/components/common/controls/appButtonVariants.ts",
+  "src/components/common/controls/fieldVariants.ts",
 ]);
 
 function trackedSources(): string[] {

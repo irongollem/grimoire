@@ -23,7 +23,7 @@
  * over; this only says so.
  */
 import { useRouter } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { getEntityKindEntry } from "@/lib/documentImport/entityKinds";
 import type { QuotaShortfall } from "@/lib/documentImport/reviewDecisions";
 

@@ -37,8 +37,8 @@ import {
 import { useAllFactions } from "@/composables/factions/useFactions";
 import type { FactionDeity } from "@/types/faction.types";
 import type { Faction } from "@/types/faction.types";
-import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import EntityLinkSection from "@/components/common/entity/EntityLinkSection.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 
 const props = defineProps<{ deityId: string }>();
 

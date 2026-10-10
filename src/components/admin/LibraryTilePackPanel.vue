@@ -84,11 +84,11 @@
  * relying on a relation the shared query never asked for.
  */
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { IconAdd } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { fieldVariants } from "@/components/common/fieldVariants";
+import { fieldVariants } from "@/components/common/controls/fieldVariants";
 import { describeLibraryPackError, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
 import { useTilePacks } from "@/composables/cartographer/useTilePacks";
 import LibraryTilePackRow from "./LibraryTilePackRow.vue";

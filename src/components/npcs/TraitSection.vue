@@ -38,9 +38,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconClose } from "@/lib/icons";
 
 defineProps<{ label: string }>();

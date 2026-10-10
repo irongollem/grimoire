@@ -28,7 +28,7 @@ vi.mock("@/stores/campaign", () => ({
   }),
 }));
 
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({}) }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({}) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: (e: unknown) => String(e) }) }));
 vi.mock("@/lib/storage", () => ({ deleteByPublicUrl: vi.fn() }));
 vi.mock("@/lib/reorder", () => ({ persistReorder: vi.fn(), toReorderEntries: vi.fn() }));

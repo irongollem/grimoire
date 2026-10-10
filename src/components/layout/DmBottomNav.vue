@@ -14,7 +14,7 @@
         <div v-if="slot.kind === 'fab'" class="flex justify-center md:w-22 md:shrink-0">
           <!-- Prep: a gold "+" create FAB, raised above the bar -->
           <button
-            v-if="ui.dmMode === 'prep'"
+            v-if="appUi.dmMode === 'prep'"
             type="button"
             class="-mt-7 flex h-14 w-14 items-center justify-center rounded-full border-[0.1875rem] border-card bg-primary text-primary-foreground shadow-lg transition-transform active:scale-95"
             aria-label="Create"
@@ -96,18 +96,20 @@ import {
   IconAdd,
 } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { sessionTabs, type NavItem } from "@/lib/nav";
 import { useAbove } from "@/composables/useBreakpoint";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
-import DiceRoller from "@/components/common/DiceRoller.vue";
+import DiceRoller from "@/components/common/dice/DiceRoller.vue";
 import DmNavMoreSheet from "./DmNavMoreSheet.vue";
 
 const vPrefetch = usePrefetchOnIntent();
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
+const soundboardUi = useSoundboardUiStore();
 
 const isDm = computed(() => auth.currentRole === "dm");
 
@@ -116,7 +118,7 @@ const moreOpen = ref(false);
 // The pools live in the nav registry alongside the sidebar's own ordering, so
 // a label or icon cannot say one thing here and another there — see
 // SESSION_TAB_ROUTES for why the bar's order ignores the sidebar's groups.
-const tabs = computed(() => sessionTabs(ui.dmMode === "play" ? "play" : "prep"));
+const tabs = computed(() => sessionTabs(appUi.dmMode === "play" ? "play" : "prep"));
 
 // Bar-mode viewport width decides how much of the pool actually shows: 8
 // slots (6 tabs + FAB + More) fit at md (768), 10 at lg (1024), 12 at xl
@@ -197,7 +199,7 @@ const CREATE_ACTIONS: Record<string, CreateAction> = {
   "/monsters": { to: "/monsters/new", label: "New Monster" },
   "/deities": { to: "/deities/new", label: "New Deity" },
   // Adding a sound is a dialog, not a route, so the FAB signals the view.
-  "/soundboard": { act: () => { ui.soundboardCreateSignal++; }, label: "Create" },
+  "/soundboard": { act: () => { soundboardUi.soundboardCreateSignal++; }, label: "Create" },
 };
 
 const currentCreate = computed<CreateAction | null>(() => {
@@ -209,9 +211,9 @@ const currentCreate = computed<CreateAction | null>(() => {
   // The soundboard's create depends on which peer is showing.
   if (prefix === "/soundboard") {
     const label =
-      ui.soundboardViewMode === "scenes"
+      soundboardUi.soundboardViewMode === "scenes"
         ? "New Scene"
-        : ui.soundboardViewMode === "playlists"
+        : soundboardUi.soundboardViewMode === "playlists"
           ? "New Playlist"
           : "New Sound";
     return { ...action, label };

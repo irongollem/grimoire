@@ -260,7 +260,7 @@
    The fill and border move to a pseudo-element roughened by the #vl-rough
    SVG filter (declared once in App.vue); the content stays crisp and the
    colours still come from the theme. Applied to every modal panel, to any
-   element with `.torn` (NoticeCard, StatCard, CalloutChip…), and to every
+   element with `.torn` (NoticeCard, CalloutChip…), and to every
    in-flow card the app draws as `bg-card border rounded-lg|xl` (note cards,
    panels, sheets: ~480 call sites). Positioned ones (absolute/fixed/sticky:
    menus, popovers, toolbars) are left alone. `.torn-wash` gives the

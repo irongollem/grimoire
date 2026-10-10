@@ -45,8 +45,8 @@
 
 <script setup lang="ts">
 import { reactive, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import DraftConflictNotice from "@/components/common/DraftConflictNotice.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import { useAdminPrompts } from "@/composables/admin/useAdminPrompts";
 import type { AiSystemPrompt } from "@/composables/admin/useAdminPrompts";
 import { useKeyedRecordDrafts } from "@/composables/admin/useKeyedRecordDrafts";

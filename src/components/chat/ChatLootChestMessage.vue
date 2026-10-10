@@ -104,7 +104,7 @@
 import { computed } from 'vue';
 import { IconCoins, IconPackage, IconPackageOpen } from '@/lib/icons';
 import { formatCoinParts } from '@/rules/currency';
-import FocalImage from '@/components/common/FocalImage.vue';
+import FocalImage from '@/components/common/media/FocalImage.vue';
 import type { LootChestMetadata, LootChestClaim } from '@/types/chat.types';
 
 const {

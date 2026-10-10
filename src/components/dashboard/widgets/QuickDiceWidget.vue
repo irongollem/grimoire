@@ -86,10 +86,10 @@
  */
 import { computed, ref, type Component } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
-import DiceResult from "@/components/common/DiceResult.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
+import DiceResult from "@/components/common/dice/DiceResult.vue";
 import { IconDice } from "@/lib/icons";
 import { IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconDie20, IconDie100 } from "@/lib/dice/dieIcons";
 import { rollDice, rollParsed } from "@/lib/dice/roller";

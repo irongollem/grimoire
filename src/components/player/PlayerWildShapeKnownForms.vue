@@ -89,8 +89,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useToast } from "@/composables/useToast";
 import { drawerTransition } from "@/lib/motion";

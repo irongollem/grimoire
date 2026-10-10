@@ -18,10 +18,10 @@
 
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import type { AppInputHandle } from "@/components/common/fieldVariants";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { QUEST_BEAT_KINDS, QUEST_BEAT_KIND_LABELS } from "@/types/quest.types";
 
 const { sourceBeatId, parallel = false, saving = false, error = "" } = defineProps<{ sourceBeatId?: string; parallel?: boolean; saving?: boolean; error?: string }>();

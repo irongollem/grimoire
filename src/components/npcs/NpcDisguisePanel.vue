@@ -27,8 +27,8 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/AppButton.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { NpcListRow } from "@/types/npc.types";
 

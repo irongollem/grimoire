@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconChevronDown } from "@/lib/icons";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 
 export interface TraitGroup {
   heading: string;

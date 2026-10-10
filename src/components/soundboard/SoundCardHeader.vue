@@ -166,11 +166,11 @@
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { computed, nextTick, ref } from "vue";
 import { IconDelete, IconEdit, IconImage, IconRepeat, IconWarning } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import type { AppInputHandle, AppSelectHandle } from "@/components/common/fieldVariants";
-import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import type { AppInputHandle, AppSelectHandle } from "@/components/common/controls/fieldVariants";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import SoundTrimControl from "./SoundTrimControl.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useUpdateSound, useSoundThumbnailUpload } from "@/composables/soundboard/useSounds";

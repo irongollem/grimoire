@@ -45,8 +45,8 @@
 </template>
 
 <script setup lang="ts">
-import AppInput from "@/components/common/AppInput.vue";
-import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 // Shared cell for one AI capability (text / image / audio / embedding) inside a
 // provider card in AdminProvidersTab. The four blocks this replaces were
 // near-identical: an enabled toggle gated on the model being non-null, a

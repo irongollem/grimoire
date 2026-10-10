@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useDowntimeDraws } from "@/composables/downtime/useDowntime";
 import { useParty } from "@/composables/party/useParty";
 import { buildDowntimeQueue } from "@/lib/dashboard/downtimeQueue";

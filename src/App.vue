@@ -52,14 +52,14 @@ import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { SpeedInsights } from "@vercel/speed-insights/vue";
 import { layoutLoaders } from "@/layouts/layoutLoader";
-import RouteSkeleton from "@/components/common/RouteSkeleton.vue";
+import RouteSkeleton from "@/components/common/feedback/RouteSkeleton.vue";
 import { navigationPending } from "@/router/navigationPending";
-import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import ConfirmDialog from "@/components/common/overlays/ConfirmDialog.vue";
 import OutOfCreditsModal from "@/components/billing/OutOfCreditsModal.vue";
-import ToastHost from "@/components/common/ToastHost.vue";
-import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
-import RollModePicker from "@/components/common/RollModePicker.vue";
-import FirstRunTour from "@/components/common/FirstRunTour.vue";
+import ToastHost from "@/components/common/feedback/ToastHost.vue";
+import ManualRollPrompt from "@/components/common/dice/ManualRollPrompt.vue";
+import RollModePicker from "@/components/common/dice/RollModePicker.vue";
+import FirstRunTour from "@/components/common/wizard/FirstRunTour.vue";
 import { pendingBundleFile } from "@/composables/campaign/usePendingBundle";
 import { useLazyMount } from "@/composables/useLazyMount";
 import LoadingScreen from "@/components/auth/LoadingScreen.vue";
@@ -68,7 +68,7 @@ import { useAuthStore } from "@/stores/auth";
 
 import { useMediaSession } from "@/composables/soundboard/useMediaSession";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUiStore } from "@/stores/ui";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
 import { createRealtimeHeal } from "@/lib/realtimeHeal";
@@ -89,7 +89,7 @@ const bundleImportOpen = ref(false);
 const bundleImportMounted = useLazyMount(bundleImportOpen);
 watch(pendingBundleFile, (f) => { if (f) bundleImportOpen.value = true; });
 const campaignStore = useCampaignStore();
-const ui = useUiStore();
+const appUi = useAppUiStore();
 
 // A campaign the current lens does not hold must never become the active one
 // (#729). `campaigns_member_select` lets a player read the campaign row of
@@ -114,7 +114,7 @@ const ui = useUiStore();
 // covers that, and covers it synchronously. `auth.membership` stays in the
 // dependency list because `knownRoleInCampaign` reads it.
 watch(
-  [() => ui.userMode, () => auth.membership, () => campaignStore.activeCampaignId],
+  [() => appUi.userMode, () => auth.membership, () => campaignStore.activeCampaignId],
   ([mode, , activeId]) => {
     if (mode !== "dm" && mode !== "player") return;
     if (!activeId) return;
@@ -142,7 +142,7 @@ const campaignIdToFetch = computed<string | null>(() => {
   // watcher above undoes.
   const fallback = auth.membership;
   if (!fallback) return null;
-  if (ui.userMode && fallback.role !== ui.userMode) return null;
+  if (appUi.userMode && fallback.role !== appUi.userMode) return null;
   return fallback.campaign_id;
 });
 

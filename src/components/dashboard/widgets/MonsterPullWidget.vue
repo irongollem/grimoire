@@ -93,7 +93,7 @@
  * `monsterPull.ts` for why those two axes and not habitat.
  *
  * Filter-state decision: CR band and type stay local `ref`s, not
- * `useUiStore`. The Filter State Pattern is for a filter over a list already
+ * a domain UI store. The Filter State Pattern is for a filter over a list already
  * on the page — this card never shows a list at all, only the single result
  * of the last pull. The two controls instead shape what the *next* random
  * draw is allowed to land on, which is the "popup of candidates" shape the
@@ -114,8 +114,8 @@
  */
 import { computed, ref, watch } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconShuffle } from "@/lib/icons";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";

@@ -39,20 +39,20 @@
  * two places, because there is no control.
  *
  * It needs no shared component for the same reason. Choosing a page is one
- * piece of state, `ui.soundboardActivePage`, which `SoundboardPageTabs` binds
+ * piece of state, `soundboardUi.soundboardActivePage`, which `SoundboardPageTabs` binds
  * with `v-model`; this sets the same field and then goes to the page the tabs
  * live on. The tabs remain the only thing that renders a page control.
  */
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useSoundboardPages } from "@/composables/soundboard/useSoundboardPages";
-import { useUiStore } from "@/stores/ui";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { IconNavSoundboard } from "@/lib/icons";
 
 const router = useRouter();
-const ui = useUiStore();
+const soundboardUi = useSoundboardUiStore();
 const { data: soundboardPages } = useSoundboardPages();
 
 /**
@@ -68,7 +68,7 @@ const pages = computed(() => {
 });
 
 function openPage(id: string) {
-  ui.soundboardActivePage = id;
+  soundboardUi.soundboardActivePage = id;
   void router.push("/soundboard");
 }
 </script>

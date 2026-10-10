@@ -68,7 +68,7 @@ import { useSessionActions } from "@/composables/sessions/useSessionActions";
 import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { prefersReducedMotion } from "@/lib/motion";
 import { IconClose } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import SessionStartDialog from "@/components/layout/SessionStartDialog.vue";
 
 const { size = "sm" } = defineProps<{

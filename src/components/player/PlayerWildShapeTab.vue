@@ -151,20 +151,20 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import PlayerWildShapeKnownForms from "@/components/player/PlayerWildShapeKnownForms.vue";
 import PlayerWildShapeResurgence from "@/components/player/PlayerWildShapeResurgence.vue";
 import PlayerWildShapeSlotTrade from "@/components/player/PlayerWildShapeSlotTrade.vue";
-import WildshapePreviewLightbox from "@/components/play/WildshapePreviewLightbox.vue";
+import WildshapePreviewLightbox from "@/components/player/WildshapePreviewLightbox.vue";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { fetchLibraryMonsterArtEntry, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { useClassDefinitionLookup } from "@/composables/party/useClassDefinitionLookup";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
-import { usePinnedForms } from "@/composables/play/usePinnedForms";
-import { useWildShapeExchange } from "@/composables/play/useWildShapeExchange";
-import { useWildshapeDruid } from "@/composables/play/useWildshapeDruid";
+import { usePinnedForms } from "@/composables/player/usePinnedForms";
+import { useWildShapeExchange } from "@/composables/player/useWildShapeExchange";
+import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useToast } from "@/composables/useToast";
 import { drawerTransition } from "@/lib/motion";

@@ -25,7 +25,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconChevronRight } from "@/lib/icons";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { RollMode } from "@/lib/dice/roller";
 import type { SaveKey } from "@/types/party.types";
 

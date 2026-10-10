@@ -61,7 +61,7 @@ import { useIntervalFn, useNow } from "@vueuse/core";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import SessionQuickLine from "@/components/dashboard/widgets/SessionQuickLine.vue";
 import SessionStartDialog from "@/components/layout/SessionStartDialog.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { formatSessionElapsed, type StartSessionOptions } from "@/composables/campaign/useCampaignSession";
 import { useSessionActions } from "@/composables/sessions/useSessionActions";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";

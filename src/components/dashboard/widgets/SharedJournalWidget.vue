@@ -62,10 +62,10 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useSharedJournalEntries } from "@/composables/notes/usePlayerJournal";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
-import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
+import { useReadItems, useMarkRead } from "@/composables/player/useReadItems";
 import { buildSharedJournalRows, toSharedJournalInput } from "@/lib/dashboard/sharedJournal";
 import { timeAgo } from "@/lib/utils";
 

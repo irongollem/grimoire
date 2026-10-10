@@ -182,15 +182,15 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, toRef } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useRouter } from "vue-router";
-import EntitySheetMobile from "@/components/common/EntitySheetMobile.vue";
+import EntitySheetMobile from "@/components/common/entity/EntitySheetMobile.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
-import TraitList from "@/components/common/TraitList.vue";
-import SpellcastingList from "@/components/common/SpellcastingList.vue";
-import QuickFact from "@/components/common/QuickFact.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
+import TraitList from "@/components/common/statblock/TraitList.vue";
+import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
+import QuickFact from "@/components/common/entity/QuickFact.vue";
 import AccordionSection from "@/components/common/AccordionSection.vue";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import { IconCopy, IconDelete, IconEdit, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";

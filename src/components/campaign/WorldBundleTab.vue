@@ -133,8 +133,8 @@ import { useBundleAuthor, useBundleSelection } from "@/composables/campaign/useB
 import BundleEntityPicker from "@/components/campaign/BundleEntityPicker.vue";
 import ImportBundleModal from "@/components/campaign/ImportBundleModal.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 
 const campaignStore = useCampaignStore();
 const exportAuthor = useBundleAuthor();

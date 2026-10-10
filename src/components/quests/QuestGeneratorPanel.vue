@@ -1,5 +1,5 @@
 <template>
-  <GeneratorPanelFrame :open="ui.questGeneratorOpen" title="Quest Generator" @close="handleClose">
+  <GeneratorPanelFrame :open="questsUi.questGeneratorOpen" title="Quest Generator" @close="handleClose">
     <!-- Generating state -->
     <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
       <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
@@ -231,23 +231,23 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 const THEME_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckCircle, IconGenerate } from '@/lib/icons';
-import { useUiStore } from "@/stores/ui";
+import { useQuestsUiStore } from "@/stores/ui/quests";
 import { useCampaignStore } from "@/stores/campaign";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useCreateQuestFromHook } from "@/composables/quests/useCreateQuestFromHook";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
-import AppButton from "@/components/common/AppButton.vue";
-import GeneratorPanelFrame from "@/components/common/GeneratorPanelFrame.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import GeneratedEntityChips from "@/components/common/ai/GeneratedEntityChips.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import GeneratorPanelFrame from "@/components/common/ai/GeneratorPanelFrame.vue";
 import { useQuestGeneration } from "@/ai/useQuestGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
-import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import AiOffNotice from "@/components/common/AiOffNotice.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
@@ -256,11 +256,11 @@ import { describeSpineRoutes, planSpineBeats } from "@/lib/quests/spine";
 import { useToast } from "@/composables/useToast";
 import type { QuestHookResult } from "@/ai/types";
 
-const ui = useUiStore();
+const questsUi = useQuestsUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
 // Mounted on every DM page — only fetch the dropdown data once the panel opens.
-const panelOpen = () => ui.questGeneratorOpen;
+const panelOpen = () => questsUi.questGeneratorOpen;
 const { data: party } = useActiveParty(panelOpen);
 const { data: npcs } = useNpcs(panelOpen);
 const { data: locations } = useAllLocations(panelOpen);
@@ -311,7 +311,7 @@ const resolvedEntitiesByHook = computed<ResolvedEntity[][]>(() =>
 
 function goToEntity(entity: ResolvedEntity) {
   if (!entity.id) return;
-  ui.questGeneratorOpen = false;
+  questsUi.questGeneratorOpen = false;
   router.push(`${ENTITY_KIND_ROUTE[entity.kind]}/${entity.id}`);
 }
 
@@ -333,7 +333,7 @@ const partyLevelDisplay = computed(() => {
 const theme = ref("");
 
 function handleClose() {
-  ui.questGeneratorOpen = false;
+  questsUi.questGeneratorOpen = false;
 }
 
 async function runGenerate() {
@@ -374,7 +374,7 @@ async function runGenerate() {
 function viewCreated(index: number) {
   const id = createdQuestIds.value[index];
   if (id) {
-    ui.questGeneratorOpen = false;
+    questsUi.questGeneratorOpen = false;
     router.push(`/quests/${id}`);
   }
 }
@@ -382,7 +382,7 @@ function viewCreated(index: number) {
 function buildCreated(index: number) {
   const id = createdQuestIds.value[index];
   if (id) {
-    ui.questGeneratorOpen = false;
+    questsUi.questGeneratorOpen = false;
     // The overview named outright, rather than forced by writing `dmMode = "prep"`
     // and leaning on prep's default landing — which ended a running session as a
     // side effect of building a generated quest. See #758.

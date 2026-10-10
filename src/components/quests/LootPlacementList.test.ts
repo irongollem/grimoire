@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   openChatAt: vi.fn(),
 }));
 
-vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ openChatAt: mocks.openChatAt }) }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ openChatAt: mocks.openChatAt }) }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useDeleteLootPlacement: () => ({ mutateAsync: mocks.remove }),
   useDispatchLoot: () => ({ mutateAsync: mocks.dispatch }),

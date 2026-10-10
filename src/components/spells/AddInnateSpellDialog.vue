@@ -161,12 +161,12 @@ import { useAddInnateSpell } from "@/composables/party/useCharacterSpells";
 import { SCHOOL_BG } from "@/types/spell.types";
 import type { Spell, InnateSourceType, InnateResetsOn } from "@/types/spell.types";
 import { useSpellSearch } from "@/composables/spells/useSpellSearch";
-import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppModal from "@/components/common/AppModal.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import ModalHeader from "@/components/common/ModalHeader.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 
 const SOURCE_TYPES = [
   { value: "racial" as InnateSourceType, label: "Racial" },

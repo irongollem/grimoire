@@ -49,7 +49,7 @@ scripts/chapter_npc_configs/
 *.sln
 *.sw?
 .mcp.json
-src/views/play/TEMPSHIT.ts
+src/views/player/TEMPSHIT.ts
 .claude/worktrees/
 # Claude Code lays its API types beside a loaded mod on every load.
 .claude/skills/*/.claude-plugin/types/
