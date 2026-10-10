@@ -1,8 +1,8 @@
 -- The campaign doorbell over Realtime Broadcast (#999 4.2, 20261009233206).
 --
 --   send      a change rings its campaign once per transaction, at commit, as one
---             Broadcast message on `doorbell:<campaign id>` carrying the table and the
---             requesting tab; never a row
+--             Broadcast message on `doorbell:<campaign id>` carrying the table;
+--             never a row
 --   hear      only a member of the campaign may read its topic: a stranger, a
 --             member of another campaign and anon read nothing, and a malformed
 --             topic is false, not NULL
@@ -13,7 +13,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set constraints all immediate;
-select plan(26);
+select plan(22);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data) values
   ('99900000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'bell-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
@@ -37,51 +37,28 @@ $$;
 -- ── send ─────────────────────────────────────────────────────────────────────
 
 delete from realtime.messages where topic like 'doorbell:99900000-%';
-select set_config('request.headers', '{"x-grimoire-tab": "tab-a1"}', true);
 insert into public.notes (user_id, campaign_id, title)
 values ('99900000-0000-4000-8000-000000000001', '99900000-0000-4000-8000-000000000010', 'A note');
 select ok('notes_player' = any (pg_temp.rings('99900000-0000-4000-8000-000000000010')),
   'a change rings its campaign as a Broadcast message naming what changed');
-select is((select payload ->> 'origin' from realtime.messages
-            where topic = 'doorbell:99900000-0000-4000-8000-000000000010' limit 1),
-  'tab-a1', 'and names the tab whose request caused it, so that tab can skip its own echo');
 select is_empty($$
   select k from realtime.messages, jsonb_object_keys(payload) k
    where topic = 'doorbell:99900000-0000-4000-8000-000000000010'
-     and k not in ('table', 'origin', 'id')
-$$, 'and carries no row: the payload is the table, the tab and the message id, nothing of the note');
+     and k not in ('table', 'id')
+$$, 'and carries no row: the payload is the table and the message id, nothing of the note');
 select is((select bool_and(private) from realtime.messages where topic = 'doorbell:99900000-0000-4000-8000-000000000010'),
   true, 'on a private topic, so only an authorized member can join it');
 
 delete from realtime.messages where topic like 'doorbell:99900000-%';
-select set_config('request.headers', '{"x-grimoire-tab": "not a token; drop table"}', true);
 update public.campaigns set name = 'Bell, renamed' where id = '99900000-0000-4000-8000-000000000010';
-select is((select payload -> 'origin' from realtime.messages
-            where topic = 'doorbell:99900000-0000-4000-8000-000000000010' and payload ->> 'table' = 'campaigns'),
-  'null'::jsonb, 'an edit to the campaign row rings it, and a malformed tab header is dropped, not echoed');
+select ok('campaigns' = any (pg_temp.rings('99900000-0000-4000-8000-000000000010')),
+  'an edit to the campaign row rings it');
 
 select is((select count(distinct (regexp_match(pg_get_triggerdef(g.oid), 'AFTER (INSERT|UPDATE|DELETE)'))[1])::int
              from pg_trigger g
             where g.tgrelid = 'public.encounter_state'::regclass and not g.tgisinternal
               and g.tgfoid = 'public.signal_campaign_change()'::regprocedure),
   3, 'a table that never rang before (encounter_state) now rings on insert, update and delete');
-
--- The tab id is a short token or nothing.
-delete from realtime.messages where topic like 'doorbell:99900000-%';
-select set_config('request.headers', json_build_object('x-grimoire-tab', repeat('a', 65))::text, true);
-update public.campaigns set name = 'Bell 2' where id = '99900000-0000-4000-8000-000000000010';
-select is((select payload -> 'origin' from realtime.messages where topic = 'doorbell:99900000-0000-4000-8000-000000000010'),
-  'null'::jsonb, 'a 65-character tab id is dropped');
-delete from realtime.messages where topic like 'doorbell:99900000-%';
-select set_config('request.headers', json_build_object('x-grimoire-tab', repeat('a-_', 21) || 'b')::text, true);
-update public.campaigns set name = 'Bell 3' where id = '99900000-0000-4000-8000-000000000010';
-select is((select payload ->> 'origin' from realtime.messages where topic = 'doorbell:99900000-0000-4000-8000-000000000010'),
-  repeat('a-_', 21) || 'b', 'a 64-character token of letters, digits, - and _ is kept');
-delete from realtime.messages where topic like 'doorbell:99900000-%';
-select set_config('request.headers', '["x-grimoire-tab"]', true);
-update public.campaigns set name = 'Bell 4' where id = '99900000-0000-4000-8000-000000000010';
-select is((select payload -> 'origin' from realtime.messages where topic = 'doorbell:99900000-0000-4000-8000-000000000010'),
-  'null'::jsonb, 'a header that is not an object gives no origin');
 
 -- ── hear ─────────────────────────────────────────────────────────────────────
 

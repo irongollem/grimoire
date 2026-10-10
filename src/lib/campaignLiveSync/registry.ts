@@ -119,19 +119,25 @@ export const QUEST_RUNTIME_SYNC_KEYS = [...QUEST_RUNTIME_QUERY_KEYS, THREADS_KEY
 export const LISTENER_ONLY_SIGNALS: ReadonlySet<string> = new Set(["soundboard_broadcast", "campaigns"]);
 
 /**
- * Which query keys a doorbell ring refreshes, keyed by its signal: the table
- * that changed, or a `<table>_player` projection signal (migration
- * `20261009233206`).
- *
- * The ring carries the *name* of what changed, not the row, so the response
- * is always a refetch. Every client invalidates every signal's keys, DM and
- * player alike: a query that is not mounted is a no-op, and a tab never hears
- * its own rings. That is the point: the client already knows how to read
- * its own data correctly — RLS, embeds, redacted projections — and a signal
- * cannot get any of that subtly wrong the way a hand-applied row can.
+ * The tables whose own name is the signal, keyed to their query roots, with
+ * the three whose table ring also reaches the players' projection (a delete is
+ * not covered by the `_player` signal, which rings on insert and update). An
+ * override REPLACES the plain `[root]` entry by construction, so a signal is
+ * never defined twice.
  */
-export const SIGNAL_KEYS = new Map<string, readonly string[]>([
-  ...SYNC_TABLES.map(([table, key]) => [table, [key]] as [string, readonly string[]]),
+const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
+  // The table's own name still rings on a delete, which the `_player` signal
+  // does not cover, so it refreshes the players' projection as well.
+  notes: ["notes", PLAYER_NOTES_KEY],
+  factions: ["factions", PLAYER_FACTIONS_KEY],
+  npcs: ["npcs", PLAYER_NPCS_KEY],
+};
+
+/** Every signal and its keys, exactly one entry per signal. Exported for the
+ *  registry test, which fails on a duplicate (a Map would silently keep the
+ *  later one). */
+export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly string[]]> = [
+  ...SYNC_TABLES.map(([table, key]) => [table, SYNC_TABLE_OVERRIDES[table] ?? [key]] as const),
   // The quest runtime (20260928225909): its rows are DM-only quest history,
   // which never travels as a payload. These replaced four 5-second polls.
   ["quest_runtime_state", QUEST_RUNTIME_SYNC_KEYS],
@@ -239,26 +245,25 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   ["campaign_sessions", ["player-session-state", "player-sessions"]],
   // Not a table: the projection signal for NPCs (20260928233302). Players
   // cannot read `npcs` rows, so this tells them to re-read their projection.
-  // The DM hears it too and has only preview caches under this root.
-  ["npcs_player", [PLAYER_NPCS_KEY]],
+  // It refreshes the DM's `npcs` root as well: a co-DM's or a second device's
+  // edit rings it and must reach this tab.
+  ["npcs_player", ["npcs", PLAYER_NPCS_KEY]],
   // Same shape for notes and factions (secret blocks, #932): players can no
   // longer select either table, because a raw row would carry the DM-only
   // passages. They read `get_player_visible_notes` / `_factions`, which strip
-  // them, and hear about changes here. `notes_player` also refreshes the DM's
-  // note lists: the DM's own saves are skipped as own rings, and another
-  // device or a player's write must reach them.
+  // them, and hear about changes here. Every `<table>_player` signal refreshes
+  // both the DM root and the players' projection root for its table, so any
+  // device or a player's write reaches every tab.
   ["notes_player", ["notes", PLAYER_NOTES_KEY]],
-  // The table's own name still rings on a delete, which the `_player` signal
-  // does not cover, so it refreshes the players' projection as well.
-  ["notes", ["notes", PLAYER_NOTES_KEY]],
-  ["factions", ["factions", PLAYER_FACTIONS_KEY]],
-  ["npcs", ["npcs", PLAYER_NPCS_KEY]],
   ["factions_player", ["factions", PLAYER_FACTIONS_KEY]],
   // Places, quests, beats and objectives are read by players through
   // projections and owner-only policies, so the ring tells them to re-read. The
-  // roots below also hold the DM's caches; the DM's own writes ring with their
-  // tab id and are skipped, so only another device's change refetches them.
-  // Sharing a place can share its linked NPCs, so the People projection re-reads too.
+  // player projections of these four live under the same query roots as the
+  // DM's own reads (`locations` holds `useSharedLocations`, `quests` the
+  // player's quest list), so one root refreshes both sides and no separate
+  // player root exists to add.
+  // Sharing a place can share its linked NPCs, so the People projection
+  // (PLAYER_NPCS_KEY) re-reads too; that is deliberate, not a stray key.
   ["locations_player", ["locations", PLAYER_NPCS_KEY]],
   ["quests_player", ["quests"]],
   ["quest_beats_player", [BEATS_KEY]],
@@ -289,7 +294,30 @@ export const SIGNAL_KEYS = new Map<string, readonly string[]>([
   // private entity_notes rows. Those are per-user and must not travel as
   // payloads, so the table rings the doorbell rather than subscribing.
   ["entity_notes", ["entity-notes", "my-recent-entity-notes"]],
-]);
+];
+
+/**
+ * Which query keys a doorbell ring refreshes, keyed by its signal: the table
+ * that changed, or a `<table>_player` projection signal (migration
+ * `20261009233206`).
+ *
+ * The ring carries the *name* of what changed, not the row, so the response
+ * is always a refetch. Every client invalidates every signal's keys, DM and
+ * player alike, the tab that caused the ring included: a query that is not
+ * mounted is a no-op. That is the point: the client already knows how to read
+ * its own data correctly — RLS, embeds, redacted projections — and a signal
+ * cannot get any of that subtly wrong the way a hand-applied row can.
+ */
+export const SIGNAL_KEYS = buildSignalKeys();
+
+function buildSignalKeys(): Map<string, readonly string[]> {
+  const map = new Map<string, readonly string[]>();
+  for (const [signal, keys] of SIGNAL_SOURCE_ENTRIES) {
+    if (map.has(signal)) throw new Error(`live sync signal "${signal}" is defined twice`);
+    map.set(signal, keys);
+  }
+  return map;
+}
 
 // Deduped set of every key the sync owns, plus "campaigns" (handled specially
 // in the composable). Reconciling these after a gap re-derives state from the

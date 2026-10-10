@@ -4,8 +4,7 @@
 // call it safely, and only one Supabase channel exists at a time.
 //
 // The channel is a private Broadcast topic, `doorbellTopic(id)`. The database rings
-// it once per transaction, at commit, with the name of what changed and the tab
-// that changed it, never a row (migration 20261009233206). Each ring is turned
+// it once per transaction, at commit, with the name of what changed, never a row (migration 20261009233206). Each ring is turned
 // into a refetch of the queries that read that signal, so the client reads its
 // own data through its own RLS. This replaced row subscriptions, whose Realtime poller was
 // 91% of all database time (#999 4.2).
@@ -21,7 +20,8 @@ import { refetchCampaignSession } from "@/composables/campaign/useCampaignSessio
 import { useAuthStore } from "@/stores/auth";
 import type { Campaign } from "@/types/campaign.types";
 import { RECONCILE_KEYS, SIGNAL_KEYS } from "@/lib/campaignLiveSync/registry";
-import { doorbellTopic, emitCampaignReconcile, emitCampaignRing } from "@/lib/campaignLiveSync/rings";
+import { reportAsync } from "@/lib/campaignLiveSync/reportAsync";
+import { doorbellTopic, emitCampaignJoinFailed, emitCampaignReconcile, emitCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { DM_NOTE_COLUMN_TABLES } from "@/lib/dmNotes/registry";
 
 let activeChannel: RealtimeChannelHandle | null = null;
@@ -98,17 +98,23 @@ export function useCampaignLiveSync() {
           reconcile: () => {
             for (const k of RECONCILE_KEYS) void qc.invalidateQueries({ queryKey: [k] });
             // Not queries, so invalidation cannot reach them: re-read directly.
-            void refetchCampaignSession(campaignId);
-            void refreshCampaignRow(campaignId);
+            reportAsync(refetchCampaignSession(campaignId));
+            reportAsync(refreshCampaignRow(campaignId));
             emitCampaignReconcile(campaignId);
+          },
+          // The heal only reconciles after a successful rejoin, which a player
+          // removed while offline never gets: the join policy refuses them. So a
+          // failed join tells the removal guard directly.
+          onStatus: (status) => {
+            if (status === "CHANNEL_ERROR") emitCampaignJoinFailed(campaignId);
           },
           bind: (channel) => channel.on("broadcast", { event: "ring" }, ({ payload }) => {
             if (campaign.activeCampaignId !== campaignId) return;
             const ring = emitCampaignRing(campaignId, payload);
-            // This tab's own request caused it, and its own mutation already
-            // refreshed what it changed. Refetching a record mid-autosave is
-            // exactly what that skip avoids.
-            if (!ring || ring.own) return;
+            // Every tab refreshes on every ring, the one its own request caused
+            // included: a mutation's side effects (a craft that inserts
+            // inventory, a purchase) reach the caller only this way.
+            if (!ring) return;
             const { table } = ring;
 
             // A DM note column rides on the entity's own row, and a ring names
@@ -125,9 +131,9 @@ export function useCampaignLiveSync() {
             // projection through the keys below.
             if (table === "campaign_sessions") {
               void qc.invalidateQueries({ queryKey: ["campaign-sessions"] });
-              if (auth.isDM) void refetchCampaignSession(campaignId);
+              if (auth.isDM) reportAsync(refetchCampaignSession(campaignId));
             }
-            if (table === "campaigns") void refreshCampaignRow(campaignId);
+            if (table === "campaigns") reportAsync(refreshCampaignRow(campaignId));
 
             const keys = SIGNAL_KEYS.get(table);
             if (keys) for (const key of keys) invalidate(key);

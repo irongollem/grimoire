@@ -14,7 +14,8 @@
 import { watch, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { supabase } from "@/lib/supabase";
-import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
+import { reportAsync } from "@/lib/campaignLiveSync/reportAsync";
+import { onCampaignJoinFailed, onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
@@ -42,7 +43,7 @@ export function usePlayerRemovalGuard() {
       .maybeSingle();
     if (error) throw error;
     if (expectedGeneration !== generation || subscribedCampaignId !== campaignId || data) return;
-    void eject(campaignId, campaign.activeCampaign?.name ?? "the campaign", expectedGeneration);
+    reportAsync(eject(campaignId, campaign.activeCampaign?.name ?? "the campaign", expectedGeneration));
   }
 
   const stop = watch(
@@ -54,14 +55,22 @@ export function usePlayerRemovalGuard() {
       const myGeneration = ++generation;
       if (!campaignId) return;
 
-      const check = () => void confirmStillMember(campaignId, myGeneration);
+      const check = () => reportAsync(confirmStillMember(campaignId, myGeneration));
       const offRing = onCampaignRing(["campaign_members"], (ring) => {
         if (ring.campaignId === campaignId) check();
       });
       const offReconcile = onCampaignReconcile((id) => {
         if (id === campaignId) check();
       });
-      stopListening = () => { offRing(); offReconcile(); };
+      // A player removed while offline is refused on the rejoin and hears
+      // neither the ring nor a reconcile, so a failed join asks too. It is
+      // best-effort: a join that failed because the network is down fails this
+      // read the same way, which is expected and not worth a report, and a real
+      // refusal recurs on every rejoin attempt, so the next one asks again.
+      const offJoinFailed = onCampaignJoinFailed((id) => {
+        if (id === campaignId) confirmStillMember(campaignId, myGeneration).catch(() => undefined);
+      });
+      stopListening = () => { offRing(); offReconcile(); offJoinFailed(); };
     },
     { immediate: true },
   );

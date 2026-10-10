@@ -155,7 +155,7 @@ carries what changed and never a row (#999 4.2, `20261009233206`).
 flowchart LR
     pg[("Postgres<br/>ring triggers on every live table;<br/>queued per transaction,<br/>sent at commit (send_campaign_rings)")] --> rt["Supabase Realtime<br/>Broadcast, private topic doorbell:id"]
     rt --> chan["src/lib/realtimeChannel.ts<br/>subscribe status · gap recovery ·<br/>wake listeners · teardown<br/>(heal policy: realtimeHeal.ts)"]
-    chan --> sync["useCampaignLiveSync<br/>skip own tab's rings;<br/>SIGNAL_KEYS → invalidate;<br/>RECONCILE_KEYS after gaps"]
+    chan --> sync["useCampaignLiveSync<br/>SIGNAL_KEYS → invalidate;<br/>RECONCILE_KEYS after gaps"]
     sync --> uiL["queries refetch through RLS → UI"]
     sync --> bus["campaignLiveSync/rings.ts<br/>onCampaignRing / onCampaignReconcile"]
     bus -.-> enc["useEncounterLive · useRunnerPartySync"]
@@ -165,8 +165,8 @@ flowchart LR
 ```
 
 Rules: a ring is a refetch, never a patch, so a client only ever holds what its
-own RLS returns. A tab skips the rings its own requests caused (the
-`x-grimoire-tab` header), so a mutation must refresh its own tab's caches.
+own RLS returns. Every tab hears every ring, including the tab whose write
+caused it, so a write's side effects reach the writer too.
 Nothing subscribes to `postgres_changes`: one subscription is enough to keep
 Realtime polling the database about once a second.
 

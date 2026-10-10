@@ -146,10 +146,10 @@ export function usePlayerItemProjection(getOptions?: () => { enabled?: boolean }
    * That staleTime makes the projection a snapshot taken when the page loaded.
    * The doorbell ends it for every member: the `items`, `store_items` and
    * `party_inventory` rings all refresh the `items` root, and a ring reaches a
-   * player even for a table they may not read, since it carries no row. What
-   * it cannot end is this tab's own write, whose ring the tab skips, so a
-   * caller that can tell the snapshot is behind still says so here. See
-   * `useSharedStoreItems`.
+   * player even for a table they may not read, since it carries no row. Two
+   * rings can still be read out of step (the store's rows refresh before the
+   * projection does), so a caller that can tell the snapshot is behind says so
+   * here. See `useSharedStoreItems`.
    */
   async function refetch(): Promise<void> {
     await (ui.dmPreviewMode ? baseQuery.refetch() : projectionQuery.refetch());

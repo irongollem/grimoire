@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import {
   SYNC_TABLES,
   SIGNAL_KEYS,
+  SIGNAL_SOURCE_ENTRIES,
   QUEST_RUNTIME_SYNC_KEYS,
   BEATS_KEY,
   QUEST_RUNTIME_QUERY_KEYS,
@@ -134,7 +135,28 @@ describe("live sync registries", () => {
     expect(SIGNAL_KEYS.get("factions_player")).toContain(PLAYER_FACTIONS_KEY);
   });
 
+  it("defines every signal once", () => {
+    // A Map keeps the later of two entries for a signal without a word, which
+    // is how an explicit entry once shadowed the one spread from SYNC_TABLES.
+    const names = SIGNAL_SOURCE_ENTRIES.map(([signal]) => signal);
+    const duplicates = names.filter((name, index) => names.indexOf(name) !== index);
+    expect(duplicates).toEqual([]);
+    expect(SIGNAL_KEYS.size).toBe(names.length);
+  });
+
+  it("refreshes the DM root and the player projection root from every projection signal", () => {
+    // A co-DM's or a second device's edit rings `<table>_player`; this tab must
+    // refresh its own `npcs` root as well as the players' projection.
+    expect(SIGNAL_KEYS.get("npcs_player")).toEqual(["npcs", PLAYER_NPCS_KEY]);
+    expect(SIGNAL_KEYS.get("npcs")).toEqual(["npcs", PLAYER_NPCS_KEY]);
+    expect(SIGNAL_KEYS.get("factions")).toEqual(["factions", PLAYER_FACTIONS_KEY]);
+    expect(SIGNAL_KEYS.get("notes")).toEqual(["notes", PLAYER_NOTES_KEY]);
+  });
+
   it("refreshes the projection roots for the projection signals", () => {
+    // Players' places, quests, beats and objectives live under the same roots
+    // as the DM's reads, so the one root serves both. Places also refresh the
+    // People projection: sharing a place can share its linked NPCs.
     expect(SIGNAL_KEYS.get("locations_player")).toEqual(["locations", PLAYER_NPCS_KEY]);
     expect(SIGNAL_KEYS.get("quests_player")).toEqual(["quests"]);
     expect(SIGNAL_KEYS.get("quest_beats_player")).toEqual([BEATS_KEY]);

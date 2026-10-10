@@ -364,6 +364,13 @@ function nextMultiplierTier(m: number, dir: 1 | -1): number {
 }
 
 // Live encounter state persisted for real-time player sync
+/** The columns of a running `encounter_state` row that the running-list surfaces
+ *  read (banner, session rail, encounter lists, initiative widget). */
+export type RunningEncounterState = Pick<
+  EncounterState,
+  "encounter_id" | "is_running" | "current_round" | "active_combatant_index" | "combatants_live"
+>;
+
 export interface EncounterState {
   id: string;
   encounter_id: string;

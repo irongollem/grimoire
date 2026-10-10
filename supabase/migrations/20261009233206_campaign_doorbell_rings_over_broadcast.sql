@@ -13,16 +13,15 @@
 -- So the doorbell is the only route. A change rings its campaign once per
 -- transaction (private.ring_campaigns, unchanged in shape), and at commit
 -- private.send_campaign_rings sends one Broadcast message per (campaign, signal)
--- on the private topic `doorbell:<campaign id>`: {"table": <signal>, "origin": <tab id>}.
+-- on the private topic `doorbell:<campaign id>`: {"table": <signal>}.
 -- It carries what changed, never a row (the "thin event" / notify-then-fetch
 -- pattern): every client refetches through its own RLS, so a player is told
 -- that something changed and only ever reads what they may see.
 --
--- `origin` is the `x-grimoire-tab` header the client sends with every request
--- (one id per browser tab). A tab ignores its own rings: its save already
--- refreshed what it changed, and a refetch of a record mid-autosave is exactly
--- what the old PLAYER_ONLY_SIGNALS existed to avoid. A write from a definer
--- path or an Edge Function has no header, so every tab refreshes.
+-- Every tab hears every ring, the one whose write caused it included, as it heard
+-- its own changes under postgres_changes. A write's side effects (a craft that
+-- also fills the party inventory, a purchase that moves a projection) reach the
+-- writer the same way they reach everyone else, so no mutation has to know them.
 
 -- ── 1. Who may hear a topic ─────────────────────────────────────────────────
 
@@ -64,46 +63,7 @@ create policy "realtime_messages_select" on realtime.messages
     and private.can_hear_realtime_topic((select realtime.topic()))
   );
 
--- ── 2. A ring remembers which tab caused it ─────────────────────────────────
-
-alter table private.campaign_sync_pending add column origin text;
-
-create or replace function private.ring_campaigns(p_campaign_ids uuid[], p_signal text)
-returns void
-language plpgsql
-security invoker
-set search_path to ''
-as $function$
-declare
-  v_origin text;
-begin
-  -- A campaign being copied (the demo) has nobody listening yet, and the copy
-  -- inserts row by row, so a statement-level doorbell would fire once per row
-  -- (20261005104317).
-  if current_setting('grimoire.copying_campaign', true) = 'on' then
-    return;
-  end if;
-  -- The tab that made this request (see the header). Anything that is not a
-  -- short token is ignored rather than echoed into every member's socket.
-  v_origin := nullif(current_setting('request.headers', true), '')::jsonb ->> 'x-grimoire-tab';
-  if v_origin !~ '^[A-Za-z0-9_-]{1,64}$' then
-    v_origin := null;
-  end if;
-  insert into private.campaign_sync_pending (campaign_id, changed_table, origin)
-  select distinct r.id, p_signal, v_origin
-    from unnest(p_campaign_ids) as r(id)
-   where r.id is not null
-     and not exists (
-       select 1
-         from private.campaign_sync_pending q
-        where q.txid = pg_current_xact_id()
-          and q.campaign_id = r.id
-          and q.changed_table = p_signal
-     );
-end;
-$function$;
-
--- ── 3. The commit-time flush sends Broadcast messages ───────────────────────
+-- ── 2. The commit-time flush sends Broadcast messages ───────────────────────
 
 drop trigger campaign_sync_pending_flush on private.campaign_sync_pending;
 drop function private.flush_campaign_sync();
@@ -123,9 +83,9 @@ begin
     with drained as (
       delete from private.campaign_sync_pending
        where txid = pg_current_xact_id()
-      returning id, campaign_id, changed_table, origin
+      returning id, campaign_id, changed_table
     )
-    select d.campaign_id, d.changed_table, min(d.origin) as origin, min(d.id) as first_rung
+    select d.campaign_id, d.changed_table, min(d.id) as first_rung
       from drained d
      -- A campaign deleted later in the same transaction has nobody listening.
      where exists (select 1 from public.campaigns p where p.id = d.campaign_id)
@@ -137,7 +97,7 @@ begin
     -- realtime.send swallows its own errors as a warning, so a ring can never
     -- fail the write that rang it.
     perform realtime.send(
-      jsonb_build_object('table', ring.changed_table, 'origin', ring.origin),
+      jsonb_build_object('table', ring.changed_table),
       'ring',
       'doorbell:' || ring.campaign_id,
       true);
@@ -152,12 +112,12 @@ create constraint trigger campaign_sync_pending_send
   deferrable initially deferred
   for each row execute procedure private.send_campaign_rings();
 
--- ── 4. The doorbell table goes ──────────────────────────────────────────────
+-- ── 3. The doorbell table goes ──────────────────────────────────────────────
 
 delete from private.demo_campaign_tables where table_name = 'campaign_sync';
 drop table public.campaign_sync;
 
--- ── 4b. The players' encounter signal table goes too ────────────────────────
+-- ── 4. The players' encounter signal table goes too ────────────────────────
 
 -- encounter_state_player_updates (20260730000003) existed only to be published:
 -- players may not read encounter_state rows, so a row-free copy told them "the

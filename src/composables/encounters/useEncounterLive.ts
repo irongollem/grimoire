@@ -3,13 +3,13 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
 import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
-import type { EncounterState, RunCombatant } from "@/types/encounter.types";
+import type { EncounterState, RunCombatant, RunningEncounterState } from "@/types/encounter.types";
 
 // ── Module-level singleton for running encounters ──────────────────────────────
 let stopRunRings: (() => void) | null = null;
 let runRefCount = 0;
 let stopRunWatcher: (() => void) | null = null;
-const runningStates = ref<EncounterState[]>([]);
+const runningStates = ref<RunningEncounterState[]>([]);
 const runningLoaded = ref(false);
 
 export function useRunningEncounters() {
@@ -17,20 +17,27 @@ export function useRunningEncounters() {
 
   async function fetchRunning(campaignId: string) {
     if (!campaignId) { runningStates.value = []; return; }
-    const { data } = await supabase
+    // Only the columns the running-list consumers read (the banner, session rail,
+    // encounter lists and the initiative widget). `combatants_live` stays because
+    // the widget draws its rows from it; `fog_mask`, `events_fired` and the rest
+    // are not read by anything here and are the bulk of a row.
+    const { data, error } = await supabase
       .from("encounter_state")
-      .select("*")
+      .select("encounter_id, is_running, current_round, active_combatant_index, combatants_live")
       .eq("campaign_id", campaignId)
       .eq("is_running", true);
+    // A failed read keeps the list as it was: clearing it would hide a live
+    // fight from the banner and rail over a transient error.
+    if (error) throw error;
     if (campaign.activeCampaignId === campaignId) {
-      runningStates.value = (data ?? []) as EncounterState[];
+      runningStates.value = data as RunningEncounterState[];
       runningLoaded.value = true;
     }
   }
 
   // The doorbell says an encounter_state row changed, never which; re-read the
-  // running rows. Not skipped for this tab's own rings: going live and ending a
-  // fight write the row but nothing here patches `runningStates` from the
+  // running rows. Every ring is read, this tab's own included: going live and
+  // ending a fight write the row but nothing here patches `runningStates` from the
   // response, so the ring is the only thing that tells this list. Rings arrive in
   // bursts (every HP tick pushes), so one read runs at a time and a ring that
   // lands meanwhile schedules exactly one more.
@@ -46,6 +53,10 @@ export function useRunningEncounters() {
           again = false;
           await fetchRunning(campaignId);
         } while (again && campaign.activeCampaignId === campaignId);
+      } catch (error) {
+        // Reported from a timer: a throw inside a listener or a console call does
+        // not reliably reach Sentry.
+        setTimeout(() => { throw error; });
       } finally {
         reading = false;
       }
@@ -266,40 +277,56 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
 export function usePlayerEncounterLive(campaignId: MaybeRefOrGetter<string | null>) {
   let subscribedCampaignId: string | null = null;
 
-  async function fetchRunning(id = subscribedCampaignId) {
-    if (!id) { liveState.value = null; return; }
+  async function fetchRunning(id: string) {
     const { data, error } = await supabase.rpc("get_player_encounter_state", {
       p_campaign_id: id,
     });
+    // A failed read keeps the fight on screen: clearing it would end the
+    // player's combat view over a transient error.
+    if (error) throw error;
     // A campaign switch can complete before its previous request. Never let
     // that stale response replace the active campaign's live encounter.
-    if (id === subscribedCampaignId) {
-      if (error) {
-        console.error("Failed to load player-safe encounter state", error);
-        liveState.value = null;
-      } else {
-        const rows = (data ?? []) as EncounterState[];
-        liveState.value = rows[0] ?? null;
-      }
-      liveStateLoaded.value = true;
-    }
+    if (id !== subscribedCampaignId) return;
+    liveState.value = (data as EncounterState[])[0] ?? null;
+    liveStateLoaded.value = true;
   }
 
   function subscribe(id: string): void {
     unsubscribe();
     subscribedCampaignId = id;
     liveStateLoaded.value = false;
-    void fetchRunning(id);
+    // Every DM push rings, so rings come in bursts. One read runs at a time and a
+    // ring that lands meanwhile schedules exactly one more, so responses can never
+    // land out of order.
+    let reading = false;
+    let again = false;
+    const reread = async () => {
+      if (reading) { again = true; return; }
+      reading = true;
+      try {
+        do {
+          again = false;
+          await fetchRunning(id);
+        } while (again && subscribedCampaignId === id);
+      } catch (error) {
+        // Reported from a timer: a throw inside a listener or a console call does
+        // not reliably reach Sentry.
+        setTimeout(() => { throw error; });
+      } finally {
+        reading = false;
+      }
+    };
+    void reread();
     // `encounter_state` rings for every change to the row the player's
-    // projection (get_player_encounter_state) is built from; the player-updates
-    // signal table is written in the same transaction, so by the time the ring
-    // lands the projection is current. The ring carries no combatant payload:
-    // resolve it through the server-side projection before adopting anything.
+    // projection (get_player_encounter_state) is built from, including an NPC
+    // identity change, so by the time the ring lands the projection is current.
+    // The ring carries no combatant payload: resolve it through the server-side
+    // projection before adopting anything.
     const offRing = onCampaignRing(["encounter_state"], (ring) => {
-      if (ring.campaignId === id && subscribedCampaignId === id) void fetchRunning(id);
+      if (ring.campaignId === id && subscribedCampaignId === id) void reread();
     });
     const offReconcile = onCampaignReconcile((campaign) => {
-      if (campaign === id && subscribedCampaignId === id) void fetchRunning(id);
+      if (campaign === id && subscribedCampaignId === id) void reread();
     });
     stopPlayerRings = () => { offRing(); offReconcile(); };
   }

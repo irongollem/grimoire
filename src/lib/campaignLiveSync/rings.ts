@@ -9,11 +9,11 @@
  * a second channel per feature is what kept postgres_changes, and with it
  * Realtime's per-second poll, alive.
  *
- * A ring names what changed, never the row. `own` is true when this tab's own
- * request caused it (see `TAB_ID`); a listener whose own mutation already
- * updated its state can skip those.
+ * A ring names what changed, never the row. Every tab hears every ring,
+ * including the one its own request caused: a mutation's side effects (a craft
+ * that inserts inventory, a purchase) reach the caller only through the ring,
+ * just as postgres_changes delivered a tab's own changes back to it.
  */
-import { TAB_ID } from "@/lib/tabId";
 
 /**
  * The doorbell's private Broadcast topic for a campaign; the server sends to
@@ -30,10 +30,6 @@ export interface CampaignRing {
   campaignId: string;
   /** The signal: usually the table that changed, sometimes a `<table>_player` projection signal. */
   table: string;
-  /** The tab whose request rang, or null for a definer path or an Edge Function. */
-  origin: string | null;
-  /** True when this tab's own request caused the ring. */
-  own: boolean;
 }
 
 type Listener = (ring: CampaignRing) => void;
@@ -53,10 +49,9 @@ export function onCampaignRing(tables: readonly string[], listener: Listener): (
 }
 
 /** Called by `useCampaignLiveSync` only, once per received ring. */
-export function emitCampaignRing(campaignId: string, payload: { table?: unknown; origin?: unknown }): CampaignRing | null {
+export function emitCampaignRing(campaignId: string, payload: { table?: unknown }): CampaignRing | null {
   if (typeof payload.table !== "string") return null;
-  const origin = typeof payload.origin === "string" ? payload.origin : null;
-  const ring: CampaignRing = { campaignId, table: payload.table, origin, own: origin === TAB_ID };
+  const ring: CampaignRing = { campaignId, table: payload.table };
   for (const { tables, listener } of listeners) {
     if (tables.has(ring.table)) listener(ring);
   }
@@ -82,4 +77,27 @@ export function onCampaignReconcile(listener: ReconcileListener): () => void {
 /** Called by `useCampaignLiveSync` only, from the channel's own reconcile. */
 export function emitCampaignReconcile(campaignId: string): void {
   for (const listener of reconcilers) listener(campaignId);
+}
+
+const joinFailureListeners = new Set<ReconcileListener>();
+
+/**
+ * Calls `listener` when a join of a campaign's doorbell fails (CHANNEL_ERROR).
+ * The topic is authorized by membership, so a player removed while their socket
+ * was down is refused on the rejoin and never hears the `campaign_members` ring
+ * that would have told them, and the heal's reconcile only follows a successful
+ * rejoin. realtime-js reports a refusal and a transport failure the same way, so
+ * a listener cannot tell which this is. Only the removal guard listens. Returns
+ * the unsubscribe.
+ */
+export function onCampaignJoinFailed(listener: ReconcileListener): () => void {
+  joinFailureListeners.add(listener);
+  return () => {
+    joinFailureListeners.delete(listener);
+  };
+}
+
+/** Called by `useCampaignLiveSync` only, on the doorbell's CHANNEL_ERROR. */
+export function emitCampaignJoinFailed(campaignId: string): void {
+  for (const listener of joinFailureListeners) listener(campaignId);
 }

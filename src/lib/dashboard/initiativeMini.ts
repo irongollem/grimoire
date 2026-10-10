@@ -1,4 +1,4 @@
-import type { EncounterState, RunCombatant } from "@/types/encounter.types";
+import type { RunningEncounterState, RunCombatant } from "@/types/encounter.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { stepTurnIndex } from "@/rules/encounterCombatLogic";
 
@@ -62,7 +62,7 @@ function deriveHpState(hp: number, maxHp: number): CombatantHpState {
  * disagreeing with the runner about whose turn it visibly is, which is worse
  * than not showing a mini-tracker at all.
  */
-export function deriveInitiativeMiniState(state: EncounterState | null): InitiativeMiniState | null {
+export function deriveInitiativeMiniState(state: RunningEncounterState | null): InitiativeMiniState | null {
   if (!state || !state.is_running) return null;
   const combatants = state.combatants_live;
   if (!combatants || combatants.length === 0) return null;

@@ -1,6 +1,7 @@
 import { ref, computed, onUnmounted, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { reportAsync } from "@/lib/campaignLiveSync/reportAsync";
 import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
 import { broadcastOffsetSeconds, shouldResync } from "@/lib/audio/broadcastOffset";
@@ -112,10 +113,9 @@ export function usePlayerAudioStream() {
   function subscribe(campaignId: string): void {
     unsubscribe();
     subscribedCampaignId = campaignId;
-    void load(campaignId);
+    reportAsync(load(campaignId));
     // A `soundboard_broadcast` ring means the DM changed what is shared (the
-    // row itself never travels), so re-read it. Not skipped for this tab's own
-    // rings: a player never writes the row, and a DM previewing wants it too.
+    // row itself never travels), so re-read it.
     //
     // Reconcile re-reads the row as well, so a player who dropped mid-session
     // lands back on whatever the DM is actually playing instead of a track that
@@ -124,10 +124,10 @@ export function usePlayerAudioStream() {
     // tab, and that is what we want: load() calls apply(), which seeks and
     // plays, so a refetch per alt-tab would be audible.
     const offRing = onCampaignRing(["soundboard_broadcast"], (ring) => {
-      if (ring.campaignId === campaignId && subscribedCampaignId === campaignId) void load(campaignId);
+      if (ring.campaignId === campaignId && subscribedCampaignId === campaignId) reportAsync(load(campaignId));
     });
     const offReconcile = onCampaignReconcile((id) => {
-      if (id === campaignId && subscribedCampaignId === campaignId) void load(campaignId);
+      if (id === campaignId && subscribedCampaignId === campaignId) reportAsync(load(campaignId));
     });
     stopListening = () => { offRing(); offReconcile(); };
   }

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   selects: [] as string[],
   limits: [] as number[],
   page: [] as unknown[],
+  hold: null as Promise<{ data: unknown[]; error: null }> | null,
 }));
 
 vi.mock("@/lib/supabase", () => {
@@ -15,7 +16,12 @@ vi.mock("@/lib/supabase", () => {
     select: (columns: string) => { mocks.selects.push(columns); return chain; },
     eq: () => chain,
     order: () => chain,
-    limit: (n: number) => { mocks.limits.push(n); return Promise.resolve({ data: mocks.page, error: null }); },
+    limit: (n: number) => {
+      mocks.limits.push(n);
+      const held = mocks.hold;
+      mocks.hold = null;
+      return held ?? Promise.resolve({ data: mocks.page, error: null });
+    },
     maybeSingle: () => empty,
     single: () => Promise.resolve(mocks.insertResult),
     insert: () => chain,
@@ -103,28 +109,52 @@ describe("useCampaignMessages rings (#999 4.2)", () => {
     expect(messages.value.map((m) => m.id)).toEqual(["a", "b"]);
 
     mocks.page = [msg("a", "2026-01-01T00:00:01Z")];
-    rings.emitCampaignRing("c-ring", { table: "campaign_messages", origin: null });
+    rings.emitCampaignRing("c-ring", { table: "campaign_messages" });
     await flush();
     expect(messages.value.map((m) => m.id)).toEqual(["a"]);
   });
 
-  it("ignores this tab's own rings and other campaigns, but reconcile re-reads", async () => {
+  it("ignores other campaigns' rings, but reconcile re-reads", async () => {
     mocks.campaignStore.activeCampaignId = "c-ring";
     mocks.page = [msg("a", "2026-01-01T00:00:01Z")];
     vi.resetModules();
     const rings = await import("@/lib/campaignLiveSync/rings");
-    const { TAB_ID } = await import("@/lib/tabId");
     const { useCampaignMessages, loadChatHistory } = await import("./useCampaignMessages");
     useCampaignMessages();
     loadChatHistory();
     await flush();
     mocks.limits.length = 0;
-    rings.emitCampaignRing("c-ring", { table: "campaign_messages", origin: TAB_ID });
-    rings.emitCampaignRing("other", { table: "campaign_messages", origin: null });
+    rings.emitCampaignRing("other", { table: "campaign_messages" });
     await flush();
     expect(mocks.limits).toEqual([]);
     rings.emitCampaignReconcile("c-ring");
     await flush();
     expect(mocks.limits).toEqual([100]);
+  });
+
+  it("a ring's own refresh re-reads, and a refresh that began before my send cannot drop my message", async () => {
+    mocks.campaignStore.activeCampaignId = "c-ring";
+    mocks.page = [msg("a", "2026-01-01T00:00:01Z")];
+    vi.resetModules();
+    const rings = await import("@/lib/campaignLiveSync/rings");
+    const { useCampaignMessages, loadChatHistory } = await import("./useCampaignMessages");
+    const { messages, sendMessage } = useCampaignMessages();
+    loadChatHistory();
+    await flush();
+
+    // A refresh starts and its response is held back; the snapshot predates my send.
+    let release: (value: { data: unknown[]; error: null }) => void = () => {};
+    mocks.hold = new Promise((resolve) => { release = resolve; });
+    rings.emitCampaignRing("c-ring", { table: "campaign_messages" });
+    await flush();
+
+    mocks.insertResult = { data: { ...msg("mine", "2026-01-01T00:00:05Z"), user_id: "u1" }, error: null };
+    await sendMessage("hello");
+    expect(messages.value.map((m) => m.id)).toEqual(["a", "mine"]);
+
+    release({ data: [msg("a", "2026-01-01T00:00:01Z")], error: null });
+    await flush();
+    expect(messages.value.map((m) => m.id)).toEqual(["a", "mine"]);
+    mocks.hold = null;
   });
 });

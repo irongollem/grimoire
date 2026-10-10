@@ -27,6 +27,12 @@ let subscribedCampaignId: string | null = null;
 let generation = 0; // incremented each subscribe(); callbacks ignore stale gens
 let latestFetchId = 0;
 let deletedMessageIds = new Set<string>();
+// Rows this tab pushed from a send response, with a counter stamp. A refresh
+// whose request started before the push can return a snapshot without that row;
+// pruning must not mistake it for a row another client deleted.
+let pushSeq = 0;
+const pushedAtSeq = new Map<string, number>();
+const PUSHED_KEEP = 200;
 let oldestCursor: Pick<CampaignMessage, "created_at" | "id"> | null = null;
 
 // ── Closed-chat cost (#999) ────────────────────────────────────────────────────
@@ -72,19 +78,24 @@ function isVisibleToCurrentUser(msg: Pick<CampaignMessage, "type" | "recipient_u
 /**
  * After a ring, drop loaded rows that the newest window no longer contains.
  * Only rows at or after the window's oldest entry can be judged (older ones are
- * simply outside it); a short page means the window holds everything.
+ * simply outside it); a short page means the window holds everything. A row
+ * this tab pushed after the read started is kept either way.
  */
-function dropVanished(page: CampaignMessage[]) {
+function dropVanished(page: CampaignMessage[], startedAtSeq: number) {
   const inPage = new Set(page.map((m) => m.id));
   const oldest = page.length === LIMIT ? page[page.length - 1] : null;
-  messages.value = messages.value.filter(
-    (m) => inPage.has(m.id) || (oldest !== null && compareMessages(m, oldest) < 0),
-  );
+  messages.value = messages.value.filter((m) => {
+    if (inPage.has(m.id) || (oldest !== null && compareMessages(m, oldest) < 0)) return true;
+    // Pushed after this read began, so its snapshot cannot speak for it.
+    const pushedAt = pushedAtSeq.get(m.id);
+    return pushedAt !== undefined && pushedAt > startedAtSeq;
+  });
 }
 
 async function fetchMessages(campaignId: string, expectedGeneration = generation, resetPagination = false, prune = false) {
   if (expectedGeneration !== generation || campaignId !== subscribedCampaignId) return;
   const fetchId = ++latestFetchId;
+  const startedAtSeq = pushSeq;
   loading.value = true;
   // Safety net: a request frozen by iOS only fails at its 30s deadline
   // (requestDeadline.ts); clear the spinner after 8s rather than wait for it.
@@ -106,14 +117,14 @@ async function fetchMessages(campaignId: string, expectedGeneration = generation
     // the race.
     if (!error && expectedGeneration === generation && campaignId === subscribedCampaignId
       && fetchId === latestFetchId) {
-      const page = (data ?? []) as CampaignMessage[];
+      const page = data as CampaignMessage[];
       if (resetPagination) {
         oldestCursor = page.length
           ? { created_at: page[page.length - 1].created_at, id: page[page.length - 1].id }
           : null;
         hasOlder.value = page.length === LIMIT;
       }
-      if (prune) dropVanished(page);
+      if (prune) dropVanished(page, startedAtSeq);
       mergeMessages(page);
     }
   } catch {
@@ -195,7 +206,7 @@ async function loadOlder() {
       .limit(LIMIT);
     if (error || myGen !== generation || campaignId !== subscribedCampaignId) return;
 
-    const page = (data ?? []) as CampaignMessage[];
+    const page = data as CampaignMessage[];
     if (page.length) {
       oldestCursor = { created_at: page[page.length - 1].created_at, id: page[page.length - 1].id };
       mergeMessages(page);
@@ -227,6 +238,7 @@ function subscribe(campaignId: string, clearMessages = false) {
     unreadProbe.value = [];
     historyLoadedFor = null;
     deletedMessageIds = new Set();
+    pushedAtSeq.clear();
     oldestCursor = null;
     hasOlder.value = false;
     loadingOlder.value = false;
@@ -234,9 +246,6 @@ function subscribe(campaignId: string, clearMessages = false) {
   const current = () => myGen === generation && subscribedCampaignId === campaignId;
   const offRing = onCampaignRing(["campaign_messages"], (ring) => {
     if (ring.campaignId !== campaignId || !current()) return;
-    // This tab's own sends, claims and deletes already updated the list from
-    // their responses; a refetch would only repeat them.
-    if (ring.own) return;
     refresh(campaignId, myGen, false, true);
   });
   const offReconcile = onCampaignReconcile((id) => {
@@ -284,6 +293,7 @@ function ensureWatcher() {
         unreadProbe.value = [];
         historyLoadedFor = null;
         deletedMessageIds = new Set();
+        pushedAtSeq.clear();
         loading.value = false;
         loadingOlder.value = false;
         hasOlder.value = false;
@@ -453,7 +463,7 @@ export function useCampaignMessages() {
     }));
     const { data, error } = await supabase.from("campaign_messages").insert(inserts).select();
     if (error) throw error;
-    for (const row of (data ?? [])) _optimisticPush(row as CampaignMessage);
+    for (const row of data) _optimisticPush(row as CampaignMessage);
   }
 
   async function sendSystemMessage(text: string, senderName: string) {
@@ -685,6 +695,7 @@ export function useCampaignMessages() {
     latestFetchId++;
     messages.value = [];
     deletedMessageIds = new Set();
+    pushedAtSeq.clear();
     oldestCursor = null;
     hasOlder.value = false;
     loadingOlder.value = false;
@@ -699,6 +710,11 @@ export function useCampaignMessages() {
     if (!visible) return;
     messages.value.push(msg);
     messages.value.sort(compareMessages);
+    pushedAtSeq.set(msg.id, ++pushSeq);
+    if (pushedAtSeq.size > PUSHED_KEEP) {
+      const oldestKey = pushedAtSeq.keys().next().value;
+      if (oldestKey !== undefined) pushedAtSeq.delete(oldestKey);
+    }
   }
 
   const myUserId = computed(() => auth.user?.id);

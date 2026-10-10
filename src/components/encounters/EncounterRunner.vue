@@ -150,7 +150,6 @@ import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useCombatExploration } from "@/composables/encounters/useCombatExploration";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useCompanions";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
@@ -203,7 +202,6 @@ const { canOpenBattleMap, battleMapDisabledReason, markRoomsExploredFromFogMask 
 function openBattleMapInNewWindow() {
   window.open(`/encounters/${encounterId.value}/run/map`, "_blank", "noopener,noreferrer");
 }
-const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
 const { mutateAsync: updateNpc } = useUpdateNpc();
 const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
@@ -392,7 +390,7 @@ watch(
 // ── Bidirectional HP sync between runner and party_members ───────────────────
 // Debounced HP writes out, Realtime ingest (HP / temp HP / player-rolled
 // initiative) in, and the store's persist handler — see useRunnerPartySync.
-const { cancelPendingHpFlush, clearPartyInitiatives } = useRunnerPartySync(isLive);
+const { cancelPendingHpFlush, clearPartyInitiatives, writePartyMember } = useRunnerPartySync(isLive);
 // 2024 Evergreen Wild Shape: a level 20 druid regains a use on rolling initiative with none left.
 useEvergreenWildShape();
 
@@ -512,17 +510,14 @@ async function handleEndCombat() {
   const companionCombatants = store.combatants.filter((c) => c.type === "player" && c.companion_id);
   await Promise.all([
     ...playerCombatants.map((c) =>
-      updatePartyMember({
-        id: c.party_member_id!,
-        update: {
-          current_hp: c.hp,
-          conditions: c.conditions,
-          curses: c.curses,
-          // The roll was for this fight; the next lobby starts blank.
-          current_initiative: null,
-          death_save_successes: c.death_saves.successes,
-          death_save_failures: c.death_saves.failures,
-        },
+      writePartyMember(c.party_member_id!, {
+        current_hp: c.hp,
+        conditions: c.conditions,
+        curses: c.curses,
+        // The roll was for this fight; the next lobby starts blank.
+        current_initiative: null,
+        death_save_successes: c.death_saves.successes,
+        death_save_failures: c.death_saves.failures,
       }),
     ),
     ...companionCombatants.map((c) =>
