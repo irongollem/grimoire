@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
-import { useLocalStorage } from "@vueuse/core";
+import { useStorage } from "@vueuse/core";
 import type { NoteCategory } from "@/types/notes.types";
 import type { CalendarEventType } from "@/types/calendar.types";
 import type { BoardMode, PadSize } from "@/types/sound.types";
@@ -18,6 +18,7 @@ import type { SoundCategory } from "@/types/sound.types";
 import type { DowntimeDrawStatus } from "@/types/downtime.types";
 import type { MiniFormat, MiniStatus } from "@/types/mini.types";
 import type { AdminAuditAction } from "@/composables/admin/useAdminAuditLog";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
@@ -258,7 +259,7 @@ export const useUiStore = defineStore("ui", () => {
   // The filters below are session-scoped (plain refs): they survive navigation
   // but must not persist, or a DM returns weeks later to a near-empty board with
   // no memory of the search term or facet that emptied it.
-  const questsIsKanban = useLocalStorage("grimoire:quests:kanban", true);
+  const questsIsKanban = useStorage("grimoire:quests:kanban", true, safeLocalStorage());
   const questsSearch = ref("");
   const questsPartyFilter = ref(false);
   const questsEntityFilter = ref("");
@@ -560,7 +561,7 @@ export const useUiStore = defineStore("ui", () => {
   // order — and mixing them in one list meant neither read as a category.
   const soundboardViewMode = ref<"sounds" | "scenes" | "playlists">("sounds");
 
-  const soundboardPadSize = useLocalStorage<PadSize>("grimoire_soundboard_pad_size", "md");
+  const soundboardPadSize = useStorage<PadSize>("grimoire_soundboard_pad_size", "md", safeLocalStorage());
 
   // The mixer drawer — same pattern as the campaign chat: in-flow, pushes the
   // board left while open. Session-scoped like chatOpen, not persisted.
@@ -609,9 +610,10 @@ export const useUiStore = defineStore("ui", () => {
 
   // Entity list layout (mobile rows/gallery toggle) — persisted across sessions.
   // Shared by the NPC + Monster mobile list screens (<md only).
-  const entityListLayout = useLocalStorage<"rows" | "gallery">(
+  const entityListLayout = useStorage<"rows" | "gallery">(
     "grimoire:entity-list-layout",
     "rows",
+    safeLocalStorage(),
   );
 
   // Chat panel
@@ -671,14 +673,14 @@ export const useUiStore = defineStore("ui", () => {
   // accounts that predate the mode, the router guard infers it once from the
   // loaded membership's role. Switch via useModeSwitch(), never by writing
   // this ref directly — the switch also swaps the per-mode active campaign.
-  const userMode = useLocalStorage<"dm" | "player" | "">("grimoire:user-mode", "");
+  const userMode = useStorage<"dm" | "player" | "">("grimoire:user-mode", "", safeLocalStorage());
 
   // Whether the campaign's session is live (#758). A *mirror* of
   // "a session in `campaign_sessions` is open" (#985), owned by `useCampaignSession()` and
   // written by nothing else — the row is the authority, this is the cheap
   // synchronous read the surfaces below already expect.
   //
-  // It used to be `useLocalStorage("grimoire:dm-mode")`: per browser, no start
+  // It used to be a persisted ref keyed "grimoire:dm-mode": per browser, no start
   // time, no end. That is where every complaint about the Prep/Play switch came
   // from — a session ended on Thursday was still broadcasting on Sunday, a
   // co-DM could not see it, and a second device stayed in prep. #133 named the
@@ -731,8 +733,8 @@ export const useUiStore = defineStore("ui", () => {
   // the same shape as `locationsExpanded` so the two atlases cannot drift.
   // Writable computeds so every call site keeps handing Sets around exactly as
   // before; only the storage underneath changed.
-  const atlasChildrenOpenIds = useLocalStorage<string[]>("grimoire:play:atlas:children", []);
-  const atlasDetailOpenIds = useLocalStorage<string[]>("grimoire:play:atlas:detail", []);
+  const atlasChildrenOpenIds = useStorage<string[]>("grimoire:play:atlas:children", [], safeLocalStorage());
+  const atlasDetailOpenIds = useStorage<string[]>("grimoire:play:atlas:detail", [], safeLocalStorage());
 
   const atlasChildrenOpen = computed({
     get: () => new Set(atlasChildrenOpenIds.value),
@@ -817,7 +819,7 @@ export const useUiStore = defineStore("ui", () => {
   // for lookups. Ids of deleted locations are inert — they simply match no row —
   // and the cap keeps the list from growing without bound across campaigns.
   const EXPANDED_CAP = 500;
-  const locationsExpandedIds = useLocalStorage<string[]>("grimoire:atlas:expanded", []);
+  const locationsExpandedIds = useStorage<string[]>("grimoire:atlas:expanded", [], safeLocalStorage());
   const locationsExpanded = computed(() => new Set(locationsExpandedIds.value));
   const locationsSelectedId = ref<string | null>(null);
   const locationsPaneMode = ref<"places" | "map">("places");
@@ -834,7 +836,7 @@ export const useUiStore = defineStore("ui", () => {
   // site's Map tab, the runner) and an open search are derived on top of it
   // in `useAtlasTreeFold`; writing them here is what once left the tree
   // folded for good after a reload.
-  const locationsTreeCollapsed = useLocalStorage("grimoire:atlas:treeCollapsed", false);
+  const locationsTreeCollapsed = useStorage("grimoire:atlas:treeCollapsed", false, safeLocalStorage());
 
   // The place the Atlas was left on. Selection itself lives in the URL
   // (`/locations?at=<id>`) so that Back walks the trail of places visited, and
@@ -845,7 +847,7 @@ export const useUiStore = defineStore("ui", () => {
   // Stored, not session state: coming back to the map you were reading is the
   // same kind of durable preference as the tree's fold, and it should survive a
   // reload rather than only a Back.
-  const locationsLastSelectedId = useLocalStorage<string | null>("grimoire:atlas:lastSelected", null);
+  const locationsLastSelectedId = useStorage<string | null>("grimoire:atlas:lastSelected", null, safeLocalStorage());
 
   function rememberExpanded(ids: string[]) {
     locationsExpandedIds.value = ids.slice(-EXPANDED_CAP);
@@ -1109,9 +1111,10 @@ export const useUiStore = defineStore("ui", () => {
   // against the ready-made scenes should not be offered them on every visit.
   // Per campaign: the scenes are added to one campaign, so declining them in
   // one says nothing about the next.
-  const dismissedStarterSceneOffers = useLocalStorage<Record<string, boolean>>(
+  const dismissedStarterSceneOffers = useStorage<Record<string, boolean>>(
     "grimoire:starter-scenes-dismissed",
     {},
+    safeLocalStorage(),
   );
 
   function isStarterSceneOfferDismissed(campaignId: string): boolean {

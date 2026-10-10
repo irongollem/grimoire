@@ -46,7 +46,10 @@
         <span class="text-label-lg font-semibold text-muted-foreground">Key Storage Mode</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
-        <AppCheckbox v-model="localModeEnabled" label="Store keys locally on this device only" />
+        <AppCheckbox v-model="localModeEnabled" label="Store keys locally on this device only" :disabled="!canKeepKeysLocally" />
+        <p v-if="!canKeepKeysLocally" class="text-caption text-muted-foreground italic">
+          This browser blocks site data, so a key can't be kept on this device. Generation uses the campaign's key or credits.
+        </p>
         <p class="text-caption text-muted-foreground italic">
           <span v-if="localModeEnabled" class="block text-ink-caution  font-semibold mb-1">
             ⚠️ Local storage only: Your keys are not saved to your account. Using Grimoire on a different browser or device will require re-entering them.
@@ -239,7 +242,8 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
-import { encryptLocalKey, decryptLocalKey, isLocalCiphertext } from "@/lib/localKeyVault";
+import { encryptLocalKey, decryptLocalKey, isLocalCiphertext, LOCAL_MODE_KEY, localKeyModeChosen } from "@/lib/localKeyVault";
+import { safeLocalStorage, localStorageAvailable } from "@/lib/safeLocalStorage";
 import { getSetting } from "@/settings/index";
 import { useSettingContent } from "@/composables/campaign/useSettingContent";
 import { useSubscription } from "@/composables/billing/useSubscription";
@@ -263,8 +267,6 @@ import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 const { isPro } = useSubscription();
 const { isChild } = useChildAccount();
 const { hasAcknowledged } = useAiAcknowledgements();
-
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
 interface ProviderDef {
   id:          string;
@@ -341,7 +343,10 @@ function clearKey(id: string) {
 function undoClearKey(id: string) {
   clearedKeys[id] = false;
 }
-const localModeEnabled = ref(typeof localStorage !== "undefined" && localStorage.getItem(LOCAL_MODE_KEY) === "local");
+// Nothing survives a reload when the browser blocks site data, so a key kept
+// "on this device" would vanish; the option is offered only when it can work.
+const canKeepKeysLocally = localStorageAvailable();
+const localModeEnabled = ref(canKeepKeysLocally && localKeyModeChosen());
 
 const activeSetting        = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 const { data: settingContent } = useSettingContent(() => campaign.activeCampaign?.calendar_id);
@@ -373,7 +378,7 @@ function providerHasKey(providerId: string): boolean {
   const p = providerDefs.find((d) => d.id === providerId);
   if (!p) return false;
   if (localModeEnabled.value) {
-    return !!localStorage.getItem(p.localKey);
+    return !!safeLocalStorage().getItem(p.localKey);
   }
   const c = campaign.activeCampaign;
   return !!(c?.[p.dbField as keyof typeof c] as string | null);
@@ -384,7 +389,7 @@ function providerHasKey(providerId: string): boolean {
 function providerHasKeyStored(providerId: string): boolean {
   const p = providerDefs.find((d) => d.id === providerId);
   if (!p) return false;
-  if (localModeEnabled.value) return !!localStorage.getItem(p.localKey);
+  if (localModeEnabled.value) return !!safeLocalStorage().getItem(p.localKey);
   const c = campaign.activeCampaign;
   return !!(c?.[p.dbField as keyof typeof c] as string | null);
 }
@@ -399,7 +404,7 @@ const keepsAnthropic = computed(
   () =>
     form.value.text_provider === "anthropic" &&
     (localModeEnabled.value
-      ? !!localStorage.getItem("grimoire_anthropic_key")
+      ? !!safeLocalStorage().getItem("grimoire_anthropic_key")
       : !!campaign.activeCampaign?.anthropic_api_key),
 );
 const availableTextProviders = computed(() =>
@@ -472,27 +477,27 @@ async function save() {
       for (const p of providerDefs) {
         const trimmed   = form.value.keys[p.id].trim();
         const existingDb = (c[p.dbField as keyof typeof c] as string | null) ?? null;
-        const existingLocal = localStorage.getItem(p.localKey);
+        const existingLocal = safeLocalStorage().getItem(p.localKey);
 
         if (clearedKeys[p.id]) {
-          localStorage.removeItem(p.localKey);
+          safeLocalStorage().removeItem(p.localKey);
         } else if (trimmed) {
           // Encrypted at rest with the local vault — never sent to our server.
-          localStorage.setItem(p.localKey, await encryptLocalKey(trimmed));
+          safeLocalStorage().setItem(p.localKey, await encryptLocalKey(trimmed));
         } else if (!existingLocal && existingDb) {
           try {
             const decrypted = await decryptApiKey(existingDb);
-            if (decrypted) localStorage.setItem(p.localKey, await encryptLocalKey(decrypted));
+            if (decrypted) safeLocalStorage().setItem(p.localKey, await encryptLocalKey(decrypted));
           } catch (e) { console.error(`Failed to migrate ${p.id} key to local mode:`, e); }
         }
         encryptedKeys[p.dbField] = null;
       }
-      localStorage.setItem(LOCAL_MODE_KEY, "local");
+      safeLocalStorage().setItem(LOCAL_MODE_KEY, "local");
     } else {
       for (const p of providerDefs) {
         const trimmed   = form.value.keys[p.id].trim();
         const existingDb = (c[p.dbField as keyof typeof c] as string | null) ?? null;
-        const existingLocal = localStorage.getItem(p.localKey);
+        const existingLocal = safeLocalStorage().getItem(p.localKey);
 
         if (clearedKeys[p.id]) {
           encryptedKeys[p.dbField] = null;
@@ -511,9 +516,9 @@ async function save() {
         } else {
           encryptedKeys[p.dbField] = existingDb;
         }
-        localStorage.removeItem(p.localKey);
+        safeLocalStorage().removeItem(p.localKey);
       }
-      localStorage.removeItem(LOCAL_MODE_KEY);
+      safeLocalStorage().removeItem(LOCAL_MODE_KEY);
     }
 
     const updated = await updateCampaign({

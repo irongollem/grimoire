@@ -1,3 +1,4 @@
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import type { CampaignMessage, FlavorMetadata } from "@/types/chat.types";
 
 /**
@@ -81,7 +82,7 @@ function key(userId: string, campaignId: string): string {
 /** Storage can be absent or throw (private windows, blocked site data). */
 export function loadReadMarker(userId: string, campaignId: string): ReadMarker | null {
   try {
-    const raw = localStorage.getItem(key(userId, campaignId));
+    const raw = safeLocalStorage().getItem(key(userId, campaignId));
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (
@@ -99,7 +100,7 @@ export function loadReadMarker(userId: string, campaignId: string): ReadMarker |
 
 export function saveReadMarker(userId: string, campaignId: string, marker: ReadMarker): void {
   try {
-    localStorage.setItem(key(userId, campaignId), JSON.stringify(marker));
+    safeLocalStorage().setItem(key(userId, campaignId), JSON.stringify(marker));
   } catch {
     // The dot falls back to "first visit" semantics next load; nothing to tell the player.
   }

@@ -10,8 +10,7 @@ import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenera
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
-
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
+import { localKeyModeChosen } from "@/lib/localKeyVault";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -56,7 +55,7 @@ export function useScriptoriumDraft() {
     startAiQuotes();
 
     try {
-      if (typeof localStorage !== "undefined" && localStorage.getItem(LOCAL_MODE_KEY) === "local") {
+      if (localKeyModeChosen()) {
         throw new Error(
           "Drafting reads your campaign on the server, so it is not available in local-key mode. " +
           "Switch to platform credits or a campaign API key in Settings → AI.",

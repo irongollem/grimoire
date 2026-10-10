@@ -109,7 +109,10 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 Every `generate-entity-text` generator (the original four and the twelve epic
 #910 added) still has a client-direct branch, but only in local-key mode; by
 default they go through `generate-entity-text`
-(`src/ai/entityTextGeneration.ts` picks the path).
+(`src/ai/entityTextGeneration.ts` picks the path). Since #1043 every generator
+asks `src/ai/localKeyMode.ts`, which takes the browser path only when local-key
+mode is chosen *and* a key decrypted on this device; otherwise the generation
+runs server-side like any other, so the server's marking and logging apply.
 
 `usePuzzleGeneration.ts` and `useTextEnhancement.ts` call `getTextProvider()` from
 `src/ai/providers/` (`openai.ts`, `anthropic.ts`, `gemini.ts`)

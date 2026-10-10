@@ -1,8 +1,9 @@
 import { defineStore } from "pinia";
 import { computed, ref, shallowRef, watch } from "vue";
-import { useLocalStorage } from "@vueuse/core";
+import { useStorage } from "@vueuse/core";
 import { activeThemeId } from "@/lib/themeRuntime";
 import { THEMES } from "@/lib/themes";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 export type CardSizeId = "mtg" | "tarot";
 export type CardStyleId = "inked" | "modern";
@@ -68,11 +69,11 @@ export const useCardForgeStore = defineStore("cardForge", () => {
    * illuminated family) defaults to the inked cards, Tome and Grimoire to the
    * modern ones. Picking a style stores it and stops the following.
    */
-  const ls = typeof localStorage !== "undefined" ? localStorage : null;
-  const legacy = ls?.getItem(LEGACY_STYLE_KEY);
-  const styleChoice = useLocalStorage<CardStyleId | null>(
+  const legacy = safeLocalStorage().getItem(LEGACY_STYLE_KEY);
+  const styleChoice = useStorage<CardStyleId | null>(
     STYLE_CHOICE_KEY,
     legacy === "modern" || legacy === '"modern"' ? "modern" : null,
+    safeLocalStorage(),
     { writeDefaults: false, serializer: { read: (v) => (v === "inked" || v === "modern" ? v : null), write: (v) => v ?? "" } },
   );
   const themeCardStyle = computed<CardStyleId>(() =>
@@ -85,11 +86,12 @@ export const useCardForgeStore = defineStore("cardForge", () => {
 
   /** "collection" = mixed cards, full front+back per item.
    *  "loot"       = items only, all info on front, shared back image. */
-  const mode = useLocalStorage<CardModeId>(MODE_KEY, "collection");
+  const mode = useStorage<CardModeId>(MODE_KEY, "collection", safeLocalStorage());
   /** Deck back id (used when mode === 'loot'). See loot/deckBacks.ts. */
-  const lootDeckBackId = useLocalStorage<string>(
+  const lootDeckBackId = useStorage<string>(
     DECK_BACK_KEY,
     "arcane-vortex",
+    safeLocalStorage(),
   );
 
   /**
@@ -100,15 +102,16 @@ export const useCardForgeStore = defineStore("cardForge", () => {
    * transparent and could not be shuffled. Kept separate from `lootDeckBackId`
    * so choosing a back for one deck doesn't silently restyle the other.
    */
-  const downtimeDeckBackId = useLocalStorage<string>(
+  const downtimeDeckBackId = useStorage<string>(
     DOWNTIME_DECK_BACK_KEY,
     "arcane-vortex",
+    safeLocalStorage(),
   );
 
   const showSaveModal = ref(false);
   const showLoadModal = ref(false);
 
-  const library = useLocalStorage<CardCollection[]>(LIBRARY_KEY, []);
+  const library = useStorage<CardCollection[]>(LIBRARY_KEY, [], safeLocalStorage());
 
   /** In loot mode the source is always items — force it on entry. */
   watch(

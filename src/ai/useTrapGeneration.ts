@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import {
   buildCampaignContext,
@@ -24,7 +25,6 @@ import {
 import { buildAiProvenance } from "@/ai/provenance";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
 
@@ -73,9 +73,7 @@ export function useTrapGeneration() {
     const campaignId = imageContext.campaignId;
 
     try {
-      const isLocalMode =
-        typeof localStorage !== "undefined" &&
-        localStorage.getItem(LOCAL_MODE_KEY) === "local";
+      const isLocalMode = await textRunsOnLocalKey();
 
       return isLocalMode
         ? await generateClientSide(userPrompt, options, imageContext)

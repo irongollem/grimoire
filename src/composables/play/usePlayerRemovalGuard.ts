@@ -11,6 +11,7 @@
 // the ring on the open channel; a later rejoin is refused, which surfaces as a
 // reconcile or a failed read. Memberships change rarely, so one read per ring
 // is cheap.
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { watch, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { supabase } from "@/lib/supabase";
@@ -81,7 +82,7 @@ export function usePlayerRemovalGuard() {
     toast.error(`You have been removed from ${campaignName} by the DM.`, 0);
     campaign.clearActiveCampaign();
     if (campaignId) {
-      try { localStorage.removeItem("grimoire_active_campaign"); } catch { /* ignore */ }
+      try { safeLocalStorage().removeItem("grimoire_active_campaign"); } catch { /* ignore */ }
     }
     // Re-derive the session's role from whatever membership remains (another
     // campaign, or none) and route to a place that membership can still reach.

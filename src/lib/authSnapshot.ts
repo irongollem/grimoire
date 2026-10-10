@@ -1,5 +1,6 @@
 import type { CampaignMember } from "@/types/campaign.types";
 import type { ChildAccountLink } from "@/types/childAccount.types";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 const KEY = "grimoire:auth-snapshot";
 
@@ -30,7 +31,7 @@ export function readAuthSnapshot(
   campaignId: string | undefined,
 ): AuthSnapshot | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = safeLocalStorage().getItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<AuthSnapshot> | null;
     if (!parsed || parsed.v !== 1 || parsed.userId !== userId) return null;
@@ -54,7 +55,7 @@ export function readAuthSnapshot(
 
 export function writeAuthSnapshot(snapshot: AuthSnapshot): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(snapshot));
+    safeLocalStorage().setItem(KEY, JSON.stringify(snapshot));
   } catch {
     /* storage unavailable: the next boot simply misses */
   }
@@ -62,7 +63,7 @@ export function writeAuthSnapshot(snapshot: AuthSnapshot): void {
 
 export function clearAuthSnapshot(): void {
   try {
-    localStorage.removeItem(KEY);
+    safeLocalStorage().removeItem(KEY);
   } catch {
     /* nothing to clear if storage is unavailable */
   }

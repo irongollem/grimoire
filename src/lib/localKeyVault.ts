@@ -22,17 +22,36 @@
  *     the literal meaning of "we never receive it".
  */
 
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
+
+/** The flag that says this device keeps the DM's own key: "local", or absent. */
+export const LOCAL_MODE_KEY = "grimoire_key_local_mode";
+
+/**
+ * The DM chose local mode on this device. A storage read that fails counts as
+ * not chosen. Whether a generation actually runs locally is `src/ai/localKeyMode.ts`.
+ */
+export function localKeyModeChosen(): boolean {
+  return safeLocalStorage().getItem(LOCAL_MODE_KEY) === "local";
+}
+
 const DB_NAME = "grimoire-keyvault";
 const STORE_NAME = "keys";
 const CRYPTO_KEY_ID = "local-aes-key";
 const PREFIX = "lck:v1:";
 
+// Firefox throws on reading `indexedDB` itself when site data is blocked; that
+// is a vault that cannot open, and the generators then take the server path.
 function browserCryptoAvailable(): boolean {
-  return (
-    typeof indexedDB !== "undefined" &&
-    typeof crypto !== "undefined" &&
-    typeof crypto.subtle !== "undefined"
-  );
+  try {
+    return (
+      typeof indexedDB !== "undefined" &&
+      typeof crypto !== "undefined" &&
+      typeof crypto.subtle !== "undefined"
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** True if a stored value is local-vault ciphertext (vs plaintext or server `enc:v1:`). */

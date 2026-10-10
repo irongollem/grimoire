@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useQueryClient, type QueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
@@ -89,7 +90,7 @@ interface PendingMusicRequest {
 async function getOrCreateMusicRequestId(originCampaignId: string, fingerprint: string): Promise<string> {
   const storageKey = `${MUSIC_REQUEST_STORAGE_PREFIX}${originCampaignId}`;
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) ?? "null") as PendingMusicRequest | null;
+    const saved = JSON.parse(safeLocalStorage().getItem(storageKey) ?? "null") as PendingMusicRequest | null;
     if (saved?.requestId && saved.fingerprint === fingerprint) {
       // A retry reuses a pending request, but a terminal result must not trap
       // the same form inputs behind an old failed/consumed job forever.
@@ -103,10 +104,10 @@ async function getOrCreateMusicRequestId(originCampaignId: string, fingerprint: 
       if (error || !job || (job.status !== "failed" && !(job.status === "ready" && job.consumed_at))) {
         return saved.requestId;
       }
-      localStorage.removeItem(storageKey);
+      safeLocalStorage().removeItem(storageKey);
     }
     const requestId = crypto.randomUUID();
-    localStorage.setItem(storageKey, JSON.stringify({ requestId, fingerprint } satisfies PendingMusicRequest));
+    safeLocalStorage().setItem(storageKey, JSON.stringify({ requestId, fingerprint } satisfies PendingMusicRequest));
     return requestId;
   } catch {
     // The server-side job is still durable once the request reaches it.
@@ -118,8 +119,8 @@ function forgetMusicRequest(originCampaignId: string, requestId?: string): void 
   if (!requestId) return;
   try {
     const storageKey = `${MUSIC_REQUEST_STORAGE_PREFIX}${originCampaignId}`;
-    const saved = JSON.parse(localStorage.getItem(storageKey) ?? "null") as PendingMusicRequest | null;
-    if (saved?.requestId === requestId) localStorage.removeItem(storageKey);
+    const saved = JSON.parse(safeLocalStorage().getItem(storageKey) ?? "null") as PendingMusicRequest | null;
+    if (saved?.requestId === requestId) safeLocalStorage().removeItem(storageKey);
   } catch {
     // Nothing else to clean up.
   }

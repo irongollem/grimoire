@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildCampaignContext, wrapUserInput } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
@@ -21,12 +22,6 @@ export type EntityTextGenerator =
   | "custom_rule" | "recipe" | "calendar_event" | "room" | "quest_beat"
   | "puzzle";
 
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
-
-function isLocalMode(): boolean {
-  return typeof localStorage !== "undefined" && localStorage.getItem(LOCAL_MODE_KEY) === "local";
-}
-
 export interface EntityTextRequest {
   generator: EntityTextGenerator;
   campaignId: string;
@@ -47,7 +42,7 @@ export interface EntityTextRequest {
 export async function generateEntityText<T extends { ai_provenance?: AiProvenance }>(
   request: EntityTextRequest,
 ): Promise<T> {
-  if (!isLocalMode()) return invokeServer<T>(request);
+  if (!(await textRunsOnLocalKey())) return invokeServer<T>(request);
   const { content, provenance } = await completeLocally(request);
   const result = JSON.parse(content) as T;
   result.ai_provenance = provenance;
@@ -66,7 +61,7 @@ export interface ProseTextRequest extends Omit<EntityTextRequest, "generator"> {
  * server by default, the browser-vault key in local mode, like the rest.
  */
 export async function generateProseText(request: ProseTextRequest): Promise<string> {
-  if (isLocalMode()) return (await completeLocally(request)).content.trim();
+  if (await textRunsOnLocalKey()) return (await completeLocally(request)).content.trim();
   const { content } = await invokeServer<{ content: string }>(request);
   return content;
 }

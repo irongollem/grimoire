@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
 import {
@@ -69,9 +70,7 @@ export function useNpcGeneration() {
     const campaignId = imageContext.campaignId;
 
     try {
-      const isLocalMode =
-        typeof localStorage !== "undefined" &&
-        localStorage.getItem("grimoire_key_local_mode") === "local";
+      const isLocalMode = await textRunsOnLocalKey();
 
       return isLocalMode
         ? await generateClientSide(userPrompt, options, imageContext)

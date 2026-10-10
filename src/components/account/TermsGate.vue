@@ -91,6 +91,7 @@
 </template>
 
 <script setup lang="ts">
+import { safeSessionStorage } from "@/lib/safeLocalStorage";
 /**
  * Blocking re-consent gate for any account whose `user_subscriptions` row
  * predates `TERMS_VERSION` (#919) — a brand-new signup records the current
@@ -137,21 +138,21 @@ type Phase = "accept" | "declined" | "parent-request" | "waiting";
 const WAITING_KEY = "grimoire:terms-gate-waiting";
 function rememberWaiting(): void {
   try {
-    sessionStorage.setItem(WAITING_KEY, "1");
+    safeSessionStorage().setItem(WAITING_KEY, "1");
   } catch {
     // Storage unavailable — worst case the accept form reappears on reload.
   }
 }
 function wasWaiting(): boolean {
   try {
-    return sessionStorage.getItem(WAITING_KEY) === "1";
+    return safeSessionStorage().getItem(WAITING_KEY) === "1";
   } catch {
     return false;
   }
 }
 function forgetWaiting(): void {
   try {
-    sessionStorage.removeItem(WAITING_KEY);
+    safeSessionStorage().removeItem(WAITING_KEY);
   } catch {
     // See above.
   }

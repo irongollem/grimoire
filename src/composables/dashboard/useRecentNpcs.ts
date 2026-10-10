@@ -1,3 +1,4 @@
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, readonly, watch } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 
@@ -8,9 +9,8 @@ function storageKey(campaignId: string | null): string {
 }
 
 function readStorage(campaignId: string | null): string[] {
-  if (typeof localStorage === "undefined") return [];
   try {
-    const raw = localStorage.getItem(storageKey(campaignId));
+    const raw = safeLocalStorage().getItem(storageKey(campaignId));
     return raw ? (JSON.parse(raw) as string[]) : [];
   } catch { return []; }
 }
@@ -37,9 +37,7 @@ export function useRecentNpcs() {
     const ids = _ids.value.filter((i) => i !== npcId);
     ids.unshift(npcId);
     _ids.value = ids.slice(0, CAP);
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(storageKey(campaignStore.activeCampaignId), JSON.stringify(_ids.value));
-    }
+    safeLocalStorage().setItem(storageKey(campaignStore.activeCampaignId), JSON.stringify(_ids.value));
   }
 
   return { recordVisit, recentIds: readonly(_ids) };

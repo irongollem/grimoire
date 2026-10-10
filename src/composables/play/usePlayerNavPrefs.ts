@@ -1,4 +1,5 @@
 // Module-level state is intentional — singleton shared between PlayerLayout and PlayerSettingsView.
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, computed } from "vue";
 import { ALL_PLAYER_NAV, type PlayerNavItem } from "@/lib/playerNav";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
@@ -17,7 +18,7 @@ const LEGACY_PATH_TO_ID: Readonly<Record<string, string>> = {
 
 function readStringArray(key: string): string[] | null {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = safeLocalStorage().getItem(key);
     if (raw === null) return null;
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : null;
@@ -38,8 +39,8 @@ export function loadNavOrder(): string[] {
   });
   if (!ids.includes("hearth")) ids.unshift("hearth");
   try {
-    localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(ids));
-    localStorage.removeItem(LEGACY_NAV_ORDER_KEY);
+    safeLocalStorage().setItem(NAV_ORDER_KEY, JSON.stringify(ids));
+    safeLocalStorage().removeItem(LEGACY_NAV_ORDER_KEY);
   } catch {
     // Storage unavailable: the converted order still applies for this session.
   }
@@ -68,7 +69,7 @@ export function applyNavOrder(items: readonly PlayerNavItem[], order: readonly s
   return result;
 }
 
-const navOrder = ref<string[]>(typeof localStorage === "undefined" ? [] : loadNavOrder());
+const navOrder = ref<string[]>(loadNavOrder());
 
 const sortedNav = computed(() => applyNavOrder(ALL_PLAYER_NAV, navOrder.value));
 
@@ -96,7 +97,7 @@ export function usePlayerNavPrefs() {
   function setNavOrder(order: string[]) {
     navOrder.value = order;
     try {
-      localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(order));
+      safeLocalStorage().setItem(NAV_ORDER_KEY, JSON.stringify(order));
     } catch {
       // Storage unavailable: the order holds for this session only.
     }

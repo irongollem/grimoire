@@ -1,5 +1,6 @@
 import type { Router } from "vue-router";
 import { untilNewestWorkerControls } from "./swAutoUpdate";
+import { safeSessionStorage } from "@/lib/safeLocalStorage";
 
 /**
  * Recovers a page stranded by a deploy.
@@ -135,7 +136,7 @@ export function installStaleChunkRecovery(
   function recover(targetPath?: string): void {
     let storage: Storage;
     try {
-      storage = window.sessionStorage;
+      storage = safeSessionStorage();
       if (storage.getItem(RELOADED_KEY) !== null) return;
       storage.setItem(RELOADED_KEY, "1");
     } catch {
@@ -173,7 +174,7 @@ export function installStaleChunkRecovery(
   router.afterEach(() => {
     pendingTarget = undefined;
     try {
-      window.sessionStorage.removeItem(RELOADED_KEY);
+      safeSessionStorage().removeItem(RELOADED_KEY);
     } catch {
       // Same storage failure as above; nothing to re-arm.
     }

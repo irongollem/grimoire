@@ -1,16 +1,18 @@
 // Module-level singleton — shared between PlayerEncounterView and PlayerSettingsView.
-import { ref } from "vue";
+import { useStorage } from "@vueuse/core";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 const TURN_AUDIO_KEY = "grimoire_turn_audio";
 
-const turnAudioEnabled = ref<boolean>(
-  typeof localStorage === "undefined" || localStorage.getItem(TURN_AUDIO_KEY) !== "false",
-);
+// Bare "true"/"false" strings, on unless "false"; storage errors and other
+// tabs' changes are handled by useStorage.
+const turnAudioEnabled = useStorage<boolean>(TURN_AUDIO_KEY, true, safeLocalStorage(), {
+  serializer: { read: (raw) => raw !== "false", write: String },
+});
 
 export function usePlayerCombatPrefs() {
   function setTurnAudio(enabled: boolean) {
     turnAudioEnabled.value = enabled;
-    localStorage.setItem(TURN_AUDIO_KEY, String(enabled));
   }
 
   return { turnAudioEnabled, setTurnAudio };

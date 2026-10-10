@@ -1,4 +1,5 @@
 import type { BucketId } from "@/lib/storage";
+import { imagesRunOnLocalKey } from "@/ai/localKeyMode";
 import { ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useImageUpload } from "@/composables/useImageUpload";
@@ -16,7 +17,6 @@ import { markGeneratedImage } from "@edge-shared/provenance/mark.ts";
 import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 import { readXmpFromWebp, readXmpFromPng, readXmpFromJpeg } from "@edge-shared/provenance/embed.ts";
 
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 const IMAGE_SIZE = "1024x1536";
 /** Mirror of the edge function's AI_PROMPT_LIMIT_LONG — clamp entity facts before sending. */
 const CONTEXT_LIMIT = 2000;
@@ -114,9 +114,7 @@ export function useEntityImageGeneration(bucketId: BucketId) {
     };
 
     try {
-      const isLocalMode =
-        typeof localStorage !== "undefined" &&
-        localStorage.getItem(LOCAL_MODE_KEY) === "local";
+      const isLocalMode = await imagesRunOnLocalKey();
 
       const url = isLocalMode
         ? await generateClientSide(clamped)

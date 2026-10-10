@@ -48,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, computed, watch, onBeforeUnmount, type CSSProperties } from "vue";
 import smartcrop from "smartcrop";
 import { backfillVariants, type VariantWidth } from "@/lib/storage";
@@ -381,7 +382,7 @@ function cacheKey(url: string) {
 }
 function readCache(url: string): { x: number; y: number } | null {
   try {
-    const raw = localStorage.getItem(cacheKey(url));
+    const raw = safeLocalStorage().getItem(cacheKey(url));
     return raw ? (JSON.parse(raw) as { x: number; y: number }) : null;
   } catch {
     return null;
@@ -389,7 +390,7 @@ function readCache(url: string): { x: number; y: number } | null {
 }
 function writeCache(url: string, fp: { x: number; y: number }) {
   try {
-    localStorage.setItem(cacheKey(url), JSON.stringify(fp));
+    safeLocalStorage().setItem(cacheKey(url), JSON.stringify(fp));
   } catch {}
 }
 

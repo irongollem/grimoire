@@ -4,12 +4,12 @@ import type { Campaign } from "@/types/campaign.types";
 import { setTheme } from "@/lib/themeRuntime";
 import { useAuthStore } from "@/stores/auth";
 import { decryptApiKey } from "@/lib/apiKeyVault";
-import { isLocalCiphertext, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import { isLocalCiphertext, localKeyModeChosen, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
 import { DEFAULT_THEME_ID } from "@/lib/themes";
 import { normalizeRuleset, type RulesetKey } from "@/types/ruleset.types";
 
 const STORAGE_KEY      = "grimoire_active_campaign";
-const LOCAL_MODE_KEY   = "grimoire_key_local_mode";
 const RULESET_HINT_KEY = "grimoire_active_campaign_ruleset";
 
 // Per-provider localStorage keys (local mode only)
@@ -30,11 +30,11 @@ const DB_KEY_FIELDS: Record<string, keyof Campaign> = {
 // device, and nothing reads that entry any more — so purge it rather than leave
 // a live credential on disk for a provider we no longer talk to. Server-stored
 // keys went with the falai_api_key column (20260809145858).
-if (typeof localStorage !== "undefined") localStorage.removeItem("grimoire_falai_key");
+safeLocalStorage().removeItem("grimoire_falai_key");
 
 export const useCampaignStore = defineStore("campaign", () => {
   const activeCampaignId = ref<string | null>(
-    typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null,
+    safeLocalStorage().getItem(STORAGE_KEY),
   );
   const activeCampaign   = ref<Campaign | null>(null);
 
@@ -85,8 +85,8 @@ export const useCampaignStore = defineStore("campaign", () => {
   };
 
   watch(activeCampaignId, (id) => {
-    if (id) localStorage.setItem(STORAGE_KEY, id);
-    else localStorage.removeItem(STORAGE_KEY);
+    if (id) safeLocalStorage().setItem(STORAGE_KEY, id);
+    else safeLocalStorage().removeItem(STORAGE_KEY);
   });
 
   // The row on screen always belongs to the id on screen. The shell no longer
@@ -111,9 +111,9 @@ export const useCampaignStore = defineStore("campaign", () => {
   // hint, never an answer: the row overrides it the moment it exists, and it only
   // applies to the id it was written for.
   function readRulesetHint(id: string | null): string | null {
-    if (!id || typeof localStorage === "undefined") return null;
+    if (!id) return null;
     try {
-      const raw = localStorage.getItem(RULESET_HINT_KEY);
+      const raw = safeLocalStorage().getItem(RULESET_HINT_KEY);
       if (!raw) return null;
       const parsed: unknown = JSON.parse(raw);
       if (typeof parsed !== "object" || parsed === null) return null;
@@ -136,7 +136,7 @@ export const useCampaignStore = defineStore("campaign", () => {
       if (!row) return;
       rulesetHint.value = row.ruleset;
       try {
-        localStorage.setItem(RULESET_HINT_KEY, JSON.stringify(row));
+        safeLocalStorage().setItem(RULESET_HINT_KEY, JSON.stringify(row));
       } catch {
         // Storage full or blocked: the hint is an optimisation, losing it costs one refetch.
       }
@@ -155,7 +155,7 @@ export const useCampaignStore = defineStore("campaign", () => {
   // immediately and then re-encrypted into the local vault so at-rest storage
   // is always ciphertext going forward.
   function loadLocalKey(localKey: string, ref_: ReturnType<typeof ref<string>>) {
-    const stored = localStorage.getItem(localKey) ?? "";
+    const stored = safeLocalStorage().getItem(localKey) ?? "";
     if (!stored) { ref_.value = ""; return; }
 
     if (isLocalCiphertext(stored)) {
@@ -167,7 +167,7 @@ export const useCampaignStore = defineStore("campaign", () => {
       ref_.value = plaintext;
       if (!plaintext) return;
       encryptLocalKey(plaintext)
-        .then((enc) => { if (enc) localStorage.setItem(localKey, enc); })
+        .then((enc) => { if (enc) safeLocalStorage().setItem(localKey, enc); })
         .catch(() => { /* keep plaintext fallback; retried next load */ });
     };
 
@@ -182,7 +182,7 @@ export const useCampaignStore = defineStore("campaign", () => {
 
   function loadProviderKeys(campaign: Campaign) {
     newKeysGeneration();
-    const localMode = localStorage.getItem(LOCAL_MODE_KEY) === "local";
+    const localMode = localKeyModeChosen();
     for (const [provider, localKey] of Object.entries(LOCAL_KEYS)) {
       const ref_ = providerKeyRefs[provider];
       if (!ref_) continue;
@@ -289,13 +289,13 @@ export const useCampaignStore = defineStore("campaign", () => {
   ) {
     const { rememberCurrentCampaign = true, campaignsInTargetLens } = options;
     if (from && activeCampaignId.value && rememberCurrentCampaign) {
-      localStorage.setItem(MODE_STORAGE_KEY[from], activeCampaignId.value);
+      safeLocalStorage().setItem(MODE_STORAGE_KEY[from], activeCampaignId.value);
     }
     if (from && !rememberCurrentCampaign) {
-      localStorage.removeItem(MODE_STORAGE_KEY[from]);
+      safeLocalStorage().removeItem(MODE_STORAGE_KEY[from]);
     }
     clearActiveCampaign();
-    const remembered = localStorage.getItem(MODE_STORAGE_KEY[to]);
+    const remembered = safeLocalStorage().getItem(MODE_STORAGE_KEY[to]);
     if (!remembered) return;
 
     // Fails closed when the lens is unknown, and that is a deliberate reversal
@@ -311,7 +311,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     // reported bug, silently, and looks to the user like they have been handed
     // someone else's campaign.
     if (!campaignsInTargetLens || !campaignsInTargetLens.has(remembered)) {
-      localStorage.removeItem(MODE_STORAGE_KEY[to]);
+      safeLocalStorage().removeItem(MODE_STORAGE_KEY[to]);
       return;
     }
     activeCampaignId.value = remembered;

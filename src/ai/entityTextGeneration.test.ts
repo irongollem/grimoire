@@ -18,11 +18,11 @@ vi.mock("@/composables/ai/useAiCredits", () => ({ logUsage: (...a: unknown[]) =>
 const usage = { provider: "openai", model: "m", input_tokens: 1, output_tokens: 1 };
 const base = { campaignId: "c1", settingPrompt: null, ruleset: "2024" as const, prompt: "He was sad.", constraints: ["Context: note"] };
 
-// The node test environment has no localStorage; the mode is one key in it.
-let storedMode: string | null = null;
-vi.stubGlobal("localStorage", { getItem: () => storedMode });
+// Local mode is decided by textRunsOnLocalKey: chosen AND a key that decrypted.
+let localKeyUsable = false;
+vi.mock("@/ai/localKeyMode", () => ({ textRunsOnLocalKey: async () => localKeyUsable }));
 function setLocalMode(local: boolean) {
-  storedMode = local ? "local" : null;
+  localKeyUsable = local;
 }
 
 beforeEach(() => {
@@ -63,5 +63,13 @@ describe("generateEntityText", () => {
     expect(out.ai_provenance).toMatchObject({ generatorType: "puzzle_generation" });
     expect(complete).toHaveBeenCalledWith(expect.any(String), expect.any(String), "json");
     expect(logUsage).toHaveBeenCalledWith({ reason: "puzzle_generation", textUsage: usage });
+  });
+
+  it("falls back to the server when local mode has no usable key (#1043)", async () => {
+    setLocalMode(false);
+    invoke.mockResolvedValue({ data: { name: "Riddle", ai_provenance: {} }, error: null });
+    const out = await generateEntityText<{ name: string; ai_provenance?: AiProvenance }>({ ...base, generator: "puzzle" });
+    expect(out.name).toBe("Riddle");
+    expect(complete).not.toHaveBeenCalled();
   });
 });

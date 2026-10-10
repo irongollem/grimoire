@@ -1,5 +1,6 @@
 import { computed, type Ref } from "vue";
-import { refDebounced, useLocalStorage } from "@vueuse/core";
+import { refDebounced, useStorage } from "@vueuse/core";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { orFilterValue } from "@/lib/postgrestFilter";
@@ -385,7 +386,7 @@ export function useGlobalSearch(query: Ref<string>) {
   // never sell to a child), and not while the plan is still loading, so a Pro
   // account never sees it flash. Dismissed per browser, on purpose: seeing it
   // once more on another device surprises nobody.
-  const upsellDismissed = useLocalStorage(PRO_UPSELL_DISMISSED_KEY, false);
+  const upsellDismissed = useStorage(PRO_UPSELL_DISMISSED_KEY, false, safeLocalStorage());
   const showProUpsell = computed(() => {
     if (upsellDismissed.value || !auth.isDM || campaignId.value === null) return false;
     if (subscriptionLoading.value || childLoading.value || isPro.value || isChild.value) return false;

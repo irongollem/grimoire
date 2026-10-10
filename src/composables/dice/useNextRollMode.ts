@@ -1,3 +1,4 @@
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, readonly } from "vue";
 import type { RollMode } from "@/lib/dice/roller";
 import { combineModes } from "@/lib/dice/dice";
@@ -37,7 +38,7 @@ const HINT_KEY = "grimoire_roll_mode_hint_seen";
 /** True once the long-press tip has been shown on this device. */
 export function rollModeHintSeen(): boolean {
   try {
-    return localStorage.getItem(HINT_KEY) === "1";
+    return safeLocalStorage().getItem(HINT_KEY) === "1";
   } catch {
     return false;
   }
@@ -45,7 +46,7 @@ export function rollModeHintSeen(): boolean {
 
 export function markRollModeHintSeen(): void {
   try {
-    localStorage.setItem(HINT_KEY, "1");
+    safeLocalStorage().setItem(HINT_KEY, "1");
   } catch {
     // Storage can be blocked; the tip then shows again, which is harmless.
   }

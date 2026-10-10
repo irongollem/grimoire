@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import {
   buildCampaignContext,
@@ -24,7 +25,6 @@ import {
 import { buildAiProvenance } from "@/ai/provenance";
 import { placeRoute } from "@/lib/locations/placeRoute";
 
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
 const MAP_BASE_PROMPT =
   "Top-down fantasy cartography map. Hand-drawn ink style, bird's-eye view, clean linework, labeled zones, hatching for walls and elevation, minimal colour. Readable as a functional map, not a painting.";
@@ -74,9 +74,7 @@ export function useLocationGeneration() {
     const campaignId = imageContext.campaignId;
 
     try {
-      const isLocalMode =
-        typeof localStorage !== "undefined" &&
-        localStorage.getItem(LOCAL_MODE_KEY) === "local";
+      const isLocalMode = await textRunsOnLocalKey();
 
       return isLocalMode
         ? await generateClientSide(userPrompt, options, imageContext)

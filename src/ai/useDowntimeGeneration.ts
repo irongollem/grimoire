@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildCampaignContext, wrapUserInput } from "./utils";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
@@ -25,7 +26,6 @@ import type { DowntimeActivity, DowntimeSeed } from "@/types/downtime.types";
  * generate and no image credit is ever charged.
  */
 
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -77,9 +77,7 @@ export function useDowntimeGeneration() {
     }
 
     try {
-      const isLocalMode =
-        typeof localStorage !== "undefined" &&
-        localStorage.getItem(LOCAL_MODE_KEY) === "local";
+      const isLocalMode = await textRunsOnLocalKey();
 
       const raw = isLocalMode
         ? await draftClientSide(args)

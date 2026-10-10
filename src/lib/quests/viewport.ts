@@ -1,8 +1,9 @@
 import type { ViewportTransform } from "@vue-flow/core";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 const PREFIX = "grimoire:quest-flow-viewport:";
 
-export function readQuestViewport(questId: string, storage: Pick<Storage, "getItem"> | undefined = globalThis.localStorage): ViewportTransform | null {
+export function readQuestViewport(questId: string, storage: Pick<Storage, "getItem"> | undefined = safeLocalStorage()): ViewportTransform | null {
   if (!storage) return null;
   try {
     const value = JSON.parse(storage.getItem(`${PREFIX}${questId}`) ?? "null") as Partial<ViewportTransform> | null;
@@ -14,7 +15,7 @@ export function readQuestViewport(questId: string, storage: Pick<Storage, "getIt
   }
 }
 
-export function writeQuestViewport(questId: string, viewport: ViewportTransform, storage: Pick<Storage, "setItem"> | undefined = globalThis.localStorage) {
+export function writeQuestViewport(questId: string, viewport: ViewportTransform, storage: Pick<Storage, "setItem"> | undefined = safeLocalStorage()) {
   try {
     storage?.setItem(`${PREFIX}${questId}`, JSON.stringify(viewport));
   } catch {

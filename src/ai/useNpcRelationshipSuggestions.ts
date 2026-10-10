@@ -1,4 +1,5 @@
 import { computed, ref } from "vue";
+import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { RelationshipSuggestion } from "@edge-shared/npcRelationshipSuggestions.ts";
@@ -7,7 +8,6 @@ import { isAnyAiGenerating } from "./aiGeneratorRegistry";
 import type { AiProvenance } from "./provenance";
 import { useCampaignStore } from "@/stores/campaign";
 
-const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
 export interface NpcRelationshipSuggestionsResponse {
   suggestions: RelationshipSuggestion[];
@@ -95,9 +95,7 @@ export function useNpcRelationshipSuggestions() {
     startAiQuotes();
 
     try {
-      const isLocalMode =
-        typeof localStorage !== "undefined" &&
-        localStorage.getItem(LOCAL_MODE_KEY) === "local";
+      const isLocalMode = await textRunsOnLocalKey();
       if (isLocalMode) {
         throw new Error(
           "Relationship suggestions need the server so they can draw on your cast and factions, and are not available in local-key mode. " +

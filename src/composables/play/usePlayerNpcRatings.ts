@@ -1,3 +1,4 @@
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { computed, watch } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { getCurrentUser, supabase } from "@/lib/supabase";
@@ -66,8 +67,7 @@ export function usePlayerNpcRatings(npcs?: () => { id: string }[]) {
   function getRating(npcId: string): number {
     const serverRating = ratingMap.value.get(npcId);
     if (serverRating !== undefined) return serverRating;
-    if (typeof localStorage === "undefined") return 0;
-    return readLegacyNpcRating(localStorage, npcId);
+    return readLegacyNpcRating(safeLocalStorage(), npcId);
   }
 
   const { mutate } = useMutation({
@@ -98,10 +98,8 @@ export function usePlayerNpcRatings(npcs?: () => { id: string }[]) {
       const key = [QUERY_KEY, campaignId.value];
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<NpcRatingRow[]>(key) ?? [];
-      const legacy = typeof localStorage === "undefined"
-        ? null
-        : localStorage.getItem(LEGACY_NPC_RATING_KEY + npcId);
-      if (typeof localStorage !== "undefined") localStorage.removeItem(LEGACY_NPC_RATING_KEY + npcId);
+      const legacy = safeLocalStorage().getItem(LEGACY_NPC_RATING_KEY + npcId);
+      safeLocalStorage().removeItem(LEGACY_NPC_RATING_KEY + npcId);
 
       queryClient.setQueryData<NpcRatingRow[]>(key, rating === 0
         ? previous.filter((row) => row.npc_id !== npcId)
@@ -111,8 +109,8 @@ export function usePlayerNpcRatings(npcs?: () => { id: string }[]) {
     onError: (_error, _variables, context) => {
       if (!context) return;
       queryClient.setQueryData(context.key, context.previous);
-      if (context.legacy !== null && typeof localStorage !== "undefined") {
-        localStorage.setItem(LEGACY_NPC_RATING_KEY + context.npcId, context.legacy);
+      if (context.legacy !== null) {
+        safeLocalStorage().setItem(LEGACY_NPC_RATING_KEY + context.npcId, context.legacy);
       }
     },
     onSettled: () => {
@@ -130,8 +128,8 @@ export function usePlayerNpcRatings(npcs?: () => { id: string }[]) {
     () => [campaignId.value, ...(npcs?.() ?? []).map((npc) => npc.id).sort()] as const,
     async ([cid]) => {
       const user = getCurrentUser();
-      if (!cid || !user || !npcs || typeof localStorage === "undefined") return;
-      const rows = planLegacyNpcRatingBackfill(localStorage, npcs(), user.id, cid);
+      if (!cid || !user || !npcs) return;
+      const rows = planLegacyNpcRatingBackfill(safeLocalStorage(), npcs(), user.id, cid);
       if (rows.length === 0) return;
 
       const { error } = await supabase
@@ -142,7 +140,7 @@ export function usePlayerNpcRatings(npcs?: () => { id: string }[]) {
       try {
         const authoritative = await fetchRatings(cid, user.id);
         queryClient.setQueryData([QUERY_KEY, cid], authoritative);
-        for (const row of rows) localStorage.removeItem(LEGACY_NPC_RATING_KEY + row.npc_id);
+        for (const row of rows) safeLocalStorage().removeItem(LEGACY_NPC_RATING_KEY + row.npc_id);
       } catch {
         // The upload succeeded, but retain the local fallback until the server
         // copy can be confirmed readable on a later retry.

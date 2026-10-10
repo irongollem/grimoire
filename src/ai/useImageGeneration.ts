@@ -1,5 +1,6 @@
 import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
+import { localKeyModeChosen } from "@/lib/localKeyVault";
 import {
   uploadToBucket,
   uploadWithVariants,
@@ -95,9 +96,13 @@ export function captureImageGenerationContext(): ImageGenerationContext {
 
 const localJobs = new Map<string, Promise<string>>();
 
-function isLocalMode(): boolean {
-  return typeof localStorage !== "undefined"
-    && localStorage.getItem("grimoire_key_local_mode") === "local";
+/**
+ * Local only when the DM chose it AND the context captured a decrypted key.
+ * The key rides on the request, so the decision cannot drift across awaits, and
+ * a chosen mode with no usable key falls to the server job (#1043).
+ */
+function runsLocally(request: ImageGenerationRequest): boolean {
+  return localKeyModeChosen() && !!request.imageApiKey;
 }
 
 function buildScenePrompt(subject: string, descriptions: string[], setting: string, base: string): string {
@@ -242,7 +247,7 @@ async function startServer(request: ImageGenerationRequest): Promise<string> {
 export async function startImageGeneration(request: ImageGenerationRequest): Promise<{ jobId: string }> {
   if (!request.subject.trim()) throw new Error("Image subject is required.");
   if (!request.campaignId) throw new Error("No campaign selected for image generation.");
-  if (!isLocalMode()) return { jobId: await startServer(request) };
+  if (!runsLocally(request)) return { jobId: await startServer(request) };
 
   const jobId = `local-${crypto.randomUUID()}`;
   const promise = runLocal(request).finally(() => localJobs.delete(jobId));
