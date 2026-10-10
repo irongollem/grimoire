@@ -135,7 +135,10 @@ minis (the 3D model is the AI output and `minis.provider` is its record).
 
 ### 7. Read point — disclosure UI
 
-Two components, wherever the viewer isn't the person authoring the content:
+Two components, on every surface that shows the content, the author's own
+screens included (10 Oct 2026; until then they showed only where the viewer
+was not the author, which left a DM unable to tell the AI art they had added
+from the library apart from anything else):
 
 - `AiImageBadge` for a picture, fed the URL on display: player portal NPC,
   location, monster (bestiary) and puzzle images, the group portrait, party and
@@ -145,7 +148,23 @@ Two components, wherever the viewer isn't the person authoring the content:
   AI-drafted prose (the row's `ai_provenance`) and the chip on minis.
 
 The chip's corner is a prop (`corner="left"`) for hosts whose right corner is
-taken, and it never prints. Promo reuse of Chronicler images is labelled at the
+taken, and it never prints.
+
+**Each viewer can switch the labels off** (`useAiLabelPrefs`, on by default;
+the "AI Labels" section of the account page and the player settings page).
+That is safe because the label is not the legal duty: the Art 50(2) duty is
+the machine-readable mark, which stays in the file and in the registry
+whatever any viewer chooses, and the switch hides the label on that viewer's
+screen only. With it off, `AiImageBadge` also skips the registry lookup.
+
+**Canonical library art** was made by Dungeon Grimoire with OpenAI's image
+models, mostly before marking began, so its bytes carry no packet.
+`npm run backfill:image-provenance -- --library-is-ai` is a one-off backfill:
+it records the canonical `srd/` images uploaded before 11 Oct 2026 with no
+packet and no row as `openai` / `gpt-image` (the maintainer's call, 10 Oct
+2026). It is bounded by date on purpose, never a rule that unmarked library
+art is AI: library art may one day be paid artists' work, and theirs must
+never be labelled AI by default. Promo reuse of Chronicler images is labelled at the
 marketing surface.
 
 ### 8. Log hardening (#609)

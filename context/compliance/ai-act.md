@@ -390,6 +390,13 @@ Hall of Heroes portraits could not be labelled at all. Images that predate the
 registry were recovered from their embedded packet by a one-off scan, so unlike
 text (§5) the image side does have a backfill, limited to images generated
 since marking began. Architecture: `provenance-architecture.md` §6a.
+Canonical library art, made by Dungeon Grimoire before marking began, has no
+packet to recover and is recorded as OpenAI image output by the same script's
+`--library-is-ai`, a one-off backfill bounded to art uploaded before 11 Oct
+2026, so later (possibly human-made) library art is never labelled AI by
+default. The visible label shows on every surface,
+DM screens included, and each viewer may hide it on their own screen; that
+choice never touches the mark or the record (§7 of the architecture doc).
 
 **3D — out of Art 50(2)'s literal scope (position, 4 Aug 2026).** Art 50(2)
 names image, audio, video and text as the marked media types. A Meshy

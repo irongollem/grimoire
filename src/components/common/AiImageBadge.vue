@@ -17,6 +17,7 @@ host `class` (e.g. `bottom-9!`) falls through to the chip, so keep a single
 root here.
 */
 import { useImageProvenance } from "@/composables/ai/useImageProvenance";
+import { useAiLabelPrefs } from "@/composables/ai/useAiLabelPrefs";
 import AiGeneratedBadge from "./AiGeneratedBadge.vue";
 
 const { src, corner = "right" } = defineProps<{
@@ -25,5 +26,7 @@ const { src, corner = "right" } = defineProps<{
   corner?: "left" | "right";
 }>();
 
-const record = useImageProvenance(() => src);
+// With labels off there is nothing to show, so skip the lookup too.
+const { showAiLabels } = useAiLabelPrefs();
+const record = useImageProvenance(() => (showAiLabels.value ? src : null));
 </script>
