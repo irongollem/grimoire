@@ -51,6 +51,13 @@
 -- One referrer is deliberately NOT checked: notes.content holds ids inside
 -- user-written prose. A migration cannot safely rewrite it, so a check on it
 -- could only ever report a violation nobody is able to act on.
+--
+-- Three uuid[] columns are out of scope here, and that is on purpose (#999
+-- 3.4.10): `items.spell_ids`, `loot_tables.monster_ids` and
+-- `campaigns.excluded_monster_ids` point at the DM's own rows by uuid, not at
+-- shared content, so no id transition of the library can strand them. An array
+-- element cannot be a foreign key, so deleting a DM's spell or monster leaves a
+-- dangling element there; every reader skips an id it cannot resolve.
 
 select check_name, cnt from (
   -- ---- monsters -----------------------------------------------------------
@@ -113,6 +120,18 @@ select check_name, cnt from (
   union all select 'party_members.background_id (uuid) -> backgrounds',
     (select count(*) from party_members pm where pm.background_id ~ '^[0-9a-f]{8}-'
        and not exists (select 1 from backgrounds b where b.id::text = pm.background_id))
+
+  -- ---- items --------------------------------------------------------------
+  -- An encounter's loot holds both shapes: a library item by its text id, or
+  -- one of the DM's own items by uuid (#999 3.4.10).
+  union all select 'encounters.item_ids (slug elements) -> library_items',
+    (select count(*) from encounters e, unnest(e.item_ids) as el
+       where el !~ '^[0-9a-f]{8}-'
+         and not exists (select 1 from library_items li where li.id = el))
+  union all select 'encounters.item_ids (uuid elements) -> items',
+    (select count(*) from encounters e, unnest(e.item_ids) as el
+       where el ~ '^[0-9a-f]{8}-'
+         and not exists (select 1 from items i where i.id::text = el))
 
   -- ---- jsonb referrers ----------------------------------------------------
   -- These carry shared ids inside documents rather than columns, so no schema

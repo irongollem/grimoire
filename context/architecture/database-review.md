@@ -96,6 +96,8 @@ All five tables are tiny to small, so the saving is small in absolute terms. Thi
 
 `campaign_members_campaign_idx` deserves a specific note: `campaign_members` is the hot table and receives a write for every join and role change; the unique `(campaign_id, user_id)` index fully replaces it.
 
+**Done (10 Oct 2026, `20261010102354`).** The five exact duplicates and all eight strictly covered indexes are dropped, each checked against production's `pg_index` first. The human look the list asked for found nothing to keep: every one was 16 kB on a small table, so a narrower index had no size to win on. The four covered by a non-unique composite stay, for the reason given above.
+
 **Missing leading-column indexes on scoping columns.**
 
 - `campaign_id` with no index led by it: `dashboard_layouts`, `dm_note_touches`, `document_imports`, `item_entries`, `loot_placements`, `npc_favors`, `quest_beat_attachments`, `quest_beat_edge_gates`, `quest_beat_edges`, `quest_threads`. `document_imports` is warm and `quest_threads` / `quest_beat_edges` are in the quest runtime read path (these reads are narrowed by `quest_id` first on other indexes, so impact is not obvious without statistics).
