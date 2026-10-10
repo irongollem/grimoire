@@ -59,6 +59,7 @@ function mountRow(m: PartyMember, speciesName: string | null) {
         CompanionCard: true,
         PlayerJournalDmModal: true,
         FocalImage: true,
+        AiImageBadge: true,
       },
     },
   });

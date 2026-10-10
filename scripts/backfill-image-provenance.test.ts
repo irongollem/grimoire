@@ -303,6 +303,8 @@ describe("--library-is-ai", () => {
     expect(isLibraryStem("srd/3f2a")).toBe(true);
     expect(isLibraryStem("0b6f5c1e-1111-4222-8333-944455556666/3f2a")).toBe(false);
     expect(isLibraryStem("srdx/3f2a")).toBe(false);
+    // A root-level object named srd.webp has the stem "srd" and is not in the folder.
+    expect(isLibraryStem("srd")).toBe(false);
   });
 
   it("records OpenAI image output dated by the object's Last-Modified", () => {

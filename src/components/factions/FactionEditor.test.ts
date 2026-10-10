@@ -99,6 +99,7 @@ function mountEditor(factionProp: Faction | null, isNew = false) {
         TagInput: true,
         RichTextEditor: true,
         FocalImage: true,
+        AiImageBadge: true,
         PaywallModal: true,
       },
     },

@@ -50,6 +50,7 @@
               :placeholder="placeholderUrl('trap')"
               class="group-hover:scale-105 transition-transform duration-300"
             />
+            <AiImageBadge :src="trap.image_url" />
             <span
               class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
               :class="TRAP_TYPE_BG[trap.trap_type]"
@@ -78,6 +79,7 @@ import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRoom
 import { TRAP_TYPES, TRAP_TYPE_BG } from "@/types/trap.types";
 import { useUiStore } from "@/stores/ui";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";

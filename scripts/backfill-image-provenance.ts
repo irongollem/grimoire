@@ -400,7 +400,7 @@ export function toRegistryRow(entry: PlanEntry): { bucket: string; stem: string;
 
 /** True for canonical library art, which only the admin can write. */
 export function isLibraryStem(stem: string): boolean {
-  return stem.split("/")[0] === "srd";
+  return stem.startsWith("srd/");
 }
 
 /** `--library-is-ai` covers only canonical art uploaded before this instant (see the header). */

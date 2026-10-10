@@ -28,14 +28,16 @@
 
           <!-- Image + identity row -->
           <div v-if="trap.image_url || trap.tags.length" class="flex gap-4 px-5 pt-4">
-            <FocalImage
-              v-if="trap.image_url"
-              :src="trap.image_url"
-              :alt="trap.name"
-              format="portrait"
-              :focal-point="trap.image_focal_point"
-              class="w-24 h-24 rounded-lg shrink-0 object-cover"
-            />
+            <div v-if="trap.image_url" class="relative w-24 h-24 rounded-lg shrink-0 overflow-hidden">
+              <FocalImage
+                :src="trap.image_url"
+                :alt="trap.name"
+                format="portrait"
+                :focal-point="trap.image_focal_point"
+                class="object-cover"
+              />
+              <AiImageBadge :src="trap.image_url" />
+            </div>
             <div class="flex-1 flex flex-col gap-2 justify-center">
               <div v-if="trap.tags.length" class="flex flex-wrap gap-1">
                 <span
@@ -157,6 +159,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { TRAP_TYPE_BG } from "@/types/trap.types";
 import { crToXp } from "@/types/encounter.types";
 import type { Trap } from "@/types/trap.types";

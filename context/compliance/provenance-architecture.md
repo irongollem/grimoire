@@ -140,10 +140,19 @@ screens included (10 Oct 2026; until then they showed only where the viewer
 was not the author, which left a DM unable to tell the AI art they had added
 from the library apart from anything else):
 
-- `AiImageBadge` for a picture, fed the URL on display: player portal NPC,
-  location, monster (bestiary) and puzzle images, the group portrait, party and
-  companion portraits and the Hall of Heroes (`PlayerNpcCard`, `EntityLightbox`,
-  `PlayerLocationDetailPanel`, `MonsterFormCard`, the puzzle views).
+- `AiImageBadge` for a picture, fed the URL on display. The shared hosts
+  carry it once for everything built on them: `EntityGridCard`,
+  `EntityMobileCard` (gallery layout), `EntitySheetMobile`, `CodexCard`, the
+  editor previews (`FocalPointPicker`, `ImageUpload`) and `MapFrame` (the
+  Picture layer, on the untransformed frame). Every entity sheet and detail
+  panel carries its own: NPC (the disguise included), monster, item, spell,
+  trap, dungeon feature, puzzle, faction, deity, pantheon, species,
+  background, the codex, the encounter runner's side panels, the party
+  tracker and group portrait, the gallery, and the player portal views
+  (`PlayerNpcCard`, `EntityLightbox`, `PlayerLocationDetailPanel`,
+  `MonsterFormCard`, the puzzle views, party and companion cards). Left out
+  on purpose: avatars and thumbnails under about 48px, map tokens, chat
+  messages, print and export sheets, and admin curation screens.
 - `AiGeneratedBadge` for a record the caller holds: the `line` variant on
   AI-drafted prose (the row's `ai_provenance`) and the chip on minis.
 
@@ -153,9 +162,10 @@ taken, and it never prints.
 **Each viewer can switch the labels off** (`useAiLabelPrefs`, on by default;
 the "AI Labels" section of the account page and the player settings page).
 That is safe because the label is not the legal duty: the Art 50(2) duty is
-the machine-readable mark, which stays in the file and in the registry
-whatever any viewer chooses, and the switch hides the label on that viewer's
-screen only. With it off, `AiImageBadge` also skips the registry lookup.
+the machine-readable mark, and the switch touches neither a file's mark nor
+its registry row; it hides the label on that viewer's screen only. (Library
+art recorded by the `--library-is-ai` backfill below has a registry row but
+no mark in its bytes, since it was made before marking began.) With it off, `AiImageBadge` also skips the registry lookup.
 
 **Canonical library art** was made by Dungeon Grimoire with OpenAI's image
 models, mostly before marking began, so its bytes carry no packet.
