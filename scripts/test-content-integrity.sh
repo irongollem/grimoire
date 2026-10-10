@@ -75,8 +75,9 @@ insert into campaigns (id, user_id, name) values ('$C', '$U', 'Guard Test Campai
 
 -- A combatant and a mid-fight spawn trigger, both on a monster id that is not
 -- in library_monsters. The spawn lives three levels down inside events.
-insert into encounters (id, user_id, campaign_id, name, combatants, events)
-values ('$E', '$U', '$C', 'Guard Test Encounter',
+-- Its loot names a library item that does not exist.
+insert into encounters (id, user_id, campaign_id, name, item_ids, combatants, events)
+values ('$E', '$U', '$C', 'Guard Test Encounter', array['srd_guard_test_missing_item'],
   jsonb_build_array(jsonb_build_object(
     'id', 'guard-test-combatant', 'name', 'Guard', 'monster_id', 'srd_guard_test_missing')),
   jsonb_build_array(jsonb_build_object(
@@ -112,6 +113,7 @@ for expected in \
   'encounter_state.combatants_live\[\].monster_id' \
   'encounters.events\[\].actions\[\].spawns\[\].monster_id' \
   'entity_notes.entity_id' \
+  'encounters.item_ids' \
   'species.granted_spells\[\].spell_id'
 do
   echo "$caught" | grep -q "$expected" \
@@ -125,6 +127,9 @@ done
 #   * a note on a shared ITEM   — entity_id is a text slug, but in library_items
 #   * a note on a shared SPELL  — same, in library_spells
 #   * a note on a homebrew uuid — not a shared id at all
+#   * encounter loot holding a library item, an own item's uuid in capitals,
+#     and the uuid of an own item the DM deleted: only the library half is
+#     shared content, and an ordinary deletion must never fail a deploy
 # An empty database is trivially silent, so the shared rows these notes point at
 # are inserted here too — otherwise this case would pass in CI without ever
 # exercising the false-positive path it exists to guard.
@@ -142,6 +147,11 @@ insert into library_spells
    conceptual_key, ruleset, source_document_key, source_record_key)
 values ('srd_guard_test_light', 'Guard Test Light', 0, 'evocation', '1 action', 'Touch', '1 hour',
    'guard_test_light', '2014', 'srd-2014', 'guard_test_light');
+
+insert into campaigns (id, user_id, name) values ('$C', '$U', 'Guard Test Campaign');
+insert into encounters (id, user_id, campaign_id, name, item_ids)
+values ('$E', '$U', '$C', 'Guard Test Encounter',
+  array['srd_guard_test_longsword', 'E0000000-0000-4000-8000-0000000000AA', gen_random_uuid()::text]);
 
 insert into entity_notes (user_id, entity_type, entity_id, is_private, shared_with_dm)
 values ('$U', 'item',    'srd_guard_test_longsword',  false, false),

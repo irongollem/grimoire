@@ -51,6 +51,14 @@
 -- One referrer is deliberately NOT checked: notes.content holds ids inside
 -- user-written prose. A migration cannot safely rewrite it, so a check on it
 -- could only ever report a violation nobody is able to act on.
+--
+-- Own-row uuid references are out of scope here, and that is on purpose (#999
+-- 3.4.10): `items.spell_ids`, `loot_tables.monster_ids`,
+-- `campaigns.excluded_monster_ids` and the uuid half of `encounters.item_ids`
+-- point at the DM's own rows, not at shared content, so no id transition of the
+-- library can strand them. An array element cannot be a foreign key, so deleting
+-- a DM's spell, monster or item leaves a dangling element there; every reader
+-- skips an id it cannot resolve, and an ordinary deletion must not fail a deploy.
 
 select check_name, cnt from (
   -- ---- monsters -----------------------------------------------------------
@@ -113,6 +121,17 @@ select check_name, cnt from (
   union all select 'party_members.background_id (uuid) -> backgrounds',
     (select count(*) from party_members pm where pm.background_id ~ '^[0-9a-f]{8}-'
        and not exists (select 1 from backgrounds b where b.id::text = pm.background_id))
+
+  -- ---- items --------------------------------------------------------------
+  -- An encounter's loot holds a library item by its text id or one of the DM's
+  -- own items by uuid (#999 3.4.10). Only the library half is shared content;
+  -- an own item the DM deleted leaves a uuid behind that readers skip, and an
+  -- ordinary deletion must never fail a deploy. Anything not shaped like a uuid,
+  -- in either case, is a library id.
+  union all select 'encounters.item_ids (library elements) -> library_items',
+    (select count(*) from encounters e, unnest(e.item_ids) as el
+       where el !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+         and not exists (select 1 from library_items li where li.id = el))
 
   -- ---- jsonb referrers ----------------------------------------------------
   -- These carry shared ids inside documents rather than columns, so no schema
