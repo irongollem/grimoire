@@ -76,7 +76,7 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import TwoPointImagePicker from "@/components/locations/TwoPointImagePicker.vue";
+import TwoPointImagePicker from "@/components/locations/map/TwoPointImagePicker.vue";
 import { buildMapScale, DISTANCE_UNITS, DISTANCE_UNIT_LABELS, type ImagePoint } from "@/lib/locations/mapScale";
 import type { DistanceUnit } from "@/rules/travelPace";
 import type { MapScale } from "@/types/location.types";

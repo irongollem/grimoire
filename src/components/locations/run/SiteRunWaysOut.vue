@@ -58,7 +58,7 @@
  */
 import { computed, reactive } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import PlacementRow from "@/components/locations/PlacementRow.vue";
+import PlacementRow from "@/components/locations/place/PlacementRow.vue";
 import { IconHide, IconLock, IconNavigate } from "@/lib/icons";
 import { DOOR_KIND_ICONS, doorSubtitle, doorsOfSpace } from "@/lib/locations/doors";
 import type { RoomDoorView } from "@/lib/locations/doors";

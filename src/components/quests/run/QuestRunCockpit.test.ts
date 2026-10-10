@@ -8,7 +8,7 @@ import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";
 import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 import QuestRunOpenChains from "./QuestRunOpenChains.vue";
-import QuestThreadBar from "./QuestThreadBar.vue";
+import QuestThreadBar from "../flow/QuestThreadBar.vue";
 import QuestAdvanceDialog from "./QuestAdvanceDialog.vue";
 import QuestRunPrepSheet from "./QuestRunPrepSheet.vue";
 import QuestRunNextSheet from "./QuestRunNextSheet.vue";

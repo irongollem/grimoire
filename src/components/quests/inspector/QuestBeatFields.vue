@@ -73,7 +73,7 @@ import type { QuestBeat } from "@/types/quest.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import QuestBeatFillBar from "@/components/quests/QuestBeatFillBar.vue";
+import QuestBeatFillBar from "@/components/quests/inspector/QuestBeatFillBar.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";

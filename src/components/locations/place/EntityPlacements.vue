@@ -77,8 +77,8 @@
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
-import PlacementRow from "@/components/locations/PlacementRow.vue";
+import PlacementNoteInput from "@/components/locations/place/PlacementNoteInput.vue";
+import PlacementRow from "@/components/locations/place/PlacementRow.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { IconClose } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";

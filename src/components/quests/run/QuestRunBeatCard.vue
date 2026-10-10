@@ -100,7 +100,7 @@ import { countQuestBeatContentBlocks, deriveQuestBeatPrepGaps, prepFactsOf } fro
 import { useBelow } from "@/composables/useBreakpoint";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
-import QuestFoldRow from "./QuestFoldRow.vue";
+import QuestFoldRow from "../board/QuestFoldRow.vue";
 import {
   IconDice,
   IconDocument,

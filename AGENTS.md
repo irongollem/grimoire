@@ -429,7 +429,7 @@ Existing folders: `lib/audio/` (+ `audio/providers/`), `lib/battlemap/`, `lib/ca
 
 **Name the folder after the consumer, not the vocabulary.** `lib/` grew to 136 flat modules because each one looked cross-cutting in isolation. Several were misfiled by name alone: `edgeTreatment` is photo edges (Illuminate), not map edges; `sceneGenerators` is an ambient soundscape, not a map scene; `staleChunkRecovery` is a service worker, not audio; `npcEncounterSync` is a pure encounter-state function, not realtime transport. Before placing a module, check who actually imports it (`rg "lib/<name>\"" src/`) rather than what it sounds like.
 
-**Never group by shape.** `senses`, `movement`, `damageIcons`, `monsterDisplay`, `npcDisplay`, `partyMemberDisplay` and `classChoices` are all "presentation parsers" and all stayed in root. They serve four different features; a `lib/statblock/` holding them would be a folder named after what they resemble rather than who uses them, which is the same error as the misnamed modules above.
+**Never group by shape.** `senses`, `movement`, `damageIcons`, `monsterDisplay`, `npcDisplay` and `partyMemberDisplay` are all "presentation parsers" and all stayed in root (`classChoices` was one too, until #999 5.2.2 filed it under `lib/player/`, the one feature that imports it). They serve several different features; a `lib/statblock/` holding them would be a folder named after what they resemble rather than who uses them, which is the same error as the misnamed modules above.
 
 **Root must not import from a feature folder.** The crafting glyphs show the rule both ways. They used to sit in root as `craftingGlyphs.generated`, re-exported through `icons.ts`, because moving them under `lib/crafting/` while `icons.ts` still re-exported them would have made a 378-consumer root module depend on a feature folder. #999 resolved it the other way round: `icons.ts` stopped exporting them, and the Workshop imports `lib/crafting/craftingIcons.ts` (beside its data) directly, so the dependency points from feature to root and the path data left the startup bundle. When ownership and dependency direction disagree, dependency direction wins; when you can change who imports what, fix the direction instead.
 
@@ -468,7 +468,7 @@ announcements, so it moved to `announcements/`.)
 A small folder is fine. `locations/`, `deities/` and `crafting/` hold one module each,
 because a first-class domain having a home is worth more than the folder count; the
 next one that arrives has an obvious place to go. Do **not** add `index.ts` barrels —
-the repo has 8 of them on purpose and this directory has none.
+the repo has 7 of them on purpose (8 until #999 5.2.6 folded `src/calendars/` into `src/settings/`) and this directory has none.
 
 Tests are colocated next to the module they cover — never a `__tests__/` directory.
 

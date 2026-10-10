@@ -84,9 +84,9 @@
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
-import PlacementRow from "@/components/locations/PlacementRow.vue";
-import LocationPlacementAdd from "@/components/locations/LocationPlacementAdd.vue";
+import PlacementNoteInput from "@/components/locations/place/PlacementNoteInput.vue";
+import PlacementRow from "@/components/locations/place/PlacementRow.vue";
+import LocationPlacementAdd from "@/components/locations/place/LocationPlacementAdd.vue";
 import { IconClose, IconDungeon, IconLoot, IconMap, IconTable, IconTrap } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import {

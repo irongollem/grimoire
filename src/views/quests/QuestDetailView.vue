@@ -64,12 +64,12 @@ import { useQuestDetailSurface, type QuestDetailSurface } from "@/composables/qu
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import QuestFlowStarter from "@/components/quests/QuestFlowStarter.vue";
-import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
-import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
-import QuestOverviewPanel from "@/components/quests/QuestOverviewPanel.vue";
+import QuestFlowStarter from "@/components/quests/flow/QuestFlowStarter.vue";
+import QuestGraphDesigner from "@/components/quests/flow/QuestGraphDesigner.vue";
+import QuestRunCockpit from "@/components/quests/run/QuestRunCockpit.vue";
+import QuestOverviewPanel from "@/components/quests/overview/QuestOverviewPanel.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import QuestPhoneTopBar from "@/components/quests/QuestPhoneTopBar.vue";
+import QuestPhoneTopBar from "@/components/quests/overview/QuestPhoneTopBar.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 
 const route    = useRoute();

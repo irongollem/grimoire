@@ -153,12 +153,12 @@ import type { CalendarDate } from "@/lib/calendar/dayMath";
 import { formatQuestForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
 import type { Quest, QuestObjective } from "@/types/quest.types";
-import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
-import QuestSidebarPanels from "./QuestSidebarPanels.vue";
-import QuestClocksPanel from "./QuestClocksPanel.vue";
-import QuestObjectiveDueDate from "./QuestObjectiveDueDate.vue";
-import QuestSettledPrompt from "./QuestSettledPrompt.vue";
-import QuestRulesPanel from "./QuestRulesPanel.vue";
+import QuestObjectiveStatusMark from "../inspector/QuestObjectiveStatusMark.vue";
+import QuestSidebarPanels from "../flow/QuestSidebarPanels.vue";
+import QuestClocksPanel from "../inspector/QuestClocksPanel.vue";
+import QuestObjectiveDueDate from "../inspector/QuestObjectiveDueDate.vue";
+import QuestSettledPrompt from "../run/QuestSettledPrompt.vue";
+import QuestRulesPanel from "../inspector/QuestRulesPanel.vue";
 import QuestBackfillPanel from "./QuestBackfillPanel.vue";
 
 const props = defineProps<{ quest: Quest }>();

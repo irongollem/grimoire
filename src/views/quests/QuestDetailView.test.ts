@@ -3,9 +3,9 @@ import { shallowMount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import QuestDetailView from "./QuestDetailView.vue";
-import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
-import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
-import QuestOverviewPanel from "@/components/quests/QuestOverviewPanel.vue";
+import QuestGraphDesigner from "@/components/quests/flow/QuestGraphDesigner.vue";
+import QuestRunCockpit from "@/components/quests/run/QuestRunCockpit.vue";
+import QuestOverviewPanel from "@/components/quests/overview/QuestOverviewPanel.vue";
 import { useAppUiStore } from "@/stores/ui/app";
 
 const mocks = vi.hoisted(() => ({

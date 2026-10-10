@@ -9,7 +9,7 @@ import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 // QuestDesignerPanel.test.ts already covers its behaviour. Stubbing it here
 // keeps this file testing only what QuestFlowStarter itself is responsible
 // for: which panel renders for which mode.
-vi.mock("@/components/quests/QuestDesignerPanel.vue", () => ({
+vi.mock("@/components/quests/flow/QuestDesignerPanel.vue", () => ({
   default: { name: "QuestDesignerPanel", props: ["parentId"], template: "<div>Designer panel stub</div>" },
 }));
 

@@ -75,8 +75,8 @@
 import { computed, reactive } from "vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import PlacementRow from "@/components/locations/PlacementRow.vue";
-import LocationLootPanel from "@/components/locations/LocationLootPanel.vue";
+import PlacementRow from "@/components/locations/place/PlacementRow.vue";
+import LocationLootPanel from "@/components/locations/place/LocationLootPanel.vue";
 import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { IconDice, IconEncounter, IconHide, IconTrap } from "@/lib/icons";
 import { useLocationPlacements } from "@/composables/locations/useLocationPlacements";

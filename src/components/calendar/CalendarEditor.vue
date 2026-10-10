@@ -200,7 +200,7 @@ import {
   listCalendarAdapters,
   getCalendarAdapter,
   createDefaultCustomCalendarDef,
-} from "@/calendars/index";
+} from "@/settings/index";
 import type { SettingCalendarDef, SettingMonthDef } from "@/settings/types";
 
 const def = defineModel<SettingCalendarDef>({ required: true });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isInternalChoiceKey } from "@/lib/classChoices";
+import { isInternalChoiceKey } from "@/lib/player/classChoices";
 
 describe("isInternalChoiceKey", () => {
   it("hides turn-scoped combat bookkeeping keys (value is an encounter turn key, not a choice)", () => {

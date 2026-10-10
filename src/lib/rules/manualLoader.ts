@@ -38,7 +38,7 @@ export interface ManualSection {
 }
 
 // Eagerly import every .md file in src/manual/ as a raw string.
-const rawFiles = import.meta.glob("../manual/*.md", {
+const rawFiles = import.meta.glob("../../manual/*.md", {
   query: "?raw",
   import: "default",
   eager: true,

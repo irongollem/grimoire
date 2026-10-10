@@ -134,7 +134,7 @@ import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import QuestKanbanBoard from "@/components/quests/QuestKanbanBoard.vue";
+import QuestKanbanBoard from "@/components/quests/board/QuestKanbanBoard.vue";
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { timeAgo } from "@/lib/utils";

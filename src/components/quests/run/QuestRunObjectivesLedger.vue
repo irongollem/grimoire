@@ -60,7 +60,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { objectiveGateTargets, objectiveThreadHint } from "@/lib/quests/run";
 import type { QuestObjective, QuestRuntimeChoice, QuestThreadCursor } from "@/types/quest.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
+import QuestObjectiveStatusMark from "../inspector/QuestObjectiveStatusMark.vue";
 
 const { questId, threadId, outgoing, threads } = defineProps<{
   questId: string;

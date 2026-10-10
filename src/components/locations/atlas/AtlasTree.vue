@@ -84,7 +84,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";
+import AtlasTreeRow from "@/components/locations/atlas/AtlasTreeRow.vue";
 import { isLocationOutOfEra } from "@/lib/locations/era";
 import { visibleRows } from "@/lib/locations/tree";
 import type { AtlasIndex, AtlasRow } from "@/lib/locations/tree";

@@ -37,10 +37,10 @@
  */
 import { computed } from "vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import SiteLevelReusePanel from "@/components/locations/SiteLevelReusePanel.vue";
-import SiteLevelsRail from "@/components/locations/SiteLevelsRail.vue";
-import type { SiteLevelSummary } from "@/components/locations/SiteLevelsRail.vue";
-import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
+import SiteLevelReusePanel from "@/components/locations/site/SiteLevelReusePanel.vue";
+import SiteLevelsRail from "@/components/locations/site/SiteLevelsRail.vue";
+import type { SiteLevelSummary } from "@/components/locations/site/SiteLevelsRail.vue";
+import SiteWaysOutPanel from "@/components/locations/site/SiteWaysOutPanel.vue";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";

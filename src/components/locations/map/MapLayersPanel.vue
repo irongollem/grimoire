@@ -277,7 +277,7 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
+import GridCalibrationDialog from "@/components/locations/map/GridCalibrationDialog.vue";
 import PlayerSitePlan from "@/components/player/PlayerSitePlan.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";

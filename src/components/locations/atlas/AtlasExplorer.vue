@@ -213,11 +213,11 @@ import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
-import AtlasPlacePane from "@/components/locations/AtlasPlacePane.vue";
-import AtlasTree from "@/components/locations/AtlasTree.vue";
+import AtlasPlacePane from "@/components/locations/atlas/AtlasPlacePane.vue";
+import AtlasTree from "@/components/locations/atlas/AtlasTree.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import LocationEditor from "@/components/locations/LocationEditor.vue";
-import SiteRunSurface from "@/components/locations/SiteRunSurface.vue";
+import LocationEditor from "@/components/locations/place/LocationEditor.vue";
+import SiteRunSurface from "@/components/locations/run/SiteRunSurface.vue";
 import { useAtlasTreeFold } from "@/composables/locations/useAtlasTreeFold";
 import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
 import {

@@ -40,7 +40,7 @@
  * exactly as the caption says.
  */
 import { computed } from "vue";
-import QuestChainRow from "./QuestChainRow.vue";
+import QuestChainRow from "../board/QuestChainRow.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { threadBadges, threadTitle } from "@/lib/quests/threads";
 import { describeThreadCursor } from "@/lib/quests/run";

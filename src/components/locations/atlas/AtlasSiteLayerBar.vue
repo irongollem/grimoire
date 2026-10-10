@@ -4,7 +4,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import SiteMapLayerBar from "@/components/locations/SiteMapLayerBar.vue";
+import SiteMapLayerBar from "@/components/locations/site/SiteMapLayerBar.vue";
 import { useSiteMapExtras, useSiteStructure } from "@/composables/locations/useSiteStructure";
 import type { LocationSummary } from "@/types/location.types";
 

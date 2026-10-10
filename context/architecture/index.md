@@ -92,7 +92,7 @@ from the symptom:
 | --- | --- | --- |
 | Nobody can log in / everything 401s | Supabase Auth | Supabase status + Auth logs; then `stores/auth.ts` session refresh |
 | One feature's list empty or stale, rest fine | RLS / composable / realtime | The feature's composable → RLS policy; if only *live updates* broken → `SYNC_TABLES` in `campaignLiveSync` ([internal.md](internal.md)) |
-| Players don't see DM changes until reload | Realtime channel | `realtimeChannel.ts` heal/status, then Supabase Realtime health |
+| Players don't see DM changes until reload | Realtime channel | `lib/campaignLiveSync/realtimeChannel.ts` heal/status, then Supabase Realtime health |
 | AI generation fails for everyone | Provider or credits | Edge logs for the `generate-*` fn; provider status; `provider_config` table |
 | AI generation fails for one campaign only | BYOK | Their vaulted key (`api-key-vault`), browser console — never in edge logs |
 | Credits stuck "held" | Cron | `release-stale-credit-holds` / `fail-stale-*` pg_cron jobs |

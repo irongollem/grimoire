@@ -22,7 +22,7 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-import { createRealtimeChannel } from "@/lib/realtimeChannel";
+import { createRealtimeChannel } from "@/lib/campaignLiveSync/realtimeChannel";
 
 describe("createRealtimeChannel", () => {
   beforeEach(() => {

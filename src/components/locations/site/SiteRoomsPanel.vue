@@ -187,7 +187,7 @@ import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import { collectThemes } from "@/lib/audio/audioThemes";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSounds } from "@/composables/soundboard/useSounds";
-import RoomAmbienceCell from "@/components/locations/RoomAmbienceCell.vue";
+import RoomAmbienceCell from "@/components/locations/site/RoomAmbienceCell.vue";
 import type { Location, LocationInsert, LocationType } from "@/types/location.types";
 
 /**

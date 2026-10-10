@@ -44,7 +44,7 @@ import { useQuestClocks, useTickQuestClock } from "@/composables/quests/useQuest
 import { IconAdd, IconMinus } from "@/lib/icons";
 import { clockProgressLabel } from "@/lib/quests/clockDial";
 import type { QuestClock } from "@/types/quest.types";
-import QuestClockDial from "./QuestClockDial.vue";
+import QuestClockDial from "../inspector/QuestClockDial.vue";
 
 const { questId } = defineProps<{ questId: string }>();
 const { data } = useQuestClocks(computed(() => questId));

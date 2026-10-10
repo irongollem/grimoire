@@ -195,12 +195,12 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import QuestFlowCanvas from "./QuestFlowCanvas.vue";
-import QuestBeatComposer from "./QuestBeatComposer.vue";
+import QuestBeatComposer from "../inspector/QuestBeatComposer.vue";
 import QuestGraphOutline from "./QuestGraphOutline.vue";
 import QuestThreadsPanel from "./QuestThreadsPanel.vue";
-import QuestRoutePanel from "./QuestRoutePanel.vue";
-import QuestSelectedBeatPanel from "./QuestSelectedBeatPanel.vue";
-import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
+import QuestRoutePanel from "../inspector/QuestRoutePanel.vue";
+import QuestSelectedBeatPanel from "../inspector/QuestSelectedBeatPanel.vue";
+import QuestPlayerPreviewDrawer from "../run/QuestPlayerPreviewDrawer.vue";
 
 const { questId, visibleTo = [], focusCurrentOnOpen = false, entryBeatId = null } = defineProps<{ questId: string; visibleTo?: string[]; focusCurrentOnOpen?: boolean; entryBeatId?: string | null }>();
 const canvas = ref<InstanceType<typeof QuestFlowCanvas> | null>(null);

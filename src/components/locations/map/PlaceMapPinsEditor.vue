@@ -64,8 +64,8 @@
  */
 import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import LocationMap from "@/components/locations/LocationMap.vue";
-import MapScaleDialog from "@/components/locations/MapScaleDialog.vue";
+import LocationMap from "@/components/locations/map/LocationMap.vue";
+import MapScaleDialog from "@/components/locations/map/MapScaleDialog.vue";
 import {
   getPinnableDescendants,
   useUpdateLocation,

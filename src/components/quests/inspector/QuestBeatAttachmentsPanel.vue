@@ -112,7 +112,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
-import QuestRunContainedTool from "./QuestRunContainedTool.vue";
+import QuestRunContainedTool from "../run/QuestRunContainedTool.vue";
 
 const props = defineProps<{ beat: QuestBeat; attachments: QuestBeatAttachmentSummary[] }>();
 const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "check", "npc", "faction", "item", "monster", "sound", "audio_scene", "playlist", "note", "handout"];

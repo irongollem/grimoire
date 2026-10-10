@@ -71,7 +71,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import { useAuthStore } from "./auth";
-import { readAuthSnapshot, writeAuthSnapshot } from "@/lib/authSnapshot";
+import { readAuthSnapshot, writeAuthSnapshot } from "@/lib/auth/authSnapshot";
 import type { CampaignMember } from "@/types/campaign.types";
 import type { ChildAccountLink } from "@/types/childAccount.types";
 import { nextTick } from "vue";

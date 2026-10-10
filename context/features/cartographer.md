@@ -1071,8 +1071,8 @@ The Layers panel's Drawing row (`MapLayersPanel.vue`, `AtlasSiteMapMode.vue`) of
 - `src/ai/useImageGeneration.ts` — the unused `map_style` `ImagePurpose` removed (no caller ever requested it; the actual map styler runs through `useMapExport.ts`/`style-map` entirely, never this generic pipeline); the same cleanup has also since landed in `generate-chronicle-image/index.ts` and `_shared/imageJob.ts`
 - `supabase/functions/style-map/index.ts` — edge function: auth, key resolution, credit check, derives + validates the request size from the uploaded image against the resolved provider/model's own rules (before the rate limit and credit reservation, so a rejected upload never holds a reservation), OpenAI/Gemini image call, usage recording with the real size
 - `src/views/cartographer/CartographerEditorView.vue` — Style Picker modal, Result modal, `onGenerateStyle`, `onRetryStyle`, `onDownloadStyled`, `onSaveStyledToAtlas` (standalone flow — the save target picker is unchanged, but its input is now fitted to the model's window and its save now writes a derived calibration too)
-- `src/components/locations/MapLayersPanel.vue` — Drawing row's **Style with AI** action
-- `src/components/locations/AtlasSiteMapMode.vue` — the second `useMapExport` instance, wired with `site`, and its own `CartographerAiStyleModal`
+- `src/components/locations/map/MapLayersPanel.vue` — Drawing row's **Style with AI** action
+- `src/components/locations/atlas/AtlasSiteMapMode.vue` — the second `useMapExport` instance, wired with `site`, and its own `CartographerAiStyleModal`
 - `src/components/cartographer/CartographerAiStyleModal.vue` — `fixedTargetLabel` prop: replaces the combobox, changes the Save button's label/guard, and gates Generate behind the plain-language confirm above
 - `src/composables/locations/useLocations.ts` — `useSaveStyledSitePicture()` (the atomic flatten mutation, now taking a `calibration`) and `useUpdateLocationPicture()` (now takes an optional `calibration`, omitted by every caller except this flow)
 - `src/manual/cartographer-overview.md` — DM guide: tools, layers, view/edit mode
@@ -1359,7 +1359,7 @@ A second bundled pack, `wood-interior`, ships alongside `stone-dungeon`. Real We
 - [src/composables/locations/useLocations.ts](../../src/composables/locations/useLocations.ts) — `useUpdateLocationMapUrl()` mutation.
 - [src/lib/nav.ts](../../src/lib/nav.ts) — Cartographer entry in Publish nav group.
 - [src/views/cartographer/CartographerEditorView.vue](../../src/views/cartographer/CartographerEditorView.vue) — Save to Atlas button + modal + Download PNG button + bake/upload logic.
-- [src/components/locations/LocationEditor.vue](../../src/components/locations/LocationEditor.vue) — "Edit in Cartographer" link when `source_map_id` is set.
+- [src/components/locations/place/LocationEditor.vue](../../src/components/locations/place/LocationEditor.vue) — "Edit in Cartographer" link when `source_map_id` is set.
 
 ### Known M5 deferrals (deliberate)
 

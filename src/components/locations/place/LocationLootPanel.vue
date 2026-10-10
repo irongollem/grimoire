@@ -44,8 +44,8 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
 import { IconAdd } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import LocationLootForm from "@/components/locations/LocationLootForm.vue";
-import LootPlacementList from "@/components/quests/LootPlacementList.vue";
+import LocationLootForm from "@/components/locations/place/LocationLootForm.vue";
+import LootPlacementList from "@/components/quests/inspector/LootPlacementList.vue";
 import type { LootPlacement } from "@/types/quest.types";
 
 const { locationId, campaignId, loot } = defineProps<{ locationId: string; campaignId: string; loot: LootPlacement[] }>();

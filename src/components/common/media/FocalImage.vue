@@ -57,7 +57,7 @@ import { backfillVariants, type VariantWidth } from "@/lib/storage";
 import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
 import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import type { ModalOrigin } from "@/lib/modalOrigin";
-import { focalZoomFrame, isZoomed, type FocalZoomFrame } from "@/lib/focalZoom";
+import { focalZoomFrame, isZoomed, type FocalZoomFrame } from "@/components/common/media/focalZoom";
 import { initPlaceholderFocalPoints, getPlaceholderFocalPoint } from "@/lib/placeholderFocalPoints";
 
 export type ImageFormat = "portrait" | "landscape" | "token" | "square";

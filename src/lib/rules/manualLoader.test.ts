@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { manualSections } from "@/lib/manualLoader";
+import { manualSections } from "@/lib/rules/manualLoader";
 import { ANNOUNCEMENTS } from "@/lib/announcements";
 
 const pages = manualSections.flatMap((s) => s.pages);

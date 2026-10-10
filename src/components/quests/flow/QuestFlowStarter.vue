@@ -73,8 +73,8 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
-import QuestPasteImportPanel from "@/components/quests/QuestPasteImportPanel.vue";
-import QuestDesignerPanel from "@/components/quests/QuestDesignerPanel.vue";
+import QuestPasteImportPanel from "@/components/quests/overview/QuestPasteImportPanel.vue";
+import QuestDesignerPanel from "@/components/quests/flow/QuestDesignerPanel.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { IconClipboard, IconEdit, IconGenerate } from "@/lib/icons";
 

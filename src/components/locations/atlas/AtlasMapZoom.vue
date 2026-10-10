@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { storeToRefs } from "pinia";
-import MapStackImage from "@/components/locations/MapStackImage.vue";
+import MapStackImage from "@/components/locations/map/MapStackImage.vue";
 import {
   ZOOM_CHILD_SCALE,
   ZOOM_CROSSFADE_AT,

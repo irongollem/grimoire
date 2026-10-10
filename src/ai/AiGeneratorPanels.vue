@@ -65,10 +65,10 @@ const MonsterGeneratorPanel = lazyPanel(() => import("@/components/monsters/Mons
 const ItemGeneratorPanel = lazyPanel(() => import("@/components/items/ItemGeneratorPanel.vue"));
 const PuzzleGeneratorPanel = lazyPanel(() => import("@/components/puzzles/PuzzleGeneratorPanel.vue"));
 const SpellGeneratorPanel = lazyPanel(() => import("@/components/spells/SpellGeneratorPanel.vue"));
-const QuestGeneratorPanel = lazyPanel(() => import("@/components/quests/QuestGeneratorPanel.vue"));
+const QuestGeneratorPanel = lazyPanel(() => import("@/components/quests/overview/QuestGeneratorPanel.vue"));
 const TrapGeneratorPanel = lazyPanel(() => import("@/components/traps/TrapGeneratorPanel.vue"));
 const FactionGeneratorPanel = lazyPanel(() => import("@/components/factions/FactionGeneratorPanel.vue"));
-const LocationGeneratorPanel = lazyPanel(() => import("@/components/locations/LocationGeneratorPanel.vue"));
+const LocationGeneratorPanel = lazyPanel(() => import("@/components/locations/place/LocationGeneratorPanel.vue"));
 const RollTableGeneratorPanel = lazyPanel(() => import("@/components/dungeon-features/RollTableGeneratorPanel.vue"));
 const LootTableGeneratorPanel = lazyPanel(() => import("@/components/dungeon-features/LootTableGeneratorPanel.vue"));
 const EncounterGeneratorPanel = lazyPanel(() => import("@/components/encounters/EncounterGeneratorPanel.vue"));
