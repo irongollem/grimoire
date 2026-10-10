@@ -3,7 +3,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(15);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -50,7 +50,7 @@ insert into public.encounter_state (
   '[
     {"instance_id":"hidden-1","type":"monster","name":"Secret Dragon","faction_id":"enemy","initiative":30,"hp":200,"max_hp":200,"ac":"22","conditions":[],"curses":["secret"],"death_saves":{"successes":0,"failures":0},"dex_mod":4,"reveal_state":"hidden","portrait_url":"https://example.invalid/dragon.webp","legendary_actions_remaining":3,"position":{"x":1,"y":1},"footprint":4},
     {"instance_id":"unseen-1","type":"monster","name":"Invisible Assassin","faction_id":"enemy","initiative":20,"hp":80,"max_hp":80,"ac":"18","conditions":["Invisible"],"curses":[],"death_saves":{"successes":0,"failures":0},"dex_mod":5,"reveal_state":"unseen","portrait_url":"https://example.invalid/assassin.webp","monster_id":"57000000-0000-4000-8000-000000000099","position":{"x":2,"y":2},"footprint":1},
-    {"instance_id":"npc-1","type":"monster","name":"Archmage Selene","faction_id":"enemy","initiative":15,"hp":50,"max_hp":50,"ac":"16","conditions":[],"curses":["DM secret"],"death_saves":{"successes":0,"failures":0},"dex_mod":2,"reveal_state":"revealed","portrait_url":"https://example.invalid/selene.webp","portrait_focal_point":{"x":20,"y":30},"npc_id":"57000000-0000-4000-8000-000000000030","def_id":"secret-def","legendary_action_cap":3,"reactionUsed":false,"position":{"x":3,"y":3},"footprint":1},
+    {"instance_id":"npc-1","type":"monster","name":"Archmage Selene","faction_id":"enemy","initiative":15,"hp":50,"max_hp":50,"ac":"16","conditions":[],"curses":["DM secret"],"death_saves":{"successes":0,"failures":0},"dex_mod":2,"reveal_state":"revealed","portrait_url":"https://example.invalid/selene.webp","portrait_focal_point":{"x":20,"y":30},"npc_id":"57000000-0000-4000-8000-000000000030","def_id":"secret-def","legendary_action_cap":3,"reactionUsed":false,"action_uses":{"Arcane Burst":{"used":1,"recharge":{"min":5,"max":6}}},"concentration":{"spellId":null,"spellName":"Hold Person","castAtLevel":2,"startedRound":1,"appliedEffectIds":[]},"surprised":true,"token_url":"https://example.invalid/selene-token.webp","position":{"x":3,"y":3},"footprint":1},
     {"instance_id":"player-1","type":"player","name":"Hero","faction_id":"party","initiative":10,"hp":25,"max_hp":25,"ac":"17","conditions":[],"curses":[],"death_saves":{"successes":0,"failures":0},"dex_mod":1,"party_member_id":"57000000-0000-4000-8000-000000000050","reveal_state":"revealed","position":{"x":4,"y":4},"footprint":1}
   ]'::jsonb,
   now()
@@ -117,12 +117,24 @@ select ok(
   (select not (combatant ? 'def_id')
           and not (combatant ? 'legendary_action_cap')
           and not (combatant ? 'reactionUsed')
+          and not (combatant ? 'action_uses')
+          and not (combatant ? 'concentration')
+          and not (combatant ? 'surprised')
           and combatant->>'ac' = ''
           and combatant->'curses' = '[]'::jsonb
      from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010') state,
           jsonb_array_elements(state.combatants_live) combatant
     where combatant->>'instance_id' = 'npc-1'),
   'DM-only combatant fields are stripped'
+);
+
+select is(
+  (select combatant->'token_url'
+     from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010') state,
+          jsonb_array_elements(state.combatants_live) combatant
+    where combatant->>'instance_id' = 'npc-1'),
+  'null'::jsonb,
+  'a disguise that swaps the portrait withholds the true token art'
 );
 
 select is(
@@ -160,6 +172,15 @@ select is(
     where combatant->>'instance_id' = 'npc-1'),
   'Archmage Selene',
   'revealing a disguise updates the projected identity without respawning the combatant'
+);
+
+select is(
+  (select combatant->>'token_url'
+     from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010') state,
+          jsonb_array_elements(state.combatants_live) combatant
+    where combatant->>'instance_id' = 'npc-1'),
+  'https://example.invalid/selene-token.webp',
+  'a revealed NPC shows its own token art again'
 );
 
 select set_config('request.jwt.claim.sub', '57000000-0000-4000-8000-000000000003', true);

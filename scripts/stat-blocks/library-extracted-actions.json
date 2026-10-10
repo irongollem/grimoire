@@ -1,0 +1,4701 @@
+[
+ {
+  "id": "srd_acolyte_bf",
+  "list": "actions",
+  "idx": 0,
+  "name": "Mace",
+  "description_sha1": "7482984dd17da48c8fc5c2a54f097c765b50683c",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 2,
+    "hit": [
+     {
+      "dice": "1d6",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "1d6",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_adult_flame_dragon",
+  "list": "actions",
+  "idx": 5,
+  "name": "Fire Breath (Recharge 5-6)",
+  "description_sha1": "9cb365d8831ff05a1501ec37da99c778feda8a93",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 19,
+    "fail": [
+     {
+      "dice": "18d6",
+      "type": "fire"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_adult_light_dragon",
+  "list": "actions",
+  "idx": 5,
+  "name": "Breath Weapon (Recharge 5-6)",
+  "description_sha1": "5e69847b9fb6692b67f5d7eb66f77d877f41c644",
+  "structured": {
+   "kind": "options",
+   "options": [
+    {
+     "name": "Radiant Breath",
+     "kind": "save",
+     "save": {
+      "ability": "dex",
+      "dc": 19,
+      "fail": [
+       {
+        "dice": "10d10",
+        "type": "radiant"
+       }
+      ],
+      "success": "half",
+      "conditions": []
+     }
+    },
+    {
+     "name": "Flaring Breath",
+     "kind": "save",
+     "save": {
+      "ability": "con",
+      "dc": 19,
+      "fail": [],
+      "success": "none",
+      "conditions": [
+       "Blinded"
+      ]
+     }
+    }
+   ],
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_adultflamedragon_tob1_2023",
+  "list": "actions",
+  "idx": 5,
+  "name": "Fire Breath (Recharge 5-6)",
+  "description_sha1": "dcc0784c3815f9bb11a4bc23c8d66d5debb0bf83",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 19,
+    "fail": [
+     {
+      "dice": "16d6",
+      "type": "fire"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_air_elemental_bf",
+  "list": "actions",
+  "idx": 3,
+  "name": "Whirlwind (Recharge 4-6)",
+  "description_sha1": "53ecf99e283dabf9ce68f6791b643fb5df3978a5",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "3d8+5",
+      "type": "bludgeoning"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "recharge": {
+    "min": 4,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_akkorokamui",
+  "list": "legendary_actions",
+  "idx": 3,
+  "name": "Tentacle Sweep (2)",
+  "description_sha1": "747124b73b576f9f8f7201e23f3e0e2c2177f0f5",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 17,
+    "fail": [
+     {
+      "dice": "4d6+5",
+      "type": "bludgeoning"
+     }
+    ],
+    "success": "none",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "legendary_cost": 2,
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_alchemist_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Alchemical Dagger",
+  "description_sha1": "848c1c437e62e3187d97f232e20fc2454c4518df",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "1d4+3",
+      "type": "piercing"
+     },
+     {
+      "dice": "1d6",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_alchemist_tob1_2023",
+  "list": "actions",
+  "idx": 2,
+  "name": "Alchemical Bolt",
+  "description_sha1": "caa9a45904f956da489bb9376b33694067358b3b",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "2d6+3",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_alchemist_tob1_2023",
+  "list": "actions",
+  "idx": 3,
+  "name": "Alchemical Vapors (Recharge 6)",
+  "description_sha1": "1260193975a7ddf31bf1cc781d3223fa73b5dbb7",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "5d6",
+      "type": "poison"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 6,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_alchemist_tob1_2023",
+  "list": "actions",
+  "idx": 4,
+  "name": "Explosive Flask (Recharge 5-6)",
+  "description_sha1": "82c89b807b9528d63c6ffa6d848e675336e28f46",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "4d6",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Poisoned"
+    ]
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_alliumite_rapscallion",
+  "list": "reactions",
+  "idx": 1,
+  "name": "Pungent Retort",
+  "description_sha1": "45f11975235eb9f49769d3346b1dbf3922c98491",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 14,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_alpine_creeper",
+  "list": "actions",
+  "idx": 0,
+  "name": "Gentle Dissolution",
+  "description_sha1": "e861bd973f119abdb6b85273edff414622e67b44",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "3d6",
+      "type": "acid"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_ancient_flame_dragon",
+  "list": "actions",
+  "idx": 5,
+  "name": "Fire Breath (Recharge 5-6)",
+  "description_sha1": "28ddbe550064ad384f0206fcc628cb477ffe4a71",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 23,
+    "fail": [
+     {
+      "dice": "26d6",
+      "type": "fire"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_ancient_light_dragon",
+  "list": "actions",
+  "idx": 4,
+  "name": "Breath Weapon (Recharge 5-6)",
+  "description_sha1": "2e827b47f13b5c5ce3db12c3260fd02174e65aea",
+  "structured": {
+   "kind": "options",
+   "options": [
+    {
+     "name": "Radiant Breath",
+     "kind": "save",
+     "save": {
+      "ability": "dex",
+      "dc": 23,
+      "fail": [
+       {
+        "dice": "14d10",
+        "type": "radiant"
+       }
+      ],
+      "success": "half",
+      "conditions": []
+     }
+    },
+    {
+     "name": "Flaring Breath",
+     "kind": "save",
+     "save": {
+      "ability": "con",
+      "dc": 23,
+      "fail": [],
+      "success": "none",
+      "conditions": [
+       "Blinded"
+      ]
+     }
+    }
+   ],
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_ancientflamedragon_tob1_2023",
+  "list": "actions",
+  "idx": 5,
+  "name": "Fire Breath (Recharge 5-6)",
+  "description_sha1": "142035dda1da65726808266270a64523b180c499",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 23,
+    "fail": [
+     {
+      "dice": "26d6",
+      "type": "fire"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_arbeyach",
+  "list": "actions",
+  "idx": 3,
+  "name": "Vermin Breath (Recharge 5-6)",
+  "description_sha1": "95bdc59d39d52ec4a95f381f089b530610653875",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 22,
+    "fail": [
+     {
+      "dice": "12d8",
+      "type": "poison"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_archfey_a5e",
+  "list": "actions",
+  "idx": 3,
+  "name": "Evil Eye (Gaze)",
+  "description_sha1": "886050ba95a2294149c1413296df6ee6a3339894",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 17,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_archon_ursan",
+  "list": "actions",
+  "idx": 2,
+  "name": "Thunderous Roar (Recharge 5-6)",
+  "description_sha1": "8b7ea2d3d97bb4e7566a31364e7169b9d2618511",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 16,
+    "fail": [
+     {
+      "dice": "8d8",
+      "type": "thunder"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_aridni_tob1_2023",
+  "list": "bonus_actions",
+  "idx": 0,
+  "name": "Enchanted Arrows",
+  "description_sha1": "533df05fbc56e4eeaa94e42ad220d9d5b84f926c",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 14,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_ashwalker_tob1_2023",
+  "list": "actions",
+  "idx": 0,
+  "name": "Slam",
+  "description_sha1": "24fa8c2aaaa62499d27b41535c05d77a1a6a273c",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 4,
+    "hit": [
+     {
+      "dice": "1d6+2",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "1d6",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_ashwalker_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Draconic Breath (Recharge 6)",
+  "description_sha1": "21336bdf1c92c54a3eb6b4db5562a04c6fac4ca3",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 12,
+    "fail": [
+     {
+      "dice": "4d6",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 6,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_avatar_of_shoth",
+  "list": "actions",
+  "idx": 4,
+  "name": "Consult the Zom (1/Day)",
+  "description_sha1": "33d61ec63302b67ea5fd147cc3c91a85cb4a3021",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 20,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Blinded"
+    ]
+   },
+   "uses": {
+    "count": 1,
+    "per": "day"
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_babayagashorsemen_tob1_2023",
+  "list": "actions",
+  "idx": 0,
+  "name": "Lance",
+  "description_sha1": "deb85fa66eed9d6eb57988add75d781dba16958d",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 10,
+    "hit": [
+     {
+      "dice": "1d12+6",
+      "type": "piercing"
+     },
+     {
+      "dice": "2d8",
+      "type": null
+     }
+    ],
+    "reach": 10
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_babayagashorsemen_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Longsword",
+  "description_sha1": "a7423da0e0007c961b2511cce5f294a8c40d1b9b",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 10,
+    "hit": [
+     {
+      "dice": "1d8+6",
+      "type": "slashing"
+     },
+     {
+      "dice": "2d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_babayagashorsemen_tob1_2023",
+  "list": "actions",
+  "idx": 2,
+  "name": "Horseman's Bolt",
+  "description_sha1": "96f4973663042ef7eccf3a7035eee7a98dfe011d",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "4d6+4",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 120
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_bard_bf",
+  "list": "actions",
+  "idx": 1,
+  "name": "Rapier",
+  "description_sha1": "7b98e20f2ac2dadf6ec41eddc7cc827c5cf2f58d",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 6,
+    "hit": [
+     {
+      "dice": "1d8+3",
+      "type": "piercing"
+     },
+     {
+      "dice": "3d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_bard_bf",
+  "list": "actions",
+  "idx": 2,
+  "name": "Hand Crossbow",
+  "description_sha1": "dca4dbb858cecc5d7a024978d7a7efc89d1d3466",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 6,
+    "hit": [
+     {
+      "dice": "1d6+3",
+      "type": "piercing"
+     },
+     {
+      "dice": "3d8",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 30,
+     "long": 120
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_befouled_weird",
+  "list": "actions",
+  "idx": 2,
+  "name": "Drown in Filth (Recharge 4-6)",
+  "description_sha1": "bae9e25ad35ac2411c66809a6e2c504b25ac54ac",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "2d6+3",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "2d6",
+      "type": "necrotic"
+     }
+    ],
+    "success": "none",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 4,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_bereginyas",
+  "list": "actions",
+  "idx": 2,
+  "name": "Smother",
+  "description_sha1": "40ad1580e592e418a8c849acdd5d7fc59e32b44d",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 14,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_black_shuck",
+  "list": "actions",
+  "idx": 3,
+  "name": "Fearsome Howl (Recharge 5-6)",
+  "description_sha1": "454cd96e4e855490693895f9dfd4b8d3768827a1",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 17,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Frightened"
+    ]
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_blackknightcommander_tob1_2023",
+  "list": "actions",
+  "idx": 3,
+  "name": "Frightful Charge (Recharges after a Short or Long Rest)",
+  "description_sha1": "2278b0f769631342fc2a3737ceefe50a5c4a1b5e",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "8d6",
+      "type": "bludgeoning"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Frightened"
+    ]
+   },
+   "uses": {
+    "count": 1,
+    "per": "short_rest"
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_bonepowder_ghoul",
+  "list": "actions",
+  "idx": 0,
+  "name": "Bite",
+  "description_sha1": "8b56916f4c1ddf9150a5cbc09fd16c3fadf27068",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "3d8+5",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "con",
+    "dc": 17,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Paralyzed"
+    ]
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_bonepowder_ghoul",
+  "list": "actions",
+  "idx": 1,
+  "name": "Gravedust",
+  "description_sha1": "1468647d0c9b13d8bcb0bf5104d9b7429ec99a35",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 19,
+    "fail": [
+     {
+      "dice": "4d8",
+      "type": "necrotic"
+     }
+    ],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_bonepowderghoul_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Gravedust",
+  "description_sha1": "6ae39c55941801bec069ac23bd250f0bf34ca4c3",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 17,
+    "fail": [
+     {
+      "dice": "3d8",
+      "type": "necrotic"
+     }
+    ],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_bonespitter",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "0a5d4236efcaac380953e6ee9d992737899c530f",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 13,
+    "hit": [
+     {
+      "dice": "3d8+8",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 18,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_chainedangel_tob1_2023",
+  "list": "special_abilities",
+  "idx": 2,
+  "name": "Redemption",
+  "description_sha1": "00831be977711e07379b4c19fed48ff79eea79ce",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 16,
+    "fail": [
+     {
+      "dice": "3d10",
+      "type": "fire"
+     },
+     {
+      "dice": "3d10",
+      "type": "radiant"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_clockwork_archon",
+  "list": "actions",
+  "idx": 1,
+  "name": "Transforming Weapon",
+  "description_sha1": "f78b8c340d3e5e8dbd7b202d57c8892dcde6bd64",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 11,
+    "hit": [
+     {
+      "dice": "4d10+7",
+      "type": null
+     }
+    ],
+    "reach": 10
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_clockwork_scorpion",
+  "list": "actions",
+  "idx": 2,
+  "name": "Sting",
+  "description_sha1": "1d7bab985f00c00d948539a30a505831544dbc1b",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "1d10+4",
+      "type": "piercing"
+     },
+     {
+      "dice": "4d10",
+      "type": "poison"
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "con",
+    "dc": 16,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_corpselight_moth",
+  "list": "actions",
+  "idx": 2,
+  "name": "Radiant Wind (Recharge 4-6)",
+  "description_sha1": "968c988bf3782ce73e0e901cd49b4e065acd1cf2",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "6d6",
+      "type": "radiant"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "recharge": {
+    "min": 4,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_culicoid",
+  "list": "actions",
+  "idx": 2,
+  "name": "Proboscis",
+  "description_sha1": "28519c799372438f4ee1004bfe1c458d8fae8784",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "2d8+5",
+      "type": "piercing"
+     },
+     {
+      "dice": "2d6",
+      "type": "poison"
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "con",
+    "dc": 16,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Poisoned"
+    ]
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_cultist_fanatic_bf",
+  "list": "actions",
+  "idx": 1,
+  "name": "Sacrificial Dagger",
+  "description_sha1": "b06a7cb52372eab5fe6cf7d71d2d2d171535f952",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 4,
+    "hit": [
+     {
+      "dice": "1d4+2",
+      "type": "slashing"
+     },
+     {
+      "dice": "2d6",
+      "type": null
+     }
+    ],
+    "reach": 5,
+    "range": {
+     "normal": 20,
+     "long": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_cultist_fanatic_bf",
+  "list": "actions",
+  "idx": 2,
+  "name": "Unholy Bolt",
+  "description_sha1": "59980978d3d625e15417105fe45a8daf118750d4",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "2d6+3",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_deep_drake",
+  "list": "actions",
+  "idx": 4,
+  "name": "Breath Weapon (Recharge 5-6)",
+  "description_sha1": "f407ea48e221d27d9cb858b9e190f9fd19a50139",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 16,
+    "fail": [
+     {
+      "dice": "10d6",
+      "type": "necrotic"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_djinni_bf",
+  "list": "actions",
+  "idx": 1,
+  "name": "Scimitar",
+  "description_sha1": "abb9c214d32f73274883c2b8f56cec879cebca08",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "2d6+5",
+      "type": "slashing"
+     },
+     {
+      "dice": "4d6",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_dragon_prismatic_adult",
+  "list": "actions",
+  "idx": 5,
+  "name": "Breath Weapon (Recharge 5-6)",
+  "description_sha1": "1042e5a7475d7e78a43eefae0df0a69e8ee15ceb",
+  "structured": {
+   "kind": "options",
+   "options": [
+    {
+     "name": "Light Beam",
+     "kind": "save",
+     "save": {
+      "ability": "dex",
+      "dc": 19,
+      "fail": [
+       {
+        "dice": "10d8",
+        "type": "radiant"
+       }
+      ],
+      "success": "half",
+      "conditions": []
+     }
+    },
+    {
+     "name": "Rainbow Blast",
+     "kind": "save",
+     "save": {
+      "ability": "dex",
+      "dc": 19,
+      "fail": [
+       {
+        "dice": "8d8",
+        "type": null
+       }
+      ],
+      "success": "half",
+      "conditions": []
+     }
+    }
+   ],
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_dragon_prismatic_ancient",
+  "list": "actions",
+  "idx": 5,
+  "name": "Breath Weapon (Recharge 5-6)",
+  "description_sha1": "1a6a4aac75fd3cb202053db3038539ec151d73cd",
+  "structured": {
+   "kind": "options",
+   "options": [
+    {
+     "name": "Light Beam",
+     "kind": "save",
+     "save": {
+      "ability": "dex",
+      "dc": 23,
+      "fail": [
+       {
+        "dice": "20d8",
+        "type": "radiant"
+       }
+      ],
+      "success": "half",
+      "conditions": []
+     }
+    },
+    {
+     "name": "Rainbow Blast",
+     "kind": "save",
+     "save": {
+      "ability": "dex",
+      "dc": 23,
+      "fail": [
+       {
+        "dice": "16d8",
+        "type": null
+       }
+      ],
+      "success": "half",
+      "conditions": []
+     }
+    }
+   ],
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_dragon_sand_wyrmling",
+  "list": "actions",
+  "idx": 1,
+  "name": "Breath Weapon (Recharge 5-6)",
+  "description_sha1": "049bfecc72f4dec02543bafc9c69effdbeeb3435",
+  "structured": {
+   "kind": "options",
+   "options": [
+    {
+     "name": "Sand Blast",
+     "kind": "save",
+     "save": {
+      "ability": "dex",
+      "dc": 13,
+      "fail": [
+       {
+        "dice": "2d10",
+        "type": "piercing"
+       },
+       {
+        "dice": "2d10",
+        "type": "fire"
+       }
+      ],
+      "success": "half",
+      "conditions": []
+     }
+    },
+    {
+     "name": "Blinding Sand",
+     "kind": "save",
+     "save": {
+      "ability": "con",
+      "dc": 13,
+      "fail": [],
+      "success": "none",
+      "conditions": [
+       "Blinded"
+      ]
+     }
+    }
+   ],
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_dragonleaftree_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Slam",
+  "description_sha1": "0b332e9adc224de0964629cb7b2975ae0bd14f52",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 6,
+    "hit": [
+     {
+      "dice": "2d8+3",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "2d6",
+      "type": null
+     }
+    ],
+    "reach": 10
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_dragonleaftree_tob1_2023",
+  "list": "actions",
+  "idx": 2,
+  "name": "Throw Leaves",
+  "description_sha1": "4ceb6f7205a418086a8fce2cb461343659ccdb1a",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "4d4+2",
+      "type": "slashing"
+     },
+     {
+      "dice": "2d6",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 30,
+     "long": 120
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_dragonleaftree_tob1_2023",
+  "list": "actions",
+  "idx": 3,
+  "name": "Elemental Leaves (Recharge 6)",
+  "description_sha1": "a3f189e649880e49da8ad7c99b0208ae65e9cd13",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "12d6",
+      "type": null
+     }
+    ],
+    "success": "none",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 6,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_drake_venom",
+  "list": "actions",
+  "idx": 4,
+  "name": "Venom Breath (Recharge 5-6)",
+  "description_sha1": "5bb523f0381a9d5f675589b501ac44f80c1af6ee",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 16,
+    "fail": [
+     {
+      "dice": "8d8",
+      "type": "poison"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_drudge_pitcher",
+  "list": "actions",
+  "idx": 2,
+  "name": "Pitcher Swallow",
+  "description_sha1": "81046f5bc93ff0bfb50528b4af1b4e30ca56bc63",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "2d6+5",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "2d6",
+      "type": "necrotic"
+     }
+    ],
+    "reach": 15
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 16,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_elemental_permafrost",
+  "list": "actions",
+  "idx": 2,
+  "name": "Plague-Ridden Pound (Recharge 5-6)",
+  "description_sha1": "a2633ac8b9320df24f46b2494011303703decf72",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 14,
+    "fail": [
+     {
+      "dice": "3d6",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "3d6",
+      "type": "cold"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_equitox",
+  "list": "legendary_actions",
+  "idx": 1,
+  "name": "Withering Gaze (2)",
+  "description_sha1": "8c721174deee3edd5e9e64fbcf0a723edaf5865e",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 18,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Stunned"
+    ]
+   },
+   "legendary_cost": 2,
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_fardarrig_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Antler Glaive",
+  "description_sha1": "5e2f747b14b3e1c648b8aabf466cb2aa811e55b5",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "1d10+3",
+      "type": null
+     },
+     {
+      "dice": "1d6",
+      "type": "force"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "str",
+    "dc": 13,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_fleshpod_hornet",
+  "list": "actions",
+  "idx": 2,
+  "name": "Stinger",
+  "description_sha1": "b91ceb7debb318447311f7414c737844c8d6f3db",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "2d6+4",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "con",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "6d6",
+      "type": "poison"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_giant_snow_beetle",
+  "list": "actions",
+  "idx": 1,
+  "name": "Rotten Snowball Shove (Recharge 6)",
+  "description_sha1": "1a67d41aab50d58b035d1b44caf94c1b430f321a",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 12,
+    "fail": [
+     {
+      "dice": "2d6",
+      "type": "bludgeoning"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Poisoned"
+    ]
+   },
+   "recharge": {
+    "min": 6,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_gigantura",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "7625b18bb72f9688c91139109c1a6b0e349733b1",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 11,
+    "hit": [
+     {
+      "dice": "3d12+6",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 18,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_graveyard_dragon",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "d1d6cedd589f17f9743f5dbac9b23addbbf245ed",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 6,
+    "hit": [
+     {
+      "dice": "2d10+3",
+      "type": "piercing"
+     },
+     {
+      "dice": "1d8",
+      "type": null
+     }
+    ],
+    "reach": 10
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_graveyard_dragon",
+  "list": "actions",
+  "idx": 3,
+  "name": "Breath Weapon (Recharge 5-6)",
+  "description_sha1": "e04e2b8e01ef281a5ab6af135002c768b485ce03",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 14,
+    "fail": [
+     {
+      "dice": "9d8",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_grim_jester",
+  "list": "actions",
+  "idx": 1,
+  "name": "Killing Joke (recharge 6)",
+  "description_sha1": "8ccf14c38bbb77554cc8d0e846db60a0dd9c7a07",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 17,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "recharge": {
+    "min": 6,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_guardian_naga_bf",
+  "list": "actions",
+  "idx": 1,
+  "name": "Constrict",
+  "description_sha1": "bc5aa81d0221988678f7c64c9058ef2caeba05e2",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "1d8+4",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "3d8",
+      "type": null
+     }
+    ],
+    "reach": 10
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_guardian_naga_bf",
+  "list": "actions",
+  "idx": 2,
+  "name": "Slam",
+  "description_sha1": "906679f002735da4000e08058eb37c4160d1a0da",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "2d6+4",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "3d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_guardian_naga_bf",
+  "list": "actions",
+  "idx": 3,
+  "name": "Spit Poison",
+  "description_sha1": "9a0d6575da8a4ddc3c752709e2a4e003c0605660",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "2d6+4",
+      "type": "poison"
+     },
+     {
+      "dice": "3d8",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 20,
+     "long": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_half_red_dragon_veteran_a5e",
+  "list": "actions",
+  "idx": 4,
+  "name": "Fire Breath (Recharge 5-6)",
+  "description_sha1": "a9eb392d7f5822c8bb5b30a2f39229bc9f12065e",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "7d6",
+      "type": "fire"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_helashruu",
+  "list": "actions",
+  "idx": 2,
+  "name": "Reflect Energy (Recharge 5-6)",
+  "description_sha1": "c927344b147c1b8573a06f4e68fb195830d39493",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 18,
+    "fail": [
+     {
+      "dice": "10d6",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_helashruu",
+  "list": "actions",
+  "idx": 3,
+  "name": "Trap Life (Recharge 6)",
+  "description_sha1": "ba234ca62113aaf35dfaa081fefc98ecf4351c1b",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 18,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Blinded",
+     "Restrained"
+    ]
+   },
+   "recharge": {
+    "min": 6,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_hippopotamus_sacred",
+  "list": "actions",
+  "idx": 0,
+  "name": "Gore",
+  "description_sha1": "1628879d578f6030aef7563405709c3a4d0d972d",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "4d8+5",
+      "type": "piercing"
+     },
+     {
+      "dice": "2d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_hippopotamus_sacred",
+  "list": "actions",
+  "idx": 1,
+  "name": "Divine Cacophony (Recharge 5-6)",
+  "description_sha1": "5f26319a0d29d19637201b3964412e7ee463fc34",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "6d6",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Stunned"
+    ]
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_hirudine_stalker",
+  "list": "actions",
+  "idx": 2,
+  "name": "Spit Tooth",
+  "description_sha1": "921c66ca98067bbdbdf444033676714571f022c8",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "2d4+3",
+      "type": "piercing"
+     }
+    ],
+    "range": {
+     "normal": 30,
+     "long": 120
+    }
+   },
+   "save": {
+    "ability": "con",
+    "dc": 13,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_hoarfrost_drake",
+  "list": "actions",
+  "idx": 3,
+  "name": "Cloud of Riming Ice (Recharge 5-6)",
+  "description_sha1": "0370a8d57a03ba18479ff79ad1b38ee76bb8d7ed",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 14,
+    "fail": [
+     {
+      "dice": "4d6",
+      "type": "cold"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_hverhuldra",
+  "list": "actions",
+  "idx": 2,
+  "name": "Scalding Stream (Recharge 5-6)",
+  "description_sha1": "c1bed4d6b5327d624b19d5e5f02ecbfbdcb908d6",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "6d6",
+      "type": "fire"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Blinded"
+    ]
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_imperator",
+  "list": "actions",
+  "idx": 1,
+  "name": "Beak",
+  "description_sha1": "b08b5e97a6f33a46de01e6d666a825d0e16d3bf8",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "3d12+5",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 17,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_isonade_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "bb020f2c30d73deeb1e205bfd4e39c3732c85d5e",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 15,
+    "hit": [
+     {
+      "dice": "4d12+10",
+      "type": "piercing"
+     }
+    ],
+    "reach": 15
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 18,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_kallikantzaros",
+  "list": "actions",
+  "idx": 3,
+  "name": "Misery Whip",
+  "description_sha1": "6760aa4ac433e322e9f74a1957a59be796cc126e",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "2d6+2",
+      "type": "slashing"
+     }
+    ],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_kobold_empyrean",
+  "list": "actions",
+  "idx": 2,
+  "name": "Invoke the Dragon Gods (Recharge 5-6)",
+  "description_sha1": "f86884299a1d12c5af41848c5ecee542abe9399e",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 16,
+    "fail": [
+     {
+      "dice": "14d6",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_kobold_leviathan_hunter",
+  "list": "actions",
+  "idx": 1,
+  "name": "Slam",
+  "description_sha1": "f4fe718ebbc8b2e9d977b5ca3ed46fe2011b91d7",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "2d6+5",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "2d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_kobold_leviathan_hunter",
+  "list": "actions",
+  "idx": 2,
+  "name": "Harpoon",
+  "description_sha1": "923a0714fabad03a2f68c8a5ba30e6117abb99c1",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee_or_ranged",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "2d6+5",
+      "type": "piercing"
+     },
+     {
+      "dice": "2d8",
+      "type": null
+     }
+    ],
+    "reach": 5,
+    "range": {
+     "normal": 20,
+     "long": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_kobold_trapsmith",
+  "list": "special_abilities",
+  "idx": 6,
+  "name": "Skullpopper",
+  "description_sha1": "da490cd73020920ce2375463639488d8d95d1228",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "2d10",
+      "type": null
+     }
+    ],
+    "reach": 15
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_light_dragon_wyrmling",
+  "list": "actions",
+  "idx": 1,
+  "name": "Breath Weapon (Recharge 5-6)",
+  "description_sha1": "90a8308d053add392b11462b2955af16bfe3807f",
+  "structured": {
+   "kind": "options",
+   "options": [
+    {
+     "name": "Radiant Breath",
+     "kind": "save",
+     "save": {
+      "ability": "dex",
+      "dc": 12,
+      "fail": [
+       {
+        "dice": "3d10",
+        "type": "radiant"
+       }
+      ],
+      "success": "half",
+      "conditions": []
+     }
+    },
+    {
+     "name": "Flaring Breath",
+     "kind": "save",
+     "save": {
+      "ability": "con",
+      "dc": 12,
+      "fail": [],
+      "success": "none",
+      "conditions": [
+       "Blinded"
+      ]
+     }
+    }
+   ],
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_light_drake",
+  "list": "actions",
+  "idx": 1,
+  "name": "Breath Weapon (Recharge 6)",
+  "description_sha1": "4e70d87b15c05712d2369c79b69900b7bf7977bc",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "2d4",
+      "type": "radiant"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Blinded"
+    ]
+   },
+   "recharge": {
+    "min": 6,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_lizardfolk_chosen_one_a5e",
+  "list": "reactions",
+  "idx": 0,
+  "name": "Supernatural Rebuke (1/Day)",
+  "description_sha1": "586409c9760cf3880108a3717feb1f392935202c",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "2d10",
+      "type": null
+     }
+    ],
+    "success": "none",
+    "conditions": []
+   },
+   "uses": {
+    "count": 1,
+    "per": "day"
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_manabane_scarab_swarm",
+  "list": "actions",
+  "idx": 0,
+  "name": "Bites",
+  "description_sha1": "f827b1cc877fde2848eb9f8a07c6478523c6aa41",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "4d6",
+      "type": "piercing"
+     }
+    ],
+    "reach": 0
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_master_alchemist_bf",
+  "list": "actions",
+  "idx": 1,
+  "name": "Hasty Concoction",
+  "description_sha1": "4c8fcfc82910f0f71e6557cc8cf09a38c60a016b",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee_or_ranged",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "3d8+4",
+      "type": null
+     }
+    ],
+    "reach": 5,
+    "range": {
+     "normal": 20,
+     "long": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_midnight_sun",
+  "list": "actions",
+  "idx": 1,
+  "name": "Energy Blast",
+  "description_sha1": "1872c07910fccabdb30986fc9a0adb19d15cd25c",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee_or_ranged",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "3d6+4",
+      "type": null
+     }
+    ],
+    "reach": 5,
+    "range": {
+     "normal": 120
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_millitaur_tob1_2023",
+  "list": "actions",
+  "idx": 2,
+  "name": "Poisonous Flask (Recharge 5-6)",
+  "description_sha1": "d2950d8013479266b3ec3d3ae073004c95ddfbce",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "4d6",
+      "type": "poison"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Poisoned"
+    ]
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_mirrorhag_tob1_2023",
+  "list": "actions",
+  "idx": 2,
+  "name": "Reconfiguring Curse",
+  "description_sha1": "10d54bba28b2631a11b2d2a9840e5ac238538d95",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 15,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_monolith_champion",
+  "list": "actions",
+  "idx": 1,
+  "name": "Greatsword",
+  "description_sha1": "5729331ee86d043c09a3490080047978a5d56217",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "3d6+4",
+      "type": "slashing"
+     },
+     {
+      "dice": "2d10",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_monolith_champion",
+  "list": "actions",
+  "idx": 2,
+  "name": "Slam",
+  "description_sha1": "b972bc9d8caa98a7401734e8dd0f63f2602886b0",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "2d6+4",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "2d10",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_monolith_footman",
+  "list": "actions",
+  "idx": 0,
+  "name": "Longsword",
+  "description_sha1": "8a7939e7c5768f0fe54cd69deea6fc1e3c9ec4ce",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 6,
+    "hit": [
+     {
+      "dice": "2d6+4",
+      "type": "slashing"
+     },
+     {
+      "dice": "2d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_monolith_footman",
+  "list": "actions",
+  "idx": 1,
+  "name": "Slam",
+  "description_sha1": "a3ac95f37f8bb0d310e6926c12dce9b6f9961459",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 6,
+    "hit": [
+     {
+      "dice": "1d8+4",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "2d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_monolithchampion_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Greatsword",
+  "description_sha1": "51dd4ba80eca87506b5cc7327d4cf3e7e040dc86",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "4d6+4",
+      "type": "slashing"
+     },
+     {
+      "dice": "3d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "cha",
+    "dc": 14,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_monolithchampion_tob1_2023",
+  "list": "actions",
+  "idx": 2,
+  "name": "Slam",
+  "description_sha1": "be49d44bd009ae52893a58de202b18e9bd92a5a5",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "2d6+4",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "3d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_monolithfootman_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Shortsword",
+  "description_sha1": "6c26051c410588e8e506c718a3f7968c2cc51fc3",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 4,
+    "hit": [
+     {
+      "dice": "2d6+2",
+      "type": "slashing"
+     },
+     {
+      "dice": "1d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "cha",
+    "dc": 12,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_moon_nymph",
+  "list": "actions",
+  "idx": 3,
+  "name": "Veil of Nightmares (1/Day)",
+  "description_sha1": "d0cc3109ba436a8cb4fbc99990d9ff04f59f20ce",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 14,
+    "fail": [
+     {
+      "dice": "8d8",
+      "type": "psychic"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Frightened"
+    ]
+   },
+   "uses": {
+    "count": 1,
+    "per": "day"
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_moss_lurker",
+  "list": "actions",
+  "idx": 1,
+  "name": "Great Sword or Maul",
+  "description_sha1": "f13ef3cace68059fe72366721a10c537b6fa97bc",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 4,
+    "hit": [
+     {
+      "dice": "2d6+2",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_mummy_lord_bf",
+  "list": "actions",
+  "idx": 1,
+  "name": "Blessed Khopesh",
+  "description_sha1": "59fa9312294b804bdbafb21399d6094e756e6441",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "2d6+4",
+      "type": "slashing"
+     },
+     {
+      "dice": "4d6",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_mummy_lord_bf",
+  "list": "actions",
+  "idx": 3,
+  "name": "Divine Bolt",
+  "description_sha1": "d032c1df4b9634de2a425131e5f2efbd886c3d89",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "5d6+4",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 120
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_mummy_lord_bf",
+  "list": "legendary_actions",
+  "idx": 3,
+  "name": "Unleash Divine Energy (Costs 2 Actions)",
+  "description_sha1": "c753030449a9109668b1ad4e65ebd50262d83d73",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 17,
+    "fail": [
+     {
+      "dice": "4d6",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Stunned"
+    ]
+   },
+   "legendary_cost": 2,
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_mycolid_spore_lord_bf",
+  "list": "special_abilities",
+  "idx": 0,
+  "name": "Fungal Toxicity",
+  "description_sha1": "5eefc482933a6dc50e02352cf96a8dd58cfa21ca",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 13,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Poisoned"
+    ]
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_necrotech_bonecage_constrictor",
+  "list": "actions",
+  "idx": 2,
+  "name": "Encage",
+  "description_sha1": "dd797aead533ae81b5451f14400d5188a8058c08",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "2d6+4",
+      "type": "piercing"
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 16,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_neophron",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "99c6b8bc6d37389cac9a4a2a40fc7fa30d51b57c",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "2d10+4",
+      "type": "piercing"
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 16,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_nightgarm",
+  "list": "actions",
+  "idx": 0,
+  "name": "Bite",
+  "description_sha1": "c07c5547ef5872edb886f98e96718477a4ea8c7b",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "4d10+5",
+      "type": "piercing"
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "str",
+    "dc": 15,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_nilbog_a5e",
+  "list": "actions",
+  "idx": 0,
+  "name": "Rat flail",
+  "description_sha1": "0a2f85878f7fe9b4d79b16981aabf8373647225c",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "3d4+1",
+      "type": null
+     }
+    ],
+    "reach": 10
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_noth_norren",
+  "list": "actions",
+  "idx": 4,
+  "name": "Vortex (Recharge 5-6)",
+  "description_sha1": "2e71f81402b5c96fc2db00c0d265ded65702d90b",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 16,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Blinded",
+     "Restrained"
+    ]
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_npc:_apostle",
+  "list": "actions",
+  "idx": 1,
+  "name": "Mace",
+  "description_sha1": "90e87b7ab6254f6099f028444886aaf78c29144c",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 4,
+    "hit": [
+     {
+      "dice": "1d6+1",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "2d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_npc:_apostle",
+  "list": "actions",
+  "idx": 2,
+  "name": "Divine Bolt",
+  "description_sha1": "b96986a9cff5630a81598293e8a5006c6a002c7f",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "2d8+4",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 120
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_npc:_first_servant",
+  "list": "actions",
+  "idx": 1,
+  "name": "Blinding Rod",
+  "description_sha1": "c0be83b960f8f4d15177e786ec08735f075da840",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "2d6+1",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "3d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "con",
+    "dc": 17,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Blinded",
+     "Deafened"
+    ]
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_npc:_first_servant",
+  "list": "actions",
+  "idx": 2,
+  "name": "Divine Burst",
+  "description_sha1": "9a2bbfbd6ff2ea0a0bbfb22112379ff91b665473",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee_or_ranged",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "4d8+5",
+      "type": null
+     }
+    ],
+    "reach": 5,
+    "range": {
+     "normal": 120
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_nullicorn",
+  "list": "actions",
+  "idx": 3,
+  "name": "Ripple of darkness",
+  "description_sha1": "cef21e57a7b123d4fdd28719635079b6ca49cb5c",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "4d8",
+      "type": "necrotic"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_old_salt",
+  "list": "actions",
+  "idx": 2,
+  "name": "Wave of Seawater (Recharge 5-6)",
+  "description_sha1": "cec69b173a156d8fd8dde3b694e9b5523133ecb6",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "6d6",
+      "type": "bludgeoning"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_ostinato",
+  "list": "actions",
+  "idx": 2,
+  "name": "Aural Symbiosis (1/Day)",
+  "description_sha1": "86b699309484da43513ce72309ff98a8e081150b",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "cha",
+    "dc": 13,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "uses": {
+    "count": 1,
+    "per": "day"
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_parzzval",
+  "list": "actions",
+  "idx": 2,
+  "name": "Oversized Maw",
+  "description_sha1": "dc37a3a0472b679a09d36f24dbcfd35c6ca0a772",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "2d6+5",
+      "type": "piercing"
+     },
+     {
+      "dice": "2d8",
+      "type": "acid"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 16,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_pelagic_blush_worm",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "b29ecedf4525b8d0d73b99cbb30ff860ad05f385",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 10,
+    "hit": [
+     {
+      "dice": "3d8+6",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 16,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_peri",
+  "list": "actions",
+  "idx": 0,
+  "name": "Wind Slash",
+  "description_sha1": "7df81b41005924915b13152b51c2f518dcf47144",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee_or_ranged",
+    "bonus": 6,
+    "hit": [
+     {
+      "dice": "2d4+4",
+      "type": "slashing"
+     },
+     {
+      "dice": "2d6",
+      "type": null
+     }
+    ],
+    "reach": 5,
+    "range": {
+     "normal": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_possessedpillar_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Slam",
+  "description_sha1": "ebc99c99015fdf209771548d5da49badc66f4300",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "2d8+5",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "2d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_priest_a5e",
+  "list": "actions",
+  "idx": 4,
+  "name": "Spirit Guardians (3rd-Level; V, S, M, Concentration)",
+  "description_sha1": "aabb6595dad77726f3d62aa1cbe3f30335a37d48",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "3d6",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_priest_bf",
+  "list": "actions",
+  "idx": 1,
+  "name": "Mace",
+  "description_sha1": "1bcedd95c3d34d9c8c1ef58c1be5be1ea810115e",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 3,
+    "hit": [
+     {
+      "dice": "1d6+1",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "2d6",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_priest_bf",
+  "list": "actions",
+  "idx": 2,
+  "name": "Divine Bolt",
+  "description_sha1": "5d7699d539d5303911663c21ef1ed50614f62307",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "2d6+3",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_primordial_matriarch",
+  "list": "special_abilities",
+  "idx": 7,
+  "name": "Elemental Lash",
+  "description_sha1": "bfde33b2921bd2f2322b2af49333e49b131bfd9d",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 17,
+    "hit": [
+     {
+      "dice": "4d10+10",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "5d6",
+      "type": null
+     }
+    ],
+    "reach": 15
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_purple_worm_bf",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "04be7672d5bb1ded9d18e980a8dd2099cf137455",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 14,
+    "hit": [
+     {
+      "dice": "3d8+9",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 19,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_ravenala",
+  "list": "actions",
+  "idx": 3,
+  "name": "Lamenting Engulfment",
+  "description_sha1": "c673dd69eaad36d410a5fdaf625495fe3e442daf",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 13,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Grappled",
+     "Restrained"
+    ]
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_remorhaz_bf",
+  "list": "actions",
+  "idx": 0,
+  "name": "Bite",
+  "description_sha1": "fc002429a6f097b79a9fb046873c53e147b3b1be",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 11,
+    "hit": [
+     {
+      "dice": "6d10+7",
+      "type": "piercing"
+     },
+     {
+      "dice": "3d6",
+      "type": "fire"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 17,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_ruby_ooze",
+  "list": "actions",
+  "idx": 2,
+  "name": "Acid Spray (Recharge 5-6)",
+  "description_sha1": "bab6bf84f654a0344e6be470e834e1273d794268",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "6d6",
+      "type": "acid"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Restrained"
+    ]
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_rust_drake",
+  "list": "actions",
+  "idx": 3,
+  "name": "Vomits Scrap (Recharge 5-6)",
+  "description_sha1": "df7f3556e9d4749e82b0f912f9ce239f4c184918",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "10d10",
+      "type": "slashing"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_rustdrake_tob1_2023",
+  "list": "actions",
+  "idx": 3,
+  "name": "Vomit Scrap (Recharge 5-6)",
+  "description_sha1": "d5c598860c18f5cbac2b8397aa4980782d3993f0",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "5d8",
+      "type": "slashing"
+     },
+     {
+      "dice": "5d8",
+      "type": "poison"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_sap_demon",
+  "list": "actions",
+  "idx": 2,
+  "name": "Soul Sap",
+  "description_sha1": "60d3c33f8d977b97807a7ac4fe848a0277a96d33",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 12,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_sathaq_worm",
+  "list": "actions",
+  "idx": 0,
+  "name": "Bite",
+  "description_sha1": "15f97dea35d18f9bc4170049819861f57700956e",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 10,
+    "hit": [
+     {
+      "dice": "4d8+6",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 18,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_slithy_tove",
+  "list": "actions",
+  "idx": 3,
+  "name": "Musk of Clumsiness (Recharge 5-6)",
+  "description_sha1": "f73e0b85876520d1af562f90928906c1902e4736",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "3d6",
+      "type": "poison"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Poisoned"
+    ]
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_snake_constrictor_bf",
+  "list": "bonus_actions",
+  "idx": 0,
+  "name": "Crush",
+  "description_sha1": "b34ce616a7e5eff2bbfe0eeeac37859765b3ed63",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 12,
+    "fail": [
+     {
+      "dice": "1d8",
+      "type": "bludgeoning"
+     }
+    ],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_snake_giant_constrictor_bf",
+  "list": "bonus_actions",
+  "idx": 0,
+  "name": "Crush",
+  "description_sha1": "31e6f43563452d8d4b1ea541715d78a275bad9ac",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 14,
+    "fail": [
+     {
+      "dice": "2d8",
+      "type": "bludgeoning"
+     }
+    ],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_snow_terror",
+  "list": "actions",
+  "idx": 0,
+  "name": "Bite",
+  "description_sha1": "77a32e7d486da24a248f3acf7ef6220b0a942591",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "3d6+4",
+      "type": "piercing"
+     },
+     {
+      "dice": "4d6",
+      "type": "acid"
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_sonoffenris_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "b0abc81d850813e4396ac4897a389330b3015ae0",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 12,
+    "hit": [
+     {
+      "dice": "2d10+8",
+      "type": "piercing"
+     },
+     {
+      "dice": "3d6",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 18,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_sonoffenris_tob1_2023",
+  "list": "actions",
+  "idx": 2,
+  "name": "Slam",
+  "description_sha1": "aef0fd9f9d58a0164f55a979d3487c1fd4748d1f",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 12,
+    "hit": [
+     {
+      "dice": "1d10+8",
+      "type": "bludgeoning"
+     },
+     {
+      "dice": "3d6",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_sonoffenris_tob1_2023",
+  "list": "actions",
+  "idx": 3,
+  "name": "Divine Bolt",
+  "description_sha1": "8cf687e3e3b9450b3a1f9964931dae910bee912f",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 8,
+    "hit": [
+     {
+      "dice": "4d6+4",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_spark",
+  "list": "actions",
+  "idx": 0,
+  "name": "Inhabit",
+  "description_sha1": "227aa88f9a9322bba5555a60116bf353bb35ce59",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 6,
+    "hit": [],
+    "reach": 5
+   },
+   "save": {
+    "ability": "cha",
+    "dc": 14,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_splinter_matron",
+  "list": "actions",
+  "idx": 3,
+  "name": "Splinter Spray (Recharge 6)",
+  "description_sha1": "2fe8c987fad76cc37c6f513a93ef0e6f46756ed5",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "10d8",
+      "type": "piercing"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Blinded"
+    ]
+   },
+   "recharge": {
+    "min": 6,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_2024_behir",
+  "list": "bonus_actions",
+  "idx": 0,
+  "name": "Swallow",
+  "description_sha1": "5c608e888127c77c25f2b2599bb43bd65c0c4db2",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 18,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_2024_half_dragon",
+  "list": "actions",
+  "idx": 0,
+  "name": "Claw",
+  "description_sha1": "2eba4e1afd4e885d8b78b9541eb8790d3f5b25e7",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "1d4+4",
+      "type": "slashing"
+     },
+     {
+      "dice": "2d6",
+      "type": null
+     }
+    ],
+    "reach": 10
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_2024_half_dragon",
+  "list": "actions",
+  "idx": 1,
+  "name": "Dragon's Breath",
+  "description_sha1": "95ccfb3d875ea939b46b0b7aa31fc172a49bf9e6",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 14,
+    "fail": [
+     {
+      "dice": "8d6",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_2024_kraken",
+  "list": "actions",
+  "idx": 3,
+  "name": "Swallow",
+  "description_sha1": "2bea9f44df97c5c2c3959a1781025c53780d300d",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 25,
+    "fail": [
+     {
+      "dice": "3d8+10",
+      "type": "piercing"
+     }
+    ],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_2024_purple_worm",
+  "list": "bonus_actions",
+  "idx": 0,
+  "name": "Swallow",
+  "description_sha1": "da18b257b07944adca7d8926eeae504134d75acd",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 19,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_2024_remorhaz",
+  "list": "bonus_actions",
+  "idx": 0,
+  "name": "Swallow",
+  "description_sha1": "c75697d83cd89aee450d8920d44696214e111ad9",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 19,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_2024_tarrasque",
+  "list": "bonus_actions",
+  "idx": 0,
+  "name": "Swallow",
+  "description_sha1": "75fd02d85c9a99915142e14f0917ca45e3e55a9d",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 27,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_air_elemental",
+  "list": "actions",
+  "idx": 2,
+  "name": "Whirlwind",
+  "description_sha1": "78017fa615db40608d9cfd35a69eaaa0850874b4",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "3d8+2",
+      "type": "bludgeoning"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_djinni",
+  "list": "actions",
+  "idx": 2,
+  "name": "Scimitar",
+  "description_sha1": "75a01a38c943a897d1fb111641246c555c6b3077",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "2d6+5",
+      "type": "slashing"
+     },
+     {
+      "dice": "1d6",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_ice_devil",
+  "list": "actions",
+  "idx": 4,
+  "name": "Wall of Ice",
+  "description_sha1": "acd44a67e486b15f50b30f713bcaebe91549e0dd",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 17,
+    "fail": [
+     {
+      "dice": "10d6",
+      "type": "cold"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_srd_purple_worm",
+  "list": "actions",
+  "idx": 0,
+  "name": "Bite",
+  "description_sha1": "6a706bfeb3b5f6ada329735b6ff2d4dd2e80655c",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 14,
+    "hit": [
+     {
+      "dice": "3d8+9",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 19,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_star_drake",
+  "list": "actions",
+  "idx": 3,
+  "name": "Breath Weapon (Recharge 5-6)",
+  "description_sha1": "0d2e11e906f9614481f776f7f9c44fa2796ebafc",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 18,
+    "fail": [
+     {
+      "dice": "12d12",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_swamp_lily",
+  "list": "actions",
+  "idx": 2,
+  "name": "Fake Feast",
+  "description_sha1": "a0c10ab4e88848f4a84c90347b0d400725ad7bdf",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 15,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Charmed"
+    ]
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_swarmofwolfspirits_tob1_2023",
+  "list": "actions",
+  "idx": 2,
+  "name": "Chilling Howl (Recharge 5-6)",
+  "description_sha1": "b1ab34e63608cab140e1650fefbf2ba627f427e4",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 15,
+    "fail": [
+     {
+      "dice": "10d6",
+      "type": "cold"
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Frightened"
+    ]
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_tarrasque_bf",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "f0a5b2adca5eacfdeea8a6d2c3878572782dbd5f",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 19,
+    "hit": [
+     {
+      "dice": "4d12+10",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 27,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_timingila",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "9a7f4adc39fb21389632146e497cec615c8e967e",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 14,
+    "hit": [
+     {
+      "dice": "3d10+9",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 18,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_titanoboa",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "36558dd4a22c1f5e9b29c6d6584fb117a03ae239",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 13,
+    "hit": [
+     {
+      "dice": "3d8+8",
+      "type": "piercing"
+     }
+    ],
+    "reach": 10
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 18,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_trapsmith_tob1_2023",
+  "list": "actions",
+  "idx": 2,
+  "name": "Spare Part",
+  "description_sha1": "6645d0456c905a7493e2a89eb7f7faa8852f936d",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "1d6+3",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 20,
+     "long": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_trickster_priest_a5e",
+  "list": "actions",
+  "idx": 3,
+  "name": "Spirit Guardians (3rd-Level; V, S, M, Concentration)",
+  "description_sha1": "aabb6595dad77726f3d62aa1cbe3f30335a37d48",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "3d6",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_tyrannosaurus_rex_bf",
+  "list": "bonus_actions",
+  "idx": 0,
+  "name": "Rending Shake",
+  "description_sha1": "e8d931f6ddc73bc6e91d65ee40886aeae36ff2e2",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "str",
+    "dc": 16,
+    "fail": [
+     {
+      "dice": "1d12",
+      "type": "slashing"
+     }
+    ],
+    "success": "none",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_viiret",
+  "list": "actions",
+  "idx": 1,
+  "name": "Bite",
+  "description_sha1": "0c82051b04288da6fcfc25930a33289b237169a0",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "2d8+3",
+      "type": "piercing"
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "dex",
+    "dc": 13,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_virtuoso_lich_bf",
+  "list": "actions",
+  "idx": 1,
+  "name": "Artistic Flourish",
+  "description_sha1": "d40e0ba2c3610de6d50df543b2d17ff7e54900cc",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee_or_ranged",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "3d8+5",
+      "type": null
+     },
+     {
+      "dice": "2d8",
+      "type": "force"
+     }
+    ],
+    "reach": 5,
+    "range": {
+     "normal": 60
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_virtuoso_lich_bf",
+  "list": "legendary_actions",
+  "idx": 3,
+  "name": "Unrestrained Art (Costs 3 Actions)",
+  "description_sha1": "6455a18532bcdcaaa2d93375b05a9e4b514a66bf",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 17,
+    "fail": [
+     {
+      "dice": "2d8",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "legendary_cost": 3,
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_virtuoso_lich",
+  "list": "actions",
+  "idx": 1,
+  "name": "Artistic Flourish",
+  "description_sha1": "35fd0e71880d83461b9a808d28622f6e5eadaf66",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 9,
+    "hit": [
+     {
+      "dice": "2d6+5",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_virtuoso_lich",
+  "list": "legendary_actions",
+  "idx": 3,
+  "name": "Unrestrained Art (Costs 3 Actions)",
+  "description_sha1": "0a28b5b6aa4a3ce3858798dabd3558f882f391c6",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 16,
+    "fail": [
+     {
+      "dice": "4d8",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "legendary_cost": 3,
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_wandering_haze",
+  "list": "actions",
+  "idx": 3,
+  "name": "Acidic Cloudburst (Recharge 5-6)",
+  "description_sha1": "c7735c2e800759708bcb561220f57ada3aa4fe05",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 17,
+    "fail": [
+     {
+      "dice": "10d6",
+      "type": "acid"
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_warhordling_orc_eye_a5e",
+  "list": "actions",
+  "idx": 4,
+  "name": "Spirit Guardians (3rd-Level; V, S, M, Concentration)",
+  "description_sha1": "aabb6595dad77726f3d62aa1cbe3f30335a37d48",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "wis",
+    "dc": 13,
+    "fail": [
+     {
+      "dice": "3d6",
+      "type": null
+     }
+    ],
+    "success": "half",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_wereboar_a5e",
+  "list": "actions",
+  "idx": 2,
+  "name": "Tusks (Boar or Hybrid Form Only)",
+  "description_sha1": "590aa7430ecd9f3b3d3a336d5a62d7dcdd4db4a2",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 5,
+    "hit": [
+     {
+      "dice": "1d8+3",
+      "type": "slashing"
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "str",
+    "dc": 13,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Prone"
+    ]
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_winter_wolf_bf",
+  "list": "bonus_actions",
+  "idx": 0,
+  "name": "Freezing Nose",
+  "description_sha1": "0aa554c3d7ec2673e0341d061f4da18841a0a629",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 13,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_witchlight_tob1_2023",
+  "list": "actions",
+  "idx": 1,
+  "name": "Flash (3/Day)",
+  "description_sha1": "beaf426b5bcbb2551f42627f397f6d56925c5438",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "dex",
+    "dc": 12,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Blinded"
+    ]
+   },
+   "uses": {
+    "count": 3,
+    "per": "day"
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_wizard_kobold",
+  "list": "actions",
+  "idx": 2,
+  "name": "Breath of the Visage",
+  "description_sha1": "8159584dc5c26c34a2f48fa4da4379624b162cc7",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "ranged",
+    "bonus": 6,
+    "hit": [
+     {
+      "dice": "2d6",
+      "type": null
+     }
+    ],
+    "range": {
+     "normal": 120
+    }
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_wolpertinger",
+  "list": "actions",
+  "idx": 2,
+  "name": "Keening (Recharge 6)",
+  "description_sha1": "53b5131af021bddf973573f25452a33ead2c59a5",
+  "structured": {
+   "kind": "save",
+   "save": {
+    "ability": "con",
+    "dc": 13,
+    "fail": [],
+    "success": "none",
+    "conditions": [
+     "Deafened"
+    ]
+   },
+   "recharge": {
+    "min": 6,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_xorn_a5e",
+  "list": "actions",
+  "idx": 2,
+  "name": "Bite",
+  "description_sha1": "77739a4a8228c98940b620d9ccb4cceb3d462c2d",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "2d8+4",
+      "type": "piercing"
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_young_light_dragon",
+  "list": "actions",
+  "idx": 1,
+  "name": "Breath Weapon (Recharge 5-6)",
+  "description_sha1": "c490221fd1402564720a83b2c934a71e455aa015",
+  "structured": {
+   "kind": "options",
+   "options": [
+    {
+     "name": "Radiant Breath",
+     "kind": "save",
+     "save": {
+      "ability": "dex",
+      "dc": 15,
+      "fail": [
+       {
+        "dice": "8d10",
+        "type": "radiant"
+       }
+      ],
+      "success": "half",
+      "conditions": []
+     }
+    },
+    {
+     "name": "Flaring Breath",
+     "kind": "save",
+     "save": {
+      "ability": "con",
+      "dc": 15,
+      "fail": [],
+      "success": "none",
+      "conditions": [
+       "Blinded"
+      ]
+     }
+    }
+   ],
+   "recharge": {
+    "min": 5,
+    "max": 6
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_ziphius",
+  "list": "actions",
+  "idx": 2,
+  "name": "Beak",
+  "description_sha1": "a95a8c8c5a14ed67259bc3f7be311d466a0788b0",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 7,
+    "hit": [
+     {
+      "dice": "2d8+4",
+      "type": "piercing"
+     }
+    ],
+    "reach": 5
+   },
+   "save": {
+    "ability": "str",
+    "dc": 15,
+    "fail": [],
+    "success": "none",
+    "conditions": []
+   },
+   "source": "extracted"
+  }
+ },
+ {
+  "id": "srd_zoryas",
+  "list": "actions",
+  "idx": 1,
+  "name": "Morningstar",
+  "description_sha1": "5c4b31ddaf3165b2ebfb6c1afd5992277647f28d",
+  "structured": {
+   "kind": "attack",
+   "attack": {
+    "delivery": "melee",
+    "bonus": 6,
+    "hit": [
+     {
+      "dice": "1d8+3",
+      "type": "piercing"
+     },
+     {
+      "dice": "3d8",
+      "type": null
+     }
+    ],
+    "reach": 5
+   },
+   "source": "extracted"
+  }
+ }
+]
