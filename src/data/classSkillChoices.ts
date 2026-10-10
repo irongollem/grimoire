@@ -8,9 +8,8 @@
  * For custom/unknown classes the UI falls back to FALLBACK_SKILL_DATA (2 from any).
  */
 
-import type { SkillProficiencies } from "@/types/party.types";
+import type { SkillKey } from "@/types/party.types";
 
-export type SkillKey = keyof SkillProficiencies;
 
 export interface ClassSkillData {
   count: number;

@@ -8,7 +8,7 @@ export const MAX_ZOOM = 4;
 
 const STEP = 1.1;
 
-export interface Viewport {
+export interface CanvasViewport {
   zoom: number;
   offset: { x: number; y: number };
 }
@@ -25,7 +25,7 @@ export function zoomStep(current: number, deltaY: number): number {
  * `cursor` is in CSS pixels relative to the canvas's top-left; `dpr` converts
  * that to the device-pixel space the offset is stored in.
  */
-export function zoomAtPoint(vp: Viewport, cursor: { x: number; y: number }, dpr: number, deltaY: number): Viewport {
+export function zoomAtPoint(vp: CanvasViewport, cursor: { x: number; y: number }, dpr: number, deltaY: number): CanvasViewport {
   const next = zoomStep(vp.zoom, deltaY);
   const scale = next / vp.zoom;
   const worldX = vp.offset.x + cursor.x * dpr;
@@ -54,7 +54,7 @@ export interface Pinch {
  * under the midpoint as it moves (the pan), and the zoom scales with how far
  * the fingers have spread (the pinch), clamped to the usual range.
  */
-export function pinchViewport(start: Viewport, from: Pinch, now: Pinch, dpr: number): Viewport {
+export function pinchViewport(start: CanvasViewport, from: Pinch, now: Pinch, dpr: number): CanvasViewport {
   const spread = from.dist > 0 ? now.dist / from.dist : 1;
   const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, start.zoom * spread));
   const scale = zoom / start.zoom;

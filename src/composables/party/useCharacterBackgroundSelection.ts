@@ -1,5 +1,6 @@
 import { ref, computed, watch, type ComputedRef, type Ref } from "vue";
-import { parseBackgroundSkills, type SkillKey } from "@/rules/backgroundSkills";
+import { parseBackgroundSkills } from "@/rules/backgroundSkills";
+import type { SkillKey } from "@/types/party.types";
 import {
   isValidAsiChoice, originFeatOf, parseBackgroundAsiChoice, resolveOriginFeat, withOriginFeat,
   type BackgroundAsiChoice,

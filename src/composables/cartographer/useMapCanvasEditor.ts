@@ -16,7 +16,7 @@
 import { computed, customRef, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import type { Tool } from "@/cartographer/tools";
-import { pinchOf, pinchViewport, zoomAtPoint, type Pinch, type Viewport } from "@/cartographer/viewport";
+import { pinchOf, pinchViewport, zoomAtPoint, type Pinch, type CanvasViewport } from "@/cartographer/viewport";
 import { resolveKeyAction } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory, type ObjectCategory } from "@/cartographer/packSchema";
@@ -984,7 +984,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const TOUCH_SLOP_PX = 6;
   const touches = new Map<number, { x: number; y: number }>();
   let pendingTouch: { ev: PointerEvent; at: { x: number; y: number }; timer: ReturnType<typeof setTimeout> } | null = null;
-  let pinch: { start: Viewport; from: Pinch } | null = null;
+  let pinch: { start: CanvasViewport; from: Pinch } | null = null;
   /** The touch whose press reached the tool and has not been released yet. */
   let liveToolTouch: PointerEvent | null = null;
 

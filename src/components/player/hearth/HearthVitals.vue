@@ -48,7 +48,7 @@ import { computed, ref } from "vue";
 import HearthSection from "./HearthSection.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
 import PlayerHpControls from "@/components/player/PlayerHpControls.vue";
-import RollToast, { type RollResult } from "@/components/common/feedback/RollToast.vue";
+import RollToast, { type RollToastResult } from "@/components/common/feedback/RollToast.vue";
 import { useMemberVitals } from "@/composables/party/useMemberVitals";
 import type { PartyMember } from "@/types/party.types";
 
@@ -59,7 +59,7 @@ import type { PartyMember } from "@/types/party.types";
  */
 const { member } = defineProps<{ member: PartyMember }>();
 
-const lastRoll = ref<RollResult | null>(null);
+const lastRoll = ref<RollToastResult | null>(null);
 
 const { wildshape, armorClass, initiative, speed, passivePerception, hp } = useMemberVitals(() => member);
 

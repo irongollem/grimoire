@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from "vue";
 
-export interface RollResult {
+export interface RollToastResult {
   label: string;
   dice: number;
   modifier: number;
@@ -37,10 +37,10 @@ export interface RollResult {
   masked?: boolean;
 }
 
-const props = defineProps<{ result: RollResult | null }>();
+const props = defineProps<{ result: RollToastResult | null }>();
 
 const visible = ref(false);
-const current = ref<RollResult | null>(null);
+const current = ref<RollToastResult | null>(null);
 const barKey = ref(0);
 let timer: ReturnType<typeof setTimeout> | null = null;
 

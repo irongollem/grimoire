@@ -10,10 +10,10 @@ import type { ClassFeature } from "@/types/feature.types";
  * choice into one `LevelChoiceRecord` without asking the components anything.
  */
 
-export type AsiMode = "plus2" | "plus1plus1" | "feat";
+export type AsiPickMode = "plus2" | "plus1plus1" | "feat";
 
 export interface AsiPick {
-  mode: AsiMode;
+  mode: AsiPickMode;
   primary: AbilityKey | null;
   secondary: AbilityKey | null;
 }

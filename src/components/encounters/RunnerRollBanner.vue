@@ -20,7 +20,7 @@
 import { computed } from "vue";
 import DiceResult from "@/components/common/dice/DiceResult.vue";
 
-export interface CheckResult {
+export interface RunnerCheckResult {
   total: number;
   label: string;
   modifier: number;
@@ -31,7 +31,7 @@ export interface CheckResult {
 }
 
 const { lastCheck } = defineProps<{
-  lastCheck: CheckResult | null;
+  lastCheck: RunnerCheckResult | null;
 }>();
 
 const rollResultClass = computed(() => {

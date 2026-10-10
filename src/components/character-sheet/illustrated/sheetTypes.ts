@@ -13,7 +13,7 @@ export type SheetPageSize = "A4" | "Letter";
 export type SheetTheme = "default" | "horror" | "fairy" | "adventure" | "sumie";
 
 /** [left%, top%, width%, height%] of the page box. */
-export type Box = [number, number, number, number];
+export type SheetBox = [number, number, number, number];
 
 /** Which value a field renders. The plate already paints the LABEL. */
 export type SectionId =
@@ -30,7 +30,7 @@ export type SectionId =
 
 export interface FieldSpec {
   section: SectionId;
-  box: Box;
+  box: SheetBox;
   /** per-field overrides, e.g. { fontSize: 8, tight: true } for Sumi-e skills,
    *  { cols: 2 } for a 2-column personality block, { lines: 6 } to clamp prose. */
   opts?: { fontSize?: number; tight?: boolean; cols?: number; lines?: number };

@@ -26,6 +26,8 @@ export interface SkillProficiencies {
   survival?: SkillProfLevel;
 }
 
+export type SkillKey = keyof SkillProficiencies;
+
 export const SKILLS: Array<{ key: keyof SkillProficiencies; label: string; ability: SaveKey }> = [
   { key: "acrobatics", label: "Acrobatics", ability: "dex" },
   { key: "animal_handling", label: "Animal Handling", ability: "wis" },

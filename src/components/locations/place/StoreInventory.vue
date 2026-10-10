@@ -240,7 +240,8 @@ import type { ItemIndexEntry } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES, RARITY_PRICE_HINTS } from "@/types/item.types";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
-import { COINS, type CoinKey, parseCoinText } from "@/rules/currency";
+import { COINS, parseCoinText } from "@/rules/currency";
+import type { CoinKey } from "@/types/downtime.types";
 
 const props = defineProps<{ locationId: string; ownerNpcName?: string | null }>();
 

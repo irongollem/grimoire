@@ -110,7 +110,7 @@ export type { TraceTool };
 
 /** A one-field mutable box — see the module docblock for why a CREATE's undo
  *  lineage needs one instead of a plain string. */
-export interface EntityRef {
+export interface PlanEntityHandle {
   id: string;
 }
 
@@ -177,11 +177,11 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
 
   /** Creates a region and pushes its CREATE undo entry. Returns the ref box
    *  future entries in this lineage should close over instead of the id. */
-  async function createRegionTracked(insert: LocationMapRegionInsert): Promise<{ region: LocationMapRegion; handle: EntityRef } | null> {
+  async function createRegionTracked(insert: LocationMapRegionInsert): Promise<{ region: LocationMapRegion; handle: PlanEntityHandle } | null> {
     if (!siteId.value) return null;
     try {
       const created = await createRegion.mutateAsync(insert);
-      const handle: EntityRef = { id: created.id };
+      const handle: PlanEntityHandle = { id: created.id };
       undo.push({
         label: `create ${insert.region_role ?? "space"}`,
         undo: async () => {
@@ -232,7 +232,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
   function commitCells(regionId: string, cells: CellKey[]): void {
     const prior = regionStateNow(regionId);
     localRegionState.set(regionId, { vertices: prior.vertices, cells });
-    const handle: EntityRef = { id: regionId };
+    const handle: PlanEntityHandle = { id: regionId };
     updateRegion.mutate(
       { id: regionId, update: dmEdit({ cells }) },
       {
@@ -269,7 +269,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
   async function commitRing(regionId: string, ring: GridPoint[]): Promise<void> {
     const before = regionStateNow(regionId);
     const after = { vertices: ring, cells: cellsInsideRing(ring) };
-    const handle: EntityRef = { id: regionId };
+    const handle: PlanEntityHandle = { id: regionId };
     localRegionState.set(regionId, after);
     try {
       await updateRegion.mutateAsync({ id: regionId, update: dmEdit(after) });
@@ -297,7 +297,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
   function commitTemplate(regionId: string, ring: GridPoint[], cells: CellKey[]): void {
     const before = regionStateNow(regionId);
     const after = { vertices: ring, cells };
-    const handle: EntityRef = { id: regionId };
+    const handle: PlanEntityHandle = { id: regionId };
     localRegionState.set(regionId, after);
     updateRegion.mutate(
       { id: regionId, update: dmEdit(after) },
@@ -328,7 +328,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
     if (!ok) return false;
     const before = { vertices: region.vertices, cells: region.cells };
     const after = { vertices: null, cells: region.cells };
-    const handle: EntityRef = { id: region.id };
+    const handle: PlanEntityHandle = { id: region.id };
     localRegionState.set(region.id, after);
     try {
       await updateRegion.mutateAsync({ id: region.id, update: dmEdit(after) });
@@ -402,7 +402,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
     };
     createDoor.mutate(insert, {
       onSuccess: (created) => {
-        const handle: EntityRef = { id: created.id };
+        const handle: PlanEntityHandle = { id: created.id };
         undo.push({
           label: "place door",
           undo: async () => { await deleteDoor.mutateAsync(handle.id); },
@@ -418,7 +418,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
   function cycleDoorKind(door: SiteDoorWithSpaces): void {
     const before = door.door_kind;
     const after: DoorKind = before === "arch" ? "door" : "arch";
-    const handle: EntityRef = { id: door.id };
+    const handle: PlanEntityHandle = { id: door.id };
     updateDoor.mutate(
       { id: door.id, update: { door_kind: after } },
       {
@@ -452,7 +452,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
       derived_from: door.derived_from,
       dungeon_feature_id: door.dungeon_feature_id,
     };
-    const handle: EntityRef = { id: door.id };
+    const handle: PlanEntityHandle = { id: door.id };
     deleteDoor.mutate(door.id, {
       onSuccess: () => {
         undo.push({

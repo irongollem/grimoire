@@ -137,7 +137,8 @@
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed, reactive, nextTick } from "vue";
 import { useRoute } from "vue-router";
-import { COINS, type CoinKey } from "@/rules/currency";
+import { COINS } from "@/rules/currency";
+import type { CoinKey } from "@/types/downtime.types";
 import {
   parseWeightLb,
   hasPowerfulBuild,
