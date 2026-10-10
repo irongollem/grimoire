@@ -2,14 +2,14 @@
   <section class="rounded-lg border border-border bg-card p-3" data-testid="disguise-panel">
     <p class="mb-2 text-label font-semibold uppercase text-muted-foreground">In disguise</p>
     <div class="flex items-center gap-3">
-      <div class="relative h-18 w-14 shrink-0 overflow-hidden rounded">
+      <div class="h-18 w-14 shrink-0 overflow-hidden rounded">
         <FocalImage
           :src="npc.disguise_portrait_url"
           :focal-point="npc.disguise_portrait_focal_point"
           format="portrait"
           :placeholder="placeholderUrl('npc')"
+          ai-badge="right"
         />
-        <AiImageBadge :src="npc.disguise_portrait_url" />
       </div>
       <div class="min-w-0">
         <p class="truncate text-heading-sm font-bold text-foreground">{{ npc.disguise_name ?? "Unnamed cover" }}</p>
@@ -29,7 +29,6 @@
 <script setup lang="ts">
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { NpcListRow } from "@/types/npc.types";
 

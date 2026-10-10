@@ -25,7 +25,7 @@ function spell(overrides: Partial<Spell> = {}): Spell {
   } as unknown as Spell;
 }
 
-const stubs = { FocalImage: true, AiImageBadge: true, RouterLink: true };
+const stubs = { FocalImage: true, RouterLink: true };
 const slots = { "dm-note": '<p data-testid="dm-note">note</p>' };
 
 describe("SpellSheet", () => {

@@ -34,7 +34,6 @@ function panel(over: Record<string, unknown>) {
     global: {
       plugins: [queryPlugin()],
       stubs: {
-        FocalImage: true,
         PlayerSiteMap: true,
         LocationMap: true,
         PlayerStoreWares: true,

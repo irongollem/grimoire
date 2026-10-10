@@ -14,6 +14,7 @@
           :focal-point="displayFocalPoint"
           class="group-hover:scale-105 transition-transform duration-300"
           :class="npc.status === 'dead' && 'grayscale opacity-70'"
+          ai-badge="left"
         />
         <img
           v-else-if="!npc.player_visible_fields.includes('portrait') && displayPortrait"
@@ -24,13 +25,6 @@
         <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
           <IconUser class="h-10 w-10" />
         </div>
-        <!-- Only when a real portrait is on show: the mystery figure is a static asset. The
-             mini button owns the bottom-right corner, so the chip takes the left. -->
-        <AiImageBadge
-          v-if="npc.player_visible_fields.includes('portrait') && displayPortrait"
-          corner="left"
-          :src="displayPortrait"
-        />
         <EntityNewDot :is-new="isNew ?? false" class="absolute top-1.5 left-1.5 z-10" />
         <!-- Relationship always shown — "unknown" is a valid soft-hidden state. The same chip as
              the DM grid's badge, so vellum turns it into the same paper label. -->
@@ -73,7 +67,6 @@ import { computed } from "vue";
 import { IconCompassRose, IconUser } from '@/lib/icons';
 import { artUrl } from "@/lib/assets/artUrl";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import NpcRatingStars from "@/components/play/NpcRatingStars.vue";

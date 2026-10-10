@@ -52,18 +52,20 @@
           >Click to set focus</span
         >
       </div>
-      <AiImageBadge :src="src" />
     </div>
 
-    <!-- Clear button -->
-    <button
-      v-if="focalPoint && clearable"
-      type="button"
-      class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
-      @click="focalPoint = null"
-    >
-      ✕ Clear (use smartcrop)
-    </button>
+    <!-- Beside the controls, not over the picture: a chip on the image would sit in the click target. -->
+    <div class="flex items-center gap-2">
+      <button
+        v-if="focalPoint && clearable"
+        type="button"
+        class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
+        @click="focalPoint = null"
+      >
+        ✕ Clear (use smartcrop)
+      </button>
+      <AiImageBadge inline :src="src" class="ml-auto" />
+    </div>
   </div>
 </template>
 

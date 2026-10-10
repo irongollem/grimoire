@@ -14,7 +14,7 @@
           <!-- Art: mundane art when unidentified (if present), else identified art -->
           <div
             v-if="displayImageUrl"
-            class="relative self-start overflow-hidden rounded-lg border border-border md:row-span-2"
+            class="self-start overflow-hidden rounded-lg border border-border md:row-span-2"
             style="aspect-ratio: 2/3"
           >
             <FocalImage
@@ -24,8 +24,8 @@
               format="portrait"
               lightbox
               class="h-full"
+              ai-badge="right"
             />
-            <AiImageBadge :src="displayImageUrl" />
           </div>
 
           <!-- What it is, in one line -->
@@ -385,7 +385,6 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import ItemStatBlock from "@/components/inventory/ItemStatBlock.vue";

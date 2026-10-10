@@ -15,7 +15,7 @@
     <!-- Identity: image + name / type / CR / tags -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="p-4 flex gap-4">
-        <div class="relative shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
+        <div class="shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
           <FocalImage
             :src="trap.image_url"
             :alt="trap.name"
@@ -24,8 +24,8 @@
             :lightbox="true"
             :placeholder="placeholderUrl('trap')"
             class="w-full h-full"
+            ai-badge="right"
           />
-          <AiImageBadge :src="trap.image_url" />
         </div>
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="text-heading-lg font-bold text-foreground leading-tight">{{ trap.name }}</h1>
@@ -163,7 +163,6 @@ import { useDeleteTrap } from "@/composables/dungeon-features/useTraps";
 import { CR_XP } from "@/types/encounter.types";
 import type { Trap } from "@/types/trap.types";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityPlacements from "@/components/locations/EntityPlacements.vue";

@@ -2,7 +2,7 @@
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="flex gap-0">
       <!-- Portrait -->
-      <div class="relative shrink-0 w-40 sm:w-52 self-stretch">
+      <div class="shrink-0 w-40 sm:w-52 self-stretch">
         <FocalImage
           :src="puzzle.image_url"
           :alt="puzzle.name"
@@ -10,8 +10,8 @@
           :focal-point="puzzle.image_focal_point"
           :placeholder="placeholderUrl('enigma')"
           class="h-full"
+          ai-badge="right"
         />
-        <AiImageBadge :src="puzzle.image_url" />
       </div>
 
       <!-- Title + meta -->
@@ -54,7 +54,6 @@
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import type { PuzzleRoom } from "@/types/puzzle.types";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { puzzle } = defineProps<{ puzzle: PuzzleRoom }>();

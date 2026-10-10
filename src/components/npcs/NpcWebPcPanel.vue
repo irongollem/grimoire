@@ -1,14 +1,14 @@
 <template>
   <!-- Portrait -->
-  <div v-if="pc.portrait_url" class="relative w-full h-36 shrink-0 bg-muted overflow-hidden">
+  <div v-if="pc.portrait_url" class="w-full h-36 shrink-0 bg-muted overflow-hidden">
     <FocalImage
       :src="pc.portrait_url"
       :focal-point="pc.portrait_focal_point ?? undefined"
       :alt="pc.name"
       format="square"
       class="w-full h-full"
+      ai-badge="right"
     />
-    <AiImageBadge :src="pc.portrait_url" />
   </div>
 
   <div class="p-4 space-y-3">
@@ -43,7 +43,6 @@
 import { IconClose, IconShield } from '@/lib/icons';
 import AppButton from '@/components/common/AppButton.vue';
 import FocalImage from '@/components/common/FocalImage.vue';
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 
 interface PcPanelData {
   id: string;

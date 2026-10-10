@@ -7,6 +7,7 @@
       format === 'token' && 'rounded-full overflow-hidden',
       format === 'square' && 'overflow-hidden',
       isZoomed(zoom) && 'relative overflow-hidden',
+      aiBadge && !isPositioned && 'relative',
       lightbox && src && (lightboxPending ? 'cursor-progress' : 'cursor-zoom-in'),
     ]"
     @click="handleImageClick"
@@ -37,6 +38,7 @@
       loading="lazy"
       @load="onPlaceholderLoad"
     />
+    <AiImageBadge v-if="aiBadge && src" :src="src" :corner="aiBadge" :class="aiBadgeClass" />
   </div>
   <ImageLightbox
     v-if="lightbox"
@@ -49,10 +51,11 @@
 
 <script setup lang="ts">
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
-import { ref, computed, watch, onBeforeUnmount, type CSSProperties } from "vue";
+import { ref, computed, watch, onBeforeUnmount, useAttrs, type CSSProperties } from "vue";
 import smartcrop from "smartcrop";
 import { backfillVariants, type VariantWidth } from "@/lib/storage";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import type { ModalOrigin } from "@/lib/modalOrigin";
 import { focalZoomFrame, isZoomed, type FocalZoomFrame } from "@/lib/focalZoom";
 import { initPlaceholderFocalPoints, getPlaceholderFocalPoint } from "@/lib/placeholderFocalPoints";
@@ -84,7 +87,7 @@ const FORMAT_DEFAULTS: Record<ImageFormat, string> = {
 const CACHE_PREFIX = "focal_v3:";
 
 // Vue 3.5 destructured defaults; the rest stays a reactive `props` for every other read.
-const { zoom = 1, zoomAnchorY = 0.5, ...props } = defineProps<{
+const { zoom = 1, zoomAnchorY = 0.5, aiBadgeClass, ...props } = defineProps<{
   src?: string | null;
   alt?: string;
   format: ImageFormat;
@@ -104,7 +107,19 @@ const { zoom = 1, zoomAnchorY = 0.5, ...props } = defineProps<{
   zoom?: number;
   /** Where the zoomed focal point lands, as a fraction (0..1) of the container height. */
   zoomAnchorY?: number;
+  /** Shows the "AI" chip over the image (when it has a provenance record), in this bottom
+   *  corner. Absent = no chip. The chip lives inside the root, so the root becomes `relative`
+   *  and any clamp (`max-h-* overflow-hidden`) stays on the same element that detects clipping. */
+  aiBadge?: "left" | "right";
+  /** Extra classes for the chip, to lift it over a footer strip (e.g. `bottom-9!`). */
+  aiBadgeClass?: string;
 }>();
+
+// The chip needs a positioned root. A caller that already positions the root itself
+// (`absolute inset-0` as the mobile hero does) keeps its own; adding `relative` beside
+// it would fight it in the stylesheet and un-position the image.
+const attrs = useAttrs();
+const isPositioned = computed(() => /\b(absolute|fixed|sticky|relative)\b/.test(String(attrs.class ?? "")));
 
 const FORMAT_RENDER_WIDTHS: Record<ImageFormat, VariantWidth> = {
   portrait: 400,

@@ -10,7 +10,7 @@ import type { PartyMember } from "@/types/party.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import { fieldsForKind } from "./fields";
 import { findPageForLink, resolveArchiveLinks } from "./links";
-import { ArchiveReadError, MAX_ARCHIVE_PAGES, readArchive } from "./readArchive";
+import { ArchiveReadError, MAX_ARCHIVE_BYTES, MAX_ARCHIVE_PAGES, readArchive } from "./readArchive";
 
 const zip = (files: Record<string, string>, name = "export.zip") => ({
   name,
@@ -224,13 +224,30 @@ describe("limits", () => {
   });
 
   it("refuses an archive that unpacks past the size guard, before inflating it", () => {
-    const big = "a".repeat(1024 * 1024);
-    const files: Record<string, string> = {};
-    for (let i = 0; i < 101; i++) files[`p${i}.md`] = big;
-    expect(() => readArchive([zip(files)])).toThrowError(expect.objectContaining({ code: "too_large" }));
+    // A tiny zip whose entries claim to unpack past the guard. Building the real
+    // 101 MB took long enough to time out under a full parallel run, and a
+    // claim with nothing behind it also proves the guard fires on the declared
+    // sizes alone, before anything is inflated.
+    const archive = zip({ "a.md": "a", "b.md": "b" });
+    claimUncompressedSize(archive.bytes, MAX_ARCHIVE_BYTES / 2 + 1);
+    expect(() => readArchive([archive])).toThrowError(expect.objectContaining({ code: "too_large" }));
   });
 
   it("reports a corrupt zip clearly", () => {
     expect(() => readArchive([{ name: "x.zip", bytes: strToU8("not a zip") }])).toThrowError(expect.objectContaining({ code: "unreadable_zip" }));
   });
 });
+
+/**
+ * Rewrites every entry's uncompressed size, in its local header and in the
+ * central directory, so the archive claims `size` bytes per entry without
+ * holding them. Offsets from the zip specification (APPNOTE 4.3.7 and 4.3.12).
+ */
+function claimUncompressedSize(bytes: Uint8Array, size: number): void {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  for (let i = 0; i + 4 <= bytes.byteLength; i++) {
+    const signature = view.getUint32(i, true);
+    if (signature === 0x04034b50) view.setUint32(i + 22, size, true);
+    else if (signature === 0x02014b50) view.setUint32(i + 24, size, true);
+  }
+}

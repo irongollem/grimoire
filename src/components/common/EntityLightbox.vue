@@ -15,8 +15,8 @@
               :focal-point="focalPoint ?? null"
               :placeholder="placeholder"
               class="w-full h-full object-cover"
+              ai-badge="right"
             />
-            <AiImageBadge :src="portraitSrc" />
           </div>
           <button
             type="button"
@@ -39,7 +39,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { IconClose } from "@/lib/icons";
 
 type FocalPoint = { x: number; y: number } | null | undefined;

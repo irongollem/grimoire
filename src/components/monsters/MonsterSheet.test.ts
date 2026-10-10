@@ -41,7 +41,7 @@ function monster(overrides: Partial<Monster>): Monster {
   } as Monster;
 }
 
-const stubs = { RouterLink: true, FocalImage: true, AiImageBadge: true, StatBlockPanel: true, TraitList: true, SpellcastingList: true, RichTextViewer: { props: ["content"], template: "<p class='rt'>{{ content }}</p>" } };
+const stubs = { RouterLink: true, FocalImage: true, StatBlockPanel: true, TraitList: true, SpellcastingList: true, RichTextViewer: { props: ["content"], template: "<p class='rt'>{{ content }}</p>" } };
 
 describe("MonsterSheet description", () => {
   it("shows a library creature's lore from its own read, not from the row", () => {

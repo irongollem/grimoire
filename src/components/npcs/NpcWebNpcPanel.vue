@@ -1,14 +1,14 @@
 <template>
   <!-- Portrait -->
-  <div v-if="npc.portrait_url" class="relative w-full h-36 shrink-0 bg-muted overflow-hidden">
+  <div v-if="npc.portrait_url" class="w-full h-36 shrink-0 bg-muted overflow-hidden">
     <FocalImage
       :src="npc.portrait_url"
       :focal-point="npc.portrait_focal_point ?? undefined"
       :alt="npc.name"
       format="square"
       class="w-full h-full"
+      ai-badge="right"
     />
-    <AiImageBadge :src="npc.portrait_url" />
   </div>
 
   <div class="p-4 space-y-3">
@@ -91,7 +91,6 @@ import { npcRelationshipBg, npcRelationshipText } from "@/lib/npcDisplay";
 import { IconClose, IconEdit, IconInfo } from '@/lib/icons';
 import AppButton from '@/components/common/AppButton.vue';
 import FocalImage from '@/components/common/FocalImage.vue';
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import {
   type NpcRelationship,
   type NpcRelationshipType,

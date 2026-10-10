@@ -90,7 +90,7 @@ describe("MonsterFormCard", () => {
     registered.add("https://cdn.test/grell.webp");
     const w = mount(MonsterFormCard, {
       props: { monster: monster(null), name: "Grell", imageUrl: "https://cdn.test/grell.webp" },
-      global: { plugins: [queryPlugin()], stubs: { FocalImage: true } },
+      global: { plugins: [queryPlugin()], stubs: {} },
     });
     await flushPromises();
     expect(w.text()).toContain("AI");
@@ -101,7 +101,7 @@ describe("MonsterFormCard", () => {
     const row = { ...monster(null), ai_provenance: buildAiProvenance("monster_generation", "openai", "gpt-image") };
     const w = mount(MonsterFormCard, {
       props: { monster: row, name: "Grell", imageUrl: "https://cdn.test/grell.webp" },
-      global: { plugins: [queryPlugin()], stubs: { FocalImage: true } },
+      global: { plugins: [queryPlugin()], stubs: {} },
     });
     await flushPromises();
     expect(w.text()).not.toContain("AI");

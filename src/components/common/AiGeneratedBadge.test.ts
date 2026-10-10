@@ -15,6 +15,13 @@ describe("AiGeneratedBadge", () => {
     expect(w.find("span").attributes("title")).toContain("Provider: meshy");
   });
 
+  it("renders the inline variant in the flow, not as an overlay", () => {
+    const w = mountBadge({ variant: "inline", provenance: { provider: "openai" } });
+    expect(w.text()).toContain("AI");
+    expect(w.find("span").classes()).not.toContain("absolute");
+    expect(w.find("span").attributes("title")).toContain("Provider: openai");
+  });
+
   it("keeps the line variant on a held record", () => {
     const w = mountBadge({ variant: "line", provenance: { edited: true } });
     expect(w.text()).toContain("AI-assisted, edited by the DM");

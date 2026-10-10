@@ -1,15 +1,10 @@
 <template>
   <div class="detail-scroll">
-    <div v-if="combatant.wildshape?.beast_image_url ?? combatant.portrait_url" class="relative">
-      <FocalImage
-        :src="(combatant.wildshape?.beast_image_url ?? combatant.portrait_url)!"
-        :alt="combatant.name"
-        :focal-point="combatant.wildshape?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
-        format="portrait"
-        class="detail-portrait"
-      />
-      <AiImageBadge :src="combatant.wildshape?.beast_image_url ?? combatant.portrait_url" />
-    </div>
+    <RunnerPortrait
+      :src="combatant.wildshape?.beast_image_url ?? combatant.portrait_url"
+      :alt="combatant.name"
+      :focal-point="combatant.wildshape?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
+    />
     <p class="detail-meta">
       {{ monster.size }} {{ monster.monster_type
       }}<span v-if="monster.alignment"> · {{ monster.alignment }}</span>
@@ -75,8 +70,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
+import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import type { SaveEntry } from "@/rules/characterChecks";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
@@ -160,10 +154,6 @@ const actionSections = computed(() => {
   @apply flex-1 overflow-y-auto p-3 flex flex-col gap-2;
 }
 
-.detail-portrait {
-  @apply w-full rounded-md object-cover mb-1 overflow-hidden;
-  max-height: 12.5rem;
-}
 
 .detail-meta {
   @apply text-caption text-muted-foreground italic capitalize;

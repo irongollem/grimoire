@@ -89,6 +89,8 @@ function makeSpell(overrides: Partial<SpellBrowseRow> = {}): SpellBrowseRow {
 
 beforeEach(() => setActivePinia(createPinia()));
 
+// EntityGridCard draws the AI chip itself (it reads provenance through TanStack Query,
+// which these tests mount without).
 const globalStubs = { stubs: { RouterLink: RouterLinkStub, AiImageBadge: true } };
 
 // VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so

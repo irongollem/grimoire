@@ -94,7 +94,7 @@
 
     <!-- On the untransformed frame so it stays put under pan/zoom; left because the zoom controls hold bottom-right.
          Keyed to the Picture (scan or AI render) — the Drawing is the DM's own bake. -->
-    <AiImageBadge v-if="siteMapLayers.picture" :src="stack.picture?.url" corner="left" />
+    <AiImageBadge v-if="siteMapLayers.picture && !imageFailed" :src="stack.picture?.url" corner="left" />
 
     <!-- Zoom controls overlay (always-reachable; keyboard-accessible) -->
     <div class="absolute bottom-2 right-2 z-30 flex flex-col gap-1">

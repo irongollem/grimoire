@@ -53,8 +53,8 @@
               :focal-point="puzzle.image_focal_point"
               :placeholder="placeholderUrl('enigma')"
               class="group-hover:scale-105 transition-transform duration-300"
+              ai-badge="left"
             />
-            <AiImageBadge :src="puzzle.image_url" corner="left" />
             <span
               class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
               :class="PUZZLE_TYPE_BG[puzzle.puzzle_type]"
@@ -94,7 +94,6 @@ import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG
 import type { PuzzleRoom } from "@/types/puzzle.types";
 import { useUiStore } from "@/stores/ui";
 import FocalImage from "@/components/common/FocalImage.vue";
-import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";

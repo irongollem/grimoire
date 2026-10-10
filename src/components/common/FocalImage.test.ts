@@ -90,3 +90,49 @@ describe("FocalImage placeholder in a frame shorter than the image", () => {
     wrapper.unmount();
   });
 });
+
+describe("FocalImage AI badge", () => {
+  const stubs = { AiImageBadge: { props: ["src", "corner"], template: '<i class="ai-chip" :data-corner="corner" />' } };
+
+  it("renders no chip unless asked", () => {
+    const wrapper = mount(FocalImage, {
+      props: { format: "portrait", src: "https://cdn.example.com/a.webp", print: true },
+      global: { stubs },
+    });
+    expect(wrapper.find(".ai-chip").exists()).toBe(false);
+    expect(wrapper.get("div").classes()).not.toContain("relative");
+  });
+
+  it("puts the chip inside the root, in the requested corner", () => {
+    const wrapper = mount(FocalImage, {
+      props: { format: "portrait", src: "https://cdn.example.com/a.webp", print: true, aiBadge: "left" },
+      global: { stubs },
+    });
+    const chip = wrapper.get(".ai-chip");
+    expect(chip.attributes("data-corner")).toBe("left");
+    expect(wrapper.get("div").element.contains(chip.element)).toBe(true);
+    expect(wrapper.get("div").classes()).toContain("relative");
+  });
+
+  // The clamp must stay on the root: FocalImage detects "clipped" from its own root's
+  // height, so a wrapper carrying `max-h-* overflow-hidden` made it ignore the focal point.
+  it("keeps a caller's clamp classes on the root element, which stays the clipping frame", () => {
+    const wrapper = mount(FocalImage, {
+      props: { format: "portrait", src: "https://cdn.example.com/a.webp", print: true, aiBadge: "right" },
+      attrs: { class: "w-full rounded-lg overflow-hidden max-h-112" },
+      global: { stubs },
+    });
+    expect(wrapper.get("div").classes()).toEqual(expect.arrayContaining(["max-h-112", "overflow-hidden", "relative"]));
+    expect(wrapper.get("img").element.parentElement).toBe(wrapper.get("div").element);
+  });
+
+  it("does not add relative beside a caller that already positions the root", () => {
+    const wrapper = mount(FocalImage, {
+      props: { format: "portrait", src: "https://cdn.example.com/a.webp", print: true, aiBadge: "right" },
+      attrs: { class: "absolute inset-0" },
+      global: { stubs },
+    });
+    expect(wrapper.get("div").classes()).not.toContain("relative");
+    expect(wrapper.get("div").classes()).toContain("absolute");
+  });
+});
