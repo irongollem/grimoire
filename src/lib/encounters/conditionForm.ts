@@ -1,3 +1,4 @@
+import { CONDITIONS, EXHAUSTION } from "@/rules/conditions";
 import type { AppliedCondition, ConditionEnds, OngoingDamage, TurnEdge } from "@/types/condition.types";
 import { DAMAGE_TYPES } from "@/types/damage.types";
 import type { SaveAbility } from "@/types/statBlock.types";
@@ -71,10 +72,22 @@ function ongoingFromForm(f: ConditionForm): OngoingDamage | undefined {
   return { dice, type, at: f.ongoingAt };
 }
 
+/**
+ * A typed name that is one of the game's conditions takes its canonical
+ * spelling: every rule matches by exact name, so a custom "prone" would grant
+ * no advantage and sit beside a real "Prone" as a second record.
+ */
+function canonicalName(typed: string): string {
+  const name = typed.trim();
+  return CONDITIONS.find((c) => c.toLowerCase() === name.toLowerCase()) ?? name;
+}
+
 /** The record a form describes. Optional parts are left out, not set to empty values. */
 export function buildCondition(f: ConditionForm): AppliedCondition {
-  const record: AppliedCondition = { name: f.name.trim() };
-  if (f.level !== undefined) record.level = f.level;
+  const record: AppliedCondition = { name: canonicalName(f.name) };
+  // Exhaustion is read by its level; a record without one would count as level 0 and never show.
+  const level = record.name === EXHAUSTION ? (f.level ?? 1) : f.level;
+  if (level !== undefined) record.level = level;
   if (f.sourceId) {
     const spell = f.spell.trim();
     record.source = {

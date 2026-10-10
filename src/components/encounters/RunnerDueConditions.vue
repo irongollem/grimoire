@@ -88,6 +88,7 @@ import { useConcentration } from "@/composables/party/useConcentration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { heldConcentrationSpells } from "@/lib/encounters/conditionSources";
 import { concentrationDc } from "@/rules/combat/concentration";
+import type { ConditionEndReason } from "@/rules/conditionDurations";
 import { describeOngoing } from "@/rules/conditionLabels";
 import { applyDamage as applyToPools, formHpPools } from "@/rules/hitPoints";
 import { useEncounterRunStore } from "@/stores/encounterRun";
@@ -106,7 +107,7 @@ type DueItem = {
   condition: AppliedCondition;
   what: "save" | "damage";
 };
-type Ended = { instanceId: string; name: string; reason: "expired" | "saved" | "concentration" | "source_down" | "source_removed" };
+type Ended = { instanceId: string; name: string; reason: ConditionEndReason };
 
 const store = useEncounterRunStore();
 const { data: companions } = useCompanions();

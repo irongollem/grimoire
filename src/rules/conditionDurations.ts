@@ -2,6 +2,7 @@ import type { AppliedCondition, TurnEdge } from "@/types/condition.types";
 import type { DamageType } from "@/types/damage.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { SaveAbility } from "@/types/statBlock.types";
+import { takesTurns } from "@/rules/encounterCombatLogic";
 
 /**
  * Condition durations at the turn edges (#1018), as pure functions over a list
@@ -31,7 +32,13 @@ export interface ConditionPassResult {
   changed: string[];
 }
 
-/** The combatant whose turn a duration counts on, for a bearer `bearer` and a condition `c`. */
+/**
+ * The combatant whose turn a duration counts on, for a bearer `bearer` and a
+ * condition `c`. `ids` holds only combatants that still get turns: a source
+ * that is out of the fight or down (a monster at 0 HP is skipped) has no turn
+ * left to count on, so the duration falls back to the bearer's turns rather
+ * than lasting forever.
+ */
 function anchorOf(c: AppliedCondition, bearer: RunCombatant, ids: ReadonlySet<string>): string {
   const sourceId = c.source?.id;
   const sourceHere = sourceId !== undefined && ids.has(sourceId);
@@ -74,7 +81,7 @@ export function conditionsAtTurnEdge(
   edge: TurnEdge,
   instanceId: string,
 ): ConditionPassResult {
-  const ids = new Set(combatants.map((c) => c.instance_id));
+  const ids = new Set(combatants.filter(takesTurns).map((c) => c.instance_id));
   return applyRewrites(combatants, (b, events) => {
     let changed = false;
     const out: AppliedCondition[] = [];

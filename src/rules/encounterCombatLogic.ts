@@ -42,10 +42,15 @@ export function rollAllInitiativeValues(
 
 // ── Turn order ───────────────────────────────────────────────────────────────
 
-/** Index (into a sorted list) of the first combatant able to act this round —
- *  alive monsters, or any player (down players still get a turn for death saves). */
+/** Whether a combatant gets turns: alive monsters, or any player (down players
+ *  still get a turn for death saves). A downed monster's turns are skipped. */
+export function takesTurns(c: AliveCombatant): boolean {
+  return c.hp > 0 || c.type === "player";
+}
+
+/** Index (into a sorted list) of the first combatant able to act this round (`takesTurns`). */
 export function findFirstActiveIndex(sorted: readonly AliveCombatant[]): number {
-  const firstAlive = sorted.findIndex((c) => c.hp > 0 || c.type === "player");
+  const firstAlive = sorted.findIndex(takesTurns);
   return firstAlive >= 0 ? firstAlive : 0;
 }
 
@@ -59,7 +64,7 @@ export function stepTurnIndex(
   currentIndex: number,
   direction: 1 | -1,
 ): { sortedIndex: number; wrapped: boolean } | null {
-  const aliveSorted = sorted.filter((c) => c.hp > 0 || c.type === "player");
+  const aliveSorted = sorted.filter(takesTurns);
   if (!aliveSorted.length) return null;
 
   const currentId = sorted[currentIndex]?.instance_id;

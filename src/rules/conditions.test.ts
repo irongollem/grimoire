@@ -18,7 +18,6 @@ import {
   conditionNames,
   withCondition,
   withoutCondition,
-  toggleCondition,
   sameConditions,
   MAX_EXHAUSTION,
 } from "@/rules/conditions";
@@ -227,14 +226,6 @@ describe("condition record helpers", () => {
 
   it("withoutCondition drops by name", () => {
     expect(withoutCondition([{ name: "Prone" }, { name: "Blinded" }], "Prone")).toEqual([
-      { name: "Blinded" },
-    ]);
-  });
-
-  it("toggleCondition removes when present, appends a bare record when absent", () => {
-    expect(toggleCondition([{ name: "Prone" }], "Prone")).toEqual([]);
-    expect(toggleCondition([{ name: "Prone" }], "Blinded")).toEqual([
-      { name: "Prone" },
       { name: "Blinded" },
     ]);
   });

@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconClose, IconLightning } from "@/lib/icons";
 import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
@@ -120,6 +120,12 @@ const {
 /** The condition being edited (by name), or a new one (name null), and what the popover hangs from. */
 const editor = ref<{ name: string | null; anchor: Element | null } | null>(null);
 const editing = computed(() => (editor.value?.name ? (findCondition(displayConditions.value, editor.value.name) ?? null) : null));
+
+// The condition under edit ended (a turn edge, a save, another tab): close the
+// editor rather than let it fall back to "new condition" and re-add it on Save.
+watch(editing, (now) => {
+  if (now === null && editor.value?.name) editor.value = null;
+});
 
 const others = computed(() =>
   store.sortedCombatants.filter((c) => c.instance_id !== combatant.instance_id).map((c) => ({ id: c.instance_id, name: c.name })),

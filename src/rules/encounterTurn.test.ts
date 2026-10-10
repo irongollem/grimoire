@@ -277,6 +277,26 @@ describe("conditions, flags and pools", () => {
     expect(find(state, "m").conditions).toEqual([{ name: "Dazed", ends: { kind: "turn", at: "end", of: "self", armed: false } }]);
   });
 
+  it("an edit keeps an owed roll and an armed end that still apply", () => {
+    const held: AppliedCondition = {
+      name: "Held",
+      ends: { kind: "save", ability: "wis", dc: 14, at: "end" },
+      ongoing: { dice: "1d6", type: "fire", at: "start" },
+      due: { save: true, damage: true },
+    };
+    const dazed: AppliedCondition = { name: "Dazed", ends: { kind: "turn", at: "end", of: "self", armed: true } };
+    const s = stateOf([combatant("m", { conditions: [held, dazed] })]);
+    const { due: _due, ...heldUnflagged } = held;
+    const edited = run(s, { type: "apply_condition", instanceId: "m", condition: { ...heldUnflagged, source: { id: "x", spell: "Hold" } } });
+    expect(find(edited.state, "m").conditions[0]).toMatchObject({ due: { save: true, damage: true } });
+    const noLongerSave = run(s, { type: "apply_condition", instanceId: "m", condition: { name: "Held", ongoing: held.ongoing } });
+    expect(find(noLongerSave.state, "m").conditions[0]).toEqual({ name: "Held", ongoing: held.ongoing, due: { damage: true } });
+    const rearmed = run(s, { type: "apply_condition", instanceId: "m", condition: { name: "Dazed", ends: { kind: "turn", at: "end", of: "self" } } });
+    expect(find(rearmed.state, "m").conditions[1]).toMatchObject({ ends: { armed: true } });
+    const moved = run(s, { type: "apply_condition", instanceId: "m", condition: { name: "Dazed", ends: { kind: "turn", at: "start", of: "self" } } });
+    expect(find(moved.state, "m").conditions[1]).toMatchObject({ ends: { armed: false } });
+  });
+
   it("toggles surprise and reaction", () => {
     const s = stateOf([combatant("m")]);
     expect(find(run(s, { type: "toggle_surprised", instanceId: "m" }).state, "m").surprised).toBe(true);

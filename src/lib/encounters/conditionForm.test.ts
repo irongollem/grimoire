@@ -7,6 +7,11 @@ describe("conditionForm", () => {
     expect(buildCondition({ ...conditionToForm(null), name: " Cursed " })).toEqual({ name: "Cursed" });
   });
 
+  it("spells a typed game condition the canonical way, and gives a typed Exhaustion a level", () => {
+    expect(buildCondition({ ...conditionToForm(null), name: "prone" })).toEqual({ name: "Prone" });
+    expect(buildCondition({ ...conditionToForm(null), name: "exhaustion" })).toEqual({ name: "Exhaustion", level: 1 });
+  });
+
   it("round-trips a full record", () => {
     const full: AppliedCondition = {
       name: "Paralyzed",

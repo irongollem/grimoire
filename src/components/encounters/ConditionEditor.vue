@@ -10,7 +10,7 @@
         role="dialog"
         :aria-label="isNew ? 'New condition' : `Edit ${condition?.name}`"
         @click.stop
-        @keydown.enter.prevent="submit"
+        @keydown.enter="onEnter"
       >
         <header class="cond-editor-head">
           <AppInput
@@ -238,6 +238,13 @@ const canSave = computed(() => {
 function submit() {
   if (!open || !canSave.value) return;
   emit("save", buildCondition(form.value));
+}
+
+/** Enter in a text field saves; on a button or a select it keeps its own meaning (Cancel, Remove, open the list). */
+function onEnter(event: KeyboardEvent) {
+  if (!(event.target instanceof HTMLInputElement)) return;
+  event.preventDefault();
+  submit();
 }
 </script>
 

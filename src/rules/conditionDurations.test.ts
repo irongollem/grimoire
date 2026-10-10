@@ -60,6 +60,8 @@ describe("conditionsAtTurnEdge: turn ends", () => {
     expect(conds(conditionsAtTurnEdge(withSource, "start", "s"), "t")).toEqual([]);
     const orphan = [who("t", [marked])];
     expect(conds(conditionsAtTurnEdge(orphan, "start", "t"), "t")).toEqual([]);
+    const downed = [{ ...who("s"), hp: 0 }, who("t", [marked])];
+    expect(conds(conditionsAtTurnEdge(downed, "start", "t"), "t")).toEqual([]);
   });
 });
 
@@ -82,6 +84,11 @@ describe("conditionsAtTurnEdge: rounds", () => {
 
   it("falls back to the bearer's turns without the source", () => {
     const r = conditionsAtTurnEdge([who("t", [rounds(2)])], "start", "t");
+    expect(conds(r, "t")).toEqual([rounds(1)]);
+  });
+
+  it("falls back to the bearer's turns when the source is a downed monster, whose turns are skipped", () => {
+    const r = conditionsAtTurnEdge([{ ...who("s"), hp: 0 }, who("t", [rounds(2)])], "start", "t");
     expect(conds(r, "t")).toEqual([rounds(1)]);
   });
 });

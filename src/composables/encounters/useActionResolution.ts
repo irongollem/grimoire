@@ -304,10 +304,6 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
     return amounts;
   }
 
-  function concentrates(c: RunCombatant): boolean {
-    return !!live(c).concentration;
-  }
-
   /**
    * Run damage through the target's defenses and take it off its HP. A
    * concentrating target gets the Constitution save DC to offer, but only when
@@ -334,7 +330,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
       total: result.total,
       notes: result.notes,
       dying,
-      concentrationDc: concentrates(target) && result.total > 0 ? concentrationDc(result.total, ruleset.value) : null,
+      concentrationDc: live(target).concentration && result.total > 0 ? concentrationDc(result.total, ruleset.value) : null,
     };
   }
 

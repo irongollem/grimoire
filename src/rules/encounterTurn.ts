@@ -61,7 +61,7 @@ export type EncounterTurnCommand =
   | { type: "set_hp"; instanceId: string; value: number }
   | { type: "set_max_hp"; instanceId: string; value: number }
   | { type: "set_temp_hp"; instanceId: string; value: number }
-  /** A freshly applied condition owes nothing yet: `armed` and `due` are dropped. */
+  /** A freshly applied condition owes nothing yet: `armed` and `due` are dropped. An edit keeps what still applies (`settledRecord`). */
   | { type: "apply_condition"; instanceId: string; condition: AppliedCondition }
   | { type: "remove_condition"; instanceId: string; name: string }
   /** Replaces the whole list (exhaustion levels). */
@@ -443,6 +443,25 @@ function setMaxHp(c: RunCombatant, value: number, events: EncounterTurnEvent[]) 
   events.push({ type: "check_events", reason: "hp" });
 }
 
+/**
+ * The record `apply_condition` stores. A fresh condition owes nothing and is
+ * not armed. An edit of one the creature already has keeps what the turn hooks
+ * set on it, as far as it still applies: a roll owed under the same rule stays
+ * owed, and an end-of-turn condition already armed for the same anchor stays
+ * armed, so tidying a record mid-turn neither forgives a save nor buys a turn.
+ */
+function settledRecord(incoming: AppliedCondition, previous: AppliedCondition | undefined): AppliedCondition {
+  const { due: _due, ...fresh } = incoming;
+  const ends = fresh.ends;
+  const prevEnds = previous?.ends;
+  const keepArmed =
+    ends?.kind === "turn" && prevEnds?.kind === "turn" && prevEnds.armed === true && prevEnds.at === ends.at && prevEnds.of === ends.of;
+  const record: AppliedCondition = ends?.kind === "turn" ? { ...fresh, ends: { ...ends, armed: keepArmed } } : fresh;
+  const save = previous?.due?.save === true && ends?.kind === "save";
+  const damage = previous?.due?.damage === true && fresh.ongoing !== undefined;
+  return save || damage ? { ...record, due: { ...(save && { save: true }), ...(damage && { damage: true }) } } : record;
+}
+
 /** Drops one debt from a condition, and the `due` key once it owes nothing. */
 function clearDue(c: AppliedCondition, key: "save" | "damage"): AppliedCondition {
   const { due, ...rest } = c;
@@ -571,10 +590,8 @@ export function reduceEncounterTurn(
       }));
     case "apply_condition":
       return done(editCombatant(state, command.instanceId, (c) => {
-        const { due: _due, ...fresh } = command.condition;
-        const record: AppliedCondition =
-          fresh.ends?.kind === "turn" ? { ...fresh, ends: { ...fresh.ends, armed: false } } : fresh;
-        c.conditions = withCondition(c.conditions, record);
+        const previous = c.conditions.find((x) => x.name === command.condition.name);
+        c.conditions = withCondition(c.conditions, settledRecord(command.condition, previous));
         persist(events, c, { conditions: [...c.conditions] });
       }));
     case "remove_condition":

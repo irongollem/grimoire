@@ -67,7 +67,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const availableMonsters = ref<Monster[]>([]);
   const availableNpcs = ref<NpcListRow[]>([]);
   const pendingBroadcasts = ref<string[]>([]);
-  /** Recharge rolls from the most recent turn start, for the runner to show ("Fire Breath recharged on a 5"). Replaced at every turn start that rolled one. */
   /** condition_ended events: replaced at every next_turn / reshuffle_initiative with that turn's
    *  endings; other commands that end conditions (save resolution, concentration, source down or
    *  removed) append. Cleared by `reset()`. */
@@ -75,6 +74,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   /** Concentration saves owed by stat-block holders that took damage (#1018), until the DM settles each. */
   const concentrationChecks = ref<Array<{ key: string; instanceId: string; damage: number }>>([]);
   let concentrationSeq = 0;
+  /** Recharge rolls from the most recent turn start, for the runner to show ("Fire Breath recharged on a 5"). Replaced at every turn start that rolled one. */
   const lastRechargeEvents = ref<Array<{ instanceId: string; action: string; roll: number; recharged: boolean }>>([]);
 
   // Boss-fight mechanics state

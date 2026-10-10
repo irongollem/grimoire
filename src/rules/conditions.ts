@@ -80,14 +80,6 @@ export function withoutCondition(
   return list.filter((c) => c.name !== name);
 }
 
-/** Remove `name` if present, else append `{ name }`. */
-export function toggleCondition(
-  list: readonly AppliedCondition[],
-  name: string,
-): AppliedCondition[] {
-  return hasCondition(list, name) ? withoutCondition(list, name) : [...list, { name }];
-}
-
 /**
  * Structural equality (same records, same order), for change detection. Key
  * order is ignored on purpose: a record read back from a jsonb column comes

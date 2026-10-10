@@ -78,7 +78,7 @@ export type ConditionEnds =
    * survives that turn's end.
    */
   | { kind: "turn"; at: TurnEdge; of: "self" | "source"; armed?: boolean }
-  /** For N rounds, counted down at the start of each of the source's turns (the bearer's, without a source in the fight). Ends when it reaches 0. */
+  /** For N rounds, counted down at the start of each of the source's turns (the bearer's, once the source is gone or down and takes no turns). Ends when it reaches 0. */
   | { kind: "rounds"; remaining: number }
   /** Save ends: the bearer repeats the save at the start or the end of each of its turns, ending the condition on a success. */
   | { kind: "save"; ability: SaveAbility; dc: number; at: TurnEdge };
