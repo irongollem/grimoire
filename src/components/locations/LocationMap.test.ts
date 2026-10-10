@@ -1,10 +1,13 @@
-import { mount } from "@vue/test-utils";
+import { config, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LocationMap from "./LocationMap.vue";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import type { MapPin } from "@/types/location.types";
+
+// The AI chip reads provenance through TanStack Query; these tests mount without a query client.
+config.global.stubs = { ...config.global.stubs, AiImageBadge: true };
 
 vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/locations/useSitePrepared", () => ({

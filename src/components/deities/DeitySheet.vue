@@ -16,18 +16,20 @@
           :placeholder="placeholderUrl('deity')"
           class="w-full h-full"
         />
+        <AiImageBadge :src="deity.portrait_url" />
       </div>
 
       <!-- Holy symbol image -->
       <div
         v-if="deity.symbol_image_url"
-        class="aspect-square rounded-lg border border-border overflow-hidden bg-muted p-2"
+        class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted p-2"
       >
         <img
           :src="deity.symbol_image_url"
           :alt="deity.name + ' holy symbol'"
           class="w-full h-full object-contain"
         />
+        <AiImageBadge :src="deity.symbol_image_url" />
       </div>
 
       <div class="flex flex-col gap-3">
@@ -157,6 +159,7 @@
 </template>
 
 <script setup lang="ts">
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import type { Deity, Pantheon } from "@/types/deity.types";

@@ -89,7 +89,7 @@ function makeSpell(overrides: Partial<SpellBrowseRow> = {}): SpellBrowseRow {
 
 beforeEach(() => setActivePinia(createPinia()));
 
-const globalStubs = { stubs: { RouterLink: RouterLinkStub } };
+const globalStubs = { stubs: { RouterLink: RouterLinkStub, AiImageBadge: true } };
 
 // VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so
 // every box reads 0 tall and nothing would render. Give the scroller (the

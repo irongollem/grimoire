@@ -9,6 +9,7 @@
       <PlayerSettingsNavigation />
       <PlayerSettingsNotifications />
       <PlayerSettingsAppearance />
+      <AiLabelsSetting />
 
       <AccountSummarySection link-to="/account" link-label="Manage account &amp; billing →" />
 
@@ -40,6 +41,7 @@
 import { legalUrl } from "@/lib/marketing";
 import PageHeader from "@/components/common/PageHeader.vue";
 import AccountSummarySection from "@/components/account/AccountSummarySection.vue";
+import AiLabelsSetting from "@/components/account/AiLabelsSetting.vue";
 import PlayerSettingsDisplayName from "@/components/play/PlayerSettingsDisplayName.vue";
 import PlayerSettingsInstall from "@/components/play/PlayerSettingsInstall.vue";
 import PlayerSettingsCharacterClaim from "@/components/play/PlayerSettingsCharacterClaim.vue";

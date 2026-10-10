@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mount } from "@vue/test-utils";
+import { config, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import MapFrame from "./MapFrame.vue";
 import { buildMapStack } from "@/lib/locations/mapStack";
+
+// The AI chip reads provenance through TanStack Query; these tests mount without a query client.
+config.global.stubs = { ...config.global.stubs, AiImageBadge: true };
 
 function stackFor(mapUrl: string) {
   return buildMapStack({ map_url: mapUrl, grid_calibration: null, map_layer_url: null, map_layer_calibration: null, plan_size: null });

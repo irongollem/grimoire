@@ -1,6 +1,9 @@
-import { mount } from "@vue/test-utils";
+import { config, mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import FocalPointPicker from "./FocalPointPicker.vue";
+
+// The AI chip reads provenance through TanStack Query; these tests mount without a query client.
+config.global.stubs = { ...config.global.stubs, AiImageBadge: true };
 
 /** A 200 x 300 image (2:3, like library art) drawn at (10, 20) on the page. */
 function stubImageRect(img: Element) {

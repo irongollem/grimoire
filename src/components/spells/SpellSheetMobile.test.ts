@@ -38,7 +38,7 @@ function spell(overrides: Partial<Spell> = {}): Spell {
   } as unknown as Spell;
 }
 
-const stubs = { FocalImage: true, RouterLink: true, MobileSheet: true, AppButton: { props: ["to", "label"], template: '<a :href="to">{{ label }}</a>' } };
+const stubs = { FocalImage: true, AiImageBadge: true, RouterLink: true, MobileSheet: true, AppButton: { props: ["to", "label"], template: '<a :href="to">{{ label }}</a>' } };
 
 function mountSheet(props: Partial<{ spell: Spell; canEdit: boolean; showDmNote: boolean }> = {}) {
   return mount(SpellSheetMobile, {

@@ -46,8 +46,9 @@
         <div v-if="selectedSpecies" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <div class="flex flex-col gap-4 p-5">
-                    <div v-if="selectedSpecies.image_url" class="rounded-lg overflow-hidden bg-muted">
+                    <div v-if="selectedSpecies.image_url" class="relative rounded-lg overflow-hidden bg-muted">
                       <FocalImage :src="selectedSpecies.image_url" :alt="selectedSpecies.name" format="landscape" :focal-point="selectedSpecies.focal_point ?? null" lightbox />
+                      <AiImageBadge :src="selectedSpecies.image_url" />
                     </div>
                     <RichTextViewer v-if="isRichText(selectedSpecies.description)" :content="selectedSpecies.description!" />
                     <p v-else-if="selectedSpecies.description" class="text-body text-muted-foreground">{{ selectedSpecies.description }}</p>
@@ -166,8 +167,9 @@
         <div v-if="selectedBackground" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <div class="flex flex-col gap-4 p-5">
-                    <div v-if="selectedBackground.image_url" class="rounded-lg overflow-hidden bg-muted">
+                    <div v-if="selectedBackground.image_url" class="relative rounded-lg overflow-hidden bg-muted">
                       <FocalImage :src="selectedBackground.image_url" :alt="selectedBackground.name" format="landscape" :focal-point="selectedBackground.focal_point ?? null" lightbox />
+                      <AiImageBadge :src="selectedBackground.image_url" />
                     </div>
                     <RichTextViewer v-if="isRichText(selectedBackground.description)" :content="selectedBackground.description!" />
                     <p v-else-if="selectedBackground.description" class="text-body text-muted-foreground">{{ selectedBackground.description }}</p>
@@ -390,8 +392,9 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <!-- Left: portrait + symbol + domains -->
                   <div class="flex flex-col gap-4 p-5">
-                    <div v-if="selectedDeity.portrait_url" class="rounded-lg overflow-hidden bg-muted">
+                    <div v-if="selectedDeity.portrait_url" class="relative rounded-lg overflow-hidden bg-muted">
                       <FocalImage :src="selectedDeity.portrait_url" :alt="selectedDeity.name" format="landscape" :focal-point="selectedDeity.portrait_focal_point ?? null" lightbox />
+                      <AiImageBadge :src="selectedDeity.portrait_url" />
                     </div>
                     <div v-if="selectedDeity.symbol_image_url" class="flex justify-center">
                       <img :src="selectedDeity.symbol_image_url" :alt="selectedDeity.name + ' symbol'" class="h-16 w-16 object-contain" />
@@ -434,6 +437,7 @@
 </template>
 
 <script setup lang="ts">
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { ref, computed, shallowRef, useId } from "vue";
 import { IconChevronRight, IconClose, IconParty, IconPopulate, IconQuest, IconSun } from '@/lib/icons';
 import type { Species } from "@/types/species.types";

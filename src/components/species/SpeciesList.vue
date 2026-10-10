@@ -88,6 +88,7 @@
               :focal-point="s.focal_point"
               class="group-hover:scale-105 transition-transform duration-300"
             />
+            <AiImageBadge v-if="s.image_url" :src="s.image_url" />
             <div
               v-else
               class="w-full h-full flex items-center justify-center text-display font-bold text-primary/30"
@@ -170,6 +171,7 @@
 </template>
 
 <script setup lang="ts">
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { computed, watch } from "vue";
 import { IconCheck, IconEdit } from '@/lib/icons';
 import type { Species } from "@/types/species.types";

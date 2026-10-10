@@ -11,6 +11,7 @@
           :placeholder="placeholderUrl('faction')"
           class="w-full h-full"
         />
+        <AiImageBadge :src="faction.emblem_url" />
       </div>
 
       <div class="flex flex-col gap-1.5">
@@ -75,6 +76,7 @@
 </template>
 
 <script setup lang="ts">
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';

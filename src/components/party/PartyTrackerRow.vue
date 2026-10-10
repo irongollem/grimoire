@@ -12,7 +12,7 @@
         <RouterLink
           :to="`/party/${member.id}`"
           :aria-label="`Open ${member.name}`"
-          class="card-plate card-plate-edge block h-31.25 bg-muted overflow-hidden"
+          class="card-plate card-plate-edge relative block h-31.25 bg-muted overflow-hidden"
         >
           <FocalImage
             :src="portrait.src"
@@ -21,6 +21,7 @@
             :focal-point="portrait.focalPoint"
             :placeholder="placeholderUrl(portrait.shaped ? 'monster' : 'character')"
           />
+          <AiImageBadge :src="portrait.src" />
         </RouterLink>
 
         <div class="flex flex-col gap-0.5 px-3 py-2.5">
@@ -293,6 +294,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { isInDisguise } from "@/lib/partyMemberDisplay";
 import { effectiveLocationId as deriveEffectiveLocationId } from "@/lib/partyPosition";
 import { placeRoute } from "@/lib/locations/placeRoute";
+import AiImageBadge from "@/components/common/AiImageBadge.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { walkingSpeed } from "@/lib/movement";
