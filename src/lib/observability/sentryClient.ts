@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/vue";
 import type { App } from "vue";
 import { scrubEvent } from "@edge-shared/observability/scrub.ts";
 import { isStaleChunkError } from "../staleChunkRecovery";
+import { classifyPlainError } from "./plainErrors";
 
 /**
  * Error tracking (#644) — Sentry, EU region (`ingest.de.sentry.io`).
@@ -128,7 +129,8 @@ export function startErrorTracking(app: App, dsn: string): ErrorTrackingClient {
       // Note this must be isStaleChunkError, not isChunkLoadError: Vite
       // swallows the engine's message and vue-router rethrows a different one.
       if (isStaleChunkError(hint?.originalException)) return null;
-      return scrubEvent(event);
+      const classified = classifyPlainError(event, hint?.originalException, IGNORED);
+      return classified && scrubEvent(classified);
     },
 
     beforeBreadcrumb(breadcrumb) {
