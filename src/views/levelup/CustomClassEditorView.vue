@@ -38,55 +38,69 @@
       <section class="rounded-lg border border-border bg-card p-4 space-y-4">
         <h2 class="text-label-lg uppercase text-muted-foreground">Identity</h2>
 
-        <div>
-          <label class="block text-eyebrow text-muted-foreground mb-1.5">CLASS NAME</label>
-          <AppInput
-            v-model="form.class_name"
-            tone="card"
-            size="body"
-            placeholder="e.g. Witch Hunter"
+        <!-- Portrait in a narrow column, as the species editor does: at full card
+             width a 2:3 drop zone pushes every field a screen down. -->
+        <div class="grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-4 items-start">
+          <EntityImageBlock
+            :model-value="form.image_url"
+            :focal-point="form.focal_point"
+            show-focal-point
+            bucket="class-images"
+            @update:model-value="form.image_url = $event || null"
+            @update:focal-point="form.focal_point = $event"
           />
-        </div>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-eyebrow text-muted-foreground mb-1.5">CLASS NAME</label>
+              <AppInput
+                v-model="form.class_name"
+                tone="card"
+                size="body"
+                placeholder="e.g. Witch Hunter"
+              />
+            </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-eyebrow text-muted-foreground mb-1.5">HIT DIE</label>
-            <AppSelect v-model.number="form.hit_die" size="body" weight="normal" block>
-              <option :value="6">d6</option>
-              <option :value="8">d8</option>
-              <option :value="10">d10</option>
-              <option :value="12">d12</option>
-            </AppSelect>
-          </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-eyebrow text-muted-foreground mb-1.5">HIT DIE</label>
+                <AppSelect v-model.number="form.hit_die" size="body" weight="normal" block>
+                  <option :value="6">d6</option>
+                  <option :value="8">d8</option>
+                  <option :value="10">d10</option>
+                  <option :value="12">d12</option>
+                </AppSelect>
+              </div>
 
-          <div>
-            <label class="block text-eyebrow text-muted-foreground mb-1.5">PRIMARY ABILITY</label>
-            <AppInput
-              v-model="form.primary_ability"
-              tone="card"
-              size="body"
-              placeholder="e.g. Strength or Dexterity"
-            />
-          </div>
+              <div>
+                <label class="block text-eyebrow text-muted-foreground mb-1.5">PRIMARY ABILITY</label>
+                <AppInput
+                  v-model="form.primary_ability"
+                  tone="card"
+                  size="body"
+                  placeholder="e.g. Strength or Dexterity"
+                />
+              </div>
 
-          <div>
-            <label class="block text-eyebrow text-muted-foreground mb-1.5">SUBCLASS-GRANTING LEVEL</label>
-            <AppInput
-              v-model.number="form.subclass_level"
-              type="number"
-              tone="card"
-              size="body"
-              min="1"
-              max="20"
-            />
-          </div>
+              <div>
+                <label class="block text-eyebrow text-muted-foreground mb-1.5">SUBCLASS-GRANTING LEVEL</label>
+                <AppInput
+                  v-model.number="form.subclass_level"
+                  type="number"
+                  tone="card"
+                  size="body"
+                  min="1"
+                  max="20"
+                />
+              </div>
 
-          <div>
-            <label class="block text-eyebrow text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
-            <AppSelect v-model="campaignScope" size="body" weight="normal" block>
-              <option value="all">All my campaigns</option>
-              <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </AppSelect>
+              <div>
+                <label class="block text-eyebrow text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
+                <AppSelect v-model="campaignScope" size="body" weight="normal" block>
+                  <option value="all">All my campaigns</option>
+                  <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </AppSelect>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -140,6 +154,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconDelete, IconSave } from '@/lib/icons';
@@ -206,6 +221,8 @@ interface FormState {
   caster_type: CasterType;
   prepared_ability: PreparedAbility | null;
   prepared_divisor: number | null;
+  image_url: string | null;
+  focal_point: { x: number; y: number } | null;
 }
 
 const form = ref<FormState>({
@@ -225,6 +242,8 @@ const form = ref<FormState>({
   caster_type: "none",
   prepared_ability: "wis",
   prepared_divisor: 1,
+  image_url: null,
+  focal_point: null,
 });
 
 // Same default flip as items/spells/species/locations (#596): a new custom
@@ -264,6 +283,8 @@ watch(existing, (val) => {
     caster_type: (raw.caster_type as CasterType) !== "none" ? (raw.caster_type as CasterType) : rawSlots !== null ? "prepared" : "none",
     prepared_ability: raw.prepared_ability ?? "wis",
     prepared_divisor: raw.prepared_divisor ?? 1,
+    image_url: raw.image_url,
+    focal_point: raw.focal_point,
   };
   campaignScope.value = raw.campaign_id ?? "all";
 }, { immediate: true });
@@ -304,6 +325,9 @@ async function save() {
   );
   const payload = {
     ...content,
+    // The picture is not rules content: swapping it must not mark an AI class as edited.
+    image_url: form.value.image_url,
+    focal_point: form.value.focal_point,
     source: row?.source ?? null,
     ai_provenance: contentChanged ? markEdited(row?.ai_provenance) : (row?.ai_provenance ?? null),
     campaign_id: campaignScope.value === "all" ? null : campaignScope.value,
@@ -325,7 +349,8 @@ async function save() {
 async function remove() {
   if (!confirm(`Delete "${form.value.class_name}"? This cannot be undone.`)) return;
   try {
-    await del(id.value);
+    if (!existing.value) return;
+    await del(existing.value);
     void router.push("/levelup/classes");
   } catch (e) {
     saveError.value = e instanceof Error ? e.message : "Failed to delete.";

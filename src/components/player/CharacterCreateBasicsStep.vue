@@ -30,12 +30,13 @@
       </div>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button v-for="sp in speciesChoices" :key="sp.id" type="button"
-          class="rounded-lg border overflow-hidden text-left transition-all"
+          class="flex flex-col rounded-lg border bg-card overflow-hidden text-left transition-all"
           :class="f.species_id === sp.id
-            ? 'border-primary ring-1 ring-primary bg-primary/5'
-            : 'border-border bg-card hover:border-primary/40'"
+            ? 'border-primary ring-1 ring-primary'
+            : 'border-border hover:border-primary/40'"
           @click="onSpeciesSelect(sp.id)">
-          <div v-if="sp.image_url" class="h-24 overflow-hidden bg-muted">
+          <!-- A direct-child plate: the vellum theme insets it and draws the double ink frame. -->
+          <div v-if="sp.image_url" class="relative h-24 shrink-0 overflow-hidden bg-muted">
             <FocalImage :src="sp.image_url" :alt="sp.name" format="landscape"
               :focal-point="sp.focal_point ?? null" />
           </div>

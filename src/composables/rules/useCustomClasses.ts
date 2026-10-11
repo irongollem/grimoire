@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { CustomClass, CustomClassInsert, CustomClassUpdate, SystemClass } from "@/levelup/customTypes";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
 import { allowedSystemClasses, allowedCampaignScoped } from "@/lib/campaignContentGating";
@@ -62,9 +63,10 @@ async function updateCustomClass(id: string, update: CustomClassUpdate): Promise
   return data as CustomClass;
 }
 
-async function deleteCustomClass(id: string): Promise<void> {
-  const { error } = await supabase.from("custom_classes").delete().eq("id", id);
+async function deleteCustomClass(cls: Pick<CustomClass, "id" | "image_url">): Promise<void> {
+  const { error } = await supabase.from("custom_classes").delete().eq("id", cls.id);
   if (error) throw error;
+  await deleteUnreferencedByPublicUrl({ urls: [cls.image_url] });
 }
 
 /** `enabled` defers the fetch for a surface mounted before it is used (the
@@ -164,7 +166,7 @@ export function useDeleteCustomClass() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteCustomClass,
-    onSuccess: (_data, id) => {
+    onSuccess: (_data, { id }) => {
       // Remove the detail entry immediately so the still-mounted editor doesn't
       // re-fetch a now-deleted row (causing 406s). Invalidate only the list.
       queryClient.removeQueries({ queryKey: [QUERY_KEY, id] });

@@ -9,10 +9,10 @@
       </div>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button v-for="bg in allBackgrounds" :key="bg.id" type="button"
-          class="group rounded-lg border overflow-hidden text-left transition-all"
+          class="group rounded-lg border bg-card overflow-hidden text-left transition-all"
           :class="f.background_id === bg.id
             ? 'border-primary ring-1 ring-primary'
-            : 'border-border bg-card hover:border-primary/40'"
+            : 'border-border hover:border-primary/40'"
           @click="onBackgroundSelect(bg.id)">
 
           <!-- Portrait thumbnail -->

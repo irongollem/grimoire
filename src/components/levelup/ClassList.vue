@@ -63,6 +63,16 @@
           :to="`/levelup/classes/${cls.id}`"
           class="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
         >
+          <div class="size-12 shrink-0 rounded-md overflow-hidden bg-muted flex items-center justify-center">
+            <FocalImage
+              v-if="cls.image_url"
+              :src="cls.image_url"
+              :alt="cls.class_name"
+              format="landscape"
+              :focal-point="cls.focal_point"
+            />
+            <span v-else class="text-heading-sm font-bold text-primary/30">{{ cls.class_name.charAt(0).toUpperCase() }}</span>
+          </div>
           <div class="flex-1 min-w-0">
             <p class="text-heading-xs font-semibold text-foreground truncate">{{ cls.class_name }}</p>
             <p class="text-caption text-muted-foreground mt-0.5">
@@ -89,6 +99,16 @@
           :key="cls.id"
           class="flex items-center gap-3 px-4 py-3"
         >
+          <div class="size-12 shrink-0 rounded-md overflow-hidden bg-muted flex items-center justify-center">
+            <FocalImage
+              v-if="cls.image_url"
+              :src="cls.image_url"
+              :alt="cls.class_name"
+              format="landscape"
+              :focal-point="cls.focal_point"
+            />
+            <span v-else class="text-heading-sm font-bold text-primary/30">{{ cls.class_name.charAt(0).toUpperCase() }}</span>
+          </div>
           <div class="flex-1 min-w-0">
             <p class="text-heading-xs font-semibold text-foreground truncate">{{ cls.class_name }}</p>
             <p class="text-caption text-muted-foreground mt-0.5">
@@ -116,6 +136,7 @@
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { IconAdd, IconChevronRight, IconCopy } from '@/lib/icons';
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
@@ -169,6 +190,8 @@ async function duplicate(cls: SystemClass) {
       prepared_ability: cls.prepared_ability,
       prepared_divisor: cls.prepared_divisor,
       source: null,
+      image_url: cls.image_url,
+      focal_point: cls.focal_point,
     });
     router.push(`/levelup/classes/${created.id}`);
   } finally {

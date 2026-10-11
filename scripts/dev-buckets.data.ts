@@ -25,6 +25,7 @@ export const LOCAL_BUCKETS: ReadonlyArray<{
   { id: "puzzle-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "background-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "species-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
+  { id: "class-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "dungeon-feature-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "item-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "monster-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },

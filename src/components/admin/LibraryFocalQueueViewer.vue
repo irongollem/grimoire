@@ -13,12 +13,19 @@
       <!-- Clicking the picture sets the point, saves it, stamps it checked and
            moves on: the fast path the whole queue is built around. -->
       <FocalPointPicker
+        v-if="entry.imageUrl"
         :src="entry.imageUrl"
         image-class="max-h-[70vh]"
         :clearable="false"
         :model-value="draft"
         @update:model-value="onPick"
       />
+      <div
+        v-else
+        class="flex min-h-48 items-center justify-center rounded-md border border-dashed border-border bg-muted/40 p-6 text-center text-body text-muted-foreground italic"
+      >
+        {{ entryLabel(entry) }} has no picture yet.
+      </div>
 
       <div class="flex min-w-0 flex-col gap-5">
         <div>
@@ -29,13 +36,13 @@
             Also shown as {{ entry.names.slice(1).join(", ") }}
           </p>
           <p class="mt-0.5 text-caption text-muted-foreground italic">
-            {{ entry.keys.length }} {{ entry.keys.length === 1 ? "entry shares" : "entries share" }} this picture.
+            {{ entry.keys.length }} {{ entry.keys.length === 1 ? "entry shares" : "entries share" }} this {{ named ? "name" : "picture" }}.
             {{ isChecked(entry) ? "Already checked." : "Not checked yet." }}
           </p>
         </div>
 
         <!-- The same crops the app draws, driven by the live draft point. -->
-        <div class="flex flex-wrap items-end gap-4">
+        <div v-if="entry.imageUrl" class="flex flex-wrap items-end gap-4">
           <figure class="w-full max-w-xs space-y-1">
             <div class="relative h-36 overflow-hidden rounded bg-muted">
               <FocalImage :src="entry.imageUrl" format="landscape" :focal-point="draft" />
@@ -56,6 +63,15 @@
           </figure>
         </div>
 
+        <LibraryFocalReplacePicture
+          v-if="named"
+          ref="replacer"
+          :has-picture="entry.imageUrl !== null"
+          :busy="replacing"
+          :disabled="busy"
+          @chosen="onReplace"
+        />
+
         <p v-if="saveError" role="alert" class="text-body text-destructive">
           Could not save: {{ saveError }}
         </p>
@@ -64,10 +80,11 @@
           <div class="flex flex-wrap gap-2">
             <AppButton variant="subtle" :disabled="!hasPrevious || busy" label="Back (Left)" @click="goBack" />
             <AppButton variant="subtle" :disabled="busy" label="Skip (Right or S)" @click="skip" />
-            <AppButton variant="primary" :loading="accepting" :disabled="busy" label="Accept (Enter)" @click="accept" />
+            <AppButton variant="primary" :loading="accepting" :disabled="busy || !entry.imageUrl" label="Accept (Enter)" @click="accept" />
           </div>
           <p class="text-caption text-muted-foreground italic">
             Accept keeps the current point. Click the picture to choose a better one.
+            <template v-if="named">Replacing the picture clears the point.</template>
           </p>
         </div>
       </div>
@@ -80,9 +97,9 @@
  * The full-size review of one picture (#965): big click-to-set picker beside the
  * crops users actually see.
  *
- * It walks `order`, a snapshot of the picture urls taken when it opened. Saving
+ * It walks `order`, a snapshot of the entry ids taken when it opened. Saving
  * checks a picture, and under the "Unchecked" filter the live list would then
- * drop it and shift every index; walking a snapshot and resolving each url
+ * drop it and shift every index; walking a snapshot and resolving each id
  * against the live entries keeps "next" meaning what the admin saw.
  */
 import { computed, ref, watch } from "vue";
@@ -91,11 +108,13 @@ import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import FocalPointPicker from "@/components/common/media/FocalPointPicker.vue";
+import LibraryFocalReplacePicture from "@/components/admin/LibraryFocalReplacePicture.vue";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useLibraryFocalQueue } from "@/composables/library/useLibraryFocalQueue";
 import {
   entryLabel,
   isChecked,
+  isNamedKind,
   nextMatchingIndex,
   type FocalKind,
   type FocalPointValue,
@@ -103,35 +122,37 @@ import {
   type FocalStatus,
 } from "@/lib/library/focalQueue";
 
-const { open, kind, order, startUrl, status } = defineProps<{
+const { open, kind, order, startId, status } = defineProps<{
   open: boolean;
   kind: FocalKind;
-  /** Picture urls in walking order, frozen when the viewer was opened. */
+  /** Entry ids in walking order, frozen when the viewer was opened. */
   order: string[];
-  startUrl: string | null;
+  startId: string | null;
   status: FocalStatus;
 }>();
 const emit = defineEmits<{ close: [] }>();
 
-const { entries, setFocalPoint, acceptFocalPoint } = useLibraryFocalQueue(() => kind);
+const { entries, setFocalPoint, acceptFocalPoint, replacePicture } = useLibraryFocalQueue(() => kind);
+const named = computed(() => isNamedKind(kind));
+const replacer = ref<InstanceType<typeof LibraryFocalReplacePicture> | null>(null);
 
-const currentUrl = ref<string | null>(startUrl);
+const currentId = ref<string | null>(startId);
 watch(
-  () => [open, startUrl] as const,
+  () => [open, startId] as const,
   ([isOpen, url]) => {
-    if (isOpen) currentUrl.value = url;
+    if (isOpen) currentId.value = url;
   },
   { immediate: true },
 );
 
 const ordered = computed<FocalQueueEntry[]>(() => {
-  const byUrl = new Map(entries.value.map((row) => [row.imageUrl, row]));
-  return order.flatMap((url) => {
-    const row = byUrl.get(url);
+  const byId = new Map(entries.value.map((row) => [row.id, row]));
+  return order.flatMap((id) => {
+    const row = byId.get(id);
     return row ? [row] : [];
   });
 });
-const index = computed(() => ordered.value.findIndex((row) => row.imageUrl === currentUrl.value));
+const index = computed(() => ordered.value.findIndex((row) => row.id === currentId.value));
 const entry = computed<FocalQueueEntry | null>(() => (index.value < 0 ? null : (ordered.value[index.value] ?? null)));
 const hasPrevious = computed(() => index.value > 0);
 const position = computed(() => `${index.value + 1} of ${ordered.value.length}`);
@@ -140,7 +161,8 @@ const position = computed(() => `${index.value + 1} of ${ordered.value.length}`)
 const draft = ref<FocalPointValue | null>(null);
 const saveError = ref<string | null>(null);
 watch(
-  () => entry.value?.imageUrl,
+  // The id, not the picture: a replaced picture keeps its entry and its cleared draft.
+  () => [entry.value?.id, entry.value?.imageUrl] as const,
   () => {
     draft.value = entry.value ? entry.value.focalPoint : null;
     saveError.value = null;
@@ -150,7 +172,8 @@ watch(
 
 const saving = computed(() => setFocalPoint.isPending.value);
 const accepting = computed(() => acceptFocalPoint.isPending.value);
-const busy = computed(() => saving.value || accepting.value);
+const replacing = computed(() => replacePicture.isPending.value);
+const busy = computed(() => saving.value || accepting.value || replacing.value);
 
 function advance() {
   const next = nextMatchingIndex(ordered.value, index.value, status);
@@ -160,7 +183,7 @@ function advance() {
     return;
   }
   const target = ordered.value[next];
-  if (target) currentUrl.value = target.imageUrl;
+  if (target) currentId.value = target.id;
 }
 
 function skip() {
@@ -171,16 +194,26 @@ function skip() {
 function goBack() {
   if (busy.value || !hasPrevious.value) return;
   const target = ordered.value[index.value - 1];
-  if (target) currentUrl.value = target.imageUrl;
+  if (target) currentId.value = target.id;
 }
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown error";
 }
 
-async function accept() {
+async function onReplace(file: File) {
   const current = entry.value;
   if (!current || busy.value) return;
+  try {
+    await replacePicture.mutateAsync({ entry: current, file });
+  } catch (error) {
+    replacer.value?.setError(message(error));
+  }
+}
+
+async function accept() {
+  const current = entry.value;
+  if (!current || busy.value || !current.imageUrl) return;
   saveError.value = null;
   try {
     await acceptFocalPoint.mutateAsync({ entry: current });
@@ -193,7 +226,7 @@ async function accept() {
 async function onPick(point: FocalPointValue | null) {
   const current = entry.value;
   // The picker's own "clear" yields null; the queue only ever sets a point.
-  if (!current || !point || busy.value) return;
+  if (!current || !current.imageUrl || !point || busy.value) return;
   draft.value = point;
   saveError.value = null;
   try {

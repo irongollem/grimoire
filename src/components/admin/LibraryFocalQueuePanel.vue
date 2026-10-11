@@ -8,7 +8,11 @@
         </p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <SegmentedControl v-model="kind" :options="KIND_OPTIONS" />
+        <!-- Six kinds do not fit a segmented row beside the status toggle on a phone;
+             a small fixed set is what the native select is kept for. -->
+        <AppSelect v-model="kind" aria-label="Kind of picture">
+          <option v-for="option in KIND_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </AppSelect>
         <SegmentedControl v-model="status" :options="STATUS_OPTIONS" />
         <AppButton v-if="hasActiveFilters" variant="ghost" size="sm" label="Clear" @click="resetFilters" />
       </div>
@@ -22,6 +26,9 @@
       {{ emptyText }}
     </p>
     <template v-else>
+      <!-- Bounded so a 3,400-card monster list is a window, not the page: the
+           panels below stay one scroll away. VirtualGrid takes this as its scroller. -->
+      <div class="max-h-[36rem] overflow-y-auto">
       <VirtualGrid
         :items="filtered"
         :item-key="entryKey"
@@ -37,7 +44,19 @@
           @click="openViewer(item)"
         >
           <div class="relative h-36 overflow-hidden bg-muted">
-            <FocalImage :src="item.imageUrl" :alt="entryLabel(item)" format="landscape" :focal-point="item.focalPoint" />
+            <FocalImage
+              v-if="item.imageUrl"
+              :src="item.imageUrl"
+              :alt="entryLabel(item)"
+              format="landscape"
+              :focal-point="item.focalPoint"
+            />
+            <div
+              v-else
+              class="flex h-full w-full items-center justify-center text-display font-bold text-primary/30"
+            >
+              {{ entryLabel(item).charAt(0).toUpperCase() }}
+            </div>
             <span
               v-if="!isChecked(item)"
               class="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border border-white bg-primary shadow"
@@ -50,13 +69,14 @@
         </button>
         </template>
       </VirtualGrid>
+      </div>
     </template>
 
     <LibraryFocalQueueViewer
       :open="viewerOpen"
       :kind="kind"
       :order="viewerOrder"
-      :start-url="viewerStart"
+      :start-id="viewerStart"
       :status="status"
       @close="viewerOpen = false"
     />
@@ -72,6 +92,7 @@
 import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
@@ -93,6 +114,9 @@ const KIND_OPTIONS = [
   { value: "monster", label: "Monsters" },
   { value: "spell", label: "Spells" },
   { value: "item", label: "Items" },
+  { value: "species", label: "Species" },
+  { value: "background", label: "Backgrounds" },
+  { value: "class", label: "Classes" },
 ] as const satisfies readonly { value: FocalKind; label: string }[];
 const STATUS_OPTIONS = [
   { value: "unchecked", label: "Unchecked" },
@@ -111,7 +135,7 @@ const filtered = computed(() => filterByStatus(entries.value, status.value));
 // Mirrors the grid classes this list used to carry:
 // `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3`.
 const columns = useBreakpointColumns({ base: 2, sm: 3, lg: 4, xl: 5 });
-const entryKey = (entry: FocalQueueEntry) => entry.imageUrl;
+const entryKey = (entry: FocalQueueEntry) => entry.id;
 
 // Row height before a row is measured (px): 2 border + 144 picture (h-36) +
 // 29 caption (py-1.5 plus a 17px text-caption line) = 175.
@@ -137,8 +161,8 @@ const viewerStart = ref<string | null>(null);
 
 function openViewer(item: FocalQueueEntry) {
   // Frozen at open: see the viewer for why it must not follow the live list.
-  viewerOrder.value = filtered.value.map((row) => row.imageUrl);
-  viewerStart.value = item.imageUrl;
+  viewerOrder.value = filtered.value.map((row) => row.id);
+  viewerStart.value = item.id;
   viewerOpen.value = true;
 }
 </script>

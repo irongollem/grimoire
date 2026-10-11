@@ -17,7 +17,20 @@
       <div class="px-3 py-2 border-b border-border bg-muted/20">
         <span class="text-label-lg font-semibold text-muted-foreground">Identity</span>
       </div>
-      <div class="p-4 flex flex-wrap gap-3 items-center">
+      <div class="p-4 flex gap-4 items-center">
+        <div class="card-plate relative shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
+          <FocalImage
+            v-if="cls.image_url"
+            :src="cls.image_url"
+            :alt="cls.class_name"
+            format="portrait"
+            :focal-point="cls.focal_point"
+            :lightbox="true"
+            class="w-full h-full"
+          />
+          <span v-else class="text-display font-bold text-primary/30">{{ cls.class_name.charAt(0).toUpperCase() }}</span>
+        </div>
+        <div class="flex flex-wrap gap-3 items-center">
         <span class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
           d{{ cls.hit_die }}
         </span>
@@ -30,6 +43,7 @@
         <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
           {{ cls.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
         </span>
+        </div>
       </div>
     </div>
 
@@ -121,6 +135,7 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteCustomClass } from "@/composables/rules/useCustomClasses";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import type { CustomClass } from "@/levelup/customTypes";
 
@@ -158,6 +173,6 @@ async function handleDelete() {
   });
   if (!ok) return;
   router.push("/codex/classes");
-  await deleteMut.mutateAsync(props.cls.id);
+  await deleteMut.mutateAsync(props.cls);
 }
 </script>

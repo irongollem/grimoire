@@ -109,6 +109,9 @@ export interface CustomClass extends VersionedContentMetadata {
   /** Divisor for level in max-prepared formula: 1 = full caster, 2 = half-caster. null for known/none. */
   prepared_divisor: number | null;
 
+  /** Picture in the `class-images` bucket, and where its crop is centred. */
+  image_url: string | null;
+  focal_point: { x: number; y: number } | null;
 
   /** Set when the row came from the AI generator; flipped by `markEdited` on a content edit. */
   ai_provenance?: AiProvenance | null;
@@ -138,6 +141,9 @@ export interface SystemClass extends VersionedContentMetadata {
   caster_type: CasterType;
   prepared_ability: PreparedAbility | null;
   prepared_divisor: number | null;
+  /** Canonical art under `class-images/srd/`, set from the admin focal queue. */
+  image_url: string | null;
+  focal_point: { x: number; y: number } | null;
   created_at: string;
   updated_at: string;
 }

@@ -7,7 +7,19 @@
  * Pure on purpose: the composable only fetches rows and hands them here.
  */
 
-export type FocalKind = "monster" | "spell" | "item";
+export type FocalKind = "monster" | "spell" | "item" | "species" | "background" | "class";
+
+/**
+ * Species, backgrounds and classes are reviewed per name, not per picture: their
+ * 2014 and 2024 rows share one picture by rule, and a name may have no picture
+ * yet, which is exactly what the admin comes here to fix.
+ */
+export const NAMED_KINDS = ["species", "background", "class"] as const;
+export type NamedFocalKind = (typeof NAMED_KINDS)[number];
+
+export function isNamedKind(kind: FocalKind): kind is NamedFocalKind {
+  return kind === "species" || kind === "background" || kind === "class";
+}
 export type FocalStatus = "unchecked" | "all";
 
 export interface FocalPointValue {
@@ -32,9 +44,25 @@ export interface QueueLibraryRow {
   focalPoint: FocalPointValue | null;
 }
 
+/** A species / background / class row, one per edition. */
+export interface QueueNamedRow {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  focalPoint: FocalPointValue | null;
+  checkedAt: string | null;
+}
+
 export interface FocalQueueEntry {
+  /**
+   * Stable across a picture change: the image url for monsters, spells and items
+   * (their unit is the picture), `name:<lowercased name>` for the named kinds
+   * (whose unit is the name, and whose picture can be replaced or absent).
+   */
+  id: string;
   kind: FocalKind;
-  imageUrl: string;
+  /** Null only for a named entry that has no picture yet. */
+  imageUrl: string | null;
   focalPoint: FocalPointValue | null;
   /** Null when any art row of the picture is still unchecked. */
   checkedAt: string | null;
@@ -51,7 +79,7 @@ export function entryLabel(entry: FocalQueueEntry): string {
   const [name] = entry.names;
   if (name !== undefined) return name;
   const [key] = entry.keys;
-  return key === undefined ? entry.imageUrl : key;
+  return key === undefined ? entry.id : key;
 }
 
 function byLabel(a: string, b: string): number {
@@ -102,12 +130,55 @@ export function buildFocalQueue(
     const unchecked = bucket.art.some((row) => row.checkedAt === null);
     const stamps = bucket.art.flatMap((row) => (row.checkedAt === null ? [] : [row.checkedAt])).sort();
     entries.push({
+      id: imageUrl,
       kind,
       imageUrl,
       focalPoint: canonicalPoint ?? bucket.libraryPoint,
       checkedAt: unchecked ? null : (stamps[0] ?? null),
       names: [...bucket.names].sort(byLabel),
       keys,
+    });
+  }
+  return sortFocalQueue(entries);
+}
+
+/** The entry id of a named kind's rows: case-insensitive, so editions merge. */
+export function namedEntryId(name: string): string {
+  return `name:${name.trim().toLowerCase()}`;
+}
+
+/**
+ * One entry per distinct name, picture or not. Rows are walked in id order so the
+ * result does not depend on the order the database returned them in: if the rows
+ * of a name disagree on the picture, the first non-null one wins, and the point
+ * is the first point recorded against that picture. A name with no picture, or
+ * with any unchecked row, is unchecked: it still needs a person.
+ */
+export function buildNamedFocalQueue(kind: NamedFocalKind, rows: readonly QueueNamedRow[]): FocalQueueEntry[] {
+  const groups = new Map<string, QueueNamedRow[]>();
+  for (const row of [...rows].sort((a, b) => byLabel(a.id, b.id))) {
+    if (!row.name.trim()) continue;
+    const id = namedEntryId(row.name);
+    const group = groups.get(id);
+    if (group) group.push(row);
+    else groups.set(id, [row]);
+  }
+
+  const entries: FocalQueueEntry[] = [];
+  for (const [id, group] of groups) {
+    const imageUrl = group.find((row) => row.imageUrl)?.imageUrl ?? null;
+    const focalPoint = group.find((row) => row.imageUrl === imageUrl && row.focalPoint)?.focalPoint ?? null;
+    const stamps = group.flatMap((row) => (row.checkedAt === null ? [] : [row.checkedAt])).sort();
+    const unchecked = imageUrl === null || group.some((row) => row.checkedAt === null);
+    const [first] = group;
+    entries.push({
+      id,
+      kind,
+      imageUrl,
+      focalPoint,
+      checkedAt: unchecked ? null : (stamps[0] ?? null),
+      names: first ? [first.name] : [],
+      keys: group.map((row) => row.id),
     });
   }
   return sortFocalQueue(entries);

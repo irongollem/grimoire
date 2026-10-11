@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFocalQueue,
+  buildNamedFocalQueue,
   filterByStatus,
+  type QueueNamedRow,
   nextMatchingIndex,
   type QueueArtRow,
   type QueueLibraryRow,
@@ -88,5 +90,58 @@ describe("filterByStatus", () => {
     const entries = buildFocalQueue("monster", [art("1", "a.webp"), art("2", "b.webp", "t")], []);
     expect(filterByStatus(entries, "unchecked")).toHaveLength(1);
     expect(filterByStatus(entries, "all")).toHaveLength(2);
+  });
+});
+
+describe("buildNamedFocalQueue", () => {
+  const row = (id: string, name: string, imageUrl: string | null, checkedAt: string | null = null, x?: number): QueueNamedRow => ({
+    id,
+    name,
+    imageUrl,
+    checkedAt,
+    focalPoint: x === undefined ? null : { x, y: 50 },
+  });
+
+  it("merges editions case-insensitively and keeps names with no picture", () => {
+    const entries = buildNamedFocalQueue("class", [
+      row("2", "wizard", null),
+      row("1", "Wizard", null),
+      row("3", "Bard", "bard.webp", "2026-10-01"),
+    ]);
+    expect(entries).toHaveLength(2);
+    const wizard = entries.find((e) => e.id === "name:wizard");
+    expect(wizard?.keys).toEqual(["1", "2"]);
+    expect(wizard?.names).toEqual(["Wizard"]);
+    expect(wizard?.imageUrl).toBeNull();
+  });
+
+  it("is unchecked without a picture or when any edition is unchecked", () => {
+    const [noArt, mixed, done] = buildNamedFocalQueue("species", [
+      row("1", "A", null, "2026-10-01"),
+      row("2", "B", "b.webp", "2026-10-01"),
+      row("3", "B", "b.webp"),
+      row("4", "C", "c.webp", "2026-10-02"),
+    ]);
+    expect(noArt?.checkedAt).toBeNull();
+    expect(mixed?.checkedAt).toBeNull();
+    expect(done?.checkedAt).toBe("2026-10-02");
+    expect(done?.id).toBe("name:c");
+  });
+
+  it("takes the first picture by id order and keeps the id stable when the picture changes", () => {
+    const before = buildNamedFocalQueue("background", [row("b", "Sage", "two.webp", null, 20), row("a", "Sage", "one.webp", null, 80)]);
+    expect(before[0]?.imageUrl).toBe("one.webp");
+    expect(before[0]?.focalPoint).toEqual({ x: 80, y: 50 });
+    const after = buildNamedFocalQueue("background", [row("b", "Sage", "new.webp"), row("a", "Sage", "new.webp")]);
+    expect(after[0]?.id).toBe(before[0]?.id);
+  });
+
+  it("sorts unchecked first, then by name", () => {
+    const entries = buildNamedFocalQueue("species", [
+      row("1", "Elf", "e.webp", "t"),
+      row("2", "Orc", "o.webp"),
+      row("3", "Dwarf", "d.webp"),
+    ]);
+    expect(entries.map((e) => e.names[0])).toEqual(["Dwarf", "Orc", "Elf"]);
   });
 });

@@ -1,8 +1,15 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
+import { uploadWithVariants } from "@/lib/storage/upload";
+import { toWebP } from "@/lib/mediaConvert";
+import type { BucketKey } from "@/lib/storage/buckets";
 import {
   buildFocalQueue,
+  buildNamedFocalQueue,
+  isNamedKind,
+  type NamedFocalKind,
+  type QueueNamedRow,
   type FocalKind,
   type FocalPointValue,
   type FocalQueueEntry,
@@ -69,7 +76,61 @@ function canonicalArt(row: CanonicalRow): QueueArtRow {
   };
 }
 
+/**
+ * The three name-grouped kinds live in different tables with different name
+ * columns; every other column used exists on all three.
+ */
+interface NamedConfig {
+  table: "library_species" | "library_backgrounds" | "system_classes";
+  nameColumn: "name" | "class_name";
+  bucket: BucketKey;
+}
+const NAMED_CONFIG: Record<NamedFocalKind, NamedConfig> = {
+  species: { table: "library_species", nameColumn: "name", bucket: "speciesImages" },
+  background: { table: "library_backgrounds", nameColumn: "name", bucket: "backgroundImages" },
+  class: { table: "system_classes", nameColumn: "class_name", bucket: "classImages" },
+};
+
+function namedTable(kind: NamedFocalKind) {
+  return supabase.from(NAMED_CONFIG[kind].table);
+}
+
+/** `name` is aliased from `class_name` for system_classes, so all three read alike. */
+interface NamedRow {
+  id: string;
+  name: string | null;
+  image_url: string | null;
+  focal_point: FocalPointValue | null;
+  focal_point_checked_at: string | null;
+}
+
+async function loadNamedQueue(kind: NamedFocalKind): Promise<FocalQueueEntry[]> {
+  const { table, nameColumn } = NAMED_CONFIG[kind];
+  const rows = await fetchAll<NamedRow>((from, to) =>
+    supabase
+      .from(table)
+      .select(`id, name:${nameColumn}, image_url, focal_point, focal_point_checked_at`)
+      .order("id")
+      .range(from, to),
+  );
+  return buildNamedFocalQueue(
+    kind,
+    rows.map((row): QueueNamedRow => {
+      const { name } = row;
+      if (name === null) throw new Error(`${table} row ${row.id} has no name`);
+      return {
+        id: row.id,
+        name,
+        imageUrl: row.image_url,
+        focalPoint: row.focal_point,
+        checkedAt: row.focal_point_checked_at,
+      };
+    }),
+  );
+}
+
 async function loadQueue(kind: FocalKind): Promise<FocalQueueEntry[]> {
+  if (isNamedKind(kind)) return loadNamedQueue(kind);
   if (kind === "item") {
     const [defaults, items] = await Promise.all([
       fetchAll<DefaultsRow>((from, to) =>
@@ -155,10 +216,27 @@ const INVALIDATE: Record<FocalKind, readonly (readonly string[])[]> = {
     ["library-art-defaults"], ["library-item-index"], ["items", "browse"], ["items", "by-ids"],
     ["resolved-library-items"], ["resolved-item"],
   ],
+  species: [["species"], ["library-species"], ["species-by-ids"]],
+  background: [["backgrounds"], ["library-backgrounds"], ["backgrounds-by-ids"]],
+  class: [["custom_classes"], ["system_classes"]],
 };
 
+function pictureOf(entry: FocalQueueEntry): string {
+  if (entry.imageUrl === null) throw new Error("This entry has no picture");
+  return entry.imageUrl;
+}
+
 /** Marks every art row of the picture as seen by a person. */
-async function stampChecked(kind: FocalKind, imageUrl: string): Promise<void> {
+async function stampChecked(entry: FocalQueueEntry): Promise<void> {
+  const { kind } = entry;
+  if (isNamedKind(kind)) {
+    const { error } = await namedTable(kind)
+      .update({ focal_point_checked_at: new Date().toISOString() })
+      .in("id", entry.keys);
+    if (error) throw error;
+    return;
+  }
+  const imageUrl = pictureOf(entry);
   const base = supabase
     .from(STAMP_TABLE[kind])
     .update({ focal_point_checked_at: new Date().toISOString() })
@@ -183,8 +261,18 @@ async function writeItemFocalPoint(imageUrl: string, point: FocalPointValue): Pr
 }
 
 async function writeFocalPoint(entry: FocalQueueEntry, point: FocalPointValue): Promise<void> {
-  if (entry.kind === "item") {
-    await writeItemFocalPoint(entry.imageUrl, point);
+  const { kind } = entry;
+  if (isNamedKind(kind)) {
+    // The picture is written too, so rows of one name that disagreed on it
+    // (the queue shows the first) all end up on the picture the point is for.
+    const { error } = await namedTable(kind)
+      .update({ focal_point: point, image_url: pictureOf(entry) })
+      .in("id", entry.keys);
+    if (error) throw error;
+    return;
+  }
+  if (kind === "item") {
+    await writeItemFocalPoint(pictureOf(entry), point);
     return;
   }
   const [entryId] = entry.keys;
@@ -219,16 +307,13 @@ export function useLibraryFocalQueue(kind: MaybeRefOrGetter<FocalKind>) {
    * and catalogue queries do refetch, lazily, because other screens read them.
    */
   function applySaved(entry: FocalQueueEntry, point: FocalPointValue | null) {
+    patchQueue(entry, (row) => ({ ...row, checkedAt: new Date().toISOString(), focalPoint: point === null ? row.focalPoint : point }));
+  }
+
+  function patchQueue(entry: FocalQueueEntry, change: (row: FocalQueueEntry) => FocalQueueEntry) {
     queryClient.setQueryData<FocalQueueEntry[]>([FOCAL_QUEUE_QUERY_KEY, entry.kind], (current) => {
       if (!current) return current;
-      const stamped = new Date().toISOString();
-      return sortFocalQueue(
-        current.map((row) =>
-          row.imageUrl === entry.imageUrl
-            ? { ...row, checkedAt: stamped, focalPoint: point === null ? row.focalPoint : point }
-            : row,
-        ),
-      );
+      return sortFocalQueue(current.map((row) => (row.id === entry.id ? change(row) : row)));
     });
     for (const queryKey of INVALIDATE[entry.kind]) void queryClient.invalidateQueries({ queryKey: [...queryKey] });
   }
@@ -236,17 +321,48 @@ export function useLibraryFocalQueue(kind: MaybeRefOrGetter<FocalKind>) {
   const setFocalPoint = useMutation({
     mutationFn: async ({ entry, point }: { entry: FocalQueueEntry; point: FocalPointValue }) => {
       await writeFocalPoint(entry, point);
-      await stampChecked(entry.kind, entry.imageUrl);
+      await stampChecked(entry);
     },
     onSuccess: (_data, { entry, point }) => applySaved(entry, point),
   });
 
   const acceptFocalPoint = useMutation({
-    mutationFn: ({ entry }: { entry: FocalQueueEntry }) => stampChecked(entry.kind, entry.imageUrl),
+    mutationFn: ({ entry }: { entry: FocalQueueEntry }) => stampChecked(entry),
     onSuccess: (_data, { entry }) => applySaved(entry, null),
+  });
+
+  /**
+   * Adds or replaces the picture of a named entry (every edition row of the
+   * name). The old file is left in its bucket: the publish tool never deletes,
+   * and a DM's copy of the row may still point at it. The point is cleared and
+   * the entry unchecked, so the viewer stays on it, ready for a click.
+   */
+  const replacePicture = useMutation({
+    mutationFn: async ({ entry, file }: { entry: FocalQueueEntry; file: File }) => {
+      const { kind } = entry;
+      if (!isNamedKind(kind)) throw new Error("Only species, backgrounds and classes take a new picture here");
+      const user = getCurrentUser();
+      if (!user) throw new Error("Not signed in");
+      const webp = await toWebP(file);
+      const url = await uploadWithVariants({
+        bucket: NAMED_CONFIG[kind].bucket,
+        blob: webp,
+        userId: user.id,
+        folderPrefix: "srd",
+      });
+      if (!url) throw new Error("The upload failed");
+      const { error } = await namedTable(kind)
+        .update({ image_url: url, focal_point: null, focal_point_checked_at: null })
+        .in("id", entry.keys);
+      if (error) throw error;
+      return url;
+    },
+    onSuccess: (url, { entry }) => {
+      patchQueue(entry, (row) => ({ ...row, imageUrl: url, focalPoint: null, checkedAt: null }));
+    },
   });
 
   const entries = computed(() => (query.data.value === undefined ? [] : query.data.value));
 
-  return { query, entries, setFocalPoint, acceptFocalPoint };
+  return { query, entries, setFocalPoint, acceptFocalPoint, replacePicture };
 }

@@ -10,11 +10,17 @@
     </div>
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <button v-for="cls in mergedClasses" :key="cls.choice_key" type="button"
-        class="rounded-lg border overflow-hidden text-left transition-all p-3"
+        class="flex flex-col rounded-lg border bg-card overflow-hidden text-left transition-all"
         :class="selectedClassKey === cls.choice_key
-          ? 'border-primary ring-1 ring-primary bg-primary/5'
-          : 'border-border bg-card hover:border-primary/40'"
+          ? 'border-primary ring-1 ring-primary'
+          : 'border-border hover:border-primary/40'"
         @click="onClassSelect(cls.choice_key)">
+        <!-- A direct-child plate: the vellum theme insets it and draws the double ink frame. -->
+        <div v-if="cls.image_url" class="relative h-24 shrink-0 overflow-hidden bg-muted">
+          <FocalImage :src="cls.image_url" :alt="cls.class_name" format="landscape"
+            :focal-point="cls.focal_point" />
+        </div>
+        <div class="p-3">
         <div class="flex items-start gap-2">
           <div class="flex-1 min-w-0">
             <p class="text-heading-sm font-bold text-foreground">{{ cls.class_name }}</p>
@@ -37,6 +43,7 @@
           {{ classSkillDataFor(cls.class_name)!.count }} skill pick{{ classSkillDataFor(cls.class_name)!.count !== 1 ? 's' : '' }}
           {{ classSkillDataFor(cls.class_name)!.skills.length ? `from ${classSkillDataFor(cls.class_name)!.skills.length} options` : 'from any skill' }}
         </p>
+        </div>
       </button>
     </div>
 
@@ -209,6 +216,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
 import { revealInScrollParent } from "@/lib/motion";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import { SAVE_STATS, PROF_LEVELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";

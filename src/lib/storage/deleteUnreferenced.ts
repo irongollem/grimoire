@@ -57,6 +57,8 @@ export const IMAGE_REFERENCES = [
   ["npcs", ["portrait_url", "cutout_url", "disguise_portrait_url"]],
   ["spells", ["image_url"]],
   ["species", ["image_url"]],
+  ["custom_classes", ["image_url"]],
+  ["system_classes", ["image_url"]],
   ["backgrounds", ["image_url"]],
   ["puzzle_rooms", ["image_url"]],
   ["dungeon_features", ["image_url"]],

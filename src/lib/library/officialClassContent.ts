@@ -542,6 +542,8 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
       caster_type: "none",
       prepared_ability: null,
       prepared_divisor: null,
+      image_url: null,
+      focal_point: null,
     };
     // Open5e exposes none of a class's mechanical progression, so everything
     // past the shell is filled in by hand and a re-import must not reset it.

@@ -313,6 +313,8 @@ export function classDraftFromAi(ai: ClassAiResult, ctx: ClassDraftContext): Cla
     caster_type,
     prepared_ability,
     prepared_divisor: prepared_ability && casts ? PREPARED_DIVISOR[progression] : null,
+    image_url: null,
+    focal_point: null,
     ai_provenance: ai.ai_provenance ?? null,
   };
 

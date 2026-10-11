@@ -1253,7 +1253,7 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
     return;
   }
   if (entry.kind === "species") {
-    check((await client.from("library_species").update({ focal_point: focal }).in("id", ids)).error, "library_species");
+    check((await client.from("library_species").update({ focal_point: focal, focal_point_checked_at: null }).in("id", ids)).error, "library_species");
     return;
   }
   const names = itemNames(entry).map((name) => name.toLowerCase());

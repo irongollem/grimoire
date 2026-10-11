@@ -149,6 +149,15 @@ export const BUCKETS = {
     generateVariants: true,
     cdn: true,
   },
+  classImages: {
+    id: "class-images",
+    maxBytes: FIVE_MB,
+    mimeTypes: IMAGE_MIMES,
+    public: true,
+    // Library classes (system_classes) keep canonical art under srd/.
+    generateVariants: true,
+    cdn: true,
+  },
   dungeonFeatureImages: {
     id: "dungeon-feature-images",
     maxBytes: FIVE_MB,
