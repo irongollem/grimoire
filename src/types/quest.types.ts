@@ -369,11 +369,11 @@ export type QuestConsequenceInsert = Omit<QuestConsequence, "id" | "created_at" 
  * history is not theirs to read (see #798 for the player-facing projection).
  *
  * A row with `performed_at is null and undone_at is null and after_days > 0` is
- * waiting for its in-world date — the database logs it and names the day it
- * fired on (`fires_on_year/month/day`); the client, the one place per-calendar
- * arithmetic lives (`src/lib/calendar/dayMath.ts`), decides when
- * `fires_on + after_days` has arrived and calls `perform_quest_consequence`.
- * See `useDueConsequences`.
+ * waiting for its in-world date. The database logs it, names the day it fired
+ * on (`fires_on_year/month/day`) and stores the day it is due (`due_on_*`);
+ * the `campaigns_fire_due_consequences` trigger performs it when the
+ * campaign's today reaches that day (`private.fire_due_consequences`). The
+ * client only displays the wait.
  */
 export interface QuestConsequenceEvent {
   id: string;
@@ -390,6 +390,12 @@ export interface QuestConsequenceEvent {
   fires_on_year: number | null;
   fires_on_month: number | null;
   fires_on_day: number | null;
+  /** `fires_on + after_days` on the campaign's calendar, computed by the
+   *  database when the row is written. All three are null when the calendar
+   *  cannot place that date, and such a row never fires. */
+  due_on_year: number | null;
+  due_on_month: number | null;
+  due_on_day: number | null;
   performed_at: string | null;
   performed_on_year: number | null;
   performed_on_month: number | null;
@@ -404,9 +410,9 @@ export interface QuestConsequenceEvent {
    * every other action, and for a row logged before the action existed.
    *
    * They were missing here until the #825 review. Nothing broke, because the
-   * one real reader (`useDueConsequences`) declares its own narrower row type
-   * — but an audit-trail surface reading this interface would have been unable
-   * to see either field, with the compiler agreeing it did not exist.
+   * one real reader declared its own narrower row type — but an audit-trail
+   * surface reading this interface would have been unable to see either
+   * field, with the compiler agreeing it did not exist.
    */
   target_npc_id: string | null;
   previous_relationship: NpcRelationship | null;

@@ -66,8 +66,8 @@ import DashboardWidget from "../DashboardWidget.vue";
 const PENDING_KEY = "quest_consequence_events";
 
 const campaign = useCampaignStore();
-// The campaign's own calendar, so the countdown agrees with the engine and
-// with `useDueConsequences` — both go through `dayMath` since #766.
+// The campaign's own calendar, to count down to the due date the database
+// stored and will fire on (`private.fire_due_consequences`, on the date change).
 const calendarStore = useCalendarStore();
 const campaignId = computed(() => campaign.activeCampaignId);
 
@@ -78,7 +78,7 @@ const { data: rawRows, isLoading } = useQuery({
     const { data, error } = await supabase
       .from("quest_consequence_events")
       .select(
-        "id, after_days, fires_on_year, fires_on_month, fires_on_day, held_at, action, action_payload, " +
+        "id, due_on_year, due_on_month, due_on_day, held_at, action, action_payload, " +
           "quest:quests(id, title)",
       )
       .eq("campaign_id", cid)
@@ -87,7 +87,7 @@ const { data: rawRows, isLoading } = useQuery({
       .is("held_at", null)
       // The whole world-action set, not the two it started with. This was a
       // hardcoded pair, so the two actions added later (#831, #836) never
-      // appeared as "about to fire" — `useDueConsequences` performed them on
+      // appeared as "about to fire" — the database performed them on
       // time, but the dashboard that exists to warn a DM stayed silent about
       // them. Reading the exported set means the next action is included by
       // being added to it.

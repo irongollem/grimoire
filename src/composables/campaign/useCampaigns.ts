@@ -443,9 +443,10 @@ export function useRegenerateIcalToken() {
 }
 
 /** Update the in-game "today" date on the active campaign. Any quest
- *  consequence whose date has now arrived fires on its own — see
- *  `useDueConsequences`, which watches the campaign store's own today fields
- *  rather than needing a call from here (#794). */
+ *  consequence whose date has now arrived fires on its own — the
+ *  `campaigns_fire_due_consequences` trigger runs
+ *  `private.fire_due_consequences` on the update, so no call is needed from
+ *  here (#794). */
 export function useSetCampaignToday() {
   const queryClient = useQueryClient();
   return useMutation({

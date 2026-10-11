@@ -170,9 +170,9 @@ function toggleTodayEditor() {
 
 const { mutateAsync: setToday } = useSetCampaignToday();
 
-// Any consequence due on the new date fires on its own — see useDueConsequences,
-// mounted once in DefaultLayout, which watches the campaign store's own today
-// fields rather than this button specifically (#794).
+// Any consequence due on the new date fires on its own: the database's
+// `campaigns_fire_due_consequences` trigger (`private.fire_due_consequences`)
+// runs on the update, whichever surface wrote it (#794).
 async function saveToday() {
   const campaignId = campaignStore.activeCampaignId;
   if (!campaignId) return;

@@ -1,7 +1,7 @@
 import type { QuestConsequenceAction, QuestConsequenceActionPayload } from "@/types/quest.types";
 import { describeWorldConsequenceAction } from "@/lib/quests/consequences";
 import type { CalendarToday } from "@/lib/calendar/upcoming";
-import { addDays, daysFromTo } from "@/lib/calendar/dayMath";
+import { daysFromTo } from "@/lib/calendar/dayMath";
 import type { CalendarAdapter } from "@/types/calendar.types";
 
 /**
@@ -14,8 +14,11 @@ import type { CalendarAdapter } from "@/types/calendar.types";
  * (`QuestPayoffPanel.vue` on a beat, `QuestRulesPanel.vue` on the quest). The moment its condition fires, the engine
  * logs a `quest_consequence_events` row and, for the two *world* actions,
  * performs it immediately unless `after_days > 0` — see that table's own
- * column comment. So a pending world-action event (`performed_at is null`) is
- * always a real, still-outstanding wait; nothing with zero delay ever reaches
+ * column comment. A delayed one is stored with its due date (`due_on_*`), and
+ * the database performs it when the campaign's today reaches that date
+ * (`private.fire_due_consequences`, from the `campaigns` trigger); this widget
+ * only counts down to it. So a pending world-action event
+ * (`performed_at is null`) is always a real, still-outstanding wait; nothing with zero delay ever reaches
  * this widget, because it was already performed in the same transaction that
  * logged it.
  *
@@ -33,10 +36,12 @@ import type { CalendarAdapter } from "@/types/calendar.types";
  *  `undone_at is null` at the query. */
 export interface ConsequenceEventRow {
   id: string;
-  after_days: number;
-  fires_on_year: number;
-  fires_on_month: number;
-  fires_on_day: number;
+  /** The in-world day the database will perform it, stored when the row was
+   *  logged (`fires_on + after_days` on the campaign's calendar). All three
+   *  are null when the calendar cannot place that date; such a row never fires. */
+  due_on_year: number | null;
+  due_on_month: number | null;
+  due_on_day: number | null;
   action: QuestConsequenceAction;
   // The whole payload union, not the two shapes this widget originally
   // fetched: it now asks for every world action, and a relationship shift
@@ -84,7 +89,7 @@ function summarize(action: QuestConsequenceAction, payload: ConsequenceEventRow[
 }
 
 /**
- * Every pending world-action event whose `fires_on + after_days` is due now
+ * Every pending world-action event whose stored due date is now
  * or within the horizon, earliest first (ties broken by quest title so
  * equal-day rows have a stable order).
  */
@@ -101,13 +106,15 @@ export function deriveDueConsequenceRows(
     if (!quest) continue;
     if (row.held_at !== null) continue;
 
-    const fireDate = addDays(
-      adapter,
-      { year: row.fires_on_year, month: row.fires_on_month, day: row.fires_on_day },
-      row.after_days,
-    );
-    const daysUntil = daysFromTo(adapter, today, fireDate);
-    // A fire date the calendar cannot place is one nobody can act on.
+    // A due date the database could not place is stored as null and never
+    // fires, so it is not "about to fire" either.
+    if (row.due_on_year === null || row.due_on_month === null || row.due_on_day === null) continue;
+    const daysUntil = daysFromTo(adapter, today, {
+      year: row.due_on_year,
+      month: row.due_on_month,
+      day: row.due_on_day,
+    });
+    // A due date this calendar cannot place is one nobody can act on.
     if (daysUntil === undefined) continue;
     if (daysUntil > horizonDays) continue;
 

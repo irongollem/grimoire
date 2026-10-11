@@ -96,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onScopeDispose, ref, useTemplateRef, watch } from "vue";
+import { computed, defineAsyncComponent, onScopeDispose, useTemplateRef, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
@@ -120,7 +120,6 @@ import { usePartyAmbience } from "@/composables/campaign/usePartyAmbience";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
-import { useDueConsequences } from "@/composables/quests/useDueConsequences";
 import { isOverQuota, useQuota } from "@/composables/billing/useQuota";
 import { initPlaceholderFocalPoints } from "@/lib/placeholderFocalPoints";
 import { afterFirstPaint } from "@/lib/afterFirstPaint";
@@ -147,11 +146,9 @@ const AiGeneratorPanels = defineAsyncComponent(
 
 // Background work starts after first paint and an idle moment (#999): the
 // admin-configured placeholder focal points (only a fallback for FocalImage's
-// smartcrop) and the due-consequence automation. Neither is on screen, so
-// neither should queue ahead of the requests that draw the page.
-const backgroundReady = ref(false);
+// smartcrop). It is not on screen, so it should not queue ahead of the
+// requests that draw the page.
 const cancelBackground = afterFirstPaint(() => {
-  backgroundReady.value = true;
   void initPlaceholderFocalPoints();
 });
 onScopeDispose(cancelBackground);
@@ -194,10 +191,6 @@ const returnTo = computed(() => typeof route.query.returnTo === "string"
 
 useCampaignPresence();
 useCampaignLiveSync();
-
-// Fires any quest consequence whose in-world date has arrived, whichever of
-// the campaign's two "today" writers moved it there (#794).
-useDueConsequences(() => backgroundReady.value);
 
 // Listens for encounters and locations asking for a theme. Mounted here rather
 // than on the soundboard page because the DM is looking at the encounter when

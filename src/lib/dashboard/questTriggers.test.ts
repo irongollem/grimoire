@@ -9,10 +9,9 @@ const TODAY: CalendarToday = { year: 1495, month: 3, day: 10 };
  *  full row is not spelled out on every case. */
 function pending(overrides: Partial<ConsequenceEventRow> & { id: string }): ConsequenceEventRow {
   return {
-    after_days: 0,
-    fires_on_year: TODAY.year,
-    fires_on_month: TODAY.month,
-    fires_on_day: TODAY.day,
+    due_on_year: TODAY.year,
+    due_on_month: TODAY.month,
+    due_on_day: TODAY.day,
     action: "create_calendar_event",
     action_payload: { title: "The bridge collapses", event_type: "deadline", description: "No more crossing." },
     quest: { id: "quest-1", title: "The Sunken Keep" },
@@ -48,12 +47,12 @@ describe("deriveDueConsequenceRows", () => {
   });
 
   it("excludes an event whose fire date is beyond the horizon", () => {
-    const rows = [pending({ id: "e1", after_days: CONSEQUENCE_HORIZON_DAYS + 1 })];
+    const rows = [pending({ id: "e1", due_on_day: TODAY.day + CONSEQUENCE_HORIZON_DAYS + 1 })];
     expect(deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
   });
 
   it("includes an event inside the horizon, with the right countdown", () => {
-    const rows = [pending({ id: "e1", after_days: 5 })];
+    const rows = [pending({ id: "e1", due_on_day: TODAY.day + 5 })];
     const result = deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY);
     expect(result).toEqual([
       {
@@ -69,7 +68,7 @@ describe("deriveDueConsequenceRows", () => {
   it("describes a broadcast by its message", () => {
     const rows = [pending({
       id: "e1",
-      after_days: 2,
+      due_on_day: TODAY.day + 2,
       action: "send_broadcast",
       action_payload: { message: "The bells of the city toll in mourning." },
     })];
@@ -78,10 +77,15 @@ describe("deriveDueConsequenceRows", () => {
   });
 
   it("always includes an already-overdue event, ignoring the horizon", () => {
-    const rows = [pending({ id: "e1", fires_on_day: TODAY.day - 40, after_days: 0 })];
+    const rows = [pending({ id: "e1", due_on_year: TODAY.year - 1 })];
     const result = deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY);
     expect(result).toHaveLength(1);
     expect(result[0]!.daysUntil).toBeLessThan(0);
+  });
+
+  it("skips an event whose due date the calendar could not place", () => {
+    const rows = [pending({ id: "e1", due_on_year: null, due_on_month: null, due_on_day: null })];
+    expect(deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
   });
 
   it("drops an event whose quest is gone, rather than rendering it nameless", () => {
@@ -97,9 +101,9 @@ describe("deriveDueConsequenceRows", () => {
 
   it("sorts soonest-first, ties broken by quest title", () => {
     const rows = [
-      pending({ id: "later", quest: { id: "q1", title: "Zebra Quest" }, after_days: 10 }),
-      pending({ id: "tie-b", quest: { id: "q2", title: "Bravo Quest" }, after_days: 3 }),
-      pending({ id: "tie-a", quest: { id: "q3", title: "Alpha Quest" }, after_days: 3 }),
+      pending({ id: "later", quest: { id: "q1", title: "Zebra Quest" }, due_on_day: TODAY.day + 10 }),
+      pending({ id: "tie-b", quest: { id: "q2", title: "Bravo Quest" }, due_on_day: TODAY.day + 3 }),
+      pending({ id: "tie-a", quest: { id: "q3", title: "Alpha Quest" }, due_on_day: TODAY.day + 3 }),
     ];
     const result = deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY);
     expect(result.map((r) => r.eventId)).toEqual(["tie-a", "tie-b", "later"]);
@@ -107,8 +111,8 @@ describe("deriveDueConsequenceRows", () => {
 
   it("never lists a held payoff, however late it is", () => {
     const rows = [
-      pending({ id: "held", after_days: 0, held_at: "2026-01-01T00:00:00Z" }),
-      pending({ id: "free", after_days: 0 }),
+      pending({ id: "held", held_at: "2026-01-01T00:00:00Z" }),
+      pending({ id: "free" }),
     ];
     expect(deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY).map((r) => r.eventId)).toEqual(["free"]);
   });

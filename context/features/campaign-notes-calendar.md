@@ -209,9 +209,7 @@ Two states, and **not** "stale". A staleness rule would have to invent a number 
 
 **Habitat is deliberately not a filter.** It is free text and `null` on every Open5e-imported row — roughly 2,900 of ~3,541 bestiary entries (`open5eMonsterImport.ts:199`) — so a habitat filter would empty the pool for almost the whole bestiary. The CR bands match `LOOT_CR_TIERS` (`src/types/lootTable.types.ts:16`) so "CR 5–10" means one thing across the app, and fractional CRs go through the existing `crToNumber` rather than a second fraction parser.
 
-**Quest triggers due (`QuestTriggersWidget.vue`)** — scheduled consequences about to fire. `time` triggers (`offset_days > 0`) get a countdown and a 14-day horizon; `event` triggers (`offset_days === 0`) fire the instant their condition happened and are exempt from the horizon, described by their condition rather than a countdown that would always read "Today".
-
-**It matches `fireDueTriggers`' day math, not `lib/calendar/upcoming.ts`'s, and that is deliberate.** `useQuests.ts:44-47` uses a private helper with fixed 12×30-day months that ignores intercalary days; `upcoming.ts` is adapter-aware. The adapter version is more nearly _correct_, and using it here would make the widget disagree with the code that actually fires the trigger — a card saying "in 2 days" for something that fires in 3. A widget must agree with reality before it agrees with the calendar. The underlying inconsistency is filed rather than silently changed, since fixing it moves when triggers fire.
+**Quest triggers due (`QuestTriggersWidget.vue`)**: pending delayed world actions about to fire, with a countdown and a 14-day horizon. It counts down to the `due_on_*` date the database stamped on the event row and will fire on (#1016), so the card and the engine cannot disagree about the day: there is one computation of it, not two.
 
 **Players wrote (`SharedJournalWidget.vue`)** — shared player journal entries the DM has not read. Self-hiding, and it empties itself as the DM works through it, because opening an entry marks it read.
 
@@ -223,6 +221,8 @@ Unread re-triggers on edit (`isNew` takes `updated_at`), so an entry the DM read
 
 **In-world day arithmetic lives in `src/lib/calendar/dayMath.ts` (#766).** `buildYearIndex`, `ordinalWithinYear`, `daysBetween`, `daysFromTo`, `isOnOrBefore`, `addDays`. Everything walks whole years, because adjacent years are not the same length — a Harptos leap year carries Shieldmeet.
 
+**The database has one copy of `addDays` (#1016)**, `private.calendar_add_days` over `private.calendar_shape`, because a delayed quest consequence's due date is stamped server-side where no client is present. It is a generic walk over the calendar's data, not a port per calendar; the built-in shapes are held equal to the registry by `src/settings/calendarShapeMirror.test.ts` and `supabase/tests/calendar_day_math.test.sql`. Change a month length, a festival or a leap rule in `src/settings/` and that test fails until the SQL changes with it.
+
 It exists because four places did this arithmetic and all four did it differently: `CalendarTimeline`'s `eventToFrac` (nominal 30-day months, fine for a ruler), `CalendarGrid` (a Gregorian February rule applied to every adapter — the Ches bug above), `upcoming.ts` (correct, but private), and `useQuests.ts`, which **scheduled and fired every quest trigger** on twelve exactly-30-day months with intercalary days ignored. A Harptos year is 365 or 366 days, so triggers drifted 5–6 days per in-world year against the calendar the DM reads.
 
 **That one hid because both halves used the same wrong helper.** `scheduleQuestTriggers` stamped a fire date with it and `fireDueTriggers` compared against it with the same function, so they agreed with each other perfectly and nothing looked broken. It only surfaced when the #764 dashboard card computed the same date correctly and disagreed — which is why that widget originally _mirrored_ the wrong formula on purpose.
@@ -230,7 +230,7 @@ It exists because four places did this arithmetic and all four did it differentl
 Two decisions worth keeping:
 
 - **`addDays` never returns an intercalary day.** `quest_trigger_scheduled` stores three integer columns and has nowhere to put "Shieldmeet", so an offset landing on a festival rolls forward to the next dated day. Intercalary days still _count_ as elapsed — ignoring them is the bug.
-- **Rows scheduled before the fix keep their stored dates.** Recomputing on read would move deadlines a DM has already been told about, mid-campaign. A handful of legacy rows a few days out is the better trade, and `fireDueTriggers` says so at the point of the comparison.
+- **Rows scheduled before the fix keep their stored dates.** Recomputing on read would move deadlines a DM has already been told about, mid-campaign. A handful of legacy rows a few days out was the better trade at the time.
 
 `useQuests.ts` reads the adapter from the store rather than taking it as a parameter: four call sites across three components is four chances to pass the wrong calendar, and a trigger belongs to a campaign, which has exactly one.
 

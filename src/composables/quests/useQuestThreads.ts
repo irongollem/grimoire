@@ -141,11 +141,11 @@ export interface FireHeldConsequenceInput {
 
 /**
  * Fires a payoff the DM held back in the Advance dialog (`QuestHeldPayoff`),
- * from the log rather than from the beat that originally carried it. Shares
- * `perform_quest_consequence` with `useDueConsequences` — the caller supplies
- * today's in-world date the same way that composable reads it off the
- * campaign store, since firing late is still firing "as of today," not as of
- * whenever the payoff was held.
+ * from the log rather than from the beat that originally carried it. Runs the
+ * same internals the database uses to fire a delayed event on its due day
+ * (`private.fire_due_consequences`), but a held payoff has no due day: the
+ * caller supplies today's in-world date off the campaign store, since firing
+ * late is still firing "as of today," not as of whenever the payoff was held.
  */
 export async function fireHeldConsequence(input: FireHeldConsequenceInput): Promise<void> {
   const { error } = await supabase.rpc("perform_quest_consequence", {

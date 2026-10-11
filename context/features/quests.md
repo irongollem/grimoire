@@ -991,8 +991,9 @@ moved, no journal entry written, no calendar event created. The cockpit's
 Held payoff panel (`QuestRunHeldPayoff.vue`) and the quest card's "Held
 payoff — not yet fired" read `held_at is not null and performed_at is null`.
 A held event that also carries a delay is **never auto-performed when its day
-arrives** (#1011): `useDueConsequences` reads only `held_at is null` rows, so
-a held payoff fires solely from the cockpit's Fire button. It used to be
+arrives** (#1011): `private.fire_due_consequences` (#1016) reads only
+`held_at is null` rows, so a held payoff fires solely from the cockpit's Fire
+button. It used to be
 performed on the due date regardless, which is the hold being ignored. Firing
 a held event from the log calls the same `perform_quest_consequence`
 a due delayed action uses, which clears `held_at` alongside setting
@@ -1005,18 +1006,42 @@ log time (a normal ledger verb moves the objective inline, in
 event is written) — which is what lets `previous` undo it correctly however
 long it sat held.
 
-**The database cannot compute a delayed action's due date itself.**
-Per-calendar leap and intercalary rules live only in `src/lib/dayMath.ts`
-(#766), and a plpgsql port would be a fifth copy. So a delayed row
-(`after_days > 0`) is logged with `fires_on_year/month/day` and left
+**A delayed action fires on the server, on the date change (#1016).** A
+delayed row (`after_days > 0`) is logged with `fires_on_year/month/day` and left
 `performed_at is null` (a world action only: an engine-state verb, ledger or
 `tick_clock`, applies inside the transition and is logged performed at once,
-so the runner never applies it a second time; #1011 review); the client decides `fires_on + after_days` has
-arrived and calls `perform_quest_consequence(event_id, year, month, day)` to
-perform it. `useDueConsequences` (mounted once in `DefaultLayout.vue`) is the
-one place that watches for that — a watcher on the campaign store's own today
-fields, not on any one "set today" call site, closes the bug where aging a
-campaign forward from `DetailsTab`'s "Current Year" field fired nothing.
+so the runner never applies it a second time; #1011 review). The trigger
+`quest_consequence_events_due_on` stamps `due_on_year/month/day` =
+`fires_on + after_days` on the campaign's own calendar as the row is written,
+and `campaigns_fire_due_consequences` runs `private.fire_due_consequences`
+whenever `campaigns.current_*` moves: every pending, unheld, un-undone delayed
+row due on or before the new today is performed in `seq` order through
+`private.perform_quest_consequence`, stamped with **its own due day** (a jump of
+a tenday performs "three days later" on the third day, and dates its calendar
+event there). It is the same shape as `campaigns_fail_overdue_objectives` and
+sorts after it, so a delay an overdue objective's rule just logged is already
+on the log.
+
+- **Why the server does the calendar arithmetic.** The issue proposed having
+  the client pass the due date in, but the rows are written by
+  `apply_quest_consequences`, which eight server paths call (one of them the
+  date-change trigger itself), so no client is there to ask. A calendar is plain
+  data (`SettingCalendarDef`) plus one of three leap rules, so
+  `private.calendar_add_days` over `private.calendar_shape` is one generic port
+  of `addDays`, not a port per calendar. The built-in shapes are a copy of
+  `src/settings/index.ts`, held equal by `calendar_day_math.test.sql` and
+  `src/settings/calendarShapeMirror.test.ts`; custom calendars are read from
+  `campaigns.custom_calendar`. A due date the calendar cannot place (or a custom
+  definition too malformed to read) is stored as null and never fires.
+- **A calendar switch restamps what is waiting** (`campaigns_calendar_restamps_due_consequences`,
+  which sorts before the firing trigger) and fires anything now due, since the
+  client always read the wait on the current calendar.
+- **An action that cannot be performed aborts the date change with it**, as it
+  aborts a beat advance. Nothing is left half-applied behind a date that moved on.
+- **No client watches for it any more.** `useDueConsequences` (the DM shell's
+  watcher) is gone: it only fired while a DM had the app open, two tabs raced,
+  and a failure left the rest waiting. The dashboard's "Quest consequences due"
+  widget counts down to the stored `due_on_*` rather than computing its own.
 
 A ledger verb applies **immediately** regardless of `after_days` when it is
 not held: only the (now eleven) world actions are ever deferred by
@@ -2110,7 +2135,7 @@ there.
   objectives of active quests.** Winding the calendar back un-fails nothing, so
   a mis-clicked date costs a manual fix rather than a silent reversal that
   could re-fire rules.
-- **A held payoff with a delay still waits for Fire.** `useDueConsequences`
+- **A held payoff with a delay still waits for Fire.** `private.fire_due_consequences`
   filters `held_at is null` deliberately; a delay on a held row is authored
   intent for when it would have fired, not permission to perform it.
 - **A restored clock starts empty.** `filled` is engine state with no client
