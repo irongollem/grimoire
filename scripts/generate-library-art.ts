@@ -44,6 +44,7 @@
  *   npm run library:art -- generate --spell srd_2024_fireball --out art-947 --yes-spend
  *   npm run library:art -- generate --spell srd_2024_fireball --out art-947 --only spell-srd_2024_fireball --yes-spend
  *   npm run library:art -- generate --monster srd_srd_sprite --out art-947 --yes-spend
+ *   npm run library:art -- generate --background srd_2024_scoundrel --also srd_scoundrel --out art-bg --yes-spend
  *   npm run library:art -- generate --item "Quarterstaff" --out art-947 --subject "<what the picture shows>" --yes-spend
  *   npm run library:art -- generate --item "Sack" --image-model gpt-image-2.5-sunburst --out art-955 --yes-spend
  *   npm run library:art -- generate --item "Longsword (+1)" --also "Longsword (+2)" --also "Longsword (+3)" --out art-955 --yes-spend
@@ -62,6 +63,11 @@
  * namesake rule unless `--also <id>` names further rows to share it. `--library-owner <uuid>` names the owner recorded for the
  * provenance rows; by default the one admin account. `--cdn-base <url>` is
  * needed when `VITE_ASSET_CDN_URL` is not in the env.
+ *
+ * Background art goes to `background-images/srd/` and to every `library_backgrounds` row of the
+ * same name (case-insensitive) plus any id given with `--also`: the 2014 and 2024 editions and
+ * same-named backgrounds from other books share one picture, as species do. It shows one
+ * adventurer of that walk of life at work in their element. The focal guess writes `focal_point`.
  *
  * Env: VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY (generate),
  * R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY (publish --write).
@@ -104,11 +110,12 @@ const MANIFEST_FILE = "manifest.json";
 /**
  * `species` is publish-only: species pictures (the race showcase, #955) are rendered outside this tool, so no
  * `generate` flag makes one; a manifest entry with `kind: "species"` and the species' `name` publishes it.
+ * `background` is both: `--background <id>` generates, and a publish writes every same-named row.
  */
-export type ArtKind = "spell" | "item" | "monster" | "species";
+export type ArtKind = "spell" | "item" | "monster" | "species" | "background";
 
 /** Storage bucket per kind. Canonical art lives under `srd/` in all three (see CLAUDE.md, Storage Path Convention). */
-export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images" };
+export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images" };
 
 /**
  * How canonical item art is staged, passed where the app passes a campaign's
@@ -223,6 +230,7 @@ const TABLES_FOR_KIND: Record<ArtKind, string> = {
   monster: "library_monster_art_canonical + library_monsters",
   item: "library_art_defaults + library_items",
   species: "library_species",
+  background: "library_backgrounds",
 };
 
 // ---------------------------------------------------------------------------
@@ -306,6 +314,16 @@ export interface ItemFacts {
   description: string;
 }
 
+export interface BackgroundFacts {
+  id: string;
+  name: string;
+  /** Tiptap JSON or plain text. */
+  description: string | null;
+  feature_name: string | null;
+  feature_description: string | null;
+  skill_proficiencies: string[] | null;
+}
+
 export interface MonsterFacts {
   id: string;
   name: string;
@@ -331,6 +349,22 @@ export function monsterContext(monster: Omit<MonsterFacts, "id">): string {
     monster.alignment,
     monster.habitat,
     toPlainText(monster.description),
+  ]).slice(0, CONTEXT_LIMIT);
+}
+
+/**
+ * What the subject writer needs to draw a walk of life: the name, the feature it
+ * grants (its trade in action) and the skills it trains, then the description.
+ * Clamped like `useEntityImageGeneration`.
+ */
+export function backgroundContext(background: Omit<BackgroundFacts, "id">): string {
+  const skills = background.skill_proficiencies ?? [];
+  return buildEntityContext([
+    background.name,
+    background.feature_name ? `Feature: ${background.feature_name}` : null,
+    toPlainText(background.feature_description),
+    skills.length > 0 ? `Skills: ${skills.join(", ")}` : null,
+    toPlainText(background.description),
   ]).slice(0, CONTEXT_LIMIT);
 }
 
@@ -366,7 +400,11 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export type EntryRef = { kind: "spell"; id: string } | { kind: "monster"; id: string } | { kind: "item"; name: string };
+export type EntryRef =
+  | { kind: "spell"; id: string }
+  | { kind: "monster"; id: string }
+  | { kind: "background"; id: string }
+  | { kind: "item"; name: string };
 
 export function entrySlug(ref: EntryRef): string {
   const slug = ref.kind === "item" ? slugify(ref.name) : slugify(ref.id);
@@ -455,13 +493,13 @@ export interface PublishRecord {
 export interface ManifestEntry {
   slug: string;
   kind: ArtKind;
-  /** Library spell or monster id; null for items and species (a species publishes by `name`). */
+  /** Library spell, monster or background id; null for items and species (a species publishes by `name`). */
   id: string | null;
   /** The entry's name. */
   name: string;
   /** Item entries only: further library item names the same picture is published to (`--also`). */
   alsoNames: string[];
-  /** Monster entries only: further library monster ids the same picture is published to (`--also`). */
+  /** Monster and background entries only: further library ids the same picture is published to (`--also`). */
   alsoIds: string[];
   context: string;
   subject: string;
@@ -549,6 +587,7 @@ export interface GenerateOptions {
   command: "generate";
   spells: string[];
   monsters: string[];
+  backgrounds: string[];
   items: string[];
   out: string;
   only: string | null;
@@ -586,6 +625,7 @@ export function parseCli(argv: readonly string[]): CliOptions {
     options: {
       spell: { type: "string", multiple: true },
       monster: { type: "string", multiple: true },
+      background: { type: "string", multiple: true },
       item: { type: "string", multiple: true },
       out: { type: "string" },
       only: { type: "string" },
@@ -611,34 +651,35 @@ export function parseCli(argv: readonly string[]): CliOptions {
     const spells = values.spell ?? [];
     const monsters = values.monster ?? [];
     const items = values.item ?? [];
-    const count = spells.length + monsters.length + items.length;
-    if (count === 0) throw new Error("Name at least one entry with --spell <library id>, --monster <library id> or --item \"<name>\".");
+    const backgrounds = values.background ?? [];
+    const count = spells.length + monsters.length + backgrounds.length + items.length;
+    if (count === 0) throw new Error("Name at least one entry with --spell <library id>, --monster <library id>, --background <library id> or --item \"<name>\".");
     if (values.write || values["approve-all"]) throw new Error("--write and --approve-all belong to publish.");
     const subject = values.subject === undefined ? null : values.subject.trim();
     if (subject !== null) {
       if (subject === "") throw new Error("--subject must not be empty.");
       // One description cannot be right for two pictures.
-      if (count !== 1) throw new Error("--subject describes one image: name exactly one --spell, --monster or --item with it.");
+      if (count !== 1) throw new Error("--subject describes one image: name exactly one --spell, --monster, --background or --item with it.");
     }
     const also = (values.also ?? []).map((name) => name.trim());
     if (also.length > 0) {
       // A shared picture is drawn from one entry's facts, so it needs exactly one
-      // item (the others are item names) or one monster (the others are monster ids).
-      if (count !== 1 || spells.length > 0) throw new Error("--also shares one picture: name exactly one --item or --monster with it.");
+      // item (the others are item names), one monster or one background (the others are ids).
+      if (count !== 1 || spells.length > 0) throw new Error("--also shares one picture: name exactly one --item or --monster (or --background) with it.");
       if (also.some((name) => name === "")) throw new Error("--also must not be empty.");
-      const lowered = [...items, ...monsters, ...also].map((name) => name.toLowerCase());
+      const lowered = [...items, ...monsters, ...backgrounds, ...also].map((name) => name.toLowerCase());
       if (new Set(lowered).size !== lowered.length) throw new Error("--also names an entry twice.");
     }
     const imageModel = values["image-model"]?.trim() || null;
     if (imageModel !== null && !imageModel.startsWith("gpt-image-")) throw new Error("--image-model must name an OpenAI gpt-image model.");
-    return { command, spells, monsters, items, out: values.out, only, yesSpend: values["yes-spend"], subject, also, imageModel };
+    return { command, spells, monsters, backgrounds, items, out: values.out, only, yesSpend: values["yes-spend"], subject, also, imageModel };
   }
 
   if (values.subject !== undefined) throw new Error("--subject belongs to generate.");
   if (values.also !== undefined) throw new Error("--also belongs to generate.");
   if (values["image-model"] !== undefined) throw new Error("--image-model belongs to generate.");
 
-  if (values.spell || values.monster || values.item) throw new Error("--spell, --monster and --item belong to generate.");
+  if (values.spell || values.monster || values.background || values.item) throw new Error("--spell, --monster, --background and --item belong to generate.");
   if (values["yes-spend"]) throw new Error("--yes-spend belongs to generate.");
   const owner = values["library-owner"] ?? null;
   if (owner !== null && !UUID.test(owner)) throw new Error("--library-owner must be a uuid.");
@@ -745,6 +786,7 @@ export function focalTarget(kind: ArtKind): string {
   if (kind === "monster") return "the creature's head or face (the point a portrait crop should centre on)";
   if (kind === "item") return "the centre of the main object (not the background props)";
   if (kind === "species") return "the centre of the group's faces (the point a portrait crop should centre on)";
+  if (kind === "background") return "the figure's face (the point a portrait crop should centre on)";
   return "the centre of the main subject: the caster's face if a caster is the focus, otherwise the heart of the magical effect";
 }
 
@@ -809,6 +851,17 @@ async function loadMonster(client: SupabaseClient, id: string): Promise<MonsterF
   return data as MonsterFacts;
 }
 
+async function loadBackground(client: SupabaseClient, id: string): Promise<BackgroundFacts> {
+  const { data, error } = await client
+    .from("library_backgrounds")
+    .select("id, name, description, feature_name, feature_description, skill_proficiencies")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`Could not read library_backgrounds ${id}: ${error.message}`);
+  if (!data) throw new Error(`No library background with id "${id}".`);
+  return data as BackgroundFacts;
+}
+
 interface GenerationSettings {
   imageBase: string;
   textModel: string;
@@ -842,7 +895,7 @@ interface PlannedEntry {
   context: string;
   alsoNames: string[];
   alsoIds: string[];
-  /** The setting passed to the image prompt: an item's staging, the spell guard rails, empty for monsters. */
+  /** The setting passed to the image prompt: an item's staging, the spell guard rails, empty for monsters and backgrounds. */
   setting: string;
   scene: ItemScene | null;
 }
@@ -851,6 +904,7 @@ async function planEntries(client: SupabaseClient, opts: GenerateOptions): Promi
   const refs: EntryRef[] = [
     ...opts.spells.map((id): EntryRef => ({ kind: "spell", id })),
     ...opts.monsters.map((id): EntryRef => ({ kind: "monster", id })),
+    ...opts.backgrounds.map((id): EntryRef => ({ kind: "background", id })),
     ...opts.items.map((name): EntryRef => ({ kind: "item", name })),
   ];
   const seen = new Set<string>();
@@ -871,6 +925,12 @@ async function planEntries(client: SupabaseClient, opts: GenerateOptions): Promi
       const alsoIds: string[] = [];
       for (const id of opts.also) alsoIds.push((await loadMonster(client, id)).id);
       planned.push({ ref, name: monster.name, context: monsterContext(monster), alsoNames: [], alsoIds, setting: "", scene: null });
+    } else if (ref.kind === "background") {
+      const background = await loadBackground(client, ref.id);
+      // Fail before spending when a shared id is wrong.
+      const alsoIds: string[] = [];
+      for (const id of opts.also) alsoIds.push((await loadBackground(client, id)).id);
+      planned.push({ ref, name: background.name, context: backgroundContext(background), alsoNames: [], alsoIds, setting: "", scene: null });
     } else {
       const item = await loadItem(client, ref.name);
       // Fail before spending when a shared name is misspelt, and record each as the library spells it.
@@ -1169,6 +1229,20 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     if (missing.length > 0) throw new Error(`${entry.slug}: library monster ${missing.join(", ")} no longer exists.`);
     return ids;
   }
+  if (entry.kind === "background") {
+    if (entry.id === null) throw new Error(`${entry.slug}: a background entry needs an id.`);
+    // Every row of the same name shows the same picture (2014, 2024, other books), plus any `--also` ids.
+    const { data, error } = await client.from("library_backgrounds").select("id, name").ilike("name", escapeLikePattern(entry.name));
+    if (error) throw new Error(`Could not read library_backgrounds: ${error.message}`);
+    const named = (data as { id: string; name: string }[]).filter((b) => b.name.toLowerCase() === entry.name.toLowerCase()).map((b) => b.id);
+    const ids = [...new Set([entry.id, ...entry.alsoIds, ...named])].sort();
+    const found = await client.from("library_backgrounds").select("id").in("id", ids);
+    if (found.error) throw new Error(`Could not read library_backgrounds: ${found.error.message}`);
+    const present = new Set((found.data as { id: string }[]).map((r) => r.id));
+    const missing = ids.filter((id) => !present.has(id));
+    if (missing.length > 0) throw new Error(`${entry.slug}: library background ${missing.join(", ")} no longer exists.`);
+    return ids;
+  }
   if (entry.kind === "species") {
     // Every edition of a species shows the same picture: the 2014 and 2024 rows share a name.
     const { data, error } = await client.from("library_species").select("id, name").ilike("name", escapeLikePattern(entry.name));
@@ -1214,6 +1288,11 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     if (rows.error) throw new Error(`Could not update library_monsters: ${rows.error.message}`);
     return;
   }
+  if (entry.kind === "background") {
+    const rows = await client.from("library_backgrounds").update({ image_url: url }).in("id", ids);
+    if (rows.error) throw new Error(`Could not update library_backgrounds: ${rows.error.message}`);
+    return;
+  }
   if (entry.kind === "species") {
     const rows = await client.from("library_species").update({ image_url: url }).in("id", ids);
     if (rows.error) throw new Error(`Could not update library_species: ${rows.error.message}`);
@@ -1250,6 +1329,11 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
   if (entry.kind === "monster") {
     check((await client.from("library_monster_art_canonical").update({ portrait_focal_point: focal, focal_point_checked_at: null }).in("entry_id", ids)).error, "library_monster_art_canonical");
     check((await client.from("library_monsters").update({ portrait_focal_point: focal }).in("id", ids)).error, "library_monsters");
+    return;
+  }
+  if (entry.kind === "background") {
+    // library_backgrounds has no focal_point_checked_at column in production yet, so the point alone is written.
+    check((await client.from("library_backgrounds").update({ focal_point: focal }).in("id", ids)).error, "library_backgrounds");
     return;
   }
   if (entry.kind === "species") {

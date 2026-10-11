@@ -12,6 +12,7 @@ const AVAILABLE_KEY        = "available-library-sources";
 const AVAILABLE_SPELL_KEY  = "available-library-spell-sources";
 const AVAILABLE_ITEM_KEY   = "available-library-item-sources";
 const AVAILABLE_SPECIES_KEY = "available-library-species-sources";
+const AVAILABLE_BACKGROUND_KEY = "available-library-background-sources";
 
 export interface EnabledSource {
   id: string;
@@ -234,6 +235,26 @@ export function useAvailableLibrarySpeciesSources() {
   });
 }
 
+async function fetchAvailableLibraryBackgroundSources(ruleset: "2014" | "2024"): Promise<AvailableLibrarySource[]> {
+  const { data, error } = await supabase.rpc("get_library_background_sources", { p_ruleset: ruleset });
+  if (error) throw error;
+  return (data ?? []) as AvailableLibrarySource[];
+}
+
+/**
+ * The background books a DM may enable for the table. A source holding only
+ * backgrounds (Grimoire Backgrounds) appears in no other picker, so without this
+ * one a campaign could never switch it on.
+ */
+export function useAvailableLibraryBackgroundSources() {
+  const { ruleset } = useTableRuleset();
+  return useQuery({
+    queryKey: computed(() => [AVAILABLE_BACKGROUND_KEY, ruleset.value] as const),
+    queryFn: ({ queryKey: [, rs] }) => fetchAvailableLibraryBackgroundSources(rs),
+    staleTime: Infinity,
+  });
+}
+
 function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: [ENABLED_KEY] });
   queryClient.invalidateQueries({ queryKey: [USER_ENABLED_KEY] });
@@ -250,15 +271,18 @@ function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
 
 async function fetchAvailablePlayerBooks(): Promise<AvailableLibrarySource[]> {
   // Both editions: a table-less character picks its edition per character.
-  const [species, spells] = await Promise.all([
+  const [species, spells, backgrounds] = await Promise.all([
     supabase.rpc("get_library_species_sources", { p_ruleset: null }),
     supabase.rpc("get_library_spell_sources", { p_ruleset: null }),
+    supabase.rpc("get_library_background_sources", { p_ruleset: null }),
   ]);
   if (species.error) throw species.error;
   if (spells.error) throw spells.error;
+  if (backgrounds.error) throw backgrounds.error;
   return mergeAvailableSources([
     ...((species.data ?? []) as AvailableLibrarySource[]),
     ...((spells.data ?? []) as AvailableLibrarySource[]),
+    ...((backgrounds.data ?? []) as AvailableLibrarySource[]),
   ]);
 }
 
@@ -279,7 +303,7 @@ export function mergeAvailableSources(rows: AvailableLibrarySource[]): Available
   );
 }
 
-/** The books a player could enable: everything the library holds for species or spells, both editions. */
+/** The books a player could enable: everything the library holds for species, spells or backgrounds, both editions. */
 export function useAvailablePlayerBooks() {
   return useQuery({
     queryKey: [AVAILABLE_PLAYER_KEY] as const,

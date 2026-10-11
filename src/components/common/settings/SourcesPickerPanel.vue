@@ -1,7 +1,14 @@
 <template>
   <!-- ══ Popover variant — desktop trigger + absolute-positioned panel ══════ -->
   <div v-if="variant === 'popover'" ref="rootRef" class="relative shrink-0">
-    <slot name="trigger" :open="open" :toggle="toggle" />
+    <slot name="trigger" :open="open" :toggle="toggle" :has-cue="hasCue" />
+    <!-- The trigger is an icon button that fills this wrapper, so the dot sits on its corner. -->
+    <EntityNewDot
+      :is-new="hasCue"
+      size="sm"
+      title="More library content to explore"
+      class="pointer-events-none absolute -top-0.5 -right-0.5"
+    />
 
     <!-- On a phone the trigger usually sits at the left of a wrapped action
          row, so a 20rem panel hung off its right edge ran off the screen and
@@ -14,6 +21,7 @@
         :empty-message="emptyMessage"
         :available-sources="availableSources"
         :is-loading="isLoading"
+        :cue-key="cueKey"
       />
     </MobileSheet>
 
@@ -102,13 +110,15 @@
 
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { onClickOutside } from "@vueuse/core";
+import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 // Itself, for the phone sheet: the sheet variant is this component's own list.
 import SourcesPickerPanel from "./SourcesPickerPanel.vue";
+import { useSourceCue } from "@/composables/library/useSourceCue";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useToast } from "@/composables/useToast";
 import {
@@ -139,6 +149,7 @@ const {
   emptyMessage,
   availableSources,
   isLoading,
+  cueKey,
 } = defineProps<{
   variant?: "popover" | "sheet";
   scope?: "campaign" | "player";
@@ -147,6 +158,8 @@ const {
   emptyMessage: string;
   availableSources: AvailableLibrarySource[] | undefined;
   isLoading: boolean;
+  /** Names this picker in the "more to explore" cue; without it the picker shows no dot. */
+  cueKey?: string;
 }>();
 
 const toast = useToast();
@@ -202,6 +215,22 @@ const rows = computed<PickerRow[]>(() => {
     .map((slug) => ({ source: slug, source_title: null, title: SRD_TITLES[slug] ?? slug, count: null, locked: true }));
   return [...missing, ...listed];
 });
+
+// The cue counts a source as taken care of when it is enabled in this scope; a
+// player's SRDs are always on. Null until the scope's sources have loaded.
+const cueEnabled = computed(() => {
+  const data = scope === "player" ? userSourceData.value : campaignSourceData.value;
+  if (!data) return null;
+  const slugs = data.map((e) => e.source_slug);
+  return new Set(scope === "player" ? [...slugs, ...STANDALONE_LIBRARY_SLUGS] : slugs);
+});
+const { hasCue, markSeen } = useSourceCue(() => cueKey, () => availableSources, cueEnabled);
+// Opening the picker (the sheet exists only while open) is what "seen" means.
+watch(
+  () => [variant === "sheet" || open.value, availableSources] as const,
+  ([showing]) => { if (showing) markSeen(); },
+  { immediate: true },
+);
 
 function isEnabled(slug: string) { return enabledSlugs.value.has(slug); }
 

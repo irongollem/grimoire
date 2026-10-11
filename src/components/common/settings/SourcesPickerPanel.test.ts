@@ -94,4 +94,51 @@ describe("SourcesPickerPanel", () => {
     options.onError(new Error("boom"));
     expect(mocks.toastError).toHaveBeenCalledWith("Couldn't change the books. boom");
   });
+
+  describe("more-to-explore cue", () => {
+    function mountPopover(cueKey: string) {
+      return mount(SourcesPickerPanel, {
+        props: { scope: "campaign", description: "d", emptyMessage: "none", availableSources: SOURCES, isLoading: false, cueKey },
+        slots: {
+          trigger: `<template #trigger="{ toggle, hasCue }"><button data-test="t" :data-cue="hasCue" @click="toggle" /></template>`,
+        },
+        global: { stubs: { RouterLink: true, MobileSheet: true } },
+      });
+    }
+
+    beforeEach(() => localStorage.clear());
+
+    it("shows the dot while an unenabled source is unseen, and clears it once opened", async () => {
+      const w = mountPopover("monsters");
+      expect(w.find("[data-test=t]").attributes("data-cue")).toBe("true");
+      expect(w.find("[title='More library content to explore']").exists()).toBe(true);
+      await w.find("[data-test=t]").trigger("click");
+      expect(w.find("[data-test=t]").attributes("data-cue")).toBe("false");
+      expect(w.find("[title='More library content to explore']").exists()).toBe(false);
+    });
+
+    it("shows no dot when every listed source is enabled", () => {
+      mocks.campaignRows = [{ source_slug: "srd-2014" }, { source_slug: "toh" }];
+      expect(mountPopover("spells").find("[data-test=t]").attributes("data-cue")).toBe("false");
+    });
+
+    it("marks sources seen when the sheet variant mounts", () => {
+      mountPicker();
+      const w = mount(SourcesPickerPanel, {
+        props: { variant: "sheet", description: "d", emptyMessage: "none", availableSources: SOURCES, isLoading: false, cueKey: "items" },
+        global: { stubs: { RouterLink: true } },
+      });
+      expect(JSON.parse(localStorage.getItem("library-source-cue-seen") ?? "{}")).toEqual({ items: ["srd-2014", "toh"] });
+      w.unmount();
+    });
+
+    it("shows no dot without a cueKey", () => {
+      const w = mount(SourcesPickerPanel, {
+        props: { description: "d", emptyMessage: "none", availableSources: SOURCES, isLoading: false },
+        slots: { trigger: `<template #trigger="{ hasCue }"><i data-test="t" :data-cue="hasCue" /></template>` },
+        global: { stubs: { RouterLink: true, MobileSheet: true } },
+      });
+      expect(w.find("[data-test=t]").attributes("data-cue")).toBe("false");
+    });
+  });
 });

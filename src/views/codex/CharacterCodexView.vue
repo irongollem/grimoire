@@ -21,6 +21,7 @@
         <SourcesPickerPanel
           v-if="activeTab === 'species'"
           title="Species Sources"
+          cue-key="species"
           description="Enabled sources add their species to this campaign instantly. No download needed."
           empty-message="No species sources available yet."
           :available-sources="speciesSourceData"
@@ -34,6 +35,28 @@
               :icon="IconLibrary"
               class="shrink-0"
               tooltip="Manage species sources for this campaign"
+              @click="toggle"
+            />
+          </template>
+        </SourcesPickerPanel>
+        <!-- Backgrounds tab -->
+        <SourcesPickerPanel
+          v-if="activeTab === 'backgrounds'"
+          title="Background Sources"
+          cue-key="backgrounds"
+          description="Enabled sources add their backgrounds to this campaign instantly. No download needed."
+          empty-message="No background sources available yet."
+          :available-sources="backgroundSourceData"
+          :is-loading="backgroundSourcesLoading"
+        >
+          <template #trigger="{ open: pickerOpen, toggle }">
+            <AppButton
+              variant="subtle"
+              size="icon-sm"
+              :active="pickerOpen"
+              :icon="IconLibrary"
+              class="shrink-0"
+              tooltip="Manage background sources for this campaign"
               @click="toggle"
             />
           </template>
@@ -263,7 +286,7 @@ import FeatList from "@/components/feats/FeatList.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useSpeciesUiStore } from "@/stores/ui/species";
-import { useAvailableLibrarySpeciesSources } from "@/composables/library/useEnabledSources";
+import { useAvailableLibrarySpeciesSources, useAvailableLibraryBackgroundSources } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import { ACTIVATIONS, FEAT_CATEGORIES } from "@/rules/features/mechanics.types";
@@ -294,6 +317,7 @@ const speciesUi = useSpeciesUiStore();
 const isAiEnabled = computed(() => useCampaignStore().isAiEnabled);
 const auth = useAuthStore();
 const { data: speciesSourceData, isLoading: speciesSourcesLoading } = useAvailableLibrarySpeciesSources();
+const { data: backgroundSourceData, isLoading: backgroundSourcesLoading } = useAvailableLibraryBackgroundSources();
 const isDM = auth.isDM;
 const route = useRoute();
 const router = useRouter();

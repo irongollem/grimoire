@@ -26,7 +26,7 @@ select plan(7);
 --   validate_app_invite      — runs before login by definition; the token is
 --                              the credential, so gating it on a session is
 --                              circular.
--- The four get_library_*_sources were here too until #936 made them SECURITY
+-- The get_library_*_sources were here too until #936 made them SECURITY
 -- INVOKER: the library tables are readable by anon through their own
 -- `using (true)` policies, so a definer added nothing. They are still pinned by
 -- the invoker-inclusive assertion below.
@@ -72,6 +72,7 @@ select set_eq(
       and has_function_privilege('anon', p.oid, 'EXECUTE')
   $$,
   $$ values ('validate_app_invite'),
+            ('get_library_background_sources'),
             ('get_library_item_sources'),
             ('get_library_monster_sources'),
             ('get_library_species_sources'),

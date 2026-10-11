@@ -11,6 +11,7 @@ import {
   ITEM_TYPE_LABELS,
   assertMayWrite,
   assertMaySpend,
+  backgroundContext,
   buildVariants,
   emptyManifest,
   encodeFinal,
@@ -105,6 +106,29 @@ describe("context builders", () => {
   });
 });
 
+describe("backgroundContext", () => {
+  it("carries the name, feature, skills and description as plain text", () => {
+    const context = backgroundContext({
+      name: "Archaeologist",
+      description: JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "You dig for lost ages." }] }] }),
+      feature_name: "Historical Knowledge",
+      feature_description: "You can read old stone.",
+      skill_proficiencies: ["History", "Survival"],
+    });
+    expect(context).toContain("Archaeologist");
+    expect(context).toContain("Feature: Historical Knowledge");
+    expect(context).toContain("You can read old stone.");
+    expect(context).toContain("Skills: History, Survival");
+    expect(context).toContain("You dig for lost ages.");
+    expect(context).not.toContain('"type"');
+  });
+
+  it("leaves out what the row lacks and clamps to 2000 characters", () => {
+    expect(backgroundContext({ name: "Hermit", description: null, feature_name: null, feature_description: null, skill_proficiencies: null })).toBe("Hermit");
+    expect(backgroundContext({ name: "X", description: "a".repeat(5000), feature_name: null, feature_description: null, skill_proficiencies: [] })).toHaveLength(2000);
+  });
+});
+
 describe("item staging", () => {
   it("stands long things upright, armor on a stand, and lays the rest down", () => {
     expect(itemStaging({ name: "Staff of Frost", item_type: "staff" })).toBe("upright");
@@ -148,6 +172,7 @@ describe("slugs and paths", () => {
   it("derives slugs", () => {
     expect(entrySlug({ kind: "spell", id: "srd_2024_fireball" })).toBe("spell-srd_2024_fireball");
     expect(entrySlug({ kind: "monster", id: "srd_srd_sprite" })).toBe("monster-srd_srd_sprite");
+    expect(entrySlug({ kind: "background", id: "srd_2024_scoundrel" })).toBe("background-srd_2024_scoundrel");
     expect(entrySlug({ kind: "item", name: "Ale, mug" })).toBe("item-ale-mug");
     expect(entrySlug({ kind: "item", name: "Bag of Holding" })).toBe("item-bag-of-holding");
     expect(() => entrySlug({ kind: "item", name: "!!!" })).toThrow();
@@ -250,8 +275,18 @@ describe("manifest", () => {
 describe("arguments and refusals", () => {
   it("parses generate", () => {
     expect(parseCli(["generate", "--spell", "a", "--spell", "b", "--item", "Ale, mug", "--out", "d"])).toEqual({
-      command: "generate", spells: ["a", "b"], monsters: [], items: ["Ale, mug"], out: "d", only: null, yesSpend: false, subject: null, also: [], imageModel: null,
+      command: "generate", spells: ["a", "b"], monsters: [], backgrounds: [], items: ["Ale, mug"], out: "d", only: null, yesSpend: false, subject: null, also: [], imageModel: null,
     });
+  });
+
+  it("accepts --background, alone or with --also ids", () => {
+    expect(parseCli(["generate", "--background", "srd_2024_scoundrel", "--background", "x", "--out", "d"])).toMatchObject({ backgrounds: ["srd_2024_scoundrel", "x"] });
+    expect(parseCli(["generate", "--background", "srd_2024_scoundrel", "--also", "srd_scoundrel", "--out", "d"])).toMatchObject({
+      backgrounds: ["srd_2024_scoundrel"], also: ["srd_scoundrel"],
+    });
+    expect(() => parseCli(["generate", "--background", "a", "--background", "b", "--also", "c", "--out", "d"])).toThrow(/exactly one/);
+    expect(() => parseCli(["generate", "--background", "a", "--spell", "b", "--out", "d", "--subject", "x"])).toThrow(/exactly one/);
+    expect(() => parseCli(["publish", "--out", "d", "--background", "a"])).toThrow(/belong to generate/);
   });
 
   it("renders on another image model with --image-model", () => {
@@ -365,6 +400,7 @@ describe("focal point guess", () => {
     expect(focalTarget("item")).toMatch(/centre of the main object/);
     expect(focalTarget("spell")).toMatch(/caster's face|magical effect/);
     expect(focalTarget("species")).toMatch(/group's faces/);
+    expect(focalTarget("background")).toMatch(/figure's face/);
   });
 
   it("reads the model's answer as whole percents and clamps it", () => {
