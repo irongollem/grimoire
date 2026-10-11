@@ -54,7 +54,7 @@ interface Open5eV2Monster {
   traits?: Array<{ name: string; desc: string }>;
 }
 
-export interface Open5eDocument { slug: string; title: string }
+export interface Open5eDocumentListing { slug: string; title: string }
 
 const VALID_TYPES: ReadonlyArray<MonsterType> = [
   "aberration", "beast", "celestial", "construct", "dragon", "elemental", "fey",
@@ -250,7 +250,7 @@ export function mapOpen5eV2Monster(
   };
 }
 
-export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
+export async function fetchOpen5eDocuments(): Promise<Open5eDocumentListing[]> {
   const documents = await fetchAll<Open5eDocumentRef>("https://api.open5e.com/v2/documents/");
   return documents.map(document => ({ slug: document.key, title: document.display_name || document.name }))
     .sort((a, b) => a.title.localeCompare(b.title));

@@ -4,6 +4,8 @@
 // rectangle cut from a sprite sheet, which is how a character's paper doll
 // becomes a token that follows what it wears (#975).
 
+import type { RevealState } from "@/types/encounter.types";
+
 export interface TokenEntity {
   id: string;
   name: string;
@@ -31,8 +33,6 @@ export interface TokenFigure {
   /** The rectangle of the sheet that frames the figure; it is what fits the ring. */
   source: { x: number; y: number; w: number; h: number };
 }
-
-export type RevealState = "hidden" | "unseen" | "revealed";
 
 export interface TokenRenderOptions {
   ringColor?: string;

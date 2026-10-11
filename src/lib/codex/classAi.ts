@@ -1,9 +1,8 @@
 import type { AiProvenance } from "@/ai/provenance";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
-import { getDefaultSpellSlots } from "@/types/spell.types";
+import { getDefaultSpellSlots, type CasterType } from "@/types/spell.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type {
-  CasterType,
   CustomClassInsert,
   HitDie,
   PreparedAbility,

@@ -3,7 +3,7 @@ import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { setNextRollMode } from "@/composables/dice/useNextRollMode";
 import { useWildshapeForm } from "@/composables/party/useWildshapeForm";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
-import type { RollResult } from "@/components/common/feedback/RollToast.vue";
+import type { RollToastResult } from "@/components/common/feedback/RollToast.vue";
 import { combineModes, type RollMode } from "@/lib/dice/dice";
 import { effectiveAbilityScores, savingThrowEntries } from "@/rules/characterChecks";
 import {
@@ -46,8 +46,8 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
   const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(conditions.value, ruleset.value));
 
   // Roll toast (shared across all rolling children).
-  const lastRoll = ref<RollResult | null>(null);
-  function onChildRoll(result: RollResult) {
+  const lastRoll = ref<RollToastResult | null>(null);
+  function onChildRoll(result: RollToastResult) {
     lastRoll.value = { ...result };
   }
 

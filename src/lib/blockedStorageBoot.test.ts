@@ -42,10 +42,10 @@ describe("boot with site data blocked", () => {
     await expect(
       Promise.all([
         import("@/lib/themeRuntime"),
-        import("@/lib/authSnapshot"),
+        import("@/lib/auth/authSnapshot"),
         import("@/lib/supabase"),
         import("@/lib/staleChunkRecovery"),
-        import("@/lib/authIdentityChange"),
+        import("@/lib/auth/authIdentityChange"),
         import("@/stores/auth"),
         import("@/stores/campaign"),
         import("@/stores/calendar"),

@@ -13,7 +13,7 @@ import { toPlainText } from "@/ai/utils";
 // the same two things back out of a mention — an image to hand the model and
 // a short plain-text description for context.
 
-export interface ResolvedEntity {
+export interface ResolvedSceneEntity {
   label: string;
   portraitUrl: string | null;
   textDescription: string | null;
@@ -98,7 +98,7 @@ export function mentionedMonsterIds(
 export function parseSceneEntities(
   text: string,
   sources: SceneEntitySources,
-): ResolvedEntity[] {
+): ResolvedSceneEntity[] {
   const { partyMembers, npcs, monsters, locations, locationDescriptions, npcAppearances, factions, groupPortraitUrl } = sources;
 
   // Extract @Token — stops at whitespace and common punctuation
@@ -107,7 +107,7 @@ export function parseSceneEntities(
   );
   const unique = [...new Set(tokens)];
 
-  const allEntities: ResolvedEntity[] = [];
+  const allEntities: ResolvedSceneEntity[] = [];
   const seen = new Set<string>();
 
   for (const tok of unique) {
@@ -124,7 +124,7 @@ export function parseSceneEntities(
       continue;
     }
 
-    let found: ResolvedEntity | null = null;
+    let found: ResolvedSceneEntity | null = null;
 
     for (const pm of partyMembers ?? []) {
       if (nameMatches(pm.name, tok)) {

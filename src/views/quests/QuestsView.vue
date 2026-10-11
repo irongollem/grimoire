@@ -105,7 +105,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
-import QuestList from "@/components/quests/QuestList.vue";
+import QuestList from "@/components/quests/board/QuestList.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useQuestsUiStore } from "@/stores/ui/quests";

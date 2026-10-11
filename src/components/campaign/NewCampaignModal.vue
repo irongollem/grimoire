@@ -118,7 +118,7 @@
 import { DEFAULT_THEME_ID } from "@/lib/themes";
 import { ref, watch } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
-import { listCalendarAdapters, getCalendarAdapter, createDefaultCustomCalendarDef } from "@/calendars/index";
+import { listCalendarAdapters, getCalendarAdapter, createDefaultCustomCalendarDef } from "@/settings/index";
 import { getSetting, listSettings } from "@/settings/index";
 import type { SettingCalendarDef } from "@/settings/types";
 import { useCreateCampaign, useClaimOrphanedData } from "@/composables/campaign/useCampaigns";

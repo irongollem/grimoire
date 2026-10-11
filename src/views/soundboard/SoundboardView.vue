@@ -94,7 +94,7 @@
         variant="primary"
         :icon="IconAdd"
         :label="newPlaylistLabel"
-        @click="createPlaylistSignal++"
+        @click="createPlaylistPending = true"
       />
     </template>
 
@@ -180,12 +180,13 @@
       :page-id="soundboardUi.soundboardActivePage"
       :playlist-type="soundboardUi.soundboardViewMode === 'scenes' ? 'ambient' : 'music'"
       :filter="soundboardUi.soundboardSearchQuery"
-      :create-signal="createPlaylistSignal"
+      :create-pending="createPlaylistPending"
+      @create-handled="createPlaylistPending = false"
     />
 
     <template v-else>
 
-    <PaywallModal v-model="showSoundPaywall" resource="sounds" />
+    <PaywallModal v-if="paywallMounted" v-model="showSoundPaywall" resource="sounds" />
 
     <!-- Loading -->
     <!-- Loading: the board's own grid (so the columns are already where the
@@ -329,6 +330,7 @@
       </Transition>
     </div>
     <BoardSettingsDialog
+      v-if="settingsMounted"
       :open="soundboardUi.soundboardSettingsOpen"
       @close="soundboardUi.soundboardSettingsOpen = false"
     />
@@ -336,7 +338,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, defineAsyncComponent, watch, onMounted, onBeforeUnmount } from "vue";
+import { useLazyMount } from "@/composables/useLazyMount";
 import { IconAdd, IconClose, IconDrag, IconList, IconListOrdered, IconWind, IconMixer, IconSettings } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage, useMoveSound } from "@/composables/soundboard/useSounds";
@@ -358,7 +361,6 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
-import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import SoundCard from "@/components/soundboard/SoundCard.vue";
 import StarterScenesCard from "@/components/soundboard/StarterScenesCard.vue";
 import NowRail from "@/components/soundboard/NowRail.vue";
@@ -367,7 +369,6 @@ import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
 import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
-import PlaylistsPanel from "@/components/soundboard/PlaylistsPanel.vue";
 
 // The heights `SoundPad` gives each size (its HEIGHT_CLASS), so a loading Perform
 // board already stands as tall as the pads that replace it.
@@ -381,8 +382,15 @@ const VIEW_MODES = [
 
 
 import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
-import BoardSettingsDialog from "@/components/soundboard/BoardSettingsDialog.vue";
 import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";
+
+// Shown per view mode or on demand, so none of these ride in the page's chunk:
+// the playlists panel (Scenes and Playlists views only), the paywall and the
+// board settings. The two dialogs mount through a latch so they keep their
+// state once closed; the panel unmounts on switching back to Sounds as before.
+const PlaylistsPanel = defineAsyncComponent(() => import("@/components/soundboard/PlaylistsPanel.vue"));
+const PaywallModal = defineAsyncComponent(() => import("@/components/common/overlays/PaywallModal.vue"));
+const BoardSettingsDialog = defineAsyncComponent(() => import("@/components/soundboard/BoardSettingsDialog.vue"));
 
 const soundboardUi = useSoundboardUiStore();
 const soundboardStore = useSoundboardStore();
@@ -390,6 +398,8 @@ const spotifyStore = useSpotifyStore();
 const auth = useAuthStore();
 const { canCreate: canCreateSound, quota: soundQuota } = useQuota("sounds");
 const showSoundPaywall = ref(false);
+const paywallMounted = useLazyMount(showSoundPaywall);
+const settingsMounted = useLazyMount(computed(() => soundboardUi.soundboardSettingsOpen));
 const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
 
@@ -572,15 +582,20 @@ function stopDragTracking(): void {
 }
 
 onBeforeUnmount(stopDragTracking);
-/** Bumped by the head's New Scene/Playlist button; the panel owns the dialog. */
-const createPlaylistSignal = ref(0);
+/**
+ * Set by the head's New Scene/Playlist button; the panel owns the dialog and
+ * clears it once opened. A flag rather than a counter because the panel loads
+ * on demand: a click before its chunk arrives must still open the dialog when
+ * it mounts, which a bump watched only after mount would lose.
+ */
+const createPlaylistPending = ref(false);
 
 // The mobile FAB's create lands here and fans out by tab.
 watch(
   () => soundboardUi.soundboardCreateSignal,
   () => {
     if (soundboardUi.soundboardViewMode === "sounds") openAddSound();
-    else createPlaylistSignal.value++;
+    else createPlaylistPending.value = true;
   },
 );
 const { mutate: moveSoundToPage } = useMoveSound();

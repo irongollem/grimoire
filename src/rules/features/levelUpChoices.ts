@@ -3,7 +3,7 @@ import type { ClassFeature } from "@/types/feature.types";
 import type { SkillProfLevel } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import { SKILLS } from "@/types/party.types";
-import type { SkillKey } from "@/data/classSkillChoices";
+import type { SkillKey } from "@/types/party.types";
 import { ARTIFICER_INFUSIONS } from "@/data/artificerInfusions";
 import { BATTLE_MASTER_MANEUVER_NAMES } from "@/data/battleMasterManeuvers";
 import { ELDRITCH_INVOCATIONS } from "@/data/eldritchInvocations";

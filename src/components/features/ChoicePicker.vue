@@ -150,7 +150,7 @@ import {
   featIncrease,
   optionsForDue,
   type AbilityPick,
-  type AsiMode,
+  type AsiPickMode,
   type ChoiceValue,
 } from "./choiceValue";
 
@@ -181,7 +181,7 @@ const takesFeat = computed(() => entryTakesFeat(due, value.value));
 const listed = computed(() => !isAsi.value || takesFeat.value);
 
 const asiModes = computed(() => {
-  const modes: { value: AsiMode; label: string }[] = [
+  const modes: { value: AsiPickMode; label: string }[] = [
     { value: "plus2", label: "+2 to one" },
     { value: "plus1plus1", label: "+1 to two" },
   ];
@@ -243,7 +243,7 @@ function toggle(optionValue: string) {
 }
 
 function setAsiMode(mode: string) {
-  const asi = { mode: mode as AsiMode, primary: null, secondary: null };
+  const asi = { mode: mode as AsiPickMode, primary: null, secondary: null };
   update({ asi, picks: [], ability: { primary: null, secondary: null } });
 }
 

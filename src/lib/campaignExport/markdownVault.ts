@@ -31,7 +31,7 @@ import type { CampaignSession } from "@/types/session.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import { tiptapToMarkdown, type TiptapToMarkdownOptions } from "@/lib/tiptap/tiptapToMarkdown";
-import { buildFrontmatter, dedupeFileName, joinSections, markdownSection, sanitizeFileName, type FrontmatterValue } from "./vaultText";
+import { buildFrontmatter, dedupeFileName, joinSections, markdownSection, sanitizeFileName, type VaultFrontmatterValue } from "./vaultText";
 
 export interface MarkdownVaultInput {
   campaignName: string;
@@ -192,7 +192,7 @@ function buildNpcFile(npc: Npc, mention: TiptapToMarkdownOptions): string {
 
 function buildLocationFile(location: Location, targets: MentionTargets, mention: TiptapToMarkdownOptions): string {
   const parentName = location.parent_id ? targets.location.get(location.parent_id) : undefined;
-  const fields: Array<[string, FrontmatterValue]> = [
+  const fields: Array<[string, VaultFrontmatterValue]> = [
     ["type", "location"],
     ["grimoire_id", location.id],
     ["location_type", location.location_type],
@@ -235,7 +235,7 @@ function objectivesList(objectives: QuestObjective[]): string {
 
 function buildQuestFile(quest: Quest, objectives: QuestObjective[], targets: { quest: EntityFileNames }): string {
   const parentName = quest.parent_quest_id ? targets.quest.get(quest.parent_quest_id) : undefined;
-  const fields: Array<[string, FrontmatterValue]> = [
+  const fields: Array<[string, VaultFrontmatterValue]> = [
     ["type", "quest"],
     ["grimoire_id", quest.id],
     ["status", quest.status],
@@ -273,7 +273,7 @@ function buildPartyMemberFile(pm: PartyMember, mention: TiptapToMarkdownOptions)
 }
 
 function buildNoteFile(note: Note, sessions: readonly CampaignSession[], mention: TiptapToMarkdownOptions): string {
-  const fields: Array<[string, FrontmatterValue]> = [
+  const fields: Array<[string, VaultFrontmatterValue]> = [
     ["type", "note"],
     ["grimoire_id", note.id],
     ["category", note.category],

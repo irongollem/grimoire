@@ -81,7 +81,7 @@ gzip). What is left is pages that mount children nobody can see at once:
 | --------------------- | ---- | --------- |
 | 18 | `views/campaign/CampaignSettingsView.vue` | 14 tabs, one `v-if` branch each |
 | 20 | `views/player/PlayerCharacterView.vue` | 6 tabs behind `activeTab`, a dialog |
-| 23 | `components/quests/QuestRunCockpit.vue` | sheets, drawers and dialogs on toggles; one already async |
+| 23 | `components/quests/run/QuestRunCockpit.vue` | sheets, drawers and dialogs on toggles; one already async |
 | 20 | `views/soundboard/SoundboardView.vue` | playlists panel per view mode, paywall and settings dialogs |
 
 MapWorkbench and the Atlas map panes mount many children too, but nearly all
@@ -197,12 +197,12 @@ others are candidates only when work next touches them.
 
 | Rank | Story | Candidate | Benefit | Risk | Size | Decision needed |
 | ---- | ----- | --------- | ------- | ---- | ---- | --------------- |
-| 1 | 5.2.1 | Async tabs: `CampaignSettingsView` (14), `PlayerCharacterView` (6), `QuestRunCockpit` sheets, `SoundboardView` dialogs | Smaller route chunks on four heavy pages | Low; one serial chunk wave on tab open, prefetchable | S | No |
-| 2 | 5.2.2 | Move the single-consumer `lib` root modules into their folders (table in section 5) | The placement rule holds again; `lib` root down to ~67 | Low; import paths only | S | No |
-| 3 | 5.2.3 | ~~`AiGeneratorPanels.vue` to `src/ai/`~~ moved with 5.2.4; the 13 `common` → `campaign`/`spells` edges resolved | `common` imports no domain; a depcruise rule can then hold it | Low | S | No |
+| 1 | 5.2.1 | ~~Async tabs: `CampaignSettingsView` (14), `PlayerCharacterView` (6), `QuestRunCockpit` sheets, `SoundboardView` dialogs~~ Done: route chunks (raw) 224 → 32 kB, 205 → 77 kB, 102 → 36 kB, 267 → 227 kB; the default tab stays static; sheets that hold input latch with `useLazyMount`; a failed chunk is caught by `staleChunkRecovery`'s `vite:preloadError` reload | Smaller route chunks on four heavy pages | Low; one serial chunk wave on tab open, prefetchable | S | No |
+| 2 | 5.2.2 | ~~Move the single-consumer `lib` root modules into their folders (table in section 5)~~ Done: `realtimeChannel` → `campaignLiveSync/`, `manualLoader` → `rules/`, `authSnapshot`, `authIdentityChange`, `sessionRecovery` → `auth/`, `classChoices` → `player/`, `focalZoom` beside `FocalImage`. `persistedSession`, `authAwareFetch` and `requestDeadline` stay: their one consumer is the root `supabase.ts`, and root must not import a folder | The placement rule holds again; `lib` root down to ~67 | Low; import paths only | S | No |
+| 3 | 5.2.3 | ~~`AiGeneratorPanels.vue` to `src/ai/`~~ moved with 5.2.4; ~~the 13 `common` → `campaign`/`spells` edges resolved~~ Done: the edges into domain *composables* are data access and stay; `common-no-domain-components` (dependency-cruiser) forbids `common` importing a domain *component*, with the one deliberate edge (`SpellcastingList` → `SpellSheet`) named in the rule | `common` imports no domain; a depcruise rule can then hold it | Low | S | No |
 | 4 | 5.2.4 | ~~Subfolders for `components/common` (primitives, entity pickers, stat display, list scaffolding, rich text, images)~~ Done: 13 subfolders (`controls`, `overlays`, `feedback`, `list`, `entity`, `statblock`, `ai`, `reveal`, `media`, `richtext`, `dice`, `settings`, `wizard`); three components stay in the root | A 134-file bucket becomes navigable | Low, but touches ~600 import sites | M | Done |
 | 5 | 5.2.5 | ~~Split `stores/ui.ts` into one filter store per domain under `stores/ui/`~~ Done | A list imports only its own filters; the largest file in `src` goes | Medium; 179 importers, and the Filter State Pattern rule in CLAUDE.md changes | M | Done |
-| 6 | 5.2.6 | ~~One name per domain: `play`/`player`, `pantheons`/`deities`~~ `play` merged into `player`; pantheons are their own entity, not a duplicate. Left: `calendars/` into `lib/calendar` | The tree reads as one map | Low; renames | S | Decided |
-| 7 | 5.2.7 | Subfolders by surface for `components/quests` (110) and `components/locations` (81), following the design frames | Navigable domain folders | Low | M | No |
+| 6 | 5.2.6 | ~~One name per domain: `play`/`player`, `pantheons`/`deities`~~ `play` merged into `player`; pantheons are their own entity, not a duplicate. `calendars/` (a re-export barrel and one adapter) folded into `src/settings/` (`gregorian.calendar.ts`), one barrel fewer | The tree reads as one map | Low; renames | S | Decided |
+| 7 | 5.2.7 | ~~Subfolders by surface for `components/quests` (110) and `components/locations` (81), following the design frames~~ Done: quests into `board`, `flow`, `inspector`, `overview`, `run`; locations into `atlas`, `place`, `map`, `site`, `run` | Navigable domain folders | Low | M | No |
 | 8 | 5.2.8 | ~~Remove the #330 Paged.js harness (`views/spike/`, `lib/scriptorium/spike/`)~~ Removed, the maintainer's call: Scriptorium ships Paged.js itself | Less dev-only code | None | XS | Done |
-| 9 | 5.2.9 | The fifteen twice-defined exported type names: rename the local ones | No two meanings for one name | Low | S | No |
+| 9 | 5.2.9 | ~~The fifteen twice-defined exported type names: rename the local ones~~ Done: same shape → one definition (7, e.g. `CoinKey`, `SkillKey`, `CasterType`); different shape → the local one renamed (14, e.g. `CanvasViewport`, `PartyRevealState`, `FogCellKey`). Left: names restated in standalone `scripts/`, which cannot import `src` modules that read `import.meta.env` | No two meanings for one name | Low | S | No |

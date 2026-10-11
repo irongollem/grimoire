@@ -36,7 +36,7 @@ export interface RoomFillContext {
 }
 
 /** A door as `useSiteDoors` returns it, reduced to what neighbours need. */
-export interface DoorEdge {
+export interface RoomFillDoorEdge {
   from_location_id: string;
   to_location_id: string | null;
   is_one_way: boolean;
@@ -50,7 +50,7 @@ export interface DoorEdge {
 }
 
 /** Every way out of `roomId`: doors it starts, and two-way doors that end on it. */
-export function neighboursOf(roomId: string, doors: readonly DoorEdge[]): RoomNeighbour[] {
+export function neighboursOf(roomId: string, doors: readonly RoomFillDoorEdge[]): RoomNeighbour[] {
   const result: RoomNeighbour[] = [];
   for (const d of doors) {
     let other: { name: string } | null = null;

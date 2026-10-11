@@ -333,7 +333,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
-import EntityPlacements from "@/components/locations/EntityPlacements.vue";
+import EntityPlacements from "@/components/locations/place/EntityPlacements.vue";
 import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 

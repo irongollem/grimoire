@@ -25,7 +25,7 @@
 <script setup lang="ts">
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import TagPickerInput from "@/components/common/controls/TagPickerInput.vue";
-import type { SkillKey } from "@/data/classSkillChoices";
+import type { SkillKey } from "@/types/party.types";
 import { LANGUAGE_GROUPS, TOOL_PROFICIENCY_GROUPS } from "@/lib/proficiency-lists";
 import type { FeatureGrants } from "@/rules/features/mechanics.types";
 import { SKILLS } from "@/types/party.types";

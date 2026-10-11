@@ -183,7 +183,7 @@ import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { ref, computed, provide } from "vue";
 import { RUNNER_ROLL_CONTEXT } from "@/components/encounters/runnerResolve";
 import RunnerRollBanner from "@/components/encounters/RunnerRollBanner.vue";
-import type { CheckResult } from "@/components/encounters/RunnerRollBanner.vue";
+import type { RunnerCheckResult } from "@/components/encounters/RunnerRollBanner.vue";
 import RunnerRollModeToggle from "@/components/encounters/RunnerRollModeToggle.vue";
 import type { CheckMode, ChatMode } from "@/components/encounters/RunnerRollModeToggle.vue";
 import RunnerMonsterPanel from "@/components/encounters/RunnerMonsterPanel.vue";
@@ -230,7 +230,7 @@ const selectedTrap = computed(() =>
 
 const chatMode = ref<ChatMode>("public");
 const rollMode = ref<CheckMode>("normal");
-const lastCheck = ref<CheckResult | null>(null);
+const lastCheck = ref<RunnerCheckResult | null>(null);
 
 // Stat-block actions roll through the resolve panel, which reads the DM's mode and chat setting from here.
 provide(RUNNER_ROLL_CONTEXT, { rollMode, silent: computed(() => chatMode.value === "silent") });

@@ -178,8 +178,8 @@ import {
   revealedCombatants,
   roundBrushCells,
   shouldSeedFog,
-  type BrushMode,
-  type CellKey,
+  type FogBrushMode,
+  type FogCellKey,
 } from "@/lib/battlemap/fogMask";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
@@ -257,7 +257,7 @@ const emptyDragSet = new Set<string>();
 // Local fog mask, seeded from live state and pushed back on every stroke.
 // Mirroring locally lets brush strokes feel instant while the 300ms-debounced
 // push catches up.
-const fogMask = ref<Set<CellKey>>(new Set());
+const fogMask = ref<Set<FogCellKey>>(new Set());
 
 watch(
   () => liveState.value?.fog_mask,
@@ -320,7 +320,7 @@ watch(
   { immediate: true },
 );
 
-function brushedCells(clientX: number, clientY: number): Set<CellKey> {
+function brushedCells(clientX: number, clientY: number): Set<FogCellKey> {
   const host = canvasHost.value;
   if (!host) return new Set();
   const rect = host.getBoundingClientRect();
@@ -339,7 +339,7 @@ function brushedCells(clientX: number, clientY: number): Set<CellKey> {
 
 function applyStrokeAt(clientX: number, clientY: number) {
   if (tool.value === "pan") return;
-  const mode: BrushMode = tool.value === "reveal" ? "reveal" : "rehide";
+  const mode: FogBrushMode = tool.value === "reveal" ? "reveal" : "rehide";
   fogMask.value = applyBrush(fogMask.value, brushedCells(clientX, clientY), mode);
   pushFog();
 }
@@ -366,7 +366,7 @@ function resetFog(mode: "reveal" | "hide") {
     const cellsDown = Math.ceil(
       cellsAcross * (imageNaturalH.value / imageNaturalW.value),
     );
-    const next = new Set<CellKey>();
+    const next = new Set<FogCellKey>();
     for (let y = 0; y < cellsDown; y++) {
       for (let x = 0; x < cellsAcross; x++) next.add(`${x},${y}`);
     }

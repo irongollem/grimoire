@@ -1,4 +1,4 @@
-export type CoinKey = "pp" | "gp" | "ep" | "sp" | "cp";
+import type { CoinKey } from "@/types/downtime.types";
 
 export const COINS: { key: CoinKey; label: string; symbol: string; color: string; hexColor: string }[] = [
   { key: "pp", label: "Platinum", symbol: "PP", color: "text-slate-300", hexColor: "#a855f7" },

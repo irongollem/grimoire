@@ -150,7 +150,8 @@ import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeature
 import CustomClassSpellSlots from "@/components/levelup/CustomClassSpellSlots.vue";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
-import type { HitDie, CasterType, PreparedAbility } from "@/levelup/customTypes";
+import type { HitDie, PreparedAbility } from "@/levelup/customTypes";
+import type { CasterType } from "@/types/spell.types";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 

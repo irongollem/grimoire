@@ -1,0 +1,362 @@
+<template>
+  <div class="@container flex flex-col gap-4">
+    <SiteRunHeader
+      :site-name="location.name"
+      :quest-title="currentBeat?.quest?.title ?? null"
+      :party-room-name="currentRoom?.name ?? null"
+      :back-to-beat="backToBeatTarget"
+      @stop="stopRunning"
+    />
+
+    <!-- Columns follow this surface's own width (a container query), not the
+         viewport's: it renders inside the Atlas pane, beside the app sidebar
+         and the tree's fold rail, so at a viewport of `xl` two fixed 20rem
+         columns left the plan a sliver. Same rule as `QuestSiteHandoff`. -->
+    <div class="grid grid-cols-1 gap-4 @3xl:grid-cols-[20rem_minmax(0,1fr)] @6xl:grid-cols-[20rem_minmax(0,1fr)_20rem]">
+      <!-- Rooms — the plain click-to-move list, which is what makes a site
+           runnable before any of it is traced. -->
+      <section class="flex flex-col gap-3 @3xl:row-span-2 @6xl:row-span-1">
+        <h2 class="text-heading-sm font-bold text-foreground">Rooms</h2>
+        <SiteRoomList
+          :site-id="location.id"
+          :rooms="rooms"
+          :current-room-id="currentRoomId"
+          :reachable="reachable"
+          :state-of="stateOf"
+          :unwritten-ids="unwrittenIds"
+          run-captions
+          :secret-undiscovered-ids="secretUndiscoveredIds"
+          :zone-notes="zoneNotes"
+        />
+      </section>
+
+      <!-- The place — the map, in run mode, and the room stack under it. -->
+      <div class="flex flex-col gap-4">
+        <div v-if="hasAnyMapLayer(location)" class="flex items-center justify-end">
+          <!-- Run mode keeps its own chrome rather than the Browse Show bar
+               (see `LocationMap.vue`'s own docstring) — this is a narrower,
+               purpose-built toggle for the fog hint below, not a second copy
+               of that bar's Spaces/Ways/Zones/Grid pills. -->
+          <AppCheckbox v-model="locationsUi.siteMapLayers.fog" label="Fog" size="sm" />
+        </div>
+
+        <!-- The fog hint (#884 S11) — drawn straight onto the plan below,
+             not beside it: every traced room's shape stays visible,
+             explored ones lit, everything else shaded under translucent fog
+             (`MapRegionsLayer`'s own fog pass, fed by `siteFog.ts`'s
+             `.glimpsed` — "a hint, never a wall," the same treatment
+             `PlayerSitePlan.vue` draws for a player, just painted in the
+             map's own transform instead of a second, separately-scaled SVG). -->
+        <LocationMap
+          v-if="hasAnyMapLayer(location)"
+          :stack="mapStack"
+          :pins="location.map_pins"
+          :children="pinnableChildren"
+          mode="view"
+          :show-hidden-pins="true"
+          :location-id="location.id"
+          show-regions
+          :regions="regions"
+          :spaces="siteSpaces"
+          run-mode
+          :party-room-id="currentRoomId"
+          :reachable-room-ids="reachable"
+          :show-fog="locationsUi.siteMapLayers.fog"
+          :fog-glimpsed-cells="fogGlimpsedCells"
+          @move-party="moveTo"
+        />
+
+        <TriggerBeatPrompt
+          v-if="showTriggerPrompt"
+          :beat="{ title: triggerBeat?.title ?? null }"
+          @advance="advanceTriggerBeat"
+          @dismiss="dismissTriggerPrompt"
+        />
+
+        <SiteRunRoomStack
+          v-if="currentRoom"
+          :site-id="location.id"
+          :room="currentRoom"
+          :regions="regions"
+          :doors="doors"
+          :door-state="doorStateOf"
+          :loot="currentRoomLoot ?? []"
+          :campaign-id="campaign.activeCampaignId"
+        />
+        <p v-else class="rounded-xl border border-dashed border-border p-4 text-caption italic text-muted-foreground">
+          The party hasn't entered a room here yet. Click one on the left to move them in.
+        </p>
+      </div>
+
+      <!-- Beat card (when one is staged here), ways out, progress. Absent
+           when it would hold nothing, so an empty item opens no second row. -->
+      <div v-if="currentBeat || currentRoom" class="flex flex-col gap-4">
+        <SiteRunBeatCard v-if="currentBeat" :beat="currentBeat" />
+
+        <SiteRunWaysOut
+          v-if="currentRoom"
+          :site-id="location.id"
+          :room-id="currentRoom.id"
+          :room-name="currentRoom.name"
+          :doors="doors"
+          :door-state="doorStateOf"
+        />
+
+        <section v-if="currentRoom" class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
+          <h3 class="text-heading-sm font-bold text-foreground">Progress</h3>
+          <p class="text-caption text-muted-foreground">{{ currentRoom.name }}</p>
+          <LocationStateControls :location-id="currentRoom.id" />
+        </section>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+/**
+ * The site runner (#791, epic #780; reshaped for #868's frames 08/11) — one
+ * surface to run a dungeon at the table. A room is a zoomed-in beat (the
+ * maintainer's framing for this story), so the current room reuses the
+ * beat's own presentation pieces rather than inventing room equivalents:
+ * `SiteRunRoomStack` is the read-aloud + attachment-row + payoff-list idiom
+ * turned on a room, and `SiteRunBeatCard` is the literal beat card for the
+ * case where a beat is staged here and no quest cockpit is open.
+ *
+ * Moving the party is still one write to `campaigns.current_location_id` —
+ * the arrival trigger (`mark_arrival_explored`, #790) records `explored` on
+ * its own. Unlocking or revealing a door is one door-fact assertion
+ * (`SiteRunWaysOut`); nothing here writes `location_state_events` directly.
+ *
+ * The caller (`AtlasExplorer`) only mounts this on a site-tier location, so
+ * nothing here re-checks `location.location_type`. It renders in the Atlas's
+ * own right column rather than a separate page — every exit stays inside the
+ * Atlas route (`stopRunning` below drops `?run=true` from the current query;
+ * `SiteRunHeader`'s "Back to the beat" and the trigger prompt's Advance both
+ * go to the quest cockpit via `questSurfaceReturnTo`, which was already true
+ * before the move).
+ */
+import { computed, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import type { RouteLocationRaw } from "vue-router";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import LocationMap from "@/components/locations/map/LocationMap.vue";
+import LocationStateControls from "@/components/locations/place/LocationStateControls.vue";
+import SiteRoomList from "@/components/locations/site/SiteRoomList.vue";
+import SiteRunHeader from "@/components/locations/run/SiteRunHeader.vue";
+import SiteRunBeatCard from "@/components/locations/run/SiteRunBeatCard.vue";
+import SiteRunWaysOut from "@/components/locations/run/SiteRunWaysOut.vue";
+import SiteRunRoomStack from "@/components/locations/run/SiteRunRoomStack.vue";
+import TriggerBeatPrompt from "@/components/locations/run/TriggerBeatPrompt.vue";
+import { useLocations } from "@/composables/locations/useLocations";
+import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
+import { buildDmFogPlan } from "@/lib/locations/siteFog";
+import { bindableSpaces, isInteriorType } from "@/lib/locations/tiers";
+import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
+import { useLootPlacements, useQuestBeat } from "@/composables/quests/useQuestFlow";
+import { useSiteDoors } from "@/composables/locations/useSiteDoors";
+import { useLocationStateForRooms, useDoorStateForSite } from "@/composables/locations/useLocationState";
+import { useMoveParty } from "@/composables/locations/useMoveParty";
+import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
+import { useCampaignStore } from "@/stores/campaign";
+import { useLocationsUiStore } from "@/stores/ui/locations";
+import { compareSiblings } from "@/lib/locations/tree";
+import { partyRoomInSite, siteReachability } from "@/lib/locations/siteRun";
+import { unwrittenRoomIds } from "@/lib/quests/siteHandoff";
+import { questSurfaceReturnTo } from "@/lib/quests/navigation";
+import { zoneSummary } from "@/lib/locations/zones";
+import type { Location } from "@/types/location.types";
+
+const { location } = defineProps<{ location: Location }>();
+
+const route = useRoute();
+const router = useRouter();
+const campaign = useCampaignStore();
+const locationsUi = useLocationsUiStore();
+
+// ── Rooms, in the DM's manual order — the same comparator the Atlas and
+//    SiteRoomsPanel use, so this list matches how the DM already arranged
+//    them rather than inventing a second order. `rooms` below reads as
+//    "this site's interior spaces" — room, and #886's `grounds` — not the
+//    literal `room` type; a `wilds` site's grounds run this surface exactly
+//    like a dungeon's rooms do. ─────────────────────────────────────────────
+const siteId = computed(() => location.id);
+const { data: children } = useLocations(siteId);
+const rooms = computed<Location[]>(() =>
+  (children.value ?? []).filter((l) => isInteriorType(l.location_type)).sort(compareSiblings),
+);
+const roomIds = computed(() => rooms.value.map((r) => r.id));
+// What a traced shape on this map may be bound to: an interior space, or a
+// nested site such as a courtyard inside this dungeon (#818).
+const siteSpaces = computed(() => bindableSpaces(children.value ?? []));
+
+// Pins are for this site's non-interior children (another nested site, say)
+// — interior spaces are placed by a region, never a pin (#807).
+const pinnableChildren = computed<Location[]>(() =>
+  (children.value ?? []).filter((l) => !isInteriorType(l.location_type)),
+);
+
+// ── Where the party is, and what it can reach from there ────────────────────
+const currentRoomId = computed(() =>
+  partyRoomInSite(campaign.activeCampaign?.current_location_id ?? null, roomIds.value),
+);
+const currentRoom = computed(() => rooms.value.find((r) => r.id === currentRoomId.value) ?? null);
+const currentRoomIdOrEmpty = computed(() => currentRoom.value?.id ?? "");
+const { data: currentRoomLoot } = useLootPlacements({ locationId: currentRoomIdOrEmpty });
+
+const doorsQuery = useSiteDoors(roomIds);
+const doors = computed(() => doorsQuery.data.value ?? []);
+const { stateOf: doorStateOf } = useDoorStateForSite(siteId);
+// `null` when there is nothing to derive it from (the party is not in a room
+// here yet, or the site has no ways out drawn): every room then renders and
+// behaves as reachable. See `siteReachability`.
+const reachable = computed(() => {
+  const unlocked = new Set(doors.value.filter((d) => doorStateOf(d.id, "unlocked")?.value === true).map((d) => d.id));
+  return siteReachability(currentRoomId.value, doors.value, unlocked);
+});
+const unwrittenIds = computed(() => unwrittenRoomIds(rooms.value));
+
+// The composite (`LocationMap.vue`) mounts whenever the site has any map
+// layer (#884: Picture, Drawing, or a blank grid) — same gate `AtlasPlacePane`
+// uses. A site with nothing traced yet is still fully runnable via the room
+// list above, but a plan alone is worth showing. Its own regions apparatus
+// (canvas, calibration prompt, room-shapes list — hidden here anyway, see
+// `run-mode` below) additionally gates on having a room or a region at all,
+// so an untraced site's map still renders without a noisy empty grid.
+const regionsQuery = useLocationMapRegions(siteId);
+const regions = computed(() => regionsQuery.data.value ?? []);
+const mapStack = computed(() => buildMapStack(location));
+
+// ── Frame 08's room-list subtitles: a room whose only known doors are all
+//    secret and undiscovered gets its own caption rather than a plain
+//    "Reachable" (`reachableRoomIds` doesn't treat a secret door as blocking
+//    movement at all — a DM already knows their own map — so this is a
+//    presentation signal, not a second reachability graph). ────────────────
+const secretUndiscoveredIds = computed(() => {
+  const bySpace = new Map<string, typeof doors.value>();
+  for (const door of doors.value) {
+    // A one-sided door's far side (#884: `to_location_id === null`, leads to
+    // untraced space) is never a room this bucketing can key on.
+    const spaceIds = [door.from_location_id, door.to_location_id].filter((id): id is string => id !== null);
+    for (const spaceId of new Set(spaceIds)) {
+      const existing = bySpace.get(spaceId);
+      if (existing) existing.push(door);
+      else bySpace.set(spaceId, [door]);
+    }
+  }
+  const ids = new Set<string>();
+  for (const room of rooms.value) {
+    const incident = bySpace.get(room.id) ?? [];
+    if (incident.length && incident.every((d) => d.is_secret && doorStateOf(d.id, "found")?.value !== true)) {
+      ids.add(room.id);
+    }
+  }
+  return ids;
+});
+
+// The current room's own active zone, named for the "Party here · <zone>
+// active" caption — the same zone-over-room-cells intersection
+// `buildRoomStack` uses for trigger zones, but any zone kind qualifies here.
+const zoneNotes = computed(() => {
+  const map = new Map<string, string>();
+  const roomId = currentRoomId.value;
+  const roomRegion = roomId ? regions.value.find((r) => r.region_role === "space" && r.space_location_id === roomId) : undefined;
+  if (!roomId || !roomRegion) return map;
+  const roomCells = new Set(roomRegion.cells);
+  const zone = regions.value.find((r) => r.region_role === "zone" && r.cells.some((c) => roomCells.has(c)));
+  const note = zone ? zone.label || zoneSummary(zone) : "";
+  if (note) map.set(roomId, note);
+  return map;
+});
+
+// ── A zone can name a beat (#868 S12/S13, frames 07/15): a trigger zone
+//    whose payload names a beat, traced over the room the party is
+//    currently standing in. This is distinct from `currentBeat` below (a
+//    beat staged directly at this site or room) — a trigger zone can name
+//    any beat, anywhere in the quest graph. Advance from the Atlas can't
+//    resolve the beat inline (nothing here holds `quest_runtime_state`), so
+//    it opens the cockpit at that beat instead, the same place
+//    `SiteRunBeatCard`'s "Resolve beat" already goes. Dismissal is per-room,
+//    same reasoning as `QuestSiteHandoff`'s own copy of this prompt: walking
+//    off the trigger room and back re-checks the zone fresh. ──────────────
+const dismissedTriggerRoomId = ref<string | null>(null);
+watch(currentRoomId, () => { dismissedTriggerRoomId.value = null; });
+const triggerBeatId = computed(() => {
+  const roomId = currentRoomId.value;
+  if (!roomId) return null;
+  const roomRegion = regions.value.find((r) => r.region_role === "space" && r.space_location_id === roomId);
+  if (!roomRegion) return null;
+  const roomCells = new Set(roomRegion.cells);
+  const zone = regions.value.find((r) =>
+    r.region_role === "zone" && r.zone_kind === "trigger" && !!r.zone_payload.beat_id
+    && r.cells.some((c) => roomCells.has(c)),
+  );
+  return zone?.zone_payload.beat_id ?? null;
+});
+const { data: triggerBeat } = useQuestBeat(computed(() => triggerBeatId.value ?? ""));
+const showTriggerPrompt = computed(() => !!triggerBeat.value && dismissedTriggerRoomId.value !== currentRoomId.value);
+
+function advanceTriggerBeat(): void {
+  const target = triggerBeat.value;
+  if (!target) return;
+  router.push(questSurfaceReturnTo(target.quest_id, target.id, "run"));
+}
+function dismissTriggerPrompt(): void { dismissedTriggerRoomId.value = currentRoomId.value; }
+
+// ── A beat staged at the site or the party's current room — shown only when
+//    one exists, so a DM who opened the Atlas outside any quest sees nothing
+//    extra. ───────────────────────────────────────────────────────────────
+const beatSpaceIds = computed(() => [location.id, ...(currentRoomId.value ? [currentRoomId.value] : [])]);
+const { data: stagedBeats } = useBeatsStagedAt(beatSpaceIds);
+const currentBeat = computed(() => {
+  const beats = stagedBeats.value ?? [];
+  if (!beats.length) return null;
+  // A beat staged at the room the party is standing in is more relevant
+  // right now than one staged at the site in general; ties broken by most
+  // recently touched, so a DM's latest edit wins over an older staging.
+  const atRoom = currentRoomId.value ? beats.filter((b) => b.staged_at_location_id === currentRoomId.value) : [];
+  const candidates = atRoom.length ? atRoom : beats.filter((b) => b.staged_at_location_id === location.id);
+  return [...candidates].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0] ?? null;
+});
+const backToBeatTarget = computed<RouteLocationRaw | null>(() =>
+  currentBeat.value ? questSurfaceReturnTo(currentBeat.value.quest_id, currentBeat.value.id, "run") : null,
+);
+
+// ── Moving the party ──────────────────────────────────────────────────────
+// A click on the plan. The room list makes the same move itself
+// (`SiteRoomList`); both go through `useMoveParty`, which asks before a move
+// the door graph does not allow rather than refusing it.
+const { moveParty } = useMoveParty();
+
+function moveTo(roomId: string): void {
+  const space = siteSpaces.value.find((s) => s.id === roomId);
+  if (!space) return;
+  void moveParty({ roomId, roomName: space.name, currentRoomId: currentRoomId.value, reachable: reachable.value });
+}
+
+// ── Context: the site's own state at a glance ────────────────────────────────
+const { stateOf } = useLocationStateForRooms(roomIds);
+
+// ── Fog hint (#884; painted on the plan itself as of S11) — see `siteFog.ts`
+//    for why this reshapes the DM's own full room data into
+//    `buildDmFogPlan`'s explored/glimpsed split rather than withholding
+//    anything (only a player's own RPC does that). Only `.glimpsed`'s cells
+//    are read here — `MapRegionsLayer`'s fog pass shades exactly those,
+//    leaving every explored room's own fill/outline untouched underneath. ──
+const dmFogPlan = computed(() =>
+  buildDmFogPlan(
+    regions.value,
+    rooms.value,
+    (id) => stateOf(id, "explored")?.value === true,
+    (id) => stateOf(id, "cleared")?.value === true,
+    (id) => stateOf(id, "looted")?.value === true,
+  ),
+);
+const fogGlimpsedCells = computed(() => dmFogPlan.value.glimpsed.map((g) => g.cells));
+
+// ── Exit — same query-flag convention `LocationEditor`'s Cancel uses for
+//    `?edit=true`. ────────────────────────────────────────────────────────
+function stopRunning(): void {
+  const { run: _run, ...rest } = route.query;
+  router.push({ query: rest });
+}
+</script>

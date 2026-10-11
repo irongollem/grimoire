@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
-import { featherEdges, featherRect, type CellKey } from "@/lib/battlemap/fogMask";
+import { featherEdges, featherRect, type FogCellKey } from "@/lib/battlemap/fogMask";
 
 const {
   hostW,
@@ -26,7 +26,7 @@ const {
   cellPx: number;
   originX: number;
   originY: number;
-  mask: Set<CellKey>;
+  mask: Set<FogCellKey>;
   /** When true, fog renders fully opaque (player view, or DM "view as player"
    *  preview). When false, fog is translucent so the DM can still see the
    *  map beneath. */

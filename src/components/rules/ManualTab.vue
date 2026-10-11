@@ -110,7 +110,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconBookMarked, IconChevronLeft, IconPopulate } from '@/lib/icons';
-import { manualSections } from "@/lib/manualLoader";
+import { manualSections } from "@/lib/rules/manualLoader";
 import { useRulesUiStore } from "@/stores/ui/rules";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";

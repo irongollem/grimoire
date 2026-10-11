@@ -1124,8 +1124,6 @@ export function formatQuestForScriptorium(
 // same formatter objects the typed exports above use, so there is exactly one
 // place that knows how to turn each entity type into body HTML.
 
-export type EntityEmbedType = "npc" | "monster" | "spell" | "item" | "location" | "quest";
-
 export type EntityEmbedInput =
   | { type: "npc"; npc: Npc; locationName?: string | null }
   | { type: "monster"; monster: Monster }

@@ -107,20 +107,25 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import { lazyPanel } from "@/components/common/feedback/lazyPanel";
 import DetailsTab from "@/components/campaign/DetailsTab.vue";
-import DangerZoneTab from "@/components/campaign/DangerZoneTab.vue";
-import MembersTab from "@/components/campaign/MembersTab.vue";
-import InvitesTab from "@/components/campaign/InvitesTab.vue";
-import SchedulingTab from "@/components/campaign/SchedulingTab.vue";
-import RulesTab from "@/components/campaign/RulesTab.vue";
-import ClassesTab from "@/components/campaign/ClassesTab.vue";
-import SpeciesTab from "@/components/campaign/SpeciesTab.vue";
-import AiTab from "@/components/campaign/AiTab.vue";
-import AiConnectionTab from "@/components/campaign/AiConnectionTab.vue";
-import SpotifyTab from "@/components/campaign/SpotifyTab.vue";
-import BackupTab from "@/components/campaign/BackupTab.vue";
-import WorldBundleTab from "@/components/campaign/WorldBundleTab.vue";
-import DocumentImportTab from "@/components/campaign/DocumentImportTab.vue";
+
+// Only the Details tab (the default) is in the page chunk; every other tab loads
+// the first time it is opened.
+
+const DangerZoneTab = lazyPanel(() => import("@/components/campaign/DangerZoneTab.vue"));
+const MembersTab = lazyPanel(() => import("@/components/campaign/MembersTab.vue"));
+const InvitesTab = lazyPanel(() => import("@/components/campaign/InvitesTab.vue"));
+const SchedulingTab = lazyPanel(() => import("@/components/campaign/SchedulingTab.vue"));
+const RulesTab = lazyPanel(() => import("@/components/campaign/RulesTab.vue"));
+const ClassesTab = lazyPanel(() => import("@/components/campaign/ClassesTab.vue"));
+const SpeciesTab = lazyPanel(() => import("@/components/campaign/SpeciesTab.vue"));
+const AiTab = lazyPanel(() => import("@/components/campaign/AiTab.vue"));
+const AiConnectionTab = lazyPanel(() => import("@/components/campaign/AiConnectionTab.vue"));
+const SpotifyTab = lazyPanel(() => import("@/components/campaign/SpotifyTab.vue"));
+const BackupTab = lazyPanel(() => import("@/components/campaign/BackupTab.vue"));
+const WorldBundleTab = lazyPanel(() => import("@/components/campaign/WorldBundleTab.vue"));
+const DocumentImportTab = lazyPanel(() => import("@/components/campaign/DocumentImportTab.vue"));
 
 type SettingsTab =
   | "details"

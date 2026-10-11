@@ -40,7 +40,7 @@ flowchart TB
 
     subgraph io ["I/O boundary"]
         client["src/lib/supabase.ts<br/>single client instance"]
-        realtime["src/lib/realtimeChannel.ts<br/>+ src/lib/campaignLiveSync/"]
+        realtime["src/lib/campaignLiveSync/realtimeChannel.ts<br/>+ src/lib/campaignLiveSync/"]
         storagelib["src/lib/storage/<br/>Supabase Storage + R2 barrel"]
     end
 
@@ -112,7 +112,7 @@ The 8 stores and their roles:
 
 | Store | Role |
 | --- | --- |
-| `auth.ts` | Supabase session, campaign membership, `isAppAdmin`/`isDM`/`isPlayer`; feeds the router guard and `setCachedUser()`. Boots from a per-user snapshot of membership, username and child link (`src/lib/authSnapshot.ts`) and re-reads them in the background, so the app mounts without waiting on those three reads. A token refresh that is slow (over 4 s) or fails for want of a network starts the app on the session auth-js has stored (`src/lib/persistedSession.ts`) rather than as signed out; only a refresh the server rejects signs out. Auth and data requests carry a deadline (`src/lib/requestDeadline.ts`), because a request frozen by iOS never answers and a refresh among them held the auth lock for good |
+| `auth.ts` | Supabase session, campaign membership, `isAppAdmin`/`isDM`/`isPlayer`; feeds the router guard and `setCachedUser()`. Boots from a per-user snapshot of membership, username and child link (`src/lib/auth/authSnapshot.ts`) and re-reads them in the background, so the app mounts without waiting on those three reads. A token refresh that is slow (over 4 s) or fails for want of a network starts the app on the session auth-js has stored (`src/lib/persistedSession.ts`) rather than as signed out; only a refresh the server rejects signs out. Auth and data requests carry a deadline (`src/lib/requestDeadline.ts`), because a request frozen by iOS never answers and a refresh among them held the auth lock for good |
 | `campaign.ts` | `activeCampaignId` (localStorage-persisted) — the key nearly every query is scoped by; BYOK API-key decryption |
 | `ui.ts` | All list filters + per-feature UI modes + `dmPreviewMode` (mandated by CLAUDE.md) |
 | `encounterRun.ts` | Live combat run state. Deliberately UI-only: DB writes are injected via `setPersistHandler`, dice via `InitiativeRoller` |
@@ -154,7 +154,7 @@ carries what changed and never a row (#999 4.2, `20261009233206`).
 ```mermaid
 flowchart LR
     pg[("Postgres<br/>ring triggers on every live table;<br/>queued per transaction,<br/>sent at commit (send_campaign_rings)")] --> rt["Supabase Realtime<br/>Broadcast, private topic doorbell:id"]
-    rt --> chan["src/lib/realtimeChannel.ts<br/>subscribe status · gap recovery ·<br/>wake listeners · teardown<br/>(heal policy: realtimeHeal.ts)"]
+    rt --> chan["src/lib/campaignLiveSync/realtimeChannel.ts<br/>subscribe status · gap recovery ·<br/>wake listeners · teardown<br/>(heal policy: realtimeHeal.ts)"]
     chan --> sync["useCampaignLiveSync<br/>SIGNAL_KEYS → invalidate;<br/>RECONCILE_KEYS after gaps"]
     sync --> uiL["queries refetch through RLS → UI"]
     sync --> bus["campaignLiveSync/rings.ts<br/>onCampaignRing / onCampaignReconcile"]

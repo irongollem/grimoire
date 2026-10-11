@@ -94,7 +94,7 @@ Ignore; renamed from the old select-and-edit `DocumentImportEntityCard.vue`
 when the review moved from a selected/excluded boolean to an explicit decision
 per entity), `DocumentImportPasteStep.vue` (the settings paste source step) and
 `DocumentPasteEditor.vue` (the rich paste-capture box itself, shared with
-`QuestPasteImportPanel.vue` in `src/components/quests/`).
+`QuestPasteImportPanel.vue` in `src/components/quests/overview/`).
 
 The wiki-export UI (#932) is `ArchiveImportPanel.vue` (the flow and the
 in-memory pages) with `ArchiveFilePicker`, `ArchiveSortStep`,

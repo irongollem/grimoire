@@ -147,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount } from "vue";
+import { ref, computed, defineAsyncComponent, watch, onBeforeUnmount } from "vue";
 import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
 import { scrollParentOf } from "@/lib/scrollParent";
 import { useAuthStore } from "@/stores/auth";
@@ -160,6 +160,7 @@ import type { PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/rules/useRules";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { lazyPanel } from "@/components/common/feedback/lazyPanel";
 import { useBelow } from "@/composables/useBreakpoint";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import RollToast from "@/components/common/feedback/RollToast.vue";
@@ -171,16 +172,20 @@ import PlayerHpStrip from "@/components/player/PlayerHpStrip.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
 import PlayerTracksSection from "@/components/player/PlayerTracksSection.vue";
 import PlayerSkillsTab from "@/components/player/PlayerSkillsTab.vue";
-import PlayerCombatTab from "@/components/player/PlayerCombatTab.vue";
-import PlayerFeaturesTab from "@/components/player/PlayerFeaturesTab.vue";
-import PlayerAppearanceSection from "@/components/player/PlayerAppearanceSection.vue";
-import PlayerLoreTab from "@/components/player/PlayerLoreTab.vue";
-import PlayerWildShapeTab from "@/components/player/PlayerWildShapeTab.vue";
 import { useSpecies } from "@/composables/rules/useSpecies";
 import OverflowMenu from "@/components/common/overlays/OverflowMenu.vue";
 import MemorialBanner from "@/components/memorials/MemorialBanner.vue";
-import SetDownDialog from "@/components/memorials/SetDownDialog.vue";
 import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
+
+// Skills is the tab the sheet opens on and stays static; the others, the
+// shapeshifter section and the retire dialog load when first shown.
+
+const PlayerCombatTab = lazyPanel(() => import("@/components/player/PlayerCombatTab.vue"));
+const PlayerFeaturesTab = lazyPanel(() => import("@/components/player/PlayerFeaturesTab.vue"));
+const PlayerAppearanceSection = defineAsyncComponent(() => import("@/components/player/PlayerAppearanceSection.vue"));
+const PlayerLoreTab = lazyPanel(() => import("@/components/player/PlayerLoreTab.vue"));
+const PlayerWildShapeTab = lazyPanel(() => import("@/components/player/PlayerWildShapeTab.vue"));
+const SetDownDialog = defineAsyncComponent(() => import("@/components/memorials/SetDownDialog.vue"));
 
 const props = defineProps<{ memberId?: string; hidePlayerActions?: boolean }>();
 const emit = defineEmits<{ (e: "level-up"): void }>();

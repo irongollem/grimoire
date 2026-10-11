@@ -165,7 +165,7 @@ import type { Trap } from "@/types/trap.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import EntityPlacements from "@/components/locations/EntityPlacements.vue";
+import EntityPlacements from "@/components/locations/place/EntityPlacements.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props  = defineProps<{ trap: Trap }>();

@@ -18,7 +18,7 @@ export interface LocationDoorWithRooms extends LocationDoor {
 
 /** One door, as seen from a specific room: which room is at the other end,
  *  regardless of whether *this* room is the door's `from` or `to` side. */
-export type RoomDoorView = GenericRoomDoorView<LocationDoorWithRooms>;
+export type LocationRoomDoorView = GenericRoomDoorView<LocationDoorWithRooms>;
 
 /** Re-exported from `lib/locations/doors.ts` (#868), which now owns the one
  *  implementation this composable and the site-wide "Ways out" panel both

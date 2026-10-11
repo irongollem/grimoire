@@ -342,8 +342,8 @@ import CartographerToolPalette, { type ToolGroup } from "@/components/cartograph
 import CartographerPlanPalette from "@/components/cartographer/CartographerPlanPalette.vue";
 import CartographerInspectorPanel from "@/components/cartographer/CartographerInspectorPanel.vue";
 import CartographerStructurePanel from "@/components/cartographer/CartographerStructurePanel.vue";
-import SiteMapRegionList from "@/components/locations/SiteMapRegionList.vue";
-import SiteMapZoneList from "@/components/locations/SiteMapZoneList.vue";
+import SiteMapRegionList from "@/components/locations/site/SiteMapRegionList.vue";
+import SiteMapZoneList from "@/components/locations/site/SiteMapZoneList.vue";
 import { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useMapCanvasEditor } from "@/composables/cartographer/useMapCanvasEditor";
 import { usePlanPalette, PLAN_TOOLS, TRACE_TOOL_OPTIONS } from "@/composables/cartographer/usePlanPalette";

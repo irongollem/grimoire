@@ -268,7 +268,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/controls/appButtonVariants";
 import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
-import QuestObjectiveStatusMark from "@/components/quests/QuestObjectiveStatusMark.vue";
+import QuestObjectiveStatusMark from "@/components/quests/inspector/QuestObjectiveStatusMark.vue";
 import {
   usePlayerVisibleQuest,
   useQuestObjectives,

@@ -23,7 +23,7 @@ import { SPELLJAMMER_CALENDAR } from "./spelljammer.calendar";
 import { DARKSUN_CALENDAR } from "./darksun.calendar";
 import { MYSTARA_CALENDAR } from "./mystara.calendar";
 // Gregorian remains a standalone adapter (it's a real-world calendar, not a D&D setting).
-import { gregorianAdapter } from "@/calendars/gregorian";
+import { gregorianAdapter } from "@/settings/gregorian.calendar";
 
 // ── Registry ─────────────────────────────────────────────────────────────────
 

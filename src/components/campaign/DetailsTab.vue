@@ -206,7 +206,7 @@ import { useCampaignById, useUpdateCampaign } from "@/composables/campaign/useCa
 import { useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import type { Campaign } from "@/types/campaign.types";
-import { listCalendarAdapters, createDefaultCustomCalendarDef } from "@/calendars/index";
+import { listCalendarAdapters, createDefaultCustomCalendarDef } from "@/settings/index";
 import { getSetting, listSettings } from "@/settings/index";
 import type { SettingCalendarDef } from "@/settings/types";
 import AppButton from "@/components/common/controls/AppButton.vue";

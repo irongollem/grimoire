@@ -199,7 +199,8 @@
 
 <script setup lang="ts">
 import { IconAdd, IconDelete } from '@/lib/icons';
-import { COINS, type CoinKey } from '@/rules/currency';
+import { COINS } from '@/rules/currency';
+import type { CoinKey } from '@/types/downtime.types';
 import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,

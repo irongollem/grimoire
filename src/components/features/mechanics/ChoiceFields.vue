@@ -136,7 +136,7 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import TagInput from "@/components/common/controls/TagInput.vue";
 import { SKILLS } from "@/types/party.types";
-import type { SkillKey } from "@/data/classSkillChoices";
+import type { SkillKey } from "@/types/party.types";
 import {
   FEAT_CATEGORIES,
   OPTION_SETS,

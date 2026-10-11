@@ -683,19 +683,9 @@ Exported type: `CalendarView = "month" | "timeline"`.
 
 ### Calendar Adapter Pattern
 
-All calendar adapters live in `src/settings/index.ts` (not directly in `src/calendars/`).
+All calendar adapters live in `src/settings/index.ts`; consumers import `CALENDAR_REGISTRY`, `getCalendarAdapter`, `listCalendarAdapters` and the rest straight from `@/settings/index` (the old `src/calendars/` barrel is gone).
 
-`src/calendars/index.ts` just re-exports from settings:
-
-```ts
-export {
-  CALENDAR_REGISTRY,
-  getCalendarAdapter,
-  listCalendarAdapters,
-} from "@/settings/index";
-```
-
-`src/settings/index.ts` builds `CALENDAR_REGISTRY` from all registered `DndSettingDef` objects plus the standalone `gregorianAdapter` from `src/calendars/gregorian.ts`.
+`src/settings/index.ts` builds `CALENDAR_REGISTRY` from all registered `DndSettingDef` objects plus the standalone `gregorianAdapter` from `src/settings/gregorian.calendar.ts`.
 
 Currently registered setting IDs: `faerun`, `eberron`, `greyhawk`, `dragonlance`, `ravenloft`, `planescape`, `spelljammer`, `darksun`, `mystara`, `gregorian`.
 

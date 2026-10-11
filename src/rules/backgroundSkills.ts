@@ -1,6 +1,5 @@
-import { SKILLS, type SkillProficiencies } from "@/types/party.types";
+import { SKILLS, type SkillKey } from "@/types/party.types";
 
-export type SkillKey = keyof SkillProficiencies;
 
 export interface BackgroundSkillChoice {
   /** How many skills the player picks from `options`. */

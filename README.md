@@ -207,7 +207,6 @@ at <http://127.0.0.1:54324>).
 src/
 ├── assets/                # Tailwind v4 @theme tokens + global CSS
 ├── ai/                    # AI generation composables + provider adapters
-├── calendars/             # Calendar adapter pattern (registry + adapters)
 ├── cartographer/          # Tile-pack authoring engine
 ├── components/            # Feature components (npcs/, monsters/, encounters/, …)
 ├── composables/           # TanStack Query hooks, in per-domain subfolders (a few UI/platform primitives stay at the root)

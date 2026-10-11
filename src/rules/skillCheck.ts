@@ -1,9 +1,7 @@
 import { SKILLS } from "@/types/party.types";
-import type { SkillProficiencies, SaveKey } from "@/types/party.types";
+import type { SkillProficiencies } from "@/types/party.types";
+import type { AbilityScores } from "@/types/multiclass.types";
 import { abilityMod } from "@/rules/weaponAttack";
-
-/** The six ability scores a check can key off. */
-export type AbilityScores = Record<SaveKey, number>;
 
 /**
  * Minimal shape needed to score a skill check — a `PartyMember` satisfies it,

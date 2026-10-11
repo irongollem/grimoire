@@ -38,12 +38,12 @@ export interface RevealAdapter {
 export type RevealForm = "button" | "overlay" | "inline";
 
 /** How widely an entity is currently revealed. Drives the button's appearance. */
-export type RevealState = "private" | "partial" | "everyone";
+export type PartyRevealState = "private" | "partial" | "everyone";
 
 export function revealState(
   partyIds: readonly string[],
   isMemberVisible: (id: string) => boolean,
-): RevealState {
+): PartyRevealState {
   if (!partyIds.length) return "private";
   const seen = partyIds.filter(isMemberVisible).length;
   if (seen === 0) return "private";
@@ -54,7 +54,7 @@ export function revealState(
  * Button text. Names the audience rather than the mechanism — a DM is deciding
  * who is looking at something, not operating a visibility system.
  */
-export function revealLabel(state: RevealState, sharedCount: number): string {
+export function revealLabel(state: PartyRevealState, sharedCount: number): string {
   if (state === "everyone") return "Whole party";
   if (state === "partial") return `${sharedCount} player${sharedCount === 1 ? "" : "s"}`;
   return "Hidden";

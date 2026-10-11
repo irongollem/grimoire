@@ -3,8 +3,8 @@
 
 import type { VersionedContentMetadata } from "@/types/content.types";
 import type { AiProvenance } from "@/ai/provenance";
+import type { CasterType } from "@/types/spell.types";
 
-export type CasterType = "prepared" | "known" | "spellbook" | "none";
 /** Ability scores that can feed max-prepared calculations. */
 export type PreparedAbility = "wis" | "int" | "cha";
 

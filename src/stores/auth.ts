@@ -6,7 +6,7 @@ import { TERMS_VERSION } from "@/lib/legal";
 import { signInEmail } from "@edge-shared/childAccount.ts";
 import { CHILD_ACCOUNT_COLUMNS, isActiveChildLink } from "@/lib/childAccount";
 import { accountLabel } from "@/lib/accountLabel";
-import { clearAuthSnapshot, readAuthSnapshot, writeAuthSnapshot } from "@/lib/authSnapshot";
+import { clearAuthSnapshot, readAuthSnapshot, writeAuthSnapshot } from "@/lib/auth/authSnapshot";
 import {
   isAuthRetryableFetchError,
   type AuthChangeEvent,

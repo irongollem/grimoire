@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
-import { getCalendarAdapter, listCalendarAdapters } from "@/calendars/index";
+import { getCalendarAdapter, listCalendarAdapters } from "@/settings/index";
 import type { CalendarAdapter } from "@/types/calendar.types";
 import type { SettingCalendarDef } from "@/settings/types";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";

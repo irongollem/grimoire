@@ -1,5 +1,5 @@
 import type { AbilityKey } from "@/rules/characterCreation";
-import type { SkillKey } from "@/data/classSkillChoices";
+import type { SkillKey } from "@/types/party.types";
 
 /**
  * What a feature does, as data (#976). One shape serves an official feature,

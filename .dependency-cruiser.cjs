@@ -45,6 +45,23 @@ module.exports = {
       from: { path: "^src/stores/" },
       to: { path: "^src/composables/" },
     },
+    {
+      name: "common-no-domain-components",
+      severity: "error",
+      comment:
+        "components/common is the shared UI layer; it may read domain data through composables, but a domain component belongs to its domain (#999 5.2.3).",
+      // brand/ (BannerLoader, BrandIcon) and layout/ are shared chrome, not a
+      // domain. The one domain edge is deliberate: a stat block's spell list
+      // opens that spell's own sheet, and the sheet belongs to spells/.
+      from: {
+        path: "^src/components/common/",
+        pathNot: "^src/components/common/statblock/SpellcastingList\\.vue$",
+      },
+      to: {
+        path: "^src/components/",
+        pathNot: "^src/components/(common|brand|layout)/",
+      },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },
