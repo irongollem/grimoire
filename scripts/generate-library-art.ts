@@ -111,11 +111,13 @@ const MANIFEST_FILE = "manifest.json";
  * `species` is publish-only: species pictures (the race showcase, #955) are rendered outside this tool, so no
  * `generate` flag makes one; a manifest entry with `kind: "species"` and the species' `name` publishes it.
  * `background` is both: `--background <id>` generates, and a publish writes every same-named row.
+ * `class` is publish-only like species: the class headers (three adventurers of one class, #955) are rendered outside
+ * this tool, and an entry with `kind: "class"` and the class `name` writes every edition's `system_classes` row.
  */
-export type ArtKind = "spell" | "item" | "monster" | "species" | "background";
+export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class";
 
 /** Storage bucket per kind. Canonical art lives under `srd/` in all three (see CLAUDE.md, Storage Path Convention). */
-export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images" };
+export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images" };
 
 /**
  * How canonical item art is staged, passed where the app passes a campaign's
@@ -231,6 +233,7 @@ const TABLES_FOR_KIND: Record<ArtKind, string> = {
   item: "library_art_defaults + library_items",
   species: "library_species",
   background: "library_backgrounds",
+  class: "system_classes",
 };
 
 // ---------------------------------------------------------------------------
@@ -493,7 +496,7 @@ export interface PublishRecord {
 export interface ManifestEntry {
   slug: string;
   kind: ArtKind;
-  /** Library spell, monster or background id; null for items and species (a species publishes by `name`). */
+  /** Library spell, monster or background id; null for items, species and classes (those publish by `name`). */
   id: string | null;
   /** The entry's name. */
   name: string;
@@ -785,7 +788,7 @@ export interface FocalPoint {
 export function focalTarget(kind: ArtKind): string {
   if (kind === "monster") return "the creature's head or face (the point a portrait crop should centre on)";
   if (kind === "item") return "the centre of the main object (not the background props)";
-  if (kind === "species") return "the centre of the group's faces (the point a portrait crop should centre on)";
+  if (kind === "species" || kind === "class") return "the centre of the group's faces (the point a portrait crop should centre on)";
   if (kind === "background") return "the figure's face (the point a portrait crop should centre on)";
   return "the centre of the main subject: the caster's face if a caster is the focus, otherwise the heart of the magical effect";
 }
@@ -1243,6 +1246,14 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     if (missing.length > 0) throw new Error(`${entry.slug}: library background ${missing.join(", ")} no longer exists.`);
     return ids;
   }
+  if (entry.kind === "class") {
+    // Every edition of a class shows the same picture: the 2014 and 2024 rows share a class_name.
+    const { data, error } = await client.from("system_classes").select("id, class_name").ilike("class_name", escapeLikePattern(entry.name));
+    if (error) throw new Error(`Could not read system_classes: ${error.message}`);
+    const ids = (data as { id: string; class_name: string }[]).filter((c) => c.class_name.toLowerCase() === entry.name.toLowerCase()).map((c) => c.id).sort();
+    if (ids.length === 0) throw new Error(`${entry.slug}: no library class named "${entry.name}".`);
+    return ids;
+  }
   if (entry.kind === "species") {
     // Every edition of a species shows the same picture: the 2014 and 2024 rows share a name.
     const { data, error } = await client.from("library_species").select("id, name").ilike("name", escapeLikePattern(entry.name));
@@ -1293,6 +1304,11 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     if (rows.error) throw new Error(`Could not update library_backgrounds: ${rows.error.message}`);
     return;
   }
+  if (entry.kind === "class") {
+    const rows = await client.from("system_classes").update({ image_url: url }).in("id", ids);
+    if (rows.error) throw new Error(`Could not update system_classes: ${rows.error.message}`);
+    return;
+  }
   if (entry.kind === "species") {
     const rows = await client.from("library_species").update({ image_url: url }).in("id", ids);
     if (rows.error) throw new Error(`Could not update library_species: ${rows.error.message}`);
@@ -1334,6 +1350,10 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
   if (entry.kind === "background") {
     // library_backgrounds has no focal_point_checked_at column in production yet, so the point alone is written.
     check((await client.from("library_backgrounds").update({ focal_point: focal }).in("id", ids)).error, "library_backgrounds");
+    return;
+  }
+  if (entry.kind === "class") {
+    check((await client.from("system_classes").update({ focal_point: focal, focal_point_checked_at: null }).in("id", ids)).error, "system_classes");
     return;
   }
   if (entry.kind === "species") {

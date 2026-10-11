@@ -190,6 +190,8 @@ describe("slugs and paths", () => {
     expect(isCdnBucket(BUCKET_FOR_KIND.item)).toBe(true);
     expect(BUCKET_FOR_KIND.monster).toBe("monster-images");
     expect(isCdnBucket(BUCKET_FOR_KIND.monster)).toBe(true);
+    expect(BUCKET_FOR_KIND.class).toBe("class-images");
+    expect(isCdnBucket(BUCKET_FOR_KIND.class)).toBe(true);
   });
 
   it("never upscales a variant", () => {
@@ -400,6 +402,7 @@ describe("focal point guess", () => {
     expect(focalTarget("item")).toMatch(/centre of the main object/);
     expect(focalTarget("spell")).toMatch(/caster's face|magical effect/);
     expect(focalTarget("species")).toMatch(/group's faces/);
+    expect(focalTarget("class")).toMatch(/group's faces/);
     expect(focalTarget("background")).toMatch(/figure's face/);
   });
 
