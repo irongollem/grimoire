@@ -123,8 +123,62 @@
       :icon="IconShieldCheck"
       icon-size="md"
       label="Admin"
-      @click="goToAdmin"
+      @click="go('/admin')"
     />
+
+    <!-- The account rows. Below `sidenav` the sidebar and its account popover
+         are hidden, and this sheet is a phone DM's only menu, so without them
+         a DM on a phone had no way to sign out, reach Account or Billing, or
+         switch to the Player lens. Same rows as the sidebar popover. -->
+    <div class="mt-4 border-t border-border pt-2">
+      <ModeToggle class="px-1" />
+      <AppButton
+        variant="menu"
+        size="md"
+        block
+        class="mt-2 gap-3"
+        :icon="IconUserCircle"
+        icon-size="md"
+        label="Account"
+        @click="go('/account')"
+      />
+      <AppButton
+        v-if="auth.isDM"
+        variant="menu"
+        size="md"
+        block
+        class="mt-2 gap-3"
+        :icon="IconBilling"
+        icon-size="md"
+        label="Billing"
+        @click="go('/billing')"
+      >
+        <span>Billing</span>
+        <span v-if="isPro" class="ml-auto text-eyebrow font-semibold text-ink-caution">Pro</span>
+      </AppButton>
+      <AppButton
+        v-if="canInstall && hasNativePrompt"
+        variant="menu"
+        size="md"
+        block
+        class="mt-2 gap-3"
+        :icon="IconDownload"
+        icon-size="md"
+        label="Install app"
+        @click="emit('update:open', false); install()"
+      />
+      <AppButton
+        variant="menu"
+        tone="danger"
+        size="md"
+        block
+        class="mt-2 gap-3"
+        :icon="IconLogOut"
+        icon-size="md"
+        label="Sign out"
+        @click="signOut"
+      />
+    </div>
     <BugReportModal v-if="bugReportMounted" v-model="bugReportOpen" />
   </MobileSheet>
 </template>
@@ -139,7 +193,10 @@ import { useLazyMount } from "@/composables/useLazyMount";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
 import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
 import SessionRail from "./SessionRail.vue";
-import { IconAdd, IconBug, IconNote, IconRefresh, IconShieldCheck } from "@/lib/icons";
+import ModeToggle from "./ModeToggle.vue";
+import { usePwaInstall } from "@/composables/usePwaInstall";
+import { useSubscription } from "@/composables/billing/useSubscription";
+import { IconAdd, IconBilling, IconBug, IconDownload, IconLogOut, IconNote, IconRefresh, IconShieldCheck, IconUserCircle } from "@/lib/icons";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -179,6 +236,8 @@ const appUi = useAppUiStore();
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();
 const scratchpad = useScratchpadStore();
+const { isPro } = useSubscription();
+const { canInstall, hasNativePrompt, install } = usePwaInstall();
 
 const hasCampaign = computed(() => !!campaignStore.activeCampaignId);
 
@@ -219,9 +278,15 @@ function navigate(item: NavItem) {
   router.push(item.to);
 }
 
-function goToAdmin() {
+function go(to: string) {
   emit("update:open", false);
-  router.push("/admin");
+  router.push(to);
+}
+
+async function signOut() {
+  emit("update:open", false);
+  await auth.signOut();
+  router.push({ name: "login" });
 }
 
 function onCreate() {
