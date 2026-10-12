@@ -39,6 +39,7 @@
         <div v-else class="h-3 w-2/3 animate-pulse rounded bg-muted/40" />
       </div>
     </div>
+    <PlayerNpcMemories :npc-id="npc.id" />
     <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Your observations about this character…" />
   </div>
 </template>
@@ -46,6 +47,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
+import PlayerNpcMemories from "@/components/player/people/PlayerNpcMemories.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { formatMetDate } from "@/components/player/people/peopleParty";
 import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";

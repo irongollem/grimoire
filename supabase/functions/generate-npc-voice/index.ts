@@ -24,16 +24,24 @@ import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 
 /**
  * At-the-table NPC dialogue suggester (#336).
  *
  * A player asks an NPC something the DM didn't prep for; this returns 2-3
- * short, speakable-as-is lines in the NPC's voice. Ephemeral — nothing is
- * saved — and latency-sensitive, so the context stays small on purpose:
+ * short, speakable-as-is lines in the NPC's voice. Nothing is saved here (the
+ * client stores a line only when the DM marks it as said), and the call is
+ * latency-sensitive, so the context stays small on purpose:
  * no party query, no monster index, and no ruleset_context_* fetch (this is
  * pure dialogue with no rules content, so that context would be dead prompt
  * weight on a call where every extra round-trip is felt at the table).
+ *
+ * The one exception is the NPC's memory ledger (#1019, npc_memories): the newest
+ * few lines of what it and the party have told each other go in after the
+ * profile, so a suggested line does not contradict last session. The disguise
+ * rule below covers them too (formatNpcMemories masks the true name). A failed
+ * memory read never fails the generation.
  */
 
 const admin = createClient(
@@ -208,7 +216,10 @@ serve(withCors(async (req: Request) => {
   ]);
 
   const systemContent = promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
-  const userContent = `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcProfile(npc)}`;
+  const memoryBlock = formatNpcMemories(await loadPromptMemories(admin, npc.id, campaign_id), npc);
+  const userContent =
+    `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcProfile(npc)}` +
+    (memoryBlock ? `\n\n${memoryBlock}` : "");
 
   // The platform decides the text model: a campaign on platform credits runs on
   // whichever provider the admin enabled, and `campaign.text_provider` only counts
@@ -300,8 +311,10 @@ serve(withCors(async (req: Request) => {
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
 
+  // The provider and model ride along so a line the DM marks as said is stored
+  // with its provenance (npc_memories.ai_provenance, #1019).
   return new Response(
-    JSON.stringify({ lines }),
+    JSON.stringify({ lines, provider: textResult.usage.provider, model: textResult.usage.model }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

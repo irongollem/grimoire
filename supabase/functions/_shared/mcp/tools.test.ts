@@ -216,6 +216,31 @@ describe("resolveImageColumn", () => {
   });
 });
 
+describe("npc_memory", () => {
+  const memory = ENTITY_REGISTRY.npc_memory;
+  const id = "123e4567-e89b-12d3-a456-426614174000";
+
+  it("is creatable with the ledger fields", () => {
+    expect(CREATABLE_TYPES).toContain("npc_memory");
+    const out = validateFields(
+      memory,
+      { npc_id: id, kind: "promise", body: " Owes Wren a favour. ", session_id: id, party_member_ids: [id], player_visible_to: [id] },
+      { partial: false },
+    );
+    expect(out).toEqual({ npc_id: id, kind: "promise", body: "Owes Wren a favour.", session_id: id, party_member_ids: [id], player_visible_to: [id] });
+  });
+
+  it("requires npc_id, kind and body, and rejects an unknown kind", () => {
+    expect(() => validateFields(memory, { kind: "event", body: "x" }, { partial: false })).toThrow(/npc_id/);
+    expect(() => validateFields(memory, { npc_id: id, kind: "gossip", body: "x" }, { partial: false })).toThrow(/must be one of/i);
+  });
+
+  it("refuses campaign_id with the reason", () => {
+    expect(() => validateFields(memory, { npc_id: id, kind: "event", body: "x", campaign_id: id }, { partial: false })).toThrow(/set from npc_id/);
+    expect(() => validateFields(memory, { campaign_id: id }, { partial: true })).toThrow(/set from npc_id/);
+  });
+});
+
 describe("registry creatable set", () => {
   it("gives writes the same reach as reads", () => {
     // The six library types (item, monster, spell, trap, rule, party_member)

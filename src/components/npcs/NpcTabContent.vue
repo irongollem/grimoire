@@ -19,6 +19,9 @@
     <!-- With the party tab -->
     <NpcPartyTab v-else-if="activeTab === 'party'" :npc="npc" />
 
+    <!-- Memory tab -->
+    <NpcMemoryTab v-else-if="activeTab === 'memory'" :npc="npc" />
+
     <!-- Inventory tab -->
     <div v-else-if="activeTab === 'inventory'">
       <NpcInventorySection :npc-id="npc.id" :npc-name="getNpcDisplayName(npc)" />
@@ -60,6 +63,7 @@ import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
 import TraitList from "@/components/common/statblock/TraitList.vue";
 import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
+import NpcMemoryTab from "@/components/npcs/NpcMemoryTab.vue";
 import NpcPartyTab from "@/components/npcs/NpcPartyTab.vue";
 import NpcRelationsTab from "@/components/npcs/NpcRelationsTab.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
@@ -77,6 +81,7 @@ defineProps<{
 const TABS = [
   { key: 'lore',      label: 'Lore' },
   { key: 'party',     label: 'With the party' },
+  { key: 'memory',    label: 'Memory' },
   { key: 'inventory', label: 'Inventory' },
   { key: 'relations', label: 'Relations' },
   { key: 'combat',    label: 'Combat' },

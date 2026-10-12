@@ -8,10 +8,15 @@ import { fetchSystemPrompt } from "./systemPrompts";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { useCampaignStore } from "@/stores/campaign";
 import { buildNpcVoiceProfile } from "@/lib/npcs/buildNpcVoiceProfile";
+import { buildAiProvenance, type AiProvenance } from "./provenance";
+import { formatNpcMemories, loadPromptMemories } from "@edge-shared/npcMemories";
 import type { Npc } from "@/types/npc.types";
 import type { NpcVoiceAiResult } from "./types";
 
 const MAX_LINES = 3;
+
+/** The coach's reply; the provider and model ride along when the caller knows them. */
+type VoiceReply = NpcVoiceAiResult & { provider?: string; model?: string };
 
 /**
  * At-the-table NPC dialogue suggester (#336).
@@ -37,6 +42,8 @@ export function useNpcVoiceCoach() {
   const isGenerating = ref(false);
   const error = ref<string | null>(null);
   const lines = ref<string[]>([]);
+  /** Which model wrote the current lines; null when the path did not report it. */
+  const provenance = ref<AiProvenance | null>(null);
 
   /** Keep only non-empty, trimmed lines, capped at MAX_LINES. */
   function sanitizeLines(raw: unknown): string[] {
@@ -51,6 +58,7 @@ export function useNpcVoiceCoach() {
     isGenerating.value = true;
     error.value = null;
     lines.value = [];
+    provenance.value = null;
 
     if (!npc.campaign_id) {
       error.value = "This NPC has no associated campaign.";
@@ -62,7 +70,7 @@ export function useNpcVoiceCoach() {
       const isLocalMode = await textRunsOnLocalKey();
 
       const result = isLocalMode
-        ? await suggestClientSide(npc, situation)
+        ? await suggestClientSide(npc, npc.campaign_id, situation)
         : await suggestServerSide(npc, npc.campaign_id, situation);
 
       const sanitized = sanitizeLines(result.lines);
@@ -71,6 +79,9 @@ export function useNpcVoiceCoach() {
         return;
       }
       lines.value = sanitized;
+      if (result.provider && result.model) {
+        provenance.value = buildAiProvenance("npc_voice", result.provider, result.model);
+      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Generation failed";
     } finally {
@@ -82,7 +93,7 @@ export function useNpcVoiceCoach() {
     npc: Npc,
     campaignId: string,
     situation: string,
-  ): Promise<NpcVoiceAiResult> {
+  ): Promise<VoiceReply> {
     const { data, error: fnError } = await supabase.functions.invoke("generate-npc-voice", {
       body: {
         campaign_id: campaignId,
@@ -93,11 +104,11 @@ export function useNpcVoiceCoach() {
 
     if (fnError) throw new Error(await edgeErrorMessage(fnError));
     if ((data as { error?: string } | null)?.error) throw new Error((data as { error: string }).error);
-    return data as NpcVoiceAiResult;
+    return data as VoiceReply;
   }
 
   /** BYOK/local mode: the key never leaves the browser, so no edge call. */
-  async function suggestClientSide(npc: Npc, situation: string): Promise<NpcVoiceAiResult> {
+  async function suggestClientSide(npc: Npc, campaignId: string, situation: string): Promise<VoiceReply> {
     const campaign = useCampaignStore();
     const textProvider = getTextProvider();
 
@@ -111,7 +122,12 @@ export function useNpcVoiceCoach() {
       setting: campaign.activeCampaign?.ai_setting_prompt,
     })}`;
 
-    const userContent = `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcVoiceProfile(npc)}`;
+    // The same newest-memories block the edge function appends, read and
+    // formatted by the same shared code, so the two paths cannot disagree.
+    const memoryBlock = formatNpcMemories(await loadPromptMemories(supabase, npc.id, campaignId), npc);
+    const userContent =
+      `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcVoiceProfile(npc)}` +
+      (memoryBlock ? `\n\n${memoryBlock}` : "");
 
     const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
 
@@ -126,13 +142,14 @@ export function useNpcVoiceCoach() {
     }
 
     logUsage({ reason: "npc_voice_generation", textUsage });
-    return parsed;
+    return { ...parsed, provider: textUsage.provider, model: textUsage.model };
   }
 
   function clear(): void {
     error.value = null;
     lines.value = [];
+    provenance.value = null;
   }
 
-  return { isGenerating, error, lines, suggest, clear };
+  return { isGenerating, error, lines, provenance, suggest, clear };
 }

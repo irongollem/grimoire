@@ -17,6 +17,7 @@
 
 import { structureStatBlock, type ProseStatBlockFields } from "../../../../src/rules/statBlock/structureStatBlock.ts";
 import { monsterStatBlockProblem } from "./statBlockShape.ts";
+import { NPC_MEMORY_KINDS } from "../npcMemories.ts";
 
 /**
  * Writable-field value kinds the `create`/`update` tools validate + coerce.
@@ -350,6 +351,9 @@ const SHARED_CAMPAIGN_ID: FieldDef = {
 /** Why `class`/`subclass` cannot be written to an existing character. */
 const CLASS_CHANGE_REFUSAL =
   "A character's class is changed by levelling up or down in the app, not by editing a field.";
+
+/** Why `campaign_id` is not a memory field. */
+const MEMORY_CAMPAIGN_REFUSAL = "A memory belongs to its NPC's campaign; it is set from npc_id.";
 
 export const ENTITY_REGISTRY: Record<string, EntityDef> = {
   npc: {
@@ -1014,6 +1018,40 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
         // blind overwrite of one desynchronises a character mid-session.
         // `owner_user_id`/`is_dm_managed` are likewise UI-only — they decide who
         // controls the sheet, which is a sharing decision, not a data one.
+      },
+    },
+  },
+  npc_memory: {
+    type: "npc_memory",
+    label: "NPC Memory",
+    table: "npc_memories",
+    nameField: "body",
+    summaryField: "kind",
+    searchFields: ["body"],
+    extraListColumns: ["npc_id", "kind", "session_id", "created_at"],
+    campaignScope: "owned",
+    refusedFields: {
+      create: { campaign_id: MEMORY_CAMPAIGN_REFUSAL },
+      update: { campaign_id: MEMORY_CAMPAIGN_REFUSAL },
+    },
+    create: {
+      fields: {
+        npc_id: { type: "uuid", required: true },
+        kind: {
+          type: "enum",
+          values: NPC_MEMORY_KINDS,
+          required: true,
+          description:
+            "revealed = the NPC told the party something; learned = the party told the NPC; promise = a promise made either way; deceived = a lie the NPC told and the party believed (or the reverse); attitude = how the NPC's stance toward the party shifted; event = anything else that happened between them.",
+        },
+        body: { type: "text", required: true, description: "One short line, max 1000 characters." },
+        session_id: { type: "uuid", description: "Defaults to the running session." },
+        party_member_ids: { type: "uuid[]", description: "Who was present." },
+        player_visible_to: {
+          type: "uuid[]",
+          description:
+            "Party members who can read this line on their People page. Omit to keep it DM-only.",
+        },
       },
     },
   },

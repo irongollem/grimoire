@@ -71,6 +71,10 @@
       <NpcPartyTab :npc="npc" />
     </AccordionSection>
 
+    <AccordionSection v-model:open="openSections.memory" title="Memory">
+      <NpcMemoryTab :npc="npc" />
+    </AccordionSection>
+
     <AccordionSection v-model:open="openSections.inventory" title="Inventory">
       <NpcInventorySection :npc-id="npc.id" :npc-name="displayName" />
     </AccordionSection>
@@ -183,6 +187,7 @@ import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcPartyTab from "@/components/npcs/NpcPartyTab.vue";
 import NpcRelationsTab from "@/components/npcs/NpcRelationsTab.vue";
 import QuickFact from "@/components/common/entity/QuickFact.vue";
+import NpcMemoryTab from "@/components/npcs/NpcMemoryTab.vue";
 import AccordionSection from "@/components/common/AccordionSection.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
@@ -253,6 +258,7 @@ const hasAnyQuickFact = computed(
 const openSections = reactive({
   lore: true,
   party: false,
+  memory: false,
   inventory: false,
   relations: false,
   combat: false,

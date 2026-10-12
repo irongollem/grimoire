@@ -64,6 +64,7 @@ Every NPC has a **DM notes** box on its page, in view and edit mode alike. It is
 | Tab | Edit mode | View mode | Contents |
 | --- | --- | --- | --- |
 | **Lore** | Yes | Yes | Appearance, Personality, Backstory: each a rich-text field, hidden when empty in view mode. |
+| **Memory** | No | Yes | What this NPC and the party have told each other, session by session. |
 | **Inventory** | Yes | Yes | Items carried by this NPC. |
 | **Relations** | No | Yes | NPC connections, faction memberships, party connections, and favours owed: see below. |
 | **Combat** | Yes | Yes | The stat block. |
@@ -72,6 +73,8 @@ Every NPC has a **DM notes** box on its page, in view and edit mode alike. It is
 **Inventory**: pick an item in the **Search vault items…** box and click **Add** to give the NPC an item from your Vault. Each carried item shows quantity, an optional note, a **Vault** link back to the source item, a drop-to-chat button (hands the item to the party as a loot drop and removes it from the NPC), and a remove button.
 
 **With the party**: one row per character in the party. Each row says whether they can see this NPC (**Share** / **Shared** toggles it, exactly like the reveal popover), when they met them, and their **connection**: a relationship type such as "Contact" or "Mentor" and a note. The note is labelled with whose it is ("Wren reads this") because that player sees it on their People page as "Your connection"; it saves as you type, and clearing it removes it. Beside the rows sit the disguise, with **Reveal true self**, and the fields a share shows.
+
+**Memory**: the answer to "what did Bram already admit last session?" Each line is one thing worth remembering, of one of six kinds: **Told the party** (what they let slip or admitted), **Heard from the party** (what the party told them), **Promise**, **Deception** (a lie told and believed, either way), **Attitude** (how they feel about the party now) and **Happened**. The add row sits at the top so you can log a line in the middle of a scene: pick the kind, type the line, press Enter. Optionally mark **who was there** and tick **Players see this** to share the line with them (with everyone present, or the whole party when nobody is marked); it then shows on their People page under "What we know". A line files under the running session, or the last one played when no session is running, and you can pick another. Below, the timeline groups every line by session, newest session first, each with **Edit** and **Delete**. Adding a line also puts the NPC on your scratchpad's "This session" list.
 
 **Relations** (view mode only, but every section on it owns its own save, so you never have to flip into the edit form to use it):
 
@@ -86,7 +89,7 @@ Every NPC has a **DM notes** box on its page, in view and edit mode alike. It is
 
 Stat block fields: Armor Class, Hit Points (as a dice expression, e.g. `8d8+16`), Speed (Walk/Fly with Hover/Swim/Climb/Burrow), the six ability scores (with computed modifiers shown), Challenge Rating, Proficiency Bonus, Saving Throws, Skills, Damage Resistances/Immunities, Condition Immunities, Senses, Languages, Special Abilities, Spellcasting, Actions, and Legendary Actions.
 
-**Voice**: a one-line situation box (500 characters) and **Suggest lines** returns 2–3 short in-character replies to read aloud. Nothing here is saved; navigate away and it's gone. **Ask again** re-rolls. If the NPC has an unrevealed alter ego, its true name is never sent to the AI at all: only the disguise persona.
+**Voice**: a one-line situation box (500 characters) and **Suggest lines** returns 2–3 short in-character replies to read aloud. The coach reads the NPC's newest **Memory** lines, so what it suggests stays consistent with what has already been said. Nothing is kept unless you press **Said it** on a line, which adds it to the Memory tab as something they told the party (private until you share it there). **Ask again** re-rolls. If the NPC has an unrevealed alter ego, its true name is never sent to the AI at all: only the disguise persona.
 
 ### The Alter Ego (disguise system)
 

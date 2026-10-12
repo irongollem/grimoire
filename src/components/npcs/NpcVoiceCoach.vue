@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-4">
     <p class="text-body text-muted-foreground">
-      Stuck for a reply? Describe what's happening and get a few in-character lines you can read straight off the screen. Nothing here is saved.
+      Stuck for a reply? Describe what's happening and get a few in-character lines you can read straight off the screen. Only the lines you mark as said are remembered.
     </p>
 
     <!-- Results -->
@@ -26,7 +26,18 @@
           class="flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3.5"
         >
           <IconQuote class="h-4 w-4 shrink-0 mt-0.5 text-primary/60" />
-          <p class="text-body leading-relaxed text-foreground">{{ line }}</p>
+          <p class="flex-1 text-body leading-relaxed text-foreground">{{ line }}</p>
+          <AppButton
+            variant="ghost"
+            size="inline-caption"
+            class="shrink-0"
+            :icon="isRemembered(i) ? IconCheck : IconBookmark"
+            icon-size="xs"
+            :label="isRemembered(i) ? 'Remembered' : 'Said it'"
+            :title="isRemembered(i) ? 'Filed in the Memory tab' : 'Remember that they said this'"
+            :disabled="isRemembered(i) || createMemory.isPending.value"
+            @click="rememberLine(i, line)"
+          />
         </li>
       </ul>
     </template>
@@ -88,14 +99,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
-import { IconGenerate, IconQuote, IconRefresh } from "@/lib/icons";
+import { IconBookmark, IconCheck, IconGenerate, IconQuote, IconRefresh } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useNpcVoiceCoach } from "@/ai/useNpcVoiceCoach";
+import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
+import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
+import { useCreateNpcMemory } from "@/composables/npcs/useNpcMemories";
+import { useToast } from "@/composables/useToast";
+import { getNpcDisplayName } from "@/lib/npcDisplay";
+import { defaultMemorySessionId } from "@/lib/npcs/npcMemories";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
@@ -104,6 +121,7 @@ import type { Npc } from "@/types/npc.types";
 const { npc } = defineProps<{ npc: Npc }>();
 
 const SITUATION_LIMIT = AI_PROMPT_LIMIT_SHORT;
+const MEMORY_BODY_LIMIT = 1000;
 
 const campaign = useCampaignStore();
 const { costOf } = useAiCredits();
@@ -112,7 +130,48 @@ const { textCredits, textIsByok } = useCampaignProviders();
 
 const situation = ref("");
 
-const { isGenerating, error, lines, suggest, clear } = useNpcVoiceCoach();
+const { isGenerating, error, lines, provenance, suggest, clear } = useNpcVoiceCoach();
+
+const toast = useToast();
+const { session: openSession, isRunning } = useCampaignSession();
+const { data: sessionLog } = useCampaignSessions();
+const createMemory = useCreateNpcMemory();
+// Indexes of the current lines already filed; reset whenever the lines change.
+const remembered = ref<ReadonlySet<number>>(new Set());
+watch(lines, () => {
+  remembered.value = new Set();
+});
+
+function isRemembered(i: number): boolean {
+  return remembered.value.has(i);
+}
+
+/** The running session, else the last one played; the log may still be loading, and then only the running one is known. */
+function filingSessionId(): string | null {
+  const running = isRunning.value ? openSession.value : null;
+  return sessionLog.value ? defaultMemorySessionId(running, sessionLog.value) : (running?.id ?? null);
+}
+
+/** Files a suggested line as something the NPC said. DM-only until shared from the Memory tab. */
+async function rememberLine(i: number, line: string) {
+  try {
+    await createMemory.mutateAsync({
+      memory: {
+        npc_id: npc.id,
+        kind: "revealed",
+        body: line.trim().slice(0, MEMORY_BODY_LIMIT),
+        session_id: filingSessionId(),
+        party_member_ids: [],
+        player_visible_to: [],
+        ai_provenance: provenance.value,
+      },
+      npcLabel: getNpcDisplayName(npc) ?? npc.name,
+    });
+    remembered.value = new Set([...remembered.value, i]);
+  } catch (e) {
+    toast.error(toast.fromError(e, "Could not remember that line."));
+  }
+}
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const textCreditCost = computed(

@@ -85,6 +85,9 @@ export interface GrimoireBackup {
   /** The campaign's own Scriptorium documents (#915). Absent from a backup
    *  taken before documents could belong to a campaign. */
   scriptorium_documents?: Row[];
+  /** What an NPC and the party have told each other (#1019). Absent from a
+   *  backup taken before the ledger existed. */
+  npc_memories?: Row[];
   _meta: {
     entity_counts: Record<string, number>;
     app_version: string;
@@ -199,6 +202,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     chroniclerImages,
     entityNotes,
     scriptoriumDocuments,
+    npcMemories,
   ] = await Promise.all([
     supabase.from("campaigns").select("*").eq("id", campaignId).single().then(({ data, error }) => {
       if (error) throw error;
@@ -231,6 +235,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByCampaign("chronicler_images", campaignId),
     qByCampaign("entity_notes", campaignId),
     qByCampaign("scriptorium_documents", campaignId),
+    qByCampaign("npc_memories", campaignId),
   ]);
 
   // Phase 2: child entities keyed by parent IDs (parallel)
@@ -304,6 +309,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     notes: notes.length,
     campaign_sessions: campaignSessions.length,
     scriptorium_documents: scriptoriumDocuments.length,
+    npc_memories: npcMemories.length,
     calendar_events: calendarEvents.length,
     npcs: npcs.length,
     factions: factions.length,
@@ -372,6 +378,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     chronicler_images: chroniclerImages,
     entity_notes: entityNotes,
     scriptorium_documents: scriptoriumDocuments,
+    npc_memories: npcMemories,
     _meta: { entity_counts: entityCounts, app_version: "1.0.0" },
   };
 }
@@ -440,6 +447,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.session_availability,
     backup.chronicler_images,
     backup.scriptorium_documents ?? [],
+    backup.npc_memories ?? [],
   ];
 
   return buildIdMapFromArrays(entityArrays);
@@ -842,6 +850,22 @@ export async function executeImport(
         npc_id: r(note.npc_id, idMap),
         party_member_id: r(note.party_member_id, idMap),
         notes: rMention(note.notes, idMap),
+      })),
+    );
+    // NPC memories (#1019): after the NPCs, the party and the session log they
+    // point at. The audience arrays are remapped onto the restored party; the
+    // database trigger drops any id that is not a member of the new campaign.
+    await batchInsert(
+      "npc_memories",
+      (backup.npc_memories ?? []).map((memory) => ({
+        ...memory,
+        id: r(memory.id, idMap),
+        campaign_id: newCampaignId,
+        user_id: userId,
+        npc_id: r(memory.npc_id, idMap),
+        session_id: r(memory.session_id, idMap),
+        party_member_ids: rArr(memory.party_member_ids, idMap),
+        player_visible_to: rArr(memory.player_visible_to, idMap),
       })),
     );
     await batchInsert(

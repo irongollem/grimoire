@@ -228,3 +228,53 @@ describe("executeImport quest clocks (#1011)", () => {
     expect(tick.on_location_id).toBe(newLocation.id);
   });
 });
+
+describe("executeImport NPC memories (#1019)", () => {
+  beforeEach(() => {
+    inserted.length = 0;
+  });
+
+  const memory = {
+    id: "mem-1",
+    campaign_id: "old-camp",
+    npc_id: "npc-1",
+    session_id: "s-1",
+    kind: "promise",
+    body: "Swore to keep the ferry open.",
+    party_member_ids: ["pm-1", "pm-gone"],
+    player_visible_to: ["pm-1"],
+  };
+
+  it("remaps the NPC, session and both audience arrays onto the restored rows", async () => {
+    const backup = backupWith({
+      party_members: [member],
+      npcs: [{ id: "npc-1", name: "Bram" }],
+      campaign_sessions: [{ id: "s-1", campaign_id: "old-camp", user_id: "x", number: 1, started_at: null, ended_at: null }],
+      npc_memories: [memory],
+    });
+    await executeImport(backup, "Restored");
+    const tables = inserted.map((i) => i.table);
+    for (const parent of ["npcs", "party_members", "campaign_sessions"]) {
+      expect(tables.indexOf(parent)).toBeLessThan(tables.indexOf("npc_memories"));
+    }
+    const pm = inserted.find((i) => i.table === "party_members")!.rows[0];
+    const npc = inserted.find((i) => i.table === "npcs")!.rows[0];
+    const session = inserted.find((i) => i.table === "campaign_sessions")!.rows[0];
+    const row = inserted.find((i) => i.table === "npc_memories")!.rows[0];
+    expect(row.id).not.toBe("mem-1");
+    expect(row.user_id).toBe("restorer");
+    expect(row.npc_id).toBe(npc.id);
+    expect(row.session_id).toBe(session.id);
+    expect((row.party_member_ids as string[])[0]).toBe(pm.id);
+    expect(row.player_visible_to).toEqual([pm.id]);
+  });
+
+  it("restores a backup that predates the ledger without writing any memories", async () => {
+    const base: Record<string, unknown> = { version: "2", file_type: "backup", campaign: { id: "old-camp", name: "Old" } };
+    const old = new Proxy(base, {
+      get: (t, k) => (k === "npc_memories" ? undefined : k in t ? t[k as string] : []),
+    }) as unknown as GrimoireBackup;
+    await executeImport(old, "Restored");
+    expect(inserted.some((i) => i.table === "npc_memories")).toBe(false);
+  });
+});

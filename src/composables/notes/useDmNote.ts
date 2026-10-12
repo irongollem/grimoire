@@ -1,5 +1,5 @@
 import { computed, reactive, ref, toValue, watch, type ComputedRef, type MaybeRefOrGetter } from "vue";
-import { useQuery, useQueryClient } from "@tanstack/vue-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/vue-query";
 import { useAutosave, type AutosaveStatus } from "@/composables/useAutosave";
 import { supabase } from "@/lib/supabase";
 import { dmNoteEntry, type DmNoteEntityType } from "@/lib/dmNotes/registry";
@@ -22,6 +22,37 @@ interface ColumnDraft {
 
 function sameContent(a: string | null, b: string | null): boolean {
   return a === b || (isBlankNote(a) && isBlankNote(b));
+}
+
+/**
+ * Files an entity under the DM's "This session" list (`dm_note_touches`).
+ * Writing a note is one way to touch an entity; anything else the DM authors
+ * about it (an NPC memory, #1019) calls this directly. Failure is logged, never
+ * thrown: a touch is a convenience and must not fail the write it follows.
+ */
+export async function recordDmNoteTouch(
+  qc: QueryClient,
+  touch: { userId: string | undefined; campaignId: string | null; type: DmNoteEntityType; id: string; label: string },
+) {
+  const { userId, campaignId, type, id, label } = touch;
+  if (!userId || !campaignId) return;
+  try {
+    const { error } = await supabase.from("dm_note_touches").upsert(
+      {
+        user_id: userId,
+        campaign_id: campaignId,
+        entity_type: type,
+        entity_id: id,
+        entity_label: label,
+        touched_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,campaign_id,entity_type,entity_id" },
+    );
+    if (error) throw error;
+    await qc.invalidateQueries({ queryKey: ["dm-note-touches"] });
+  } catch (e) {
+    console.error("Could not record the note touch", e);
+  }
 }
 
 /**
@@ -87,27 +118,8 @@ export function useDmNote(subject: MaybeRefOrGetter<DmNoteSubject | null>) {
     { immediate: true },
   );
 
-  async function recordTouch(type: DmNoteEntityType, id: string, label: string) {
-    const userId = auth.user?.id;
-    const campaignId = campaign.activeCampaignId;
-    if (!userId || !campaignId) return;
-    try {
-      const { error } = await supabase.from("dm_note_touches").upsert(
-        {
-          user_id: userId,
-          campaign_id: campaignId,
-          entity_type: type,
-          entity_id: id,
-          entity_label: label,
-          touched_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,campaign_id,entity_type,entity_id" },
-      );
-      if (error) throw error;
-      await qc.invalidateQueries({ queryKey: ["dm-note-touches"] });
-    } catch (e) {
-      console.error("Could not record the note touch", e);
-    }
+  function recordTouch(type: DmNoteEntityType, id: string, label: string) {
+    return recordDmNoteTouch(qc, { userId: auth.user?.id, campaignId: campaign.activeCampaignId, type, id, label });
   }
 
   // ---- Column kind --------------------------------------------------------

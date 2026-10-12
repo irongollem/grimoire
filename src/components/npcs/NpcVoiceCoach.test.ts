@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { mount, RouterLinkStub } from "@vue/test-utils";
+import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import NpcVoiceCoach from "./NpcVoiceCoach.vue";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
@@ -50,6 +50,8 @@ function npc(overrides: Partial<Npc> = {}): Npc {
 const mocks = vi.hoisted(() => ({
   suggest: vi.fn(),
   clear: vi.fn(),
+  createMemory: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 const isAiEnabled = ref(true);
@@ -68,11 +70,25 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
 }));
+const coachLines = ref<string[]>([]);
+vi.mock("@/composables/campaign/useCampaignSession", () => ({
+  useCampaignSession: () => ({ session: ref({ id: "run-1" }), isRunning: ref(true) }),
+}));
+vi.mock("@/composables/sessions/useCampaignSessions", () => ({
+  useCampaignSessions: () => ({ data: ref([]) }),
+}));
+vi.mock("@/composables/npcs/useNpcMemories", () => ({
+  useCreateNpcMemory: () => ({ mutateAsync: mocks.createMemory, isPending: ref(false) }),
+}));
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({ error: mocks.toastError, fromError: (e: Error) => e.message }),
+}));
 vi.mock("@/ai/useNpcVoiceCoach", () => ({
   useNpcVoiceCoach: () => ({
     isGenerating: ref(false),
     error: ref(null),
-    lines: ref([]),
+    lines: coachLines,
+    provenance: ref({ generatorType: "npc_voice", provider: "openai", model: "m", generatedAt: "t", edited: false }),
     suggest: mocks.suggest,
     clear: mocks.clear,
   }),
@@ -90,6 +106,9 @@ describe("NpcVoiceCoach", () => {
     isAiEnabled.value = true;
     mocks.suggest.mockReset();
     mocks.clear.mockReset();
+    mocks.createMemory.mockReset();
+    mocks.toastError.mockReset();
+    coachLines.value = [];
   });
 
   it("shows the real Suggest lines button on a Free account once AI is on", () => {
@@ -103,5 +122,38 @@ describe("NpcVoiceCoach", () => {
     const wrapper = mountCoach();
     expect(wrapper.find('button[aria-label="Suggest lines"]').exists()).toBe(false);
     expect(wrapper.text()).toContain("AI is off for this campaign");
+  });
+
+  it("files a suggested line as a DM-only revealed memory in the running session", async () => {
+    coachLines.value = ["  The gate shuts at dusk.  "];
+    mocks.createMemory.mockResolvedValue({});
+    const wrapper = mountCoach();
+    await wrapper.find('button[aria-label="Said it"]').trigger("click");
+    await flushPromises();
+    expect(mocks.createMemory).toHaveBeenCalledWith({
+      memory: expect.objectContaining({
+        npc_id: "npc-1",
+        kind: "revealed",
+        body: "The gate shuts at dusk.",
+        session_id: "run-1",
+        party_member_ids: [],
+        player_visible_to: [],
+        ai_provenance: expect.objectContaining({ generatorType: "npc_voice" }),
+      }),
+      npcLabel: "Elowen Vance",
+    });
+    const done = wrapper.find('button[aria-label="Remembered"]');
+    expect(done.exists()).toBe(true);
+    expect(done.attributes("disabled")).toBeDefined();
+  });
+
+  it("toasts and leaves the button usable when filing fails", async () => {
+    coachLines.value = ["Hello."];
+    mocks.createMemory.mockRejectedValue(new Error("nope"));
+    const wrapper = mountCoach();
+    await wrapper.find('button[aria-label="Said it"]').trigger("click");
+    await flushPromises();
+    expect(mocks.toastError).toHaveBeenCalledWith("nope");
+    expect(wrapper.find('button[aria-label="Said it"]').exists()).toBe(true);
   });
 });

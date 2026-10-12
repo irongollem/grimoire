@@ -39,6 +39,8 @@ vitest: `_shared/credit-math.ts`; the vitest include glob already covers
   puzzles, roll_tables, encounters, notes, downtime outcomes — exact names
   verified against schema at migration time). Null = no known AI involvement.
   No backfill (unknowable; recorded in register).
+  Also `npc_memories` (#1019): a Voice Coach line the DM marks as said is
+  stored with `generatorType: npc_voice`.
 - `image_provenance` (#935): one row per stored AI image, keyed by
   `(bucket, stem)`, holding the same `AiProvenance` shape. The stem is the
   object path without its extension or `_w<width>` variant suffix, so an

@@ -12,6 +12,8 @@
 import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
 import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 
+/** Root of every NPC memory query (#1019); the table rings the `npc_memories` signal. */
+export const NPC_MEMORIES_KEY = "npc-memories";
 export const BEATS_KEY = "quest_beats";
 export const THREADS_KEY = "quest_threads";
 /** A quest's progress clocks (#1011). */
@@ -170,6 +172,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["location_reveals", ["session-learned", "npc-reveals"]],
   ["npc_reveals", ["npc-reveals", PLAYER_NPCS_KEY, "session-learned"]],
   ["npc_pc_notes", ["npc_pc_notes"]],
+  ["npc_memories", [NPC_MEMORIES_KEY]],
   ["player_npc_ratings", ["player_npc_ratings"]],
   ["npc_favors", ["npc_favors"]],
   ["faction_party_members", ["faction-party-members", "party-member-factions", "player-faction-party-members", PLAYER_FACTIONS_KEY]],
