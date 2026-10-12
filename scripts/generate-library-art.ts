@@ -1355,7 +1355,9 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
   const art = await client
     .from("library_art_defaults")
     .upsert(
-      itemNames(entry).map((name) => ({ content_type: "item", content_name: name.toLowerCase(), image_url: url })),
+      // Names that differ only in case ("Scale Mail", "Scale mail") share one library_art_defaults key; an upsert that
+      // names the same key twice fails ("cannot affect row a second time").
+      [...new Set(itemNames(entry).map((name) => name.toLowerCase()))].map((name) => ({ content_type: "item", content_name: name, image_url: url })),
       { onConflict: "content_type,content_name" },
     );
   if (art.error) throw new Error(`Could not upsert library_art_defaults: ${art.error.message}`);
