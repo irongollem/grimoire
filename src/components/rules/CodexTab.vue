@@ -441,8 +441,8 @@
 <script setup lang="ts">
 import { ref, computed, shallowRef, useId } from "vue";
 import { IconChevronRight, IconClose, IconParty, IconPopulate, IconQuest, IconSun } from '@/lib/icons';
-import type { Species, SpeciesSubrace } from "@/types/species.types";
-import { walkSpeedFromSubrace } from "@/rules/speciesStats";
+import type { Species } from "@/types/species.types";
+import { speciesSizeFromSubrace, subraceStatPills, walkSpeedFromSubrace } from "@/rules/speciesStats";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
@@ -475,22 +475,6 @@ const codexSection = ref<CodexSection>("species");
 const { data: allSpecies } = useAllSpecies();
 const selectedSpecies = ref<Species | null>(null);
 const speciesHeadingId = useId();
-
-/** A species with no size of its own whose subraces state one (darakhul, gearforged). */
-function speciesSizeFromSubrace(species: Species): boolean {
-  return !species.size && !!species.subraces?.some((sub) => sub.size);
-}
-
-/** What a subrace changes about its parent: size, speeds and extra languages. */
-function subraceStatPills(sub: SpeciesSubrace): string[] {
-  return [
-    ...(sub.size ? [sub.size] : []),
-    ...Object.entries(sub.speed ?? {})
-      .filter(([, ft]) => typeof ft === "number" && ft > 0)
-      .map(([mode, ft]) => `${mode} ${ft} ft`),
-    ...(sub.languages ?? []).map((lang) => `Lang: ${lang}`),
-  ];
-}
 
 // ── Backgrounds ──
 const { data: allBackgrounds } = useBackgrounds();

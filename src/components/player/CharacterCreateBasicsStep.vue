@@ -79,7 +79,7 @@
           />
         </div>
         <p v-if="selectedSpecies && walkSpeedFromSubrace(selectedSpecies) && !f.subrace" class="text-caption text-muted-foreground italic">
-          The variant sets size and speed.
+          Choose a variant: it sets size and speed.
         </p>
       </div>
 

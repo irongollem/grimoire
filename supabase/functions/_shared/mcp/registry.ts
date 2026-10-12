@@ -159,7 +159,7 @@ export interface EntityDef {
 }
 
 /** The named type-specific create steps tools.ts implements. */
-export type CreateStepName = "character_class";
+export type CreateStepName = "character_class" | "npc_memory_session";
 
 /** Which embedding edge function owns an entity's corpus — see `EntityDef.embedOnWrite`. */
 export type EmbedOnWriteTarget =
@@ -1030,6 +1030,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     searchFields: ["body"],
     extraListColumns: ["npc_id", "kind", "session_id", "created_at"],
     campaignScope: "owned",
+    createStep: "npc_memory_session",
     refusedFields: {
       create: { campaign_id: MEMORY_CAMPAIGN_REFUSAL },
       update: { campaign_id: MEMORY_CAMPAIGN_REFUSAL },
@@ -1045,7 +1046,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
             "revealed = the NPC told the party something; learned = the party told the NPC; promise = a promise made either way; deceived = a lie the NPC told and the party believed (or the reverse); attitude = how the NPC's stance toward the party shifted; event = anything else that happened between them.",
         },
         body: { type: "text", required: true, description: "One short line, max 1000 characters." },
-        session_id: { type: "uuid", description: "Defaults to the running session." },
+        session_id: { type: "uuid", description: "The session it belongs to. Omitted, it is filed under the running session, or under none when no session is running." },
         party_member_ids: { type: "uuid[]", description: "Who was present." },
         player_visible_to: {
           type: "uuid[]",

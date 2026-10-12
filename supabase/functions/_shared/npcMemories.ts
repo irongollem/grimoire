@@ -65,21 +65,55 @@ function escapeRegExp(s: string): string {
 }
 
 /**
+ * Words that sit in a name without being one ("Lord Neverember", "Bram the
+ * Bold"). Masking them on their own would rewrite every "the" and "lord" in an
+ * NPC's memories, so only the full name masks them.
+ */
+const NAME_PARTICLES = new Set([
+  "the", "of", "and", "von", "van", "der", "den", "del", "della", "de", "la", "le", "du", "da", "al", "el",
+  "ibn", "bin", "lord", "lady", "sir", "dame", "king", "queen", "prince", "princess", "duke", "duchess",
+  "baron", "baroness", "count", "countess", "captain", "master", "mistress", "father", "mother", "brother",
+  "sister", "old", "young", "saint", "elder", "high",
+]);
+
+const NOT_A_WORD_CHAR_BEFORE = "(?<![\\p{L}\\p{N}_])";
+const NOT_A_WORD_CHAR_AFTER = "(?![\\p{L}\\p{N}_])";
+
+/**
  * Disguise rule: while the NPC is disguised and unrevealed, the true name must
  * not reach the model in any form, and a DM-written memory ("Bram admitted...")
  * is exactly where it would leak from.
+ *
+ * The full name is matched in any case. Each other part of it ("Bram" of "Bram
+ * Ashford") is matched only where it is written as a name, capitalised or in
+ * capitals, and never a particle or title: "Bold" in "Bram the Bold" must not
+ * turn "a bold move" into nonsense. The disguise name goes in through a
+ * function, so a "$&" in it is text and not the matched true name.
  */
 function maskTrueName(body: string, identity: NpcMemoryIdentity): string {
-  if (!identity.disguise_name || identity.is_revealed) return body;
+  const disguise = identity.disguise_name;
+  if (!disguise || identity.is_revealed) return body;
   const trueName = identity.name.trim();
   if (!trueName) return body;
-  // The full name first, then each 3+ character part of it ("bram sold the map"
-  // exposes a "Bram Ashford" just as surely as the whole name), longest first.
-  const parts = trueName.split(/\s+/).filter((t) => t.length >= 3);
-  const variants = [...new Set([trueName, ...parts])].sort((x, y) => y.length - x.length);
-  const alternation = variants.map(escapeRegExp).join("|");
-  const pattern = new RegExp(`(?<![\\p{L}\\p{N}_])(?:${alternation})(?![\\p{L}\\p{N}_])`, "giu");
-  return body.replace(pattern, identity.disguise_name);
+  const toDisguise = () => disguise;
+
+  const whole = new RegExp(`${NOT_A_WORD_CHAR_BEFORE}${escapeRegExp(trueName)}${NOT_A_WORD_CHAR_AFTER}`, "giu");
+  let out = body.replace(whole, toDisguise);
+
+  const parts = trueName
+    .split(/\s+/)
+    .filter((t) => t.length >= 3 && !NAME_PARTICLES.has(t.toLowerCase()) && t !== trueName);
+  const written = [...new Set(parts.flatMap((t) => [t, t.charAt(0).toUpperCase() + t.slice(1), t.toUpperCase()]))]
+    .filter((t) => /^\p{Lu}/u.test(t))
+    .sort((x, y) => y.length - x.length);
+  if (written.length > 0) {
+    const pattern = new RegExp(
+      `${NOT_A_WORD_CHAR_BEFORE}(?:${written.map(escapeRegExp).join("|")})${NOT_A_WORD_CHAR_AFTER}`,
+      "gu",
+    );
+    out = out.replace(pattern, toDisguise);
+  }
+  return out;
 }
 
 function capBody(body: string): string {

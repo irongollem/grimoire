@@ -4,7 +4,12 @@ import {
   effectiveSize,
   effectiveSpeed,
   findSubrace,
+  setSpeedMode,
   speciesHasWalkSpeed,
+  speciesSizeFromSubrace,
+  speedLabels,
+  subraceStatPills,
+  withWalkSpeed,
   walkSpeedFromSubrace,
 } from "@/rules/speciesStats";
 import type { SpeciesStatsSource } from "@/rules/speciesStats";
@@ -79,5 +84,69 @@ describe("speciesHasWalkSpeed", () => {
     expect(speciesHasWalkSpeed(gap)).toBe(false);
     expect(speciesHasWalkSpeed({ speed: null, subraces: [] })).toBe(false);
     expect(speciesHasWalkSpeed({ speed: { fly: 30 }, subraces: null })).toBe(false);
+  });
+});
+
+describe("a species with null languages", () => {
+  it("grants none of its own, and still adds its subrace's", () => {
+    const noLanguages: SpeciesStatsSource = { ...minotaur, languages: null };
+    expect(effectiveLanguages(noLanguages, "")).toEqual([]);
+    expect(effectiveLanguages({ ...noLanguages, subraces: [{ name: "S", description: "", traits: [], languages: ["Elvish"] }] }, "S")).toEqual(["Elvish"]);
+  });
+});
+
+describe("withWalkSpeed", () => {
+  const walking = { name: "A", description: "", traits: [], ability_score_increases: null, speed: { walk: 30 } };
+  const swimming = { ...walking, speed: { swim: 20 } };
+
+  it("leaves a species with a walking speed alone", () => {
+    const fields = { speed: { walk: 25 } };
+    expect(withWalkSpeed(fields, null)).toBe(fields);
+  });
+
+  it("leaves a species whose every subrace walks alone", () => {
+    const fields = { speed: null };
+    expect(withWalkSpeed(fields, [walking, walking])).toBe(fields);
+  });
+
+  it("adds walk 30 and keeps other modes otherwise", () => {
+    expect(withWalkSpeed({ speed: { swim: 25 } }, null).speed).toEqual({ swim: 25, walk: 30 });
+    expect(withWalkSpeed({ speed: null }, [walking, swimming]).speed).toEqual({ walk: 30 });
+  });
+});
+
+describe("subrace display helpers", () => {
+  it("reads a size left to the subraces", () => {
+    expect(speciesSizeFromSubrace(darakhul)).toBe(true);
+    expect(speciesSizeFromSubrace(minotaur)).toBe(false);
+  });
+
+  it("labels speeds, leaving out zero and absent modes", () => {
+    expect(speedLabels({ walk: 30, fly: 0, swim: 20 })).toEqual(["Walk 30ft", "Swim 20ft"]);
+    expect(speedLabels(null)).toEqual([]);
+  });
+
+  it("lists a subrace's size (capitalised), speeds and languages", () => {
+    expect(subraceStatPills({ name: "H", description: "", traits: [], size: "small", speed: { walk: 25, fly: 0 }, languages: ["Halfling"] }))
+      .toEqual(["Small", "Walk 25ft", "Lang: Halfling"]);
+    expect(subraceStatPills({ name: "B", description: "", traits: [] })).toEqual([]);
+  });
+});
+
+describe("setSpeedMode", () => {
+  it("sets a mode without touching the others or the input", () => {
+    const speed = { walk: 30 };
+    expect(setSpeedMode(speed, "fly", "40")).toEqual({ walk: 30, fly: 40 });
+    expect(speed).toEqual({ walk: 30 });
+  });
+
+  it("removes the mode for an empty, non-numeric, null or negative entry", () => {
+    for (const raw of ["", "abc", null, "-5", -5]) {
+      expect(setSpeedMode({ walk: 30, fly: 40 }, "fly", raw)).toEqual({ walk: 30 });
+    }
+  });
+
+  it("accepts a number as well as text", () => {
+    expect(setSpeedMode({}, "swim", 25)).toEqual({ swim: 25 });
   });
 });

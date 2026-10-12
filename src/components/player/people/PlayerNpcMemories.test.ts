@@ -43,7 +43,7 @@ describe("PlayerNpcMemories", () => {
     expect(text).toContain("WHAT WE KNOW");
     expect(text).toContain("Told us");
     expect(text.indexOf("Session 2")).toBeLessThan(text.indexOf("Session 1"));
-    expect(text.indexOf("Session 1")).toBeLessThan(text.indexOf("Before the log"));
+    expect(text.indexOf("Session 1")).toBeLessThan(text.indexOf("Outside any session"));
     expect(text).toContain("Fears the mere.");
   });
 });

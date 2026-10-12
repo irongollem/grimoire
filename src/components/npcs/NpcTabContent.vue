@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import NpcLoreSections from "@/components/npcs/NpcLoreSections.vue";
 import TabBar from "@/components/common/controls/TabBar.vue";
@@ -71,7 +71,7 @@ import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import type { Npc, NpcListRow } from "@/types/npc.types";
 
-defineProps<{
+const { npc } = defineProps<{
   /** What the list already knew: everything but the prose. */
   npc: NpcListRow;
   /** The record read by id; absent until it arrives (#999). */
@@ -88,7 +88,11 @@ const TABS = [
   { key: 'voice',     label: 'Voice' },
 ] as const;
 type TabKey = typeof TABS[number]['key'];
-const TABS_BAR = TABS.map(t => ({ id: t.key, label: t.label }));
+// A memory belongs to the NPC's campaign (the table derives it from the NPC), so
+// an NPC outside any campaign has nowhere to keep one and gets no Memory tab.
+const TABS_BAR = computed(() =>
+  TABS.filter(t => t.key !== 'memory' || npc.campaign_id !== null).map(t => ({ id: t.key, label: t.label })),
+);
 
 const activeTab = ref<TabKey>('lore');
 </script>

@@ -100,7 +100,8 @@ import { useCreateSpecies, useUpdateSpecies, useAllSpecies } from "@/composables
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import { buildImportedFields, buildCreateOnlyDefaults, withWalkSpeed } from "@/lib/library/open5eSpeciesImport";
+import { buildImportedFields, buildCreateOnlyDefaults } from "@/lib/library/open5eSpeciesImport";
+import { withWalkSpeed } from "@/rules/speciesStats";
 import type { Open5eRace } from "@/lib/library/open5eSpeciesImport";
 
 const speciesUi = useSpeciesUiStore();

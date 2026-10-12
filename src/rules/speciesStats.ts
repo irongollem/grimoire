@@ -10,7 +10,8 @@ import type { SpeciesSize, SpeciesSpeed, SpeciesSubrace } from "@/types/species.
 export interface SpeciesStatsSource {
   size: SpeciesSize | null;
   speed: SpeciesSpeed | null;
-  languages: string[];
+  /** A library row's `languages` is a nullable text[]: null grants none. */
+  languages: string[] | null;
   subraces: SpeciesSubrace[] | null;
 }
 
@@ -33,7 +34,7 @@ export function effectiveSpeed(species: SpeciesStatsSource, subraceName?: string
 
 /** The species' languages and the subrace's, each once, parent's first. */
 export function effectiveLanguages(species: SpeciesStatsSource, subraceName?: string | null): string[] {
-  return [...new Set([...species.languages, ...(findSubrace(species, subraceName)?.languages ?? [])])];
+  return [...new Set([...(species.languages ?? []), ...(findSubrace(species, subraceName)?.languages ?? [])])];
 }
 
 /**
@@ -51,4 +52,63 @@ export function speciesHasWalkSpeed(species: Pick<SpeciesStatsSource, "speed" | 
 /** True when the species leaves its walking speed to the subrace, so a character needs one chosen to have a speed. */
 export function walkSpeedFromSubrace(species: Pick<SpeciesStatsSource, "speed" | "subraces">): boolean {
   return typeof species.speed?.walk !== "number" && speciesHasWalkSpeed(species);
+}
+
+/** The 5e baseline walk when neither the species nor every subrace states one (mirrors `*_walk_speed_present`). */
+export function withWalkSpeed<T extends { speed: SpeciesSpeed | null }>(
+  fields: T,
+  subraces: readonly SpeciesSubrace[] | null,
+): T {
+  if (speciesHasWalkSpeed({ speed: fields.speed, subraces: subraces ? [...subraces] : null })) return fields;
+  return { ...fields, speed: { ...fields.speed, walk: DEFAULT_WALK_SPEED } };
+}
+
+/** A species with no size of its own whose subraces state one (darakhul, gearforged). */
+export function speciesSizeFromSubrace(species: Pick<SpeciesStatsSource, "size" | "subraces">): boolean {
+  return !species.size && !!species.subraces?.some((subrace) => subrace.size);
+}
+
+const SPEED_MODE_LABELS: Record<keyof SpeciesSpeed, string> = {
+  walk: "Walk",
+  fly: "Fly",
+  swim: "Swim",
+  climb: "Climb",
+  burrow: "Burrow",
+};
+
+/** A speed as pills ("Walk 30ft"); a mode at zero or absent is left out. */
+export function speedLabels(speed: SpeciesSpeed | null | undefined): string[] {
+  if (!speed) return [];
+  return (Object.keys(SPEED_MODE_LABELS) as (keyof SpeciesSpeed)[])
+    .filter((mode) => typeof speed[mode] === "number" && speed[mode]! > 0)
+    .map((mode) => `${SPEED_MODE_LABELS[mode]} ${speed[mode]}ft`);
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** What a subrace changes about its parent: size, speeds and extra languages, as pills. */
+export function subraceStatPills(subrace: SpeciesSubrace): string[] {
+  return [
+    ...(subrace.size ? [capitalize(subrace.size)] : []),
+    ...speedLabels(subrace.speed),
+    ...(subrace.languages ?? []).map((lang) => `Lang: ${lang}`),
+  ];
+}
+
+/**
+ * One speed mode edited from a text field. An empty, non-numeric or negative
+ * entry removes the mode (an absent mode means "as the species", never a stored
+ * null); anything else sets it. Returns a new speed.
+ */
+export function setSpeedMode(
+  speed: SpeciesSpeed,
+  mode: keyof SpeciesSpeed,
+  raw: string | number | null,
+): SpeciesSpeed {
+  const value = typeof raw === "number" ? raw : parseInt(String(raw));
+  const { [mode]: _removed, ...rest } = speed;
+  if (raw === null || Number.isNaN(value) || value < 0) return rest;
+  return { ...rest, [mode]: value };
 }

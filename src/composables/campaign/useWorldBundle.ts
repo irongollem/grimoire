@@ -9,7 +9,7 @@ import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 import type { Campaign } from "@/types/campaign.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { SpeciesSpeed, SpeciesSubrace } from "@/types/species.types";
-import { DEFAULT_WALK_SPEED, speciesHasWalkSpeed } from "@/rules/speciesStats";
+import { withWalkSpeed } from "@/rules/speciesStats";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { downloadBlob } from "@/lib/downloadBlob";
 import {
@@ -530,7 +530,7 @@ function remapLibraryRowForImport(row: Row, ctx: ImportRemapCtx): Row {
  */
 export function remapSpeciesForImport(row: Row, ctx: ImportRemapCtx): Row {
   const { notes: _exportersDmNote, ...own } = row;
-  return remapLibraryRowForImport(withWalkSpeed(own), ctx);
+  return remapLibraryRowForImport(withWalkSpeedRow(own), ctx);
 }
 
 /**
@@ -538,11 +538,11 @@ export function remapSpeciesForImport(row: Row, ctx: ImportRemapCtx): Row {
  * one without, which the database now refuses (`species_walk_speed_present`).
  * Like any custom species it starts at 30 ft, for the DM to adjust.
  */
-function withWalkSpeed(row: Row): Row {
-  const speed = (row.speed && typeof row.speed === "object" ? row.speed : {}) as SpeciesSpeed;
+function withWalkSpeedRow(row: Row): Row {
+  const speed = (row.speed && typeof row.speed === "object" ? row.speed : null) as SpeciesSpeed | null;
   const subraces = Array.isArray(row.subraces) ? (row.subraces as SpeciesSubrace[]) : null;
-  if (speciesHasWalkSpeed({ speed, subraces })) return row;
-  return { ...row, speed: { ...speed, walk: DEFAULT_WALK_SPEED } };
+  const walking = withWalkSpeed({ speed }, subraces);
+  return walking.speed === speed ? row : { ...row, speed: walking.speed };
 }
 export const remapSpellForImport = remapLibraryRowForImport;
 

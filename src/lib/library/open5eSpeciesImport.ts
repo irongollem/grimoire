@@ -2,7 +2,6 @@ import { fetchAllFromDocuments, licenseForDocumentKey, rulesetForDocument } from
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import { markdownToTiptapJson, toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { OPEN5E_SPECIES_GAPS } from "@/data/open5eSpeciesGaps";
-import { DEFAULT_WALK_SPEED, speciesHasWalkSpeed } from "@/rules/speciesStats";
 import type { SpeciesSize, SpeciesSpeed, SpeciesSubrace } from "@/types/species.types";
 
 export interface Open5eTrait {
@@ -244,19 +243,6 @@ export function buildSubrace(race: Open5eRace): SpeciesSubrace {
     ...(speed ? { speed } : {}),
     ...(languages.length > 0 ? { languages } : {}),
   };
-}
-
-/**
- * Guarantees a walking speed: when neither the species nor every one of its
- * subraces states one, the species takes the 5e baseline and keeps any other
- * mode it has (a swim-only record). Mirrors the `*_walk_speed_present` check.
- */
-export function withWalkSpeed<T extends { speed: SpeciesSpeed | null }>(
-  fields: T,
-  subraces: readonly SpeciesSubrace[] | null,
-): T {
-  if (speciesHasWalkSpeed({ speed: fields.speed, subraces: subraces ? [...subraces] : null })) return fields;
-  return { ...fields, speed: { ...fields.speed, walk: DEFAULT_WALK_SPEED } };
 }
 
 /**

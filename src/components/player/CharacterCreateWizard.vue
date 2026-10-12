@@ -67,7 +67,7 @@
 
       <!-- Next / Skip (hidden on Done step) -->
       <div v-if="wizardStep < activeSteps.length - 1" class="flex items-center gap-2">
-        <AppButton v-if="currentStepId !== 'edition'" variant="ghost" size="md" label="Skip" :disabled="blockedByAsiChoice || blockedBySubclass || blockedByOriginFeat" @click="wizardStep++" />
+        <AppButton v-if="currentStepId !== 'edition'" variant="ghost" size="md" label="Skip" :disabled="blockedByAsiChoice || blockedBySubclass || blockedByOriginFeat || (currentStepId === 'basics' && speciesNeedsVariant)" @click="wizardStep++" />
         <AppButton
           variant="primary"
           size="md"
@@ -86,6 +86,7 @@ import { inject, computed, ref, watch, onMounted, nextTick } from "vue";
 import { CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
 import { editionStepBlocked } from "@/composables/party/characterCreationEdition";
 import { WIZARD_STEPS, WIZARD_STEPS_EDIT } from "@/rules/characterCreation";
+import { walkSpeedFromSubrace } from "@/rules/speciesStats";
 import { useConfirm } from "@/composables/useConfirm";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
 import { prefersReducedMotion } from "@/lib/motion";
@@ -101,7 +102,7 @@ import CharacterCreateDoneStep from "@/components/player/CharacterCreateDoneStep
 const form = inject(CHARACTER_FORM_KEY)!;
 const {
   router, f, wizardStep, isEditMode, isDmCreate, backRoute, backgroundAsiIncomplete, chosenRuleset, landingCampaign,
-  blockedBySubclassChoice, finished, originFeatMessage,
+  blockedBySubclassChoice, finished, originFeatMessage, selectedSpecies,
 } = form;
 const confirm = useConfirm();
 
@@ -128,13 +129,19 @@ const blockedByOriginFeat = computed(() => currentStepId.value === "background" 
 // class step, the same way the level-up wizard will not move on without it.
 const blockedBySubclass = computed(() => currentStepId.value === "class" && blockedBySubclassChoice.value);
 
+// A species that leaves its walking speed to the variant has none until one is
+// chosen, the same rule the player species picker applies.
+const speciesNeedsVariant = computed(
+  () => !!selectedSpecies.value && walkSpeedFromSubrace(selectedSpecies.value) && !f.subrace,
+);
+
 // Each step says what it needs before Next: an edition the table can take, a name.
 const nextBlocked = computed(() => {
   if (blockedByAsiChoice.value || blockedBySubclass.value || blockedByOriginFeat.value) return true;
   if (currentStepId.value === "edition") {
     return editionStepBlocked({ chosen: chosenRuleset.value, landing: landingCampaign.value, isDmCreate: isDmCreate.value });
   }
-  return currentStepId.value === "basics" && !f.name.trim();
+  return currentStepId.value === "basics" && (!f.name.trim() || speciesNeedsVariant.value);
 });
 
 // The bar scrolls sideways on a phone, so the step the player is on has to be

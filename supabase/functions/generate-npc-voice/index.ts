@@ -192,6 +192,11 @@ serve(withCors(async (req: Request) => {
   const npc = npcRow as NpcRow;
   if (npc.campaign_id !== campaign_id) return new Response("Forbidden", { status: 403 });
 
+  // Started now and awaited when the prompt is built, so the memory read runs
+  // alongside the prompt, plan, key and provider lookups below instead of after
+  // them. It never rejects: a failed read answers with no memories.
+  const memoriesPending = loadPromptMemories(admin, npc.id, campaign_id);
+
   const { data: promptRow } = await admin
     .from("ai_system_prompts").select("content")
     .eq("generator_type", "npc_voice")
@@ -216,7 +221,7 @@ serve(withCors(async (req: Request) => {
   ]);
 
   const systemContent = promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
-  const memoryBlock = formatNpcMemories(await loadPromptMemories(admin, npc.id, campaign_id), npc);
+  const memoryBlock = formatNpcMemories(await memoriesPending, npc);
   const userContent =
     `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcProfile(npc)}` +
     (memoryBlock ? `\n\n${memoryBlock}` : "");

@@ -38,8 +38,8 @@
           <div class="flex flex-wrap gap-1.5">
             <span
               v-if="species.size"
-              class="text-label bg-primary/10 text-primary rounded px-2 py-0.5"
-            >{{ capitalize(species.size) }}</span>
+              class="text-label bg-primary/10 text-primary rounded px-2 py-0.5 capitalize"
+            >{{ species.size }}</span>
             <span
               v-else-if="sizeFromSubrace"
               class="text-label bg-primary/10 text-primary rounded px-2 py-0.5"
@@ -145,8 +145,8 @@ import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteSpecies } from "@/composables/rules/useSpecies";
-import type { Species, SpeciesSubrace } from "@/types/species.types";
-import { walkSpeedFromSubrace } from "@/rules/speciesStats";
+import type { Species } from "@/types/species.types";
+import { speciesSizeFromSubrace, speedLabels, subraceStatPills, walkSpeedFromSubrace } from "@/rules/speciesStats";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -176,41 +176,12 @@ function hasContent(field: string | null | undefined): boolean {
 
 const hasDescription = computed(() => hasContent(props.species.description));
 
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function speedLabels(s: Species["speed"] | null | undefined): string[] {
-  if (!s) return [];
-  const labels: Record<string, string> = {
-    walk: "Walk",
-    fly: "Fly",
-    swim: "Swim",
-    climb: "Climb",
-    burrow: "Burrow",
-  };
-  return (Object.keys(s) as (keyof typeof s)[])
-    .filter(k => s[k] !== null && s[k] !== undefined && s[k]! > 0)
-    .map(k => `${labels[k] ?? capitalize(k)} ${s[k]}ft`);
-}
-
 const speedPills = computed(() => speedLabels(props.species.speed));
 
 // A species can leave size or walking speed wholly to the subrace (darakhul,
 // gearforged); the parent alone would read blank.
-const sizeFromSubrace = computed(
-  () => !props.species.size && !!props.species.subraces?.some(sub => sub.size),
-);
+const sizeFromSubrace = computed(() => speciesSizeFromSubrace(props.species));
 const speedFromSubrace = computed(() => walkSpeedFromSubrace(props.species));
-
-/** What a subrace changes: its size, speeds and extra languages, as pills. */
-function subraceStatPills(sub: SpeciesSubrace): string[] {
-  return [
-    ...(sub.size ? [capitalize(sub.size)] : []),
-    ...speedLabels(sub.speed),
-    ...(sub.languages ?? []).map(lang => `Lang: ${lang}`),
-  ];
-}
 
 function asiToString(asi: Species["ability_score_increases"]): string {
   if (!asi) return "";

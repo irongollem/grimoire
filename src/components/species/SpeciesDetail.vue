@@ -227,7 +227,7 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { Species, SpeciesSize } from "@/types/species.types";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
-import { DEFAULT_WALK_SPEED, speciesHasWalkSpeed, walkSpeedFromSubrace } from "@/rules/speciesStats";
+import { DEFAULT_WALK_SPEED, setSpeedMode, speciesHasWalkSpeed, walkSpeedFromSubrace } from "@/rules/speciesStats";
 
 const props = defineProps<{ species?: Species | null }>();
 
@@ -342,12 +342,7 @@ watch(() => props.species, (s) => {
 });
 
 function setSpeed(type: typeof SPEED_TYPES[number], raw: string) {
-  const val = parseInt(raw);
-  if (raw === "" || isNaN(val)) {
-    delete form.speed[type];
-  } else {
-    form.speed[type] = val;
-  }
+  form.speed = setSpeedMode(form.speed, type, raw);
 }
 
 // AppInput requires a v-model, but an empty speed means "delete the key" rather

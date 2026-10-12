@@ -52,19 +52,14 @@ export interface SubraceStatsForm {
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import TagInput from "@/components/common/controls/TagInput.vue";
+import { setSpeedMode } from "@/rules/speciesStats";
 
 const model = defineModel<SubraceStatsForm>({ required: true });
 
 const SIZES: SpeciesSize[] = ["tiny", "small", "medium", "large"];
 const SPEED_TYPES = SUBRACE_SPEED_TYPES;
 
-/** An emptied field deletes the key: an absent mode means "as the species", never a stored null. */
 function setSpeed(type: SubraceSpeedType, raw: string | number | null) {
-  const value = typeof raw === "number" ? raw : parseInt(String(raw));
-  if (raw === null || raw === "" || Number.isNaN(value)) {
-    delete model.value.speed[type];
-  } else {
-    model.value.speed[type] = value;
-  }
+  model.value.speed = setSpeedMode(model.value.speed, type, raw);
 }
 </script>

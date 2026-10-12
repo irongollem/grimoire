@@ -27,12 +27,17 @@
 --   session_id         the session it belongs to. The client sends the one it
 --                      means (the running session, else the last one played,
 --                      since a line written between sessions is usually a
---                      recap of the last one); stamp_open_session() is the
---                      backstop for writers that send none (MCP). Unlike the
---                      reveal tables, start_campaign_session does not sweep
---                      unstamped memories into the next session: a reveal
---                      made during prep is learned next session, a memory
---                      written during prep is about one already played.
+--                      recap of the last one), and null means what it says:
+--                      outside any session. So there is no stamp_open_session()
+--                      trigger here, unlike the reveal tables: it cannot tell a
+--                      null the DM chose from a column left out, and would file
+--                      a line the DM put outside any session under the running
+--                      one. MCP, the one writer that may leave it out, fills
+--                      the running session itself. Nor does
+--                      start_campaign_session sweep unstamped memories into the
+--                      next session: a reveal made during prep is learned next
+--                      session, a memory written during prep is about one
+--                      already played.
 --   party_member_ids   who was there. Empty means not recorded.
 --   player_visible_to  the members who can read the line on their People
 --                      page. A player reads the row itself (it was written to
@@ -80,7 +85,9 @@ create index npc_memories_user_id_idx on public.npc_memories (user_id);
 -- writer who is not that campaign's DM is refused by the insert/update policy.
 -- A trigger function, so it needs no EXECUTE grant and has none.
 --
--- The author is fixed at insert: an update keeps the original writer.
+-- The author is fixed at insert: an update keeps the original writer, except
+-- that the user_id foreign key's own `on delete set null` must get through, or
+-- deleting an account that wrote a memory would fail.
 
 create function private.normalize_npc_memory()
 returns trigger
@@ -89,7 +96,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if tg_op = 'UPDATE' then
+  if tg_op = 'UPDATE' and new.user_id is not null then
     new.user_id := old.user_id;
   end if;
   select n.campaign_id into new.campaign_id from public.npcs n where n.id = new.npc_id;
@@ -110,15 +117,11 @@ end;
 $$;
 revoke execute on function private.normalize_npc_memory() from public, anon, authenticated;
 
--- Trigger order is by name: normalize sets campaign_id before the session
--- stamp reads it, and both run before the same-campaign check.
+-- Trigger order is by name: normalize sets campaign_id before the
+-- same-campaign check reads it.
 create trigger npc_memories_normalize
   before insert or update on public.npc_memories
   for each row execute procedure private.normalize_npc_memory();
-
-create trigger npc_memories_stamp_session
-  before insert on public.npc_memories
-  for each row execute procedure public.stamp_open_session();
 
 create trigger npc_memories_updated_at
   before update on public.npc_memories

@@ -59,13 +59,13 @@ describe("formatNpcMemories", () => {
     expect(out).toContain("Old Tobin admitted the debt. Old Tobin laughed");
   });
 
-  it("masks each part of a multi-word true name", () => {
+  it("masks each part of a multi-word true name where it is written as a name", () => {
     const disguised: NpcMemoryIdentity = { name: "Bram Ashford", disguise_name: "Old Tam", is_revealed: false };
     const out = formatNpcMemories(
       [
-        memory({ body: "bram sold the map" }),
+        memory({ body: "Bram sold the map" }),
         memory({ body: "Ashford owes a debt" }),
-        memory({ body: "BRAM and aShFoRd met; Bram's ring; Bram Ashford's seal" }),
+        memory({ body: "BRAM and ASHFORD met; Bram's ring; bram ashford's seal" }),
       ],
       disguised,
     );
@@ -73,6 +73,23 @@ describe("formatNpcMemories", () => {
     expect(out).toContain("Old Tam sold the map");
     expect(out).toContain("Old Tam owes a debt");
     expect(out).toContain("Old Tam and Old Tam met; Old Tam's ring; Old Tam's seal");
+  });
+
+  it("does not rewrite ordinary words that are part of the name", () => {
+    const bold: NpcMemoryIdentity = { name: "Bram the Bold", disguise_name: "Old Tobin", is_revealed: false };
+    const out = formatNpcMemories([memory({ body: "Bram admitted the debt to the guard, a bold move. Bram the Bold left." })], bold);
+    expect(out).toContain("Old Tobin admitted the debt to the guard, a bold move. Old Tobin left.");
+
+    const lord: NpcMemoryIdentity = { name: "Lord Neverember", disguise_name: "The Envoy", is_revealed: false };
+    const lordOut = formatNpcMemories([memory({ body: "The lord's guard saw Neverember; Lord Neverember paid." })], lord);
+    expect(lordOut).toContain("The lord's guard saw The Envoy; The Envoy paid.");
+  });
+
+  it("takes the disguise name literally", () => {
+    const odd: NpcMemoryIdentity = { name: "Bram", disguise_name: "Mister $& $$", is_revealed: false };
+    const out = formatNpcMemories([memory({ body: "Bram waved." })], odd);
+    expect(out).toContain("Mister $& $$ waved.");
+    expect(out).not.toContain("Bram");
   });
 
   it("leaves the name alone once revealed, and inside longer words", () => {

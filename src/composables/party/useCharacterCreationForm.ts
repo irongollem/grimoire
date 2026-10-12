@@ -22,6 +22,7 @@ import { useCharacterCreationEdition } from "@/composables/party/useCharacterCre
 import { isRulesetAdmissible, parseRulesetBounce, rulesetRules } from "@/composables/party/useCharacterRuleset";
 import { campaignToAttachAfterCreate } from "@/composables/party/characterCreationEdition";
 import { DEFAULT_WALK_SPEED, effectiveLanguages, effectiveSpeed } from "@/rules/speciesStats";
+import type { SpeciesStatsSource } from "@/rules/speciesStats";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { applySpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
 import type { PartyMember, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
@@ -72,6 +73,42 @@ export function resolveCharacterPlacement(opts: {
   };
 }
 
+/** The languages a subrace adds beyond its species' own. */
+function subraceOwnLanguages(species: SpeciesStatsSource, subrace: string | null | undefined): string[] {
+  const own = new Set(effectiveLanguages(species, ""));
+  return effectiveLanguages(species, subrace).filter((lang) => !own.has(lang));
+}
+
+/**
+ * The languages after a species' subrace changes: the old subrace's own
+ * additions go and the new subrace's come in. The species' languages are not
+ * touched either way, so one the player removed by hand stays removed.
+ */
+export function swapSubraceLanguages(
+  languages: string[],
+  species: SpeciesStatsSource,
+  from: string | null | undefined,
+  to: string | null | undefined,
+): string[] {
+  const dropped = new Set(subraceOwnLanguages(species, from));
+  return [...new Set([...languages.filter((lang) => !dropped.has(lang)), ...subraceOwnLanguages(species, to)])];
+}
+
+/**
+ * The languages after the species changes: everything the old species (and its
+ * subrace) granted goes, everything the new species grants comes in. Anything
+ * else the character knows, or has removed by hand, is left as it is.
+ */
+export function swapSpeciesLanguages(
+  languages: string[],
+  from: { species: SpeciesStatsSource; subrace: string | null | undefined } | null,
+  to: SpeciesStatsSource | null,
+): string[] {
+  const dropped = new Set(from ? effectiveLanguages(from.species, from.subrace) : []);
+  const added = to ? effectiveLanguages(to, "") : [];
+  return [...new Set([...languages.filter((lang) => !dropped.has(lang)), ...added])];
+}
+
 /**
  * The subclasses a new character may choose at level 1: the class's universal
  * ones, and the homebrew of the table it will land at. A character made onto a
@@ -81,21 +118,6 @@ export function resolveCharacterPlacement(opts: {
  * (migration 20261006112320). Another table's rows, and every table's rows for
  * a character landing nowhere, are left out. Exported for testing.
  */
-/**
- * The languages after a species' subrace changes: the old subrace's languages
- * go unless the species itself grants them, the new subrace's come in.
- */
-export function swapSubraceLanguages(
-  languages: string[],
-  species: Parameters<typeof effectiveLanguages>[0],
-  from: string | null | undefined,
-  to: string | null | undefined,
-): string[] {
-  const own = new Set(effectiveLanguages(species, ""));
-  const dropped = new Set(effectiveLanguages(species, from).filter((l) => !own.has(l)));
-  return [...new Set([...languages.filter((l) => !dropped.has(l)), ...effectiveLanguages(species, to)])];
-}
-
 export function creationSubclassOptions(
   rows: readonly { id: string; class_name: string; subclass_name: string; campaign_id: string | null }[],
   className: string,
@@ -672,14 +694,12 @@ export function useCharacterCreationForm() {
 
   function onSpeciesSelect(id: string) {
     const sp = (allSpecies.value ?? []).find(s => s.id === id);
-    // Only the old subrace's own grants go: the old species' languages stay, as they always did.
     const old = selectedSpecies.value;
-    if (old) f.languages = swapSubraceLanguages(f.languages, old, f.subrace, "");
+    f.languages = swapSpeciesLanguages(f.languages, old ? { species: old, subrace: f.subrace } : null, sp ?? null);
     f.species_id = id || null;
     f.subrace = "";
-    if (sp) f.languages = [...new Set([...f.languages, ...effectiveLanguages(sp, "")])];
-    const walk = sp ? effectiveSpeed(sp, "")?.walk : undefined;
-    if (walk) f.speed = walk;
+    // A species that leaves its walk to the subrace has none until one is chosen: the default, not the last species'.
+    if (sp) f.speed = derivedSpeed.value;
   }
 
   /** Pick (or clear, with "") a subrace: its speed replaces the walk, its languages swap in. */

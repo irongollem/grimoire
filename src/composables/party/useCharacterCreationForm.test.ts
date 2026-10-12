@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import {
   resolveCharacterPlacement,
   creationSubclassOptions,
+  swapSpeciesLanguages,
   swapSubraceLanguages,
   createDestination,
   buildCharacterPayload,
@@ -250,5 +251,40 @@ describe("a species changed by its subrace", () => {
 
   it("drops the subrace's languages when it is cleared, but never the species' own", () => {
     expect(swapSubraceLanguages(["Common", "Dwarvish"], darakhul, "Dwarf Heritage", "")).toEqual(["Common"]);
+  });
+});
+
+describe("languages the player removed by hand", () => {
+  const elf = {
+    size: "medium", speed: { walk: 30 }, languages: ["Common", "Elvish"],
+    subraces: [
+      { name: "High", languages: ["Gnomish"] },
+      { name: "Wood", languages: [] },
+    ],
+  } as unknown as Parameters<typeof swapSubraceLanguages>[1];
+  const dwarf = {
+    size: "medium", speed: { walk: 25 }, languages: ["Common", "Dwarvish"], subraces: null,
+  } as unknown as typeof elf;
+
+  it("stay removed when the subrace changes", () => {
+    // Elf picked (Common, Elvish), Elvish removed by hand, then High -> Wood and back.
+    expect(swapSubraceLanguages(["Common"], elf, "", "High")).toEqual(["Common", "Gnomish"]);
+    expect(swapSubraceLanguages(["Common", "Gnomish"], elf, "High", "Wood")).toEqual(["Common"]);
+    expect(swapSubraceLanguages(["Common"], elf, "Wood", "High")).toEqual(["Common", "Gnomish"]);
+  });
+
+  it("are not re-added by a species switch", () => {
+    expect(swapSpeciesLanguages(["Common"], { species: elf, subrace: "" }, dwarf)).toEqual(["Common", "Dwarvish"]);
+  });
+
+  it("drops the old species' and subrace's languages and adds the new species'", () => {
+    expect(swapSpeciesLanguages(["Common", "Elvish", "Gnomish", "Draconic"], { species: elf, subrace: "High" }, dwarf))
+      .toEqual(["Draconic", "Common", "Dwarvish"]);
+    expect(swapSpeciesLanguages(["Common", "Dwarvish"], { species: dwarf, subrace: "" }, null)).toEqual([]);
+  });
+
+  it("treats a species with null languages as granting none", () => {
+    const bare = { size: null, speed: { walk: 30 }, languages: null, subraces: null } as unknown as typeof elf;
+    expect(swapSpeciesLanguages(["Common"], { species: bare, subrace: "" }, bare)).toEqual(["Common"]);
   });
 });

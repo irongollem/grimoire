@@ -36,8 +36,8 @@ import {
   buildImportedFields,
   buildCreateOnlyDefaults,
   groupSubspecies,
-  withWalkSpeed,
 } from "@/lib/library/open5eSpeciesImport";
+import { withWalkSpeed } from "@/rules/speciesStats";
 // Generic Open5e v2 document lister — not species-specific, so reused as-is
 // rather than duplicated (only read/imported here, this file does not modify
 // src/lib/library/open5eMonsterImport.ts).

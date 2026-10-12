@@ -71,7 +71,8 @@
       <NpcPartyTab :npc="npc" />
     </AccordionSection>
 
-    <AccordionSection v-model:open="openSections.memory" title="Memory">
+    <!-- A memory lives in the NPC's campaign; an NPC outside one has nowhere to keep it. -->
+    <AccordionSection v-if="npc.campaign_id !== null" v-model:open="openSections.memory" title="Memory">
       <NpcMemoryTab :npc="npc" />
     </AccordionSection>
 

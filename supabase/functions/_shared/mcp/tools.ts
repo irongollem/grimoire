@@ -916,6 +916,32 @@ export async function resolveClassDefinition(
 }
 
 const CREATE_STEPS: Record<CreateStepName, CreateStep> = {
+  // A memory left without a session belongs to the one running now, if any.
+  // The table has no stamp trigger, because there a null is the DM's own
+  // "outside any session" choice (migration 20261012105632); here the caller
+  // simply left the field out, which is the one place the two can be told apart.
+  npc_memory_session: {
+    async prepare(ctx, fields) {
+      if (fields.session_id !== undefined) return { columns: fields, after: () => Promise.resolve() };
+      const { data: npc, error: npcError } = await ctx.supabase
+        .from("npcs")
+        .select("campaign_id")
+        .eq("id", String(fields.npc_id))
+        .maybeSingle();
+      if (npcError) throw new Error(npcError.message);
+      if (!npc?.campaign_id) return { columns: fields, after: () => Promise.resolve() };
+      const { data: open, error: openError } = await ctx.supabase
+        .from("campaign_sessions")
+        .select("id")
+        .eq("campaign_id", npc.campaign_id)
+        .not("started_at", "is", null)
+        .is("ended_at", null)
+        .maybeSingle();
+      if (openError) throw new Error(openError.message);
+      const columns = open ? { ...fields, session_id: open.id } : fields;
+      return { columns, after: () => Promise.resolve() };
+    },
+  },
   // `party_members.class`/`subclass` are a database mirror of the primary
   // `character_classes` row and are not writable, so "class" on create means
   // "give the character this class": one primary row, pinned to a definition,

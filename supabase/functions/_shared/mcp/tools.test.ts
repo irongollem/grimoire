@@ -241,6 +241,60 @@ describe("npc_memory", () => {
   });
 });
 
+describe("npc_memory — session on create", () => {
+  const NPC_ID = "123e4567-e89b-12d3-a456-426614174010";
+  const SESSION_ID = "123e4567-e89b-12d3-a456-426614174011";
+
+  /** Records the memory insert; `open` is the running session the lookup finds. */
+  function fakeCtx(open: { id: string } | null) {
+    const inserts: unknown[] = [];
+    const chain = (data: unknown) => {
+      const c: Record<string, unknown> = {};
+      for (const m of ["eq", "not", "is"]) c[m] = () => c;
+      c.maybeSingle = () => Promise.resolve({ data, error: null });
+      // The re-read after the insert.
+      c.single = () => Promise.resolve({ data: { id: "mem-1" }, error: null });
+      return c;
+    };
+    const ctx = {
+      userId: "dm-1",
+      supabase: {
+        from: (table: string) => ({
+          select: () => (table === "npcs" ? chain({ campaign_id: "camp-1" }) : chain(open)),
+          insert: (payload: unknown) => {
+            inserts.push(payload);
+            return { select: () => ({ single: () => Promise.resolve({ data: { id: "mem-1" }, error: null }) }) };
+          },
+        }),
+        functions: { invoke: () => Promise.resolve({ data: null, error: null }) },
+      },
+    };
+    return { ctx: ctx as unknown as Parameters<typeof callTool>[0], inserts };
+  }
+
+  it("files a memory without a session under the running one", async () => {
+    const { ctx, inserts } = fakeCtx({ id: SESSION_ID });
+    await callTool(ctx, "create", { type: "npc_memory", fields: { npc_id: NPC_ID, kind: "event", body: "Paid in full." } });
+    expect(inserts[0]).toMatchObject({ npc_id: NPC_ID, session_id: SESSION_ID, user_id: "dm-1" });
+  });
+
+  it("leaves it outside any session when none is running", async () => {
+    const { ctx, inserts } = fakeCtx(null);
+    await callTool(ctx, "create", { type: "npc_memory", fields: { npc_id: NPC_ID, kind: "event", body: "Paid in full." } });
+    expect(inserts[0]).not.toHaveProperty("session_id");
+  });
+
+  it("keeps a session the caller named", async () => {
+    const named = "123e4567-e89b-12d3-a456-426614174012";
+    const { ctx, inserts } = fakeCtx({ id: SESSION_ID });
+    await callTool(ctx, "create", {
+      type: "npc_memory",
+      fields: { npc_id: NPC_ID, kind: "event", body: "Paid in full.", session_id: named },
+    });
+    expect(inserts[0]).toMatchObject({ session_id: named });
+  });
+});
+
 describe("registry creatable set", () => {
   it("gives writes the same reach as reads", () => {
     // The six library types (item, monster, spell, trap, rule, party_member)

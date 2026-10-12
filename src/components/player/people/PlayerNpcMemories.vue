@@ -49,8 +49,11 @@ const groups = computed(() => {
   const known = (sessions.value ? [...sessions.value] : []).sort(compareNewestFirst);
   return groupMemoriesBySession(rows, known).map((group) => {
     const session = known.find((s) => s.id === group.sessionId);
+    // Null is the DM's own "outside any session". An id missing from the list
+    // is a session this player's labels have not caught up with yet.
     if (!session) {
-      return { key: group.sessionId ?? "none", title: "Before the log", within: null, end: null, memories: group.memories };
+      const title = group.sessionId === null ? "Outside any session" : "Another session";
+      return { key: group.sessionId ?? "none", title, within: null, end: null, memories: group.memories };
     }
     const numbered = session.number !== null;
     const name = session.title?.trim() || null;

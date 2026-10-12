@@ -9,7 +9,6 @@ import {
   buildImportedFields,
   buildSubrace,
   groupSubspecies,
-  withWalkSpeed,
   languagesNeedTrait,
 } from "@/lib/library/open5eSpeciesImport";
 import type { Open5eRace } from "@/lib/library/open5eSpeciesImport";
@@ -410,25 +409,5 @@ describe("core gap fill", () => {
     }));
     expect(fields.size).toBe("medium");
     expect(fields.traits.map((trait) => trait.name)).toContain("Size");
-  });
-});
-
-describe("withWalkSpeed", () => {
-  const walking = { name: "A", description: "", traits: [], ability_score_increases: null, speed: { walk: 30 } };
-  const swimming = { ...walking, speed: { swim: 20 } };
-
-  it("leaves a species with a walking speed alone", () => {
-    const fields = { speed: { walk: 25 } };
-    expect(withWalkSpeed(fields, null)).toBe(fields);
-  });
-
-  it("leaves a species whose every subrace walks alone", () => {
-    const fields = { speed: null };
-    expect(withWalkSpeed(fields, [walking, walking])).toBe(fields);
-  });
-
-  it("adds walk 30 and keeps other modes otherwise", () => {
-    expect(withWalkSpeed({ speed: { swim: 25 } }, null).speed).toEqual({ swim: 25, walk: 30 });
-    expect(withWalkSpeed({ speed: null }, [walking, swimming]).speed).toEqual({ walk: 30 });
   });
 });

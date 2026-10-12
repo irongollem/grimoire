@@ -154,6 +154,9 @@ function filingSessionId(): string | null {
 
 /** Files a suggested line as something the NPC said. DM-only until shared from the Memory tab. */
 async function rememberLine(i: number, line: string) {
+  // The batch this line belongs to: if the DM asks again while the save is in
+  // flight, index i names a different line by the time it lands.
+  const batch = lines.value;
   try {
     await createMemory.mutateAsync({
       memory: {
@@ -167,7 +170,7 @@ async function rememberLine(i: number, line: string) {
       },
       npcLabel: getNpcDisplayName(npc) ?? npc.name,
     });
-    remembered.value = new Set([...remembered.value, i]);
+    if (lines.value === batch) remembered.value = new Set([...remembered.value, i]);
   } catch (e) {
     toast.error(toast.fromError(e, "Could not remember that line."));
   }

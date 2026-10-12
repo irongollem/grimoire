@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(28);
 
 -- npc_memories (20261012105632, #1019): what an NPC and the party told each
 -- other. The DM reads and writes every line; a player reads the lines shared
@@ -69,10 +69,21 @@ select results_eq(
   $$ values ('10190000-0000-4000-8000-000000000010'::uuid, 'Bram admitted he sold the map.',
              array['10190000-0000-4000-8000-000000000020']::uuid[],
              array['10190000-0000-4000-8000-000000000020']::uuid[],
-             '10190000-0000-4000-8000-000000000040'::uuid,
+             null::uuid,
              '10190000-0000-4000-8000-000000000001'::uuid) $$,
-  'the campaign comes from the NPC, foreign members are dropped, the open session and the author are stamped'
+  'the campaign comes from the NPC, foreign members are dropped, the author is stamped, and no session is guessed'
 );
+
+select lives_ok($$
+  insert into public.npc_memories (npc_id, kind, body, session_id)
+  values ('10190000-0000-4000-8000-000000000030', 'event', 'Filed tonight', '10190000-0000-4000-8000-000000000040')
+$$, 'a memory filed under tonight''s session');
+select is(
+  (select session_id from public.npc_memories where body = 'Filed tonight'),
+  '10190000-0000-4000-8000-000000000040'::uuid,
+  'keeps the session it was filed under'
+);
+delete from public.npc_memories where body = 'Filed tonight';
 
 select lives_ok($$
   insert into public.npc_memories (id, npc_id, kind, body)
@@ -201,6 +212,17 @@ select is(
   (select user_id from public.npc_memories where id = '10190000-0000-4000-8000-000000000052'),
   '10190000-0000-4000-8000-000000000006'::uuid,
   'signed by the co-DM'
+);
+
+-- ── An author's account is deleted ─────────────────────────────────────────
+
+reset role;
+select lives_ok($$ delete from auth.users where id = '10190000-0000-4000-8000-000000000006' $$,
+  'deleting an account that wrote a memory goes through');
+select is(
+  (select user_id from public.npc_memories where id = '10190000-0000-4000-8000-000000000052'),
+  null::uuid,
+  'and leaves the memory, unsigned'
 );
 
 -- ── Anonymous ────────────────────────────────────────────────────────────────

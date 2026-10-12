@@ -91,6 +91,22 @@ where not coalesce(
       and not jsonb_path_exists(subraces, '$[*] ? (!exists(@.speed.walk ? (@.type() == "number")))')),
   false);
 
+-- The same net under the library, so the constraint below cannot fail on a row
+-- the patch above did not reach: a subrace stored under a name the patch does
+-- not spell the same way, or a shade that already had traits (its update is
+-- guarded on an empty record) and so kept a null speed. On 12 Oct 2026 every
+-- production row was covered by the patch and this updated none; it is here so
+-- that a red migration cannot strand everything queued behind it. 30 ft is the
+-- builder's own default and the shade's deduced speed.
+update public.library_species
+set speed = coalesce(speed, '{}'::jsonb) || '{"walk": 30}'::jsonb
+where not coalesce(
+  jsonb_typeof(speed -> 'walk') = 'number'
+  or (jsonb_typeof(subraces) = 'array'
+      and jsonb_path_exists(subraces, '$[0]')
+      and not jsonb_path_exists(subraces, '$[*] ? (!exists(@.speed.walk ? (@.type() == "number")))')),
+  false);
+
 -- ── The rule, in the database ────────────────────────────────────────────────
 -- Total on purpose: a CHECK passes on NULL, so a predicate that answered NULL
 -- for a species with `speed` null and no subraces would let exactly the row it
