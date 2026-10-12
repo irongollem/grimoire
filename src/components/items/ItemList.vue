@@ -4,8 +4,8 @@
          list, so the cards do not jump when they land. -->
     <ListSkeleton
       v-if="isLoading"
-      :variant="layout === 'rows' ? 'rows' : 'grid'"
-      columns="fill"
+      :variant="layout === 'rows' ? 'tiles' : 'grid'"
+      :columns="layout === 'rows' ? 1 : 'fill'"
       :count="12"
     />
 

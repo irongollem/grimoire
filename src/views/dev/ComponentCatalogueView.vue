@@ -709,7 +709,8 @@ const activeHeaderDemo = computed(() =>
 );
 
 const segment = ref<string>("url");
-const catalogueLayout = ref<ListLayout>("grid");const emptyable = ref<string>("campaign");
+const catalogueLayout = ref<ListLayout>("grid");
+const emptyable = ref<string>("campaign");
 const selectValue = ref<string>("a");
 const checkboxValue = ref(true);
 const gridSpells = [

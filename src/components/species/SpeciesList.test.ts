@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
+import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { reactive, ref, defineComponent, h } from "vue";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import SpeciesList from "./SpeciesList.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
@@ -110,24 +111,8 @@ vi.mock("@/composables/useScrollRestore", () => ({
   useScrollRestore: () => ({}),
 }));
 
-// VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so
-// every box reads 0 tall and nothing would render. Give the scroller (the
-// document, here) a tall viewport and every row a plausible height, which makes
-// a screenful of rows "visible" (about ten, plus overscan) without changing
-// what is under test.
-const VIEWPORT_PX = 2600;
-const ORIGINAL_OFFSET_HEIGHT = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
-beforeAll(() => {
-  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-    configurable: true,
-    get(this: HTMLElement) {
-      return this === document.documentElement ? VIEWPORT_PX : 260;
-    },
-  });
-});
-afterAll(() => {
-  if (ORIGINAL_OFFSET_HEIGHT) Object.defineProperty(HTMLElement.prototype, "offsetHeight", ORIGINAL_OFFSET_HEIGHT);
-});
+// jsdom has no layout; see the helper for what this stands in for.
+useVirtualGridViewport();
 
 const stubs = { RouterLink: true, AiImageBadge: true };
 

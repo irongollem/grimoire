@@ -8,6 +8,7 @@
     <ListSkeleton
       v-if="isLoading"
       :variant="skeletonVariant"
+      :columns="desktopLayout === 'rows' ? 1 : 4"
       :count="mobileLayout ? 7 : 12"
     />
 
@@ -357,7 +358,7 @@ const layout = useListLayout("spells", "grid");
 const desktopLayout = computed(() => (playerMemberId ? "grid" : layout.value));
 // The phone's grid is the two-column gallery skeleton.
 const skeletonVariant = computed(() => {
-  if (!mobileLayout.value) return desktopLayout.value === "rows" ? "rows" : "grid";
+  if (!mobileLayout.value) return desktopLayout.value === "rows" ? "tiles" : "grid";
   return layout.value === "rows" ? "rows" : "gallery";
 });
 

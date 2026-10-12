@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { effectScope, nextTick } from "vue";
 import { useListLayout } from "./useListLayout";
 
 const KEY = "grimoire:list-layouts";
@@ -31,5 +32,17 @@ describe("useListLayout", () => {
     vi.resetModules();
     const fresh = await import("./useListLayout");
     expect(fresh.useListLayout("npcs", "grid").value).toBe("grid");
+  });
+
+  it("keeps saving after the component that first asked for it is gone", async () => {
+    vi.resetModules();
+    const fresh = await import("./useListLayout");
+    // The first caller is a page that then unmounts (its scope stops).
+    const page = effectScope();
+    page.run(() => fresh.useListLayout("npcs", "grid"));
+    page.stop();
+    fresh.useListLayout("monsters", "grid").value = "rows";
+    await nextTick();
+    expect(JSON.parse(localStorage.getItem(KEY) ?? "null")).toMatchObject({ monsters: "rows" });
   });
 });

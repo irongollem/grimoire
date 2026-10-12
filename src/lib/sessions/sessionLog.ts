@@ -55,6 +55,14 @@ export function sessionShortDate(row: Pick<CampaignSession, "started_at" | "play
     .replace(",", "");
 }
 
+/**
+ * What a log entry is called when it has no title: its number, else "Untitled
+ * session". A session with no title still needs something to click.
+ */
+export function sessionTitle(row: Pick<CampaignSession, "title" | "number">): string {
+  return row.title?.trim() || (row.number === null ? "Untitled session" : `Session ${row.number}`);
+}
+
 /** "Saturday 27 September, 19:30 to 22:40 (3h 10m)", or the day alone for a session never run. */
 export function sessionPlayedLine(row: CampaignSession): string {
   const day = localDate(row)

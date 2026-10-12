@@ -54,8 +54,8 @@
       <p v-if="subtitle" class="text-label text-muted-foreground mt-0.5">{{ subtitle }}</p>
       <div v-if="tags.length" class="mt-1.5 flex flex-wrap gap-1">
         <span
-          v-for="tag in tags.slice(0, maxTags)"
-          :key="tag"
+          v-for="(tag, i) in tags.slice(0, maxTags)"
+          :key="i"
           class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
         >{{ tag }}</span>
       </div>

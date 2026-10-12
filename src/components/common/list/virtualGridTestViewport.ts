@@ -7,16 +7,15 @@ import { afterAll, beforeAll } from "vitest";
  * element a plausible height, which makes a screenful of items "visible"
  * without changing what is under test. After mounting, `await
  * flushMicrotasks()`: the grid finds its scroller on mount and items follow.
+ * `viewportPx` is the scroller's height and `itemPx` every other box's.
  */
-export function useVirtualGridViewport(): void {
-  const VIEWPORT_PX = 2600;
-  const ITEM_PX = 260;
+export function useVirtualGridViewport({ viewportPx = 2600, itemPx = 260 } = {}): void {
   const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
   beforeAll(() => {
     Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
       configurable: true,
       get(this: HTMLElement) {
-        return this === document.documentElement ? VIEWPORT_PX : ITEM_PX;
+        return this === document.documentElement ? viewportPx : itemPx;
       },
     });
   });

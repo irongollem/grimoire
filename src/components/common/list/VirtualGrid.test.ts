@@ -1,21 +1,10 @@
 import { mount, flushPromises } from "@vue/test-utils";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
+import { describe, expect, it } from "vitest";
 import VirtualGrid from "./VirtualGrid.vue";
 
-// jsdom has no layout: give the scroller (the document, in the absence of any
-// overflow ancestor) an 800px viewport and every row a fixed height.
-const ORIGINAL = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
-beforeAll(() => {
-  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-    configurable: true,
-    get(this: HTMLElement) {
-      return this === document.documentElement ? 800 : 100;
-    },
-  });
-});
-afterAll(() => {
-  if (ORIGINAL) Object.defineProperty(HTMLElement.prototype, "offsetHeight", ORIGINAL);
-});
+// jsdom has no layout; see the helper for what this stands in for.
+useVirtualGridViewport({ viewportPx: 800, itemPx: 100 });
 
 const items = Array.from({ length: 500 }, (_, i) => ({ id: i }));
 

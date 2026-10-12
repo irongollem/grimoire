@@ -19,6 +19,7 @@
     <ListSkeleton
       v-if="isLoading"
       :variant="skeletonVariant"
+      :columns="layout === 'rows' ? 1 : 4"
       :count="isMobile ? 7 : 12"
     />
 
@@ -214,9 +215,10 @@ const monsterKey = (monster: MonsterBrowseRow) => monster.id;
 // The page header's toggle writes the same key.
 const layout = useListLayout("monsters", "grid");
 // The phone's grid is the two-column gallery skeleton.
-const skeletonVariant = computed(() =>
-  layout.value === "rows" ? "rows" : isMobile.value ? "gallery" : "grid",
-);
+const skeletonVariant = computed(() => {
+  if (layout.value === "rows") return isMobile.value ? "rows" : "tiles";
+  return isMobile.value ? "gallery" : "grid";
+});
 
 // Tags on the desktop row: challenge rating and habitat, as the phone card shows them.
 function monsterRowTags(monster: MonsterBrowseRow): string[] {

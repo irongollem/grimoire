@@ -9,8 +9,9 @@
       - text    : the thumbnail-less cards (quests, notes, encounters, spells,
                   Scriptorium documents): a colour bar, a title with a
                   trailing badge and two lines of text
-      - tiles   : EntityListRow (factions, pantheons): an emblem tile beside
-                  a name and a count line
+      - tiles   : EntityListRow (every catalogue list's rows layout, factions,
+                  pantheons): an emblem tile beside a name and a subtitle line.
+                  `rows` is the phone's EntityMobileCard row, not this one.
       - stack   : full-width cards in one column at every width (the player
                   journal's entries, notes, quest log and handouts): a title
                   with a trailing badge over one line of text
@@ -121,10 +122,11 @@ const { variant = "rows", count = 8, columns = 4 } = defineProps<{
   count?: number;
   /**
    * The column track of a `grid`, `text` or `tiles` list, matching the list it
-   * stands in for: its widest column count, or "fill" for a list that packs
+   * stands in for: its widest column count (1 for a list of single-line rows,
+   * which is also how `EntityCollection` lays out its rows layout), or "fill" for a list that packs
    * fixed-width cards with `auto-fill` (the item catalogue).
    */
-  columns?: 2 | 3 | 4 | "fill";
+  columns?: 1 | 2 | 3 | 4 | "fill";
 }>();
 
 // Literal class strings, because Tailwind only generates the ones written in
@@ -139,6 +141,7 @@ function pick(widths: string[], index: number): string {
 }
 
 const GRID_CLASS = {
+  1: "grid grid-cols-1 gap-2",
   2: "grid grid-cols-1 gap-3 sm:grid-cols-2",
   3: "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3",
   4: "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",

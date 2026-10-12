@@ -9,6 +9,7 @@ import {
   sessionPlayedLine,
   sessionRecap,
   sessionShortDate,
+  sessionTitle,
   sessionsSharingANumber,
   sessionsWithoutNotes,
 } from "@/lib/sessions/sessionLog";
@@ -170,5 +171,13 @@ describe("sessionsSharingANumber", () => {
       session({ id: "a", number: 2 }), session({ id: "b", number: 2 }), run, recap,
     ]);
     expect(groups.map((g) => g.number)).toEqual([14, 2]);
+  });
+});
+
+describe("sessionTitle", () => {
+  it("prefers the title, then the number, then a placeholder", () => {
+    expect(sessionTitle({ title: "  The Mine  ", number: 3 })).toBe("The Mine");
+    expect(sessionTitle({ title: null, number: 3 })).toBe("Session 3");
+    expect(sessionTitle({ title: " ", number: null })).toBe("Untitled session");
   });
 });

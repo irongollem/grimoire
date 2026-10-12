@@ -37,7 +37,7 @@
     </template>
 
     <div ref="listRef">
-    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'grid'" :count="12" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'grid'" :columns="layout === 'rows' ? 1 : 4" :count="12" />
 
     <EmptyState
       v-else-if="!filtered.length && !search && settingFilter === 'all'"

@@ -4,7 +4,9 @@
     feat. `EntityGridCard` is portrait-led, and without an image it would spend
     9rem of every card on an empty muted band with a stock placeholder in it, so
     a text-first entity gets this instead: an emblem tile beside the name, the
-    supporting line, whatever `#body` adds, and the tags along the bottom. Same
+    supporting line, whatever `#body` adds, and the tags along the bottom. An
+    entity with controls of its own (a recipe's reveal and delete) puts them in
+    `#actions`, beside the name. Same
     box as the portrait card (radius, border, hover) so a grid reads as one
     family, and the same whole-card link behind the content.
   -->
@@ -22,6 +24,10 @@
       <div class="min-w-0 flex-1">
         <p class="truncate text-heading-xs font-bold text-foreground">{{ title }}</p>
         <p v-if="subtitle" class="truncate text-label text-muted-foreground">{{ subtitle }}</p>
+      </div>
+      <!-- Controls beside the name (reveal, delete); z-10 lifts them over the card link. -->
+      <div v-if="$slots.actions" class="relative z-10 flex shrink-0 items-center gap-1">
+        <slot name="actions" />
       </div>
     </div>
 

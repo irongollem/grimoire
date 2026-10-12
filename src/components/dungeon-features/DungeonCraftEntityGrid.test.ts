@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { h, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
-import { flushMicrotasks, useVirtualGridViewport } from "./virtualGridViewport";
+import { flushMicrotasks, useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { useListLayout } from "@/composables/useListLayout";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 

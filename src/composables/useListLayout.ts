@@ -1,4 +1,4 @@
-import { computed, type WritableComputedRef } from "vue";
+import { computed, effectScope, type WritableComputedRef } from "vue";
 import { useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
@@ -16,14 +16,22 @@ const isListLayout = (value: unknown): value is ListLayout =>
 // shared ref (made on first use, so nothing touches storage at import) means
 // the page header's toggle and the list body, which both call `useListLayout`
 // with the same key, always see the same value.
+//
+// It is made in a detached effect scope, not in the calling component's: the
+// ref outlives the first page that asked for it, and `useStorage`'s
+// write-through watcher belongs to whichever scope creates it. Made inside
+// /npcs, it stopped writing the moment the DM left for /monsters, so every
+// choice after that lived in memory only and was gone on reload.
 let layouts: ReturnType<typeof useStorage<Record<string, ListLayout>>> | null = null;
 
 function store() {
-  layouts ??= useStorage<Record<string, ListLayout>>(
-    "grimoire:list-layouts",
-    {},
-    safeLocalStorage(),
-  );
+  if (!layouts) {
+    const created = effectScope(true).run(() =>
+      useStorage<Record<string, ListLayout>>("grimoire:list-layouts", {}, safeLocalStorage()),
+    );
+    if (!created) throw new Error("useListLayout: the detached scope did not run");
+    layouts = created;
+  }
   return layouts;
 }
 

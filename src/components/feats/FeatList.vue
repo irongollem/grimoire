@@ -1,5 +1,5 @@
 <template>
-  <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'text'" :count="8" />
+  <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'text'" :columns="layout === 'rows' ? 1 : 4" :count="8" />
 
   <EmptyState
     v-else-if="filtered.length === 0 && !codexUi.featsHasActiveFilters"

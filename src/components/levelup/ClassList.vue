@@ -1,5 +1,5 @@
 <template>
-  <ListSkeleton v-if="isLoading || systemLoading" :variant="layout === 'rows' ? 'rows' : 'grid'" :count="12" />
+  <ListSkeleton v-if="isLoading || systemLoading" :variant="layout === 'rows' ? 'tiles' : 'grid'" :columns="layout === 'rows' ? 1 : 4" :count="12" />
 
   <template v-else>
     <!-- Empty state (no custom classes and no search active) -->
@@ -163,14 +163,14 @@ import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
-import { useAllCustomClasses, useAllSystemClasses, useDuplicateSystemClass } from "@/composables/rules/useCustomClasses";
+import { useAllCustomClasses, useAllSystemClasses, useDuplicateClass } from "@/composables/rules/useCustomClasses";
 import type { CustomClass, SystemClass } from "@/levelup/customTypes";
 
 const codexUi = useCodexUiStore();
 const router = useRouter();
 const { data: all, isLoading } = useAllCustomClasses();
 const { data: system, isLoading: systemLoading } = useAllSystemClasses();
-const { duplicate: duplicateSystemClass } = useDuplicateSystemClass();
+const { duplicate: duplicateSystemClass } = useDuplicateClass();
 
 const duplicating = ref<string | null>(null);
 
@@ -179,9 +179,10 @@ const layout = useListLayout("codex-classes", "grid");
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const classKey = (cls: { id: string }) => cls.id;
 
-// Grid card height in px before it is measured: 2 border + 144 artwork + 24
-// body padding + name 20 + a two-line subtitle 34 + gaps.
-const GRID_ROW_PX = 230;
+// Grid card height in px before it is measured. EntityGridCard: 2 border + 144
+// artwork band (h-36) + 24 body padding (p-3) + 58 body (name 20, one gap-1 4,
+// a two-line subtitle 34) = 228.
+const GRID_ROW_PX = 228;
 
 function baseSubtitle(cls: { hit_die: number; saving_throws: readonly string[] }): string {
   const saves = cls.saving_throws.length > 0 ? ` · ${cls.saving_throws.join(", ")} saves` : "";

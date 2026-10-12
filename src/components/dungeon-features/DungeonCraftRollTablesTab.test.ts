@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { flushMicrotasks, useVirtualGridViewport } from "./virtualGridViewport";
+import { flushMicrotasks, useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import DungeonCraftRollTablesTab from "./DungeonCraftRollTablesTab.vue";
 import type { RollTable } from "@/types/rollTable.types";
 

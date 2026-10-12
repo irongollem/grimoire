@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'grid'" :count="12" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'grid'" :columns="layout === 'rows' ? 1 : 4" :count="12" />
 
     <!-- A reader (a player choosing a background, or a non-DM in the Codex)
          cannot add one, so pointing them at /backgrounds/new sent them to a
@@ -34,7 +34,7 @@
       :item-key="backgroundKey"
       :layout="layout"
       :grid-columns="columns"
-      :grid-row-estimate="GRID_ROW_PX"
+      :grid-row-estimate="gridRowEstimate"
     >
       <template #card="{ item: b }">
         <OptionGridCard
@@ -179,8 +179,15 @@ function backgroundSubtitle(b: Background): string | null {
   return b.feature_name ?? (profsSummary(b) || null);
 }
 
-// Row height before a row is measured (px): 206px measured at a 390px
-// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
-// back from a detail re-renders every unmeasured row above the viewport.
-const GRID_ROW_PX = 206;
+// Grid card height before it is measured (px). It decides where a restored
+// scroll lands, since coming back from a detail re-renders every unmeasured row
+// above the viewport. OptionGridCard is an EntityGridCard, so: 2 border + 144
+// artwork band (h-36) + 24 body padding (p-3) + 84 body = 254. The body is the
+// name 20, the feature line 17, a two-line proficiency summary 34 and three
+// gap-1 gaps 12 (84 is also what the card measured on 8 Oct 2026, 206 less the
+// then h-24 band and padding). The player's picker adds a Select button under
+// the body: mt-2 (8) + a 32 small button.
+const GRID_ROW_PX = 254;
+const SELECT_BUTTON_PX = 40;
+const gridRowEstimate = computed(() => GRID_ROW_PX + (selectMode ? SELECT_BUTTON_PX : 0));
 </script>

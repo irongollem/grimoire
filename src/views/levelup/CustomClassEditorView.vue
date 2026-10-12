@@ -1,7 +1,7 @@
 <template>
   <PageHeader
     :title="isNew ? 'New Class' : (record?.cls.class_name || form.class_name || 'Custom Class')"
-    :description="isLibrary ? 'A library class: read only. Duplicate it to customise.' : 'Design your custom class: features, proficiencies, and level progression'"
+    :description="isLibrary ? 'Read only. Duplicate it to customise.' : 'Design your custom class: features, proficiencies, and level progression'"
   >
     <template v-if="isNew || (isEditing && existing)" #actions>
       <AppButton
@@ -158,7 +158,8 @@ import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconDelete, IconSave } from '@/lib/icons';
-import { useClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/rules/useCustomClasses";
+import { canEditClass, useClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/rules/useCustomClasses";
+import { useAuthStore } from "@/stores/auth";
 import CustomClassSheet from "@/components/levelup/CustomClassSheet.vue";
 import CustomClassProficienciesPanel from "@/components/levelup/CustomClassProficienciesPanel.vue";
 import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeaturesPerLevel.vue";
@@ -184,9 +185,14 @@ function onCancel() {
 }
 
 const { data: record } = useClass(id);
-// A library class is read-only: `?edit=true` on one just opens its sheet.
-const isLibrary = computed(() => record.value?.kind === "library");
-const existing = computed(() => (record.value?.kind === "custom" ? record.value.cls : undefined));
+const auth = useAuthStore();
+// A class the viewer cannot edit (a library class, a shared book class, a DM's class read by a player) is read-only:
+// `?edit=true` on one just opens its sheet.
+const editable = computed(() =>
+  record.value !== undefined && canEditClass(record.value.cls, { userId: auth.user?.id ?? null, isAdmin: auth.isAppAdmin }),
+);
+const isLibrary = computed(() => record.value !== undefined && !editable.value);
+const existing = computed(() => (editable.value && record.value?.kind === "custom" ? record.value.cls : undefined));
 const { data: campaignList } = useDmCampaigns();
 const campaigns = computed(() => campaignList.value ?? []);
 const { data: allFeatures } = useAllFeatures();

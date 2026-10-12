@@ -42,7 +42,7 @@
       </div>
     </div>
 
-    <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'text' : 'tiles'" :columns="3" :count="6" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'text' : 'tiles'" :columns="layout === 'grid' ? 3 : 1" :count="6" />
 
     <EmptyState
       v-else-if="!filtered.length && !search && !categoryFilter"

@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { flushMicrotasks, useVirtualGridViewport } from "./virtualGridViewport";
+import { flushMicrotasks, useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import DungeonCraftPuzzlesTab from "./DungeonCraftPuzzlesTab.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";

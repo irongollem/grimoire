@@ -24,7 +24,7 @@
       </ListFilterSelect>
     </ListFilterBar>
 
-    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'text'" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'text'" :columns="layout === 'rows' ? 1 : 4" />
 
     <EmptyState
       v-else-if="!filtered.length && !scriptoriumUi.scriptoriumHasActiveFilters"

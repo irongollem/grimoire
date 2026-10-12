@@ -27,7 +27,7 @@
       <ListLayoutToggle v-model="layout" />
     </template>
 
-    <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'text' : 'tiles'" :columns="4" :count="8" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'text' : 'tiles'" :columns="layout === 'grid' ? 4 : 1" :count="8" />
 
     <template v-else-if="maps?.length">
       <div class="flex flex-wrap items-center gap-2 mb-4">

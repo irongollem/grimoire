@@ -7,11 +7,13 @@ vi.mock("vue-router", () => ({
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ push: vi.fn() }),
 }));
+const viewer = vi.hoisted(() => ({ user: { id: "u1" } as { id: string } | null, isAppAdmin: false }));
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => viewer }));
 vi.mock("@/composables/rules/useFeatures", () => ({ useAllFeatures: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/rules/useCustomClasses", async (orig) => ({
   ...(await orig<typeof import("@/composables/rules/useCustomClasses")>()),
   useDeleteCustomClass: () => ({ mutateAsync: vi.fn() }),
-  useDuplicateSystemClass: () => ({ duplicate: vi.fn(), isPending: ref(false) }),
+  useDuplicateClass: () => ({ duplicate: vi.fn(), isPending: ref(false) }),
 }));
 
 import CustomClassSheet from "./CustomClassSheet.vue";
@@ -52,5 +54,20 @@ describe("CustomClassSheet", () => {
     expect(w.text()).toContain("Edit");
     expect(w.text()).toContain("Delete");
     expect(w.text()).not.toContain("Library · read only");
+  });
+
+  it("keeps a shared book class read-only for a DM, with Duplicate", () => {
+    const shared = { ...base, user_id: null, campaign_id: null } as unknown as CustomClass;
+    const w = mount(CustomClassSheet, { props: { cls: shared } });
+    expect(w.text()).toContain("Library · read only");
+    expect(w.text()).toContain("Duplicate to customise");
+    expect(w.text()).not.toContain("Delete");
+  });
+
+  it("keeps another account's class read-only", () => {
+    const theirs = { ...base, user_id: "dm", campaign_id: null } as unknown as CustomClass;
+    const w = mount(CustomClassSheet, { props: { cls: theirs } });
+    expect(w.text()).toContain("Read only");
+    expect(w.text()).not.toContain("Delete");
   });
 });

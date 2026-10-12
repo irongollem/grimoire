@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
@@ -93,21 +94,8 @@ beforeEach(() => setActivePinia(createPinia()));
 // which these tests mount without).
 const globalStubs = { stubs: { RouterLink: RouterLinkStub, AiImageBadge: true } };
 
-// VirtualGrid mounts only what fits the scroller, and jsdom has no layout, so
-// every box reads 0 tall and nothing would render. Give the scroller (the
-// document, here) a tall viewport and every row a plausible height.
-const ORIGINAL_OFFSET_HEIGHT = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
-beforeAll(() => {
-  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-    configurable: true,
-    get(this: HTMLElement) {
-      return this === document.documentElement ? 1_000_000 : 200;
-    },
-  });
-});
-afterAll(() => {
-  if (ORIGINAL_OFFSET_HEIGHT) Object.defineProperty(HTMLElement.prototype, "offsetHeight", ORIGINAL_OFFSET_HEIGHT);
-});
+// jsdom has no layout; see the helper for what this stands in for.
+useVirtualGridViewport({ viewportPx: 1000000, itemPx: 200 });
 
 async function mountList(
   props: Partial<{ selecting: boolean; selectedIds: ReadonlySet<string>; sourceFilter: string }> = {},

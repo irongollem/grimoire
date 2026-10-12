@@ -49,7 +49,7 @@
       </div>
       <EntityCollection
         v-else
-        :items="log"
+        :items="listed"
         :item-key="sessionKey"
         :layout="layout"
         :grid-columns="columns"
@@ -58,7 +58,6 @@
       >
         <template #card="{ item: row }">
           <SessionLogCard
-            :class="running?.id === row.id && 'max-md:hidden'"
             :session="row"
             :facts="factsFor(row.id)"
             :has-note="noteIds.has(row.id)"
@@ -70,7 +69,6 @@
         </template>
         <template #row="{ item: row }">
           <SessionLogRow
-            :class="running?.id === row.id && 'max-md:hidden'"
             :session="row"
             :facts="factsFor(row.id)"
             :has-note="noteIds.has(row.id)"
@@ -102,6 +100,7 @@ import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import SessionLogCard from "@/components/sessions/SessionLogCard.vue";
 import SessionLogRow from "@/components/sessions/SessionLogRow.vue";
 import SessionRunningCard from "@/components/sessions/SessionRunningCard.vue";
@@ -159,6 +158,14 @@ const ROW_PX = 67;
 const GRID_ROW_PX = 143;
 
 const running = computed(() => (log.value ?? []).find(isRunningSession) ?? null);
+// On a phone the running session is the card pinned above the log, so the log
+// leaves it out rather than showing it twice.
+const isMobile = useIsMobile();
+const listed = computed(() => {
+  const all = log.value ?? [];
+  const current = running.value;
+  return isMobile.value && current ? all.filter((row) => row.id !== current.id) : all;
+});
 const noteIds = computed(() => new Set((notes.value ?? []).flatMap((n) => (n.session_id ? [n.session_id] : []))));
 const summary = computed(() =>
   logSummaryParts(log.value?.length ?? 0, sessionsWithoutNotes(log.value ?? [], noteIds.value).length, unsorted.value ?? 0),

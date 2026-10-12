@@ -1,9 +1,9 @@
 <template>
   <div class="max-w-2xl mx-auto space-y-6">
     <!-- Action bar -->
-    <div v-if="isLibrary" class="flex items-center justify-between gap-2">
+    <div v-if="!editable" class="flex items-center justify-between gap-2">
       <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
-        Library · read only
+        {{ readOnlyLabel }}
       </span>
       <AppButton
         variant="primary"
@@ -146,7 +146,8 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCopy, IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { isCustomClass, useDeleteCustomClass, useDuplicateSystemClass } from "@/composables/rules/useCustomClasses";
+import { canEditClass, isCustomClass, useDeleteCustomClass, useDuplicateClass } from "@/composables/rules/useCustomClasses";
+import { useAuthStore } from "@/stores/auth";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -157,12 +158,19 @@ const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
 const deleteMut = useDeleteCustomClass();
-const { duplicate, isPending: duplicating } = useDuplicateSystemClass();
+const { duplicate, isPending: duplicating } = useDuplicateClass();
 
-const isLibrary = computed(() => !isCustomClass(props.cls));
+const auth = useAuthStore();
+const editable = computed(() =>
+  canEditClass(props.cls, { userId: auth.user?.id ?? null, isAdmin: auth.isAppAdmin }),
+);
+/** A class nobody owns is the library's; one owned by someone else (a DM's, read by a player) is theirs. */
+const readOnlyLabel = computed(() =>
+  !isCustomClass(props.cls) || props.cls.user_id === null ? "Library · read only" : "Read only",
+);
 
 async function handleDuplicate() {
-  if (isCustomClass(props.cls)) return;
+  if (editable.value) return;
   const created = await duplicate(props.cls);
   void router.push(`/levelup/classes/${created.id}`);
 }
@@ -188,7 +196,7 @@ const casterTypeLabel = computed(() => {
 });
 
 async function handleDelete() {
-  if (!isCustomClass(props.cls)) return;
+  if (!editable.value || !isCustomClass(props.cls)) return;
   const ok = await confirm(`Delete "${props.cls.class_name}"? This cannot be undone.`, {
     title: "Delete Class",
     confirmLabel: "Delete",

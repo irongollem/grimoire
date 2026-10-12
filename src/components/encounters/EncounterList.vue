@@ -2,8 +2,8 @@
   <div>
     <ListSkeleton
       v-if="isLoading"
-      :variant="layout === 'rows' ? 'rows' : 'text'"
-      :columns="3"
+      :variant="layout === 'rows' ? 'tiles' : 'text'"
+      :columns="layout === 'rows' ? 1 : 3"
       :count="6"
     />
 

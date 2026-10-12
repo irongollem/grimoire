@@ -14,7 +14,7 @@
       @copy="openCopyDialog"
     />
 
-    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'grid'" :count="12" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'grid'" :columns="layout === 'rows' ? 1 : 4" :count="12" />
 
     <!-- Nothing to pick: the DM disabled every species for this campaign. The
          codex CTA below is DM-only, so select mode gets its own message. -->
@@ -47,7 +47,7 @@
       :item-key="speciesKey"
       :layout="layout"
       :grid-columns="columns"
-      :grid-row-estimate="GRID_ROW_PX"
+      :grid-row-estimate="gridRowEstimate"
     >
       <template #card="{ item: s }">
         <BulkSelectableCard
@@ -216,10 +216,16 @@ function speciesSubtitle(s: Species): string {
   return s.speed?.walk ? `${size} · ${s.speed.walk} ft` : size;
 }
 
-// Row height before a row is measured (px): 252px measured at a 390px
-// phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
-// back from a detail re-renders every unmeasured row above the viewport.
+// Grid card height before it is measured (px). It decides where a restored
+// scroll lands, since coming back from a detail re-renders every unmeasured row
+// above the viewport. OptionGridCard is an EntityGridCard: 2 border + 144
+// artwork band (h-36) + 24 body padding (p-3) + 82 body (name 17, size and
+// speed 17, source 17, tag row 19 incl. pt-1, three gap-1 gaps 12) = 252. The
+// player's picker adds a Select button under the body: mt-2 (8) + a 32 small
+// button.
 const GRID_ROW_PX = 252;
+const SELECT_BUTTON_PX = 40;
+const gridRowEstimate = computed(() => GRID_ROW_PX + (selectMode ? SELECT_BUTTON_PX : 0));
 
 // ── Bulk selection (#875) — the DM's codex tool ─────────────────────────────
 //

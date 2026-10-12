@@ -65,7 +65,8 @@ export type HitDie = 6 | 8 | 10 | 12;
 
 export interface CustomClass extends VersionedContentMetadata {
   id: string;
-  user_id: string;
+  /** Null on a shared book class the admin imported (e.g. Black Flag); readable by everyone. */
+  user_id: string | null;
   campaign_id: string | null;
   class_name: string;
   source: string | null;

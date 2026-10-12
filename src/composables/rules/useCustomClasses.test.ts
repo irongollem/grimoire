@@ -7,7 +7,7 @@ vi.mock("@/lib/supabase", () => ({
   getCurrentUser: () => ({ id: "u1" }),
 }));
 
-import { customClassFromSystem, fetchClassRecord, isCustomClass } from "./useCustomClasses";
+import { canEditClass, customClassCopy, fetchClassRecord, isCustomClass } from "./useCustomClasses";
 
 /** A chainable select().eq().maybeSingle()/single() that resolves to `result`. */
 function table(result: { data: unknown; error: unknown }) {
@@ -68,19 +68,42 @@ describe("fetchClassRecord", () => {
   });
 });
 
-describe("isCustomClass and customClassFromSystem", () => {
+describe("isCustomClass and customClassCopy", () => {
   it("tells a library row (no owner) from a homebrew one", () => {
     expect(isCustomClass(library)).toBe(false);
     expect(isCustomClass({ ...library, user_id: "u1" } as unknown as CustomClass)).toBe(true);
   });
 
   it("copies a library class as an unscoped homebrew draft", () => {
-    expect(customClassFromSystem(library)).toMatchObject({
+    expect(customClassCopy(library)).toMatchObject({
       class_name: "Barbarian (copy)",
       campaign_id: null,
       hit_die: 12,
       source: null,
       features: { "1": ["f1"] },
     });
+  });
+});
+
+describe("canEditClass", () => {
+  const own = { ...library, user_id: "u1" } as unknown as CustomClass;
+  const shared = { ...library, user_id: null } as unknown as CustomClass;
+  const someoneElses = { ...library, user_id: "dm" } as unknown as CustomClass;
+  const dm = { userId: "u1", isAdmin: false };
+  const admin = { userId: "a1", isAdmin: true };
+
+  it("lets the owner edit their homebrew and nobody else", () => {
+    expect(canEditClass(own, dm)).toBe(true);
+    expect(canEditClass(someoneElses, dm)).toBe(false);
+    expect(canEditClass(own, { userId: null, isAdmin: false })).toBe(false);
+  });
+
+  it("keeps a shared book class read-only except for the admin", () => {
+    expect(canEditClass(shared, dm)).toBe(false);
+    expect(canEditClass(shared, admin)).toBe(true);
+  });
+
+  it("never lets anyone edit a system class", () => {
+    expect(canEditClass(library, admin)).toBe(false);
   });
 });

@@ -44,13 +44,32 @@ export async function fetchClassRecord(id: string): Promise<ClassRecord> {
   return { kind: "library", cls: library as SystemClass };
 }
 
-/** A library row has no owner; a homebrew row always does. */
+/** Which table a class came from: a `custom_classes` row carries `user_id` (null on a shared book class), a
+ *  `system_classes` row has no such column. It says nothing about who may edit it; see `canEditClass`. */
 export function isCustomClass(cls: CustomClass | SystemClass): cls is CustomClass {
   return "user_id" in cls;
 }
 
-/** The custom-class insert that copies a library class, ready to be edited. */
-export function customClassFromSystem(cls: SystemClass): CustomClassInsert {
+/** Whoever is looking at a class. */
+export interface ClassViewer {
+  userId: string | null;
+  isAdmin: boolean;
+}
+
+/**
+ * Whether the viewer may edit or delete this class: their own homebrew, or a shared book class (a `custom_classes`
+ * row with no owner, such as Black Flag's Mechanist) when they are the admin. That is the `custom_classes` update and
+ * delete policy, so the sheet never offers an action RLS would turn into a silent no-op. Everything else is read-only
+ * with Duplicate: the library's system classes, a shared book class for anyone else, a DM's class a player reads.
+ */
+export function canEditClass(cls: CustomClass | SystemClass, viewer: ClassViewer): boolean {
+  if (!isCustomClass(cls)) return false;
+  if (cls.user_id === null) return viewer.isAdmin;
+  return viewer.userId !== null && cls.user_id === viewer.userId;
+}
+
+/** The custom-class insert that copies any class the viewer can read, ready to be edited. */
+export function customClassCopy(cls: CustomClass | SystemClass): CustomClassInsert {
   return {
     class_name: `${cls.class_name} (copy)`,
     campaign_id: null,
@@ -152,11 +171,11 @@ export function useCreateCustomClass() {
   });
 }
 
-/** Copies a library class into the DM's own classes; resolves to the new row. */
-export function useDuplicateSystemClass() {
+/** Copies a class the viewer cannot edit into their own classes; resolves to the new row. */
+export function useDuplicateClass() {
   const { mutateAsync, isPending } = useCreateCustomClass();
   return {
-    duplicate: (cls: SystemClass) => mutateAsync(customClassFromSystem(cls)),
+    duplicate: (cls: CustomClass | SystemClass) => mutateAsync(customClassCopy(cls)),
     isPending,
   };
 }

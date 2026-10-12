@@ -1,22 +1,11 @@
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
+import { describe, expect, it } from "vitest";
 import PlayerJournalHandoutsTab from "./PlayerJournalHandoutsTab.vue";
 import type { PlayerHandoutSummary } from "@/composables/scriptorium/usePlayerHandouts";
 
-// jsdom has no layout, so every box measures 0 tall and the windowed list would
-// mount nothing. Give the document a tall viewport and every row a height.
-const ORIGINAL_OFFSET_HEIGHT = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
-beforeAll(() => {
-  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-    configurable: true,
-    get(this: HTMLElement) {
-      return this === document.documentElement ? 1_000_000 : 65;
-    },
-  });
-});
-afterAll(() => {
-  if (ORIGINAL_OFFSET_HEIGHT) Object.defineProperty(HTMLElement.prototype, "offsetHeight", ORIGINAL_OFFSET_HEIGHT);
-});
+// jsdom has no layout; see the helper for what this stands in for.
+useVirtualGridViewport({ viewportPx: 1000000, itemPx: 65 });
 
 function handout(overrides: Partial<PlayerHandoutSummary> = {}): PlayerHandoutSummary {
   return {
