@@ -98,22 +98,30 @@ const URL_CHUNK = 50;
  * per-URL form cost columns x files round trips. `.in()` quotes a value
  * holding PostgREST's reserved characters itself, which is what a hand-built
  * `.or()` string would have had to get right.
+ *
+ * The columns of one chunk are read in parallel. Read one after another, the ~50
+ * columns cost ~50 round trips on every single delete, and a delete's caller only
+ * hears that it succeeded after this sweep: a deleted custom background stayed in
+ * its list for seconds, long enough to look like the delete had failed.
  */
 async function referencedUrls(urls: readonly string[]): Promise<Set<string>> {
   const found = new Set<string>();
-  for (const [table, columns] of IMAGE_REFERENCES) {
-    for (const column of columns) {
-      for (let i = 0; i < urls.length; i += URL_CHUNK) {
-        const chunk = urls.slice(i, i + URL_CHUNK).filter((url) => !found.has(url));
-        if (!chunk.length) continue;
+  const columns = IMAGE_REFERENCES.flatMap(([table, cols]) => cols.map((column) => [table, column] as const));
+  for (let i = 0; i < urls.length; i += URL_CHUNK) {
+    const chunk = urls.slice(i, i + URL_CHUNK);
+    const reads = await Promise.all(
+      columns.map(async ([table, column]) => {
         const { data, error } = await supabase.from(table).select(column).in(column, chunk);
         // A failed read throws rather than reading as "unused": deleting is the
         // step that cannot be undone, so doubt resolves toward keeping.
         if (error) throw error;
-        for (const row of (data ?? []) as unknown as Record<string, unknown>[]) {
-          const value = row[column];
-          if (typeof value === "string") found.add(value);
-        }
+        return { column, rows: (data ?? []) as unknown as Record<string, unknown>[] };
+      }),
+    );
+    for (const { column, rows } of reads) {
+      for (const row of rows) {
+        const value = row[column];
+        if (typeof value === "string") found.add(value);
       }
     }
   }
