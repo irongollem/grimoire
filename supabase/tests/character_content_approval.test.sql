@@ -45,9 +45,9 @@ on conflict (campaign_id, user_id) do update set role = excluded.role;
 
 -- Shared library content: one book the table has (every campaign starts with
 -- both SRDs enabled) and one it has not.
-insert into public.library_species (id, name, ruleset, source, source_title, source_document_key, source_record_key) values
-  ('test_srd_elf', 'Test Elf', '2014', 'srd-2014', 'System Reference Document 5.1', 'srd-2014', 'test_srd_elf'),
-  ('test_toh_alseid', 'Test Alseid', '2014', 'test-toh', 'Test Tome', 'test-toh', 'test_toh_alseid');
+insert into public.library_species (id, name, ruleset, source, source_title, source_document_key, source_record_key, speed) values
+  ('test_srd_elf', 'Test Elf', '2014', 'srd-2014', 'System Reference Document 5.1', 'srd-2014', 'test_srd_elf', '{"walk": 30}'),
+  ('test_toh_alseid', 'Test Alseid', '2014', 'test-toh', 'Test Tome', 'test-toh', 'test_toh_alseid', '{"walk": 40}');
 insert into public.library_spells (id, name, level, school, casting_time, range, duration, conceptual_key, ruleset, source, source_title, source_document_key, source_record_key) values
   ('test_toh_spell', 'Test Tome Spell', 1, 'evocation', 'Action', '60 ft.', 'Instantaneous', 'test-tome-spell', '2014', 'test-toh', 'Test Tome', 'test-toh', 'test_toh_spell');
 

@@ -48,9 +48,12 @@
               </p>
             </div>
             <div class="flex flex-col items-end gap-1 shrink-0">
-              <span v-if="sp.size"
+              <span v-if="shownSize(sp)"
                 class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">
-                {{ sp.size }}
+                {{ shownSize(sp) }}
+              </span>
+              <span v-if="shownWalk(sp) !== null" class="text-caption-sm text-muted-foreground">
+                {{ shownWalk(sp) }} ft
               </span>
               <span v-if="sp.subraces?.length" class="text-caption-sm text-muted-foreground/60">
                 {{ sp.subraces.length }} variant{{ sp.subraces.length > 1 ? 's' : '' }}
@@ -72,9 +75,12 @@
             :active="f.subrace === sr"
             surface="card"
             :label="sr"
-            @click="f.subrace = f.subrace === sr ? '' : sr"
+            @click="onSubraceSelect(f.subrace === sr ? '' : sr)"
           />
         </div>
+        <p v-if="selectedSpecies && walkSpeedFromSubrace(selectedSpecies) && !f.subrace" class="text-caption text-muted-foreground italic">
+          The variant sets size and speed.
+        </p>
       </div>
 
       <p v-if="f.species_id" class="text-label-lg text-primary/70 text-center">
@@ -89,11 +95,21 @@ import ImageUpload from "@/components/common/media/ImageUpload.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import type { Species } from "@/types/species.types";
+import { effectiveSize, effectiveSpeed, walkSpeedFromSubrace } from "@/rules/speciesStats";
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 
-const { f, auth, portraitUrl, focalPoint, speciesChoices, selectedSpecies, subraceOptions, onSpeciesSelect } = form;
+const { f, auth, portraitUrl, focalPoint, speciesChoices, selectedSpecies, subraceOptions, onSpeciesSelect, onSubraceSelect } = form;
+
+// The chosen species' card shows the chosen variant's size and speed.
+function shownSize(sp: Species) {
+  return effectiveSize(sp, sp.id === f.species_id ? f.subrace : "");
+}
+function shownWalk(sp: Species) {
+  return effectiveSpeed(sp, sp.id === f.species_id ? f.subrace : "")?.walk ?? null;
+}
 </script>
 
 <style scoped>

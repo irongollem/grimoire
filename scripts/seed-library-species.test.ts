@@ -40,4 +40,28 @@ describe("splitForReseed", () => {
     }
     expect(refresh[0]).toMatchObject({ speed: { walk: 25 }, subraces: null });
   });
+
+  it("keeps an existing row whose upstream record is empty, and still inserts a new one", () => {
+    const existing = [{ source_document_key: "toh", source_record_key: "toh_erina" }];
+    const kept = splitForReseed([seeded("toh_erina")], existing, new Set(["toh_erina"]));
+    expect(kept.refresh).toEqual([]);
+    expect(kept.keptEmpty).toEqual(["toh_erina"]);
+    const inserted = splitForReseed([seeded("toh_erina")], [], new Set(["toh_erina"]));
+    expect(inserted.fresh).toHaveLength(1);
+  });
+});
+
+describe("buildSeededSpeciesRow walk speed", () => {
+  it("gives a species with no walking speed anywhere 30 ft", () => {
+    const row = buildSeededSpeciesRow({
+      key: "toh_blank",
+      name: "Blank",
+      desc: "",
+      is_subspecies: false,
+      subspecies_of: null,
+      traits: [],
+      document: { key: "toh", name: "Tome of Heroes", display_name: "Tome of Heroes", gamesystem: { name: "5th Edition 2014", key: "5e-2014" } },
+    });
+    expect(row?.speed).toEqual({ walk: 30 });
+  });
 });

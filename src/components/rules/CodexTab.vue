@@ -24,7 +24,7 @@
           :focal-point="species.focal_point ?? null"
           :fallback-icon="IconParty"
           :title="species.name"
-          :badge="species.size ?? undefined"
+          :badge="species.size ?? (speciesSizeFromSubrace(species) ? 'by subrace' : undefined)"
           :count="species.subraces?.length ? `${species.subraces.length}v` : undefined"
           @click="selectedSpecies = species"
         />
@@ -38,6 +38,7 @@
             <h2 :id="speciesHeadingId" class="text-heading font-bold text-foreground">{{ selectedSpecies.name }}</h2>
             <div class="flex flex-wrap gap-1.5 mt-1">
               <span v-if="selectedSpecies.size" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ selectedSpecies.size }}</span>
+              <span v-else-if="speciesSizeFromSubrace(selectedSpecies)" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">Size by subrace</span>
               <span v-if="selectedSpecies.subraces?.length" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground/60">{{ selectedSpecies.subraces.length }} variant{{ selectedSpecies.subraces.length > 1 ? "s" : "" }}</span>
             </div>
           </div>
@@ -54,9 +55,10 @@
                     <p v-else class="text-body text-muted-foreground italic">No description.</p>
                   </div>
                   <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
-                    <div v-if="selectedSpecies.speed">
+                    <div v-if="selectedSpecies.speed || walkSpeedFromSubrace(selectedSpecies)">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">SPEED</p>
                       <div class="flex flex-wrap gap-2">
+                        <span v-if="walkSpeedFromSubrace(selectedSpecies)" class="px-2 py-0.5 rounded bg-muted text-label text-muted-foreground">By subrace</span>
                         <span v-for="(val, mode) in selectedSpecies.speed" :key="mode" class="px-2 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ mode }} {{ val }} ft</span>
                       </div>
                     </div>
@@ -102,6 +104,9 @@
                             <span class="text-caption font-semibold text-foreground">{{ sub.name }}</span>
                           </AppButton>
                           <div v-if="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`)" class="px-3 pb-3 border-t border-border flex flex-col gap-2 pt-2">
+                            <div v-if="subraceStatPills(sub).length" class="flex flex-wrap gap-1.5">
+                              <span v-for="pill in subraceStatPills(sub)" :key="pill" class="px-2 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ pill }}</span>
+                            </div>
                             <div v-if="sub.description" class="text-body text-muted-foreground">
                               <RichTextViewer v-if="isRichText(sub.description)" :content="sub.description" />
                               <p v-else class="italic">{{ sub.description }}</p>
@@ -436,7 +441,8 @@
 <script setup lang="ts">
 import { ref, computed, shallowRef, useId } from "vue";
 import { IconChevronRight, IconClose, IconParty, IconPopulate, IconQuest, IconSun } from '@/lib/icons';
-import type { Species } from "@/types/species.types";
+import type { Species, SpeciesSubrace } from "@/types/species.types";
+import { walkSpeedFromSubrace } from "@/rules/speciesStats";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
@@ -469,6 +475,22 @@ const codexSection = ref<CodexSection>("species");
 const { data: allSpecies } = useAllSpecies();
 const selectedSpecies = ref<Species | null>(null);
 const speciesHeadingId = useId();
+
+/** A species with no size of its own whose subraces state one (darakhul, gearforged). */
+function speciesSizeFromSubrace(species: Species): boolean {
+  return !species.size && !!species.subraces?.some((sub) => sub.size);
+}
+
+/** What a subrace changes about its parent: size, speeds and extra languages. */
+function subraceStatPills(sub: SpeciesSubrace): string[] {
+  return [
+    ...(sub.size ? [sub.size] : []),
+    ...Object.entries(sub.speed ?? {})
+      .filter(([, ft]) => typeof ft === "number" && ft > 0)
+      .map(([mode, ft]) => `${mode} ${ft} ft`),
+    ...(sub.languages ?? []).map((lang) => `Lang: ${lang}`),
+  ];
+}
 
 // ── Backgrounds ──
 const { data: allBackgrounds } = useBackgrounds();

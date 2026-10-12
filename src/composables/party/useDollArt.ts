@@ -4,6 +4,7 @@ import { useArmorClass } from "@/composables/party/useArmorClass";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { outfitPicture, pickDollArt, type DollArt, type DollPicture } from "@/lib/paperDoll/dollStack";
 import { dollOutfitFor } from "@/lib/paperDoll/outfit";
+import { effectiveSize } from "@/rules/speciesStats";
 import type { PartyMember } from "@/types/party.types";
 
 export interface MemberDoll {
@@ -25,7 +26,7 @@ export function useDollArt(members: MaybeRefOrGetter<PartyMember[]>) {
   /** Resolve the member's art and worn outfit from the currently loaded species and gear. */
   function dollFor(member: PartyMember): MemberDoll {
     const species = member.species_id ? speciesById.value.get(member.species_id) : undefined;
-    const art = pickDollArt(member.doll, species?.doll, templateSizeFor(species?.size));
+    const art = pickDollArt(member.doll, species?.doll, templateSizeFor(species ? effectiveSize(species, member.subrace) : undefined));
     const outfit = dollOutfitFor(wornGearFor(member.id));
     return { art, outfit, figure: outfitPicture(art, outfit) };
   }

@@ -100,7 +100,7 @@ import { useCreateSpecies, useUpdateSpecies, useAllSpecies } from "@/composables
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import { buildImportedFields, buildCreateOnlyDefaults } from "@/lib/library/open5eSpeciesImport";
+import { buildImportedFields, buildCreateOnlyDefaults, withWalkSpeed } from "@/lib/library/open5eSpeciesImport";
 import type { Open5eRace } from "@/lib/library/open5eSpeciesImport";
 
 const speciesUi = useSpeciesUiStore();
@@ -148,7 +148,8 @@ async function search() {
 }
 
 async function upsertRace(race: Open5eRace) {
-  const imported = buildImportedFields(race);
+  // No subraces are folded here, so a species without a walking speed gets the 30 ft default for the user to adjust.
+  const imported = withWalkSpeed(buildImportedFields(race), null);
   const existing = (existingSpecies.value ?? []).find(
     (species) => species.source_document_key === race.document.key
       && species.source_record_key === race.key,

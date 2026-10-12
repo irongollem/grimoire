@@ -21,6 +21,7 @@ import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCharacterCreationEdition } from "@/composables/party/useCharacterCreationEdition";
 import { isRulesetAdmissible, parseRulesetBounce, rulesetRules } from "@/composables/party/useCharacterRuleset";
 import { campaignToAttachAfterCreate } from "@/composables/party/characterCreationEdition";
+import { DEFAULT_WALK_SPEED, effectiveLanguages, effectiveSpeed } from "@/rules/speciesStats";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { applySpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
 import type { PartyMember, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
@@ -80,6 +81,21 @@ export function resolveCharacterPlacement(opts: {
  * (migration 20261006112320). Another table's rows, and every table's rows for
  * a character landing nowhere, are left out. Exported for testing.
  */
+/**
+ * The languages after a species' subrace changes: the old subrace's languages
+ * go unless the species itself grants them, the new subrace's come in.
+ */
+export function swapSubraceLanguages(
+  languages: string[],
+  species: Parameters<typeof effectiveLanguages>[0],
+  from: string | null | undefined,
+  to: string | null | undefined,
+): string[] {
+  const own = new Set(effectiveLanguages(species, ""));
+  const dropped = new Set(effectiveLanguages(species, from).filter((l) => !own.has(l)));
+  return [...new Set([...languages.filter((l) => !dropped.has(l)), ...effectiveLanguages(species, to)])];
+}
+
 export function creationSubclassOptions(
   rows: readonly { id: string; class_name: string; subclass_name: string; campaign_id: string | null }[],
   className: string,
@@ -291,7 +307,8 @@ export function useCharacterCreationForm() {
     return cls ? Math.max(1, cls.hit_die + mod(f.con)) : null;
   });
   const derivedAc       = computed(() => 10 + mod(f.dex));
-  const derivedSpeed    = computed(() => selectedSpecies.value?.speed?.walk ?? 30);
+  const derivedSpeed    = computed(() =>
+    (selectedSpecies.value ? effectiveSpeed(selectedSpecies.value, f.subrace)?.walk : undefined) ?? DEFAULT_WALK_SPEED);
   const derivedInitiative = computed(() => mod(f.dex));
 
   // ── Subclass at creation (#973) ───────────────────────────────────────────────
@@ -377,7 +394,7 @@ export function useCharacterCreationForm() {
     current_hp:    m?.current_hp ?? 10,
     temp_hp:       m?.temp_hp ?? 0,
     ac_formula:    (m?.ac_formula ?? null) as string | null,
-    speed:         m?.speed ?? 30,
+    speed:         m?.speed ?? DEFAULT_WALK_SPEED,
     initiative_bonus:   m?.initiative_bonus ?? 0,
     current_initiative: m?.current_initiative ?? null,
     str: m?.str ?? 8,
@@ -643,16 +660,35 @@ export function useCharacterCreationForm() {
 
   // ── Species selection ─────────────────────────────────────────────────────────
 
+  /** Drop the languages the current species and subrace grant (used before they change). */
+  function dropGrantedLanguages() {
+    const current = selectedSpecies.value;
+    if (!current) return;
+    for (const lang of effectiveLanguages(current, f.subrace)) {
+      const idx = f.languages.indexOf(lang);
+      if (idx >= 0) f.languages.splice(idx, 1);
+    }
+  }
+
   function onSpeciesSelect(id: string) {
     const sp = (allSpecies.value ?? []).find(s => s.id === id);
+    // Only the old subrace's own grants go: the old species' languages stay, as they always did.
+    const old = selectedSpecies.value;
+    if (old) f.languages = swapSubraceLanguages(f.languages, old, f.subrace, "");
     f.species_id = id || null;
     f.subrace = "";
-    if (sp?.languages?.length) {
-      for (const lang of sp.languages) {
-        if (!f.languages.includes(lang)) f.languages.push(lang);
-      }
-    }
-    if (sp?.speed?.walk) f.speed = sp.speed.walk;
+    if (sp) f.languages = [...new Set([...f.languages, ...effectiveLanguages(sp, "")])];
+    const walk = sp ? effectiveSpeed(sp, "")?.walk : undefined;
+    if (walk) f.speed = walk;
+  }
+
+  /** Pick (or clear, with "") a subrace: its speed replaces the walk, its languages swap in. */
+  function onSubraceSelect(name: string) {
+    const sp = selectedSpecies.value;
+    if (!sp) return;
+    f.languages = swapSubraceLanguages(f.languages, sp, f.subrace, name);
+    f.subrace = name;
+    f.speed = derivedSpeed.value;
   }
 
   // ── Class selection ───────────────────────────────────────────────────────────
@@ -673,12 +709,8 @@ export function useCharacterCreationForm() {
   // The reset for a different edition (see `useCharacterCreationEdition`): it
   // needs the form fields and handlers declared above, hence registered here.
   onEditionChange(() => {
-    const oldSpecies = selectedSpecies.value;
-    for (const lang of oldSpecies?.languages ?? []) {
-      const idx = f.languages.indexOf(lang);
-      if (idx >= 0) f.languages.splice(idx, 1);
-    }
-    if (oldSpecies) f.speed = 30;
+    dropGrantedLanguages();
+    if (selectedSpecies.value) f.speed = DEFAULT_WALK_SPEED;
     onSpeciesSelect("");
     onBackgroundSelect("");
     selectedClassKey.value = "";
@@ -773,7 +805,7 @@ export function useCharacterCreationForm() {
     const hp  = cls ? Math.max(1, cls.hit_die + Math.floor((f.con - 10) / 2)) : 8;
     f.max_hp     = hp;
     f.current_hp = hp;
-    f.speed      = selectedSpecies.value?.speed?.walk ?? 30;
+    f.speed      = derivedSpeed.value;
     // initiative_bonus is the EXTRA on top of the DEX mod (feat/special bonuses,
     // e.g. Alert), not the total — the DEX mod is added wherever initiative is
     // shown/rolled. A fresh character has no such extra.
@@ -1021,7 +1053,7 @@ export function useCharacterCreationForm() {
     // computed
     isEditMode, isDmCreate, existingMember, backRoute,
     allBackgrounds,
-    speciesChoices, backgroundOptions, selectedSpecies, subraceOptions,
+    speciesChoices, backgroundOptions, selectedSpecies, subraceOptions, onSubraceSelect,
     selectedClass, selectedBg, selectedSubrace,
     mergedClasses, selectedClassKey,
     pointsRemaining, suggestedHp, profBonus,

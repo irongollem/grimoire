@@ -11,6 +11,7 @@ import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
+import { effectiveSize } from "@/rules/speciesStats";
 import type { SpeciesSize } from "@/types/species.types";
 
 const SIZE_HEIGHT_DEFAULTS: Record<SpeciesSize, string> = {
@@ -41,11 +42,14 @@ export function useGroupPortrait() {
     () => imageCredits(costOf("chronicle_image", { size: "1536x1024" })),
   );
 
-  function resolveHeight(speciesId: string | null, override: string | null | undefined): string | null {
+  function resolveHeight(speciesId: string | null, subrace: string | null | undefined, override: string | null | undefined): string | null {
     if (override) return override;
     const species = speciesId ? speciesById.value.get(speciesId) : undefined;
     if (!species) return null;
-    return species.avg_height ?? (species.size ? SIZE_HEIGHT_DEFAULTS[species.size] : null);
+    if (species.avg_height) return species.avg_height;
+    // The member's subrace may set the size the species leaves open (darakhul, gearforged).
+    const size = effectiveSize(species, subrace);
+    return size ? SIZE_HEIGHT_DEFAULTS[size] : null;
   }
 
   async function generateGroupPortrait() {
@@ -59,7 +63,7 @@ export function useGroupPortrait() {
     try {
       const members = partyMembers.value ?? [];
       const entities = members.map((m) => {
-        const height = resolveHeight(m.species_id, m.height);
+        const height = resolveHeight(m.species_id, m.subrace, m.height);
         return {
           label:           m.name,
           portraitUrl:     m.portrait_url ?? null,

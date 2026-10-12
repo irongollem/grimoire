@@ -125,10 +125,11 @@
                 step="5"
                 tone="card"
                 size="body"
-                :placeholder="type === 'walk' ? '30' : '—'"
+                :placeholder="type === 'walk' ? (walkFromSubrace ? 'Set by subrace' : '30') : '—'"
               />
             </div>
           </div>
+          <p v-if="!hasWalkSpeed" class="text-destructive text-caption mt-1.5">{{ WALK_SPEED_MESSAGE }}</p>
         </div>
 
         <!-- Ability Score Increases -->
@@ -186,6 +187,7 @@
               />
             </label>
             <RichTextEditor v-model="sub.description" placeholder="Subrace description…" />
+            <SpeciesSubraceFields v-model="form.subraces[i]" />
             <TraitSection v-model="sub.traits" label="Subrace Trait" />
           </div>
           <AppButton variant="link" size="inline-xs" label="+ Add Subrace" @click="addSubrace" />
@@ -218,12 +220,14 @@ import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vu
 import TagInput from "@/components/common/controls/TagInput.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import SpeciesSpellGrants from "@/components/species/SpeciesSpellGrants.vue";
+import SpeciesSubraceFields, { type SubraceStatsForm } from "@/components/species/SpeciesSubraceFields.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { Species, SpeciesSize } from "@/types/species.types";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
+import { DEFAULT_WALK_SPEED, speciesHasWalkSpeed, walkSpeedFromSubrace } from "@/rules/speciesStats";
 
 const props = defineProps<{ species?: Species | null }>();
 
@@ -288,7 +292,8 @@ function makeForm(s?: Species | null) {
     name: s?.name ?? "",
     description: s?.description ?? "",
     size: (s?.size ?? "") as SpeciesSize | "",
-    speed: { ...s?.speed } as Partial<Record<typeof SPEED_TYPES[number], number>>,
+    // A new custom species starts at the 5e baseline walk; an existing one keeps what it has.
+    speed: (s ? { ...s.speed } : { walk: DEFAULT_WALK_SPEED }) as Partial<Record<typeof SPEED_TYPES[number], number>>,
     asiDescription: asiToString(s?.ability_score_increases ?? null),
     traits: (s?.traits ?? []).map((t) => ({ ...t })),
     languages: [...(s?.languages ?? [])],
@@ -300,6 +305,9 @@ function makeForm(s?: Species | null) {
       traits: sr.traits.map((t) => ({ ...t })),
       ability_score_increases: sr.ability_score_increases ?? null,
       asiText: asiToString(sr.ability_score_increases ?? null),
+      size: (sr.size ?? "") as SpeciesSize | "",
+      speed: { ...sr.speed } as SubraceStatsForm["speed"],
+      languages: [...(sr.languages ?? [])],
     })),
     image_url: s?.image_url ?? "",
     focal_point: s?.focal_point ?? null,
@@ -359,8 +367,25 @@ const speedFields = reactive(
   ),
 ) as unknown as Record<typeof SPEED_TYPES[number], number | null>;
 
+const WALK_SPEED_MESSAGE = "Give the species a walking speed, or one on every subrace.";
+const walkSpeedSource = computed(() => ({
+  speed: form.speed,
+  subraces: form.subraces.map((sr) => ({ name: sr.name, description: "", traits: [], speed: sr.speed })),
+}));
+const hasWalkSpeed = computed(() => speciesHasWalkSpeed(walkSpeedSource.value));
+const walkFromSubrace = computed(() => walkSpeedFromSubrace(walkSpeedSource.value));
+
 function addSubrace() {
-  form.subraces.push({ name: "", description: "", traits: [], ability_score_increases: null, asiText: "" });
+  form.subraces.push({
+    name: "",
+    description: "",
+    traits: [],
+    ability_score_increases: null,
+    asiText: "",
+    size: "",
+    speed: {},
+    languages: [],
+  });
 }
 
 function removeSubrace(i: number) {
@@ -368,6 +393,10 @@ function removeSubrace(i: number) {
 }
 
 async function save() {
+  if (!hasWalkSpeed.value) {
+    saveError.value = WALK_SPEED_MESSAGE;
+    return;
+  }
   saving.value = true;
   saveError.value = "";
   try {
@@ -395,6 +424,10 @@ async function save() {
               if (!t) return null;
               return tryParseAsiText(t) ?? { description: t };
             })(),
+            // Only what the subrace changes is written; absent means "as the species".
+            ...(sr.size ? { size: sr.size } : {}),
+            ...(Object.keys(sr.speed).length ? { speed: sr.speed } : {}),
+            ...(sr.languages.length ? { languages: sr.languages } : {}),
           }))
         : null,
       image_url: form.image_url || null,
@@ -448,7 +481,7 @@ async function remove() {
 
 defineExpose({
   saving,
-  canSave: computed(() => !saving.value && !!form.name.trim()),
+  canSave: computed(() => !saving.value && !!form.name.trim() && hasWalkSpeed.value),
   save,
   remove,
 })

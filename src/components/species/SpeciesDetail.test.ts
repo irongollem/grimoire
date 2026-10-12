@@ -78,7 +78,7 @@ describe("SpeciesDetail scope default", () => {
   });
 
   it("leaves an existing global species' scope alone even with a campaign active", async () => {
-    const existing = { id: "s1", campaign_id: null, name: "Owlfolk" } as Species;
+    const existing = { id: "s1", campaign_id: null, name: "Owlfolk", speed: { walk: 30 } } as Species;
     const wrapper = mountDetail(existing);
     // The scope shown to the DM is the species' own stored value, not a
     // recomputed default — editing must never silently move existing content
@@ -90,8 +90,65 @@ describe("SpeciesDetail scope default", () => {
   });
 
   it("never sends a notes column; the DM note lives on the page's DmNoteBox", async () => {
-    const wrapper = mountDetail({ id: "s1", campaign_id: null, name: "Owlfolk" } as Species);
+    const wrapper = mountDetail({ id: "s1", campaign_id: null, name: "Owlfolk", speed: { walk: 30 } } as Species);
     await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
     expect(mocks.update.mock.calls[0][0].update).not.toHaveProperty("notes");
+  });
+
+  it("starts a new species at walk 30", async () => {
+    const wrapper = mountDetail(null);
+    await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
+    expect(mocks.create.mock.calls[0][0].speed).toEqual({ walk: 30 });
+  });
+
+  it("round-trips a subrace's size, speed and languages and omits empty ones", async () => {
+    const wrapper = mountDetail({
+      id: "s1",
+      campaign_id: null,
+      name: "Gnome",
+      speed: { walk: 30 },
+      subraces: [
+        { name: "Deep", description: "", traits: [], size: "small", speed: { walk: 25, swim: 20 }, languages: ["Undercommon"] },
+        { name: "Rock", description: "", traits: [] },
+      ],
+    } as unknown as Species);
+    await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
+    const subraces = mocks.update.mock.calls[0][0].update.subraces;
+    expect(subraces[0]).toMatchObject({ size: "small", speed: { walk: 25, swim: 20 }, languages: ["Undercommon"] });
+    expect(subraces[1]).not.toHaveProperty("size");
+    expect(subraces[1]).not.toHaveProperty("speed");
+    expect(subraces[1]).not.toHaveProperty("languages");
+  });
+
+  it("blocks the save and says why when nothing gives a walking speed", async () => {
+    const wrapper = mountDetail({
+      id: "s1",
+      campaign_id: null,
+      name: "Wisp",
+      speed: { fly: 30 },
+      subraces: [
+        { name: "A", description: "", traits: [], speed: { walk: 25 } },
+        { name: "B", description: "", traits: [] },
+      ],
+    } as unknown as Species);
+    await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("Give the species a walking speed, or one on every subrace.");
+    expect((wrapper.vm as unknown as { canSave: boolean }).canSave).toBe(false);
+  });
+
+  it("allows a species with no walk of its own when every subrace walks", async () => {
+    const wrapper = mountDetail({
+      id: "s1",
+      campaign_id: null,
+      name: "Heritage",
+      speed: null,
+      subraces: [
+        { name: "A", description: "", traits: [], speed: { walk: 25 } },
+        { name: "B", description: "", traits: [], speed: { walk: 30 } },
+      ],
+    } as unknown as Species);
+    await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
+    expect(mocks.update).toHaveBeenCalled();
   });
 });

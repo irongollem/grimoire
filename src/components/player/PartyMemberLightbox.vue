@@ -87,8 +87,8 @@
                       class="px-2 py-0.5 rounded bg-muted border border-border text-label text-foreground hover:bg-primary/10 hover:border-primary/40 transition-colors"
                       @click="speciesModalOpen = true"
                     >{{ displaySpecies.name }}</button>
-                    <span v-if="displaySpecies.size" class="px-2 py-0.5 rounded bg-muted border border-border text-label text-muted-foreground">
-                      {{ displaySpecies.size }}
+                    <span v-if="displaySize" class="px-2 py-0.5 rounded bg-muted border border-border text-label text-muted-foreground">
+                      {{ displaySize }}
                     </span>
                   </div>
                 </div>
@@ -148,16 +148,16 @@
               </div>
               <div class="flex flex-col gap-1.5">
                 <div class="flex flex-wrap gap-1">
-                  <span v-if="displaySpecies.size" class="px-2 py-0.5 rounded bg-primary/10 text-primary text-label">{{ capitalize(displaySpecies.size) }}</span>
+                  <span v-if="displaySize" class="px-2 py-0.5 rounded bg-primary/10 text-primary text-label">{{ capitalize(displaySize) }}</span>
                   <span v-if="displaySpecies.source" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ displaySpecies.source }}</span>
                 </div>
                 <div v-if="speedPills.length" class="flex flex-wrap gap-1">
                   <span v-for="pill in speedPills" :key="pill" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ pill }}</span>
                 </div>
                 <p v-if="asiText" class="text-body text-muted-foreground">{{ asiText }}</p>
-                <div v-if="displaySpecies.languages?.length" class="flex flex-wrap gap-1 items-center">
+                <div v-if="displayLanguages.length" class="flex flex-wrap gap-1 items-center">
                   <span class="text-label text-muted-foreground">Lang:</span>
-                  <span v-for="lang in displaySpecies.languages" :key="lang" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ lang }}</span>
+                  <span v-for="lang in displayLanguages" :key="lang" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ lang }}</span>
                 </div>
               </div>
             </div>
@@ -209,11 +209,12 @@ import { useCampaignStore } from "@/stores/campaign";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useSpecies, useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useArmorClass } from "@/composables/party/useArmorClass";
-import { getDisplayRace, getDisplaySpeciesId } from "@/lib/partyMemberDisplay";
+import { getDisplayRace, getDisplaySpeciesId, getDisplaySubrace } from "@/lib/partyMemberDisplay";
 import type { PartyMember } from "@/types/party.types";
 import { healthVisibilityOf } from "@/lib/healthVisibility";
 import type { HealthVisibility } from "@/types/encounter.types";
 import type { Species } from "@/types/species.types";
+import { effectiveLanguages, effectiveSize, effectiveSpeed } from "@/rules/speciesStats";
 
 // The notes widget holds the rich text editor. This lightbox is reachable from the
 // player layout (the encounter panel), so a static import kept the whole editor on
@@ -260,6 +261,16 @@ const displaySpeciesId = computed(() =>
   props.member ? (getDisplaySpeciesId(props.member, viewerMemberId.value, viewerIsDm.value) ?? "") : "",
 );
 const { data: displaySpecies } = useSpecies(displaySpeciesId);
+const displaySubrace = computed(() =>
+  props.member ? getDisplaySubrace(props.member, viewerMemberId.value, viewerIsDm.value) : null,
+);
+// What this character is: the species with its subrace's changes applied.
+const displaySize = computed(() =>
+  displaySpecies.value ? effectiveSize(displaySpecies.value, displaySubrace.value) : null,
+);
+const displayLanguages = computed(() =>
+  displaySpecies.value ? effectiveLanguages(displaySpecies.value, displaySubrace.value) : [],
+);
 
 const hpPct = computed(() => {
   if (!props.member || props.member.max_hp === 0) return 0;
@@ -294,7 +305,7 @@ function capitalize(s: string): string {
 }
 
 const speedPills = computed(() => {
-  const s = displaySpecies.value?.speed;
+  const s = displaySpecies.value ? effectiveSpeed(displaySpecies.value, displaySubrace.value) : null;
   if (!s) return [];
   const labels: Record<string, string> = {
     walk: "Walk", fly: "Fly", swim: "Swim", climb: "Climb", burrow: "Burrow",

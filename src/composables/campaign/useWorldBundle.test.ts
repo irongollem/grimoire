@@ -164,7 +164,19 @@ describe("remapSpeciesForImport", () => {
   it("drops the DM note a bundle from before #983 still carries, since the column is gone", () => {
     const ctx: ImportRemapCtx = { idMap: new Map([["sp-1", "sp-new"]]), campaignId: "camp-new", userId: "dm-importer" };
     const row = remapSpeciesForImport({ id: "sp-1", name: "Kenku", notes: "the exporter's secret", campaign_id: "camp-old", user_id: "dm-old" }, ctx);
-    expect(row).toEqual({ id: "sp-new", name: "Kenku", campaign_id: "camp-new", user_id: "dm-importer" });
+    expect(row).toEqual({ id: "sp-new", name: "Kenku", speed: { walk: 30 }, campaign_id: "camp-new", user_id: "dm-importer" });
+  });
+
+  it("keeps a bundled species' own speed, or one its subraces all carry", () => {
+    const ctx: ImportRemapCtx = { idMap: new Map(), campaignId: "camp-new", userId: "dm-importer" };
+    expect(remapSpeciesForImport({ id: "a", speed: { walk: 25, swim: 30 } }, ctx).speed).toEqual({ walk: 25, swim: 30 });
+    const subraces = [{ name: "Dwarf Heritage", description: "", traits: [], speed: { walk: 25 } }];
+    expect(remapSpeciesForImport({ id: "b", speed: null, subraces }, ctx).speed).toBeNull();
+  });
+
+  it("adds 30 ft walking to a bundled species without one, keeping its other modes", () => {
+    const ctx: ImportRemapCtx = { idMap: new Map(), campaignId: "camp-new", userId: "dm-importer" };
+    expect(remapSpeciesForImport({ id: "c", speed: { fly: 30 } }, ctx).speed).toEqual({ fly: 30, walk: 30 });
   });
 });
 

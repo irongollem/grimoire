@@ -27,11 +27,22 @@ export interface SpeciesTrait {
   description: string;
 }
 
+/**
+ * A subrace (a 2014 lineage, a darakhul heritage, a gearforged chassis). Its
+ * size, speed and languages are what it changes about its parent: `size`
+ * replaces the parent's, `speed` replaces it mode by mode (a heritage's walk
+ * 25, a Bhain Kwai's added swim 25), and `languages` are known on top of the
+ * parent's. Absent means "as the parent". Read them through
+ * `src/rules/speciesStats.ts`, never off the parent alone.
+ */
 export interface SpeciesSubrace {
   name: string;
   description: string;
   traits: SpeciesTrait[];
   ability_score_increases?: Record<string, number | string> | null;
+  size?: SpeciesSize | null;
+  speed?: SpeciesSpeed | null;
+  languages?: string[] | null;
 }
 
 export interface Species extends VersionedContentMetadata {

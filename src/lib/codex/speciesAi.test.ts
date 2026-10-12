@@ -53,10 +53,35 @@ describe("speciesInsertFromAi", () => {
   it("defaults unknown enums and junk to null", () => {
     const s = speciesInsertFromAi({ name: "X", size: "gargantuan", speed: "fast", natural_armor_ac: 99 }, ctx);
     expect(s.size).toBeNull();
-    expect(s.speed).toBeNull();
+    expect(s.speed).toEqual({ walk: 30 });
     expect(s.natural_armor_ac).toBeNull();
     expect(s.description).toBeNull();
     expect(s.traits).toBeNull();
+  });
+
+  it("keeps a subrace's own size, speed and languages, sanitized", () => {
+    const s = speciesInsertFromAi(
+      {
+        name: "X",
+        speed: { walk: 30 },
+        subraces: [
+          { name: "Small", size: "Small", speed: { walk: 22, swim: 25 }, languages: ["Gnomish", "gnomish", "", "A", "B", "C", "D"] },
+          { name: "Plain", size: "huge", speed: "fast", languages: [] },
+        ],
+      },
+      ctx,
+    );
+    expect(s.subraces?.[0]).toMatchObject({ size: "small", speed: { walk: 20, swim: 25 }, languages: ["Gnomish", "A", "B", "C"] });
+    expect(s.subraces?.[1]).not.toHaveProperty("size");
+    expect(s.subraces?.[1]).not.toHaveProperty("speed");
+    expect(s.subraces?.[1]).not.toHaveProperty("languages");
+  });
+
+  it("defaults the walk speed to 30 unless the species or every subrace has one", () => {
+    const sub = (walk?: number) => ({ name: walk ? `W${walk}` : "None", ...(walk ? { speed: { walk } } : {}) });
+    expect(speciesInsertFromAi({ name: "X", speed: { fly: 30 } }, ctx).speed).toEqual({ fly: 30, walk: 30 });
+    expect(speciesInsertFromAi({ name: "X", subraces: [sub(25), sub(30)] }, ctx).speed).toBeNull();
+    expect(speciesInsertFromAi({ name: "X", subraces: [sub(25), sub()] }, ctx).speed).toEqual({ walk: 30 });
   });
 
   it("carries provenance and the image", () => {

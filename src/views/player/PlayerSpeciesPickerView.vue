@@ -40,7 +40,7 @@
     <AppModal :open="!!pendingSpecies" size="md" align="sheet" @close="cancel">
       <ModalHeader
         :title="pendingSpecies?.name ?? ''"
-        :subtitle="[pendingSpecies?.size, pendingSpecies?.speed?.walk ? `${pendingSpecies.speed.walk} ft` : null].filter(Boolean).join(' · ') || '—'"
+        :subtitle="subtitle"
       />
 
       <!-- Scrolls because the shell caps the panel at the viewport, where the old
@@ -81,10 +81,13 @@
 
         <!-- Speed note -->
         <p
-          v-if="pendingSpecies?.speed?.walk && pendingSpecies.speed.walk !== me?.speed"
+          v-if="newWalk !== null && newWalk !== me?.speed"
           class="text-caption text-muted-foreground italic"
         >
-          Walk speed will be updated to {{ pendingSpecies.speed.walk }} ft.
+          Walk speed will be updated to {{ newWalk }} ft.
+        </p>
+        <p v-if="needsSubrace" class="text-caption text-muted-foreground italic">
+          Choose a variant: it sets this species' speed.
         </p>
 
         <!-- Free-pick spell grants -->
@@ -118,7 +121,8 @@
           variant="primary"
           size="md"
           class="flex-1"
-          :disabled="saving"
+          :disabled="saving || needsSubrace"
+          :title="needsSubrace ? 'Choose a variant first' : undefined"
           :label="saving ? 'Saving…' : 'Confirm & Apply'"
           @click="confirm"
         />
@@ -147,6 +151,7 @@ import type { Species } from "@/types/species.types";
 import { applySpeciesSpellGrants, removeSpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
 import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
 import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
+import { effectiveLanguages, effectiveSize, effectiveSpeed, walkSpeedFromSubrace } from "@/rules/speciesStats";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 
 const SIZE_OPTIONS = [
@@ -193,12 +198,28 @@ const freePickGrants = computed(() =>
   ),
 );
 
-/** Languages from the new species that the member doesn't already have. */
+/** Languages from the new species and variant that the member doesn't already have. */
 const languagesToAdd = computed(() => {
   if (!pendingSpecies.value || !me.value) return [];
-  return (pendingSpecies.value.languages ?? []).filter(
+  return effectiveLanguages(pendingSpecies.value, selectedSubrace.value).filter(
     (l) => !me.value!.languages.includes(l),
   );
+});
+
+const newWalk = computed(() =>
+  pendingSpecies.value ? (effectiveSpeed(pendingSpecies.value, selectedSubrace.value)?.walk ?? null) : null,
+);
+
+/** A species that leaves its walk speed to the variant cannot be applied without one. */
+const needsSubrace = computed(
+  () => !!pendingSpecies.value && walkSpeedFromSubrace(pendingSpecies.value) && !selectedSubrace.value,
+);
+
+const subtitle = computed(() => {
+  const sp = pendingSpecies.value;
+  if (!sp) return "—";
+  const size = effectiveSize(sp, selectedSubrace.value);
+  return [size, newWalk.value !== null ? `${newWalk.value} ft` : null].filter(Boolean).join(" · ") || "—";
 });
 
 function onSelect(species: Species) {
@@ -212,7 +233,7 @@ function cancel() {
 }
 
 async function confirm() {
-  if (!me.value || !pendingSpecies.value) return;
+  if (!me.value || !pendingSpecies.value || needsSubrace.value) return;
   saving.value = true;
   try {
     // Strip the OLD species' grants before applying the new ones — otherwise a
@@ -221,8 +242,8 @@ async function confirm() {
     // also grant (can't distinguish a language also granted by another source —
     // same limitation as the background flow).
     const oldSpecies = (allSpecies.value ?? []).find((s) => s.id === me.value!.species_id) ?? null;
-    const newLangs = pendingSpecies.value.languages ?? [];
-    const languagesToRemove = (oldSpecies?.languages ?? []).filter((l) => !newLangs.includes(l));
+    const newLangs = effectiveLanguages(pendingSpecies.value, selectedSubrace.value);
+    const languagesToRemove = (oldSpecies ? effectiveLanguages(oldSpecies, me.value.subrace) : []).filter((l) => !newLangs.includes(l));
     const updatedLanguages = [
       ...me.value.languages.filter((l) => !languagesToRemove.includes(l)),
       ...languagesToAdd.value,
@@ -233,9 +254,7 @@ async function confirm() {
         species_id: pendingSpecies.value.id,
         subrace: selectedSubrace.value || null,
         languages: updatedLanguages,
-        ...(pendingSpecies.value.speed?.walk !== undefined && pendingSpecies.value.speed.walk !== null
-          ? { speed: pendingSpecies.value.speed.walk }
-          : {}),
+        ...(newWalk.value !== null ? { speed: newWalk.value } : {}),
       },
     });
     // Drop the old species' innate spells, then seed the new species' grants

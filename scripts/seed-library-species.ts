@@ -36,6 +36,7 @@ import {
   buildImportedFields,
   buildCreateOnlyDefaults,
   groupSubspecies,
+  withWalkSpeed,
 } from "@/lib/library/open5eSpeciesImport";
 // Generic Open5e v2 document lister — not species-specific, so reused as-is
 // rather than duplicated (only read/imported here, this file does not modify
@@ -90,7 +91,8 @@ export function buildSeededSpeciesRow(
   documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
   subraces: readonly SpeciesSubrace[] = [],
 ): SeededSpecies | null {
-  const imported = buildImportedFields(race, documentMetadata);
+  // A species with no walking speed anywhere (no subrace states one either) takes 30, as the table's check requires.
+  const imported = withWalkSpeed(buildImportedFields(race, documentMetadata), subraces);
   if (!imported.ruleset) return null;
   const createOnlyDefaults = buildCreateOnlyDefaults();
   return {
@@ -111,22 +113,31 @@ const CREATE_ONLY_COLUMNS = Object.keys(buildCreateOnlyDefaults()).filter((colum
  * Splits mapped rows into new ones, written whole, and existing ones, written
  * without the create-only columns. Upserting the whole row onto an existing
  * species reset its art, focal point and heights to null on every re-seed.
+ * An existing row whose upstream record is empty (`emptyRecordKeys`, e.g.
+ * `toh_shade`, whose Open5e traits array is a hole) is skipped, so a
+ * hand-filled row is not wiped back to nothing; a fresh insert still goes through.
  */
 export function splitForReseed(
   rows: readonly SeededSpecies[],
   existing: ReadonlyArray<{ source_document_key: string | null; source_record_key: string | null }>,
-): { fresh: SeededSpecies[]; refresh: Partial<SeededSpecies>[] } {
+  emptyRecordKeys: ReadonlySet<string> = new Set(),
+): { fresh: SeededSpecies[]; refresh: Partial<SeededSpecies>[]; keptEmpty: string[] } {
   const seeded = new Set(existing.map((row) => `${row.source_document_key}/${row.source_record_key}`));
   const fresh: SeededSpecies[] = [];
   const refresh: Partial<SeededSpecies>[] = [];
+  const keptEmpty: string[] = [];
   for (const row of rows) {
     if (!seeded.has(`${row.source_document_key}/${row.source_record_key}`)) {
       fresh.push(row);
       continue;
     }
+    if (row.source_record_key && emptyRecordKeys.has(row.source_record_key)) {
+      keptEmpty.push(row.source_record_key);
+      continue;
+    }
     refresh.push(Object.fromEntries(Object.entries(row).filter(([column]) => !CREATE_ONLY_COLUMNS.includes(column))));
   }
-  return { fresh, refresh };
+  return { fresh, refresh, keptEmpty };
 }
 
 // ── dry run ───────────────────────────────────────────────────────────────────
@@ -222,7 +233,9 @@ async function main(): Promise<void> {
     .select("source_document_key, source_record_key")
     .in("source_document_key", documentKeys);
   if (error) throw error;
-  const { fresh, refresh } = splitForReseed(rows, existing);
+  const emptyRecordKeys = new Set(coreRaces.filter((race) => race.traits.length === 0).map((race) => race.key));
+  const { fresh, refresh, keptEmpty } = splitForReseed(rows, existing, emptyRecordKeys);
+  for (const key of keptEmpty) console.log(`  ${key}: Open5e's record is empty; keeping the stored row.`);
   await upsertBatch(supabase, "library_species", fresh, "source_document_key,source_record_key");
   if (!parsed.insertOnly) {
     await upsertBatch(supabase, "library_species", refresh, "source_document_key,source_record_key");

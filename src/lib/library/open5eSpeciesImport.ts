@@ -1,7 +1,9 @@
 import { fetchAllFromDocuments, licenseForDocumentKey, rulesetForDocument } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import { markdownToTiptapJson, toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
-import type { SpeciesSize, SpeciesSubrace } from "@/types/species.types";
+import { OPEN5E_SPECIES_GAPS } from "@/data/open5eSpeciesGaps";
+import { DEFAULT_WALK_SPEED, speciesHasWalkSpeed } from "@/rules/speciesStats";
+import type { SpeciesSize, SpeciesSpeed, SpeciesSubrace } from "@/types/species.types";
 
 export interface Open5eTrait {
   name: string;
@@ -75,7 +77,7 @@ export function parseSpeciesSpeed(traits: readonly Open5eTrait[]): Record<string
 }
 
 /** A language entry that names a choice rather than a language: the player picks it, so it is no language they know yet. */
-const LANGUAGE_CHOICE = /\b(?:choice|choose|either|one of the following|associated with|extra language)\b/i;
+const LANGUAGE_CHOICE = /\b(?:choice|choose|either|one of the following|associated with|extra language|other language)\b/i;
 
 /** Pulls the language-listing sentence out of a Languages trait, preamble and markdown header removed. */
 function languageClause(raw: string): string {
@@ -144,21 +146,32 @@ export function parseAsi(raw: string | undefined): Record<string, number | strin
   return Object.keys(entries).length ? entries : null;
 }
 
+/** Size, speed and languages read from a record's traits, then filled from the curated gap table only where the record gave none. */
+function readStats(race: Open5eRace) {
+  const trait = (name: string) => race.traits.find(entry => entry.name.toLowerCase() === name);
+  const gap = OPEN5E_SPECIES_GAPS[race.key];
+  const size = parseSize(trait("size")?.desc.match(/\b(tiny|small|medium|large)\b/i)?.[1] ?? "") ?? gap?.size ?? null;
+  const parsedSpeed = parseSpeciesSpeed(race.traits);
+  const speed: SpeciesSpeed | null = parsedSpeed ?? gap?.speed ?? null;
+  const parsedLanguages = parseLanguages(trait("languages")?.desc);
+  const languages = parsedLanguages.length > 0 ? parsedLanguages : [...(gap?.languages ?? [])];
+  // A consumed trait stays a trait when its field cannot hold all of it, so
+  // the rule ("determined by your Heritage Subrace", a language choice) is
+  // still on the sheet. A gap fill does not consume: the deferring trait stays.
+  const consumed = new Set(["ability score increase"]);
+  if (!sizeNeedsTrait(trait("size")?.desc)) consumed.add("size");
+  if (!speedNeedsTrait(trait("speed")?.desc)) consumed.add("speed");
+  if (!languagesNeedTrait(trait("languages")?.desc)) consumed.add("languages");
+  return { trait, size, speed, languages, consumed };
+}
+
 /**
  * Content Open5e actually supplies — safe to refresh on every re-import,
  * including on an existing row, so upstream fixes (e.g. open5e-api#964-style
  * corrections) are picked up.
  */
 export function buildImportedFields(race: Open5eRace, documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>) {
-  const trait = (name: string) => race.traits.find(entry => entry.name.toLowerCase() === name);
-  const size = parseSize(trait("size")?.desc.match(/\b(tiny|small|medium|large)\b/i)?.[1] ?? "");
-  // A consumed trait stays a trait when its field cannot hold all of it, so
-  // the rule ("determined by your Heritage Subrace", a language choice) is
-  // still on the sheet.
-  const consumed = new Set(["ability score increase"]);
-  if (!sizeNeedsTrait(trait("size")?.desc)) consumed.add("size");
-  if (!speedNeedsTrait(trait("speed")?.desc)) consumed.add("speed");
-  if (!languagesNeedTrait(trait("languages")?.desc)) consumed.add("languages");
+  const { trait, size, speed, languages, consumed } = readStats(race);
   const speciesTraits = race.traits
     .filter(entry => !consumed.has(entry.name.toLowerCase()))
     .map(entry => ({ name: entry.name, description: markdownToTiptapJson(entry.desc) }));
@@ -166,10 +179,10 @@ export function buildImportedFields(race: Open5eRace, documentMetadata?: Readonl
     name: race.name,
     description: race.desc ? toTiptapJson(race.desc) : null,
     size,
-    speed: parseSpeciesSpeed(race.traits),
+    speed,
     ability_score_increases: parseAsi(trait("ability score increase")?.desc),
     traits: speciesTraits,
-    languages: parseLanguages(trait("languages")?.desc),
+    languages,
     tags: parseTags(race, size),
     source: race.document.display_name || race.document.name,
     ruleset: rulesetForDocument(race.document),
@@ -218,14 +231,32 @@ const ASI_TRAIT = "ability score increase";
  * score increase is the subrace's own, added to the parent's.
  */
 export function buildSubrace(race: Open5eRace): SpeciesSubrace {
+  const { size, speed, languages, consumed } = readStats(race);
   return {
     name: race.name,
     description: race.desc ? toTiptapJson(race.desc) : "",
     traits: race.traits
-      .filter(entry => entry.name.toLowerCase() !== ASI_TRAIT)
+      .filter(entry => !consumed.has(entry.name.toLowerCase()))
       .map(entry => ({ name: entry.name, description: markdownToTiptapJson(entry.desc) })),
     ability_score_increases: parseAsi(race.traits.find(entry => entry.name.toLowerCase() === ASI_TRAIT)?.desc),
+    // Omitted rather than null when empty, so stored subraces stay lean.
+    ...(size ? { size } : {}),
+    ...(speed ? { speed } : {}),
+    ...(languages.length > 0 ? { languages } : {}),
   };
+}
+
+/**
+ * Guarantees a walking speed: when neither the species nor every one of its
+ * subraces states one, the species takes the 5e baseline and keeps any other
+ * mode it has (a swim-only record). Mirrors the `*_walk_speed_present` check.
+ */
+export function withWalkSpeed<T extends { speed: SpeciesSpeed | null }>(
+  fields: T,
+  subraces: readonly SpeciesSubrace[] | null,
+): T {
+  if (speciesHasWalkSpeed({ speed: fields.speed, subraces: subraces ? [...subraces] : null })) return fields;
+  return { ...fields, speed: { ...fields.speed, walk: DEFAULT_WALK_SPEED } };
 }
 
 /**

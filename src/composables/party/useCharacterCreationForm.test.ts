@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import {
   resolveCharacterPlacement,
   creationSubclassOptions,
+  swapSubraceLanguages,
   createDestination,
   buildCharacterPayload,
   changedEditColumns,
@@ -11,6 +12,7 @@ import {
 } from "./useCharacterCreationForm";
 import { useAutosave, type UseAutosaveHandle } from "@/composables/useAutosave";
 import { cloneDraftValue, draftValueEqual } from "@/composables/useRecordDraft";
+import { DEFAULT_WALK_SPEED, effectiveSpeed } from "@/rules/speciesStats";
 import type { CharacterFormState } from "@/rules/characterCreation";
 
 describe("creationSubclassOptions", () => {
@@ -210,5 +212,43 @@ describe("the edit form's autosave", () => {
     expect(save).not.toHaveBeenCalled();
     expect(handle().status.value).toBe("paused");
     wrapper.unmount();
+  });
+});
+
+describe("a species changed by its subrace", () => {
+  // Darakhul-like: the species states no speed, every heritage does.
+  const darakhul = {
+    size: null, speed: null, languages: ["Common"],
+    subraces: [
+      { name: "Dwarf Heritage", speed: { walk: 25 }, languages: ["Dwarvish"] },
+      { name: "Elf Heritage", speed: { walk: 30 }, languages: ["Elvish"] },
+    ],
+  } as unknown as Parameters<typeof swapSubraceLanguages>[1] & Parameters<typeof effectiveSpeed>[0];
+  // Bhain-Kwai-like: walk 30 on the species, the subrace adds a swim speed.
+  const minotaur = {
+    size: "medium", speed: { walk: 30 }, languages: ["Common"],
+    subraces: [{ name: "Bhain Kwai", speed: { swim: 30 }, languages: [] }],
+  } as unknown as typeof darakhul;
+
+  it("takes the walk speed from the subrace when the species has none", () => {
+    expect(effectiveSpeed(darakhul, "Dwarf Heritage")?.walk).toBe(25);
+    expect(effectiveSpeed(darakhul, "")?.walk ?? DEFAULT_WALK_SPEED).toBe(DEFAULT_WALK_SPEED);
+  });
+
+  it("keeps the walk speed when the subrace only adds another mode", () => {
+    expect(effectiveSpeed(minotaur, "Bhain Kwai")).toEqual({ walk: 30, swim: 30 });
+  });
+
+  it("adds the subrace's languages", () => {
+    expect(swapSubraceLanguages(["Common"], darakhul, "", "Dwarf Heritage")).toEqual(["Common", "Dwarvish"]);
+  });
+
+  it("swaps languages when the subrace changes and keeps the others", () => {
+    expect(swapSubraceLanguages(["Common", "Dwarvish", "Gnomish"], darakhul, "Dwarf Heritage", "Elf Heritage"))
+      .toEqual(["Common", "Gnomish", "Elvish"]);
+  });
+
+  it("drops the subrace's languages when it is cleared, but never the species' own", () => {
+    expect(swapSubraceLanguages(["Common", "Dwarvish"], darakhul, "Dwarf Heritage", "")).toEqual(["Common"]);
   });
 });

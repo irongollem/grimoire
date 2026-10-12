@@ -9,6 +9,8 @@ import {
   buildImportedFields,
   buildSubrace,
   groupSubspecies,
+  withWalkSpeed,
+  languagesNeedTrait,
 } from "@/lib/library/open5eSpeciesImport";
 import type { Open5eRace } from "@/lib/library/open5eSpeciesImport";
 
@@ -339,5 +341,94 @@ describe("groupSubspecies", () => {
     const { subracesByParent, orphans } = groupSubspecies([race(), stray]);
     expect(subracesByParent.size).toBe(0);
     expect(orphans).toEqual([stray]);
+  });
+});
+
+const SHADE_LANGUAGES = "You can speak, read, and write Common and one other language spoken by your Living Origin.";
+
+describe("Shade languages wording", () => {
+  it("keeps Common and treats the origin language as a choice", () => {
+    expect(parseLanguages(SHADE_LANGUAGES)).toEqual(["Common"]);
+    expect(languagesNeedTrait(SHADE_LANGUAGES)).toBe(true);
+  });
+});
+
+describe("subrace size, speed and languages", () => {
+  it("reads them from the subspecies' traits and consumes what the fields hold", () => {
+    const subrace = buildSubrace(highElf({
+      traits: [
+        { name: "Size", desc: "Your size is Small.", type: null },
+        { name: "Speed", desc: "Your base walking speed is 25 feet.", type: null },
+        { name: "Languages", desc: "You can speak, read, and write Common and Elvish.", type: null },
+        { name: "Cantrip", desc: "You know one cantrip.", type: null },
+      ],
+    }));
+    expect(subrace).toMatchObject({ size: "small", speed: { walk: 25 }, languages: ["Common", "Elvish"] });
+    expect(subrace.traits.map((trait) => trait.name)).toEqual(["Cantrip"]);
+  });
+
+  it("omits the keys when the record has no value", () => {
+    const subrace = buildSubrace(highElf());
+    expect(subrace).not.toHaveProperty("size");
+    expect(subrace).not.toHaveProperty("speed");
+    expect(subrace).not.toHaveProperty("languages");
+  });
+
+  it("reads Bhain Kwai's swimming speed from its trait sentence", () => {
+    const subrace = buildSubrace(highElf({
+      key: "toh_bhain-kwai",
+      name: "Bhain Kwai",
+      traits: [{ name: "Wetland Dweller", desc: "You have a swimming speed of 25 feet.", type: null }],
+    }));
+    expect(subrace.speed).toEqual({ swim: 25 });
+  });
+
+  it("fills from the gap table where the record is empty", () => {
+    expect(buildSubrace(highElf({ key: "toh_malkin", traits: [] }))).toMatchObject({ size: "small" });
+    expect(buildSubrace(highElf({ key: "toh_morel", traits: [] }))).toMatchObject({ size: "small", speed: { walk: 35 } });
+  });
+
+  it("does not override a parsed value with the gap table", () => {
+    const subrace = buildSubrace(highElf({
+      key: "toh_morel",
+      traits: [{ name: "Size", desc: "Your size is Medium.", type: null }, { name: "Speed", desc: "40 ft.", type: null }],
+    }));
+    expect(subrace).toMatchObject({ size: "medium", speed: { walk: 40 } });
+  });
+});
+
+describe("core gap fill", () => {
+  it("gives the empty Shade record Medium and 30 ft", () => {
+    const fields = buildImportedFields(race({ key: "toh_shade", name: "Shade", traits: [] }));
+    expect(fields).toMatchObject({ size: "medium", speed: { walk: 30 } });
+  });
+
+  it("keeps the deferring Size trait while filling the size", () => {
+    const fields = buildImportedFields(race({
+      key: "toh_shade",
+      traits: [{ name: "Size", desc: "Your size is that of your Living Origin, Medium or Small.", type: null }],
+    }));
+    expect(fields.size).toBe("medium");
+    expect(fields.traits.map((trait) => trait.name)).toContain("Size");
+  });
+});
+
+describe("withWalkSpeed", () => {
+  const walking = { name: "A", description: "", traits: [], ability_score_increases: null, speed: { walk: 30 } };
+  const swimming = { ...walking, speed: { swim: 20 } };
+
+  it("leaves a species with a walking speed alone", () => {
+    const fields = { speed: { walk: 25 } };
+    expect(withWalkSpeed(fields, null)).toBe(fields);
+  });
+
+  it("leaves a species whose every subrace walks alone", () => {
+    const fields = { speed: null };
+    expect(withWalkSpeed(fields, [walking, walking])).toBe(fields);
+  });
+
+  it("adds walk 30 and keeps other modes otherwise", () => {
+    expect(withWalkSpeed({ speed: { swim: 25 } }, null).speed).toEqual({ swim: 25, walk: 30 });
+    expect(withWalkSpeed({ speed: null }, [walking, swimming]).speed).toEqual({ walk: 30 });
   });
 });

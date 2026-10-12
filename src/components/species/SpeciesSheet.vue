@@ -41,11 +41,19 @@
               class="text-label bg-primary/10 text-primary rounded px-2 py-0.5"
             >{{ capitalize(species.size) }}</span>
             <span
+              v-else-if="sizeFromSubrace"
+              class="text-label bg-primary/10 text-primary rounded px-2 py-0.5"
+            >Size by subrace</span>
+            <span
               v-if="species.source"
               class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ species.source }}</span>
           </div>
-          <div v-if="speedPills.length" class="flex flex-wrap gap-1">
+          <div v-if="speedPills.length || speedFromSubrace" class="flex flex-wrap gap-1">
+            <span
+              v-if="speedFromSubrace"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+            >Speed by subrace</span>
             <span
               v-for="pill in speedPills"
               :key="pill"
@@ -109,6 +117,13 @@
           <p v-if="asiToString(sub.ability_score_increases ?? null)" class="text-body text-muted-foreground mb-2">
             {{ asiToString(sub.ability_score_increases ?? null) }}
           </p>
+          <div v-if="subraceStatPills(sub).length" class="flex flex-wrap gap-1 mb-2">
+            <span
+              v-for="pill in subraceStatPills(sub)"
+              :key="pill"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+            >{{ pill }}</span>
+          </div>
           <RichTextViewer v-if="sub.description" :content="sub.description" class="mb-2" />
           <div v-if="sub.traits?.length" class="flex flex-col gap-2 pl-3 border-l border-border">
             <div v-for="trait in sub.traits" :key="trait.name">
@@ -130,7 +145,8 @@ import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteSpecies } from "@/composables/rules/useSpecies";
-import type { Species } from "@/types/species.types";
+import type { Species, SpeciesSubrace } from "@/types/species.types";
+import { walkSpeedFromSubrace } from "@/rules/speciesStats";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -164,8 +180,7 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-const speedPills = computed(() => {
-  const s = props.species.speed;
+function speedLabels(s: Species["speed"] | null | undefined): string[] {
   if (!s) return [];
   const labels: Record<string, string> = {
     walk: "Walk",
@@ -177,7 +192,25 @@ const speedPills = computed(() => {
   return (Object.keys(s) as (keyof typeof s)[])
     .filter(k => s[k] !== null && s[k] !== undefined && s[k]! > 0)
     .map(k => `${labels[k] ?? capitalize(k)} ${s[k]}ft`);
-});
+}
+
+const speedPills = computed(() => speedLabels(props.species.speed));
+
+// A species can leave size or walking speed wholly to the subrace (darakhul,
+// gearforged); the parent alone would read blank.
+const sizeFromSubrace = computed(
+  () => !props.species.size && !!props.species.subraces?.some(sub => sub.size),
+);
+const speedFromSubrace = computed(() => walkSpeedFromSubrace(props.species));
+
+/** What a subrace changes: its size, speeds and extra languages, as pills. */
+function subraceStatPills(sub: SpeciesSubrace): string[] {
+  return [
+    ...(sub.size ? [capitalize(sub.size)] : []),
+    ...speedLabels(sub.speed),
+    ...(sub.languages ?? []).map(lang => `Lang: ${lang}`),
+  ];
+}
 
 function asiToString(asi: Species["ability_score_increases"]): string {
   if (!asi) return "";

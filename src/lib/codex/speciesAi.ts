@@ -1,5 +1,6 @@
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import type { AiProvenance } from "@/ai/provenance";
+import { DEFAULT_WALK_SPEED, speciesHasWalkSpeed } from "@/rules/speciesStats";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type {
   SpeciesInsert,
@@ -45,6 +46,7 @@ const MAX_TRAITS = 10;
 const MAX_SUBRACES = 4;
 const MAX_LANGUAGES = 6;
 const MAX_TAGS = 6;
+const MAX_SUBRACE_LANGUAGES = 4;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -129,6 +131,10 @@ function sanitizeTraits(raw: unknown, max: number): SpeciesTrait[] {
   return out;
 }
 
+function sanitizeSize(raw: unknown): SpeciesSize | null {
+  return SPECIES_SIZES.find((s) => s === text(raw).toLowerCase()) ?? null;
+}
+
 function sanitizeSubraces(raw: unknown): SpeciesSubrace[] | null {
   if (!Array.isArray(raw)) return null;
   const out: SpeciesSubrace[] = [];
@@ -137,12 +143,20 @@ function sanitizeSubraces(raw: unknown): SpeciesSubrace[] | null {
     const name = text(item.name);
     if (!name) continue;
     const description = text(item.description);
-    out.push({
+    const subrace: SpeciesSubrace = {
       name,
       description: description ? toTiptapJson(description) : "",
       traits: sanitizeTraits(item.traits, 6),
       ability_score_increases: sanitizeAbilityIncreases(item.ability_score_increases),
-    });
+    };
+    // Only what the subrace actually changes is written; absent means "as the species".
+    const subraceSize = sanitizeSize(item.size);
+    if (subraceSize) subrace.size = subraceSize;
+    const subraceSpeed = sanitizeSpeed(item.speed);
+    if (subraceSpeed) subrace.speed = subraceSpeed;
+    const subraceLanguages = stringList(item.languages, MAX_SUBRACE_LANGUAGES);
+    if (subraceLanguages.length) subrace.languages = subraceLanguages;
+    out.push(subrace);
     if (out.length >= MAX_SUBRACES) break;
   }
   return out.length ? out : null;
@@ -162,9 +176,18 @@ export interface SpeciesDraftContext {
  */
 export function speciesInsertFromAi(ai: SpeciesAiResult, ctx: SpeciesDraftContext): SpeciesInsert {
   const is2024 = ctx.ruleset === "2024";
-  const size = SPECIES_SIZES.find((s) => s === text(ai.size).toLowerCase()) ?? null;
+  const size = sanitizeSize(ai.size);
   const ac = typeof ai.natural_armor_ac === "number" ? Math.round(ai.natural_armor_ac) : null;
   const description = text(ai.description);
+
+  const subraces = is2024 ? null : sanitizeSubraces(ai.subraces);
+  const sanitizedSpeed = sanitizeSpeed(ai.speed);
+  // A species is never saved without a walking speed (the database holds the same
+  // rule): when neither it nor every subrace states one, start from the 5e
+  // baseline and let the DM tweak it.
+  const speed = speciesHasWalkSpeed({ speed: sanitizedSpeed, subraces })
+    ? sanitizedSpeed
+    : { ...sanitizedSpeed, walk: DEFAULT_WALK_SPEED };
 
   return {
     name: text(ai.name),
@@ -172,7 +195,7 @@ export function speciesInsertFromAi(ai: SpeciesAiResult, ctx: SpeciesDraftContex
     size,
     avg_height: textOrNull(ai.avg_height),
     avg_weight: textOrNull(ai.avg_weight),
-    speed: sanitizeSpeed(ai.speed),
+    speed,
     ability_score_increases: is2024 ? null : sanitizeAbilityIncreases(ai.ability_score_increases),
     traits: (() => {
       const traits = sanitizeTraits(ai.traits, MAX_TRAITS);
@@ -181,7 +204,7 @@ export function speciesInsertFromAi(ai: SpeciesAiResult, ctx: SpeciesDraftContex
     languages: stringList(ai.languages, MAX_LANGUAGES),
     tags: stringList(ai.tags, MAX_TAGS).map((t) => t.toLowerCase()),
     source: "Grimoire:AI",
-    subraces: is2024 ? null : sanitizeSubraces(ai.subraces),
+    subraces,
     image_url: ctx.imageUrl ?? null,
     focal_point: null,
     is_shapeshifter: ai.is_shapeshifter === true,
