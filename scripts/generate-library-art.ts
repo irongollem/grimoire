@@ -112,7 +112,9 @@ const MANIFEST_FILE = "manifest.json";
  * `generate` flag makes one; a manifest entry with `kind: "species"` and the species' `name` publishes it.
  * `background` is both: `--background <id>` generates, and a publish writes every same-named row.
  * `class` is publish-only like species: the class headers (three adventurers of one class, #955) are rendered outside
- * this tool, and an entry with `kind: "class"` and the class `name` writes every edition's `system_classes` row.
+ * this tool, and an entry with `kind: "class"` and the class `name` writes every edition's `system_classes` row, or,
+ * for a class from another book (Black Flag's Mechanist), the shared `custom_classes` rows (`user_id` null) of that
+ * name. A DM's own class of the same name is never touched.
  */
 export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class";
 
@@ -233,7 +235,7 @@ const TABLES_FOR_KIND: Record<ArtKind, string> = {
   item: "library_art_defaults + library_items",
   species: "library_species",
   background: "library_backgrounds",
-  class: "system_classes",
+  class: "system_classes, or the shared custom_classes rows",
 };
 
 // ---------------------------------------------------------------------------
@@ -1248,9 +1250,7 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
   }
   if (entry.kind === "class") {
     // Every edition of a class shows the same picture: the 2014 and 2024 rows share a class_name.
-    const { data, error } = await client.from("system_classes").select("id, class_name").ilike("class_name", escapeLikePattern(entry.name));
-    if (error) throw new Error(`Could not read system_classes: ${error.message}`);
-    const ids = (data as { id: string; class_name: string }[]).filter((c) => c.class_name.toLowerCase() === entry.name.toLowerCase()).map((c) => c.id).sort();
+    const ids = [...(await classIds(client, "system_classes", entry.name)), ...(await classIds(client, "custom_classes", entry.name))].sort();
     if (ids.length === 0) throw new Error(`${entry.slug}: no library class named "${entry.name}".`);
     return ids;
   }
@@ -1271,6 +1271,15 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     ids.push(...found);
   }
   return [...new Set(ids)].sort();
+}
+
+/** Library class rows of one name: every system_classes row, or only the shared (user_id null) custom_classes rows. */
+async function classIds(client: SupabaseClient, table: "system_classes" | "custom_classes", name: string): Promise<string[]> {
+  let query = client.from(table).select("id, class_name").ilike("class_name", escapeLikePattern(name));
+  if (table === "custom_classes") query = query.is("user_id", null);
+  const { data, error } = await query;
+  if (error) throw new Error(`Could not read ${table}: ${error.message}`);
+  return (data as { id: string; class_name: string }[]).filter((c) => c.class_name.toLowerCase() === name.toLowerCase()).map((c) => c.id);
 }
 
 async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: string[], url: string): Promise<void> {
@@ -1305,8 +1314,11 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     return;
   }
   if (entry.kind === "class") {
+    // The ids are either table's (uuids never collide), so each update touches only its own rows.
     const rows = await client.from("system_classes").update({ image_url: url }).in("id", ids);
     if (rows.error) throw new Error(`Could not update system_classes: ${rows.error.message}`);
+    const shared = await client.from("custom_classes").update({ image_url: url }).in("id", ids).is("user_id", null);
+    if (shared.error) throw new Error(`Could not update custom_classes: ${shared.error.message}`);
     return;
   }
   if (entry.kind === "species") {
@@ -1354,6 +1366,8 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
   }
   if (entry.kind === "class") {
     check((await client.from("system_classes").update({ focal_point: focal, focal_point_checked_at: null }).in("id", ids)).error, "system_classes");
+    // custom_classes has no focal_point_checked_at: the admin queue reviews library (system) classes only.
+    check((await client.from("custom_classes").update({ focal_point: focal }).in("id", ids).is("user_id", null)).error, "custom_classes");
     return;
   }
   if (entry.kind === "species") {
