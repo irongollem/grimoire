@@ -5,21 +5,23 @@
     </template>
 
     <!-- Writing needs a larger screen (#915 story 7): the phone list is a
-         reader, so it has no actions at all, and no empty action row. -->
-    <template v-if="canWrite" #actions>
+         reader, so it has no write actions, only the layout toggle. -->
+    <template #actions>
       <ListActionButton
-        v-if="campaign.isAiEnabled"
+        v-if="canWrite && campaign.isAiEnabled"
         variant="outline"
         :icon="IconGenerate"
         label="Draft with AI"
         @click="handleDraft"
       />
       <ListActionButton
+        v-if="canWrite"
         variant="primary"
         :icon="IconAdd"
         label="New Document"
         @click="handleNew"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <ScriptoriumDocumentList />
@@ -35,6 +37,8 @@ import { IconAdd, IconGenerate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import ScriptoriumDocumentList from "@/components/scriptorium/ScriptoriumDocumentList.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
@@ -46,6 +50,7 @@ const router = useRouter();
 const { canCreate } = useQuota("scriptorium_documents");
 const showPaywall = ref(false);
 const canWrite = useAbove("md");
+const layout = useListLayout("scriptorium", "grid");
 const campaign = useCampaignStore();
 
 // The dialog checks the quota again before it spends anything, so no gate here.

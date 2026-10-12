@@ -3,7 +3,9 @@
     :items="puzzles"
     :is-loading="puzzlesLoading"
     v-model:search="puzzlesSearch"
-    :filtered-count="filteredPuzzles.length"
+    :shown="filteredPuzzles"
+    :item-key="puzzleKey"
+    list-key="puzzles"
     search-placeholder="Search puzzles…"
     no-match-text="No puzzles match your filter."
     empty-icon="Puzzle"
@@ -32,10 +34,8 @@
         @click="puzzlesUi.resetPuzzlesFilters()"
       />
     </template>
-    <template #card="{ selecting, isSelected, toggle }">
+    <template #card="{ item: puzzle, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        v-for="puzzle in filteredPuzzles"
-        :key="puzzle.id"
         corner="top-right"
         :selected="isSelected(puzzle.id)"
         :selecting="selecting"
@@ -43,7 +43,7 @@
       >
         <RouterLink
           :to="`/puzzles/${puzzle.id}`"
-          class="flex flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
+          class="flex h-full flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
         >
           <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
             <FocalImage
@@ -79,6 +79,23 @@
         </RouterLink>
       </BulkSelectableCard>
     </template>
+    <template #row="{ item: puzzle, selecting, isSelected, toggle }">
+      <BulkSelectableCard
+        corner="top-right"
+        :selected="isSelected(puzzle.id)"
+        :selecting="selecting"
+        @toggle="toggle(puzzle.id)"
+      >
+        <EntityListRow
+          :to="`/puzzles/${puzzle.id}`"
+          :title="puzzle.name"
+          :subtitle="puzzleSubtitle(puzzle)"
+          :image-url="puzzle.image_url"
+          :fallback-icon="IconPuzzle"
+          :tags="[puzzle.puzzle_type, puzzle.difficulty]"
+        />
+      </BulkSelectableCard>
+    </template>
   </DungeonCraftEntityGrid>
 </template>
 
@@ -93,6 +110,8 @@ import type { PlacedInRoom } from "@/lib/dungeon-features/placedIn";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import type { PuzzleRoom } from "@/types/puzzle.types";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { IconPuzzle } from "@/lib/icons";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -121,6 +140,12 @@ function placedInRows(puzzle: PuzzleRoom): PlacedInRoom[] {
   if (puzzle.dungeon_feature_id) return placedInRowsForFeature(puzzle.dungeon_feature_id);
   if (puzzle.location_id) return [directRoomPlacement(puzzle.location_id, locationsById.value)];
   return [];
+}
+
+const puzzleKey = (puzzle: PuzzleRoom) => puzzle.id;
+function puzzleSubtitle(puzzle: PuzzleRoom): string {
+  const hints = `${puzzle.hints.length} hint${puzzle.hints.length === 1 ? "" : "s"}`;
+  return puzzle.skill_checks.length ? `${hints} · ${puzzle.skill_checks.map((s) => s.skill).join(", ")}` : hints;
 }
 
 const filteredPuzzles = computed(() => {

@@ -47,6 +47,7 @@
         mobile-label="Monster"
         @click="handleNew"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <template #filters>
@@ -145,6 +146,7 @@
             <circle cx="12" cy="19" r="1.6" />
           </svg>
         </button>
+        <ListLayoutToggle v-model="layout" />
       </div>
 
       <!-- Active-filter chips -->
@@ -286,6 +288,8 @@ import {
   IconAdd, IconCheck, IconClose, IconGenerate, IconLibrary,
   IconSearch, IconSettings,
 } from '@/lib/icons';
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -316,6 +320,7 @@ const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { canCreate } = useQuota("monsters");
 const showPaywall = ref(false);
 const isMobile = useIsMobile();
+const layout = useListLayout("monsters", "grid");
 
 // False only while the nested detail route has taken the whole screen. An open
 // modal keeps this true, which is what leaves the grid — and its scroll position

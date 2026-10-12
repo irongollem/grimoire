@@ -13,7 +13,9 @@
     :items="rollTables"
     :is-loading="rollTablesLoading"
     v-model:search="rollTablesSearch"
-    :filtered-count="filteredRollTables.length"
+    :shown="filteredRollTables"
+    :item-key="rollTableKey"
+    list-key="roll-tables"
     search-placeholder="Search roll tables…"
     no-match-text="No roll tables match your filter."
     empty-icon="Dices"
@@ -36,10 +38,8 @@
         <option v-for="d in ROLL_TABLE_DICE" :key="d" :value="d">{{ d }}</option>
       </AppSelect>
     </template>
-    <template #card="{ selecting, isSelected, toggle }">
+    <template #card="{ item: t, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        v-for="t in filteredRollTables"
-        :key="t.id"
         :selected="isSelected(t.id)"
         :selecting="selecting"
         @toggle="toggle(t.id)"
@@ -49,7 +49,7 @@
           size="body"
           surface="card"
           block
-          class="flex-col items-start justify-start rounded-lg p-3 h-auto text-left"
+          class="h-full flex-col items-start justify-start rounded-lg p-3 text-left"
           @click="selectedRollTableId = t.id"
         >
           <div class="flex items-start justify-between gap-2 mb-1 w-full">
@@ -61,6 +61,36 @@
         </AppButton>
       </BulkSelectableCard>
     </template>
+    <!--
+      A roll table opens inline in this tab (no route), so the row is not an
+      EntityListRow link: it is the same button the card is, laid out as a line.
+    -->
+    <template #row="{ item: t, selecting, isSelected, toggle }">
+      <BulkSelectableCard
+        :selected="isSelected(t.id)"
+        :selecting="selecting"
+        @toggle="toggle(t.id)"
+      >
+        <AppButton
+          variant="subtle"
+          size="body"
+          surface="card"
+          block
+          class="justify-start gap-3 rounded-lg p-4 text-left"
+          @click="selectedRollTableId = t.id"
+        >
+          <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+            <IconDice class="h-5 w-5 text-muted-foreground/40" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-heading-xs font-bold text-foreground">{{ t.name }}</span>
+            <span class="block text-label text-muted-foreground">
+              {{ t.dice }} · {{ t.entries.length }} {{ t.entries.length === 1 ? "entry" : "entries" }}
+            </span>
+          </span>
+        </AppButton>
+      </BulkSelectableCard>
+    </template>
   </DungeonCraftEntityGrid>
 </template>
 
@@ -68,6 +98,8 @@
 import { ref, computed } from "vue";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { ROLL_TABLE_DICE } from "@/types/rollTable.types";
+import { IconDice } from "@/lib/icons";
+import type { RollTable } from "@/types/rollTable.types";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
@@ -87,6 +119,8 @@ defineExpose({ selectedRollTableId, inlineNewRollTable, closeInlineRollTable });
 const { data: rollTables, isLoading: rollTablesLoading } = useRollTables();
 const rollTablesSearch    = ref("");
 const rollTablesDieFilter = ref("");
+
+const rollTableKey = (table: RollTable) => table.id;
 
 const filteredRollTables = computed(() => {
   let list = rollTables.value ?? [];

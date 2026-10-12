@@ -2,18 +2,18 @@
   <!--
     Mobile-only (<md) entity card. Renders one of two layouts via `layout`:
       - "rows"    : a horizontal card row — thumbnail + name/subtitle + foot row + chevron
-      - "gallery" : a portrait card for a 2-col grid — image on top, text below
+      - "grid"    : a portrait card for a 2-col grid — image on top, text below
 
     Generic enough for both NPCs and Monsters; the parent maps each entity to
     these props. The whole card is a <RouterLink> to the detail route.
   -->
-  <!-- Gallery is a column whose plate and body are the card's direct children: the vellum
+  <!-- Grid is a column whose plate and body are the card's direct children: the vellum
        theme's wanted-poster rules (inset framed plate, centred engraved name) key on exactly
        the desktop card's shape, `> .relative.shrink-0.overflow-hidden` and `> .flex.flex-1.flex-col.p-3`. -->
   <RouterLink
     :to="to"
     class="rounded-xl border border-border bg-card transition-colors active:border-primary/50"
-    :class="layout === 'gallery' ? 'flex flex-col overflow-hidden' : 'block'"
+    :class="layout === 'grid' ? 'flex flex-col overflow-hidden' : 'block'"
   >
     <!-- ── Rows layout ──────────────────────────────────────────────────── -->
     <div v-if="layout === 'rows'" class="flex items-center gap-3 p-2.5">
@@ -76,7 +76,7 @@
       </svg>
     </div>
 
-    <!-- ── Gallery layout ───────────────────────────────────────────────── -->
+    <!-- ── Grid layout ───────────────────────────────────────────────── -->
     <template v-else>
       <div class="relative aspect-4/5 shrink-0 overflow-hidden bg-muted">
         <FocalImage
@@ -120,6 +120,7 @@
 
 <script setup lang="ts">
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import type { ListLayout } from "@/composables/useListLayout";
 import { IconCompassRose, IconReveal } from "@/lib/icons";
 
 const {
@@ -127,7 +128,7 @@ const {
   imageUrl = null,
   focalPoint = null,
 } = defineProps<{
-  layout?: "rows" | "gallery";
+  layout?: ListLayout;
   to: string;
   title: string;
   subtitle?: string;

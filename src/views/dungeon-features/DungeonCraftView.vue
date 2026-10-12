@@ -137,6 +137,9 @@
           @click="router.push('/puzzles/new')"
         />
       </template>
+
+      <!-- The tab's own list layout; the Cartographer tab and an open roll table have no list to switch. -->
+      <ListLayoutToggle v-if="showLayoutToggle" v-model="activeLayout" />
     </template>
 
     <!-- Tab bar -->
@@ -166,6 +169,8 @@ import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/list/PageHeader.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout, type ListLayout } from "@/composables/useListLayout";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -200,6 +205,30 @@ const rawTab = route.query.tab as string | undefined;
 const activeTab = ref<Tab>(
   VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "features",
 );
+
+// One layout choice per list tab, under the key DungeonCraftEntityGrid reads.
+const TAB_LAYOUTS = {
+  features: useListLayout("dungeon-features", "grid"),
+  traps: useListLayout("traps", "grid"),
+  puzzles: useListLayout("puzzles", "grid"),
+  "roll-tables": useListLayout("roll-tables", "grid"),
+  "loot-tables": useListLayout("loot-tables", "grid"),
+} as const;
+
+const activeLayout = computed<ListLayout>({
+  get: () => (activeTab.value === "cartographer" ? "grid" : TAB_LAYOUTS[activeTab.value].value),
+  set: (value) => {
+    if (activeTab.value !== "cartographer") TAB_LAYOUTS[activeTab.value].value = value;
+  },
+});
+
+const showLayoutToggle = computed(() => {
+  if (activeTab.value === "cartographer") return false;
+  if (activeTab.value === "roll-tables") {
+    return !rollTablesTabRef.value?.selectedRollTableId && !rollTablesTabRef.value?.inlineNewRollTable;
+  }
+  return true;
+});
 
 const MANUAL_PAGE_BY_TAB: Record<Tab, string> = {
   features: "dungeon-craft-features",

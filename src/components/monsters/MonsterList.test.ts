@@ -93,9 +93,7 @@ const monstersUi = {
   monstersFilterType: "all",
   monstersFilterSource: "all",
 };
-const appUi = { entityListLayout: "rows" };
 vi.mock("@/stores/ui/monsters", () => ({ useMonstersUiStore: () => monstersUi }));
-vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => appUi }));
 
 vi.mock("@/stores/campaign", () => ({
   // Wrapped in `reactive()`, exactly like a real Pinia store: `storeToRefs`

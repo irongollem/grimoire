@@ -2,7 +2,12 @@
   <div ref="containerRef" class="flex flex-col gap-4">
     <!-- Loading: the same auto-fill grid and EntityGridCard shape as the loaded
          list, so the cards do not jump when they land. -->
-    <ListSkeleton v-if="isLoading" variant="grid" columns="fill" :count="12" />
+    <ListSkeleton
+      v-if="isLoading"
+      :variant="layout === 'rows' ? 'rows' : 'grid'"
+      columns="fill"
+      :count="12"
+    />
 
     <EmptyState
       v-else-if="error"
@@ -26,15 +31,51 @@
     </EmptyState>
 
     <!-- Grid, windowed: only the rows near the viewport are mounted. -->
-    <VirtualGrid
+    <EntityCollection
       v-else
       :items="rows"
       :item-key="itemKey"
-      :columns="columns"
-      :estimate-row-height="GRID_ROW_PX"
-      :gap="GRID_GAP_REM"
+      :layout="layout"
+      :grid-columns="columns"
+      :grid-row-estimate="GRID_ROW_PX"
     >
-      <template #default="{ item }">
+      <template #row="{ item }">
+        <div
+          class="contents"
+          @pointerover="prefetchDetail(item.id)"
+          @focusin="prefetchDetail(item.id)"
+        >
+          <BulkSelectableCard
+            corner="top-right"
+            :selected="selectedIds.has(item.id)"
+            :selecting="selecting && !item.is_shared"
+            @toggle="emit('toggle-select', item.id)"
+          >
+            <EntityListRow
+              :to="`/vault/${item.id}`"
+              :title="item.name"
+              :subtitle="itemSubtitle(item)"
+              :image-url="item.image_url"
+              :fallback-icon="itemTypeIcon(item.item_type)"
+              :tags="item.tags"
+            >
+              <template v-if="!selecting" #actions>
+                <AppButton
+                  v-if="!item.is_shared"
+                  :to="`/vault/${item.id}?edit=true`"
+                  variant="ghost"
+                  size="xs"
+                  :icon="IconEdit"
+                  label="Edit"
+                  tooltip="Edit item"
+                />
+                <span v-else class="text-label text-muted-foreground">Reference</span>
+              </template>
+            </EntityListRow>
+          </BulkSelectableCard>
+        </div>
+      </template>
+      <template #card="{ item }">
       <!--
         An item card is deliberately the leanest of the entity cards: the name
         rides the artwork in `#image-footer`, and the body carries only a quick
@@ -149,7 +190,7 @@
       </BulkSelectableCard>
       </div>
       </template>
-    </VirtualGrid>
+    </EntityCollection>
     <div ref="sentinelRef" />
   </div>
 </template>
@@ -188,6 +229,11 @@ const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
   pack: IconPackage,
 };
 
+/** Row subtitle: "Weapon, Rare". */
+function itemSubtitle(item: { item_type: ItemType; rarity: keyof typeof ITEM_RARITY_LABELS }): string {
+  return `${ITEM_TYPE_LABELS[item.item_type]}, ${ITEM_RARITY_LABELS[item.rarity]}`;
+}
+
 function itemTypeIcon(type: ItemType): VueComponent {
   return ITEM_TYPE_ICONS[type] ?? IconComponent;
 }
@@ -195,8 +241,10 @@ import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { useItemBrowse } from "@/composables/items/useItemBrowse";
 import { fetchResolvedItem, resolvedItemKey } from "@/composables/items/useItems";
 import type { ItemScope } from "@/lib/items/itemScope";
-import { ITEM_RARITY_LABELS, RARITY_BG } from "@/types/item.types";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_BG } from "@/types/item.types";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import { useAutoFillColumns } from "@/composables/useGridColumns";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
@@ -236,6 +284,8 @@ const GRID_MIN_WIDTH_REM = 11.25;
 const GRID_GAP_REM = 0.75;
 const containerRef = ref<HTMLElement | null>(null);
 const columns = useAutoFillColumns(containerRef, GRID_MIN_WIDTH_REM, GRID_GAP_REM);
+// The page header's toggle writes the same key.
+const layout = useListLayout("items", "grid");
 const itemKey = (item: { id: string }) => item.id;
 
 // Row height before a row is measured (px), in the default Vellum theme:

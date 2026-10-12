@@ -3,7 +3,9 @@
     :items="lootTables"
     :is-loading="lootTablesLoading"
     v-model:search="lootTablesSearch"
-    :filtered-count="filteredLootTables.length"
+    :shown="filteredLootTables"
+    :item-key="lootTableKey"
+    list-key="loot-tables"
     search-placeholder="Search loot tables…"
     no-match-text="No loot tables match your filter."
     empty-icon="Coins"
@@ -33,17 +35,15 @@
         @click="dungeonFeaturesUi.resetLootTablesFilters()"
       />
     </template>
-    <template #card="{ selecting, isSelected, toggle }">
+    <template #card="{ item: t, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        v-for="t in filteredLootTables"
-        :key="t.id"
         :selected="isSelected(t.id)"
         :selecting="selecting"
         @toggle="toggle(t.id)"
       >
         <RouterLink
           :to="`/loot-tables/${t.id}`"
-          class="flex flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors"
+          class="flex h-full flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors"
         >
           <div class="flex items-start justify-between gap-2 mb-1">
             <h3 class="text-heading-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
@@ -52,6 +52,22 @@
           <p v-if="t.description" class="text-caption text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
           <p class="text-caption-sm text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "item" : "items" }}</p>
         </RouterLink>
+      </BulkSelectableCard>
+    </template>
+    <template #row="{ item: t, selecting, isSelected, toggle }">
+      <BulkSelectableCard
+        corner="top-right"
+        :selected="isSelected(t.id)"
+        :selecting="selecting"
+        @toggle="toggle(t.id)"
+      >
+        <EntityListRow
+          :to="`/loot-tables/${t.id}`"
+          :title="t.name"
+          :subtitle="`${t.entries.length} ${t.entries.length === 1 ? 'item' : 'items'}`"
+          :fallback-icon="IconCoins"
+          :tags="t.cr_tier !== 'any' ? [LOOT_CR_TIER_LABELS[t.cr_tier]] : []"
+        />
       </BulkSelectableCard>
     </template>
   </DungeonCraftEntityGrid>
@@ -64,6 +80,9 @@ import { RouterLink, useRouter } from "vue-router";
 import { useLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useDungeonFeaturesUiStore } from "@/stores/ui/dungeonFeatures";
 import { LOOT_CR_TIERS, LOOT_CR_TIER_LABELS } from "@/types/lootTable.types";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { IconCoins } from "@/lib/icons";
+import type { LootTable } from "@/types/lootTable.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
@@ -75,6 +94,8 @@ const { data: lootTables, isLoading: lootTablesLoading } = useLootTables();
 // Filter state lives in the UI store, not local refs, so it survives
 // navigating into a table and back without outliving the session.
 const { lootTablesSearch, lootTablesTierFilter } = storeToRefs(dungeonFeaturesUi);
+
+const lootTableKey = (table: LootTable) => table.id;
 
 const filteredLootTables = computed(() => {
   let list = lootTables.value ?? [];

@@ -2,6 +2,8 @@ import { mount } from "@vue/test-utils";
 import { h, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
+import { flushMicrotasks, useVirtualGridViewport } from "./virtualGridViewport";
+import { useListLayout } from "@/composables/useListLayout";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 
 // The real CopyToCampaignDialog's setup unconditionally calls useDmCampaigns()
@@ -42,12 +44,16 @@ vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ success: mocks.toastSuccess, error: vi.fn(), fromError: (e: unknown) => String(e) }),
 }));
 
+useVirtualGridViewport();
+
 function baseProps(overrides: Record<string, unknown> = {}) {
   return {
     items: [{ id: "a" }, { id: "b" }],
     isLoading: false,
     search: "",
-    filteredCount: 2,
+    shown: [{ id: "a" }, { id: "b" }],
+    itemKey: (item: unknown) => (item as { id: string }).id,
+    listKey: "test-grid",
     emptyIcon: "Dices",
     emptyTitle: "No rows yet",
     emptyDescription: "Add one to get started.",
@@ -85,9 +91,10 @@ describe("DungeonCraftEntityGrid — bulk scope (#875)", () => {
     mocks.activeCampaignId = "camp-1";
   });
 
-  it("without a `table` prop, behaves exactly as before: no Select button, cards render bare", () => {
+  it("without a `table` prop, behaves exactly as before: no Select button, cards render bare", async () => {
     const onCardClick = vi.fn();
     const wrapper = mount(DungeonCraftEntityGrid, { props: baseProps(), slots: { card: cardSlot(onCardClick) } });
+    await flushMicrotasks();
 
     expect(findButton(wrapper, "Select")).toBeUndefined();
     expect(wrapper.find("input[type=checkbox]").exists()).toBe(false);
@@ -279,5 +286,22 @@ describe("DungeonCraftEntityGrid — copy to campaign (#598)", () => {
 
     expect(wrapper.findComponent(CopyToCampaignDialogStub).props("open")).toBe(false);
     expect(wrapper.findComponent(PaywallModalStub).props("modelValue")).toBe(true);
+  });
+});
+
+describe("DungeonCraftEntityGrid — layout", () => {
+  it("renders the row slot instead of the card slot when the tab's layout is rows", async () => {
+    useListLayout("test-grid-rows", "grid").value = "rows";
+    const wrapper = mount(DungeonCraftEntityGrid, {
+      props: baseProps({ listKey: "test-grid-rows" }),
+      slots: {
+        card: () => h("div", { class: "as-card" }),
+        row: () => h("div", { class: "as-row" }),
+      },
+      global: { stubs: { CopyToCampaignDialog: CopyToCampaignDialogStub, PaywallModal: PaywallModalStub } },
+    });
+    await flushMicrotasks();
+    expect(wrapper.find(".as-row").exists()).toBe(true);
+    expect(wrapper.find(".as-card").exists()).toBe(false);
   });
 });

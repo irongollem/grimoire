@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { flushMicrotasks, useVirtualGridViewport } from "./virtualGridViewport";
 import DungeonCraftRollTablesTab from "./DungeonCraftRollTablesTab.vue";
 import type { RollTable } from "@/types/rollTable.types";
 
@@ -48,6 +49,8 @@ const RollTableDetailViewStub = {
 // Stubbed out here because this suite is about the inline-detail-swap
 // interaction, not the copy dialog (that gets its own coverage in
 // DungeonCraftEntityGrid.test.ts).
+useVirtualGridViewport();
+
 function mountTab() {
   return mount(DungeonCraftRollTablesTab, {
     global: { stubs: { RollTableDetailView: RollTableDetailViewStub, CopyToCampaignDialog: true } },
@@ -69,6 +72,7 @@ describe("DungeonCraftRollTablesTab — bulk scope suppresses the inline detail 
 
   it("opens the inline detail view on a normal click when not selecting", async () => {
     const wrapper = mountTab();
+    await flushMicrotasks();
     await findCardButton(wrapper, "Forest Encounters")!.trigger("click");
     expect(wrapper.find('[data-testid="detail-view"]').exists()).toBe(true);
   });

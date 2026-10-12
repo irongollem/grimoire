@@ -1,7 +1,5 @@
 <template>
-  <div v-if="isLoading" class="flex justify-center py-16">
-    <LoadingSpinner />
-  </div>
+  <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'text'" :count="8" />
 
   <!-- Empty state -->
   <div
@@ -65,30 +63,45 @@
       <h3 class="text-label-lg uppercase text-muted-foreground mb-2">
         {{ className }}
       </h3>
-      <div class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
-        <RouterLink
-          v-for="sc in group"
-          :key="sc.id"
-          :to="`/levelup/custom/${sc.id}`"
-          class="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
-        >
-          <div class="flex-1 min-w-0">
-            <p class="text-heading-xs font-semibold text-foreground truncate">{{ sc.subclass_name }}</p>
-            <p v-if="sc.description" class="text-caption text-muted-foreground mt-0.5 line-clamp-2">{{ toPlainText(sc.description) }}</p>
-            <p class="text-caption text-muted-foreground mt-0.5">
-              <template v-if="featureLevelCount(sc) === 0">
-                <span class="italic">No features defined</span>
-              </template>
-              <template v-else>
-                {{ featureLevelCount(sc) }} feature level{{ featureLevelCount(sc) !== 1 ? 's' : '' }}
-              </template>
-              <span v-if="sc.source" class="ml-1 text-primary/60"> · {{ sc.source }}</span>
-              <span v-if="sc.campaign_id" class="ml-1 text-primary/70"> · campaign only</span>
-            </p>
-          </div>
-          <IconChevronRight class="h-4 w-4 text-muted-foreground shrink-0" />
-        </RouterLink>
-      </div>
+      <EntityCollection
+        :items="group"
+        :item-key="archetypeKey"
+        :layout="layout"
+        :grid-columns="columns"
+        :grid-row-estimate="GRID_ROW_PX"
+        :row-estimate="ROW_PX"
+      >
+        <template #card="{ item: sc }">
+          <EntityTextCard
+            :to="`/levelup/custom/${sc.id}`"
+            :title="sc.subclass_name"
+            :subtitle="featureSummary(sc)"
+            :fallback-icon="IconLayers"
+            :tags="tagsFor(sc)"
+          >
+            <template #body>
+              <p v-if="sc.description" class="line-clamp-3 text-caption text-muted-foreground">
+                {{ toPlainText(sc.description) }}
+              </p>
+            </template>
+          </EntityTextCard>
+        </template>
+        <template #row="{ item: sc }">
+          <EntityListRow
+            :to="`/levelup/custom/${sc.id}`"
+            :title="sc.subclass_name"
+            :subtitle="featureSummary(sc)"
+            :fallback-icon="IconLayers"
+            :tags="tagsFor(sc)"
+          >
+            <template #body>
+              <p v-if="sc.description" class="mt-0.5 line-clamp-2 text-caption text-muted-foreground">
+                {{ toPlainText(sc.description) }}
+              </p>
+            </template>
+          </EntityListRow>
+        </template>
+      </EntityCollection>
     </div>
   </div>
 </template>
@@ -96,8 +109,13 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
-import { IconAdd, IconChevronRight, IconPopulate } from '@/lib/icons';
-import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import { IconAdd, IconLayers, IconPopulate } from '@/lib/icons';
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import EntityTextCard from "@/components/common/entity/EntityTextCard.vue";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import { useListLayout } from "@/composables/useListLayout";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
 import { useAllCustomSubclasses, useCreateCustomSubclass } from "@/composables/rules/useCustomSubclasses";
@@ -107,6 +125,16 @@ import { toPlainText } from "@/ai/utils";
 import type { CustomSubclass } from "@/levelup/customTypes";
 
 const codexUi = useCodexUiStore();
+// The Codex header's toggle writes the same key.
+const layout = useListLayout("codex-archetypes", "rows");
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const archetypeKey = (sc: CustomSubclass) => sc.id;
+
+// Row heights before measuring (px). Row: p-4 (32) + border (2) + title 20,
+// feature line 18, description 2 lines 36, tags 26 = 134. Card: p-4 (32) +
+// border (2) + header 40 + description 3 lines 54 + tags 26, gap-2 x3 = 178.
+const ROW_PX = 134;
+const GRID_ROW_PX = 178;
 const { data: all, isLoading } = useAllCustomSubclasses();
 const { mutateAsync: create } = useCreateCustomSubclass();
 const { mutateAsync: createFeature } = useCreateFeature();
@@ -173,6 +201,18 @@ const grouped = computed<Record<string, CustomSubclass[]>>(() => {
   }
   return result;
 });
+
+function featureSummary(sc: CustomSubclass): string {
+  const n = featureLevelCount(sc);
+  return n === 0 ? "No features defined" : `${n} feature level${n !== 1 ? "s" : ""}`;
+}
+
+function tagsFor(sc: CustomSubclass): string[] {
+  const tags: string[] = [];
+  if (sc.source) tags.push(sc.source);
+  if (sc.campaign_id) tags.push("Campaign only");
+  return tags;
+}
 
 function featureLevelCount(sc: CustomSubclass): number {
   return Object.keys(sc.features).filter(k => (sc.features[k]?.length ?? 0) > 0).length;

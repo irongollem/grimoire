@@ -5,14 +5,6 @@ import { useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 export const useAppUiStore = defineStore("ui:app", () => {
-  // Entity list layout (mobile rows/gallery toggle) — persisted across sessions.
-  // Shared by the NPC + Monster mobile list screens (<md only).
-  const entityListLayout = useStorage<"rows" | "gallery">(
-    "grimoire:entity-list-layout",
-    "rows",
-    safeLocalStorage(),
-  );
-
   // Chat panel
   const chatOpen = ref(false);
   // Lit and cleared by CampaignChat from a per-campaign read position
@@ -106,7 +98,6 @@ export const useAppUiStore = defineStore("ui:app", () => {
   }
 
   return {
-    entityListLayout,
     chatOpen,
     chatHasUnread,
     openChat,

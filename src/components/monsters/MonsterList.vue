@@ -14,11 +14,11 @@
       @copy="openCopyDialog"
     />
 
-    <!-- Follows the mobile rows/gallery preference so the first page lands
+    <!-- Follows the rows/grid preference so the first page lands
          in the shape the DM chose. -->
     <ListSkeleton
       v-if="isLoading"
-      :variant="isMobile ? layout : 'grid'"
+      :variant="skeletonVariant"
       :count="isMobile ? 7 : 12"
     />
 
@@ -44,10 +44,9 @@
       No monsters match your filters.
     </p>
 
-    <!-- ── Mobile list (<md): compact rows / gallery ─────────────────────── -->
+    <!-- ── Mobile list (<md): compact rows / grid ─────────────────────── -->
     <template v-else-if="isMobile">
       <MobileEntityMetaRow
-        v-model:layout="layout"
         :shown="total"
         :total="scopeTotal"
         plural="monsters"
@@ -82,15 +81,16 @@
       </EntityMobileGrid>
     </template>
 
-    <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
-    <VirtualGrid
+    <!-- ── Desktop (≥md): grid of cards, or one row per monster ──────────── -->
+    <EntityCollection
       v-else
       :items="rows"
       :item-key="monsterKey"
-      :columns="desktopColumns"
-      :estimate-row-height="GRID_ROW_PX"
+      :layout="layout"
+      :grid-columns="desktopColumns"
+      :grid-row-estimate="GRID_ROW_PX"
     >
-      <template #default="{ item: monster }">
+      <template #card="{ item: monster }">
         <BulkSelectableCard
           corner="top-right"
           :selected="bulk.isSelected(monster.id)"
@@ -105,7 +105,27 @@
           />
         </BulkSelectableCard>
       </template>
-    </VirtualGrid>
+      <template #row="{ item: monster }">
+        <BulkSelectableCard
+          corner="top-right"
+          :selected="bulk.isSelected(monster.id)"
+          :selecting="bulk.selecting.value && !monster.is_shared"
+          @toggle="bulk.toggle(monster.id)"
+        >
+          <EntityListRow
+            :to="`/monsters/${monster.id}`"
+            :title="monster.name"
+            :subtitle="monsterSubtitle(monster)"
+            :image-url="monster.image_url"
+            :fallback-icon="IconNavBestiary"
+            :tags="monsterRowTags(monster)"
+            :locked="lockedMonsterIds.has(monster.id)"
+            @pointerenter="prefetchDetail(monster.id)"
+            @focusin="prefetchDetail(monster.id)"
+          />
+        </BulkSelectableCard>
+      </template>
+    </EntityCollection>
 
     <div ref="sentinelRef" />
 
@@ -136,11 +156,12 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import EntityMobileGrid from "@/components/common/entity/EntityMobileGrid.vue";
 import { IconNavBestiary } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { useAppUiStore } from "@/stores/ui/app";
 import { useMonstersUiStore } from "@/stores/ui/monsters";
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { fetchResolvedMonster, RESOLVED_MONSTER_QUERY_KEY } from "@/composables/monsters/useMonsters";
@@ -174,7 +195,6 @@ function handleNew() {
   router.push("/monsters/new");
 }
 
-const appUi = useAppUiStore();
 const monstersUi = useMonstersUiStore();
 const search = computed(() => monstersUi.monstersSearch);
 const typeFilter = computed(() => monstersUi.monstersFilterType);
@@ -191,10 +211,19 @@ const GRID_ROW_PX = 262;
 const desktopColumns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const monsterKey = (monster: MonsterBrowseRow) => monster.id;
 
-const layout = computed({
-  get: () => appUi.entityListLayout,
-  set: (v: "rows" | "gallery") => { appUi.entityListLayout = v; },
-});
+// The page header's toggle writes the same key.
+const layout = useListLayout("monsters", "grid");
+// The phone's grid is the two-column gallery skeleton.
+const skeletonVariant = computed(() =>
+  layout.value === "rows" ? "rows" : isMobile.value ? "gallery" : "grid",
+);
+
+// Tags on the desktop row: challenge rating and habitat, as the phone card shows them.
+function monsterRowTags(monster: MonsterBrowseRow): string[] {
+  const tags = [crLabel(monster.challenge_rating)];
+  if (monster.habitat) tags.push(monster.habitat);
+  return tags;
+}
 
 // The page is one server page at a time (#972): `browse_monsters` owns
 // membership, order, filters, counts and the quota lock. MonstersView calls it

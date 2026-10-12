@@ -1,7 +1,5 @@
 <template>
-  <div v-if="isLoading" class="flex justify-center py-16">
-    <LoadingSpinner />
-  </div>
+  <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'grid' : 'stack'" :columns="4" :count="8" />
   <template v-else-if="items?.length">
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <AppInput
@@ -35,12 +33,38 @@
       @move="handleMove"
       @copy="handleCopyOpen"
     />
-    <p v-if="!filteredCount" class="text-center text-body text-muted-foreground italic py-8">
+    <p v-if="!shown.length" class="text-center text-body text-muted-foreground italic py-8">
       {{ noMatchText }}
     </p>
-    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      <slot name="card" :selecting="selecting" :is-selected="bulkSelection.isSelected" :toggle="bulkSelection.toggle" />
-    </div>
+    <!-- Windowed: these lists were plain CSS grids that mounted every card. -->
+    <EntityCollection
+      v-else
+      :items="shown"
+      :item-key="itemKey"
+      :layout="layout"
+      :grid-columns="columns"
+      :grid-row-estimate="GRID_ROW_PX"
+      :row-estimate="ROW_PX"
+    >
+      <template #card="{ item }">
+        <slot
+          name="card"
+          :item="item"
+          :selecting="selecting"
+          :is-selected="bulkSelection.isSelected"
+          :toggle="bulkSelection.toggle"
+        />
+      </template>
+      <template #row="{ item }">
+        <slot
+          name="row"
+          :item="item"
+          :selecting="selecting"
+          :is-selected="bulkSelection.isSelected"
+          :toggle="bulkSelection.toggle"
+        />
+      </template>
+    </EntityCollection>
   </template>
   <EmptyState
     v-else
@@ -78,9 +102,19 @@
   <PaywallModal v-if="table === 'puzzle_rooms'" v-model="showPaywall" resource="puzzle_rooms" />
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts" generic="T">
+/**
+ * The shared list body of the Dungeon Craft tabs (features, traps, puzzles,
+ * roll tables, loot tables): search row, bulk-scope bar, and the items in
+ * either layout through `EntityCollection`. Each tab passes `shown` (its
+ * filtered rows) and both shapes as slots; `listKey` names the tab's layout
+ * choice, which the Dungeon Craft header toggle writes under the same key.
+ */
 import { computed, ref, watch } from "vue";
-import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import { useListLayout } from "@/composables/useListLayout";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -97,7 +131,9 @@ const {
   items,
   isLoading,
   search,
-  filteredCount,
+  shown,
+  itemKey,
+  listKey,
   searchPlaceholder = "Search…",
   noMatchText = "No items match your filter.",
   emptyIcon,
@@ -111,7 +147,11 @@ const {
   items: unknown[] | undefined;
   isLoading: boolean;
   search: string;
-  filteredCount: number;
+  /** The rows passing the current filters, in display order. */
+  shown: T[];
+  itemKey: (item: T) => string;
+  /** The layout key of this tab ("traps", "roll-tables"). */
+  listKey: string;
   searchPlaceholder?: string;
   noMatchText?: string;
   emptyIcon: string;
@@ -128,10 +168,26 @@ const {
   copyLabel?: string;
 }>();
 
+defineSlots<{
+  filters?(): unknown;
+  card(props: { item: T; selecting: boolean; isSelected: (id: string) => boolean; toggle: (id: string) => void }): unknown;
+  row(props: { item: T; selecting: boolean; isSelected: (id: string) => boolean; toggle: (id: string) => void }): unknown;
+}>();
+
 const emit = defineEmits<{
   "update:search": [value: string];
   "empty-action": [];
 }>();
+
+// The Dungeon Craft header's toggle writes the same key. Cards is today's look.
+const layout = useListLayout(listKey, "grid");
+// Mirrors `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`.
+const columns = useBreakpointColumns({ base: 2, sm: 3, md: 4, lg: 5 });
+// Heights in px before a card or row is measured: a card is the square artwork
+// (about 10rem across five columns) plus a 4.5rem body; a row is the bare
+// EntityListRow, 82, or 98 with its tag line.
+const GRID_ROW_PX = 260;
+const ROW_PX = 98;
 
 // AppInput requires a v-model; this component receives its search value as a
 // prop and re-emits `update:search`, so the model is a writable proxy over

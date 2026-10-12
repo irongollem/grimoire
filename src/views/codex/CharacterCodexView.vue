@@ -168,6 +168,7 @@
           />
         </template>
       </template>
+      <ListLayoutToggle v-model="activeLayout" />
     </template>
 
     <!-- One #filters slot; the active tab picks which filter bar renders.
@@ -274,6 +275,8 @@ import ListFilterGroup from "@/components/common/list/ListFilterGroup.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout, type ListLayout } from "@/composables/useListLayout";
 import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
 import SpeciesList from "@/components/species/SpeciesList.vue";
 import SpeciesOpen5ePanel from "@/components/species/SpeciesOpen5ePanel.vue";
@@ -325,6 +328,23 @@ const router = useRouter();
 const activeTab = computed<TabId>({
   get: () => codexUi.codexActiveTab as TabId,
   set: (id) => selectTab(id),
+});
+
+// One stored layout per tab. Each list body calls useListLayout with the same
+// key, so the toggle here and the list below share state. The class art and the
+// species and background pictures read best as cards; the text-led tabs default
+// to rows, which is what they were.
+const layouts: Record<TabId, ReturnType<typeof useListLayout>> = {
+  species: useListLayout("codex-species", "grid"),
+  backgrounds: useListLayout("codex-backgrounds", "grid"),
+  classes: useListLayout("codex-classes", "grid"),
+  archetypes: useListLayout("codex-archetypes", "rows"),
+  abilities: useListLayout("codex-abilities", "rows"),
+  feats: useListLayout("codex-feats", "rows"),
+};
+const activeLayout = computed<ListLayout>({
+  get: () => layouts[activeTab.value].value,
+  set: (value) => { layouts[activeTab.value].value = value; },
 });
 
 const MANUAL_PAGE_BY_TAB: Record<TabId, string> = {

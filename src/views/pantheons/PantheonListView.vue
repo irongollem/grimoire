@@ -14,6 +14,7 @@
         mobile-label="Pantheon"
         @click="handleNew"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <template #filters>
@@ -26,7 +27,7 @@
     </template>
 
     <!-- Mirrors EntityListRow (emblem tile, name, deity count) in its grid. -->
-    <ListSkeleton v-if="isLoading" variant="tiles" :columns="3" :count="9" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'grid' : 'tiles'" :columns="3" :count="9" />
 
     <EmptyState
       v-else-if="!filtered.length"
@@ -46,32 +47,65 @@
       another way. `EntityListRow` uses the link-overlay trick precisely so it
       can hold a button, and it already reflows to one column.
     -->
-      <VirtualGrid
+      <EntityCollection
         :items="filtered"
         :item-key="pantheonKey"
-        :columns="columns"
-        :estimate-row-height="ROW_PX"
+        :layout="layout"
+        :grid-columns="columns"
+        :grid-row-estimate="GRID_ROW_PX"
+        :row-estimate="ROW_PX"
+        :row-columns="columns"
       >
-        <template #default="{ item: pantheon }">
-        <EntityListRow
-          :to="`/pantheons/${pantheon.id}`"
-          :title="pantheon.name"
-          :subtitle="`${deityCount(pantheon.id)} ${deityCount(pantheon.id) === 1 ? 'deity' : 'deities'}`"
-          :image-url="pantheon.emblem_url"
-          :fallback-icon="IconFire"
-          :tags="pantheon.tags"
-        >
-          <template #actions>
-            <AudienceRevealControl
-              :name="pantheon.name"
-              :visible-to="pantheon.player_visible_to"
-              form="inline"
-              @change="(next) => revealPantheon(pantheon.id, next)"
-            />
-          </template>
-        </EntityListRow>
+        <template #card="{ item: pantheon }">
+          <EntityGridCard
+            :to="`/pantheons/${pantheon.id}`"
+            :title="pantheon.name"
+            :image-url="pantheon.emblem_url"
+            :placeholder="placeholderUrl('deity')"
+          >
+            <template #actions-end>
+              <div @click.prevent.stop>
+                <AudienceRevealControl
+                  :name="pantheon.name"
+                  :visible-to="pantheon.player_visible_to"
+                  form="overlay"
+                  @change="(next) => revealPantheon(pantheon.id, next)"
+                />
+              </div>
+            </template>
+            <template #body>
+              <p class="truncate text-heading-xs font-bold text-foreground">{{ pantheon.name }}</p>
+              <p class="text-label text-muted-foreground">{{ deityCountLabel(pantheon.id) }}</p>
+              <div v-if="pantheon.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
+                <span
+                  v-for="tag in pantheon.tags.slice(0, 3)"
+                  :key="tag"
+                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+                >{{ tag }}</span>
+              </div>
+            </template>
+          </EntityGridCard>
         </template>
-      </VirtualGrid>
+        <template #row="{ item: pantheon }">
+          <EntityListRow
+            :to="`/pantheons/${pantheon.id}`"
+            :title="pantheon.name"
+            :subtitle="deityCountLabel(pantheon.id)"
+            :image-url="pantheon.emblem_url"
+            :fallback-icon="IconFire"
+            :tags="pantheon.tags"
+          >
+            <template #actions>
+              <AudienceRevealControl
+                :name="pantheon.name"
+                :visible-to="pantheon.player_visible_to"
+                form="inline"
+                @change="(next) => revealPantheon(pantheon.id, next)"
+              />
+            </template>
+          </EntityListRow>
+        </template>
+      </EntityCollection>
     </template>
   </ListPageLayout>
 
@@ -94,7 +128,11 @@ import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useDeitiesUiStore } from "@/stores/ui/deities";
 
 const deitiesUi = useDeitiesUiStore();
@@ -123,14 +161,19 @@ useScrollRestore("pantheons");
 // Mirrors the grid classes this list used to carry:
 // `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3`.
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
+// The page header's toggle writes the same key. Rows is today's look.
+const layout = useListLayout("pantheons", "rows");
 const pantheonKey = (pantheon: { id: string }) => pantheon.id;
 
 // Row height before a row is measured (px): 86px measured at a 390px
 // phone, 8 Oct 2026. It decides where a restored scroll lands, since coming
 // back from a detail re-renders every unmeasured row above the viewport.
 const ROW_PX = 86;
+// Grid card height before it is measured (px): border + artwork + padding + body.
+const GRID_ROW_PX = 230;
 
-function deityCount(pantheonId: string): number {
-  return (deities.value ?? []).filter((d) => d.pantheon_id === pantheonId).length;
+function deityCountLabel(pantheonId: string): string {
+  const n = (deities.value ?? []).filter((d) => d.pantheon_id === pantheonId).length;
+  return `${n} ${n === 1 ? "deity" : "deities"}`;
 }
 </script>

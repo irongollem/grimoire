@@ -3,7 +3,9 @@
     :items="traps"
     :is-loading="trapsLoading"
     v-model:search="trapsSearch"
-    :filtered-count="filteredTraps.length"
+    :shown="filteredTraps"
+    :item-key="trapKey"
+    list-key="traps"
     search-placeholder="Search traps…"
     no-match-text="No traps match your filter."
     empty-icon="Crosshair"
@@ -28,10 +30,8 @@
         @click="trapsUi.resetTrapsFilters()"
       />
     </template>
-    <template #card="{ selecting, isSelected, toggle }">
+    <template #card="{ item: trap, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        v-for="trap in filteredTraps"
-        :key="trap.id"
         corner="top-right"
         :selected="isSelected(trap.id)"
         :selecting="selecting"
@@ -39,7 +39,7 @@
       >
         <RouterLink
           :to="`/traps/${trap.id}`"
-          class="flex flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
+          class="flex h-full flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
         >
           <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
             <FocalImage
@@ -67,6 +67,23 @@
         </RouterLink>
       </BulkSelectableCard>
     </template>
+    <template #row="{ item: trap, selecting, isSelected, toggle }">
+      <BulkSelectableCard
+        corner="top-right"
+        :selected="isSelected(trap.id)"
+        :selecting="selecting"
+        @toggle="toggle(trap.id)"
+      >
+        <EntityListRow
+          :to="`/traps/${trap.id}`"
+          :title="trap.name"
+          :subtitle="trapSubtitle(trap)"
+          :image-url="trap.image_url"
+          :fallback-icon="IconTrap"
+          :tags="[trap.trap_type, ...trap.tags]"
+        />
+      </BulkSelectableCard>
+    </template>
   </DungeonCraftEntityGrid>
 </template>
 
@@ -78,6 +95,9 @@ import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { TRAP_TYPES, TRAP_TYPE_BG } from "@/types/trap.types";
 import { useTrapsUiStore } from "@/stores/ui/traps";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { IconTrap } from "@/lib/icons";
+import type { Trap } from "@/types/trap.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -96,6 +116,12 @@ const { trapsSearch, trapsFilterType } = storeToRefs(trapsUi);
 // ── Placed in (#868, S8, frame 11) ────────────────────────────────────────────
 const trapIds = computed(() => (traps.value ?? []).map((t) => t.id));
 const { placedInRows } = usePlacedInRooms("trap", trapIds);
+
+const trapKey = (trap: Trap) => trap.id;
+function trapSubtitle(trap: Trap): string | null {
+  const parts = [trap.cr ? `CR ${trap.cr}` : null, trap.trigger_type];
+  return parts.filter((p): p is string => !!p).join(" · ") || null;
+}
 
 const filteredTraps = computed(() => {
   let list = traps.value ?? [];

@@ -1,6 +1,11 @@
 <template>
   <div>
-    <ListSkeleton v-if="isLoading" variant="text" :columns="3" :count="6" />
+    <ListSkeleton
+      v-if="isLoading"
+      :variant="layout === 'rows' ? 'rows' : 'text'"
+      :columns="3"
+      :count="6"
+    />
 
     <EmptyState
       v-else-if="!filtered.length && !search && questFilter === 'all'"
@@ -20,14 +25,25 @@
       No encounters match your search.
     </p>
 
-    <VirtualGrid
+    <EntityCollection
       v-else
       :items="filtered"
       :item-key="encounterKey"
-      :columns="columns"
-      :estimate-row-height="ENCOUNTER_ROW_PX"
+      :layout="layout"
+      :grid-columns="columns"
+      :grid-row-estimate="ENCOUNTER_ROW_PX"
     >
-      <template #default="{ item: encounter }">
+      <template #row="{ item: encounter }">
+        <EntityListRow
+          :to="`/encounters/${encounter.id}`"
+          :title="encounter.name"
+          :subtitle="encounterSubtitle(encounter)"
+          :fallback-icon="IconNavEncounters"
+          :tags="[encounterStatusLabel(encounter)]"
+          :locked="lockedEncounterIds.has(encounter.id)"
+        />
+      </template>
+      <template #card="{ item: encounter }">
       <div
         class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
@@ -113,7 +129,7 @@
         </div>
       </div>
       </template>
-    </VirtualGrid>
+    </EntityCollection>
 
     <p
       v-if="filtered.length"
@@ -148,7 +164,9 @@ import { useEncountersInRollTables } from "@/composables/dungeon-features/useRol
 import { useEncountersUiStore } from "@/stores/ui/encounters";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
@@ -166,6 +184,8 @@ const encountersUi = useEncountersUiStore();
 
 // Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` this grid used to carry.
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
+// The page header's toggle writes the same key.
+const layout = useListLayout("encounters", "grid");
 const encounterKey = (encounter: EncounterListRow) => encounter.id;
 
 // Row height before a row is measured (px): 81-127px across 35 encounters, 127 the median, measured at a 390px
@@ -278,6 +298,19 @@ const difficultyRows = computed(() =>
 
 function encounterDifficultyLabel(encounter: EncounterListRow): string {
   return encounterDifficulty(encounter, difficultyRows.value).label;
+}
+
+// The card's corner badge as a row tag: finished, live, or the difficulty.
+function encounterStatusLabel(encounter: EncounterListRow): string {
+  if (encounter.is_finished) return "Done";
+  if (isEncounterRunning(encounter.id)) return "Live";
+  return encounterDifficultyLabel(encounter);
+}
+
+function encounterSubtitle(encounter: EncounterListRow): string {
+  const monsters = totalMonsterCount(encounter);
+  const players = encounter.party_member_ids.length;
+  return `${monsters} monster${monsters !== 1 ? "s" : ""}, ${players} player${players !== 1 ? "s" : ""}`;
 }
 
 function encounterDifficultyColor(encounter: EncounterListRow): string {

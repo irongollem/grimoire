@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { flushMicrotasks, useVirtualGridViewport } from "./virtualGridViewport";
 import DungeonCraftPuzzlesTab from "./DungeonCraftPuzzlesTab.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
@@ -53,6 +54,8 @@ vi.mock("@/composables/useToast", () => ({
 // #598), and its own setup unconditionally calls useDmCampaigns(), which needs
 // a real query client this suite doesn't stand up — stubbed away, same as
 // DungeonCraftRollTablesTab.test.ts.
+useVirtualGridViewport();
+
 function mountTab() {
   const pinia = createPinia();
   setActivePinia(pinia);
@@ -125,8 +128,9 @@ describe("DungeonCraftPuzzlesTab — checkbox chip placement", () => {
     mocks.puzzles = [puzzle()];
   });
 
-  it("puts the checkbox chip in the top-right corner, clear of the type badge at top-left", () => {
+  it("puts the checkbox chip in the top-right corner, clear of the type badge at top-left", async () => {
     const wrapper = mountTab();
+    await flushMicrotasks();
     expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
   });
 });

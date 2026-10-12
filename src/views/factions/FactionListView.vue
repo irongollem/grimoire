@@ -32,6 +32,7 @@
         mobile-label="Faction"
         @click="handleNew"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <template #filters>
@@ -47,7 +48,7 @@
       </ListFilterBar>
     </template>
 
-    <ListSkeleton v-if="isLoading" variant="tiles" :columns="3" :count="9" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'grid' : 'tiles'" :columns="3" :count="9" />
 
     <EmptyState
       v-else-if="!factions?.length"
@@ -76,18 +77,59 @@
       Windowed and position-restoring like the NPC and monster grids. No mobile
       card swap, though, and that is deliberate rather than unfinished:
       `EntityMobileCard`'s "rows" layout is this row, and it is a `RouterLink`
-      wrapper — so adopting it would trade a working reveal control for a
+      wrapper, so adopting it would trade a working reveal control for a
       read-only eye at exactly the width where the control is hardest to reach
       another way. `EntityListRow` uses the link-overlay trick precisely so it
       can hold a button, and it already reflows to one column.
     -->
-      <VirtualGrid
-        :items="filtered"
-        :item-key="factionKey"
-        :columns="columns"
-        :estimate-row-height="ROW_PX"
-      >
-        <template #default="{ item: faction }">
+    <EntityCollection
+      :items="filtered"
+      :item-key="factionKey"
+      :layout="layout"
+      :grid-columns="columns"
+      :grid-row-estimate="GRID_ROW_PX"
+      :row-estimate="ROW_PX"
+      :row-columns="columns"
+    >
+      <template #card="{ item: faction }">
+        <BulkSelectableCard
+          corner="top-left"
+          :selected="isSelected(faction.id)"
+          :selecting="selecting"
+          @toggle="toggleRowSelection(faction.id)"
+        >
+          <EntityGridCard
+            :to="`/factions/${faction.id}`"
+            :title="faction.name"
+            :image-url="faction.emblem_url"
+            :placeholder="placeholderUrl('faction')"
+          >
+            <template #actions-end>
+              <div @click.prevent.stop>
+                <AudienceRevealControl
+                  :name="faction.name"
+                  :visible-to="faction.player_visible_to"
+                  form="overlay"
+                  @change="(next) => revealFaction(faction.id, next)"
+                />
+              </div>
+            </template>
+            <template #body>
+              <p class="truncate text-heading-xs font-bold text-foreground">{{ faction.name }}</p>
+              <p class="truncate text-label text-muted-foreground">{{ faction.faction_type }}</p>
+              <RelationshipMark v-if="faction.party_standing !== 'unknown'" :relationship="faction.party_standing" />
+              <div v-if="faction.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
+                <span
+                  v-for="tag in faction.tags.slice(0, 3)"
+                  :key="tag"
+                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+                >{{ tag }}</span>
+              </div>
+            </template>
+          </EntityGridCard>
+        </BulkSelectableCard>
+      </template>
+      <template #row="{ item: faction }">
         <BulkSelectableCard
           corner="top-left"
           :selected="isSelected(faction.id)"
@@ -115,8 +157,8 @@
             </template>
           </EntityListRow>
         </BulkSelectableCard>
-        </template>
-      </VirtualGrid>
+      </template>
+    </EntityCollection>
     </template>
   </ListPageLayout>
 
@@ -160,7 +202,11 @@ import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDia
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
@@ -202,6 +248,8 @@ useScrollRestore("factions");
 // Mirrors the grid classes this list used to carry:
 // `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3`.
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
+// The page header's toggle writes the same key. Rows is today's look.
+const layout = useListLayout("factions", "rows");
 const factionKey = (faction: { id: string }) => faction.id;
 
 // Row height before a row is measured (px): 82-107px across 26 factions, 88 the median, measured at a 390px
@@ -209,6 +257,9 @@ const factionKey = (faction: { id: string }) => faction.id;
 // restored scroll lands, since coming back from a detail re-renders every
 // unmeasured row above the viewport.
 const ROW_PX = 88;
+// Grid card height before it is measured (px): 2 border + 144 artwork + 24
+// padding + about 80 body (name, type, standing, tags).
+const GRID_ROW_PX = 250;
 
 const populateMutation = usePopulateFactions();
 const populateStatus = ref<"idle" | "done" | "uptodate">("idle");

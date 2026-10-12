@@ -1,7 +1,5 @@
 <template>
-  <div v-if="isLoading" class="flex justify-center py-16">
-    <LoadingSpinner />
-  </div>
+  <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'text'" :count="8" />
 
   <EmptyState
     v-else-if="filtered.length === 0 && !codexUi.featsHasActiveFilters"
@@ -17,29 +15,38 @@
     description="Try adjusting your search, category or edition filter."
   />
 
-  <div v-else class="divide-y divide-border">
-    <FeatureListRow v-for="feat in filtered" :key="feat.id" :feature="feat" :to="`/features/${feat.id}`">
-      <template #badges>
-        <AppButton v-if="feat.feat_category" as="span" variant="tinted" tone="neutral" emphasis="soft" size="xs" :label="FEAT_CATEGORY_LABELS[feat.feat_category]" />
-        <AppButton v-if="feat.ruleset" as="span" variant="tinted" tone="neutral" emphasis="soft" size="xs" :label="feat.ruleset" />
-      </template>
-    </FeatureListRow>
-  </div>
+  <FeatureCollection
+    v-else
+    :features="filtered"
+    list-key="codex-feats"
+    :fallback-icon="IconAward"
+    :badges-for="badgesFor"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconAdd } from "@/lib/icons";
+import { IconAdd, IconAward } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
-import FeatureListRow from "@/components/features/FeatureListRow.vue";
+import FeatureCollection from "@/components/features/FeatureCollection.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import { useCodexUiStore } from "@/stores/ui/codex";
 import { useAllFeats } from "@/composables/rules/useFeatures";
-import { FEAT_CATEGORY_LABELS } from "@/types/feature.types";
+import { FEAT_CATEGORY_LABELS, type ClassFeature } from "@/types/feature.types";
 
 const codexUi = useCodexUiStore();
 const { data: all, isLoading } = useAllFeats();
+// The Codex header's toggle writes the same key.
+const layout = useListLayout("codex-feats", "rows");
+
+function badgesFor(feat: ClassFeature): string[] {
+  const badges: string[] = [];
+  if (feat.feat_category) badges.push(FEAT_CATEGORY_LABELS[feat.feat_category]);
+  if (feat.ruleset) badges.push(feat.ruleset);
+  return badges;
+}
 
 const filtered = computed(() => {
   const search = codexUi.featsSearch.toLowerCase();

@@ -35,6 +35,7 @@
         mobile-label="Deity"
         @click="handleNew"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <template #filters>
@@ -56,7 +57,7 @@
 
     <ListSkeleton
       v-if="isLoading"
-      :variant="isMobile ? layout : 'grid'"
+      :variant="skeletonVariant"
       :count="isMobile ? 7 : 12"
     />
 
@@ -71,7 +72,7 @@
     <!--
       Below `md`, the same swap NpcList and MonsterList make: a portrait grid
       card is too wide for a phone, so the list becomes `EntityMobileCard` with
-      the rows/gallery toggle. The deity grid had no mobile form at all and
+      the rows/grid toggle. The deity grid had no mobile form at all and
       rendered the desktop card at every width.
 
       One thing is genuinely lost in the swap and is not an oversight:
@@ -81,7 +82,6 @@
     -->
     <template v-else-if="isMobile">
       <MobileEntityMetaRow
-        v-model:layout="layout"
         :shown="filtered.length"
         :total="deities?.length ?? 0"
         plural="deities"
@@ -104,14 +104,15 @@
       </EntityMobileGrid>
     </template>
 
-    <template v-else>
-      <VirtualGrid
-        :items="filtered"
-        :item-key="deityKey"
-        :columns="desktopColumns"
-        :estimate-row-height="GRID_ROW_PX"
-      >
-        <template #default="{ item: deity }">
+    <EntityCollection
+      v-else
+      :items="filtered"
+      :item-key="deityKey"
+      :layout="layout"
+      :grid-columns="desktopColumns"
+      :grid-row-estimate="GRID_ROW_PX"
+    >
+        <template #card="{ item: deity }">
         <EntityGridCard
           :to="`/deities/${deity.id}`"
           :title="deity.name"
@@ -153,8 +154,25 @@
           </template>
         </EntityGridCard>
         </template>
-      </VirtualGrid>
-    </template>
+        <template #row="{ item: deity }">
+          <EntityListRow
+            :to="`/deities/${deity.id}`"
+            :title="deity.name"
+            :subtitle="deity.titles"
+            :image-url="deity.portrait_url"
+            :fallback-icon="IconNavPantheon"
+            :tags="deityRowTags(deity)"
+          >
+            <template #actions>
+              <AudienceRevealControl
+                :name="deity.name"
+                :visible-to="deity.player_visible_to"
+                @change="(next) => revealDeity(deity.id, next)"
+              />
+            </template>
+          </EntityListRow>
+        </template>
+    </EntityCollection>
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="deities" />
@@ -166,11 +184,12 @@ import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconAdd, IconFire, IconGenerate, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities, useUpdateDeity } from "@/composables/deities/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
-import { useAppUiStore } from "@/stores/ui/app";
 import { useDeitiesUiStore } from "@/stores/ui/deities";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSettingContent } from "@/composables/campaign/useSettingContent";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
@@ -186,11 +205,11 @@ import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import EntityMobileGrid from "@/components/common/entity/EntityMobileGrid.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
-const appUi = useAppUiStore();
 const deitiesUi = useDeitiesUiStore();
 const generatorsUi = useGeneratorUiStore();
 const campaign = useCampaignStore();
@@ -228,12 +247,20 @@ const filtered = computed(() => {
 });
 
 const isMobile = useIsMobile();
-const layout = computed({
-  get: () => appUi.entityListLayout,
-  set: (v: "rows" | "gallery") => {
-    appUi.entityListLayout = v;
-  },
-});
+// The page header's toggle writes the same key.
+const layout = useListLayout("deities", "grid");
+// The phone's grid is the two-column gallery skeleton.
+const skeletonVariant = computed(() =>
+  layout.value === "rows" ? "rows" : isMobile.value ? "gallery" : "grid",
+);
+
+// Tags on the desktop row: pantheon, then domains.
+function deityRowTags(deity: { pantheon?: { name: string } | null; domains?: string[] | null }): string[] {
+  const tags: string[] = [];
+  if (deity.pantheon?.name) tags.push(deity.pantheon.name);
+  if (deity.domains) tags.push(...deity.domains);
+  return tags;
+}
 
 // The whole filtered list is in hand, so only the scroll position needs
 // restoring; VirtualGrid windows what is mounted.

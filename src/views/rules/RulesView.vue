@@ -31,6 +31,7 @@
               label="New Rule"
               to="/rules/new"
             />
+            <ListLayoutToggle v-model="customRulesLayout" />
           </template>
         </div>
       </div>
@@ -60,6 +61,8 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconGenerate, IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
@@ -81,6 +84,8 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+// The Custom Rules tab renders its list through the same key.
+const customRulesLayout = useListLayout("custom-rules", "grid");
 const route = useRoute();
 const generatorsUi = useGeneratorUiStore();
 const campaignStore = useCampaignStore();

@@ -1,9 +1,9 @@
 <template>
   <PageHeader
-    :title="isNew ? 'New Class' : (form.class_name || 'Custom Class')"
-    description="Design your custom class: features, proficiencies, and level progression"
+    :title="isNew ? 'New Class' : (record?.cls.class_name || form.class_name || 'Custom Class')"
+    :description="isLibrary ? 'A library class: read only. Duplicate it to customise.' : 'Design your custom class: features, proficiencies, and level progression'"
   >
-    <template v-if="isNew || isEditing" #actions>
+    <template v-if="isNew || (isEditing && existing)" #actions>
       <AppButton
         v-if="!isNew"
         variant="subtle"
@@ -29,7 +29,7 @@
       />
     </template>
 
-    <CustomClassSheet v-if="!isNew && !isEditing && existing" :cls="existing" />
+    <CustomClassSheet v-if="!isNew && (!isEditing || isLibrary) && record" :cls="record.cls" />
 
     <div v-else class="max-w-2xl mx-auto space-y-6">
       <p v-if="saveError" class="text-body text-destructive">{{ saveError }}</p>
@@ -158,7 +158,7 @@ import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconDelete, IconSave } from '@/lib/icons';
-import { useCustomClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/rules/useCustomClasses";
+import { useClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/rules/useCustomClasses";
 import CustomClassSheet from "@/components/levelup/CustomClassSheet.vue";
 import CustomClassProficienciesPanel from "@/components/levelup/CustomClassProficienciesPanel.vue";
 import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeaturesPerLevel.vue";
@@ -183,7 +183,10 @@ function onCancel() {
   router.push({ query: q });
 }
 
-const { data: existing } = useCustomClass(id);
+const { data: record } = useClass(id);
+// A library class is read-only: `?edit=true` on one just opens its sheet.
+const isLibrary = computed(() => record.value?.kind === "library");
+const existing = computed(() => (record.value?.kind === "custom" ? record.value.cls : undefined));
 const { data: campaignList } = useDmCampaigns();
 const campaigns = computed(() => campaignList.value ?? []);
 const { data: allFeatures } = useAllFeatures();

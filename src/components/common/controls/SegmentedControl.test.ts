@@ -135,4 +135,11 @@ describe("SegmentedControl", () => {
     expect(w.classes()).toContain("w-full");
     expect(w.findAll("button")[0].classes()).toContain("flex-1");
   });
+
+  it("iconOnly drops the visible label but keeps it as the accessible name", () => {
+    const w = mountControl("url", { iconOnly: true });
+    const buttons = w.findAll("button");
+    expect(buttons.map(b => b.text())).toEqual(["", "", ""]);
+    expect(buttons.map(b => b.attributes("aria-label"))).toEqual(["URL", "Upload", "Browse"]);
+  });
 });

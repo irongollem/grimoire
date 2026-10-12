@@ -1,7 +1,20 @@
 <template>
   <div class="max-w-2xl mx-auto space-y-6">
     <!-- Action bar -->
-    <div class="flex items-center justify-end gap-2">
+    <div v-if="isLibrary" class="flex items-center justify-between gap-2">
+      <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+        Library · read only
+      </span>
+      <AppButton
+        variant="primary"
+        size="md"
+        :icon="IconCopy"
+        :label="duplicating ? 'Copying…' : 'Duplicate to customise'"
+        :disabled="duplicating"
+        @click="handleDuplicate"
+      />
+    </div>
+    <div v-else class="flex items-center justify-end gap-2">
       <AppButton variant="destructive" size="md" :icon="IconDelete" label="Delete" @click="handleDelete" />
       <AppButton
         variant="primary"
@@ -40,7 +53,7 @@
         <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
           Subclass at level {{ cls.subclass_level }}
         </span>
-        <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+        <span v-if="isCustomClass(cls)" class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
           {{ cls.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
         </span>
         </div>
@@ -131,19 +144,28 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconDelete, IconEdit } from '@/lib/icons';
+import { IconCopy, IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteCustomClass } from "@/composables/rules/useCustomClasses";
+import { isCustomClass, useDeleteCustomClass, useDuplicateSystemClass } from "@/composables/rules/useCustomClasses";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import type { CustomClass } from "@/levelup/customTypes";
+import type { CustomClass, SystemClass } from "@/levelup/customTypes";
 
-const props = defineProps<{ cls: CustomClass }>();
+const props = defineProps<{ cls: CustomClass | SystemClass }>();
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
 const deleteMut = useDeleteCustomClass();
+const { duplicate, isPending: duplicating } = useDuplicateSystemClass();
+
+const isLibrary = computed(() => !isCustomClass(props.cls));
+
+async function handleDuplicate() {
+  if (isCustomClass(props.cls)) return;
+  const created = await duplicate(props.cls);
+  void router.push(`/levelup/classes/${created.id}`);
+}
 
 const { data: allFeatures } = useAllFeatures();
 
@@ -166,6 +188,7 @@ const casterTypeLabel = computed(() => {
 });
 
 async function handleDelete() {
+  if (!isCustomClass(props.cls)) return;
   const ok = await confirm(`Delete "${props.cls.class_name}"? This cannot be undone.`, {
     title: "Delete Class",
     confirmLabel: "Delete",

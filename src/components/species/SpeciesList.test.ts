@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { reactive, ref, defineComponent, h } from "vue";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import SpeciesList from "./SpeciesList.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { Species } from "@/types/species.types";
 
@@ -128,7 +129,7 @@ afterAll(() => {
   if (ORIGINAL_OFFSET_HEIGHT) Object.defineProperty(HTMLElement.prototype, "offsetHeight", ORIGINAL_OFFSET_HEIGHT);
 });
 
-const stubs = { RouterLink: true };
+const stubs = { RouterLink: true, AiImageBadge: true };
 
 interface SpeciesListExposed {
   bulkSelecting: boolean;
@@ -377,6 +378,28 @@ describe("SpeciesList — copy to campaign (#598)", () => {
     expect(toastSuccess).toHaveBeenCalledWith("Copied 2 species to Neverwinter.");
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
     expect(wrapper.text()).not.toContain("selected");
+  });
+});
+
+describe("SpeciesList — layout", () => {
+  beforeEach(() => {
+    allSpecies.value = [customSpecies(1, { name: "Aasimar" })];
+  });
+
+  it("shows one EntityListRow per species in the rows layout, and the picker ignores the toggle", async () => {
+    useListLayout("codex-species", "grid").value = "rows";
+    try {
+      const wrapper = await mountList();
+      await flushMicrotasks();
+      expect(wrapper.findAllComponents({ name: "EntityListRow" })).toHaveLength(1);
+      expect(wrapper.findAllComponents({ name: "EntityGridCard" })).toHaveLength(0);
+
+      const picker = await mountList({ selectMode: true });
+      await flushMicrotasks();
+      expect(picker.findAllComponents({ name: "EntityGridCard" })).toHaveLength(1);
+    } finally {
+      useListLayout("codex-species", "grid").value = "grid";
+    }
   });
 });
 

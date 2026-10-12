@@ -1,5 +1,9 @@
 <template>
   <PageHeader title="Simulacrum" description="Every 3D miniature forged from a portrait, in one place.">
+    <template #actions>
+      <ListLayoutToggle v-model="layout" />
+    </template>
+
     <template #header-extra>
       <div class="flex flex-wrap items-center gap-2">
         <div class="relative max-w-xs flex-1">
@@ -37,9 +41,11 @@
       </div>
     </template>
 
-    <div v-if="query.isPending.value" class="flex justify-center py-16">
-      <LoadingSpinner message="Gathering your minis…" />
-    </div>
+    <ListSkeleton
+      v-if="query.isPending.value"
+      :variant="layout === 'grid' ? 'gallery' : 'rows'"
+      :count="8"
+    />
 
     <EmptyState
       v-else-if="filtered.length === 0"
@@ -55,9 +61,18 @@
       </template>
     </EmptyState>
 
-    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 pt-1">
-      <MiniCard v-for="mini in filtered" :key="mini.id" :mini="mini" />
-    </div>
+    <EntityCollection
+      v-else
+      :items="filtered"
+      :item-key="miniKey"
+      :layout="layout"
+      :grid-columns="columns"
+      :grid-row-estimate="GRID_ROW_PX"
+      :row-estimate="ROW_PX"
+    >
+      <template #card="{ item: mini }"><MiniCard :mini="mini" /></template>
+      <template #row="{ item: mini }"><MiniRow :mini="mini" /></template>
+    </EntityCollection>
   </PageHeader>
 </template>
 
@@ -69,14 +84,20 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
-import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
 import VitruvianIcon from "@/components/common/media/VitruvianIcon.vue";
 import MiniCard from "@/components/simulacrum/MiniCard.vue";
+import MiniRow from "@/components/simulacrum/MiniRow.vue";
 import { IconSearch } from "@/lib/icons";
 import { useMinisUiStore } from "@/stores/ui/minis";
 import { useMinis } from "@/composables/simulacrum/useMinis";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import { MINI_STATUSES } from "@/types/mini.types";
+import type { Mini } from "@/types/mini.types";
 
 const minisUi = useMinisUiStore();
 const { minisSearch, minisFilterFormat, minisFilterStatus, minisHasActiveFilters } = storeToRefs(minisUi);
@@ -94,6 +115,17 @@ const filterStatus = computed({
   get: () => minisFilterStatus.value,
   set: (v) => { minisFilterStatus.value = v; },
 });
+
+// The page header's toggle writes the same key. Cards is today's look.
+const layout = useListLayout("minis", "grid");
+// Mirrors `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5`.
+const columns = useBreakpointColumns({ base: 2, sm: 3, md: 4, xl: 5 });
+const miniKey = (mini: Mini) => mini.id;
+// Heights in px before a card or row is measured: a card is the square
+// thumbnail (about 8rem to 14rem by width) plus a 110 body; take 260. A row is
+// 2 border + 24 padding + the 48 thumbnail = 74.
+const GRID_ROW_PX = 260;
+const ROW_PX = 74;
 
 const { isTeaser } = useSimulacrumConfig();
 const query = useMinis();

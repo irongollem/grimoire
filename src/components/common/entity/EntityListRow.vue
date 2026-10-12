@@ -23,7 +23,18 @@
   <div
     class="group relative flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50"
   >
-    <RouterLink :to="to" class="absolute inset-0 z-2" />
+    <RouterLink v-if="!locked" :to="to" class="absolute inset-0 z-2" />
+    <!-- Over quota: the same overlay as the grid card, and no link underneath. -->
+    <div
+      v-if="locked"
+      class="absolute inset-0 z-20 flex items-center justify-center gap-3 rounded-lg bg-background/80 backdrop-blur-sm"
+    >
+      <IconLock class="h-4 w-4 text-muted-foreground" />
+      <p class="text-label font-semibold text-muted-foreground">Locked</p>
+      <RouterLink to="/billing" class="text-label text-primary/80 transition-colors hover:text-primary">
+        Upgrade to access
+      </RouterLink>
+    </div>
 
     <div
       class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted"
@@ -71,9 +82,9 @@
 import type { Component } from "vue";
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/media/FocalImage.vue";
-import { IconChevronRight } from "@/lib/icons";
+import { IconChevronRight, IconLock } from "@/lib/icons";
 
-const { imageUrl = null, subtitle = null, tags = [], maxTags = 3 } = defineProps<{
+const { imageUrl = null, subtitle = null, tags = [], maxTags = 3, locked = false } = defineProps<{
   /** Where the whole row navigates. */
   to: string;
   title: string;
@@ -86,5 +97,7 @@ const { imageUrl = null, subtitle = null, tags = [], maxTags = 3 } = defineProps
   tags?: readonly string[];
   /** Tags beyond this are dropped — the row is a glance, not an inventory. */
   maxTags?: number;
+  /** Over quota: greys the row out and removes its link. */
+  locked?: boolean;
 }>();
 </script>

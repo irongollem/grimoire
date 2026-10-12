@@ -20,14 +20,58 @@ async function fetchAll(ruleset: RulesetKey): Promise<CustomClass[]> {
   return data as CustomClass[];
 }
 
-async function fetchOne(id: string): Promise<CustomClass> {
-  const { data, error } = await supabase
+/** A class opened by id: a homebrew row, or a read-only row of the shared
+ *  `system_classes` table. Both keys are uuids, so the id's shape cannot say
+ *  which table holds it; the custom table is asked first, then the library's. */
+export type ClassRecord =
+  | { kind: "custom"; cls: CustomClass }
+  | { kind: "library"; cls: SystemClass };
+
+export async function fetchClassRecord(id: string): Promise<ClassRecord> {
+  const { data: custom, error: customError } = await supabase
     .from("custom_classes")
     .select("*")
     .eq("id", id)
+    .maybeSingle();
+  if (customError) throw customError;
+  if (custom) return { kind: "custom", cls: custom as CustomClass };
+  const { data: library, error: libraryError } = await supabase
+    .from("system_classes")
+    .select("*")
+    .eq("id", id)
     .single();
-  if (error) throw error;
-  return data as CustomClass;
+  if (libraryError) throw libraryError;
+  return { kind: "library", cls: library as SystemClass };
+}
+
+/** A library row has no owner; a homebrew row always does. */
+export function isCustomClass(cls: CustomClass | SystemClass): cls is CustomClass {
+  return "user_id" in cls;
+}
+
+/** The custom-class insert that copies a library class, ready to be edited. */
+export function customClassFromSystem(cls: SystemClass): CustomClassInsert {
+  return {
+    class_name: `${cls.class_name} (copy)`,
+    campaign_id: null,
+    hit_die: cls.hit_die,
+    primary_ability: cls.primary_ability,
+    saving_throws: cls.saving_throws,
+    armor_proficiencies: cls.armor_proficiencies,
+    weapon_proficiencies: cls.weapon_proficiencies,
+    subclass_level: cls.subclass_level,
+    features: cls.features,
+    spell_slots: cls.spell_slots,
+    spells_known: cls.spells_known,
+    cantrips_known: cls.cantrips_known,
+    slot_recovery: cls.slot_recovery,
+    caster_type: cls.caster_type,
+    prepared_ability: cls.prepared_ability,
+    prepared_divisor: cls.prepared_divisor,
+    source: null,
+    image_url: cls.image_url,
+    focal_point: cls.focal_point,
+  };
 }
 
 async function fetchByName(className: string, ruleset: RulesetKey): Promise<CustomClass | null> {
@@ -81,10 +125,11 @@ export function useAllCustomClasses(enabled: () => boolean = () => true) {
   });
 }
 
-export function useCustomClass(id: Ref<string>) {
+/** A class by id, from whichever table holds it. */
+export function useClass(id: Ref<string>) {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, id.value] as const),
-    queryFn: ({ queryKey: [, cid] }) => fetchOne(cid),
+    queryFn: ({ queryKey: [, cid] }) => fetchClassRecord(cid),
     enabled: () => !!id.value,
   });
 }
@@ -105,6 +150,15 @@ export function useCreateCustomClass() {
     mutationFn: createCustomClass,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
+}
+
+/** Copies a library class into the DM's own classes; resolves to the new row. */
+export function useDuplicateSystemClass() {
+  const { mutateAsync, isPending } = useCreateCustomClass();
+  return {
+    duplicate: (cls: SystemClass) => mutateAsync(customClassFromSystem(cls)),
+    isPending,
+  };
 }
 
 export function useUpdateCustomClass() {

@@ -18,6 +18,7 @@
         mobile-label="Encounter"
         @click="handleNew"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <template #filters>
@@ -68,6 +69,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import EncounterList from "@/components/encounters/EncounterList.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useEncountersUiStore } from "@/stores/ui/encounters";
@@ -78,6 +81,7 @@ import { useQuota } from "@/composables/billing/useQuota";
 
 const router = useRouter();
 const encountersUi = useEncountersUiStore();
+const layout = useListLayout("encounters", "grid");
 const generatorsUi = useGeneratorUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);

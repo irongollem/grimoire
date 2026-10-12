@@ -23,9 +23,10 @@
       <AppButton
         :variant="variant"
         :size="size"
-        :label="option.label"
+        :label="iconOnly ? undefined : option.label"
+        :aria-label="iconOnly ? option.label : undefined"
         :icon="option.icon"
-        :tooltip="option.tooltip"
+        :tooltip="iconOnly ? (option.tooltip ?? option.label) : option.tooltip"
         :active="modelValue === option.value"
         :class="block ? 'flex-1 min-w-0' : ''"
       />
@@ -68,6 +69,7 @@ const {
   size = "sm",
   block = false,
   wrap = false,
+  iconOnly = false,
   disabled = false,
   orientation = "horizontal",
   gap = "tight",
@@ -85,6 +87,11 @@ const {
    * overflow its container instead.
    */
   wrap?: boolean;
+  /**
+   * Draws each option as its icon alone (pair with an `icon-*` size). The label
+   * stays as the accessible name and, unless `tooltip` says otherwise, the hover title.
+   */
+  iconOnly?: boolean;
   disabled?: boolean;
   orientation?: "horizontal" | "vertical";
   /** `tight` butts the options together; `loose` spaces them like a toolbar. */

@@ -1,7 +1,5 @@
 <template>
-  <div v-if="isLoading || systemLoading" class="flex justify-center py-16">
-    <LoadingSpinner />
-  </div>
+  <ListSkeleton v-if="isLoading || systemLoading" :variant="layout === 'rows' ? 'rows' : 'grid'" :count="12" />
 
   <template v-else>
     <!-- Empty state (no custom classes and no search active) -->
@@ -18,13 +16,7 @@
         </p>
       </div>
 
-      <RouterLink
-        to="/levelup/classes/new"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        New Class
-      </RouterLink>
+      <AppButton to="/levelup/classes/new" variant="primary" :icon="IconAdd" label="New Class" />
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2 w-full max-w-2xl text-left">
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
@@ -56,100 +48,158 @@
       />
 
       <!-- My custom classes -->
-      <div v-if="filtered.length > 0" class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border mx-4 md:mx-6 mt-4">
-        <RouterLink
-          v-for="cls in filtered"
-          :key="cls.id"
-          :to="`/levelup/classes/${cls.id}`"
-          class="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
-        >
-          <div class="size-12 shrink-0 rounded-md overflow-hidden bg-muted flex items-center justify-center">
-            <FocalImage
-              v-if="cls.image_url"
-              :src="cls.image_url"
-              :alt="cls.class_name"
-              format="landscape"
-              :focal-point="cls.focal_point"
-            />
-            <span v-else class="text-heading-sm font-bold text-primary/30">{{ cls.class_name.charAt(0).toUpperCase() }}</span>
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-heading-xs font-semibold text-foreground truncate">{{ cls.class_name }}</p>
-            <p class="text-caption text-muted-foreground mt-0.5">
-              d{{ cls.hit_die }}
-              <span v-if="cls.saving_throws.length > 0"> · {{ cls.saving_throws.join(', ') }} saves</span>
-              <span v-if="featureLevelCount(cls) > 0"> · {{ featureLevelCount(cls) }} feature level{{ featureLevelCount(cls) !== 1 ? 's' : '' }}</span>
-              <span v-if="cls.source" class="ml-1 text-primary/60"> · {{ cls.source }}</span>
-              <span v-if="cls.campaign_id" class="ml-1 text-primary/70"> · campaign only</span>
-            </p>
-          </div>
-          <IconChevronRight class="h-4 w-4 text-muted-foreground shrink-0" />
-        </RouterLink>
-      </div>
+      <EntityCollection
+        v-if="filtered.length > 0"
+        :items="filtered"
+        :item-key="classKey"
+        :layout="layout"
+        :grid-columns="columns"
+        :grid-row-estimate="GRID_ROW_PX"
+        class="mt-4"
+      >
+        <template #card="{ item: cls }">
+          <EntityGridCard
+            :to="`/levelup/classes/${cls.id}`"
+            :title="cls.class_name"
+            :image-url="cls.image_url"
+            :focal-point="cls.focal_point"
+            :placeholder="placeholderUrl('character')"
+          >
+            <template #body>
+              <h3 class="line-clamp-1 text-heading-xs leading-tight font-bold text-foreground">{{ cls.class_name }}</h3>
+              <p class="text-caption text-muted-foreground">{{ customSubtitle(cls) }}</p>
+            </template>
+          </EntityGridCard>
+        </template>
+        <template #row="{ item: cls }">
+          <EntityListRow
+            :to="`/levelup/classes/${cls.id}`"
+            :title="cls.class_name"
+            :subtitle="customSubtitle(cls)"
+            :image-url="cls.image_url"
+            :fallback-icon="IconPopulate"
+          />
+        </template>
+      </EntityCollection>
     </template>
 
     <!-- SRD Classes (always shown unless search hides them all) -->
-    <div v-if="filteredSystem.length > 0" class="px-4 md:px-6 mt-6 mb-4">
+    <div v-if="filteredSystem.length > 0" class="mt-6 mb-4">
       <h3 class="text-label-lg uppercase text-muted-foreground mb-2">
         Reference classes · read only · duplicate to customise
       </h3>
-      <div class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
-        <div
-          v-for="cls in filteredSystem"
-          :key="cls.id"
-          class="flex items-center gap-3 px-4 py-3"
-        >
-          <div class="size-12 shrink-0 rounded-md overflow-hidden bg-muted flex items-center justify-center">
-            <FocalImage
-              v-if="cls.image_url"
-              :src="cls.image_url"
-              :alt="cls.class_name"
-              format="landscape"
-              :focal-point="cls.focal_point"
-            />
-            <span v-else class="text-heading-sm font-bold text-primary/30">{{ cls.class_name.charAt(0).toUpperCase() }}</span>
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-heading-xs font-semibold text-foreground truncate">{{ cls.class_name }}</p>
-            <p class="text-caption text-muted-foreground mt-0.5">
-              d{{ cls.hit_die }}
-              <span v-if="cls.saving_throws.length > 0"> · {{ cls.saving_throws.join(', ') }} saves</span>
-              <span v-if="cls.spell_slots"> · spellcaster</span>
-            </p>
-          </div>
-          <button
-            type="button"
-            :disabled="duplicating === cls.id"
-            class="inline-flex items-center gap-1 rounded border border-border px-2.5 py-1 text-label text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50 shrink-0"
-            @click="duplicate(cls)"
+      <EntityCollection
+        :items="filteredSystem"
+        :item-key="classKey"
+        :layout="layout"
+        :grid-columns="columns"
+        :grid-row-estimate="GRID_ROW_PX"
+      >
+        <template #card="{ item: cls }">
+          <EntityGridCard
+            :to="`/levelup/classes/${cls.id}`"
+            :title="cls.class_name"
+            :image-url="cls.image_url"
+            :focal-point="cls.focal_point"
+            :placeholder="placeholderUrl('character')"
           >
-            <IconCopy class="h-3 w-3" />
-            {{ duplicating === cls.id ? 'Copying…' : 'Duplicate' }}
-          </button>
-        </div>
-      </div>
+            <template #actions-end>
+              <div @click.prevent.stop>
+                <AppButton
+                  variant="ghost"
+                  size="icon-xs"
+                  :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
+                  :icon="IconCopy"
+                  :disabled="duplicating === cls.id"
+                  :tooltip="duplicating === cls.id ? 'Copying…' : 'Duplicate to customise'"
+                  aria-label="Duplicate class"
+                  @click="duplicate(cls)"
+                />
+              </div>
+            </template>
+            <template #body>
+              <h3 class="line-clamp-1 text-heading-xs leading-tight font-bold text-foreground">{{ cls.class_name }}</h3>
+              <p class="text-caption text-muted-foreground">{{ systemSubtitle(cls) }}</p>
+            </template>
+          </EntityGridCard>
+        </template>
+        <template #row="{ item: cls }">
+          <EntityListRow
+            :to="`/levelup/classes/${cls.id}`"
+            :title="cls.class_name"
+            :subtitle="systemSubtitle(cls)"
+            :image-url="cls.image_url"
+            :fallback-icon="IconPopulate"
+          >
+            <template #actions>
+              <AppButton
+                variant="outline"
+                size="sm"
+                :icon="IconCopy"
+                :disabled="duplicating === cls.id"
+                :label="duplicating === cls.id ? 'Copying…' : 'Duplicate'"
+                @click="duplicate(cls)"
+              />
+            </template>
+          </EntityListRow>
+        </template>
+      </EntityCollection>
     </div>
   </template>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { RouterLink, useRouter } from "vue-router";
-import { IconAdd, IconChevronRight, IconCopy } from '@/lib/icons';
-import FocalImage from "@/components/common/media/FocalImage.vue";
-import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import { useRouter } from "vue-router";
+import { IconAdd, IconCopy, IconPopulate } from '@/lib/icons';
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { useListLayout } from "@/composables/useListLayout";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
-import { useAllCustomClasses, useAllSystemClasses, useCreateCustomClass } from "@/composables/rules/useCustomClasses";
+import { useAllCustomClasses, useAllSystemClasses, useDuplicateSystemClass } from "@/composables/rules/useCustomClasses";
 import type { CustomClass, SystemClass } from "@/levelup/customTypes";
 
 const codexUi = useCodexUiStore();
 const router = useRouter();
 const { data: all, isLoading } = useAllCustomClasses();
 const { data: system, isLoading: systemLoading } = useAllSystemClasses();
-const { mutateAsync: create } = useCreateCustomClass();
+const { duplicate: duplicateSystemClass } = useDuplicateSystemClass();
 
 const duplicating = ref<string | null>(null);
+
+// The Codex header's toggle writes the same key.
+const layout = useListLayout("codex-classes", "grid");
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const classKey = (cls: { id: string }) => cls.id;
+
+// Grid card height in px before it is measured: 2 border + 144 artwork + 24
+// body padding + name 20 + a two-line subtitle 34 + gaps.
+const GRID_ROW_PX = 230;
+
+function baseSubtitle(cls: { hit_die: number; saving_throws: readonly string[] }): string {
+  const saves = cls.saving_throws.length > 0 ? ` · ${cls.saving_throws.join(", ")} saves` : "";
+  return `d${cls.hit_die}${saves}`;
+}
+
+function customSubtitle(cls: CustomClass): string {
+  const levels = featureLevelCount(cls);
+  const parts = [baseSubtitle(cls)];
+  if (levels > 0) parts.push(`${levels} feature level${levels !== 1 ? "s" : ""}`);
+  if (cls.source) parts.push(cls.source);
+  if (cls.campaign_id) parts.push("campaign only");
+  return parts.join(" · ");
+}
+
+function systemSubtitle(cls: SystemClass): string {
+  return cls.spell_slots ? `${baseSubtitle(cls)} · spellcaster` : baseSubtitle(cls);
+}
 
 const filtered = computed<CustomClass[]>(() => {
   const items = all.value ?? [];
@@ -172,27 +222,7 @@ function featureLevelCount(cls: CustomClass): number {
 async function duplicate(cls: SystemClass) {
   duplicating.value = cls.id;
   try {
-    const created = await create({
-      class_name: cls.class_name + " (copy)",
-      campaign_id: null,
-      hit_die: cls.hit_die,
-      primary_ability: cls.primary_ability,
-      saving_throws: cls.saving_throws,
-      armor_proficiencies: cls.armor_proficiencies,
-      weapon_proficiencies: cls.weapon_proficiencies,
-      subclass_level: cls.subclass_level,
-      features: cls.features,
-      spell_slots: cls.spell_slots,
-      spells_known: cls.spells_known,
-      cantrips_known: cls.cantrips_known,
-      slot_recovery: cls.slot_recovery,
-      caster_type: cls.caster_type,
-      prepared_ability: cls.prepared_ability,
-      prepared_divisor: cls.prepared_divisor,
-      source: null,
-      image_url: cls.image_url,
-      focal_point: cls.focal_point,
-    });
+    const created = await duplicateSystemClass(cls);
     router.push(`/levelup/classes/${created.id}`);
   } finally {
     duplicating.value = null;

@@ -4,20 +4,23 @@
       <ManualHelpLink page="hall-of-heroes" />
     </template>
 
-    <template v-if="isAppAdmin" #actions>
+    <template #actions>
       <ListActionButton
+        v-if="isAppAdmin"
         :icon="IconGenerate"
         :label="populateLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
       <ListActionButton
+        v-if="isAppAdmin"
         variant="primary"
         :icon="IconAdd"
         label="New Hero"
         mobile-label="Hero"
         to="/hall-of-heroes/new"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <template #filters>
@@ -34,7 +37,7 @@
     </template>
 
     <div ref="listRef">
-    <ListSkeleton v-if="isLoading" variant="grid" :count="12" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'grid'" :count="12" />
 
     <EmptyState
       v-else-if="!filtered.length && !search && settingFilter === 'all'"
@@ -56,17 +59,58 @@
       No heroes match your filters.
     </p>
 
-    <VirtualGrid
+    <EntityCollection
       v-else
       :items="filtered"
       :item-key="heroKey"
-      :columns="columns"
-      :gap="1"
-      :estimate-row-height="HERO_ROW_PX"
+      :layout="layout"
+      :grid-columns="columns"
+      :grid-row-estimate="HERO_ROW_PX"
     >
+      <template #row="{ item: hero }">
+        <EntityListRow
+          :to="`/hall-of-heroes/${hero.id}`"
+          :title="hero.name"
+          :subtitle="heroSubtitle(hero)"
+          :image-url="hero.portrait_url"
+          :fallback-icon="IconNavNpcs"
+          :tags="[settingLabel(hero.setting), ...hero.tags]"
+        >
+          <template #actions>
+            <AppButton
+              variant="tinted"
+              tone="primary"
+              size="sm"
+              :disabled="!hasCampaign || isImporting === hero.id"
+              :tooltip="hasCampaign ? 'Add to current campaign' : 'No active campaign'"
+              :label="isImporting === hero.id ? 'Adding…' : 'Add to Campaign'"
+              @click="handleImport(hero)"
+            />
+            <template v-if="isAppAdmin">
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                :icon="IconEdit"
+                :to="`/hall-of-heroes/${hero.id}/edit`"
+                tooltip="Edit hero"
+                aria-label="Edit hero"
+              />
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                :icon="IconDelete"
+                tooltip="Delete hero"
+                aria-label="Delete hero"
+                @click="handleDelete(hero)"
+              />
+            </template>
+          </template>
+        </EntityListRow>
+      </template>
+
       <!-- Same card shell as NPCs and monsters (EntityGridCard), so heroes get
            the same artwork plate, corner chips and, in Vellum, the poster. -->
-      <template #default="{ item: hero }">
+      <template #card="{ item: hero }">
       <EntityGridCard
         :to="`/hall-of-heroes/${hero.id}`"
         :title="hero.name"
@@ -130,7 +174,7 @@
         </template>
       </EntityGridCard>
       </template>
-    </VirtualGrid>
+    </EntityCollection>
     </div><!-- /listRef -->
 
     <template v-if="filtered.length" #footer>
@@ -145,7 +189,7 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useScrollRestore } from "@/composables/useScrollRestore";
-import { IconAdd, IconDelete, IconEdit, IconGenerate } from '@/lib/icons';
+import { IconAdd, IconDelete, IconEdit, IconGenerate, IconNavNpcs } from '@/lib/icons';
 import { useHallOfHeroes, useDeleteHero, useImportHero, usePopulateAllSettingHeroes } from "@/composables/party/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
@@ -160,7 +204,10 @@ import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -180,6 +227,8 @@ const router = useRouter();
 
 // Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` (gap-4) this grid used to carry.
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+// The header's toggle writes the same key.
+const layout = useListLayout("hall-of-heroes", "grid");
 const heroKey = (hero: HallOfHero) => hero.id;
 
 // Row height before a row is measured (px): 273-295px across 162 heroes, 295 the median, measured at a 390px
@@ -266,6 +315,11 @@ const filtered = computed(() => {
 
   return list;
 });
+
+function heroSubtitle(hero: HallOfHero): string | undefined {
+  const parts = [hero.race, hero.occupation].filter(Boolean);
+  return parts.length ? parts.join(" · ") : undefined;
+}
 
 function handleImport(hero: HallOfHero) {
   isImporting.value = hero.id;

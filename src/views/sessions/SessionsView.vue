@@ -2,6 +2,7 @@
   <PageHeader title="Sessions" description="Every evening at the table, and what was written about it.">
     <template #actions>
       <AppButton variant="outline" size="sm" label="Add a past session" @click="pastOpen = true" />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <div class="space-y-4">
@@ -37,7 +38,7 @@
         />
       </p>
 
-      <div v-if="isLoading" class="flex justify-center py-10"><LoadingSpinner /></div>
+      <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'text' : 'stack'" :columns="3" :count="6" />
       <p v-else-if="error" role="alert" class="text-body text-destructive">
         The session log could not be read: {{ error.message }}
       </p>
@@ -46,20 +47,40 @@
           No sessions yet. Start one from the top bar, or add one you played before the log began.
         </p>
       </div>
-      <ul v-else class="divide-y divide-border overflow-hidden rounded-lg border bg-card">
-        <SessionLogRow
-          v-for="row in log"
-          :key="row.id"
-          :class="running?.id === row.id && 'max-md:hidden'"
-          :session="row"
-          :facts="factsFor(row.id)"
-          :has-note="noteIds.has(row.id)"
-          @write="writeNotes(row)"
-          @end="endSession"
-          @number="(value) => numberIt(row, value)"
-          @delete="remove(row)"
-        />
-      </ul>
+      <EntityCollection
+        v-else
+        :items="log"
+        :item-key="sessionKey"
+        :layout="layout"
+        :grid-columns="columns"
+        :grid-row-estimate="GRID_ROW_PX"
+        :row-estimate="ROW_PX"
+      >
+        <template #card="{ item: row }">
+          <SessionLogCard
+            :class="running?.id === row.id && 'max-md:hidden'"
+            :session="row"
+            :facts="factsFor(row.id)"
+            :has-note="noteIds.has(row.id)"
+            @write="writeNotes(row)"
+            @end="endSession"
+            @number="(value) => numberIt(row, value)"
+            @delete="remove(row)"
+          />
+        </template>
+        <template #row="{ item: row }">
+          <SessionLogRow
+            :class="running?.id === row.id && 'max-md:hidden'"
+            :session="row"
+            :facts="factsFor(row.id)"
+            :has-note="noteIds.has(row.id)"
+            @write="writeNotes(row)"
+            @end="endSession"
+            @number="(value) => numberIt(row, value)"
+            @delete="remove(row)"
+          />
+        </template>
+      </EntityCollection>
     </div>
   </PageHeader>
 
@@ -76,7 +97,12 @@ import { computed, ref } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import SessionLogCard from "@/components/sessions/SessionLogCard.vue";
 import SessionLogRow from "@/components/sessions/SessionLogRow.vue";
 import SessionRunningCard from "@/components/sessions/SessionRunningCard.vue";
 import PastSessionDialog from "@/components/sessions/PastSessionDialog.vue";
@@ -121,6 +147,16 @@ const adding = useCreatePastSession();
 const merging = useMergeCampaignSessions();
 
 const pastOpen = ref(false);
+
+// The page header's toggle writes the same key. Rows is today's look.
+const layout = useListLayout("sessions", "rows");
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
+const sessionKey = (row: CampaignSession) => row.id;
+// Heights in px before a row or card is measured: a row is 2 border + 24
+// padding (py-3) + title 24 + meta 17 = 67; a card is 2 + 32 (p-4) + rubric 20
+// + title/meta 41 + controls 32 + gaps 16 = 143.
+const ROW_PX = 67;
+const GRID_ROW_PX = 143;
 
 const running = computed(() => (log.value ?? []).find(isRunningSession) ?? null);
 const noteIds = computed(() => new Set((notes.value ?? []).flatMap((n) => (n.session_id ? [n.session_id] : []))));

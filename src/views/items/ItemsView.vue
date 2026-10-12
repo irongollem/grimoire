@@ -47,6 +47,7 @@
         mobile-label="Item"
         to="/vault/new"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <template #filters>
@@ -121,6 +122,8 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import ItemList from "@/components/items/ItemList.vue";
 import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
@@ -134,6 +137,7 @@ import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignF
 import { useCampaignStore } from "@/stores/campaign";
 
 const itemsUi = useItemsUiStore();
+const layout = useListLayout("items", "grid");
 const search = computed({
   get: () => itemsUi.vaultSearch,
   set: (v) => { itemsUi.vaultSearch = v; },

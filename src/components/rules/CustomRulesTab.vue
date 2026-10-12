@@ -42,9 +42,7 @@
       </div>
     </div>
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'text' : 'tiles'" :columns="3" :count="6" />
 
     <EmptyState
       v-else-if="!filtered.length && !search && !categoryFilter"
@@ -68,44 +66,66 @@
       No rules match your filters.
     </p>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      <RouterLink
-        v-for="rule in filtered"
-        :key="rule.id"
-        :to="`/rules/${rule.id}`"
-        class="group flex flex-col gap-2 rounded-lg border border-border bg-card p-4 hover:border-primary/50 transition-colors"
-      >
-        <div class="flex items-start justify-between gap-2">
-          <h3 class="text-heading-xs font-bold text-foreground leading-tight line-clamp-2 flex-1">
-            {{ rule.title }}
-          </h3>
-          <div class="flex items-center gap-1 shrink-0">
-            <IconReveal v-if="rule.is_player_visible" class="h-3 w-3 text-primary/60" title="Visible to players" />
+    <EntityCollection
+      v-else
+      :items="filtered"
+      :item-key="ruleKey"
+      :layout="layout"
+      :grid-columns="columns"
+      :grid-row-estimate="GRID_ROW_PX"
+      :row-estimate="ROW_PX"
+    >
+      <template #card="{ item: rule }">
+        <RouterLink
+          :to="`/rules/${rule.id}`"
+          class="group flex h-full flex-col gap-2 rounded-lg border border-border bg-card p-4 hover:border-primary/50 transition-colors"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <h3 class="text-heading-xs font-bold text-foreground leading-tight line-clamp-2 flex-1">
+              {{ rule.title }}
+            </h3>
+            <div class="flex items-center gap-1 shrink-0">
+              <IconReveal v-if="rule.is_player_visible" class="h-3 w-3 text-primary/60" title="Visible to players" />
+              <span
+                v-if="rule.category"
+                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
+              >
+                {{ rule.category }}
+              </span>
+            </div>
+          </div>
+          <div v-if="rule.tags.length" class="flex flex-wrap gap-1">
             <span
-              v-if="rule.category"
-              class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
+              v-for="tag in rule.tags.slice(0, 4)"
+              :key="tag"
+              class="px-1.5 py-0.5 rounded bg-primary/10 text-label text-primary"
             >
-              {{ rule.category }}
+              {{ tag }}
+            </span>
+            <span v-if="rule.tags.length > 4" class="text-caption-sm text-muted-foreground italic self-center">
+              +{{ rule.tags.length - 4 }}
             </span>
           </div>
-        </div>
-        <div v-if="rule.tags.length" class="flex flex-wrap gap-1">
-          <span
-            v-for="tag in rule.tags.slice(0, 4)"
-            :key="tag"
-            class="px-1.5 py-0.5 rounded bg-primary/10 text-label text-primary"
-          >
-            {{ tag }}
-          </span>
-          <span v-if="rule.tags.length > 4" class="text-caption-sm text-muted-foreground italic self-center">
-            +{{ rule.tags.length - 4 }}
-          </span>
-        </div>
-        <p class="text-caption text-muted-foreground mt-auto">
-          {{ formatDate(rule.updated_at) }}
-        </p>
-      </RouterLink>
-    </div>
+          <p class="text-caption text-muted-foreground mt-auto">
+            {{ formatDate(rule.updated_at) }}
+          </p>
+        </RouterLink>
+      </template>
+      <template #row="{ item: rule }">
+        <EntityListRow
+          :to="`/rules/${rule.id}`"
+          :title="rule.title"
+          :subtitle="ruleSubtitle(rule)"
+          :fallback-icon="IconQuest"
+          :tags="rule.tags"
+          :max-tags="4"
+        >
+          <template v-if="rule.is_player_visible" #actions>
+            <IconReveal class="h-4 w-4 text-primary/60" title="Visible to players" />
+          </template>
+        </EntityListRow>
+      </template>
+    </EntityCollection>
 
     <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
       {{ filtered.length }} of {{ rules?.length ?? 0 }} rules
@@ -116,12 +136,17 @@
 <script setup lang="ts">
 import { computed, shallowRef } from "vue";
 import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
-import { IconChevronRight, IconReveal } from '@/lib/icons';
+import { IconChevronRight, IconQuest, IconReveal } from '@/lib/icons';
 import { useRules } from "@/composables/rules/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { listOptionalRules } from "@/rules/optionalRules";
-import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { useListLayout } from "@/composables/useListLayout";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import type { Rule } from "@/types/rule.types";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
@@ -139,6 +164,17 @@ const categoryFilter = computed({
   get: () => rulesUi.customRulesFilterCategory,
   set: (v) => { rulesUi.customRulesFilterCategory = v; },
 });
+
+// The Rules page header's toggle writes the same key. Cards is today's look.
+const layout = useListLayout("custom-rules", "grid");
+// Mirrors `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`.
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
+const ruleKey = (rule: Rule) => rule.id;
+// Heights in px before a card or row is measured: a card is 2 border + 32
+// padding + title 20 + tags 24 + date 20 + gaps 16 = 114, a title wrapping to
+// two lines adds 20; a row with a tag line is 98.
+const GRID_ROW_PX = 134;
+const ROW_PX = 98;
 
 const enabledBuiltIns = computed(() =>
   listOptionalRules().filter((def) => isRuleEffectivelyEnabled(campaignRules.value, def.key)),
@@ -169,6 +205,11 @@ const filtered = computed(() => {
   if (categoryFilter.value) list = list.filter((r) => r.category === categoryFilter.value);
   return list;
 });
+
+function ruleSubtitle(rule: Rule): string {
+  const date = formatDate(rule.updated_at);
+  return rule.category ? `${rule.category} · ${date}` : date;
+}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });

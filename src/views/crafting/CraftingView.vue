@@ -35,6 +35,7 @@
         label="New Recipe"
         to="/crafting/new"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <!-- Discipline tabs (body content) -->
@@ -50,7 +51,7 @@
     <!-- Recipes for active discipline -->
     <div class="flex flex-col gap-4">
 
-      <div v-if="isLoading" class="text-body text-muted-foreground italic">Loading recipes…</div>
+      <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'grid' : 'tiles'" :columns="4" :count="6" />
 
       <div v-else-if="disciplineRecipes.length === 0" class="rounded-lg border border-border border-dashed px-6 py-10 text-center">
         <component
@@ -67,95 +68,93 @@
         </p>
       </div>
 
-      <VirtualGrid
+      <EntityCollection
         v-else
         :items="disciplineRecipes"
         :item-key="recipeKey"
-        :columns="1"
-        :estimate-row-height="activeDiscipline ? ROW_PX : ROW_WITH_TAGS_PX"
+        :layout="layout"
+        :grid-columns="columns"
+        :grid-row-estimate="GRID_ROW_PX"
+        :row-estimate="activeDiscipline ? ROW_PX : ROW_WITH_TAGS_PX"
       >
-        <template #default="{ item: recipe }">
-        <!--
-          Recipe card restructured so it can't grow wider than its
-          container. Previously the name + tag pills sat in a single flex
-          row with no wrap: enough tags (discipline + PROF + TOOLS)
-          pushed the whole card past the viewport on mobile.
-
-          New layout: name on its own line (truncates), tags wrap onto a
-          second line, meta (DC + time) on a third. On mobile the tag
-          labels collapse to their icons via `max-sm:hidden` so a recipe
-          with all three tags still fits on one row below the name.
-        -->
-        <div
-          class="rounded-lg border border-border bg-card px-4 py-3 flex items-start gap-3 hover:border-border/80 transition-colors"
-        >
-          <!-- Left: name + tags + meta -->
-          <div class="flex-1 min-w-0">
-            <p class="text-heading-xs font-bold text-foreground truncate">{{ recipe.name }}</p>
-
-            <div
-              v-if="!activeDiscipline || recipe.requires_proficiency || recipe.requires_tools"
-              class="flex flex-wrap items-center gap-1.5 mt-1"
-            >
-              <span
-                v-if="!activeDiscipline"
-                class="inline-flex items-center gap-1 shrink-0 text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
-                :title="getDiscipline(recipe.discipline).label"
-              >
-                <component :is="getDiscipline(recipe.discipline).icon" class="h-3 w-3" />
-                <span class="max-sm:hidden">{{ getDiscipline(recipe.discipline).label }}</span>
-              </span>
-              <span
-                v-if="recipe.requires_proficiency"
-                class="inline-flex items-center gap-1 shrink-0 text-label px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
-                title="Requires tool proficiency"
-              >
-                <IconAward class="h-3 w-3" />
-                <span class="max-sm:hidden">PROF</span>
-              </span>
-              <span
-                v-if="recipe.requires_tools"
-                class="inline-flex items-center gap-1 shrink-0 text-label px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
-                title="Requires physical tools"
-              >
-                <IconTool class="h-3 w-3" />
-                <span class="max-sm:hidden">TOOLS</span>
-              </span>
-            </div>
-
-            <p class="text-caption text-muted-foreground mt-1">
-              DC {{ recipe.dc }} · {{ recipe.crafting_time }} {{ recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, '') }}
-            </p>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex items-center gap-1 shrink-0" @click.stop>
-            <AudienceRevealControl
-              :name="recipe.name"
-              :visible-to="recipe.player_visible_to"
-              @change="onVisibilityChange(recipe, $event)"
-            />
-            <AppButton
-              variant="ghost"
-              fill="muted"
-              size="icon-xs"
-              :icon="IconEdit"
-              tooltip="Edit recipe"
-              @click="$router.push(`/crafting/${recipe.id}`)"
-            />
-            <AppButton
-              variant="ghost"
-              tone="danger"
-              fill="muted"
-              size="icon-xs"
-              :icon="IconDelete"
-              tooltip="Delete recipe"
-              @click="remove(recipe)"
-            />
-          </div>
-        </div>
+        <template #card="{ item: recipe }">
+          <EntityGridCard
+            :to="`/crafting/${recipe.id}`"
+            :title="recipe.name"
+            :placeholder="placeholderUrl('item')"
+          >
+            <template #actions-start>
+              <div @click.prevent.stop>
+                <AudienceRevealControl
+                  :name="recipe.name"
+                  :visible-to="recipe.player_visible_to"
+                  form="overlay"
+                  @change="onVisibilityChange(recipe, $event)"
+                />
+              </div>
+            </template>
+            <template #actions-end>
+              <div class="rounded bg-black/50 backdrop-blur-sm" @click.prevent.stop>
+                <AppButton
+                  variant="ghost"
+                  tone="danger"
+                  fill="muted"
+                  size="icon-xs"
+                  :icon="IconDelete"
+                  tooltip="Delete recipe"
+                  @click="remove(recipe)"
+                />
+              </div>
+            </template>
+            <template #body>
+              <p class="truncate text-heading-xs font-bold text-foreground">{{ recipe.name }}</p>
+              <p class="text-label text-muted-foreground">{{ recipeSubtitle(recipe) }}</p>
+              <div v-if="recipeTags(recipe).length" class="mt-auto flex flex-wrap gap-1 pt-1">
+                <span
+                  v-for="tag in recipeTags(recipe)"
+                  :key="tag"
+                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+                >{{ tag }}</span>
+              </div>
+            </template>
+          </EntityGridCard>
         </template>
-      </VirtualGrid>
+        <!--
+          The row is EntityListRow: the name on its own line (truncates), the
+          DC and time under it, and the discipline / PROF / TOOLS flags as
+          wrapping tag pills so a recipe with all three still fits a phone.
+          The whole row opens the editor, so there is no separate Edit button.
+        -->
+        <template #row="{ item: recipe }">
+          <EntityListRow
+            :to="`/crafting/${recipe.id}`"
+            :title="recipe.name"
+            :subtitle="recipeSubtitle(recipe)"
+            :fallback-icon="getDiscipline(recipe.discipline).icon"
+            :tags="recipeTags(recipe)"
+            :max-tags="3"
+          >
+            <template #actions>
+              <div class="flex items-center gap-1">
+                <AudienceRevealControl
+                  :name="recipe.name"
+                  :visible-to="recipe.player_visible_to"
+                  @change="onVisibilityChange(recipe, $event)"
+                />
+                <AppButton
+                  variant="ghost"
+                  tone="danger"
+                  fill="muted"
+                  size="icon-xs"
+                  :icon="IconDelete"
+                  tooltip="Delete recipe"
+                  @click="remove(recipe)"
+                />
+              </div>
+            </template>
+          </EntityListRow>
+        </template>
+      </EntityCollection>
     </div>
   </ListPageLayout>
 </template>
@@ -163,7 +162,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconGenerate, IconListView, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
+import { IconAdd, IconDelete, IconDownload, IconGenerate, IconListView, IconNavWorkshop, IconReveal } from '@/lib/icons';
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -175,7 +174,14 @@ import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdate
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";
 import { useScrollRestore } from "@/composables/useScrollRestore";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
+import { useBreakpointColumns } from "@/composables/useGridColumns";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useCraftingUiStore } from "@/stores/ui/crafting";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
@@ -255,13 +261,32 @@ useScrollRestore("crafting-recipes");
 
 const recipeKey = (recipe: CraftingRecipe) => recipe.id;
 
-// Row heights before a row is measured (px), in the default Vellum theme: a
-// recipe row is 2 border + 24 padding (py-3) + name 20 + the DC line 21
-// (mt-1 + 17) = 67. On the "All" tab every row also carries a discipline chip
-// (mt-1 + 16), which makes 87; on a discipline tab only recipes needing
-// proficiency or tools do, so the shorter figure is the common case there.
-const ROW_PX = 67;
-const ROW_WITH_TAGS_PX = 87;
+// The page header's toggle writes the same key. Rows is today's look.
+const layout = useListLayout("recipes", "rows");
+const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+
+function recipeSubtitle(recipe: CraftingRecipe): string {
+  const unit = recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, "");
+  return `DC ${recipe.dc} · ${recipe.crafting_time} ${unit}`;
+}
+
+// The discipline only needs naming on the "All" tab; the flags always do.
+function recipeTags(recipe: CraftingRecipe): string[] {
+  const tags: string[] = [];
+  if (!activeDiscipline.value) tags.push(getDiscipline(recipe.discipline).label);
+  if (recipe.requires_proficiency) tags.push("PROF");
+  if (recipe.requires_tools) tags.push("TOOLS");
+  return tags;
+}
+
+// Row heights before a row is measured (px), in the default Vellum theme: an
+// EntityListRow is 2 border + 32 padding (p-4) + the 48 emblem = 82 bare, and
+// 98 once a tag line is under the name. A discipline tab only tags recipes
+// needing proficiency or tools, so the shorter figure is the common case there.
+const ROW_PX = 82;
+const ROW_WITH_TAGS_PX = 98;
+// Grid card height before it is measured (px): border + 144 artwork + padding + body.
+const GRID_ROW_PX = 249;
 
 async function remove(recipe: CraftingRecipe) {
   const ok = await confirm(`Delete "${recipe.name}"? This cannot be undone.`, { title: "Delete Recipe" });

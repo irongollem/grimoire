@@ -14,9 +14,7 @@
       @copy="openCopyDialog"
     />
 
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'grid'" :count="12" />
 
     <!-- Nothing to pick: the DM disabled every species for this campaign. The
          codex CTA below is DM-only, so select mode gets its own message. -->
@@ -43,116 +41,75 @@
       No species match your filters.
     </p>
 
-    <VirtualGrid
+    <EntityCollection
       v-else
       :items="filtered"
       :item-key="speciesKey"
-      :columns="columns"
-      :estimate-row-height="GRID_ROW_PX"
+      :layout="layout"
+      :grid-columns="columns"
+      :grid-row-estimate="GRID_ROW_PX"
     >
-      <template #default="{ item: s }">
-      <BulkSelectableCard
-        corner="top-right"
-        :selected="bulk.isSelected(s.id)"
-        :selecting="bulk.selecting.value && !selectMode && isUuid(s.id)"
-        @toggle="bulk.toggle(s.id)"
-      >
-        <div
-          class="group relative flex flex-col rounded-lg border bg-card transition-colors overflow-hidden"
-          :class="[
-            selectMode ? 'cursor-pointer' : '',
-            selectedId && s.id === selectedId
-              ? 'border-primary ring-1 ring-primary/20'
-              : 'border-border hover:border-primary/50',
-          ]"
+      <template #card="{ item: s }">
+        <BulkSelectableCard
+          corner="top-right"
+          :selected="bulk.isSelected(s.id)"
+          :selecting="bulk.selecting.value && !selectMode && isUuid(s.id)"
+          @toggle="bulk.toggle(s.id)"
         >
-          <!-- Card link / select overlay -->
-          <RouterLink v-if="!selectMode" :to="`/species/${s.id}`" class="absolute inset-0 z-2" />
-          <button v-else type="button" class="absolute inset-0 z-2" @click="emit('select', s)" />
-
-          <!-- Selected badge -->
-          <div
-            v-if="selectedId && s.id === selectedId"
-            class="absolute top-2 right-2 z-10 flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground"
+          <OptionGridCard
+            :to="`/species/${s.id}`"
+            :title="s.name"
+            :image-url="s.image_url"
+            :focal-point="s.focal_point"
+            :placeholder="placeholderUrl('species')"
+            :select-mode="selectMode"
+            :selected="!!selectedId && s.id === selectedId"
+            :edit-to="!readonly && isUuid(s.id) ? `/species/${s.id}?edit=true` : null"
+            edit-label="Edit species"
+            @select="emit('select', s)"
           >
-            <IconCheck class="size-3" />
-          </div>
-
-          <!-- Portrait / placeholder -->
-          <div class="relative h-36 bg-muted overflow-hidden shrink-0">
-            <FocalImage
-              v-if="s.image_url"
-              :src="s.image_url"
-              :alt="s.name"
-              format="landscape"
-              :focal-point="s.focal_point"
-              class="group-hover:scale-105 transition-transform duration-300"
-            />
-            <div
-              v-else
-              class="w-full h-full flex items-center justify-center text-display font-bold text-primary/30"
-            >
-              {{ s.name.charAt(0).toUpperCase() }}
-            </div>
-            <!-- A sibling of the image, not FocalImage's own label: the image scales on hover,
-                 and a transformed element keeps the chip under the card's z-2 link exactly while
-                 the pointer is over the card, which hides the tooltip that names the model. -->
-            <AiImageBadge v-if="s.image_url" :src="s.image_url" corner="right" class="z-10" />
-          </div>
-
-          <div class="p-3 flex flex-col gap-2 flex-1">
-            <h3 class="text-heading-xs font-bold text-foreground leading-tight line-clamp-1">
-              {{ s.name }}
-            </h3>
-
-            <p class="text-caption text-muted-foreground italic capitalize">
-              {{ s.size ?? "—" }}
-              <span v-if="s.speed?.walk"> · {{ s.speed.walk }} ft</span>
-            </p>
-
-            <p v-if="s.source" class="text-label text-muted-foreground">
-              {{ s.source }}
-            </p>
-
-            <!-- Tags -->
-            <div v-if="s.tags.length" class="flex flex-wrap gap-1 mt-auto">
+            <h3 class="line-clamp-1 text-heading-xs leading-tight font-bold text-foreground">{{ s.name }}</h3>
+            <p class="text-caption text-muted-foreground italic">{{ speciesSubtitle(s) }}</p>
+            <p v-if="s.source" class="text-label text-muted-foreground">{{ s.source }}</p>
+            <div v-if="s.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
               <span
                 v-for="tag in s.tags.slice(0, 3)"
                 :key="tag"
-                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-              >
-                {{ tag }}
-              </span>
+                class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+              >{{ tag }}</span>
             </div>
-
-            <!-- Select button (shown in selectMode) -->
-            <AppButton
-              v-if="selectMode"
-              variant="tinted"
-              tone="primary"
-              emphasis="soft"
-              size="sm"
-              block
-              class="relative z-10 mt-2"
-              label="Select"
-              @click.stop="emit('select', s)"
-            />
-          </div>
-
-          <!-- Edit button — DM mode only, not shown for srd (shared) species cards -->
-          <RouterLink
-            v-if="!readonly && !selectMode && isUuid(s.id)"
-            :to="`/species/${s.id}?edit=true`"
-            class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
-            title="Edit species"
-          >
-            <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
-            Edit
-          </RouterLink>
-        </div>
-      </BulkSelectableCard>
+          </OptionGridCard>
+        </BulkSelectableCard>
       </template>
-    </VirtualGrid>
+      <template #row="{ item: s }">
+        <BulkSelectableCard
+          corner="top-right"
+          :selected="bulk.isSelected(s.id)"
+          :selecting="bulk.selecting.value && !selectMode && isUuid(s.id)"
+          @toggle="bulk.toggle(s.id)"
+        >
+          <EntityListRow
+            :to="`/species/${s.id}`"
+            :title="s.name"
+            :subtitle="speciesSubtitle(s)"
+            :image-url="s.image_url"
+            :fallback-icon="IconSpecies"
+            :tags="s.tags"
+          >
+            <template v-if="!readonly && isUuid(s.id)" #actions>
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                :icon="IconEdit"
+                :to="`/species/${s.id}?edit=true`"
+                tooltip="Edit species"
+                aria-label="Edit species"
+              />
+            </template>
+          </EntityListRow>
+        </BulkSelectableCard>
+      </template>
+    </EntityCollection>
 
     <p
       v-if="filtered.length"
@@ -175,7 +132,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from "vue";
-import { IconCheck, IconEdit } from '@/lib/icons';
+import { IconEdit, IconSpecies } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
 import { useSpeciesUiStore } from "@/stores/ui/species";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
@@ -183,11 +140,13 @@ import { isUuid } from "@/lib/library/contentIdentity";
 import { allowedSpecies } from "@/lib/campaignContentGating";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
-import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import { useListLayout } from "@/composables/useListLayout";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import OptionGridCard from "@/components/common/entity/OptionGridCard.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
-import FocalImage from "@/components/common/media/FocalImage.vue";
-import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { storeToRefs } from "pinia";
 import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
@@ -246,6 +205,16 @@ useScrollRestore("species");
 // `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3`.
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const speciesKey = (species: Species) => species.id;
+
+// The Codex header's toggle writes the same key. The player's picker has no
+// toggle and selecting happens on a card, so it always shows the grid.
+const storedLayout = useListLayout("codex-species", "grid");
+const layout = computed(() => (selectMode ? "grid" : storedLayout.value));
+
+function speciesSubtitle(s: Species): string {
+  const size = s.size ? s.size.charAt(0).toUpperCase() + s.size.slice(1) : "—";
+  return s.speed?.walk ? `${size} · ${s.speed.walk} ft` : size;
+}
 
 // Row height before a row is measured (px): 252px measured at a 390px
 // phone, 8 Oct 2026. It decides where a restored scroll lands, since coming

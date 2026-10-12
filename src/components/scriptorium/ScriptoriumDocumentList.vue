@@ -24,7 +24,7 @@
       </ListFilterSelect>
     </ListFilterBar>
 
-    <ListSkeleton v-if="isLoading" variant="text" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'text'" />
 
     <EmptyState
       v-else-if="!filtered.length && !scriptoriumUi.scriptoriumHasActiveFilters"
@@ -46,14 +46,37 @@
       No documents match your filters.
     </p>
 
-    <VirtualGrid
+    <EntityCollection
       v-else
       :items="filtered"
       :item-key="docKey"
-      :columns="columns"
-      :estimate-row-height="DOC_ROW_PX"
+      :layout="layout"
+      :grid-columns="columns"
+      :grid-row-estimate="DOC_ROW_PX"
     >
-      <template #default="{ item: doc }">
+      <template #row="{ item: doc }">
+        <EntityListRow
+          :to="`/scriptorium/${doc.id}`"
+          :title="doc.title"
+          :subtitle="docSubtitle(doc)"
+          :fallback-icon="IconNavScriptorium"
+          :tags="docRowTags(doc)"
+          :max-tags="5"
+          :locked="lockedDocIds.has(doc.id)"
+        >
+          <template #actions>
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              :icon="IconDelete"
+              tooltip="Delete document"
+              aria-label="Delete document"
+              @click="confirmDelete(doc.id, doc.title)"
+            />
+          </template>
+        </EntityListRow>
+      </template>
+      <template #card="{ item: doc }">
       <div
         class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
       >
@@ -161,7 +184,7 @@
         </button>
       </div>
       </template>
-    </VirtualGrid>
+    </EntityCollection>
 
     <p
       v-if="filtered.length"
@@ -191,7 +214,9 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
@@ -207,6 +232,8 @@ const router = useRouter();
 
 // Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` this grid used to carry.
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+// The page header's toggle writes the same key.
+const layout = useListLayout("scriptorium", "grid");
 const docKey = (doc: ScriptoriumDocumentSummary) => doc.id;
 
 // Row height before a row is measured (px), for a card with a two-line title and
@@ -306,6 +333,20 @@ const lockedDocIds = computed((): Set<string> => {
   );
   return new Set(sorted.slice(-overCount).map((d) => d.id));
 });
+
+// Row text: the card's footer line, and its badges as tags.
+function docSubtitle(doc: ScriptoriumDocumentSummary): string {
+  return `${doc.word_count} words, ${formatDate(doc.updated_at)}`;
+}
+
+function docRowTags(doc: ScriptoriumDocumentSummary): string[] {
+  const tags: string[] = [DOC_TYPES[doc.doc_type].label];
+  if (doc.is_published) tags.push("Published");
+  if (doc.player_visible_to.length) tags.push(`Shared · ${doc.player_visible_to.length}`);
+  const other = otherCampaignName(doc);
+  if (other) tags.push(other);
+  return [...tags, ...doc.tags];
+}
 
 async function confirmDelete(id: string, title: string) {
   if (!(await confirm(`Delete "${title}"? This cannot be undone.`))) return;

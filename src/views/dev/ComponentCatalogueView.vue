@@ -320,6 +320,16 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="ListLayoutToggle"
+      note="The list/grid switch every catalogue list carries, always the last item in the page header actions. Icon-only; the state is per list (useListLayout)."
+    >
+      <div class="flex items-center gap-2">
+        <ListLayoutToggle v-model="catalogueLayout" />
+        <span class="text-caption text-muted-foreground">{{ catalogueLayout }}</span>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppSelect"
       note="Shares fieldVariants with AppInput. Native picker with appearance:none; the caret is drawn by the base rule in main.css and follows the theme. Opening one still gives the OS menu, which is the point on mobile."
     >
@@ -609,6 +619,8 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import PageHeaderAction from "@/components/common/list/PageHeaderAction.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import type { ListLayout } from "@/composables/useListLayout";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { SWITCH_SIZES } from "@/components/common/controls/toggleSwitchVariants";
@@ -697,7 +709,7 @@ const activeHeaderDemo = computed(() =>
 );
 
 const segment = ref<string>("url");
-const emptyable = ref<string>("campaign");
+const catalogueLayout = ref<ListLayout>("grid");const emptyable = ref<string>("campaign");
 const selectValue = ref<string>("a");
 const checkboxValue = ref(true);
 const gridSpells = [

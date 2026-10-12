@@ -47,6 +47,7 @@
         mobile-label="Spell"
         to="/spells/new"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <template #filters>
@@ -129,6 +130,8 @@ import { RouterView } from "vue-router";
 import { useDetailModal } from "@/composables/useDetailModal";
 import { IconAdd, IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
 import { useSpellsUiStore } from "@/stores/ui/spells";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
@@ -149,6 +152,7 @@ import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignF
 import { useCampaignStore } from "@/stores/campaign";
 
 const spellsUi = useSpellsUiStore();
+const layout = useListLayout("spells", "grid");
 
 // Whether to keep drawing the grid: behind the read modal yes, under a
 // full-screen takeover no. The detail view asks the same composable.

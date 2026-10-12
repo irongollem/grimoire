@@ -16,11 +16,13 @@
         mobile-label="Set"
         @click="openCreate"
       />
+      <ListLayoutToggle v-model="layout" />
     </template>
 
     <!-- Same auto-fill grid as the sets; each placeholder is a set card:
          name and count, a row of portrait thumbs, the export button. -->
-    <div v-if="isLoading" role="status" class="sets-grid">
+    <ListSkeleton v-if="isLoading && layout === 'rows'" variant="stack" :count="6" />
+    <div v-else-if="isLoading" role="status" class="sets-grid">
       <span class="sr-only">Loading…</span>
       <div
         v-for="n in 6"
@@ -49,16 +51,34 @@
       </template>
     </EmptyState>
 
-    <div v-else class="sets-grid">
-      <NpcSetCard
-        v-for="set in sets"
-        :key="set.id"
-        :set="set"
-        :members="membersFor(set)"
-        @edit="openEdit(set)"
-        @delete="remove(set)"
-        @export="exportToForge(set)"
-      />
+    <div v-else ref="containerRef">
+      <EntityCollection
+        :items="sets"
+        :item-key="setKey"
+        :layout="layout"
+        :grid-columns="columns"
+        :grid-row-estimate="GRID_ROW_PX"
+        :row-estimate="ROW_PX"
+      >
+        <template #card="{ item: set }">
+          <NpcSetCard
+            :set="set"
+            :members="membersFor(set)"
+            @edit="openEdit(set)"
+            @delete="remove(set)"
+            @export="exportToForge(set)"
+          />
+        </template>
+        <template #row="{ item: set }">
+          <NpcSetRow
+            :set="set"
+            :members="membersFor(set)"
+            @edit="openEdit(set)"
+            @delete="remove(set)"
+            @export="exportToForge(set)"
+          />
+        </template>
+      </EntityCollection>
     </div>
   </ListPageLayout>
 
@@ -80,6 +100,12 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
+import { useListLayout } from "@/composables/useListLayout";
+import { useAutoFillColumns } from "@/composables/useGridColumns";
+import NpcSetRow from "@/components/npcs/NpcSetRow.vue";
 import NpcSetCard from "@/components/npcs/NpcSetCard.vue";
 import NpcSetEditorModal from "@/components/npcs/NpcSetEditorModal.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -96,6 +122,18 @@ const deleteSet = useDeleteNpcSet();
 const forge = useCardForgeStore();
 const { confirm } = useConfirm();
 const toast = useToast();
+
+// The page header's toggle writes the same key. Cards is today's look.
+const layout = useListLayout("npc-sets", "grid");
+const containerRef = ref<HTMLElement | null>(null);
+// 18rem minimum card, matching the skeleton's `.sets-grid` track.
+const columns = useAutoFillColumns(containerRef, 18, 0.75);
+const setKey = (set: NpcSet) => set.id;
+// Heights in px before a card or row is measured: a card is 2 border + 32
+// padding + head 44 + thumbs 36 + export button 36 + gaps 36 = 186; a row is
+// 2 + 32 + the 44 name block (or 36 thumbs) = 82.
+const GRID_ROW_PX = 186;
+const ROW_PX = 82;
 
 const sets = computed<NpcSet[]>(() => setsData.value ?? []);
 

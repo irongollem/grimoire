@@ -17,7 +17,7 @@
 
     <ListSkeleton
       v-if="isLoading"
-      :variant="isMobile ? layout : 'grid'"
+      :variant="skeletonVariant"
       :count="isMobile ? 7 : 12"
     />
 
@@ -46,10 +46,9 @@
       No NPCs match your filters.
     </p>
 
-    <!-- ── Mobile list (<md): compact rows / gallery ─────────────────────── -->
+    <!-- ── Mobile list (<md): compact rows / grid ─────────────────────── -->
     <template v-else-if="isMobile">
       <MobileEntityMetaRow
-        v-model:layout="layout"
         :shown="filtered.length"
         :total="npcs?.length ?? 0"
         plural="NPCs"
@@ -86,32 +85,52 @@
       </EntityMobileGrid>
     </template>
 
-    <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
-    <VirtualGrid
+    <!-- ── Desktop (≥md): grid of cards, or one row per NPC ──────────────── -->
+    <EntityCollection
       v-else
       :items="filtered"
       :item-key="npcKey"
-      :columns="desktopColumns"
-      :estimate-row-height="GRID_ROW_PX"
+      :layout="layout"
+      :grid-columns="desktopColumns"
+      :grid-row-estimate="GRID_ROW_PX"
     >
-      <template #default="{ item: npc }">
-      <BulkSelectableCard
-        corner="bottom-right"
-        :selected="bulk.isSelected(npc.id)"
-        :selecting="bulk.selecting.value"
-        @toggle="bulk.toggle(npc.id)"
-      >
-        <NpcGridCard
-          :npc="npc"
-          :location-name="
-            npc.location_id ? locationName(npc.location_id) : undefined
-          "
-          :locked="lockedNpcIds.has(npc.id)"
-          v-prefetch="`/npcs/${npc.id}`"
-        />
-      </BulkSelectableCard>
+      <template #card="{ item: npc }">
+        <BulkSelectableCard
+          corner="bottom-right"
+          :selected="bulk.isSelected(npc.id)"
+          :selecting="bulk.selecting.value"
+          @toggle="bulk.toggle(npc.id)"
+        >
+          <NpcGridCard
+            :npc="npc"
+            :location-name="
+              npc.location_id ? locationName(npc.location_id) : undefined
+            "
+            :locked="lockedNpcIds.has(npc.id)"
+            v-prefetch="`/npcs/${npc.id}`"
+          />
+        </BulkSelectableCard>
       </template>
-    </VirtualGrid>
+      <template #row="{ item: npc }">
+        <BulkSelectableCard
+          corner="top-right"
+          :selected="bulk.isSelected(npc.id)"
+          :selecting="bulk.selecting.value"
+          @toggle="bulk.toggle(npc.id)"
+        >
+          <EntityListRow
+            :to="`/npcs/${npc.id}`"
+            :title="getNpcDisplayName(npc) ?? '???'"
+            :subtitle="npcSubtitle(npc)"
+            :image-url="getNpcDisplayPortrait(npc)"
+            :fallback-icon="IconNavNpcs"
+            :tags="npcRowTags(npc)"
+            :locked="lockedNpcIds.has(npc.id)"
+            v-prefetch="`/npcs/${npc.id}`"
+          />
+        </BulkSelectableCard>
+      </template>
+    </EntityCollection>
 
     <p
       v-if="filtered.length && !isMobile"
@@ -140,7 +159,9 @@ import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import EntityMobileGrid from "@/components/common/entity/EntityMobileGrid.vue";
 import { IconNavNpcs } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -148,7 +169,6 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 import { useNpcPcNotesByPartyMember } from "@/composables/npcs/useNpcPcNotes";
 import { useAllLocations, useLocationTree } from "@/composables/locations/useLocations";
-import { useAppUiStore } from "@/stores/ui/app";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import EntityMobileCard from "@/components/common/entity/EntityMobileCard.vue";
@@ -200,14 +220,13 @@ const { data: npcs, isLoading } = useNpcs();
 // Resting on a card warms the detail route and its reads (id record, DM note,
 // backlinks), so the open finds them in flight or done (#999).
 const vPrefetch = usePrefetchOnIntent();
-const appUi = useAppUiStore();
 const isMobile = useIsMobile();
-const layout = computed({
-  get: () => appUi.entityListLayout,
-  set: (v: "rows" | "gallery") => {
-    appUi.entityListLayout = v;
-  },
-});
+// The page header's toggle writes the same key.
+const layout = useListLayout("npcs", "grid");
+// The phone's grid is the two-column gallery skeleton.
+const skeletonVariant = computed(() =>
+  layout.value === "rows" ? "rows" : isMobile.value ? "gallery" : "grid",
+);
 
 const { data: connectedNpcIds } = useNpcPcNotesByPartyMember(
   computed(() => props.partyMemberFilter),
@@ -304,6 +323,13 @@ const lockedNpcIds = computed((): Set<string> => {
 });
 
 
+
+// Tags on the desktop row: the same facts the grid card carries as badges.
+function npcRowTags(npc: NpcListRow): string[] {
+  const tags: string[] = [npc.relationship, npc.status];
+  if (npc.location_id) tags.push(locationName(npc.location_id));
+  return tags;
+}
 
 // Mobile-card subtitle — mirrors the desktop "{race} - {occupation}" line,
 // gracefully collapsing when one half is missing.

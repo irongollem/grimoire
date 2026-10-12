@@ -1,8 +1,6 @@
 <template>
   <div>
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
+    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'grid'" :count="12" />
 
     <!-- A reader (a player choosing a background, or a non-DM in the Codex)
          cannot add one, so pointing them at /backgrounds/new sent them to a
@@ -30,123 +28,71 @@
       No backgrounds match your filters.
     </p>
 
-    <VirtualGrid
+    <EntityCollection
       v-else
       :items="filtered"
       :item-key="backgroundKey"
-      :columns="columns"
-      :estimate-row-height="GRID_ROW_PX"
+      :layout="layout"
+      :grid-columns="columns"
+      :grid-row-estimate="GRID_ROW_PX"
     >
-      <template #default="{ item: b }">
-      <div
-        class="group relative flex flex-col rounded-lg border bg-card transition-colors overflow-hidden"
-        :class="[
-          selectMode ? 'cursor-pointer' : '',
-          selectedId && b.id === selectedId
-            ? 'border-primary ring-1 ring-primary/20'
-            : 'border-border hover:border-primary/50',
-        ]"
-      >
-        <!-- Card link / select overlay -->
-        <RouterLink v-if="!selectMode" :to="`/backgrounds/${b.id}`" class="absolute inset-0 z-2" />
-        <button v-else type="button" class="absolute inset-0 z-2" @click="emit('select', b)" />
-
-        <!-- Selected badge -->
-        <div
-          v-if="selectedId && b.id === selectedId"
-          class="absolute top-2 right-2 z-10 flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground"
+      <template #card="{ item: b }">
+        <OptionGridCard
+          :to="`/backgrounds/${b.id}`"
+          :title="b.name"
+          :image-url="b.image_url"
+          :focal-point="b.focal_point"
+          :placeholder="placeholderUrl('background')"
+          :select-mode="selectMode"
+          :selected="!!selectedId && b.id === selectedId"
+          :edit-to="!readonly && !isLibraryBackground(b) ? `/backgrounds/${b.id}?edit=true` : null"
+          edit-label="Edit background"
+          @select="emit('select', b)"
         >
-          <IconCheck class="size-3" />
-        </div>
-
-        <!-- Header / portrait -->
-        <div class="relative h-24 bg-muted overflow-hidden shrink-0">
-          <FocalImage
-            :src="b.image_url"
-            :alt="b.name"
-            format="landscape"
-            :focal-point="b.focal_point"
-            :placeholder="placeholderUrl('background')"
-            class="group-hover:scale-105 transition-transform duration-300"
-          />
-          <!-- A sibling of the image, not FocalImage's own label: the image scales on hover,
-               and a transformed element keeps the chip under the card's z-2 link exactly while
-               the pointer is over the card, which hides the tooltip that names the model. -->
-          <AiImageBadge :src="b.image_url" corner="right" class="z-10" />
-        </div>
-
-        <div class="p-3 flex flex-col gap-1.5 flex-1">
-          <h3 class="text-heading-xs font-bold text-foreground leading-tight line-clamp-1">
-            {{ b.name }}
-          </h3>
-
+          <h3 class="line-clamp-1 text-heading-xs leading-tight font-bold text-foreground">{{ b.name }}</h3>
           <p
             v-if="b.feature_name"
-            class="text-caption italic text-muted-foreground line-clamp-1"
+            class="line-clamp-1 text-caption italic text-muted-foreground"
             :title="b.feature_name"
-          >
-            {{ b.feature_name }}
-          </p>
-
-          <!--
-            Proficiencies summary. Combines skills + tools + languages into a
-            compact inline list so cards stay tight; full details live on the
-            detail page.
-          -->
-          <p
-            v-if="profsSummary(b)"
-            class="text-caption text-foreground/70 line-clamp-2"
-          >
-            {{ profsSummary(b) }}
-          </p>
-
-          <div class="flex items-center gap-1.5 mt-auto pt-1.5">
-            <span
-              v-if="b.source_title || b.source"
-              class="text-label text-muted-foreground truncate"
-              :title="b.source_title ?? b.source ?? ''"
-            >
-              {{ b.source_title ?? b.source }}
-            </span>
-          </div>
-
+          >{{ b.feature_name }}</p>
+          <!-- Skills, tools and languages in one line; the full lists live on the detail page. -->
+          <p v-if="profsSummary(b)" class="line-clamp-2 text-caption text-foreground/70">{{ profsSummary(b) }}</p>
+          <span
+            v-if="b.source_title || b.source"
+            class="mt-auto truncate pt-1.5 text-label text-muted-foreground"
+            :title="b.source_title ?? b.source ?? ''"
+          >{{ b.source_title ?? b.source }}</span>
           <div v-if="b.tags.length" class="flex flex-wrap gap-1">
             <span
               v-for="tag in b.tags.slice(0, 3)"
               :key="tag"
-              class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-            >
-              {{ tag }}
-            </span>
+              class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+            >{{ tag }}</span>
           </div>
-
-          <!-- Select button (shown in selectMode) -->
-          <AppButton
-            v-if="selectMode"
-            variant="tinted"
-            tone="primary"
-            emphasis="soft"
-            size="sm"
-            block
-            class="relative z-10 mt-2"
-            label="Select"
-            @click.stop="emit('select', b)"
-          />
-        </div>
-
-        <!-- Edit button (top-left on hover, same pattern as Species) -->
-        <RouterLink
-          v-if="!readonly && !selectMode && !isLibraryBackground(b)"
-          :to="`/backgrounds/${b.id}?edit=true`"
-          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Edit background"
-        >
-          <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
-          Edit
-        </RouterLink>
-      </div>
+        </OptionGridCard>
       </template>
-    </VirtualGrid>
+      <template #row="{ item: b }">
+        <EntityListRow
+          :to="`/backgrounds/${b.id}`"
+          :title="b.name"
+          :subtitle="backgroundSubtitle(b)"
+          :image-url="b.image_url"
+          :fallback-icon="IconBookUser"
+          :tags="b.tags"
+        >
+          <template v-if="!readonly && !isLibraryBackground(b)" #actions>
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              :icon="IconEdit"
+              :to="`/backgrounds/${b.id}?edit=true`"
+              tooltip="Edit background"
+              aria-label="Edit background"
+            />
+          </template>
+        </EntityListRow>
+      </template>
+    </EntityCollection>
 
     <p
       v-if="filtered.length"
@@ -159,21 +105,22 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconCheck, IconEdit } from '@/lib/icons';
+import { IconBookUser, IconEdit } from '@/lib/icons';
 import { useCodexUiStore } from "@/stores/ui/codex";
 import { isLibraryBackground, useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
-import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import { useListLayout } from "@/composables/useListLayout";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import OptionGridCard from "@/components/common/entity/OptionGridCard.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
-import FocalImage from "@/components/common/media/FocalImage.vue";
-import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import type { Background } from "@/types/background.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
-defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
+const { selectMode } = defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
 const emit = defineEmits<{ select: [bg: Background] }>();
 
 const codexUi = useCodexUiStore();
@@ -221,6 +168,16 @@ useScrollRestore("backgrounds");
 // `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3`.
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const backgroundKey = (background: Background) => background.id;
+
+// The Codex header's toggle writes the same key. The player's picker has no
+// toggle and selecting happens on a card, so it always shows the grid.
+const storedLayout = useListLayout("codex-backgrounds", "grid");
+const layout = computed(() => (selectMode ? "grid" : storedLayout.value));
+
+// The row's one line under the name: the feature it grants, else what it trains.
+function backgroundSubtitle(b: Background): string | null {
+  return b.feature_name ?? (profsSummary(b) || null);
+}
 
 // Row height before a row is measured (px): 206px measured at a 390px
 // phone, 8 Oct 2026. It decides where a restored scroll lands, since coming

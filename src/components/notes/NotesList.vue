@@ -15,7 +15,7 @@
       />
     </ListFilterBar>
 
-    <ListSkeleton v-if="isLoading" variant="text" />
+    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'rows' : 'text'" />
 
     <EmptyState
       v-else-if="!filtered.length && !notesUi.notesHasActiveFilters"
@@ -34,21 +34,28 @@
 
     <template v-else>
       <!-- Pinned notes always float to the top, statically, in every sort mode -->
-      <div v-if="pinned.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-3">
-        <NoteCard v-for="note in pinned" :key="note.id" :note="note" :locked="lockedNoteIds.has(note.id)" />
+      <div v-if="pinned.length" :class="[containerClass, 'mb-3']">
+        <component
+          :is="entryComponent"
+          v-for="note in pinned"
+          :key="note.id"
+          :note="note"
+          :locked="lockedNoteIds.has(note.id)"
+        />
       </div>
 
       <!-- Unpinned notes: draggable in manual mode, static otherwise -->
       <VueDraggable
         v-if="sortBy === 'manual'"
         v-model="dragList"
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+        :class="containerClass"
         handle=".note-drag-handle"
         :animation="150"
         ghost-class="opacity-40"
         @end="persistOrder"
       >
-        <NoteCard
+        <component
+          :is="entryComponent"
           v-for="note in dragList"
           :key="note.id"
           :note="note"
@@ -58,17 +65,22 @@
       </VueDraggable>
       <!-- Windowed: only the cards near the viewport are mounted. Manual mode above
            stays an ordinary render, because dragging needs every card present. -->
-      <VirtualGrid
+      <EntityCollection
         v-else
         :items="unpinned"
         :item-key="noteKey"
-        :columns="columns"
-        :estimate-row-height="NOTE_ROW_PX"
+        :layout="layout"
+        :grid-columns="columns"
+        :grid-row-estimate="NOTE_ROW_PX"
+        :row-estimate="NOTE_LIST_ROW_PX"
       >
-        <template #default="{ item: note }">
+        <template #card="{ item: note }">
           <NoteCard :note="note" :locked="lockedNoteIds.has(note.id)" />
         </template>
-      </VirtualGrid>
+        <template #row="{ item: note }">
+          <NoteRow :note="note" :locked="lockedNoteIds.has(note.id)" />
+        </template>
+      </EntityCollection>
     </template>
 
     <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
@@ -95,7 +107,9 @@ import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/list/ListFilterGroup.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import NoteCard from "@/components/notes/NoteCard.vue";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import NoteRow from "@/components/notes/NoteRow.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { sortEntities, type SortField } from "@/lib/noteSort";
 import type { Note, NoteCategory } from "@/types/notes.types";
@@ -131,6 +145,16 @@ const SORT_OPTIONS = [
 // Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` the pinned
 // and manual-sort grids still carry.
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+// The page header's toggle writes the same key.
+const layout = useListLayout("notes", "grid");
+// The pinned and manual-sort sections are plain (not windowed) containers, so
+// they carry the layout's own classes.
+const containerClass = computed(() =>
+  layout.value === "grid"
+    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+    : "flex flex-col gap-2",
+);
+const entryComponent = computed(() => (layout.value === "grid" ? NoteCard : NoteRow));
 const noteKey = (note: Note) => note.id;
 
 // Row height before a row is measured (px): 166-170px across 20 notes, 170 the median, measured at a 390px
@@ -138,6 +162,8 @@ const noteKey = (note: Note) => note.id;
 // restored scroll lands, since coming back from a detail re-renders every
 // unmeasured row above the viewport.
 const NOTE_ROW_PX = 170;
+// A note row: EntityListRow with a subtitle, a tag line and a one-line preview.
+const NOTE_LIST_ROW_PX = 118;
 
 const { data: notes, isLoading } = useNotes();
 const { mutate: reorder } = useReorderNotes();

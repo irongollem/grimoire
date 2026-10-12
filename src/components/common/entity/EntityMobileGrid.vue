@@ -3,9 +3,9 @@
     <VirtualGrid
       :items="items"
       :item-key="itemKey"
-      :columns="layout === 'gallery' ? 2 : 1"
-      :estimate-row-height="layout === 'gallery' ? GALLERY_ROW_PX : ROWS_ROW_PX"
-      :gap="layout === 'gallery' ? 0.75 : 0.5"
+      :columns="layout === 'grid' ? 2 : 1"
+      :estimate-row-height="layout === 'grid' ? GRID_ROW_PX : ROWS_ROW_PX"
+      :gap="layout === 'grid' ? 0.75 : 0.5"
     >
       <template #default="slotProps">
         <slot v-bind="slotProps" />
@@ -17,16 +17,17 @@
 <script setup lang="ts" generic="T">
 /**
  * The phone layout of a catalogue of `EntityMobileCard`s (monsters, NPCs,
- * deities): the DM's rows/gallery preference, windowed so a long list never
+ * deities): the rows/grid preference, windowed so a long list never
  * holds every portrait decoded at once. One place for the card's measured row
  * heights, so a re-measure cannot leave the lists that share the card behind.
  */
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import type { ListLayout } from "@/composables/useListLayout";
 
 const { items, itemKey, layout } = defineProps<{
   items: T[];
   itemKey: (item: T) => string | number;
-  layout: "rows" | "gallery";
+  layout: ListLayout;
 }>();
 
 defineSlots<{
@@ -38,5 +39,5 @@ defineSlots<{
 // re-renders every unmeasured row above the viewport, and an estimate 2px off
 // put the DM nine rows away in a 911-monster bestiary.
 const ROWS_ROW_PX = 78;
-const GALLERY_ROW_PX = 275;
+const GRID_ROW_PX = 275;
 </script>

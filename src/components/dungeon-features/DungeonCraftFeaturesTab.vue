@@ -3,7 +3,9 @@
     :items="features"
     :is-loading="featuresLoading"
     v-model:search="featuresSearch"
-    :filtered-count="filteredFeatures.length"
+    :shown="filteredFeatures"
+    :item-key="featureKey"
+    list-key="dungeon-features"
     search-placeholder="Search features…"
     no-match-text="No features match your filter."
     empty-icon="DoorOpen"
@@ -18,12 +20,10 @@
         <option v-for="t in DUNGEON_FEATURE_TYPES" :key="t" :value="t">{{ t }}</option>
       </AppSelect>
     </template>
-    <template #card>
+    <template #card="{ item: feature }">
       <RouterLink
-        v-for="feature in filteredFeatures"
-        :key="feature.id"
         :to="`/dungeon-features/${feature.id}`"
-        class="flex flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
+        class="flex h-full flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
       >
         <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
           <FocalImage
@@ -54,6 +54,16 @@
         </div>
       </RouterLink>
     </template>
+    <template #row="{ item: feature }">
+      <EntityListRow
+        :to="`/dungeon-features/${feature.id}`"
+        :title="feature.name"
+        :subtitle="featureSubtitle(feature)"
+        :image-url="feature.image_url"
+        :fallback-icon="IconNavDungeonCraft"
+        :tags="[feature.feature_type, ...feature.tags]"
+      />
+    </template>
   </DungeonCraftEntityGrid>
 </template>
 
@@ -63,6 +73,9 @@ import { RouterLink, useRouter } from "vue-router";
 import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_BG } from "@/types/dungeonFeature.types";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { IconNavDungeonCraft } from "@/lib/icons";
+import type { DungeonFeature } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
@@ -77,6 +90,12 @@ const featuresTypeFilter = ref("");
 // ── Placed in (#868, S8, frame 11) ────────────────────────────────────────────
 const featureIds = computed(() => (features.value ?? []).map((f) => f.id));
 const { placedInRows } = usePlacedInRooms("dungeon_feature", featureIds);
+
+const featureKey = (feature: DungeonFeature) => feature.id;
+function featureSubtitle(feature: DungeonFeature): string | null {
+  const parts = [feature.trigger_type, feature.perception_dc ? `Perc ${feature.perception_dc}` : null];
+  return parts.filter((p): p is string => !!p).join(" · ") || null;
+}
 
 const filteredFeatures = computed(() => {
   let list = features.value ?? [];

@@ -7,7 +7,7 @@
     <!-- Loading: the same shape the real cards will land in. -->
     <ListSkeleton
       v-if="isLoading"
-      :variant="mobileLayout ? layout : 'grid'"
+      :variant="skeletonVariant"
       :count="mobileLayout ? 7 : 12"
     />
 
@@ -34,9 +34,9 @@
       No spells match your filters.
     </p>
 
-    <!-- ── Phone (<md): compact rows / gallery, as the bestiary does ────── -->
+    <!-- ── Phone (<md): compact rows / grid, as the bestiary does ────── -->
     <template v-else-if="mobileLayout">
-      <MobileEntityMetaRow v-model:layout="layout" :shown="rows.length" :total="total" plural="spells" />
+      <MobileEntityMetaRow :shown="rows.length" :total="total" plural="spells" />
       <EntityMobileGrid :items="rows" :item-key="spellKey" :layout="layout">
         <template #default="{ item: spell }">
           <BulkSelectableCard
@@ -63,15 +63,16 @@
       </EntityMobileGrid>
     </template>
 
-    <!-- ── Desktop grid (≥md), and the player portal at every width ──────── -->
+    <!-- ── Desktop (≥md): grid of cards or one row per spell; the player portal is always the grid ── -->
     <template v-else>
-      <VirtualGrid
+      <EntityCollection
         :items="rows"
         :item-key="spellKey"
-        :columns="columns"
-        :estimate-row-height="GRID_ROW_PX"
+        :layout="desktopLayout"
+        :grid-columns="columns"
+        :grid-row-estimate="GRID_ROW_PX"
       >
-        <template #default="{ item: spell }">
+        <template #card="{ item: spell }">
           <!--
             Wrapped in BulkSelectableCard (#875) for every card — but `selecting`
             is only ever true for a row the DM can actually re-scope; shared/
@@ -128,7 +129,26 @@
             </SpellGridCard>
           </BulkSelectableCard>
         </template>
-      </VirtualGrid>
+        <template #row="{ item: spell }">
+          <BulkSelectableCard
+            corner="top-right"
+            :selected="selectedIds.has(spell.id)"
+            :selecting="selecting && spell.is_own && !spell.is_shared"
+            @toggle="emit('toggle-select', spell.id)"
+          >
+            <EntityListRow
+              :to="`/spells/${spell.id}`"
+              :title="spell.name"
+              :subtitle="mobileSubtitle(spell)"
+              :image-url="spell.image_url"
+              :fallback-icon="IconNavSpellbook"
+              :tags="[spellLevelOrdinal(spell.level)]"
+              @pointerenter="prefetchSpell(spell.id)"
+              @focusin="prefetchSpell(spell.id)"
+            />
+          </BulkSelectableCard>
+        </template>
+      </EntityCollection>
 
       <p class="mt-4 text-caption text-muted-foreground italic text-right">
         {{ total }} spells
@@ -149,7 +169,9 @@ import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell }
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { SCHOOL_BG, spellLevelOrdinal } from "@/types/spell.types";
 import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
-import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import EntityCollection from "@/components/common/list/EntityCollection.vue";
+import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
@@ -161,7 +183,6 @@ import EntityMobileGrid from "@/components/common/entity/EntityMobileGrid.vue";
 import MobileEntityMetaRow from "@/components/common/entity/MobileEntityMetaRow.vue";
 import SpellGridCard from "@/components/spells/SpellGridCard.vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { useAppUiStore } from "@/stores/ui/app";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useSpellReplacement } from "@/composables/party/useSpellReplacement";
 import { useRuleset } from "@/composables/rules/useRuleset";
@@ -329,10 +350,15 @@ const GRID_ROW_PX = 277;
 // rows have no room for.
 const isMobile = useIsMobile();
 const mobileLayout = computed(() => isMobile.value && !playerMemberId);
-const appUi = useAppUiStore();
-const layout = computed({
-  get: () => appUi.entityListLayout,
-  set: (v: "rows" | "gallery") => { appUi.entityListLayout = v; },
+// The page header's toggle writes the same key.
+const layout = useListLayout("spells", "grid");
+// The player portal's cards carry Learn / Prepare controls the compact rows have
+// no room for, so it ignores the preference.
+const desktopLayout = computed(() => (playerMemberId ? "grid" : layout.value));
+// The phone's grid is the two-column gallery skeleton.
+const skeletonVariant = computed(() => {
+  if (!mobileLayout.value) return desktopLayout.value === "rows" ? "rows" : "grid";
+  return layout.value === "rows" ? "rows" : "gallery";
 });
 
 function mobileSubtitle(spell: SpellBrowseRow): string {
