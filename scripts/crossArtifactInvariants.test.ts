@@ -229,7 +229,10 @@ describe("component tags resolve to real imports", () => {
 
     for (const file of trackedFiles("src/**/*.vue")) {
       const source = read(file);
-      const template = source.match(/<template>([\s\S]*)<\/template>/);
+      // The SFC's own block opens and closes at column 0; nested slot templates
+      // are indented. Anchoring there keeps a `</template>` in a doc-comment
+      // example (EntityCollection's) from stretching the block over the script.
+      const template = source.match(/^<template>([\s\S]*?)^<\/template>/m);
       if (!template) continue;
 
       // Everything outside the template block: <script setup>, plain <script>, styles.
