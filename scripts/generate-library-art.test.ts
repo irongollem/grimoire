@@ -181,6 +181,7 @@ describe("slugs and paths", () => {
   it("puts originals under the srd/ prefix and variants beside them", () => {
     const path = newOriginalPath("11111111-1111-1111-1111-111111111111");
     expect(path).toBe("srd/11111111-1111-1111-1111-111111111111.webp");
+    expect(newOriginalPath("11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222")).toBe("22222222-2222-2222-2222-222222222222/11111111-1111-1111-1111-111111111111.webp");
     expect(variantPath(path, 400)).toBe("srd/11111111-1111-1111-1111-111111111111_w400.webp");
     expect(imageProvenanceStem(variantPath(path, 400))).toBe(imageProvenanceStem(path));
   });
@@ -403,6 +404,7 @@ describe("focal point guess", () => {
     expect(focalTarget("spell")).toMatch(/caster's face|magical effect/);
     expect(focalTarget("species")).toMatch(/group's faces/);
     expect(focalTarget("class")).toMatch(/group's faces/);
+    expect(focalTarget("campaign_item")).toMatch(/centre of the main object/);
     expect(focalTarget("background")).toMatch(/figure's face/);
   });
 

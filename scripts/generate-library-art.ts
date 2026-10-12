@@ -115,11 +115,15 @@ const MANIFEST_FILE = "manifest.json";
  * this tool, and an entry with `kind: "class"` and the class `name` writes every edition's `system_classes` row, or,
  * for a class from another book (Black Flag's Mechanist), the shared `custom_classes` rows (`user_id` null) of that
  * name. A DM's own class of the same name is never touched.
+ * `campaign_item` is publish-only too, for a campaign's own `items` rows (Jeffrey's Frostmaiden items, 12 Oct 2026): it
+ * writes the rows named by `id` + `alsoIds`, never by name, and stores the picture under the rows' owner's folder
+ * rather than `srd/`, because a campaign item is that user's content, not shared library art. All rows of one entry
+ * must belong to one user, who also owns the provenance record.
  */
-export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class";
+export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class" | "campaign_item";
 
 /** Storage bucket per kind. Canonical art lives under `srd/` in all three (see CLAUDE.md, Storage Path Convention). */
-export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images" };
+export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images", campaign_item: "item-images" };
 
 /**
  * How canonical item art is staged, passed where the app passes a campaign's
@@ -236,6 +240,7 @@ const TABLES_FOR_KIND: Record<ArtKind, string> = {
   species: "library_species",
   background: "library_backgrounds",
   class: "system_classes, or the shared custom_classes rows",
+  campaign_item: "items (a campaign's own rows, by id)",
 };
 
 // ---------------------------------------------------------------------------
@@ -417,9 +422,9 @@ export function entrySlug(ref: EntryRef): string {
   return `${ref.kind}-${slug}`;
 }
 
-/** `srd/<uuid>.webp`: the admin-only prefix, never a user folder. */
-export function newOriginalPath(uuid: string = randomUUID()): string {
-  return `srd/${uuid}.webp`;
+/** `srd/<uuid>.webp`: the admin-only prefix, never a user folder. A campaign item passes its owner's id instead. */
+export function newOriginalPath(uuid: string = randomUUID(), folder: string = "srd"): string {
+  return `${folder}/${uuid}.webp`;
 }
 
 /** Mirrors `variantPath` in src/lib/storage/buckets.ts. */
@@ -789,7 +794,7 @@ export interface FocalPoint {
 /** What the vision model is asked to locate, per kind (#965: these answers held up on a spot check where image saliency did not). */
 export function focalTarget(kind: ArtKind): string {
   if (kind === "monster") return "the creature's head or face (the point a portrait crop should centre on)";
-  if (kind === "item") return "the centre of the main object (not the background props)";
+  if (kind === "item" || kind === "campaign_item") return "the centre of the main object (not the background props)";
   if (kind === "species" || kind === "class") return "the centre of the group's faces (the point a portrait crop should centre on)";
   if (kind === "background") return "the figure's face (the point a portrait crop should centre on)";
   return "the centre of the main subject: the caster's face if a caster is the focus, otherwise the heart of the magical effect";
@@ -1209,6 +1214,15 @@ async function putIfDifferent(r2: R2Config, upload: Upload): Promise<"skipped" |
   return existing === null ? "uploaded" : "replaced";
 }
 
+/** The one user who owns every campaign item row of an entry; the picture goes in their folder. */
+async function campaignItemOwner(client: SupabaseClient, ids: (string | null)[]): Promise<string> {
+  const { data, error } = await client.from("items").select("user_id").in("id", ids.filter((id): id is string => id !== null));
+  if (error) throw new Error(`Could not read items: ${error.message}`);
+  const owners = [...new Set((data as { user_id: string }[]).map((r) => r.user_id))];
+  if (owners.length !== 1) throw new Error(`Campaign item rows ${ids.join(", ")} belong to ${owners.length} users; publish one owner's rows at a time.`);
+  return owners[0];
+}
+
 async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise<string[]> {
   if (entry.kind === "spell") {
     if (entry.id === null) throw new Error(`${entry.slug}: a spell entry needs an id.`);
@@ -1246,6 +1260,13 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     const present = new Set((found.data as { id: string }[]).map((r) => r.id));
     const missing = ids.filter((id) => !present.has(id));
     if (missing.length > 0) throw new Error(`${entry.slug}: library background ${missing.join(", ")} no longer exists.`);
+    return ids;
+  }
+  if (entry.kind === "campaign_item") {
+    const ids = [...new Set([entry.id, ...entry.alsoIds].filter((id): id is string => id !== null))].sort();
+    const { data, error } = await client.from("items").select("id").in("id", ids);
+    if (error) throw new Error(`Could not read items: ${error.message}`);
+    if (data.length !== ids.length) throw new Error(`${entry.slug}: ${ids.length - data.length} campaign item row(s) no longer exist.`);
     return ids;
   }
   if (entry.kind === "class") {
@@ -1313,6 +1334,11 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     if (rows.error) throw new Error(`Could not update library_backgrounds: ${rows.error.message}`);
     return;
   }
+  if (entry.kind === "campaign_item") {
+    const rows = await client.from("items").update({ image_url: url }).in("id", ids);
+    if (rows.error) throw new Error(`Could not update items: ${rows.error.message}`);
+    return;
+  }
   if (entry.kind === "class") {
     // The ids are either table's (uuids never collide), so each update touches only its own rows.
     const rows = await client.from("system_classes").update({ image_url: url }).in("id", ids);
@@ -1364,6 +1390,10 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
     check((await client.from("library_backgrounds").update({ focal_point: focal }).in("id", ids)).error, "library_backgrounds");
     return;
   }
+  if (entry.kind === "campaign_item") {
+    check((await client.from("items").update({ image_focal_point: focal }).in("id", ids)).error, "items");
+    return;
+  }
   if (entry.kind === "class") {
     check((await client.from("system_classes").update({ focal_point: focal, focal_point_checked_at: null }).in("id", ids)).error, "system_classes");
     // custom_classes has no focal_point_checked_at: the admin queue reviews library (system) classes only.
@@ -1406,7 +1436,8 @@ async function runPublish(opts: PublishOptions): Promise<void> {
 
   for (const entry of entries) {
     const bucket = BUCKET_FOR_KIND[entry.kind];
-    const path = entry.publish?.path ?? newOriginalPath();
+    const rowOwner = entry.kind === "campaign_item" ? await campaignItemOwner(client, [entry.id, ...entry.alsoIds]) : null;
+    const path = entry.publish?.path ?? newOriginalPath(undefined, rowOwner ?? "srd");
     const finalBytes = new Uint8Array(readFileSync(join(opts.out, entry.finalFile)));
     if (!sniffIsWebp(finalBytes)) throw new Error(`${entry.finalFile} is not a WebP file.`);
     const found = readWebpProvenance(finalBytes);
@@ -1423,7 +1454,7 @@ async function runPublish(opts: PublishOptions): Promise<void> {
 
     console.log(`${entry.slug} (${itemNames(entry).join("; ")})`);
     for (const u of uploads) console.log(`  R2 ${u.key} ${u.bytes.byteLength} bytes`);
-    console.log(`  provenance ${bucket} ${path} owner ${owner ?? "(resolved at --write)"}`);
+    console.log(`  provenance ${bucket} ${path} owner ${rowOwner ?? owner ?? "(resolved at --write)"}`);
     console.log(`  ${TABLES_FOR_KIND[entry.kind]} -> ${storedUrl}`);
     console.log(`  rows: ${rowIds.join(", ")}`);
     console.log("  focal: guessed by the text model after upload, marked unchecked for the focal-point queue");
@@ -1439,7 +1470,7 @@ async function runPublish(opts: PublishOptions): Promise<void> {
       const result = await putIfDifferent(r2, u);
       console.log(`  ${result} ${u.key}`);
     }
-    await registerImageProvenance(client, bucket, path, owner, prov);
+    await registerImageProvenance(client, bucket, path, rowOwner ?? owner, prov);
     await writeRows(client, entry, rowIds, storedUrl);
     let focal: FocalPoint | null = null;
     try {
