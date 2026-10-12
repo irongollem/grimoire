@@ -28,34 +28,101 @@ export function parseSize(raw: string): SpeciesSize | null {
   return VALID_SIZES.includes(s) ? s : null;
 }
 
+const SPEED_MODES = [
+  ["fly", "fly(?:ing)?"],
+  ["swim", "swim(?:ming)?"],
+  ["climb", "climb(?:ing)?"],
+  ["burrow", "burrow(?:ing)?"],
+] as const;
+
+/**
+ * Reads movement speeds from either shape Open5e writes: the 2024 SRD's terse
+ * "30 feet" / "30 ft., fly 30 ft.", and the prose of the 2014 SRD and Kobold
+ * Press books ("Your base walking speed is 25 feet.", "a base walking speed
+ * of 40 feet", "You have a burrowing speed of 20 feet"). Reading only the terse
+ * shape left every 2014 and Tome of Heroes species without a speed, so the
+ * character builder fell back to 30 ft for dwarves, gnomes and halflings.
+ */
 export function parseSpeed(raw: string | undefined): Record<string, number> | null {
   if (!raw) return null;
-  // e.g. "30 ft., fly 30 ft."
   const result: Record<string, number> = {};
-  const walkMatch = raw.match(/^(\d+)/);
+  const walkMatch = raw.match(/^\s*(\d+)\b/) ?? raw.match(/walking speed (?:is|of) (\d+)/i);
   if (walkMatch) result.walk = parseInt(walkMatch[1]);
-  const flyMatch = raw.match(/fly\s+(\d+)/i);
-  if (flyMatch) result.fly = parseInt(flyMatch[1]);
-  const swimMatch = raw.match(/swim\s+(\d+)/i);
-  if (swimMatch) result.swim = parseInt(swimMatch[1]);
-  const climbMatch = raw.match(/climb\s+(\d+)/i);
-  if (climbMatch) result.climb = parseInt(climbMatch[1]);
+  for (const [mode, word] of SPEED_MODES) {
+    const match = raw.match(new RegExp(`\\b${word}(?: speed (?:is|of))?\\s+(\\d+)`, "i"));
+    if (match) result[mode] = parseInt(match[1]);
+  }
   return Object.keys(result).length ? result : null;
 }
 
-export function parseLanguages(raw: string | undefined): string[] {
-  if (!raw) return [];
+/**
+ * A species' speeds: the Speed trait, plus any other mode a trait grants in so
+ * many words ("You have a burrowing speed of 20 feet", the erina's Digger).
+ * Only that explicit phrase is read outside the Speed trait, so a number in an
+ * unrelated rule ("fly 30 feet" in a spell) cannot become a speed.
+ */
+export function parseSpeciesSpeed(traits: readonly Open5eTrait[]): Record<string, number> | null {
+  const result: Record<string, number> = {};
+  for (const entry of traits) {
+    if (entry.name.toLowerCase() === "speed") continue;
+    for (const [mode, word] of SPEED_MODES) {
+      const match = entry.desc.match(new RegExp(`\\byou have an? ${word} speed of (\\d+)`, "i"));
+      if (match) result[mode] = parseInt(match[1]);
+    }
+  }
+  Object.assign(result, parseSpeed(traits.find(entry => entry.name.toLowerCase() === "speed")?.desc));
+  return Object.keys(result).length ? result : null;
+}
+
+/** A language entry that names a choice rather than a language: the player picks it, so it is no language they know yet. */
+const LANGUAGE_CHOICE = /\b(?:choice|choose|either|one of the following|associated with|extra language)\b/i;
+
+/** Pulls the language-listing sentence out of a Languages trait, preamble and markdown header removed. */
+function languageClause(raw: string): string {
   // Strip leading markdown bold/italic header — handles both "***Languages.***" and "**_Languages._**"
   const cleaned = raw.replace(/^\*+_?[^*\n]+_?\.?\*+\s*/i, "");
-  // Take only the first sentence (the one listing the language names)
-  const firstSentence = cleaned.split(".")[0];
+  // Parentheticals ("Machine Speech (a whistling, clicking language…)") would split on their commas
+  const firstSentence = cleaned.replace(/\s*\([^)]*\)/g, "").split(".")[0];
   // Strip "You can speak, read, and write " / "You speak " preamble
-  const stripped = firstSentence.replace(/^you (?:can )?(?:speak(?:,? read(?:,? and write)?)?\s+)/i, "");
-  // Drop entries that are still clearly descriptive phrases (e.g. "your choice of Common or Undercommon")
-  return stripped
+  return firstSentence.replace(/^you (?:can )?(?:speak(?:,? read(?:,? and write)?)?\s+)/i, "");
+}
+
+/**
+ * The languages a species always knows. The list is copied onto a new
+ * character's known languages, so a choice ("your choice of Common or
+ * Undercommon", "one extra language of your choice") is left out rather than
+ * becoming a language called that; `languagesNeedTrait` keeps the trait text
+ * so the choice is still on the sheet.
+ */
+export function parseLanguages(raw: string | undefined): string[] {
+  if (!raw) return [];
+  // "Common and one of the following: Abyssal, Infernal, or Void Speech": everything after the colon is the choice
+  const fixed = languageClause(raw).replace(/\bone of the following:.*$/i, "");
+  return fixed
     .split(/,\s*|\s+and\s+/)
-    .map((l) => l.trim())
-    .filter((l) => Boolean(l) && !/^your choice/i.test(l));
+    .map((l) => l.trim().replace(/^and\s+/i, ""))
+    .filter((l) => Boolean(l) && !LANGUAGE_CHOICE.test(l));
+}
+
+/** True when the Languages trait offers a choice that `parseLanguages` cannot hold. */
+export function languagesNeedTrait(raw: string | undefined): boolean {
+  return Boolean(raw) && LANGUAGE_CHOICE.test(languageClause(raw as string));
+}
+
+/** True when a Speed trait says more than its numbers: "determined by your subrace", "not reduced by heavy armor". */
+export function speedNeedsTrait(raw: string | undefined): boolean {
+  if (!raw) return false;
+  return raw
+    .split(/(?<=\.)\s+/)
+    .map((sentence) => sentence.trim())
+    .some((sentence) => sentence && !/\d+\s*(?:feet|ft)/i.test(sentence));
+}
+
+/** True when a Size trait names no size, or more than one (the 2024 "Medium or Small, chosen when you select this species"). */
+export function sizeNeedsTrait(raw: string | undefined): boolean {
+  if (!raw) return false;
+  const sizes = new Set((raw.match(/\b(tiny|small|medium|large)\b/gi) ?? []).map((size) => size.toLowerCase()));
+  return sizes.size !== 1;
 }
 
 export function parseTags(race: Open5eRace, size: SpeciesSize | null): string[] {
@@ -85,14 +152,21 @@ export function parseAsi(raw: string | undefined): Record<string, number | strin
 export function buildImportedFields(race: Open5eRace, documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>) {
   const trait = (name: string) => race.traits.find(entry => entry.name.toLowerCase() === name);
   const size = parseSize(trait("size")?.desc.match(/\b(tiny|small|medium|large)\b/i)?.[1] ?? "");
+  // A consumed trait stays a trait when its field cannot hold all of it, so
+  // the rule ("determined by your Heritage Subrace", a language choice) is
+  // still on the sheet.
+  const consumed = new Set(["ability score increase"]);
+  if (!sizeNeedsTrait(trait("size")?.desc)) consumed.add("size");
+  if (!speedNeedsTrait(trait("speed")?.desc)) consumed.add("speed");
+  if (!languagesNeedTrait(trait("languages")?.desc)) consumed.add("languages");
   const speciesTraits = race.traits
-    .filter(entry => !["size", "speed", "languages", "ability score increase"].includes(entry.name.toLowerCase()))
+    .filter(entry => !consumed.has(entry.name.toLowerCase()))
     .map(entry => ({ name: entry.name, description: markdownToTiptapJson(entry.desc) }));
   return {
     name: race.name,
     description: race.desc ? toTiptapJson(race.desc) : null,
     size,
-    speed: parseSpeed(trait("speed")?.desc),
+    speed: parseSpeciesSpeed(race.traits),
     ability_score_increases: parseAsi(trait("ability score increase")?.desc),
     traits: speciesTraits,
     languages: parseLanguages(trait("languages")?.desc),

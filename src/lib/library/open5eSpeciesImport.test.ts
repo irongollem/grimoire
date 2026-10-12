@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseSize,
   parseSpeed,
+  parseSpeciesSpeed,
   parseLanguages,
   parseAsi,
   parseTags,
@@ -28,7 +29,7 @@ function race(overrides: Partial<Open5eRace> = {}): Open5eRace {
     is_subspecies: false,
     subspecies_of: null,
     traits: [
-      { name: "Size", desc: "Elves are Medium or Small.", type: null },
+      { name: "Size", desc: "Elves are slender. Your size is Medium.", type: null },
       { name: "Speed", desc: "30 ft., fly 30 ft.", type: null },
       {
         name: "Languages",
@@ -73,9 +74,48 @@ describe("parseSpeed", () => {
     });
   });
 
+  it("parses the prose the 2014 SRD and Kobold Press books write", () => {
+    expect(parseSpeed("Your base walking speed is 25 feet. Your speed is not reduced by wearing heavy armor.")).toEqual({
+      walk: 25,
+    });
+    expect(parseSpeed("Alseid are fast for their size, with a base walking speed of 40 feet.")).toEqual({ walk: 40 });
+    expect(parseSpeed("Your base walking speed is 30 feet, and you have a climbing speed of 30 feet.")).toEqual({
+      walk: 30,
+      climb: 30,
+    });
+  });
+
+  it("parses the 2024 SRD's bare distance", () => {
+    expect(parseSpeed("35 feet")).toEqual({ walk: 35 });
+  });
+
+  it("returns null when the speed is deferred to a subrace", () => {
+    expect(parseSpeed("Your base walking speed is determined by your Heritage Subrace.")).toBeNull();
+  });
+
   it("returns null for missing/empty input", () => {
     expect(parseSpeed(undefined)).toBeNull();
     expect(parseSpeed("")).toBeNull();
+  });
+});
+
+describe("parseSpeciesSpeed", () => {
+  it("adds a speed another trait grants in so many words", () => {
+    expect(
+      parseSpeciesSpeed([
+        { name: "Speed", desc: "Your base walking speed is 25 feet.", type: null },
+        { name: "Digger", desc: "You have a burrowing speed of 20 feet, but only through earth and sand.", type: null },
+      ]),
+    ).toEqual({ walk: 25, burrow: 20 });
+  });
+
+  it("ignores a number in an unrelated rule", () => {
+    expect(
+      parseSpeciesSpeed([
+        { name: "Speed", desc: "30 feet", type: null },
+        { name: "Draconic Flight", desc: "You have a Fly Speed equal to your Speed, and can fly 30 feet once.", type: null },
+      ]),
+    ).toEqual({ walk: 30 });
   });
 });
 
@@ -97,6 +137,33 @@ describe("parseLanguages", () => {
     expect(
       parseLanguages("You can speak, read, and write Common and your choice of one other language."),
     ).toEqual(["Common"]);
+  });
+
+  it("leaves out every kind of choice, which is no language the character knows yet", () => {
+    expect(parseLanguages("You can speak, read, and write Common, Elvish, and one extra language of your choice.")).toEqual([
+      "Common",
+      "Elvish",
+    ]);
+    expect(parseLanguages("You can speak, read, and write Dwarvish and your choice of Common or Undercommon.")).toEqual([
+      "Dwarvish",
+    ]);
+    expect(parseLanguages("You can speak Erina and either Common or Sylvan.")).toEqual(["Erina"]);
+    expect(
+      parseLanguages("You can speak, read, and write Common and one of the following: Abyssal, Infernal, or Void Speech."),
+    ).toEqual(["Common"]);
+    expect(
+      parseLanguages(
+        "You can speak, read, and write Common, Darakhul, and a language associated with your Heritage Subrace.",
+      ),
+    ).toEqual(["Common", "Darakhul"]);
+  });
+
+  it("does not split a language on the commas inside its parenthetical", () => {
+    expect(
+      parseLanguages(
+        "You can speak, read, and write Common, Machine Speech (a whistling, clicking language that's incomprehensible to non-gearforged), and a language associated with your Race Chassis.",
+      ),
+    ).toEqual(["Common", "Machine Speech"]);
   });
 
   it("returns an empty array for missing input", () => {
@@ -176,6 +243,29 @@ describe("buildImportedFields", () => {
         permalink: "https://example.test/srd",
       },
     });
+  });
+
+  it("keeps a consumed trait when its field cannot hold all of it", () => {
+    const fields = buildImportedFields(
+      race({
+        traits: [
+          { name: "Size", desc: "Your size is determined by your Heritage Subrace.", type: null },
+          { name: "Speed", desc: "Your base walking speed is 25 feet. Your speed is not reduced by wearing heavy armor.", type: null },
+          { name: "Languages", desc: "You can speak, read, and write Elvish and your choice of Common or Undercommon.", type: null },
+        ],
+      }),
+    );
+    expect(fields.size).toBeNull();
+    expect(fields.speed).toEqual({ walk: 25 });
+    expect(fields.languages).toEqual(["Elvish"]);
+    expect(fields.traits.map((trait) => trait.name)).toEqual(["Size", "Speed", "Languages"]);
+  });
+
+  it("keeps the Size trait when the species offers two sizes", () => {
+    const fields = buildImportedFields(
+      race({ traits: [{ name: "Size", desc: "Medium (about 4–7 feet tall) or Small (about 2–4 feet tall), chosen when you select this species", type: null }] }),
+    );
+    expect(fields.traits.map((trait) => trait.name)).toEqual(["Size"]);
   });
 
   it("resolves ruleset null for a non-5e document", () => {

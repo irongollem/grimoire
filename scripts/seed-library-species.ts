@@ -104,6 +104,31 @@ export function buildSeededSpeciesRow(
   };
 }
 
+/** Columns a re-seed must leave alone on an existing row: art, focal point, heights, spells (`buildCreateOnlyDefaults`). `subraces` is Open5e content and refreshes. */
+const CREATE_ONLY_COLUMNS = Object.keys(buildCreateOnlyDefaults()).filter((column) => column !== "subraces");
+
+/**
+ * Splits mapped rows into new ones, written whole, and existing ones, written
+ * without the create-only columns. Upserting the whole row onto an existing
+ * species reset its art, focal point and heights to null on every re-seed.
+ */
+export function splitForReseed(
+  rows: readonly SeededSpecies[],
+  existing: ReadonlyArray<{ source_document_key: string | null; source_record_key: string | null }>,
+): { fresh: SeededSpecies[]; refresh: Partial<SeededSpecies>[] } {
+  const seeded = new Set(existing.map((row) => `${row.source_document_key}/${row.source_record_key}`));
+  const fresh: SeededSpecies[] = [];
+  const refresh: Partial<SeededSpecies>[] = [];
+  for (const row of rows) {
+    if (!seeded.has(`${row.source_document_key}/${row.source_record_key}`)) {
+      fresh.push(row);
+      continue;
+    }
+    refresh.push(Object.fromEntries(Object.entries(row).filter(([column]) => !CREATE_ONLY_COLUMNS.includes(column))));
+  }
+  return { fresh, refresh };
+}
+
 // ── dry run ───────────────────────────────────────────────────────────────────
 
 function printDryRunSummary(rows: SeededSpecies[]): void {
@@ -192,8 +217,17 @@ async function main(): Promise<void> {
   const supabase = createServiceClient(env);
 
   console.log("Step 2: Upserting to library_species table…");
-  await upsertBatch(supabase, "library_species", rows, "source_document_key,source_record_key", { insertOnly: parsed.insertOnly });
-  console.log(`  Done — ${rows.length} rows upserted.\n`);
+  const { data: existing, error } = await supabase
+    .from("library_species")
+    .select("source_document_key, source_record_key")
+    .in("source_document_key", documentKeys);
+  if (error) throw error;
+  const { fresh, refresh } = splitForReseed(rows, existing);
+  await upsertBatch(supabase, "library_species", fresh, "source_document_key,source_record_key");
+  if (!parsed.insertOnly) {
+    await upsertBatch(supabase, "library_species", refresh, "source_document_key,source_record_key");
+  }
+  console.log(`  Done — ${fresh.length} inserted, ${parsed.insertOnly ? 0 : refresh.length} refreshed.\n`);
 
   console.log("=== Seeding complete ===");
 }
