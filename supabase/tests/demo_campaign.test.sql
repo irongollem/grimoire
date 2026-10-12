@@ -15,7 +15,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(67);
+select plan(68);
 
 -- ── Structure ───────────────────────────────────────────────────────────────
 
@@ -257,9 +257,16 @@ insert into public.spells (id, user_id, campaign_id, name, level, classes) value
 -- Its subclass is a definition of the template's own (campaign-scoped), which is
 -- what lets the copy carry it: a class row is pinned (#943), and a pin to one of
 -- the author's general definitions would name a row the loader cannot use.
-insert into public.custom_subclasses (id, user_id, campaign_id, class_name, subclass_name) values
+-- The subclass grants a spell, so inserting the template's class row has the
+-- server write a granted_by_subclass row. A copy that let that sync run again
+-- collided with the template's own granted row on the way in.
+insert into public.spells (id, user_id, campaign_id, name, level, classes) values
+  ('91200000-0000-4000-8000-000000000084', '91200000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000010', 'Candied Ward', 1, '{Bard}');
+insert into public.custom_subclasses (id, user_id, campaign_id, class_name, subclass_name, granted_spells) values
   ('91200000-0000-4000-8000-000000000083', '91200000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000010', 'Bard', 'College of Sugar');
+   '91200000-0000-4000-8000-000000000010', 'Bard', 'College of Sugar',
+   '{"3": ["91200000-0000-4000-8000-000000000084"]}'::jsonb);
 insert into public.character_classes (id, party_member_id, class_name, subclass_name, levels, is_primary,
                                       class_definition_id, class_definition_kind, subclass_definition_id) values
   ('91200000-0000-4000-8000-000000000082', '91200000-0000-4000-8000-000000000080', 'Bard', 'College of Sugar', 3, true,
@@ -611,9 +618,22 @@ select is(
      from public.character_spells cs
      join public.party_members pm on pm.id = cs.party_member_id
      join public.character_classes cc on cc.id = cs.source_class_id and cc.party_member_id = pm.id
-    where pm.user_id = '91200000-0000-4000-8000-000000000002'),
+    where pm.user_id = '91200000-0000-4000-8000-000000000002'
+      and not cs.granted_by_subclass),
   1,
   'the copy''s pre-made caster kept a class spell, tied to the copy''s own class: the shape a purge must survive'
+);
+
+select is(
+  (select array_agg(s.name)
+     from public.character_spells cs
+     join public.party_members pm on pm.id = cs.party_member_id
+     join public.character_classes cc on cc.id = cs.source_class_id and cc.party_member_id = pm.id
+     join public.spells s on s.id::text = cs.spell_id and s.campaign_id = pm.campaign_id
+    where pm.user_id = '91200000-0000-4000-8000-000000000002'
+      and cs.granted_by_subclass and cs.always_prepared),
+  array['Candied Ward']::text[],
+  'the copy''s subclass grant arrives once, the template''s own row on the copy''s class and spell'
 );
 
 select is(
