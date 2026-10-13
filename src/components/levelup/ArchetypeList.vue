@@ -1,5 +1,5 @@
 <template>
-  <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'text'" :columns="layout === 'rows' ? 1 : 4" :count="8" />
+  <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'grid'" :columns="layout === 'rows' ? 1 : 4" :count="12" />
 
   <!-- Empty state -->
   <div
@@ -9,31 +9,23 @@
     <div class="space-y-2">
       <p class="text-heading-sm font-semibold text-foreground">No archetypes yet</p>
       <p class="text-body text-muted-foreground max-w-sm">
-        Archetypes let you define custom subclasses for any of the 13 SRD classes: add features
+        Archetypes let you define custom subclasses for any class: add features
         per level, and give each feature its uses and the choices it asks for.
       </p>
     </div>
 
     <div class="flex flex-wrap justify-center gap-3">
-      <RouterLink
-        to="/levelup/custom/new"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        New Archetype
-      </RouterLink>
-      <button
-        type="button"
-        :disabled="loadingExample"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 text-label-lg text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"
+      <AppButton to="/levelup/custom/new" variant="primary" :icon="IconAdd" label="New Archetype" />
+      <AppButton
+        variant="outline"
+        :icon="IconPopulate"
+        :loading="loadingExample"
+        :label="loadingExample ? 'Creating…' : 'Load example'"
         @click="createExample"
-      >
-        <IconPopulate class="h-3.5 w-3.5" />
-        {{ loadingExample ? "Creating…" : "Load example" }}
-      </button>
+      />
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2 w-full max-w-2xl text-left">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 w-full max-w-2xl text-left">
       <div class="rounded-lg border border-border bg-card p-3 space-y-1">
         <p class="text-eyebrow text-primary">Features</p>
         <p class="text-caption text-muted-foreground">
@@ -57,12 +49,10 @@
     description="Try adjusting your search or filter."
   />
 
-  <!-- Grouped list -->
-  <div v-else class="space-y-6 p-4 md:p-6">
-    <div v-for="(group, className) in grouped" :key="className">
-      <h3 class="text-label-lg uppercase text-muted-foreground mb-2">
-        {{ className }}
-      </h3>
+  <!-- Grouped by base class, like the class list's sections -->
+  <div v-else class="space-y-6">
+    <section v-for="(group, className) in grouped" :key="className">
+      <h3 class="text-label-lg uppercase text-muted-foreground mb-2">{{ className }}</h3>
       <EntityCollection
         :items="group"
         :item-key="archetypeKey"
@@ -72,28 +62,28 @@
         :row-estimate="ROW_PX"
       >
         <template #card="{ item: sc }">
-          <EntityTextCard
+          <!-- No picture of its own: the base class's art stands in, so a
+               Path of Hellfire card still reads as a barbarian at a glance. -->
+          <EntityGridCard
             :to="`/levelup/custom/${sc.id}`"
             :title="sc.subclass_name"
-            :subtitle="featureSummary(sc)"
-            :fallback-icon="IconLayers"
-            :tags="tagsFor(sc)"
+            :image-url="sc.image_url"
+            :focal-point="sc.focal_point"
+            :placeholder="classArt(sc.class_name)"
           >
             <template #body>
-              <p v-if="sc.description" class="line-clamp-3 text-caption text-muted-foreground">
-                {{ toPlainText(sc.description) }}
-              </p>
+              <h3 class="line-clamp-2 text-balance text-heading-xs leading-tight font-bold text-foreground">{{ sc.subclass_name }}</h3>
+              <p class="text-caption text-muted-foreground">{{ subtitle(sc) }}</p>
             </template>
-          </EntityTextCard>
+          </EntityGridCard>
         </template>
         <template #row="{ item: sc }">
           <EntityListRow
             :to="`/levelup/custom/${sc.id}`"
             :title="sc.subclass_name"
-            :subtitle="featureSummary(sc)"
-            :image-url="sc.image_url"
+            :subtitle="subtitle(sc)"
+            :image-url="sc.image_url ?? classImage(sc.class_name)"
             :fallback-icon="IconLayers"
-            :tags="tagsFor(sc)"
           >
             <template #body>
               <p v-if="sc.description" class="mt-0.5 line-clamp-2 text-caption text-muted-foreground">
@@ -103,18 +93,19 @@
           </EntityListRow>
         </template>
       </EntityCollection>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from "vue";
-import { RouterLink } from "vue-router";
 import { IconAdd, IconLayers, IconPopulate } from '@/lib/icons';
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
-import EntityTextCard from "@/components/common/entity/EntityTextCard.vue";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useListLayout } from "@/composables/useListLayout";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
@@ -127,15 +118,14 @@ import type { CustomSubclass } from "@/levelup/customTypes";
 
 const codexUi = useCodexUiStore();
 // The Codex header's toggle writes the same key.
-const layout = useListLayout("codex-archetypes", "rows");
+const layout = useListLayout("codex-archetypes", "grid");
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const archetypeKey = (sc: CustomSubclass) => sc.id;
 
-// Row heights before measuring (px). Row: p-4 (32) + border (2) + title 20,
-// feature line 18, description 2 lines 36, tags 26 = 134. Card: p-4 (32) +
-// border (2) + header 40 + description 3 lines 54 + tags 26, gap-2 x3 = 178.
-const ROW_PX = 134;
-const GRID_ROW_PX = 178;
+// Row heights before measuring (px): the class list's card (art h-36 + body),
+// and a row with a two-line description.
+const ROW_PX = 108;
+const GRID_ROW_PX = 228;
 const { data: all, isLoading } = useAllCustomSubclasses();
 const { mutateAsync: create } = useCreateCustomSubclass();
 const { mutateAsync: createFeature } = useCreateFeature();
@@ -206,16 +196,36 @@ const grouped = computed<Record<string, CustomSubclass[]>>(() => {
   return result;
 });
 
-function featureSummary(sc: CustomSubclass): string {
+/** "4 feature levels · Tome of Heroes · Campaign only": the class list's meta line. */
+function subtitle(sc: CustomSubclass): string {
   const n = featureLevelCount(sc);
-  return n === 0 ? "No features defined" : `${n} feature level${n !== 1 ? "s" : ""}`;
+  const parts = [n === 0 ? "No features yet" : `${n} feature level${n !== 1 ? "s" : ""}`];
+  const book = bookOf(sc);
+  if (book) parts.push(book);
+  if (sc.campaign_id) parts.push("Campaign only");
+  return parts.join(" · ");
 }
 
-function tagsFor(sc: CustomSubclass): string[] {
-  const tags: string[] = [];
-  if (sc.source) tags.push(sc.source);
-  if (sc.campaign_id) tags.push("Campaign only");
-  return tags;
+/**
+ * The book an archetype comes from, as people know it: an imported one carries
+ * its document's name in `source_revision`; the SRD's is shortened to fit the
+ * line. A homebrew archetype names whatever the DM typed, or nothing.
+ */
+function bookOf(sc: CustomSubclass): string | null {
+  if (sc.source_document_key === "srd-2014") return "SRD 5.1";
+  if (sc.source_document_key === "srd-2024") return "SRD 5.2";
+  return sc.source_revision ?? sc.source;
+}
+
+/** The base class's picture, from the library's classes or the DM's own; null when it has none. */
+function classImage(className: string): string | null {
+  const match = [...(systemClasses.value ?? []), ...(customClasses.value ?? [])]
+    .find((c) => c.class_name === className && c.image_url);
+  return match ? match.image_url : null;
+}
+
+function classArt(className: string): string {
+  return classImage(className) ?? placeholderUrl("character");
 }
 
 function featureLevelCount(sc: CustomSubclass): number {

@@ -338,7 +338,7 @@ const layouts: Record<TabId, ReturnType<typeof useListLayout>> = {
   species: useListLayout("codex-species", "grid"),
   backgrounds: useListLayout("codex-backgrounds", "grid"),
   classes: useListLayout("codex-classes", "grid"),
-  archetypes: useListLayout("codex-archetypes", "rows"),
+  archetypes: useListLayout("codex-archetypes", "grid"),
   abilities: useListLayout("codex-abilities", "rows"),
   feats: useListLayout("codex-feats", "rows"),
 };
