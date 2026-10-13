@@ -1,11 +1,13 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(34);
 
 -- npc_memories (20261012105632, #1019): what an NPC and the party told each
 -- other. The DM reads and writes every line; a player reads the lines shared
--- with their own character and nothing else. The campaign always comes from
+-- with their own character and nothing else, and only through
+-- get_player_npc_memories (20261013141245, #1056), which leaves out where a
+-- disclosed secret lives. The table itself is the DM's. The campaign always comes from
 -- the NPC, and an id in either member array that is not one of that
 -- campaign's party members never survives a write.
 
@@ -117,9 +119,17 @@ $$, '23514', null, 'an empty line is refused');
 
 select set_config('request.jwt.claim.sub', '10190000-0000-4000-8000-000000000002', true);
 select results_eq(
-  $$ select id from public.npc_memories order by id $$,
+  $$ select id from public.get_player_npc_memories('10190000-0000-4000-8000-000000000030', '10190000-0000-4000-8000-000000000020') $$,
   $$ values ('10190000-0000-4000-8000-000000000050'::uuid) $$,
   'Wren reads the line shared with her, and not the DM-only one'
+);
+select is_empty(
+  $$ select id from public.npc_memories $$,
+  'Wren reads nothing from the table itself, so never the secret reference columns'
+);
+select throws_ok(
+  $$ select id from public.get_player_npc_memories('10190000-0000-4000-8000-000000000030', '10190000-0000-4000-8000-000000000021') $$,
+  'P0001', 'Not authorized', 'Wren cannot read the lines shared with another character'
 );
 
 select throws_ok($$
@@ -132,20 +142,24 @@ delete from public.npc_memories where id = '10190000-0000-4000-8000-000000000050
 
 select set_config('request.jwt.claim.sub', '10190000-0000-4000-8000-000000000003', true);
 select is_empty(
-  $$ select id from public.npc_memories $$,
+  $$ select id from public.get_player_npc_memories('10190000-0000-4000-8000-000000000030', '10190000-0000-4000-8000-000000000021') $$,
   'Tomas, at the same table, reads nothing that was not shared with him'
 );
 
 select set_config('request.jwt.claim.sub', '10190000-0000-4000-8000-000000000005', true);
-select is_empty(
-  $$ select id from public.npc_memories $$,
-  'a player seated without a character reads nothing'
+select throws_ok(
+  $$ select id from public.get_player_npc_memories('10190000-0000-4000-8000-000000000030', '10190000-0000-4000-8000-000000000020') $$,
+  'P0001', 'Not authorized', 'a player seated without a character reads nothing'
 );
 
 select set_config('request.jwt.claim.sub', '10190000-0000-4000-8000-000000000004', true);
 select is_empty(
   $$ select id from public.npc_memories $$,
   'the DM of another campaign reads nothing'
+);
+select throws_ok(
+  $$ select id from public.get_player_npc_memories('10190000-0000-4000-8000-000000000030', '10190000-0000-4000-8000-000000000020') $$,
+  'P0001', 'Not authorized', 'nor through the player read'
 );
 select throws_ok($$
   insert into public.npc_memories (npc_id, kind, body)
@@ -159,6 +173,17 @@ select is(
   (select body from public.npc_memories where id = '10190000-0000-4000-8000-000000000050'),
   'Bram admitted he sold the map.',
   'the player''s update and delete changed nothing'
+);
+select results_eq(
+  $$ select id from public.get_player_npc_memories('10190000-0000-4000-8000-000000000030', '10190000-0000-4000-8000-000000000020') $$,
+  $$ values ('10190000-0000-4000-8000-000000000050'::uuid) $$,
+  'the DM previews what Wren reads'
+);
+select is(
+  (select array_agg(a order by a) from pg_proc p, unnest(p.proargnames, p.proargmodes::text[]) as x(a, mode)
+    where p.oid = 'public.get_player_npc_memories(uuid, uuid)'::regprocedure and x.mode = 't'),
+  array['body', 'created_at', 'id', 'kind', 'npc_id', 'session_id']::text[],
+  'the player read returns no secret reference'
 );
 
 select lives_ok($$
@@ -176,7 +201,7 @@ select results_eq(
 
 select set_config('request.jwt.claim.sub', '10190000-0000-4000-8000-000000000003', true);
 select results_eq(
-  $$ select id from public.npc_memories order by id $$,
+  $$ select id from public.get_player_npc_memories('10190000-0000-4000-8000-000000000030', '10190000-0000-4000-8000-000000000021') $$,
   $$ values ('10190000-0000-4000-8000-000000000051'::uuid) $$,
   'Tomas reads it once it is shared with him'
 );
@@ -231,6 +256,10 @@ set local role anon;
 select set_config('request.jwt.claim.role', 'anon', true);
 select set_config('request.jwt.claim.sub', '', true);
 select is_empty($$ select id from public.npc_memories $$, 'anon reads nothing');
+select throws_ok(
+  $$ select id from public.get_player_npc_memories('10190000-0000-4000-8000-000000000030', '10190000-0000-4000-8000-000000000020') $$,
+  '42501', null, 'anon cannot call the player read'
+);
 select throws_ok($$
   insert into public.npc_memories (npc_id, kind, body)
   values ('10190000-0000-4000-8000-000000000030', 'event', 'Anonymous')

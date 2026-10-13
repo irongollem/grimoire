@@ -12,7 +12,6 @@ export { NPC_MEMORIES_KEY };
 
 const DM_COLUMNS =
   "id, campaign_id, npc_id, user_id, session_id, kind, body, party_member_ids, player_visible_to, ai_provenance, secret_entity_type, secret_entity_id, secret_id, created_at, updated_at";
-const PLAYER_COLUMNS = "id, npc_id, kind, body, session_id, created_at";
 
 /** Everything an NPC remembers, oldest first. The DM policy lets the DM read every row. */
 export function useNpcMemories(npcId: MaybeRefOrGetter<string | null | undefined>) {
@@ -84,8 +83,10 @@ export function useDeleteNpcMemory() {
 
 /**
  * The memories shared with my character: the previewed member in DM preview,
- * the linked one otherwise. Scoped in the query, since under the DM policy an
- * unfiltered read returns every row.
+ * the linked one otherwise. Through `get_player_npc_memories` (#1056), never
+ * the table: the table is the DM's, since its columns name the entity a
+ * disclosed [secret] lives in, and the function returns only what a player may
+ * see of a line.
  */
 export function useMyNpcMemories(npcId: MaybeRefOrGetter<string | null | undefined>) {
   const auth = useAuthStore();
@@ -97,12 +98,10 @@ export function useMyNpcMemories(npcId: MaybeRefOrGetter<string | null | undefin
     queryKey: computed(() => [NPC_MEMORIES_KEY, "mine", toValue(npcId), partyMemberId.value] as const),
     queryFn: async ({ queryKey: [, , id, memberId] }): Promise<PlayerNpcMemory[]> => {
       if (!id || !memberId) throw new Error("useMyNpcMemories fetched without an NPC and a party member");
-      const { data, error } = await supabase
-        .from("npc_memories")
-        .select(PLAYER_COLUMNS)
-        .eq("npc_id", id)
-        .contains("player_visible_to", [memberId])
-        .order("created_at", { ascending: true });
+      const { data, error } = await supabase.rpc("get_player_npc_memories", {
+        p_npc_id: id,
+        p_party_member_id: memberId,
+      });
       if (error) throw error;
       return data as PlayerNpcMemory[];
     },

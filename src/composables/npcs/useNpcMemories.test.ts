@@ -7,13 +7,13 @@ const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   select: vi.fn(),
   eq: vi.fn(),
-  contains: vi.fn(),
   order: vi.fn(),
   insert: vi.fn(),
   single: vi.fn(),
+  rpc: vi.fn(),
   touch: vi.fn(),
 }));
-vi.mock("@/lib/supabase", () => ({ supabase: { from: mocks.from } }));
+vi.mock("@/lib/supabase", () => ({ supabase: { from: mocks.from, rpc: mocks.rpc } }));
 vi.mock("@/composables/notes/useDmNote", () => ({ recordDmNoteTouch: mocks.touch }));
 
 const stores = vi.hoisted(() => ({
@@ -47,8 +47,7 @@ describe("npc memories", () => {
     stores.auth.linkedPartyMemberId = "pm-1";
     mocks.from.mockReturnValue({ select: mocks.select, insert: mocks.insert });
     mocks.select.mockReturnValue({ eq: mocks.eq });
-    mocks.eq.mockReturnValue({ order: mocks.order, contains: mocks.contains });
-    mocks.contains.mockReturnValue({ order: mocks.order });
+    mocks.eq.mockReturnValue({ order: mocks.order });
     mocks.insert.mockReturnValue({ select: () => ({ single: mocks.single }) });
   });
 
@@ -76,12 +75,20 @@ describe("npc memories", () => {
     expect(mocks.from).not.toHaveBeenCalled();
   });
 
-  it("scopes the player read to the linked party member in the query", async () => {
-    mocks.order.mockResolvedValue({ data: [], error: null });
-    run(() => useMyNpcMemories("npc-1"));
+  it("reads a player's memories through the RPC for the linked party member, never the table", async () => {
+    mocks.rpc.mockResolvedValue({ data: [{ id: "m1" }], error: null });
+    const { result } = run(() => useMyNpcMemories("npc-1"));
     await flushPromises();
-    expect(mocks.contains).toHaveBeenCalledWith("player_visible_to", ["pm-1"]);
-    expect(mocks.select).toHaveBeenCalledWith("id, npc_id, kind, body, session_id, created_at");
+    expect(mocks.rpc).toHaveBeenCalledWith("get_player_npc_memories", { p_npc_id: "npc-1", p_party_member_id: "pm-1" });
+    expect(mocks.from).not.toHaveBeenCalled();
+    expect(result().data.value).toEqual([{ id: "m1" }]);
+  });
+
+  it("throws the player read's error", async () => {
+    mocks.rpc.mockResolvedValue({ data: null, error: new Error("Not authorized") });
+    const { result } = run(() => useMyNpcMemories("npc-1"));
+    await flushPromises();
+    expect(result().error.value?.message).toBe("Not authorized");
   });
 
   it("uses the previewed member in DM preview and waits without one", async () => {
@@ -89,7 +96,7 @@ describe("npc memories", () => {
     stores.ui.dmPreviewPartyMemberId = null;
     run(() => useMyNpcMemories("npc-1"));
     await flushPromises();
-    expect(mocks.from).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
   it("inserts without campaign_id or user_id and touches the NPC", async () => {
