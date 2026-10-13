@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { computed } from "vue";
 import RichTextViewer from "./RichTextViewer.vue";
 
 vi.mock("@/ai/useImageJob", () => ({ waitForImageJob: vi.fn() }));
@@ -10,6 +11,7 @@ vi.mock("@/components/tiptap/PendingImageCard.vue", () => ({
 }));
 
 import { waitForImageJob } from "@/ai/useImageJob";
+import { SECRET_DISCLOSURES_KEY, type SecretDisclosures } from "@/lib/tiptap/secretDisclosures";
 
 const para = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
 const doc = (...content: object[]) => ({ type: "doc", content });
@@ -64,5 +66,52 @@ describe("RichTextViewer", () => {
 
     await vi.waitFor(() => expect(wrapper.find(".ProseMirror img").attributes("src")).toBe("https://img/done.webp"));
     expect(wrapper.find(".pending-stub").exists()).toBe(false);
+  });
+
+  describe("disclosed secret blocks", () => {
+    const secret = (secretId: string) => ({
+      type: "secretBlock",
+      attrs: { secretId },
+      content: [para("The duke is a lich")],
+    });
+    /** A DM layout's provider: counts the viewers asking for labels. */
+    const dmLayout = (labels: Map<string, string>) => {
+      const state = { wanting: 0 };
+      const disclosures: SecretDisclosures = {
+        labels: computed(() => labels),
+        want() {
+          state.wanting++;
+          return () => state.wanting--;
+        },
+      };
+      return { state, provide: { [SECRET_DISCLOSURES_KEY as symbol]: disclosures } };
+    };
+
+    it("labels a secret block the party has been told about", () => {
+      const layout = dmLayout(new Map([["s-1", "known since Session 14 (Bram)"]]));
+      const wrapper = mount(RichTextViewer, {
+        props: { content: doc(secret("s-1"), secret("s-2")) },
+        global: { provide: layout.provide },
+      });
+      const blocks = wrapper.findAll('[data-type="secretBlock"]');
+      expect(blocks[0].attributes("data-disclosed")).toBe("known since Session 14 (Bram)");
+      expect(blocks[1].attributes("data-disclosed")).toBeUndefined();
+      expect(layout.state.wanting).toBe(1);
+      wrapper.unmount();
+      expect(layout.state.wanting).toBe(0);
+    });
+
+    it("asks for nothing when the document holds no secret", () => {
+      const layout = dmLayout(new Map([["s-1", "label"]]));
+      const wrapper = mount(RichTextViewer, { props: { content: doc(para("plain")) }, global: { provide: layout.provide } });
+      expect(wrapper.find("[data-disclosed]").exists()).toBe(false);
+      expect(layout.state.wanting).toBe(0);
+    });
+
+    it("labels nothing outside the DM layout", () => {
+      const wrapper = mount(RichTextViewer, { props: { content: doc(secret("s-1")) } });
+      expect(wrapper.find('[data-type="secretBlock"]').exists()).toBe(true);
+      expect(wrapper.find("[data-disclosed]").exists()).toBe(false);
+    });
   });
 });

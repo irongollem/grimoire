@@ -230,6 +230,19 @@ describe("npc_memory", () => {
     expect(out).toEqual({ npc_id: id, kind: "promise", body: "Owes Wren a favour.", session_id: id, party_member_ids: [id], player_visible_to: [id] });
   });
 
+  it("accepts the secret block it discloses", () => {
+    const secret_id = "223e4567-e89b-12d3-a456-426614174000";
+    const out = validateFields(
+      memory,
+      { npc_id: id, kind: "revealed", body: "Told them of the crypt.", secret_entity_type: "location", secret_entity_id: id, secret_id },
+      { partial: false },
+    );
+    expect(out).toMatchObject({ secret_entity_type: "location", secret_entity_id: id, secret_id });
+    expect(() =>
+      validateFields(memory, { npc_id: id, kind: "revealed", body: "x", secret_entity_type: "npc" }, { partial: false }),
+    ).toThrow(/must be one of/i);
+  });
+
   it("requires npc_id, kind and body, and rejects an unknown kind", () => {
     expect(() => validateFields(memory, { kind: "event", body: "x" }, { partial: false })).toThrow(/npc_id/);
     expect(() => validateFields(memory, { npc_id: id, kind: "gossip", body: "x" }, { partial: false })).toThrow(/must be one of/i);

@@ -586,4 +586,39 @@ describe("viewerRender — security", () => {
     const json = JSON.stringify(doc(p(t("from a string"))));
     expect(canonicalHtml(renderedHtml(parseStoredContent(json)), false)).toBe("<p>from a string</p>");
   });
+
+  describe("secret block ids", () => {
+    const SID = "6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
+    const secret = doc({ type: "secretBlock", attrs: { secretId: SID }, content: [p(t("hush"))] });
+    const secretEl = (html: string) =>
+      new DOMParser().parseFromString(html, "text/html").querySelector('[data-type="secretBlock"]');
+
+    it("renders data-secret-id and no disclosure by default", () => {
+      const el = secretEl(renderedHtml(secret));
+      expect(el?.getAttribute("data-secret-id")).toBe(SID);
+      expect(el?.hasAttribute("data-disclosed")).toBe(false);
+    });
+
+    it("renders data-disclosed only for a labelled id", () => {
+      const labelled = mount(
+        defineComponent({
+          render: () => renderStoredDoc(secret, { secretLabels: new Map([[SID, "Bram knows"]]) }),
+        }),
+      );
+      expect(secretEl(labelled.element.innerHTML)?.getAttribute("data-disclosed")).toBe("Bram knows");
+      labelled.unmount();
+      const other = mount(
+        defineComponent({
+          render: () => renderStoredDoc(secret, { secretLabels: new Map([["other", "x"]]) }),
+        }),
+      );
+      expect(secretEl(other.element.innerHTML)?.hasAttribute("data-disclosed")).toBe(false);
+      other.unmount();
+    });
+
+    it("renders an id-less block without the attribute", () => {
+      const el = secretEl(renderedHtml(doc({ type: "secretBlock", content: [p(t("old"))] })));
+      expect(el?.hasAttribute("data-secret-id")).toBe(false);
+    });
+  });
 });

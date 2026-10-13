@@ -1,7 +1,7 @@
 <template>
   <!--
     One form for adding a line and for editing one (#1019). Adding keeps the
-    kind, people, session and visibility after a save and clears only the body,
+    kind, people, session and visibility after a save and clears the body and the disclosed secret,
     because a DM logs several lines of one scene in a row at the table.
   -->
   <form class="space-y-2" data-testid="npc-memory-form" @submit.prevent="submit">
@@ -30,6 +30,8 @@
       />
     </div>
 
+    <NpcMemorySecretPicker v-model="secret" />
+
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
       <AppCheckbox v-model="sharedModel" size="sm" label="Players see this" />
       <LearnedSessionSelect v-model="sessionModel" aria-label="Session this belongs to" />
@@ -54,11 +56,13 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import NpcMemorySecretPicker from "@/components/npcs/NpcMemorySecretPicker.vue";
+import type { SecretRef } from "@/lib/npcs/secretEntityRoute";
 import LearnedSessionSelect from "@/components/sessions/LearnedSessionSelect.vue";
 import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { defaultMemorySessionId, NPC_MEMORY_KIND_HINTS, NPC_MEMORY_KIND_LABELS } from "@/lib/npcs/npcMemories";
-import { NPC_MEMORY_KINDS, type NpcMemory, type NpcMemoryKind } from "@/types/npcMemory.types";
+import { NPC_MEMORY_KINDS, type NpcMemory, type NpcMemoryKind, type SecretEntityType } from "@/types/npcMemory.types";
 
 /** What the form hands back; the host turns it into an insert or a patch. */
 export interface NpcMemoryDraft {
@@ -67,6 +71,10 @@ export interface NpcMemoryDraft {
   session_id: string | null;
   party_member_ids: string[];
   player_visible_to: string[];
+  /** The [secret] block this line discloses (#1053): all three set, or all null. */
+  secret_entity_type: SecretEntityType | null;
+  secret_entity_id: string | null;
+  secret_id: string | null;
 }
 
 const {
@@ -93,6 +101,12 @@ const body = ref(initial?.body ?? "");
 const present = ref<string[]>(initial ? [...initial.party_member_ids] : []);
 const shared = ref(initial ? initial.player_visible_to.length > 0 : false);
 const saving = ref(false);
+// A disclosure belongs to one line, so adding clears it with the body.
+const secret = ref<SecretRef | null>(
+  initial?.secret_id && initial.secret_entity_id && initial.secret_entity_type
+    ? { secret_entity_type: initial.secret_entity_type, secret_entity_id: initial.secret_entity_id, secret_id: initial.secret_id }
+    : null,
+);
 // An edit keeps the line's exact audience until the DM changes who was there or
 // the share box: a line shared with some of the party (over MCP, say) must not
 // widen to everyone because its typo was fixed.
@@ -144,8 +158,14 @@ async function submit() {
       session_id: sessionModel.value,
       party_member_ids: present.value,
       player_visible_to: audienceFor(),
+      secret_entity_type: secret.value ? secret.value.secret_entity_type : null,
+      secret_entity_id: secret.value ? secret.value.secret_entity_id : null,
+      secret_id: secret.value ? secret.value.secret_id : null,
     });
-    if (ok && !initial) body.value = "";
+    if (ok && !initial) {
+      body.value = "";
+      secret.value = null;
+    }
   } finally {
     saving.value = false;
   }

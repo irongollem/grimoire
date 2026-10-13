@@ -27,8 +27,10 @@
 </template>
 
 <script setup lang="ts">
-import { onUnmounted, ref, shallowRef, watch } from "vue";
+import { computed, onUnmounted, ref, shallowRef, watch } from "vue";
 import { parseStoredContent, renderStoredDoc } from "@/lib/tiptap/viewerRender";
+import { secretIdsIn } from "@/lib/tiptap/secretIds";
+import { useSecretDisclosures } from "@/lib/tiptap/secretDisclosures";
 import { usePendingImageDocResolver } from "@/composables/usePendingImageResolver";
 
 // Rendered straight from the stored JSON, with no Tiptap editor. This
@@ -42,7 +44,19 @@ import { usePendingImageDocResolver } from "@/composables/usePendingImageResolve
 const props = defineProps<{ content: object | string | null }>();
 
 const doc = shallowRef<unknown>(parseStoredContent(props.content));
-const RenderedDoc = () => renderStoredDoc(doc.value);
+
+// A DM-only [secret] block an NPC memory disclosed is labelled "known since
+// Session 14 (Bram)" for the DM. The labels come from the DM layout
+// (provideSecretDisclosures), asked for only while this document holds a
+// secret block with an id; the player layout provides none, and every
+// ordinary document asks nothing.
+const holdsSecrets = computed(() => secretIdsIn(doc.value).length > 0);
+const disclosedLabels = useSecretDisclosures(() => holdsSecrets.value);
+const RenderedDoc = () =>
+  renderStoredDoc(
+    doc.value,
+    disclosedLabels && holdsSecrets.value ? { secretLabels: disclosedLabels.value } : {},
+  );
 
 // Chronicle-image anchors resolve here too, not only in the editor: a note
 // saved while its render job was still in flight keeps the anchor in its

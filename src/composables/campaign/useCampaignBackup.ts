@@ -866,6 +866,8 @@ export async function executeImport(
         session_id: r(memory.session_id, idMap),
         party_member_ids: rArr(memory.party_member_ids, idMap),
         player_visible_to: rArr(memory.player_visible_to, idMap),
+        // secret_id is a block id inside the copied entity text, which keeps it; only the entity is remapped.
+        secret_entity_id: r(memory.secret_entity_id, idMap),
       })),
     );
     await batchInsert(

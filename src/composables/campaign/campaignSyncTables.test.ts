@@ -9,6 +9,7 @@ import {
   BEATS_KEY,
   QUEST_RUNTIME_QUERY_KEYS,
   LISTENER_ONLY_SIGNALS,
+  CAMPAIGN_SECRETS_KEY,
   PLAYER_FACTIONS_KEY,
   PLAYER_NOTES_KEY,
   PLAYER_NPCS_KEY,
@@ -149,8 +150,11 @@ describe("live sync registries", () => {
     // refresh its own `npcs` root as well as the players' projection.
     expect(SIGNAL_KEYS.get("npcs_player")).toEqual(["npcs", PLAYER_NPCS_KEY]);
     expect(SIGNAL_KEYS.get("npcs")).toEqual(["npcs", PLAYER_NPCS_KEY]);
-    expect(SIGNAL_KEYS.get("factions")).toEqual(["factions", PLAYER_FACTIONS_KEY]);
-    expect(SIGNAL_KEYS.get("notes")).toEqual(["notes", PLAYER_NOTES_KEY]);
+    expect(SIGNAL_KEYS.get("factions")).toEqual(["factions", PLAYER_FACTIONS_KEY, CAMPAIGN_SECRETS_KEY]);
+    expect(SIGNAL_KEYS.get("notes")).toEqual(["notes", PLAYER_NOTES_KEY, CAMPAIGN_SECRETS_KEY]);
+    for (const signal of ["locations", "items", "puzzle_rooms"]) {
+      expect(SIGNAL_KEYS.get(signal)).toContain(CAMPAIGN_SECRETS_KEY);
+    }
   });
 
   it("refreshes the projection roots for the projection signals", () => {

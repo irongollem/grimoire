@@ -11,6 +11,9 @@ vi.mock("@/composables/npcs/useNpcMemories", () => ({
   useUpdateNpcMemory: () => ({ mutateAsync: vi.fn() }),
   useDeleteNpcMemory: () => ({ mutateAsync: vi.fn() }),
 }));
+vi.mock("@/composables/npcs/useCampaignSecrets", () => ({
+  useCampaignSecrets: () => ({ data: ref([]), isSuccess: ref(true) }),
+}));
 vi.mock("@/composables/sessions/useCampaignSessions", () => ({ useCampaignSessions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/campaign/useCampaignSession", () => ({ useCampaignSession: () => ({ session: ref(null), isRunning: ref(false) }) }));
 vi.mock("@/composables/party/useParty", () => ({
@@ -36,6 +39,9 @@ describe("NpcMemoryTab", () => {
         session_id: null,
         party_member_ids: [],
         player_visible_to: ["p1", "p2"],
+        secret_entity_type: null,
+        secret_entity_id: null,
+        secret_id: null,
       },
       npcLabel: "Mara",
     });

@@ -14,6 +14,8 @@ import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 
 /** Root of every NPC memory query (#1019); the table rings the `npc_memories` signal. */
 export const NPC_MEMORIES_KEY = "npc-memories";
+/** Every [secret] block in the campaign, for the NPC memory picker (#1053); any entity that can hold one rings it. */
+export const CAMPAIGN_SECRETS_KEY = "campaign-secrets";
 export const BEATS_KEY = "quest_beats";
 export const THREADS_KEY = "quest_threads";
 /** A quest's progress clocks (#1011). */
@@ -130,8 +132,11 @@ export const LISTENER_ONLY_SIGNALS: ReadonlySet<string> = new Set(["soundboard_b
 const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   // The table's own name still rings on a delete, which the `_player` signal
   // does not cover, so it refreshes the players' projection as well.
-  notes: ["notes", PLAYER_NOTES_KEY],
-  factions: ["factions", PLAYER_FACTIONS_KEY],
+  notes: ["notes", PLAYER_NOTES_KEY, CAMPAIGN_SECRETS_KEY],
+  factions: ["factions", PLAYER_FACTIONS_KEY, CAMPAIGN_SECRETS_KEY],
+  locations: ["locations", CAMPAIGN_SECRETS_KEY],
+  items: ["items", CAMPAIGN_SECRETS_KEY],
+  puzzle_rooms: ["puzzle_rooms", CAMPAIGN_SECRETS_KEY],
   npcs: ["npcs", PLAYER_NPCS_KEY],
 };
 

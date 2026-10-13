@@ -84,3 +84,5 @@ Some notes are worth sharing except for one paragraph. Select the text (or put t
 Players never receive a DM-only passage. It is not hidden on their screen, it is left out before the note reaches them, so there is nothing for them to find. You see it everywhere you read the text yourself.
 
 The button is on every field you can share with players: notes, location and faction descriptions, item descriptions, an item's written contents, and puzzle descriptions. It is not on handouts, NPC lore, puzzle hints or solutions, which have their own rules for what players see.
+
+When an NPC lets one of these secrets slip, say so in that NPC's **Memory** tab with **Discloses a secret…** (see [NPC Tracker: Overview](#npc-tracker-overview)). From then on the passage's label reads "known since Session 14 (Bram)", so you can tell at a glance which of your secrets the party already has.

@@ -17,7 +17,7 @@
 
 import { structureStatBlock, type ProseStatBlockFields } from "../../../../src/rules/statBlock/structureStatBlock.ts";
 import { monsterStatBlockProblem } from "./statBlockShape.ts";
-import { NPC_MEMORY_KINDS } from "../npcMemories.ts";
+import { NPC_MEMORY_KINDS, SECRET_ENTITY_TYPES } from "../npcMemories.ts";
 
 /**
  * Writable-field value kinds the `create`/`update` tools validate + coerce.
@@ -354,6 +354,9 @@ const CLASS_CHANGE_REFUSAL =
 
 /** Why `campaign_id` is not a memory field. */
 const MEMORY_CAMPAIGN_REFUSAL = "A memory belongs to its NPC's campaign; it is set from npc_id.";
+
+const SECRET_REF_DESCRIPTION =
+  "The [secret] block this line discloses: the entity's type and id, and the block's secretId from the entity's text (attrs.secretId of a secretBlock node). All three or none.";
 
 export const ENTITY_REGISTRY: Record<string, EntityDef> = {
   npc: {
@@ -1053,6 +1056,13 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
           description:
             "Party members who can read this line on their People page. Omit to keep it DM-only.",
         },
+        secret_entity_type: {
+          type: "enum",
+          values: SECRET_ENTITY_TYPES,
+          description: SECRET_REF_DESCRIPTION,
+        },
+        secret_entity_id: { type: "uuid", description: SECRET_REF_DESCRIPTION },
+        secret_id: { type: "uuid", description: SECRET_REF_DESCRIPTION },
       },
     },
   },

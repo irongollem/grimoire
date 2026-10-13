@@ -11,7 +11,7 @@ import type { NpcMemory, NpcMemoryInsert, NpcMemoryUpdate, PlayerNpcMemory } fro
 export { NPC_MEMORIES_KEY };
 
 const DM_COLUMNS =
-  "id, campaign_id, npc_id, user_id, session_id, kind, body, party_member_ids, player_visible_to, ai_provenance, created_at, updated_at";
+  "id, campaign_id, npc_id, user_id, session_id, kind, body, party_member_ids, player_visible_to, ai_provenance, secret_entity_type, secret_entity_id, secret_id, created_at, updated_at";
 const PLAYER_COLUMNS = "id, npc_id, kind, body, session_id, created_at";
 
 /** Everything an NPC remembers, oldest first. The DM policy lets the DM read every row. */

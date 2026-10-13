@@ -1,8 +1,9 @@
-import type { NpcMemoryKind } from "@edge-shared/npcMemories";
+import type { NpcMemoryKind, SecretEntityType } from "@edge-shared/npcMemories";
 import type { AiProvenance } from "@/ai/provenance";
 
 export { NPC_MEMORY_KINDS } from "@edge-shared/npcMemories";
-export type { NpcMemoryKind } from "@edge-shared/npcMemories";
+export { SECRET_ENTITY_TYPES } from "@edge-shared/npcMemories";
+export type { NpcMemoryKind, SecretEntityType } from "@edge-shared/npcMemories";
 
 /** A row of `npc_memories` (#1019): one thing an NPC and the party have told each other. */
 export interface NpcMemory {
@@ -18,6 +19,10 @@ export interface NpcMemory {
   /** Party members who may read it in the player portal. */
   player_visible_to: string[];
   ai_provenance: AiProvenance | null;
+  /** The [secret] block this line discloses (#1053): all three set, or all null. */
+  secret_entity_type: SecretEntityType | null;
+  secret_entity_id: string | null;
+  secret_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,10 +36,34 @@ export type NpcMemoryInsert = {
   party_member_ids: string[];
   player_visible_to: string[];
   ai_provenance?: AiProvenance | null;
+  /** The [secret] block the line discloses (#1053): all three set, or all omitted. */
+  secret_entity_type?: SecretEntityType | null;
+  secret_entity_id?: string | null;
+  secret_id?: string | null;
 };
 
+/** A row of `list_campaign_secrets` (DM only): one [secret] block in the campaign's text. */
+export interface CampaignSecret {
+  entity_type: SecretEntityType;
+  entity_id: string;
+  entity_name: string;
+  field: string;
+  secret_id: string;
+  excerpt: string;
+}
+
 export type NpcMemoryUpdate = Partial<
-  Pick<NpcMemory, "kind" | "body" | "session_id" | "party_member_ids" | "player_visible_to">
+  Pick<
+    NpcMemory,
+    | "kind"
+    | "body"
+    | "session_id"
+    | "party_member_ids"
+    | "player_visible_to"
+    | "secret_entity_type"
+    | "secret_entity_id"
+    | "secret_id"
+  >
 >;
 
 /** What a player may read of a memory shared with their character. */

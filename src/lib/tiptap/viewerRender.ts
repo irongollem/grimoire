@@ -341,6 +341,25 @@ function chip(component: Component, props: Record<string, unknown>): VNode {
   return h(component, props);
 }
 
+/**
+ * Labels for secret blocks the party has been told about, keyed by secret id,
+ * for the render in progress. Rendering is synchronous and recursive through
+ * many helpers, so the map is held here for the span of one `renderStoredDoc`
+ * call rather than threaded through every one.
+ */
+let activeSecretLabels: ReadonlyMap<string, string> | undefined;
+
+function secretBlockProps(a: Record<string, unknown>): Record<string, string> {
+  const props: Record<string, string> = { "data-type": "secretBlock" };
+  const id = text(a.secretId);
+  if (id) {
+    props["data-secret-id"] = id;
+    const label = activeSecretLabels?.get(id);
+    if (label) props["data-disclosed"] = label;
+  }
+  return props;
+}
+
 function renderNode(node: JsonNode): VNodeChild | null {
   const a = node.attrs;
   switch (node.type) {
@@ -415,7 +434,7 @@ function renderNode(node: JsonNode): VNodeChild | null {
       // Only a DM ever receives this node (the server strips it from every
       // player projection), so rendering it is safe; the frame and label that
       // set it apart come from `secret-block.css`.
-      return h("div", { "data-type": "secretBlock" }, renderBlocks(node.content));
+      return h("div", secretBlockProps(a), renderBlocks(node.content));
     case "calendarEventRef":
       return chip(CalendarEventRefChip, {
         eventId: text(a.eventId) ?? null,
@@ -475,7 +494,19 @@ function emptyLine(): VNode {
  * element, which is what the viewer's stylesheet targets. A string is stored
  * text and renders through `storedTextToDoc`: escaped text, never markup.
  */
-export function renderStoredDoc(content: unknown): VNode {
+export function renderStoredDoc(
+  content: unknown,
+  options: { secretLabels?: ReadonlyMap<string, string> } = {},
+): VNode {
+  activeSecretLabels = options.secretLabels;
+  try {
+    return renderStoredDocInner(content);
+  } finally {
+    activeSecretLabels = undefined;
+  }
+}
+
+function renderStoredDocInner(content: unknown): VNode {
   // A raw string takes the same route as one read from storage.
   const root = toNode(typeof content === "string" ? parseStoredContent(content) : content);
   let children: VNodeChild[];

@@ -18,6 +18,11 @@ export const NPC_MEMORY_KINDS = [
 
 export type NpcMemoryKind = (typeof NPC_MEMORY_KINDS)[number];
 
+/** The entity types whose text can hold a [secret] block (#1053); matches the table's CHECK on secret_entity_type. */
+export const SECRET_ENTITY_TYPES = ["location", "item", "puzzle", "note", "faction"] as const;
+
+export type SecretEntityType = (typeof SECRET_ENTITY_TYPES)[number];
+
 // ── Prompt formatting ─────────────────────────────────────────────────────────
 //
 // One formatter for every model that speaks as an NPC: the Voice Coach edge

@@ -269,6 +269,21 @@ describe("executeImport NPC memories (#1019)", () => {
     expect(row.player_visible_to).toEqual([pm.id]);
   });
 
+  it("remaps the secret's entity and keeps the block id", async () => {
+    const backup = backupWith({
+      locations: [{ id: "loc-1", name: "Crypt" }],
+      npcs: [{ id: "npc-1", name: "Bram" }],
+      npc_memories: [
+        { ...memory, secret_entity_type: "location", secret_entity_id: "loc-1", secret_id: "11111111-1111-4111-8111-111111111111" },
+      ],
+    });
+    await executeImport(backup, "Restored");
+    const loc = inserted.find((i) => i.table === "locations")!.rows[0];
+    const row = inserted.find((i) => i.table === "npc_memories")!.rows[0];
+    expect(row.secret_entity_id).toBe(loc.id);
+    expect(row.secret_id).toBe("11111111-1111-4111-8111-111111111111");
+  });
+
   it("restores a backup that predates the ledger without writing any memories", async () => {
     const base: Record<string, unknown> = { version: "2", file_type: "backup", campaign: { id: "old-camp", name: "Old" } };
     const old = new Proxy(base, {
