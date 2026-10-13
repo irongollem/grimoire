@@ -175,6 +175,95 @@ describe("RunnerResolvePanel", () => {
     expect(w.text()).toContain("Aria takes 10 (half).");
   });
 
+  describe("the save a hit forces (#1050)", () => {
+    const ghoulClaw: StatBlockEntry = {
+      name: "Claws",
+      description: "Claws prose",
+      structured: {
+        kind: "attack",
+        source: "parsed",
+        attack: { delivery: "melee", bonus: 4, reach: 5, hit: [{ dice: "2d4+2", type: "slashing" }] },
+        save: { ability: "con", dc: 10, fail: [], success: "none", conditions: ["Paralyzed"], ends: { kind: "save", at: "end" } },
+      },
+    };
+    const outcome = (hit: boolean, entry: StatBlockEntry) =>
+      ({
+        attacker, target: goblin, entry, delivery: "melee", mode: "normal", reasons: [],
+        natural: hit ? 15 : 3, total: hit ? 19 : 7, targetAc: 15, hit, critical: false, fumble: false, autoCrit: false,
+        damageParts: hit ? entry.structured.attack?.hit : null, roll: {},
+      }) as unknown as AttackOutcome;
+    const failed = [
+      { target: goblin, ability: "con", dc: 10, bonus: 2, mode: "normal", reasons: [], autoFail: false, natural: 4, total: 6, success: false, roll: {} },
+    ] as unknown as SaveTargetResult[];
+
+    it("follows the applied damage, for the creature that was hit only, and says what ends the condition", async () => {
+      mocks.res.resolveAttack.mockResolvedValue(outcome(true, ghoulClaw));
+      mocks.res.rollDamage.mockResolvedValue([{ amount: 7, type: "slashing" }]);
+      mocks.res.applyDamage.mockReturnValue({ target: goblin, parts: [], total: 7, notes: [], dying: null, concentrationDc: null });
+      mocks.res.resolveSaves.mockResolvedValue(failed);
+      mocks.res.applySaveOutcome.mockImplementation(() => {
+        // The store now holds the record impose() wrote.
+        mocks.combatants = mocks.combatants.map((c) =>
+          c.instance_id === "g1"
+            ? { ...c, conditions: [{ name: "Paralyzed", source: { id: "a1", spell: "Claws" }, ends: { kind: "save", ability: "con", dc: 10, at: "end" } }] }
+            : c,
+        );
+        return [{ target: goblin, share: "none", damage: null, conditionsApplied: ["Paralyzed"], conditionsImmune: [] }];
+      });
+
+      const w = mountPanel(ghoulClaw);
+      await button(w, "Roll attack +4").trigger("click");
+      await flushPromises();
+      await button(w, "Roll damage").trigger("click");
+      await flushPromises();
+      expect(w.find("[data-testid='rider-save']").exists()).toBe(false);
+
+      await w.find("[data-testid='apply-damage']").trigger("click");
+      const rider = w.find("[data-testid='rider-save']");
+      expect(rider.text()).toContain("Then DC 10 Con save · Paralyzed (save ends)");
+      // One creature saves, so there is no one to pick.
+      expect(rider.find("[data-testid='target-g1']").exists()).toBe(false);
+
+      await button(w, "Roll CON save").trigger("click");
+      await flushPromises();
+      const asked = mocks.res.resolveSaves.mock.calls[0][0] as { entry: StatBlockEntry; targets: RunCombatant[] };
+      expect(asked.entry).toEqual(ghoulClaw);
+      expect(asked.targets.map((t) => t.instance_id)).toEqual(["g1"]);
+
+      await w.find("[data-testid='apply-save']").trigger("click");
+      expect(mocks.res.applySaveOutcome).toHaveBeenCalledWith(expect.objectContaining({ entry: ghoulClaw, damageParts: [] }));
+      expect(w.text()).toContain("Goblin is now Paralyzed (save ends · CON 10).");
+      // A save with no damage of its own says nothing about damage.
+      expect(w.find("[data-testid='rider-save']").text()).not.toContain("takes no damage");
+    });
+
+    it("asks for no save on a miss", async () => {
+      mocks.res.resolveAttack.mockResolvedValue(outcome(false, ghoulClaw));
+      const w = mountPanel(ghoulClaw);
+      await button(w, "Roll attack +4").trigger("click");
+      await flushPromises();
+      expect(w.find("[data-testid='rider-save']").exists()).toBe(false);
+    });
+
+    it("comes straight after the hit when the attack deals no damage of its own", async () => {
+      const web: StatBlockEntry = {
+        ...ghoulClaw,
+        name: "Web",
+        structured: {
+          ...ghoulClaw.structured,
+          attack: { delivery: "ranged", bonus: 5, range: { normal: 30, long: 60 }, hit: [] },
+          save: { ability: "str", dc: 12, fail: [], success: "none", conditions: ["Restrained"] },
+        },
+      };
+      mocks.res.resolveAttack.mockResolvedValue(outcome(true, web));
+      const w = mountPanel(web);
+      await button(w, "Roll attack +5").trigger("click");
+      await flushPromises();
+      expect(w.find("[data-testid='rider-save']").text()).toContain("Then DC 12 Str save · Restrained");
+      expect(w.text()).not.toContain("deals no damage of its own");
+    });
+  });
+
   it("an option chosen from an options entry rolls its own save", async () => {
     mocks.res.resolveSaves.mockResolvedValue([]);
     const w = mountPanel(scorch);

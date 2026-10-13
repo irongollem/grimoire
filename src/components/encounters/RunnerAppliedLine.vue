@@ -1,9 +1,13 @@
 <template>
   <div class="applied" :data-testid="`applied-${name}`">
-    <p class="applied-main">{{ headline }}</p>
+    <p v-if="headline" class="applied-main">{{ headline }}</p>
     <p v-if="dyingLine" class="applied-dying">{{ dyingLine }}</p>
-    <p v-for="c in conditionsApplied" :key="`on-${c}`" class="applied-detail">{{ name }} is now {{ c }}.</p>
-    <p v-for="c in conditionsImmune" :key="`imm-${c}`" class="applied-detail">{{ name }} is immune to {{ c }}.</p>
+    <p v-for="c in conditionsApplied" :key="`on-${c}`" :class="headline ? 'applied-detail' : 'applied-main'">
+      {{ name }} is now {{ c }}<template v-if="conditionEnds[c]"> ({{ conditionEnds[c] }})</template>.
+    </p>
+    <p v-for="c in conditionsImmune" :key="`imm-${c}`" :class="headline ? 'applied-detail' : 'applied-main'">
+      {{ name }} is immune to {{ c }}.
+    </p>
     <div v-if="damage && damage.concentrationDc !== null" class="applied-concentration">
       <span>Concentration DC {{ damage.concentrationDc }}</span>
       <template v-if="concentration">
@@ -37,6 +41,8 @@ const {
   share = null,
   conditionsApplied = [],
   conditionsImmune = [],
+  conditionEnds = {},
+  dealsDamage = true,
   concentration = null,
   canRollConcentration,
 } = defineProps<{
@@ -46,6 +52,13 @@ const {
   share?: SaveDamageShare | null;
   conditionsApplied?: SrdConditionName[];
   conditionsImmune?: SrdConditionName[];
+  /** What ends each applied condition, in the badge's words ("save ends · CON 10"). */
+  conditionEnds?: Partial<Record<SrdConditionName, string>>;
+  /**
+   * False for a save with no damage of its own ("or be paralyzed"): saying it
+   * dealt none is noise, so the line speaks of the conditions alone.
+   */
+  dealsDamage?: boolean;
   concentration?: ConcentrationCheck | null;
   /** A stat-block target is rolled here; a party member rolls at the table. */
   canRollConcentration: boolean;
@@ -54,6 +67,7 @@ const {
 const emit = defineEmits<{ "roll-concentration": [] }>();
 
 const headline = computed(() => {
+  if (!dealsDamage) return conditionsApplied.length + conditionsImmune.length === 0 ? `${name} is unaffected.` : null;
   const taken = damage ? damage.total : 0;
   if (taken === 0) return `${name} takes no damage.`;
   return `${name} takes ${taken}${share === "half" ? " (half)" : ""}.`;

@@ -1,6 +1,7 @@
 <template>
   <div class="flow">
     <RunnerResolveTargets
+      v-if="!target"
       v-model="selected"
       :attacker="attacker"
       :candidates="candidates"
@@ -73,6 +74,8 @@
           :share="a.share"
           :conditions-applied="a.conditionsApplied"
           :conditions-immune="a.conditionsImmune"
+          :condition-ends="endsFor(a)"
+          :deals-damage="save.fail.length > 0"
           :concentration="concentration[a.target.instance_id] ?? null"
           :can-roll-concentration="resolution.saveBonusFor(a.target, 'con') !== null"
           @roll-concentration="rollConcentration(a)"
@@ -103,16 +106,22 @@ import type {
   SaveTargetResult,
 } from "@/composables/encounters/useActionResolution";
 import { targetCandidates } from "@/lib/encounters/actionTargeting";
+import { describeConditionEnd } from "@/rules/conditionLabels";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { RunCombatant } from "@/types/encounter.types";
-import type { SaveStructure, StatBlockEntry } from "@/types/statBlock.types";
+import type { SaveStructure, SrdConditionName, StatBlockEntry } from "@/types/statBlock.types";
 
-const { attacker, entry, save, resolution, silent } = defineProps<{
+const { attacker, entry, save, resolution, silent, target } = defineProps<{
   attacker: RunCombatant;
   entry: StatBlockEntry;
   save: SaveStructure;
   resolution: ActionResolution;
   silent: boolean;
+  /**
+   * The one creature an attack hit, for the save its hit forces (#1050). It saves
+   * alone, so there is no one to pick.
+   */
+  target?: RunCombatant;
 }>();
 
 const emit = defineEmits<{ "first-roll": [] }>();
@@ -120,7 +129,7 @@ const emit = defineEmits<{ "first-roll": [] }>();
 const store = useEncounterRunStore();
 
 const candidates = computed(() => targetCandidates(attacker, store.combatants));
-const selected = ref<string[]>([]);
+const selected = ref<string[]>(target ? [target.instance_id] : []);
 const magical = ref(false);
 
 const results = ref<SaveTargetResult[] | null>(null);
@@ -132,6 +141,7 @@ const rolling = ref(false);
 const abilityLabel = computed(() => save.ability.toUpperCase());
 const rollLabel = computed(() => {
   const n = selected.value.length;
+  if (target) return `Roll ${abilityLabel.value} save`;
   return n === 0 ? "Pick who saves" : `Roll ${abilityLabel.value} saves (${n})`;
 });
 
@@ -141,7 +151,7 @@ function targetDetail(c: RunCombatant): string {
 }
 
 async function rollSaves() {
-  const targets = candidates.value.filter((c) => selected.value.includes(c.instance_id));
+  const targets = target ? [target] : candidates.value.filter((c) => selected.value.includes(c.instance_id));
   if (targets.length === 0 || rolling.value) return;
   rolling.value = true;
   try {
@@ -196,6 +206,23 @@ function apply() {
     damageParts: amounts.value ? toDamageAmounts(amounts.value) : [],
     magical: magical.value,
   });
+}
+
+/**
+ * What ends each condition a target now has, read from the record it carries
+ * rather than from the save: a creature that already had the condition keeps
+ * its own record, and the line should say what is actually on it.
+ */
+function endsFor(a: SaveApplied): Partial<Record<SrdConditionName, string>> {
+  const live = store.combatants.find((c) => c.instance_id === a.target.instance_id);
+  const nameOf = (id: string) => store.combatants.find((c) => c.instance_id === id)?.name ?? null;
+  const out: Partial<Record<SrdConditionName, string>> = {};
+  for (const name of a.conditionsApplied) {
+    const record = live?.conditions.find((c) => c.name === name);
+    const end = record ? describeConditionEnd(record, nameOf) : null;
+    if (end) out[name] = end;
+  }
+  return out;
 }
 
 async function rollConcentration(a: SaveApplied) {

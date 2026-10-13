@@ -47,7 +47,7 @@
       <RunnerAttackOutcome :outcome="outcome" :locked="appliedResult !== null" @choose="choose" />
 
       <template v-if="outcome.hit === true">
-        <p v-if="attack.hit.length === 0" class="flow-note">
+        <p v-if="attack.hit.length === 0 && !riderSave" class="flow-note">
           This attack deals no damage of its own. Its effect is in the text above.
         </p>
         <template v-else>
@@ -87,6 +87,18 @@
         :can-roll-concentration="canRollConcentration"
         @roll-concentration="rollConcentration"
       />
+
+      <section v-if="riderSave && riderTarget && (appliedResult || attack.hit.length === 0)" class="flow-then" data-testid="rider-save">
+        <p class="flow-then-head">Then {{ riderSummary }}</p>
+        <RunnerSaveFlow
+          :attacker="attacker"
+          :entry="entry"
+          :save="riderSave"
+          :resolution="resolution"
+          :silent="silent"
+          :target="riderTarget"
+        />
+      </section>
     </template>
   </div>
 </template>
@@ -100,6 +112,7 @@ import RunnerAppliedLine from "@/components/encounters/RunnerAppliedLine.vue";
 import RunnerAttackOutcome, { type AttackChoice } from "@/components/encounters/RunnerAttackOutcome.vue";
 import RunnerDamageAmounts from "@/components/encounters/RunnerDamageAmounts.vue";
 import RunnerResolveTargets from "@/components/encounters/RunnerResolveTargets.vue";
+import RunnerSaveFlow from "@/components/encounters/RunnerSaveFlow.vue";
 import {
   signed,
   toDamageAmounts,
@@ -115,6 +128,7 @@ import type {
 } from "@/composables/encounters/useActionResolution";
 import type { RollMode } from "@/lib/dice/dice";
 import { targetCandidates, withinFiveFeet } from "@/lib/encounters/actionTargeting";
+import { describeStructure } from "@/lib/statBlock/describeStructure";
 import { attackRollMode } from "@/rules/combat/attackRoll";
 import { applyDefenses } from "@/rules/combat/typedDamage";
 import { useEncounterRunStore } from "@/stores/encounterRun";
@@ -257,6 +271,20 @@ function apply() {
   });
 }
 
+/**
+ * The save a hit forces ("...must succeed on a DC 10 Constitution saving throw or
+ * be paralyzed", #1050). It follows the damage, or the hit itself when the attack
+ * deals none, and only the creature that was hit makes it.
+ */
+const riderSave = computed(() => (outcome.value?.hit === true ? entry.structured.save : undefined));
+const riderTarget = computed(() => {
+  const hit = outcome.value?.target;
+  return hit ? (store.combatants.find((c) => c.instance_id === hit.instance_id) ?? hit) : undefined;
+});
+const riderSummary = computed(() =>
+  riderSave.value ? describeStructure({ kind: "save", save: riderSave.value, source: "parsed" }).summary : null,
+);
+
 const canRollConcentration = computed(() =>
   appliedResult.value ? resolution.saveBonusFor(appliedResult.value.target, "con") !== null : false,
 );
@@ -286,5 +314,13 @@ async function rollConcentration() {
 
 .flow-note {
   @apply text-caption text-muted-foreground italic;
+}
+
+.flow-then {
+  @apply flex flex-col gap-2 border-t border-border pt-2;
+}
+
+.flow-then-head {
+  @apply text-body font-semibold text-foreground;
 }
 </style>
