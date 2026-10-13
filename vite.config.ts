@@ -733,6 +733,19 @@ export default defineConfig(({ mode }) => {
       // that known chunk so an accidentally swollen shared chunk still warns.
       chunkSizeWarningLimit: 1100,
       rolldownOptions: {
+        // The release build (sourcemaps on, for Sentry) logged one
+        // SOURCEMAP_BROKEN per stylesheet and Vue `<style>` block, 92 of them,
+        // all from Tailwind's build transform, which returns no map unless
+        // `css.devSourcemap` is on. Turning that on only moves the warning to
+        // vite:css (208 lines, 13 Oct 2026), because Vite's build CSS pipeline
+        // does not carry maps through either. Nothing reads a CSS map: Sentry
+        // symbolicates JS, and every map is deleted after upload. Dropped by
+        // plugin and code only, so the same warning from a plugin that
+        // transforms JS still shows.
+        onLog(level, log, handler) {
+          if (log.code === "SOURCEMAP_BROKEN" && log.plugin === "@tailwindcss/vite:generate:build") return;
+          handler(level, log);
+        },
         // Required by `experimentalInlineCommonChunks` below. The app's only
         // entry is index.html, whose exports nothing imports.
         preserveEntrySignatures: false,
