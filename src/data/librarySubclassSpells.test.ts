@@ -43,6 +43,14 @@ describe("librarySubclassSpells", () => {
     }
   });
 
+  it("holds no retired wotc-srd spell id beside its live srd-2014 twin", () => {
+    // `srd_X` next to `srd_srd_X` can only be a stale wotc-srd row (retired by
+    // 20260722000002) leaking back in from an old local database.
+    const all = new Set(spellIds["2014"]);
+    const stale = spellIds["2014"].filter(id => all.has(`srd_${id}`));
+    expect(stale).toEqual([]);
+  });
+
   it("lists a spell once per level and never an empty level", () => {
     for (const e of LIBRARY_SUBCLASS_SPELLS) {
       const maps = [e.granted_spells, e.expanded_spells, ...Object.values(e.spell_variants), ...Object.values(e.expanded_spell_variants)];
@@ -86,17 +94,17 @@ describe("librarySubclassSpells", () => {
     expect(Object.keys(lords.expanded_spell_variants).sort()).toEqual(["Air", "Earth", "Water"]);
     expect(lords.granted_spells).toEqual({});
     expect(Object.keys(lords.expanded_spells)).toEqual(["1", "2", "3", "4", "5"]);
-    expect(Object.keys(lords.expanded_spell_variants.Earth)).toEqual(["1", "2", "4", "5"]);
+    expect(Object.keys(lords.expanded_spell_variants.Earth)).toEqual(["1", "2", "3", "4", "5"]);
   });
 
   describe("the SRD subclasses equal what the official PDFs print", () => {
     it("Life Domain, 2014 (SRD 5.1 p17)", () => {
       expect(find("srd-2014", "srd_life-domain", "2014").granted_spells).toEqual({
         "1": ["srd_srd_bless", "srd_srd_cure_wounds"],
-        "3": ["srd_srd_lesser_restoration", "srd_spiritual_weapon"],
-        "5": ["srd_beacon_of_hope", "srd_srd_revivify"],
-        "7": ["srd_srd_death_ward", "srd_guardian_of_faith"],
-        "9": ["srd_mass_cure_wounds", "srd_srd_raise_dead"],
+        "3": ["srd_srd_lesser_restoration", "srd_srd_spiritual_weapon"],
+        "5": ["srd_srd_beacon_of_hope", "srd_srd_revivify"],
+        "7": ["srd_srd_death_ward", "srd_srd_guardian_of_faith"],
+        "9": ["srd_srd_mass_cure_wounds", "srd_srd_raise_dead"],
       });
     });
 
@@ -117,10 +125,10 @@ describe("librarySubclassSpells", () => {
         ["Arctic", "Coast", "Desert", "Forest", "Grassland", "Mountain", "Swamp"],
       );
       expect(land.spell_variants.Coast).toEqual({
-        "3": ["srd_mirror_image", "srd_misty_step"],
-        "5": ["srd_water_breathing", "srd_water_walk"],
-        "7": ["srd_control_water", "srd_freedom_of_movement"],
-        "9": ["srd_conjure_elemental", "srd_scrying"],
+        "3": ["srd_srd_mirror_image", "srd_srd_misty_step"],
+        "5": ["srd_srd_water_breathing", "srd_srd_water_walk"],
+        "7": ["srd_srd_control_water", "srd_srd_freedom_of_movement"],
+        "9": ["srd_srd_conjure_elemental", "srd_srd_scrying"],
       });
     });
 
@@ -134,11 +142,11 @@ describe("librarySubclassSpells", () => {
       const fiend = find("srd-2014", "srd_the-fiend", "2014");
       expect(fiend.granted_spells).toEqual({});
       expect(fiend.expanded_spells).toEqual({
-        "1": ["srd_burning_hands", "srd_srd_command"],
-        "2": ["srd_blindnessdeafness", "srd_scorching_ray"],
-        "3": ["srd_fireball", "srd_stinking_cloud"],
-        "4": ["srd_fire_shield", "srd_wall_of_fire"],
-        "5": ["srd_flame_strike", "srd_hallow"],
+        "1": ["srd_srd_burning_hands", "srd_srd_command"],
+        "2": ["srd_srd_blindnessdeafness", "srd_srd_scorching_ray"],
+        "3": ["srd_srd_fireball", "srd_srd_stinking_cloud"],
+        "4": ["srd_srd_fire_shield", "srd_srd_wall_of_fire"],
+        "5": ["srd_srd_flame_strike", "srd_srd_hallow"],
       });
       const patron = find("srd-2024", "srd-2024_fiend-patron", "2024");
       expect(patron.expanded_spells).toEqual({});

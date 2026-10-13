@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { ChoicePick } from "@/rules/features/mechanics.types";
+import type { ChoicePick, FeatureEffect } from "@/rules/features/mechanics.types";
 import { parseMechanics } from "@/rules/features/mechanics";
-import { AMOUNT_KINDS, PICK_KINDS, RIDER_DICE_KINDS, amountOfKind, newChoice, newRider, newSubAction, newToggle, newUses, pickOfKind, riderDiceOfKind, addSpellList, newGrants, setSpellLevel, spellListChoices, toggleSpellList, tidyMechanics, withPart } from "./mechanicsDraft";
+import { AMOUNT_KINDS, EFFECT_KIND_OPTIONS, PICK_KINDS, RIDER_DICE_KINDS, amountOfKind, newChoice, newRider, newSubAction, newToggle, newUses, pickOfKind, riderDiceOfKind, addSpellList, effectOfKind, hasAdd, newEffect, toggleAdd, withDamage, withForcedSave, newGrants, setSpellLevel, spellListChoices, toggleSpellList, tidyMechanics, withPart, withMin, withDice, rollsDice, toggleFlatAdd, withFlatMin } from "./mechanicsDraft";
 
 describe("defaults", () => {
   it("every amount kind starts as something the parser accepts", () => {
@@ -87,5 +87,109 @@ describe("spell picks", () => {
 describe("grants", () => {
   it("an untouched grants part is tidied away", () => {
     expect(tidyMechanics({ grants: newGrants() }).grants).toBeUndefined();
+  });
+});
+
+describe("rolls", () => {
+  it("every effect kind starts as something the parser accepts once its dice are typed", () => {
+    for (const { value } of EFFECT_KIND_OPTIONS) {
+      const base = effectOfKind(value);
+      const typed = base.dice ? { ...base, dice: { "1": "1d6" } } : base;
+      expect(parseMechanics({ effect: typed }).errors, value).toEqual([]);
+    }
+  });
+
+  it("changing the kind keeps dice, adds and area and brings the block the new kind needs", () => {
+    const save = { ...effectOfKind("save"), dice: { "3": "2d8" }, damage_type: "fire", area: "15-ft cone", add: [{ kind: "proficiency" as const }] };
+    const attack = effectOfKind("attack", save);
+    expect(attack).toMatchObject({ kind: "attack", dice: { "3": "2d8" }, damage_type: "fire", area: "15-ft cone", attack: { delivery: "melee" } });
+    expect(attack.save).toBeUndefined();
+    const heal = effectOfKind("heal", save);
+    expect(heal.damage_type).toBeUndefined();
+    expect(heal.save).toBeUndefined();
+    expect(heal.attack).toBeUndefined();
+  });
+
+  it("an attack keeps its forced save when edited", () => {
+    const forced = withForcedSave(effectOfKind("attack"), true);
+    expect(forced.save).toBeDefined();
+    expect(effectOfKind("attack", forced).save).toEqual(forced.save);
+    expect(withForcedSave(forced, false).save).toBeUndefined();
+  });
+
+  it("damage on an attack or save switches on with blank dice and off with everything about them", () => {
+    const on = withDamage({ ...effectOfKind("save"), damage_type: "fire", add: [{ kind: "class_level" }] }, true);
+    expect(on.dice).toEqual({ "1": "" });
+    expect(on.damage_type).toBeUndefined();
+    const off = withDamage({ ...on, damage_type: "fire" }, false);
+    expect(off.dice).toBeUndefined();
+    expect(off.damage_type).toBeUndefined();
+  });
+
+  it("ticks and unticks addends, each ability on its own, and drops an emptied list", () => {
+    let e = effectOfKind("damage");
+    e = toggleAdd(e, { kind: "ability", ability: "cha" }, true);
+    e = toggleAdd(e, { kind: "ability", ability: "int" }, true);
+    e = toggleAdd(e, { kind: "proficiency" }, true);
+    expect(hasAdd(e, { kind: "ability", ability: "cha" })).toBe(true);
+    expect(hasAdd(e, { kind: "ability", ability: "wis" })).toBe(false);
+    e = toggleAdd(e, { kind: "ability", ability: "cha" }, false);
+    expect(e.add).toEqual([{ kind: "ability", ability: "int" }, { kind: "proficiency" }]);
+    e = toggleAdd(toggleAdd(e, { kind: "ability", ability: "int" }, false), { kind: "proficiency" }, false);
+    expect(e.add).toBeUndefined();
+  });
+
+  it("a new roll sits on a sub-action and survives the round trip", () => {
+    const action = { ...newSubAction(), name: "Flamethrower", effect: { ...newEffect(), dice: { "3": "2d8" } } };
+    expect(parseMechanics({ actions: [action] })).toEqual({ mechanics: { actions: [action] }, errors: [] });
+  });
+});
+
+describe("temp_hp, floors and flat riders in the editor", () => {
+  it("offers temporary hit points and gives it dice like healing, without a damage type", () => {
+    expect(EFFECT_KIND_OPTIONS.map((o) => o.value)).toContain("temp_hp");
+    const e = effectOfKind("temp_hp", { kind: "damage", dice: { "1": "1d6" }, damage_type: "fire", min: 2 });
+    expect(e).toEqual({ kind: "temp_hp", dice: { "1": "1d6" }, min: 2 });
+    expect(effectOfKind("temp_hp").dice).toEqual({ "1": "" });
+  });
+
+  it("sets and clears a floor, and drops it with the damage", () => {
+    const base: FeatureEffect = { kind: "heal", dice: { "1": "1d4" } };
+    expect(withMin(base, "3")).toEqual({ ...base, min: 3 });
+    expect(withMin({ ...base, min: 3 }, "")).toEqual(base);
+    expect(withMin(base, "-1")).toEqual(base);
+    expect(withDamage({ kind: "save", save: { ability: "dex", dc_ability: "cha", success: "half" }, dice: { "1": "1d4" }, min: 2 }, false).min).toBeUndefined();
+  });
+
+  it("starts a flat rider on Charisma with a minimum of 1 and edits its addends", () => {
+    const flat = riderDiceOfKind("flat");
+    if (flat.kind !== "flat") throw new Error("expected flat");
+    expect(flat).toEqual({ kind: "flat", add: [{ kind: "ability", ability: "cha" }], min: 1 });
+    expect(toggleFlatAdd(flat, { kind: "proficiency" }, true).add).toHaveLength(2);
+    // the last addend cannot be unticked: an empty flat rider adds nothing
+    expect(toggleFlatAdd(flat, { kind: "ability", ability: "cha" }, false)).toEqual(flat);
+    expect(withFlatMin(flat, "")).toEqual({ kind: "flat", add: flat.add });
+    expect(withFlatMin(flat, "2").min).toBe(2);
+  });
+});
+
+describe("a fixed amount with no dice", () => {
+  it("drops the dice, keeps the addends and stays something the parser accepts", () => {
+    const rolled: FeatureEffect = { kind: "temp_hp", dice: { "1": "1d8" }, add: [{ kind: "ability", ability: "int" }], min: 1 };
+    const fixed = withDice(rolled, false);
+    expect(rollsDice(fixed)).toBe(false);
+    expect(fixed).toEqual({ kind: "temp_hp", add: [{ kind: "ability", ability: "int" }], min: 1 });
+    expect(parseMechanics({ effect: fixed }).errors).toEqual([]);
+  });
+
+  it("falls back to the proficiency bonus when nothing was ticked, and never ends up empty", () => {
+    const fixed = withDice({ kind: "heal", dice: { "1": "1d4" } }, false);
+    expect(fixed.add).toEqual([{ kind: "proficiency" }]);
+    expect(parseMechanics({ effect: fixed }).errors).toEqual([]);
+    expect(toggleAdd(fixed, { kind: "proficiency" }, false)).toEqual(fixed);
+  });
+
+  it("brings blank dice back when turned on again", () => {
+    expect(withDice({ kind: "damage", add: [{ kind: "proficiency" }] }, true).dice).toEqual({ "1": "" });
   });
 });

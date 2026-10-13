@@ -29,7 +29,7 @@ const member = {
 
 describe("computeSpellcastingByClass", () => {
   it("takes the caster type from the pinned definition", () => {
-    const result = computeSpellcastingByClass(member, [classEntry()], { system: [{ id: "def-1", primary_ability: "Intelligence", caster_type: "spellbook" }], custom: [] }, "2014");
+    const result = computeSpellcastingByClass(member, [classEntry()], { system: [{ id: "def-1", primary_ability: "Intelligence", caster_type: "spellbook" }], custom: [], subclasses: [] }, "2014");
     expect(result).toEqual([{
       classId: "class-1",
       className: "Wizard",
@@ -46,7 +46,7 @@ describe("computeSpellcastingByClass", () => {
     const result = computeSpellcastingByClass(
       member,
       [entry],
-      { system: [{ id: "def-1", prepared_ability: "cha", primary_ability: "Intelligence" }], custom: [] },
+      { system: [{ id: "def-1", prepared_ability: "cha", primary_ability: "Intelligence" }], custom: [], subclasses: [] },
       "2014",
     );
     expect(result[0]?.castingAbility).toBe("cha");
@@ -57,7 +57,7 @@ describe("computeSpellcastingByClass", () => {
     const result = computeSpellcastingByClass(
       member,
       [entry],
-      { system: [{ id: "def-1", primary_ability: "Wisdom" }], custom: [] },
+      { system: [{ id: "def-1", primary_ability: "Wisdom" }], custom: [], subclasses: [] },
       "2014",
     );
     expect(result[0]?.castingAbility).toBe("wis");
@@ -65,7 +65,7 @@ describe("computeSpellcastingByClass", () => {
 
   it("applies the 2024 ruleset policy's caster type for a system class, overriding the definition's caster_type", () => {
     const entry = classEntry({ class_name: "Ranger", class_definition_kind: "system" });
-    const result = computeSpellcastingByClass(member, [entry], { system: [{ id: "def-1", primary_ability: "Wisdom" }], custom: [] }, "2024");
+    const result = computeSpellcastingByClass(member, [entry], { system: [{ id: "def-1", primary_ability: "Wisdom" }], custom: [], subclasses: [] }, "2024");
     // the definition says Ranger is a known caster; the 2024 policy table makes Ranger a prepared caster.
     expect(result[0]?.casterType).toBe("prepared");
   });
@@ -75,7 +75,7 @@ describe("computeSpellcastingByClass", () => {
     const result = computeSpellcastingByClass(
       member,
       [entry],
-      { system: [], custom: [{ id: "def-1", caster_type: "known", primary_ability: "Wisdom" }] },
+      { system: [], custom: [{ id: "def-1", caster_type: "known", primary_ability: "Wisdom" }], subclasses: [] },
       "2024",
     );
     expect(result[0]?.casterType).toBe("known");

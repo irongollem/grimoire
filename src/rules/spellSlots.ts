@@ -1,6 +1,7 @@
 import type { SpellSlotEntry } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { getCasterCategory, getMulticlassSpellSlots } from "@/types/spell.types";
+import { getMulticlassSpellSlots, type CasterClassEntry } from "@/types/spell.types";
+import { castingFor, type ClassCastingLike, type SubclassCastingLike } from "@/rules/subclassCasting";
 
 export type SpellSlotPool = NonNullable<SpellSlotEntry["pool"]>;
 
@@ -55,10 +56,7 @@ export interface SpellSlotClassEntry {
   class_definition_kind?: "system" | "custom" | null;
 }
 
-export interface SpellSlotClassDefinitionLike {
-  spell_slots?: readonly (readonly number[])[] | null;
-  slot_recovery?: string | null;
-}
+export type SpellSlotClassDefinitionLike = ClassCastingLike;
 
 /**
  * Multiclass-aware effective spell slot maxima for a character: combines
@@ -66,9 +64,13 @@ export interface SpellSlotClassDefinitionLike {
  * characters. A character with no character_classes rows is classless and has
  * no slots.
  *
+ * A row whose class does not cast but whose subclass does (an Eldritch Knight)
+ * casts from the subclass (`castingFor`): its own table when it is the only
+ * class, a third-caster share of the multiclass level otherwise.
+ *
  * When the character has persisted `member.spell_slots`, the freshly derived
  * maxima are reconciled against them (via `reconcileSpellSlotUsage`) so used
- * counts survive while stale maxima from a prior edition are corrected —
+ * counts survive while stale maxima from a prior edition are corrected,
  * e.g. for a character converted to the other edition. Without persisted slots, the derived
  * maxima are returned as-is (all unused).
  */
@@ -77,22 +79,19 @@ export function deriveEffectiveSpellSlots<T extends SpellSlotClassEntry>(
   classEntries: T[],
   ruleset: RulesetKey,
   definitionLookup: (entry: T) => SpellSlotClassDefinitionLike | null | undefined,
+  subclassLookup: (entry: T) => SubclassCastingLike | null | undefined,
 ): SpellSlotEntry[] {
-  const list = classEntries.map((c) => ({ class_name: c.class_name, levels: c.levels }));
-  const canDeriveMulticlass = list.length > 1
-    && classEntries.every((entry) => entry.class_definition_kind !== "custom")
-    && list.every((entry) => getCasterCategory(entry.class_name) !== "none");
+  const castings = classEntries.map((entry) => castingFor(definitionLookup(entry), subclassLookup(entry)));
+  const list: CasterClassEntry[] = classEntries.map((c, i) => ({
+    class_name: c.class_name,
+    levels: c.levels,
+    ...(castings[i]?.source === "subclass" ? { category: "third" as const } : {}),
+  }));
 
   let derived: SpellSlotEntry[];
-  if (canDeriveMulticlass) {
-    derived = getMulticlassSpellSlots(list, ruleset);
-  } else if (classEntries.length === 1) {
-    const definition = definitionLookup(classEntries[0]);
-    derived = spellSlotsFromProgression(
-      definition?.spell_slots,
-      classEntries[0].levels,
-      definition?.slot_recovery === "short" ? "short" : "long",
-    );
+  if (classEntries.length === 1) {
+    const casting = castings[0];
+    derived = spellSlotsFromProgression(casting?.spellSlots, classEntries[0].levels, casting?.slotRecovery ?? "long");
   } else if (list.length > 0 && classEntries.every((entry) => entry.class_definition_kind !== "custom")) {
     derived = getMulticlassSpellSlots(list, ruleset);
   } else {

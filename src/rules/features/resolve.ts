@@ -2,6 +2,7 @@ import type { AbilityKey } from "@/rules/characterCreation";
 import type {
   ByLevel,
   DamageRider,
+  EffectAdd,
   FeatureChoice,
   FeatureMechanics,
   FeatureScaling,
@@ -81,6 +82,9 @@ export function riderDice(rider: DamageRider, ctx: { scalingValue: string | null
       return ctx.scalingValue;
     case "fixed":
       return dice.expression;
+    // Worked out from the character, not a dice expression: see `riderFlatValue`.
+    case "flat":
+      return null;
     case "slot": {
       if (ctx.slotLevel === undefined || ctx.slotLevel < dice.base_level) return null;
       const base = splitDice(dice.base);
@@ -90,6 +94,34 @@ export function riderDice(rider: DamageRider, ctx: { scalingValue: string | null
       return `${count}d${base.sides}`;
     }
   }
+}
+
+/** What a flat amount reads from the character at roll time. */
+export interface AddContext {
+  /** Level in the granting class (a feat's is the character's total level). */
+  classLevel: number;
+  proficiencyBonus: number;
+  abilityMods: Record<AbilityKey, number>;
+}
+
+/** The sum of `add` from the character, floored at `min` when given. */
+export function sumAdds(add: readonly EffectAdd[], min: number | undefined, ctx: AddContext): number {
+  let total = 0;
+  for (const a of add) {
+    if (a.kind === "ability") total += ctx.abilityMods[a.ability];
+    else if (a.kind === "proficiency") total += ctx.proficiencyBonus;
+    else total += ctx.classLevel;
+  }
+  return min === undefined ? total : Math.max(min, total);
+}
+
+/**
+ * A flat rider's value for this character ("+ your Charisma modifier, minimum
+ * +1"), or null for a rider that is not flat. It is added as a modifier, so a
+ * critical hit never doubles it.
+ */
+export function riderFlatValue(rider: DamageRider, ctx: AddContext): number | null {
+  return rider.dice.kind === "flat" ? sumAdds(rider.dice.add, rider.dice.min, ctx) : null;
 }
 
 export type AttackShape =

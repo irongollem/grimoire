@@ -1,4 +1,4 @@
-import { computeSpellcastingByClass, type SpellcastingClassDefinitionLike } from "@/rules/spellcastingByClass";
+import { computeSpellcastingByClass, type SpellcastingClassDefinitionLike, type SpellcastingSubclassDefinitionLike } from "@/rules/spellcastingByClass";
 import { hitDieForClassRow, type HitDieDefinitionLike } from "@/rules/classHitDie";
 import type { AbilityScores, CharacterClass } from "@/types/multiclass.types";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -15,6 +15,8 @@ export interface SheetClassInput {
   definitions: {
     system: (HitDieDefinitionLike & SpellcastingClassDefinitionLike)[];
     custom: (HitDieDefinitionLike & SpellcastingClassDefinitionLike)[];
+    /** The subclasses the rows hold: a row whose class does not cast casts from its subclass. */
+    subclasses: SpellcastingSubclassDefinitionLike[];
   };
 }
 

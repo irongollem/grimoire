@@ -1,14 +1,13 @@
 import type { AbilityKey } from "@/rules/characterCreation";
 import type { SkillKey } from "@/types/party.types";
-import { parseExpression } from "@/lib/dice/dice";
 import {
   ACTIVATIONS,
   FEAT_CATEGORIES,
   OPTION_SETS,
   RECHARGES,
   RIDER_TARGETS,
+  WILD_SHAPE_KEY,
   type Activation,
-  type ByLevel,
   type ChoiceCount,
   type ChoicePick,
   type DamageRider,
@@ -28,6 +27,19 @@ import {
   type UsesAmount,
   type UsesCost,
 } from "./mechanics.types";
+import { parseAddList, parseEffect } from "./effectParse";
+import {
+  ABILITY_KEYS,
+  ARMOR_KINDS,
+  isCount,
+  isDice,
+  isKey,
+  isLevel,
+  isMember,
+  isNonEmptyString,
+  isRecord,
+  parseByLevel,
+} from "./parsePrimitives";
 
 /**
  * Validation of `class_features.mechanics` jsonb (#976). The column is
@@ -35,71 +47,6 @@ import {
  * the roller and level-up, so a malformed row must degrade to "that part does
  * nothing" with a message for the editor, never throw into a render.
  */
-
-const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha"] as const satisfies readonly AbilityKey[];
-const ARMOR_KINDS = ["light", "medium", "heavy", "shield"] as const;
-const KEY_PATTERN = /^[a-z][a-z0-9_]*$/;
-
-type Rec = Record<string, unknown>;
-
-function isRecord(value: unknown): value is Rec {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isMember<T extends string>(list: readonly T[], value: unknown): value is T {
-  return typeof value === "string" && (list as readonly string[]).includes(value);
-}
-
-function isCount(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0;
-}
-
-function isLevel(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 20;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function isKey(value: unknown): value is string {
-  return typeof value === "string" && KEY_PATTERN.test(value);
-}
-
-function isDice(value: unknown): value is string {
-  return typeof value === "string" && parseExpression(value) !== null;
-}
-
-/** Keys must be integer strings 1-20 exactly ("03" and "3.0" are not levels). */
-function parseByLevel<T>(
-  value: unknown,
-  path: string,
-  errors: string[],
-  valid: (v: unknown) => v is T,
-  what: string,
-): ByLevel<T> | null {
-  if (!isRecord(value)) {
-    errors.push(`${path}: expected an object keyed by level`);
-    return null;
-  }
-  const out: ByLevel<T> = {};
-  for (const [key, v] of Object.entries(value)) {
-    if (!/^(?:[1-9]|1\d|20)$/.test(key)) {
-      errors.push(`${path}: '${key}' is not a level from 1 to 20`);
-      continue;
-    }
-    if (!valid(v)) {
-      errors.push(`${path}.${key}: expected ${what}`);
-      continue;
-    }
-    out[key] = v;
-  }
-  if (Object.keys(out).length === 0) {
-    errors.push(`${path}: no valid levels`);
-    return null;
-  }
-  return out;
-}
 
 function parseBaseAmount(
   value: unknown,
@@ -193,6 +140,10 @@ function parseUses(value: unknown, errors: string[]): FeatureUses | null {
     errors.push(`${path}.key: must be lowercase letters, digits and underscores, starting with a letter`);
     return null;
   }
+  if (value.key === WILD_SHAPE_KEY) {
+    errors.push(`${path}.key: '${WILD_SHAPE_KEY}' is reserved for the druid's Wild Shape uses`);
+    return null;
+  }
   if (!isNonEmptyString(value.label)) {
     errors.push(`${path}.label: expected a non-empty label`);
     return null;
@@ -251,6 +202,19 @@ function parseRiderDice(value: unknown, path: string, errors: string[]): RiderDi
   switch (value.kind) {
     case "scaling":
       return { kind: "scaling" };
+    case "flat": {
+      const add = parseAddList(value.add, `${path}.add`, errors);
+      if (!add) {
+        errors.push(`${path}.add: a flat rider needs something to add`);
+        return null;
+      }
+      if (value.min === undefined) return { kind: "flat", add };
+      if (!isCount(value.min)) {
+        errors.push(`${path}.min: expected a non-negative whole number`);
+        return null;
+      }
+      return { kind: "flat", add, min: value.min };
+    }
     case "fixed":
       if (!isDice(value.expression)) {
         errors.push(`${path}.expression: not a dice expression`);
@@ -287,7 +251,7 @@ function parseRiderDice(value: unknown, path: string, errors: string[]): RiderDi
   }
 }
 
-function parseRider(value: unknown, path: string, errors: string[], toggleKey: string | null): DamageRider | null {
+function parseRider(value: unknown, path: string, errors: string[]): DamageRider | null {
   if (!isRecord(value)) {
     errors.push(`${path}: expected an object`);
     return null;
@@ -313,10 +277,13 @@ function parseRider(value: unknown, path: string, errors: string[], toggleKey: s
     else errors.push(`${path}.damage_type: expected a non-empty string`);
   }
   if (value.requires_toggle !== undefined) {
-    // A rider gated on a toggle the feature does not own could never be switched on.
-    if (toggleKey !== null && value.requires_toggle === toggleKey) rider.requires_toggle = value.requires_toggle;
+    // The toggle may be this feature's or another's (an archetype's "while
+    // raging" rider needs the barbarian's Rage), as a cost may name another
+    // feature's pool. A key the character has no toggle for is never on, so
+    // the rider is never offered: unusable, never free.
+    if (isNonEmptyString(value.requires_toggle)) rider.requires_toggle = value.requires_toggle;
     else {
-      errors.push(`${path}.requires_toggle: '${String(value.requires_toggle)}' is not this feature's toggle`);
+      errors.push(`${path}.requires_toggle: expected a toggle key`);
       return null;
     }
   }
@@ -380,6 +347,10 @@ function parseActions(value: unknown, errors: string[]): SubAction[] | null {
     if (item.spends !== undefined) {
       const spends = parseUsesCost(item.spends, `${path}.spends`, errors);
       if (spends) action.spends = spends;
+    }
+    if (item.effect !== undefined) {
+      const effect = parseEffect(item.effect, `${path}.effect`, errors);
+      if (effect) action.effect = effect;
     }
     out.push(action);
   });
@@ -600,10 +571,9 @@ export function parseMechanics(value: unknown): { mechanics: FeatureMechanics; e
   if (value.riders !== undefined) {
     if (!Array.isArray(value.riders)) errors.push("riders: expected a list");
     else {
-      const toggleKey = mechanics.toggle ? mechanics.toggle.key : null;
       const riders: DamageRider[] = [];
       value.riders.forEach((r, i) => {
-        const rider = parseRider(r, `riders[${i}]`, errors, toggleKey);
+        const rider = parseRider(r, `riders[${i}]`, errors);
         if (rider) riders.push(rider);
       });
       if (riders.length > 0) mechanics.riders = riders;
@@ -612,6 +582,10 @@ export function parseMechanics(value: unknown): { mechanics: FeatureMechanics; e
   if (value.actions !== undefined) {
     const actions = parseActions(value.actions, errors);
     if (actions) mechanics.actions = actions;
+  }
+  if (value.effect !== undefined) {
+    const effect = parseEffect(value.effect, "effect", errors);
+    if (effect) mechanics.effect = effect;
   }
   if (value.choices !== undefined) {
     const choices = parseChoices(value.choices, errors);

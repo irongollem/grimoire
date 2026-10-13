@@ -1,7 +1,9 @@
 import { computed, ref, watch, type Ref } from "vue";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import type { PartyMember } from "@/types/party.types";
-import type { UsesCost } from "@/rules/features/mechanics.types";
+import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
+import { WILD_SHAPE_KEY, type UsesCost } from "@/rules/features/mechanics.types";
+import { wildShapeLeft, wildShapePool } from "@/rules/features/wildShapePool";
 import {
   classResourcesChanged,
   classResourcesFor,
@@ -21,6 +23,14 @@ import { canPay, payCost, remainingUses, restoreUses, withToggle, type Remaining
  */
 export function useFeatureUses(member: Ref<PartyMember>, pools: Ref<readonly ResourcePool[]>) {
   const { mutateAsync: updateMember, isPending: isSaving, error } = useUpdatePartyMember();
+
+  // Wild Shape is a pool a feature may spend, but its count is `wildshapes_used`
+  // on the character (the Wild Shape tab's own write), not a class resource.
+  const druid = useWildshapeDruid(computed(() => member.value.id), () => member.value);
+  const wildPool = computed(() => wildShapePool(druid.rules.value));
+  const allPools = computed<readonly ResourcePool[]>(() => (wildPool.value ? [...pools.value, wildPool.value] : pools.value));
+  const wildUsed = ref(member.value.wildshapes_used ?? 0);
+  watch(() => member.value.wildshapes_used, next => { wildUsed.value = next ?? 0; });
 
   const resources = ref<StoredClassResources>(member.value.class_resources);
   const choices = ref<Record<string, unknown>>(member.value.class_choices);
@@ -59,24 +69,71 @@ export function useFeatureUses(member: Ref<PartyMember>, pools: Ref<readonly Res
   }
 
   function remaining(key: string): Remaining {
+    if (key === WILD_SHAPE_KEY) return wildPool.value ? wildShapeLeft(wildPool.value, wildUsed.value) : null;
     return remainingUses(resources.value, pools.value, key);
   }
 
   function payable(cost: UsesCost | null): boolean {
-    return cost === null || canPay(resources.value, pools.value, cost);
+    if (cost === null) return true;
+    if (cost.key === WILD_SHAPE_KEY) {
+      const left = remaining(cost.key);
+      return left !== null && (left === "unlimited" || left >= cost.amount);
+    }
+    return canPay(resources.value, pools.value, cost);
+  }
+
+  /** The spent Wild Shape count after paying `cost`; throws when it cannot be paid. */
+  function wildUsedAfter(cost: UsesCost): number {
+    if (!payable(cost)) throw new Error("No Wild Shape left");
+    return wildPool.value?.max === "unlimited" ? wildUsed.value : wildUsed.value + cost.amount;
+  }
+
+  async function writeWildUsed(next: number) {
+    const previous = wildUsed.value;
+    wildUsed.value = next;
+    try {
+      await updateMember({ id: member.value.id, update: { wildshapes_used: next } });
+    } catch (e) {
+      wildUsed.value = previous;
+      throw e;
+    }
   }
 
   /** Spends a cost. Throws (and writes nothing) when it cannot be paid. */
   async function spend(cost: UsesCost) {
+    if (cost.key === WILD_SHAPE_KEY) {
+      await writeWildUsed(wildUsedAfter(cost));
+      return;
+    }
     await writeResources(payCost(resources.value, pools.value, cost));
   }
 
   async function restore(key: string, amount = 1) {
+    if (key === WILD_SHAPE_KEY) {
+      if (wildPool.value) await writeWildUsed(Math.max(0, wildUsed.value - amount));
+      return;
+    }
     await writeResources(restoreUses(resources.value, pools.value, key, amount));
   }
 
   /** Switches a toggle. Switching it on pays its cost in the same write. */
   async function setToggle(key: string, on: boolean, cost: UsesCost | null) {
+    if (on && cost && cost.key === WILD_SHAPE_KEY) {
+      const nextUsed = wildUsedAfter(cost);
+      const previousChoices = choices.value;
+      const previousUsed = wildUsed.value;
+      const nextChoices = withToggle(choices.value, key, on);
+      choices.value = nextChoices;
+      wildUsed.value = nextUsed;
+      try {
+        await updateMember({ id: member.value.id, update: { class_choices: nextChoices, wildshapes_used: nextUsed } });
+      } catch (e) {
+        choices.value = previousChoices;
+        wildUsed.value = previousUsed;
+        throw e;
+      }
+      return;
+    }
     const nextResources = on && cost ? payCost(resources.value, pools.value, cost) : resources.value;
     await writeChoicesAndResources(withToggle(choices.value, key, on), nextResources);
   }
@@ -98,5 +155,5 @@ export function useFeatureUses(member: Ref<PartyMember>, pools: Ref<readonly Res
     return choices.value[`${key}_active`] === true;
   }
 
-  return { remaining, payable, spend, restore, setToggle, isOn, reconcile, needsReconcile, isSaving, error };
+  return { remaining, payable, spend, restore, setToggle, isOn, reconcile, needsReconcile, isSaving, error, pools: allPools };
 }

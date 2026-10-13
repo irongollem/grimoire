@@ -3,7 +3,10 @@ import type {
   ChoiceCount,
   ChoicePick,
   DamageRider,
+  EffectAdd,
+  EffectKind,
   FeatureChoice,
+  FeatureEffect,
   FeatureGrants,
   FeatureMechanics,
   FeatureToggle,
@@ -79,6 +82,7 @@ export function amountOfKind(kind: UsesAmount["kind"]): UsesAmount {
 export const RIDER_DICE_KINDS = [
   { value: "fixed", label: "A fixed roll" },
   { value: "scaling", label: "The feature's table value" },
+  { value: "flat", label: "A flat amount from the character" },
   { value: "slot", label: "Grows with the spell slot" },
 ] as const satisfies ReadonlyArray<{ value: RiderDice["kind"]; label: string }>;
 
@@ -86,6 +90,7 @@ export function riderDiceOfKind(kind: RiderDice["kind"]): RiderDice {
   switch (kind) {
     case "fixed": return { kind: "fixed", expression: "" };
     case "scaling": return { kind: "scaling" };
+    case "flat": return { kind: "flat", add: [{ kind: "ability", ability: "cha" }], min: 1 };
     case "slot": return { kind: "slot", base: "2d8", base_level: 1, per_level: "1d8", max_dice: 5 };
   }
 }
@@ -195,4 +200,98 @@ export function setSpellLevel(pick: SpellPick, level: number): SpellPick {
 /** The starting value for the "Proficiencies granted" part; `tidyMechanics` drops it again if left empty. */
 export function newGrants(): FeatureGrants {
   return {};
+}
+
+// ── Rolls ─────────────────────────────────────────────────────────────────────
+
+export const EFFECT_KIND_OPTIONS = [
+  { value: "attack", label: "An attack roll" },
+  { value: "save", label: "A saving throw it forces" },
+  { value: "damage", label: "Damage" },
+  { value: "heal", label: "Healing" },
+  { value: "temp_hp", label: "Temporary hit points" },
+] as const satisfies ReadonlyArray<{ value: EffectKind; label: string }>;
+
+/** A new roll of one kind, with the block that kind needs; the dice are blank until the DM types them. */
+export function effectOfKind(kind: EffectKind, from?: FeatureEffect): FeatureEffect {
+  const next: FeatureEffect = { kind };
+  // What the kinds share carries over when the DM changes their mind.
+  if (from?.dice) next.dice = from.dice;
+  if (from?.add) next.add = from.add;
+  if (from?.min !== undefined) next.min = from.min;
+  if (from?.area !== undefined) next.area = from.area;
+  if (from?.damage_type !== undefined && kind !== "heal" && kind !== "temp_hp") next.damage_type = from.damage_type;
+  if (kind === "attack") next.attack = from?.attack ?? { delivery: "melee", ability: "str" };
+  if (kind === "save") next.save = from?.save ?? { ability: "dex", dc_ability: "spell", success: "half" };
+  if (kind === "attack" && from?.kind === "attack" && from.save) next.save = from.save;
+  if ((kind === "damage" || kind === "heal" || kind === "temp_hp") && !next.dice) next.dice = { "1": "" };
+  return next;
+}
+
+export function newEffect(): FeatureEffect {
+  return effectOfKind("save");
+}
+
+/** An attack or save "deals damage" while it has dice; turning it off drops the dice and everything about them. */
+export function withDamage(effect: FeatureEffect, on: boolean): FeatureEffect {
+  const { dice: _dice, damage_type: _type, add: _add, min: _min, ...rest } = effect;
+  return on ? { ...rest, dice: { "1": "" } } : rest;
+}
+
+/** An attack whose hit forces a saving throw (a poisoned blade) carries both blocks. */
+export function withForcedSave(effect: FeatureEffect, on: boolean): FeatureEffect {
+  const { save: _save, ...rest } = effect;
+  return on ? { ...rest, save: { ability: "con", dc_ability: "str", success: "none" } } : rest;
+}
+
+export function hasAdd(effect: FeatureEffect, add: EffectAdd): boolean {
+  return (effect.add ?? []).some((a) => a.kind === add.kind && (a.kind !== "ability" || (add.kind === "ability" && a.ability === add.ability)));
+}
+
+/** Ticks or unticks one addend; an emptied list is dropped so the stored effect stays minimal. */
+export function toggleAdd(effect: FeatureEffect, add: EffectAdd, on: boolean): FeatureEffect {
+  const kept = (effect.add ?? []).filter((a) => !(a.kind === add.kind && (a.kind !== "ability" || (add.kind === "ability" && a.ability === add.ability))));
+  const list = on ? [...kept, add] : kept;
+  const { add: _add, ...rest } = effect;
+  // A fixed amount (no dice) is nothing but its addends, so the last one stays.
+  if (list.length === 0 && !effect.dice) return effect;
+  return list.length > 0 ? { ...rest, add: list } : rest;
+}
+
+/** Sets or clears the floor on a total; a blank or non-numeric entry clears it. */
+export function withMin(effect: FeatureEffect, value: string): FeatureEffect {
+  const { min: _min, ...rest } = effect;
+  const n = Number(value);
+  return value.trim() === "" || !Number.isInteger(n) || n < 0 ? rest : { ...rest, min: n };
+}
+
+/** A flat rider with one addend ticked or unticked (at least one stays, since an empty flat rider adds nothing). */
+export function toggleFlatAdd(dice: Extract<RiderDice, { kind: "flat" }>, add: EffectAdd, on: boolean): Extract<RiderDice, { kind: "flat" }> {
+  const same = (a: EffectAdd) => a.kind === add.kind && (a.kind !== "ability" || (add.kind === "ability" && a.ability === add.ability));
+  const kept = dice.add.filter((a) => !same(a));
+  const list = on ? [...kept, add] : kept;
+  return list.length > 0 ? { ...dice, add: list } : dice;
+}
+
+/** Sets or clears a flat rider's floor. */
+export function withFlatMin(dice: Extract<RiderDice, { kind: "flat" }>, value: string): Extract<RiderDice, { kind: "flat" }> {
+  const { min: _min, ...rest } = dice;
+  const n = Number(value);
+  return value.trim() === "" || !Number.isInteger(n) || n < 0 ? rest : { ...rest, min: n };
+}
+
+/** Whether a heal, temporary hit points or damage effect rolls dice (otherwise its amount is only what it adds). */
+export function rollsDice(effect: FeatureEffect): boolean {
+  return effect.dice !== undefined;
+}
+
+/**
+ * "No dice (a fixed amount)" for heal, temp HP and damage. Off drops the dice and
+ * leaves the addends as the amount (proficiency bonus if none were ticked, since an
+ * amount of nothing is not an effect); on starts blank dice again.
+ */
+export function withDice(effect: FeatureEffect, on: boolean): FeatureEffect {
+  if (on) return effect.dice ? effect : { ...effect, dice: { "1": "" } };
+  const { dice: _dice, ...rest } = effect;
+  return { ...rest, add: effect.add && effect.add.length > 0 ? effect.add : [{ kind: "proficiency" }] };
 }

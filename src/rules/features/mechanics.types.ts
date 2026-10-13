@@ -70,10 +70,22 @@ export interface FeatureUses {
 }
 
 /**
+ * The reserved pool key for a druid's Wild Shape uses. It is not a feature
+ * pool: the count lives in `party_members.wildshapes_used` (spent, not
+ * remaining) with its maximum from `wildShapeRules`, and a rest resets it the
+ * way it always has. A cost naming it ("Expend a use of your Wild Shape"
+ * on a circle feature) spends one of those uses; a character with no Wild
+ * Shape (not a druid, or below druid level 2) has no such pool, so the thing
+ * is unusable, never free. No `FeatureUses.key` may take it.
+ */
+export const WILD_SHAPE_KEY = "wild_shape";
+
+/**
  * Uses spent from a pool, named by its `FeatureUses.key`. The pool may be this
  * feature's own or another's: Cutting Words spends Bardic Inspiration, Stunning
  * Strike spends Ki, Preserve Life spends Channel Divinity. A key the character
- * has no pool for makes the thing unusable, never free.
+ * has no pool for makes the thing unusable, never free. `wild_shape` is the one
+ * reserved key (see `WILD_SHAPE_KEY`).
  */
 export interface UsesCost {
   key: string;
@@ -102,6 +114,13 @@ export type RiderTarget = (typeof RIDER_TARGETS)[number];
 export type RiderDice =
   /** The feature's own `scaling` value at the current level. */
   | { kind: "scaling" }
+  /**
+   * A flat amount worked out from the character when the damage is rolled
+   * ("+ your Charisma modifier (minimum +1)", Aura of Loathing). It is a
+   * modifier, never rolled and never doubled on a critical hit. `min` floors
+   * the sum.
+   */
+  | { kind: "flat"; add: EffectAdd[]; min?: number }
   | { kind: "fixed"; expression: string }
   /**
    * Grows with the spell slot spent: `base` at the slot level `base_level`,
@@ -125,7 +144,11 @@ export interface DamageRider {
   damage_type?: string;
   applies_to: RiderTarget;
   once_per_turn: boolean;
-  /** Only offered while this toggle is on (Rage damage needs Rage). The key of a `FeatureToggle`. */
+  /**
+   * Only offered while this toggle is on (Rage damage needs Rage). The key of a
+   * `FeatureToggle`, this feature's or another's: a Path of Hellfire rider names
+   * the barbarian's `rage`. A key the character has no toggle for is never on.
+   */
   requires_toggle?: string;
   /** What adding it spends. Absent means free. */
   cost?: ({ kind: "uses" } & UsesCost) | { kind: "spell_slot" };
@@ -141,12 +164,52 @@ export interface FeatureToggle {
   ends_on: "short_rest" | "long_rest";
 }
 
+export const EFFECT_KINDS = ["attack", "save", "heal", "temp_hp", "damage"] as const;
+/**
+ * What a rollable effect is: an attack roll, a saving throw it forces, healing,
+ * temporary hit points (rolled like healing, but they are not healing), or plain damage.
+ */
+export type EffectKind = (typeof EFFECT_KINDS)[number];
+
+/** What a damage or healing total gets added to its dice, read from the character at roll time. */
+export type EffectAdd =
+  | { kind: "ability"; ability: AbilityKey }
+  | { kind: "proficiency" }
+  /** Level in the granting class. */
+  | { kind: "class_level" };
+
+/**
+ * A roll the feature (or one of its sub-actions) makes. Numbers come from the
+ * character at roll time, never from the row: the row says "Constitution save,
+ * DC from Charisma, 1d6 thunder, 2d6 from 10th level" and the sheet works out
+ * the DC and the dice for this character.
+ */
+export interface FeatureEffect {
+  kind: EffectKind;
+  /** kind "attack": to-hit = proficiency + the ability's modifier, or the granting class's spell attack. */
+  attack?: { delivery: "melee" | "ranged"; ability: AbilityKey | "spell"; range?: string };
+  /** kind "save" (or an attack whose hit forces one): DC = 8 + proficiency + modifier of dc_ability, or the granting class's spell save DC. */
+  save?: { ability: AbilityKey; dc_ability: AbilityKey | "spell"; success: "half" | "none" };
+  /** Damage (or healing, or temporary hit point) dice by level in the granting class: { "3": "1d6", "10": "2d6" }. A flat value ("5") is allowed. Absent for a save that only imposes something, and for a flat amount, which is all `add` ("fire damage equal to your proficiency bonus"). */
+  dice?: ByLevel<string>;
+  /** One of `DAMAGE_TYPES`; absent for healing and for typeless damage. */
+  damage_type?: string;
+  /** Added to the damage, healing or temporary hit point total. */
+  add?: EffectAdd[];
+  /** The sum of `add` is never below this ("Charisma modifier (minimum of 1)"); the dice are not floored. */
+  min?: number;
+  /** Shown beside the roll: "15-ft cone", "30 ft". */
+  area?: string;
+}
+
 /** A named thing the feature lets you do, listed under its activation (Cunning Action's Dash). */
 export interface SubAction {
   name: string;
   activation: Activation;
   /** What doing it spends. Absent means free. */
   spends?: UsesCost;
+  /** What rolling it does (Eldritch Cannon: Flamethrower). */
+  effect?: FeatureEffect;
 }
 
 /** The 2024 feat categories. 2014 feats have none. */
@@ -231,6 +294,8 @@ export interface FeatureMechanics {
   riders?: DamageRider[];
   toggle?: FeatureToggle;
   actions?: SubAction[];
+  /** What using the feature itself rolls (a thunder save forced on an attacker). Sub-actions carry their own. */
+  effect?: FeatureEffect;
   choices?: FeatureChoice[];
   grants?: FeatureGrants;
   /**

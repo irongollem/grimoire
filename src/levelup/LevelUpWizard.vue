@@ -193,6 +193,7 @@ import LevelUpSpellsUnavailable from "./LevelUpSpellsUnavailable.vue";
 import { useLevelUpConfirm } from "./useLevelUpConfirm";
 import { isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useLevelUpSpellSlots } from "./useLevelUpSpellSlots";
+import { castingListName } from "@/rules/subclassCasting";
 import { useClassScopedReset } from "./useClassScopedReset";
 import { useLevelUpClassSelection } from "./useLevelUpClassSelection";
 import { useLevelUpHitPoints } from "./useLevelUpHitPoints";
@@ -218,7 +219,7 @@ const {
   newClassDefinition, newClassDefinitionId, newClassDefinitionKind, chosenExistingEntry, memberClass,
   levelInChosenClass, exactClassDefinition, customClass, systemClass, subclassDefinitionId, customSubclass,
   allCustomSubclasses, campaignCustomSubclasses, newClassCandidates, ignoreMulticlassPrereqs, newClassPrereq,
-  newClassProficiencyGrants, classRows, campaignRulesData,
+  newClassProficiencyGrants, classRows, rowCasting, campaignRulesData,
 } = useLevelUpClassSelection(() => props.member);
 
 // `nextLevel` is the character's new TOTAL level — used for proficiency bonus.
@@ -272,7 +273,7 @@ const pickedSubclass = computed(() => {
 
 // ── Spell slot computation (multiclass-aware) ──────────────────────────────────
 const {
-  postLevelupSpellSlots, newSpellSlotSummary, spellsKnownGain, spellsKnownTotal,
+  chosenCasting, postLevelupSpellSlots, newSpellSlotSummary, spellsKnownGain, spellsKnownTotal,
   cantripsKnownGain, cantripsKnownTotal, maxCastableLevel,
 } = useLevelUpSpellSlots({
   customClass: computed(() => customClass.value ?? null),
@@ -283,6 +284,10 @@ const {
   newClassName,
   chosenExistingEntry,
   ruleset,
+  // The subclass picked at this level, else the one held: a third caster's slots, known
+  // spells and cantrips are its subclass's (the server resolves it the same way).
+  chosenSubclass: customSubclass,
+  rowCasting,
   // "system" default matches the server's coalesce(p_definition_kind,
   // 'system') — see spellPreparationPolicy.ts. Only an exactly-pinned
   // definition may claim "custom", so a custom class sharing an official
@@ -329,7 +334,8 @@ const {
   newProfBonus,
   weaponProficiencies,
   canCastSpells: computed(() => postLevelupSpellSlots.value.length > 0),
-  classHasSpellcasting: computed(() => classHasSpellcastingProgression(customClass.value ?? systemClass.value)),
+  classHasSpellcasting: computed(() =>
+    classHasSpellcastingProgression(customClass.value ?? systemClass.value) || chosenCasting.value?.source === "subclass"),
   armorProficiencies: armorTraining,
   tashasOn: computed(() => isRuleEffectivelyEnabled(campaignRulesData.value, "tashas_optional_features")),
   values: choiceValues,
@@ -340,11 +346,13 @@ const {
 // Sourced from the Spellbook's merged library (enabled campaign sources + the
 // player's own custom spells). Querying the `spells` table alone — which holds
 // only user-authored spells — left both pickers permanently empty (#736).
+// A subclass caster learns from its subclass's list ("Wizard" for an Eldritch Knight), not its class name.
+const spellListName = computed(() => castingListName(memberClass.value, chosenCasting.value));
 const spellSearch = ref("");
 const cantripSearch = ref("");
 const { spellCandidates, cantripCandidates, isLoading: spellsLoading } =
   useLevelUpSpellCandidates({
-    className: memberClass, maxCastableLevel, spellSearch, cantripSearch,
+    className: spellListName, maxCastableLevel, spellSearch, cantripSearch,
     // A 2014 Warlock patron's expanded list is picked from like the class's own.
     extraSpellIds: computed(() =>
       subclassExpandedSpellIds(customSubclass.value, subclassVariant.value || heldVariant.value)),
@@ -353,7 +361,7 @@ const { spellCandidates, cantripCandidates, isLoading: spellsLoading } =
 // Worded without "campaign" on purpose — a standalone player (#730) has none.
 function classFallbackNotice(candidates: { usedClassFallback: boolean }): string | undefined {
   if (!candidates.usedClassFallback) return undefined;
-  return `No spell in the available sources lists ${memberClass.value}, so the full list is shown.`;
+  return `No spell in the available sources lists ${spellListName.value}, so the full list is shown.`;
 }
 
 /** A required picker with nothing in it — Confirm can never enable. */

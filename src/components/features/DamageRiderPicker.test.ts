@@ -43,7 +43,7 @@ vi.mock("@/composables/features/useCharacterFeatures", () => ({
   }),
 }));
 vi.mock("@/composables/features/useFeatureUses", () => ({
-  useFeatureUses: () => ({ spend, payable: () => payable() }),
+  useFeatureUses: () => ({ spend, payable: () => payable(), pools }),
 }));
 vi.mock("@/composables/features/useSpendFeatureSpellSlot", () => ({ useSpendFeatureSpellSlot: () => ({ mutateAsync: spendSlot }) }));
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendRoll }) }));
@@ -76,7 +76,7 @@ describe("DamageRiderPicker", () => {
     spend.mockClear(); spendSlot.mockClear(); sendRoll.mockClear(); toastError.mockClear(); promptRoll.mockReset();
     payable.mockReturnValue(true);
     promptRoll.mockResolvedValue({ total: 20, modifier: 3, label: "x", breakdown: [], isCrit: false, isFumble: false });
-    offered.value = [{ featureId: "rogue", rider: sneak, dice: "3d6" }];
+    offered.value = [{ featureId: "rogue", rider: sneak, dice: "3d6", classLevel: 5 }];
   });
 
   it("lists the offered riders with their dice and a once-per-turn hint", () => {
@@ -102,7 +102,7 @@ describe("DamageRiderPicker", () => {
   });
 
   it("starts a toggle rider such as Rage ticked and adds its flat bonus to the modifier", async () => {
-    offered.value = [{ featureId: "barb", rider: rage, dice: "+2" }];
+    offered.value = [{ featureId: "barb", rider: rage, dice: "+2", classLevel: 5 }];
     const w = mount(DamageRiderPicker, { props });
     expect((w.get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true);
     await w.findAll("button").find(b => b.text().startsWith("Roll"))!.trigger("click");
@@ -111,7 +111,7 @@ describe("DamageRiderPicker", () => {
   });
 
   it("spends a rider's use after the roll is made", async () => {
-    offered.value = [{ featureId: "monk", rider: stunning, dice: "1d4" }];
+    offered.value = [{ featureId: "monk", rider: stunning, dice: "1d4", classLevel: 5 }];
     const w = mount(DamageRiderPicker, { props });
     await w.findAll('input[type="checkbox"]')[0].setValue(true);
     await w.findAll("button").find(b => b.text().startsWith("Roll"))!.trigger("click");
@@ -121,7 +121,7 @@ describe("DamageRiderPicker", () => {
 
   it("spends nothing when the dice prompt is cancelled", async () => {
     promptRoll.mockResolvedValue(null);
-    offered.value = [{ featureId: "monk", rider: stunning, dice: "1d4" }];
+    offered.value = [{ featureId: "monk", rider: stunning, dice: "1d4", classLevel: 5 }];
     const w = mount(DamageRiderPicker, { props });
     await w.findAll('input[type="checkbox"]')[0].setValue(true);
     await w.findAll("button").find(b => b.text().startsWith("Roll"))!.trigger("click");
@@ -132,14 +132,38 @@ describe("DamageRiderPicker", () => {
 
   it("refuses a rider it cannot pay for", () => {
     payable.mockReturnValue(false);
-    offered.value = [{ featureId: "monk", rider: stunning, dice: "1d4" }];
+    offered.value = [{ featureId: "monk", rider: stunning, dice: "1d4", classLevel: 5 }];
     const w = mount(DamageRiderPicker, { props });
     expect(w.text()).toContain("No Ki left");
     expect((w.get('input[type="checkbox"]').element as HTMLInputElement).disabled).toBe(true);
   });
 
+  describe("a flat rider", () => {
+    const aura: DamageRider = {
+      label: "Aura of Loathing", dice: { kind: "flat", add: [{ kind: "ability", ability: "cha" }], min: 1 },
+      applies_to: "weapon", once_per_turn: false,
+    };
+    const rollButton = (w: ReturnType<typeof mount>) => w.findAll("button").find(b => b.text().startsWith("Roll"))!;
+
+    it("adds the character's modifier as a flat bonus, never doubled on a critical hit", async () => {
+      offered.value = [{ featureId: "pal", rider: aura, dice: null, classLevel: 5 }];
+      const w = mount(DamageRiderPicker, { props: { ...props, defaultCritical: true, member: { ...props.member, cha: 18 } } });
+      expect(w.text()).toContain("Aura of Loathing +4");
+      await w.findAll('input[type="checkbox"]')[0].setValue(true);
+      await rollButton(w).trigger("click");
+      await flushPromises();
+      expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ counts: { 8: 2 }, modifier: 7 }));
+    });
+
+    it("floors the bonus at its minimum", async () => {
+      offered.value = [{ featureId: "pal", rider: aura, dice: null, classLevel: 5 }];
+      const w = mount(DamageRiderPicker, { props: { ...props, member: { ...props.member, cha: 8 } } });
+      expect(w.text()).toContain("Aura of Loathing +1");
+    });
+  });
+
   describe("a spell-slot rider", () => {
-    beforeEach(() => { offered.value = [{ featureId: "pal", rider: smite, dice: null }]; });
+    beforeEach(() => { offered.value = [{ featureId: "pal", rider: smite, dice: null, classLevel: 5 }]; });
 
     async function tick(w: ReturnType<typeof mount>) {
       await w.findAll('input[type="checkbox"]')[0].setValue(true);

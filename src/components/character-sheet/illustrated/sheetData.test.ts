@@ -169,6 +169,7 @@ const DEFINITIONS: SheetClassInput["definitions"] = {
     { id: "cleric", hit_die: 8, prepared_ability: "wis" },
   ],
   custom: [{ id: "homebrew", hit_die: 20, prepared_ability: "cha" }],
+  subclasses: [],
 };
 
 const input = (...rows: CharacterClass[]): SheetClassInput => ({ rows, definitions: DEFINITIONS });

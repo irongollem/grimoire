@@ -104,6 +104,10 @@ export function subclassDraftFromAi(ai: SubclassAiResult, ctx: SubclassDraftCont
     expanded_spell_variants: {},
     expanded_spells: {},
     hp_per_level: hp !== null && hp >= 1 && hp <= 2 ? hp : null,
+    // The generator writes features and spells; an archetype's own casting is set by hand.
+    spellcasting: null,
+    image_url: null,
+    focal_point: null,
     ai_provenance: ai.ai_provenance ?? null,
   };
 

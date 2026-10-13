@@ -1,7 +1,7 @@
 import type { AbilityKey } from "@/rules/characterCreation";
 import type { ClassFeature } from "@/types/feature.types";
 import type { PartyMember } from "@/types/party.types";
-import type { Activation, DamageRider, FeatureMechanics, Recharge, UsesCost } from "./mechanics.types";
+import type { Activation, DamageRider, FeatureEffect, FeatureMechanics, Recharge, UsesCost } from "./mechanics.types";
 import { parseMechanics } from "./mechanics";
 import { ridersFor, riderDice, scalingAt, usesMaxAt, rechargeAt, type AttackShape } from "./resolve";
 
@@ -224,6 +224,14 @@ export interface ResourcePool {
   sources: string[];
 }
 
+/**
+ * What a pool is called on the sheet. A key the character has no pool for
+ * (a cost no feature of theirs provides) reads as words, never as a raw key.
+ */
+export function poolLabel(pools: readonly ResourcePool[], key: string): string {
+  return pools.find((p) => p.key === key)?.label ?? key.replace(/_/g, " ");
+}
+
 export interface PoolContext {
   proficiencyBonus: number;
   abilityScores: Record<AbilityKey, number>;
@@ -337,9 +345,16 @@ export interface ActionEntry {
   spends: UsesCost | null;
   toggleKey: string | null;
   isSubAction: boolean;
+  /** What rolling it does, or null when it only spends or switches something. */
+  effect: FeatureEffect | null;
+  /** The level the effect's dice read: the granting class's, or the character's for a feat. */
+  effectLevel: number;
+  /** The granting class, whose spell save DC and attack a "spell" effect uses; null for a feat. */
+  className: string | null;
 }
 
-export function actionsByActivation(granted: GrantedFeature[]): Record<Activation, ActionEntry[]> {
+/** `characterLevel` is the level a feat's effect reads; a class feature reads its granting class's. */
+export function actionsByActivation(granted: GrantedFeature[], characterLevel: number): Record<Activation, ActionEntry[]> {
   const result: Record<Activation, ActionEntry[]> = { action: [], bonus_action: [], reaction: [], special: [] };
   // A feature gained twice (a feat taken again, a key in class and subclass) is one thing to do.
   const seen = new Set<string>();
@@ -347,20 +362,32 @@ export function actionsByActivation(granted: GrantedFeature[]): Record<Activatio
     if (seen.has(g.feature.id)) continue;
     seen.add(g.feature.id);
     const m = g.mechanics;
-    const spends = m.spends ?? m.toggle?.spends;
+    // A feature with uses of its own spends one each time it is used, through
+    // itself or any of its sub-actions, unless it names another cost: Action
+    // Surge, Second Wind, Tempest's Rebuke. A pool (Lay on Hands, sorcery
+    // points) is spent in chosen amounts, so it always names its costs.
+    const ownUse: UsesCost | undefined = m.uses && !m.uses.pool ? { key: m.uses.key, amount: 1 } : undefined;
+    const spends = m.spends ?? m.toggle?.spends ?? ((m.actions?.length ?? 0) > 0 ? undefined : ownUse);
     // A feature that only groups its sub-actions (Cunning Action: Dash,
     // Disengage, Hide) is not a thing to do of its own: listing it beside them
     // says the same thing twice. One that spends or switches something is.
-    const onlyGroups = (m.actions?.length ?? 0) > 0 && !spends && !m.toggle;
-    if (m.activation && !onlyGroups) {
-      result[m.activation].push({
+    const onlyGroups = (m.actions?.length ?? 0) > 0 && !spends && !m.toggle && !m.effect;
+    const effectLevel = levelOf(g, characterLevel);
+    const className = g.grant.kind === "feat" ? null : g.grant.className;
+    // A feature that rolls something but names no action is still something to do: "special".
+    const activation = m.activation ?? (m.effect ? "special" : undefined);
+    if (activation && !onlyGroups) {
+      result[activation].push({
         featureId: g.feature.id,
         featureName: g.feature.name,
         name: g.feature.name,
-        activation: m.activation,
+        activation,
         spends: spends ? { key: spends.key, amount: spends.amount } : null,
         toggleKey: m.toggle ? m.toggle.key : null,
         isSubAction: false,
+        effect: m.effect ?? null,
+        effectLevel,
+        className,
       });
     }
     for (const sub of m.actions ?? []) {
@@ -369,9 +396,12 @@ export function actionsByActivation(granted: GrantedFeature[]): Record<Activatio
         featureName: g.feature.name,
         name: sub.name,
         activation: sub.activation,
-        spends: sub.spends ? { key: sub.spends.key, amount: sub.spends.amount } : null,
+        spends: sub.spends ? { key: sub.spends.key, amount: sub.spends.amount } : (ownUse ?? null),
         toggleKey: null,
         isSubAction: true,
+        effect: sub.effect ?? null,
+        effectLevel,
+        className,
       });
     }
   }
@@ -392,7 +422,10 @@ export function activeToggles(classChoices: Record<string, unknown>): Set<string
 export interface OfferedRider {
   featureId: string;
   rider: DamageRider;
+  /** The dice or flat expression to add; null for a flat rider (needs the character, see `riderFlatValue`) or when unavailable at this level/slot. */
   dice: string | null;
+  /** Level in the granting class, which a flat rider's "class level" reads; null for a feat (the character's total level applies). */
+  classLevel: number | null;
 }
 
 export function damageRidersFor(
@@ -407,7 +440,12 @@ export function damageRidersFor(
     if (seen.has(g.feature.id) || !g.mechanics.riders) continue;
     seen.add(g.feature.id);
     for (const rider of ridersFor(g.mechanics.riders, attack, toggles)) {
-      offered.push({ featureId: g.feature.id, rider, dice: riderDice(rider, { scalingValue: g.scalingValue, slotLevel }) });
+      offered.push({
+        featureId: g.feature.id,
+        rider,
+        dice: riderDice(rider, { scalingValue: g.scalingValue, slotLevel }),
+        classLevel: g.grant.kind === "feat" ? null : g.grant.classLevel,
+      });
     }
   }
   return offered;

@@ -7,8 +7,9 @@ import type { AbilityKey } from "@/rules/characterCreation";
 import { classResourcesChanged, type StoredClassResources } from "@/rules/features/characterFeatures";
 import { revertAbilityScoreIncreases, revertLevelChoices, type LevelChoiceRecord } from "@/rules/features/levelUpChoices";
 import type { CharacterClass } from "@/types/multiclass.types";
-import { getMulticlassSpellSlots } from "@/types/spell.types";
-import { reconcileSpellSlotUsage } from "@/rules/spellSlots";
+import { getMulticlassSpellSlots, type CasterClassEntry } from "@/types/spell.types";
+import { reconcileSpellSlotUsage, spellSlotsFromProgression } from "@/rules/spellSlots";
+import type { EffectiveCasting } from "@/rules/subclassCasting";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { LevelChoiceEntry, PartyMember, SpellSlotEntry } from "@/types/party.types";
 import { applyMasteryChanges, applySkillChanges } from "./levelPicks";
@@ -25,8 +26,12 @@ export interface BuildDeLevelInput {
   classRow: CharacterClass;
   characterClasses: CharacterClass[];
   ruleset: RulesetKey;
-  /** The class's own slot table, used when it is the only class left (covers custom casters). */
-  classSlotTable: number[][] | null;
+  /**
+   * What a class row casts with (`castingFor` over its pinned definitions).
+   * `withSubclass` is false for the row whose subclass this de-level clears, so
+   * an Eldritch Knight taken back below its subclass level loses its slots.
+   */
+  rowCasting: (row: CharacterClass, withSubclass: boolean) => EffectiveCasting | null;
   /** `class_resources` of the lower state, from the projected pools. */
   classResources: StoredClassResources;
 }
@@ -98,15 +103,26 @@ export function buildDeLevelPayload(input: BuildDeLevelInput): DeLevelPayload {
   // Spell slots — recompute over the POST-de-level class list, not just the
   // de-leveled class. A Cleric 5 / Wizard 1 removing the Wizard dip must keep
   // the Cleric's slots.
-  const postClasses = characterClasses
-    .map((c) => ({ class_name: c.class_name, levels: c.id === classRow.id ? newClassLevel : c.levels }))
+  const clearsSubclass = !!entry.subclass;
+  const post = characterClasses
+    .map((c) => ({
+      levels: c.id === classRow.id ? newClassLevel : c.levels,
+      casting: input.rowCasting(c, !(c.id === classRow.id && clearsSubclass)),
+      class_name: c.class_name,
+    }))
     .filter((c) => c.levels > 0);
   let rawSlots: SpellSlotEntry[] = [];
-  if (postClasses.length === 1 && postClasses[0].class_name === classRow.class_name && input.classSlotTable) {
-    const row = input.classSlotTable[Math.min(postClasses[0].levels, 20) - 1];
-    if (row) rawSlots = row.map((max, i) => ({ level: i + 1, max, used: 0 })).filter((s) => s.max > 0);
-  } else if (postClasses.length > 0) {
-    rawSlots = getMulticlassSpellSlots(postClasses, input.ruleset);
+  if (post.length === 1) {
+    // The one class left casts from its class table, or its subclass's.
+    const [only] = post;
+    rawSlots = spellSlotsFromProgression(only.casting?.spellSlots, only.levels, only.casting?.slotRecovery ?? "long");
+  } else if (post.length > 1) {
+    const list: CasterClassEntry[] = post.map((c) => ({
+      class_name: c.class_name,
+      levels: c.levels,
+      ...(c.casting?.source === "subclass" ? { category: "third" as const } : {}),
+    }));
+    rawSlots = getMulticlassSpellSlots(list, input.ruleset);
   }
   // Usage carries over per level AND pool (a pact slot and a spellcasting slot
   // can share a level), clamped to the new max; temporary and feature slots stay.

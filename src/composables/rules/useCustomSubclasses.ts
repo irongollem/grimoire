@@ -6,12 +6,24 @@ import type {
   CustomSubclassInsert,
   CustomSubclassUpdate,
 } from "@/levelup/customTypes";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "custom_subclasses";
+
+/**
+ * Whether the viewer may edit or delete an archetype: their own, or, for an
+ * admin, the library's (user_id null). The policies on custom_subclasses say the
+ * same; this keeps the sheet from offering what the database would refuse
+ * (a DM reading a library archetype, a player reading their DM's).
+ */
+export function canEditSubclass(sub: Pick<CustomSubclass, "user_id">, viewer: { userId: string | null; isAdmin: boolean }): boolean {
+  if (sub.user_id === null) return viewer.isAdmin;
+  return viewer.userId !== null && sub.user_id === viewer.userId;
+}
 
 async function fetchAll(ruleset: RulesetKey): Promise<CustomSubclass[]> {
   const { data, error } = await supabase
@@ -75,9 +87,10 @@ async function updateCustomSubclass(
   return data as CustomSubclass;
 }
 
-async function deleteCustomSubclass(id: string): Promise<void> {
-  const { error } = await supabase.from("custom_subclasses").delete().eq("id", id);
+async function deleteCustomSubclass(sub: Pick<CustomSubclass, "id" | "image_url">): Promise<void> {
+  const { error } = await supabase.from("custom_subclasses").delete().eq("id", sub.id);
   if (error) throw error;
+  await deleteUnreferencedByPublicUrl({ urls: [sub.image_url] });
 }
 
 export function useAllCustomSubclasses() {
@@ -145,7 +158,7 @@ export function useDeleteCustomSubclass() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteCustomSubclass,
-    onSuccess: (_data, id) => {
+    onSuccess: (_data, { id }) => {
       queryClient.removeQueries({ queryKey: [QUERY_KEY, id] });
       void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     },

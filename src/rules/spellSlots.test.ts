@@ -77,6 +77,7 @@ describe("deriveEffectiveSpellSlots", () => {
       [],
       "2014",
       () => undefined,
+      () => null,
     )).toEqual([]);
   });
 
@@ -89,6 +90,7 @@ describe("deriveEffectiveSpellSlots", () => {
       [],
       "2014",
       () => undefined,
+      () => null,
     )).toEqual([{ level: 1, max: 1, used: 0, pool: "temporary" }]);
   });
 
@@ -102,6 +104,7 @@ describe("deriveEffectiveSpellSlots", () => {
       classEntries,
       "2014",
       () => undefined,
+      () => null,
     )).toEqual([
       { level: 1, max: 4, used: 2, pool: "spellcasting", recovery: "long" },
       { level: 2, max: 2, used: 0, pool: "spellcasting", recovery: "long" },
@@ -116,7 +119,8 @@ describe("deriveEffectiveSpellSlots", () => {
       { spell_slots: [{ level: 1, max: 2, used: 1, pool: "spellcasting" }] },
       classEntries,
       "2014",
-      () => ({ spell_slots: [[2], [3]], slot_recovery: "long" }),
+      () => ({ caster_type: "known", spell_slots: [[2], [3]], slot_recovery: "long" }),
+      () => null,
     )).toEqual([{ level: 1, max: 3, used: 1, pool: "spellcasting", recovery: "long" }]);
   });
 });
@@ -129,7 +133,8 @@ describe("a new level-1 caster", () => {
       { spell_slots: null },
       [{ class_name: "Cleric", levels: 1 }],
       "2014",
-      () => ({ spell_slots: clericTable }),
+      () => ({ caster_type: "prepared", spell_slots: clericTable }),
+      () => null,
     );
     expect(slots.map((s) => [s.level, s.max, s.used])).toEqual([[1, 2, 0]]);
   });

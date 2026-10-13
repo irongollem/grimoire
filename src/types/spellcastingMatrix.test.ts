@@ -41,8 +41,10 @@ describe("2024 preparation matrix", () => {
     }
   });
 
-  it("defines a caster category for every supported caster", () => {
-    for (const className of SPELL_CLASSES) {
+  it("defines a caster category for every class that casts on its own", () => {
+    // "Fighter (Eldritch Knight)" and "Rogue (Arcane Trickster)" are spell tags, not classes:
+    // a third caster is its subclass's, resolved by castingFor.
+    for (const className of SPELL_CLASSES.filter((name) => !name.includes("("))) {
       expect(getCasterCategory(className)).not.toBe("none");
     }
   });

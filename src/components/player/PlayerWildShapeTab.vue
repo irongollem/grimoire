@@ -316,9 +316,9 @@ async function doRevertWildshape() {
 // ── Spell slots (Combat Wild Shape, Wild Resurgence) ──────────────────────────
 // Same derivation as the Features tab, so the slots offered here are the ones
 // the character sees there; the server spends from them when none are stored.
-const { characterClasses, classDefinitionFor } = useClassDefinitionLookup(computed(() => member));
+const { characterClasses, classDefinitionFor, subclassDefinitionFor } = useClassDefinitionLookup(computed(() => member));
 const effectiveSlots = computed<SpellSlotEntry[]>(() =>
-  deriveEffectiveSpellSlots(member, characterClasses.value ?? [], ruleset.value, classDefinitionFor),
+  deriveEffectiveSpellSlots(member, characterClasses.value ?? [], ruleset.value, classDefinitionFor, subclassDefinitionFor),
 );
 const spendableSlots = computed(() => effectiveSlots.value.filter((slot) => slot.used < slot.max));
 

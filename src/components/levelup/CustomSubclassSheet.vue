@@ -1,7 +1,12 @@
 <template>
   <div class="max-w-2xl mx-auto space-y-6">
     <!-- Action bar -->
-    <div class="flex items-center justify-end gap-2">
+    <div v-if="!editable" class="flex items-center gap-2">
+      <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+        {{ sub.user_id === null ? "Library · read only" : "Read only" }}
+      </span>
+    </div>
+    <div v-else class="flex items-center justify-end gap-2">
       <AppButton variant="destructive" size="md" :icon="IconDelete" label="Delete" @click="handleDelete" />
       <AppButton
         variant="primary"
@@ -17,7 +22,21 @@
       <div class="px-3 py-2 border-b border-border bg-muted/20">
         <span class="text-label-lg font-semibold text-muted-foreground">Identity</span>
       </div>
-      <div class="p-4 flex flex-col gap-2">
+      <div class="p-4 flex gap-4 items-start">
+        <div
+          v-if="sub.image_url"
+          class="card-plate relative shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted"
+        >
+          <FocalImage
+            :src="sub.image_url"
+            :alt="sub.subclass_name"
+            format="portrait"
+            :focal-point="sub.focal_point"
+            :lightbox="true"
+            class="w-full h-full"
+          />
+        </div>
+        <div class="flex flex-col gap-2 min-w-0 flex-1">
         <div class="flex flex-wrap gap-2 items-center">
           <span class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
             {{ sub.class_name }}
@@ -30,6 +49,7 @@
           </span>
         </div>
         <RichTextViewer v-if="sub.description" :content="sub.description" />
+        </div>
       </div>
     </div>
 
@@ -48,6 +68,40 @@
               class="text-label bg-primary/10 text-primary rounded px-2 py-0.5"
             >{{ featureNameById(fid) }}</span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spellcasting of its own -->
+    <div v-if="sub.spellcasting" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-3 py-2 border-b border-border bg-muted/20">
+        <span class="text-label-lg font-semibold text-muted-foreground">Spellcasting</span>
+      </div>
+      <div class="p-4 flex flex-col gap-3">
+        <div class="flex flex-wrap gap-2">
+          <span class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">{{ castingAbilityLabel }}</span>
+          <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">{{ sub.spellcasting.list }} spell list</span>
+          <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">{{ castingTypeLabel }}</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-center border-collapse">
+            <thead>
+              <tr>
+                <th class="text-label text-muted-foreground pb-1.5 pr-2 text-left w-8">LVL</th>
+                <th v-for="sl in castingColumns" :key="sl" class="text-label text-muted-foreground pb-1.5">{{ sl }}</th>
+                <th class="text-label text-muted-foreground pb-1.5 pl-2">KNOWN</th>
+                <th class="text-label text-muted-foreground pb-1.5 pl-2">CANTRIPS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in castingRows" :key="row.level" class="border-t border-border/40">
+                <td class="text-label text-primary pr-2 text-left py-0.5">{{ row.level }}</td>
+                <td v-for="(n, i) in row.slots" :key="i" class="text-body py-0.5">{{ n }}</td>
+                <td class="text-body py-0.5 pl-2">{{ row.known }}</td>
+                <td class="text-body py-0.5 pl-2">{{ row.cantrips }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -81,11 +135,14 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteCustomSubclass } from "@/composables/rules/useCustomSubclasses";
+import { canEditSubclass, useDeleteCustomSubclass } from "@/composables/rules/useCustomSubclasses";
+import { useAuthStore } from "@/stores/auth";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { SUBCLASS_ABILITY_OPTIONS, SUBCLASS_SLOT_COLUMNS } from "@/levelup/subclassSpellcasting";
 import type { CustomSubclass } from "@/levelup/customTypes";
 
 const props = defineProps<{ sub: CustomSubclass }>();
@@ -93,6 +150,8 @@ const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
 const deleteMut = useDeleteCustomSubclass();
+const auth = useAuthStore();
+const editable = computed(() => canEditSubclass(props.sub, { userId: auth.user?.id ?? null, isAdmin: auth.isAppAdmin }));
 
 const { data: allFeatures } = useAllFeatures();
 const variantMaps = computed(() => Object.entries(props.sub.spell_variants));
@@ -115,6 +174,29 @@ function spellNameById(id: string): string {
 const populatedLevels = computed<number[]>(() =>
   Object.keys(props.sub.features).map(Number).sort((a, b) => a - b),
 );
+
+const castingAbilityLabel = computed(() =>
+  SUBCLASS_ABILITY_OPTIONS.find(a => a.value === props.sub.spellcasting?.ability)?.label ?? "",
+);
+const castingTypeLabel = computed(() => {
+  const t = props.sub.spellcasting?.caster_type;
+  return t === "known" ? "Known caster" : t === "prepared" ? "Prepared caster" : "Spellbook caster";
+});
+const castingColumns = computed(() => {
+  const widest = Math.max(SUBCLASS_SLOT_COLUMNS, ...(props.sub.spellcasting?.spell_slots ?? []).map(r => r.length));
+  return Array.from({ length: widest }, (_, i) => i + 1);
+});
+/** Class levels that grant anything: a row of zeros is a level the archetype has not started casting at. */
+const castingRows = computed(() => {
+  const sc = props.sub.spellcasting;
+  if (!sc) return [];
+  return Array.from({ length: 20 }, (_, i) => ({
+    level: i + 1,
+    slots: castingColumns.value.map((_, c) => sc.spell_slots[i]?.[c] ?? 0),
+    known: sc.spells_known[i] ?? 0,
+    cantrips: sc.cantrips_known[i] ?? 0,
+  })).filter(r => r.slots.some(n => n > 0) || r.known > 0 || r.cantrips > 0);
+});
 
 function sortedLevels(map: Record<string, string[]>): number[] {
   return Object.keys(map).map(Number).sort((a, b) => a - b);
@@ -157,6 +239,6 @@ async function handleDelete() {
   });
   if (!ok) return;
   router.push("/codex/archetypes");
-  await deleteMut.mutateAsync(props.sub.id);
+  await deleteMut.mutateAsync(props.sub);
 }
 </script>

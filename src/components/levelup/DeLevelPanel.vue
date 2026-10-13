@@ -91,7 +91,7 @@ const error = ref("");
 provideCharacterRuleset(() => props.member);
 const queryClient = useQueryClient();
 
-const { entry: lastChoice, classRow, ruleset, classSlotTable, classResources, isLoading, notReadyReason, featuresById } =
+const { entry: lastChoice, classRow, ruleset, rowCasting, classResources, isLoading, notReadyReason, featuresById } =
   useDeLevel(() => props.member, toRef(props, "characterClasses"));
 
 // Everything the de-level writes, built the moment it is shown so the preview and the write cannot differ.
@@ -103,7 +103,7 @@ const payload = computed(() => {
     classRow: classRow.value,
     characterClasses: props.characterClasses,
     ruleset: ruleset.value,
-    classSlotTable: classSlotTable.value,
+    rowCasting,
     classResources: classResources.value,
   });
 });

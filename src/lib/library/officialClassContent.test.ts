@@ -173,6 +173,8 @@ describe("planOfficialClassContent", () => {
     expect(result.subclasses).toHaveLength(1);
     const id = officialIdentity("srd-2024", "srd-2024_fighter_champion_crit", "2024");
     expect(result.subclasses[0].featureMap).toEqual({ "3": [id], "15": [id] });
+    expect(result.subclasses[0].insert.spellcasting).toBeNull();
+    expect(result.subclasses[0].update).not.toHaveProperty("spellcasting");
     expect(result.subclasses[0].insert).toMatchObject({
       class_name: "Fighter",
       subclass_name: "Champion",

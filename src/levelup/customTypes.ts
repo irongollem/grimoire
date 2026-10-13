@@ -11,9 +11,28 @@ export type PreparedAbility = "wis" | "int" | "cha";
 /** Feature UUIDs grouped by level: { "3": ["<uuid>", "<uuid>"], "7": ["<uuid>"] } */
 export type CustomFeatures = Record<string, string[]>;
 
+/**
+ * A subclass's own spellcasting (`custom_subclasses.spellcasting`), in the
+ * shape a class carries its own: every table is indexed by CLASS level - 1 and
+ * has 20 rows. The server reads the same jsonb (`private.subclass_casting`).
+ */
+export interface SubclassSpellcasting {
+  /** The casting ability: spell save DC, spell attack, and the prepared count of a prepared caster. */
+  ability: PreparedAbility;
+  /** The class spell list the spells come from, as spells name it in `classes` ("Wizard"). */
+  list: string;
+  caster_type: Exclude<CasterType, "none">;
+  /** Slots per spell level at each class level ([[0,0,0,0], ..., [2,0,0,0], ...]). */
+  spell_slots: number[][];
+  /** Levelled spells known at each class level (a known caster). */
+  spells_known: number[];
+  cantrips_known: number[];
+}
+
 export interface CustomSubclass extends VersionedContentMetadata {
   id: string;
-  user_id: string;
+  /** The owner; null for the library's official archetypes. */
+  user_id: string | null;
   campaign_id: string | null;
   class_name: string;
   subclass_name: string;
@@ -52,6 +71,16 @@ export interface CustomSubclass extends VersionedContentMetadata {
   expanded_spell_variants: Record<string, CustomFeatures>;
   /** Extra HP gained per level in this class, on top of the hit die roll (e.g. Draconic Resilience = 1). */
   hp_per_level: number | null;
+  /**
+   * Spellcasting the subclass gives a class that has none of its own: the
+   * third casters (Eldritch Knight, Arcane Trickster, ToH Soulspy). Null for
+   * every subclass of a class that casts, and for one that adds no casting.
+   * A class row casts from its class when the class casts, else from this.
+   */
+  spellcasting: SubclassSpellcasting | null;
+  /** Picture in the `class-images` bucket, and where its crop is centred. */
+  image_url: string | null;
+  focal_point: { x: number; y: number } | null;
   /** Set when the row came from the AI generator; flipped by `markEdited` on a content edit. */
   ai_provenance?: AiProvenance | null;
   created_at: string;

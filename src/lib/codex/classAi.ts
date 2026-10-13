@@ -1,6 +1,6 @@
 import type { AiProvenance } from "@/ai/provenance";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
-import { getDefaultSpellSlots, type CasterType } from "@/types/spell.types";
+import { getDefaultSpellSlots, THIRD_CASTER_SLOTS, type CasterType } from "@/types/spell.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type {
   CustomClassInsert,
@@ -74,10 +74,9 @@ const MAX_FEATURES = 60;
 const MAX_PROFICIENCIES = 12;
 
 /** Published classes are modelled on these when slots are derived from the progression. */
-const SLOT_TEMPLATE_CLASS: Record<Exclude<CasterProgression, "none">, string> = {
+const SLOT_TEMPLATE_CLASS: Record<Exclude<CasterProgression, "none" | "third">, string> = {
   full: "Wizard",
   half: "Paladin",
-  third: "Fighter (Eldritch Knight)",
   pact: "Warlock",
 };
 
@@ -122,6 +121,7 @@ export function subclassLevelFor(raw: unknown, ruleset: RulesetKey): number {
 /** The slot table, 20 levels by 9 spell levels, read off the published caster tables. */
 export function slotGridFor(progression: CasterProgression, ruleset: RulesetKey): number[][] | null {
   if (progression === "none") return null;
+  if (progression === "third") return THIRD_CASTER_SLOTS.map(row => [...row, 0, 0, 0, 0, 0]);
   const template = SLOT_TEMPLATE_CLASS[progression];
   return Array.from({ length: 20 }, (_, i) => {
     const row = Array<number>(9).fill(0);

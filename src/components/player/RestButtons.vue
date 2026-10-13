@@ -46,6 +46,7 @@ import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/par
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
+import { useAllCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import type { SpellSlotEntry, PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { useRuleset } from "@/composables/rules/useRuleset";
 
@@ -60,6 +61,7 @@ const { ruleset } = useRuleset();
 const { data: characterClasses } = useCharacterClasses(computed(() => props.member.id));
 const { data: systemClasses } = useAllSystemClasses();
 const { data: customClasses } = useAllCustomClasses();
+const { data: customSubclasses } = useAllCustomSubclasses();
 
 // Stored slots first, since they carry what is spent. Without any, derive the
 // maximums from the class rows (none for a classless or non-casting character).
@@ -68,7 +70,7 @@ const effectiveSpellSlots = computed<SpellSlotEntry[]>(() => {
   return deriveEffectiveSpellSlots(props.member, characterClasses.value ?? [], ruleset.value, (row) => {
     const definitions = row.class_definition_kind === "custom" ? customClasses.value : systemClasses.value;
     return definitions?.find((c) => c.id === row.class_definition_id);
-  });
+  }, (row) => (customSubclasses.value ?? []).find((s) => s.id === row.subclass_definition_id));
 });
 
 async function onRestConfirm(update: PartyMemberUpdate) {

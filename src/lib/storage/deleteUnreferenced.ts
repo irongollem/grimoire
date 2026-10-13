@@ -58,6 +58,7 @@ export const IMAGE_REFERENCES = [
   ["spells", ["image_url"]],
   ["species", ["image_url"]],
   ["custom_classes", ["image_url"]],
+  ["custom_subclasses", ["image_url"]],
   ["system_classes", ["image_url"]],
   ["backgrounds", ["image_url"]],
   ["puzzle_rooms", ["image_url"]],

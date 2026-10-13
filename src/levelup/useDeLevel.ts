@@ -13,6 +13,7 @@ import {
 import { revertAbilityScoreIncreases, revertLevelChoices } from "@/rules/features/levelUpChoices";
 import type { CharacterClass } from "@/types/multiclass.types";
 import type { LevelChoiceEntry, PartyMember } from "@/types/party.types";
+import { castingFor } from "@/rules/subclassCasting";
 import { proficiencyBonusAt } from "./buildDeLevelPayload";
 import { lowerClasses, type ClassRowInfo } from "./levelUpProjection";
 
@@ -43,13 +44,6 @@ export function useDeLevel(member: () => PartyMember, characterClasses: Ref<Char
 
   // An entry whose class row is gone has nothing to take a level from.
   const entry = computed(() => (classRow.value === null ? null : recorded.value));
-
-  const classDef = computed(() => {
-    const row = classRow.value;
-    if (row === null) return null;
-    const list = row.class_definition_kind === "system" ? systemClasses.value : customClasses.value;
-    return (list ?? []).find((d) => d.id === row.class_definition_id) ?? null;
-  });
 
   const rows = computed<ClassRowInfo[]>(() =>
     characterClasses.value.map((row) => {
@@ -114,7 +108,15 @@ export function useDeLevel(member: () => PartyMember, characterClasses: Ref<Char
     entry,
     classRow,
     ruleset,
-    classSlotTable: computed(() => classDef.value?.spell_slots ?? null),
+    /** What a class row casts with, leaving its subclass out when this de-level clears it. */
+    rowCasting: (row: CharacterClass, withSubclass: boolean) => {
+      const defs = row.class_definition_kind === "system" ? systemClasses.value : customClasses.value;
+      const def = (defs ?? []).find((d) => d.id === row.class_definition_id);
+      const sub = withSubclass && row.subclass_definition_id
+        ? (subclasses.value ?? []).find((d) => d.id === row.subclass_definition_id)
+        : undefined;
+      return castingFor(def, sub);
+    },
     classResources,
     // Resources are read off the lower state's definitions and features, so wait until they are in.
     isLoading,

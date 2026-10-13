@@ -127,6 +127,7 @@ import {
   useUpdateCampaignMember,
 } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/rules/useCustomClasses";
+import { useAllCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
@@ -163,6 +164,7 @@ const multiclassLabel = computed(() => formatMulticlassLabel(characterClassRows.
 const multiclassTotal = computed(() => totalLevel(characterClassRows.value ?? []));
 const { data: systemClasses } = useCampaignSystemClasses();
 const { data: customClasses } = useCampaignCustomClasses();
+const { data: allSubclasses } = useAllCustomSubclasses();
 
 // Pickers offer only what the campaign permits; `allSpecies` (ungated) still
 // backs name resolution below, so a member keeps their species after the DM
@@ -389,6 +391,7 @@ function buildSlotMaxes(member: PartyMember, existing: SpellSlotEntry[] | undefi
           const definitions = row.class_definition_kind === "custom" ? customClasses.value : systemClasses.value;
           return definitions.find((c) => c.id === row.class_definition_id);
         },
+        (row) => (allSubclasses.value ?? []).find((s) => s.id === row.subclass_definition_id),
       );
   return Array.from({ length: 9 }, (_, i) => slots.find((s) => s.level === i + 1)?.max ?? 0);
 }

@@ -86,6 +86,7 @@ import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import FeatureUsesControl from "@/components/features/FeatureUsesControl.vue";
 import type { FeaturePick } from "@/components/features/featurePicks";
 import type { GrantedFeature, ResourcePool } from "@/rules/features/characterFeatures";
+import { poolLabel } from "@/rules/features/characterFeatures";
 import { costsOf } from "@/rules/features/resolve";
 import type { Activation, FeatCategory, Recharge } from "@/rules/features/mechanics.types";
 import type { Remaining } from "@/rules/features/uses";
@@ -159,14 +160,14 @@ const levelText = computed(() => {
     : `Levels ${grant.levelsGained.join(", ")}`;
 });
 
-function poolLabel(key: string): string {
-  return pools.find((p) => p.key === key)?.label ?? key.replace(/_/g, " ");
+function labelOf(key: string): string {
+  return poolLabel(pools, key);
 }
 
 const spendsText = computed(() => {
   const costs = costsOf(granted.mechanics);
   if (costs.length === 0) return null;
-  return `Spends ${costs.map((c) => `${c.amount} ${poolLabel(c.key)}`).join(", ")}`;
+  return `Spends ${costs.map((c) => `${c.amount} ${labelOf(c.key)}`).join(", ")}`;
 });
 
 /** The pool this feature's own `uses` feeds; a shared pool shows on every feature that grants it. */

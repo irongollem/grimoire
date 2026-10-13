@@ -136,7 +136,7 @@
       <PlayerLoadout :member-id="member.id" />
 
       <!-- Feature actions: Rage, Cunning Action, Second Wind… (#976) -->
-      <FeatureActionsCard :member="member" />
+      <FeatureActionsCard :member="member" @roll="emit('roll', $event)" />
 
       <!-- Equipped weapon list -->
       <div v-if="equippedWeapons.length" class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">

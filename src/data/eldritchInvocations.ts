@@ -21,14 +21,14 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Armor of Shadows",
     min_level: 2,
     description: "You can cast Mage Armor on yourself at will, without expending a spell slot or material components.",
-    grants_spell: "srd_mage_armor",
+    grants_spell: "srd_srd_mage_armor",
     spell_uses_per_day: null,
   },
   {
     name: "Beast Speech",
     min_level: 2,
     description: "You can cast Speak with Animals at will, without expending a spell slot.",
-    grants_spell: "srd_speak_with_animals",
+    grants_spell: "srd_srd_speak_with_animals",
     spell_uses_per_day: null,
   },
   {
@@ -45,7 +45,7 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Eldritch Sight",
     min_level: 2,
     description: "You can cast Detect Magic at will, without expending a spell slot.",
-    grants_spell: "srd_detect_magic",
+    grants_spell: "srd_srd_detect_magic",
     spell_uses_per_day: null,
   },
   {
@@ -63,7 +63,7 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Fiendish Vigor",
     min_level: 2,
     description: "You can cast False Life on yourself at will as a 1st-level spell, without expending a spell slot or material components.",
-    grants_spell: "srd_false_life",
+    grants_spell: "srd_srd_false_life",
     spell_uses_per_day: null,
   },
   {
@@ -75,14 +75,14 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Mask of Many Faces",
     min_level: 2,
     description: "You can cast Disguise Self at will, without expending a spell slot.",
-    grants_spell: "srd_disguise_self",
+    grants_spell: "srd_srd_disguise_self",
     spell_uses_per_day: null,
   },
   {
     name: "Misty Visions",
     min_level: 2,
     description: "You can cast Silent Image at will, without expending a spell slot or material components.",
-    grants_spell: "srd_silent_image",
+    grants_spell: "srd_srd_silent_image",
     spell_uses_per_day: null,
   },
   {
@@ -95,7 +95,7 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Thief of Five Fates",
     min_level: 2,
     description: "You can cast Bane once using a Warlock spell slot. You can't do so again until you finish a long rest.",
-    grants_spell: "srd_bane",
+    grants_spell: "srd_srd_bane",
     spell_uses_per_day: 1,
   },
   // ── Level 5+ ───────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Mire the Mind",
     min_level: 5,
     description: "You can cast Slow once using a Warlock spell slot. You can't do so again until you finish a long rest.",
-    grants_spell: "srd_slow",
+    grants_spell: "srd_srd_slow",
     spell_uses_per_day: 1,
   },
   {
@@ -115,7 +115,7 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Sign of Ill Omen",
     min_level: 5,
     description: "You can cast Bestow Curse once using a Warlock spell slot. You can't do so again until you finish a long rest.",
-    grants_spell: "srd_bestow_curse",
+    grants_spell: "srd_srd_bestow_curse",
     spell_uses_per_day: 1,
   },
   {
@@ -129,21 +129,21 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Bewitching Whispers",
     min_level: 7,
     description: "You can cast Compulsion once using a Warlock spell slot. You can't do so again until you finish a long rest.",
-    grants_spell: "srd_compulsion",
+    grants_spell: "srd_srd_compulsion",
     spell_uses_per_day: 1,
   },
   {
     name: "Dreadful Word",
     min_level: 7,
     description: "You can cast Confusion once using a Warlock spell slot. You can't do so again until you finish a long rest.",
-    grants_spell: "srd_confusion",
+    grants_spell: "srd_srd_confusion",
     spell_uses_per_day: 1,
   },
   {
     name: "Sculptor of Flesh",
     min_level: 7,
     description: "You can cast Polymorph once using a Warlock spell slot. You can't do so again until you finish a long rest.",
-    grants_spell: "srd_polymorph",
+    grants_spell: "srd_srd_polymorph",
     spell_uses_per_day: 1,
   },
   // ── Level 9+ ───────────────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Ascendant Step",
     min_level: 9,
     description: "You can cast Levitate on yourself at will, without expending a spell slot or material components.",
-    grants_spell: "srd_levitate",
+    grants_spell: "srd_srd_levitate",
     spell_uses_per_day: null,
   },
   {
@@ -163,14 +163,14 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Otherworldly Leap",
     min_level: 9,
     description: "You can cast Jump on yourself at will, without expending a spell slot or material components.",
-    grants_spell: "srd_jump",
+    grants_spell: "srd_srd_jump",
     spell_uses_per_day: null,
   },
   {
     name: "Whispers of the Grave",
     min_level: 9,
     description: "You can cast Speak with Dead at will, without expending a spell slot.",
-    grants_spell: "srd_speak_with_dead",
+    grants_spell: "srd_srd_speak_with_dead",
     spell_uses_per_day: null,
   },
   // ── Level 12+ ──────────────────────────────────────────────────────────────
@@ -190,7 +190,7 @@ export const ELDRITCH_INVOCATIONS: EldritchInvocation[] = [
     name: "Visions of Distant Realms",
     min_level: 15,
     description: "You can cast Arcane Eye at will, without expending a spell slot.",
-    grants_spell: "srd_arcane_eye",
+    grants_spell: "srd_srd_arcane_eye",
     spell_uses_per_day: null,
   },
   {

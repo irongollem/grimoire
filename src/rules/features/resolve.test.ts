@@ -6,6 +6,7 @@ import {
   rechargeAt,
   restoredAfterRest,
   ridersFor,
+  riderFlatValue,
   riderDice,
   scalingAt,
   usesMaxAt,
@@ -285,5 +286,23 @@ describe("costsOf", () => {
       { key: "ki_points", amount: 4 },
       { key: "sorcery_points", amount: 2 },
     ]);
+  });
+});
+
+describe("flat riders", () => {
+  const ctx = { classLevel: 8, proficiencyBonus: 3, abilityMods: { str: 0, dex: 0, con: 0, int: 0, wis: 2, cha: -1 } };
+  const flat = (dice: Extract<DamageRider["dice"], { kind: "flat" }>): DamageRider => ({
+    label: "Aura", dice, applies_to: "weapon", once_per_turn: false,
+  });
+
+  it("is worked out from the character and floored at its minimum", () => {
+    expect(riderFlatValue(flat({ kind: "flat", add: [{ kind: "ability", ability: "wis" }] }), ctx)).toBe(2);
+    expect(riderFlatValue(flat({ kind: "flat", add: [{ kind: "ability", ability: "cha" }], min: 1 }), ctx)).toBe(1);
+    expect(riderFlatValue(flat({ kind: "flat", add: [{ kind: "ability", ability: "wis" }, { kind: "proficiency" }, { kind: "class_level" }] }), ctx)).toBe(13);
+  });
+
+  it("is null for a rider that rolls dice, and has no dice expression of its own", () => {
+    expect(riderFlatValue({ label: "Rage", dice: { kind: "scaling" }, applies_to: "weapon", once_per_turn: false }, ctx)).toBeNull();
+    expect(riderDice(flat({ kind: "flat", add: [{ kind: "proficiency" }] }), { scalingValue: null })).toBeNull();
   });
 });

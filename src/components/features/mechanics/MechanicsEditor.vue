@@ -48,6 +48,10 @@
       </ListEditor>
     </MechSection>
 
+    <MechSection v-if="mechanics.effect" title="Rolls" hint="What the sheet rolls when the feature is used: an attack, a saving throw it forces, damage or healing." @remove="set('effect', undefined)">
+      <EffectFields :effect="mechanics.effect" @update:effect="set('effect', $event)" />
+    </MechSection>
+
     <MechSection v-if="mechanics.actions" title="Things it lets you do" hint="Each is listed under the action it takes, like Cunning Action's Dash." :removable="false">
       <ListEditor
         :items="mechanics.actions"
@@ -102,6 +106,7 @@ import type { Activation, FeatureMechanics } from "@/rules/features/mechanics.ty
 import {
   ACTIVATION_OPTIONS,
   newChoice,
+  newEffect,
   newGrants,
   newRider,
   newSubAction,
@@ -112,6 +117,7 @@ import {
 } from "./mechanicsDraft";
 import ByLevelTable from "./ByLevelTable.vue";
 import ChoiceFields from "./ChoiceFields.vue";
+import EffectFields from "./EffectFields.vue";
 import GrantsFields from "./GrantsFields.vue";
 import ListEditor from "./ListEditor.vue";
 import MechField from "./MechField.vue";
@@ -150,6 +156,7 @@ const addable = computed(() => {
   if (!mechanics.scaling) out.push({ label: "Add a level table", add: () => set("scaling", { label: "", values: { "1": "" } }) });
   if (!mechanics.toggle) out.push({ label: "Add a toggle", add: () => set("toggle", newToggle()) });
   if (!mechanics.riders) out.push({ label: "Add a damage rider", add: () => set("riders", [newRider()]) });
+  if (!mechanics.effect) out.push({ label: "Add a roll", add: () => set("effect", newEffect()) });
   if (!mechanics.actions) out.push({ label: "Add actions it allows", add: () => set("actions", [newSubAction()]) });
   if (!mechanics.choices) out.push({ label: "Add a choice", add: () => set("choices", [newChoice()]) });
   if (!mechanics.grants) out.push({ label: "Proficiencies granted", add: () => set("grants", newGrants()) });

@@ -155,7 +155,7 @@ describe("a level and its de-level", () => {
     const entry = (up.level_choices as PartyMember["level_choices"])[4];
     const down = buildDeLevelPayload({
       member: after, entry, classRow: { ...classRow, levels: 4 }, characterClasses: [{ ...classRow, levels: 4 }],
-      ruleset: "2014", classSlotTable: null, classResources: {},
+      ruleset: "2014", rowCasting: () => null, classResources: {},
     }).memberUpdate;
     const restored = { ...after, ...down } as PartyMember;
 
@@ -181,7 +181,7 @@ describe("a level and its de-level", () => {
     expect(entry.new_class_profs).toEqual(["Thieves' Tools"]);
     const rogueRow: CharacterClass = { ...classRow, id: "cc2", class_name: "Rogue", class_definition_id: "rogue-def", levels: 1, is_primary: false };
     const down = buildDeLevelPayload({
-      member: after, entry, classRow: rogueRow, characterClasses: [classRow, rogueRow], ruleset: "2014", classSlotTable: null, classResources: {},
+      member: after, entry, classRow: rogueRow, characterClasses: [classRow, rogueRow], ruleset: "2014", rowCasting: () => null, classResources: {},
     });
     expect(down.memberUpdate.tool_proficiencies).toEqual(["Smith's Tools"]);
     expect(down.classOp).toEqual({ op: "delete", id: "cc2" });

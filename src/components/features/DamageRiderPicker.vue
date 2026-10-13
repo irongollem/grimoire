@@ -54,8 +54,9 @@ import { abilityMod } from "@/rules/weaponAttack";
 import { slotPool, spellSlotKey } from "@/rules/spellSlots";
 import type { SpellSlotEntry } from "@/types/party.types";
 import type { OfferedRider } from "@/rules/features/characterFeatures";
+import { poolLabel } from "@/rules/features/characterFeatures";
 import { assembleDamage, unarmedDamageBase } from "@/rules/features/damageRoll";
-import type { AttackShape } from "@/rules/features/resolve";
+import { riderFlatValue, type AddContext, type AttackShape } from "@/rules/features/resolve";
 import type { PartyMember } from "@/types/party.types";
 
 /**
@@ -96,6 +97,7 @@ const { promptRoll } = usePromptedRoll();
 const memberRef = toRef(() => member);
 const features = useCharacterFeatures(memberRef);
 const uses = useFeatureUses(memberRef, features.pools);
+const pools = uses.pools;
 
 const spendSlot = useSpendFeatureSpellSlot();
 const { sendRoll } = useCampaignMessages();
@@ -162,21 +164,49 @@ watch(() => defaultCritical, next => { critical.value = next; });
 
 function unavailable(entry: OfferedRider): string | null {
   if (isSlotRider(entry) && chosenSlot.value === null) return "No spell slots left.";
-  if (entry.dice === null) return "No damage dice at this level.";
+  if (expressionOf(entry) === null) return "No damage dice at this level.";
   const cost = entry.rider.cost;
   if (cost?.kind === "uses" && !uses.payable({ key: cost.key, amount: cost.amount })) {
-    return `No ${poolLabel(cost.key)} left.`;
+    return `No ${labelOf(cost.key)} left.`;
   }
   return null;
 }
 
-function poolLabel(key: string): string {
-  const pool = features.pools.value.find(p => p.key === key);
-  return pool ? pool.label : key;
+function labelOf(key: string): string {
+  return poolLabel(pools.value, key);
+}
+
+/** What a flat rider reads from this character (ability modifiers, proficiency, the granting class's level). */
+const addContext = computed<AddContext>(() => ({
+  classLevel: 0,
+  proficiencyBonus: member.proficiency_bonus,
+  abilityMods: {
+    str: abilityMod(member.str),
+    dex: abilityMod(member.dex),
+    con: abilityMod(member.con),
+    int: abilityMod(member.int),
+    wis: abilityMod(member.wis),
+    cha: abilityMod(member.cha),
+  },
+}));
+
+/** The rider's flat amount for this character, or null when it is not a flat rider. */
+function flatOf(entry: OfferedRider): number | null {
+  // A feat has no granting class, so "class level" reads the character's total level.
+  const classLevel = entry.classLevel === null ? member.level : entry.classLevel;
+  return riderFlatValue(entry.rider, { ...addContext.value, classLevel });
+}
+
+/** The expression handed to the damage roll: dice, or a signed flat amount. Null when unavailable. */
+function expressionOf(entry: OfferedRider): string | null {
+  const flat = flatOf(entry);
+  if (flat === null) return entry.dice;
+  return flat >= 0 ? `+${flat}` : String(flat);
 }
 
 function riderLabel(entry: OfferedRider): string {
-  return entry.dice ? `${entry.rider.label} ${entry.dice}` : entry.rider.label;
+  const expression = expressionOf(entry);
+  return expression ? `${entry.rider.label} ${expression}` : entry.rider.label;
 }
 
 function riderHint(entry: OfferedRider): string | undefined {
@@ -184,7 +214,7 @@ function riderHint(entry: OfferedRider): string | undefined {
   if (entry.rider.once_per_turn) bits.push("Once per turn");
   if (isSlotRider(entry)) bits.push("Spends a spell slot");
   const cost = entry.rider.cost;
-  if (cost?.kind === "uses") bits.push(`Spends ${cost.amount} ${poolLabel(cost.key)}`);
+  if (cost?.kind === "uses") bits.push(`Spends ${cost.amount} ${labelOf(cost.key)}`);
   return bits.length ? bits.join(". ") : undefined;
 }
 
@@ -194,7 +224,10 @@ function assemble() {
   return assembleDamage({
     base: weaponDamage.value.base,
     modifier: weaponDamage.value.modifier,
-    riders: chosen.value.flatMap(entry => (entry.dice ? [{ dice: entry.dice }] : [])),
+    riders: chosen.value.flatMap(entry => {
+      const expression = expressionOf(entry);
+      return expression ? [{ dice: expression }] : [];
+    }),
     critical: critical.value,
   });
 }
@@ -232,7 +265,7 @@ async function roll() {
     }
     for (const [key, amount] of costs) {
       if (!uses.payable({ key, amount })) {
-        toast.error(`Not enough ${poolLabel(key)} left for those extras.`);
+        toast.error(`Not enough ${labelOf(key)} left for those extras.`);
         return;
       }
     }
@@ -262,7 +295,7 @@ async function roll() {
       try {
         await uses.spend({ key, amount });
       } catch (error) {
-        toast.error(toast.fromError(error, `The roll was made, but ${poolLabel(key)} could not be spent.`));
+        toast.error(toast.fromError(error, `The roll was made, but ${labelOf(key)} could not be spent.`));
       }
     }
     emit("rolled", result);

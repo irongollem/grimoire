@@ -19,7 +19,7 @@ for (const ruleset of ["2014", "2024"] as const) {
       );
       expect(draft.problems).toEqual([]);
       expect(draft.features.map((x) => x.level)).toEqual([3, 6, 10, 14]);
-      expect(draft.base).toMatchObject({ class_name: "Gunslinger", ruleset, campaign_id: "camp", hp_per_level: 1, granted_spells: {} });
+      expect(draft.base).toMatchObject({ class_name: "Gunslinger", ruleset, campaign_id: "camp", hp_per_level: 1, granted_spells: {}, spellcasting: null });
       const row = subclassWithFeatureIds(draft, ["a", "b", "c", "d"]);
       expect(row.features).toEqual({ "3": ["a"], "6": ["b"], "10": ["c"], "14": ["d"] });
     });

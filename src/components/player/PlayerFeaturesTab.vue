@@ -184,7 +184,7 @@ const linkedSubrace = computed(() =>
 
 // ── Features, pools and uses ──────────────────────────────────────────────────
 
-const { characterClasses, classDefinitionFor } = useClassDefinitionLookup(memberRef);
+const { characterClasses, classDefinitionFor, subclassDefinitionFor } = useClassDefinitionLookup(memberRef);
 const { granted, pools, isPending, complete, error } = useCharacterFeatures(memberRef);
 const { remaining, spend, restore, reconcile, needsReconcile, isSaving } = useFeatureUses(memberRef, pools);
 
@@ -233,6 +233,7 @@ const effectiveSlots = computed((): SpellSlotEntry[] =>
     characterClasses.value ?? [],
     ruleset.value,
     classDefinitionFor,
+    subclassDefinitionFor,
   ),
 );
 

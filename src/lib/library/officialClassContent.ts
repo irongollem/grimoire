@@ -2,6 +2,7 @@ import { formatLicenseKeys, licenseKeysFor, rulesetForDocument, slugifyKey } fro
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { Open5eV2Class, Open5eV2ClassFeature } from "@/lib/library/open5eClassImport";
 import type { Open5eV2Feat } from "@/lib/library/open5eFeatImport";
+import { OPEN5E_2014_FEATURES } from "@/rules/features/catalogue/open5e2014";
 import { SRD_2014_FEATS, SRD_2014_FEATURES } from "@/rules/features/catalogue/srd2014";
 import { SRD_2024_FEATS, SRD_2024_FEATURES } from "@/rules/features/catalogue/srd2024";
 import type { FeatCatalogue, FeatureCatalogue } from "@/rules/features/catalogue/types";
@@ -10,6 +11,7 @@ import { FEAT_CATEGORIES } from "@/rules/features/mechanics.types";
 import type { FeatCategory, FeatureMechanics } from "@/rules/features/mechanics.types";
 import type { ClassFeatureInsert } from "@/types/feature.types";
 import type { CustomClassInsert, CustomSubclassInsert, HitDie } from "@/levelup/customTypes";
+import { LIBRARY_SUBCLASS_CASTING } from "@/data/librarySubclassCasting";
 import { LIBRARY_SUBCLASS_SPELLS } from "@/data/librarySubclassSpells";
 import type { RulesetKey } from "@/types/ruleset.types";
 
@@ -53,7 +55,9 @@ export interface OfficialClassContentCatalogues {
 }
 
 const DEFAULT_CATALOGUES: OfficialClassContentCatalogues = {
-  features: { "2014": SRD_2014_FEATURES, "2024": SRD_2024_FEATURES },
+  // The 2014 catalogue is the SRD's plus the library's other Open5e archetypes;
+  // their record keys never collide (open5e2014.test.ts holds them apart).
+  features: { "2014": { ...SRD_2014_FEATURES, ...OPEN5E_2014_FEATURES }, "2024": SRD_2024_FEATURES },
   feats: { "2014": SRD_2014_FEATS, "2024": SRD_2024_FEATS },
 };
 
@@ -132,6 +136,10 @@ export function officialIdentity(
 /** The spell data of each library subclass that has any, by official identity. */
 const SUBCLASS_SPELLS = new Map(
   LIBRARY_SUBCLASS_SPELLS.map(s => [officialIdentity(s.source_document_key, s.source_record_key, s.ruleset), s]),
+);
+
+const SUBCLASS_CASTING = new Map(
+  LIBRARY_SUBCLASS_CASTING.map(c => [officialIdentity(c.source_document_key, c.source_record_key, c.ruleset), c.spellcasting]),
 );
 
 /** Open5e document key to the `content_sources.key` a table enables, or null when no hostable book matches. */
@@ -485,8 +493,12 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
         expanded_spells: spells?.expanded_spells ?? {},
         expanded_spell_variants: spells?.expanded_spell_variants ?? {},
         hp_per_level: null,
+        // A third caster arrives with its tables (librarySubclassCasting.ts).
+        spellcasting: SUBCLASS_CASTING.get(identity) ?? null,
+        image_url: null,
+        focal_point: null,
       };
-      // The spell columns and hp_per_level may be edited by hand afterwards,
+      // The spell columns, spellcasting and hp_per_level may be edited by hand afterwards,
       // so a re-import never refreshes them.
       const update: Partial<CustomSubclassInsert> = {
         class_name: insert.class_name,

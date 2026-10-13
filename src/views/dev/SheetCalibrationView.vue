@@ -416,7 +416,7 @@ const sampleClassRow: CharacterClass = {
 
 const sampleClassInput: SheetClassInput = {
   rows: [sampleClassRow],
-  definitions: { system: [{ id: "calib-wizard", hit_die: 6, prepared_ability: "int" }], custom: [] },
+  definitions: { system: [{ id: "calib-wizard", hit_die: 6, prepared_ability: "int" }], custom: [], subclasses: [] },
 };
 
 const sampleInventory: PartyInventoryItem[] = [

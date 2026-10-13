@@ -26,7 +26,7 @@ function entry(extra: Partial<LevelChoiceEntry>): LevelChoiceEntry {
 
 const run = (e: LevelChoiceEntry) =>
   buildDeLevelPayload({
-    member, entry: e, classRow, characterClasses: [classRow], ruleset: "2024", classSlotTable: null, classResources: {},
+    member, entry: e, classRow, characterClasses: [classRow], ruleset: "2024", rowCasting: () => null, classResources: {},
   });
 
 describe("buildDeLevelPayload feature grants", () => {

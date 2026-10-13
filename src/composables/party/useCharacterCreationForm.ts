@@ -12,6 +12,7 @@ import { useAddCharacterClass, useCharacterClasses } from "@/composables/party/u
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useAttachCharacter } from "@/composables/party/useCharacterPool";
 import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/rules/useCustomClasses";
+import { useAllCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { subclassChoiceDue } from "@/levelup/subclassChoice";
@@ -292,6 +293,7 @@ export function useCharacterCreationForm() {
   const { data: systemClasses, all: allSystemClasses } = useCampaignSystemClasses();
   const { data: customClasses, all: allCustomClasses } = useCampaignCustomClasses();
   const { data: memberClassRows } = useCharacterClasses(editMemberId);
+  const { data: allSubclasses } = useAllCustomSubclasses();
 
   const mergedClasses = computed(() => [
     ...systemClasses.value.map(c => ({ ...c, definition_kind: "system" as const, choice_key: `system:${c.id}` })),
@@ -508,9 +510,11 @@ export function useCharacterCreationForm() {
       const rows = memberClassRows.value;
       const system = allSystemClasses.value;
       const custom = allCustomClasses.value;
-      if (!rows || !system || !custom) return []; // still loading: the watch below seeds once they land
+      const subclasses = allSubclasses.value;
+      if (!rows || !system || !custom || !subclasses) return []; // still loading: the watch below seeds once they land
       return deriveEffectiveSpellSlots({ spell_slots: null }, rows, ruleset, (row) =>
-        (row.class_definition_kind === "custom" ? custom : system).find((c) => c.id === row.class_definition_id));
+        (row.class_definition_kind === "custom" ? custom : system).find((c) => c.id === row.class_definition_id),
+        (row) => subclasses.find((s) => s.id === row.subclass_definition_id));
     }
     const cls = selectedClass.value;
     if (!cls) return [];
@@ -519,6 +523,7 @@ export function useCharacterCreationForm() {
       [{ class_name: cls.class_name, levels: f.level, class_definition_kind: cls.definition_kind }],
       ruleset,
       () => cls,
+      () => null, // a level-1 character has not chosen a subclass yet
     );
   }
 
@@ -577,7 +582,7 @@ export function useCharacterCreationForm() {
   // edit with no stored slots is seeded when they land, unless the player has
   // already typed maxima of their own.
   watch(
-    () => [memberClassRows.value, allSystemClasses.value, allCustomClasses.value] as const,
+    () => [memberClassRows.value, allSystemClasses.value, allCustomClasses.value, allSubclasses.value] as const,
     () => {
       if (existingMember.value && !spellSlotMaxes.some((v) => v !== 0)) {
         const seeded = buildSlotMaxes();

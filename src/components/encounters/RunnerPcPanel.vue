@@ -127,6 +127,7 @@ import { useToast } from "@/composables/useToast";
 import { fetchLibraryMonsterArtEntry, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { pickSpellcastingStats } from "@/types/multiclass.types";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
+import { useAllCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 
 const { combatant, member, monsters, chatSilent = false } = defineProps<{
   combatant: RunCombatant;
@@ -164,11 +165,12 @@ const { data: playerSpells } = useCharacterSpellsWithDetails(memberId);
 const { data: characterClasses } = useCharacterClasses(memberId);
 const { data: allSystemClasses } = useAllSystemClasses();
 const { data: allCustomClasses } = useAllCustomClasses();
+const { data: allSubclasses } = useAllCustomSubclasses();
 
 const spellcastingByClass = computed(() => computeSpellcastingByClass(
   member,
   characterClasses.value ?? [],
-  { system: allSystemClasses.value ?? [], custom: allCustomClasses.value ?? [] },
+  { system: allSystemClasses.value ?? [], custom: allCustomClasses.value ?? [], subclasses: allSubclasses.value ?? [] },
   ruleset.value,
 ));
 

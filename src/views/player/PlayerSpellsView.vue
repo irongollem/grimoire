@@ -164,7 +164,7 @@
         :search="search"
         :level-filter="playerUi.playerSpellsLevelFilter"
         :school-filter="playerUi.playerSpellsSchoolFilter"
-        :class-filter="playerUi.playerSpellsClassFilter"
+        :class-filter="browseListName"
         :extra-ids="browseExpandedIds"
         :source-filter="'all'"
         :player-member-id="resolvedMemberId ?? undefined"
@@ -212,11 +212,12 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import type { Spell } from "@/types/spell.types";
-import type { CharacterClass } from "@/types/multiclass.types";
+import { pickSpellcastingStats, type CharacterClass } from "@/types/multiclass.types";
 import { SPELL_SCHOOLS, computeMaxPrepared } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
+import { castingFor, castingListName, subclassPreparedLimit } from "@/rules/subclassCasting";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
@@ -304,15 +305,23 @@ function definitionFor(entry: CharacterClass | null | undefined) {
   }
   return null;
 }
+const { data: allSubclasses } = useAllCustomSubclasses();
+const subclassOfEntry = (entry: CharacterClass | null | undefined) =>
+  (allSubclasses.value ?? []).find((s) => s.id === entry?.subclass_definition_id) ?? null;
 const classData = computed(() => definitionFor(memberClassEntry.value));
+// A row casts from its class, or from its subclass when the class does not (an Eldritch Knight).
+const memberCasting = computed(() => castingFor(classData.value, subclassOfEntry(memberClassEntry.value)));
 const memberPolicy = computed(() => memberClassEntry.value?.class_definition_kind === "custom"
   ? null
   : getSpellPreparationPolicy(memberClass.value, ruleset.value));
 // The character's class row is pinned to its definition, which always carries a caster type; no row means no class, so no casting.
-const casterType  = computed(() => memberPolicy.value?.casterType ?? classData.value?.caster_type ?? "none");
+const casterType  = computed(() => memberPolicy.value?.casterType ?? memberCasting.value?.casterType ?? "none");
 const maxPrepared = computed(() => {
   const policy = memberPolicy.value;
   if (policy) return policyValueAtLevel(policy.prepared, memberClassEntry.value?.levels ?? member.value?.level ?? 1);
+  if (memberCasting.value?.source === "subclass" && member.value) {
+    return subclassPreparedLimit(memberCasting.value, member.value, memberClassEntry.value?.levels ?? member.value.level);
+  }
   return computeMaxPrepared(member.value, classData.value, memberClass.value);
 });
 const memberName  = computed(() => member.value?.name ?? "");
@@ -332,17 +341,17 @@ const browseClassEntry = computed(() => (characterClasses.value ?? []).find(
   entry => entry.id === browseSourceClassId.value,
 ));
 // A 2014 Warlock patron's expanded list is chosen from like the class's own.
-const { data: allSubclasses } = useAllCustomSubclasses();
-const subclassOfEntry = (entry: CharacterClass | null | undefined) =>
-  (allSubclasses.value ?? []).find((s) => s.id === entry?.subclass_definition_id);
-const browseExpandedIds = computed(() => subclassExpandedSpellIds(subclassOfEntry(browseClassEntry.value), browseClassEntry.value?.subclass_variant ?? null));
+const browseExpandedIds = computed(() => subclassExpandedSpellIds(subclassOfEntry(browseClassEntry.value) ?? undefined, browseClassEntry.value?.subclass_variant ?? null));
 const browseClassData = computed(() => definitionFor(browseClassEntry.value));
+const browseCasting = computed(() => castingFor(browseClassData.value, subclassOfEntry(browseClassEntry.value)));
+// The spell list the browsed row draws from: a subclass caster's own list ("Wizard" for a Fighter), else its class.
+const browseListName = computed(() => castingListName(browseClassName.value, browseCasting.value));
 const browsePolicy = computed(() => browseClassEntry.value?.class_definition_kind === "custom"
   ? null
   : getSpellPreparationPolicy(browseClassName.value, ruleset.value));
 // The browsed class is one of the character's own rows, so it comes with its definition.
 const browseCasterType = computed(() =>
-  browsePolicy.value?.casterType ?? browseClassData.value?.caster_type ?? "none",
+  browsePolicy.value?.casterType ?? browseCasting.value?.casterType ?? "none",
 );
 
 // Total character level — sum of all class levels (multiclass), falls back to member.level
@@ -363,27 +372,18 @@ const effectiveSpellSlots = computed(() => {
     characterClasses.value ?? [],
     ruleset.value,
     (entry) => definitionFor(entry),
+    (entry) => subclassOfEntry(entry),
   );
 });
 
 // Spell attack bonus and save DC
-function abilityMod(score: number) { return Math.floor((score - 10) / 2); }
 
-const spellAttackBonus = computed(() => {
-  const m = member.value;
-  if (!m || casterType.value === "none") return null;
-  const cls = memberClass.value;
-  let mod: number;
-  if (["Cleric", "Druid", "Ranger"].includes(cls))                                            mod = abilityMod(m.wis);
-  else if (["Wizard", "Fighter (Eldritch Knight)", "Rogue (Arcane Trickster)"].includes(cls)) mod = abilityMod(m.int);
-  else                                                                                         mod = abilityMod(m.cha);
-  return m.proficiency_bonus + mod;
-});
+// The primary row's DC and attack come from the same per-class stats every
+// other surface reads, so a subclass caster's own ability is used.
+const primaryStats = computed(() => pickSpellcastingStats(spellcastingByClass.value, memberClassEntry.value?.id));
+const spellAttackBonus = computed(() => casterType.value === "none" ? null : primaryStats.value?.attack ?? null);
 
-const spellSaveDc = computed(() => {
-  const bonus = spellAttackBonus.value;
-  return bonus !== null ? 8 + bonus : null;
-});
+const spellSaveDc = computed(() => casterType.value === "none" ? null : primaryStats.value?.dc ?? null);
 
 // Per-class spell DC / attack for multiclass casters. PlayerMySpells picks
 // the right row for each spell entry via source_class_id. Empty for single-
@@ -396,7 +396,7 @@ const spellcastingByClass = computed(() => {
   return computeSpellcastingByClass(
     m,
     list,
-    { system: allSystemClasses.value ?? [], custom: allCustomClasses.value ?? [] },
+    { system: allSystemClasses.value ?? [], custom: allCustomClasses.value ?? [], subclasses: allSubclasses.value ?? [] },
     ruleset.value,
   );
 });
@@ -441,7 +441,7 @@ const legacySpells = computed(() => (characterSpellsDetails.value ?? []).filter(
 ));
 function sourceChoicesFor(spell: Spell) {
   return (characterClasses.value ?? []).filter((entry) =>
-    spell.classes.includes(entry.class_name) || subclassExpandedSpellIds(subclassOfEntry(entry), entry.subclass_variant).includes(spell.id));
+    spell.classes.includes(castingListName(entry.class_name, castingFor(definitionFor(entry), subclassOfEntry(entry)))) || subclassExpandedSpellIds(subclassOfEntry(entry), entry.subclass_variant).includes(spell.id));
 }
 function assignLegacySource(id: string, sourceClassId: string) {
   if (!resolvedMemberId.value || !sourceClassId) return;
@@ -481,7 +481,7 @@ const innateCount   = computed(() => innateSpells.value.length);
 const maxKnown      = computed(() => {
   const m = member.value;
   if (!m || casterType.value !== "known") return null;
-  const table = classData.value?.spells_known;
+  const table = memberCasting.value?.spellsKnown;
   if (!table) return null;
   return table[Math.min(m.level, 20) - 1] ?? null;
 });
@@ -491,7 +491,7 @@ const maxCantrips   = computed(() => {
   if (memberPolicy.value) {
     return policyValueAtLevel(memberPolicy.value.cantrips, memberClassEntry.value?.levels ?? m.level);
   }
-  const table = classData.value?.cantrips_known;
+  const table = memberCasting.value?.cantripsKnown;
   if (!table) return null;
   return table[Math.min(m.level, 20) - 1] ?? null;
 });
@@ -501,7 +501,7 @@ type TabId = "prepared" | "spellbook" | "innate" | "browse";
 
 const allSpellsLabel = computed(() =>
   memberClass.value && (casterType.value === "prepared" || casterType.value === "known")
-    ? `All ${memberClass.value} Spells`
+    ? `All ${castingListName(memberClass.value, memberCasting.value)} Spells`
     : "All Spells",
 );
 

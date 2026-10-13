@@ -13,6 +13,7 @@ import {
   type GrantedClassInput,
 } from "@/rules/features/characterFeatures";
 import type { AttackShape } from "@/rules/features/resolve";
+import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
 import type { PartyMember } from "@/types/party.types";
 
 /**
@@ -74,7 +75,17 @@ export function useCharacterFeatures(member: Ref<PartyMember>) {
     }),
   );
 
-  const actions = computed(() => actionsByActivation(granted.value));
+  // The granting class's spell save DC and attack, for an effect that says "spell" (matched by class name).
+  const spellcasting = computed(() =>
+    computeSpellcastingByClass(
+      member.value,
+      classesQuery.data.value ?? [],
+      { system: systemQuery.data.value ?? [], custom: customQuery.data.value ?? [], subclasses: subclassQuery.data.value ?? [] },
+      member.value.ruleset,
+    ),
+  );
+
+  const actions = computed(() => actionsByActivation(granted.value, member.value.level));
   const activeToggles = computed(() => activeTogglesOf(member.value.class_choices));
 
   function riders(attack: AttackShape, slotLevel?: number) {
@@ -111,5 +122,5 @@ export function useCharacterFeatures(member: Ref<PartyMember>) {
     return resolved && featuresSettled;
   });
 
-  return { granted, pools, actions, activeToggles, riders, isPending, complete, error };
+  return { granted, pools, actions, spellcasting, activeToggles, riders, isPending, complete, error };
 }

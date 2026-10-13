@@ -7,6 +7,7 @@ import { meetsMulticlassPrereq } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import type { PartyMember } from "@/types/party.types";
 import type { ClassRowInfo } from "./levelUpProjection";
+import { castingFor, type EffectiveCasting } from "@/rules/subclassCasting";
 
 /**
  * Which class this level is taken in, and everything that follows from the
@@ -145,6 +146,16 @@ export function useLevelUpClassSelection(member: () => PartyMember) {
     return prereq?.gained_proficiencies ?? [];
   });
 
+  /** What a held class row casts with: its class, or its subclass when the class does not. */
+  function rowCasting(row: CharacterClass): EffectiveCasting | null {
+    const definitions = row.class_definition_kind === "system" ? allSystemClasses.value : allCustomClasses.value;
+    const classDef = (definitions ?? []).find((d) => d.id === row.class_definition_id);
+    const subclassDef = row.subclass_definition_id
+      ? (allCustomSubclasses.value ?? []).find((d) => d.id === row.subclass_definition_id)
+      : undefined;
+    return castingFor(classDef, subclassDef);
+  }
+
   /** The character's class rows with the feature tables they were pinned to, for the sheet's own feature maths. */
   const classRows: ComputedRef<ClassRowInfo[]> = computed(() =>
     existingClassOptions.value.map((row) => {
@@ -191,6 +202,7 @@ export function useLevelUpClassSelection(member: () => PartyMember) {
     newClassPrereq,
     newClassProficiencyGrants,
     classRows,
+    rowCasting,
     campaignRulesData,
   };
 }

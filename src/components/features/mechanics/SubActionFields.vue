@@ -11,15 +11,26 @@
       </MechField>
     </div>
     <UsesCostFields :cost="action.spends" @update:cost="setSpends($event)" />
+    <MechSection v-if="action.effect" title="Rolls" hint="What the sheet rolls when this is used." @remove="setEffect(undefined)">
+      <EffectFields :effect="action.effect" @update:effect="setEffect($event)" />
+    </MechSection>
+    <div v-else>
+      <AppButton variant="outline" size="sm" :icon="IconAdd" icon-size="xs" label="Add a roll" @click="setEffect(newEffect())" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { IconAdd } from "@/lib/icons";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import { ACTIVATIONS, type SubAction, type UsesCost } from "@/rules/features/mechanics.types";
+import { ACTIVATIONS, type FeatureEffect, type SubAction, type UsesCost } from "@/rules/features/mechanics.types";
 import { ACTIVATION_LABELS } from "@/types/feature.types";
+import EffectFields from "./EffectFields.vue";
+import { newEffect } from "./mechanicsDraft";
 import MechField from "./MechField.vue";
+import MechSection from "./MechSection.vue";
 import UsesCostFields from "./UsesCostFields.vue";
 
 const { action } = defineProps<{ action: SubAction }>();
@@ -28,5 +39,10 @@ const emit = defineEmits<{ "update:action": [value: SubAction] }>();
 function setSpends(cost: UsesCost | undefined) {
   const { spends: _spends, ...rest } = action;
   emit("update:action", cost ? { ...rest, spends: cost } : rest);
+}
+
+function setEffect(effect: FeatureEffect | undefined) {
+  const { effect: _effect, ...rest } = action;
+  emit("update:action", effect ? { ...rest, effect } : rest);
 }
 </script>

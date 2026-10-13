@@ -91,6 +91,7 @@
             :to="`/levelup/custom/${sc.id}`"
             :title="sc.subclass_name"
             :subtitle="featureSummary(sc)"
+            :image-url="sc.image_url"
             :fallback-icon="IconLayers"
             :tags="tagsFor(sc)"
           >
@@ -176,6 +177,9 @@ async function createExample() {
       expanded_spell_variants: {},
       expanded_spells: {},
       hp_per_level: null,
+      spellcasting: null,
+      image_url: null,
+      focal_point: null,
     });
   } finally {
     loadingExample.value = false;

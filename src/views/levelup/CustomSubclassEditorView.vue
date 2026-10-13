@@ -38,23 +38,36 @@
       <section class="rounded-lg border border-border bg-card p-4 space-y-4">
         <h2 class="text-label-lg uppercase text-muted-foreground">Identity</h2>
 
-        <div>
-          <label class="block text-eyebrow text-muted-foreground mb-1.5">ARCHETYPE NAME</label>
-          <AppInput
-            v-model="form.subclass_name"
-            tone="card"
-            size="body"
-            placeholder="e.g. Circle of Ash"
+        <!-- Portrait in a narrow column, as the class editor does. -->
+        <div class="grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-4 items-start">
+          <EntityImageBlock
+            :model-value="form.image_url"
+            :focal-point="form.focal_point"
+            show-focal-point
+            bucket="class-images"
+            @update:model-value="form.image_url = $event || null"
+            @update:focal-point="form.focal_point = $event"
           />
-        </div>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-eyebrow text-muted-foreground mb-1.5">ARCHETYPE NAME</label>
+              <AppInput
+                v-model="form.subclass_name"
+                tone="card"
+                size="body"
+                placeholder="e.g. Circle of Ash"
+              />
+            </div>
 
-        <div>
-          <label class="block text-eyebrow text-muted-foreground mb-1.5">DESCRIPTION</label>
-          <RichTextEditor
-            v-model="form.description"
-            placeholder="Flavour text describing this archetype…"
-            size="md"
-          />
+            <div>
+              <label class="block text-eyebrow text-muted-foreground mb-1.5">DESCRIPTION</label>
+              <RichTextEditor
+                v-model="form.description"
+                placeholder="Flavour text describing this archetype…"
+                size="md"
+              />
+            </div>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -82,6 +95,18 @@
         :all-feature-options="allFeatureOptions"
         @update:features="form.features = $event"
       />
+
+      <!-- ── Spellcasting of its own (third casters) ───────────────────────── -->
+      <SubclassSpellSection title="Spellcasting" :count="form.spellcasting ? 1 : 0">
+        <template #help>
+          Casting the archetype gives a class that has none of its own, like an Eldritch Knight.
+        </template>
+        <SubclassSpellcastingFields
+          v-model="form.spellcasting"
+          :base-class-casts="baseClassCasts"
+          :base-class="form.class_name"
+        />
+      </SubclassSpellSection>
 
       <!-- ── Section 3: Granted spells per level ───────────────────────────── -->
       <SubclassSpellSection title="Granted Spells per Level" open :count="Object.keys(form.granted_spells).length">
@@ -126,14 +151,16 @@ import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconDelete, IconSave } from '@/lib/icons';
-import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/rules/useCustomSubclasses";
+import { canEditSubclass, useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/rules/useCustomSubclasses";
 import CustomSubclassSheet from "@/components/levelup/CustomSubclassSheet.vue";
 import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeaturesPerLevel.vue";
 import SpellsByLevelGrid from "@/components/levelup/SpellsByLevelGrid.vue";
 import SubclassSpellSection from "@/components/levelup/SubclassSpellSection.vue";
+import SubclassSpellcastingFields from "@/components/levelup/SubclassSpellcastingFields.vue";
 import SubclassSpellVariants from "@/components/levelup/SubclassSpellVariants.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { toPlainText } from "@/ai/utils";
@@ -143,13 +170,23 @@ import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import { markEdited } from "@/ai/provenance";
+import { useAuthStore } from "@/stores/auth";
 import { deepEqual } from "@/lib/utils";
+import type { SubclassSpellcasting } from "@/levelup/customTypes";
 const route = useRoute();
 const router = useRouter();
 
 const isNew = computed(() => route.name === "archetype-new");
-const isEditing = computed(() => route.query.edit === "true");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
+const { data: existing } = useCustomSubclass(id);
+const auth = useAuthStore();
+// An archetype the viewer cannot edit (the library's, a DM's read by a player) is
+// read-only: `?edit=true` on one just opens its sheet, as for classes.
+const isEditing = computed(() =>
+  route.query.edit === "true"
+  && existing.value !== undefined
+  && canEditSubclass(existing.value, { userId: auth.user?.id ?? null, isAdmin: auth.isAppAdmin }),
+);
 
 function onCancel() {
   const q = { ...route.query };
@@ -157,7 +194,6 @@ function onCancel() {
   router.push({ query: q });
 }
 
-const { data: existing } = useCustomSubclass(id);
 const { data: campaignList } = useDmCampaigns();
 const campaigns = computed(() => campaignList.value ?? []);
 const { data: allFeatures } = useAllFeatures();
@@ -172,6 +208,13 @@ const CLASS_NAMES = computed(() => {
   const srd    = (systemClasses.value ?? []).map(c => c.class_name);
   const custom = (customClasses.value ?? []).map(c => c.class_name);
   return [...new Set([...srd, ...custom])].sort();
+});
+
+// A class row casts from its class when the class casts, so a caster's archetype casting is never read.
+const baseClassCasts = computed(() => {
+  const name = form.value.class_name;
+  const rows = [...(systemClasses.value ?? []), ...(customClasses.value ?? [])];
+  return rows.some(c => c.class_name === name && c.caster_type !== "none");
 });
 
 const allFeatureOptions = computed(() =>
@@ -191,6 +234,9 @@ interface FormState {
   expanded_spell_variants: Record<string, Record<string, string[]>>;
   expanded_spells: Record<string, string[]>;
   hp_per_level: number | null;
+  spellcasting: SubclassSpellcasting | null;
+  image_url: string | null;
+  focal_point: { x: number; y: number } | null;
 }
 
 const form = ref<FormState>({
@@ -204,6 +250,9 @@ const form = ref<FormState>({
   expanded_spell_variants: {},
   expanded_spells: {},
   hp_per_level: null,
+  spellcasting: null,
+  image_url: null,
+  focal_point: null,
 });
 
 const { data: spellIndex } = useSpellIndex();
@@ -242,6 +291,9 @@ watch(existing, (val) => {
     expanded_spell_variants: raw.expanded_spell_variants ?? {},
     expanded_spells: raw.expanded_spells ?? {},
     hp_per_level: raw.hp_per_level ?? null,
+    spellcasting: raw.spellcasting,
+    image_url: raw.image_url,
+    focal_point: raw.focal_point,
   };
   campaignScope.value = raw.campaign_id ?? "all";
 }, { immediate: true });
@@ -271,6 +323,7 @@ async function save() {
     expanded_spell_variants: form.value.expanded_spell_variants,
     expanded_spells: form.value.expanded_spells,
     hp_per_level: form.value.hp_per_level,
+    spellcasting: form.value.spellcasting,
   };
   // Material edit detection: any change to the archetype's rules content means
   // a human has now authored part of an AI-generated archetype. Campaign scope
@@ -281,6 +334,9 @@ async function save() {
   );
   const payload = {
     ...content,
+    // The picture is not rules content: swapping it must not mark an AI archetype as edited.
+    image_url: form.value.image_url,
+    focal_point: form.value.focal_point,
     source: row?.source ?? null,
     ai_provenance: contentChanged ? markEdited(row?.ai_provenance) : (row?.ai_provenance ?? null),
     campaign_id: campaignScope.value === "all" ? null : campaignScope.value,
@@ -302,7 +358,8 @@ async function save() {
 async function remove() {
   if (!confirm(`Delete "${form.value.subclass_name}"? This cannot be undone.`)) return;
   try {
-    await del(id.value);
+    if (!existing.value) return;
+    await del(existing.value);
     void router.push("/levelup/custom");
   } catch (e) {
     saveError.value = e instanceof Error ? e.message : "Failed to delete.";

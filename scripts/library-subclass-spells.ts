@@ -8,6 +8,15 @@
  * One run writes both outputs, so the importer's data and the migration cannot
  * drift. Inputs live in `scripts/data/` (see the header the generator writes
  * into the data file for where each came from and how it was checked).
+ *
+ * `scripts/data/library-spell-ids.json` is the set of spell ids production has,
+ * per ruleset: `select id from library_spells where source_document_key not in
+ * ('wotc-srd', 'srd-2024')` for 2014 and `= 'srd-2024'` for 2024. Exclude
+ * `wotc-srd`: migration 20260722000002 retired those rows, and a local database
+ * that predates it still holds them as `srd_<slug>` beside the live
+ * `srd_srd_<slug>` SRD 5.1 rows. Ids taken from such a database dangled in
+ * production (173 granted, 59 expanded) until they were remapped.
+ * `librarySubclassSpells.test.ts` fails if the pair ever leaks back in.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";

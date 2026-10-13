@@ -2,9 +2,11 @@ import type {
   ChoiceCount,
   ChoicePick,
   DamageRider,
+  EffectAdd,
   FeatAbilityIncrease,
   FeatPrerequisites,
   FeatureChoice,
+  FeatureEffect,
   FeatureMechanics,
   FeatureUses,
   Recharge,
@@ -64,6 +66,7 @@ function describeDice(dice: RiderDice): string {
   switch (dice.kind) {
     case "scaling": return "the level table value";
     case "fixed": return dice.expression;
+    case "flat": return `${dice.add.map(describeAdd).join(" + ")}${dice.min === undefined ? "" : ` (minimum ${dice.min})`}`;
     case "slot": return `${dice.base} at slot level ${dice.base_level}, +${dice.per_level} per level above, up to ${dice.max_dice} dice`;
   }
 }
@@ -117,6 +120,38 @@ function describeChoice(choice: FeatureChoice): string {
   return `${choice.label || choice.key}: ${describePick(choice.pick)}, ${describeCount(choice.count)}${swap}`;
 }
 
+function describeAdd(add: EffectAdd): string {
+  switch (add.kind) {
+    case "ability": return `${ability(add.ability)} modifier`;
+    case "proficiency": return "proficiency bonus";
+    case "class_level": return "class level";
+  }
+}
+
+/** One line per part of a roll: what it does, how it is aimed, what it deals. Levels are the granting class's. */
+export function describeEffect(effect: FeatureEffect): string[] {
+  const lines: string[] = [];
+  if (effect.attack) {
+    const range = effect.attack.range ? ` (${effect.attack.range})` : "";
+    const bonus = effect.attack.ability === "spell" ? "the class's spell attack bonus" : `proficiency + ${ability(effect.attack.ability)} modifier`;
+    lines.push(`${effect.attack.delivery === "melee" ? "Melee" : "Ranged"} attack${range}, ${bonus}`);
+  }
+  if (effect.save) {
+    const dc = effect.save.dc_ability === "spell" ? "the class's spell save DC" : `8 + proficiency + ${ability(effect.save.dc_ability)} modifier`;
+    lines.push(`${ability(effect.save.ability)} saving throw against ${dc}, ${effect.save.success === "half" ? "half damage on a success" : "no damage on a success"}`);
+  }
+  if (effect.dice) {
+    const steps = Object.entries(effect.dice).sort((a, b) => Number(a[0]) - Number(b[0]));
+    const verb = effect.kind === "heal" ? "Heals" : effect.kind === "temp_hp" ? "Grants temporary hit points:" : "Deals";
+    const type = effect.damage_type ? ` ${effect.damage_type}` : "";
+    const extra = effect.add && effect.add.length > 0 ? `, plus ${effect.add.map(describeAdd).join(" and ")}` : "";
+    const floor = effect.min === undefined ? "" : ` (minimum ${effect.min})`;
+    lines.push(`${verb} ${steps.map(([level, dice]) => `${dice} from level ${level}`).join(", ")}${type}${extra}${floor}`);
+  }
+  if (effect.area) lines.push(`Area: ${effect.area}`);
+  return lines;
+}
+
 /** Groups in a fixed reading order; a feature with no mechanics has none. */
 export function summarizeMechanics(mechanics: FeatureMechanics): SummaryGroup[] {
   const groups: SummaryGroup[] = [];
@@ -135,9 +170,13 @@ export function summarizeMechanics(mechanics: FeatureMechanics): SummaryGroup[] 
   if (mechanics.actions) {
     groups.push({
       heading: "Lets you",
-      lines: mechanics.actions.map((a) => `${a.name} (${ACTIVATION_LABELS[a.activation]})${a.spends ? `, spends ${a.spends.amount} ${a.spends.key}` : ""}`),
+      lines: mechanics.actions.flatMap((a) => [
+        `${a.name} (${ACTIVATION_LABELS[a.activation]})${a.spends ? `, spends ${a.spends.amount} ${a.spends.key}` : ""}`,
+        ...(a.effect ? describeEffect(a.effect).map((l) => `${a.name}: ${l}`) : []),
+      ]),
     });
   }
+  if (mechanics.effect) groups.push({ heading: "Rolls", lines: describeEffect(mechanics.effect) });
   if (mechanics.grants) {
     const lines: string[] = [];
     if (mechanics.grants.skills) lines.push(`Skills: ${mechanics.grants.skills.map((s) => s.replace(/_/g, " ")).join(", ")}`);

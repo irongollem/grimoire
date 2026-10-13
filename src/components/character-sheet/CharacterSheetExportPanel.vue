@@ -124,6 +124,7 @@ import {
   type SheetMode,
   type IllustratedTheme,
 } from "@/composables/party/useCharacterSheetPdf";
+import { useAllCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import type { SheetPageSize, SheetTheme } from "@/components/character-sheet/illustrated/sheetTypes";
 
 const { member, inventory, storageKey, speciesName = null, backgroundName = null, items = [] } = defineProps<{
@@ -144,15 +145,16 @@ const { acFor } = useArmorClass();
 const ac = computed(() => acFor(member));
 
 // The sheet's hit dice and casting ability come from the class rows and the
-// definitions they are pinned to. The sheet waits for all three to load rather
+// definitions they are pinned to. The sheet waits for all four to load rather
 // than print a guess; a classless character is a loaded, empty row list.
 const memberId = computed(() => member.id);
 const { data: classRows } = useCharacterClasses(memberId);
 const { data: systemClasses } = useAllSystemClasses();
 const { data: customClasses } = useAllCustomClasses();
+const { data: customSubclasses } = useAllCustomSubclasses();
 const classInput = computed<SheetClassInput | null>(() =>
-  classRows.value && systemClasses.value && customClasses.value
-    ? { rows: classRows.value, definitions: { system: systemClasses.value, custom: customClasses.value } }
+  classRows.value && systemClasses.value && customClasses.value && customSubclasses.value
+    ? { rows: classRows.value, definitions: { system: systemClasses.value, custom: customClasses.value, subclasses: customSubclasses.value } }
     : null,
 );
 

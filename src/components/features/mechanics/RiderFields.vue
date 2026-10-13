@@ -19,6 +19,26 @@
     <MechField v-if="rider.dice.kind === 'fixed'" label="Roll or number" hint="Like 1d6, 2d8 or +2.">
       <AppInput :model-value="rider.dice.expression" tone="card" size="body" placeholder="1d6" @update:model-value="emit('update:rider', { ...rider, dice: { kind: 'fixed', expression: String($event) } })" />
     </MechField>
+    <div v-else-if="rider.dice.kind === 'flat'" class="flex flex-col gap-3">
+      <fieldset class="flex flex-col gap-2">
+        <legend class="block text-eyebrow text-muted-foreground mb-1.5">Added to the damage</legend>
+        <div class="flex flex-wrap gap-x-4 gap-y-2">
+          <AppCheckbox
+            v-for="a in ABILITY_KEYS"
+            :key="a"
+            :model-value="flatHas({ kind: 'ability', ability: a })"
+            :label="`${ABILITY_LABELS[a]} modifier`"
+            label-role="caption"
+            @update:model-value="setFlatAdd({ kind: 'ability', ability: a }, $event)"
+          />
+          <AppCheckbox :model-value="flatHas({ kind: 'proficiency' })" label="Proficiency bonus" label-role="caption" @update:model-value="setFlatAdd({ kind: 'proficiency' }, $event)" />
+          <AppCheckbox :model-value="flatHas({ kind: 'class_level' })" label="Class level" label-role="caption" @update:model-value="setFlatAdd({ kind: 'class_level' }, $event)" />
+        </div>
+      </fieldset>
+      <MechField label="Never less than" hint="A floor, like +1 for a Charisma modifier (minimum +1). Never doubled on a critical hit.">
+        <AppInput :model-value="rider.dice.min ?? ''" type="number" tone="card" size="body" min="0" @update:model-value="setFlatMin(String($event))" />
+      </MechField>
+    </div>
     <div v-else-if="rider.dice.kind === 'slot'" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
       <MechField label="At base level">
         <AppInput :model-value="rider.dice.base" tone="card" size="body" @update:model-value="setSlot({ base: String($event) })" />
@@ -70,8 +90,9 @@ import { computed } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import { RIDER_TARGETS, type DamageRider, type RiderDice, type RiderTarget, type UsesCost } from "@/rules/features/mechanics.types";
-import { RIDER_DICE_KINDS, riderDiceOfKind } from "./mechanicsDraft";
+import { RIDER_TARGETS, type DamageRider, type EffectAdd, type RiderDice, type RiderTarget, type UsesCost } from "@/rules/features/mechanics.types";
+import { ABILITY_KEYS, ABILITY_LABELS } from "@/types/card.types";
+import { RIDER_DICE_KINDS, riderDiceOfKind, toggleFlatAdd, withFlatMin } from "./mechanicsDraft";
 import MechField from "./MechField.vue";
 import UsesCostFields from "./UsesCostFields.vue";
 
@@ -102,6 +123,21 @@ function setDiceKind(kind: RiderDice["kind"]) {
 function setSlot(patch: Partial<Extract<RiderDice, { kind: "slot" }>>) {
   if (rider.dice.kind !== "slot") return;
   emit("update:rider", { ...rider, dice: { ...rider.dice, ...patch } });
+}
+
+function flatHas(add: EffectAdd): boolean {
+  if (rider.dice.kind !== "flat") return false;
+  return rider.dice.add.some((a) => a.kind === add.kind && (a.kind !== "ability" || (add.kind === "ability" && a.ability === add.ability)));
+}
+
+function setFlatAdd(add: EffectAdd, on: boolean) {
+  if (rider.dice.kind !== "flat") return;
+  emit("update:rider", { ...rider, dice: toggleFlatAdd(rider.dice, add, on) });
+}
+
+function setFlatMin(value: string) {
+  if (rider.dice.kind !== "flat") return;
+  emit("update:rider", { ...rider, dice: withFlatMin(rider.dice, value) });
 }
 
 function setDamageType(value: string) {

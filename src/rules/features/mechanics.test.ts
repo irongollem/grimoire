@@ -128,11 +128,12 @@ describe("parseMechanics", () => {
     expect(r.errors).toEqual([]);
     expect(r.mechanics.riders).toHaveLength(1);
   });
-  it("requires_toggle must name the feature's own toggle", () => {
-    const rider = { label: "Rage", dice: { kind: "scaling" }, applies_to: "melee_strength", once_per_turn: false, requires_toggle: "other" };
-    expect(parseMechanics({ riders: [rider] }).mechanics.riders).toBeUndefined();
-    expect(parseMechanics({ toggle: { key: "raging", label: "R", ends_on: "short_rest" }, riders: [rider] }).errors).toHaveLength(1);
-    expect(parseMechanics({ riders: [{ ...rider, requires_toggle: "raging" }] }).mechanics.riders).toBeUndefined();
+  it("requires_toggle may name another feature's toggle, but must name one", () => {
+    const rider = { label: "Hellish Aspect", dice: { kind: "fixed", expression: "1d6" }, applies_to: "weapon", once_per_turn: true, requires_toggle: "rage" };
+    const parsed = parseMechanics({ riders: [rider] });
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.mechanics.riders?.[0].requires_toggle).toBe("rage");
+    expect(parseMechanics({ riders: [{ ...rider, requires_toggle: "" }] }).mechanics.riders).toBeUndefined();
   });
   it("per_grant amount must be at least 1", () => {
     const choice = (amount: number) => ({
@@ -303,5 +304,153 @@ describe("spell picks and grants", () => {
     const { mechanics, errors } = parseMechanics({ grants: { skills: ["Not A Skill"] } });
     expect(errors.length).toBeGreaterThan(0);
     expect(mechanics.grants).toBeUndefined();
+  });
+});
+
+describe("parseMechanics effect", () => {
+  const thunder = {
+    kind: "save",
+    save: { ability: "con", dc_ability: "cha", success: "none" },
+    dice: { "3": "1d6", "10": "2d6" },
+    damage_type: "thunder",
+  };
+
+  it("round-trips a save effect on the feature", () => {
+    const { mechanics, errors } = parseMechanics({ activation: "reaction", effect: thunder });
+    expect(errors).toEqual([]);
+    expect(mechanics.effect).toEqual(thunder);
+  });
+
+  it("round-trips an effect on a sub-action", () => {
+    const flame = {
+      kind: "save",
+      save: { ability: "dex", dc_ability: "spell", success: "half" },
+      dice: { "3": "2d8" },
+      damage_type: "fire",
+      area: "15-ft cone",
+      add: [{ kind: "proficiency" }, { kind: "ability", ability: "int" }, { kind: "class_level" }],
+    };
+    const { mechanics, errors } = parseMechanics({ actions: [{ name: "Flamethrower", activation: "action", effect: flame }] });
+    expect(errors).toEqual([]);
+    expect(mechanics.actions?.[0].effect).toEqual(flame);
+  });
+
+  it("keeps an attack with the save it forces", () => {
+    const { mechanics, errors } = parseMechanics({
+      effect: {
+        kind: "attack",
+        attack: { delivery: "ranged", ability: "spell", range: "120 ft" },
+        save: { ability: "wis", dc_ability: "spell", success: "none" },
+        dice: { "1": "1d10" },
+      },
+    });
+    expect(errors).toEqual([]);
+    expect(mechanics.effect?.attack?.range).toBe("120 ft");
+    expect(mechanics.effect?.save?.ability).toBe("wis");
+  });
+
+  it("allows a flat value and a save with no dice", () => {
+    expect(parseMechanics({ effect: { kind: "heal", dice: { "1": "5" } } }).errors).toEqual([]);
+    expect(parseMechanics({ effect: { kind: "save", save: { ability: "wis", dc_ability: "cha", success: "none" } } }).errors).toEqual([]);
+  });
+
+  it.each([
+    ["an unknown kind", { kind: "explode" }, "effect.kind"],
+    ["a bad dice expression", { kind: "damage", dice: { "1": "lots" } }, "effect.dice.1"],
+    ["a level outside 1 to 20", { kind: "damage", dice: { "21": "1d6" } }, "effect.dice"],
+    ["an attack with no attack block", { kind: "attack", dice: { "1": "1d6" } }, "effect.attack"],
+    ["a save with no save block", { kind: "save", dice: { "1": "1d6" } }, "effect.save"],
+    ["damage with no dice", { kind: "damage" }, "effect.dice"],
+    ["an unknown ability in the save", { kind: "save", save: { ability: "luck", dc_ability: "cha", success: "half" } }, "effect.save"],
+    ["a save that is neither half nor none", { kind: "save", save: { ability: "con", dc_ability: "cha", success: "all" } }, "effect.save.success"],
+  ])("drops %s with a message", (_what, effect, path) => {
+    const { mechanics, errors } = parseMechanics({ effect });
+    expect(mechanics.effect).toBeUndefined();
+    expect(errors.some(e => e.startsWith(path))).toBe(true);
+  });
+
+  it("drops an unknown damage type but keeps the effect", () => {
+    const { mechanics, errors } = parseMechanics({ effect: { kind: "damage", dice: { "1": "1d6" }, damage_type: "sparkle" } });
+    expect(mechanics.effect?.damage_type).toBeUndefined();
+    expect(errors.some(e => e.startsWith("effect.damage_type"))).toBe(true);
+  });
+
+  it("drops a malformed sub-action effect and keeps the sub-action", () => {
+    const { mechanics, errors } = parseMechanics({ actions: [{ name: "Zap", activation: "action", effect: { kind: "damage" } }] });
+    expect(mechanics.actions?.[0].name).toBe("Zap");
+    expect(mechanics.actions?.[0].effect).toBeUndefined();
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe("parseMechanics temporary hit points and floors", () => {
+  it("accepts a temp_hp effect from dice or from add alone, like heal", () => {
+    expect(parseMechanics({ effect: { kind: "temp_hp", dice: { "1": "1d8" }, add: [{ kind: "ability", ability: "int" }] } }).errors).toEqual([]);
+    const { mechanics, errors } = parseMechanics({ effect: { kind: "temp_hp", add: [{ kind: "proficiency" }] } });
+    expect(errors).toEqual([]);
+    expect(mechanics.effect).toEqual({ kind: "temp_hp", add: [{ kind: "proficiency" }] });
+  });
+
+  it("drops a temp_hp effect with nothing to roll", () => {
+    const { mechanics, errors } = parseMechanics({ effect: { kind: "temp_hp" } });
+    expect(mechanics.effect).toBeUndefined();
+    expect(errors.join(" ")).toContain("temporary hit point");
+  });
+
+  it("keeps a whole-number floor and reports anything else", () => {
+    const effect = (min: unknown) => ({ effect: { kind: "heal", add: [{ kind: "ability", ability: "cha" }], min } });
+    expect(parseMechanics(effect(1)).mechanics.effect?.min).toBe(1);
+    expect(parseMechanics(effect(0)).mechanics.effect?.min).toBe(0);
+    for (const bad of [-1, 1.5, "1", null]) {
+      const r = parseMechanics(effect(bad));
+      expect(r.mechanics.effect?.min).toBeUndefined();
+      expect(r.errors.join(" ")).toContain("min");
+    }
+  });
+});
+
+describe("parseMechanics flat riders", () => {
+  const rider = (dice: unknown) => ({
+    riders: [{ label: "Aura", dice, applies_to: "weapon", once_per_turn: false }],
+  });
+
+  it("reads add and an optional minimum", () => {
+    const flat = { kind: "flat", add: [{ kind: "ability", ability: "cha" }], min: 1 };
+    const { mechanics, errors } = parseMechanics(rider(flat));
+    expect(errors).toEqual([]);
+    expect(mechanics.riders?.[0].dice).toEqual(flat);
+    expect(parseMechanics(rider({ kind: "flat", add: [{ kind: "proficiency" }] })).mechanics.riders?.[0].dice).toEqual({ kind: "flat", add: [{ kind: "proficiency" }] });
+  });
+
+  it("drops a flat rider with nothing to add or a bad minimum", () => {
+    for (const bad of [{ kind: "flat" }, { kind: "flat", add: [] }, { kind: "flat", add: [{ kind: "ability", ability: "cha" }], min: -2 }]) {
+      const r = parseMechanics(rider(bad));
+      expect(r.mechanics.riders).toBeUndefined();
+      expect(r.errors.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("parseMechanics the reserved wild_shape key", () => {
+  it("accepts it as a cost on a feature, an action and a rider", () => {
+    const cost = { key: "wild_shape", amount: 1 };
+    const { mechanics, errors } = parseMechanics({
+      activation: "bonus_action",
+      spends: cost,
+      actions: [{ name: "Form", activation: "bonus_action", spends: cost }],
+      riders: [{ label: "Lunar", dice: { kind: "fixed", expression: "1d6" }, applies_to: "weapon", once_per_turn: false, cost: { kind: "uses", ...cost } }],
+    });
+    expect(errors).toEqual([]);
+    expect(mechanics.spends).toEqual(cost);
+    expect(mechanics.actions?.[0].spends).toEqual(cost);
+    expect(mechanics.riders?.[0].cost).toEqual({ kind: "uses", ...cost });
+  });
+
+  it("refuses it as the key of a feature's own pool", () => {
+    const { mechanics, errors } = parseMechanics({
+      uses: { key: "wild_shape", label: "Wild Shape", amount: { kind: "fixed", value: 2 }, recharge: "short", pool: false },
+    });
+    expect(mechanics.uses).toBeUndefined();
+    expect(errors.join(" ")).toContain("reserved");
   });
 });

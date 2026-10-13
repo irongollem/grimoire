@@ -452,8 +452,10 @@ const ARTIFICER_SLOTS: number[][] = [
   [4,3,3,3,2], // 20
 ];
 
-// Third-casters (Eldritch Knight, Arcane Trickster). Slots start at level 3.
-const THIRD_CASTER_SLOTS: number[][] = [
+// The third-caster table (Eldritch Knight, Arcane Trickster). A character gets it from a
+// subclass's own `spellcasting`, never from a class name; this is the table the
+// archetype editor's preset and the class AI start from. Slots start at level 3.
+export const THIRD_CASTER_SLOTS: number[][] = [
   [0,0,0,0], // 1
   [0,0,0,0], // 2
   [2,0,0,0], // 3
@@ -510,9 +512,6 @@ export function getDefaultSpellSlots(
       return slotsFromRow(HALF_CASTER_SLOTS[idx]);
     case "Artificer":
       return slotsFromRow(ARTIFICER_SLOTS[idx]);
-    case "Fighter (Eldritch Knight)":
-    case "Rogue (Arcane Trickster)":
-      return slotsFromRow(THIRD_CASTER_SLOTS[idx]);
     case "Warlock": {
       const [slotLevel, count] = WARLOCK_PACT_SLOTS[idx];
       return count > 0 ? [{ level: slotLevel, max: count, used: 0, pool: "pact", recovery: "short" }] : [];
@@ -536,11 +535,22 @@ export function getSlotRecovery(cls: string | null | undefined): "short" | "long
  * - `full`       — full caster: +1 caster level per class level (Bard, Cleric, Druid, Sorcerer, Wizard)
  * - `half_down`  — half caster (round down): Paladin, Ranger
  * - `half_up`    — half caster (round up): Artificer
- * - `third`      — third caster: Eldritch Knight, Arcane Trickster
+ * - `third`      — third caster: a class whose subclass casts (Eldritch Knight, Arcane Trickster)
  * - `pact`       — warlock pact magic — tracked separately, not part of the sum
  * - `none`       — non-caster
  */
 export type CasterCategory = "full" | "half_down" | "half_up" | "third" | "pact" | "none";
+
+/** A class entry as the multiclass sum reads it. `category` overrides the class-name lookup: a subclass caster is "third". */
+export interface CasterClassEntry {
+  class_name: string;
+  levels: number;
+  category?: CasterCategory;
+}
+
+function categoryOf(entry: CasterClassEntry): CasterCategory {
+  return entry.category ?? getCasterCategory(entry.class_name);
+}
 
 export function getCasterCategory(cls: string | null | undefined): CasterCategory {
   switch (cls) {
@@ -555,9 +565,6 @@ export function getCasterCategory(cls: string | null | undefined): CasterCategor
       return "half_down";
     case "Artificer":
       return "half_up";
-    case "Fighter (Eldritch Knight)":
-    case "Rogue (Arcane Trickster)":
-      return "third";
     case "Warlock":
       return "pact";
     default:
@@ -570,12 +577,12 @@ export function getCasterCategory(cls: string | null | undefined): CasterCategor
  * half_up = ceil(L/2), third = floor(L/3). Pact and non-casters don't count.
  */
 export function multiclassCasterLevel(
-  classes: { class_name: string; levels: number }[],
+  classes: CasterClassEntry[],
   ruleset: RulesetKey,
 ): number {
   let sum = 0;
   for (const c of classes) {
-    const cat = getCasterCategory(c.class_name);
+    const cat = categoryOf(c);
     if (cat === "full") sum += c.levels;
     else if (cat === "half_down") {
       // The 2024 multiclass rules changed Paladin/Ranger contributions to round up.
@@ -597,12 +604,14 @@ export function multiclassCasterLevel(
  * (Artificer's round-up half-caster table, etc.).
  */
 export function getMulticlassSpellSlots(
-  classes: { class_name: string; levels: number }[],
+  classes: CasterClassEntry[],
   ruleset: RulesetKey,
 ): import("@/types/party.types").SpellSlotEntry[] {
   if (classes.length === 0) return [];
   if (classes.length === 1) {
-    return getDefaultSpellSlots(classes[0].class_name, classes[0].levels, ruleset);
+    const only = classes[0];
+    if (only.category === "third") return slotsFromRow(THIRD_CASTER_SLOTS[Math.max(1, Math.min(20, only.levels)) - 1]);
+    return getDefaultSpellSlots(only.class_name, only.levels, ruleset);
   }
 
   const out: import("@/types/party.types").SpellSlotEntry[] = [];

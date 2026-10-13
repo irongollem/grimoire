@@ -34,7 +34,7 @@
       "1": [
        {
         "name": "false life",
-        "library_id": "srd_false_life"
+        "library_id": "srd_srd_false_life"
        },
        {
         "name": "ray of sickness",
@@ -44,11 +44,11 @@
       "3": [
        {
         "name": "blindness/deafness",
-        "library_id": "srd_blindnessdeafness"
+        "library_id": "srd_srd_blindnessdeafness"
        },
        {
         "name": "ray of enfeeblement",
-        "library_id": "srd_ray_of_enfeeblement"
+        "library_id": "srd_srd_ray_of_enfeeblement"
        }
       ],
       "5": [
@@ -58,13 +58,13 @@
        },
        {
         "name": "vampiric touch",
-        "library_id": "srd_vampiric_touch"
+        "library_id": "srd_srd_vampiric_touch"
        }
       ],
       "7": [
        {
         "name": "blight",
-        "library_id": "srd_blight"
+        "library_id": "srd_srd_blight"
        },
        {
         "name": "death ward",
@@ -74,11 +74,11 @@
       "9": [
        {
         "name": "antilife shell",
-        "library_id": "srd_antilife_shell"
+        "library_id": "srd_srd_antilife_shell"
        },
        {
         "name": "cloudkill",
-        "library_id": "srd_cloudkill"
+        "library_id": "srd_srd_cloudkill"
        }
       ]
      }
@@ -107,17 +107,17 @@
        },
        {
         "name": "disguise self",
-        "library_id": "srd_disguise_self"
+        "library_id": "srd_srd_disguise_self"
        }
       ],
       "3": [
        {
         "name": "mirror image",
-        "library_id": "srd_mirror_image"
+        "library_id": "srd_srd_mirror_image"
        },
        {
         "name": "pass without trace",
-        "library_id": "srd_pass_without_trace"
+        "library_id": "srd_srd_pass_without_trace"
        }
       ],
       "5": [
@@ -133,21 +133,21 @@
       "7": [
        {
         "name": "dimension door",
-        "library_id": "srd_dimension_door"
+        "library_id": "srd_srd_dimension_door"
        },
        {
         "name": "polymorph",
-        "library_id": "srd_polymorph"
+        "library_id": "srd_srd_polymorph"
        }
       ],
       "9": [
        {
         "name": "dominate person",
-        "library_id": "srd_dominate_person"
+        "library_id": "srd_srd_dominate_person"
        },
        {
         "name": "modify memory",
-        "library_id": "srd_modify_memory"
+        "library_id": "srd_srd_modify_memory"
        }
       ]
      }
@@ -172,11 +172,11 @@
       "3": [
        {
         "name": "hellish rebuke",
-        "library_id": "srd_hellish_rebuke"
+        "library_id": "srd_srd_hellish_rebuke"
        },
        {
         "name": "inflict wounds",
-        "library_id": "srd_inflict_wounds"
+        "library_id": "srd_srd_inflict_wounds"
        }
       ],
       "5": [
@@ -186,7 +186,7 @@
        },
        {
         "name": "darkness",
-        "library_id": "srd_darkness"
+        "library_id": "srd_srd_darkness"
        }
       ],
       "9": [
@@ -196,27 +196,27 @@
        },
        {
         "name": "bestow curse",
-        "library_id": "srd_bestow_curse"
+        "library_id": "srd_srd_bestow_curse"
        }
       ],
       "13": [
        {
         "name": "blight",
-        "library_id": "srd_blight"
+        "library_id": "srd_srd_blight"
        },
        {
         "name": "confusion",
-        "library_id": "srd_confusion"
+        "library_id": "srd_srd_confusion"
        }
       ],
       "17": [
        {
         "name": "contagion",
-        "library_id": "srd_contagion"
+        "library_id": "srd_srd_contagion"
        },
        {
         "name": "dominate person",
-        "library_id": "srd_dominate_person"
+        "library_id": "srd_srd_dominate_person"
        }
       ]
      }
@@ -241,41 +241,41 @@
       "1": [
        {
         "name": "fog cloud",
-        "library_id": "srd_fog_cloud"
+        "library_id": "srd_srd_fog_cloud"
        },
        {
         "name": "thunderwave",
-        "library_id": "srd_thunderwave"
+        "library_id": "srd_srd_thunderwave"
        }
       ],
       "3": [
        {
         "name": "gust of wind",
-        "library_id": "srd_gust_of_wind"
+        "library_id": "srd_srd_gust_of_wind"
        },
        {
         "name": "shatter",
-        "library_id": "srd_shatter"
+        "library_id": "srd_srd_shatter"
        }
       ],
       "5": [
        {
         "name": "call lightning",
-        "library_id": "srd_call_lightning"
+        "library_id": "srd_srd_call_lightning"
        },
        {
         "name": "sleet storm",
-        "library_id": "srd_sleet_storm"
+        "library_id": "srd_srd_sleet_storm"
        }
       ],
       "7": [
        {
         "name": "control water",
-        "library_id": "srd_control_water"
+        "library_id": "srd_srd_control_water"
        },
        {
         "name": "ice storm",
-        "library_id": "srd_ice_storm"
+        "library_id": "srd_srd_ice_storm"
        }
       ],
       "9": [
@@ -285,7 +285,7 @@
        },
        {
         "name": "insect plague",
-        "library_id": "srd_insect_plague"
+        "library_id": "srd_srd_insect_plague"
        }
       ]
      }
@@ -310,17 +310,17 @@
       "1": [
        {
         "name": "faerie fire",
-        "library_id": "srd_faerie_fire"
+        "library_id": "srd_srd_faerie_fire"
        },
        {
         "name": "sleep",
-        "library_id": "srd_sleep"
+        "library_id": "srd_srd_sleep"
        }
       ],
       "2": [
        {
         "name": "calm emotions",
-        "library_id": "srd_calm_emotions"
+        "library_id": "srd_srd_calm_emotions"
        },
        {
         "name": "phantasmal force",
@@ -334,27 +334,27 @@
        },
        {
         "name": "plant growth",
-        "library_id": "srd_plant_growth"
+        "library_id": "srd_srd_plant_growth"
        }
       ],
       "4": [
        {
         "name": "dominate beast",
-        "library_id": "srd_dominate_beast"
+        "library_id": "srd_srd_dominate_beast"
        },
        {
         "name": "greater invisibility",
-        "library_id": "srd_greater_invisibility"
+        "library_id": "srd_srd_greater_invisibility"
        }
       ],
       "5": [
        {
         "name": "dominate person",
-        "library_id": "srd_dominate_person"
+        "library_id": "srd_srd_dominate_person"
        },
        {
         "name": "seeming",
-        "library_id": "srd_seeming"
+        "library_id": "srd_srd_seeming"
        }
       ]
      }
@@ -383,13 +383,13 @@
        },
        {
         "name": "hideous laughter",
-        "library_id": "srd_hideous_laughter"
+        "library_id": "srd_srd_hideous_laughter"
        }
       ],
       "2": [
        {
         "name": "detect thoughts",
-        "library_id": "srd_detect_thoughts"
+        "library_id": "srd_srd_detect_thoughts"
        },
        {
         "name": "phantasmal force",
@@ -399,31 +399,31 @@
       "3": [
        {
         "name": "clairvoyance",
-        "library_id": "srd_clairvoyance"
+        "library_id": "srd_srd_clairvoyance"
        },
        {
         "name": "sending",
-        "library_id": "srd_sending"
+        "library_id": "srd_srd_sending"
        }
       ],
       "4": [
        {
         "name": "dominate beast",
-        "library_id": "srd_dominate_beast"
+        "library_id": "srd_srd_dominate_beast"
        },
        {
         "name": "black tentacles",
-        "library_id": "srd_black_tentacles"
+        "library_id": "srd_srd_black_tentacles"
        }
       ],
       "5": [
        {
         "name": "dominate person",
-        "library_id": "srd_dominate_person"
+        "library_id": "srd_srd_dominate_person"
        },
        {
         "name": "telekinesis",
-        "library_id": "srd_telekinesis"
+        "library_id": "srd_srd_telekinesis"
        }
       ]
      }
@@ -457,7 +457,7 @@
       "1": [
        {
         "name": "sleep",
-        "library_id": "srd_sleep"
+        "library_id": "srd_srd_sleep"
        },
        {
         "name": "ray of sickness",
@@ -467,7 +467,7 @@
       "3": [
        {
         "name": "ray of enfeeblement",
-        "library_id": "srd_ray_of_enfeeblement"
+        "library_id": "srd_srd_ray_of_enfeeblement"
        },
        {
         "name": "crown of madness",
@@ -477,31 +477,31 @@
       "5": [
        {
         "name": "haste",
-        "library_id": "srd_haste"
+        "library_id": "srd_srd_haste"
        },
        {
         "name": "slow",
-        "library_id": "srd_slow"
+        "library_id": "srd_srd_slow"
        }
       ],
       "7": [
        {
         "name": "blight",
-        "library_id": "srd_blight"
+        "library_id": "srd_srd_blight"
        },
        {
         "name": "stoneskin",
-        "library_id": "srd_stoneskin"
+        "library_id": "srd_srd_stoneskin"
        }
       ],
       "9": [
        {
         "name": "dominate person",
-        "library_id": "srd_dominate_person"
+        "library_id": "srd_srd_dominate_person"
        },
        {
         "name": "hold monster",
-        "library_id": "srd_hold_monster"
+        "library_id": "srd_srd_hold_monster"
        }
       ]
      }
@@ -535,21 +535,21 @@
       "1": [
        {
         "name": "inflict wounds",
-        "library_id": "srd_inflict_wounds"
+        "library_id": "srd_srd_inflict_wounds"
        },
        {
         "name": "magic missile",
-        "library_id": "srd_magic_missile"
+        "library_id": "srd_srd_magic_missile"
        }
       ],
       "2": [
        {
         "name": "heat metal",
-        "library_id": "srd_heat_metal"
+        "library_id": "srd_srd_heat_metal"
        },
        {
         "name": "scorching ray",
-        "library_id": "srd_scorching_ray"
+        "library_id": "srd_srd_scorching_ray"
        }
       ],
       "3": [
@@ -559,27 +559,27 @@
        },
        {
         "name": "lightning bolt",
-        "library_id": "srd_lightning_bolt"
+        "library_id": "srd_srd_lightning_bolt"
        }
       ],
       "4": [
        {
         "name": "greater invisibility",
-        "library_id": "srd_greater_invisibility"
+        "library_id": "srd_srd_greater_invisibility"
        },
        {
         "name": "ice storm",
-        "library_id": "srd_ice_storm"
+        "library_id": "srd_srd_ice_storm"
        }
       ],
       "5": [
        {
         "name": "cloudkill",
-        "library_id": "srd_cloudkill"
+        "library_id": "srd_srd_cloudkill"
        },
        {
         "name": "flame strike",
-        "library_id": "srd_flame_strike"
+        "library_id": "srd_srd_flame_strike"
        }
       ]
      }
@@ -604,7 +604,7 @@
       "1": [
        {
         "name": "Speak with Animals",
-        "library_id": "srd_speak_with_animals"
+        "library_id": "srd_srd_speak_with_animals"
        }
       ],
       "2": [
@@ -622,13 +622,13 @@
       "4": [
        {
         "name": "polymorph",
-        "library_id": "srd_polymorph"
+        "library_id": "srd_srd_polymorph"
        }
       ],
       "5": [
        {
         "name": "commune with nature",
-        "library_id": "srd_commune_with_nature"
+        "library_id": "srd_srd_commune_with_nature"
        }
       ]
      },
@@ -636,19 +636,19 @@
       "1": [
        {
         "name": "thunderwave",
-        "library_id": "srd_thunderwave"
+        "library_id": "srd_srd_thunderwave"
        }
       ],
       "2": [
        {
         "name": "gust of wind",
-        "library_id": "srd_gust_of_wind"
+        "library_id": "srd_srd_gust_of_wind"
        }
       ],
       "3": [
        {
         "name": "fly",
-        "library_id": "srd_fly"
+        "library_id": "srd_srd_fly"
        }
       ],
       "4": [
@@ -660,7 +660,7 @@
       "5": [
        {
         "name": "insect plague",
-        "library_id": "srd_insect_plague"
+        "library_id": "srd_srd_insect_plague"
        }
       ]
      },
@@ -668,19 +668,19 @@
       "1": [
        {
         "name": "longstrider",
-        "library_id": "srd_longstrider"
+        "library_id": "srd_srd_longstrider"
        }
       ],
       "2": [
        {
         "name": "pass without trace",
-        "library_id": "srd_pass_without_trace"
+        "library_id": "srd_srd_pass_without_trace"
        }
       ],
       "3": [
        {
-        "name": "phantom seed",
-        "library_id": null
+        "name": "phantom steed",
+        "library_id": "srd_srd_phantom_steed"
        }
       ],
       "4": [
@@ -692,7 +692,7 @@
       "5": [
        {
         "name": "hold monster",
-        "library_id": "srd_hold_monster"
+        "library_id": "srd_srd_hold_monster"
        }
       ]
      },
@@ -700,31 +700,31 @@
       "1": [
        {
         "name": "fog cloud",
-        "library_id": "srd_fog_cloud"
+        "library_id": "srd_srd_fog_cloud"
        }
       ],
       "2": [
        {
         "name": "misty step",
-        "library_id": "srd_misty_step"
+        "library_id": "srd_srd_misty_step"
        }
       ],
       "3": [
        {
         "name": "water breathing",
-        "library_id": "srd_water_breathing"
+        "library_id": "srd_srd_water_breathing"
        }
       ],
       "4": [
        {
         "name": "control water",
-        "library_id": "srd_control_water"
+        "library_id": "srd_srd_control_water"
        }
       ],
       "5": [
        {
         "name": "cloudkill",
-        "library_id": "srd_cloudkill"
+        "library_id": "srd_srd_cloudkill"
        }
       ]
      }
@@ -767,7 +767,7 @@
       "3": [
        {
         "name": "blur",
-        "library_id": "srd_blur"
+        "library_id": "srd_srd_blur"
        },
        {
         "name": "bombardment of stings",
@@ -777,17 +777,17 @@
       "5": [
        {
         "name": "fly",
-        "library_id": "srd_fly"
+        "library_id": "srd_srd_fly"
        },
        {
         "name": "haste",
-        "library_id": "srd_haste"
+        "library_id": "srd_srd_haste"
        }
       ],
       "7": [
        {
         "name": "giant insect",
-        "library_id": "srd_giant_insect"
+        "library_id": "srd_srd_giant_insect"
        },
        {
         "name": "locate creature",
@@ -797,11 +797,11 @@
       "9": [
        {
         "name": "insect plague",
-        "library_id": "srd_insect_plague"
+        "library_id": "srd_srd_insect_plague"
        },
        {
         "name": "telepathic bond",
-        "library_id": "srd_telepathic_bond"
+        "library_id": "srd_srd_telepathic_bond"
        }
       ]
      }
@@ -848,7 +848,7 @@
        },
        {
         "name": "goodberry",
-        "library_id": "srd_goodberry"
+        "library_id": "srd_srd_goodberry"
        }
       ],
       "3": [
@@ -858,13 +858,13 @@
        },
        {
         "name": "spike growth",
-        "library_id": "srd_spike_growth"
+        "library_id": "srd_srd_spike_growth"
        }
       ],
       "5": [
        {
         "name": "speak with plants",
-        "library_id": "srd_speak_with_plants"
+        "library_id": "srd_srd_speak_with_plants"
        },
        {
         "name": "vine carpet",
@@ -878,7 +878,7 @@
        },
        {
         "name": "hallucinatory terrain",
-        "library_id": "srd_hallucinatory_terrain"
+        "library_id": "srd_srd_hallucinatory_terrain"
        }
       ],
       "9": [
@@ -888,7 +888,7 @@
        },
        {
         "name": "tree stride",
-        "library_id": "srd_tree_stride"
+        "library_id": "srd_srd_tree_stride"
        }
       ]
      }
@@ -913,11 +913,11 @@
       "3": [
        {
         "name": "enlarge/reduce",
-        "library_id": "srd_enlargereduce"
+        "library_id": "srd_srd_enlargereduce"
        },
        {
         "name": "spider climb",
-        "library_id": "srd_spider_climb"
+        "library_id": "srd_srd_spider_climb"
        }
       ],
       "5": [
@@ -927,27 +927,27 @@
        },
        {
         "name": "meld into stone",
-        "library_id": "srd_meld_into_stone"
+        "library_id": "srd_srd_meld_into_stone"
        }
       ],
       "7": [
        {
         "name": "blight",
-        "library_id": "srd_blight"
+        "library_id": "srd_srd_blight"
        },
        {
         "name": "freedom of movement",
-        "library_id": "srd_freedom_of_movement"
+        "library_id": "srd_srd_freedom_of_movement"
        }
       ],
       "9": [
        {
         "name": "contagion",
-        "library_id": "srd_contagion"
+        "library_id": "srd_srd_contagion"
        },
        {
         "name": "seeming",
-        "library_id": "srd_seeming"
+        "library_id": "srd_srd_seeming"
        }
       ]
      }
@@ -972,41 +972,41 @@
       "3": [
        {
         "name": "blur",
-        "library_id": "srd_blur"
+        "library_id": "srd_srd_blur"
        },
        {
         "name": "gust of wind",
-        "library_id": "srd_gust_of_wind"
+        "library_id": "srd_srd_gust_of_wind"
        }
       ],
       "5": [
        {
         "name": "fly",
-        "library_id": "srd_fly"
+        "library_id": "srd_srd_fly"
        },
        {
         "name": "lightning bolt",
-        "library_id": "srd_lightning_bolt"
+        "library_id": "srd_srd_lightning_bolt"
        }
       ],
       "7": [
        {
         "name": "conjure minor elementals",
-        "library_id": "srd_conjure_minor_elementals"
+        "library_id": "srd_srd_conjure_minor_elementals"
        },
        {
         "name": "freedom of movement",
-        "library_id": "srd_freedom_of_movement"
+        "library_id": "srd_srd_freedom_of_movement"
        }
       ],
       "9": [
        {
         "name": "cloudkill",
-        "library_id": "srd_cloudkill"
+        "library_id": "srd_srd_cloudkill"
        },
        {
         "name": "conjure elemental",
-        "library_id": "srd_conjure_elemental",
+        "library_id": "srd_srd_conjure_elemental",
         "note": "air elemental only"
        }
       ]
@@ -1107,19 +1107,19 @@
       "9": [
        {
         "name": "speak with plants",
-        "library_id": "srd_speak_with_plants"
+        "library_id": "srd_srd_speak_with_plants"
        }
       ],
       "13": [
        {
         "name": "hallucinatory terrain",
-        "library_id": "srd_hallucinatory_terrain"
+        "library_id": "srd_srd_hallucinatory_terrain"
        }
       ],
       "17": [
        {
         "name": "animate objects",
-        "library_id": "srd_animate_objects"
+        "library_id": "srd_srd_animate_objects"
        }
       ]
      }
@@ -1144,19 +1144,19 @@
       "3": [
        {
         "name": "false life",
-        "library_id": "srd_false_life"
+        "library_id": "srd_srd_false_life"
        }
       ],
       "5": [
        {
         "name": "invisibility",
-        "library_id": "srd_invisibility"
+        "library_id": "srd_srd_invisibility"
        }
       ],
       "9": [
        {
         "name": "speak with dead",
-        "library_id": "srd_speak_with_dead"
+        "library_id": "srd_srd_speak_with_dead"
        }
       ],
       "13": [
@@ -1291,11 +1291,11 @@
       "3": [
        {
         "name": "clairvoyance",
-        "library_id": "srd_clairvoyance"
+        "library_id": "srd_srd_clairvoyance"
        },
        {
         "name": "nondetection",
-        "library_id": "srd_nondetection"
+        "library_id": "srd_srd_nondetection"
        }
       ],
       "4": [
@@ -1315,7 +1315,7 @@
        },
        {
         "name": "legend lore",
-        "library_id": "srd_legend_lore"
+        "library_id": "srd_srd_legend_lore"
        }
       ]
      }
@@ -1344,7 +1344,7 @@
        },
        {
         "name": "healing word",
-        "library_id": "srd_healing_word"
+        "library_id": "srd_srd_healing_word"
        }
       ],
       "3": [
@@ -1354,7 +1354,7 @@
        },
        {
         "name": "ray of enfeeblement",
-        "library_id": "srd_ray_of_enfeeblement"
+        "library_id": "srd_srd_ray_of_enfeeblement"
        }
       ],
       "5": [
@@ -1380,7 +1380,7 @@
       "9": [
        {
         "name": "antilife shell",
-        "library_id": "srd_antilife_shell"
+        "library_id": "srd_srd_antilife_shell"
        },
        {
         "name": "raise dead",
@@ -1409,17 +1409,17 @@
       "3": [
        {
         "name": "color spray",
-        "library_id": "srd_color_spray"
+        "library_id": "srd_srd_color_spray"
        },
        {
         "name": "guiding bolt",
-        "library_id": "srd_guiding_bolt"
+        "library_id": "srd_srd_guiding_bolt"
        }
       ],
       "5": [
        {
         "name": "guiding bolt",
-        "library_id": "srd_guiding_bolt"
+        "library_id": "srd_srd_guiding_bolt"
        },
        {
         "name": "zone of truth",
@@ -1429,17 +1429,17 @@
       "9": [
        {
         "name": "lightning bolt",
-        "library_id": "srd_lightning_bolt"
+        "library_id": "srd_srd_lightning_bolt"
        },
        {
         "name": "slow",
-        "library_id": "srd_slow"
+        "library_id": "srd_srd_slow"
        }
       ],
       "13": [
        {
         "name": "faithful hound",
-        "library_id": "srd_faithful_hound"
+        "library_id": "srd_srd_faithful_hound"
        },
        {
         "name": "locate creature",
@@ -1449,11 +1449,11 @@
       "17": [
        {
         "name": "arcane hand",
-        "library_id": "srd_arcane_hand"
+        "library_id": "srd_srd_arcane_hand"
        },
        {
         "name": "hold monster",
-        "library_id": "srd_hold_monster"
+        "library_id": "srd_srd_hold_monster"
        }
       ]
      }
@@ -1478,7 +1478,7 @@
       "3": [
        {
         "name": "longstrider",
-        "library_id": "srd_longstrider"
+        "library_id": "srd_srd_longstrider"
        },
        {
         "name": "shield of faith",
@@ -1488,41 +1488,41 @@
       "5": [
        {
         "name": "hold person",
-        "library_id": "srd_hold_person"
+        "library_id": "srd_srd_hold_person"
        },
        {
         "name": "spike growth",
-        "library_id": "srd_spike_growth"
+        "library_id": "srd_srd_spike_growth"
        }
       ],
       "9": [
        {
         "name": "beacon of hope",
-        "library_id": "srd_beacon_of_hope"
+        "library_id": "srd_srd_beacon_of_hope"
        },
        {
         "name": "spirit guardians",
-        "library_id": "srd_spirit_guardians"
+        "library_id": "srd_srd_spirit_guardians"
        }
       ],
       "13": [
        {
         "name": "dimension door",
-        "library_id": "srd_dimension_door"
+        "library_id": "srd_srd_dimension_door"
        },
        {
         "name": "stoneskin",
-        "library_id": "srd_stoneskin"
+        "library_id": "srd_srd_stoneskin"
        }
       ],
       "17": [
        {
         "name": "greater restoration",
-        "library_id": "srd_greater_restoration"
+        "library_id": "srd_srd_greater_restoration"
        },
        {
         "name": "wall of stone",
-        "library_id": "srd_wall_of_stone"
+        "library_id": "srd_srd_wall_of_stone"
        }
       ]
      }
@@ -1547,51 +1547,51 @@
       "3": [
        {
         "name": "burning hands",
-        "library_id": "srd_burning_hands"
+        "library_id": "srd_srd_burning_hands"
        },
        {
         "name": "thunderwave",
-        "library_id": "srd_thunderwave"
+        "library_id": "srd_srd_thunderwave"
        }
       ],
       "5": [
        {
         "name": "acid arrow",
-        "library_id": "srd_acid_arrow"
+        "library_id": "srd_srd_acid_arrow"
        },
        {
         "name": "flaming sphere",
-        "library_id": "srd_flaming_sphere"
+        "library_id": "srd_srd_flaming_sphere"
        }
       ],
       "9": [
        {
         "name": "call lightning",
-        "library_id": "srd_call_lightning"
+        "library_id": "srd_srd_call_lightning"
        },
        {
         "name": "protection from energy",
-        "library_id": "srd_protection_from_energy"
+        "library_id": "srd_srd_protection_from_energy"
        }
       ],
       "13": [
        {
         "name": "conjure minor elementals",
-        "library_id": "srd_conjure_minor_elementals"
+        "library_id": "srd_srd_conjure_minor_elementals"
        },
        {
         "name": "ice storm",
-        "library_id": "srd_ice_storm"
+        "library_id": "srd_srd_ice_storm"
        }
       ],
       "17": [
        {
         "name": "conjure elemental",
-        "library_id": "srd_conjure_elemental"
+        "library_id": "srd_srd_conjure_elemental"
        },
        {
         "name": "wall of stone",
-        "library_id": "srd_wall_of_stone"
+        "library_id": "srd_srd_wall_of_stone"
        }
       ]
      }
@@ -1630,13 +1630,13 @@
        },
        {
         "name": "spiritual weapon",
-        "library_id": "srd_spiritual_weapon"
+        "library_id": "srd_srd_spiritual_weapon"
        }
       ],
       "9": [
        {
         "name": "beacon of hope",
-        "library_id": "srd_beacon_of_hope"
+        "library_id": "srd_srd_beacon_of_hope"
        },
        {
         "name": "invested champion",
@@ -1656,11 +1656,11 @@
       "17": [
        {
         "name": "creation",
-        "library_id": "srd_creation"
+        "library_id": "srd_srd_creation"
        },
        {
         "name": "hallow",
-        "library_id": "srd_hallow"
+        "library_id": "srd_srd_hallow"
        }
       ]
      }
@@ -1685,51 +1685,51 @@
       "3": [
        {
         "name": "burning hands",
-        "library_id": "srd_burning_hands"
+        "library_id": "srd_srd_burning_hands"
        },
        {
         "name": "sanctuary",
-        "library_id": "srd_sanctuary"
+        "library_id": "srd_srd_sanctuary"
        }
       ],
       "5": [
        {
         "name": "calm emotions",
-        "library_id": "srd_calm_emotions"
+        "library_id": "srd_srd_calm_emotions"
        },
        {
         "name": "flame blade",
-        "library_id": "srd_flame_blade"
+        "library_id": "srd_srd_flame_blade"
        }
       ],
       "9": [
        {
         "name": "protection from energy",
-        "library_id": "srd_protection_from_energy"
+        "library_id": "srd_srd_protection_from_energy"
        },
        {
         "name": "tiny hut",
-        "library_id": "srd_tiny_hut"
+        "library_id": "srd_srd_tiny_hut"
        }
       ],
       "13": [
        {
         "name": "guardian of faith",
-        "library_id": "srd_guardian_of_faith"
+        "library_id": "srd_srd_guardian_of_faith"
        },
        {
         "name": "wall of fire",
-        "library_id": "srd_wall_of_fire"
+        "library_id": "srd_srd_wall_of_fire"
        }
       ],
       "17": [
        {
         "name": "flame strike",
-        "library_id": "srd_flame_strike"
+        "library_id": "srd_srd_flame_strike"
        },
        {
         "name": "hallow",
-        "library_id": "srd_hallow"
+        "library_id": "srd_srd_hallow"
        }
       ]
      }
@@ -1754,7 +1754,7 @@
       "3": [
        {
         "name": "bane",
-        "library_id": "srd_bane"
+        "library_id": "srd_srd_bane"
        },
        {
         "name": "protection from evil and good",
@@ -1764,7 +1764,7 @@
       "5": [
        {
         "name": "enhance ability",
-        "library_id": "srd_enhance_ability"
+        "library_id": "srd_srd_enhance_ability"
        },
        {
         "name": "lesser restoration",
@@ -1784,21 +1784,21 @@
       "13": [
        {
         "name": "blight",
-        "library_id": "srd_blight"
+        "library_id": "srd_srd_blight"
        },
        {
         "name": "freedom of movement",
-        "library_id": "srd_freedom_of_movement"
+        "library_id": "srd_srd_freedom_of_movement"
        }
       ],
       "17": [
        {
         "name": "greater restoration",
-        "library_id": "srd_greater_restoration"
+        "library_id": "srd_srd_greater_restoration"
        },
        {
         "name": "hold monster",
-        "library_id": "srd_hold_monster"
+        "library_id": "srd_srd_hold_monster"
        }
       ]
      }
@@ -1827,17 +1827,17 @@
        },
        {
         "name": "faerie fire",
-        "library_id": "srd_faerie_fire"
+        "library_id": "srd_srd_faerie_fire"
        }
       ],
       "2": [
        {
         "name": "animal messenger",
-        "library_id": "srd_animal_messenger"
+        "library_id": "srd_srd_animal_messenger"
        },
        {
         "name": "spike growth",
-        "library_id": "srd_spike_growth"
+        "library_id": "srd_srd_spike_growth"
        }
       ],
       "3": [
@@ -1847,27 +1847,27 @@
        },
        {
         "name": "protection from energy",
-        "library_id": "srd_protection_from_energy"
+        "library_id": "srd_srd_protection_from_energy"
        }
       ],
       "4": [
        {
         "name": "conjure woodland beings",
-        "library_id": "srd_conjure_woodland_beings"
+        "library_id": "srd_srd_conjure_woodland_beings"
        },
        {
         "name": "giant insect",
-        "library_id": "srd_giant_insect"
+        "library_id": "srd_srd_giant_insect"
        }
       ],
       "5": [
        {
         "name": "greater restoration",
-        "library_id": "srd_greater_restoration"
+        "library_id": "srd_srd_greater_restoration"
        },
        {
         "name": "tree stride",
-        "library_id": "srd_tree_stride"
+        "library_id": "srd_srd_tree_stride"
        }
       ]
      }
@@ -1906,7 +1906,7 @@
        },
        {
         "name": "misty step",
-        "library_id": "srd_misty_step"
+        "library_id": "srd_srd_misty_step"
        }
       ],
       "5": [
@@ -1922,7 +1922,7 @@
       "7": [
        {
         "name": "dimension door",
-        "library_id": "srd_dimension_door"
+        "library_id": "srd_srd_dimension_door"
        },
        {
         "name": "reposition",
@@ -1936,7 +1936,7 @@
        },
        {
         "name": "teleportation circle",
-        "library_id": "srd_teleportation_circle"
+        "library_id": "srd_srd_teleportation_circle"
        }
       ]
      }
@@ -1965,7 +1965,7 @@
        },
        {
         "name": "healing word",
-        "library_id": "srd_healing_word"
+        "library_id": "srd_srd_healing_word"
        }
       ],
       "2": [
@@ -1995,17 +1995,17 @@
        },
        {
         "name": "stone shape",
-        "library_id": "srd_stone_shape"
+        "library_id": "srd_srd_stone_shape"
        }
       ],
       "5": [
        {
         "name": "conjure elemental",
-        "library_id": "srd_conjure_elemental"
+        "library_id": "srd_srd_conjure_elemental"
        },
        {
         "name": "creation",
-        "library_id": "srd_creation"
+        "library_id": "srd_srd_creation"
        }
       ]
      }
@@ -2059,7 +2059,7 @@
       "3": [
        {
         "name": "enthrall",
-        "library_id": "srd_enthrall"
+        "library_id": "srd_srd_enthrall"
        },
        {
         "name": "protection from poison",
@@ -2074,28 +2074,28 @@
        },
        {
         "name": "hypnotic pattern",
-        "library_id": "srd_hypnotic_pattern"
+        "library_id": "srd_srd_hypnotic_pattern"
        }
       ],
       "7": [
        {
         "name": "freedom of movement",
-        "library_id": "srd_freedom_of_movement"
+        "library_id": "srd_srd_freedom_of_movement"
        },
        {
         "name": "polymorph",
-        "library_id": "srd_polymorph",
+        "library_id": "srd_srd_polymorph",
         "note": "snakes only"
        }
       ],
       "9": [
        {
         "name": "dominate person",
-        "library_id": "srd_dominate_person"
+        "library_id": "srd_srd_dominate_person"
        },
        {
         "name": "mislead",
-        "library_id": "srd_mislead"
+        "library_id": "srd_srd_mislead"
        }
       ]
      }
@@ -2120,21 +2120,21 @@
       "1": [
        {
         "name": "bane",
-        "library_id": "srd_bane"
+        "library_id": "srd_srd_bane"
        },
        {
         "name": "false life",
-        "library_id": "srd_false_life"
+        "library_id": "srd_srd_false_life"
        }
       ],
       "3": [
        {
         "name": "blindness/deafness",
-        "library_id": "srd_blindnessdeafness"
+        "library_id": "srd_srd_blindnessdeafness"
        },
        {
         "name": "darkness",
-        "library_id": "srd_darkness"
+        "library_id": "srd_srd_darkness"
        }
       ],
       "5": [
@@ -2144,27 +2144,27 @@
        },
        {
         "name": "fear",
-        "library_id": "srd_fear"
+        "library_id": "srd_srd_fear"
        }
       ],
       "7": [
        {
         "name": "black tentacles",
-        "library_id": "srd_black_tentacles"
+        "library_id": "srd_srd_black_tentacles"
        },
        {
         "name": "greater invisibility",
-        "library_id": "srd_greater_invisibility"
+        "library_id": "srd_srd_greater_invisibility"
        }
       ],
       "9": [
        {
         "name": "cone of cold",
-        "library_id": "srd_cone_of_cold"
+        "library_id": "srd_srd_cone_of_cold"
        },
        {
         "name": "dream",
-        "library_id": "srd_dream"
+        "library_id": "srd_srd_dream"
        }
       ]
      }
@@ -2195,25 +2195,25 @@
       "5": [
        {
         "name": "suggestion",
-        "library_id": "srd_suggestion"
+        "library_id": "srd_srd_suggestion"
        }
       ],
       "9": [
        {
         "name": "tongues",
-        "library_id": "srd_tongues"
+        "library_id": "srd_srd_tongues"
        }
       ],
       "13": [
        {
         "name": "confusion",
-        "library_id": "srd_confusion"
+        "library_id": "srd_srd_confusion"
        }
       ],
       "17": [
        {
         "name": "dominate person",
-        "library_id": "srd_dominate_person"
+        "library_id": "srd_srd_dominate_person"
        }
       ]
      }
@@ -2260,18 +2260,18 @@
        },
        {
         "name": "speak with animals",
-        "library_id": "srd_speak_with_animals",
+        "library_id": "srd_srd_speak_with_animals",
         "note": "vermin only"
        }
       ],
       "3": [
        {
         "name": "spider climb",
-        "library_id": "srd_spider_climb"
+        "library_id": "srd_srd_spider_climb"
        },
        {
         "name": "web",
-        "library_id": "srd_web"
+        "library_id": "srd_srd_web"
        }
       ],
       "5": [
@@ -2282,28 +2282,28 @@
        },
        {
         "name": "fear",
-        "library_id": "srd_fear"
+        "library_id": "srd_srd_fear"
        }
       ],
       "7": [
        {
         "name": "dominate beast",
-        "library_id": "srd_dominate_beast",
+        "library_id": "srd_srd_dominate_beast",
         "note": "vermin only"
        },
        {
         "name": "giant insect",
-        "library_id": "srd_giant_insect"
+        "library_id": "srd_srd_giant_insect"
        }
       ],
       "9": [
        {
         "name": "contagion",
-        "library_id": "srd_contagion"
+        "library_id": "srd_srd_contagion"
        },
        {
         "name": "insect plague",
-        "library_id": "srd_insect_plague"
+        "library_id": "srd_srd_insect_plague"
        }
       ]
      }
@@ -2334,7 +2334,7 @@
       "5": [
        {
         "name": "calm emotions",
-        "library_id": "srd_calm_emotions"
+        "library_id": "srd_srd_calm_emotions"
        }
       ],
       "9": [
@@ -2352,7 +2352,7 @@
       "17": [
        {
         "name": "hold monster",
-        "library_id": "srd_hold_monster"
+        "library_id": "srd_srd_hold_monster"
        }
       ]
      }
@@ -2386,52 +2386,52 @@
       "1": [
        {
         "name": "feather fall",
-        "library_id": "srd_feather_fall"
+        "library_id": "srd_srd_feather_fall"
        },
        {
         "name": "thunderwave",
-        "library_id": "srd_thunderwave"
+        "library_id": "srd_srd_thunderwave"
        }
       ],
       "3": [
        {
         "name": "gust of wind",
-        "library_id": "srd_gust_of_wind"
+        "library_id": "srd_srd_gust_of_wind"
        },
        {
         "name": "misty step",
-        "library_id": "srd_misty_step"
+        "library_id": "srd_srd_misty_step"
        }
       ],
       "5": [
        {
         "name": "fly",
-        "library_id": "srd_fly"
+        "library_id": "srd_srd_fly"
        },
        {
         "name": "wind wall",
-        "library_id": "srd_wind_wall"
+        "library_id": "srd_srd_wind_wall"
        }
       ],
       "7": [
        {
         "name": "conjure minor elementals",
-        "library_id": "srd_conjure_minor_elementals",
+        "library_id": "srd_srd_conjure_minor_elementals",
         "note": "air only"
        },
        {
         "name": "freedom of movement",
-        "library_id": "srd_freedom_of_movement"
+        "library_id": "srd_srd_freedom_of_movement"
        }
       ],
       "9": [
        {
         "name": "cloudkill",
-        "library_id": "srd_cloudkill"
+        "library_id": "srd_srd_cloudkill"
        },
        {
         "name": "conjure elemental",
-        "library_id": "srd_conjure_elemental",
+        "library_id": "srd_srd_conjure_elemental",
         "note": "air only"
        }
       ]
@@ -2457,17 +2457,17 @@
       "1": [
        {
         "name": "bane",
-        "library_id": "srd_bane"
+        "library_id": "srd_srd_bane"
        },
        {
         "name": "faerie fire",
-        "library_id": "srd_faerie_fire"
+        "library_id": "srd_srd_faerie_fire"
        }
       ],
       "2": [
        {
         "name": "blur",
-        "library_id": "srd_blur"
+        "library_id": "srd_srd_blur"
        },
        {
         "name": "frenzied bolt",
@@ -2477,17 +2477,17 @@
       "3": [
        {
         "name": "bestow curse",
-        "library_id": "srd_bestow_curse"
+        "library_id": "srd_srd_bestow_curse"
        },
        {
         "name": "hypnotic pattern",
-        "library_id": "srd_hypnotic_pattern"
+        "library_id": "srd_srd_hypnotic_pattern"
        }
       ],
       "4": [
        {
         "name": "compulsion",
-        "library_id": "srd_compulsion"
+        "library_id": "srd_srd_compulsion"
        },
        {
         "name": "reset",
@@ -2501,7 +2501,7 @@
        },
        {
         "name": "mislead",
-        "library_id": "srd_mislead"
+        "library_id": "srd_srd_mislead"
        }
       ]
      }

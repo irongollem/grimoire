@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClassFeature } from "@/types/feature.types";
-import type { FeatureMechanics } from "./mechanics.types";
+import type { FeatureEffect, FeatureMechanics } from "./mechanics.types";
 import {
   actionsByActivation,
   activeToggles,
@@ -210,11 +210,64 @@ describe("classResourcesFor", () => {
 describe("actionsByActivation", () => {
   it("lists sub-actions in place of a feature that only groups them, and the toggle key", () => {
     const g = grantedFeatures({ ...base, classes: [klass({ classMap: { "1": ["cunning", "rage"] } })], featuresById: byId(cunning, rage) });
-    const acts = actionsByActivation(g);
+    const acts = actionsByActivation(g, 5);
     expect(acts.bonus_action.map((a) => a.name)).toEqual(["Dash", "Rage"]);
     expect(acts.bonus_action.find((a) => a.name === "Dash")?.isSubAction).toBe(true);
     expect(acts.bonus_action.find((a) => a.name === "Rage")?.toggleKey).toBe("rage");
     expect(acts.action[0]).toMatchObject({ name: "Stunning", spends: { key: "ki", amount: 1 } });
+  });
+
+  const thunder: FeatureEffect = {
+    kind: "save",
+    save: { ability: "con", dc_ability: "cha", success: "none" },
+    dice: { "3": "1d6", "10": "2d6" },
+    damage_type: "thunder",
+  };
+
+  it("lists a feature with an effect but no activation under special, carrying its effect and granting class", () => {
+    const psychic = feature("psychic", "Psychic Blades", { effect: thunder });
+    const g = grantedFeatures({ ...base, classes: [klass({ className: "Bard", levels: 12, classMap: { "1": ["psychic"] } })], featuresById: byId(psychic) });
+    const acts = actionsByActivation(g, 12);
+    expect(acts.special).toHaveLength(1);
+    expect(acts.special[0]).toMatchObject({ name: "Psychic Blades", effect: thunder, effectLevel: 12, className: "Bard", isSubAction: false });
+  });
+
+  it("carries a sub-action's effect, and lists a grouping feature that also has its own effect", () => {
+    const cannon = feature("cannon", "Eldritch Cannon", {
+      effect: thunder,
+      actions: [{ name: "Flamethrower", activation: "action", effect: { ...thunder, damage_type: "fire" } }],
+    });
+    const g = grantedFeatures({ ...base, classes: [klass({ className: "Artificer", levels: 5, classMap: { "1": ["cannon"] } })], featuresById: byId(cannon) });
+    const acts = actionsByActivation(g, 5);
+    expect(acts.special.map((a) => a.name)).toEqual(["Eldritch Cannon"]);
+    const flame = acts.action.find((a) => a.name === "Flamethrower");
+    expect(flame).toMatchObject({ isSubAction: true, className: "Artificer", effectLevel: 5 });
+    expect(flame?.effect?.damage_type).toBe("fire");
+  });
+
+  it("spends a feature's own use when it is used, itself or through a sub-action, unless it names another cost", () => {
+    const own = { key: "surge", label: "Action Surge", amount: { kind: "fixed", value: 1 }, recharge: "short", pool: false } as const;
+    const surge = feature("surge", "Action Surge", { activation: "special", uses: own });
+    const eye = feature("eye", "The Third Eye", {
+      uses: { ...own, key: "third_eye", label: "The Third Eye" },
+      actions: [{ name: "Darkvision", activation: "action" }, { name: "Free", activation: "action", spends: { key: "ki", amount: 2 } }],
+    });
+    const hands = feature("hands", "Lay on Hands", { activation: "action", uses: { ...own, key: "lay_on_hands", pool: true } });
+    const g = grantedFeatures({ ...base, classes: [klass({ classMap: { "1": ["surge", "eye", "hands"] } })], featuresById: byId(surge, eye, hands) });
+    const acts = actionsByActivation(g, 5);
+    expect(acts.special.find((a) => a.name === "Action Surge")?.spends).toEqual({ key: "surge", amount: 1 });
+    expect(acts.action.find((a) => a.name === "Darkvision")?.spends).toEqual({ key: "third_eye", amount: 1 });
+    expect(acts.action.find((a) => a.name === "Free")?.spends).toEqual({ key: "ki", amount: 2 });
+    // A feature that groups sub-actions is still not listed of its own.
+    expect(acts.action.some((a) => a.name === "The Third Eye")).toBe(false);
+    // A pool is spent in chosen amounts: nothing is assumed.
+    expect(acts.action.find((a) => a.name === "Lay on Hands")?.spends).toBeNull();
+  });
+
+  it("reads a feat's effect at the character's level, with no granting class", () => {
+    const talent = feature("talent", "Fey Touched", { activation: "action", effect: thunder }, "feat");
+    const g = grantedFeatures({ ...base, classes: [], featuresById: byId(talent), classChoices: { feats: ["talent"] }, characterLevel: 8 });
+    expect(actionsByActivation(g, 8).action[0]).toMatchObject({ className: null, effectLevel: 8 });
   });
 });
 

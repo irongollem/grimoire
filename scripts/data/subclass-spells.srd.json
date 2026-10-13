@@ -24,14 +24,14 @@
     },
     {
      "name": "spiritual weapon",
-     "library_id": "srd_spiritual_weapon",
+     "library_id": "srd_srd_spiritual_weapon",
      "library_name": "Spiritual Weapon"
     }
    ],
    "5": [
     {
      "name": "beacon of hope",
-     "library_id": "srd_beacon_of_hope",
+     "library_id": "srd_srd_beacon_of_hope",
      "library_name": "Beacon of Hope"
     },
     {
@@ -48,14 +48,14 @@
     },
     {
      "name": "guardian of faith",
-     "library_id": "srd_guardian_of_faith",
+     "library_id": "srd_srd_guardian_of_faith",
      "library_name": "Guardian of Faith"
     }
    ],
    "9": [
     {
      "name": "mass cure wounds",
-     "library_id": "srd_mass_cure_wounds",
+     "library_id": "srd_srd_mass_cure_wounds",
      "library_name": "Mass Cure Wounds"
     },
     {
@@ -83,7 +83,7 @@
     },
     {
      "name": "sanctuary",
-     "library_id": "srd_sanctuary",
+     "library_id": "srd_srd_sanctuary",
      "library_name": "Sanctuary"
     }
    ],
@@ -102,7 +102,7 @@
    "9": [
     {
      "name": "beacon of hope",
-     "library_id": "srd_beacon_of_hope",
+     "library_id": "srd_srd_beacon_of_hope",
      "library_name": "Beacon of Hope"
     },
     {
@@ -114,24 +114,24 @@
    "13": [
     {
      "name": "freedom of movement",
-     "library_id": "srd_freedom_of_movement",
+     "library_id": "srd_srd_freedom_of_movement",
      "library_name": "Freedom of Movement"
     },
     {
      "name": "guardian of faith",
-     "library_id": "srd_guardian_of_faith",
+     "library_id": "srd_srd_guardian_of_faith",
      "library_name": "Guardian of Faith"
     }
    ],
    "17": [
     {
      "name": "commune",
-     "library_id": "srd_commune",
+     "library_id": "srd_srd_commune",
      "library_name": "Commune"
     },
     {
      "name": "flame strike",
-     "library_id": "srd_flame_strike",
+     "library_id": "srd_srd_flame_strike",
      "library_name": "Flame Strike"
     }
    ]
@@ -149,7 +149,7 @@
    "1": [
     {
      "name": "burning hands",
-     "library_id": "srd_burning_hands",
+     "library_id": "srd_srd_burning_hands",
      "library_name": "Burning Hands"
     },
     {
@@ -161,48 +161,48 @@
    "2": [
     {
      "name": "blindness/deafness",
-     "library_id": "srd_blindnessdeafness",
+     "library_id": "srd_srd_blindnessdeafness",
      "library_name": "Blindness/Deafness"
     },
     {
      "name": "scorching ray",
-     "library_id": "srd_scorching_ray",
+     "library_id": "srd_srd_scorching_ray",
      "library_name": "Scorching Ray"
     }
    ],
    "3": [
     {
      "name": "fireball",
-     "library_id": "srd_fireball",
+     "library_id": "srd_srd_fireball",
      "library_name": "Fireball"
     },
     {
      "name": "stinking cloud",
-     "library_id": "srd_stinking_cloud",
+     "library_id": "srd_srd_stinking_cloud",
      "library_name": "Stinking Cloud"
     }
    ],
    "4": [
     {
      "name": "fire shield",
-     "library_id": "srd_fire_shield",
+     "library_id": "srd_srd_fire_shield",
      "library_name": "Fire Shield"
     },
     {
      "name": "wall of fire",
-     "library_id": "srd_wall_of_fire",
+     "library_id": "srd_srd_wall_of_fire",
      "library_name": "Wall of Fire"
     }
    ],
    "5": [
     {
      "name": "flame strike",
-     "library_id": "srd_flame_strike",
+     "library_id": "srd_srd_flame_strike",
      "library_name": "Flame Strike"
     },
     {
      "name": "hallow",
-     "library_id": "srd_hallow",
+     "library_id": "srd_srd_hallow",
      "library_name": "Hallow"
     }
    ]
@@ -221,48 +221,48 @@
     "3": [
      {
       "name": "hold person",
-      "library_id": "srd_hold_person",
+      "library_id": "srd_srd_hold_person",
       "library_name": "Hold Person"
      },
      {
       "name": "spike growth",
-      "library_id": "srd_spike_growth",
+      "library_id": "srd_srd_spike_growth",
       "library_name": "Spike Growth"
      }
     ],
     "5": [
      {
       "name": "sleet storm",
-      "library_id": "srd_sleet_storm",
+      "library_id": "srd_srd_sleet_storm",
       "library_name": "Sleet Storm"
      },
      {
       "name": "slow",
-      "library_id": "srd_slow",
+      "library_id": "srd_srd_slow",
       "library_name": "Slow"
      }
     ],
     "7": [
      {
       "name": "freedom of movement",
-      "library_id": "srd_freedom_of_movement",
+      "library_id": "srd_srd_freedom_of_movement",
       "library_name": "Freedom of Movement"
      },
      {
       "name": "ice storm",
-      "library_id": "srd_ice_storm",
+      "library_id": "srd_srd_ice_storm",
       "library_name": "Ice Storm"
      }
     ],
     "9": [
      {
       "name": "commune with nature",
-      "library_id": "srd_commune_with_nature",
+      "library_id": "srd_srd_commune_with_nature",
       "library_name": "Commune with Nature"
      },
      {
       "name": "cone of cold",
-      "library_id": "srd_cone_of_cold",
+      "library_id": "srd_srd_cone_of_cold",
       "library_name": "Cone of Cold"
      }
     ]
@@ -271,48 +271,48 @@
     "3": [
      {
       "name": "mirror image",
-      "library_id": "srd_mirror_image",
+      "library_id": "srd_srd_mirror_image",
       "library_name": "Mirror Image"
      },
      {
       "name": "misty step",
-      "library_id": "srd_misty_step",
+      "library_id": "srd_srd_misty_step",
       "library_name": "Misty Step"
      }
     ],
     "5": [
      {
       "name": "water breathing",
-      "library_id": "srd_water_breathing",
+      "library_id": "srd_srd_water_breathing",
       "library_name": "Water Breathing"
      },
      {
       "name": "water walk",
-      "library_id": "srd_water_walk",
+      "library_id": "srd_srd_water_walk",
       "library_name": "Water Walk"
      }
     ],
     "7": [
      {
       "name": "control water",
-      "library_id": "srd_control_water",
+      "library_id": "srd_srd_control_water",
       "library_name": "Control Water"
      },
      {
       "name": "freedom of movement",
-      "library_id": "srd_freedom_of_movement",
+      "library_id": "srd_srd_freedom_of_movement",
       "library_name": "Freedom of Movement"
      }
     ],
     "9": [
      {
       "name": "conjure elemental",
-      "library_id": "srd_conjure_elemental",
+      "library_id": "srd_srd_conjure_elemental",
       "library_name": "Conjure Elemental"
      },
      {
       "name": "scrying",
-      "library_id": "srd_scrying",
+      "library_id": "srd_srd_scrying",
       "library_name": "Scrying"
      }
     ]
@@ -321,12 +321,12 @@
     "3": [
      {
       "name": "blur",
-      "library_id": "srd_blur",
+      "library_id": "srd_srd_blur",
       "library_name": "Blur"
      },
      {
       "name": "silence",
-      "library_id": "srd_silence",
+      "library_id": "srd_srd_silence",
       "library_name": "Silence"
      }
     ],
@@ -338,31 +338,31 @@
      },
      {
       "name": "protection from energy",
-      "library_id": "srd_protection_from_energy",
+      "library_id": "srd_srd_protection_from_energy",
       "library_name": "Protection from Energy"
      }
     ],
     "7": [
      {
       "name": "blight",
-      "library_id": "srd_blight",
+      "library_id": "srd_srd_blight",
       "library_name": "Blight"
      },
      {
       "name": "hallucinatory terrain",
-      "library_id": "srd_hallucinatory_terrain",
+      "library_id": "srd_srd_hallucinatory_terrain",
       "library_name": "Hallucinatory Terrain"
      }
     ],
     "9": [
      {
       "name": "insect plague",
-      "library_id": "srd_insect_plague",
+      "library_id": "srd_srd_insect_plague",
       "library_name": "Insect Plague"
      },
      {
       "name": "wall of stone",
-      "library_id": "srd_wall_of_stone",
+      "library_id": "srd_srd_wall_of_stone",
       "library_name": "Wall of Stone"
      }
     ]
@@ -376,43 +376,43 @@
      },
      {
       "name": "spider climb",
-      "library_id": "srd_spider_climb",
+      "library_id": "srd_srd_spider_climb",
       "library_name": "Spider Climb"
      }
     ],
     "5": [
      {
       "name": "call lightning",
-      "library_id": "srd_call_lightning",
+      "library_id": "srd_srd_call_lightning",
       "library_name": "Call Lightning"
      },
      {
       "name": "plant growth",
-      "library_id": "srd_plant_growth",
+      "library_id": "srd_srd_plant_growth",
       "library_name": "Plant Growth"
      }
     ],
     "7": [
      {
       "name": "divination",
-      "library_id": "srd_divination",
+      "library_id": "srd_srd_divination",
       "library_name": "Divination"
      },
      {
       "name": "freedom of movement",
-      "library_id": "srd_freedom_of_movement",
+      "library_id": "srd_srd_freedom_of_movement",
       "library_name": "Freedom of Movement"
      }
     ],
     "9": [
      {
       "name": "commune with nature",
-      "library_id": "srd_commune_with_nature",
+      "library_id": "srd_srd_commune_with_nature",
       "library_name": "Commune with Nature"
      },
      {
       "name": "tree stride",
-      "library_id": "srd_tree_stride",
+      "library_id": "srd_srd_tree_stride",
       "library_name": "Tree Stride"
      }
     ]
@@ -421,12 +421,12 @@
     "3": [
      {
       "name": "invisibility",
-      "library_id": "srd_invisibility",
+      "library_id": "srd_srd_invisibility",
       "library_name": "Invisibility"
      },
      {
       "name": "pass without trace",
-      "library_id": "srd_pass_without_trace",
+      "library_id": "srd_srd_pass_without_trace",
       "library_name": "Pass without Trace"
      }
     ],
@@ -438,31 +438,31 @@
      },
      {
       "name": "haste",
-      "library_id": "srd_haste",
+      "library_id": "srd_srd_haste",
       "library_name": "Haste"
      }
     ],
     "7": [
      {
       "name": "divination",
-      "library_id": "srd_divination",
+      "library_id": "srd_srd_divination",
       "library_name": "Divination"
      },
      {
       "name": "freedom of movement",
-      "library_id": "srd_freedom_of_movement",
+      "library_id": "srd_srd_freedom_of_movement",
       "library_name": "Freedom of Movement"
      }
     ],
     "9": [
      {
       "name": "dream",
-      "library_id": "srd_dream",
+      "library_id": "srd_srd_dream",
       "library_name": "Dream"
      },
      {
       "name": "insect plague",
-      "library_id": "srd_insect_plague",
+      "library_id": "srd_srd_insect_plague",
       "library_name": "Insect Plague"
      }
     ]
@@ -471,48 +471,48 @@
     "3": [
      {
       "name": "spider climb",
-      "library_id": "srd_spider_climb",
+      "library_id": "srd_srd_spider_climb",
       "library_name": "Spider Climb"
      },
      {
       "name": "spike growth",
-      "library_id": "srd_spike_growth",
+      "library_id": "srd_srd_spike_growth",
       "library_name": "Spike Growth"
      }
     ],
     "5": [
      {
       "name": "lightning bolt",
-      "library_id": "srd_lightning_bolt",
+      "library_id": "srd_srd_lightning_bolt",
       "library_name": "Lightning Bolt"
      },
      {
       "name": "meld into stone",
-      "library_id": "srd_meld_into_stone",
+      "library_id": "srd_srd_meld_into_stone",
       "library_name": "Meld into Stone"
      }
     ],
     "7": [
      {
       "name": "stone shape",
-      "library_id": "srd_stone_shape",
+      "library_id": "srd_srd_stone_shape",
       "library_name": "Stone Shape"
      },
      {
       "name": "stoneskin",
-      "library_id": "srd_stoneskin",
+      "library_id": "srd_srd_stoneskin",
       "library_name": "Stoneskin"
      }
     ],
     "9": [
      {
       "name": "passwall",
-      "library_id": "srd_passwall",
+      "library_id": "srd_srd_passwall",
       "library_name": "Passwall"
      },
      {
       "name": "wall of stone",
-      "library_id": "srd_wall_of_stone",
+      "library_id": "srd_srd_wall_of_stone",
       "library_name": "Wall of Stone"
      }
     ]
@@ -521,31 +521,31 @@
     "3": [
      {
       "name": "acid arrow",
-      "library_id": "srd_acid_arrow",
+      "library_id": "srd_srd_acid_arrow",
       "library_name": "Acid Arrow"
      },
      {
       "name": "darkness",
-      "library_id": "srd_darkness",
+      "library_id": "srd_srd_darkness",
       "library_name": "Darkness"
      }
     ],
     "5": [
      {
       "name": "water walk",
-      "library_id": "srd_water_walk",
+      "library_id": "srd_srd_water_walk",
       "library_name": "Water Walk"
      },
      {
       "name": "stinking cloud",
-      "library_id": "srd_stinking_cloud",
+      "library_id": "srd_srd_stinking_cloud",
       "library_name": "Stinking Cloud"
      }
     ],
     "7": [
      {
       "name": "freedom of movement",
-      "library_id": "srd_freedom_of_movement",
+      "library_id": "srd_srd_freedom_of_movement",
       "library_name": "Freedom of Movement"
      },
      {
@@ -557,12 +557,12 @@
     "9": [
      {
       "name": "insect plague",
-      "library_id": "srd_insect_plague",
+      "library_id": "srd_srd_insect_plague",
       "library_name": "Insect Plague"
      },
      {
       "name": "scrying",
-      "library_id": "srd_scrying",
+      "library_id": "srd_srd_scrying",
       "library_name": "Scrying"
      }
     ]

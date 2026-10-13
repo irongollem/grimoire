@@ -63,3 +63,63 @@ describe("spell picks and grants", () => {
     ]);
   });
 });
+
+describe("describeEffect", () => {
+  it("summarises a save with damage by level", () => {
+    const groups = summarizeMechanics({
+      effect: {
+        kind: "save",
+        save: { ability: "con", dc_ability: "cha", success: "none" },
+        dice: { "10": "2d6", "3": "1d6" },
+        damage_type: "thunder",
+        add: [{ kind: "proficiency" }],
+      },
+    });
+    expect(groups).toEqual([
+      {
+        heading: "Rolls",
+        lines: [
+          "CON saving throw against 8 + proficiency + CHA modifier, no damage on a success",
+          "Deals 1d6 from level 3, 2d6 from level 10 thunder, plus proficiency bonus",
+        ],
+      },
+    ]);
+  });
+
+  it("summarises an attack with the class's spell bonus, and an effect on a sub-action", () => {
+    const groups = summarizeMechanics({
+      actions: [
+        {
+          name: "Force Ballista",
+          activation: "action",
+          effect: { kind: "attack", attack: { delivery: "ranged", ability: "spell", range: "120 ft" }, dice: { "3": "2d8" }, damage_type: "force", area: "one target" },
+        },
+      ],
+    });
+    expect(groups[0].lines).toEqual([
+      "Force Ballista (Action)",
+      "Force Ballista: Ranged attack (120 ft), the class's spell attack bonus",
+      "Force Ballista: Deals 2d8 from level 3 force",
+      "Force Ballista: Area: one target",
+    ]);
+  });
+
+  it("says healing heals", () => {
+    expect(summarizeMechanics({ effect: { kind: "heal", dice: { "1": "1d8" }, add: [{ kind: "ability", ability: "wis" }] } })[0].lines)
+      .toEqual(["Heals 1d8 from level 1, plus WIS modifier"]);
+  });
+});
+
+describe("temporary hit points, floors and flat riders", () => {
+  it("says temporary hit points and the minimum", () => {
+    const lines = summarizeMechanics({ effect: { kind: "temp_hp", dice: { "1": "1d8" }, add: [{ kind: "ability", ability: "int" }], min: 1 } })[0].lines;
+    expect(lines.join(" ")).toContain("Grants temporary hit points: 1d8 from level 1, plus INT modifier (minimum 1)");
+  });
+
+  it("describes a flat rider from what it adds", () => {
+    const groups = summarizeMechanics({
+      riders: [{ label: "Aura", dice: { kind: "flat", add: [{ kind: "ability", ability: "cha" }], min: 1 }, applies_to: "weapon", once_per_turn: false }],
+    });
+    expect(groups.flatMap((g) => g.lines).join(" ")).toContain("Aura: CHA modifier (minimum 1)");
+  });
+});

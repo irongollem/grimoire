@@ -19,6 +19,7 @@ vi.mock("@/composables/rules/useCustomClasses", () => ({
   useCampaignSystemClasses: () => ({ data: ref([]) }),
   useCampaignCustomClasses: () => ({ data: ref([]) }),
 }));
+vi.mock("@/composables/rules/useCustomSubclasses", () => ({ useAllCustomSubclasses: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/rules/useSpecies", () => ({
   useCampaignSpecies: () => ({ data: ref([]), all: ref([]) }),
 }));

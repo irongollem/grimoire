@@ -1,19 +1,22 @@
 import { computeSpellcastingPerClass, type AbilityScores, type CharacterClass, type SpellcastingClassStats } from "@/types/multiclass.types";
 import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
-import type { CasterType } from "@/types/spell.types";
+import { castingFor, classCastingAbility, type ClassCastingLike, type SubclassCastingLike } from "@/rules/subclassCasting";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 /** The subset of a system/custom class definition this module needs. */
-export interface SpellcastingClassDefinitionLike {
+export interface SpellcastingClassDefinitionLike extends ClassCastingLike {
   id: string;
-  prepared_ability?: "int" | "wis" | "cha" | null;
-  primary_ability?: string | null;
-  caster_type?: CasterType | null;
+}
+
+/** The subset of a subclass definition this module needs. */
+export interface SpellcastingSubclassDefinitionLike extends SubclassCastingLike {
+  id: string;
 }
 
 export interface SpellcastingClassDefinitions {
   system: SpellcastingClassDefinitionLike[];
   custom: SpellcastingClassDefinitionLike[];
+  subclasses: SpellcastingSubclassDefinitionLike[];
 }
 
 function definitionFor(
@@ -24,18 +27,29 @@ function definitionFor(
   return pool.find((candidate) => candidate.id === entry.class_definition_id);
 }
 
+function subclassFor(
+  entry: CharacterClass,
+  definitions: SpellcastingClassDefinitions,
+): SpellcastingSubclassDefinitionLike | undefined {
+  if (!entry.subclass_definition_id) return undefined;
+  return definitions.subclasses.find((candidate) => candidate.id === entry.subclass_definition_id);
+}
+
 /**
  * Per-class spellcasting stats (DC/attack + effective caster type) for a
  * character's classes, resolving each class's definition (system or custom)
  * to determine its casting ability and caster-type override.
+ *
+ * A row casts from its class when the class casts, else from its subclass's
+ * own spellcasting (`castingFor`: an Eldritch Knight casts off Intelligence).
  *
  * Casting ability precedence: definition's explicit `prepared_ability` →
  * a text match on `primary_ability` (Intelligence/Wisdom/Charisma); a class
  * with neither casts nothing.
  *
  * Caster-type precedence: the ruleset's spell-preparation policy (system
- * classes only) → the definition's `caster_type`. Every definition has one;
- * a row whose definition did not resolve is a non-caster.
+ * classes only) → the effective casting's type. A row whose definition did
+ * not resolve and holds no casting subclass is a non-caster.
  *
  * Shared by RunnerPcPanel (encounter runner) and PlayerSpellsView (player
  * portal) so multiclass casters see the correct per-class DC in both places.
@@ -48,22 +62,14 @@ export function computeSpellcastingByClass(
 ): SpellcastingClassStats[] {
   return computeSpellcastingPerClass(member, classEntries, (entry) => {
     const definition = definitionFor(entry, definitions);
-    const policy = entry.class_definition_kind === "custom"
-      ? null
-      : getSpellPreparationPolicy(entry.class_name, ruleset);
+    const casting = castingFor(definition, subclassFor(entry, definitions));
+    const policy = casting?.source !== "subclass" && entry.class_definition_kind !== "custom"
+      ? getSpellPreparationPolicy(entry.class_name, ruleset)
+      : null;
     return {
-      ability: abilityOf(definition),
-      casterType: policy?.casterType ?? definition?.caster_type ?? "none",
+      // A class that does not cast keeps the ability its definition names (a Monk's Wisdom DC).
+      ability: casting ? casting.ability : classCastingAbility(definition),
+      casterType: policy?.casterType ?? casting?.casterType ?? "none",
     };
   });
-}
-
-function abilityOf(definition: SpellcastingClassDefinitionLike | undefined): "int" | "wis" | "cha" | null {
-  const explicit = definition?.prepared_ability;
-  if (explicit) return explicit;
-  const primary = definition?.primary_ability?.toLowerCase() ?? null;
-  if (primary?.includes("intelligence")) return "int";
-  if (primary?.includes("wisdom")) return "wis";
-  if (primary?.includes("charisma")) return "cha";
-  return null;
 }
