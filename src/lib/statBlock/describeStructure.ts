@@ -53,7 +53,7 @@ export function saveLabel(s: Pick<SaveStructure, "ability" | "dc">): string {
 export function describeSaveEnds(ends: SaveEnds): string {
   switch (ends.kind) {
     case "save":
-      return ends.at === "start" ? "save ends at turn start" : "save ends";
+      return `${ends.at === "start" ? "save ends at turn start" : "save ends"}${ends.remaining === undefined ? "" : `, max ${ends.remaining} ${ends.remaining === 1 ? "round" : "rounds"}`}`;
     case "turn":
       return `until the ${ends.at} of ${ends.of === "self" ? "the target's" : "this creature's"} next turn`;
     case "rounds":
@@ -65,8 +65,7 @@ function describeSave(s: SaveStructure): string[] {
   const out = [`${saveLabel(s)} save`];
   if (s.fail.length > 0) out.push(s.success === "half" ? `${parts(s.fail)}, half on success` : parts(s.fail));
   if (s.conditions.length > 0) {
-    const names = s.conditions.join(", ");
-    out.push(s.ends ? `${names} (${describeSaveEnds(s.ends)})` : names);
+    out.push(s.conditions.map((c) => (c.ends ? `${c.name} (${describeSaveEnds(c.ends)})` : c.name)).join(", "));
   }
   return out;
 }

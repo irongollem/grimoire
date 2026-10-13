@@ -43,7 +43,8 @@ function anchorOf(c: AppliedCondition, bearer: RunCombatant, ids: ReadonlySet<st
   const sourceId = c.source?.id;
   const sourceHere = sourceId !== undefined && ids.has(sourceId);
   if (c.ends?.kind === "turn") return c.ends.of === "source" && sourceHere ? sourceId : bearer.instance_id;
-  if (c.ends?.kind === "rounds") return sourceHere ? sourceId : bearer.instance_id;
+  // A save end with a round cap counts those rounds down like a rounds end (#1055).
+  if (c.ends?.kind === "rounds" || (c.ends?.kind === "save" && c.ends.remaining !== undefined)) return sourceHere ? sourceId : bearer.instance_id;
   return bearer.instance_id;
 }
 
@@ -71,7 +72,8 @@ function applyRewrites(
  *
  * Start edge: conditions ending "at the start of" the anchor's turn expire,
  * ones ending "at the end of" it are armed (so a condition applied during that
- * very turn survives its end), rounds tick down on the anchor's turns, and
+ * very turn survives its end), rounds tick down on the anchor's turns (a save
+ * end's round cap, #1055, ticks the same way and lapses as "expired"), and
  * on the bearer's own start a save or ongoing damage set for the start falls
  * due. End edge: armed end-of-turn conditions expire, and on the bearer's own
  * end a save or ongoing damage set for the end falls due.
@@ -101,15 +103,21 @@ export function conditionsAtTurnEdge(
         const remaining = ends.remaining - 1;
         if (remaining <= 0) ended();
         else rec = { ...rec, ends: { ...ends, remaining } };
+      } else if (ends?.kind === "save" && ends.remaining !== undefined && edge === "start" && anchorOf(c, b, ids) === instanceId) {
+        const remaining = ends.remaining - 1;
+        if (remaining <= 0) ended();
+        else rec = { ...rec, ends: { ...ends, remaining } };
       }
       if (removed) {
         changed = true;
         continue;
       }
       if (b.instance_id === instanceId) {
-        if (ends?.kind === "save" && ends.at === edge) {
+        // `rec.ends` rather than `ends`: a capped save end has just ticked down.
+        const saveEnds = rec.ends;
+        if (saveEnds?.kind === "save" && saveEnds.at === edge) {
           rec = withDue(rec, "save");
-          events.push({ type: "condition_save_due", instanceId: b.instance_id, name: c.name, ability: ends.ability, dc: ends.dc });
+          events.push({ type: "condition_save_due", instanceId: b.instance_id, name: c.name, ability: saveEnds.ability, dc: saveEnds.dc });
         }
         if (c.ongoing && c.ongoing.at === edge) {
           rec = withDue(rec, "damage");

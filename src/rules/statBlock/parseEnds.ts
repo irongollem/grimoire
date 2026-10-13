@@ -13,11 +13,15 @@
  *  rounds  "...or be poisoned for 1 minute." (ten rounds)  "...restrained for 3 rounds."
  *           Tome of Beasts 3: "blinded for 1 min (DC 17 Con negates)."
  *
+ * Each condition holds its own end (#1055): a repeat that names a condition ("ending the
+ * restrained condition on itself") ends only that one, and the others keep their own stated
+ * duration. A repeat beside a stated duration of rounds is save ends capped at those rounds.
+ *
  * The reader and the prose check share these patterns, so whatever the parser can
  * produce the check can confirm, and an agent's `ends` is held to the same words.
  * Relative `.ts` imports only: edge functions import this folder.
  */
-import type { SaveAbility, SaveEnds, SaveStructure, SrdConditionName } from "../../types/statBlock.types.ts";
+import type { SaveAbility, SaveCondition, SaveEnds, SaveStructure, SrdConditionName } from "../../types/statBlock.types.ts";
 import type { TurnEdge } from "../../types/condition.types.ts";
 import { ABILITY_RE_SOURCE, CONDITION_STEMS, NUMBER_WORDS, abilityFromWord } from "./vocab.ts";
 
@@ -179,7 +183,8 @@ function sameEnds(a: SaveEnds, b: SaveEnds, save: SaveOf): boolean {
         b.at === a.at &&
         (b.ability ?? save.ability) === (a.ability ?? save.ability) &&
         (b.dc ?? save.dc) === (a.dc ?? save.dc) &&
-        keys === 2 + (b.ability === undefined ? 0 : 1) + (b.dc === undefined ? 0 : 1)
+        b.remaining === a.remaining &&
+        keys === 2 + (b.ability === undefined ? 0 : 1) + (b.dc === undefined ? 0 : 1) + (b.remaining === undefined ? 0 : 1)
       );
     case "turn":
       return b.kind === "turn" && b.at === a.at && b.of === a.of && keys === 3;
@@ -188,54 +193,65 @@ function sameEnds(a: SaveEnds, b: SaveEnds, save: SaveOf): boolean {
   }
 }
 
+/** The duration the failure text states for one condition (its first "for" / "until" clause), or null. */
+function ownDuration(failure: string, name: SrdConditionName): SaveEnds | null {
+  for (const m of failure.matchAll(new RegExp(CONDITION_STEMS[name].source, "gi"))) {
+    const own = durationAfter(failure, m.index);
+    if (own) return own;
+  }
+  return null;
+}
+
 /**
- * What ends `conditions`, read from an entry's prose. `after` is the text from the
- * save on (where a repeat sentence may stand); `failure` is the failed-save outcome
- * the conditions were read from. A repeat save wins over a stated duration ("paralyzed
- * for 1 minute. The target can repeat the saving throw..."): the minute is a cap the
- * save almost always reaches first, and one record holds one end (a save-ends record has no
- * room for the cap, so it is dropped). A duration counts
- * only when it is the same for every condition, so "poisoned for 1 minute and knocked
- * prone" gets no end rather than giving prone a minute.
+ * What ends each of `conditions`, read from an entry's prose; one entry per condition, in
+ * order, with `ends` left out when nothing ends it. `after` is the text from the save on
+ * (where a repeat sentence may stand); `failure` is the failed-save outcome the conditions
+ * were read from (#1055).
+ *
+ * A repeat that names conditions ("ending the restrained condition") ends only those; one
+ * that says "the effect" ends every condition no named repeat claims. A condition a repeat
+ * ends is save ends, and when its own stated duration is rounds ("paralyzed for 1 minute.
+ * The target can repeat the saving throw...") the save end carries them as `remaining`, the
+ * cap the minute puts on it. A turn duration is never a cap. A condition no repeat reaches
+ * takes its own stated duration, independently of the others: "poisoned for 1 minute and
+ * knocked prone" ends the poison and leaves prone without an end. A progressive save (a
+ * petrification ladder) gives no condition an end.
  */
-export function readSaveEnds(
+export function readConditionEnds(
   after: string,
   failure: string,
   conditions: SrdConditionName[],
   save: SaveOf,
-): SaveEnds | undefined {
-  if (conditions.length === 0) return undefined;
-  const repeat = repeats(after)[0];
-  if (repeat) {
-    // One `ends` serves every condition of the
-    // save, so a repeat that ends only some of them ("ending the restrained condition on
-    // itself") cannot be given to the others: none gets an end rather than a wrong one.
-    if (repeat.names.length > 0 && !conditions.every((c) => repeat.names.includes(c))) return undefined;
-    return saveEndsFrom(repeat, save) ?? undefined;
-  }
-  if (PROGRESSIVE.test(after)) return undefined;
-
-  let found: SaveEnds | null = null;
-  for (const name of conditions) {
-    let own: SaveEnds | null = null;
-    for (const m of failure.matchAll(new RegExp(CONDITION_STEMS[name].source, "gi"))) {
-      own = durationAfter(failure, m.index);
-      if (own) break;
+): SaveCondition[] {
+  if (PROGRESSIVE.test(after)) return conditions.map((name) => ({ name }));
+  const reps = repeats(after);
+  const claimed = new Set(reps.flatMap((r) => r.names));
+  return conditions.map((name) => {
+    const own = ownDuration(failure, name);
+    const repeat = reps.find((r) => (r.names.length > 0 ? r.names.includes(name) : !claimed.has(name)));
+    if (repeat) {
+      const ends = saveEndsFrom(repeat, save);
+      if (!ends) return { name };
+      return { name, ends: own?.kind === "rounds" && ends.kind === "save" ? { ...ends, remaining: own.remaining } : ends };
     }
-    if (!own) return undefined;
-    if (found && !sameEnds(found, own, save)) return undefined;
-    found = own;
-  }
-  return found ?? undefined;
+    return own ? { name, ends: own } : { name };
+  });
 }
 
-/** Whether `body` states `ends` for `save` in words the reader above understands (the prose check). */
-export function endsInProse(ends: SaveEnds, body: string, save: SaveOf): boolean {
+/**
+ * Whether `body` states `ends` for condition `name` of `save` in words the reader above
+ * understands (the prose check). A save end must come from a repeat that is about this
+ * condition, and its `remaining` cap needs a matching rounds duration in the body.
+ */
+export function endsInProse(ends: SaveEnds, body: string, save: SaveOf, name: SrdConditionName): boolean {
   if (ends.kind === "save") {
-    return repeats(body).some((r) => {
+    const { remaining } = ends;
+    const fromRepeat = repeats(body).some((r) => {
+      if (r.names.length > 0 && !r.names.includes(name)) return false;
       const read = saveEndsFrom(r, save);
-      return read !== null && sameEnds(read, ends, save);
+      return read !== null && sameEnds({ ...read, ...(remaining === undefined ? {} : { remaining }) }, ends, save);
     });
+    return fromRepeat && (remaining === undefined || endsInProse({ kind: "rounds", remaining }, body, save, name));
   }
   for (const m of body.matchAll(new RegExp(DURATION.source, "gi"))) {
     const read = durationFrom(m);

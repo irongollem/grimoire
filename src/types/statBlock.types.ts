@@ -75,27 +75,40 @@ export interface SaveStructure {
   fail: DamagePart[];
   /** What a successful save takes of `fail`. "none" also covers saves with no damage at all. */
   success: "half" | "none";
-  /** Conditions a failed save imposes outright. */
-  conditions: SrdConditionName[];
-  /** What ends those conditions (#1050). Absent: they last until removed. */
+  /** Conditions a failed save imposes outright, each with what ends it. */
+  conditions: SaveCondition[];
+}
+
+/**
+ * One condition a failed save imposes, and what ends it (#1055). Each condition
+ * carries its own end because one save can end its conditions differently: the
+ * Alp's "frightened and restrained for 1 minute ... ending the restrained condition
+ * on itself on a success" ends Restrained on a repeat save and leaves Frightened
+ * on its minute. One `ends` for the whole save could only say one of those.
+ */
+export interface SaveCondition {
+  name: SrdConditionName;
+  /** Absent: it lasts until removed. */
   ends?: SaveEnds;
 }
 
 /**
- * What ends the conditions of a failed save, as the prose states it (#1050): an
+ * What ends one condition of a failed save, as the prose states it (#1050): an
  * `AppliedCondition.ends` without what the runtime adds. A save-ends repeat that is
  * this save again names only its edge; the save's own ability and DC are filled in
  * when the condition is applied, so editing the DC cannot leave a stale copy behind.
  * It names an ability and DC only when the repeat is another save ("...a DC 15
  * Dexterity saving throw... A blinded creature can make a DC 15 Constitution saving
- * throw at the end of each of its turns"). `armed` is the turn hooks' bookkeeping,
- * never authored.
+ * throw at the end of each of its turns"), and `remaining` only when the prose also
+ * caps it ("paralyzed for 1 minute. The target can repeat the saving throw..." is
+ * save ends or 10 rounds, whichever comes first). `armed` is the turn hooks'
+ * bookkeeping, never authored.
  */
 export type SaveEnds =
   | Omit<Extract<ConditionEnds, { kind: "turn" }>, "armed">
   | Extract<ConditionEnds, { kind: "rounds" }>
   | (Pick<Extract<ConditionEnds, { kind: "save" }>, "kind" | "at"> &
-      Partial<Pick<Extract<ConditionEnds, { kind: "save" }>, "ability" | "dc">>);
+      Partial<Pick<Extract<ConditionEnds, { kind: "save" }>, "ability" | "dc" | "remaining">>);
 
 export interface MultiattackStep {
   /** The name of another entry in the same stat block, as printed ("Bite", "Claw"). */

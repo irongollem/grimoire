@@ -22,6 +22,7 @@ import type {
   DefenseBypass,
   Defenses,
   SaveAbility,
+  SaveCondition,
   SaveStructure,
   SrdConditionName,
   StatBlockEntry,
@@ -438,13 +439,13 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
    * (#1018) and what ends it (#1050). Exhaustion goes up a level instead of
    * stacking a second entry.
    */
-  function impose(target: RunCombatant, save: SaveStructure, condition: SrdConditionName, actor: RunCombatant, spell: string) {
+  function impose(target: RunCombatant, save: SaveStructure, condition: SaveCondition, actor: RunCombatant, spell: string) {
     const current = live(target).conditions;
-    if (condition === "Exhaustion") {
+    if (condition.name === "Exhaustion") {
       store.setConditions(target.instance_id, setExhaustionLevel(current, getExhaustionLevel(current) + 1));
       return;
     }
-    if (!hasCondition(current, condition)) {
+    if (!hasCondition(current, condition.name)) {
       store.applyCondition(target.instance_id, imposedCondition(save, condition, { id: actor.instance_id, spell }));
     }
   }
@@ -483,8 +484,10 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
         parts.length > 0 ? applyDamage({ target, parts, defenses, magical: input.magical }) : null;
       const { apply, immune } = result.success
         ? { apply: [], immune: [] }
-        : filterImmuneConditions(save.conditions, defenses);
-      for (const condition of apply) impose(target, save, condition, input.attacker, input.entry.name);
+        : filterImmuneConditions(save.conditions.map((c) => c.name), defenses);
+      for (const condition of save.conditions) {
+        if (apply.includes(condition.name)) impose(target, save, condition, input.attacker, input.entry.name);
+      }
       return { target, share, damage, conditionsApplied: apply, conditionsImmune: immune };
     });
   }

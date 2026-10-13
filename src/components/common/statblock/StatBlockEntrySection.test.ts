@@ -96,7 +96,7 @@ describe("StatBlockEntrySection options", () => {
       source: "manual",
       options: [
         { name: "Fire Breath", kind: "save", save: { ability: "dex", dc: 15, fail: [{ dice: "12d6", type: "fire" }], success: "half", conditions: [] } },
-        { name: "Sleep Breath", kind: "save", save: { ability: "con", dc: 15, fail: [], success: "none", conditions: ["Prone"] } },
+        { name: "Sleep Breath", kind: "save", save: { ability: "con", dc: 15, fail: [], success: "none", conditions: [{ name: "Prone" }] } },
       ],
     };
     const { wrapper, model } = mountSection([{ ...blank, name: "Breath Weapons", description: "x", structured: options }]);

@@ -80,8 +80,14 @@ export type ConditionEnds =
   | { kind: "turn"; at: TurnEdge; of: "self" | "source"; armed?: boolean }
   /** For N rounds, counted down at the start of each of the source's turns (the bearer's, once the source is gone or down and takes no turns). Ends when it reaches 0. */
   | { kind: "rounds"; remaining: number }
-  /** Save ends: the bearer repeats the save at the start or the end of each of its turns, ending the condition on a success. */
-  | { kind: "save"; ability: SaveAbility; dc: number; at: TurnEdge };
+  /**
+   * Save ends: the bearer repeats the save at the start or the end of each of its
+   * turns, ending the condition on a success. With `remaining` it also lapses after
+   * that many rounds, whichever comes first (#1055): "frightened for 1 minute,
+   * repeating the save at the end of each of its turns". Those rounds count down as
+   * a `rounds` end's do.
+   */
+  | { kind: "save"; ability: SaveAbility; dc: number; at: TurnEdge; remaining?: number };
 
 export interface OngoingDamage {
   /** A dice expression, "2d6" or "1d4+2". */

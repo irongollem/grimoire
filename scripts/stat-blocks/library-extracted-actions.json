@@ -86,7 +86,9 @@
       "fail": [],
       "success": "none",
       "conditions": [
-       "Blinded"
+       {
+        "name": "Blinded"
+       }
       ]
      }
     }
@@ -144,7 +146,9 @@
     ],
     "success": "half",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "recharge": {
@@ -173,7 +177,9 @@
     ],
     "success": "none",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "legendary_cost": 2,
@@ -276,12 +282,14 @@
     ],
     "success": "half",
     "conditions": [
-     "Poisoned"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end"
-    }
+     {
+      "name": "Poisoned",
+      "ends": {
+       "kind": "save",
+       "at": "end"
+      }
+     }
+    ]
    },
    "recharge": {
     "min": 5,
@@ -392,7 +400,9 @@
       "fail": [],
       "success": "none",
       "conditions": [
-       "Blinded"
+       {
+        "name": "Blinded"
+       }
       ]
      }
     }
@@ -588,13 +598,15 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Blinded"
-    ],
-    "ends": {
-     "kind": "turn",
-     "at": "end",
-     "of": "self"
-    }
+     {
+      "name": "Blinded",
+      "ends": {
+       "kind": "turn",
+       "at": "end",
+       "of": "self"
+      }
+     }
+    ]
    },
    "uses": {
     "count": 1,
@@ -797,13 +809,15 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Frightened"
-    ],
-    "ends": {
-     "kind": "turn",
-     "at": "end",
-     "of": "self"
-    }
+     {
+      "name": "Frightened",
+      "ends": {
+       "kind": "turn",
+       "at": "end",
+       "of": "self"
+      }
+     }
+    ]
    },
    "recharge": {
     "min": 5,
@@ -831,14 +845,16 @@
     ],
     "success": "half",
     "conditions": [
-     "Frightened"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end",
-     "ability": "wis",
-     "dc": 15
-    }
+     {
+      "name": "Frightened",
+      "ends": {
+       "kind": "save",
+       "at": "end",
+       "ability": "wis",
+       "dc": 15
+      }
+     }
+    ]
    },
    "uses": {
     "count": 1,
@@ -872,7 +888,9 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Paralyzed"
+     {
+      "name": "Paralyzed"
+     }
     ]
    },
    "source": "extracted"
@@ -1054,7 +1072,9 @@
     ],
     "success": "half",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "recharge": {
@@ -1093,12 +1113,14 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Poisoned"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end"
-    }
+     {
+      "name": "Poisoned",
+      "ends": {
+       "kind": "save",
+       "at": "end"
+      }
+     }
+    ]
    },
    "source": "extracted"
   }
@@ -1346,12 +1368,14 @@
       "fail": [],
       "success": "none",
       "conditions": [
-       "Blinded"
-      ],
-      "ends": {
-       "kind": "rounds",
-       "remaining": 10
-      }
+       {
+        "name": "Blinded",
+        "ends": {
+         "kind": "rounds",
+         "remaining": 10
+        }
+       }
+      ]
      }
     }
    ],
@@ -1527,7 +1551,9 @@
     ],
     "success": "half",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "recharge": {
@@ -1551,13 +1577,15 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Stunned"
-    ],
-    "ends": {
-     "kind": "turn",
-     "at": "end",
-     "of": "self"
-    }
+     {
+      "name": "Stunned",
+      "ends": {
+       "kind": "turn",
+       "at": "end",
+       "of": "self"
+      }
+     }
+    ]
    },
    "legendary_cost": 2,
    "source": "extracted"
@@ -1592,7 +1620,9 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "source": "extracted"
@@ -1651,14 +1681,16 @@
     ],
     "success": "half",
     "conditions": [
-     "Poisoned"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end",
-     "ability": "con",
-     "dc": 13
-    }
+     {
+      "name": "Poisoned",
+      "ends": {
+       "kind": "save",
+       "at": "end",
+       "ability": "con",
+       "dc": 13
+      }
+     }
+    ]
    },
    "recharge": {
     "min": 6,
@@ -1763,7 +1795,9 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "recharge": {
@@ -1922,8 +1956,12 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Blinded",
-     "Restrained"
+     {
+      "name": "Blinded"
+     },
+     {
+      "name": "Restrained"
+     }
     ]
    },
    "recharge": {
@@ -1978,13 +2016,15 @@
     ],
     "success": "half",
     "conditions": [
-     "Stunned"
-    ],
-    "ends": {
-     "kind": "turn",
-     "at": "end",
-     "of": "self"
-    }
+     {
+      "name": "Stunned",
+      "ends": {
+       "kind": "turn",
+       "at": "end",
+       "of": "self"
+      }
+     }
+    ]
    },
    "recharge": {
     "min": 5,
@@ -2071,14 +2111,16 @@
     ],
     "success": "half",
     "conditions": [
-     "Blinded"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end",
-     "ability": "con",
-     "dc": 15
-    }
+     {
+      "name": "Blinded",
+      "ends": {
+       "kind": "save",
+       "at": "end",
+       "ability": "con",
+       "dc": 15
+      }
+     }
+    ]
    },
    "recharge": {
     "min": 5,
@@ -2307,7 +2349,9 @@
       "fail": [],
       "success": "none",
       "conditions": [
-       "Blinded"
+       {
+        "name": "Blinded"
+       }
       ]
      }
     }
@@ -2338,14 +2382,16 @@
     ],
     "success": "half",
     "conditions": [
-     "Blinded"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end",
-     "ability": "con",
-     "dc": 13
-    }
+     {
+      "name": "Blinded",
+      "ends": {
+       "kind": "save",
+       "at": "end",
+       "ability": "con",
+       "dc": 13
+      }
+     }
+    ]
    },
    "recharge": {
     "min": 6,
@@ -2480,14 +2526,16 @@
     ],
     "success": "half",
     "conditions": [
-     "Poisoned"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end",
-     "ability": "con",
-     "dc": 13
-    }
+     {
+      "name": "Poisoned",
+      "ends": {
+       "kind": "save",
+       "at": "end",
+       "ability": "con",
+       "dc": 13
+      }
+     }
+    ]
    },
    "recharge": {
     "min": 5,
@@ -2729,7 +2777,9 @@
     ],
     "success": "half",
     "conditions": [
-     "Frightened"
+     {
+      "name": "Frightened"
+     }
     ]
    },
    "uses": {
@@ -2830,13 +2880,15 @@
     ],
     "success": "half",
     "conditions": [
-     "Stunned"
-    ],
-    "ends": {
-     "kind": "turn",
-     "at": "end",
-     "of": "self"
-    }
+     {
+      "name": "Stunned",
+      "ends": {
+       "kind": "turn",
+       "at": "end",
+       "of": "self"
+      }
+     }
+    ]
    },
    "legendary_cost": 2,
    "source": "extracted"
@@ -2856,7 +2908,9 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Poisoned"
+     {
+      "name": "Poisoned"
+     }
     ]
    },
    "source": "extracted"
@@ -2985,8 +3039,12 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Blinded",
-     "Restrained"
+     {
+      "name": "Blinded"
+     },
+     {
+      "name": "Restrained"
+     }
     ]
    },
    "recharge": {
@@ -3075,14 +3133,23 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Blinded",
-     "Deafened"
-    ],
-    "ends": {
-     "kind": "turn",
-     "at": "end",
-     "of": "self"
-    }
+     {
+      "name": "Blinded",
+      "ends": {
+       "kind": "turn",
+       "at": "end",
+       "of": "self"
+      }
+     },
+     {
+      "name": "Deafened",
+      "ends": {
+       "kind": "turn",
+       "at": "end",
+       "of": "self"
+      }
+     }
+    ]
    },
    "source": "extracted"
   }
@@ -3443,8 +3510,12 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Grappled",
-     "Restrained"
+     {
+      "name": "Grappled"
+     },
+     {
+      "name": "Restrained"
+     }
     ]
    },
    "source": "extracted"
@@ -3502,7 +3573,9 @@
     ],
     "success": "half",
     "conditions": [
-     "Restrained"
+     {
+      "name": "Restrained"
+     }
     ]
    },
    "recharge": {
@@ -3636,7 +3709,9 @@
     ],
     "success": "half",
     "conditions": [
-     "Poisoned"
+     {
+      "name": "Poisoned"
+     }
     ]
    },
    "recharge": {
@@ -3851,14 +3926,16 @@
     ],
     "success": "half",
     "conditions": [
-     "Blinded"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end",
-     "ability": "con",
-     "dc": 15
-    }
+     {
+      "name": "Blinded",
+      "ends": {
+       "kind": "save",
+       "at": "end",
+       "ability": "con",
+       "dc": 15
+      }
+     }
+    ]
    },
    "recharge": {
     "min": 6,
@@ -4030,7 +4107,9 @@
     ],
     "success": "half",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "source": "extracted"
@@ -4155,12 +4234,14 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Charmed"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end"
-    }
+     {
+      "name": "Charmed",
+      "ends": {
+       "kind": "save",
+       "at": "end"
+      }
+     }
+    ]
    },
    "source": "extracted"
   }
@@ -4184,14 +4265,16 @@
     ],
     "success": "half",
     "conditions": [
-     "Frightened"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end",
-     "ability": "wis",
-     "dc": 15
-    }
+     {
+      "name": "Frightened",
+      "ends": {
+       "kind": "save",
+       "at": "end",
+       "ability": "wis",
+       "dc": 15
+      }
+     }
+    ]
    },
    "recharge": {
     "min": 5,
@@ -4354,7 +4437,9 @@
     ],
     "success": "none",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "source": "extracted"
@@ -4437,7 +4522,9 @@
     ],
     "success": "half",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "legendary_cost": 3,
@@ -4485,7 +4572,9 @@
     ],
     "success": "half",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "legendary_cost": 3,
@@ -4567,7 +4656,9 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Prone"
+     {
+      "name": "Prone"
+     }
     ]
    },
    "source": "extracted"
@@ -4605,14 +4696,16 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Blinded"
-    ],
-    "ends": {
-     "kind": "save",
-     "at": "end",
-     "ability": "con",
-     "dc": 12
-    }
+     {
+      "name": "Blinded",
+      "ends": {
+       "kind": "save",
+       "at": "end",
+       "ability": "con",
+       "dc": 12
+      }
+     }
+    ]
    },
    "uses": {
     "count": 3,
@@ -4659,12 +4752,14 @@
     "fail": [],
     "success": "none",
     "conditions": [
-     "Deafened"
-    ],
-    "ends": {
-     "kind": "rounds",
-     "remaining": 10
-    }
+     {
+      "name": "Deafened",
+      "ends": {
+       "kind": "rounds",
+       "remaining": 10
+      }
+     }
+    ]
    },
    "recharge": {
     "min": 6,
@@ -4729,7 +4824,9 @@
       "fail": [],
       "success": "none",
       "conditions": [
-       "Blinded"
+       {
+        "name": "Blinded"
+       }
       ]
      }
     }

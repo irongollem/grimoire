@@ -61,12 +61,13 @@ function checkRolls(
     if (!new RegExp(`\\b(?:${full}|${save.ability})\\b`, "i").test(body)) return `save ability ${full} not in the prose`;
     const bad = checkDamage(save.fail, "save", text, squashed);
     if (bad) return bad;
+    const seen = new Set<string>();
     for (const c of save.conditions) {
-      if (!SRD_CONDITION_NAMES.includes(c) || !CONDITION_STEMS[c].test(body)) return `condition ${c} not in the prose`;
-    }
-    if (save.ends) {
-      if (save.conditions.length === 0) return "save ends with no conditions to end";
-      if (!endsInProse(save.ends, body, save)) return `save ends (${save.ends.kind}) not in the prose`;
+      const { name } = c;
+      if (!SRD_CONDITION_NAMES.includes(name) || !CONDITION_STEMS[name].test(body)) return `condition ${name} not in the prose`;
+      if (seen.has(name)) return `condition ${name} listed twice`;
+      seen.add(name);
+      if (c.ends && !endsInProse(c.ends, body, save, name)) return `${name} ends (${c.ends.kind}) not in the prose`;
     }
   }
 

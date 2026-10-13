@@ -69,6 +69,12 @@
             <SegmentedControl v-model="saveAt" :options="EDGE_OPTIONS" size="xs" />
             <span class="cond-editor-hint">of its turn</span>
           </div>
+
+          <div v-if="endsKind === 'save'" class="cond-editor-row">
+            <span class="cond-editor-hint">Lapses after</span>
+            <AppInput v-model.number="saveCap" type="number" min="1" size="xs" :block="false" align="center" class="w-16" aria-label="Lapses after (rounds)" placeholder="-" />
+            <span class="cond-editor-hint">rounds, if the save has not ended it first</span>
+          </div>
         </section>
 
         <section class="cond-editor-section">
@@ -157,6 +163,8 @@ const rounds = ref<number>(1);
 const saveAbility = ref<(typeof SAVE_ABILITIES)[number]>("wis");
 const saveDc = ref<number>(10);
 const saveAt = ref<TurnEdge>("end");
+// v-model.number leaves "" in a cleared field; the form reads that as no cap.
+const saveCap = ref<number | "" | null>(null);
 const ongoingDice = ref("");
 const ongoingType = ref("");
 const ongoingAt = ref<TurnEdge>("start");
@@ -173,6 +181,7 @@ function load(form: ConditionForm) {
   saveAbility.value = form.saveAbility;
   saveDc.value = form.saveDc;
   saveAt.value = form.saveAt;
+  saveCap.value = form.saveCap;
   ongoingDice.value = form.ongoingDice;
   ongoingType.value = form.ongoingType;
   ongoingAt.value = form.ongoingAt;
@@ -222,6 +231,7 @@ const form = computed<ConditionForm>(() => ({
   saveAbility: saveAbility.value,
   saveDc: saveDc.value,
   saveAt: saveAt.value,
+  saveCap: saveCap.value === "" ? null : saveCap.value,
   ongoingDice: ongoingDice.value,
   ongoingType: ongoingType.value,
   ongoingAt: ongoingAt.value,
@@ -232,6 +242,7 @@ const canSave = computed(() => {
   if (isNew.value && name.value.trim() === "") return false;
   if (endsKind.value === "rounds" && !(rounds.value >= 1)) return false;
   if (endsKind.value === "save" && !(saveDc.value >= 1)) return false;
+  if (endsKind.value === "save" && typeof saveCap.value === "number" && !(saveCap.value >= 1)) return false;
   return true;
 });
 

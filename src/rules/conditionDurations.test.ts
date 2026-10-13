@@ -140,6 +140,45 @@ describe("conditionsAtTurnEdge: saves and ongoing damage", () => {
   });
 });
 
+describe("conditionsAtTurnEdge: a save end with a round cap (#1055)", () => {
+  const capped = (remaining: number, at: "start" | "end" = "end"): AppliedCondition => ({
+    name: "Restrained",
+    source: { id: "s" },
+    ends: { kind: "save", ability: "str", dc: 12, at, remaining },
+  });
+
+  it("counts down on the source's turn, not the bearer's", () => {
+    const list = [who("s"), who("t", [capped(3)])];
+    expect(conds(conditionsAtTurnEdge(list, "start", "s"), "t")).toEqual([capped(2)]);
+    expect(conditionsAtTurnEdge(list, "start", "t").combatants).toBe(list);
+  });
+
+  it("falls back to the bearer's turns once the source takes none", () => {
+    const r = conditionsAtTurnEdge([{ ...who("s"), hp: 0 }, who("t", [capped(3)])], "start", "t");
+    expect(conds(r, "t")).toEqual([capped(2)]);
+  });
+
+  it("lapses as expired at 0, without also raising a save", () => {
+    const r = conditionsAtTurnEdge([who("s"), who("t", [capped(1, "start")])], "start", "s");
+    expect(conds(r, "t")).toEqual([]);
+    expect(r.events).toEqual([{ type: "condition_ended", instanceId: "t", name: "Restrained", reason: "expired" }]);
+    const bearer = conditionsAtTurnEdge([{ ...who("s"), hp: 0 }, who("t", [capped(1, "start")])], "start", "t");
+    expect(bearer.events.map((e) => e.type)).toEqual(["condition_ended"]);
+  });
+
+  it("still falls due for its repeat save at its edge, with the remaining rounds kept", () => {
+    const r = conditionsAtTurnEdge([who("s"), who("t", [capped(3)])], "end", "t");
+    expect(conds(r, "t")).toEqual([{ ...capped(3), due: { save: true } }]);
+    expect(r.events).toEqual([{ type: "condition_save_due", instanceId: "t", name: "Restrained", ability: "str", dc: 12 }]);
+  });
+
+  it("falls due after ticking when the bearer is its own anchor", () => {
+    const r = conditionsAtTurnEdge([who("t", [{ ...capped(3, "start"), source: undefined }])], "start", "t");
+    expect(r.events.map((e) => e.type)).toEqual(["condition_save_due"]);
+    expect(conds(r, "t")[0].ends).toMatchObject({ remaining: 2 });
+  });
+});
+
 describe("endSourcedConditions", () => {
   const conc: AppliedCondition = { name: "Held", source: { id: "c", spell: "Hold Person", concentration: true } };
   const otherSpell: AppliedCondition = { name: "Slowed", source: { id: "c", spell: "Slow", concentration: true } };

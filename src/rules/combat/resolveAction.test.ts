@@ -8,7 +8,7 @@ const attack: AttackStructure = {
   bonus: 5,
   hit: [{ dice: "1d8+3", type: "slashing" }, { dice: "2d6", type: "poison" }],
 };
-const save: SaveStructure = { ability: "dex", dc: 14, fail: [{ dice: "8d6", type: "fire" }], success: "half", conditions: ["Prone"] };
+const save: SaveStructure = { ability: "dex", dc: 14, fail: [{ dice: "8d6", type: "fire" }], success: "half", conditions: [{ name: "Prone" }] };
 
 describe("halveDamage", () => {
   it.each([[7, 3], [8, 4], [0, 0], [1, 0]])("%i -> %i", (a, e) => expect(halveDamage(a)).toBe(e));
@@ -45,7 +45,7 @@ describe("resolveSaveAction", () => {
   const base = { save, saveBonus: 2, targetConditions: [] as AppliedCondition[] };
   it("failure: full damage plus conditions", () => {
     const r = resolveSaveAction({ ...base, d20: 5 });
-    expect(r).toMatchObject({ damageMultiplier: 1, conditionsImposed: ["Prone"] });
+    expect(r).toMatchObject({ damageMultiplier: 1, conditionsImposed: [{ name: "Prone" }] });
   });
   it("success with half", () => {
     expect(resolveSaveAction({ ...base, d20: 12 })).toMatchObject({ damageMultiplier: 0.5, conditionsImposed: [] });
@@ -86,15 +86,15 @@ describe("halveParts", () => {
 });
 
 describe("imposedCondition", () => {
-  const hold: SaveStructure = { ability: "con", dc: 10, fail: [], success: "none", conditions: ["Paralyzed"] };
+  const hold: SaveStructure = { ability: "con", dc: 10, fail: [], success: "none", conditions: [{ name: "Paralyzed" }] };
   const source = { id: "ghoul-1", spell: "Claws" };
 
   it("records the source, and no end when the save states none", () => {
-    expect(imposedCondition(hold, "Paralyzed", source)).toEqual({ name: "Paralyzed", source });
+    expect(imposedCondition(hold, hold.conditions[0], source)).toEqual({ name: "Paralyzed", source });
   });
 
   it("fills a save-ends repeat with the save's own ability and DC (#1050)", () => {
-    expect(imposedCondition({ ...hold, ends: { kind: "save", at: "end" } }, "Paralyzed", source).ends).toEqual({
+    expect(imposedCondition(hold, { name: "Paralyzed", ends: { kind: "save", at: "end" } }, source).ends).toEqual({
       kind: "save",
       ability: "con",
       dc: 10,
@@ -103,16 +103,37 @@ describe("imposedCondition", () => {
   });
 
   it("keeps the ability and DC of a repeat that is another save", () => {
-    const stream: SaveStructure = { ...hold, ability: "dex", dc: 15, ends: { kind: "save", at: "end", ability: "con", dc: 14 } };
-    expect(imposedCondition(stream, "Paralyzed", source).ends).toEqual({ kind: "save", ability: "con", dc: 14, at: "end" });
+    const stream: SaveStructure = { ...hold, ability: "dex", dc: 15 };
+    const condition = { name: "Paralyzed" as const, ends: { kind: "save" as const, at: "end" as const, ability: "con" as const, dc: 14 } };
+    expect(imposedCondition(stream, condition, source).ends).toEqual({ kind: "save", ability: "con", dc: 14, at: "end" });
   });
 
   it("copies a turn or rounds end unarmed, so the turn hooks arm it", () => {
-    const turn = imposedCondition({ ...hold, ends: { kind: "turn", at: "end", of: "source" } }, "Paralyzed", source);
+    const turn = imposedCondition(hold, { name: "Paralyzed", ends: { kind: "turn", at: "end", of: "source" } }, source);
     expect(turn.ends).toEqual({ kind: "turn", at: "end", of: "source" });
-    expect(imposedCondition({ ...hold, ends: { kind: "rounds", remaining: 10 } }, "Paralyzed", source).ends).toEqual({
+    expect(imposedCondition(hold, { name: "Paralyzed", ends: { kind: "rounds", remaining: 10 } }, source).ends).toEqual({
       kind: "rounds",
       remaining: 10,
     });
+  });
+
+  it("carries a save end's round cap, and only when it has one (#1055)", () => {
+    const capped = imposedCondition(hold, { name: "Paralyzed", ends: { kind: "save", at: "end", remaining: 10 } }, source);
+    expect(capped.ends).toEqual({ kind: "save", ability: "con", dc: 10, at: "end", remaining: 10 });
+    expect(imposedCondition(hold, { name: "Paralyzed", ends: { kind: "save", at: "end" } }, source).ends).not.toHaveProperty("remaining");
+  });
+
+  it("gives each condition of one save its own end (#1055)", () => {
+    const alp: SaveStructure = {
+      ...hold,
+      conditions: [
+        { name: "Frightened", ends: { kind: "rounds", remaining: 10 } },
+        { name: "Restrained", ends: { kind: "save", at: "end", remaining: 10 } },
+      ],
+    };
+    expect(resolveSaveAction({ save: alp, d20: 1, saveBonus: 0, targetConditions: [] }).conditionsImposed).toEqual(alp.conditions);
+    const [frightened, restrained] = alp.conditions.map((c) => imposedCondition(alp, c, source));
+    expect(frightened.ends).toEqual({ kind: "rounds", remaining: 10 });
+    expect(restrained.ends).toEqual({ kind: "save", ability: "con", dc: 10, at: "end", remaining: 10 });
   });
 });

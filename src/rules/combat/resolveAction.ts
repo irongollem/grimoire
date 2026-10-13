@@ -1,7 +1,7 @@
 import type { ParsedExpression } from "@/lib/dice/dice";
 import type { AppliedCondition, ConditionEnds, ConditionSource } from "@/types/condition.types";
 import type { DamageType } from "@/types/damage.types";
-import type { AttackStructure, DamagePart, SaveStructure, SrdConditionName } from "@/types/statBlock.types";
+import type { AttackStructure, DamagePart, SaveCondition, SaveStructure } from "@/types/statBlock.types";
 import { autoCritOnHit, resolveAttack } from "./attackRoll.ts";
 import { autoFailsSave, resolveSave } from "./savingThrow.ts";
 import { damageRollsFor } from "./typedDamage.ts";
@@ -56,7 +56,7 @@ export function resolveSaveAction(input: {
   saveBonus: number;
   targetConditions: readonly AppliedCondition[];
   penalty?: number;
-}): { roll: ReturnType<typeof resolveSave>; damageMultiplier: 1 | 0.5 | 0; conditionsImposed: SrdConditionName[] } {
+}): { roll: ReturnType<typeof resolveSave>; damageMultiplier: 1 | 0.5 | 0; conditionsImposed: SaveCondition[] } {
   const { save } = input;
   const roll = resolveSave({
     d20: input.d20,
@@ -65,20 +65,29 @@ export function resolveSaveAction(input: {
     penalty: input.penalty,
     autoFail: autoFailsSave(input.targetConditions, save.ability),
   });
-  if (!roll.success) return { roll, damageMultiplier: 1, conditionsImposed: [...save.conditions] };
+  if (!roll.success) return { roll, damageMultiplier: 1, conditionsImposed: save.conditions.map((c) => ({ ...c })) };
   return { roll, damageMultiplier: save.success === "half" ? 0.5 : 0, conditionsImposed: [] };
 }
 
 /**
  * A condition a failed save imposes, as the runner records it: who applied it and
- * with what (#1018), and what ends it (#1050). A save-ends repeat of this same save
- * takes the save's ability and DC here rather than carrying copies.
+ * with what (#1018), and what ends it (#1050). Each condition carries its own end
+ * (#1055), so one save can end Restrained on a repeat save and leave Frightened
+ * on its minute. A save-ends repeat of this same save takes the save's ability and
+ * DC here rather than carrying copies; a round cap (`remaining`) rides along only
+ * when the condition states one.
  */
-export function imposedCondition(save: SaveStructure, name: SrdConditionName, source: ConditionSource): AppliedCondition {
-  const authored = save.ends;
+export function imposedCondition(save: SaveStructure, condition: SaveCondition, source: ConditionSource): AppliedCondition {
+  const authored = condition.ends;
   const ends: ConditionEnds | undefined =
     authored?.kind === "save"
-      ? { kind: "save", ability: authored.ability ?? save.ability, dc: authored.dc ?? save.dc, at: authored.at }
+      ? {
+          kind: "save",
+          ability: authored.ability ?? save.ability,
+          dc: authored.dc ?? save.dc,
+          at: authored.at,
+          ...(authored.remaining !== undefined ? { remaining: authored.remaining } : {}),
+        }
       : authored && { ...authored };
-  return { name, source, ...(ends ? { ends } : {}) };
+  return { name: condition.name, source, ...(ends ? { ends } : {}) };
 }

@@ -61,7 +61,7 @@ const choice = entry("Breath Weapons", {
   kind: "options",
   options: [
     { name: "Fire", kind: "save", save: { ability: "dex", dc: 14, fail: [{ dice: "8d6", type: "fire" }], success: "half", conditions: [] } },
-    { name: "Sleep", kind: "save", save: { ability: "con", dc: 14, fail: [], success: "none", conditions: ["Unconscious"] } },
+    { name: "Sleep", kind: "save", save: { ability: "con", dc: 14, fail: [], success: "none", conditions: [{ name: "Unconscious" }] } },
   ],
 });
 const trait = entry("Keen Smell", {});

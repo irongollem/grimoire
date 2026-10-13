@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(13);
 
 -- #1017: the old client lives on in installed PWAs for days after a release, and
 -- every stat block it saves would crash the new client. The write guard
@@ -70,6 +70,72 @@ select throws_ok(
   null,
   'an update that brings old prose back is refused too'
 );
+
+-- #1055: a save's conditions each carry their own end. The old shape (names plus
+-- one `ends` for all of them) is converted on write, giving that end to every
+-- condition, which is what it meant; saves inside options are converted too.
+insert into public.monsters (id, user_id, name, monster_type, stat_block)
+values ('10170000-0000-4000-8000-000000000013', '10170000-0000-4000-8000-000000000001', 'Old Alp', 'fey',
+        '{"challenge_rating": "1",
+          "actions": [
+            {"name": "Sleep Breath", "description": "x", "structured": {"kind": "save", "source": "manual",
+               "save": {"ability": "str", "dc": 12, "fail": [], "success": "none",
+                        "conditions": ["Frightened", "Restrained"], "ends": {"kind": "save", "at": "end"}}}},
+            {"name": "Breath Weapons", "description": "x", "structured": {"kind": "options", "source": "manual",
+               "options": [{"name": "Sleep", "kind": "save",
+                            "save": {"ability": "con", "dc": 13, "fail": [], "success": "none", "conditions": ["Unconscious"]}}]}}]}'::jsonb);
+
+select is(
+  (select stat_block -> 'actions' -> 0 -> 'structured' -> 'save' from public.monsters where id = '10170000-0000-4000-8000-000000000013'),
+  '{"ability": "str", "dc": 12, "fail": [], "success": "none",
+    "conditions": [{"name": "Frightened", "ends": {"kind": "save", "at": "end"}},
+                   {"name": "Restrained", "ends": {"kind": "save", "at": "end"}}]}'::jsonb,
+  'an old save gives its one end to each condition, and keeps no end of its own'
+);
+
+select is(
+  (select stat_block -> 'actions' -> 1 -> 'structured' -> 'options' -> 0 -> 'save' -> 'conditions'
+     from public.monsters where id = '10170000-0000-4000-8000-000000000013'),
+  '[{"name": "Unconscious"}]'::jsonb,
+  'an old save inside an option is converted, with no end where it had none'
+);
+
+insert into public.monsters (id, user_id, name, monster_type, stat_block)
+values ('10170000-0000-4000-8000-000000000014', '10170000-0000-4000-8000-000000000001', 'New Alp', 'fey',
+        '{"challenge_rating": "1",
+          "actions": [{"name": "Sleep Breath", "description": "x", "structured": {"kind": "save", "source": "manual",
+             "save": {"ability": "str", "dc": 12, "fail": [], "success": "none",
+                      "conditions": [{"name": "Frightened", "ends": {"kind": "rounds", "remaining": 10}},
+                                     {"name": "Restrained", "ends": {"kind": "save", "at": "end", "remaining": 10}}]}}}]}'::jsonb);
+
+select is(
+  (select stat_block -> 'actions' -> 0 -> 'structured' -> 'save' -> 'conditions'
+     from public.monsters where id = '10170000-0000-4000-8000-000000000014'),
+  '[{"name": "Frightened", "ends": {"kind": "rounds", "remaining": 10}},
+    {"name": "Restrained", "ends": {"kind": "save", "at": "end", "remaining": 10}}]'::jsonb,
+  'a save in the new shape is stored as written'
+);
+
+select is(
+  (select count(*)::int from public.library_monsters
+    where jsonb_path_exists(stat_block, '$.*[*].structured.save ? (exists(@.ends) || exists(@.conditions[*] ? (@.type() == "string")))')
+       or jsonb_path_exists(stat_block, '$.*[*].structured.options[*].save ? (exists(@.ends) || exists(@.conditions[*] ? (@.type() == "string")))')),
+  0,
+  'no stored library save is left in the old shape'
+);
+
+-- The guard runs as whoever writes, so a DM's own save must reach its helpers:
+-- every check above writes as the table owner and would miss a revoked grant.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10170000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claims', '{"sub":"10170000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+
+select lives_ok(
+  $$update public.monsters set stat_block = stat_block where id = '10170000-0000-4000-8000-000000000013'$$,
+  'a DM saving their own stat block passes through the guard'
+);
+
+reset role;
 
 -- Every stat-block table carries the guard: a new one added without it fails here.
 select is(

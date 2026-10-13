@@ -23,6 +23,13 @@ describe("describeConditionEnd", () => {
     );
   });
 
+  it("adds a save end's round cap (#1055)", () => {
+    const save = (at: "start" | "end", remaining: number) =>
+      ({ name: "X", ends: { kind: "save", ability: "wis", dc: 14, at, remaining } }) as const;
+    expect(describeConditionEnd(save("end", 3), nameOf)).toBe("save ends · WIS 14 · 3 rounds left");
+    expect(describeConditionEnd(save("start", 1), nameOf)).toBe("save ends · WIS 14 at turn start · 1 round left");
+  });
+
   it("names the source's turn when the viewer may see it", () => {
     const c = { name: "X", source: { id: "vex" }, ends: { kind: "turn", at: "end", of: "source" } } as const;
     expect(describeConditionEnd(c, nameOf)).toBe("until the end of Vex's next turn");

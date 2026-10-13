@@ -185,7 +185,7 @@ describe("RunnerResolvePanel", () => {
         kind: "attack",
         source: "parsed",
         attack: { delivery: "melee", bonus: 4, reach: 5, hit: [{ dice: "2d4+2", type: "slashing" }] },
-        save: { ability: "con", dc: 10, fail: [], success: "none", conditions: ["Paralyzed"], ends: { kind: "save", at: "end" } },
+        save: { ability: "con", dc: 10, fail: [], success: "none", conditions: [{ name: "Paralyzed", ends: { kind: "save", at: "end" } }] },
       },
     };
     const outcome = (hit: boolean, entry: StatBlockEntry) =>
@@ -255,7 +255,7 @@ describe("RunnerResolvePanel", () => {
         structured: {
           ...ghoulClaw.structured,
           attack: { delivery: "ranged", bonus: 5, range: { normal: 30, long: 60 }, hit: [] },
-          save: { ability: "str", dc: 12, fail: [], success: "none", conditions: ["Restrained"] },
+          save: { ability: "str", dc: 12, fail: [], success: "none", conditions: [{ name: "Restrained" }] },
         },
       };
       mocks.res.resolveAttack.mockResolvedValue(outcome(true, web));

@@ -7,7 +7,7 @@ import type { AppliedCondition, OngoingDamage } from "@/types/condition.types";
 /** Resolves a combatant instance id to a name the viewer may see, or null (unknown, hidden, not in this fight). */
 export type NameOf = (instanceId: string) => string | null;
 
-/** "until the end of its next turn", "3 rounds left", "save ends · WIS 14"; null when it lasts until removed. */
+/** "until the end of its next turn", "3 rounds left", "save ends · WIS 14", "save ends · WIS 14 · 3 rounds left"; null when it lasts until removed. */
 export function describeConditionEnd(c: AppliedCondition, nameOf: NameOf): string | null {
   const ends = c.ends;
   if (!ends) return null;
@@ -24,7 +24,9 @@ export function describeConditionEnd(c: AppliedCondition, nameOf: NameOf): strin
       return `${ends.remaining} ${ends.remaining === 1 ? "round" : "rounds"} left`;
     case "save": {
       const base = `save ends · ${ends.ability.toUpperCase()} ${ends.dc}`;
-      return ends.at === "start" ? `${base} at turn start` : base;
+      const timed = ends.at === "start" ? `${base} at turn start` : base;
+      if (ends.remaining === undefined) return timed;
+      return `${timed} · ${ends.remaining} ${ends.remaining === 1 ? "round" : "rounds"} left`;
     }
   }
 }

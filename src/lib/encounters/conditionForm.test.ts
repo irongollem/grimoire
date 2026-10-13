@@ -22,6 +22,17 @@ describe("conditionForm", () => {
     expect(buildCondition(conditionToForm(full))).toEqual(full);
   });
 
+  it("round-trips a save end's round cap, and omits it when the form has none (#1055)", () => {
+    const capped: AppliedCondition = { name: "Restrained", ends: { kind: "save", ability: "str", dc: 12, at: "end", remaining: 10 } };
+    const form = conditionToForm(capped);
+    expect(form.saveCap).toBe(10);
+    expect(buildCondition(form)).toEqual(capped);
+    expect(buildCondition({ ...form, saveCap: null }).ends).toEqual({ kind: "save", ability: "str", dc: 12, at: "end" });
+    expect(buildCondition({ ...form, saveCap: 2.7 }).ends).toMatchObject({ remaining: 2 });
+    expect(buildCondition({ ...form, saveCap: 0 }).ends).toMatchObject({ remaining: 1 });
+    expect(conditionToForm(null).saveCap).toBeNull();
+  });
+
   it("keeps an exhaustion level and drops a source-turn end when the source is cleared", () => {
     const c: AppliedCondition = { name: "Exhaustion", level: 3, source: { id: "x" }, ends: { kind: "turn", at: "end", of: "source" } };
     const form = { ...conditionToForm(c), sourceId: "" };

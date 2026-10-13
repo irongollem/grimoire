@@ -54,8 +54,8 @@ describe("checkActionAgainstProse", () => {
     expect(checkActionAgainstProse(breath, save(), []).ok).toBe(true);
     expect(checkActionAgainstProse(breath, save({ dc: 18 }), []).ok).toBe(false);
     expect(checkActionAgainstProse(breath, save({ ability: "con" }), []).ok).toBe(false);
-    expect(checkActionAgainstProse(breath, save({ conditions: ["Poisoned"] }), []).ok).toBe(false);
-    expect(checkActionAgainstProse(breath, save({ conditions: ["Prone"] }), []).ok).toBe(true);
+    expect(checkActionAgainstProse(breath, save({ conditions: [{ name: "Poisoned" }] }), []).ok).toBe(false);
+    expect(checkActionAgainstProse(breath, save({ conditions: [{ name: "Prone" }] }), []).ok).toBe(true);
   });
 
   it("checks recharge, uses and legendary cost against the name", () => {
@@ -119,7 +119,7 @@ describe("checkActionAgainstProse", () => {
       kind: "options",
       options: [
         { name: "Fire Breath", kind: "save", save: { ability: "dex", dc: 21, fail: [{ dice: "12d10", type: "fire" }], success: "none", conditions: [] } },
-        { name: "Sleep Breath", kind: "save", save: { ability: "con", dc: 18, fail: [], success: "none", conditions: ["Unconscious"] } },
+        { name: "Sleep Breath", kind: "save", save: { ability: "con", dc: 18, fail: [], success: "none", conditions: [{ name: "Unconscious" }] } },
       ],
       source: "parsed",
     });

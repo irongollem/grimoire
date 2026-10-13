@@ -184,8 +184,7 @@ describe("saves", () => {
       dc: 18,
       fail: [],
       success: "none",
-      conditions: ["Frightened"],
-      ends: { kind: "rounds", remaining: 10 },
+      conditions: [{ name: "Frightened", ends: { kind: "rounds", remaining: 10 } }],
     });
   });
 
@@ -199,7 +198,7 @@ describe("saves", () => {
       dc: 25,
       fail: [{ dice: "4d8", type: "bludgeoning" }],
       success: "half",
-      conditions: ["Prone"],
+      conditions: [{ name: "Prone" }],
     });
   });
 
@@ -221,7 +220,7 @@ describe("saves", () => {
 
   it("does not count dice that are durations as damage", () => {
     const s = parse("Ash Cloud", "A creature must succeed on a DC 14 Constitution saving throw or become blinded for 1d6 rounds.");
-    expect(s.save).toMatchObject({ fail: [], conditions: ["Blinded"] });
+    expect(s.save).toMatchObject({ fail: [], conditions: [{ name: "Blinded" }] });
   });
 
   it("does not take a condition from the success branch", () => {
@@ -229,7 +228,7 @@ describe("saves", () => {
       "Bray",
       "Each creature must make a DC 13 Constitution saving throw. On a failure, a creature takes 14 (4d6) thunder damage and is incapacitated. On a success, a creature takes half the damage and isn't incapacitated.",
     );
-    expect(s.save).toMatchObject({ fail: [{ dice: "4d6", type: "thunder" }], success: "half", conditions: ["Incapacitated"] });
+    expect(s.save).toMatchObject({ fail: [{ dice: "4d6", type: "thunder" }], success: "half", conditions: [{ name: "Incapacitated" }] });
   });
 
   it("reads damage that comes before the save, with half on success", () => {
@@ -404,8 +403,7 @@ describe("options", () => {
           dc: 21,
           fail: [],
           success: "none",
-          conditions: ["Unconscious"],
-          ends: { kind: "rounds", remaining: 100 },
+          conditions: [{ name: "Unconscious", ends: { kind: "rounds", remaining: 100 } }],
         },
       },
     ]);
@@ -419,10 +417,10 @@ describe("options", () => {
       "- **Whirling Death.** The target must succeed on a DC 11 WIS save or be frightened for 1 minute.",
     ].join("\n");
     const s = parse("Strange Bauble", menu);
-    expect(s.options?.map((o) => [o.name, o.save?.ability, o.save?.conditions, o.save?.ends])).toEqual([
-      ["Flashing Rock", "dex", ["Blinded"], { kind: "turn", at: "end", of: "self" }],
-      ["Illusory Dancer", "cha", ["Incapacitated"], { kind: "rounds", remaining: 10 }],
-      ["Whirling Death", "wis", ["Frightened"], { kind: "rounds", remaining: 10 }],
+    expect(s.options?.map((o) => [o.name, o.save?.ability, o.save?.conditions])).toEqual([
+      ["Flashing Rock", "dex", [{ name: "Blinded", ends: { kind: "turn", at: "end", of: "self" } }]],
+      ["Illusory Dancer", "cha", [{ name: "Incapacitated", ends: { kind: "rounds", remaining: 10 } }]],
+      ["Whirling Death", "wis", [{ name: "Frightened", ends: { kind: "rounds", remaining: 10 } }]],
     ]);
     const run = parse(
       "Breath Weapon",

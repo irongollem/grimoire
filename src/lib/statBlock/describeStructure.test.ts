@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ActionStructure } from "@/types/statBlock.types";
+import type { ActionStructure, SaveEnds, SaveStructure } from "@/types/statBlock.types";
 import { describeStructure, saveLabel } from "./describeStructure";
 
 const base = { source: "parsed" } as const;
@@ -38,7 +38,7 @@ describe("describeStructure", () => {
     const s: ActionStructure = {
       ...base,
       kind: "save",
-      save: { ability: "dex", dc: 14, fail: [{ dice: "12d6", type: "poison" }], success: "half", conditions: ["Prone"] },
+      save: { ability: "dex", dc: 14, fail: [{ dice: "12d6", type: "poison" }], success: "half", conditions: [{ name: "Prone" }] },
     };
     expect(describeStructure(s).summary).toBe("DC 14 Dex save · 12d6 poison, half on success · Prone");
   });
@@ -47,20 +47,41 @@ describe("describeStructure", () => {
     const s: ActionStructure = {
       ...base,
       kind: "save",
-      save: { ability: "wis", dc: 12, fail: [], success: "none", conditions: ["Frightened"] },
+      save: { ability: "wis", dc: 12, fail: [], success: "none", conditions: [{ name: "Frightened" }] },
     };
     expect(describeStructure(s).summary).toBe("DC 12 Wis save · Frightened");
   });
 
   it("says what ends a save's conditions (#1050)", () => {
-    const save = { ability: "con", dc: 10, fail: [], success: "none", conditions: ["Paralyzed"] } as const;
-    const said = (ends: NonNullable<ActionStructure["save"]>["ends"]) =>
-      describeStructure({ ...base, kind: "save", save: { ...save, conditions: [...save.conditions], fail: [], ends } }).summary;
+    const save: Omit<SaveStructure, "conditions"> = { ability: "con", dc: 10, fail: [], success: "none" };
+    const said = (ends: SaveEnds) =>
+      describeStructure({ ...base, kind: "save", save: { ...save, conditions: [{ name: "Paralyzed", ends }] } }).summary;
     expect(said({ kind: "save", at: "end" })).toBe("DC 10 Con save · Paralyzed (save ends)");
     expect(said({ kind: "save", at: "start" })).toBe("DC 10 Con save · Paralyzed (save ends at turn start)");
     expect(said({ kind: "turn", at: "end", of: "self" })).toBe("DC 10 Con save · Paralyzed (until the end of the target's next turn)");
     expect(said({ kind: "turn", at: "start", of: "source" })).toBe("DC 10 Con save · Paralyzed (until the start of this creature's next turn)");
     expect(said({ kind: "rounds", remaining: 10 })).toBe("DC 10 Con save · Paralyzed (10 rounds)");
+    expect(said({ kind: "save", at: "end", remaining: 10 })).toBe("DC 10 Con save · Paralyzed (save ends, max 10 rounds)");
+    expect(said({ kind: "save", at: "start", remaining: 1 })).toBe("DC 10 Con save · Paralyzed (save ends at turn start, max 1 round)");
+  });
+
+  it("gives each condition of a save its own end (#1055)", () => {
+    const s: ActionStructure = {
+      ...base,
+      kind: "save",
+      save: {
+        ability: "str",
+        dc: 12,
+        fail: [],
+        success: "none",
+        conditions: [
+          { name: "Frightened", ends: { kind: "rounds", remaining: 10 } },
+          { name: "Restrained", ends: { kind: "save", at: "end", remaining: 10 } },
+          { name: "Prone" },
+        ],
+      },
+    };
+    expect(describeStructure(s).summary).toBe("DC 12 Str save · Frightened (10 rounds), Restrained (save ends, max 10 rounds), Prone");
   });
 
   it("adds the save of an attack whose hit forces one", () => {
@@ -68,7 +89,7 @@ describe("describeStructure", () => {
       ...base,
       kind: "attack",
       attack: { delivery: "melee", bonus: 5, reach: 5, hit: [{ dice: "1d8", type: "piercing" }] },
-      save: { ability: "con", dc: 13, fail: [], success: "none", conditions: ["Poisoned"] },
+      save: { ability: "con", dc: 13, fail: [], success: "none", conditions: [{ name: "Poisoned" }] },
     };
     expect(describeStructure(s).summary).toBe("+5 to hit · reach 5 ft · 1d8 piercing · DC 13 Con save · Poisoned");
   });
@@ -115,7 +136,7 @@ describe("describeStructure options", () => {
       {
         name: "Sleep Breath",
         kind: "save",
-        save: { ability: "con", dc: 15, fail: [], success: "none", conditions: ["Unconscious"] },
+        save: { ability: "con", dc: 15, fail: [], success: "none", conditions: [{ name: "Unconscious" }] },
       },
     ],
   };

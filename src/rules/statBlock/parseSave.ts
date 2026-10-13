@@ -9,7 +9,7 @@
 import type { DamagePart, SaveAbility, SaveStructure, SrdConditionName } from "../../types/statBlock.types.ts";
 import { SRD_CONDITION_NAMES } from "../../types/statBlock.types.ts";
 import { readDamage, sentenceEnd } from "./damageParts.ts";
-import { readSaveEnds } from "./parseEnds.ts";
+import { readConditionEnds } from "./parseEnds.ts";
 import { ABILITY_RE_SOURCE, CONDITION_STEMS, abilityFromWord } from "./vocab.ts";
 
 const A = ABILITY_RE_SOURCE;
@@ -99,10 +99,11 @@ function outcomeRegion(text: string, save: SaveMatch, floor: number): string {
   return region;
 }
 
+// The chain between "be" and the condition may hold a duration, dice included ("stunned for 1d4 rounds and charmed").
 function isImposedCondition(region: string, index: number): boolean {
   const before = region.slice(Math.max(0, index - 48), index);
   if (/\b(?:immune|can'?t|cannot|not|\w+n't|no longer|ends?|until|instead of|while|unless)\s+(?:\w+\s+)?$/i.test(before)) return false;
-  return /\b(?:be|is|are|or|becomes?|become|being|becoming|has the|have the|gains? the|falls?|falling|knocked)\s+(?:(?:also|then|instead)\s+)?(?:[a-z]+ly\s+)?(?:knocked\s+)?(?:[a-z]+(?:,\s*(?:and\s+)?|\s+and\s+))*$/i.test(before);
+  return /\b(?:be|is|are|or|becomes?|become|being|becoming|has the|have the|gains? the|falls?|falling|knocked)\s+(?:(?:also|then|instead)\s+)?(?:[a-z]+ly\s+)?(?:knocked\s+)?(?:[a-z]+(?:\s+for\s+[a-z0-9]+\s+(?:rounds?|minutes?|min|hours?))?(?:,\s*(?:and\s+)?|\s+and\s+))*$/i.test(before);
 }
 
 function conditionsIn(region: string): SrdConditionName[] {
@@ -167,14 +168,13 @@ export function buildSave(text: string, save: SaveMatch, floor = 0): SaveStructu
       ? /\bSuccess:\s*Half/i.test(text.slice(save.end))
       : /half (?:as much|of that|damage|the damage|that)/i.test(read.halfText);
   // "knocked prone or pushed, the scarab's choice": which one applies is not in the prose's grammar.
-  const conditions = /\bchoice\b|\bchooses?\b/i.test(failureOnly) ? [] : conditionsIn(failureOnly);
-  const ends = readSaveEnds(text.slice(save.index), failureOnly, conditions, save);
+  const names = /\bchoice\b|\bchooses?\b/i.test(failureOnly) ? [] : conditionsIn(failureOnly);
+  const conditions = readConditionEnds(text.slice(save.index), failureOnly, names, save);
   return {
     ability: save.ability,
     dc: save.dc,
     fail,
     success: fail.length > 0 && half ? "half" : "none",
     conditions,
-    ...(ends ? { ends } : {}),
   };
 }

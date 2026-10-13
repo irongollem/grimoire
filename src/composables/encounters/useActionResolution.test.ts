@@ -74,7 +74,7 @@ const breath: StatBlockEntry = {
   structured: {
     kind: "save",
     source: "manual",
-    save: { ability: "dex", dc: 13, fail: [{ dice: "4d6", type: "cold" }], success: "half", conditions: ["Poisoned", "Prone"] },
+    save: { ability: "dex", dc: 13, fail: [{ dice: "4d6", type: "cold" }], success: "half", conditions: [{ name: "Poisoned" }, { name: "Prone" }] },
   },
 };
 
@@ -357,7 +357,7 @@ describe("useActionResolution", () => {
       const base = { dc: 13, ability: "dex" as const, bonus: 0, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
       const web: StatBlockEntry = {
         ...breath,
-        structured: { ...breath.structured, save: { ability: "dex", dc: 13, fail: [], success: "none", conditions: ["Prone"] } },
+        structured: { ...breath.structured, save: { ability: "dex", dc: 13, fail: [], success: "none", conditions: [{ name: "Prone" }] } },
       };
       const { applySaveOutcome } = useActionResolution();
       const [saved] = applySaveOutcome({ attacker: combatant("x"), entry: web, damageParts: [], results: [{ ...base, target: prone, success: true }] });
@@ -376,7 +376,7 @@ describe("useActionResolution", () => {
         name: "Claws",
         structured: {
           ...breath.structured,
-          save: { ability: "con", dc: 10, fail: [], success: "none", conditions: ["Paralyzed"], ends: { kind: "save", at: "end" } },
+          save: { ability: "con", dc: 10, fail: [], success: "none", conditions: [{ name: "Paralyzed", ends: { kind: "save", at: "end" } }] },
         },
       };
       useActionResolution().applySaveOutcome({ attacker: combatant("x"), entry: claws, damageParts: [], results: [{ ...base, target, success: false }] });

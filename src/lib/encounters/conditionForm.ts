@@ -23,6 +23,8 @@ export interface ConditionForm {
   saveAbility: SaveAbility;
   saveDc: number;
   saveAt: TurnEdge;
+  /** A save end that also lapses after this many rounds (#1055); null for no cap. */
+  saveCap: number | null;
   /** "" for no ongoing damage. */
   ongoingDice: string;
   /** "" for untyped. */
@@ -46,6 +48,7 @@ export function conditionToForm(c: AppliedCondition | null): ConditionForm {
     saveAbility: ends?.kind === "save" ? ends.ability : "wis",
     saveDc: ends?.kind === "save" ? ends.dc : 10,
     saveAt: ends?.kind === "save" ? ends.at : "end",
+    saveCap: ends?.kind === "save" && ends.remaining !== undefined ? ends.remaining : null,
     ongoingDice: c?.ongoing?.dice ?? "",
     ongoingType: c?.ongoing?.type ?? "",
     ongoingAt: c?.ongoing?.at ?? "start",
@@ -61,7 +64,13 @@ function endsFromForm(f: ConditionForm): ConditionEnds | undefined {
     case "rounds":
       return { kind: "rounds", remaining: Math.max(1, Math.floor(f.rounds)) };
     case "save":
-      return { kind: "save", ability: f.saveAbility, dc: Math.max(1, Math.floor(f.saveDc)), at: f.saveAt };
+      return {
+        kind: "save",
+        ability: f.saveAbility,
+        dc: Math.max(1, Math.floor(f.saveDc)),
+        at: f.saveAt,
+        ...(typeof f.saveCap === "number" && Number.isFinite(f.saveCap) ? { remaining: Math.max(1, Math.floor(f.saveCap)) } : {}),
+      };
   }
 }
 
