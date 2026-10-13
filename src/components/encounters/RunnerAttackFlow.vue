@@ -25,7 +25,7 @@
         :disabled="locked"
         @update:model-value="manualWithin = $event"
       />
-      <AppCheckbox v-model="magical" label="Magical" :disabled="appliedResult !== null" />
+      <AppCheckbox v-model="magical" label="Magical" :disabled="appliedResult !== null || riderApplied" />
     </div>
 
     <p v-if="modeText" class="flow-mode" :class="modeClass" data-testid="attack-mode">{{ modeText }}</p>
@@ -44,12 +44,12 @@
     />
 
     <template v-else>
-      <RunnerAttackOutcome :outcome="outcome" :locked="appliedResult !== null" @choose="choose" />
+      <RunnerAttackOutcome :outcome="outcome" :locked="appliedResult !== null || riderApplied" @choose="choose" />
 
       <template v-if="outcome.hit === true">
-        <p v-if="attack.hit.length === 0 && !riderSave" class="flow-note">
-          This attack deals no damage of its own. Its effect is in the text above.
-        </p>
+        <template v-if="attack.hit.length === 0">
+          <p v-if="!riderSave" class="flow-note">This attack deals no damage of its own. Its effect is in the text above.</p>
+        </template>
         <template v-else>
           <AppButton
             v-if="!amounts"
@@ -90,14 +90,29 @@
 
       <section v-if="riderSave && riderTarget && (appliedResult || attack.hit.length === 0)" class="flow-then" data-testid="rider-save">
         <p class="flow-then-head">Then {{ riderSummary }}</p>
-        <RunnerSaveFlow
-          :attacker="attacker"
-          :entry="entry"
-          :save="riderSave"
-          :resolution="resolution"
-          :silent="silent"
-          :target="riderTarget"
-        />
+        <template v-if="!riderSkipped">
+          <p v-if="riderProse" class="flow-gate" data-testid="rider-prose">{{ riderProse }}</p>
+          <RunnerSaveFlow
+            :attacker="attacker"
+            :entry="entry"
+            :save="riderSave"
+            :resolution="resolution"
+            :silent="silent"
+            :target="riderTarget"
+            :magical="magical"
+            @first-roll="riderRolled = true"
+            @applied="riderApplied = true"
+          />
+          <AppButton
+            v-if="!riderRolled && !riderApplied"
+            variant="ghost"
+            size="sm"
+            label="Skip this save"
+            data-testid="skip-rider-save"
+            @click="riderSkipped = true"
+          />
+        </template>
+        <p v-else class="flow-note">Save skipped.</p>
       </section>
     </template>
   </div>
@@ -281,6 +296,18 @@ const riderTarget = computed(() => {
   const hit = outcome.value?.target;
   return hit ? (store.combatants.find((c) => c.instance_id === hit.instance_id) ?? hit) : undefined;
 });
+const riderApplied = ref(false);
+const riderRolled = ref(false);
+const riderSkipped = ref(false);
+/**
+ * The sentence that forces the save, shown beside it: prose gates ("if the target is a
+ * creature other than an elf or undead", "the target and each creature within 10 feet")
+ * are not encoded, so the DM reads them here and skips a save that does not apply.
+ */
+const riderProse = computed(() => {
+  const sentences = entry.description.replace(/<[^>]+>/g, " ").split(/(?<=[.!?])\s+/);
+  return sentences.find((t) => /saving throw/i.test(t))?.trim() ?? null;
+});
 const riderSummary = computed(() =>
   riderSave.value ? describeStructure({ kind: "save", save: riderSave.value, source: "parsed" }).summary : null,
 );
@@ -318,6 +345,10 @@ async function rollConcentration() {
 
 .flow-then {
   @apply flex flex-col gap-2 border-t border-border pt-2;
+}
+
+.flow-gate {
+  @apply text-caption text-muted-foreground italic;
 }
 
 .flow-then-head {

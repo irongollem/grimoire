@@ -78,10 +78,12 @@ as $$
      and s.class_name = p_class_name
      and (s.ruleset is null or s.ruleset = private.party_member_ruleset(p_member_id))
      and coalesce(private.character_may_take_definition(p_member_id, s.campaign_id, s.user_id), false)
-     and not coalesce(
+     -- The class must exist and cast nothing: a missing definition is not a
+     -- licence to cast from the subclass.
+     and coalesce(
        case when coalesce(p_class_definition_kind, 'system') = 'system'
-         then (select c.caster_type <> 'none' from public.system_classes c where c.id = p_class_definition_id)
-         else (select c.caster_type <> 'none' from public.custom_classes c where c.id = p_class_definition_id)
+         then (select c.caster_type = 'none' from public.system_classes c where c.id = p_class_definition_id)
+         else (select c.caster_type = 'none' from public.custom_classes c where c.id = p_class_definition_id)
        end, false)
 $$;
 
@@ -509,8 +511,10 @@ begin
       select spell_slots, cantrips_known into v_spell_slots, v_cantrips_known
       from public.custom_classes where id = v_class.class_definition_id;
     end if;
-    -- A class that does not cast takes its subclass's casting (a third caster).
-    if v_spell_slots is null and v_subclass is not null then
+    -- A class that does not cast takes its subclass's casting (a third caster):
+    -- the same test as the other three functions (subclass_casting is null
+    -- unless the class casts nothing), never "the class has no slot table".
+    if v_subclass is not null then
       v_spell_slots := v_subclass -> 'spell_slots';
       v_cantrips_known := private.jsonb_int_array(v_subclass -> 'cantrips_known');
     end if;

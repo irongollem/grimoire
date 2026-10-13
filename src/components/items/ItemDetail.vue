@@ -399,6 +399,7 @@ import type { DamageRoll } from "@/lib/dice/dice";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
+import { reMintSecretIds } from "@/lib/tiptap/secretIds";
 import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 
@@ -734,12 +735,21 @@ async function confirmDelete() {
 }
 
 // ── Clone ─────────────────────────────────────────────────────────────────────
+/** A clone's [secret] blocks get ids of their own, so a disclosure of the original does not read as the clone's. */
+function withFreshSecretIds<T extends Record<string, unknown>>(payload: T): T {
+  const next: Record<string, unknown> = { ...payload };
+  for (const key of ["description", "mundane_description", "curse_description", "content"]) {
+    if (key in next) next[key] = reMintSecretIds(next[key]);
+  }
+  return next as T;
+}
+
 async function cloneItem() {
   if (!props.item) return;
   isCloning.value = true;
   try {
     const created = await createItem({
-      ...buildPayload(draft),
+      ...withFreshSecretIds(buildPayload(draft)),
       name: `${props.item.name} - Clone`,
       source: null,
       source_title: null,

@@ -168,7 +168,25 @@ export const CLERIC_FEATURES: FeatureCatalogue = {
     },
   }),
   "toh_mercy-domain_bolster-the-living": { activation: "reaction" },
-  "toh_mercy-domain_divine-strike-of-mercy": divineStrike("1d6"),
+  "toh_mercy-domain_divine-strike-of-mercy": {
+    scaling: { label: "Divine Strike", values: { "8": "1d6", "14": "2d6" } },
+    riders: [
+      {
+        label: "Divine Strike of Mercy (radiant)",
+        dice: { kind: "scaling" },
+        damage_type: "radiant",
+        applies_to: "weapon",
+        once_per_turn: true,
+      },
+      {
+        label: "Divine Strike of Mercy (necrotic)",
+        dice: { kind: "scaling" },
+        damage_type: "necrotic",
+        applies_to: "weapon",
+        once_per_turn: true,
+      },
+    ],
+  },
 
   // Mischief Domain
   "open5e_mischief-domain_spreader-of-mischief": { activation: "action" },
@@ -223,12 +241,13 @@ export const CLERIC_FEATURES: FeatureCatalogue = {
   "toh_serpent-domain_channel-divinity-serpent-stealth": channelDivinity(),
   "toh_serpent-domain_divine-strike": divineStrike("1d8", "poison"),
   "toh_serpent-domain_transformative-molt": {
-    activation: "special",
+    // Changing appearance is part of a rest and free; the limit applies once the transformation is ended early.
     uses: usesOnce("serpent_domain_transformative_molt", "Transformative Molt"),
     actions: [
       {
         name: "End the transformation",
         activation: "reaction",
+        spends: { key: "serpent_domain_transformative_molt", amount: 1 },
         effect: {
           kind: "heal",
           add: [
@@ -255,7 +274,7 @@ export const CLERIC_FEATURES: FeatureCatalogue = {
   "toh_shadow-domain_potent-spellcasting": {
     riders: [
       {
-        label: "Potent Spellcasting",
+        label: "Potent Spellcasting (cantrips only)",
         dice: { kind: "flat", add: [{ kind: "ability", ability: "wis" }] },
         applies_to: "spell",
         once_per_turn: false,

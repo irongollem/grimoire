@@ -1,6 +1,8 @@
 /**
  * What ends the conditions a failed save imposes (#1050), in the phrasings the library uses:
- *  save    "The target can repeat the saving throw at the end of each of its turns, ending the
+ *  save    "At the end of each of its turns, the target can repeat the saving throw."  "...for 1
+ *           minute, repeating the saving throw at the end of each of its turns."  Kobold Press:
+ *           "can re-save at end of each of its turns".  "The target can repeat the saving throw at the end of each of its turns, ending the
  *           effect on itself on a success."  2024: "The target repeats the save at the end of
  *           each of its turns, ending the effect on itself on a success."  Another save: "...a
  *           DC 15 Dexterity saving throw ... blinded for 1 minute. A blinded creature can make a
@@ -19,19 +21,31 @@ import type { SaveAbility, SaveEnds, SaveStructure, SrdConditionName } from "../
 import type { TurnEdge } from "../../types/condition.types.ts";
 import { ABILITY_RE_SOURCE, CONDITION_STEMS, NUMBER_WORDS, abilityFromWord } from "./vocab.ts";
 
+const CONDITION_NAMES = Object.keys(CONDITION_STEMS) as SrdConditionName[];
+
 type SaveOf = Pick<SaveStructure, "ability" | "dc">;
 
 /**
- * One sentence of a repeat save: group 1 its DC and 2 its ability when it names them
- * ("can make a DC 15 Constitution saving throw", "repeat the Wisdom saving throw"),
- * 3 its edge. `[^.]` keeps it inside its sentence.
+ * The repeat itself, in the library's verbs: "can repeat the saving throw", "repeating the
+ * saving throw", "makes a DC 15 Constitution saving throw", Kobold Press "can re-save".
+ * Group 1 is its DC and 2 its ability when it names them. "Make" only counts together with
+ * an edge (a creature "makes a saving throw" all through the opening sentence); the verbs
+ * that say it is a repeat need none.
  */
-const REPEAT = new RegExp(
-  `\\b(?:(?:can|may|must)\\s+(?:also\\s+)?)?(?:repeats?|makes?)\\s+(?:the|this|that|its|a|another|a new)?\\s*` +
-    `(?:DC\\s*(\\d+)\\s*,?\\s*)?(?:${ABILITY_RE_SOURCE}\\s+)?(?:saving throw|save)s?\\b[^.]*?` +
-    `\\bat (?:the )?(start|beginning|end) of (?:each of |every one of )?(?:its|their|his|her) turns?\\b[^.]*`,
-  "gi",
+const REPEAT_VERB = new RegExp(
+  `\\b(?:(?:(repeat(?:s|ing)?)|mak(?:es?|ing))\\s+(?:(?:the|this|that|its|a|another|a new)\\s+)?` +
+    `(?:DC\\s*(\\d+)\\s*,?\\s*)?(?:${ABILITY_RE_SOURCE}\\s+)?(?:saving throw|save)s?|(re-?sav(?:es?|ing)))\\b`,
+  "i",
 );
+/** Its edge: "at the end of each of its turns", Kobold Press "at end of each of its turns". Group 1 is the edge. */
+const EDGE = /\bat (?:the )?(start|beginning|end) of (?:each of |every one of |one of )?(?:the )?[\w'\u2019]+ turns?\b/i;
+/** No edge, but every turn ("can repeat the saving throw on each of its turns"): the end of them, the book's default. */
+const EACH_TURN = /\b(?:each|every) (?:one )?of (?:the )?[\w'\u2019]+ turns\b/i;
+/** What a repeat waits for when it is not a turn: harm, a risky move, a rest, a longer interval. */
+const OTHER_TRIGGER =
+  /\b(?:when(?:ever)?|each time|every time|if|before|after|once|every|each (?:day|hour|minute|long rest)|dawn|(?:as|using|uses) an action)\b/i;
+/** "...ending the restrained condition on itself": the condition the repeat is about. */
+const ENDING_NAMED = /\bending the ([a-z]+) condition\b/i;
 
 /** "the beginning of its next turn" is its start. */
 function edgeOf(word: string): TurnEdge {
@@ -47,7 +61,7 @@ function edgeOf(word: string): TurnEdge {
  */
 function endsOnSuccess(sentence: string): boolean {
   if (/\bending\b|\bto end\b|\b(?:effect|condition) ends\b|\bsuccess(?:ful)?\b[^.]*\bends\b/i.test(sentence)) return true;
-  return /\b(?:can|may)\s+(?:also\s+)?repeat/i.test(sentence) && /\beach of\b|\bevery one of\b/i.test(sentence);
+  return /\b(?:can|may)\s+(?:also\s+)?(?:repeat|re-?save)/i.test(sentence) && /\beach of\b|\bevery one of\b/i.test(sentence);
 }
 
 /**
@@ -62,16 +76,37 @@ interface RepeatRead {
   at: TurnEdge;
   ability?: SaveAbility;
   dc?: number;
+  /** The conditions the repeat names ("ending the restrained condition on itself"); empty when it says "the effect". */
+  names: SrdConditionName[];
 }
 
 /** Every repeat in `text` that makes its effect save-ends, in order; none when the save is progressive. */
 function repeats(text: string): RepeatRead[] {
   if (PROGRESSIVE.test(text)) return [];
   const out: RepeatRead[] = [];
-  for (const m of text.matchAll(REPEAT)) {
-    if (!endsOnSuccess(m[0])) continue;
-    const ability = m[2] === undefined ? null : abilityFromWord(m[2]);
-    out.push({ at: edgeOf(m[3]), ...(ability ? { ability } : {}), ...(m[1] !== undefined ? { dc: Number(m[1]) } : {}) });
+  for (const sentence of text.split(/(?<=[.!?])\s+|\n/)) {
+    const verb = REPEAT_VERB.exec(sentence);
+    if (!verb) continue;
+    // The edge after the verb is the repeat's ("takes damage at the start of each of its turns,
+    // and it repeats the save at the end of each of its turns"); one before it ("At the end
+    // of each of its turns, the target can repeat...") is the nearest.
+    const edges = [...sentence.matchAll(new RegExp(EDGE.source, "gi"))];
+    const edge = edges.find((e) => e.index > verb.index) ?? edges[edges.length - 1];
+    if (!verb[1] && !verb[4] && !edge) continue;
+    if (!endsOnSuccess(sentence)) continue;
+    const ability = verb[3] === undefined ? null : abilityFromWord(verb[3]);
+    let at: TurnEdge;
+    if (edge) at = edgeOf(edge[1]);
+    else if (EACH_TURN.test(sentence)) at = "end";
+    // A repeat that waits for something else (harm, a risky move, a long rest) is a way out
+    // beside the duration, not the turn-by-turn save the record holds.
+    else if (OTHER_TRIGGER.test(sentence)) continue;
+    // "A frightened creature can repeat the saving throw, ending the effect on itself": the
+    // book's usual repeat with its timing left out, read as the end of each of its turns.
+    else at = "end";
+    const named = ENDING_NAMED.exec(sentence);
+    const names = named ? CONDITION_NAMES.filter((n) => CONDITION_STEMS[n].test(named[1])) : [];
+    out.push({ at, ...(ability ? { ability } : {}), ...(verb[2] !== undefined ? { dc: Number(verb[2]) } : {}), names });
   }
   return out;
 }
@@ -158,7 +193,8 @@ function sameEnds(a: SaveEnds, b: SaveEnds, save: SaveOf): boolean {
  * save on (where a repeat sentence may stand); `failure` is the failed-save outcome
  * the conditions were read from. A repeat save wins over a stated duration ("paralyzed
  * for 1 minute. The target can repeat the saving throw..."): the minute is a cap the
- * save almost always reaches first, and one record holds one end. A duration counts
+ * save almost always reaches first, and one record holds one end (a save-ends record has no
+ * room for the cap, so it is dropped). A duration counts
  * only when it is the same for every condition, so "poisoned for 1 minute and knocked
  * prone" gets no end rather than giving prone a minute.
  */
@@ -170,7 +206,13 @@ export function readSaveEnds(
 ): SaveEnds | undefined {
   if (conditions.length === 0) return undefined;
   const repeat = repeats(after)[0];
-  if (repeat) return saveEndsFrom(repeat, save) ?? undefined;
+  if (repeat) {
+    // One `ends` serves every condition of the
+    // save, so a repeat that ends only some of them ("ending the restrained condition on
+    // itself") cannot be given to the others: none gets an end rather than a wrong one.
+    if (repeat.names.length > 0 && !conditions.every((c) => repeat.names.includes(c))) return undefined;
+    return saveEndsFrom(repeat, save) ?? undefined;
+  }
   if (PROGRESSIVE.test(after)) return undefined;
 
   let found: SaveEnds | null = null;

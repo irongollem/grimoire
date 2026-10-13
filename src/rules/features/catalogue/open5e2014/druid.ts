@@ -88,7 +88,9 @@ export const DRUID_FEATURES: FeatureCatalogue = {
   "toh_circle-of-ash_covered-in-ash": {
     activation: "reaction",
     uses: proficiencyUses("covered_in_ash", "Covered in Ash"),
-    actions: [{ name: "Ashen Step", activation: "bonus_action" }],
+    actions: [
+      { name: "Ashen Step (once per minute)", activation: "bonus_action" },
+    ],
     effect: {
       kind: "temp_hp",
       add: [{ kind: "proficiency" }, { kind: "proficiency" }],
@@ -287,8 +289,16 @@ export const DRUID_FEATURES: FeatureCatalogue = {
   "toh_circle-of-sand_echo-of-the-dunes": {
     uses: oncePer("echo_of_the_dunes", "Echo of the Dunes", "short"),
     actions: [
-      { name: "Sand Sphere", activation: "action" },
-      { name: "Whirlwind", activation: "action" },
+      {
+        name: "Sand Sphere",
+        activation: "action",
+        spends: { key: "echo_of_the_dunes", amount: 1 },
+      },
+      {
+        name: "Whirlwind",
+        activation: "action",
+        spends: { key: "echo_of_the_dunes", amount: 1 },
+      },
     ],
   },
   "toh_circle-of-sand_sandstorm": {
@@ -403,18 +413,14 @@ export const DRUID_FEATURES: FeatureCatalogue = {
   "toh_circle-of-the-shapeless_engulfing-embrace": {
     activation: "action",
     uses: oncePer("engulfing_embrace", "Engulfing Embrace", "long"),
+    effect: {
+      kind: "save",
+      save: { ability: "dex", dc_ability: "spell", success: "none" },
+      dice: { "14": "2d6" },
+      damage_type: "acid",
+      area: "a creature within 5 ft",
+    },
     actions: [
-      {
-        name: "Engulf",
-        activation: "action",
-        effect: {
-          kind: "save",
-          save: { ability: "dex", dc_ability: "spell", success: "none" },
-          dice: { "14": "2d6" },
-          damage_type: "acid",
-          area: "a creature within 5 ft",
-        },
-      },
       {
         name: "Engulfed Creature Takes",
         activation: "special",

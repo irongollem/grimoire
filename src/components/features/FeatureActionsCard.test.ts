@@ -168,6 +168,38 @@ describe("FeatureActionsCard", () => {
       expect(spend).toHaveBeenCalledWith({ key: "ki", amount: 1 });
     });
 
+    it("spends on the first roll only; Roll again is free until a new use starts", async () => {
+      promptRoll.mockResolvedValue(result(7, 0));
+      const w = mountWith([entry({ featureId: "ki", name: "Burst", effect: thunder, spends: { key: "ki", amount: 1 }, className: "Bard" })]);
+      const roll = () => w.get('button[aria-label="Burst: damage roll"]');
+      await roll().trigger("click");
+      await flushPromises();
+      expect(spend).toHaveBeenCalledTimes(1);
+      expect(roll().text()).toBe("Roll again");
+      await roll().trigger("click");
+      await flushPromises();
+      expect(spend).toHaveBeenCalledTimes(1);
+      await w.get('button[aria-label="Burst: start a new use"]').trigger("click");
+      expect(roll().text()).toBe("Damage");
+      await roll().trigger("click");
+      await flushPromises();
+      expect(spend).toHaveBeenCalledTimes(2);
+    });
+
+    it("a toggle entry with an effect never spends on a roll and cannot roll while off", async () => {
+      promptRoll.mockResolvedValue(result(7, 0));
+      const w = mountWith([entry({ featureId: "fire", name: "Roaring Fire", effect: thunder, toggleKey: "fire", spends: { key: "ki", amount: 1 }, className: "Bard" })]);
+      expect(w.get('button[aria-label="Roaring Fire: damage roll"]').attributes("disabled")).toBeDefined();
+      expect(w.text()).toContain("Switch it on to roll.");
+      on.value = true;
+      const w2 = mountWith([entry({ featureId: "fire", name: "Roaring Fire", effect: thunder, toggleKey: "fire", spends: { key: "ki", amount: 1 }, className: "Bard" })]);
+      const btn = w2.get('button[aria-label="Roaring Fire: damage roll"]');
+      expect(btn.attributes("disabled")).toBeUndefined();
+      await btn.trigger("click");
+      await flushPromises();
+      expect(spend).not.toHaveBeenCalled();
+    });
+
     it("spends nothing when the roll is cancelled", async () => {
       promptRoll.mockResolvedValue(null);
       const w = mountWith([entry({ featureId: "ki", name: "Burst", effect: thunder, spends: { key: "ki", amount: 1 }, className: "Bard" })]);

@@ -226,7 +226,8 @@ function assemble() {
     modifier: weaponDamage.value.modifier,
     riders: chosen.value.flatMap(entry => {
       const expression = expressionOf(entry);
-      return expression ? [{ dice: expression }] : [];
+      // A flat 0 adds nothing; "+0" is not an expression the roller parses.
+      return expression && flatOf(entry) !== 0 ? [{ dice: expression }] : [];
     }),
     critical: critical.value,
   });

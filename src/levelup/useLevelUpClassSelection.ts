@@ -8,6 +8,7 @@ import type { CharacterClass } from "@/types/multiclass.types";
 import type { PartyMember } from "@/types/party.types";
 import type { ClassRowInfo } from "./levelUpProjection";
 import { castingFor, type EffectiveCasting } from "@/rules/subclassCasting";
+import { subclassChoiceDue } from "./subclassChoice";
 
 /**
  * Which class this level is taken in, and everything that follows from the
@@ -106,8 +107,24 @@ export function useLevelUpClassSelection(member: () => PartyMember) {
   const systemClass = computed(() => (exactClassDefinition.value?.kind === "system" ? exactClassDefinition.value.value : undefined));
 
   const subclassDefinitionId = ref("");
+  const subclassInput = ref("");
+  /** Whether this level is where the class asks for its subclass. */
+  const needsSubclassChoice = computed(() =>
+    subclassChoiceDue(
+      chosenExistingEntry.value,
+      levelInChosenClass.value,
+      systemClass.value?.subclass_level ?? customClass.value?.subclass_level,
+    ),
+  );
+  /**
+   * The subclass the payload will send, when it sends one: a name AND its
+   * definition, at the level the class asks for it (`buildLevelUpPayload`).
+   */
+  const subclassBeingChosen = computed(() =>
+    needsSubclassChoice.value && !!subclassInput.value.trim() && !!subclassDefinitionId.value);
+  /** The subclass this level leaves the row with: the one it sends, else the one already held. */
   const customSubclass = computed(() => {
-    const id = subclassDefinitionId.value || chosenExistingEntry.value?.subclass_definition_id;
+    const id = subclassBeingChosen.value ? subclassDefinitionId.value : chosenExistingEntry.value?.subclass_definition_id;
     return id ? ((allCustomSubclasses.value ?? []).find((subclass) => subclass.id === id) ?? null) : null;
   });
 
@@ -145,6 +162,17 @@ export function useLevelUpClassSelection(member: () => PartyMember) {
     const prereq = (multiclassPrereqs.value ?? []).find((p) => p.class_name === newClassName.value);
     return prereq?.gained_proficiencies ?? [];
   });
+
+  /**
+   * Whether everything a casting derivation reads has arrived. An unloaded
+   * subclass or class reads as a non-caster, and the slots built from that are
+   * written to the character, so the wizard confirms nothing before this.
+   */
+  const castingInputsLoaded = computed(() =>
+    characterClasses.value !== undefined
+    && allSystemClasses.value !== undefined
+    && allCustomClasses.value !== undefined
+    && allCustomSubclasses.value !== undefined);
 
   /** What a held class row casts with: its class, or its subclass when the class does not. */
   function rowCasting(row: CharacterClass): EffectiveCasting | null {
@@ -192,6 +220,9 @@ export function useLevelUpClassSelection(member: () => PartyMember) {
     customClass,
     systemClass,
     subclassDefinitionId,
+    subclassInput,
+    needsSubclassChoice,
+    castingInputsLoaded,
     customSubclass,
     allCustomSubclasses,
     allSystemClasses,

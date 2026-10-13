@@ -43,6 +43,7 @@ const {
   conditionsImmune = [],
   conditionEnds = {},
   dealsDamage = true,
+  saveFailed = false,
   concentration = null,
   canRollConcentration,
 } = defineProps<{
@@ -59,6 +60,12 @@ const {
    * dealt none is noise, so the line speaks of the conditions alone.
    */
   dealsDamage?: boolean;
+  /**
+   * The target failed the save. With nothing structured applied, the effect lies in the
+   * action's text (pushed, pulled, a disease, half of a poison's damage), so the line
+   * sends the DM there rather than claiming the target was unaffected.
+   */
+  saveFailed?: boolean;
   concentration?: ConcentrationCheck | null;
   /** A stat-block target is rolled here; a party member rolls at the table. */
   canRollConcentration: boolean;
@@ -67,7 +74,10 @@ const {
 const emit = defineEmits<{ "roll-concentration": [] }>();
 
 const headline = computed(() => {
-  if (!dealsDamage) return conditionsApplied.length + conditionsImmune.length === 0 ? `${name} is unaffected.` : null;
+  if (!dealsDamage) {
+    if (conditionsApplied.length + conditionsImmune.length > 0) return null;
+    return saveFailed ? `${name} failed the save. See the action for the effect.` : `${name} is unaffected.`;
+  }
   const taken = damage ? damage.total : 0;
   if (taken === 0) return `${name} takes no damage.`;
   return `${name} takes ${taken}${share === "half" ? " (half)" : ""}.`;

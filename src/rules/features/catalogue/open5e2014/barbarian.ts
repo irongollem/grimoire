@@ -8,10 +8,6 @@ import type { FeatureCatalogue } from "../types";
  */
 const RAGE_USE = { key: "rage_uses", amount: 1 };
 const PROFICIENCY: UsesAmount = { kind: "proficiency" };
-const RAGE_DAMAGE = {
-  label: "Rage Damage",
-  values: { "1": "+2", "9": "+3", "16": "+4" },
-};
 
 export const BARBARIAN_FEATURES: FeatureCatalogue = {
   // Path of Booming Magnificence
@@ -104,18 +100,6 @@ export const BARBARIAN_FEATURES: FeatureCatalogue = {
 
   // Path of Mistwood
   "toh_path-of-mistwood_bonus-proficiency": { grants: { skills: ["stealth"] } },
-  "toh_path-of-mistwood_mistwood-defender": {
-    scaling: RAGE_DAMAGE,
-    riders: [
-      {
-        label: "Rage (thrown weapon)",
-        dice: { kind: "scaling" },
-        applies_to: "weapon",
-        once_per_turn: false,
-        requires_toggle: "rage",
-      },
-    ],
-  },
   "toh_path-of-mistwood_from-the-mist": {
     activation: "bonus_action",
     uses: {
@@ -140,7 +124,6 @@ export const BARBARIAN_FEATURES: FeatureCatalogue = {
   // Path of the Dragon
   "toh_path-of-the-dragon_wyrm-teeth": {
     activation: "bonus_action",
-    // The bite also deals proficiency bonus damage of the totem dragon's type; the contract holds one damage type per roll.
     effect: {
       kind: "attack",
       attack: { delivery: "melee", ability: "str", range: "5 ft" },
@@ -148,6 +131,14 @@ export const BARBARIAN_FEATURES: FeatureCatalogue = {
       damage_type: "piercing",
       add: [{ kind: "ability", ability: "str" }],
     },
+    // The extra damage is of the totem dragon's type, which the contract cannot name from a choice: untyped.
+    actions: [
+      {
+        name: "Bite (totem damage)",
+        activation: "special",
+        effect: { kind: "damage", add: [{ kind: "proficiency" }] },
+      },
+    ],
   },
   "toh_path-of-the-dragon_totem-dragon": {
     grants: { languages: ["Draconic"] },
@@ -181,7 +172,7 @@ export const BARBARIAN_FEATURES: FeatureCatalogue = {
     },
   },
   "toh_path-of-the-dragon_aspect-of-the-dragon": {
-    activation: "special",
+    // The aspect is chosen each time you rage, so there is no permanent pick; only Dragon Heart is limited.
     uses: {
       key: "dragon_heart",
       label: "Dragon Heart",
@@ -189,27 +180,11 @@ export const BARBARIAN_FEATURES: FeatureCatalogue = {
       recharge: "short",
       pool: false,
     },
-    choices: [
-      {
-        key: "dragon_aspect",
-        label: "Aspect of the Dragon",
-        pick: {
-          kind: "custom",
-          options: [
-            "Dragon Heart",
-            "Dragon Hide",
-            "Dragon Sight",
-            "Dragon Wings",
-          ],
-        },
-        count: { kind: "per_grant", amount: 1 },
-        replace_on_level_up: false,
-      },
-    ],
     actions: [
       {
         name: "Dragon Heart",
         activation: "special",
+        spends: { key: "dragon_heart", amount: 1 },
         effect: {
           kind: "temp_hp",
           dice: { "10": "1d12" },

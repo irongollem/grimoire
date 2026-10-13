@@ -362,10 +362,12 @@ export function actionsByActivation(granted: GrantedFeature[], characterLevel: n
     if (seen.has(g.feature.id)) continue;
     seen.add(g.feature.id);
     const m = g.mechanics;
-    // A feature with uses of its own spends one each time it is used, through
-    // itself or any of its sub-actions, unless it names another cost: Action
-    // Surge, Second Wind, Tempest's Rebuke. A pool (Lay on Hands, sorcery
-    // points) is spent in chosen amounts, so it always names its costs.
+    // A feature with uses of its own and no sub-actions spends one each time
+    // it is used, unless it names another cost: Action Surge, Second Wind,
+    // Tempest's Rebuke. A pool (Lay on Hands, sorcery points) is spent in
+    // chosen amounts, so it always names its costs. A sub-action never takes
+    // that default: it is often a follow-up (a damage tick, "End the
+    // transformation"), so it costs only what it names in its own `spends`.
     const ownUse: UsesCost | undefined = m.uses && !m.uses.pool ? { key: m.uses.key, amount: 1 } : undefined;
     const spends = m.spends ?? m.toggle?.spends ?? ((m.actions?.length ?? 0) > 0 ? undefined : ownUse);
     // A feature that only groups its sub-actions (Cunning Action: Dash,
@@ -396,7 +398,7 @@ export function actionsByActivation(granted: GrantedFeature[], characterLevel: n
         featureName: g.feature.name,
         name: sub.name,
         activation: sub.activation,
-        spends: sub.spends ? { key: sub.spends.key, amount: sub.spends.amount } : (ownUse ?? null),
+        spends: sub.spends ? { key: sub.spends.key, amount: sub.spends.amount } : null,
         toggleKey: null,
         isSubAction: true,
         effect: sub.effect ?? null,

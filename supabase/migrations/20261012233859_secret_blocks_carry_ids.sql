@@ -31,7 +31,11 @@
 -- ── 1. Stamping ──────────────────────────────────────────────────────────────
 
 -- Recursive over the node tree, carrying the ids already used so a duplicate
--- (a block copied within the document) gets a fresh one. Children are only
+-- (a block copied within the document) gets a fresh one. This is the last
+-- resort: the server cannot tell a paste from the original, so the first
+-- occurrence keeps the id by position. The editor strips ids from pasted
+-- slices (src/lib/tiptap/secretBlock.ts), so a copy normally arrives id-less
+-- and the original keeps its own wherever the copy lands. Children are only
 -- ever under `content`, as in private.strip_secret_nodes.
 create function private.stamp_secret_nodes(p_node jsonb, p_seen text[], out node jsonb, out seen text[])
 language plpgsql

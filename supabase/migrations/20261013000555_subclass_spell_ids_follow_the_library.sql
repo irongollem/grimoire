@@ -44,13 +44,17 @@ language sql
 stable
 set search_path = ''
 as $$
-  select coalesce(jsonb_object_agg(lvl.key, (
-           select coalesce(jsonb_agg(x.id order by x.first_seen), '[]'::jsonb)
-             from (select private.retired_srd_spell_id_successor(a.id) as id, min(a.ord) as first_seen
-                     from jsonb_array_elements_text(lvl.value) with ordinality as a(id, ord)
-                    group by 1) x)),
-         '{}'::jsonb)
-    from jsonb_each(p_map) as lvl
+  -- Anything not of the documented shape passes through untouched: this runs
+  -- over every subclass, a client's included, and one malformed row must not
+  -- abort the whole update (none exist in production on 13 Oct 2026).
+  select case when jsonb_typeof(p_map) <> 'object' then p_map else (
+    select coalesce(jsonb_object_agg(lvl.key, case when jsonb_typeof(lvl.value) <> 'array' then lvl.value else (
+             select coalesce(jsonb_agg(x.id order by x.first_seen), '[]'::jsonb)
+               from (select private.retired_srd_spell_id_successor(a.id) as id, min(a.ord) as first_seen
+                       from jsonb_array_elements_text(lvl.value) with ordinality as a(id, ord)
+                      group by 1) x) end),
+           '{}'::jsonb)
+      from jsonb_each(p_map) as lvl) end
 $$;
 
 -- `{ "<option>": { "<level>": [id, ...] } }`, each option's map remapped.
@@ -60,8 +64,9 @@ language sql
 stable
 set search_path = ''
 as $$
-  select coalesce(jsonb_object_agg(opt.key, private.remap_spell_level_map(opt.value)), '{}'::jsonb)
-    from jsonb_each(p_map) as opt
+  select case when jsonb_typeof(p_map) <> 'object' then p_map else (
+    select coalesce(jsonb_object_agg(opt.key, private.remap_spell_level_map(opt.value)), '{}'::jsonb)
+      from jsonb_each(p_map) as opt) end
 $$;
 
 update public.custom_subclasses s

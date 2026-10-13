@@ -8,6 +8,7 @@ import {
   buildIdMapFromArrays,
   remapKeep as r,
   remapKeepArr as rArr,
+  remapOrNull,
   type IdMap,
 } from "@/lib/campaign/campaignSerialization";
 import { restoreSessions } from "@/lib/campaign/backupSessions";
@@ -867,7 +868,9 @@ export async function executeImport(
         party_member_ids: rArr(memory.party_member_ids, idMap),
         player_visible_to: rArr(memory.player_visible_to, idMap),
         // secret_id is a block id inside the copied entity text, which keeps it; only the entity is remapped.
-        secret_entity_id: r(memory.secret_entity_id, idMap),
+        // An entity the backup does not carry (items are not exported) keeps its old id otherwise, and the
+        // database refuses a secret from another campaign, aborting the restore: drop the whole reference.
+        ...restoredSecretRef(memory, idMap),
       })),
     );
     await batchInsert(
@@ -1266,4 +1269,14 @@ export function useImportCampaign() {
     isPending,
     reset,
   };
+}
+
+/** The three secret columns of a memory, all kept (entity remapped) or all null when its entity was not restored. */
+function restoredSecretRef(
+  memory: { secret_entity_type?: unknown; secret_entity_id?: unknown; secret_id?: unknown },
+  idMap: IdMap,
+): { secret_entity_type: unknown; secret_entity_id: string | null; secret_id: unknown } {
+  const entityId = remapOrNull(memory.secret_entity_id, idMap);
+  if (entityId === null) return { secret_entity_type: null, secret_entity_id: null, secret_id: null };
+  return { secret_entity_type: memory.secret_entity_type, secret_entity_id: entityId, secret_id: memory.secret_id };
 }

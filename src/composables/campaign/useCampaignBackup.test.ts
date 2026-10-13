@@ -284,6 +284,20 @@ describe("executeImport NPC memories (#1019)", () => {
     expect(row.secret_id).toBe("11111111-1111-4111-8111-111111111111");
   });
 
+  it("drops the secret reference when its entity is not part of the backup", async () => {
+    const backup = backupWith({
+      npcs: [{ id: "npc-1", name: "Bram" }],
+      npc_memories: [
+        { ...memory, secret_entity_type: "item", secret_entity_id: "item-1", secret_id: "11111111-1111-4111-8111-111111111111" },
+      ],
+    });
+    await executeImport(backup, "Restored");
+    const row = inserted.find((i) => i.table === "npc_memories")!.rows[0];
+    expect(row.secret_entity_type).toBeNull();
+    expect(row.secret_entity_id).toBeNull();
+    expect(row.secret_id).toBeNull();
+  });
+
   it("restores a backup that predates the ledger without writing any memories", async () => {
     const base: Record<string, unknown> = { version: "2", file_type: "backup", campaign: { id: "old-camp", name: "Old" } };
     const old = new Proxy(base, {

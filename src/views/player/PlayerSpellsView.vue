@@ -41,6 +41,9 @@
         </AppSelect>
       </div>
     </div>
+    <p v-if="missingCastingAbility" class="text-caption text-muted-foreground" data-testid="missing-casting-ability">
+      Set this class's casting ability to see its spell save DC and attack bonus.
+    </p>
     <!-- Tab switcher -->
     <div class="flex gap-1 w-fit">
       <AppButton
@@ -212,12 +215,12 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import type { Spell } from "@/types/spell.types";
-import { pickSpellcastingStats, type CharacterClass } from "@/types/multiclass.types";
+import type { CharacterClass } from "@/types/multiclass.types";
 import { SPELL_SCHOOLS, computeMaxPrepared } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
-import { castingFor, castingListName, subclassPreparedLimit } from "@/rules/subclassCasting";
+import { castingFor, castingListName, limitAtClassLevel, subclassPreparedLimit } from "@/rules/subclassCasting";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
@@ -380,7 +383,14 @@ const effectiveSpellSlots = computed(() => {
 
 // The primary row's DC and attack come from the same per-class stats every
 // other surface reads, so a subclass caster's own ability is used.
-const primaryStats = computed(() => pickSpellcastingStats(spellcastingByClass.value, memberClassEntry.value?.id));
+// Exactly the primary row's: another class's DC under the primary's header would be a wrong number.
+const primaryStats = computed(() => {
+  const id = memberClassEntry.value?.id;
+  return id ? spellcastingByClass.value.find((entry) => entry.classId === id) ?? null : null;
+});
+// A casting class whose definition names no ability has no DC to show; say so instead of guessing.
+const missingCastingAbility = computed(() =>
+  casterType.value !== "none" && !!memberClassEntry.value && !primaryStats.value && !!member.value);
 const spellAttackBonus = computed(() => casterType.value === "none" ? null : primaryStats.value?.attack ?? null);
 
 const spellSaveDc = computed(() => casterType.value === "none" ? null : primaryStats.value?.dc ?? null);
@@ -483,7 +493,7 @@ const maxKnown      = computed(() => {
   if (!m || casterType.value !== "known") return null;
   const table = memberCasting.value?.spellsKnown;
   if (!table) return null;
-  return table[Math.min(m.level, 20) - 1] ?? null;
+  return limitAtClassLevel(table, memberClassEntry.value?.levels ?? m.level);
 });
 const maxCantrips   = computed(() => {
   const m = member.value;
@@ -493,7 +503,7 @@ const maxCantrips   = computed(() => {
   }
   const table = memberCasting.value?.cantripsKnown;
   if (!table) return null;
-  return table[Math.min(m.level, 20) - 1] ?? null;
+  return limitAtClassLevel(table, memberClassEntry.value?.levels ?? m.level);
 });
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────

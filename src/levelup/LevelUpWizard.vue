@@ -187,7 +187,6 @@ import LevelUpHitPoints from "./LevelUpHitPoints.vue";
 import LevelUpSubclassPicker from "./LevelUpSubclassPicker.vue";
 import LevelUpSubclassSpells from "./LevelUpSubclassSpells.vue";
 import { subclassExpandedSpellIds, subclassVariantDue, subclassVariantOptions } from "./subclassSpells";
-import { subclassChoiceDue } from "./subclassChoice";
 import LevelUpSpellPicker from "./LevelUpSpellPicker.vue";
 import LevelUpSpellsUnavailable from "./LevelUpSpellsUnavailable.vue";
 import { useLevelUpConfirm } from "./useLevelUpConfirm";
@@ -217,8 +216,8 @@ const { ruleset } = useRuleset();
 const {
   existingClassOptions, chosenClassSelector, newClassChoiceKey, isAddingNewClass, newClassName,
   newClassDefinition, newClassDefinitionId, newClassDefinitionKind, chosenExistingEntry, memberClass,
-  levelInChosenClass, exactClassDefinition, customClass, systemClass, subclassDefinitionId, customSubclass,
-  allCustomSubclasses, campaignCustomSubclasses, newClassCandidates, ignoreMulticlassPrereqs, newClassPrereq,
+  levelInChosenClass, exactClassDefinition, customClass, systemClass, subclassDefinitionId, subclassInput, needsSubclassChoice, castingInputsLoaded,
+  customSubclass, allCustomSubclasses, campaignCustomSubclasses, newClassCandidates, ignoreMulticlassPrereqs, newClassPrereq,
   newClassProficiencyGrants, classRows, rowCasting, campaignRulesData,
 } = useLevelUpClassSelection(() => props.member);
 
@@ -236,14 +235,6 @@ const {
 } = useLevelUpHitPoints({ member: () => props.member, hitDie, subclassHpBonus, nextLevel });
 
 // ── Subclass ───────────────────────────────────────────────────────────────────
-const subclassInput = ref("");
-const needsSubclassChoice = computed(() =>
-  subclassChoiceDue(
-    chosenExistingEntry.value,
-    levelInChosenClass.value,
-    systemClass.value?.subclass_level ?? customClass.value?.subclass_level,
-  ),
-);
 /**
  * The option (a Circle of the Land terrain) the character holds; a subclass
  * picked now starts with none, and so does one whose option the author has
@@ -408,6 +399,8 @@ const canConfirm = computed(() => {
   if (isAddingNewClass.value && !newClassName.value) return false;
   if (isAddingNewClass.value && !ignoreMulticlassPrereqs.value && !newClassPrereq.value.ok) return false;
   if (hitDie.value === null) return false;
+  // The class rows, definitions and subclasses are still loading: the slots built from them would read a casting subclass as a non-caster.
+  if (!castingInputsLoaded.value) return false;
   if (hpMode.value === "roll" && rolledHp.value === null) return false;
   // The features are still loading: the picks owed are not known yet.
   if (featuresLoading.value) return false;

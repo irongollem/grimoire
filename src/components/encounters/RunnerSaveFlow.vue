@@ -76,6 +76,7 @@
           :conditions-immune="a.conditionsImmune"
           :condition-ends="endsFor(a)"
           :deals-damage="save.fail.length > 0"
+          :save-failed="failedIds.has(a.target.instance_id)"
           :concentration="concentration[a.target.instance_id] ?? null"
           :can-roll-concentration="resolution.saveBonusFor(a.target, 'con') !== null"
           @roll-concentration="rollConcentration(a)"
@@ -86,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import RunnerAppliedLine from "@/components/encounters/RunnerAppliedLine.vue";
@@ -111,7 +112,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { SaveStructure, SrdConditionName, StatBlockEntry } from "@/types/statBlock.types";
 
-const { attacker, entry, save, resolution, silent, target } = defineProps<{
+const { attacker, entry, save, resolution, silent, target, magical: magicalStart = false } = defineProps<{
   attacker: RunCombatant;
   entry: StatBlockEntry;
   save: SaveStructure;
@@ -122,21 +123,32 @@ const { attacker, entry, save, resolution, silent, target } = defineProps<{
    * alone, so there is no one to pick.
    */
   target?: RunCombatant;
+  /** The Magical flag to start from: a rider save inherits the attack's. */
+  magical?: boolean;
 }>();
 
-const emit = defineEmits<{ "first-roll": [] }>();
+const emit = defineEmits<{ "first-roll": []; applied: [] }>();
 
 const store = useEncounterRunStore();
 
 const candidates = computed(() => targetCandidates(attacker, store.combatants));
 const selected = ref<string[]>(target ? [target.instance_id] : []);
-const magical = ref(false);
+const magical = ref(magicalStart);
+// A rider save keeps following its attack's flag until it is applied.
+watch(
+  () => magicalStart,
+  (v) => {
+    if (!applied.value) magical.value = v;
+  },
+);
 
 const results = ref<SaveTargetResult[] | null>(null);
 const amounts = ref<EditableAmount[] | null>(null);
 const applied = ref<SaveApplied[] | null>(null);
 const concentration = reactive<Record<string, ConcentrationCheck | undefined>>({});
 const rolling = ref(false);
+
+const failedIds = computed(() => new Set((results.value ?? []).filter((r) => r.success === false).map((r) => r.target.instance_id)));
 
 const abilityLabel = computed(() => save.ability.toUpperCase());
 const rollLabel = computed(() => {
@@ -206,6 +218,7 @@ function apply() {
     damageParts: amounts.value ? toDamageAmounts(amounts.value) : [],
     magical: magical.value,
   });
+  emit("applied");
 }
 
 /**

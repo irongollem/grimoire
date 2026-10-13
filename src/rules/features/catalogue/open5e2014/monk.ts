@@ -225,8 +225,8 @@ export const MONK_FEATURES: FeatureCatalogue = {
       },
     ],
     riders: [
-      martialArtsRider("Slow to Anger", "melee_weapon", false, KI),
-      wisdomRider("Slow to Anger (Wisdom)", "melee_weapon", false),
+      martialArtsRider("Slow to Anger", "melee_weapon", true, KI),
+      wisdomRider("Wisdom with Slow to Anger", "melee_weapon", true),
     ],
   },
   "toh_way-of-the-humble-elephant_unyielding-step": {
@@ -240,7 +240,10 @@ export const MONK_FEATURES: FeatureCatalogue = {
   },
   "toh_way-of-the-humble-elephant_decisive-in-wrath": {
     scaling: { label: "Decisive in Wrath Die", values: MARTIAL_ARTS_DIE },
-    riders: [martialArtsRider("Decisive in Wrath", "melee_weapon", false)],
+    riders: [
+      martialArtsRider("Decisive in Wrath", "melee_weapon", false),
+      wisdomRider("Decisive in Wrath (Wisdom)", "melee_weapon", false),
+    ],
   },
   "toh_way-of-the-humble-elephant_thick-hide": {
     activation: "bonus_action",
@@ -254,16 +257,21 @@ export const MONK_FEATURES: FeatureCatalogue = {
 
   // Way of the Still Waters
   "toh_way-of-the-still-waters_turbulent-waters": {
-    activation: "reaction",
+    // Gaining a die (a reaction) adds to the pool rather than spending it, so the feature has no activation of its own.
     uses: {
       key: "way_of_the_still_waters_turbulence_dice",
-      label: "Turbulence Dice",
+      label: "Turbulence Dice (gained in combat)",
       amount: { kind: "proficiency" },
       recharge: "short",
       pool: true,
     },
     scaling: { label: "Turbulence Die", values: MARTIAL_ARTS_DIE },
-    riders: [martialArtsRider("Turbulence dice", "weapon", false)],
+    riders: [
+      martialArtsRider("Turbulence dice", "weapon", false, {
+        key: "way_of_the_still_waters_turbulence_dice",
+        amount: 1,
+      }),
+    ],
   },
   "toh_way-of-the-still-waters_spreading-ripples": {
     actions: [
@@ -316,8 +324,12 @@ export const MONK_FEATURES: FeatureCatalogue = {
     },
     actions: [
       {
-        name: "Deflect Missiles",
+        name: "Deflect Missiles (extra reaction)",
         activation: "reaction",
+        spends: {
+          key: "way_of_the_unerring_arrow_flurry_of_deflection",
+          amount: 1,
+        },
         effect: {
           kind: "damage",
           dice: { "9": "2d10" },
@@ -360,9 +372,12 @@ export const MONK_FEATURES: FeatureCatalogue = {
     actions: [
       { name: "Ignore all cover", activation: "special", spends: ki(3) },
       {
-        name: "Strike a target on another plane",
+        name: "Strike a target on another plane (5 ki points)",
         activation: "special",
-        spends: ki(5),
+        spends: {
+          key: "way_of_the_unerring_arrow_improbable_shot",
+          amount: 1,
+        },
       },
     ],
   },

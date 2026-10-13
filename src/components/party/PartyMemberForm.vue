@@ -91,7 +91,7 @@
           <AppButton
             variant="primary"
             size="md"
-            :disabled="!form.name.trim() || saving"
+            :disabled="!form.name.trim() || saving || !slotInputsLoaded"
             label="Save Changes"
             @click="save"
           />
@@ -162,9 +162,16 @@ const { data: characterClassRows } = useCharacterClasses(memberId);
 const hasClasses = computed(() => (characterClassRows.value?.length ?? 0) > 0);
 const multiclassLabel = computed(() => formatMulticlassLabel(characterClassRows.value ?? []));
 const multiclassTotal = computed(() => totalLevel(characterClassRows.value ?? []));
-const { data: systemClasses } = useCampaignSystemClasses();
-const { data: customClasses } = useCampaignCustomClasses();
+// `all` resolves the definitions a row is pinned to (a class the campaign has since disabled
+// still defines its rows) and is undefined until loaded, which the slot defaults wait for.
+const { all: allSystemClasses } = useCampaignSystemClasses();
+const { all: allCustomClasses } = useCampaignCustomClasses();
 const { data: allSubclasses } = useAllCustomSubclasses();
+// Default slots are derived from the class rows, their classes and their subclasses
+// (an Eldritch Knight casts from its subclass). Until all four have arrived a derivation
+// would read an unloaded subclass as a non-caster, so nothing is seeded or saved before then.
+const slotInputsLoaded = computed(() =>
+  !!characterClassRows.value && !!allSystemClasses.value && !!allCustomClasses.value && !!allSubclasses.value);
 
 // Pickers offer only what the campaign permits; `allSpecies` (ungated) still
 // backs name resolution below, so a member keeps their species after the DM
@@ -264,7 +271,9 @@ function toMemberDraft(m: PartyMember) {
 type MemberDraft = ReturnType<typeof toMemberDraft>;
 
 const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
-  source: () => props.member,
+  // Depends on slotInputsLoaded so the derived slot defaults reach the draft (and its
+  // baseline) when the definitions land, without clobbering anything already edited.
+  source: () => (slotInputsLoaded.value ? { ...props.member } : props.member),
   identity: (m: PartyMember) => m.id,
   toDraft: (m): MemberDraft => toMemberDraft(m ?? props.member),
 });
@@ -381,17 +390,20 @@ function applyPersonaPatch(patch: Partial<PersonaFormSlice>) {
 // Defaults are derived from the character's class rows and its own edition,
 // multiclass included, the same way the sheet derives them.
 function buildSlotMaxes(member: PartyMember, existing: SpellSlotEntry[] | undefined): number[] {
+  // Stored slots are the character's own; derived ones wait for the definitions to load.
   const slots = existing && existing.length > 0
     ? existing
-    : deriveEffectiveSpellSlots(
+    : !slotInputsLoaded.value
+      ? []
+      : deriveEffectiveSpellSlots(
         { ...member, spell_slots: null },
         characterClassRows.value ?? [],
         ruleset.value,
         (row) => {
-          const definitions = row.class_definition_kind === "custom" ? customClasses.value : systemClasses.value;
-          return definitions.find((c) => c.id === row.class_definition_id);
+          const definitions = row.class_definition_kind === "custom" ? allCustomClasses.value : allSystemClasses.value;
+          return definitions?.find((c) => c.id === row.class_definition_id);
         },
-        (row) => (allSubclasses.value ?? []).find((s) => s.id === row.subclass_definition_id),
+        (row) => allSubclasses.value?.find((s) => s.id === row.subclass_definition_id),
       );
   return Array.from({ length: 9 }, (_, i) => slots.find((s) => s.level === i + 1)?.max ?? 0);
 }
@@ -488,7 +500,7 @@ function buildPayload(d: MemberDraft): PartyMemberUpdate {
 }
 
 async function save() {
-  if (saving.value) return;
+  if (saving.value || !slotInputsLoaded.value) return;
   saving.value = true;
   // The chosen player's display name wins over the typed one. It is the player
   // list's, not the draft's, so it lands in the draft here, before the builder runs.

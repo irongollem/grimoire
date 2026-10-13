@@ -215,3 +215,18 @@ describe("planCloneLevel", () => {
     expect(plan.doors).toHaveLength(0);
   });
 });
+
+describe("planCloneLevel secret blocks", () => {
+  it("re-mints the secret ids in the cloned site and room descriptions", () => {
+    const text = JSON.stringify({ type: "doc", content: [{ type: "secretBlock", attrs: { secretId: "orig-id" }, content: [] }] });
+    const plan = planCloneLevel({
+      site: loc({ id: "s", description: text }),
+      rooms: [loc({ id: "r", description: text })],
+      regions: [],
+      doors: [],
+    });
+    expect(plan.siteInsert.description).not.toContain("orig-id");
+    expect(plan.rooms[0]?.insert.description).not.toContain("orig-id");
+    expect(plan.siteInsert.description).toContain("secretBlock");
+  });
+});

@@ -286,8 +286,8 @@ export const SORCERER_FEATURES: FeatureCatalogue = {
     ],
     actions: [
       {
-        name: "Tentacle Strike",
-        activation: "action",
+        name: "Tentacle Strike (Grasping Tentacle only)",
+        activation: "special",
         effect: {
           kind: "attack",
           attack: { delivery: "melee", ability: "cha" },

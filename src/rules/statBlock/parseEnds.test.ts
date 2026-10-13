@@ -15,6 +15,35 @@ describe("reading what ends a save's conditions (#1050)", () => {
     expect(saveOf(GHOUL)).toMatchObject({ ability: "con", dc: 10, conditions: ["Paralyzed"], ends: { kind: "save", at: "end" } });
   });
 
+  describe("the repeat phrasings the library uses", () => {
+    const base = (tail: string) =>
+      `Each creature within 30 feet must succeed on a DC 15 Wisdom saving throw or be paralyzed for 1 minute. ${tail}`;
+    it("reads the edge first, or no edge at all", () => {
+      expect(saveOf(base("At the end of each of its turns, the target can repeat the saving throw, ending the effect."))?.ends).toEqual({ kind: "save", at: "end" });
+      expect(saveOf(base("A paralyzed creature can repeat the saving throw, ending the effect on itself on a success."))?.ends).toEqual({ kind: "save", at: "end" });
+      expect(saveOf(base("A paralyzed creature can repeat the saving throw on each of its turns, ending the effect on itself."))?.ends).toEqual({ kind: "save", at: "end" });
+    });
+    it("reads the gerund and Kobold Press re-save", () => {
+      expect(
+        saveOf("Each creature within 30 feet must succeed on a DC 15 Wisdom saving throw or be paralyzed for 1 minute, repeating the saving throw at the start of each of its turns, ending the effect on a success.")?.ends,
+      ).toEqual({ kind: "save", at: "start" });
+      expect(saveOf(base("A paralyzed creature can re-save at end of each of its turns success ends effect on itself."))?.ends).toEqual({ kind: "save", at: "end" });
+    });
+    it("leaves a repeat that waits for something else on the stated duration", () => {
+      expect(saveOf(base("Each time it takes damage, the creature can repeat the saving throw, ending the effect on itself on a success."))?.ends).toEqual({ kind: "rounds", remaining: 10 });
+    });
+    it("takes the edge after the verb, not the damage's", () => {
+      expect(
+        saveOf("Constitution Saving Throw: DC 21. Failure: The target has the Poisoned condition. While Poisoned, it takes 21 (6d6) Poison damage at the start of each of its turns, and it repeats the save at the end of each of its turns, ending the effect on itself on a success.")?.ends,
+      ).toEqual({ kind: "save", at: "end" });
+    });
+    it("gives a repeat that names one condition to no other", () => {
+      const prose = "Each creature within 30 feet must succeed on a DC 12 Strength saving throw or be frightened and restrained for 1 minute. The creature can repeat the saving throw at the end of each of its turns, ending the restrained condition on itself on a success.";
+      expect(saveOf(prose)?.ends).toBeUndefined();
+      expect(saveOf(prose.replace("frightened and restrained", "restrained"))?.ends).toEqual({ kind: "save", at: "end" });
+    });
+  });
+
   it("reads the 2024 phrasing and a repeat at the start of the turn", () => {
     expect(
       saveOf(

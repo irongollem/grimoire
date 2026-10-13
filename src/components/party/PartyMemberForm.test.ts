@@ -8,6 +8,8 @@ import type { PartyMember } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 const rows = ref<CharacterClass[]>([]);
+const systemDefs = ref<unknown[] | undefined>([]);
+const subclassDefs = ref<unknown[] | undefined>([]);
 const update = vi.fn();
 
 vi.mock("@/composables/memorials/useMemorials", async (importOriginal) => ({
@@ -16,10 +18,10 @@ vi.mock("@/composables/memorials/useMemorials", async (importOriginal) => ({
 }));
 vi.mock("@/composables/party/useCharacterClasses", () => ({ useCharacterClasses: () => ({ data: rows }) }));
 vi.mock("@/composables/rules/useCustomClasses", () => ({
-  useCampaignSystemClasses: () => ({ data: ref([]) }),
-  useCampaignCustomClasses: () => ({ data: ref([]) }),
+  useCampaignSystemClasses: () => ({ data: ref([]), all: systemDefs }),
+  useCampaignCustomClasses: () => ({ data: ref([]), all: ref([]) }),
 }));
-vi.mock("@/composables/rules/useCustomSubclasses", () => ({ useAllCustomSubclasses: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/rules/useCustomSubclasses", () => ({ useAllCustomSubclasses: () => ({ data: subclassDefs }) }));
 vi.mock("@/composables/rules/useSpecies", () => ({
   useCampaignSpecies: () => ({ data: ref([]), all: ref([]) }),
 }));
@@ -79,7 +81,7 @@ async function slotsAfterReset(m: PartyMember): Promise<number[]> {
 }
 
 describe("PartyMemberForm default spell slots", () => {
-  beforeEach(() => { rows.value = []; update.mockReset(); });
+  beforeEach(() => { rows.value = []; systemDefs.value = []; subclassDefs.value = []; update.mockReset(); });
 
   // Paladin 1 / Cleric 1: the 2024 multiclass rules round the half-caster up, so
   // the combined caster level is 2 (three first-level slots); 2014 rounds it down.
@@ -95,8 +97,42 @@ describe("PartyMemberForm default spell slots", () => {
   });
 });
 
+describe("PartyMemberForm slots wait for the subclass definitions", () => {
+  const fighter = { id: "def-Fighter", caster_type: "none", spell_slots: null };
+  const knight = {
+    id: "sub-ek",
+    spellcasting: {
+      ability: "int", list: "Wizard", caster_type: "known",
+      spell_slots: Array.from({ length: 20 }, (_, i) => (i >= 2 ? [2] : [])),
+      spells_known: Array.from({ length: 20 }, () => 0), cantrips_known: Array.from({ length: 20 }, () => 0),
+    },
+  };
+
+  beforeEach(() => {
+    update.mockReset();
+    systemDefs.value = [fighter];
+    rows.value = [{ ...row("Fighter", 3, true), subclass_definition_id: "sub-ek" }];
+  });
+
+  it("does not seed non-caster slots, or save, before the subclass loads, then seeds the third-caster slots", async () => {
+    subclassDefs.value = undefined;
+    const wrapper = mountForm(member("2014"));
+    const vm = wrapper.vm as unknown as { spellSlotMaxes: number[]; save: () => Promise<void> };
+    expect(vm.spellSlotMaxes.every((v) => v === 0)).toBe(true);
+    await vm.save();
+    expect(update).not.toHaveBeenCalled();
+
+    subclassDefs.value = [knight];
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+    expect(vm.spellSlotMaxes[0]).toBe(2);
+    subclassDefs.value = [];
+    systemDefs.value = [];
+  });
+});
+
 describe("PartyMemberForm save (#946)", () => {
-  beforeEach(() => { rows.value = []; update.mockReset(); });
+  beforeEach(() => { rows.value = []; systemDefs.value = []; subclassDefs.value = []; update.mockReset(); });
 
   it("sends only the fields the user touched, not ones the server moved meanwhile", async () => {
     const base = { ...member("2024"), name: "Mira", current_hp: 20, max_hp: 20, proficiency_bonus: 2 } as PartyMember;

@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import RunnerAttackOutcome from "./RunnerAttackOutcome.vue";
 import RunnerResolvePanel from "./RunnerResolvePanel.vue";
 import type { AttackOutcome, SaveTargetResult } from "@/composables/encounters/useActionResolution";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -249,6 +251,7 @@ describe("RunnerResolvePanel", () => {
       const web: StatBlockEntry = {
         ...ghoulClaw,
         name: "Web",
+        description: "Ranged Weapon Attack. Hit: The target is restrained. If the target is a creature other than a spider, it must succeed on a DC 12 Strength saving throw or be restrained.",
         structured: {
           ...ghoulClaw.structured,
           attack: { delivery: "ranged", bonus: 5, range: { normal: 30, long: 60 }, hit: [] },
@@ -261,6 +264,49 @@ describe("RunnerResolvePanel", () => {
       await flushPromises();
       expect(w.find("[data-testid='rider-save']").text()).toContain("Then DC 12 Str save · Restrained");
       expect(w.text()).not.toContain("deals no damage of its own");
+      // Nothing to roll for a zero-damage attack: the save is the whole of it.
+      expect(w.find("[data-testid='roll-damage']").exists()).toBe(false);
+      expect(w.text()).not.toContain("Roll damage");
+      // The gating prose stands beside the save, and the DM can skip it.
+      expect(w.find("[data-testid='rider-prose']").text()).toContain("other than a spider");
+      await w.find("[data-testid='skip-rider-save']").trigger("click");
+      expect(w.find("[data-testid='rider-save']").text()).toContain("Save skipped.");
+      expect(w.find("[data-testid='roll-save']").exists()).toBe(false);
+    });
+
+    it("inherits Magical, says a failed save with no structured effect failed, and locks the ruling once applied", async () => {
+      const shove: StatBlockEntry = {
+        ...ghoulClaw,
+        name: "Slam",
+        description: "Hit: The target must succeed on a DC 12 Strength saving throw or be pushed 10 feet.",
+        structured: {
+          ...ghoulClaw.structured,
+          attack: { delivery: "melee", bonus: 5, reach: 5, hit: [] },
+          save: { ability: "str", dc: 12, fail: [], success: "none", conditions: [] },
+        },
+      };
+      mocks.res.resolveAttack.mockResolvedValue(outcome(true, shove));
+      mocks.res.resolveSaves.mockResolvedValue(failed);
+      mocks.res.applySaveOutcome.mockReturnValue([
+        { target: goblin, share: "none", damage: null, conditionsApplied: [], conditionsImmune: [] },
+      ]);
+      const w = mountPanel(shove);
+      await button(w, "Roll attack +5").trigger("click");
+      await flushPromises();
+      const magical = w.findAllComponents(AppCheckbox).find((c) => (c.props() as Record<string, unknown>).label === "Magical");
+      expect(magical).toBeDefined();
+      magical?.vm.$emit("update:modelValue", true);
+      await flushPromises();
+      // Magical is set before the rider mounts, so the rider's own flag starts from it.
+      await button(w, "Roll STR save").trigger("click");
+      await flushPromises();
+      await w.find("[data-testid='apply-save']").trigger("click");
+      expect(mocks.res.applySaveOutcome).toHaveBeenCalledWith(expect.objectContaining({ magical: true }));
+      expect(w.text()).toContain("Goblin failed the save. See the action for the effect.");
+      expect(w.text()).not.toContain("is unaffected");
+      // Applied: the hit/miss ruling is locked, so the save cannot be applied twice.
+      expect(w.find("[data-testid='skip-rider-save']").exists()).toBe(false);
+      expect(w.findComponent(RunnerAttackOutcome).props("locked")).toBe(true);
     });
   });
 

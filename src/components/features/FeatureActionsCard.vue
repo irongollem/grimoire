@@ -17,6 +17,7 @@
               <p v-if="effectLine(entry)" class="text-caption leading-snug" :class="effectLine(entry)?.ok ? 'text-foreground' : 'text-muted-foreground'">
                 {{ effectLine(entry)?.text }}
               </p>
+              <p v-if="toggleOffReason(entry)" class="text-caption leading-snug text-muted-foreground">{{ toggleOffReason(entry) }}</p>
               <p v-if="entry.spends" class="text-caption leading-snug" :class="reasonFor(entry) ? 'text-destructive' : 'text-muted-foreground'">
                 {{ reasonFor(entry) ?? costNote(entry.spends) }}
               </p>
@@ -29,7 +30,7 @@
                   variant="subtle"
                   fill="muted"
                   size="md"
-                  :disabled="uses.isSaving.value || reasonFor(entry) !== null"
+                  :disabled="uses.isSaving.value || rollBlocked(entry)"
                   label="Attack"
                   :aria-label="`${entry.name}: attack roll`"
                 />
@@ -38,7 +39,7 @@
                   variant="subtle"
                   fill="muted"
                   size="md"
-                  :disabled="uses.isSaving.value"
+                  :disabled="uses.isSaving.value || toggleOffReason(entry) !== null"
                   label="Damage"
                   :aria-label="`${entry.name}: damage roll`"
                   @click="rollEffectDamage(entry, false)"
@@ -49,10 +50,20 @@
                 variant="subtle"
                 fill="muted"
                 size="md"
-                :disabled="uses.isSaving.value || reasonFor(entry) !== null"
-                :label="BUTTON_LABEL[rollOf(entry)?.kind ?? 'damage']"
+                :disabled="uses.isSaving.value || rollBlocked(entry, true)"
+                :label="rolledThisUse[entryKey(entry)] ? 'Roll again' : BUTTON_LABEL[rollOf(entry)?.kind ?? 'damage']"
                 :aria-label="`${entry.name}: ${ROLL_NOUN[rollOf(entry)?.kind ?? 'damage'].toLowerCase()} roll`"
                 @click="rollEffectDamage(entry, true)"
+              />
+              <AppButton
+                v-if="rolledThisUse[entryKey(entry)]"
+                variant="subtle"
+                fill="muted"
+                size="md"
+                :disabled="uses.isSaving.value"
+                label="New use"
+                :aria-label="`${entry.name}: start a new use`"
+                @click="newUse(entry)"
               />
             </div>
 
@@ -120,6 +131,13 @@ import type { PartyMember } from "@/types/party.types";
  * roll that makes it happen spends its cost once, after the dice are rolled
  * (a cancelled roll spends nothing), so there is no separate Use beside it.
  * An attack spends on its attack roll, and its damage roll is free.
+ *
+ * A save, damage, heal or temp HP effect that spends has one use per click of
+ * its first roll: after it, the button reads "Roll again" and rolls for free
+ * (a second target, a re-roll), until "New use" is pressed, which makes the
+ * next roll spend again. That flag lives in the card only, so leaving the
+ * sheet also starts a new use. A toggle entry (Rage-like, with an effect) paid
+ * when it was switched on: its rolls never spend, and are disabled while off.
  */
 const { member, readonly = false } = defineProps<{
   member: PartyMember;
@@ -175,6 +193,30 @@ function remainingText(key: string): string {
 
 function costNote(cost: UsesCost): string {
   return cost.amount === 1 ? remainingText(cost.key) : `Costs ${cost.amount}. ${remainingText(cost.key)}`;
+}
+
+/** Entries whose current use has been rolled once; further rolls are free until "New use". */
+const rolledThisUse = ref<Record<string, boolean>>({});
+
+function newUse(entry: ActionEntry) {
+  rolledThisUse.value = { ...rolledThisUse.value, [entryKey(entry)]: false };
+}
+
+/** Why a toggle entry's rolls are unavailable (it is switched off), or null. */
+function toggleOffReason(entry: ActionEntry): string | null {
+  if (!entry.toggleKey || !rollOf(entry) || uses.isOn(entry.toggleKey)) return null;
+  return "Switch it on to roll.";
+}
+
+/**
+ * Whether the roll button is disabled. A toggle paid when switched on, so only
+ * its on/off state matters; otherwise the cost must be payable, except for a
+ * free re-roll of a use already paid (`freeAfterRoll`).
+ */
+function rollBlocked(entry: ActionEntry, freeAfterRoll = false): boolean {
+  if (entry.toggleKey) return toggleOffReason(entry) !== null;
+  if (freeAfterRoll && rolledThisUse.value[entryKey(entry)]) return false;
+  return reasonFor(entry) !== null;
 }
 
 /** Why the row cannot be used, or null when it can. */
@@ -253,7 +295,8 @@ async function rollAttack(entry: ActionEntry, override: RollMode | null) {
   crits.value = { ...crits.value, [entryKey(entry)]: result.isCrit };
   const kept = result.breakdown.find(d => !d.dropped);
   emit("roll", { label: result.label, dice: kept ? kept.val : result.total - result.modifier, modifier: result.modifier, total: result.total });
-  await spendFor(entry);
+  // A toggle paid when it was switched on.
+  if (!entry.toggleKey) await spendFor(entry);
 }
 
 /** Damage or healing. `spends` is true when this roll is the one that uses the feature (no attack roll before it). */
@@ -281,7 +324,12 @@ async function rollEffectDamage(entry: ActionEntry, spends: boolean) {
   }
   crits.value = { ...crits.value, [key]: false };
   emit("roll", { label, dice, modifier: roll.modifier, total });
-  if (spends) await spendFor(entry);
+  if (spends && !entry.toggleKey) {
+    if (!rolledThisUse.value[key]) {
+      await spendFor(entry);
+      rolledThisUse.value = { ...rolledThisUse.value, [key]: true };
+    }
+  }
 }
 
 async function use(entry: ActionEntry) {

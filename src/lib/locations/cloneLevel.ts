@@ -15,6 +15,7 @@
 // are either provenance of the ORIGINAL publish/feature, or player-facing
 // state that must not silently carry over to an unpublished copy.
 
+import { reMintSecretIds } from "@/lib/tiptap/secretIds";
 import type { Location, LocationInsert } from "@/types/location.types";
 import type { LocationDoor, LocationDoorInsert } from "@/types/locationDoor.types";
 import type { LocationMapRegion, LocationMapRegionInsert } from "@/types/locationMapRegion.types";
@@ -118,7 +119,7 @@ export function planCloneLevel(source: CloneLevelSource): CloneLevelPlan {
     parent_id: site.parent_id,
     name: `${site.name} (copy)`,
     location_type: site.location_type,
-    description: site.description,
+    description: reMintSecretIds(site.description),
     map_url: site.map_url,
     source_map_id: site.source_map_id,
     grid_calibration: site.grid_calibration,
@@ -137,7 +138,7 @@ export function planCloneLevel(source: CloneLevelSource): CloneLevelPlan {
       campaign_id: room.campaign_id,
       name: room.name,
       location_type: room.location_type,
-      description: room.description,
+      description: reMintSecretIds(room.description),
       map_url: null,
       source_map_id: null,
       grid_calibration: null,

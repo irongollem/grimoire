@@ -85,7 +85,8 @@ export const FIGHTER_FEATURES: FeatureCatalogue = {
   "toh_legionary_coordinated-fighting": {
     riders: [
       {
-        label: "Coordinated Fighting",
+        label:
+          "Coordinated Fighting (first attack each round, ally within 5 ft)",
         dice: { kind: "fixed", expression: "1" },
         applies_to: "weapon",
         once_per_turn: true,

@@ -523,7 +523,7 @@ export function useCharacterCreationForm() {
       [{ class_name: cls.class_name, levels: f.level, class_definition_kind: cls.definition_kind }],
       ruleset,
       () => cls,
-      () => null, // a level-1 character has not chosen a subclass yet
+      () => pickedSubclass.value, // the subclass chosen at creation, if the class asks for one at level 1
     );
   }
 
@@ -535,6 +535,9 @@ export function useCharacterCreationForm() {
     return Array.from({ length: 9 }, (_, i) => defaults.find((s) => s.level === i + 1)?.max ?? 0);
   }
   const spellSlotMaxes = reactive<number[]>(buildSlotMaxes());
+  // What the slots were last seeded to, so a later change of class or subclass
+  // re-seeds only slots the player has not typed over.
+  let lastSeededSlots: number[] = [...spellSlotMaxes];
 
   // The scores a new character ends with, worked out once: the Done card, the
   // level-1 choices (a pool scaling with Charisma wants the final score) and the
@@ -577,6 +580,7 @@ export function useCharacterCreationForm() {
   function resetSlotsToDefault() {
     const defaults = defaultSlots();
     Array.from({ length: 9 }, (_, i) => { spellSlotMaxes[i] = defaults.find((s) => s.level === i + 1)?.max ?? 0; });
+    lastSeededSlots = [...spellSlotMaxes];
   }
   // The class rows and their definitions arrive after the form is built, so an
   // edit with no stored slots is seeded when they land, unless the player has
@@ -594,6 +598,12 @@ export function useCharacterCreationForm() {
     },
   );
   watch(() => f.class, () => { if (spellSlotMaxes.every((v) => v === 0)) resetSlotsToDefault(); });
+  // A subclass picked at creation can cast (Eldritch Knight): its slots follow the pick
+  // while the player has not typed maxima of their own.
+  watch(pickedSubclass, () => {
+    if (existingMember.value) return;
+    if (spellSlotMaxes.every((v, i) => v === (lastSeededSlots[i] ?? 0))) resetSlotsToDefault();
+  });
 
   // ── Editing: the form saves itself ────────────────────────────────────────────
   // `serverDraft` is the character as the server last reported it, in the shape

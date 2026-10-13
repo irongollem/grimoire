@@ -1,3 +1,4 @@
+import { reMintSecretIds } from "@/lib/tiptap/secretIds";
 import type { BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
 
 /**
@@ -314,6 +315,13 @@ export function libraryReferencedIds(table: BulkScopeTable, row: Record<string, 
   return slugs.length ? { library_spells: slugs } : {};
 }
 
+/** The rich-text columns of each copyable table that the secret-id trigger stamps (migration 20261012233859). */
+const SECRET_TEXT_COLUMNS: Partial<Record<BulkScopeTable, readonly string[]>> = {
+  items: ["description", "mundane_description", "curse_description", "content"],
+  puzzle_rooms: ["description", "read_aloud"],
+  factions: ["description"],
+};
+
 // ── buildCopyPlan ────────────────────────────────────────────────────────────
 
 export function buildCopyPlan(
@@ -352,6 +360,12 @@ export function buildCopyPlan(
   else delete payload.id;
   delete payload.created_at;
   delete payload.updated_at;
+
+  // A copied [secret] block must not share its original's id: an NPC memory
+  // that disclosed the original would otherwise read as disclosing the copy.
+  for (const column of SECRET_TEXT_COLUMNS[table] ?? []) {
+    if (column in payload) payload[column] = reMintSecretIds(payload[column]);
+  }
 
   if (SOURCE_IDENTITY_TABLES.has(table)) {
     delete payload.source_document_key;

@@ -79,4 +79,34 @@ describe("SecretBlock", () => {
     expect(editor.getJSON().content?.[0]?.attrs?.secretId).toBe(ID2);
     editor.destroy();
   });
+
+  it("keeps the id on a cut-and-paste move and never leaks the paste mark", () => {
+    const original = doc(para("top"), { type: "secretBlock", attrs: { secretId: ID }, content: [para("one")] });
+    const editor = new Editor({ extensions: [StarterKit, SecretBlock], content: original });
+    const node = editor.state.doc.lastChild;
+    if (!node) throw new Error("no block");
+    editor.view.dispatch(editor.state.tr.delete(editor.state.doc.content.size - node.nodeSize, editor.state.doc.content.size));
+    editor.commands.setTextSelection(1);
+    editor.view.pasteHTML(`<div data-type="secretBlock" data-secret-id="${ID}"><p>one</p></div>`);
+    const blocks = (editor.getJSON().content ?? []).filter((n) => n.type === "secretBlock");
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]?.attrs?.secretId).toBe(ID);
+    expect(JSON.stringify(editor.getJSON())).not.toContain("pasted:");
+    editor.destroy();
+  });
+
+  it("gives a pasted copy the new id even when it lands above the original", () => {
+    const original = doc(para("top"), { type: "secretBlock", attrs: { secretId: ID }, content: [para("one")] });
+    const editor = new Editor({ extensions: [StarterKit, SecretBlock], content: original });
+    editor.commands.setTextSelection(1);
+    editor.view.pasteHTML(`<div data-type="secretBlock" data-secret-id="${ID}"><p>one</p></div>`);
+    const blocks = (editor.getJSON().content ?? []).filter((n) => n.type === "secretBlock");
+    expect(blocks).toHaveLength(2);
+    const ids = blocks.map((b) => b.attrs?.secretId);
+    expect(ids[0]).not.toBe(ID);
+    expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids[1]).toBe(ID);
+    expect(JSON.stringify(editor.getJSON())).not.toContain("pasted:");
+    editor.destroy();
+  });
 });

@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { Transaction } from "@tiptap/pm/state";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { Fragment, Slice, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -45,26 +45,79 @@ declare module "@tiptap/core" {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * Marks a pasted block's id for the one `appendTransaction` that follows the
+ * paste. It lives in the `secretId` attribute itself (not a second attribute,
+ * which `getJSON()` would serialise) and is always resolved in the same
+ * dispatch, so it never reaches `getJSON()` or a saved document.
+ */
+const PASTED = "pasted:";
+
+/**
  * A transaction giving a fresh id to every secret block whose id is missing,
- * malformed, or shared with an earlier block (paste/duplicate). The first
- * occurrence keeps its id. Null when nothing needs one.
+ * malformed, or duplicated. Null when nothing needs one.
+ *
+ * - A block marked as pasted keeps its id when no other block holds it (a
+ *   cut-and-paste move), and gets a fresh one when the id still exists
+ *   elsewhere (a copy), wherever the copy sits relative to the original.
+ * - Unmarked duplicates (not from a paste) fall back to first occurrence
+ *   keeping the id.
  */
 function assignSecretIds(state: { doc: ProseMirrorNode; tr: Transaction }): Transaction | null {
+  const held = new Set<string>();
+  state.doc.descendants((node) => {
+    const id: unknown = node.attrs.secretId;
+    if (node.type.name === "secretBlock" && typeof id === "string" && UUID.test(id)) held.add(id);
+    return true;
+  });
   const seen = new Set<string>();
   let tr = null as Transaction | null;
+  const set = (pos: number, id: string) => {
+    tr ??= state.tr;
+    tr.setNodeAttribute(pos, "secretId", id);
+  };
   state.doc.descendants((node, pos) => {
     if (node.type.name !== "secretBlock") return true;
-    const id: unknown = node.attrs.secretId;
-    if (typeof id !== "string" || !UUID.test(id) || seen.has(id)) {
-      tr ??= state.tr;
-      tr.setNodeAttribute(pos, "secretId", crypto.randomUUID());
+    const raw: unknown = node.attrs.secretId;
+    if (typeof raw === "string" && raw.startsWith(PASTED)) {
+      const id = raw.slice(PASTED.length);
+      if (UUID.test(id) && !held.has(id) && !seen.has(id)) {
+        seen.add(id);
+        set(pos, id);
+      } else set(pos, crypto.randomUUID());
+    } else if (typeof raw !== "string" || !UUID.test(raw) || seen.has(raw)) {
+      set(pos, crypto.randomUUID());
     } else {
-      seen.add(id);
+      seen.add(raw);
     }
     return true;
   });
   // Not history: Undo must never strip the id off a block that still exists.
-  return tr ? tr.setMeta("addToHistory", false) : null;
+  return tr ? (tr as Transaction).setMeta("addToHistory", false) : null;
+}
+
+/**
+ * The same slice with every secret block's id marked as pasted, so
+ * `assignSecretIds` can tell a move (the id is gone from the document) from a
+ * copy (the original still holds it) without caring which comes first.
+ */
+function markPastedSecretIds(slice: Slice): Slice {
+  const strip = (fragment: Fragment): Fragment => {
+    const nodes: ProseMirrorNode[] = [];
+    fragment.forEach((node) => {
+      if (node.isText) {
+        nodes.push(node);
+        return;
+      }
+      const content = strip(node.content);
+      nodes.push(
+        node.type.name === "secretBlock"
+          ? node.type.create({ ...node.attrs, secretId: typeof node.attrs.secretId === "string" ? PASTED + node.attrs.secretId : null }, content, node.marks)
+          : node.copy(content),
+      );
+    });
+    return Fragment.fromArray(nodes);
+  };
+  return new Slice(strip(slice.content), slice.openStart, slice.openEnd);
 }
 
 export const SecretBlock = Node.create({
@@ -120,6 +173,7 @@ export const SecretBlock = Node.create({
     return [
       new Plugin({
         key: new PluginKey("secretBlockIds"),
+        props: { transformPasted: markPastedSecretIds },
         appendTransaction: (transactions, _oldState, newState) => {
           if (!transactions.some((tr) => tr.docChanged)) return null;
           return assignSecretIds(newState);

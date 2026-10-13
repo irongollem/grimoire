@@ -20,7 +20,7 @@ function perProficiencyLong(key: string, label: string): FeatureUses {
 }
 
 /** The Arcane Aegis of the Abjurationist and of the School of Abjuring and Warding: made once per long rest. */
-function arcaneAegis(key: string): FeatureMechanics {
+function arcaneAegis(key: string, restoreWithSlot: boolean): FeatureMechanics {
   return {
     activation: "special",
     uses: {
@@ -30,7 +30,17 @@ function arcaneAegis(key: string): FeatureMechanics {
       recharge: "long",
       pool: false,
     },
-    actions: [{ name: "Restore Arcane Aegis", activation: "bonus_action" }],
+    // Restoring by a bonus action and a spell slot is in the Abjurationist's text only.
+    ...(restoreWithSlot
+      ? {
+          actions: [
+            {
+              name: "Restore Arcane Aegis (expend a spell slot)",
+              activation: "bonus_action" as const,
+            },
+          ],
+        }
+      : {}),
   };
 }
 
@@ -40,6 +50,7 @@ export const WIZARD_FEATURES: FeatureCatalogue = {
   // Abjurationist
   "open5e_abjurationist_arcane-aegis": arcaneAegis(
     "abjurationist_arcane_aegis",
+    true,
   ),
   "open5e_abjurationist_aegis-extension": AEGIS_EXTENSION,
   "open5e_abjurationist_anti-magician": {
@@ -73,7 +84,7 @@ export const WIZARD_FEATURES: FeatureCatalogue = {
   "toh_cantrip-adept_potent-spellcasting": {
     riders: [
       {
-        label: "Potent Spellcasting",
+        label: "Potent Spellcasting (cantrips only)",
         dice: { kind: "flat", add: [{ kind: "ability", ability: "int" }] },
         applies_to: "spell",
         once_per_turn: false,
@@ -95,7 +106,7 @@ export const WIZARD_FEATURES: FeatureCatalogue = {
     activation: "bonus_action",
     riders: [
       {
-        label: "Spell Arrow",
+        label: "Spell Arrow (bow arrows only)",
         dice: {
           kind: "slot",
           base: "2d4",
@@ -122,7 +133,7 @@ export const WIZARD_FEATURES: FeatureCatalogue = {
   "toh_familiar-master_arcane-amplification": {
     riders: [
       {
-        label: "Arcane Amplification",
+        label: "Arcane Amplification (spells through your familiar)",
         dice: { kind: "flat", add: [{ kind: "ability", ability: "int" }] },
         applies_to: "spell",
         once_per_turn: false,
@@ -203,6 +214,7 @@ export const WIZARD_FEATURES: FeatureCatalogue = {
   // School of Abjuring and Warding
   "open5e_school-of-abjuring-and-warding_arcane-aegis": arcaneAegis(
     "abjuring_and_warding_arcane_aegis",
+    false,
   ),
   "open5e_school-of-abjuring-and-warding_aegis-extension": AEGIS_EXTENSION,
 

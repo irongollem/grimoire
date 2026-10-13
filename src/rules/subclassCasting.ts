@@ -26,7 +26,8 @@ export interface SubclassCastingLike {
 
 export interface EffectiveCasting {
   source: "class" | "subclass";
-  casterType: Exclude<CasterType, "none">;
+  /** "none" only for a class with a slot table that casts nothing and holds no casting subclass: slots, but no known or prepared picks. */
+  casterType: CasterType;
   /** Null when a class definition names no casting ability. */
   ability: PreparedAbility | null;
   /** Slots per spell level, indexed by class level - 1. */
@@ -58,8 +59,11 @@ export function castingFor(
   classDefinition: ClassCastingLike | null | undefined,
   subclassDefinition: SubclassCastingLike | null | undefined,
 ): EffectiveCasting | null {
-  const classType = classDefinition?.caster_type;
-  if (classDefinition && classType && classType !== "none") {
+  // The server (`private.subclass_casting`) lets a subclass cast only when the
+  // class definition exists and casts nothing; a missing definition is no licence.
+  if (!classDefinition) return null;
+  const classType = classDefinition.caster_type;
+  if (classType && classType !== "none") {
     return {
       source: "class",
       casterType: classType,
@@ -71,18 +75,44 @@ export function castingFor(
       listName: null,
     };
   }
+  if (classType !== "none") return null;
   const sub = subclassDefinition?.spellcasting;
-  if (!sub) return null;
-  return {
-    source: "subclass",
-    casterType: sub.caster_type,
-    ability: sub.ability,
-    spellSlots: sub.spell_slots,
-    spellsKnown: sub.spells_known,
-    cantripsKnown: sub.cantrips_known,
-    slotRecovery: "long",
-    listName: sub.list,
-  };
+  if (sub) {
+    return {
+      source: "subclass",
+      casterType: sub.caster_type,
+      ability: sub.ability,
+      spellSlots: sub.spell_slots,
+      spellsKnown: sub.spells_known,
+      cantripsKnown: sub.cantrips_known,
+      slotRecovery: "long",
+      listName: sub.list,
+    };
+  }
+  // A class with a slot table but no caster type keeps its slots (the server's
+  // validate_character_spell_source reads any non-null spell_slots), and picks nothing.
+  if (classDefinition.spell_slots) {
+    return {
+      source: "class",
+      casterType: "none",
+      ability: classCastingAbility(classDefinition),
+      spellSlots: classDefinition.spell_slots,
+      spellsKnown: null,
+      cantripsKnown: null,
+      slotRecovery: classDefinition.slot_recovery === "short" ? "short" : "long",
+      listName: null,
+    };
+  }
+  return null;
+}
+
+/**
+ * A known / cantrip table's value at a class row's levels (the server's
+ * `least(levels, 20)`): the table is indexed by CLASS levels, never the
+ * character's total.
+ */
+export function limitAtClassLevel(table: readonly number[], classLevels: number): number | null {
+  return table[Math.min(Math.max(classLevels, 1), 20) - 1] ?? null;
 }
 
 /** The spell list a row browses and learns from: the subclass's `list` for a subclass caster, else the class name. */

@@ -47,16 +47,6 @@ export const PALADIN_FEATURES: FeatureCatalogue = {
         area: "30 ft",
       },
     },
-    {
-      name: "Tether Damage",
-      activation: "special",
-      effect: {
-        kind: "damage",
-        damage_type: "lightning",
-        add: [{ kind: "ability", ability: "cha" }],
-        min: 1,
-      },
-    },
     { name: "Justicar's Celerity", activation: "reaction", spends: CD },
   ]),
   "toh_oath-of-justice_disciplined-pursuant": {

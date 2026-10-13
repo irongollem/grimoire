@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { castingFor, castingListName, classCastingAbility, subclassPreparedLimit } from "@/rules/subclassCasting";
+import { castingFor, castingListName, classCastingAbility, limitAtClassLevel, subclassPreparedLimit } from "@/rules/subclassCasting";
 import { thirdCasterPreset } from "@/levelup/subclassSpellcasting";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
@@ -38,8 +38,23 @@ describe("castingFor", () => {
     expect(castingFor(undefined, undefined)).toBeNull();
   });
 
-  it("an unresolved class definition still reaches the subclass", () => {
-    expect(castingFor(undefined, knight)?.source).toBe("subclass");
+  it("an unresolved class definition yields nothing, as the server's subclass_casting does", () => {
+    expect(castingFor(undefined, knight)).toBeNull();
+    expect(castingFor(null, knight)).toBeNull();
+  });
+
+  it("a definition with no caster type is not a licence to cast from the subclass", () => {
+    expect(castingFor({ caster_type: null }, knight)).toBeNull();
+  });
+
+  it("a non-caster class with a slot table keeps its slots and picks nothing", () => {
+    const slots = [[2], [3]];
+    const result = castingFor({ caster_type: "none", spell_slots: slots, slot_recovery: "short" }, null);
+    expect(result).toMatchObject({ source: "class", casterType: "none", spellSlots: slots, spellsKnown: null, cantripsKnown: null, slotRecovery: "short" });
+  });
+
+  it("a subclass's casting wins over a non-caster class's slot table", () => {
+    expect(castingFor({ caster_type: "none", spell_slots: [[2]] }, knight)?.source).toBe("subclass");
   });
 });
 
@@ -126,5 +141,25 @@ describe("per-class stats for a subclass caster", () => {
       "2014",
     );
     expect(stats).toEqual([]);
+  });
+});
+
+describe("limitAtClassLevel", () => {
+  const table = Array.from({ length: 20 }, (_, i) => i + 1);
+  it("indexes by the class row's levels, clamped to 1..20", () => {
+    expect(limitAtClassLevel(table, 3)).toBe(3);
+    expect(limitAtClassLevel(table, 25)).toBe(20);
+    expect(limitAtClassLevel(table, 0)).toBe(1);
+  });
+});
+
+describe("a level-1 creation row with a chosen subclass", () => {
+  it("takes its slots from the subclass, as the creation form's slot defaults do", () => {
+    const eldritchKnight = { spellcasting: { ...thirdCasterPreset(), spell_slots: Array.from({ length: 20 }, (_, i) => (i >= 2 ? [2] : [])) } };
+    const row = [{ class_name: "Fighter", levels: 3, class_definition_kind: "system" as const }];
+    const withSubclass = deriveEffectiveSpellSlots({ spell_slots: null }, row, "2014", () => fighter, () => eldritchKnight);
+    const without = deriveEffectiveSpellSlots({ spell_slots: null }, row, "2014", () => fighter, () => null);
+    expect(withSubclass[0]).toMatchObject({ level: 1, max: 2 });
+    expect(without).toEqual([]);
   });
 });

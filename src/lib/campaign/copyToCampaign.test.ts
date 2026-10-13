@@ -114,6 +114,16 @@ describe("buildCopyPlan — universal shape", () => {
 });
 
 describe("buildCopyPlan — items", () => {
+  it("gives a copied [secret] block an id of its own", () => {
+    const secretDoc = { type: "doc", content: [{ type: "secretBlock", attrs: { secretId: "orig-id" }, content: [] }] };
+    const row = { id: "i1", description: JSON.stringify(secretDoc), content: null };
+    const { payload } = buildCopyPlan("items", row, TARGET_CAMPAIGN, USER_ID, new Map());
+    const copied = JSON.parse(payload.description as string).content[0].attrs.secretId;
+    expect(copied).toMatch(/^[0-9a-f-]{36}$/);
+    expect(copied).not.toBe("orig-id");
+    expect(payload.content).toBeNull();
+  });
+
   it("carries content_updated_at off the payload (trigger-owned)", () => {
     const row = { id: "i1", content_updated_at: "2026-01-01T00:00:00Z" };
     const { payload } = buildCopyPlan("items", row, TARGET_CAMPAIGN, USER_ID, new Map());

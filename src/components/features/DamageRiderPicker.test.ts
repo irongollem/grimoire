@@ -155,6 +155,17 @@ describe("DamageRiderPicker", () => {
       expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ counts: { 8: 2 }, modifier: 7 }));
     });
 
+    it("adds nothing for a flat value of 0, so the roll is not blocked by a '+0' expression", async () => {
+      const zero: DamageRider = { ...aura, dice: { kind: "flat", add: [{ kind: "ability", ability: "cha" }] } };
+      offered.value = [{ featureId: "pal", rider: zero, dice: null, classLevel: 5 }];
+      const w = mount(DamageRiderPicker, { props: { ...props, member: { ...props.member, cha: 10 } } });
+      await w.findAll('input[type="checkbox"]')[0].setValue(true);
+      await rollButton(w).trigger("click");
+      await flushPromises();
+      expect(toastError).not.toHaveBeenCalled();
+      expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ counts: { 8: 1 }, modifier: 3 }));
+    });
+
     it("floors the bonus at its minimum", async () => {
       offered.value = [{ featureId: "pal", rider: aura, dice: null, classLevel: 5 }];
       const w = mount(DamageRiderPicker, { props: { ...props, member: { ...props.member, cha: 8 } } });

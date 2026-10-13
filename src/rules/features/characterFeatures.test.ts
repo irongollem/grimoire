@@ -245,7 +245,7 @@ describe("actionsByActivation", () => {
     expect(flame?.effect?.damage_type).toBe("fire");
   });
 
-  it("spends a feature's own use when it is used, itself or through a sub-action, unless it names another cost", () => {
+  it("spends a feature's own use when it is used, unless it names another cost; a sub-action costs only what it names", () => {
     const own = { key: "surge", label: "Action Surge", amount: { kind: "fixed", value: 1 }, recharge: "short", pool: false } as const;
     const surge = feature("surge", "Action Surge", { activation: "special", uses: own });
     const eye = feature("eye", "The Third Eye", {
@@ -256,7 +256,7 @@ describe("actionsByActivation", () => {
     const g = grantedFeatures({ ...base, classes: [klass({ classMap: { "1": ["surge", "eye", "hands"] } })], featuresById: byId(surge, eye, hands) });
     const acts = actionsByActivation(g, 5);
     expect(acts.special.find((a) => a.name === "Action Surge")?.spends).toEqual({ key: "surge", amount: 1 });
-    expect(acts.action.find((a) => a.name === "Darkvision")?.spends).toEqual({ key: "third_eye", amount: 1 });
+    expect(acts.action.find((a) => a.name === "Darkvision")?.spends).toBeNull();
     expect(acts.action.find((a) => a.name === "Free")?.spends).toEqual({ key: "ki", amount: 2 });
     // A feature that groups sub-actions is still not listed of its own.
     expect(acts.action.some((a) => a.name === "The Third Eye")).toBe(false);

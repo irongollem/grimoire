@@ -77,7 +77,7 @@ export const WARLOCK_FEATURES: FeatureCatalogue = {
   "toh_ancient-dragons_ascended-blessing": {
     riders: [
       {
-        label: "Ascended Blessing",
+        label: "Ascended Blessing (Elemental Expertise, chosen type)",
         dice: { kind: "flat", add: [{ kind: "ability", ability: "cha" }] },
         applies_to: "spell",
         once_per_turn: false,
@@ -417,7 +417,7 @@ export const WARLOCK_FEATURES: FeatureCatalogue = {
     activation: "special",
     scaling: {
       label: "Probability Die",
-      values: { "6": "1d6", "11": "1d8", "17": "1d10" },
+      values: { "1": "1d6", "5": "1d8", "11": "1d10", "17": "1d12" },
     },
     riders: [
       {

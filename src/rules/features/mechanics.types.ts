@@ -206,7 +206,7 @@ export interface FeatureEffect {
 export interface SubAction {
   name: string;
   activation: Activation;
-  /** What doing it spends. Absent means free. */
+  /** What doing it spends. Absent means free: a sub-action never inherits the feature's own use, since it is often a follow-up. */
   spends?: UsesCost;
   /** What rolling it does (Eldritch Cannon: Flamethrower). */
   effect?: FeatureEffect;
@@ -287,7 +287,7 @@ export interface FeatureGrants {
 
 export interface FeatureMechanics {
   activation?: Activation;
-  /** What using the feature itself spends (Cutting Words: one Bardic Inspiration). */
+  /** What using the feature itself spends (Cutting Words: one Bardic Inspiration). Absent on a feature with its own non-pool uses and no sub-actions means one of those uses. */
   spends?: UsesCost;
   uses?: FeatureUses;
   scaling?: FeatureScaling;

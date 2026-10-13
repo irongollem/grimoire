@@ -154,8 +154,8 @@ export const RANGER_FEATURES: FeatureCatalogue = {
         },
       },
       {
-        name: "Bite venom",
-        activation: "bonus_action",
+        name: "Bite (venom, same bite)",
+        activation: "special",
         effect: { kind: "damage", dice: { "3": "1d8" }, damage_type: "poison" },
       },
     ],
