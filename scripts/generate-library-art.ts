@@ -122,11 +122,13 @@ const MANIFEST_FILE = "manifest.json";
  * `subclass` is publish-only too (the archetype portraits, 13 Oct 2026): it writes the `custom_subclasses` rows named by
  * `id` + `alsoIds` (an archetype's 2014 and 2024 rows share a picture) into `class-images`, as 20261013000159 set up:
  * under `srd/` when every row is shared library content (user_id null), else under the one owner's folder.
+ * `hero` is publish-only (Hall of Heroes portraits, 13 Oct 2026): it writes `hall_of_heroes.portrait_url` on the rows
+ * named by `id` + `alsoIds`, in `npc-portraits` under the rows' one owner's folder, where hero portraits already live.
  */
-export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class" | "campaign_item" | "subclass";
+export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class" | "campaign_item" | "subclass" | "hero";
 
 /** Storage bucket per kind. Canonical art lives under `srd/` in all three (see CLAUDE.md, Storage Path Convention). */
-export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images", campaign_item: "item-images", subclass: "class-images" };
+export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images", campaign_item: "item-images", subclass: "class-images", hero: "npc-portraits" };
 
 /**
  * How canonical item art is staged, passed where the app passes a campaign's
@@ -245,6 +247,7 @@ const TABLES_FOR_KIND: Record<ArtKind, string> = {
   class: "system_classes, or the shared custom_classes rows",
   campaign_item: "items (a campaign's own rows, by id)",
   subclass: "custom_subclasses (by id)",
+  hero: "hall_of_heroes (portrait, by id)",
 };
 
 // ---------------------------------------------------------------------------
@@ -799,7 +802,7 @@ export interface FocalPoint {
 export function focalTarget(kind: ArtKind): string {
   if (kind === "monster") return "the creature's head or face (the point a portrait crop should centre on)";
   if (kind === "item" || kind === "campaign_item") return "the centre of the main object (not the background props)";
-  if (kind === "subclass") return "the figure's face (the point a portrait crop should centre on)";
+  if (kind === "subclass" || kind === "hero") return "the figure's face (the point a portrait crop should centre on)";
   if (kind === "species" || kind === "class") return "the centre of the group's faces (the point a portrait crop should centre on)";
   if (kind === "background") return "the figure's face (the point a portrait crop should centre on)";
   return "the centre of the main subject: the caster's face if a caster is the focus, otherwise the heart of the magical effect";
@@ -1228,6 +1231,15 @@ async function campaignItemOwner(client: SupabaseClient, ids: (string | null)[])
   return owners[0];
 }
 
+/** The one user who owns every hero row of an entry; the portrait goes in their folder. */
+async function heroOwner(client: SupabaseClient, ids: (string | null)[]): Promise<string> {
+  const { data, error } = await client.from("hall_of_heroes").select("user_id").in("id", ids.filter((id): id is string => id !== null));
+  if (error) throw new Error(`Could not read hall_of_heroes: ${error.message}`);
+  const owners = [...new Set((data as { user_id: string }[]).map((r) => r.user_id))];
+  if (owners.length !== 1) throw new Error(`Hero rows ${ids.join(", ")} belong to ${owners.length} users; publish one owner's rows at a time.`);
+  return owners[0];
+}
+
 /** null when every subclass row is shared library content (its picture goes under srd/), else their one owner. */
 async function subclassOwner(client: SupabaseClient, ids: (string | null)[]): Promise<string | null> {
   const { data, error } = await client.from("custom_subclasses").select("user_id").in("id", ids.filter((id): id is string => id !== null));
@@ -1274,6 +1286,13 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     const present = new Set((found.data as { id: string }[]).map((r) => r.id));
     const missing = ids.filter((id) => !present.has(id));
     if (missing.length > 0) throw new Error(`${entry.slug}: library background ${missing.join(", ")} no longer exists.`);
+    return ids;
+  }
+  if (entry.kind === "hero") {
+    const ids = [...new Set([entry.id, ...entry.alsoIds].filter((id): id is string => id !== null))].sort();
+    const { data, error } = await client.from("hall_of_heroes").select("id").in("id", ids);
+    if (error) throw new Error(`Could not read hall_of_heroes: ${error.message}`);
+    if (data.length !== ids.length) throw new Error(`${entry.slug}: ${ids.length - data.length} hero row(s) no longer exist.`);
     return ids;
   }
   if (entry.kind === "subclass") {
@@ -1355,6 +1374,11 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     if (rows.error) throw new Error(`Could not update library_backgrounds: ${rows.error.message}`);
     return;
   }
+  if (entry.kind === "hero") {
+    const rows = await client.from("hall_of_heroes").update({ portrait_url: url }).in("id", ids);
+    if (rows.error) throw new Error(`Could not update hall_of_heroes: ${rows.error.message}`);
+    return;
+  }
   if (entry.kind === "subclass") {
     const rows = await client.from("custom_subclasses").update({ image_url: url }).in("id", ids);
     if (rows.error) throw new Error(`Could not update custom_subclasses: ${rows.error.message}`);
@@ -1418,6 +1442,10 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
     check((await client.from("library_backgrounds").update({ focal_point: focal }).in("id", ids)).error, "library_backgrounds");
     return;
   }
+  if (entry.kind === "hero") {
+    check((await client.from("hall_of_heroes").update({ portrait_focal_point: focal }).in("id", ids)).error, "hall_of_heroes");
+    return;
+  }
   if (entry.kind === "subclass") {
     check((await client.from("custom_subclasses").update({ focal_point: focal }).in("id", ids)).error, "custom_subclasses");
     return;
@@ -1469,7 +1497,8 @@ async function runPublish(opts: PublishOptions): Promise<void> {
   for (const entry of entries) {
     const bucket = BUCKET_FOR_KIND[entry.kind];
     const rowOwner = entry.kind === "campaign_item" ? await campaignItemOwner(client, [entry.id, ...entry.alsoIds])
-      : entry.kind === "subclass" ? await subclassOwner(client, [entry.id, ...entry.alsoIds]) : null;
+      : entry.kind === "subclass" ? await subclassOwner(client, [entry.id, ...entry.alsoIds])
+      : entry.kind === "hero" ? await heroOwner(client, [entry.id, ...entry.alsoIds]) : null;
     const path = entry.publish?.path ?? newOriginalPath(undefined, rowOwner ?? "srd");
     const finalBytes = new Uint8Array(readFileSync(join(opts.out, entry.finalFile)));
     if (!sniffIsWebp(finalBytes)) throw new Error(`${entry.finalFile} is not a WebP file.`);
