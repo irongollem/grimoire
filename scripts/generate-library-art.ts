@@ -119,11 +119,14 @@ const MANIFEST_FILE = "manifest.json";
  * writes the rows named by `id` + `alsoIds`, never by name, and stores the picture under the rows' owner's folder
  * rather than `srd/`, because a campaign item is that user's content, not shared library art. All rows of one entry
  * must belong to one user, who also owns the provenance record.
+ * `subclass` is publish-only too (the archetype portraits, 13 Oct 2026): it writes the `custom_subclasses` rows named by
+ * `id` + `alsoIds` (an archetype's 2014 and 2024 rows share a picture) into `class-images`, as 20261013000159 set up:
+ * under `srd/` when every row is shared library content (user_id null), else under the one owner's folder.
  */
-export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class" | "campaign_item";
+export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class" | "campaign_item" | "subclass";
 
 /** Storage bucket per kind. Canonical art lives under `srd/` in all three (see CLAUDE.md, Storage Path Convention). */
-export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images", campaign_item: "item-images" };
+export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images", campaign_item: "item-images", subclass: "class-images" };
 
 /**
  * How canonical item art is staged, passed where the app passes a campaign's
@@ -241,6 +244,7 @@ const TABLES_FOR_KIND: Record<ArtKind, string> = {
   background: "library_backgrounds",
   class: "system_classes, or the shared custom_classes rows",
   campaign_item: "items (a campaign's own rows, by id)",
+  subclass: "custom_subclasses (by id)",
 };
 
 // ---------------------------------------------------------------------------
@@ -795,6 +799,7 @@ export interface FocalPoint {
 export function focalTarget(kind: ArtKind): string {
   if (kind === "monster") return "the creature's head or face (the point a portrait crop should centre on)";
   if (kind === "item" || kind === "campaign_item") return "the centre of the main object (not the background props)";
+  if (kind === "subclass") return "the figure's face (the point a portrait crop should centre on)";
   if (kind === "species" || kind === "class") return "the centre of the group's faces (the point a portrait crop should centre on)";
   if (kind === "background") return "the figure's face (the point a portrait crop should centre on)";
   return "the centre of the main subject: the caster's face if a caster is the focus, otherwise the heart of the magical effect";
@@ -1223,6 +1228,15 @@ async function campaignItemOwner(client: SupabaseClient, ids: (string | null)[])
   return owners[0];
 }
 
+/** null when every subclass row is shared library content (its picture goes under srd/), else their one owner. */
+async function subclassOwner(client: SupabaseClient, ids: (string | null)[]): Promise<string | null> {
+  const { data, error } = await client.from("custom_subclasses").select("user_id").in("id", ids.filter((id): id is string => id !== null));
+  if (error) throw new Error(`Could not read custom_subclasses: ${error.message}`);
+  const owners = [...new Set((data as { user_id: string | null }[]).map((r) => r.user_id))];
+  if (owners.length !== 1) throw new Error(`Subclass rows ${ids.join(", ")} mix owners (${owners.join(", ")}); publish one owner's rows at a time.`);
+  return owners[0];
+}
+
 async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise<string[]> {
   if (entry.kind === "spell") {
     if (entry.id === null) throw new Error(`${entry.slug}: a spell entry needs an id.`);
@@ -1260,6 +1274,13 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     const present = new Set((found.data as { id: string }[]).map((r) => r.id));
     const missing = ids.filter((id) => !present.has(id));
     if (missing.length > 0) throw new Error(`${entry.slug}: library background ${missing.join(", ")} no longer exists.`);
+    return ids;
+  }
+  if (entry.kind === "subclass") {
+    const ids = [...new Set([entry.id, ...entry.alsoIds].filter((id): id is string => id !== null))].sort();
+    const { data, error } = await client.from("custom_subclasses").select("id").in("id", ids);
+    if (error) throw new Error(`Could not read custom_subclasses: ${error.message}`);
+    if (data.length !== ids.length) throw new Error(`${entry.slug}: ${ids.length - data.length} subclass row(s) no longer exist.`);
     return ids;
   }
   if (entry.kind === "campaign_item") {
@@ -1334,6 +1355,11 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     if (rows.error) throw new Error(`Could not update library_backgrounds: ${rows.error.message}`);
     return;
   }
+  if (entry.kind === "subclass") {
+    const rows = await client.from("custom_subclasses").update({ image_url: url }).in("id", ids);
+    if (rows.error) throw new Error(`Could not update custom_subclasses: ${rows.error.message}`);
+    return;
+  }
   if (entry.kind === "campaign_item") {
     const rows = await client.from("items").update({ image_url: url }).in("id", ids);
     if (rows.error) throw new Error(`Could not update items: ${rows.error.message}`);
@@ -1392,6 +1418,10 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
     check((await client.from("library_backgrounds").update({ focal_point: focal }).in("id", ids)).error, "library_backgrounds");
     return;
   }
+  if (entry.kind === "subclass") {
+    check((await client.from("custom_subclasses").update({ focal_point: focal }).in("id", ids)).error, "custom_subclasses");
+    return;
+  }
   if (entry.kind === "campaign_item") {
     check((await client.from("items").update({ image_focal_point: focal }).in("id", ids)).error, "items");
     return;
@@ -1438,7 +1468,8 @@ async function runPublish(opts: PublishOptions): Promise<void> {
 
   for (const entry of entries) {
     const bucket = BUCKET_FOR_KIND[entry.kind];
-    const rowOwner = entry.kind === "campaign_item" ? await campaignItemOwner(client, [entry.id, ...entry.alsoIds]) : null;
+    const rowOwner = entry.kind === "campaign_item" ? await campaignItemOwner(client, [entry.id, ...entry.alsoIds])
+      : entry.kind === "subclass" ? await subclassOwner(client, [entry.id, ...entry.alsoIds]) : null;
     const path = entry.publish?.path ?? newOriginalPath(undefined, rowOwner ?? "srd");
     const finalBytes = new Uint8Array(readFileSync(join(opts.out, entry.finalFile)));
     if (!sniffIsWebp(finalBytes)) throw new Error(`${entry.finalFile} is not a WebP file.`);

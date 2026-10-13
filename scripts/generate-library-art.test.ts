@@ -193,6 +193,7 @@ describe("slugs and paths", () => {
     expect(isCdnBucket(BUCKET_FOR_KIND.monster)).toBe(true);
     expect(BUCKET_FOR_KIND.class).toBe("class-images");
     expect(isCdnBucket(BUCKET_FOR_KIND.class)).toBe(true);
+    expect(BUCKET_FOR_KIND.subclass).toBe("class-images");
   });
 
   it("never upscales a variant", () => {
@@ -405,6 +406,7 @@ describe("focal point guess", () => {
     expect(focalTarget("species")).toMatch(/group's faces/);
     expect(focalTarget("class")).toMatch(/group's faces/);
     expect(focalTarget("campaign_item")).toMatch(/centre of the main object/);
+    expect(focalTarget("subclass")).toMatch(/figure's face/);
     expect(focalTarget("background")).toMatch(/figure's face/);
   });
 
