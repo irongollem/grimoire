@@ -8,7 +8,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { attackRollMode, autoCritOnHit, resolveAttack as resolveAttackRoll } from "@/rules/combat/attackRoll";
 import { concentrationDc, resolveConcentration } from "@/rules/combat/concentration";
-import { halveParts, resolveSaveAction } from "@/rules/combat/resolveAction";
+import { halveParts, imposedCondition, resolveSaveAction } from "@/rules/combat/resolveAction";
 import { autoFailsSave, resolveSave, saveBonusFromStatBlock, saveRollMode } from "@/rules/combat/savingThrow";
 import { applyDefenses, damageRollsFor, type AppliedPart } from "@/rules/combat/typedDamage";
 import { getExhaustionD20Penalty, getExhaustionLevel, hasCondition, setExhaustionLevel } from "@/rules/conditions";
@@ -22,6 +22,7 @@ import type {
   DefenseBypass,
   Defenses,
   SaveAbility,
+  SaveStructure,
   SrdConditionName,
   StatBlockEntry,
 } from "@/types/statBlock.types";
@@ -433,17 +434,18 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
   }
 
   /**
-   * Give a failed target a condition, once, recording who applied it and with
-   * what (#1018). Exhaustion goes up a level instead of stacking a second entry.
+   * Give a failed target a condition, once, recording who applied it, with what
+   * (#1018) and what ends it (#1050). Exhaustion goes up a level instead of
+   * stacking a second entry.
    */
-  function impose(target: RunCombatant, condition: SrdConditionName, actor: RunCombatant, spell: string) {
+  function impose(target: RunCombatant, save: SaveStructure, condition: SrdConditionName, actor: RunCombatant, spell: string) {
     const current = live(target).conditions;
     if (condition === "Exhaustion") {
       store.setConditions(target.instance_id, setExhaustionLevel(current, getExhaustionLevel(current) + 1));
       return;
     }
     if (!hasCondition(current, condition)) {
-      store.applyCondition(target.instance_id, { name: condition, source: { id: actor.instance_id, spell } });
+      store.applyCondition(target.instance_id, imposedCondition(save, condition, { id: actor.instance_id, spell }));
     }
   }
 
@@ -482,7 +484,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
       const { apply, immune } = result.success
         ? { apply: [], immune: [] }
         : filterImmuneConditions(save.conditions, defenses);
-      for (const condition of apply) impose(target, condition, input.attacker, input.entry.name);
+      for (const condition of apply) impose(target, save, condition, input.attacker, input.entry.name);
       return { target, share, damage, conditionsApplied: apply, conditionsImmune: immune };
     });
   }

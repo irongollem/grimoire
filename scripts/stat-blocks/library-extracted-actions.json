@@ -277,7 +277,11 @@
     "success": "half",
     "conditions": [
      "Poisoned"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end"
+    }
    },
    "recharge": {
     "min": 5,
@@ -585,7 +589,12 @@
     "success": "none",
     "conditions": [
      "Blinded"
-    ]
+    ],
+    "ends": {
+     "kind": "turn",
+     "at": "end",
+     "of": "self"
+    }
    },
    "uses": {
     "count": 1,
@@ -789,7 +798,12 @@
     "success": "none",
     "conditions": [
      "Frightened"
-    ]
+    ],
+    "ends": {
+     "kind": "turn",
+     "at": "end",
+     "of": "self"
+    }
    },
    "recharge": {
     "min": 5,
@@ -818,7 +832,13 @@
     "success": "half",
     "conditions": [
      "Frightened"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end",
+     "ability": "wis",
+     "dc": 15
+    }
    },
    "uses": {
     "count": 1,
@@ -1074,7 +1094,11 @@
     "success": "none",
     "conditions": [
      "Poisoned"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end"
+    }
    },
    "source": "extracted"
   }
@@ -1323,7 +1347,11 @@
       "success": "none",
       "conditions": [
        "Blinded"
-      ]
+      ],
+      "ends": {
+       "kind": "rounds",
+       "remaining": 10
+      }
      }
     }
    ],
@@ -1524,7 +1552,12 @@
     "success": "none",
     "conditions": [
      "Stunned"
-    ]
+    ],
+    "ends": {
+     "kind": "turn",
+     "at": "end",
+     "of": "self"
+    }
    },
    "legendary_cost": 2,
    "source": "extracted"
@@ -1619,7 +1652,13 @@
     "success": "half",
     "conditions": [
      "Poisoned"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end",
+     "ability": "con",
+     "dc": 13
+    }
    },
    "recharge": {
     "min": 6,
@@ -1940,7 +1979,12 @@
     "success": "half",
     "conditions": [
      "Stunned"
-    ]
+    ],
+    "ends": {
+     "kind": "turn",
+     "at": "end",
+     "of": "self"
+    }
    },
    "recharge": {
     "min": 5,
@@ -2028,7 +2072,13 @@
     "success": "half",
     "conditions": [
      "Blinded"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end",
+     "ability": "con",
+     "dc": 15
+    }
    },
    "recharge": {
     "min": 5,
@@ -2289,7 +2339,13 @@
     "success": "half",
     "conditions": [
      "Blinded"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end",
+     "ability": "con",
+     "dc": 13
+    }
    },
    "recharge": {
     "min": 6,
@@ -2425,7 +2481,13 @@
     "success": "half",
     "conditions": [
      "Poisoned"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end",
+     "ability": "con",
+     "dc": 13
+    }
    },
    "recharge": {
     "min": 5,
@@ -2769,7 +2831,12 @@
     "success": "half",
     "conditions": [
      "Stunned"
-    ]
+    ],
+    "ends": {
+     "kind": "turn",
+     "at": "end",
+     "of": "self"
+    }
    },
    "legendary_cost": 2,
    "source": "extracted"
@@ -3010,7 +3077,12 @@
     "conditions": [
      "Blinded",
      "Deafened"
-    ]
+    ],
+    "ends": {
+     "kind": "turn",
+     "at": "end",
+     "of": "self"
+    }
    },
    "source": "extracted"
   }
@@ -3780,7 +3852,13 @@
     "success": "half",
     "conditions": [
      "Blinded"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end",
+     "ability": "con",
+     "dc": 15
+    }
    },
    "recharge": {
     "min": 6,
@@ -4078,7 +4156,11 @@
     "success": "none",
     "conditions": [
      "Charmed"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end"
+    }
    },
    "source": "extracted"
   }
@@ -4103,7 +4185,13 @@
     "success": "half",
     "conditions": [
      "Frightened"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end",
+     "ability": "wis",
+     "dc": 15
+    }
    },
    "recharge": {
     "min": 5,
@@ -4518,7 +4606,13 @@
     "success": "none",
     "conditions": [
      "Blinded"
-    ]
+    ],
+    "ends": {
+     "kind": "save",
+     "at": "end",
+     "ability": "con",
+     "dc": 12
+    }
    },
    "uses": {
     "count": 3,
@@ -4566,7 +4660,11 @@
     "success": "none",
     "conditions": [
      "Deafened"
-    ]
+    ],
+    "ends": {
+     "kind": "rounds",
+     "remaining": 10
+    }
    },
    "recharge": {
     "min": 6,

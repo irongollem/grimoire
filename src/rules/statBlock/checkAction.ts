@@ -6,6 +6,7 @@
  */
 import type { ActionOption, ActionStructure, AttackStructure, DamagePart, SaveStructure } from "../../types/statBlock.types.ts";
 import { SRD_CONDITION_NAMES } from "../../types/statBlock.types.ts";
+import { endsInProse } from "./parseEnds.ts";
 import { entryMatchText, normalizeForMatch } from "./proseText.ts";
 import { ABILITY_NAMES, CONDITION_STEMS } from "./vocab.ts";
 
@@ -62,6 +63,10 @@ function checkRolls(
     if (bad) return bad;
     for (const c of save.conditions) {
       if (!SRD_CONDITION_NAMES.includes(c) || !CONDITION_STEMS[c].test(body)) return `condition ${c} not in the prose`;
+    }
+    if (save.ends) {
+      if (save.conditions.length === 0) return "save ends with no conditions to end";
+      if (!endsInProse(save.ends, body, save)) return `save ends (${save.ends.kind}) not in the prose`;
     }
   }
 

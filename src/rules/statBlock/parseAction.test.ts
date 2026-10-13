@@ -179,7 +179,14 @@ describe("saves", () => {
       "Frightful Presence",
       "Each creature of the dragon's choice must succeed on a DC 18 Wisdom saving throw or become frightened for 1 minute.",
     );
-    expect(s.save).toEqual({ ability: "wis", dc: 18, fail: [], success: "none", conditions: ["Frightened"] });
+    expect(s.save).toEqual({
+      ability: "wis",
+      dc: 18,
+      fail: [],
+      success: "none",
+      conditions: ["Frightened"],
+      ends: { kind: "rounds", remaining: 10 },
+    });
   });
 
   it("reads a 2024 save with Failure and Success", () => {
@@ -392,7 +399,14 @@ describe("options", () => {
       {
         name: "Sleep Breath",
         kind: "save",
-        save: { ability: "con", dc: 21, fail: [], success: "none", conditions: ["Unconscious"] },
+        save: {
+          ability: "con",
+          dc: 21,
+          fail: [],
+          success: "none",
+          conditions: ["Unconscious"],
+          ends: { kind: "rounds", remaining: 100 },
+        },
       },
     ]);
   });
@@ -405,10 +419,10 @@ describe("options", () => {
       "- **Whirling Death.** The target must succeed on a DC 11 WIS save or be frightened for 1 minute.",
     ].join("\n");
     const s = parse("Strange Bauble", menu);
-    expect(s.options?.map((o) => [o.name, o.save?.ability, o.save?.conditions])).toEqual([
-      ["Flashing Rock", "dex", ["Blinded"]],
-      ["Illusory Dancer", "cha", ["Incapacitated"]],
-      ["Whirling Death", "wis", ["Frightened"]],
+    expect(s.options?.map((o) => [o.name, o.save?.ability, o.save?.conditions, o.save?.ends])).toEqual([
+      ["Flashing Rock", "dex", ["Blinded"], { kind: "turn", at: "end", of: "self" }],
+      ["Illusory Dancer", "cha", ["Incapacitated"], { kind: "rounds", remaining: 10 }],
+      ["Whirling Death", "wis", ["Frightened"], { kind: "rounds", remaining: 10 }],
     ]);
     const run = parse(
       "Breath Weapon",

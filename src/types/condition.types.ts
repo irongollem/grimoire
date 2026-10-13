@@ -1,5 +1,5 @@
-import type { DamageType } from "./damage.types";
-import type { SaveAbility } from "./statBlock.types";
+import type { DamageType } from "./damage.types.ts";
+import type { SaveAbility } from "./statBlock.types.ts";
 
 /**
  * A 5e game condition (Blinded, Charmed, Poisoned, …). Baked per-edition into

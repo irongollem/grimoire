@@ -1,5 +1,5 @@
 import type { ParsedExpression } from "@/lib/dice/dice";
-import type { AppliedCondition } from "@/types/condition.types";
+import type { AppliedCondition, ConditionEnds, ConditionSource } from "@/types/condition.types";
 import type { DamageType } from "@/types/damage.types";
 import type { AttackStructure, DamagePart, SaveStructure, SrdConditionName } from "@/types/statBlock.types";
 import { autoCritOnHit, resolveAttack } from "./attackRoll.ts";
@@ -67,4 +67,18 @@ export function resolveSaveAction(input: {
   });
   if (!roll.success) return { roll, damageMultiplier: 1, conditionsImposed: [...save.conditions] };
   return { roll, damageMultiplier: save.success === "half" ? 0.5 : 0, conditionsImposed: [] };
+}
+
+/**
+ * A condition a failed save imposes, as the runner records it: who applied it and
+ * with what (#1018), and what ends it (#1050). A save-ends repeat of this same save
+ * takes the save's ability and DC here rather than carrying copies.
+ */
+export function imposedCondition(save: SaveStructure, name: SrdConditionName, source: ConditionSource): AppliedCondition {
+  const authored = save.ends;
+  const ends: ConditionEnds | undefined =
+    authored?.kind === "save"
+      ? { kind: "save", ability: authored.ability ?? save.ability, dc: authored.dc ?? save.dc, at: authored.at }
+      : authored && { ...authored };
+  return { name, source, ...(ends ? { ends } : {}) };
 }

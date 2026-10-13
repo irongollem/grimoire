@@ -1,7 +1,7 @@
 import type { AppliedCondition } from "@/types/condition.types";
 import { describe, expect, it } from "vitest";
 import type { AttackStructure, SaveStructure } from "@/types/statBlock.types";
-import { halveDamage, halveParts, resolveAttackAction, resolveSaveAction } from "./resolveAction.ts";
+import { halveDamage, halveParts, imposedCondition, resolveAttackAction, resolveSaveAction } from "./resolveAction.ts";
 
 const attack: AttackStructure = {
   delivery: "melee",
@@ -83,4 +83,36 @@ describe("halveParts", () => {
     expect(halveDamage(out[0].amount) + out[1].amount).toBe(5);
   });
   it("an even total loses nothing", () => expect(sum(halveParts([{ amount: 4, type: "fire" }, { amount: 6, type: "cold" }]))).toBe(5));
+});
+
+describe("imposedCondition", () => {
+  const hold: SaveStructure = { ability: "con", dc: 10, fail: [], success: "none", conditions: ["Paralyzed"] };
+  const source = { id: "ghoul-1", spell: "Claws" };
+
+  it("records the source, and no end when the save states none", () => {
+    expect(imposedCondition(hold, "Paralyzed", source)).toEqual({ name: "Paralyzed", source });
+  });
+
+  it("fills a save-ends repeat with the save's own ability and DC (#1050)", () => {
+    expect(imposedCondition({ ...hold, ends: { kind: "save", at: "end" } }, "Paralyzed", source).ends).toEqual({
+      kind: "save",
+      ability: "con",
+      dc: 10,
+      at: "end",
+    });
+  });
+
+  it("keeps the ability and DC of a repeat that is another save", () => {
+    const stream: SaveStructure = { ...hold, ability: "dex", dc: 15, ends: { kind: "save", at: "end", ability: "con", dc: 14 } };
+    expect(imposedCondition(stream, "Paralyzed", source).ends).toEqual({ kind: "save", ability: "con", dc: 14, at: "end" });
+  });
+
+  it("copies a turn or rounds end unarmed, so the turn hooks arm it", () => {
+    const turn = imposedCondition({ ...hold, ends: { kind: "turn", at: "end", of: "source" } }, "Paralyzed", source);
+    expect(turn.ends).toEqual({ kind: "turn", at: "end", of: "source" });
+    expect(imposedCondition({ ...hold, ends: { kind: "rounds", remaining: 10 } }, "Paralyzed", source).ends).toEqual({
+      kind: "rounds",
+      remaining: 10,
+    });
+  });
 });

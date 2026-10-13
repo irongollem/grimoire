@@ -52,6 +52,17 @@ describe("describeStructure", () => {
     expect(describeStructure(s).summary).toBe("DC 12 Wis save · Frightened");
   });
 
+  it("says what ends a save's conditions (#1050)", () => {
+    const save = { ability: "con", dc: 10, fail: [], success: "none", conditions: ["Paralyzed"] } as const;
+    const said = (ends: NonNullable<ActionStructure["save"]>["ends"]) =>
+      describeStructure({ ...base, kind: "save", save: { ...save, conditions: [...save.conditions], fail: [], ends } }).summary;
+    expect(said({ kind: "save", at: "end" })).toBe("DC 10 Con save · Paralyzed (save ends)");
+    expect(said({ kind: "save", at: "start" })).toBe("DC 10 Con save · Paralyzed (save ends at turn start)");
+    expect(said({ kind: "turn", at: "end", of: "self" })).toBe("DC 10 Con save · Paralyzed (until the end of the target's next turn)");
+    expect(said({ kind: "turn", at: "start", of: "source" })).toBe("DC 10 Con save · Paralyzed (until the start of this creature's next turn)");
+    expect(said({ kind: "rounds", remaining: 10 })).toBe("DC 10 Con save · Paralyzed (10 rounds)");
+  });
+
   it("adds the save of an attack whose hit forces one", () => {
     const s: ActionStructure = {
       ...base,

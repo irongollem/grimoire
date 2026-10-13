@@ -365,6 +365,25 @@ describe("useActionResolution", () => {
       applySaveOutcome({ attacker: combatant("x"), entry: web, damageParts: [], results: [{ ...base, target: prone, success: false }] });
       expect(store.combatants[0].conditions).toEqual([{ name: "Prone" }]);
     });
+
+    it("records what ends an imposed condition, a save-ends repeat taking the save's ability and DC (#1050)", () => {
+      const store = sources();
+      const target = combatant("t", { monster_id: "m-goblin" });
+      store.combatants = [target];
+      const base = { dc: 10, ability: "con" as const, bonus: 0, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
+      const claws: StatBlockEntry = {
+        ...breath,
+        name: "Claws",
+        structured: {
+          ...breath.structured,
+          save: { ability: "con", dc: 10, fail: [], success: "none", conditions: ["Paralyzed"], ends: { kind: "save", at: "end" } },
+        },
+      };
+      useActionResolution().applySaveOutcome({ attacker: combatant("x"), entry: claws, damageParts: [], results: [{ ...base, target, success: false }] });
+      expect(store.combatants[0].conditions).toEqual([
+        { name: "Paralyzed", source: { id: "x", spell: "Claws" }, ends: { kind: "save", ability: "con", dc: 10, at: "end" } },
+      ]);
+    });
   });
 
   describe("rollConcentration", () => {

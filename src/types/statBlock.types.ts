@@ -18,6 +18,7 @@
  * This module is imported by edge functions as well as the app, so it uses
  * relative `.ts` imports only.
  */
+import type { ConditionEnds } from "./condition.types.ts";
 import type { DamageType } from "./damage.types.ts";
 
 /** Saving-throw abilities, lowercase three-letter codes. */
@@ -76,7 +77,25 @@ export interface SaveStructure {
   success: "half" | "none";
   /** Conditions a failed save imposes outright. */
   conditions: SrdConditionName[];
+  /** What ends those conditions (#1050). Absent: they last until removed. */
+  ends?: SaveEnds;
 }
+
+/**
+ * What ends the conditions of a failed save, as the prose states it (#1050): an
+ * `AppliedCondition.ends` without what the runtime adds. A save-ends repeat that is
+ * this save again names only its edge; the save's own ability and DC are filled in
+ * when the condition is applied, so editing the DC cannot leave a stale copy behind.
+ * It names an ability and DC only when the repeat is another save ("...a DC 15
+ * Dexterity saving throw... A blinded creature can make a DC 15 Constitution saving
+ * throw at the end of each of its turns"). `armed` is the turn hooks' bookkeeping,
+ * never authored.
+ */
+export type SaveEnds =
+  | Omit<Extract<ConditionEnds, { kind: "turn" }>, "armed">
+  | Extract<ConditionEnds, { kind: "rounds" }>
+  | (Pick<Extract<ConditionEnds, { kind: "save" }>, "kind" | "at"> &
+      Partial<Pick<Extract<ConditionEnds, { kind: "save" }>, "ability" | "dc">>);
 
 export interface MultiattackStep {
   /** The name of another entry in the same stat block, as printed ("Bite", "Claw"). */
