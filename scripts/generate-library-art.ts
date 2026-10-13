@@ -124,11 +124,17 @@ const MANIFEST_FILE = "manifest.json";
  * under `srd/` when every row is shared library content (user_id null), else under the one owner's folder.
  * `hero` is publish-only (Hall of Heroes portraits, 13 Oct 2026): it writes `hall_of_heroes.portrait_url` on the rows
  * named by `id` + `alsoIds`, in `npc-portraits` under the rows' one owner's folder, where hero portraits already live.
+ * `trap`, `dungeon_feature` and `puzzle` are publish-only too (14 Oct 2026): each writes `image_url` on the rows of its
+ * table (`traps`, `dungeon_features`, `puzzle_rooms`) named by `id` + `alsoIds`, in that table's bucket under the rows'
+ * one owner's folder: these rows are every user's own copies, never shared library content.
  */
-export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class" | "campaign_item" | "subclass" | "hero";
+export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class" | "campaign_item" | "subclass" | "hero" | "trap" | "dungeon_feature" | "puzzle";
+
+/** The table behind each owned-row kind: rows named by id, `image_url` + `image_focal_point`, stored in the owner's folder. */
+const OWNED_ROW_TABLE: Partial<Record<ArtKind, "traps" | "dungeon_features" | "puzzle_rooms">> = { trap: "traps", dungeon_feature: "dungeon_features", puzzle: "puzzle_rooms" };
 
 /** Storage bucket per kind. Canonical art lives under `srd/` in all three (see CLAUDE.md, Storage Path Convention). */
-export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images", campaign_item: "item-images", subclass: "class-images", hero: "npc-portraits" };
+export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images", campaign_item: "item-images", subclass: "class-images", hero: "npc-portraits", trap: "trap-images", dungeon_feature: "dungeon-feature-images", puzzle: "puzzle-images" };
 
 /**
  * How canonical item art is staged, passed where the app passes a campaign's
@@ -248,6 +254,9 @@ const TABLES_FOR_KIND: Record<ArtKind, string> = {
   campaign_item: "items (a campaign's own rows, by id)",
   subclass: "custom_subclasses (by id)",
   hero: "hall_of_heroes (portrait, by id)",
+  trap: "traps (by id)",
+  dungeon_feature: "dungeon_features (by id)",
+  puzzle: "puzzle_rooms (by id)",
 };
 
 // ---------------------------------------------------------------------------
@@ -801,7 +810,7 @@ export interface FocalPoint {
 /** What the vision model is asked to locate, per kind (#965: these answers held up on a spot check where image saliency did not). */
 export function focalTarget(kind: ArtKind): string {
   if (kind === "monster") return "the creature's head or face (the point a portrait crop should centre on)";
-  if (kind === "item" || kind === "campaign_item") return "the centre of the main object (not the background props)";
+  if (kind === "item" || kind === "campaign_item" || kind === "trap" || kind === "dungeon_feature" || kind === "puzzle") return "the centre of the main object (not the background props)";
   if (kind === "subclass" || kind === "hero") return "the figure's face (the point a portrait crop should centre on)";
   if (kind === "species" || kind === "class") return "the centre of the group's faces (the point a portrait crop should centre on)";
   if (kind === "background") return "the figure's face (the point a portrait crop should centre on)";
@@ -1231,6 +1240,15 @@ async function campaignItemOwner(client: SupabaseClient, ids: (string | null)[])
   return owners[0];
 }
 
+/** The one user who owns every row of an owned-row entry (traps, dungeon features, puzzles). */
+async function ownedRowOwner(client: SupabaseClient, table: string, ids: (string | null)[]): Promise<string> {
+  const { data, error } = await client.from(table).select("user_id").in("id", ids.filter((id): id is string => id !== null));
+  if (error) throw new Error(`Could not read ${table}: ${error.message}`);
+  const owners = [...new Set((data as { user_id: string }[]).map((r) => r.user_id))];
+  if (owners.length !== 1) throw new Error(`${table} rows ${ids.join(", ")} belong to ${owners.length} users; publish one owner's rows at a time.`);
+  return owners[0];
+}
+
 /** The one user who owns every hero row of an entry; the portrait goes in their folder. */
 async function heroOwner(client: SupabaseClient, ids: (string | null)[]): Promise<string> {
   const { data, error } = await client.from("hall_of_heroes").select("user_id").in("id", ids.filter((id): id is string => id !== null));
@@ -1286,6 +1304,14 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     const present = new Set((found.data as { id: string }[]).map((r) => r.id));
     const missing = ids.filter((id) => !present.has(id));
     if (missing.length > 0) throw new Error(`${entry.slug}: library background ${missing.join(", ")} no longer exists.`);
+    return ids;
+  }
+  const ownedTable = OWNED_ROW_TABLE[entry.kind];
+  if (ownedTable) {
+    const ids = [...new Set([entry.id, ...entry.alsoIds].filter((id): id is string => id !== null))].sort();
+    const { data, error } = await client.from(ownedTable).select("id").in("id", ids);
+    if (error) throw new Error(`Could not read ${ownedTable}: ${error.message}`);
+    if (data.length !== ids.length) throw new Error(`${entry.slug}: ${ids.length - data.length} ${ownedTable} row(s) no longer exist.`);
     return ids;
   }
   if (entry.kind === "hero") {
@@ -1374,6 +1400,12 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     if (rows.error) throw new Error(`Could not update library_backgrounds: ${rows.error.message}`);
     return;
   }
+  const ownedTable = OWNED_ROW_TABLE[entry.kind];
+  if (ownedTable) {
+    const rows = await client.from(ownedTable).update({ image_url: url }).in("id", ids);
+    if (rows.error) throw new Error(`Could not update ${ownedTable}: ${rows.error.message}`);
+    return;
+  }
   if (entry.kind === "hero") {
     const rows = await client.from("hall_of_heroes").update({ portrait_url: url }).in("id", ids);
     if (rows.error) throw new Error(`Could not update hall_of_heroes: ${rows.error.message}`);
@@ -1442,6 +1474,11 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
     check((await client.from("library_backgrounds").update({ focal_point: focal }).in("id", ids)).error, "library_backgrounds");
     return;
   }
+  const ownedTable = OWNED_ROW_TABLE[entry.kind];
+  if (ownedTable) {
+    check((await client.from(ownedTable).update({ image_focal_point: focal }).in("id", ids)).error, ownedTable);
+    return;
+  }
   if (entry.kind === "hero") {
     check((await client.from("hall_of_heroes").update({ portrait_focal_point: focal }).in("id", ids)).error, "hall_of_heroes");
     return;
@@ -1498,7 +1535,8 @@ async function runPublish(opts: PublishOptions): Promise<void> {
     const bucket = BUCKET_FOR_KIND[entry.kind];
     const rowOwner = entry.kind === "campaign_item" ? await campaignItemOwner(client, [entry.id, ...entry.alsoIds])
       : entry.kind === "subclass" ? await subclassOwner(client, [entry.id, ...entry.alsoIds])
-      : entry.kind === "hero" ? await heroOwner(client, [entry.id, ...entry.alsoIds]) : null;
+      : entry.kind === "hero" ? await heroOwner(client, [entry.id, ...entry.alsoIds])
+      : OWNED_ROW_TABLE[entry.kind] ? await ownedRowOwner(client, OWNED_ROW_TABLE[entry.kind]!, [entry.id, ...entry.alsoIds]) : null;
     const path = entry.publish?.path ?? newOriginalPath(undefined, rowOwner ?? "srd");
     const finalBytes = new Uint8Array(readFileSync(join(opts.out, entry.finalFile)));
     if (!sniffIsWebp(finalBytes)) throw new Error(`${entry.finalFile} is not a WebP file.`);

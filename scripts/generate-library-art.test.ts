@@ -195,6 +195,8 @@ describe("slugs and paths", () => {
     expect(isCdnBucket(BUCKET_FOR_KIND.class)).toBe(true);
     expect(BUCKET_FOR_KIND.subclass).toBe("class-images");
     expect(BUCKET_FOR_KIND.hero).toBe("npc-portraits");
+    expect([BUCKET_FOR_KIND.trap, BUCKET_FOR_KIND.dungeon_feature, BUCKET_FOR_KIND.puzzle]).toEqual(["trap-images", "dungeon-feature-images", "puzzle-images"]);
+    for (const k of ["trap", "dungeon_feature", "puzzle"] as const) expect(isCdnBucket(BUCKET_FOR_KIND[k])).toBe(true);
   });
 
   it("never upscales a variant", () => {
