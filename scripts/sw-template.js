@@ -51,6 +51,8 @@
 //               rejects and the browser keeps the old worker AND its
 //               complete cache — a flaky connection can only delay an
 //               update, never trade a working cache for a partial one.
+//               "Fails" includes an index.html from another build: it must
+//               name every precached file (see `isThisBuildsShell`).
 //               (registration.update() is polled by swAutoUpdate, so a
 //               failed install retries within minutes.)
 //   activate  — claim clients, then delete every cache whose name doesn't
@@ -187,6 +189,40 @@ function isUsableResponse(path, response) {
   return response.ok && hasExpectedContentType(path, response);
 }
 
+// The document has to be the one this worker was built from, not just any
+// HTML. Every PRECACHE entry was read out of this build's index.html as a
+// quoted src/href, so this build's index.html names all of them and an older
+// one does not: its chunk hashes differ.
+//
+// Content type alone let exactly that through. On 13 Oct 2026, minutes after a
+// deploy, the network answered the new worker's index.html request with the
+// previous build's page. The install cached it beside this build's chunks, and
+// since navigations are served from the cache without a network request, every
+// ordinary reload booted a page whose entry chunks no longer existed anywhere:
+// the SPA rewrite answered each with index.html, and the browser refused them
+// as text/html. Only a hard refresh (which bypasses the worker) got through,
+// and only until the next one; nothing would have healed it before the next
+// deploy.
+function isThisBuildsShell(html) {
+  return PRECACHE.every((path) => path === "/index.html" || html.includes(`"${path}"`));
+}
+
+// index.html for the install, or null when the network will not give us this
+// build's. Asked twice: plainly, and then under a query string the edge cannot
+// have cached, in case what answered the first was a cache still holding the
+// previous deploy. Still wrong after that, the install rejects (index.html is
+// critical), the previous worker keeps serving its own consistent cache, and
+// swAutoUpdate's update poll tries again in a few minutes.
+async function fetchShellDocument() {
+  for (const url of ["/index.html", `/index.html?sw=${CACHE_NAME}`]) {
+    const response = await fetch(new Request(url, { cache: "reload" }));
+    if (isUsableResponse("/index.html", response) && isThisBuildsShell(await response.clone().text())) {
+      return response;
+    }
+  }
+  return null;
+}
+
 // Vite writes content-hashed output under /assets/ — same filename means same
 // bytes, so those entries can be copied forward from the previous deploy's
 // cache instead of re-downloaded. Everything else (index.html, public/ files
@@ -226,6 +262,7 @@ function isImmutableAsset(path) {
 // verbatim from public/, which `isImmutableAsset` excludes) are always
 // reloaded, as before: the HTTP cache is exactly where a stale one would hide.
 async function fetchForInstall(path) {
+  if (path === "/index.html") return fetchShellDocument();
   if (isImmutableAsset(path)) {
     try {
       const cached = await fetch(new Request(path));

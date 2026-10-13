@@ -67,11 +67,19 @@ function response(body: string, contentType: string) {
   return new Response(body, { status: 200, headers: { "content-type": contentType } });
 }
 
+/** An index.html naming `paths` the way Vite writes them: quoted src/href. */
+function shellHtml(paths: string[]) {
+  return `<!doctype html><head>${paths.map((p) => `<link rel="modulepreload" href="${p}">`).join("")}</head>`;
+}
+
+const INSTALL_SHELL = shellHtml(["/assets/app-123.js", "/assets/app-123.css"]);
+
 describe("service-worker atomic install", () => {
   it("rejects a 200 HTML fallback returned for a not-yet-provisioned JS chunk", async () => {
     const fetchMock = vi.fn(async (request: Request) => {
       const path = new URL(request.url, "https://app.example.test").pathname;
       if (path.endsWith(".css")) return response("body{}", "text/css");
+      if (path === "/index.html") return response(INSTALL_SHELL, "text/html; charset=utf-8");
       return response("<!doctype html>", "text/html; charset=utf-8");
     });
     const { runInstall, put, deleteCache } = loadInstallHandler(fetchMock);
@@ -86,7 +94,7 @@ describe("service-worker atomic install", () => {
       const path = new URL(request.url, "https://app.example.test").pathname;
       if (path.endsWith(".js")) return response("export {};", "application/javascript");
       if (path.endsWith(".css")) return response("body{}", "text/css");
-      return response("<!doctype html>", "text/html; charset=utf-8");
+      return response(INSTALL_SHELL, "text/html; charset=utf-8");
     });
     const { runInstall, put, deleteCache, skipWaiting } = loadInstallHandler(fetchMock);
 
@@ -94,6 +102,39 @@ describe("service-worker atomic install", () => {
     expect(put).toHaveBeenCalledTimes(3);
     expect(deleteCache).not.toHaveBeenCalled();
     expect(skipWaiting).toHaveBeenCalledTimes(1);
+  });
+
+  // 13 Oct 2026: right after a deploy the network answered the new worker's
+  // index.html with the previous build's page, which the install kept beside
+  // this build's chunks. Every ordinary reload then booted chunks that no
+  // longer existed, until a hard refresh.
+  it("asks again past the edge cache when index.html is another build's", async () => {
+    const fetchMock = vi.fn(async (request: Request) => {
+      const url = new URL(request.url, "https://app.example.test");
+      if (url.pathname.endsWith(".js")) return response("export {};", "application/javascript");
+      if (url.pathname.endsWith(".css")) return response("body{}", "text/css");
+      const html = url.search ? INSTALL_SHELL : shellHtml(["/assets/app-OLD.js", "/assets/app-OLD.css"]);
+      return response(html, "text/html; charset=utf-8");
+    });
+    const { runInstall, put } = loadInstallHandler(fetchMock);
+
+    await expect(runInstall()).resolves.toBeUndefined();
+    const stored = put.mock.calls.find(([path]) => path === "/index.html");
+    expect(await stored![1].text()).toBe(INSTALL_SHELL);
+  });
+
+  it("rejects the install rather than cache another build's index.html", async () => {
+    const fetchMock = vi.fn(async (request: Request) => {
+      const path = new URL(request.url, "https://app.example.test").pathname;
+      if (path.endsWith(".js")) return response("export {};", "application/javascript");
+      if (path.endsWith(".css")) return response("body{}", "text/css");
+      return response(shellHtml(["/assets/app-OLD.js", "/assets/app-OLD.css"]), "text/html; charset=utf-8");
+    });
+    const { runInstall, put, deleteCache } = loadInstallHandler(fetchMock);
+
+    await expect(runInstall()).rejects.toThrow("precache failed for 1 critical asset(s): /index.html");
+    expect(deleteCache).toHaveBeenCalledExactlyOnceWith("grimoire-test");
+    expect(put.mock.calls.some(([path]) => path === "/index.html")).toBe(false);
   });
 });
 
@@ -479,7 +520,7 @@ describe("service-worker install fetch mode", () => {
   it("always reloads files that can change under a stable name", async () => {
     const fetchMock = vi.fn(async (request: Request) =>
       new URL(request.url).pathname === "/index.html"
-        ? response("<!doctype html>", "text/html")
+        ? response(shellHtml(["/assets/cardforge/a.webp"]), "text/html")
         : response("fresh", "image/webp"),
     );
     const { runInstall, fetchMock: fm } = loadWorker({
