@@ -28,7 +28,7 @@
     no-match-text="No roll tables match your filter."
     empty-icon="Dices"
     empty-title="No roll tables yet"
-    empty-description="Build a wandering monster table or two; the DM rolls live during play to surface what shows up."
+    :empty-description="emptyDescription"
     empty-action-label="New Roll Table"
     table="roll_tables"
     :ids="rollTableFilteredIds"
@@ -106,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDungeonCraftBooksOffered } from "@/composables/library/useEnabledSources";
 import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
 import { ref, computed } from "vue";
 import { useLibraryRollTables, useRollTables } from "@/composables/dungeon-features/useRollTables";
@@ -129,6 +130,12 @@ function closeInlineRollTable() {
 }
 
 defineExpose({ selectedRollTableId, inlineNewRollTable, closeInlineRollTable });
+
+// An empty list with Grimoire's books on offer means none is switched on (#1060).
+const booksOffered = useDungeonCraftBooksOffered();
+const emptyDescription = computed(() =>
+  booksOffered.value ? "Add the Grimoire library from the book icon above, or create your own." : "Build a wandering monster table or two; the DM rolls live during play to surface what shows up.",
+);
 
 const { data: ownTables, isLoading: ownLoading } = useRollTables();
 const { data: libraryTables, isLoading: libraryLoading } = useLibraryRollTables();

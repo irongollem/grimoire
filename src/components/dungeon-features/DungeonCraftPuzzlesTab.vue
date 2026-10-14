@@ -10,7 +10,7 @@
     no-match-text="No puzzles match your filter."
     empty-icon="Puzzle"
     empty-title="No puzzles yet"
-    empty-description="Build your first puzzle room: set the riddle, add tiered hints, and record the solution."
+    :empty-description="emptyDescription"
     empty-action-label="New Puzzle"
     table="puzzle_rooms"
     :ids="puzzleFilteredIds"
@@ -105,6 +105,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDungeonCraftBooksOffered } from "@/composables/library/useEnabledSources";
 import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
@@ -128,6 +129,12 @@ import PlacedInLine from "./PlacedInLine.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
+// An empty list with Grimoire's books on offer means none is switched on (#1060).
+const booksOffered = useDungeonCraftBooksOffered();
+const emptyDescription = computed(() =>
+  booksOffered.value ? "Add the Grimoire library from the book icon above, or create your own." : "Build your first puzzle room: set the riddle, add tiered hints, and record the solution.",
+);
+
 const { data: ownPuzzles, isLoading: ownLoading } = usePuzzles();
 const { data: libraryPuzzles, isLoading: libraryLoading } = useLibraryPuzzles();
 type PuzzleEntry = PuzzleRoom | LibraryPuzzle;

@@ -2,6 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import type { LibraryRollTable, RollTable, RollTableInsert, RollTableUpdate } from "@/types/rollTable.types";
 import { isLibraryId } from "@/lib/dungeon-features/library";
@@ -127,20 +128,32 @@ export function useEncountersInRollTables() {
 const LIBRARY_KEY = "library-roll-tables";
 const LIBRARY_STALE_MS = 60 * 60 * 1000;
 
-async function fetchLibraryRollTables(): Promise<LibraryRollTable[]> {
-  const { data, error } = await supabase.from("library_roll_tables").select("*").order("name", { ascending: true });
-  if (error) throw error;
-  return data as LibraryRollTable[];
-}
-
 async function fetchLibraryRollTable(id: string): Promise<LibraryRollTable | null> {
   const { data, error } = await supabase.from("library_roll_tables").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   return data as LibraryRollTable | null;
 }
 
+/** The library roll tables of the sources this scope has enabled. Tables are copied
+ *  on use, so there is no resolving reader: a detail route reads `useLibraryRollTable`. */
 export function useLibraryRollTables() {
-  return useQuery({ queryKey: [LIBRARY_KEY], queryFn: fetchLibraryRollTables, staleTime: LIBRARY_STALE_MS });
+  const { slugs } = useLibrarySourceSlugs();
+  const query = useQuery({
+    queryKey: computed(() => [LIBRARY_KEY, "enabled", slugs.value] as const),
+    queryFn: async (): Promise<LibraryRollTable[]> => {
+      const { data, error } = await supabase
+        .from("library_roll_tables")
+        .select("*")
+        .in("source", slugs.value!)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data as LibraryRollTable[];
+    },
+    enabled: () => slugs.value !== null,
+    staleTime: LIBRARY_STALE_MS,
+  });
+  // While the enabled sources are unknown the list is loading, not empty.
+  return { ...query, isLoading: computed(() => query.isLoading.value || (slugs.value === null)) };
 }
 
 export function useLibraryRollTable(id: MaybeRefOrGetter<string | null | undefined>) {

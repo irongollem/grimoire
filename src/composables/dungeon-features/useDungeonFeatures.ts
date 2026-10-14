@@ -4,6 +4,7 @@ import type { DungeonFeature, DungeonFeatureEntry, DungeonFeatureInsert, Dungeon
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
+import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { isLibraryId, shadowByName } from "@/lib/dungeon-features/library";
 import { libraryFeatureToInsert } from "@/lib/dungeon-features/libraryCopy";
 import type { MaybeRefOrGetter, Ref } from "vue";
@@ -156,9 +157,34 @@ async function fetchLibraryDungeonFeature(id: string): Promise<LibraryDungeonFea
   return data as LibraryDungeonFeature | null;
 }
 
+async function fetchLibraryDungeonFeaturesFrom(slugs: string[]): Promise<LibraryDungeonFeature[]> {
+  const { data, error } = await supabase
+    .from("library_dungeon_features")
+    .select("*")
+    .in("source", slugs)
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return data as LibraryDungeonFeature[];
+}
+
+/** The library features of the sources this scope has enabled: what a list or picker
+ *  OFFERS. Held until the enabled sources are known (`null`, see useLibrarySourceSlugs). */
 export function useLibraryDungeonFeatures(getOptions?: () => { enabled?: boolean }) {
+  const { slugs } = useLibrarySourceSlugs();
+  const query = useQuery({
+    queryKey: computed(() => [LIBRARY_KEY, "enabled", slugs.value] as const),
+    queryFn: () => fetchLibraryDungeonFeaturesFrom(slugs.value!),
+    staleTime: LIBRARY_STALE_MS,
+    enabled: () => slugs.value !== null && (getOptions?.().enabled ?? true),
+  });
+  // While the enabled sources are unknown the list is loading, not empty.
+  return { ...query, isLoading: computed(() => query.isLoading.value || (slugs.value === null && (getOptions?.().enabled ?? true))) };
+}
+
+/** Every library feature, enabled or not: what a stored id RESOLVES against (#954). */
+export function useAllLibraryDungeonFeatures(getOptions?: () => { enabled?: boolean }) {
   return useQuery({
-    queryKey: [LIBRARY_KEY],
+    queryKey: [LIBRARY_KEY, "all"],
     queryFn: fetchLibraryDungeonFeatures,
     staleTime: LIBRARY_STALE_MS,
     enabled: () => getOptions?.().enabled ?? true,
@@ -183,6 +209,7 @@ export function useLibraryDungeonFeature(id: MaybeRefOrGetter<string | null | un
 export function useDungeonFeatureIndex(getOptions?: () => UseDungeonFeaturesOptions) {
   const own = useDungeonFeatures(getOptions);
   const library = useLibraryDungeonFeatures(getOptions);
+  const allLibrary = useAllLibraryDungeonFeatures(getOptions);
   const data = computed<DungeonFeatureEntry[] | undefined>(() => {
     if (!own.data.value || !library.data.value) return undefined;
     return shadowByName(library.data.value, own.data.value);
@@ -192,15 +219,15 @@ export function useDungeonFeatureIndex(getOptions?: () => UseDungeonFeaturesOpti
   // name. So `data` is the pick list and `byId` resolves every id either way.
   const byId = computed(() => {
     const map = new Map<string, DungeonFeatureEntry>();
-    for (const row of library.data.value ?? []) map.set(row.id, row);
+    for (const row of allLibrary.data.value ?? []) map.set(row.id, row);
     for (const row of own.data.value ?? []) map.set(row.id, row);
     return map;
   });
   return {
     data,
     byId,
-    isLoading: computed(() => own.isLoading.value || library.isLoading.value),
-    error: computed(() => own.error.value ?? library.error.value),
+    isLoading: computed(() => own.isLoading.value || library.isLoading.value || allLibrary.isLoading.value),
+    error: computed(() => own.error.value ?? library.error.value ?? allLibrary.error.value),
   };
 }
 

@@ -10,7 +10,7 @@
     no-match-text="No features match your filter."
     empty-icon="DoorOpen"
     empty-title="No dungeon features yet"
-    empty-description="Add secret doors, hidden passages, treasure chests and more."
+    :empty-description="emptyDescription"
     empty-action-label="New Feature"
     @empty-action="router.push('/dungeon-features/new')"
   >
@@ -69,6 +69,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDungeonCraftBooksOffered } from "@/composables/library/useEnabledSources";
 import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
@@ -86,6 +87,12 @@ import PlacedInLine from "./PlacedInLine.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
+// An empty list with Grimoire's books on offer means none is switched on (#1060).
+const booksOffered = useDungeonCraftBooksOffered();
+const emptyDescription = computed(() =>
+  booksOffered.value ? "Add the Grimoire library from the book icon above, or create your own." : "Add secret doors, hidden passages, treasure chests and more.",
+);
+
 const { data: features, isLoading: featuresLoading } = useDungeonFeatureIndex();
 const featuresSearch     = ref("");
 const featuresTypeFilter = ref("");

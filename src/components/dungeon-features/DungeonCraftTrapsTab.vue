@@ -10,7 +10,7 @@
     no-match-text="No traps match your filter."
     empty-icon="Crosshair"
     empty-title="No traps yet"
-    empty-description="Build your first trap: set the trigger, DCs, damage, and CR."
+    :empty-description="emptyDescription"
     empty-action-label="New Trap"
     table="traps"
     :ids="trapFilteredIds"
@@ -89,6 +89,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDungeonCraftBooksOffered } from "@/composables/library/useEnabledSources";
 import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
@@ -110,6 +111,12 @@ import PlacedInLine from "./PlacedInLine.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
+// An empty list with Grimoire's books on offer means none is switched on (#1060).
+const booksOffered = useDungeonCraftBooksOffered();
+const emptyDescription = computed(() =>
+  booksOffered.value ? "Add the Grimoire library from the book icon above, or create your own." : "Build your first trap: set the trigger, DCs, damage, and CR.",
+);
+
 const { data: traps, isLoading: trapsLoading } = useTrapIndex();
 const trapsUi = useTrapsUiStore();
 // Filter state lives in the UI store, not local refs, so it survives

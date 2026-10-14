@@ -6,6 +6,7 @@ import type { MaybeRefOrGetter, Ref } from "vue";
 import { computed, isRef, ref, toValue } from "vue";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
+import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useAppUiStore } from "@/stores/ui/app";
 import { isLibraryId } from "@/lib/dungeon-features/library";
 import { libraryPuzzleToInsert } from "@/lib/dungeon-features/libraryCopy";
@@ -202,20 +203,32 @@ export function usePlayerVisiblePuzzle(id: string | Ref<string>) {
 const LIBRARY_KEY = "library-puzzles";
 const LIBRARY_STALE_MS = 60 * 60 * 1000;
 
-async function fetchLibraryPuzzles(): Promise<LibraryPuzzle[]> {
-  const { data, error } = await supabase.from("library_puzzles").select("*").order("name", { ascending: true });
-  if (error) throw error;
-  return data as LibraryPuzzle[];
-}
-
 async function fetchLibraryPuzzle(id: string): Promise<LibraryPuzzle | null> {
   const { data, error } = await supabase.from("library_puzzles").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   return data as LibraryPuzzle | null;
 }
 
+/** The library puzzles of the sources this scope has enabled. Puzzles are copied on
+ *  use, so there is no resolving reader: a detail route reads `useLibraryPuzzle`. */
 export function useLibraryPuzzles() {
-  return useQuery({ queryKey: [LIBRARY_KEY], queryFn: fetchLibraryPuzzles, staleTime: LIBRARY_STALE_MS });
+  const { slugs } = useLibrarySourceSlugs();
+  const query = useQuery({
+    queryKey: computed(() => [LIBRARY_KEY, "enabled", slugs.value] as const),
+    queryFn: async (): Promise<LibraryPuzzle[]> => {
+      const { data, error } = await supabase
+        .from("library_puzzles")
+        .select("*")
+        .in("source", slugs.value!)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data as LibraryPuzzle[];
+    },
+    enabled: () => slugs.value !== null,
+    staleTime: LIBRARY_STALE_MS,
+  });
+  // While the enabled sources are unknown the list is loading, not empty.
+  return { ...query, isLoading: computed(() => query.isLoading.value || (slugs.value === null)) };
 }
 
 export function useLibraryPuzzle(id: MaybeRefOrGetter<string | null | undefined>) {

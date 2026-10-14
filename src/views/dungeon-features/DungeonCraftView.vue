@@ -5,6 +5,30 @@
     </template>
 
     <template #actions>
+      <!-- Library books (#1060): opt-in per campaign, as the Bestiary's are. The
+           popover opens as a sheet on a phone; the header has no overflow menu. -->
+      <SourcesPickerPanel
+        v-if="showSources"
+        title="Dungeon Craft Sources"
+        cue-key="dungeon-craft"
+        description="Enabled sources add their traps, features, puzzles and roll tables to Dungeon Craft. Nothing to download."
+        empty-message="No sources available yet. Ask your admin to seed the Dungeon Craft library."
+        :available-sources="availableSourceData"
+        :is-loading="sourcesLoading"
+      >
+        <template #trigger="{ open: pickerOpen, toggle }">
+          <AppButton
+            variant="subtle"
+            size="icon-sm"
+            :active="pickerOpen"
+            :icon="IconLibrary"
+            class="shrink-0"
+            tooltip="Manage Dungeon Craft sources for this campaign"
+            @click="toggle"
+          />
+        </template>
+      </SourcesPickerPanel>
+
       <!-- Features tab actions -->
       <template v-if="activeTab === 'features'">
         <ListActionButton
@@ -130,7 +154,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconGenerate } from '@/lib/icons';
+import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
 
 
 import { useGeneratorUiStore } from "@/stores/ui/generators";
@@ -142,6 +166,8 @@ import { useListLayout, type ListLayout } from "@/composables/useListLayout";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
+import { useAvailableLibraryDungeonCraftSources } from "@/composables/library/useEnabledSources";
 import TabBar from "@/components/common/controls/TabBar.vue";
 
 import DungeonCraftFeaturesTab from "@/components/dungeon-features/DungeonCraftFeaturesTab.vue";
@@ -197,6 +223,10 @@ const showLayoutToggle = computed(() => {
   }
   return true;
 });
+
+// The library's four kinds are the first four tabs; Loot Tables and the Cartographer have none.
+const showSources = computed(() => !["loot-tables", "cartographer"].includes(activeTab.value));
+const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLibraryDungeonCraftSources();
 
 const MANUAL_PAGE_BY_TAB: Record<Tab, string> = {
   features: "dungeon-craft-features",

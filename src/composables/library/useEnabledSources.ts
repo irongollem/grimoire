@@ -13,6 +13,7 @@ const AVAILABLE_SPELL_KEY  = "available-library-spell-sources";
 const AVAILABLE_ITEM_KEY   = "available-library-item-sources";
 const AVAILABLE_SPECIES_KEY = "available-library-species-sources";
 const AVAILABLE_BACKGROUND_KEY = "available-library-background-sources";
+const AVAILABLE_DUNGEON_CRAFT_KEY = "available-library-dungeon-craft-sources";
 
 export interface EnabledSource {
   id: string;
@@ -255,6 +256,35 @@ export function useAvailableLibraryBackgroundSources() {
   });
 }
 
+async function fetchAvailableLibraryDungeonCraftSources(): Promise<AvailableLibrarySource[]> {
+  const { data, error } = await supabase.rpc("get_library_dungeon_craft_sources");
+  if (error) throw error;
+  return (data ?? []) as AvailableLibrarySource[];
+}
+
+/**
+ * The Dungeon Craft books a DM may enable for the table: every source holding any
+ * trap, feature, puzzle or roll table, counted across the four, enabled as a whole
+ * book (#1060). No ruleset: these library tables have no edition.
+ */
+export function useAvailableLibraryDungeonCraftSources() {
+  return useQuery({
+    queryKey: [AVAILABLE_DUNGEON_CRAFT_KEY] as const,
+    queryFn: fetchAvailableLibraryDungeonCraftSources,
+    staleTime: Infinity,
+  });
+}
+
+/**
+ * True when the library holds Dungeon Craft books to enable. A tab whose list is
+ * empty uses it to point at the book icon: an empty list with books on offer means
+ * none is switched on (an enabled book always contributes rows).
+ */
+export function useDungeonCraftBooksOffered() {
+  const query = useAvailableLibraryDungeonCraftSources();
+  return computed(() => !!query.data.value?.length);
+}
+
 function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: [ENABLED_KEY] });
   queryClient.invalidateQueries({ queryKey: [USER_ENABLED_KEY] });
@@ -267,6 +297,12 @@ function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["library-item-index"] });
   queryClient.invalidateQueries({ queryKey: ["library-spell-index"] });
   queryClient.invalidateQueries({ queryKey: ["library-backgrounds"] });
+  // Dungeon Craft's four library lists (#1060). The single-row readers share the
+  // prefix and refetch harmlessly; the resolving "all" readers do too.
+  queryClient.invalidateQueries({ queryKey: ["library-traps"] });
+  queryClient.invalidateQueries({ queryKey: ["library-dungeon-features"] });
+  queryClient.invalidateQueries({ queryKey: ["library-puzzles"] });
+  queryClient.invalidateQueries({ queryKey: ["library-roll-tables"] });
 }
 
 async function fetchAvailablePlayerBooks(): Promise<AvailableLibrarySource[]> {

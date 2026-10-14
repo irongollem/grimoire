@@ -27,6 +27,10 @@ const mocks = vi.hoisted(() => ({
   library: [] as LibraryRollTable[],
 }));
 
+// The empty-state copy asks whether the library has books on offer (#1060).
+vi.mock("@/composables/library/useEnabledSources", () => ({
+  useDungeonCraftBooksOffered: () => ref(false),
+}));
 vi.mock("@/composables/dungeon-features/useRollTables", () => ({
   useRollTables: () => ({ data: ref(mocks.tables), isLoading: ref(false) }),
   useLibraryRollTables: () => ({ data: ref(mocks.library), isLoading: ref(false) }),

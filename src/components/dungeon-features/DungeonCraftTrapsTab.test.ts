@@ -33,8 +33,12 @@ function trap(overrides: Partial<Trap> = {}): Trap {
   } as Trap;
 }
 
-const mocks = vi.hoisted(() => ({ traps: [] as ReturnType<typeof trap>[] }));
+const mocks = vi.hoisted(() => ({ traps: [] as ReturnType<typeof trap>[], offered: false }));
 
+// The empty-state copy asks whether the library has books on offer (#1060).
+vi.mock("@/composables/library/useEnabledSources", () => ({
+  useDungeonCraftBooksOffered: () => ref(mocks.offered),
+}));
 vi.mock("@/composables/dungeon-features/useTraps", () => ({
   useTrapIndex: () => ({ data: ref(mocks.traps), isLoading: ref(false) }),
 }));
@@ -163,5 +167,24 @@ describe("DungeonCraftTrapsTab — library traps (#1060)", () => {
     await flushMicrotasks();
     const cards = wrapper.findAllComponents(BulkSelectableCard);
     expect(cards.map((c) => c.props("selecting")).sort()).toEqual([false, true]);
+  });
+});
+
+describe("DungeonCraftTrapsTab — empty list (#1060)", () => {
+  beforeEach(() => {
+    mocks.traps = [];
+  });
+
+  it("points at the book icon when Grimoire's books are on offer and none is enabled", () => {
+    mocks.offered = true;
+    expect(mountTab().text()).toContain("from the book icon above");
+    mocks.offered = false;
+  });
+
+  it("keeps the plain empty copy when there is no book to enable", () => {
+    mocks.offered = false;
+    const text = mountTab().text();
+    expect(text).not.toContain("book icon");
+    expect(text).toContain("Build your first trap");
   });
 });

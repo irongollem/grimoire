@@ -7,6 +7,7 @@ import { computed, isRef, ref, toValue } from "vue";
 import { storeToRefs } from "pinia";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
+import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { isLibraryId, shadowByName } from "@/lib/dungeon-features/library";
 import { libraryTrapToInsert } from "@/lib/dungeon-features/libraryCopy";
 
@@ -129,8 +130,34 @@ async function fetchLibraryTrap(id: string): Promise<LibraryTrap | null> {
   return data as LibraryTrap | null;
 }
 
+async function fetchLibraryTrapsFrom(slugs: string[]): Promise<LibraryTrap[]> {
+  const { data, error } = await supabase
+    .from("library_traps")
+    .select("*")
+    .in("source", slugs)
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return data as LibraryTrap[];
+}
+
+/** The library traps of the sources this scope has enabled: what a list or picker
+ *  OFFERS. Held until the enabled sources are known (`null`, see useLibrarySourceSlugs). */
 export function useLibraryTraps() {
-  return useQuery({ queryKey: [LIBRARY_KEY], queryFn: fetchLibraryTraps, staleTime: LIBRARY_STALE_MS });
+  const { slugs } = useLibrarySourceSlugs();
+  const query = useQuery({
+    queryKey: computed(() => [LIBRARY_KEY, "enabled", slugs.value] as const),
+    queryFn: () => fetchLibraryTrapsFrom(slugs.value!),
+    enabled: () => slugs.value !== null,
+    staleTime: LIBRARY_STALE_MS,
+  });
+  // While the enabled sources are unknown the list is loading, not empty.
+  return { ...query, isLoading: computed(() => query.isLoading.value || (slugs.value === null)) };
+}
+
+/** Every library trap, enabled or not: what a stored id RESOLVES against. Enablement
+ *  governs what is offered, never whether something already placed still exists (#954). */
+export function useAllLibraryTraps() {
+  return useQuery({ queryKey: [LIBRARY_KEY, "all"], queryFn: fetchLibraryTraps, staleTime: LIBRARY_STALE_MS });
 }
 
 /** One library trap; held until `id` is a library id (a uuid is the DM's own). */
@@ -151,6 +178,7 @@ export function useLibraryTrap(id: MaybeRefOrGetter<string | null | undefined>) 
 export function useTrapIndex(getOptions?: () => UseTrapsOptions) {
   const own = useTraps(getOptions);
   const library = useLibraryTraps();
+  const allLibrary = useAllLibraryTraps();
   const data = computed<TrapEntry[] | undefined>(() => {
     if (!own.data.value || !library.data.value) return undefined;
     return shadowByName(library.data.value, own.data.value);
@@ -160,15 +188,15 @@ export function useTrapIndex(getOptions?: () => UseTrapsOptions) {
   // name. So `data` is the pick list and `byId` resolves every id either way.
   const byId = computed(() => {
     const map = new Map<string, TrapEntry>();
-    for (const row of library.data.value ?? []) map.set(row.id, row);
+    for (const row of allLibrary.data.value ?? []) map.set(row.id, row);
     for (const row of own.data.value ?? []) map.set(row.id, row);
     return map;
   });
   return {
     data,
     byId,
-    isLoading: computed(() => own.isLoading.value || library.isLoading.value),
-    error: computed(() => own.error.value ?? library.error.value),
+    isLoading: computed(() => own.isLoading.value || library.isLoading.value || allLibrary.isLoading.value),
+    error: computed(() => own.error.value ?? library.error.value ?? allLibrary.error.value),
   };
 }
 

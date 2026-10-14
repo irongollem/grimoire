@@ -37,6 +37,10 @@ const mocks = vi.hoisted(() => ({
   library: [] as LibraryPuzzle[],
 }));
 
+// The empty-state copy asks whether the library has books on offer (#1060).
+vi.mock("@/composables/library/useEnabledSources", () => ({
+  useDungeonCraftBooksOffered: () => ref(false),
+}));
 vi.mock("@/composables/dungeon-features/usePuzzles", () => ({
   usePuzzles: () => ({ data: ref(mocks.puzzles), isLoading: ref(false) }),
   useLibraryPuzzles: () => ({ data: ref(mocks.library), isLoading: ref(false) }),
