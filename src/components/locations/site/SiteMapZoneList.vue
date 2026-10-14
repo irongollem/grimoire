@@ -196,7 +196,7 @@ import {
   useUpdateLocationMapRegion,
 } from "@/composables/locations/useLocationMapRegions";
 import { useEncounters } from "@/composables/encounters/useEncounters";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
 import { useQuests } from "@/composables/quests/useQuests";
 import { useQuestBeat, useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { useConfirm } from "@/composables/useConfirm";
@@ -223,7 +223,8 @@ const emit = defineEmits<{ "update:activeRegionId": [id: string | null] }>();
 
 const { confirm } = useConfirm();
 const { error: toastError, fromError } = useToast();
-const { data: traps } = useTraps();
+// A zone may link a library trap too (its slug lands in the jsonb payload).
+const { data: traps } = useTrapIndex();
 const { data: encounters } = useEncounters();
 
 const zones = computed(() => regions.filter((r) => r.region_role === "zone"));

@@ -13,8 +13,8 @@
 import { computed } from "vue";
 import type { Ref } from "vue";
 import { useSitePlacements } from "@/composables/locations/useSitePlacements";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
-import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
 import { usePuzzles } from "@/composables/dungeon-features/usePuzzles";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
@@ -39,8 +39,10 @@ export interface SitePrepared {
  */
 export function useSitePrepared(spaceIds: Ref<string[]>, regions: Ref<LocationMapRegion[]>): SitePrepared {
   const { data: placements } = useSitePlacements(spaceIds);
-  const { data: traps } = useTraps();
-  const { data: features } = useDungeonFeatures();
+  // Resolving stored ids: every library and own row, unshadowed and across
+  // every campaign scope, so a placed trap still draws after it is re-scoped.
+  const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
+  const { byId: featuresById } = useDungeonFeatureIndex(() => ({ includeAllScopes: true }));
   const { data: puzzles } = usePuzzles();
   const { data: encounters } = useEncounters();
   const { data: lootPlacements } = useLootPlacements();
@@ -48,8 +50,8 @@ export function useSitePrepared(spaceIds: Ref<string[]>, regions: Ref<LocationMa
   const marks = computed<PreparedMark[]>(() =>
     resolvePreparedMarks({
       placements: placements.value ?? [],
-      traps: traps.value ?? [],
-      features: features.value ?? [],
+      traps: [...trapsById.value.values()],
+      features: [...featuresById.value.values()],
       puzzles: puzzles.value ?? [],
       encounters: encounters.value ?? [],
       lootPlacements: lootPlacements.value ?? [],

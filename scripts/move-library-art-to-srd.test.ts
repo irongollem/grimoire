@@ -69,6 +69,18 @@ describe("qualify", () => {
     expect(q.targetPath).toBe("srd/catfolk.webp");
   });
 
+  it("sends Dungeon Craft library art to the srd/ of its own bucket (#1060)", () => {
+    const cases = [["trap", "trap-images"], ["dungeon_feature", "dungeon-feature-images"], ["puzzle", "puzzle-images"]] as const;
+    for (const [kind, bucket] of cases) {
+      const q = qualify(`https://cdn.example.com/${bucket}/${ADMIN}/x.webp`, kind) as Qualified;
+      expect(q.targetBucket).toBe(bucket);
+      expect(q.targetPath).toBe("srd/x.webp");
+      expect(qualify(`https://cdn.example.com/${bucket}/srd/x.webp`, kind)).toEqual({ skip: "already-srd" });
+      // Bundled art published by art:publish is already canonical: not a user folder, so not ours to move.
+      expect(qualify(`https://cdn.example.com/app-art/${bucket}/x.webp`, kind)).toEqual({ skip: expect.any(String) });
+    }
+  });
+
   it("sends a monster to monster-images/srd", () => {
     const q = qualify(`https://cdn.example.com/monster-images/${ADMIN}/m.webp`, "monster") as Qualified;
     expect(q.targetBucket).toBe("monster-images");
@@ -215,7 +227,7 @@ describe("encode round trip", () => {
 
 describe("updateOrder", () => {
   it("rewrites the source rows last, so an interrupted job is still a job on the next run", () => {
-    for (const kind of ["item", "monster", "background", "species"] as const) {
+    for (const kind of ["item", "monster", "background", "species", "trap", "dungeon_feature", "puzzle"] as const) {
       const order = updateOrder(kind);
       const sources = SOURCE_COLUMNS.filter((c) => c.kind === kind);
       expect(order.slice(-sources.length).map((c) => `${c.table}.${c.column}`)).toEqual(sources.map((c) => `${c.table}.${c.column}`));
@@ -229,6 +241,9 @@ describe("updateOrder", () => {
     expect(updateOrder("monster").length).toBeGreaterThan(SOURCE_COLUMNS.filter((c) => c.kind === "monster").length);
     expect(updateOrder("background").map((c) => `${c.table}.${c.column}`)).toEqual(["library_backgrounds.image_url"]);
     expect(updateOrder("species").map((c) => `${c.table}.${c.column}`)).toEqual(["library_species.image_url"]);
+    expect(updateOrder("trap").map((c) => `${c.table}.${c.column}`)).toEqual(["library_traps.image_url"]);
+    expect(updateOrder("dungeon_feature").map((c) => `${c.table}.${c.column}`)).toEqual(["library_dungeon_features.image_url"]);
+    expect(updateOrder("puzzle").map((c) => `${c.table}.${c.column}`)).toEqual(["library_puzzles.image_url"]);
   });
 });
 

@@ -1,13 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import type { Trap, TrapInsert, TrapUpdate } from "@/types/trap.types";
+import type { LibraryTrap, Trap, TrapEntry, TrapInsert, TrapUpdate } from "@/types/trap.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
-import { TRAP_TEMPLATES } from "@/data/trapTemplates";
-import type { Ref } from "vue";
-import { computed, isRef, ref } from "vue";
+import type { MaybeRefOrGetter, Ref } from "vue";
+import { computed, isRef, ref, toValue } from "vue";
 import { storeToRefs } from "pinia";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
+import { isLibraryId, shadowByName } from "@/lib/dungeon-features/library";
+import { libraryTrapToInsert } from "@/lib/dungeon-features/libraryCopy";
 
 const QUERY_KEY = "traps";
 
@@ -110,49 +111,75 @@ export function useDeleteTrap() {
   });
 }
 
-/** Bulk-insert template traps that don't already exist (matched by name). Returns inserted count. */
-export function usePopulateTraps() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<number> => {
-      const user = getCurrentUser();
-      if (!user) throw new Error("Not authenticated");
+// ── Library (#1060) ─────────────────────────────────────────────────────────
 
-      const { data: existing, error: fetchError } = await supabase
-        .from("traps")
-        .select("id, name");
-      if (fetchError) throw fetchError;
+const LIBRARY_KEY = "library-traps";
+// Library rows change only by migration, so one fetch per hour is plenty.
+const LIBRARY_STALE_MS = 60 * 60 * 1000;
 
-      const existingByName = new Map(
-        (existing ?? []).map((t: { id: string; name: string }) => [t.name.toLowerCase(), t.id]),
-      );
+async function fetchLibraryTraps(): Promise<LibraryTrap[]> {
+  const { data, error } = await supabase.from("library_traps").select("*").order("name", { ascending: true });
+  if (error) throw error;
+  return data as LibraryTrap[];
+}
 
-      // Global (null), not the active campaign, unlike a hand-authored trap:
-      // these are generic 5e templates, and the not-already-present check
-      // below spans the DM's whole collection. Scope them and a second
-      // campaign's "Populate" would find the names taken and seed nothing.
-      const toInsert = TRAP_TEMPLATES
-        .filter((t) => !existingByName.has(t.name.toLowerCase()))
-        .map((t) => ({ ...t, user_id: user.id, campaign_id: null, image_url: null, image_focal_point: null }));
+async function fetchLibraryTrap(id: string): Promise<LibraryTrap | null> {
+  const { data, error } = await supabase.from("library_traps").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as LibraryTrap | null;
+}
 
-      const toUpdate = TRAP_TEMPLATES
-        .filter((t) => existingByName.has(t.name.toLowerCase()))
-        .map((t) => ({ id: existingByName.get(t.name.toLowerCase())!, damage_entries: t.damage_entries }));
+export function useLibraryTraps() {
+  return useQuery({ queryKey: [LIBRARY_KEY], queryFn: fetchLibraryTraps, staleTime: LIBRARY_STALE_MS });
+}
 
-      const results = await Promise.all([
-        toInsert.length
-          ? supabase.from("traps").insert(toInsert)
-          : Promise.resolve({ error: null }),
-        ...toUpdate.map(({ id, damage_entries }) =>
-          supabase.from("traps").update({ damage_entries }).eq("id", id),
-        ),
-      ]);
-
-      const firstError = results.find((r) => r.error)?.error;
-      if (firstError) throw firstError;
-
-      return toInsert.length;
+/** One library trap; held until `id` is a library id (a uuid is the DM's own). */
+export function useLibraryTrap(id: MaybeRefOrGetter<string | null | undefined>) {
+  return useQuery({
+    queryKey: computed(() => [LIBRARY_KEY, toValue(id) ?? null] as const),
+    queryFn: ({ queryKey: [, tid] }) => fetchLibraryTrap(tid!),
+    enabled: () => {
+      const v = toValue(id);
+      return !!v && isLibraryId(v);
     },
+    staleTime: LIBRARY_STALE_MS,
+  });
+}
+
+/** Every trap a DM can pick (`data`): the library's, minus any the DM has an own copy
+ *  of by name (see lib/dungeon-features/library.ts), plus all own traps. */
+export function useTrapIndex(getOptions?: () => UseTrapsOptions) {
+  const own = useTraps(getOptions);
+  const library = useLibraryTraps();
+  const data = computed<TrapEntry[] | undefined>(() => {
+    if (!own.data.value || !library.data.value) return undefined;
+    return shadowByName(library.data.value, own.data.value);
+  });
+  // Resolving a STORED id must not shadow: an encounter or a room that cites the
+  // library row still means that row when the DM also owns one of the same
+  // name. So `data` is the pick list and `byId` resolves every id either way.
+  const byId = computed(() => {
+    const map = new Map<string, TrapEntry>();
+    for (const row of library.data.value ?? []) map.set(row.id, row);
+    for (const row of own.data.value ?? []) map.set(row.id, row);
+    return map;
+  });
+  return {
+    data,
+    byId,
+    isLoading: computed(() => own.isLoading.value || library.isLoading.value),
+    error: computed(() => own.error.value ?? library.error.value),
+  };
+}
+
+/** Customize: copy a library trap into the DM's own traps, scoped to the active
+ *  campaign. Returns the new Trap. */
+export function useCloneLibraryTrap() {
+  const qc = useQueryClient();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+  return useMutation({
+    mutationFn: (trap: LibraryTrap): Promise<Trap> =>
+      createTrap(libraryTrapToInsert(trap, activeCampaignId.value)),
     onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

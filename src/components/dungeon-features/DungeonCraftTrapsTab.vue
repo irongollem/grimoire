@@ -34,7 +34,7 @@
       <BulkSelectableCard
         corner="top-right"
         :selected="isSelected(trap.id)"
-        :selecting="selecting"
+        :selecting="selecting && !isLibraryTrap(trap)"
         @toggle="toggle(trap.id)"
       >
         <RouterLink
@@ -59,6 +59,7 @@
           <div class="p-2.5 flex flex-col gap-1">
             <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
             <div class="flex items-center gap-2">
+              <LibraryBadge v-if="isLibraryTrap(trap)" />
               <span v-if="trap.cr" class="text-label text-muted-foreground">CR {{ trap.cr }}</span>
               <span v-if="trap.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
             </div>
@@ -71,7 +72,7 @@
       <BulkSelectableCard
         corner="top-right"
         :selected="isSelected(trap.id)"
-        :selecting="selecting"
+        :selecting="selecting && !isLibraryTrap(trap)"
         @toggle="toggle(trap.id)"
       >
         <EntityListRow
@@ -80,7 +81,7 @@
           :subtitle="trapSubtitle(trap)"
           :image-url="trap.image_url"
           :fallback-icon="IconTrap"
-          :tags="[trap.trap_type, ...trap.tags]"
+          :tags="isLibraryTrap(trap) ? ['Library', trap.trap_type, ...trap.tags] : [trap.trap_type, ...trap.tags]"
         />
       </BulkSelectableCard>
     </template>
@@ -88,16 +89,18 @@
 </template>
 
 <script setup lang="ts">
+import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { RouterLink, useRouter } from "vue-router";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { isLibraryTrap } from "@/lib/dungeon-features/library";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { TRAP_TYPES, TRAP_TYPE_BG } from "@/types/trap.types";
 import { useTrapsUiStore } from "@/stores/ui/traps";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { IconTrap } from "@/lib/icons";
-import type { Trap } from "@/types/trap.types";
+import type { TrapEntry } from "@/types/trap.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -107,7 +110,7 @@ import PlacedInLine from "./PlacedInLine.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
-const { data: traps, isLoading: trapsLoading } = useTraps();
+const { data: traps, isLoading: trapsLoading } = useTrapIndex();
 const trapsUi = useTrapsUiStore();
 // Filter state lives in the UI store, not local refs, so it survives
 // navigating into a trap and back without outliving the session.
@@ -117,8 +120,8 @@ const { trapsSearch, trapsFilterType } = storeToRefs(trapsUi);
 const trapIds = computed(() => (traps.value ?? []).map((t) => t.id));
 const { placedInRows } = usePlacedInRooms("trap", trapIds);
 
-const trapKey = (trap: Trap) => trap.id;
-function trapSubtitle(trap: Trap): string | null {
+const trapKey = (trap: TrapEntry) => trap.id;
+function trapSubtitle(trap: TrapEntry): string | null {
   const parts = [trap.cr ? `CR ${trap.cr}` : null, trap.trigger_type];
   return parts.filter((p): p is string => !!p).join(" · ") || null;
 }
@@ -135,6 +138,9 @@ const filteredTraps = computed(() => {
   return list;
 });
 
-// "Select all shown" reads every row passing the current filters (#875).
-const trapFilteredIds = computed(() => filteredTraps.value.map((t) => t.id));
+// "Select all shown" reads every row passing the current filters (#875). Library
+// rows are read-only and not the DM's to move, copy or delete, so never selectable.
+const trapFilteredIds = computed(() =>
+  filteredTraps.value.filter((t) => !isLibraryTrap(t)).map((t) => t.id),
+);
 </script>

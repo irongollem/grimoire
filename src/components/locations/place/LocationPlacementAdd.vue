@@ -35,8 +35,9 @@ import { IconDungeon, IconLoot, IconTable, IconTrap } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useCreateLocationPlacement } from "@/composables/locations/useLocationPlacements";
 import type { LocationPlacementWithEntity } from "@/composables/locations/useLocationPlacements";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
-import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
+import { placementColumnFor, placementTargetId } from "@/lib/dungeon-features/library";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useLootTables } from "@/composables/dungeon-features/useLootTables";
 import { LOCATION_PLACEMENT_KIND_LABELS, placementKind } from "@/types/locationPlacement.types";
@@ -60,8 +61,10 @@ const KIND_OPTIONS: SegmentedOption<LocationPlacementKind>[] = [
 // Default (browsing) scope for the picker — general + active campaign, same
 // as EncounterTraps' `pickableTraps`. Names are resolved for already-placed
 // rows via the composable's own embed, which is unaffected by scope.
-const { data: pickableTraps } = useTraps();
-const { data: dungeonFeatures } = useDungeonFeatures();
+// The index offers library rows beside the DM's own (an own row of the same name
+// hides the library one), so a library trap is placed by reference.
+const { data: pickableTraps } = useTrapIndex();
+const { data: dungeonFeatures } = useDungeonFeatureIndex();
 const { data: pickableRollTables } = useRollTables();
 const { data: pickableLootTables } = useLootTables();
 
@@ -81,7 +84,7 @@ const existingIdsByKind = computed(() => {
   };
   for (const p of placements) {
     const kind = placementKind(p);
-    const id = p.trap_id ?? p.dungeon_feature_id ?? p.roll_table_id ?? p.loot_table_id;
+    const id = placementTargetId(p) ?? p.roll_table_id ?? p.loot_table_id;
     if (id) sets[kind].add(id);
   }
   return sets;
@@ -105,8 +108,8 @@ const pickerOptions = computed<Array<{ id: string; name: string }>>(() => {
 function buildInsert(kind: LocationPlacementKind, entityId: string): LocationPlacementInsert {
   const base = { location_id: locationId };
   switch (kind) {
-    case "trap": return { ...base, trap_id: entityId };
-    case "dungeon_feature": return { ...base, dungeon_feature_id: entityId };
+    case "trap": return { ...base, [placementColumnFor("trap", entityId)]: entityId };
+    case "dungeon_feature": return { ...base, [placementColumnFor("dungeon_feature", entityId)]: entityId };
     case "roll_table": return { ...base, roll_table_id: entityId };
     case "loot_table": return { ...base, loot_table_id: entityId };
   }

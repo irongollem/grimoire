@@ -119,3 +119,14 @@ export interface Trap {
 
 export type TrapInsert = Omit<Trap, "id" | "user_id" | "created_at" | "updated_at">;
 export type TrapUpdate = Partial<TrapInsert>;
+
+/** A Grimoire-authored trap (#1060): the content columns of `Trap`, none of
+ *  the ownership. Text ids (`grimoire_hidden_pit`), never a uuid. Referenced
+ *  by placements, encounters and doors; "Customize" copies it into a `Trap`. */
+export type LibraryTrap = Omit<Trap, "id" | "user_id" | "campaign_id" | "ai_provenance"> & {
+  id: string;
+  source: string;
+};
+
+/** Anything a trap picker or list can hold: the DM's own or the library's. */
+export type TrapEntry = Trap | LibraryTrap;

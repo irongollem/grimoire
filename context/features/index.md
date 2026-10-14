@@ -203,7 +203,7 @@ a heading never appears over an empty grid.
 ### Dungeon Building
 
 - **Dungeon Craft** — tabbed hub at `/dungeon-craft` for all dungeon prep tools
-- **Dungeon Features** — secret doors, hazards, enigmas; Populate Examples bulk-insert
+- **Dungeon Features** — secret doors, hazards, enigmas; a shared Grimoire library (#1060)
 - **Traps** — full trigger/effect/detection/disable fields; interactive CR Advisor calculator (5 dimensions → CR range + XP + reference benchmarks)
 - **Puzzles** — DM controls hint reveals per-hint; `read_aloud` field; player portal receives realtime updates via Supabase Realtime; `shared_hints[]` array with per-hint Eye toggle
 - **Roll Tables** — range-based entries; overlap validation; optional Encounter entity link

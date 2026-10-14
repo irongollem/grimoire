@@ -1,7 +1,17 @@
 <template>
   <div class="flex flex-col gap-5 max-w-2xl">
+    <!-- Read-only library banner (same wording as MonsterDetail) -->
+    <LibraryReadOnlyBanner
+      v-if="library"
+      message="Read-only reference. Customize to create your own editable copy."
+      action-label="Customize"
+      busy-label="Copying…"
+      :busy="cloning"
+      @action="customize"
+    />
+
     <!-- Action bar -->
-    <div class="flex items-center justify-end gap-2">
+    <div v-else class="flex items-center justify-end gap-2">
       <AppButton variant="destructive" size="md" :icon="IconDelete" label="Delete" @click="handleDelete" />
       <AppButton
         variant="primary"
@@ -106,6 +116,16 @@
       </div>
     </div>
 
+    <!-- Authoring guidance: only a library row carries it here; an own row's notes live in the DM note box -->
+    <div v-if="library && hasNotes" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-3 py-2 border-b border-border bg-muted/20">
+        <span class="text-label-lg font-semibold text-muted-foreground">Notes</span>
+      </div>
+      <div class="p-4">
+        <RichTextViewer :content="feature.notes" />
+      </div>
+    </div>
+
     <!-- Placed In -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
@@ -123,20 +143,33 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
-import type { DungeonFeature } from "@/types/dungeonFeature.types";
+import { useCloneLibraryDungeonFeature, useDeleteDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
+import { isLibraryFeature } from "@/lib/dungeon-features/library";
+import type { DungeonFeatureEntry } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import LibraryReadOnlyBanner from "@/components/common/entity/LibraryReadOnlyBanner.vue";
 import EntityPlacements from "@/components/locations/place/EntityPlacements.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
-const props  = defineProps<{ feature: DungeonFeature }>();
+const props  = defineProps<{ feature: DungeonFeatureEntry }>();
 const route  = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
 
 const deleteMut = useDeleteDungeonFeature();
+const cloneMut = useCloneLibraryDungeonFeature();
+
+// A library feature is read-only; Customize is the one way it becomes editable.
+const library = computed(() => isLibraryFeature(props.feature));
+const cloning = computed(() => cloneMut.isPending.value);
+
+async function customize() {
+  if (!isLibraryFeature(props.feature)) return;
+  const copy = await cloneMut.mutateAsync(props.feature);
+  router.replace(`/dungeon-features/${copy.id}`);
+}
 
 function hasContent(field: string | null | undefined): boolean {
   if (!field) return false;
@@ -156,8 +189,10 @@ function hasContent(field: string | null | undefined): boolean {
 
 const hasContents    = computed(() => hasContent(props.feature.contents_description));
 const hasDescription = computed(() => hasContent(props.feature.description));
+const hasNotes      = computed(() => hasContent(props.feature.notes));
 
 async function handleDelete() {
+  if (isLibraryFeature(props.feature)) return;
   const ok = await confirm(`Delete "${props.feature.name}"? This cannot be undone.`, {
     title: "Delete Feature",
     confirmLabel: "Delete",

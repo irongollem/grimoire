@@ -3,8 +3,8 @@ import { buildRoomStack } from "./roomStack";
 import type { HiddenDoorRow, RoomStackInput } from "./roomStack";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { LocationPlacementWithEntity } from "@/composables/locations/useLocationPlacements";
-import type { Trap } from "@/types/trap.types";
-import type { DungeonFeature } from "@/types/dungeonFeature.types";
+import type { Trap, TrapEntry } from "@/types/trap.types";
+import type { DungeonFeature, DungeonFeatureEntry } from "@/types/dungeonFeature.types";
 import type { CombatantDef, Encounter } from "@/types/encounter.types";
 import type { LootPlacement } from "@/types/quest.types";
 
@@ -38,6 +38,8 @@ function placement(over: Partial<LocationPlacementWithEntity> = {}): LocationPla
     dungeon_feature_id: null,
     roll_table_id: null,
     loot_table_id: null,
+    library_trap_id: null,
+    library_dungeon_feature_id: null,
     note: null,
     sort_order: null,
     source_cell_key: null,
@@ -126,6 +128,7 @@ function encounter(over: Partial<Encounter> = {}): Encounter {
     factions: [],
     item_ids: [],
     trap_ids: [],
+    library_trap_ids: [],
     reward_currency_pools: [],
     location_id: null,
     is_finished: false,
@@ -176,6 +179,7 @@ function door(over: Partial<HiddenDoorRow> = {}): HiddenDoorRow {
     label: "behind the ash-screen",
     is_secret: true,
     dungeon_feature_id: "feature-1",
+    library_dungeon_feature_id: null,
     ...over,
   };
 }
@@ -233,6 +237,30 @@ describe("buildRoomStack", () => {
       }),
     );
     expect(rows[0]?.subtitle).toBe("Passive 15 notices it · cell 7,2 · third pew");
+  });
+
+  it("resolves a library trap placement and links to its slug page", () => {
+    const libraryTrap: TrapEntry = { ...trap({ detection_dc: 13 }), id: "grimoire_hidden_pit", source: "grimoire-dungeon-craft", name: "Hidden Pit" };
+    const rows = buildRoomStack(
+      baseInput({
+        placements: [placement({ id: "p-lib", library_trap_id: "grimoire_hidden_pit" })],
+        traps: [libraryTrap],
+      }),
+    );
+    expect(rows).toEqual([
+      { id: "trap:p-lib", kind: "trap", label: "Hidden Pit", subtitle: "Passive 13 notices it", action: "trigger", target: "/traps/grimoire_hidden_pit" },
+    ]);
+  });
+
+  it("names a secret door by the library feature it cites", () => {
+    const libraryFeature: DungeonFeatureEntry = { ...feature({ perception_dc: 14 }), id: "grimoire_secret_door", source: "grimoire-dungeon-craft", name: "Secret Door" };
+    const rows = buildRoomStack(
+      baseInput({
+        features: [libraryFeature],
+        doors: [door({ dungeon_feature_id: null, library_dungeon_feature_id: "grimoire_secret_door" })],
+      }),
+    );
+    expect(rows[0]).toMatchObject({ kind: "hidden", label: "Secret Door", subtitle: "Undiscovered · Perception DC 14" });
   });
 
   it("drops a placement whose trap id isn't in the catalogue rather than rendering a broken row", () => {

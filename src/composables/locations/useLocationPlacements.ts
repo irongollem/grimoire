@@ -3,6 +3,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { placementKind } from "@/types/locationPlacement.types";
+import { isLibraryId, placementColumnFor, placementTargetId } from "@/lib/dungeon-features/library";
 import type {
   LocationPlacement,
   LocationPlacementInsert,
@@ -57,28 +58,52 @@ function targetOf(row: {
   dungeon_feature_id?: string | null;
   roll_table_id?: string | null;
   loot_table_id?: string | null;
+  library_trap_id?: string | null;
+  library_dungeon_feature_id?: string | null;
 }): { kind: LocationPlacementKind; id: string } {
   const normalized = {
     trap_id: row.trap_id ?? null,
     dungeon_feature_id: row.dungeon_feature_id ?? null,
     roll_table_id: row.roll_table_id ?? null,
     loot_table_id: row.loot_table_id ?? null,
+    library_trap_id: row.library_trap_id ?? null,
+    library_dungeon_feature_id: row.library_dungeon_feature_id ?? null,
   };
   const kind = placementKind(normalized);
-  return { kind, id: normalized[`${kind}_id`] as string };
+  const id =
+    kind === "trap" || kind === "dungeon_feature"
+      ? placementTargetId(normalized)
+      : normalized[`${kind}_id`];
+  return { kind, id: id as string };
+}
+
+/** The placement column a (kind, id) pair lives in: a library trap or feature
+ *  has its own column beside the uuid one, the two table kinds have only one. */
+function columnForEntity(kind: LocationPlacementKind, id: string): string {
+  return kind === "trap" || kind === "dungeon_feature" ? placementColumnFor(kind, id) : `${kind}_id`;
 }
 
 async function fetchLocationPlacements(locationId: string): Promise<LocationPlacementWithEntity[]> {
   const { data, error } = await supabase
     .from("location_placements")
     .select(
-      "*, trap:traps(id, name), dungeon_feature:dungeon_features(id, name), roll_table:roll_tables(id, name), loot_table:loot_tables(id, name)",
+      "*, trap:traps(id, name), library_trap:library_traps(id, name), dungeon_feature:dungeon_features(id, name), library_dungeon_feature:library_dungeon_features(id, name), roll_table:roll_tables(id, name), loot_table:loot_tables(id, name)",
     )
     .eq("location_id", locationId)
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return data as LocationPlacementWithEntity[];
+  // A placement names one target, so exactly one of each own/library pair is
+  // non-null: fold the library embed into `trap` / `dungeon_feature` so a
+  // reader never has to know which table the name came from.
+  return (data as Array<LocationPlacementWithEntity & {
+    library_trap: { id: string; name: string } | null;
+    library_dungeon_feature: { id: string; name: string } | null;
+  }>).map(({ library_trap, library_dungeon_feature, ...row }) => ({
+    ...row,
+    trap: row.trap ?? library_trap,
+    dungeon_feature: row.dungeon_feature ?? library_dungeon_feature,
+  }));
 }
 
 /** Everywhere one entity (a trap, feature, roll table or loot table) has been
@@ -91,7 +116,7 @@ async function fetchEntityPlacements(
   const { data, error } = await supabase
     .from("location_placements")
     .select("*, location:locations(id, name, location_type)")
-    .eq(`${kind}_id`, entityId)
+    .eq(columnForEntity(kind, entityId), entityId)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return data as LocationPlacementWithLocation[];
@@ -106,11 +131,19 @@ async function fetchEntityPlacementsFor(
   entityIds: readonly string[],
 ): Promise<LocationPlacementWithLocation[]> {
   if (!entityIds.length) return [];
-  const { data, error } = await supabase
-    .from("location_placements")
-    .select("*, location:locations(id, name, location_type)")
-    .in(`${kind}_id`, entityIds)
-    .order("created_at", { ascending: true });
+  let query = supabase.from("location_placements").select("*, location:locations(id, name, location_type)");
+  if (kind === "trap" || kind === "dungeon_feature") {
+    // Own ids and library slugs sit in different columns; one OR filter reads both.
+    const own = entityIds.filter((id) => !isLibraryId(id));
+    const library = entityIds.filter(isLibraryId);
+    const clauses: string[] = [];
+    if (own.length) clauses.push(`${placementColumnFor(kind, own[0])}.in.(${own.join(",")})`);
+    if (library.length) clauses.push(`${placementColumnFor(kind, library[0])}.in.(${library.join(",")})`);
+    query = query.or(clauses.join(","));
+  } else {
+    query = query.in(`${kind}_id`, entityIds);
+  }
+  const { data, error } = await query.order("created_at", { ascending: true });
   if (error) throw error;
   return data as LocationPlacementWithLocation[];
 }

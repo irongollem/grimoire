@@ -17,6 +17,7 @@
 // they walk out with.
 
 import { placementKind } from "@/types/locationPlacement.types";
+import { featureRefOf, placementTargetId } from "@/lib/dungeon-features/library";
 import type { LocationPlacementWithEntity } from "@/composables/locations/useLocationPlacements";
 import type { Trap } from "@/types/trap.types";
 import type { DungeonFeature } from "@/types/dungeonFeature.types";
@@ -52,6 +53,7 @@ export interface HiddenDoorRow extends DoorPerspectiveRow {
   label: string;
   is_secret: boolean;
   dungeon_feature_id: string | null;
+  library_dungeon_feature_id: string | null;
 }
 
 export interface RoomStackInput {
@@ -118,7 +120,8 @@ export function buildRoomStack(input: RoomStackInput): RoomStackRow[] {
   // ── What bites: traps placed in this room ──────────────────────────────
   for (const placement of input.placements) {
     if (placement.location_id !== roomId || placementKind(placement) !== "trap") continue;
-    const trap = placement.trap_id ? trapsById.get(placement.trap_id) : undefined;
+    const trapId = placementTargetId(placement);
+    const trap = trapId ? trapsById.get(trapId) : undefined;
     if (!trap) continue;
     rows.push({
       id: `trap:${placement.id}`,
@@ -179,7 +182,8 @@ export function buildRoomStack(input: RoomStackInput): RoomStackRow[] {
   // ── What hides: this room's undiscovered secret ways out ────────────────
   for (const door of input.doors) {
     if (!door.is_secret || input.doorFound(door.id)) continue;
-    const feature = door.dungeon_feature_id ? featuresById.get(door.dungeon_feature_id) : undefined;
+    const featureId = featureRefOf(door);
+    const feature = featureId ? featuresById.get(featureId) : undefined;
     rows.push({
       id: `hidden:${door.id}`,
       kind: "hidden",

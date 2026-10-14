@@ -79,6 +79,10 @@ export const IMAGE_REFERENCES = [
   ["library_spells", ["image_url"]],
   ["library_species", ["image_url"]],
   ["library_backgrounds", ["image_url"]],
+  // Dungeon Craft library (#1060): canonical art under srd/ must never be swept.
+  ["library_traps", ["image_url"]],
+  ["library_dungeon_features", ["image_url"]],
+  ["library_puzzles", ["image_url"]],
   ["library_monster_art", ["image_url", "cutout_url"]],
   ["library_monster_art_canonical", ["image_url", "cutout_url"]],
   ["library_spell_art", ["image_url"]],

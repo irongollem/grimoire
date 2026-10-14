@@ -127,7 +127,7 @@
             <div class="prose prose-sm prose-invert max-w-none text-body text-foreground" v-html="descriptionHtml" />
           </div>
 
-          <div class="px-5 pt-4">
+          <div v-if="!isLibraryTrap(trap)" class="px-5 pt-4">
             <DmNoteBox :key="trap.id" type="trap" :id="trap.id" :label="trap.name" />
           </div>
 
@@ -143,7 +143,7 @@
         @click="emit('close')"
       >
         <IconEdit class="h-3.5 w-3.5" />
-        Edit Trap
+        {{ isLibraryTrap(trap) ? "Open" : "Edit Trap" }}
       </RouterLink>
     </div>
   </AppModal>
@@ -160,9 +160,10 @@ import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { TRAP_TYPE_BG } from "@/types/trap.types";
 import { crToXp } from "@/types/encounter.types";
-import type { Trap } from "@/types/trap.types";
+import type { TrapEntry } from "@/types/trap.types";
+import { isLibraryTrap } from "@/lib/dungeon-features/library";
 
-const props = defineProps<{ trap: Trap | null }>();
+const props = defineProps<{ trap: TrapEntry | null }>();
 const emit = defineEmits<{ close: [] }>();
 const headingId = useId();
 

@@ -259,7 +259,8 @@ import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
 import { placeRoute } from "@/lib/locations/placeRoute";
@@ -303,7 +304,8 @@ const { data: monsterMap }   = useMonstersByIds(() =>
 const monsters               = computed(() => [...monsterMap.value.values()]);
 const { data: npcs }         = useNpcs();
 const { find: findStoredItem } = useStoredItemRefs(() => props.encounter.item_ids ?? []);
-const { data: traps }        = useTraps(() => ({ includeAllScopes: true }));
+// byId resolves stored ids, library and own alike, never shadowed.
+const { byId: trapsById }    = useTrapIndex(() => ({ includeAllScopes: true }));
 const { data: allLocs }      = useAllLocations();
 
 // ── Difficulty ─────────────────────────────────────────────────────────────
@@ -312,12 +314,12 @@ const { difficulty, thresholdTiers, enemyEntries } = useEncounterDifficulty({
   factions:       computed(() => props.encounter.factions ?? []),
   partyMemberIds: computed(() => props.encounter.party_member_ids ?? []),
   companionIds:   computed(() => props.encounter.companion_ids ?? []),
-  trapIds:        computed(() => props.encounter.trap_ids ?? []),
+  trapIds:        computed(() => encounterTrapRefs(props.encounter)),
   monsters,
   npcs:           computed(() => npcs.value ?? []),
   party,
   companions,
-  allTraps: traps,
+  allTraps: computed(() => [...trapsById.value.values()]),
 });
 
 const difficultyColor = computed(
@@ -417,8 +419,8 @@ const hasLoot = computed(
 
 // ── Traps ───────────────────────────────────────────────────────────────────
 const encounterTraps = computed(() =>
-  (props.encounter.trap_ids ?? [])
-    .map((id) => (traps.value ?? []).find((t) => t.id === id))
+  encounterTrapRefs(props.encounter)
+    .map((id) => trapsById.value.get(id))
     .filter((t): t is NonNullable<typeof t> => !!t),
 );
 

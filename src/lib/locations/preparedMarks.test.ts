@@ -39,6 +39,8 @@ function placement(over: Partial<LocationPlacementWithEntity> = {}): LocationPla
     dungeon_feature_id: null,
     roll_table_id: null,
     loot_table_id: null,
+    library_trap_id: null,
+    library_dungeon_feature_id: null,
     note: null,
     sort_order: null,
     source_cell_key: null,
@@ -133,6 +135,7 @@ function puzzle(over: Partial<PuzzleRoom> = {}): PuzzleRoom {
     read_aloud: null,
     location_id: null,
     dungeon_feature_id: null,
+    library_dungeon_feature_id: null,
     created_at: "",
     updated_at: "",
     ...over,
@@ -157,6 +160,7 @@ function encounter(over: Partial<Encounter> = {}): Encounter {
     factions: [],
     item_ids: [],
     trap_ids: [],
+    library_trap_ids: [],
     reward_currency_pools: [],
     location_id: "room-1",
     is_finished: false,
@@ -218,6 +222,30 @@ describe("resolvePreparedMarks", () => {
     );
     expect(marks).toHaveLength(1);
     expect(marks[0]).toMatchObject({ kind: "trap", cell: "7,2", colour: MARK_COLOURS.trap });
+  });
+
+  it("draws a library trap placement and links to its slug page", () => {
+    const marks = resolvePreparedMarks(
+      baseInput({
+        placements: [placement({ trap_id: null, library_trap_id: "grimoire_hidden_pit", source_cell_key: "7,2" })],
+        traps: [{ ...trap(), id: "grimoire_hidden_pit", source: "grimoire-dungeon-craft", name: "Hidden Pit" }],
+      }),
+    );
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toMatchObject({ kind: "trap", label: "Hidden Pit", href: "/traps/grimoire_hidden_pit" });
+  });
+
+  it("draws a library feature placement, and a puzzle anchored to that library feature at its cell", () => {
+    const libFeature = { ...feature(), id: "grimoire_secret_door", source: "grimoire-dungeon-craft" };
+    const marks = resolvePreparedMarks(
+      baseInput({
+        placements: [placement({ id: "p3", dungeon_feature_id: null, library_dungeon_feature_id: "grimoire_secret_door", source_cell_key: "9,9" })],
+        features: [libFeature],
+        puzzles: [puzzle({ dungeon_feature_id: null, library_dungeon_feature_id: "grimoire_secret_door" })],
+      }),
+    );
+    expect(marks.find((m) => m.kind === "feature")?.href).toBe("/dungeon-features/grimoire_secret_door");
+    expect(marks.find((m) => m.kind === "puzzle")?.cell).toBe("9,9");
   });
 
   it("falls back to the room's centroid when a trap has no cell of its own", () => {

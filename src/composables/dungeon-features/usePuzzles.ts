@@ -1,13 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import type { PuzzleRoom, PuzzleInsert, PuzzleUpdate } from "@/types/puzzle.types";
+import type { LibraryPuzzle, PuzzleRoom, PuzzleInsert, PuzzleUpdate } from "@/types/puzzle.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
-import { PUZZLE_TEMPLATES } from "@/data/puzzleTemplates";
-import type { Ref } from "vue";
-import { computed, isRef, ref } from "vue";
+import type { MaybeRefOrGetter, Ref } from "vue";
+import { computed, isRef, ref, toValue } from "vue";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
+import { isLibraryId } from "@/lib/dungeon-features/library";
+import { libraryPuzzleToInsert } from "@/lib/dungeon-features/libraryCopy";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 
 const QUERY_KEY = "puzzle_rooms";
@@ -194,37 +195,49 @@ export function usePlayerVisiblePuzzle(id: string | Ref<string>) {
   });
 }
 
-/** Bulk-insert template puzzles that don't already exist (matched by name). Returns inserted count. */
-export function usePopulatePuzzles() {
+// ── Library (#1060) ─────────────────────────────────────────────────────────
+// Puzzles are copied on use, so there is no merged index: the Enigmarium lists
+// own and library puzzles side by side.
+
+const LIBRARY_KEY = "library-puzzles";
+const LIBRARY_STALE_MS = 60 * 60 * 1000;
+
+async function fetchLibraryPuzzles(): Promise<LibraryPuzzle[]> {
+  const { data, error } = await supabase.from("library_puzzles").select("*").order("name", { ascending: true });
+  if (error) throw error;
+  return data as LibraryPuzzle[];
+}
+
+async function fetchLibraryPuzzle(id: string): Promise<LibraryPuzzle | null> {
+  const { data, error } = await supabase.from("library_puzzles").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as LibraryPuzzle | null;
+}
+
+export function useLibraryPuzzles() {
+  return useQuery({ queryKey: [LIBRARY_KEY], queryFn: fetchLibraryPuzzles, staleTime: LIBRARY_STALE_MS });
+}
+
+export function useLibraryPuzzle(id: MaybeRefOrGetter<string | null | undefined>) {
+  return useQuery({
+    queryKey: computed(() => [LIBRARY_KEY, toValue(id) ?? null] as const),
+    queryFn: ({ queryKey: [, pid] }) => fetchLibraryPuzzle(pid!),
+    enabled: () => {
+      const v = toValue(id);
+      return !!v && isLibraryId(v);
+    },
+    staleTime: LIBRARY_STALE_MS,
+  });
+}
+
+/** "Use in campaign": copy a library puzzle into the active campaign as the DM's own. */
+export function useCopyLibraryPuzzleToCampaign() {
   const qc = useQueryClient();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
   return useMutation({
-    mutationFn: async (): Promise<number> => {
-      const user = getCurrentUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: existing, error: fetchError } = await supabase
-        .from("puzzle_rooms")
-        .select("id, name");
-      if (fetchError) throw fetchError;
-
-      const existingNames = new Set(
-        (existing ?? []).map((p: { id: string; name: string }) => p.name.toLowerCase()),
-      );
-
-      // campaign_id stays null: these are generic templates, and the
-      // not-already-present check below spans the DM's whole collection —
-      // scope them and a second campaign's "Populate" would find the names
-      // taken and seed nothing.
-      const toInsert = PUZZLE_TEMPLATES
-        .filter((p) => !existingNames.has(p.name.toLowerCase()))
-        .map((p) => ({ ...p, user_id: user.id, image_focal_point: null, campaign_id: null, is_shared: false, shared_hints: [], player_visible_to: [], read_aloud: null, location_id: null, dungeon_feature_id: null }));
-
-      if (!toInsert.length) return 0;
-
-      const { error } = await supabase.from("puzzle_rooms").insert(toInsert);
-      if (error) throw error;
-
-      return toInsert.length;
+    mutationFn: (puzzle: LibraryPuzzle): Promise<PuzzleRoom> => {
+      if (!activeCampaignId.value) throw new Error("Pick a campaign to use this puzzle in.");
+      return createPuzzle(libraryPuzzleToInsert(puzzle, activeCampaignId.value));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });

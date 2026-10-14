@@ -21,13 +21,12 @@
         <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">
           {{ spell.name }}
         </h3>
-        <span
+        <LibraryBadge
           v-if="spell.is_shared"
+          :label="sourceLabel"
           :title="sourceLabel"
-          class="max-w-22 shrink-0 truncate rounded border border-border bg-muted px-1 py-0.5 text-label font-bold text-muted-foreground"
-        >
-          {{ sourceLabel }}
-        </span>
+          class="max-w-22 shrink-0 truncate"
+        />
       </div>
 
       <p class="text-caption text-muted-foreground capitalize italic">
@@ -77,6 +76,7 @@
 </template>
 
 <script setup lang="ts">
+import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";

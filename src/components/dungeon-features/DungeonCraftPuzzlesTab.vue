@@ -38,7 +38,7 @@
       <BulkSelectableCard
         corner="top-right"
         :selected="isSelected(puzzle.id)"
-        :selecting="selecting"
+        :selecting="selecting && !isLibraryPuzzle(puzzle)"
         @toggle="toggle(puzzle.id)"
       >
         <RouterLink
@@ -59,6 +59,11 @@
               class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
               :class="PUZZLE_TYPE_BG[puzzle.puzzle_type]"
             >{{ puzzle.puzzle_type }}</span>
+            <LibraryBadge
+              v-if="isLibraryPuzzle(puzzle)"
+              tone="overlay"
+              class="absolute top-2 right-2"
+            />
             <span
               class="absolute bottom-2 right-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
               :class="PUZZLE_DIFFICULTY_BG[puzzle.difficulty]"
@@ -74,7 +79,7 @@
                 · {{ puzzle.skill_checks.map((s) => s.skill).join(', ') }}
               </span>
             </div>
-            <PlacedInLine :rooms="placedInRows(puzzle)" />
+            <PlacedInLine v-if="!isLibraryPuzzle(puzzle)" :rooms="placedInRows(puzzle)" />
           </div>
         </RouterLink>
       </BulkSelectableCard>
@@ -83,7 +88,7 @@
       <BulkSelectableCard
         corner="top-right"
         :selected="isSelected(puzzle.id)"
-        :selecting="selecting"
+        :selecting="selecting && !isLibraryPuzzle(puzzle)"
         @toggle="toggle(puzzle.id)"
       >
         <EntityListRow
@@ -92,7 +97,7 @@
           :subtitle="puzzleSubtitle(puzzle)"
           :image-url="puzzle.image_url"
           :fallback-icon="IconPuzzle"
-          :tags="[puzzle.puzzle_type, puzzle.difficulty]"
+          :tags="isLibraryPuzzle(puzzle) ? ['Library', puzzle.puzzle_type, puzzle.difficulty] : [puzzle.puzzle_type, puzzle.difficulty]"
         />
       </BulkSelectableCard>
     </template>
@@ -100,15 +105,17 @@
 </template>
 
 <script setup lang="ts">
+import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { RouterLink, useRouter } from "vue-router";
-import { usePuzzles } from "@/composables/dungeon-features/usePuzzles";
+import { useLibraryPuzzles, usePuzzles } from "@/composables/dungeon-features/usePuzzles";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { directRoomPlacement } from "@/lib/dungeon-features/placedIn";
 import type { PlacedInRoom } from "@/lib/dungeon-features/placedIn";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
-import type { PuzzleRoom } from "@/types/puzzle.types";
+import type { LibraryPuzzle, PuzzleRoom } from "@/types/puzzle.types";
+import { isLibraryId, shadowByName, featureRefOf } from "@/lib/dungeon-features/library";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { IconPuzzle } from "@/lib/icons";
@@ -121,29 +128,41 @@ import PlacedInLine from "./PlacedInLine.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
-const { data: puzzles, isLoading: puzzlesLoading } = usePuzzles();
+const { data: ownPuzzles, isLoading: ownLoading } = usePuzzles();
+const { data: libraryPuzzles, isLoading: libraryLoading } = useLibraryPuzzles();
+type PuzzleEntry = PuzzleRoom | LibraryPuzzle;
+// Grimoire's puzzles beside the DM's own; an own puzzle of the same name hides
+// its library original (a "Use in campaign" copy keeps the name). Library rows
+// are copied on use, so they are listed, never selected for bulk actions.
+const puzzles = computed<PuzzleEntry[] | undefined>(() =>
+  ownPuzzles.value && libraryPuzzles.value ? shadowByName(libraryPuzzles.value, ownPuzzles.value) : undefined,
+);
+const puzzlesLoading = computed(() => ownLoading.value || libraryLoading.value);
+const isLibraryPuzzle = (p: PuzzleEntry): p is LibraryPuzzle => isLibraryId(p.id);
 const puzzlesUi = usePuzzlesUiStore();
 // Filter state lives in the UI store, not local refs, so it survives
 // navigating into a puzzle and back without outliving the session.
 const { puzzlesSearch, puzzlesFilterType, puzzlesFilterDifficulty } = storeToRefs(puzzlesUi);
 
 // ── Placed in (#868, S8, frame 11) ────────────────────────────────────────────
-// Not from `location_placements` — a puzzle anchors via its own
-// `dungeon_feature_id` (draws wherever that feature is placed) or
+// Not from `location_placements` — a puzzle anchors via its own feature
+// (own or library, `featureRefOf`; draws wherever that feature is placed) or
 // `location_id` (a bare room, no cell of its own) instead of a join row.
-const hostFeatureIds = computed(
-  () => (puzzles.value ?? []).map((p) => p.dungeon_feature_id).filter((id): id is string => !!id),
+// Library puzzles have no anchor, so they show no placement.
+const hostFeatureIds = computed(() =>
+  (ownPuzzles.value ?? []).map(featureRefOf).filter((id): id is string => !!id),
 );
 const { placedInRows: placedInRowsForFeature, locationsById } = usePlacedInRooms("dungeon_feature", hostFeatureIds);
 
 function placedInRows(puzzle: PuzzleRoom): PlacedInRoom[] {
-  if (puzzle.dungeon_feature_id) return placedInRowsForFeature(puzzle.dungeon_feature_id);
+  const host = featureRefOf(puzzle);
+  if (host) return placedInRowsForFeature(host);
   if (puzzle.location_id) return [directRoomPlacement(puzzle.location_id, locationsById.value)];
   return [];
 }
 
-const puzzleKey = (puzzle: PuzzleRoom) => puzzle.id;
-function puzzleSubtitle(puzzle: PuzzleRoom): string {
+const puzzleKey = (puzzle: PuzzleEntry) => puzzle.id;
+function puzzleSubtitle(puzzle: PuzzleEntry): string {
   const hints = `${puzzle.hints.length} hint${puzzle.hints.length === 1 ? "" : "s"}`;
   return puzzle.skill_checks.length ? `${hints} · ${puzzle.skill_checks.map((s) => s.skill).join(", ")}` : hints;
 }
@@ -161,5 +180,5 @@ const filteredPuzzles = computed(() => {
 });
 
 // "Select all shown" reads every row passing the current filters (#875).
-const puzzleFilteredIds = computed(() => filteredPuzzles.value.map((p) => p.id));
+const puzzleFilteredIds = computed(() => filteredPuzzles.value.filter((p) => !isLibraryPuzzle(p)).map((p) => p.id));
 </script>

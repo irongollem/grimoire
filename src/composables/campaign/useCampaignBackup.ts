@@ -650,8 +650,9 @@ export async function executeImport(
         location_id: r(enc.location_id, idMap),
         party_member_ids: rArr(enc.party_member_ids, idMap),
         companion_ids: rArr(enc.companion_ids, idMap),
-        // item_ids (text[]: own uuid or library text id), trap_ids and combatants
-        // are kept as-is: a library id is global and must not be remapped.
+        // item_ids (text[]: own uuid or library text id), trap_ids,
+        // library_trap_ids (slugs) and combatants are kept as-is: a library
+        // id is global and must not be remapped.
         description: rMention(enc.description, idMap),
       })),
     );
@@ -770,6 +771,8 @@ export async function executeImport(
         campaign_id: newCampaignId,
         user_id: userId,
         player_visible_to: rArr(pz.player_visible_to, idMap),
+        // library_dungeon_feature_id rides along from the spread: a slug is
+        // global, so it is never remapped.
         description: rMention(pz.description, idMap),
         solution: rMention(pz.solution, idMap),
         success_outcome: rMention(pz.success_outcome, idMap),

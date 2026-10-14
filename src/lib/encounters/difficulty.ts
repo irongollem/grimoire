@@ -6,7 +6,8 @@ import type { Companion } from "@/types/companion.types";
 import type { Monster } from "@/types/monster.types";
 import type { NpcListRow } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
-import type { Trap } from "@/types/trap.types";
+import type { TrapEntry } from "@/types/trap.types";
+import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 
 /**
  * One encounter's difficulty, the same way everywhere it is shown.
@@ -19,7 +20,7 @@ import type { Trap } from "@/types/trap.types";
 
 export type DifficultySource = Pick<
   Encounter,
-  "combatants" | "factions" | "party_member_ids" | "companion_ids" | "trap_ids"
+  "combatants" | "factions" | "party_member_ids" | "companion_ids" | "trap_ids" | "library_trap_ids"
 >;
 
 export interface DifficultyLookups {
@@ -83,7 +84,7 @@ export function encounterDifficulty(source: DifficultySource, lookups: Difficult
   }
 
   const partyLevels = source.party_member_ids.map((id) => lookups.memberLevel(id) ?? UNKNOWN_MEMBER_LEVEL);
-  const hazardXp = source.trap_ids.reduce((sum, id) => sum + crToXp(lookups.trapCr(id)), 0);
+  const hazardXp = encounterTrapRefs(source).reduce((sum, id) => sum + crToXp(lookups.trapCr(id)), 0);
 
   return calculateDifficulty(
     enemyEntries,
@@ -104,7 +105,7 @@ export function difficultyLookups(rows: {
   party: readonly PartyMember[];
   characterClasses: readonly CharacterClass[];
   companions: readonly Companion[];
-  traps: readonly Trap[];
+  traps: readonly TrapEntry[];
 }): DifficultyLookups {
   const monsters = new Map(rows.monsters.map((m) => [m.id, m]));
   const npcs = new Map(rows.npcs.map((n) => [n.id, n]));

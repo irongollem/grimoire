@@ -351,8 +351,8 @@ import { usePublishedSites } from "@/composables/cartographer/usePublishedSites"
 
 import { useNotes } from "@/composables/notes/useNotes";
 import { useEncounters } from "@/composables/encounters/useEncounters";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
-import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
 import { loadUserPack, useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { loadLibraryPack, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
 import { useCampaignStore } from "@/stores/campaign";
@@ -576,16 +576,29 @@ const encounterOptions = computed(() =>
 // #804 — hazard/feature glyph resolution. `includeAllScopes` because a cell's
 // trap_id/feature_id must keep resolving even after its target is scoped out
 // of the active campaign, same rule useLocationPlacements documents.
-const { data: allTrapsData } = useTraps(() => ({ includeAllScopes: true }));
-const { data: allFeaturesData } = useDungeonFeatures(() => ({ includeAllScopes: true }));
-const trapsById = computed(() => new Map((allTrapsData.value ?? []).map((t) => [t.id, t])));
-const featuresById = computed(() => new Map((allFeaturesData.value ?? []).map((f) => [f.id, f])));
-// The pickers offer the same rows the glyph resolver reads. `includeAllScopes`
-// is right for both here: a trap is homebrew content that may legitimately be
-// personal rather than campaign-scoped, and offering a narrower list than the
-// resolver can render would let a DM see a glyph they cannot re-select.
-const trapOptions = computed(() => (allTrapsData.value ?? []).map((t) => ({ id: t.id, name: t.name })));
-const featureOptions = computed(() => (allFeaturesData.value ?? []).map((f) => ({ id: f.id, name: f.name })));
+// Pickers offer the scoped pick list (library shadowed by own rows); what a cell
+// already holds resolves through byId with every scope, so it keeps rendering
+// after its target is scoped out of the active campaign or shadowed by a copy.
+const { data: pickTrapsData } = useTrapIndex();
+const { data: pickFeaturesData } = useDungeonFeatureIndex();
+const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
+const { byId: featuresById } = useDungeonFeatureIndex(() => ({ includeAllScopes: true }));
+// The picker offers the scoped list plus whatever the selected cell already
+// holds, so an out-of-scope or shadowed value still displays and stays selectable.
+function withCurrent(
+  picked: ReadonlyArray<{ id: string; name: string }>,
+  current: { id: string; name: string } | undefined,
+): { id: string; name: string }[] {
+  const options = picked.map((r) => ({ id: r.id, name: r.name }));
+  if (current && !options.some((o) => o.id === current.id)) options.push({ id: current.id, name: current.name });
+  return options;
+}
+const trapOptions = computed(() =>
+  withCurrent(pickTrapsData.value ?? [], trapsById.value.get(linkedTrapId.value)),
+);
+const featureOptions = computed(() =>
+  withCurrent(pickFeaturesData.value ?? [], featuresById.value.get(linkedFeatureId.value)),
+);
 const cellGlyphs = computed(() => resolveCellGlyphs(metadata.value, trapsById.value, featuresById.value));
 
 // Writable computeds for the inspector's link pickers
@@ -692,9 +705,9 @@ const selectedCellLinkedNames = computed(() => {
   if (noteName) names.push(`Note: ${noteName}`);
   const encounterName = encounterOptions.value.find((o) => o.id === linkedEncounterId.value)?.name;
   if (encounterName) names.push(`Encounter: ${encounterName}`);
-  const trapName = trapOptions.value.find((o) => o.id === linkedTrapId.value)?.name;
+  const trapName = trapsById.value.get(linkedTrapId.value)?.name;
   if (trapName) names.push(`Trap: ${trapName}`);
-  const featureName = featureOptions.value.find((o) => o.id === linkedFeatureId.value)?.name;
+  const featureName = featuresById.value.get(linkedFeatureId.value)?.name;
   if (featureName) names.push(`Feature: ${featureName}`);
   return names;
 });

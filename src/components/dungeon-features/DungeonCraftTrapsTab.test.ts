@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -36,7 +36,7 @@ function trap(overrides: Partial<Trap> = {}): Trap {
 const mocks = vi.hoisted(() => ({ traps: [] as ReturnType<typeof trap>[] }));
 
 vi.mock("@/composables/dungeon-features/useTraps", () => ({
-  useTraps: () => ({ data: ref(mocks.traps), isLoading: ref(false) }),
+  useTrapIndex: () => ({ data: ref(mocks.traps), isLoading: ref(false) }),
 }));
 vi.mock("@/composables/dungeon-features/usePlacedInRooms", () => ({
   usePlacedInRooms: () => ({ placedInRows: () => [] }),
@@ -133,5 +133,35 @@ describe("DungeonCraftTrapsTab — checkbox chip placement", () => {
     const wrapper = mountTab();
     await flushMicrotasks();
     expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
+  });
+});
+
+describe("DungeonCraftTrapsTab — library traps (#1060)", () => {
+  beforeEach(() => {
+    mocks.traps = [
+      trap({ id: "6f1c1c0e-5b7a-4a3e-9d3a-0c2f6a1b9e11" }),
+      { ...trap({ id: "grimoire_hidden_pit", name: "Hidden Pit" }), source: "grimoire-dungeon-craft" } as Trap,
+    ];
+  });
+
+  it("marks library rows Library, once, and links them by slug", async () => {
+    const wrapper = mount(DungeonCraftTrapsTab, {
+      global: { plugins: [createPinia()], stubs: { CopyToCampaignDialog: true, RouterLink: RouterLinkStub } },
+    });
+    await flushMicrotasks();
+    expect(wrapper.text()).toContain("Hidden Pit");
+    expect(wrapper.text().match(/Library/g)).toHaveLength(1);
+    expect(wrapper.findAllComponents(RouterLinkStub).map((l) => l.props("to"))).toContain("/traps/grimoire_hidden_pit");
+  });
+
+  it("never lets a library row be selected for bulk actions", async () => {
+    const wrapper = mount(DungeonCraftTrapsTab, {
+      global: { plugins: [createPinia()], stubs: { CopyToCampaignDialog: true, RouterLink: RouterLinkStub } },
+    });
+    await flushMicrotasks();
+    await findExact(wrapper, "Select")?.trigger("click");
+    await flushMicrotasks();
+    const cards = wrapper.findAllComponents(BulkSelectableCard);
+    expect(cards.map((c) => c.props("selecting")).sort()).toEqual([false, true]);
   });
 });

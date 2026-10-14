@@ -61,6 +61,29 @@ export interface RollTable {
 export type RollTableInsert = Omit<RollTable, "id" | "user_id" | "created_at" | "updated_at">;
 export type RollTableUpdate = Partial<RollTableInsert>;
 
+/** A library entry (#1060): no `id` and no `encounter_id`, both minted/wired
+ *  when a DM copies the table into a campaign. */
+export interface LibraryRollTableEntry {
+  min: number;
+  max: number;
+  label: string;
+  notes: string | null;
+}
+
+/** A Grimoire-authored roll table (#1060), copied into the DM's own table on use. */
+export interface LibraryRollTable {
+  id: string;
+  name: string;
+  description: string | null;
+  dice: RollTableDie;
+  entries: LibraryRollTableEntry[];
+  tags: string[];
+  notes: string | null;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── Validation ───────────────────────────────────────────────────────────────
 
 /**

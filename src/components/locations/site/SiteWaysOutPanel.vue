@@ -98,8 +98,8 @@
             />
 
             <DoorFeatureCard
-              v-if="row.door.dungeon_feature_id && !changingFeatureIds.has(row.door.id)"
-              :feature-id="row.door.dungeon_feature_id"
+              v-if="featureRefOf(row.door) && !changingFeatureIds.has(row.door.id)"
+              :feature-id="featureRefOf(row.door)!"
             >
               <template #actions>
                 <AppButton label="Change feature" size="xs" variant="subtle" @click="startChangingFeature(row.door.id)" />
@@ -107,7 +107,7 @@
             </DoorFeatureCard>
             <div v-else class="flex flex-col gap-1.5">
               <EntityCombobox
-                :model-value="row.door.dungeon_feature_id ?? ''"
+                :model-value="featureRefOf(row.door) ?? ''"
                 :options="featureOptions"
                 placeholder="Governed by a feature…"
                 @update:model-value="(featureId) => onFeatureSelect(row.door, featureId)"
@@ -204,7 +204,8 @@ import DoorFeatureCard from "@/components/locations/place/DoorFeatureCard.vue";
 import { drawerTransition } from "@/lib/motion";
 import { IconChevronDown, IconChevronUp, IconClose, IconDoor, IconHide, IconLock } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
-import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
+import { featureRefColumns, featureRefOf } from "@/lib/dungeon-features/library";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import type { SiteDoorWithSpaces } from "@/composables/locations/useSiteDoors";
 import {
@@ -327,7 +328,9 @@ function startChangingFeature(doorId: string) {
 }
 
 // Only the Build-only edit drawer offers features to pick from.
-const { data: allFeatures } = useDungeonFeatures(() => ({ enabled: building }));
+// The index offers Grimoire's library features beside the DM's own; the same
+// Secret Door / Hidden Passage / Moving Wall filter applies to both.
+const { data: allFeatures } = useDungeonFeatureIndex(() => ({ enabled: building }));
 const connectionFeatures = computed(() =>
   (allFeatures.value ?? []).filter((f) => CONNECTION_FEATURE_TYPES.has(f.feature_type)),
 );
@@ -339,7 +342,7 @@ const featureOptions = computed(() =>
 );
 
 function onFeatureSelect(door: SiteDoorWithSpaces, featureId: string) {
-  commit(door, { dungeon_feature_id: featureId || null });
+  commit(door, featureRefColumns(featureId || null));
   if (changingFeatureIds.value.has(door.id)) {
     const next = new Set(changingFeatureIds.value);
     next.delete(door.id);

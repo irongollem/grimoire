@@ -68,6 +68,8 @@ vi.mock("@/composables/locations/useLocationPlacements", () => ({
 
 const { useMapPublish } = await import("@/composables/cartographer/useMapPublish");
 
+// An own trap id is a uuid; anything else reads as a library slug.
+const TRAP_UUID = "5b0e2f0e-8f7d-4d57-9a53-1d6f3a8f2c11";
 const space = (key: string) => ({ key, cells: [`${key},0`], signature: `sig-${key}`, nameSource: null });
 const region = (id: string, spaceId: string) => ({ id, space_location_id: spaceId });
 
@@ -115,7 +117,7 @@ describe("useMapPublish.publish", () => {
         {
           kind: "create",
           link: { cellKey: "0,0" },
-          target: { kind: "trap", id: "trap-1" },
+          target: { kind: "trap", id: TRAP_UUID },
           spaceRef: { kind: "created", spaceKey: "s:a" },
         },
         { kind: "reanchor", placement: { id: "pl-1", source_cell_key: "9,9" }, spaceRef: { kind: "existing", spaceId: "room-c" } },
@@ -157,7 +159,26 @@ describe("useMapPublish.publish", () => {
     ]);
 
     const placements = mocks.insertPlacements.mock.calls[0]![0] as { location_id: string; trap_id: string }[];
-    expect(placements).toEqual([expect.objectContaining({ location_id: hall, trap_id: "trap-1" })]);
+    expect(placements).toEqual([expect.objectContaining({ location_id: hall, trap_id: TRAP_UUID })]);
+  });
+
+  it("writes a library trap or feature into its library column, not the uuid one", async () => {
+    mocks.plan = {
+      spaces: [{ kind: "bind", space: space("s:c"), spaceId: "room-c" }],
+      ways: [],
+      placements: [
+        { kind: "create", link: { cellKey: "0,0" }, target: { kind: "trap", id: "grimoire_hidden_pit" }, spaceRef: { kind: "existing", spaceId: "room-c" } },
+        { kind: "create", link: { cellKey: "1,0" }, target: { kind: "dungeon_feature", id: "grimoire_altar" }, spaceRef: { kind: "existing", spaceId: "room-c" } },
+      ],
+      summary: {},
+    } as unknown as PublishPlan;
+    const { publish } = setup();
+    await publish();
+
+    expect(mocks.insertPlacements.mock.calls[0]![0]).toEqual([
+      { location_id: "room-c", library_trap_id: "grimoire_hidden_pit", source_cell_key: "0,0" },
+      { location_id: "room-c", library_dungeon_feature_id: "grimoire_altar", source_cell_key: "1,0" },
+    ]);
   });
 
   it("batches updates without hooks: orphan and reshape, door kind, re-anchor", async () => {

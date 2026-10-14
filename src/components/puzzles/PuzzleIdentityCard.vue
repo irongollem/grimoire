@@ -56,5 +56,11 @@ import type { PuzzleRoom } from "@/types/puzzle.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
-const { puzzle } = defineProps<{ puzzle: PuzzleRoom }>();
+// Only the identity columns, so a library puzzle (no user, no sharing) renders too.
+const { puzzle } = defineProps<{
+  puzzle: Pick<
+    PuzzleRoom,
+    "name" | "image_url" | "image_focal_point" | "puzzle_type" | "difficulty" | "tags" | "skill_checks"
+  >;
+}>();
 </script>

@@ -75,6 +75,7 @@ function makeDoor(overrides: Partial<LocationDoor> = {}): LocationDoor {
     edge_key: "0,1:N",
     derived_from: "publish",
     dungeon_feature_id: null,
+    library_dungeon_feature_id: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -90,6 +91,8 @@ function makePlacement(overrides: Partial<LocationPlacement> = {}): LocationPlac
     dungeon_feature_id: null,
     roll_table_id: null,
     loot_table_id: null,
+    library_trap_id: null,
+    library_dungeon_feature_id: null,
     note: null,
     sort_order: null,
     source_cell_key: null,
@@ -509,6 +512,35 @@ describe("planPublish — placements", () => {
     );
     expect(plan.placements).toEqual([
       { kind: "create", link, target: { kind: "trap", id: "trap-99" }, spaceRef: { kind: "existing", spaceId: "room-A" } },
+    ]);
+  });
+
+  it("creates a placement for a library trap link, and a republish of it is a no-op", () => {
+    const roomA = makeRegion({ cells: ["3,3"], space_location_id: "room-A" });
+    const spaceA = makeSpace({ key: "s:a", cells: ["3,3"], signature: roomA.cell_signature! });
+    const link = makeLink({ cellKey: "3,3", spaceKey: "s:a", metadata: { trap_id: "grimoire_hidden_pit" } });
+    const derived = makeDerived({ spaces: [spaceA], links: [link] });
+    const first = planPublish(makeInput({ derived, regions: [roomA] }));
+    expect(first.placements).toEqual([
+      { kind: "create", link, target: { kind: "trap", id: "grimoire_hidden_pit" }, spaceRef: { kind: "existing", spaceId: "room-A" } },
+    ]);
+
+    const placement = makePlacement({ library_trap_id: "grimoire_hidden_pit", location_id: "room-A", source_cell_key: "3,3" });
+    const again = planPublish(makeInput({ derived, regions: [roomA], placements: [placement] }));
+    expect(again.placements).toEqual([{ kind: "keep", placement }]);
+  });
+
+  it("re-pointing a cell from an own trap to a library trap creates the new placement and keeps the old one", () => {
+    const roomA = makeRegion({ cells: ["3,3"], space_location_id: "room-A" });
+    const spaceA = makeSpace({ key: "s:a", cells: ["3,3"], signature: roomA.cell_signature! });
+    const link = makeLink({ cellKey: "3,3", spaceKey: "s:a", metadata: { trap_id: "grimoire_hidden_pit" } });
+    const old = makePlacement({ trap_id: "trap-1", location_id: "room-A", source_cell_key: "3,3" });
+    const plan = planPublish(
+      makeInput({ derived: makeDerived({ spaces: [spaceA], links: [link] }), regions: [roomA], placements: [old] }),
+    );
+    expect(plan.placements).toEqual([
+      { kind: "keep", placement: old },
+      { kind: "create", link, target: { kind: "trap", id: "grimoire_hidden_pit" }, spaceRef: { kind: "existing", spaceId: "room-A" } },
     ]);
   });
 

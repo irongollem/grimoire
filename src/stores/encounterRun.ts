@@ -3,7 +3,7 @@ import { defineStore } from "pinia";
 import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigger, SpawnDef, WildshapeState } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { NpcListRow } from "@/types/npc.types";
-import type { Trap } from "@/types/trap.types";
+import type { TrapEntry } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
@@ -63,7 +63,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const started = ref(false); // true = initiative locked + sorted
   const events = ref<EncounterEvent[]>([]);
   const eventsFired = ref<string[]>([]);
-  const traps = ref<Trap[]>([]);
+  const traps = ref<TrapEntry[]>([]);
   const availableMonsters = ref<Monster[]>([]);
   const availableNpcs = ref<NpcListRow[]>([]);
   const pendingBroadcasts = ref<string[]>([]);
@@ -636,7 +636,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     combatants_live: RunCombatant[];
     events?: EncounterEvent[];
     events_fired?: string[];
-    traps?: Trap[];
+    traps?: TrapEntry[];
   }) {
     encounterId.value = state.encounter_id;
     encounterName.value = state.encounter_name;

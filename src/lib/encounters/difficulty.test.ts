@@ -6,7 +6,7 @@ import type { Npc } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import type { Companion } from "@/types/companion.types";
-import type { Trap } from "@/types/trap.types";
+import type { Trap, TrapEntry } from "@/types/trap.types";
 import { difficultyLookups, encounterDifficulty, type DifficultySource } from "./difficulty";
 
 function monster(id: string, cr: string): Monster {
@@ -29,7 +29,7 @@ const rows = {
 };
 
 function source(over: Partial<DifficultySource>): DifficultySource {
-  return { combatants: [], factions: DEFAULT_FACTIONS, party_member_ids: [], companion_ids: [], trap_ids: [], ...over };
+  return { combatants: [], factions: DEFAULT_FACTIONS, party_member_ids: [], companion_ids: [], trap_ids: [], library_trap_ids: [], ...over };
 }
 
 describe("encounterDifficulty", () => {
@@ -77,6 +77,18 @@ describe("encounterDifficulty", () => {
     const result = encounterDifficulty(fight, difficultyLookups({ ...rows, traps: [trap] }));
     expect(result.allyAdjustedXp).toBe(50);
     expect(result.hazardXp).toBe(200);
+  });
+
+  it("counts a library trap beside an own one", () => {
+    const own = { id: "11111111-1111-4111-8111-111111111111", cr: "1" } as unknown as Trap;
+    const library = { id: "grimoire_hidden_pit", cr: "1" } as unknown as TrapEntry;
+    const fight = source({
+      trap_ids: [own.id],
+      library_trap_ids: [library.id],
+      party_member_ids: ["a"],
+    });
+    const result = encounterDifficulty(fight, difficultyLookups({ ...rows, traps: [own, library] }));
+    expect(result.hazardXp).toBe(400);
   });
 
   it("judges an encounter with no party against one level-3 hero", () => {

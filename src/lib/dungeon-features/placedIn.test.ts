@@ -53,6 +53,8 @@ function placement(over: Partial<LocationPlacementWithLocation> = {}): LocationP
     dungeon_feature_id: null,
     roll_table_id: null,
     loot_table_id: null,
+    library_trap_id: null,
+    library_dungeon_feature_id: null,
     note: null,
     sort_order: null,
     source_cell_key: null,
@@ -71,6 +73,30 @@ describe("resolvePlacedInRooms", () => {
     ]);
     const rows = resolvePlacedInRooms([placement()], locations);
     expect(rows).toEqual([{ key: "placement-1", siteName: "Ashmouth Undercroft", roomName: "Nave of Ash", cell: null }]);
+  });
+
+  it("resolves a library trap placed in two rooms to both", () => {
+    const locations = new Map([
+      ["room-1", location({ id: "room-1", name: "Nave of Ash" })],
+      ["room-2", location({ id: "room-2", name: "Cellar" })],
+    ]);
+    const rows = resolvePlacedInRooms(
+      [
+        placement({ id: "a", trap_id: null, library_trap_id: "grimoire_hidden_pit" }),
+        placement({ id: "b", location_id: "room-2", trap_id: null, library_trap_id: "grimoire_hidden_pit" }),
+      ],
+      locations,
+    );
+    expect(rows.map((r) => r.roomName)).toEqual(["Nave of Ash", "Cellar"]);
+  });
+
+  it("resolves a library feature placement", () => {
+    const locations = new Map([["room-1", location({ id: "room-1" })]]);
+    const rows = resolvePlacedInRooms(
+      [placement({ trap_id: null, library_dungeon_feature_id: "grimoire_secret_door", source_cell_key: "3,3" })],
+      locations,
+    );
+    expect(rows[0]).toMatchObject({ roomName: "Nave of Ash", cell: "3,3" });
   });
 
   it("carries the cell through when the placement has one", () => {

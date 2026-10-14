@@ -1,7 +1,7 @@
 -- Content referential integrity — dangling shared-content references.
 --
 -- The shared library tables (library_monsters/library_spells/library_items/
--- library_species/library_backgrounds) are referenced from user data by TEXT ids with no FK (slugs
+-- library_species/library_backgrounds, and since #1060 library_traps) are referenced from user data by TEXT ids with no FK (slugs
 -- can't FK a uuid column, and species refs deliberately hold either shape).
 -- Twice now an id transition remapped most-but-not-all referrers and shipped
 -- silently:
@@ -132,6 +132,12 @@ select check_name, cnt from (
     (select count(*) from encounters e, unnest(e.item_ids) as el
        where el !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
          and not exists (select 1 from library_items li where li.id = el))
+  -- #1060: library traps sit in their own array beside trap_ids, so every
+  -- element is a library id. A trigger checks them on write; this catches a
+  -- library trap deleted or re-keyed afterwards, which no array can refuse.
+  union all select 'encounters.library_trap_ids -> library_traps',
+    (select count(*) from encounters e, unnest(e.library_trap_ids) as el
+       where not exists (select 1 from library_traps lt where lt.id = el))
 
   -- ---- jsonb referrers ----------------------------------------------------
   -- These carry shared ids inside documents rather than columns, so no schema

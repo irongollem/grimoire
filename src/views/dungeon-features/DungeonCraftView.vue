@@ -8,13 +8,6 @@
       <!-- Features tab actions -->
       <template v-if="activeTab === 'features'">
         <ListActionButton
-          :icon="IconPopulate"
-          :loading="featuresPopulate.isPending.value"
-          :label="featuresPopulateLabel"
-          :disabled="featuresPopulate.isPending.value"
-          @click="handleFeaturesPopulate"
-        />
-        <ListActionButton
           v-if="isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
@@ -31,13 +24,6 @@
 
       <!-- Traps tab actions -->
       <template v-else-if="activeTab === 'traps'">
-        <ListActionButton
-          :icon="IconPopulate"
-          :loading="trapsPopulate.isPending.value"
-          :label="trapsPopulateLabel"
-          :disabled="trapsPopulate.isPending.value"
-          @click="handleTrapsPopulate"
-        />
         <ListActionButton
           v-if="isAiEnabled"
           :icon="IconGenerate"
@@ -56,13 +42,6 @@
       <!-- Roll Tables tab actions -->
       <template v-else-if="activeTab === 'roll-tables'">
         <template v-if="!rollTablesTabRef?.selectedRollTableId && !rollTablesTabRef?.inlineNewRollTable">
-          <ListActionButton
-            :icon="IconPopulate"
-            :loading="rollTablesPopulate.isPending.value"
-            :label="rollTablesPopulateLabel"
-            :disabled="rollTablesPopulate.isPending.value"
-            @click="handleRollTablesPopulate"
-          />
           <ListActionButton
             v-if="isAiEnabled"
             :icon="IconGenerate"
@@ -117,13 +96,6 @@
       <!-- Puzzles tab actions -->
       <template v-else>
         <ListActionButton
-          :icon="IconPopulate"
-          :loading="puzzlesPopulate.isPending.value"
-          :label="puzzlesPopulateLabel"
-          :disabled="puzzlesPopulate.isPending.value"
-          @click="handlePuzzlesPopulate"
-        />
-        <ListActionButton
           v-if="isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
@@ -158,12 +130,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconGenerate, IconPopulate } from '@/lib/icons';
+import { IconAdd, IconGenerate } from '@/lib/icons';
 
-import { usePopulateDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
-import { usePopulateTraps } from "@/composables/dungeon-features/useTraps";
-import { usePopulatePuzzles } from "@/composables/dungeon-features/usePuzzles";
-import { usePopulateRollTables } from "@/composables/dungeon-features/useRollTables";
 
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
@@ -247,113 +215,5 @@ function setActiveTab(tab: Tab) {
   activeTab.value = tab;
   rollTablesTabRef.value?.closeInlineRollTable();
   router.replace({ query: tab === "features" ? {} : { tab } });
-}
-
-// ── Features populate ────────────────────────────────────────────────────────
-const featuresPopulate       = usePopulateDungeonFeatures();
-const featuresPopulateStatus = ref<"idle" | "done" | "uptodate">("idle");
-const featuresPopulatedCount = ref(0);
-const featuresPopulateError  = ref<string | null>(null);
-
-const featuresPopulateLabel = computed(() => {
-  if (featuresPopulate.isPending.value) return "Populating…";
-  if (featuresPopulateError.value) return `Error: ${featuresPopulateError.value}`;
-  if (featuresPopulateStatus.value === "done") return `Added ${featuresPopulatedCount.value} features`;
-  if (featuresPopulateStatus.value === "uptodate") return "Already up to date";
-  return "Populate Examples";
-});
-
-async function handleFeaturesPopulate() {
-  featuresPopulateStatus.value = "idle";
-  featuresPopulateError.value  = null;
-  try {
-    const count = await featuresPopulate.mutateAsync();
-    featuresPopulatedCount.value = count;
-    featuresPopulateStatus.value = count === 0 ? "uptodate" : "done";
-  } catch (e) {
-    featuresPopulateError.value = e instanceof Error ? e.message : String(e);
-  }
-  setTimeout(() => { featuresPopulateStatus.value = "idle"; featuresPopulateError.value = null; }, 8000);
-}
-
-// ── Traps populate ────────────────────────────────────────────────────────────
-const trapsPopulate       = usePopulateTraps();
-const trapsPopulateStatus = ref<"idle" | "done" | "uptodate">("idle");
-const trapsPopulatedCount = ref(0);
-const trapsPopulateError  = ref<string | null>(null);
-
-const trapsPopulateLabel = computed(() => {
-  if (trapsPopulate.isPending.value) return "Populating…";
-  if (trapsPopulateError.value) return `Error: ${trapsPopulateError.value}`;
-  if (trapsPopulateStatus.value === "done") return `Added ${trapsPopulatedCount.value} traps`;
-  if (trapsPopulateStatus.value === "uptodate") return "Already up to date";
-  return "Populate Traproom";
-});
-
-async function handleTrapsPopulate() {
-  trapsPopulateStatus.value = "idle";
-  trapsPopulateError.value  = null;
-  try {
-    const count = await trapsPopulate.mutateAsync();
-    trapsPopulatedCount.value = count;
-    trapsPopulateStatus.value = count === 0 ? "uptodate" : "done";
-  } catch (e) {
-    trapsPopulateError.value = e instanceof Error ? e.message : String(e);
-  }
-  setTimeout(() => { trapsPopulateStatus.value = "idle"; trapsPopulateError.value = null; }, 8000);
-}
-
-// ── Puzzles populate ──────────────────────────────────────────────────────────
-const puzzlesPopulate       = usePopulatePuzzles();
-const puzzlesPopulateStatus = ref<"idle" | "done" | "uptodate">("idle");
-const puzzlesPopulatedCount = ref(0);
-const puzzlesPopulateError  = ref<string | null>(null);
-
-const puzzlesPopulateLabel = computed(() => {
-  if (puzzlesPopulate.isPending.value) return "Populating…";
-  if (puzzlesPopulateError.value) return `Error: ${puzzlesPopulateError.value}`;
-  if (puzzlesPopulateStatus.value === "done") return `Added ${puzzlesPopulatedCount.value} puzzles`;
-  if (puzzlesPopulateStatus.value === "uptodate") return "Already up to date";
-  return "Populate Examples";
-});
-
-async function handlePuzzlesPopulate() {
-  puzzlesPopulateStatus.value = "idle";
-  puzzlesPopulateError.value  = null;
-  try {
-    const count = await puzzlesPopulate.mutateAsync();
-    puzzlesPopulatedCount.value = count;
-    puzzlesPopulateStatus.value = count === 0 ? "uptodate" : "done";
-  } catch (e) {
-    puzzlesPopulateError.value = e instanceof Error ? e.message : String(e);
-  }
-  setTimeout(() => { puzzlesPopulateStatus.value = "idle"; puzzlesPopulateError.value = null; }, 8000);
-}
-
-// ── Roll Tables populate ──────────────────────────────────────────────────────
-const rollTablesPopulate       = usePopulateRollTables();
-const rollTablesPopulateStatus = ref<"idle" | "done" | "uptodate">("idle");
-const rollTablesPopulatedCount = ref(0);
-const rollTablesPopulateError  = ref<string | null>(null);
-
-const rollTablesPopulateLabel = computed(() => {
-  if (rollTablesPopulate.isPending.value) return "Populating…";
-  if (rollTablesPopulateError.value) return `Error: ${rollTablesPopulateError.value}`;
-  if (rollTablesPopulateStatus.value === "done") return `Added ${rollTablesPopulatedCount.value} tables`;
-  if (rollTablesPopulateStatus.value === "uptodate") return "Already up to date";
-  return "Populate Examples";
-});
-
-async function handleRollTablesPopulate() {
-  rollTablesPopulateStatus.value = "idle";
-  rollTablesPopulateError.value  = null;
-  try {
-    const count = await rollTablesPopulate.mutateAsync();
-    rollTablesPopulatedCount.value = count;
-    rollTablesPopulateStatus.value = count === 0 ? "uptodate" : "done";
-  } catch (e) {
-    rollTablesPopulateError.value = e instanceof Error ? e.message : String(e);
-  }
-  setTimeout(() => { rollTablesPopulateStatus.value = "idle"; rollTablesPopulateError.value = null; }, 8000);
 }
 </script>

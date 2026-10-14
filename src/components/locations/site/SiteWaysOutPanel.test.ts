@@ -19,6 +19,7 @@ function door(overrides: Partial<SiteDoorWithSpaces> = {}): SiteDoorWithSpaces {
     edge_key: "0,0:N",
     derived_from: "dm",
     dungeon_feature_id: null,
+    library_dungeon_feature_id: null,
     starts_locked: false,
     lock_note: null,
     is_secret: false,
@@ -48,8 +49,9 @@ vi.mock("@/composables/locations/useLocationDoors", () => ({
   useDeleteLocationDoor: () => ({ mutate: mocks.remove }),
 }));
 vi.mock("@/composables/dungeon-features/useDungeonFeatures", () => ({
-  useDungeonFeatures: () => ({ data: ref([]) }),
+  useDungeonFeatureIndex: () => ({ data: ref([]) }),
   useDungeonFeature: () => ({ data: ref(null), isLoading: ref(false) }),
+  useLibraryDungeonFeature: () => ({ data: ref(null), isLoading: ref(false) }),
 }));
 
 const SPACES = [

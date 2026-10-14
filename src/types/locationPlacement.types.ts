@@ -7,7 +7,7 @@
 // particular carries no `campaign_id` at all (it's a user-scoped catalogue),
 // so a single-location column would make a reusable fixture single-use.
 //
-// Exactly one of the four `*_id` columns is set — a real FK each, not a
+// Exactly one of the six `*_id` columns (the two `library_*` ones are #1060) is set — a real FK each, not a
 // polymorphic (kind, ref_id) pair — enforced by the
 // `location_placements_one_target` check constraint. There is deliberately
 // no `kind` column in the database; `placementKind` below derives it for
@@ -23,6 +23,9 @@ export interface LocationPlacement {
   dungeon_feature_id: string | null;
   roll_table_id: string | null;
   loot_table_id: string | null;
+  /** Library trap / feature (#1060): referenced, not copied. Join the exclusive arc. */
+  library_trap_id: string | null;
+  library_dungeon_feature_id: string | null;
   /** DM note on what this entry is doing in this room, e.g. "triggers the
    *  portcullis at the far end" — the catalogue entry says what it is, this
    *  says what it's for here. */
@@ -42,6 +45,8 @@ export interface LocationPlacementInsert {
   dungeon_feature_id?: string | null;
   roll_table_id?: string | null;
   loot_table_id?: string | null;
+  library_trap_id?: string | null;
+  library_dungeon_feature_id?: string | null;
   note?: string | null;
   sort_order?: number | null;
   source_cell_key?: CellKey | null;
@@ -72,7 +77,7 @@ export const LOCATION_PLACEMENT_KIND_LABELS: Record<LocationPlacementKind, strin
 };
 
 /**
- * Which of the four exclusive-arc FK columns is set on a row. The database
+ * Which of the six exclusive-arc FK columns is set on a row. The database
  * enforces exactly one via `location_placements_one_target`
  * (`num_nonnulls(...) = 1`), so this always resolves for a row that actually
  * came from the table — the thrown branch only fires for a malformed literal
@@ -80,10 +85,13 @@ export const LOCATION_PLACEMENT_KIND_LABELS: Record<LocationPlacementKind, strin
  * could actually return.
  */
 export function placementKind(
-  row: Pick<LocationPlacement, "trap_id" | "dungeon_feature_id" | "roll_table_id" | "loot_table_id">,
+  row: Pick<
+    LocationPlacement,
+    "trap_id" | "dungeon_feature_id" | "roll_table_id" | "loot_table_id" | "library_trap_id" | "library_dungeon_feature_id"
+  >,
 ): LocationPlacementKind {
-  if (row.trap_id) return "trap";
-  if (row.dungeon_feature_id) return "dungeon_feature";
+  if (row.trap_id || row.library_trap_id) return "trap";
+  if (row.dungeon_feature_id || row.library_dungeon_feature_id) return "dungeon_feature";
   if (row.roll_table_id) return "roll_table";
   if (row.loot_table_id) return "loot_table";
   throw new Error("location_placements row has no target set (violates location_placements_one_target)");

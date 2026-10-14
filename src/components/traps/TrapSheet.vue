@@ -1,7 +1,17 @@
 <template>
   <div class="flex flex-col gap-5 max-w-2xl">
+    <!-- Read-only library banner (same wording as MonsterDetail) -->
+    <LibraryReadOnlyBanner
+      v-if="library"
+      message="Read-only reference. Customize to create your own editable copy."
+      action-label="Customize"
+      busy-label="Copying…"
+      :busy="cloning"
+      @action="customize"
+    />
+
     <!-- Action bar -->
-    <div class="flex items-center justify-end gap-2">
+    <div v-else class="flex items-center justify-end gap-2">
       <AppButton variant="destructive" size="md" :icon="IconDelete" label="Delete" @click="handleDelete" />
       <AppButton
         variant="primary"
@@ -142,6 +152,16 @@
       </div>
     </div>
 
+    <!-- Authoring guidance: only a library row carries it here; an own row's notes live in the DM note box -->
+    <div v-if="library && hasNotes" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-3 py-2 border-b border-border bg-muted/20">
+        <span class="text-label-lg font-semibold text-muted-foreground">Notes</span>
+      </div>
+      <div class="p-4">
+        <RichTextViewer :content="trap.notes" />
+      </div>
+    </div>
+
     <!-- Placed In -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
@@ -159,21 +179,34 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteTrap } from "@/composables/dungeon-features/useTraps";
+import { useCloneLibraryTrap, useDeleteTrap } from "@/composables/dungeon-features/useTraps";
+import { isLibraryTrap } from "@/lib/dungeon-features/library";
 import { CR_XP } from "@/types/encounter.types";
-import type { Trap } from "@/types/trap.types";
+import type { TrapEntry } from "@/types/trap.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import LibraryReadOnlyBanner from "@/components/common/entity/LibraryReadOnlyBanner.vue";
 import EntityPlacements from "@/components/locations/place/EntityPlacements.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
-const props  = defineProps<{ trap: Trap }>();
+const props  = defineProps<{ trap: TrapEntry }>();
 const route  = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
 
 const deleteMut = useDeleteTrap();
+const cloneMut = useCloneLibraryTrap();
+
+// A library trap is read-only; Customize is the one way it becomes editable.
+const library = computed(() => isLibraryTrap(props.trap));
+const cloning = computed(() => cloneMut.isPending.value);
+
+async function customize() {
+  if (!isLibraryTrap(props.trap)) return;
+  const copy = await cloneMut.mutateAsync(props.trap);
+  router.replace(`/traps/${copy.id}`);
+}
 
 const crXp = computed(() => (props.trap.cr ? CR_XP[props.trap.cr] : null));
 
@@ -194,8 +227,10 @@ function hasContent(field: string | null | undefined): boolean {
 }
 
 const hasDescription = computed(() => hasContent(props.trap.description));
+const hasNotes = computed(() => hasContent(props.trap.notes));
 
 async function handleDelete() {
+  if (isLibraryTrap(props.trap)) return;
   const ok = await confirm(`Delete "${props.trap.name}"? This cannot be undone.`, {
     title: "Delete Trap",
     confirmLabel: "Delete",

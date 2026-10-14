@@ -110,6 +110,7 @@ async function generateAndCreate() {
       campaign_id:         campaign.activeCampaignId,
       location_id:         null,
       dungeon_feature_id:  null,
+      library_dungeon_feature_id: null,
       is_shared:           false,
       shared_hints:        [],
       player_visible_to:   [],

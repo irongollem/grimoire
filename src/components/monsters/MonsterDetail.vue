@@ -29,23 +29,14 @@
   <!-- Desktop (≥md): unchanged two-column grid form -->
   <div v-else class="flex flex-col gap-5 min-w-0 max-w-full">
     <!-- Read-only library banner -->
-    <div
+    <LibraryReadOnlyBanner
       v-if="isShared"
-      class="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/50 px-4 py-2.5"
-    >
-      <p class="text-body text-muted-foreground italic">
-        Read-only reference. Customize to create your own editable copy.
-      </p>
-      <AppButton
-        variant="primary"
-        size="md"
-        class="shrink-0"
-        :disabled="cloning"
-        :icon="IconCopy"
-        :label="cloning ? 'Copying…' : 'Customize'"
-        @click="customize"
-      />
-    </div>
+      message="Read-only reference. Customize to create your own editable copy."
+      action-label="Customize"
+      busy-label="Copying…"
+      :busy="cloning"
+      @action="customize"
+    />
 
     <!-- Top bar (editable monsters only) -->
     <EntityEditorActionBar
@@ -281,6 +272,7 @@ import { useIsMobile } from "@/composables/useBreakpoint";
 import { storeToRefs } from "pinia";
 import { IconCopy, IconGenerate } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import LibraryReadOnlyBanner from "@/components/common/entity/LibraryReadOnlyBanner.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";

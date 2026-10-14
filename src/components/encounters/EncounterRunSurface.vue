@@ -13,7 +13,8 @@ import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { buildRunCombatants, legendaryActionCaps } from "@/lib/encounters/buildRunCombatants";
@@ -22,7 +23,7 @@ import type { Encounter } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { NpcListRow } from "@/types/npc.types";
-import type { Trap } from "@/types/trap.types";
+import type { TrapEntry } from "@/types/trap.types";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import EncounterRunner from "@/components/encounters/EncounterRunner.vue";
 
@@ -37,7 +38,8 @@ const { data: companions } = useCompanions();
 // 10 + Dex.
 const { acFor, isReady: acReady } = useArmorClass();
 const { data: npcs } = useNpcs();
-const { data: allTraps } = useTraps(() => ({ includeAllScopes: true }));
+// byId resolves the ids the encounter stored, library and own alike.
+const { byId: trapsById, isLoading: trapsLoading } = useTrapIndex(() => ({ includeAllScopes: true }));
 const store = useEncounterRunStore();
 const { liveState, liveStateLoaded } = useEncounterLive(id);
 
@@ -85,12 +87,12 @@ watch(fieldMonsterMap, (map) => {
   }
 });
 
-const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!party.value && !!companions.value && !!npcs.value && !!allTraps.value && acReady.value);
+const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!party.value && !!companions.value && !!npcs.value && !trapsLoading.value && acReady.value);
 
 watch(
-  [encounter, monsterMap, monstersLoading, party, companions, npcs, allTraps, liveState, liveStateLoaded, acReady],
-  ([enc, monsterRows, loadingMonsters, par, _comps, npcList, traps]) => {
-    if (!enc || loadingMonsters || !par || !npcList || !traps || !liveStateLoaded.value || !acReady.value) return;
+  [encounter, monsterMap, monstersLoading, party, companions, npcs, trapsById, trapsLoading, liveState, liveStateLoaded, acReady],
+  ([enc, monsterRows, loadingMonsters, par, _comps, npcList, traps, trapsPending]) => {
+    if (!enc || loadingMonsters || !par || !npcList || trapsPending || !liveStateLoaded.value || !acReady.value) return;
     const mons = [...monsterRows.values()];
     const live = liveState.value;
     if (live?.encounter_id === enc.id && live?.is_running) {
@@ -104,7 +106,7 @@ watch(
         combatants_live: live.combatants_live,
         events: enc.events ?? [],
         events_fired: live.events_fired ?? [],
-        traps: filterEncounterTraps(enc.trap_ids, traps),
+        traps: filterEncounterTraps(enc, traps),
       });
       store.availableMonsters = mons;
       store.availableNpcs = npcList;
@@ -114,17 +116,19 @@ watch(
       store.setBossMechanics({ lairEnabled: enc.lair_enabled, lairOwnerInstanceId });
       return;
     }
-    initStore(enc, mons, par, npcList, filterEncounterTraps(enc.trap_ids, traps));
+    initStore(enc, mons, par, npcList, filterEncounterTraps(enc, traps));
   },
   { immediate: true },
 );
 
-function filterEncounterTraps(trapIds: string[], all: Trap[]): Trap[] {
-  const ids = new Set(trapIds);
-  return all.filter((trap) => ids.has(trap.id));
+function filterEncounterTraps(enc: Encounter, all: ReadonlyMap<string, TrapEntry>): TrapEntry[] {
+  // A trap listed twice (quantity) is one card in the runner.
+  return [...new Set(encounterTrapRefs(enc))]
+    .map((id) => all.get(id))
+    .filter((trap): trap is TrapEntry => trap !== undefined);
 }
 
-function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: NpcListRow[], traps: Trap[]) {
+function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: NpcListRow[], traps: TrapEntry[]) {
   store.reset();
   store.encounterId = enc.id;
   store.encounterName = enc.name;

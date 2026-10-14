@@ -43,6 +43,7 @@
         <div class="p-2.5 flex flex-col gap-1">
           <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">{{ feature.name }}</h3>
           <div class="flex items-center gap-2">
+            <LibraryBadge v-if="isLibraryFeature(feature)" />
             <span v-if="feature.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">
               {{ feature.trigger_type }}
             </span>
@@ -61,21 +62,23 @@
         :subtitle="featureSubtitle(feature)"
         :image-url="feature.image_url"
         :fallback-icon="IconNavDungeonCraft"
-        :tags="[feature.feature_type, ...feature.tags]"
+        :tags="isLibraryFeature(feature) ? ['Library', feature.feature_type, ...feature.tags] : [feature.feature_type, ...feature.tags]"
       />
     </template>
   </DungeonCraftEntityGrid>
 </template>
 
 <script setup lang="ts">
+import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
+import { isLibraryFeature } from "@/lib/dungeon-features/library";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_BG } from "@/types/dungeonFeature.types";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { IconNavDungeonCraft } from "@/lib/icons";
-import type { DungeonFeature } from "@/types/dungeonFeature.types";
+import type { DungeonFeatureEntry } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
@@ -83,7 +86,7 @@ import PlacedInLine from "./PlacedInLine.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
-const { data: features, isLoading: featuresLoading } = useDungeonFeatures();
+const { data: features, isLoading: featuresLoading } = useDungeonFeatureIndex();
 const featuresSearch     = ref("");
 const featuresTypeFilter = ref("");
 
@@ -91,8 +94,8 @@ const featuresTypeFilter = ref("");
 const featureIds = computed(() => (features.value ?? []).map((f) => f.id));
 const { placedInRows } = usePlacedInRooms("dungeon_feature", featureIds);
 
-const featureKey = (feature: DungeonFeature) => feature.id;
-function featureSubtitle(feature: DungeonFeature): string | null {
+const featureKey = (feature: DungeonFeatureEntry) => feature.id;
+function featureSubtitle(feature: DungeonFeatureEntry): string | null {
   const parts = [feature.trigger_type, feature.perception_dc ? `Perc ${feature.perception_dc}` : null];
   return parts.filter((p): p is string => !!p).join(" · ") || null;
 }

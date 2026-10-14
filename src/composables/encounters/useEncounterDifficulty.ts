@@ -12,7 +12,8 @@ import type { CombatantDef, FactionDef } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { NpcListRow } from "@/types/npc.types";
 import type { Companion } from "@/types/companion.types";
-import type { Trap } from "@/types/trap.types";
+import type { TrapEntry } from "@/types/trap.types";
+import { splitTrapRefs } from "@/lib/dungeon-features/library";
 import type { PartyMember } from "@/types/party.types";
 
 export interface EnemyEntry {
@@ -35,12 +36,13 @@ export function useEncounterDifficulty(params: {
   factions: Ref<FactionDef[]> | ComputedRef<FactionDef[]>;
   partyMemberIds: Ref<string[]> | ComputedRef<string[]>;
   companionIds: Ref<string[]> | ComputedRef<string[]>;
+  /** Every trap the encounter cites, own and library alike (`encounterTrapRefs`). */
   trapIds: Ref<string[]> | ComputedRef<string[]>;
   monsters: Ref<Monster[]> | ComputedRef<Monster[]>;
   npcs: Ref<NpcListRow[]> | ComputedRef<NpcListRow[]>;
   party: Ref<PartyMember[] | null | undefined> | ComputedRef<PartyMember[] | null | undefined>;
   companions: Ref<Companion[] | null | undefined> | ComputedRef<Companion[] | null | undefined>;
-  allTraps: Ref<Trap[] | null | undefined> | ComputedRef<Trap[] | null | undefined>;
+  allTraps: Ref<TrapEntry[] | null | undefined> | ComputedRef<TrapEntry[] | null | undefined>;
 }) {
   const {
     combatants,
@@ -119,7 +121,7 @@ export function useEncounterDifficulty(params: {
         factions: factions.value,
         party_member_ids: partyMemberIds.value,
         companion_ids: companionIds.value,
-        trap_ids: trapIds.value,
+        ...splitTrapRefs(trapIds.value),
       },
       lookups.value,
     ),

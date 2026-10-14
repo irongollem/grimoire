@@ -19,13 +19,12 @@
           {{ monster.name }}
         </h3>
         <div class="flex shrink-0 items-center gap-1">
-          <span
+          <LibraryBadge
             v-if="monster.is_shared"
+            :label="sourceLabel"
             :title="sourceLabel"
-            class="max-w-22 truncate rounded border border-border bg-muted px-1 py-0.5 text-label font-bold text-muted-foreground"
-          >
-            {{ sourceLabel }}
-          </span>
+            class="max-w-22 truncate"
+          />
           <span
             class="min-w-8 rounded px-1.5 py-0.5 text-center text-label font-bold text-white"
             :class="challengeClass"
@@ -83,6 +82,7 @@
 </template>
 
 <script setup lang="ts">
+import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";

@@ -29,8 +29,14 @@ vi.mock("@/stores/campaign", () => ({
 }));
 vi.mock("@/composables/notes/useNotes", () => ({ useNotes: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/encounters/useEncounters", () => ({ useEncounters: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/dungeon-features/useTraps", () => ({ useTraps: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/dungeon-features/useDungeonFeatures", () => ({ useDungeonFeatures: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/dungeon-features/useTraps", () => ({
+  useTraps: () => ({ data: ref([]) }),
+  useTrapIndex: () => ({ data: ref([]), byId: ref(new Map()) }),
+}));
+vi.mock("@/composables/dungeon-features/useDungeonFeatures", () => ({
+  useDungeonFeatures: () => ({ data: ref([]) }),
+  useDungeonFeatureIndex: () => ({ data: ref([]), byId: ref(new Map()) }),
+}));
 vi.mock("@/composables/cartographer/usePublishedSites", () => ({ usePublishedSites: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/cartographer/useTilePacks", () => ({
   useTilePacks: () => ({ campaignPacks: ref([]) }),

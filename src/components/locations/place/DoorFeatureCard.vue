@@ -32,11 +32,19 @@
  */
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { useDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useDungeonFeature, useLibraryDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
+import { isLibraryId } from "@/lib/dungeon-features/library";
 
 const { featureId } = defineProps<{ featureId: string }>();
 
-const { data: feature, isLoading } = useDungeonFeature(computed(() => featureId));
+// A door cites either its own feature (uuid) or a library one (slug, #1060);
+// each read is held empty for the other shape.
+const { data: ownFeature, isLoading: ownLoading } = useDungeonFeature(
+  computed(() => (isLibraryId(featureId) ? "" : featureId)),
+);
+const { data: libraryFeature, isLoading: libraryLoading } = useLibraryDungeonFeature(() => featureId);
+const feature = computed(() => ownFeature.value ?? libraryFeature.value);
+const isLoading = computed(() => ownLoading.value || libraryLoading.value);
 
 // Never `?? 0`: an absent DC is a DC nobody set, not a DC of zero — so it is
 // dropped from the line entirely rather than printed as "DC 0".

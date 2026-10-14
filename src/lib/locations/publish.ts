@@ -19,6 +19,7 @@
 // the Rooms panel), and a placement whose cell now falls outside every
 // derived space becomes `lost-room` (stays room-level, cell key kept).
 
+import { placementTargetId } from "@/lib/dungeon-features/library";
 import type { CellKey, CellMetadata } from "@/types/dungeonMap.types";
 import type { LocationType } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
@@ -33,6 +34,9 @@ import type {
   DerivedWay,
 } from "@/cartographer/structure.types";
 
+/** The two kinds a map cell can create a placement for. */
+type PlacementTargetKind = Extract<LocationPlacementKind, "trap" | "dungeon_feature">;
+
 export interface PublishInputs {
   siteId: string;
   derived: DerivedStructure;
@@ -44,6 +48,7 @@ export interface PublishInputs {
   /** Stairs the DM has already resolved in the review: cellKey → target space id (may be a nested site). */
   stairTargets?: Readonly<Record<CellKey, string>>;
 }
+
 
 export type SpaceChange =
   | { kind: "create"; space: DerivedSpace; proposedName: string } // new room + bound region
@@ -64,7 +69,7 @@ export type WayChange =
 export type SpaceRef = { kind: "existing"; spaceId: string } | { kind: "created"; spaceKey: string };
 
 export type PlacementChange =
-  | { kind: "create"; link: DerivedLink; target: { kind: LocationPlacementKind; id: string }; spaceRef: SpaceRef } // trap_id/feature_id links with no placement anywhere in the site carrying that entity+cell
+  | { kind: "create"; link: DerivedLink; target: { kind: PlacementTargetKind; id: string }; spaceRef: SpaceRef } // trap_id/feature_id links with no placement anywhere in the site carrying that entity+cell
   | { kind: "reanchor"; placement: LocationPlacement; spaceRef: SpaceRef } // placement.source_cell_key now lies in a different space
   | { kind: "keep"; placement: LocationPlacement } // still in its room
   | { kind: "lost-room"; placement: LocationPlacement } // its cell is in no space now; stays room-level, cell kept
@@ -329,7 +334,7 @@ function planWays(input: PublishInputs, spaceIdFor: Map<string, string>): WayCha
 // ── Placements (traps, features — and the notes that ride along) ────────
 
 function entityIdOf(placement: LocationPlacement): string | null {
-  return placement.trap_id ?? placement.dungeon_feature_id ?? null;
+  return placementTargetId(placement);
 }
 
 function placementChangeCellKey(change: PlacementChange): CellKey | null {
@@ -407,7 +412,7 @@ function planPlacements(input: PublishInputs, spaceIdFor: Map<string, string>): 
 
   // Trap/feature links with no placement anywhere in the site carrying that
   // entity + cell (by the same matching rule, run in reverse) → create.
-  const fields: ReadonlyArray<[LocationPlacementKind, (m: CellMetadata) => string | undefined]> = [
+  const fields: ReadonlyArray<[PlacementTargetKind, (m: CellMetadata) => string | undefined]> = [
     ["trap", (m) => m.trap_id],
     ["dungeon_feature", (m) => m.feature_id],
   ];

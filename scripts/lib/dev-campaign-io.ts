@@ -80,6 +80,10 @@ export const SLUG_LIBRARIES = [
   { table: "library_species", column: "id" },
   { table: "library_backgrounds", column: "id" },
   { table: "library_items", column: "id" },
+  // Dungeon Craft (#1060): encounters.library_trap_ids is an array with no FK (a trigger checks it), so a slug
+  // lookup is what carries those traps along; the placement/door/puzzle columns are real FKs and follow anyway.
+  { table: "library_traps", column: "id" },
+  { table: "library_dungeon_features", column: "id" },
   { table: "library_tile_packs", column: "pack_id" },
 ];
 

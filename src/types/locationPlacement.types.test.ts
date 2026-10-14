@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { placementKind, type LocationPlacement } from "./locationPlacement.types";
 
-type TargetCols = Pick<LocationPlacement, "trap_id" | "dungeon_feature_id" | "roll_table_id" | "loot_table_id">;
+type TargetCols = Pick<LocationPlacement, "trap_id" | "dungeon_feature_id" | "roll_table_id" | "loot_table_id" | "library_trap_id" | "library_dungeon_feature_id">;
 
 function row(overrides: Partial<TargetCols> = {}): TargetCols {
   return {
@@ -9,6 +9,8 @@ function row(overrides: Partial<TargetCols> = {}): TargetCols {
     dungeon_feature_id: null,
     roll_table_id: null,
     loot_table_id: null,
+    library_trap_id: null,
+    library_dungeon_feature_id: null,
     ...overrides,
   };
 }
@@ -28,6 +30,14 @@ describe("placementKind (#788)", () => {
 
   it("resolves a loot table placement", () => {
     expect(placementKind(row({ loot_table_id: "l1" }))).toBe("loot_table");
+  });
+
+  it("resolves a library trap placement as a trap", () => {
+    expect(placementKind(row({ library_trap_id: "grimoire_hidden_pit" }))).toBe("trap");
+  });
+
+  it("resolves a library feature placement as a dungeon feature", () => {
+    expect(placementKind(row({ library_dungeon_feature_id: "grimoire_secret_door" }))).toBe("dungeon_feature");
   });
 
   it("throws for a row with no target set, rather than guessing", () => {

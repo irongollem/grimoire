@@ -1,5 +1,6 @@
 <template>
-  <PageHeader :title="isNew ? 'New Puzzle' : (puzzle?.name || 'Loading…')">
+  <LibraryPuzzleSheet v-if="libraryPuzzleId" :puzzle-id="libraryPuzzleId" />
+  <PageHeader v-else :title="isNew ? 'New Puzzle' : (puzzle?.name || 'Loading…')">
     <template #actions>
       <!-- View mode actions -->
       <template v-if="mode === 'view' && !isNew">
@@ -246,10 +247,10 @@
               <div>
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Dungeon Feature</label>
                 <EntityCombobox
-                  :model-value="form.dungeon_feature_id ?? ''"
+                  :model-value="form.featureRef ?? ''"
                   :options="pickableDungeonFeatures ?? []"
                   placeholder="None"
-                  @update:model-value="form.dungeon_feature_id = $event || null"
+                  @update:model-value="form.featureRef = $event || null"
                 />
               </div>
               <div class="col-span-2">
@@ -402,7 +403,9 @@ import PuzzleSkillChecksEditor from "@/components/puzzles/PuzzleSkillChecksEdito
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
+import { featureRefColumns, featureRefOf, isLibraryId } from "@/lib/dungeon-features/library";
+import LibraryPuzzleSheet from "@/components/puzzles/LibraryPuzzleSheet.vue";
 import type { LocationSummary } from "@/types/location.types";
 
 const route    = useRoute();
@@ -416,7 +419,10 @@ const isEdit = computed(() => !isNew.value);
 // Default to view mode for existing puzzles, edit for new
 const mode = ref<"view" | "edit">(isNew.value ? "edit" : "view");
 
-const { data: puzzle, isLoading } = usePuzzle(computed(() => id.value ?? ""));
+// A library puzzle's route carries its slug (#1060); it renders in its own
+// read-only sheet, and the owned-puzzle query below must never see a non-uuid.
+const libraryPuzzleId = computed(() => (id.value && !isNew.value && isLibraryId(id.value) ? id.value : null));
+const { data: puzzle, isLoading } = usePuzzle(computed(() => (libraryPuzzleId.value ? "" : (id.value ?? ""))));
 
 // ── Edit form state ─────────────────────────────────────────────────────────
 
@@ -434,7 +440,8 @@ const form = reactive({
   image_focal_point:   null as { x: number; y: number } | null,
   tags:                [] as string[],
   location_id:         null as string | null,
-  dungeon_feature_id:  null as string | null,
+  // A uuid (own feature) or a library slug; `featureRefColumns` splits it on save.
+  featureRef:          null as string | null,
   ai_provenance:       null as AiProvenance | null,
   // New puzzles default to the active campaign; existing ones keep whatever
   // scope they already have (#597) — overwritten below once `puzzle` loads.
@@ -443,24 +450,23 @@ const form = reactive({
 
 type LocationOption = LocationSummary & { depth: number };
 const { locationOptions } = useLocationTree();
-// Two lists, deliberately not one: `dungeonFeatures` resolves the anchor this
-// puzzle already stores, which must survive even after the DM rescopes the
-// feature to another campaign (#800) — so it stays unscoped.
-// `pickableDungeonFeatures` backs the combobox that sets a new anchor, which
-// should only ever offer this campaign's own features.
-const { data: dungeonFeatures } = useDungeonFeatures(() => ({ includeAllScopes: true }));
-const { data: pickableDungeonFeatures } = useDungeonFeatures();
+// Two lists, deliberately not one: `featuresById` resolves the anchor this
+// puzzle already stores (own or library), which must survive even after the DM
+// rescopes the feature to another campaign (#800) — so it stays unscoped.
+// `pickableDungeonFeatures` backs the combobox that sets a new anchor: this
+// campaign's features and the library's, an own copy hiding its original.
+const { byId: featuresById } = useDungeonFeatureIndex(() => ({ includeAllScopes: true }));
+const { data: pickableDungeonFeatures } = useDungeonFeatureIndex();
 
 const anchorLocation = computed(() =>
   puzzle.value?.location_id
     ? (locationOptions.value.find((l) => l.id === puzzle.value!.location_id) ?? null)
     : null,
 );
-const anchorFeature = computed(() =>
-  puzzle.value?.dungeon_feature_id
-    ? (dungeonFeatures.value?.find((f) => f.id === puzzle.value!.dungeon_feature_id) ?? null)
-    : null,
-);
+const anchorFeature = computed(() => {
+  const ref = puzzle.value ? featureRefOf(puzzle.value) : null;
+  return ref ? (featuresById.value.get(ref) ?? null) : null;
+});
 
 const aiContext = computed(() =>
   buildEntityContext([
@@ -485,7 +491,7 @@ watch(puzzle, (p) => {
   form.image_focal_point   = p.image_focal_point;
   form.tags                = [...p.tags];
   form.location_id         = p.location_id;
-  form.dungeon_feature_id  = p.dungeon_feature_id;
+  form.featureRef          = featureRefOf(p);
   form.ai_provenance       = p.ai_provenance ?? null;
   form.campaign_id         = p.campaign_id;
 }, { immediate: true });
@@ -612,7 +618,7 @@ async function save() {
       image_focal_point:   form.image_focal_point,
       tags:                form.tags,
       location_id:         form.location_id,
-      dungeon_feature_id:  form.dungeon_feature_id,
+      ...featureRefColumns(form.featureRef),
       ai_provenance:       form.ai_provenance,
       campaign_id:         form.campaign_id,
       // Widening a shared puzzle back to "all campaigns" un-shares it. Sharing

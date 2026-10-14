@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { bakeMap, computeBakedDimensions } from "@/cartographer/bake";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
+import { placementColumnFor, placementTargetId } from "@/lib/dungeon-features/library";
 import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/supabase";
 import { isQuotaExceeded } from "@/lib/quotaError";
@@ -92,7 +93,7 @@ function findReanchorCellKey(
   spaceKeyToLocationId: ReadonlyMap<string, string>,
   siteId: string,
 ): CellKey | null {
-  const entityId = placement.trap_id ?? placement.dungeon_feature_id ?? null;
+  const entityId = placementTargetId(placement);
   if (!entityId) return null;
   const roomOf = (spaceKey: string | null): string =>
     spaceKey === null ? siteId : (spaceKeyToLocationId.get(spaceKey) ?? siteId);
@@ -409,9 +410,8 @@ export function useMapPublish(opts: {
         if (change.kind === "create") {
           placementRows.push({
             location_id: resolveSpaceRef(change.spaceRef, spaceKeyToLocationId),
-            ...(change.target.kind === "trap"
-              ? { trap_id: change.target.id }
-              : { dungeon_feature_id: change.target.id }),
+            // A library slug goes in the library column, an own uuid in the uuid one.
+            [placementColumnFor(change.target.kind, change.target.id)]: change.target.id,
             source_cell_key: change.link.cellKey,
           });
         } else if (change.kind === "reanchor") {

@@ -49,6 +49,10 @@ export interface Encounter {
   factions: FactionDef[];
   item_ids: string[];
   trap_ids: string[];
+  /** Library traps (#1060), by slug id. A separate column beside `trap_ids`
+   *  because that one is uuid[] with ownership-transfer rewrites; a library id
+   *  never needs rewriting. Read both through `encounterTrapRefs`. */
+  library_trap_ids: string[];
   reward_currency_pools: RewardCurrencyPool[];
   location_id: string | null;
   is_finished: boolean;
@@ -79,15 +83,17 @@ export type EncounterListRow = Omit<Encounter, "events">;
 
 export const ENCOUNTER_LIST_COLUMNS = [
   "id", "user_id", "campaign_id", "name", "description", "party_member_ids", "companion_ids",
-  "party_member_factions", "combatants", "factions", "item_ids", "trap_ids", "reward_currency_pools", "location_id",
+  "party_member_factions", "combatants", "factions", "item_ids", "trap_ids", "library_trap_ids", "reward_currency_pools", "location_id",
   "is_finished", "lair_enabled", "lair_owner_def_id", "audio_theme", "ai_provenance",
   "created_at", "updated_at",
 ] as const satisfies readonly (keyof EncounterListRow)[];
 
 export type EncounterInsert = Omit<
   Encounter,
-  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme"
+  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme" | "library_trap_ids"
 > & {
+  /** Omit to take the column default of `{}` (#1060). */
+  library_trap_ids?: string[];
   /** Omit to take the column default of null — no audio is requested. */
   audio_theme?: string | null;
 };

@@ -91,6 +91,8 @@ export interface PuzzleRoom {
   location_id: string | null;
   /** Dungeon feature that hosts this puzzle (DM-only; nulled in the player projection) */
   dungeon_feature_id: string | null;
+  /** The same anchor when it is a library feature (#1060); at most one of the two is set. */
+  library_dungeon_feature_id: string | null;
   ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
@@ -98,3 +100,27 @@ export interface PuzzleRoom {
 
 export type PuzzleInsert = Omit<PuzzleRoom, "id" | "user_id" | "created_at" | "updated_at">;
 export type PuzzleUpdate = Partial<PuzzleInsert>;
+
+/** A Grimoire-authored puzzle (#1060): the content columns of `PuzzleRoom`,
+ *  none of the sharing state or anchors that belong to a puzzle in a campaign.
+ *  Copied into the DM's own table on use. */
+export interface LibraryPuzzle {
+  id: string;
+  name: string;
+  puzzle_type: PuzzleType;
+  difficulty: PuzzleDifficulty;
+  description: string | null;
+  read_aloud: string | null;
+  solution: string | null;
+  hints: PuzzleHint[];
+  skill_checks: PuzzleSkillCheck[];
+  success_outcome: string | null;
+  failure_consequence: string | null;
+  tags: string[];
+  notes: string | null;
+  image_url: string | null;
+  image_focal_point: { x: number; y: number } | null;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}

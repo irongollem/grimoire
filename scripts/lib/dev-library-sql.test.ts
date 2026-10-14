@@ -6,6 +6,13 @@ describe("LIBRARY_TABLES", () => {
     expect(LIBRARY_TABLES[0].table).toBe("content_sources");
   });
 
+  it("mirrors the Dungeon Craft library, unpruned because user rows reference it (#1060)", () => {
+    for (const table of ["library_traps", "library_dungeon_features", "library_puzzles", "library_roll_tables"]) {
+      const entry = LIBRARY_TABLES.find((t) => t.table === table);
+      expect(entry).toMatchObject({ key: "id", prune: false });
+    }
+  });
+
   it("never mirrors per-account art overrides or the staging queue", () => {
     const names = LIBRARY_TABLES.map((t) => t.table);
     expect(names).not.toContain("library_monster_art");

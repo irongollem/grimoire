@@ -103,16 +103,16 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import TrapPreviewModal from "@/components/traps/TrapPreviewModal.vue";
 import { crToXp } from "@/types/encounter.types";
-import type { Trap } from "@/types/trap.types";
+import type { TrapEntry } from "@/types/trap.types";
 
 const trapIds = defineModel<string[]>("trapIds", { required: true });
 const props = defineProps<{
-  allTraps: Trap[];
-  pickableTraps: Trap[];
+  allTraps: TrapEntry[];
+  pickableTraps: TrapEntry[];
 }>();
 
 const selectedId = ref("");
-const previewTrap = ref<Trap | null>(null);
+const previewTrap = ref<TrapEntry | null>(null);
 
 const trapCounts = computed(() => {
   const counts = new Map<string, number>();
@@ -124,7 +124,7 @@ const trapCounts = computed(() => {
 
 const linkedGroups = computed(() => {
   const seen = new Set<string>();
-  const groups: { trap: Trap; qty: number }[] = [];
+  const groups: { trap: TrapEntry; qty: number }[] = [];
   for (const id of trapIds.value) {
     if (seen.has(id)) continue;
     seen.add(id);

@@ -138,8 +138,8 @@ function nameOf(p: LocationPlacementWithEntity): string {
 // generator panel's own post-create navigation (RollTableGeneratorPanel).
 function hrefOf(p: LocationPlacementWithEntity): string {
   switch (kindOf(p)) {
-    case "trap": return `/traps/${p.trap_id}`;
-    case "dungeon_feature": return `/dungeon-features/${p.dungeon_feature_id}`;
+    case "trap": return `/traps/${p.trap_id ?? p.library_trap_id}`;
+    case "dungeon_feature": return `/dungeon-features/${p.dungeon_feature_id ?? p.library_dungeon_feature_id}`;
     case "roll_table": return `/roll-tables/${p.roll_table_id}`;
     case "loot_table": return `/loot-tables/${p.loot_table_id}`;
   }

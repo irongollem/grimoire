@@ -451,6 +451,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
       edge_key: door.edge_key,
       derived_from: door.derived_from,
       dungeon_feature_id: door.dungeon_feature_id,
+      library_dungeon_feature_id: door.library_dungeon_feature_id,
     };
     const handle: PlanEntityHandle = { id: door.id };
     deleteDoor.mutate(door.id, {

@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import type { DungeonFeature, DungeonFeatureInsert, DungeonFeatureUpdate } from "@/types/dungeonFeature.types";
+import type { DungeonFeature, DungeonFeatureEntry, DungeonFeatureInsert, DungeonFeatureUpdate, LibraryDungeonFeature } from "@/types/dungeonFeature.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
-import { DUNGEON_FEATURE_TEMPLATES } from "@/data/dungeonFeatureTemplates";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
-import type { Ref } from "vue";
-import { computed, isRef, ref } from "vue";
+import { isLibraryId, shadowByName } from "@/lib/dungeon-features/library";
+import { libraryFeatureToInsert } from "@/lib/dungeon-features/libraryCopy";
+import type { MaybeRefOrGetter, Ref } from "vue";
+import { computed, isRef, ref, toValue } from "vue";
 import { storeToRefs } from "pinia";
 
 // Matches the table name exactly — `useDeleteCampaign` invalidates every
@@ -134,38 +135,83 @@ export function useDeleteDungeonFeature() {
   });
 }
 
-/** Bulk-insert template features that don't already exist (matched by name). Returns inserted count. */
-export function usePopulateDungeonFeatures() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<number> => {
-      const user = getCurrentUser();
-      if (!user) throw new Error("Not authenticated");
+// ── Library (#1060) ─────────────────────────────────────────────────────────
 
-      const { data: existing, error: fetchError } = await supabase
-        .from("dungeon_features")
-        .select("name");
-      if (fetchError) throw fetchError;
+const LIBRARY_KEY = "library-dungeon-features";
+// Library rows change only by migration, so one fetch per hour is plenty.
+const LIBRARY_STALE_MS = 60 * 60 * 1000;
 
-      const existingNames = new Set(
-        (existing ?? []).map((f: { name: string }) => f.name.toLowerCase()),
-      );
+async function fetchLibraryDungeonFeatures(): Promise<LibraryDungeonFeature[]> {
+  const { data, error } = await supabase
+    .from("library_dungeon_features")
+    .select("*")
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return data as LibraryDungeonFeature[];
+}
 
-      // Global (null), not the active campaign: these are generic templates,
-      // and the not-already-present check above spans the DM's whole
-      // collection. Scope them and a second campaign's "Populate" would find
-      // the names taken and seed nothing.
-      const toInsert = DUNGEON_FEATURE_TEMPLATES
-        .filter((f) => !existingNames.has(f.name.toLowerCase()))
-        .map((f) => ({ ...f, user_id: user.id, campaign_id: null, image_url: null, image_focal_point: null }));
+async function fetchLibraryDungeonFeature(id: string): Promise<LibraryDungeonFeature | null> {
+  const { data, error } = await supabase.from("library_dungeon_features").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as LibraryDungeonFeature | null;
+}
 
-      if (!toInsert.length) return 0;
+export function useLibraryDungeonFeatures(getOptions?: () => { enabled?: boolean }) {
+  return useQuery({
+    queryKey: [LIBRARY_KEY],
+    queryFn: fetchLibraryDungeonFeatures,
+    staleTime: LIBRARY_STALE_MS,
+    enabled: () => getOptions?.().enabled ?? true,
+  });
+}
 
-      const { error } = await supabase.from("dungeon_features").insert(toInsert);
-      if (error) throw error;
-
-      return toInsert.length;
+/** One library feature; held until `id` is a library id (a uuid is the DM's own). */
+export function useLibraryDungeonFeature(id: MaybeRefOrGetter<string | null | undefined>) {
+  return useQuery({
+    queryKey: computed(() => [LIBRARY_KEY, toValue(id) ?? null] as const),
+    queryFn: ({ queryKey: [, fid] }) => fetchLibraryDungeonFeature(fid!),
+    enabled: () => {
+      const v = toValue(id);
+      return !!v && isLibraryId(v);
     },
+    staleTime: LIBRARY_STALE_MS,
+  });
+}
+
+/** Every feature a DM can pick: the library's, minus any the DM has an own
+ *  copy of by name, plus all own features. The #972 `enabled` option holds both reads. */
+export function useDungeonFeatureIndex(getOptions?: () => UseDungeonFeaturesOptions) {
+  const own = useDungeonFeatures(getOptions);
+  const library = useLibraryDungeonFeatures(getOptions);
+  const data = computed<DungeonFeatureEntry[] | undefined>(() => {
+    if (!own.data.value || !library.data.value) return undefined;
+    return shadowByName(library.data.value, own.data.value);
+  });
+  // Resolving a STORED id must not shadow: an encounter or a room that cites the
+  // library row still means that row when the DM also owns one of the same
+  // name. So `data` is the pick list and `byId` resolves every id either way.
+  const byId = computed(() => {
+    const map = new Map<string, DungeonFeatureEntry>();
+    for (const row of library.data.value ?? []) map.set(row.id, row);
+    for (const row of own.data.value ?? []) map.set(row.id, row);
+    return map;
+  });
+  return {
+    data,
+    byId,
+    isLoading: computed(() => own.isLoading.value || library.isLoading.value),
+    error: computed(() => own.error.value ?? library.error.value),
+  };
+}
+
+/** Customize: copy a library feature into the DM's own features, scoped to the
+ *  active campaign. Returns the new DungeonFeature. */
+export function useCloneLibraryDungeonFeature() {
+  const qc = useQueryClient();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+  return useMutation({
+    mutationFn: (feature: LibraryDungeonFeature): Promise<DungeonFeature> =>
+      createDungeonFeature(libraryFeatureToInsert(feature, activeCampaignId.value)),
     onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

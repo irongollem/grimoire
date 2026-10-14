@@ -102,3 +102,13 @@ export interface DungeonFeature {
 
 export type DungeonFeatureInsert = Omit<DungeonFeature, "id" | "user_id" | "created_at" | "updated_at">;
 export type DungeonFeatureUpdate = Partial<DungeonFeatureInsert>;
+
+/** A Grimoire-authored dungeon feature (#1060): the content columns of
+ *  `DungeonFeature`, none of the ownership. Text ids, never a uuid. */
+export type LibraryDungeonFeature = Omit<DungeonFeature, "id" | "user_id" | "campaign_id" | "ai_provenance"> & {
+  id: string;
+  source: string;
+};
+
+/** Anything a feature picker or list can hold: the DM's own or the library's. */
+export type DungeonFeatureEntry = DungeonFeature | LibraryDungeonFeature;

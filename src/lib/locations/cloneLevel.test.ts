@@ -82,6 +82,7 @@ function door(over: Partial<LocationDoor> = {}): LocationDoor {
     edge_key: "0,0:N",
     derived_from: "dm",
     dungeon_feature_id: "feature-1",
+    library_dungeon_feature_id: null,
     created_at: "",
     updated_at: "",
     ...over,
@@ -193,6 +194,17 @@ describe("planCloneLevel", () => {
     expect(plan.doors[0].toSourceId).toBe("room-2");
     expect(plan.doors[0].insert.edge_key).toBeNull();
     expect(plan.doors[0].insert.dungeon_feature_id).toBeNull();
+  });
+
+  it("drops a library feature citation from a cloned door too", () => {
+    const plan = planCloneLevel({
+      site,
+      rooms: [room1, room2],
+      regions: [],
+      doors: [door({ dungeon_feature_id: null, library_dungeon_feature_id: "grimoire_secret_door" })],
+    });
+    expect(plan.doors[0].insert.dungeon_feature_id).toBeNull();
+    expect(plan.doors[0].insert.library_dungeon_feature_id).toBeNull();
   });
 
   it("drops a door reaching outside this level's rooms (a vertical way to another level)", () => {

@@ -20,6 +20,7 @@
 // touching Supabase, and `useSitePrepared` is the only thing that gathers the
 // live rows this receives.
 
+import { featureRefOf, placementTargetId } from "@/lib/dungeon-features/library";
 import { centroid } from "@/lib/locations/planSvg";
 import { featureDcPhrase } from "@/lib/locations/roomStack";
 import { placeRoute } from "@/lib/locations/placeRoute";
@@ -28,9 +29,9 @@ import type { CellKey } from "@/types/dungeonMap.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import { placementKind } from "@/types/locationPlacement.types";
 import type { LocationPlacementWithEntity } from "@/composables/locations/useLocationPlacements";
-import type { Trap, HazardGlyph } from "@/types/trap.types";
+import type { TrapEntry, HazardGlyph } from "@/types/trap.types";
 import { HAZARD_GLYPH_LABELS } from "@/types/trap.types";
-import type { DungeonFeature, DungeonFeatureType, FeatureGlyph } from "@/types/dungeonFeature.types";
+import type { DungeonFeatureEntry, DungeonFeatureType, FeatureGlyph } from "@/types/dungeonFeature.types";
 import { FEATURE_GLYPH_LABELS } from "@/types/dungeonFeature.types";
 import type { PuzzleRoom } from "@/types/puzzle.types";
 import type { EncounterListRow } from "@/types/encounter.types";
@@ -180,8 +181,8 @@ export interface PreparedMarksInput {
    *  (`useSitePlacements`) — roll and loot tables are filtered out here,
    *  never drawn. */
   placements: LocationPlacementWithEntity[];
-  traps: Trap[];
-  features: DungeonFeature[];
+  traps: TrapEntry[];
+  features: DungeonFeatureEntry[];
   /** Already scoped to this site's rooms and this site's hosting features. */
   puzzles: PuzzleRoom[];
   /** Already scoped to this site's rooms. */
@@ -204,14 +205,14 @@ function roomCentroidCell(region: LocationMapRegion | undefined): CellKey | null
   return cellKey(Math.round(x - 0.5), Math.round(y - 0.5));
 }
 
-function trapSubtitle(trap: Trap): string {
+function trapSubtitle(trap: TrapEntry): string {
   const bits: string[] = [];
   if (trap.hazard_glyph) bits.push(HAZARD_GLYPH_LABELS[trap.hazard_glyph]);
   if (trap.detection_dc != null) bits.push(`DC ${trap.detection_dc}`);
   return bits.join(" · ") || "Trap";
 }
 
-function featureSubtitle(feature: DungeonFeature): string {
+function featureSubtitle(feature: DungeonFeatureEntry): string {
   const bits: string[] = [];
   if (feature.feature_glyph) bits.push(FEATURE_GLYPH_LABELS[feature.feature_glyph]);
   // Shared with `roomStack.ts`'s `featureDcPhrase` so the map layer and the
@@ -250,8 +251,9 @@ export function resolvePreparedMarks(input: PreparedMarksInput): PreparedMark[] 
   // needs the feature's own placement, not just the feature row.
   const featurePlacementByFeatureId = new Map<string, LocationPlacementWithEntity>();
   for (const placement of input.placements) {
-    if (placementKind(placement) === "dungeon_feature" && placement.dungeon_feature_id) {
-      featurePlacementByFeatureId.set(placement.dungeon_feature_id, placement);
+    const featureId = placementTargetId(placement);
+    if (placementKind(placement) === "dungeon_feature" && featureId) {
+      featurePlacementByFeatureId.set(featureId, placement);
     }
   }
 
@@ -262,7 +264,7 @@ export function resolvePreparedMarks(input: PreparedMarksInput): PreparedMark[] 
     if (kind === "roll_table" || kind === "loot_table") continue; // never drawn
 
     if (kind === "trap") {
-      const trap = trapsById.get(placement.trap_id!);
+      const trap = trapsById.get(placementTargetId(placement)!);
       if (!trap) continue;
       const cell = placement.source_cell_key ?? roomCentroidCell(regionsBySpace.get(placement.location_id));
       if (!cell) continue;
@@ -279,7 +281,7 @@ export function resolvePreparedMarks(input: PreparedMarksInput): PreparedMark[] 
         fanOffset: 0,
       });
     } else if (kind === "dungeon_feature") {
-      const feature = featuresById.get(placement.dungeon_feature_id!);
+      const feature = featuresById.get(placementTargetId(placement)!);
       if (!feature) continue;
       const isSecret = SECRET_FEATURE_TYPES.has(feature.feature_type);
       const markKind: PreparedMarkKind = isSecret ? "secret_feature" : "feature";
@@ -331,8 +333,9 @@ export function resolvePreparedMarks(input: PreparedMarksInput): PreparedMark[] 
   for (const puzzle of input.puzzles) {
     let cell: CellKey | null = null;
     let spaceId: string | null = null;
-    if (puzzle.dungeon_feature_id) {
-      const hostPlacement = featurePlacementByFeatureId.get(puzzle.dungeon_feature_id);
+    const hostFeatureId = featureRefOf(puzzle);
+    if (hostFeatureId) {
+      const hostPlacement = featurePlacementByFeatureId.get(hostFeatureId);
       if (hostPlacement) {
         spaceId = hostPlacement.location_id;
         cell = hostPlacement.source_cell_key ?? roomCentroidCell(regionsBySpace.get(hostPlacement.location_id));

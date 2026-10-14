@@ -207,10 +207,10 @@
 
         <!-- Traps & Hazards -->
         <EncounterTraps
-          :trap-ids="form.trap_ids"
-          :all-traps="allTraps ?? []"
+          :trap-ids="form.trapRefs"
+          :all-traps="allTraps"
           :pickable-traps="pickableTraps ?? []"
-          @update:trap-ids="form.trap_ids = $event"
+          @update:trap-ids="form.trapRefs = $event"
         />
 
         <!-- Calendar Pins -->
@@ -244,7 +244,8 @@ import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDif
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { encounterTrapRefs, splitTrapRefs } from "@/lib/dungeon-features/library";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
@@ -339,8 +340,9 @@ const { data: party, isLoading: partyLoading } = useActiveParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItemIndex();
-const { data: allTraps } = useTraps(() => ({ includeAllScopes: true }));
-const { data: pickableTraps } = useTraps();
+const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
+const allTraps = computed(() => [...trapsById.value.values()]);
+const { data: pickableTraps } = useTrapIndex();
 const { sendCurrencyDrop, sendItemDrop } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
 const { data: allLocations } = useAllLocations();
@@ -416,7 +418,8 @@ function toDraft(enc: Encounter | null) {
       ? cloneDraftValue(enc.factions)
       : cloneDraftValue(DEFAULT_FACTIONS),
     item_ids: [...(enc?.item_ids ?? [])],
-    trap_ids: [...(enc?.trap_ids ?? [])],
+    // Own and library traps are one list in the form; save splits them again.
+    trapRefs: enc ? encounterTrapRefs(enc) : [],
     reward_currency_pools: cloneDraftValue(
       enc?.reward_currency_pools ?? [],
     ) as RewardCurrencyPool[],
@@ -445,7 +448,7 @@ const CONFLICT_LABELS: Record<keyof EncounterDraft, string> = {
   combatants: "Combatants",
   factions: "Factions",
   item_ids: "Loot",
-  trap_ids: "Traps",
+  trapRefs: "Traps",
   reward_currency_pools: "Loot",
   events: "Events",
   lair_enabled: "Lair",
@@ -536,7 +539,7 @@ const { difficulty, thresholdTiers, enemyEntries } = useEncounterDifficulty({
   factions: computed(() => form.factions),
   partyMemberIds: computed(() => form.party_member_ids),
   companionIds: computed(() => form.companion_ids),
-  trapIds: computed(() => form.trap_ids),
+  trapIds: computed(() => form.trapRefs),
   monsters,
   npcs: computed(() => npcs.value ?? []),
   party,
@@ -562,7 +565,7 @@ function buildPayload(d: EncounterDraft) {
     combatants: d.combatants,
     factions: d.factions,
     item_ids: d.item_ids,
-    trap_ids: d.trap_ids,
+    ...splitTrapRefs(d.trapRefs),
     reward_currency_pools: d.reward_currency_pools,
     events: d.events,
     lair_enabled: d.lair_enabled,

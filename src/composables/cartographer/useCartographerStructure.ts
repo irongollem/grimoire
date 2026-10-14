@@ -24,8 +24,8 @@ import {
 import { deriveStructure, spaceContaining, structureDelta } from "@/cartographer/structure";
 import type { DerivedLink, DerivedSpace, DerivedStructure } from "@/cartographer/structure.types";
 import { useEncounters } from "@/composables/encounters/useEncounters";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
-import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
 import { useNotes } from "@/composables/notes/useNotes";
 
 // ── Pure helpers (no Vue) ───────────────────────────────────────────────────
@@ -164,13 +164,13 @@ export function useCartographerStructure(
   // uses for glyphs (`includeAllScopes`: a link must keep resolving even
   // after its target is scoped out of the active campaign).
   const { data: encountersData } = useEncounters();
-  const { data: trapsData } = useTraps(() => ({ includeAllScopes: true }));
-  const { data: featuresData } = useDungeonFeatures(() => ({ includeAllScopes: true }));
+  const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
+  const { byId: featuresById } = useDungeonFeatureIndex(() => ({ includeAllScopes: true }));
   const { data: notesData } = useNotes();
   const linkResolvers = computed<LinkResolvers>(() => ({
     encounters: new Map((encountersData.value ?? []).map((e) => [e.id, e.name])),
-    traps: new Map((trapsData.value ?? []).map((t) => [t.id, t.name])),
-    features: new Map((featuresData.value ?? []).map((f) => [f.id, f.name])),
+    traps: new Map([...trapsById.value].map(([id, t]) => [id, t.name])),
+    features: new Map([...featuresById.value].map(([id, f]) => [id, f.name])),
     notes: new Map((notesData.value ?? []).map((n) => [n.id, n.title])),
   }));
 

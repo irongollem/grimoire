@@ -80,8 +80,8 @@ import LocationLootPanel from "@/components/locations/place/LocationLootPanel.vu
 import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { IconDice, IconEncounter, IconHide, IconTrap } from "@/lib/icons";
 import { useLocationPlacements } from "@/composables/locations/useLocationPlacements";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
-import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useAssertDoorState } from "@/composables/locations/useLocationState";
@@ -115,8 +115,9 @@ const { siteId, room, regions, doors, doorState, loot, campaignId } = defineProp
 
 const roomIdRef = computed(() => room.id);
 const { data: roomPlacements } = useLocationPlacements(roomIdRef);
-const { data: traps } = useTraps();
-const { data: features } = useDungeonFeatures();
+// Resolves stored ids, library rows included.
+const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
+const { byId: featuresById } = useDungeonFeatureIndex(() => ({ includeAllScopes: true }));
 const { data: encounters } = useEncounters();
 const { data: rollTables } = useRollTables();
 
@@ -128,8 +129,8 @@ const rows = computed<RoomStackRow[]>(() =>
   buildRoomStack({
     roomId: room.id,
     placements: roomPlacements.value ?? [],
-    traps: traps.value ?? [],
-    features: features.value ?? [],
+    traps: [...trapsById.value.values()],
+    features: [...featuresById.value.values()],
     encounters: encounters.value ?? [],
     zones: zones.value,
     roomRegion: roomRegion.value,

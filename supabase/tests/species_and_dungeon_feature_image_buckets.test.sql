@@ -1,5 +1,5 @@
 -- #978: species-images (each user's folder, plus an admin-only srd/ prefix) and
--- dungeon-feature-images (each user's folder only), from migration
+-- dungeon-feature-images (each user's folder, plus srd/ since #1060), from migration
 -- 20261005144201_species_and_dungeon_feature_image_buckets.
 --
 --   1 Ada (app admin)   2 Ben (ordinary user)   3 Cal (ordinary user)
@@ -7,7 +7,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(11);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('97810000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -62,10 +62,15 @@ select throws_ok(
   $$ insert into storage.objects (bucket_id, name, owner)
      values ('dungeon-feature-images', '97810000-0000-4000-8000-000000000003/zzgrim.webp', '97810000-0000-4000-8000-000000000002') $$,
   '42501', null, 'a user cannot write another user''s dungeon-feature-images folder, whoever the owner column names');
-select pg_temp.as_user(1, true);
+-- #1060 gave dungeon features a library, so canonical art now sits under srd/
+-- here too (migration 20261014070034), admin-only to write.
 select throws_ok(
   $$ insert into storage.objects (bucket_id, name) values ('dungeon-feature-images', 'srd/zzgrim.webp') $$,
-  '42501', null, 'dungeon-feature-images has no srd/ prefix, not even for the admin');
+  '42501', null, 'a non-admin cannot write under dungeon-feature-images/srd/');
+select pg_temp.as_user(1, true);
+select lives_ok(
+  $$ insert into storage.objects (bucket_id, name) values ('dungeon-feature-images', 'srd/zzgrim.webp') $$,
+  'the admin can write under dungeon-feature-images/srd/');
 select pg_temp.as_user(2);
 select isnt_empty(
   $$ delete from storage.objects

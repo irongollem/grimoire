@@ -277,6 +277,15 @@ describe("buildCopyPlan — puzzle_rooms", () => {
     ]);
   });
 
+  it("keeps library_dungeon_feature_id: library content is valid in every campaign", () => {
+    const row = { id: "p1", dungeon_feature_id: "feat-1", library_dungeon_feature_id: "grimoire_rune_door" };
+    const { payload, dropped } = buildCopyPlan("puzzle_rooms", row, TARGET_CAMPAIGN, USER_ID, LOOKUPS);
+    expect(payload.library_dungeon_feature_id).toBe("grimoire_rune_door");
+    expect(payload.dungeon_feature_id).toBeNull();
+    expect(dropped.map((d) => d.label)).toEqual(["Dungeon feature"]);
+    expect(referencedIds("puzzle_rooms", row)).toEqual({ dungeon_features: ["feat-1"] });
+  });
+
   it("always clears player_visible_to and is_shared, silently — never in the drop report", () => {
     const row = {
       id: "p1",

@@ -30,6 +30,11 @@ export const LIBRARY_TABLES = [
   { table: "library_spells", key: "id", prune: false },
   { table: "library_monsters", key: "id", prune: false },
   { table: "library_items", key: "id", prune: false },
+  // Dungeon Craft (#1060): placements, doors, encounters and puzzles reference these by slug, so never prune.
+  { table: "library_traps", key: "id", prune: false },
+  { table: "library_dungeon_features", key: "id", prune: false },
+  { table: "library_puzzles", key: "id", prune: false },
+  { table: "library_roll_tables", key: "id", prune: false },
   { table: "library_monster_art_canonical", key: "entry_id", prune: false },
   { table: "library_spell_art_canonical", key: "entry_id", prune: false },
   { table: "library_art_defaults", key: "id", prune: true },

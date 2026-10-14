@@ -92,6 +92,7 @@ import {
 import type { LocationPlacementWithLocation } from "@/composables/locations/useLocationPlacements";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import type { LocationPlacementInsert, LocationPlacementKind } from "@/types/locationPlacement.types";
+import { placementColumnFor } from "@/lib/dungeon-features/library";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { LocationSummary } from "@/types/location.types";
 
@@ -119,8 +120,8 @@ const newLocationId = ref("");
 function buildInsert(locationId: string): LocationPlacementInsert {
   const base = { location_id: locationId };
   switch (kind) {
-    case "trap": return { ...base, trap_id: entityId };
-    case "dungeon_feature": return { ...base, dungeon_feature_id: entityId };
+    case "trap": return { ...base, [placementColumnFor("trap", entityId)]: entityId };
+    case "dungeon_feature": return { ...base, [placementColumnFor("dungeon_feature", entityId)]: entityId };
     case "roll_table": return { ...base, roll_table_id: entityId };
     case "loot_table": return { ...base, loot_table_id: entityId };
   }

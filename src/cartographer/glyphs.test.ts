@@ -65,4 +65,15 @@ describe("resolveCellGlyphs", () => {
     for (const glyph of HAZARD_GLYPHS) expect(HAZARD_GLYPH_CATEGORY[glyph]).toMatch(/^hazard/);
     for (const glyph of FEATURE_GLYPHS) expect(FEATURE_GLYPH_CATEGORY[glyph]).toMatch(/^feature/);
   });
+
+  it("resolves a library trap and a library feature by slug", () => {
+    const metadata: Record<CellKey, CellMetadata> = {
+      "1,1": { trap_id: "grimoire_hidden_pit" },
+      "2,2": { feature_id: "grimoire_altar" },
+    };
+    const traps = new Map([["grimoire_hidden_pit", { hazard_glyph: "pit" as const }]]);
+    const features = new Map([["grimoire_altar", { feature_glyph: "altar" as const }]]);
+
+    expect(resolveCellGlyphs(metadata, traps, features)).toEqual({ "1,1": "hazardPit", "2,2": "featureAltar" });
+  });
 });

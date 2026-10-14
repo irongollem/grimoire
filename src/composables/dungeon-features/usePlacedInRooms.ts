@@ -22,8 +22,8 @@ import type { LocationPlacementKind } from "@/types/locationPlacement.types";
  *  relying on a template-literal key matching the row's actual fields. */
 function targetIdOf(placement: LocationPlacementWithLocation, kind: LocationPlacementKind): string | null {
   switch (kind) {
-    case "trap": return placement.trap_id;
-    case "dungeon_feature": return placement.dungeon_feature_id;
+    case "trap": return placement.trap_id ?? placement.library_trap_id;
+    case "dungeon_feature": return placement.dungeon_feature_id ?? placement.library_dungeon_feature_id;
     case "roll_table": return placement.roll_table_id;
     case "loot_table": return placement.loot_table_id;
   }

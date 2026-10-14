@@ -66,6 +66,13 @@ describe("authorizePath — admin-only shared prefixes", () => {
     expect(authorizePath(asAdmin("class-images", "srd/wizard.webp")).allowed).toBe(true);
   });
 
+  it("lets an admin write Dungeon Craft library art under srd/ (#1060) and refuses a non-admin", () => {
+    for (const id of ["trap-images", "dungeon-feature-images", "puzzle-images"]) {
+      expect(authorizePath(asAdmin(id, "srd/pit.webp")).allowed).toBe(true);
+      expect(authorizePath(asUser(id, "srd/pit.webp")).allowed).toBe(false);
+    }
+  });
+
   it("refuses srd/ to a non-admin — acceptance criterion on #577", () => {
     expect(authorizePath(asUser("monster-images", "srd/owlbear.webp")).allowed).toBe(false);
     expect(authorizePath(asUser("spell-images", "srd/fireball.webp")).allowed).toBe(false);
@@ -79,7 +86,7 @@ describe("authorizePath — admin-only shared prefixes", () => {
     // Only monster-images, spell-images, item-images, background-images, species-images and class-images have the migration; an
     // admin writing srd/ elsewhere would create art nothing reads and nothing
     // can clean up.
-    for (const id of ["npc-portraits", "loot-images", "chronicle", "dungeon-feature-images"]) {
+    for (const id of ["npc-portraits", "loot-images", "chronicle"]) {
       expect(authorizePath(asAdmin(id, "srd/x.webp")).allowed).toBe(false);
     }
   });

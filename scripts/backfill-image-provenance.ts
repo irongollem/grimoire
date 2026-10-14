@@ -151,6 +151,9 @@ export const IMAGE_COLUMNS: readonly ImageColumn[] = [
   col("library_items", "mundane_image_url", false),
   col("library_species", "image_url", false),
   col("library_backgrounds", "image_url", false),
+  col("library_traps", "image_url", false),
+  col("library_dungeon_features", "image_url", false),
+  col("library_puzzles", "image_url", false),
   col("image_generation_jobs", "image_url"),
 ];
 

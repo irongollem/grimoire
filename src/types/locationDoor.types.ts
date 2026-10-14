@@ -102,6 +102,8 @@ export interface LocationDoor {
   derived_from: DoorProvenance;
   /** The Secret Door / Hidden Passage / Moving Wall that governs this way out. */
   dungeon_feature_id: string | null;
+  /** The same anchor when it is a library feature (#1060); at most one of the two is set. */
+  library_dungeon_feature_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -127,6 +129,7 @@ export interface LocationDoorInsert {
   /** Omit to take the column default of `'dm'`. */
   derived_from?: DoorProvenance;
   dungeon_feature_id?: string | null;
+  library_dungeon_feature_id?: string | null;
 }
 
 /** Both endpoints join `edge_key` as editable together (#884): placing a
@@ -153,5 +156,6 @@ export type LocationDoorUpdate = Partial<
     | "edge_key"
     | "derived_from"
     | "dungeon_feature_id"
+    | "library_dungeon_feature_id"
   >
 >;

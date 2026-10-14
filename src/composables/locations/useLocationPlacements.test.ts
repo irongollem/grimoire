@@ -86,4 +86,22 @@ describe("useLocationPlacements mutations invalidate the batched queries", () =>
     expect(keys()).toContainEqual(["location-placements", "site"]);
     expect(keys()).toContainEqual(["location-placements", "entity", "trap"]);
   });
+
+  it("a library trap placement invalidates its own slug key under the trap kind", () => {
+    const mutation = useCreateLocationPlacement() as unknown as {
+      onSuccess: (data: unknown, vars: unknown) => void;
+    };
+    mutation.onSuccess(undefined, { location_id: "room-1", library_trap_id: "grimoire_hidden_pit" });
+
+    expect(keys()).toContainEqual(["location-placements", "entity", "trap", "grimoire_hidden_pit"]);
+    expect(keys()).toContainEqual(["location-placements", "entity", "trap"]);
+  });
+
+  it("a library feature placement deletes under the dungeon_feature kind", () => {
+    const mutation = useDeleteEntityPlacement() as unknown as { onSuccess: (deleted: unknown) => void };
+    mutation.onSuccess({ location_id: "room-3", library_dungeon_feature_id: "grimoire_secret_door" });
+
+    expect(keys()).toContainEqual(["location-placements", "entity", "dungeon_feature", "grimoire_secret_door"]);
+    expect(keys()).toContainEqual(["location-placements", "entity", "dungeon_feature"]);
+  });
 });

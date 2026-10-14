@@ -158,7 +158,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useCompanions } from "@/composables/encounters/useCompanions";
-import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
 import { useEncounterQuestLinks } from "@/composables/quests/useQuests";
 import { useEncountersInRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useEncountersUiStore } from "@/stores/ui/encounters";
@@ -213,7 +213,7 @@ const { data: monsters } = useMonstersByIds(() => {
     (companions.value ?? []).filter((c) => fielded.has(c.id)),
   );
 });
-const { data: traps } = useTraps(() => ({ includeAllScopes: true }));
+const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
 const { data: questLinks } = useEncounterQuestLinks();
 const { isEncounterRunning } = useRunningEncounters();
 const rollTableEncounterIds = useEncountersInRollTables();
@@ -292,7 +292,7 @@ const difficultyRows = computed(() =>
     party: party.value ?? [],
     characterClasses: characterClasses.value ?? [],
     companions: companions.value ?? [],
-    traps: traps.value ?? [],
+    traps: [...trapsById.value.values()],
   }),
 );
 

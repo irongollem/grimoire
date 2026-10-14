@@ -228,6 +228,11 @@ describe("isLoopbackUrl", () => {
 });
 
 describe("IMAGE_COLUMNS", () => {
+  it("covers the Dungeon Craft library's pictures (#1060)", () => {
+    const keys = IMAGE_COLUMNS.map((c) => `${c.table}.${c.column}`);
+    for (const k of ["library_traps.image_url", "library_dungeon_features.image_url", "library_puzzles.image_url"]) expect(keys).toContain(k);
+  });
+
   it("lists each column once", () => {
     const keys = IMAGE_COLUMNS.map((c) => `${c.table}.${c.column}`);
     expect(new Set(keys).size).toBe(keys.length);
