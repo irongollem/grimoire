@@ -572,7 +572,19 @@ How it is enforced:
   notes, chat, document imports, minis, attached tile packs. The account case runs `before delete on auth.users`, because the
   cascades fire in no promised order. `transfer_campaign_ownership` uses the
   same mover, which also fixed what its inline list had dropped: site plans,
-  the site state log, session records and DM item entries.
+  the site state log, session records and DM item entries. Handing the chair
+  back moves only what was written as DM: the mover's `p_player_rows` leaves
+  the member's own character, inventory, companions and item entries alone.
+  A deleted account also passes the library monsters and traps the campaign
+  references to the owner, so encounters keep hydrating.
+- **A seat that held the chair keeps its library readable.**
+  `campaign_members.held_chair` is set when a row becomes `dm` and never
+  cleared (derived by `private.mark_held_chair`, never taken from the
+  client). `dm_library_authors()` counts current DMs and members who held the
+  chair, so the goblin a co-DM added still loads after they hand back.
+- **Catalogues.** `browse_items` and `browse_monsters` list the campaign's
+  rows whoever wrote them, plus the caller's and the owner's library, like the
+  indexes.
 - **Client.** `useCampaignStore().isOwner` gates owner-only controls.
   `useItemIndex` / `useMonsterIndex` read the campaign's rows (any author)
   plus the caller's and the owner's library (`campaignScopeFilter`). Monster

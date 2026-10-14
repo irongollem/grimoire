@@ -110,6 +110,8 @@ export function useSetMemberRole() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: [MEMBERS_KEY] }),
         queryClient.invalidateQueries({ queryKey: MY_MEMBERSHIPS_KEY }),
+        // The DM campaign lists and the DM gate read the role-scoped campaigns.
+        queryClient.invalidateQueries({ queryKey: ["campaigns"] }),
       ]);
     },
   });

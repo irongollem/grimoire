@@ -411,12 +411,12 @@ export function useQuestFilterEntities(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUEST_FILTER_ENTITIES_KEY, campaignId.value] as const),
-    queryFn: async ({ queryKey: [, cid] }): Promise<QuestFilterEntityOption[]> => {
+    queryKey: computed(() => [QUEST_FILTER_ENTITIES_KEY, campaignId.value, campaign.activeCampaign?.user_id ?? null] as const),
+    queryFn: async ({ queryKey: [, cid, ownerId] }): Promise<QuestFilterEntityOption[]> => {
       if (cid === null) throw new Error("useQuestFilterEntities fetched without a campaign");
       const user = getCurrentUser();
       if (!user) throw new Error("useQuestFilterEntities read without a signed-in user");
-      const campaignOrGlobal = campaignScopeFilter(cid, user.id, null);
+      const campaignOrGlobal = campaignScopeFilter(cid, user.id, ownerId);
       const [npcs, locations, factions] = await Promise.all([
         supabase.from("npcs").select("id, name").or(campaignOrGlobal).order("name"),
         supabase.from("locations").select("id, name").or(campaignOrGlobal).order("name"),

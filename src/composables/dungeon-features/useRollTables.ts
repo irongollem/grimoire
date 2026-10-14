@@ -9,11 +9,11 @@ import { missingSeeds } from "@/lib/dungeon-features/rollTableSeedNames";
 
 const QUERY_KEY = "roll_tables";
 
-async function fetchRollTables(campaignId: string | null): Promise<RollTable[]> {
+async function fetchRollTables(campaignId: string | null, ownerId: string | null): Promise<RollTable[]> {
   let q = supabase.from("roll_tables").select("*").order("name", { ascending: true });
   const user = getCurrentUser();
   if (!user) throw new Error("roll tables read without a signed-in user");
-  q = q.or(campaignScopeFilter(campaignId, user.id, null));
+  q = q.or(campaignScopeFilter(campaignId, user.id, ownerId));
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as RollTable[];
@@ -59,8 +59,8 @@ export function useRollTables() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
-    queryFn: ({ queryKey: [, cid] }) => fetchRollTables(cid),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, campaign.activeCampaign?.user_id ?? null] as const),
+    queryFn: ({ queryKey: [, cid, ownerId] }) => fetchRollTables(cid, ownerId),
     staleTime: 30_000,
   });
 }

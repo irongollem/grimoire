@@ -7,11 +7,11 @@ import type { LootTable, LootTableInsert, LootTableUpdate } from "@/types/lootTa
 
 const QUERY_KEY = "loot_tables";
 
-async function fetchLootTables(campaignId: string | null): Promise<LootTable[]> {
+async function fetchLootTables(campaignId: string | null, ownerId: string | null): Promise<LootTable[]> {
   let q = supabase.from("loot_tables").select("*").order("name", { ascending: true });
   const user = getCurrentUser();
   if (!user) throw new Error("loot tables read without a signed-in user");
-  q = q.or(campaignScopeFilter(campaignId, user.id, null));
+  q = q.or(campaignScopeFilter(campaignId, user.id, ownerId));
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as LootTable[];
@@ -56,8 +56,8 @@ export function useLootTables() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value] as const),
-    queryFn: ({ queryKey: [, cid] }) => fetchLootTables(cid),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, campaign.activeCampaign?.user_id ?? null] as const),
+    queryFn: ({ queryKey: [, cid, ownerId] }) => fetchLootTables(cid, ownerId),
     staleTime: 30_000,
   });
 }

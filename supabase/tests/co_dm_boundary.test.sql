@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(56);
+select plan(60);
 
 -- #590. A co-DM takes the chair on their own account: they run the owner's
 -- campaign, read and edit everything in it, read the owner's library, and
@@ -51,6 +51,9 @@ insert into public.entity_notes (user_id, campaign_id, entity_type, entity_id, c
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"They owe Durnan."}]}]}', true, false);
 insert into public.campaign_invites (campaign_id, created_by, role) values
   ('59000000-0000-4000-8000-000000000010', '59000000-0000-4000-8000-000000000001', 'dm');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset) values
+  ('59000000-0000-4000-8000-000000000029', '59000000-0000-4000-8000-000000000003', '59000000-0000-4000-8000-000000000003',
+   '59000000-0000-4000-8000-000000000010', 'Mira', '2014');
 insert into public.monsters (id, user_id, campaign_id, name) values
   ('59000000-0000-4000-8000-000000000027', '59000000-0000-4000-8000-000000000002', null, 'The co-DM''s owlbear');
 
@@ -88,6 +91,12 @@ select lives_ok(
   $$insert into public.npcs (id, user_id, campaign_id, name)
     values ('59000000-0000-4000-8000-000000000025', '59000000-0000-4000-8000-000000000002', '59000000-0000-4000-8000-000000000010', 'A co-DM''s barkeep')$$,
   'a co-DM adds content to the campaign under their own name');
+
+-- ── The catalogues list the campaign, not just the caller's rows ────────────
+select ok(
+  (public.browse_monsters(array[]::text[], '2014', '59000000-0000-4000-8000-000000000010', 'goblin', 'all', null, 48, 0, 0)::text)
+    like '%The owner''s goblin%',
+  'the Bestiary a co-DM browses holds the owner''s monsters');
 
 -- ── The owner's library: read, never write ──────────────────────────────────
 select is((select count(*)::int from public.monsters where id = '59000000-0000-4000-8000-000000000021'), 1,
@@ -198,6 +207,13 @@ values ('59000000-0000-4000-8000-000000000003', '59000000-0000-4000-8000-0000000
 select is((select written_as_dm from public.entity_notes where entity_id = 'q-rotate'), false,
   'a player''s private note is a player note, whatever the client claims');
 select set_config('request.jwt.claims', '{"sub":"59000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+update public.campaign_members set held_chair = true
+ where campaign_id = '59000000-0000-4000-8000-000000000010' and user_id = '59000000-0000-4000-8000-000000000003';
+select is(
+  (select held_chair from public.campaign_members
+    where campaign_id = '59000000-0000-4000-8000-000000000010' and user_id = '59000000-0000-4000-8000-000000000003'),
+  false,
+  'nobody marks a member as having held the chair by hand, a DM included');
 select lives_ok(
   $$update public.campaign_members set role = 'dm'
      where campaign_id = '59000000-0000-4000-8000-000000000010' and user_id = '59000000-0000-4000-8000-000000000003'$$,
@@ -218,6 +234,14 @@ select is((select count(*)::int from public.entity_notes where entity_id = 'q-ro
 update public.entity_notes set written_as_dm = false where entity_id = 'q-rotate-dm';
 select is((select written_as_dm from public.entity_notes where entity_id = 'q-rotate-dm'), true,
   'and a note''s kind never changes once written');
+select is((select user_id from public.party_members where id = '59000000-0000-4000-8000-000000000029'),
+  '59000000-0000-4000-8000-000000000003'::uuid,
+  'handing the chair back leaves the character they play theirs');
+select is(
+  (select held_chair from public.campaign_members
+    where campaign_id = '59000000-0000-4000-8000-000000000010' and user_id = '59000000-0000-4000-8000-000000000003'),
+  true,
+  'a player who sat in the chair is remembered as having held it');
 select lives_ok(
   $$delete from public.campaign_members
      where campaign_id = '59000000-0000-4000-8000-000000000010' and user_id = '59000000-0000-4000-8000-000000000002'$$,

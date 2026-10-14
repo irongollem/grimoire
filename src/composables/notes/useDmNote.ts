@@ -148,11 +148,16 @@ export function useDmNote(subject: MaybeRefOrGetter<DmNoteSubject | null>) {
     const store = dmNoteEntry(snapshot.type).store;
     if (store.kind !== "column" || !snapshot.id) return;
     const value = isBlankNote(snapshot.content) ? null : snapshot.content;
-    const { error } = await supabase
+    // Ask for the row back: a note on a personal-library row another DM
+    // authored matches nothing under RLS and raises no error, which would
+    // otherwise read as "Saved".
+    const { data, error } = await supabase
       .from(store.table)
       .update({ [store.column]: value })
-      .eq("id", snapshot.id);
+      .eq("id", snapshot.id)
+      .select("id");
     if (error) throw error;
+    if (data.length === 0) throw new Error("You can read this note but not change it.");
     // Only the note's own read is refreshed. Every screen that shows a DM note
     // reads it here, so refetching the entity's lists after each autosave would
     // cost a full list read every few seconds of typing at the table.

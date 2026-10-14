@@ -94,7 +94,7 @@ export function getPinnableDescendants(
 
 const QUERY_KEY = "locations";
 
-async function fetchLocations(campaignId: string, parentId: string | null): Promise<Location[]> {
+async function fetchLocations(campaignId: string, ownerId: string | null, parentId: string | null): Promise<Location[]> {
   // `campaign_id IS NULL` means "every campaign" everywhere else DM content is
   // scoped (items, spells, species, monsters, traps, puzzles) — this table had
   // never picked that convention up, which is why the handful of existing
@@ -108,7 +108,7 @@ async function fetchLocations(campaignId: string, parentId: string | null): Prom
   let query = supabase
     .from("locations")
     .select("*")
-    .or(campaignScopeFilter(campaignId, user.id, null));
+    .or(campaignScopeFilter(campaignId, user.id, ownerId));
 
   query = parentId === null ? query.is("parent_id", null) : query.eq("parent_id", parentId);
 
@@ -122,7 +122,7 @@ async function fetchLocations(campaignId: string, parentId: string | null): Prom
   return data as Location[];
 }
 
-async function fetchAllLocations(campaignId: string): Promise<LocationSummary[]> {
+async function fetchAllLocations(campaignId: string, ownerId: string | null): Promise<LocationSummary[]> {
   // See fetchLocations above: global (campaign_id null) locations must be
   // included here too, or the flat list this feeds (search, pickers, the
   // location tree) disagrees with the Atlas about which locations exist.
@@ -133,7 +133,7 @@ async function fetchAllLocations(campaignId: string): Promise<LocationSummary[]>
   const { data, error } = await supabase
     .from("locations")
     .select(LOCATION_SUMMARY_SELECT)
-    .or(campaignScopeFilter(campaignId, user.id, null))
+    .or(campaignScopeFilter(campaignId, user.id, ownerId))
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
   if (error) throw error;
@@ -259,13 +259,15 @@ async function deleteLocation(id: string): Promise<void> {
 export function useLocations(parentId: string | null | Ref<string | null> = null) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  // A co-DM reads the owner's library places too (#590); the owner is part of the key so the read refires once the campaign row loads.
+  const ownerId = computed(() => campaign.activeCampaign?.user_id ?? null);
   const parentIdRef = isRef(parentId) ? parentId : ref(parentId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, parentIdRef.value] as const),
-    queryFn: ({ queryKey: [, cid, parentId] }) => {
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, parentIdRef.value, ownerId.value] as const),
+    queryFn: ({ queryKey: [, cid, parentId, owner] }) => {
       if (cid === null) throw new Error("useLocations fetched without an active campaign");
       if (parentId === "") throw new Error("useLocations fetched with an unresolved parent id");
-      return fetchLocations(cid, parentId);
+      return fetchLocations(cid, owner, parentId);
     },
     enabled: () => !!campaignId.value && parentIdRef.value !== "",
   });
@@ -273,11 +275,13 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
 
 /** The flat Atlas read; shared by `useAllLocations` and the navigation prefetch. */
 export function allLocationsQuery(campaignId: string | null) {
+  // The owner comes from the active campaign row (#590: a co-DM reads the owner's library places) and is part of the key.
+  const ownerId = useCampaignStore().activeCampaign?.user_id ?? null;
   return {
-    queryKey: [QUERY_KEY, campaignId, "all"] as const,
+    queryKey: [QUERY_KEY, campaignId, "all", ownerId] as const,
     queryFn: () => {
       if (campaignId === null) throw new Error("useAllLocations fetched without an active campaign");
-      return fetchAllLocations(campaignId);
+      return fetchAllLocations(campaignId, ownerId);
     },
   };
 }

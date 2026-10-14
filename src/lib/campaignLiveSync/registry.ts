@@ -138,6 +138,9 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   items: ["items", CAMPAIGN_SECRETS_KEY],
   puzzle_rooms: ["puzzle_rooms", CAMPAIGN_SECRETS_KEY],
   npcs: ["npcs", PLAYER_NPCS_KEY],
+  // A role change (#590) moves a campaign between a DM's list and a player's,
+  // so the other account's switcher and DM gate re-read the role-scoped lists.
+  campaign_members: ["campaign-members", "campaigns", "my-memberships"],
 };
 
 /** Every signal and its keys, exactly one entry per signal. Exported for the

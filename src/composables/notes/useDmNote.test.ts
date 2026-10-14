@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   /** When set, a read waits on it: the note's server copy has not arrived yet. */
   gate: null as Promise<void> | null,
   touchError: null as Error | null,
+  /** Rows an update reports back; empty means RLS matched nothing. */
+  updatedRows: [{ id: "row" }] as { id: string }[],
   updates: [] as { table: string; patch: Record<string, unknown>; id: string }[],
   upserts: [] as { row: Record<string, unknown>; opts: unknown }[],
   create: vi.fn(),
@@ -41,7 +43,7 @@ vi.mock("@/lib/supabase", () => ({
       update: (patch: Record<string, unknown>) => ({
         eq: (_c: string, id: string) => {
           mocks.updates.push({ table, patch, id });
-          return Promise.resolve({ error: null });
+          return { select: () => Promise.resolve({ data: mocks.updatedRows, error: null }) };
         },
       }),
       upsert: (row: Record<string, unknown>, opts: unknown) => {
@@ -98,6 +100,7 @@ describe("useDmNote", () => {
     mocks.readError = null;
     mocks.touchError = null;
     mocks.updates.length = 0;
+    mocks.updatedRows = [{ id: "row" }];
     mocks.upserts.length = 0;
     mocks.create.mockReset().mockResolvedValue({ id: "created" });
     mocks.updateNote.mockReset().mockResolvedValue(undefined);
@@ -144,6 +147,18 @@ describe("useDmNote", () => {
     handle.draft.content = doc("");
     await settle();
     expect(mocks.updates).toEqual([{ table: "items", patch: { dm_notes: null }, id: "i1" }]);
+  });
+
+  it("fails the save, and writes no cache, when the update matched no row (a co-DM on the owner's library row)", async () => {
+    mocks.serverValue = doc("old");
+    mocks.updatedRows = [];
+    const { handle, queryClient } = setup(npc);
+    await flushPromises();
+    handle.draft.content = doc("new");
+    await settle();
+    expect(handle.status.value).toBe("error");
+    expect(queryClient.getQueryData(["dm-note", "npcs", "n1"])).not.toBe(doc("new"));
+    expect(mocks.upserts).toHaveLength(0);
   });
 
   it("does not fail the save when the touch cannot be recorded", async () => {

@@ -83,12 +83,6 @@ async function fetchThumbnails(campaignId: string, npcIds: string[], monsterIds:
   return out;
 }
 
-/** The campaign's rows (any DM's) plus the caller's own library: the scope
- *  `useItems` / `useMonsterIndex` give their own lists. */
-function scopedToCampaign<T extends { or: (filter: string) => T }>(builder: T, campaignId: string | null, userId: string): T {
-  return builder.or(campaignScopeFilter(campaignId, userId, null));
-}
-
 /** Which books and edition the keyword tier reads, resolved the way the
  *  bestiary and spell lists resolve them (`useMonsterIndex`, `useSpellIndex`). */
 interface SearchScope {
@@ -100,7 +94,7 @@ interface SearchScope {
   buildRuleset: RulesetKey;
 }
 
-async function searchAll(query: string, campaignId: string | null, scope: SearchScope): Promise<SearchResult> {
+async function searchAll(query: string, campaignId: string | null, ownerId: string | null, scope: SearchScope): Promise<SearchResult> {
   const noRows = { data: [] as { id: string; name: string }[], error: null };
   const user = getCurrentUser();
   if (!user) throw new Error("global search ran without a signed-in user");
@@ -126,12 +120,9 @@ async function searchAll(query: string, campaignId: string | null, scope: Search
       : Promise.resolve({ data: [] as { id: string; name: string; disguise_name: string | null }[], error: null }),
     // Custom monsters and items: this campaign's own plus the DM's globals, the
     // scope their list views use, so one campaign's material stays out of another's.
-    scopedToCampaign(
-      supabase.from("monsters").select("id, name").ilike("name", q).not("open5e_import", "eq", true)
-        .or(`ruleset.is.null,ruleset.eq.${scope.tableRuleset}`),
-      campaignId,
-      user.id,
-    ).limit(LIMIT),
+    supabase.from("monsters").select("id, name").ilike("name", q).not("open5e_import", "eq", true)
+      .or(campaignScopeFilter(campaignId, user.id, ownerId))
+      .or(`ruleset.is.null,ruleset.eq.${scope.tableRuleset}`).limit(LIMIT),
     scope.slugs.length === 0
       ? Promise.resolve(noRows)
       : supabase.from("library_monsters").select("id, name").ilike("name", q)
@@ -142,11 +133,11 @@ async function searchAll(query: string, campaignId: string | null, scope: Search
       ? Promise.resolve(noRows)
       : supabase.from("library_spells").select("id, name").ilike("name", q)
         .in("source", scope.slugs).eq("ruleset", scope.buildRuleset).limit(LIMIT),
-    scopedToCampaign(supabase.from("items").select("id, name").ilike("name", q), campaignId, user.id).limit(LIMIT),
+    supabase.from("items").select("id, name").ilike("name", q).or(campaignScopeFilter(campaignId, user.id, ownerId)).limit(LIMIT),
     // `.or` rather than `.eq` — a location with campaign_id null is meant to
     // be visible in every campaign (#596), same as items/spells/species below.
     campaignId
-      ? supabase.from("locations").select("id, name").or(campaignScopeFilter(campaignId, user.id, null)).ilike("name", q).limit(LIMIT)
+      ? supabase.from("locations").select("id, name").or(campaignScopeFilter(campaignId, user.id, ownerId)).ilike("name", q).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
     campaignId
       ? supabase.from("quests").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)
@@ -315,6 +306,7 @@ export function useGlobalSearch(query: Ref<string>) {
   const { isPro, isLoading: subscriptionLoading } = useSubscription();
   const { isChild, isLoading: childLoading } = useChildAccount();
   const campaignId = computed(() => campaign.activeCampaignId ?? null);
+  const ownerId = computed(() => campaign.activeCampaign?.user_id ?? null);
   const trimmed = computed(() => query.value.trim());
   const settled = refDebounced(trimmed, SEARCH_DEBOUNCE_MS);
   // Resolved in the scope the search box sits in (no character scope above it:
@@ -328,11 +320,11 @@ export function useGlobalSearch(query: Ref<string>) {
 
   const result = useQuery({
     queryKey: computed(
-      () => ["global-search", settled.value, campaignId.value, slugs.value, tableRuleset.value, buildRuleset.value] as const,
+      () => ["global-search", settled.value, campaignId.value, ownerId.value, slugs.value, tableRuleset.value, buildRuleset.value] as const,
     ),
-    queryFn: ({ queryKey: [, search, activeCampaignId, enabledSlugs, table, build] }) => {
+    queryFn: ({ queryKey: [, search, activeCampaignId, owner, enabledSlugs, table, build] }) => {
       if (enabledSlugs === null) throw new Error("global search ran before the enabled sources loaded");
-      return searchAll(search, activeCampaignId, { slugs: enabledSlugs, tableRuleset: table, buildRuleset: build });
+      return searchAll(search, activeCampaignId, owner, { slugs: enabledSlugs, tableRuleset: table, buildRuleset: build });
     },
     // A cached read, so waiting for the enabled books is short; searching
     // before they are known would leak disabled books' rows.

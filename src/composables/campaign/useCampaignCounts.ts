@@ -28,13 +28,13 @@ async function countRows(
 }
 
 /** Places include the caller's own global ones (`campaign_id` null), like the Atlas's own list. */
-async function countLocations(campaignId: string): Promise<number> {
+async function countLocations(campaignId: string, ownerId: string | null): Promise<number> {
   const user = getCurrentUser();
   if (!user) throw new Error("Counting locations without a signed-in user");
   const { count, error } = await supabase
     .from("locations")
     .select("id", { count: "exact", head: true })
-    .or(campaignScopeFilter(campaignId, user.id, null));
+    .or(campaignScopeFilter(campaignId, user.id, ownerId));
   if (error) throw error;
   if (count === null) throw new Error("Counting locations returned no count");
   return count;
@@ -62,10 +62,10 @@ export function useCampaignCounts() {
     enabled,
   });
   const locations = useQuery({
-    queryKey: computed(() => ["locations", "count", campaignId.value] as const),
-    queryFn: ({ queryKey: [, , cid] }) => {
+    queryKey: computed(() => ["locations", "count", campaignId.value, campaign.activeCampaign?.user_id ?? null] as const),
+    queryFn: ({ queryKey: [, , cid, ownerId] }) => {
       if (!cid) throw new Error("location count read without a campaign");
-      return countLocations(cid);
+      return countLocations(cid, ownerId);
     },
     enabled,
   });

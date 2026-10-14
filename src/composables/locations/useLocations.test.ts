@@ -21,10 +21,12 @@ import { LOCATION_SUMMARY_SELECT } from "@/types/location.types";
  */
 
 const activeCampaignId = ref<string | null>("campaign-1");
+const ownerId = ref<string | null>(null);
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get activeCampaignId() { return activeCampaignId.value; },
+    get activeCampaign() { return ownerId.value === null ? null : { user_id: ownerId.value }; },
   }),
 }));
 
@@ -176,6 +178,17 @@ describe("location list reads", () => {
     // row above would already have been silently dropped by supabase.
     const orCall = mocks.calls.find((c) => c.method === "or");
     expect(orCall?.args[0]).toBe("campaign_id.eq.campaign-1,and(campaign_id.is.null,user_id.in.(user-1))");
+    unmount();
+  });
+
+  it("reads the campaign owner's library places too, so a co-DM sees the world the owner built (#590)", async () => {
+    ownerId.value = "owner-1";
+    mocks.rows = [];
+    const { unmount } = withQueryClient(() => useAllLocations());
+    await flushPromises();
+    const orCall = mocks.calls.find((c) => c.method === "or");
+    expect(orCall?.args[0]).toBe("campaign_id.eq.campaign-1,and(campaign_id.is.null,user_id.in.(user-1,owner-1))");
+    ownerId.value = null;
     unmount();
   });
 

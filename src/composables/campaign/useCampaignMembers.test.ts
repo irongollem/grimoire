@@ -98,6 +98,7 @@ describe("useSetMemberRole", () => {
     expect(mocks.eq).toHaveBeenCalledWith("id", "m1");
     expect(spy).toHaveBeenCalledWith({ queryKey: ["campaign-members"] });
     expect(spy).toHaveBeenCalledWith({ queryKey: ["my-memberships"] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["campaigns"] });
   });
 
   it("throws the database's refusal", async () => {

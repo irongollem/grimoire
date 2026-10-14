@@ -69,6 +69,38 @@ $$;
 comment on function private.is_campaign_owner(uuid) is
   'True when the caller owns the campaign (#590). Total: false, never NULL, for a non-owner or a missing campaign. What stays the owner''s once a campaign seats co-DMs.';
 
+-- Who has ever sat in this campaign's DM chair. A seat rotates (DM one
+-- session, player the next), and what a co-DM brought from their own library
+-- (a goblin in an encounter, a minted loot item) must keep hydrating for the
+-- owner after they hand the chair back. Set when a row becomes 'dm', never
+-- cleared; the row's deletion (leaving the campaign) ends it.
+alter table public.campaign_members
+  add column held_chair boolean not null default false;
+
+comment on column public.campaign_members.held_chair is
+  'True once this member has sat in the DM chair (#590). Never cleared. Keeps their personal library readable to the table''s DMs (private.dm_library_authors) after they hand the chair back.';
+
+update public.campaign_members set held_chair = true where role = 'dm';
+
+create function private.mark_held_chair()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  -- Derived, never taken from the client: a DM may update a player's row, and
+  -- setting this by hand would open that player's library to them.
+  new.held_chair := new.role = 'dm' or (tg_op = 'UPDATE' and old.held_chair);
+  return new;
+end;
+$$;
+
+revoke execute on function private.mark_held_chair() from public, anon, authenticated;
+
+create trigger campaign_members_mark_held_chair
+  before insert or update on public.campaign_members
+  for each row execute procedure private.mark_held_chair();
+
 create function private.dm_library_authors()
 returns uuid[]
 language sql
@@ -76,8 +108,9 @@ stable
 security definer
 set search_path = ''
 as $$
-  -- The other DMs at any table where the caller is a DM: whose personal
-  -- library (campaign_id null) the caller may read (#590). Read only; no
+  -- The other DMs at any table where the caller is a DM, and those who held
+  -- its chair before: whose personal library (campaign_id null) the caller
+  -- may read (#590). Read only; no
   -- write policy uses it. An array rather than a per-row predicate, so a
   -- policy can write `user_id = any ((select private.dm_library_authors())::uuid[])`
   -- and Postgres evaluates it once per statement instead of once per row, on
@@ -88,7 +121,7 @@ as $$
     from public.campaign_members me
     join public.campaign_members other
       on other.campaign_id = me.campaign_id
-     and other.role = 'dm'
+     and (other.role = 'dm' or other.held_chair)
    where me.user_id = (select auth.uid())
      and me.role = 'dm'
      and other.user_id <> (select auth.uid());
@@ -222,13 +255,25 @@ alter table public.entity_notes
 comment on column public.entity_notes.written_as_dm is
   'True for a DM note: written privately by a DM of its campaign, at the time it was written (#590). Set by private.stamp_entity_note_role, never updated. The table''s DMs read campaign DM notes; a player''s notes never are.';
 
--- Exact for every row today: until now a campaign seated one DM, its owner,
--- and players file their private notes without a campaign; the only
--- campaign-less DM notes are the Hall of Heroes ones.
+-- Exact for every row today. Until now a campaign seated one DM, its owner,
+-- so a campaign note is a DM note exactly when its author DMs that campaign.
+-- A note without a campaign is a DM note when it is a Hall of Heroes note, or
+-- sits on a library entity (an entity with no campaign) of a DM-note kind and
+-- was written by that entity's own author: the DM-notes box files a note
+-- under its entity's campaign, while players file theirs under none, on
+-- campaign entities or on shared library rows their own author never wrote.
 update public.entity_notes n
    set written_as_dm = n.is_private and (
          (n.campaign_id is not null and private.is_table_dm(n.campaign_id, n.user_id))
-         or (n.campaign_id is null and n.entity_type = 'hero'));
+         or (n.campaign_id is null and (
+               n.entity_type = 'hero'
+            or (n.entity_type = 'species'      and exists (select 1 from public.species x       where x.id::text = n.entity_id and x.campaign_id is null and x.user_id = n.user_id))
+            or (n.entity_type = 'spell'        and exists (select 1 from public.spells x        where x.id::text = n.entity_id and x.campaign_id is null and x.user_id = n.user_id))
+            or (n.entity_type = 'faction'      and exists (select 1 from public.factions x      where x.id::text = n.entity_id and x.campaign_id is null and x.user_id = n.user_id))
+            or (n.entity_type = 'companion'    and exists (select 1 from public.companions x    where x.id::text = n.entity_id and x.campaign_id is null and x.user_id = n.user_id))
+            or (n.entity_type = 'quest'        and exists (select 1 from public.quests x        where x.id::text = n.entity_id and x.campaign_id is null and x.user_id = n.user_id))
+            or (n.entity_type = 'encounter'    and exists (select 1 from public.encounters x    where x.id::text = n.entity_id and x.campaign_id is null and x.user_id = n.user_id))
+            or (n.entity_type = 'party_member' and exists (select 1 from public.party_members x where x.id::text = n.entity_id and x.campaign_id is null and x.user_id = n.user_id)))));
 
 create function private.stamp_entity_note_role()
 returns trigger
@@ -275,7 +320,9 @@ create policy "entity_notes_select" on public.entity_notes for select to public
 -- to another campaign. Clearing campaign_id is the author's or the owner's:
 -- delete_campaign_with_homebrew returns a co-DM's homebrew to their library
 -- that way, and the set-null cascades of a campaign being deleted run when
--- the campaign row is already gone.
+-- the campaign row is already gone. Each trigger's WHEN clause skips the call
+-- unless the author or the campaign actually changes, so an ordinary edit
+-- (a note autosaving every few seconds) never pays for it.
 create function private.guard_content_author()
 returns trigger
 language plpgsql
@@ -310,145 +357,192 @@ revoke execute on function private.guard_content_author() from public, anon, aut
 
 create trigger factions_guard_content_author
   before update on public.factions
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger deities_guard_content_author
   before update on public.deities
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger pantheons_guard_content_author
   before update on public.pantheons
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger faction_deities_guard_content_author
   before update on public.faction_deities
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger npc_pc_notes_guard_content_author
   before update on public.npc_pc_notes
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger encounter_state_guard_content_author
   before update on public.encounter_state
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger session_proposals_guard_content_author
   before update on public.session_proposals
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger soundboard_broadcast_guard_content_author
   before update on public.soundboard_broadcast
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger companions_guard_content_author
   before update on public.companions
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger campaign_sessions_guard_content_author
   before update on public.campaign_sessions
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger crafting_recipes_guard_content_author
   before update on public.crafting_recipes
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger encounters_guard_content_author
   before update on public.encounters
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger items_guard_content_author
   before update on public.items
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger locations_guard_content_author
   before update on public.locations
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger loot_tables_guard_content_author
   before update on public.loot_tables
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger monsters_guard_content_author
   before update on public.monsters
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger npc_inventory_guard_content_author
   before update on public.npc_inventory
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger npc_relationships_guard_content_author
   before update on public.npc_relationships
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger npc_sets_guard_content_author
   before update on public.npc_sets
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger npcs_guard_content_author
   before update on public.npcs
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger puzzle_rooms_guard_content_author
   before update on public.puzzle_rooms
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger quests_guard_content_author
   before update on public.quests
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger roll_tables_guard_content_author
   before update on public.roll_tables
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger scriptorium_documents_guard_content_author
   before update on public.scriptorium_documents
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger soundboard_pages_guard_content_author
   before update on public.soundboard_pages
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger soundboard_playlists_guard_content_author
   before update on public.soundboard_playlists
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger sounds_guard_content_author
   before update on public.sounds
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger traps_guard_content_author
   before update on public.traps
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger dungeon_maps_guard_content_author
   before update on public.dungeon_maps
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger dungeon_features_guard_content_author
   before update on public.dungeon_features
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger notes_guard_content_author
   before update on public.notes
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger calendar_events_guard_content_author
   before update on public.calendar_events
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger rules_guard_content_author
   before update on public.rules
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger species_guard_content_author
   before update on public.species
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger custom_classes_guard_content_author
   before update on public.custom_classes
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger custom_subclasses_guard_content_author
   before update on public.custom_subclasses
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger class_features_guard_content_author
   before update on public.class_features
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger spells_guard_content_author
   before update on public.spells
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
 create trigger faction_items_guard_content_author
   before update on public.faction_items
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id)
+  execute procedure private.guard_content_author();
 create trigger faction_locations_guard_content_author
   before update on public.faction_locations
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id)
+  execute procedure private.guard_content_author();
 create trigger faction_npcs_guard_content_author
   before update on public.faction_npcs
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id)
+  execute procedure private.guard_content_author();
 create trigger faction_relations_guard_content_author
   before update on public.faction_relations
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id)
+  execute procedure private.guard_content_author();
 create trigger faction_party_members_guard_content_author
   before update on public.faction_party_members
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id)
+  execute procedure private.guard_content_author();
 create trigger location_doors_guard_content_author
   before update on public.location_doors
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id)
+  execute procedure private.guard_content_author();
 create trigger location_map_regions_guard_content_author
   before update on public.location_map_regions
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id)
+  execute procedure private.guard_content_author();
 create trigger location_placements_guard_content_author
   before update on public.location_placements
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id)
+  execute procedure private.guard_content_author();
 create trigger store_items_guard_content_author
   before update on public.store_items
-  for each row execute procedure private.guard_content_author();
+  for each row when (new.user_id is distinct from old.user_id)
+  execute procedure private.guard_content_author();
 
 -- ── Moving a campaign's authored rows from one account to another ──────────
 -- One list for both callers: transfer_campaign_ownership (the outgoing owner's
@@ -458,6 +552,7 @@ create trigger store_items_guard_content_author
 -- moved, so after a transfer the outgoing owner, now a player, could still
 -- read the floor plans, and deleting their account deleted them.
 --
+-- Rows written as a player move only when p_player_rows says so (below).
 -- Deliberately not moved, because they are the departing account's own, not
 -- the campaign's: private notes (entity_notes, dm_note_touches), chat
 -- messages, document imports, minis, and attached tile packs (a per-account
@@ -468,7 +563,7 @@ create trigger store_items_guard_content_author
 -- (copy, promote, reassign, delete) and passes false; a departing co-DM has no
 -- such choice to make, so their homebrew simply stays with the campaign.
 create function private.move_campaign_content(
-  p_campaign_id uuid, p_from uuid, p_to uuid, p_scoped_homebrew boolean)
+  p_campaign_id uuid, p_from uuid, p_to uuid, p_scoped_homebrew boolean, p_player_rows boolean)
 returns void
 language plpgsql
 security definer
@@ -485,8 +580,6 @@ begin
 
   update public.calendar_events       set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.class_features        set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
-  update public.class_option_texts    set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
-  update public.companions            set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.crafting_recipes      set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.custom_classes        set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.custom_subclasses     set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
@@ -505,8 +598,6 @@ begin
   update public.npc_sets              set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.npcs                  set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.pantheons             set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
-  update public.party_inventory       set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
-  update public.party_members         set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.puzzle_rooms          set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.quests                set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.roll_tables           set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
@@ -520,7 +611,20 @@ begin
   update public.species               set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.spells                set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.campaign_sessions     set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
-  update public.item_entries          set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+
+  -- What a member writes as a player (their own character, its inventory and
+  -- companions, journal entries on items, class option texts). A seat that
+  -- rotates has written these before it took the chair, so handing the chair
+  -- back leaves them where they are; a transfer and a deleted account move
+  -- them, the first because the outgoing owner wrote them as DM, the second
+  -- because otherwise they cascade away.
+  if p_player_rows then
+    update public.class_option_texts set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.companions         set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.party_inventory    set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.party_members      set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.item_entries       set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  end if;
 
   -- Rows that carry an author but no campaign_id, scoped by their parent.
   update public.faction_items f set user_id = p_to
@@ -566,7 +670,7 @@ begin
 end;
 $$;
 
-revoke execute on function private.move_campaign_content(uuid, uuid, uuid, boolean) from public, anon, authenticated;
+revoke execute on function private.move_campaign_content(uuid, uuid, uuid, boolean, boolean) from public, anon, authenticated;
 
 -- ── A co-DM leaves the chair: what they wrote stays with the campaign ───────
 create function private.hand_back_dm_content()
@@ -587,7 +691,7 @@ begin
   if v_owner is null or v_owner = old.user_id then
     return null;
   end if;
-  perform private.move_campaign_content(old.campaign_id, old.user_id, v_owner, true);
+  perform private.move_campaign_content(old.campaign_id, old.user_id, v_owner, true, false);
   return null;
 end;
 $$;
@@ -614,9 +718,19 @@ begin
     select m.campaign_id, c.user_id as owner_id
       from public.campaign_members m
       join public.campaigns c on c.id = m.campaign_id
-     where m.user_id = old.id and m.role = 'dm' and c.user_id <> old.id
+     where m.user_id = old.id and (m.role = 'dm' or m.held_chair) and c.user_id <> old.id
   loop
-    perform private.move_campaign_content(r.campaign_id, old.id, r.owner_id, true);
+    perform private.move_campaign_content(r.campaign_id, old.id, r.owner_id, true, true);
+    -- Library rows of theirs this campaign uses would go with the account;
+    -- the owner keeps them instead, so encounters and traps still hydrate.
+    perform set_config('grimoire.content_move', 'on', true);
+    update public.monsters m set user_id = r.owner_id
+     where m.user_id = old.id and m.campaign_id is null
+       and exists (select 1 from private.campaign_referenced_monster_ids(r.campaign_id) rid where rid = m.id);
+    update public.traps t set user_id = r.owner_id
+     where t.user_id = old.id and t.campaign_id is null
+       and exists (select 1 from private.campaign_referenced_trap_ids(r.campaign_id) rid where rid = t.id);
+    perform set_config('grimoire.content_move', '', true);
   end loop;
   return old;
 end;
@@ -1809,7 +1923,7 @@ begin
   -- the site state log), session records and DM item entries, which stayed
   -- the outgoing owner's, readable by them as a player and gone with their
   -- account.
-  perform private.move_campaign_content(p_campaign_id, v_owner, p_new_owner_id, false);
+  perform private.move_campaign_content(p_campaign_id, v_owner, p_new_owner_id, false, true);
 
   -- (#983) The outgoing DM's DM notes in this campaign (written_as_dm, #590:
   -- never their player notes, nor the new owner's player notes, which a seat
@@ -2677,3 +2791,187 @@ drop policy "campaign_sessions_delete" on public.campaign_sessions;
 create policy "campaign_sessions_delete" on public.campaign_sessions for delete to public
   using ((((select auth.uid()) = user_id) and private.is_campaign_dm(campaign_id))
     or private.is_campaign_owner(campaign_id));
+
+
+-- ── The Vault and the Bestiary list the campaign's rows, whoever wrote them ─
+-- Both read `user_id = auth.uid()` only, so a co-DM's catalogue showed none of
+-- the owner's campaign rows. Invoker functions: RLS still bounds what returns.
+CREATE OR REPLACE FUNCTION public.browse_items(p_slugs text[], p_ruleset text, p_campaign_id uuid, p_search text DEFAULT NULL::text, p_type text DEFAULT NULL::text, p_rarity text DEFAULT NULL::text, p_source text DEFAULT NULL::text, p_scope text DEFAULT NULL::text, p_limit integer DEFAULT 48, p_offset integer DEFAULT 0)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with
+  pat as (select private.contains_pattern(p_search) as p),
+  own as (
+    select i.id::text as id, i.name, i.item_type, i.rarity, i.subtype, i.tags, i.source, i.source_title,
+           i.source_document_key, i.source_record_key, i.image_url, i.image_focal_point,
+           i.damage_rolls, i.armor_class, i.charges, i.content is not null as has_content,
+           i.campaign_id, false as is_shared, 1 as origin
+      from public.items i
+     -- The caller's own rows (other campaigns' too, for the 'other_campaign'
+     -- scope), plus this campaign's rows whoever wrote them and the owner's
+     -- library, which a co-DM reads (#590) and the item view marks read-only.
+     where (i.ruleset is null or i.ruleset = p_ruleset)
+       and ((i.user_id = auth.uid()
+             and (p_scope = 'other_campaign' or i.campaign_id is null or i.campaign_id = p_campaign_id))
+            or i.campaign_id = p_campaign_id
+            or (i.campaign_id is null
+                and i.user_id = (select c.user_id from public.campaigns c where c.id = p_campaign_id)))
+  ),
+  lib as (
+    select l.id, l.name, l.item_type, l.rarity, l.subtype, l.tags, l.source, l.source_title,
+           l.source_document_key, l.source_record_key, l.image_url, l.image_focal_point,
+           l.damage_rolls, l.armor_class, l.charges, false as has_content,
+           null::uuid as campaign_id, true as is_shared, 0 as origin
+      from public.library_items l
+     where l.source_document_key = any (array['grimoire-bundled'] || p_slugs)
+       and (l.ruleset is null or l.ruleset = p_ruleset)
+       -- An own row shadows its library twin: by identity when it carries
+       -- both keys, else by name when it has a source; homebrew never does.
+       and not exists (
+         select 1 from own o
+          where (o.source_document_key is not null and o.source_record_key is not null
+                 and o.source_document_key = l.source_document_key
+                 and o.source_record_key = l.source_record_key)
+             or (o.source is not null
+                 and not (o.source_document_key is not null and o.source_record_key is not null)
+                 and lower(o.name) = lower(l.name))
+       )
+  ),
+  merged as (
+    select m.*,
+           -- Default art by name, only for a row with a source and no image.
+           case when m.source is not null and nullif(m.image_url, '') is null then d.image_url else m.image_url end as card_image_url,
+           case when m.source is not null and nullif(m.image_url, '') is null and d.image_url is not null
+                then d.image_focal_point else m.image_focal_point end as card_focal_point,
+           case when m.is_shared then 'library'
+                when m.campaign_id is null then 'general'
+                when m.campaign_id = p_campaign_id then 'campaign'
+                else 'other_campaign' end as scope
+      from (select * from lib union all select * from own) m
+      left join public.library_art_defaults d on d.content_type = 'item' and d.content_name = lower(m.name)
+  ),
+  filtered as (
+    select f.* from merged f, pat
+     where (p_type is null or f.item_type = p_type)
+       and (p_rarity is null or f.rarity = p_rarity)
+       and (p_source is null or f.source = p_source)
+       and (p_scope is null or f.scope = p_scope)
+       and (pat.p is null
+            or f.name ilike pat.p
+            or f.subtype ilike pat.p
+            or exists (select 1 from unnest(f.tags) t where t ilike pat.p))
+  ),
+  page as (
+    select * from filtered
+     order by lower(name), name, origin, id
+     limit greatest(p_limit, 0) offset greatest(p_offset, 0)
+  )
+  select jsonb_build_object(
+    'rows', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', id, 'name', name, 'item_type', item_type, 'rarity', rarity, 'tags', tags,
+               'image_url', card_image_url, 'image_focal_point', card_focal_point,
+               'damage_rolls', damage_rolls, 'armor_class', armor_class, 'charges', charges,
+               'has_content', has_content, 'campaign_id', campaign_id, 'is_shared', is_shared)
+             order by lower(name), name, origin, id)
+        from page), '[]'::jsonb)
+  ) || case when greatest(p_offset, 0) = 0 then jsonb_build_object(
+    'total', (select count(*) from filtered),
+    'selectable_ids', coalesce((select jsonb_agg(id order by id) from filtered where not is_shared), '[]'::jsonb),
+    -- The Source filter's options: the books and sources of what the page can show.
+    'sources', coalesce((
+      select jsonb_agg(jsonb_build_object('slug', source, 'title', title) order by lower(coalesce(title, source)))
+        from (select source, max(source_title) as title from merged where source is not null group by source) s
+    ), '[]'::jsonb)
+  ) else '{}'::jsonb end
+$function$;
+
+CREATE OR REPLACE FUNCTION public.browse_monsters(p_slugs text[], p_ruleset text, p_campaign_id uuid, p_search text DEFAULT NULL::text, p_source text DEFAULT 'all'::text, p_type text DEFAULT NULL::text, p_limit integer DEFAULT 48, p_offset integer DEFAULT 0, p_lock_count integer DEFAULT 0)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with
+  pat as (select private.contains_pattern(p_search) as p),
+  lib as (
+    select lm.id, lm.name, lm.size, lm.monster_type, lm.habitat, lm.source, lm.source_title,
+           true as is_shared, lm.tags,
+           coalesce(own.image_url, can.image_url, lm.image_url) as image_url,
+           coalesce(own.portrait_focal_point, can.portrait_focal_point, lm.portrait_focal_point) as portrait_focal_point,
+           null::timestamptz as created_at,
+           0 as origin,
+           lm.id as lib_id, null::uuid as own_id
+      from public.library_monsters lm
+      left join public.library_monster_art_canonical can on can.entry_id = lm.id
+      left join public.library_monster_art own on own.entry_id = lm.id and own.user_id = auth.uid()
+     where lm.source = any (p_slugs) and lm.ruleset = p_ruleset
+  ),
+  own as (
+    select m.id::text as id, m.name, m.size, m.monster_type, m.habitat, m.source, m.source_title,
+           false as is_shared, m.tags, m.image_url, m.portrait_focal_point,
+           m.created_at,
+           1 as origin,
+           null::text as lib_id, m.id as own_id
+      from public.monsters m
+     -- This campaign's rows whoever wrote them, the caller's library, and the
+     -- owner's, which a co-DM reads (#590) and the monster views mark read-only.
+     where not m.open5e_import
+       and (m.ruleset is null or m.ruleset = p_ruleset)
+       and (m.campaign_id = p_campaign_id
+            or (m.campaign_id is null
+                and (m.user_id = auth.uid()
+                     or m.user_id = (select c.user_id from public.campaigns c where c.id = p_campaign_id))))
+  ),
+  scoped as (select * from lib union all select * from own),
+  filtered as (
+    select s.* from scoped s, pat
+     where (coalesce(p_source, 'all') = 'all'
+            or (p_source = 'custom' and not s.is_shared)
+            or s.source = p_source)
+       and (p_type is null or s.monster_type = p_type)
+       and (pat.p is null
+            or s.name ilike pat.p
+            or s.monster_type ilike pat.p
+            or s.habitat ilike pat.p
+            or exists (select 1 from unnest(s.tags) t where t ilike pat.p))
+  ),
+  page as (
+    select * from filtered
+     order by lower(name), name, origin, id
+     limit greatest(p_limit, 0) offset greatest(p_offset, 0)
+  ),
+  -- The stat summary is read for the page's rows only. `filtered` is used twice
+  -- (the page and the totals), so it is materialised, and reading the stat
+  -- block there unpacked it for every monster in scope on every page. Each row
+  -- carries its key typed for its own table, so the join needs no cast.
+  paged as (
+    select p.*, coalesce(lm.stat_block, m.stat_block) as sb
+      from page p
+      left join public.library_monsters lm on lm.id = p.lib_id
+      left join public.monsters m on m.id = p.own_id
+  )
+  select jsonb_build_object(
+    'rows', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', id, 'name', name, 'size', size, 'monster_type', monster_type, 'habitat', habitat,
+               'source', source, 'source_title', source_title, 'is_shared', is_shared, 'tags', tags,
+               'image_url', image_url, 'portrait_focal_point', portrait_focal_point,
+               'challenge_rating', sb -> 'challenge_rating', 'armor_class', sb -> 'armor_class',
+               'hit_points', sb -> 'hit_points')
+             order by lower(name), name, origin, id)
+        from paged), '[]'::jsonb)
+  ) || case when greatest(p_offset, 0) = 0 then jsonb_build_object(
+    'total', (select count(*) from filtered),
+    'scope_total', (select count(*) from scoped),
+    'selectable_ids', coalesce((select jsonb_agg(id order by id) from filtered where not is_shared), '[]'::jsonb),
+    -- The NEWEST own monsters beyond the quota, the ones MonsterList locked.
+    'locked_ids', coalesce((
+      select jsonb_agg(id) from (
+        select id from own order by created_at desc, id limit greatest(p_lock_count, 0)
+      ) l), '[]'::jsonb)
+  ) else '{}'::jsonb end
+$function$;
