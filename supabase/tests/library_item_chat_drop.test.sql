@@ -9,7 +9,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(5);
+select plan(7);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values ('81900000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue819-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
@@ -70,6 +70,21 @@ select is(
   'the party row keeps it too'
 );
 
+-- The client's own shape (`itemRefColumns` always writes both columns): a
+-- library drop carries `"item_id": null`. The guard used to read that null as
+-- an item nobody had been shown and refused every library drop (#1059 found it).
+select lives_ok($$
+  insert into public.campaign_messages (campaign_id, user_id, sender_name, message, type, metadata)
+  values ('81900000-0000-4000-8000-000000000010', '81900000-0000-4000-8000-000000000001', 'DM', 'dropped Borrowed blade', 'item_drop',
+          jsonb_build_object('item_id', null, 'library_item_id', 'srd_test_borrowed_blade',
+                             'item_name', 'Borrowed blade', 'quantity', 1))
+$$, 'a library item dropped as the app sends it reaches the chat');
+
 reset role;
+select is_empty(
+  $$ select private.message_item_ids('{"item_id": null, "rolled_atoms": [{"item_id": null}]}'::jsonb) $$,
+  'a null item id names no item'
+);
+
 select * from finish();
 rollback;
