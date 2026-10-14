@@ -73,9 +73,20 @@ afterwards.
 exploring, lapsed, bounced) and offers an **Email** link per row that opens the
 admin's own mail client on a pre-filled draft from an editable template. That is
 deliberately a draft per person, sent by hand from a human address, so it stays
-inside the conditions above; a "send to all" button would not. Note what the
-template may say: a list of what is new since the person left is a reason to come
-back, which is a pitch, and the privacy policy promises these emails carry none.
+inside the conditions above; a "send to all" button would not. What the template
+may say was decided the same day: a list of what is new since the person left is
+a reason to come back, which is a pitch, and the privacy policy promises these
+emails carry none. So the default draft asks for feedback and points at the
+Discord, and its `{{highlights}}` placeholder fills in only for an account that
+opted in to news (below); for everyone else it renders as nothing.
+
+**News and updates are not a legitimate interest at all.** They are direct
+marketing, so they rest on consent (Art. 6(1)(a); Telecommunicatiewet 11.7):
+an unticked box at signup and a toggle in account settings, recorded in
+`notification_preferences.email_product_news` with a server-stamped
+`product_news_consented_at` (`20261014210515`). Unticked by default because a
+pre-ticked box is not consent (CJEU C-673/17, Planet49). Every news email must
+also carry a way to stop.
 
 **The objection record.** The two email purposes above rely on being genuinely
 stoppable, so a request to stop has to outlive the person who received it.

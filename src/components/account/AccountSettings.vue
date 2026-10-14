@@ -12,6 +12,8 @@
 
   <AiLabelsSetting />
 
+  <AccountNewsSettings />
+
   <AccountDataExport />
 
   <!-- Danger zone (#631) — same accent-recoloured section shell as PlayerSettingsInstall,
@@ -48,6 +50,7 @@ import { ref } from "vue";
 import AccountSummarySection from "@/components/account/AccountSummarySection.vue";
 import AccountDataExport from "@/components/account/AccountDataExport.vue";
 import AiLabelsSetting from "@/components/account/AiLabelsSetting.vue";
+import AccountNewsSettings from "@/components/account/AccountNewsSettings.vue";
 import ConfirmByNameInput from "@/components/common/controls/ConfirmByNameInput.vue";
 import SettingsSection from "@/components/common/settings/SettingsSection.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";

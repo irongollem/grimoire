@@ -28,6 +28,7 @@
       <AppButton v-if="user.banned" as="span" variant="tinted" size="xs" tone="danger" label="Locked" />
       <AppButton v-else-if="user.suspended_at" as="span" variant="tinted" size="xs" tone="caution" label="Frozen" />
       <AppButton as="span" variant="tinted" size="xs" emphasis="outline" :tone="planTone(user.plan_id)" :label="user.plan_id" />
+      <AppButton v-if="user.product_news" as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="News" />
       <span class="text-caption text-muted-foreground">{{ user.ai_credits }} cr</span>
       <div class="flex gap-1">
         <!-- The current plan is the `active` one; AppButton blocks the click

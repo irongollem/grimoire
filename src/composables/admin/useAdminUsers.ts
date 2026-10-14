@@ -25,6 +25,8 @@ export interface AdminUser {
   /** Seats in other people's campaigns. */
   campaigns_playing: number
   is_child: boolean
+  /** Opted in to news and updates emails. */
+  product_news: boolean
   exempt_reason: ExemptReason | null
   retention_state: RetentionState
   inactivity_notice_sent_at: string | null

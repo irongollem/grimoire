@@ -123,6 +123,17 @@ describe("the bot-check token", () => {
     expect(options.data.terms_version).toBeTruthy();
   });
 
+  it("sends product_news only when the box was ticked", async () => {
+    const auth = useAuthStore();
+    await auth.signUp({ email: "a@example.invalid", password: "pw", captcha });
+    await auth.signUp({ email: "b@example.invalid", password: "pw", captcha, productNews: false });
+    await auth.signUp({ email: "c@example.invalid", password: "pw", captcha, productNews: true });
+    const sent = authCalls.signUp.mock.calls.map((c) => c[0].options.data);
+    expect(sent[0]).not.toHaveProperty("product_news");
+    expect(sent[1]).not.toHaveProperty("product_news");
+    expect(sent[2].product_news).toBe("true");
+  });
+
   it("rides on a password-reset request", async () => {
     await useAuthStore().requestPasswordReset("someone@example.invalid", captcha);
     expect(authCalls.resetPasswordForEmail.mock.calls[0][1].captchaToken).toBe("tok");

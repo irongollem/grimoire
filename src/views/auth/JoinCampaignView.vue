@@ -130,7 +130,7 @@
         <p v-if="authMessage" class="text-body text-elven-green">{{ authMessage }}</p>
         <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
-        <SignupConsent v-model="agreedToTerms" />
+        <SignupConsent v-model="agreedToTerms" v-model:news="productNews" />
 
         <CaptchaGate ref="captchaGate" />
 
@@ -313,6 +313,7 @@ const displayName = ref("");
 const email = ref("");
 const password = ref("");
 const agreedToTerms = ref(false);
+const productNews = ref(false);
 const errorMessage = ref("");
 const authMessage = ref("");
 const joining = ref(false);
@@ -472,6 +473,7 @@ async function handleAuth() {
         captcha,
         displayName: displayName.value.trim() || undefined,
         redirectTo: window.location.href,
+        productNews: productNews.value,
       });
       authMessage.value = "Check your email to confirm. The link brings you straight back here to join.";
     } else {

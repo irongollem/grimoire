@@ -77,7 +77,7 @@ watch(model, (next) => {
 const dirty = computed(() => draft.subject !== model.value.subject || draft.body !== model.value.body);
 
 // A fixed sample, so the preview does not change underneath the editor.
-const SAMPLE = { display_name: "Mira", created_at: "2026-05-03T10:00:00Z", last_active_at: "2026-06-20T10:00:00Z" };
+const SAMPLE = { display_name: "Mira", created_at: "2026-05-03T10:00:00Z", last_active_at: "2026-06-20T10:00:00Z", product_news: true };
 const preview = computed(() => renderOutreach(draft, SAMPLE));
 
 function save() {

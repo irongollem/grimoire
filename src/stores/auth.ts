@@ -523,6 +523,7 @@ export const useAuthStore = defineStore("auth", () => {
     displayName,
     redirectTo,
     inviteToken,
+    productNews,
   }: {
     email: string;
     password: string;
@@ -530,6 +531,8 @@ export const useAuthStore = defineStore("auth", () => {
     displayName?: string;
     redirectTo?: string;
     inviteToken?: string;
+    /** Opt-in to news emails. Sent only when true: an unticked box says nothing. */
+    productNews?: boolean;
   }) {
     loading.value = true;
     try {
@@ -546,6 +549,7 @@ export const useAuthStore = defineStore("auth", () => {
       };
       if (displayName) data.display_name = displayName;
       if (inviteToken) data.invite_token = inviteToken;
+      if (productNews) data.product_news = "true";
       const { error } = await supabase.auth.signUp({
         email,
         password,

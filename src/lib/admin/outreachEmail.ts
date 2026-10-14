@@ -17,19 +17,19 @@ export const OUTREACH_PLACEHOLDERS: readonly { token: string; meaning: string }[
   { token: "{{name}}", meaning: "Their display name, or \"there\" if they never set one" },
   { token: "{{joined}}", meaning: "Month and year they signed up" },
   { token: "{{lastVisit}}", meaning: "Month and year of their last visit" },
-  { token: "{{highlights}}", meaning: "What shipped since their last visit, as a short list" },
+  { token: "{{highlights}}", meaning: "What is new since their last visit, only for accounts that opted in to news" },
   { token: "{{discord}}", meaning: "The link to the community Discord" },
 ];
 
 export const DEFAULT_OUTREACH_TEMPLATE: OutreachTemplate = {
-  subject: "Dungeon Grimoire has changed a lot since your last visit",
+  subject: "How did Dungeon Grimoire work out for you?",
   body: `Hi {{name}},
 
-You joined Dungeon Grimoire in {{joined}} and the last time we saw you was {{lastVisit}}. A lot has happened since then:
+You signed up for Dungeon Grimoire in {{joined}}, and the last time we saw you was {{lastVisit}}. The app has changed a fair bit since then, but that is not why I'm writing: I'd really like to know how it went for you.
+
+What made you step away, or what would have made it work for you? Even a one-line reply helps me decide what to build next.
 
 {{highlights}}
-
-I'd really like to hear what made you step away, or what would have made it work for you. Even a one-line reply helps me decide what to build next.
 
 If you have questions, the community Discord is the quickest place to ask: {{discord}}
 
@@ -38,9 +38,6 @@ Or just reply to this email. It comes straight to me.
 Cheers,
 Jeffrey`,
 };
-
-/** Shown when nothing in the release list is newer than their last visit. */
-export const NO_HIGHLIGHTS_LINE = "Lots of smaller fixes and improvements";
 
 /** Releases strictly after `lastActiveAt`, newest first, at most `max`. */
 export function pickHighlights(
@@ -59,23 +56,31 @@ function monthYear(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 }
 
-type OutreachUser = Pick<AdminUser, "display_name" | "created_at" | "last_active_at">;
+type OutreachUser = Pick<AdminUser, "display_name" | "created_at" | "last_active_at" | "product_news">;
 
 export function renderOutreach(
   template: OutreachTemplate,
   user: OutreachUser,
 ): OutreachTemplate {
-  const picked = pickHighlights(user.last_active_at);
-  const lines = picked.length > 0 ? picked.map((h) => h.line) : [NO_HIGHLIGHTS_LINE];
+  // Only an account that asked to hear about updates gets the list; for the
+  // rest the email is feedback-only and the placeholder renders as nothing.
+  const picked = user.product_news ? pickHighlights(user.last_active_at) : [];
+  const highlights =
+    picked.length > 0
+      ? `Since you asked to hear about updates, here is some of what is new since your last visit:\n${picked.map((h) => `- ${h.line}`).join("\n")}`
+      : "";
   const values: Record<string, string> = {
     name: user.display_name?.trim() ? user.display_name.trim() : "there",
     joined: monthYear(user.created_at),
     lastVisit: monthYear(user.last_active_at),
-    highlights: lines.map((l) => `- ${l}`).join("\n"),
+    highlights,
     discord: DISCORD_URL,
   };
   const fill = (text: string) =>
-    text.replace(/\{\{(\w+)\}\}/g, (whole, key: string) => (key in values ? values[key] : whole));
+    text
+      .replace(/\{\{(\w+)\}\}/g, (whole, key: string) => (key in values ? values[key] : whole))
+      // An empty placeholder must not leave a gap in the paragraphs around it.
+      .replace(/\n{3,}/g, "\n\n");
   return { subject: fill(template.subject), body: fill(template.body) };
 }
 

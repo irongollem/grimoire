@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DISCORD_URL } from "@/lib/marketing";
 import {
   DEFAULT_OUTREACH_TEMPLATE,
-  NO_HIGHLIGHTS_LINE,
   OUTREACH_STORAGE_KEY,
   loadOutreachTemplate,
   outreachMailto,
@@ -35,7 +34,7 @@ describe("pickHighlights", () => {
 });
 
 describe("renderOutreach", () => {
-  const user = { display_name: "Mira", created_at: "2026-05-03T10:00:00Z", last_active_at: "2026-10-05T10:00:00Z" };
+  const user = { display_name: "Mira", created_at: "2026-05-03T10:00:00Z", last_active_at: "2026-10-05T10:00:00Z", product_news: false };
 
   it("substitutes every placeholder", () => {
     const mail = renderOutreach(DEFAULT_OUTREACH_TEMPLATE, user);
@@ -51,16 +50,27 @@ describe("renderOutreach", () => {
     expect(renderOutreach(DEFAULT_OUTREACH_TEMPLATE, { ...user, display_name: null }).body).toContain("Hi there,");
   });
 
-  it("lists highlights as dashed lines", () => {
-    const mail = renderOutreach(
-      { subject: "s", body: "{{highlights}}" },
-      { ...user, last_active_at: "2026-10-05T10:00:00Z" });
-    expect(mail.body.split("\n").every((l) => l.startsWith("- "))).toBe(true);
+  it("uses the feedback-first subject", () => {
+    expect(DEFAULT_OUTREACH_TEMPLATE.subject).toBe("How did Dungeon Grimoire work out for you?");
   });
 
-  it("uses a generic line when nothing newer shipped", () => {
-    const mail = renderOutreach({ subject: "s", body: "{{highlights}}" }, { ...user, last_active_at: "2099-01-01T00:00:00Z" });
-    expect(mail.body).toBe(`- ${NO_HIGHLIGHTS_LINE}`);
+  it("leaves out the what's-new list for an account that did not opt in", () => {
+    const mail = renderOutreach(DEFAULT_OUTREACH_TEMPLATE, { ...user, last_active_at: "2025-01-01T00:00:00Z" });
+    expect(mail.body).not.toContain("Since you asked");
+    expect(mail.body).not.toContain("\n- ");
+    expect(mail.body).not.toContain("\n\n\n");
+  });
+
+  it("lists highlights under an intro for an opted-in account", () => {
+    const mail = renderOutreach(DEFAULT_OUTREACH_TEMPLATE, { ...user, product_news: true, last_active_at: "2025-01-01T00:00:00Z" });
+    expect(mail.body).toContain("Since you asked to hear about updates, here is some of what is new since your last visit:\n- ");
+    expect(mail.body).not.toContain("\n\n\n");
+  });
+
+  it("renders nothing when an opted-in account has nothing newer", () => {
+    const mail = renderOutreach(DEFAULT_OUTREACH_TEMPLATE, { ...user, product_news: true, last_active_at: "2099-01-01T00:00:00Z" });
+    expect(mail.body).not.toContain("Since you asked");
+    expect(mail.body).not.toContain("\n\n\n");
   });
 
   it("leaves unknown placeholders alone", () => {

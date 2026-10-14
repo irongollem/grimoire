@@ -89,7 +89,7 @@
           <p v-if="successMessage" class="text-body text-elven-green">{{ successMessage }}</p>
           <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
-          <SignupConsent v-model="agreedToTerms" />
+          <SignupConsent v-model="agreedToTerms" v-model:news="productNews" />
 
           <CaptchaGate ref="captchaGate" />
 
@@ -148,6 +148,7 @@ const displayName = ref("");
 const email = ref("");
 const password = ref("");
 const agreedToTerms = ref(false);
+const productNews = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
 
@@ -187,6 +188,7 @@ async function handleSubmit() {
       displayName: displayName.value.trim() || undefined,
       redirectTo: emailRedirectTo,
       inviteToken: token,
+      productNews: productNews.value,
     });
     successMessage.value = "Check your email to confirm your account, then sign in.";
     email.value = "";

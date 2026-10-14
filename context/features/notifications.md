@@ -171,3 +171,8 @@ no Supabase-provided API for application email, hence Resend.
   email. RLS: own-row only, all four verbs. Rows are created lazily
   on first toggle (`useNotificationPreferences.ts`), so existing accounts need
   no backfill.
+
+## News and updates (opt-in)
+
+`notification_preferences.email_product_news` is the one email toggle that is **off** when there is no row: it is consent to direct marketing, not a service email, so it exists only once the person turns it on (`20261014210515`). Two ways in: the unticked box under the Terms box on both account-creating forms (`SignupConsent`, carried as `product_news: "true"` in signup metadata and recorded by `private.record_signup_product_news()` on `auth.users` insert), and the "News and updates" toggle in account settings. `product_news_consented_at` is stamped by a trigger on every opt-in and cleared on withdrawal; the client never writes it, so it is the proof the consent rests on. A young player's account never carries the flag. Admin → Users shows who opted in, and the outreach draft's `{{highlights}}` fills in only for them. No news sender exists yet; when one is built it must read this column, and every message must say how to stop.
+
