@@ -71,6 +71,16 @@ The gate is now `hasCompleteArt` (`src/cartographer/packCoverage.ts`): every *re
 
 **`packCoverage.ts` is the single answer to "what does this pack actually have".** It is read by the publish gate, by `generate_library_pack`'s slot selection and by all three admin components. Two notions of missing coexist deliberately: *undeclared* (the manifest omits the slot — what `validatePack` and `createGenerationPlan`'s default `missingSlots()` see) and *undrawn* (declared, no bytes — what everything in the admin lane means). Confusing them is what shipped the empty packs.
 
+### Publishing art made outside the app (#891)
+
+Since 14 Oct 2026 the library packs are painted outside the app, by an image agent on a subscription rather than the admin lane's API key, as edits of the base set (`src/assets/tile-base/`). `npm run tile-pack:publish -- --pack <id> --dir <folder>` puts one pack's finished art in: a folder of 128×128 WebP tiles at the paths a manifest names, the rotated slots included. It rebuilds the manifest at schema 3 from the folder alone (a repaint replaces every slot, so two lanes' walls never mix in one pack), marks each tile with its AI provenance, uploads to R2 at `library-tile-packs/<row id>/v<n>/…`, and writes the manifest last so it never names bytes that are not there yet. Dry run by default; `--write`, plus `--yes-production` off loopback.
+
+**The row stays a draft.** Review it in Admin → Content and press Publish, which runs `hasCompleteArt`; `--publish` does the same from the script. A published version is never repainted in place: `--version <latest + 1>` drafts a new row beside it, which is how a repaint is compared with the art it would replace.
+
+**`seed-library-tile-packs` must not be used for this.** It re-reads all twelve packs from `public/cartographer/` and keeps `byteSize` only for slots with a file on disk, so one run would erase every tile the admin lane ever made.
+
+`wallRoundJoint` is left out of these packs (`--exclude wallRoundJoint`) until #1063: the renderer puts a round joint's carve on the outside of a room's corner, so on a rectangular room each corner draws as a square block of wall. Without the category, maps fall back to the plain `wallJoint` squares, which draw correctly.
+
 ### Editing a library pack (#900)
 
 Each row in Admin → Content opens an editor: the pack's name, description, licence, attribution source and sort order, a coverage bar, a slot grid, and a button that generates whatever is still blank.
