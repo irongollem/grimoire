@@ -15,7 +15,8 @@
  *  AI label says the same thing in its own place, so it is never shown as one. */
 export const AI_DRAFT_SOURCE = "Grimoire:AI";
 
-// Human-readable labels for open5e document slugs, used only as a fallback when
+// Human-readable labels for open5e document slugs (v1 slugs and the v2
+// document keys imported classes and subclasses carry in source_document_key), used only as a fallback when
 // neither `content_sources` nor the row knows a title. The authoritative
 // per-source title, publisher and licence live in the `content_sources` table
 // (see the Licences tab in the Reliquary); these labels must never contradict
@@ -29,6 +30,7 @@ export const OPEN5E_SOURCE_LABELS: Record<string, string> = {
   "wotc-srd": "System Reference Document 5.1",
   // Kobold Press — OGL 1.0a, except the Black Flag SRD (CC-BY-4.0)
   "blackflag": "Black Flag SRD",
+  "bfrd": "Black Flag SRD",
   "cc": "Creature Codex",
   "tob": "Tome of Beasts",
   "tob2": "Tome of Beasts 2",
@@ -47,8 +49,10 @@ export const OPEN5E_SOURCE_LABELS: Record<string, string> = {
   "a5e": "Level Up: Adventurer's Guide",
   // Open5e's own content — OGL 1.0a
   "o5e": "Open5e Originals",
+  "open5e": "Open5e Originals",
   // Green Ronin Publishing
   "taldorei": "Tal'Dorei Campaign Setting",
+  "tdcs": "Tal'Dorei Campaign Setting",
   // Books we do not host: these appear only on content a DM imported themselves.
   "phb": "Player's Handbook",
   "xge": "Xanathar's Guide to Everything",
@@ -56,6 +60,18 @@ export const OPEN5E_SOURCE_LABELS: Record<string, string> = {
   "ai": "Acquisitions Incorporated",
   "srd": "SRD (legacy)",
 };
+
+/**
+ * The text of a source link when the row names no book: the site it points
+ * at, so a link is never an empty, invisible anchor.
+ */
+export function sourceLinkHost(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
 
 /**
  * The label for a row's source, or null when it has none worth naming.

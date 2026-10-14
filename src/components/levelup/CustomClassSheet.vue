@@ -169,7 +169,7 @@ const editable = computed(() =>
 const { labelFor } = useSourceTitles();
 const readOnlyLabel = computed(() => {
   const isLibrary = !isCustomClass(props.cls) || props.cls.user_id === null;
-  const book = isLibrary ? labelFor(props.cls.source_document_key, props.cls.source_revision) : null;
+  const book = isLibrary ? labelFor(props.cls.source_document_key) : null;
   return book ? `${book}, read only` : "Read only";
 });
 

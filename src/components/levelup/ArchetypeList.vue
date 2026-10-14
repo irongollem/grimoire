@@ -210,12 +210,12 @@ function subtitle(sc: CustomSubclass): string {
 const { labelFor } = useSourceTitles();
 
 /**
- * The book an archetype comes from, as people know it: an imported one carries
- * its document's name in `source_revision`; the SRD's is shortened to fit the
- * line. A homebrew archetype names whatever the DM typed, or nothing.
+ * The book an archetype comes from, by its document key. A homebrew archetype
+ * names whatever the DM typed, or nothing. Never `source_revision`: that is a
+ * revision marker ("legacy-v1", "seeded"), not a title.
  */
 function bookOf(sc: CustomSubclass): string | null {
-  return labelFor(sc.source_document_key ?? sc.source, sc.source_revision);
+  return labelFor(sc.source_document_key ?? sc.source);
 }
 
 /** The base class's picture, from the library's classes or the DM's own; null when it has none. */

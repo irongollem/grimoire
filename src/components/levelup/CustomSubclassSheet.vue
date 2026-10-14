@@ -41,7 +41,7 @@
           <span class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
             {{ sub.class_name }}
           </span>
-          <SourceBadge :source="sub.source_document_key ?? sub.source" :title="sub.source_revision" />
+          <SourceBadge :source="sub.source_document_key ?? sub.source" />
           <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ sub.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
           </span>
@@ -148,7 +148,7 @@ import type { CustomSubclass } from "@/levelup/customTypes";
 const props = defineProps<{ sub: CustomSubclass }>();
 
 const { labelFor } = useSourceTitles();
-const bookLabel = computed(() => labelFor(props.sub.source_document_key ?? props.sub.source, props.sub.source_revision));
+const bookLabel = computed(() => labelFor(props.sub.source_document_key ?? props.sub.source));
 /** A subclass nobody owns is a book's; name the book. */
 const readOnlyLabel = computed(() =>
   props.sub.user_id === null && bookLabel.value ? `${bookLabel.value}, read only` : "Read only",

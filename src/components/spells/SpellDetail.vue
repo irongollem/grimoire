@@ -61,8 +61,8 @@
               target="_blank"
               rel="noopener noreferrer"
               class="hover:text-foreground hover:underline transition-colors"
-            >{{ sourceLabel }}</a>
-            <span v-else>{{ sourceLabel }}</span>
+            >{{ sourceLabel ?? sourceLinkHost(props.spell.source_url) }}</a>
+            <span v-else>{{ sourceLabel ?? props.spell.source_title }}</span>
           </div>
           <AppInput
             v-else
@@ -268,6 +268,7 @@ import TagInput from "@/components/common/controls/TagInput.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
+import { sourceLinkHost } from "@/lib/library/sourceLabel";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { SPELL_SCHOOLS, spellLevelLabel } from "@/types/spell.types";
 import type { Spell, SpellSchool } from "@/types/spell.types";

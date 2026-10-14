@@ -244,7 +244,7 @@ const { labelFor } = useSourceTitles();
 /** A system class is its book's: name the book. An imported or homebrew one keeps its kind. */
 function classKindLabel(cls: (typeof mergedClasses.value)[number]): string {
   if (cls.definition_kind === "system") {
-    return labelFor(cls.source_document_key, cls.source_revision) ?? "Class";
+    return labelFor(cls.source_document_key) ?? "Class";
   }
   return cls.source_document_key ? "Imported" : "Custom";
 }

@@ -327,8 +327,8 @@
               target="_blank"
               rel="noopener noreferrer"
               class="hover:text-foreground hover:underline transition-colors"
-            >{{ sourceLabel }}</a>
-            <span v-else>{{ sourceLabel }}</span>
+            >{{ sourceLabel ?? sourceLinkHost(props.item.source_url) }}</a>
+            <span v-else>{{ sourceLabel ?? props.item.source_title }}</span>
           </div>
           <!-- Custom items: editable -->
           <AppInput
@@ -396,6 +396,7 @@ import {
 import type { Item, ItemType, ItemRarity, WeaponMasteryProperty } from "@/types/item.types";
 import type { DamageRoll } from "@/lib/dice/dice";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
+import { sourceLinkHost } from "@/lib/library/sourceLabel";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
