@@ -538,6 +538,7 @@ export function useCampaignMessages() {
   async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, senderName?: string, imageUrl?: string | null, description?: string | null, isContainer?: boolean) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
+    const speaker = senderName === undefined ? currentSpeaker() : speakerForName(senderName);
     const metadata: ItemDropMetadata = {
       ...itemRefColumns(itemId), item_name: itemName, item_rarity: rarity, quantity,
       is_container: isContainer ?? false,
@@ -546,12 +547,13 @@ export function useCampaignMessages() {
       image_url: imageUrl ?? null,
       description: description ?? null,
       claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null,
+      ...forTag(speaker),
     };
     const insert: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: null,
-      sender_name: senderName ?? getSenderName(),
+      sender_name: speaker.name,
       message: `dropped ${quantity > 1 ? `${quantity}x ` : ""}${itemName}`,
       type: "item_drop",
       metadata,
@@ -570,16 +572,18 @@ export function useCampaignMessages() {
     pp = coin(pp); gp = coin(gp); ep = coin(ep); sp = coin(sp); cp = coin(cp);
     const parts = formatCoinParts(pp, gp, ep, sp, cp);
     if (!parts.length) return;
+    const speaker = currentSpeaker();
     const metadata: CurrencyDropMetadata = {
       label: label || null,
       pp, gp, ep, sp, cp,
       claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null,
+      ...forTag(speaker),
     };
     const insert: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: null,
-      sender_name: getSenderName(),
+      sender_name: speaker.name,
       message: label ? `dropped ${label}: ${parts.join(", ")}` : `dropped currency: ${parts.join(", ")}`,
       type: "currency_drop",
       metadata,

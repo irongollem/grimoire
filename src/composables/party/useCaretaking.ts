@@ -12,7 +12,6 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useCharacterCaretakers, useEndHandOver } from "@/composables/party/useCharacterCaretakers";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useToast } from "@/composables/useToast";
-import { handOverOf } from "@/lib/player/caretaking";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -31,13 +30,18 @@ export function useCaretaking(
   const appUi = useAppUiStore();
   const campaign = useCampaignStore();
   const toast = useToast();
-  const { rows, openSessionId } = useCharacterCaretakers(() => campaign.activeCampaignId);
+  const { active } = useCharacterCaretakers(() => campaign.activeCampaignId);
   const { data: tableMembers } = useCampaignMembers();
   const { mutateAsync: endHandOverMutation, isPending: ending } = useEndHandOver();
 
+  /** Whether the hand-overs and the open session have both been read. Until
+   *  then nothing is known either way, so no control that assumes "not handed
+   *  over" may show: offering a hand-over would replace one in force. */
+  const loaded = computed(() => active.value !== null);
+
   const handOver = computed(() => {
     const m = toValue(member);
-    return m && rows.value ? handOverOf(rows.value, m.id, openSessionId.value) : null;
+    return m && active.value ? (active.value.find(row => row.party_member_id === m.id) ?? null) : null;
   });
 
   const ownedByMe = computed(() => {
@@ -81,5 +85,5 @@ export function useCaretaking(
     }
   }
 
-  return { handOver, isMindingThis, notice, end, ending };
+  return { loaded, handOver, isMindingThis, notice, end, ending };
 }

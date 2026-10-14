@@ -101,6 +101,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import type { AdminUser, ExemptReason } from "@/composables/admin/useAdminUsers";
 import { accountSegment, SEGMENT_INFO, type AccountSegment } from "@/lib/admin/accountSegments";
 import { outreachMailto, renderOutreach, type OutreachTemplate } from "@/lib/admin/outreachEmail";
+import { NOTICE_GRACE_DAYS } from "@/lib/account/retentionPeriods";
 import type { PlanId } from "@/types/subscription.types";
 
 const { user, template, now } = defineProps<{
@@ -118,7 +119,6 @@ const emit = defineEmits<{
 }>();
 
 const PLAN_IDS: PlanId[] = ["free", "tester", "pro"];
-const NOTICE_GRACE_DAYS = 30;
 
 const SEGMENT_TONE: Record<AccountSegment, "info" | "success" | "arcane" | "caution" | "danger"> = {
   new: "info",

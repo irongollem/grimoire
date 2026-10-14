@@ -1,6 +1,6 @@
 import { useConfirm } from "@/composables/useConfirm";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
-import { useSpeaker } from "@/composables/party/useSpeaker";
+import { useSeatedSpeaker } from "@/composables/party/useSpeaker";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
@@ -28,7 +28,7 @@ export function useConcentration() {
   const { mutateAsync: updateMember } = useUpdatePartyMember();
   const { confirm } = useConfirm();
   const { sendFlavorMessage } = useCampaignMessages();
-  const { speakerName } = useSpeaker();
+  const { speakerName } = useSeatedSpeaker();
   const { reportChatFailure } = useChatSendFailure();
   const { promptRoll } = usePromptedRoll();
 

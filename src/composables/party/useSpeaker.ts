@@ -5,6 +5,7 @@
 import { computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCharacterCaretakers } from "@/composables/party/useCharacterCaretakers";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { minderTagOfName, speakerFor, type Speaker } from "@/lib/player/speaker";
@@ -54,4 +55,15 @@ export function useSpeaker(enabled?: () => boolean) {
   }
 
   return { speaker, speakerName, forPartyMemberIdOfName, caretakerNameOf, myName, handOvers: caretakers.active };
+}
+
+/**
+ * The speaker for a surface that only ever names a line after the member's own
+ * seat (a cast, a check). Only a seated member outside DM preview can be
+ * minding a character, so the DM's screens read no hand-overs for it.
+ */
+export function useSeatedSpeaker() {
+  const auth = useAuthStore();
+  const appUi = useAppUiStore();
+  return useSpeaker(() => !appUi.dmPreviewMode && auth.linkedPartyMemberId != null);
 }

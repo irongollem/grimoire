@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import type { Campaign } from "@/types/campaign.types";
-import { setTheme } from "@/lib/themeRuntime";
+import { setPlayerSeat, setTheme } from "@/lib/themeRuntime";
 import { useAuthStore } from "@/stores/auth";
 import { decryptApiKey } from "@/lib/apiKeyVault";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
@@ -250,6 +250,9 @@ export const useCampaignStore = defineStore("campaign", () => {
     },
     { immediate: true },
   );
+
+  // A player's own theme applies at a table they play at, never one they run.
+  watch(() => useAuthStore().isPlayer, (isPlayer) => setPlayerSeat(isPlayer), { immediate: true });
 
   function clearActiveCampaign() {
     activeCampaignId.value      = null;

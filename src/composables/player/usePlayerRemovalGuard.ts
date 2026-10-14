@@ -23,7 +23,6 @@ import { useToast } from "@/composables/useToast";
 import { useQueryClient } from "@tanstack/vue-query";
 import { partyListQuery } from "@/composables/party/useParty";
 import { useCharacterCaretakers } from "@/composables/party/useCharacterCaretakers";
-import { handOverOf } from "@/lib/player/caretaking";
 import { wentBackMessage } from "@/lib/player/playableCharacters";
 import type { PartyMember } from "@/types/party.types";
 import type { CampaignMember } from "@/types/campaign.types";
@@ -72,15 +71,18 @@ export function usePlayerRemovalGuard() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["party"] }),
       queryClient.invalidateQueries({ queryKey: ["my-characters"] }),
-      caretakers.refetch(),
+      // The session too: the ring that moved the seat is often a session
+      // ending, which lapses the hand-over without changing its row.
+      caretakers.refresh(),
     ]);
     if (!previousSeat) return;
     // Only a character I was looking after, and no longer am. A seat I moved
     // myself leaves the hand-over in force, so it says nothing.
     const rows = caretakers.rows.value;
-    if (!rows) return;
+    const active = caretakers.active.value;
+    if (!rows || !active) return;
     const mine = rows.some((r) => r.party_member_id === previousSeat && r.caretaker_user_id === userId);
-    if (!mine || handOverOf(rows, previousSeat, caretakers.openSessionId.value)) return;
+    if (!mine || active.some((r) => r.party_member_id === previousSeat)) return;
     const owner = tableMembers?.find((m) => m.user_id === left?.owner_user_id)?.display_name ?? null;
     toast.info(wentBackMessage(left?.name ?? null, owner));
   }

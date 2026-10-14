@@ -1,7 +1,7 @@
 <template>
   <SettingsSection
     title="Unused accounts"
-    description="Accounts unused for 12 months get a notice; 30 days later, if still unused, they can be deleted."
+    :description="`Accounts unused for ${INACTIVE_MONTHS} months get a notice; ${NOTICE_GRACE_DAYS} days later, if still unused, they can be deleted.`"
   >
     <div v-if="statusQuery.isPending.value" class="py-2">
       <BannerLoader class="h-8" />
@@ -76,6 +76,10 @@
  * still unused 30 days after it. Neither runs on its own; a person presses the
  * button. Deletion goes one account at a time so one failure does not stop the
  * rest, and each failure is reported by name.
+ *
+ * The list the button counts can be minutes old, and a notified account that
+ * signs in stops being deletable. So the delete re-reads the list after the
+ * confirm and erases only the accounts that are still past their notice.
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -83,6 +87,7 @@ import BannerLoader from "@/components/brand/BannerLoader.vue";
 import CautionNotice from "@/components/common/feedback/CautionNotice.vue";
 import SettingsSection from "@/components/common/settings/SettingsSection.vue";
 import { accountDeletionErrorMessage } from "@/composables/account/useAccountDeletion";
+import { INACTIVE_MONTHS, NOTICE_GRACE_DAYS } from "@/lib/account/retentionPeriods";
 import { useAdminUsers, type AdminUser } from "@/composables/admin/useAdminUsers";
 import { useInactivityNoticeStatus, useSendInactivityNotice } from "@/composables/admin/useInactivityNotice";
 import { useConfirm } from "@/composables/useConfirm";
@@ -90,7 +95,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { users } = defineProps<{ users: readonly AdminUser[] }>();
 
 const { confirm } = useConfirm();
-const { deleteUser } = useAdminUsers();
+const { deleteUser, refetch: refetchUsers } = useAdminUsers();
 const statusQuery = useInactivityNoticeStatus();
 const sendMutation = useSendInactivityNotice();
 
@@ -122,7 +127,7 @@ const canSend = computed(() => !!status.value && status.value.configured && stat
 async function send(): Promise<void> {
   if (!canSend.value) return;
   const ok = await confirm(
-    `Email ${accounts(nextBatch.value)} that their account will be deleted in 30 days unless they sign in? This cannot be undone.`,
+    `Email ${accounts(nextBatch.value)} that their account will be deleted in ${NOTICE_GRACE_DAYS} days unless they sign in? This cannot be undone.`,
     { title: "Send the inactivity notice?", confirmLabel: "Send", danger: false },
   );
   if (!ok) return;
@@ -135,15 +140,31 @@ async function send(): Promise<void> {
 }
 
 async function deleteAll(): Promise<void> {
-  const targets = [...deletable.value];
-  if (targets.length === 0) return;
+  const confirmed = [...deletable.value];
+  if (confirmed.length === 0) return;
   const ok = await confirm(
-    `Permanently delete ${accounts(targets.length)}? Each was sent a notice at least 30 days ago and has not been back. Their campaigns and everything in them are erased. This cannot be undone.`,
-    { title: "Delete unused accounts", confirmLabel: `Delete ${accounts(targets.length)}`, danger: true },
+    `Permanently delete ${accounts(confirmed.length)}? Each was sent a notice at least ${NOTICE_GRACE_DAYS} days ago and has not been back. Their campaigns and everything in them are erased. This cannot be undone.`,
+    { title: "Delete unused accounts", confirmLabel: `Delete ${accounts(confirmed.length)}`, danger: true },
   );
   if (!ok) return;
   deleting.value = true;
   failures.value = [];
+  progress.value = "Checking who is still unused…";
+  let fresh: AdminUser[] | undefined;
+  try {
+    fresh = (await refetchUsers({ throwOnError: true })).data;
+  } catch {
+    fresh = undefined;
+  }
+  if (!fresh) {
+    progress.value = "";
+    failures.value = ["Could not re-check the accounts, so nothing was deleted."];
+    deleting.value = false;
+    return;
+  }
+  const stillDeletable = new Set(fresh.filter((u) => u.retention_state === "deletable").map((u) => u.user_id));
+  const targets = confirmed.filter((u) => stillDeletable.has(u.user_id));
+  const cameBack = confirmed.length - targets.length;
   let done = 0;
   for (const target of targets) {
     progress.value = `Deleting ${done + 1} of ${targets.length}…`;
@@ -155,7 +176,8 @@ async function deleteAll(): Promise<void> {
     }
     done += 1;
   }
-  progress.value = `Deleted ${targets.length - failures.value.length} of ${targets.length}.`;
+  const kept = cameBack > 0 ? ` ${accounts(cameBack)} came back since the list loaded and ${cameBack === 1 ? "was" : "were"} kept.` : "";
+  progress.value = `Deleted ${targets.length - failures.value.length} of ${targets.length}.${kept}`;
   deleting.value = false;
 }
 </script>

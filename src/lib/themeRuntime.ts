@@ -42,6 +42,15 @@ const storedOverride = safeLocalStorage().getItem(OVERRIDE_KEY);
 const themeOverride = ref<ThemeOverride>(isThemeId(storedOverride) ? storedOverride : FOLLOW_CAMPAIGN);
 
 /**
+ * Whether the user sits at the campaign on screen as a player. The pick is a
+ * player setting: someone who plays at one table and runs another sees their
+ * own campaign in the theme they chose for it as its DM. Stored so a reload
+ * paints the right theme before the membership has been read again.
+ */
+const SEAT_KEY = "grimoire-theme-seat";
+const playerSeat = ref<boolean>(safeLocalStorage().getItem(SEAT_KEY) === "player");
+
+/**
  * The member of `themeId`'s family in the given mode: a player who prefers dark
  * on a Vellum campaign gets Vellum Lamplight, not Grimoire. Falls back to the
  * classic pair for an unknown id.
@@ -69,9 +78,9 @@ export function darkTwinStyle(themeId: string): Record<string, string> {
   return theme ? { ...theme.vars } : {};
 }
 
-/** The theme to apply: the player's own pick, else the campaign's. */
+/** The theme to apply: the player's own pick at a table they play at, else the campaign's. */
 function resolveThemeId(campaignThemeId: string): string {
-  return isThemeId(themeOverride.value) ? themeOverride.value : campaignThemeId;
+  return playerSeat.value && isThemeId(themeOverride.value) ? themeOverride.value : campaignThemeId;
 }
 
 /** Every custom property any theme sets, so a switch can clear the ones the
@@ -117,7 +126,24 @@ export function setOverride(override: ThemeOverride) {
   setTheme(campaignThemeId.value);
 }
 
-/** Call once at app startup to restore the saved theme. */
+/** Whether the user plays at the campaign on screen (rather than runs it, or has none open). */
+export function setPlayerSeat(isPlayer: boolean) {
+  if (playerSeat.value === isPlayer) return;
+  playerSeat.value = isPlayer;
+  safeLocalStorage().setItem(SEAT_KEY, isPlayer ? "player" : "other");
+  setTheme(campaignThemeId.value);
+}
+
+/**
+ * Paint a theme exactly as asked, recording it as nobody's choice: the
+ * component catalogue's preview. `initTheme` puts the campaign's back.
+ */
+export function previewTheme(id: string) {
+  const theme = THEMES.find((t) => t.id === id);
+  if (theme) applyTheme(theme);
+}
+
+/** Apply the saved campaign theme (and the player's pick, where it applies): at startup, and after a preview. */
 export function initTheme() {
   setTheme(campaignThemeId.value);
 }

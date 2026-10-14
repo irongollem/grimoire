@@ -726,12 +726,11 @@ const numberValue = ref<string | number | null>(12);
 
 const route = useRoute();
 const router = useRouter();
-const { themes, setTheme, activeThemeId } = useTheme();
+const { themes, previewTheme, initTheme, activeThemeId } = useTheme();
 
-// Restore whatever the developer had before they opened this page: setTheme
-// persists to localStorage, and a catalogue should not quietly repaint the app.
-const themeOnEntry = activeThemeId.value;
-onBeforeUnmount(() => setTheme(themeOnEntry));
+// A preview, not a choice: it shows exactly the theme asked for (a player's own
+// pick does not apply here), and leaving puts the campaign's theme back.
+onBeforeUnmount(() => initTheme());
 
 function firstQuery(v: LocationQueryValue | LocationQueryValue[]): string | undefined {
   const val = Array.isArray(v) ? v[0] : v;
@@ -741,12 +740,12 @@ function firstQuery(v: LocationQueryValue | LocationQueryValue[]): string | unde
 const theme = computed<string>({
   get: () => firstQuery(route.query.theme) ?? activeThemeId.value,
   set: (id) => {
-    setTheme(id);
+    previewTheme(id);
     router.replace({ query: { ...route.query, theme: id } });
   },
 });
 
 // Apply a theme arriving by query string, so a headless pass gets what it asked for.
 const requested = firstQuery(route.query.theme);
-if (requested && requested !== activeThemeId.value) setTheme(requested);
+if (requested && requested !== activeThemeId.value) previewTheme(requested);
 </script>

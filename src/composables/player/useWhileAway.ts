@@ -39,7 +39,7 @@ export function useWhileAway(
   member: MaybeRefOrGetter<PartyMember | null>,
 ) {
   const auth = useAuthStore();
-  const { rows, openSessionId } = useCharacterCaretakers(campaignId);
+  const { rows, active, openSessionId } = useCharacterCaretakers(campaignId);
   const { data: sessions } = usePlayerSessions();
   const { data: members } = useCampaignMembers();
 
@@ -51,8 +51,9 @@ export function useWhileAway(
   const away = computed<WhileAwayHandOver | null>(() => {
     const m = toValue(member);
     // Wait for the labels: a hand-over filed under a session ends with it, and
-    // without them it would read as ended at no time and be dropped.
-    if (!owned.value || !m || !sessions.value || !rows.value) return null;
+    // without them it would read as ended at no time and be dropped. And for
+    // the open session (`active`), without which one in force reads as lapsed.
+    if (!owned.value || !m || !sessions.value || !rows.value || !active.value) return null;
     return pickWhileAway(rows.value, m.id, openSessionId.value, sessions.value, new Date());
   });
 

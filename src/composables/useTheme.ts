@@ -1,5 +1,5 @@
 import { THEMES } from "@/lib/themes";
-import { activeThemeId, campaignThemeIdState, FOLLOW_CAMPAIGN, initTheme, setOverride, setTheme, themeOverrideState } from "@/lib/themeRuntime";
+import { activeThemeId, campaignThemeIdState, FOLLOW_CAMPAIGN, initTheme, previewTheme, setOverride, setTheme, themeOverrideState } from "@/lib/themeRuntime";
 
 /** Expose shared theme state and controls for campaign themes and player overrides. */
 export function useTheme() {
@@ -10,6 +10,7 @@ export function useTheme() {
     followCampaign: FOLLOW_CAMPAIGN,
     themes: THEMES,
     setTheme,
+    previewTheme,
     setOverride,
     initTheme,
   };

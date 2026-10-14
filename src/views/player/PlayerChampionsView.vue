@@ -162,7 +162,7 @@
               label="Play"
               @click="switchTo(entry.member.id)"
             />
-            <span v-else class="shrink-0 text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground">Active</span>
+            <AppButton v-else as="span" variant="tinted" tone="primary" emphasis="solid" size="xs" class="shrink-0" label="Active" />
           </div>
         </div>
       </div>

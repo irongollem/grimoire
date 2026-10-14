@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from "vitest";
 import { THEMES } from "@/lib/themes";
-import { activeThemeId, darkTwinId, darkTwinStyle, setOverride, setTheme, themeInMode } from "./themeRuntime";
+import { activeThemeId, darkTwinId, darkTwinStyle, previewTheme, setOverride, setPlayerSeat, setTheme, themeInMode } from "./themeRuntime";
 
 describe("theme families", () => {
   it("pairs every theme with a member of the other mode", () => {
@@ -48,6 +48,7 @@ describe("applyTheme", () => {
   beforeEach(() => {
     localStorage.clear();
     document.documentElement.removeAttribute("style");
+    setPlayerSeat(true);
   });
 
   // Vellum sets the tones and entity ramps inline; tome leaves them to the
@@ -78,6 +79,24 @@ describe("applyTheme", () => {
     expect(activeThemeId.value).toBe("vellum");
     setOverride("campaign");
     expect(activeThemeId.value).toBe("grimoire");
+  });
+
+  it("keeps the player's pick to tables they play at", () => {
+    setOverride("vellum");
+    setPlayerSeat(false);
+    setTheme("grimoire");
+    // A campaign they run wears the theme they chose for it.
+    expect(activeThemeId.value).toBe("grimoire");
+    setPlayerSeat(true);
+    expect(activeThemeId.value).toBe("vellum");
+    setOverride("campaign");
+  });
+
+  it("previews exactly the theme asked for, the player's pick notwithstanding", () => {
+    setOverride("vellum");
+    previewTheme("grimoire");
+    expect(activeThemeId.value).toBe("grimoire");
+    setOverride("campaign");
   });
 
   it("follows the campaign for anything that is not a theme, the old light/dark/system values included", () => {

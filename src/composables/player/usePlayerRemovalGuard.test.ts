@@ -6,6 +6,9 @@ const h = vi.hoisted(() => ({
   ring: null as null | ((ring: { campaignId: string; table: string }) => void),
   membership: { party_member_id: "mine" as string | null },
   rows: [] as unknown[],
+  /** The open session the guard sees before and after it refreshes. */
+  openSession: null as string | null,
+  openSessionAfterRefresh: null as string | null,
   refreshMembership: vi.fn(),
   toastInfo: vi.fn(),
   toastError: vi.fn(),
@@ -40,13 +43,25 @@ vi.mock("@tanstack/vue-query", () => ({
   }),
 }));
 vi.mock("@/composables/party/useParty", () => ({ partyListQuery: (id: string) => ({ queryKey: ["party", id] }) }));
-vi.mock("@/composables/party/useCharacterCaretakers", () => ({
-  useCharacterCaretakers: () => ({
-    rows: ref(h.rows),
-    openSessionId: ref<string | null>(null),
-    refetch: () => Promise.resolve(),
-  }),
-}));
+vi.mock("@/composables/party/useCharacterCaretakers", async () => {
+  const { activeHandOvers } = await import("@/lib/player/caretaking");
+  const { computed } = await import("vue");
+  return {
+    useCharacterCaretakers: () => {
+      const rows = ref(h.rows as Parameters<typeof activeHandOvers>[0]);
+      const openSessionId = ref(h.openSession);
+      return {
+        rows,
+        openSessionId,
+        active: computed(() => activeHandOvers(rows.value, openSessionId.value)),
+        refresh: () => {
+          openSessionId.value = h.openSessionAfterRefresh;
+          return Promise.resolve();
+        },
+      };
+    },
+  };
+});
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ info: h.toastInfo, error: h.toastError }) }));
 vi.mock("@/stores/auth", () => ({
   useAuthStore: () => ({
@@ -77,6 +92,8 @@ beforeEach(() => {
   h.ring = null;
   h.membership = { party_member_id: "minded" };
   h.rows = [];
+  h.openSession = null;
+  h.openSessionAfterRefresh = null;
 });
 
 describe("usePlayerRemovalGuard", () => {
@@ -103,6 +120,15 @@ describe("usePlayerRemovalGuard", () => {
     await ringOnce();
     expect(h.refreshMembership).toHaveBeenCalled();
     expect(h.toastInfo).not.toHaveBeenCalled();
+  });
+
+  it("re-reads the session before judging, so a hand-over its ending lapsed says it went back", async () => {
+    h.seatRow = { id: "m", party_member_id: "mine" };
+    h.rows = [{ party_member_id: "minded", caretaker_user_id: "me", session_id: "s1", revoked_at: null }];
+    h.openSession = "s1";
+    h.openSessionAfterRefresh = null;
+    await ringOnce();
+    expect(h.toastInfo).toHaveBeenCalledWith("Mira went back to Pia.");
   });
 
   it("still ejects a player whose membership row is gone", async () => {

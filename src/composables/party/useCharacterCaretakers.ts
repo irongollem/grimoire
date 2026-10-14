@@ -51,7 +51,12 @@ export function useCharacterCaretakers(campaignId: MaybeRefOrGetter<string | nul
     rows.value && sessionState.data.value ? activeHandOvers(rows.value, openSessionId.value) : null,
   );
 
-  return { ...query, rows, active, openSessionId };
+  /** Re-read both halves: a session ending changes which hand-overs are in force without touching a row. */
+  async function refresh(): Promise<void> {
+    await Promise.all([query.refetch(), sessionState.refetch()]);
+  }
+
+  return { ...query, rows, active, openSessionId, refresh };
 }
 
 /** Hand a character to another member. The owner or a DM may; the server checks both. */

@@ -257,7 +257,7 @@ const isSeated = computed(
 
 // ── Looking after a character (#1059) ─────────────────────────────────────────
 const handOverOpen = ref(false);
-const { handOver, isMindingThis } = useCaretaking(() => member.value, () => !!props.memberId);
+const { loaded: caretakingLoaded, handOver, isMindingThis } = useCaretaking(() => member.value, () => !!props.memberId);
 /** Build and story controls: the owner's, not a caretaker's. */
 const isOwner = computed(() => isSeated.value && !isMindingThis.value);
 
@@ -287,7 +287,7 @@ const ownerMenuItems = computed<OverflowMenuEntry[]>(() => {
   const m = member.value;
   if (!m) return [];
   const items: OverflowMenuEntry[] = [];
-  if (memberOwnedByMe.value && !appUi.dmPreviewMode && !handOver.value) {
+  if (memberOwnedByMe.value && !appUi.dmPreviewMode && caretakingLoaded.value && !handOver.value) {
     items.push({ key: "hand-over", label: `Ask someone to look after ${m.name}` });
   }
   if (canRetire.value) items.push({ key: "retire", label: "Retire…" });

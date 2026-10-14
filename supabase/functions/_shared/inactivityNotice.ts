@@ -5,12 +5,12 @@
  */
 import { escapeHtml } from "./emailHtml.ts";
 import type { EmailContent } from "./resend.ts";
+import { INACTIVE_MONTHS, NOTICE_GRACE_DAYS } from "../../../src/lib/account/retentionPeriods.ts";
+
+export { NOTICE_GRACE_DAYS };
 
 const APP_ORIGIN = "https://app.dungeongrimoire.com";
 const PRIVACY_URL = "https://dungeongrimoire.com/privacy";
-
-/** The notice's deletion date is the send date plus this many days. */
-export const NOTICE_GRACE_DAYS = 30;
 
 const SUBJECT = "Your Dungeon Grimoire account will be deleted unless you sign in";
 const FOOTER =
@@ -37,14 +37,14 @@ export function inactivityNoticeEmail(args: {
   const paragraphs = forParent
     ? [
         `We have not seen the account you set up for your young player on Dungeon Grimoire since ${lastSeen}.`,
-        `Under our privacy policy, an account that has not been used for 12 months is deleted. If nobody signs in to it before ${deadline}, the account and everything in it will be deleted.`,
+        `Under our privacy policy, an account that has not been used for ${INACTIVE_MONTHS} months is deleted. If nobody signs in to it before ${deadline}, the account and everything in it will be deleted.`,
         `To keep it, your young player just needs to sign in once before ${deadline}. Nothing else is needed.`,
         "If you would like to keep their work but not the account, export it first from the account settings.",
         "If you are happy for the account to go, you do not need to do anything.",
       ]
     : [
         `We have not seen you on Dungeon Grimoire since ${lastSeen}.`,
-        `Under our privacy policy, an account that has not been used for 12 months is deleted. If you do not sign in before ${deadline}, your account and everything in it will be deleted.`,
+        `Under our privacy policy, an account that has not been used for ${INACTIVE_MONTHS} months is deleted. If you do not sign in before ${deadline}, your account and everything in it will be deleted.`,
         `To keep it, just sign in any time before ${deadline}. Nothing else is needed.`,
         "If you would like to keep your work but not the account, export it first from your account settings.",
         "If you are happy for the account to go, you do not need to do anything.",

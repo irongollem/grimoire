@@ -131,8 +131,9 @@ grant execute on function private.plays_for_another(uuid) to authenticated, serv
 -- Every seat in the campaign that sits on another player's character without
 -- an active hand-over goes back to its member's own character: the one they
 -- left for it, else the one they most recently played, else no character.
--- Never to a character still waiting for the DM's approval, which no seat may
--- take (CR001).
+-- The one they left may be a DM-managed character nobody owns, which the seat
+-- guard lets anyone sit on, so it is a way home too. Never to a character
+-- still waiting for the DM's approval, which no seat may take (CR001).
 
 create function private.settle_caretaker_seats(p_campaign_id uuid)
 returns void
@@ -164,7 +165,7 @@ begin
      where cc.party_member_id = v_seat.party_member_id
        and cc.caretaker_user_id = v_seat.user_id
        and pm.campaign_id = p_campaign_id
-       and pm.owner_user_id = v_seat.user_id
+       and (pm.owner_user_id = v_seat.user_id or pm.owner_user_id is null)
        and not exists (select 1 from public.character_content_reviews r
                         where r.party_member_id = pm.id and r.status = 'pending')
      order by cc.created_at desc
@@ -195,7 +196,11 @@ revoke execute on function private.settle_caretaker_seats(uuid) from public, ano
 -- ── Writes to a hand-over ───────────────────────────────────────────────────
 
 -- Insert: the server decides everything but who, for whom and at which table.
--- A new hand-over ends the character's last one.
+-- A new hand-over ends the character's last one. Handed to the same caretaker
+-- again (say, to file it under a new session), the new one keeps the way home
+-- the last one knew, and the seats are settled only once the new row exists
+-- (the after-insert trigger below): settling on the revoke alone would see no
+-- active hand-over and move the caretaker off the character they still mind.
 create function private.prepare_character_caretaker()
 returns trigger
 language plpgsql
@@ -203,7 +208,9 @@ security definer
 set search_path to ''
 as $$
 declare
-  v_pm public.party_members;
+  v_pm     public.party_members;
+  v_prev   text := current_setting('grimoire.caretaker_replacing', true);
+  v_return uuid;
 begin
   -- Authorize before saying anything about the character: the policy's own
   -- check runs after this trigger, and a stranger must learn nothing from
@@ -231,17 +238,25 @@ begin
     raise exception 'Only someone at this table can look after a character';
   end if;
 
+  select cc.return_member_id into v_return
+    from public.character_caretakers cc
+   where cc.party_member_id = new.party_member_id
+     and cc.caretaker_user_id = new.caretaker_user_id
+     and cc.revoked_at is null;
+
   new.granted_by := (select auth.uid());
-  new.return_member_id := null;
+  new.return_member_id := v_return;
   new.revoked_at := null;
   new.revoked_by := null;
   select s.id into new.session_id
     from public.campaign_sessions s
    where s.campaign_id = new.campaign_id and s.started_at is not null and s.ended_at is null;
 
+  perform set_config('grimoire.caretaker_replacing', 'on', true);
   update public.character_caretakers
      set revoked_at = now(), revoked_by = (select auth.uid())
    where party_member_id = new.party_member_id and revoked_at is null;
+  perform set_config('grimoire.caretaker_replacing', coalesce(v_prev, ''), true);
 
   return new;
 end;
@@ -282,6 +297,10 @@ security definer
 set search_path to ''
 as $$
 begin
+  -- The revoke a new hand-over makes of the last one; that insert settles.
+  if current_setting('grimoire.caretaker_replacing', true) = 'on' then
+    return null;
+  end if;
   perform private.settle_caretaker_seats(coalesce(new.campaign_id, old.campaign_id));
   if tg_op = 'UPDATE' and old.campaign_id is distinct from new.campaign_id then
     perform private.settle_caretaker_seats(old.campaign_id);
@@ -313,7 +332,7 @@ create trigger zz_same_campaign_refs
     'return_member_id', 'party_members', 'owned');
 
 create trigger character_caretakers_settle_seats
-  after update or delete on public.character_caretakers
+  after insert or update or delete on public.character_caretakers
   for each row execute procedure private.settle_caretaker_seats_on_change();
 
 -- ── RLS ─────────────────────────────────────────────────────────────────────

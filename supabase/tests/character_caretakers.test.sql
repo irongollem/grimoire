@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(40);
+select plan(46);
 
 -- Look after my character (#1059, 20261014214947): a character handed to
 -- another member for a session. The caretaker's seat points at it beside the
@@ -31,7 +31,10 @@ insert into public.party_members (id, user_id, owner_user_id, campaign_id, name,
   ('10590000-0000-4000-8000-0000000000a1', '10590000-0000-4000-8000-000000000002', '10590000-0000-4000-8000-000000000002',
    '10590000-0000-4000-8000-0000000000c1', 'Mira', 3, 24, 24, '2024', 'Pia''s notes', '{"feats": ["alert"], "rage_active": false}'::jsonb),
   ('10590000-0000-4000-8000-0000000000a2', '10590000-0000-4000-8000-000000000003', '10590000-0000-4000-8000-000000000003',
-   '10590000-0000-4000-8000-0000000000c1', 'Toma', 3, 20, 20, '2024', null, '{}'::jsonb);
+   '10590000-0000-4000-8000-0000000000c1', 'Toma', 3, 20, 20, '2024', null, '{}'::jsonb),
+  -- A DM-managed character nobody owns, which any member may sit on.
+  ('10590000-0000-4000-8000-0000000000a3', '10590000-0000-4000-8000-000000000001', null,
+   '10590000-0000-4000-8000-0000000000c1', 'Hireling', 1, 8, 8, '2024', null, '{}'::jsonb);
 
 select set_config('grimoire.pm_campaign_transition', 'on', true);
 update public.campaign_members set party_member_id = '10590000-0000-4000-8000-0000000000a1'
@@ -47,7 +50,8 @@ select '10590000-0000-4000-8000-0000000000b1', '10590000-0000-4000-8000-00000000
 -- The fixture's spell is from a book the table has not enabled; that review is
 -- not under test here, and a pending one would bench the character (CR001).
 delete from public.character_content_reviews
- where party_member_id in ('10590000-0000-4000-8000-0000000000a1', '10590000-0000-4000-8000-0000000000a2');
+ where party_member_id in ('10590000-0000-4000-8000-0000000000a1', '10590000-0000-4000-8000-0000000000a2',
+                           '10590000-0000-4000-8000-0000000000a3');
 
 insert into public.companions (id, user_id, campaign_id, name, companion_type, source_type, owner_party_member_id, max_hp, current_hp)
 values ('10590000-0000-4000-8000-0000000000f1', '10590000-0000-4000-8000-000000000002', '10590000-0000-4000-8000-0000000000c1',
@@ -63,6 +67,10 @@ create function pg_temp.seat_of(p_n int) returns uuid language sql security defi
   select party_member_id from public.campaign_members
    where campaign_id = '10590000-0000-4000-8000-0000000000c1'
      and user_id = ('10590000-0000-4000-8000-00000000000' || p_n)::uuid;
+$$;
+create function pg_temp.open_return() returns uuid language sql security definer as $$
+  select return_member_id from public.character_caretakers
+   where party_member_id = '10590000-0000-4000-8000-0000000000a1' and revoked_at is null;
 $$;
 create function pg_temp.minds(p_n int) returns boolean language sql security definer as $$
   select private.minds_character('10590000-0000-4000-8000-0000000000a1',
@@ -223,6 +231,52 @@ select lives_ok($$ update public.character_caretakers set revoked_at = now()
 select pg_temp.as_user(4);
 select is_empty($$ update public.character_caretakers set revoked_at = now() returning id $$,
   'another player ends nobody''s hand-over');
+
+-- ── Handed to the same caretaker again ──────────────────────────────────────
+-- A new hand-over ends the last one; when it goes to the same caretaker, they
+-- stay on the character and keep their way home.
+
+select pg_temp.as_user(2);
+insert into public.character_caretakers (campaign_id, party_member_id, caretaker_user_id)
+values ('10590000-0000-4000-8000-0000000000c1', '10590000-0000-4000-8000-0000000000a1', '10590000-0000-4000-8000-000000000003');
+select pg_temp.as_user(3);
+update public.campaign_members set party_member_id = '10590000-0000-4000-8000-0000000000a1'
+ where campaign_id = '10590000-0000-4000-8000-0000000000c1' and user_id = '10590000-0000-4000-8000-000000000003';
+
+select pg_temp.as_user(1);
+select lives_ok($$ insert into public.character_caretakers (campaign_id, party_member_id, caretaker_user_id)
+  values ('10590000-0000-4000-8000-0000000000c1', '10590000-0000-4000-8000-0000000000a1', '10590000-0000-4000-8000-000000000003') $$,
+  'the DM hands the character to the same caretaker again');
+select is(pg_temp.seat_of(3), '10590000-0000-4000-8000-0000000000a1'::uuid, 'the caretaker stays on the character');
+select is(pg_temp.open_return(), '10590000-0000-4000-8000-0000000000a2'::uuid, 'and the new hand-over knows their way home');
+
+select pg_temp.as_user(2);
+update public.character_caretakers set revoked_at = now()
+ where party_member_id = '10590000-0000-4000-8000-0000000000a1' and revoked_at is null;
+select is(pg_temp.seat_of(3), '10590000-0000-4000-8000-0000000000a2'::uuid, 'which is where the seat goes when it ends');
+
+-- ── Home is a character nobody owns ─────────────────────────────────────────
+-- Every row in this transaction shares one now(); the way home is read from
+-- the latest hand-over, so the earlier ones are put back in time.
+reset role;
+update public.character_caretakers set created_at = created_at - interval '1 day';
+set local role authenticated;
+
+select pg_temp.as_user(3);
+select lives_ok($$ update public.campaign_members set party_member_id = '10590000-0000-4000-8000-0000000000a3'
+  where campaign_id = '10590000-0000-4000-8000-0000000000c1' and user_id = '10590000-0000-4000-8000-000000000003' $$,
+  'a player sits on a character nobody owns');
+select pg_temp.as_user(2);
+insert into public.character_caretakers (campaign_id, party_member_id, caretaker_user_id)
+values ('10590000-0000-4000-8000-0000000000c1', '10590000-0000-4000-8000-0000000000a1', '10590000-0000-4000-8000-000000000003');
+select pg_temp.as_user(3);
+update public.campaign_members set party_member_id = '10590000-0000-4000-8000-0000000000a1'
+ where campaign_id = '10590000-0000-4000-8000-0000000000c1' and user_id = '10590000-0000-4000-8000-000000000003';
+select pg_temp.as_user(2);
+update public.character_caretakers set revoked_at = now()
+ where party_member_id = '10590000-0000-4000-8000-0000000000a1' and revoked_at is null;
+select is(pg_temp.seat_of(3), '10590000-0000-4000-8000-0000000000a3'::uuid,
+  'the seat goes back to the unowned character it left');
 
 select * from finish();
 rollback;

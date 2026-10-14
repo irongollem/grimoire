@@ -60,6 +60,8 @@ export interface ItemDropMetadata {
   claimed_by_name: string | null;
   claimed_party_member_id: string | null; // null when claimed to stash or NPC inventory
   npc_id?: string | null; // present when claimed into a specific NPC's inventory
+  /** Set when the item was dropped for a character its sender is minding (#1059). */
+  for_party_member_id?: string;
 }
 
 export interface CurrencyDropMetadata {
@@ -72,6 +74,8 @@ export interface CurrencyDropMetadata {
   claimed_by_user_id: string | null;
   claimed_by_name: string | null;
   claimed_party_member_id: string | null;
+  /** Set when the coin was dropped for a character its sender is minding (#1059). */
+  for_party_member_id?: string;
 }
 
 export interface VendorOfferMetadata {

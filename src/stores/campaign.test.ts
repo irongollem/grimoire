@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => null }));
 const decryptApiKey = vi.hoisted(() => vi.fn(async (_blob: string) => ""));
 vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey }));
 const setTheme = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/themeRuntime", () => ({ setTheme }));
+vi.mock("@/lib/themeRuntime", () => ({ setTheme, setPlayerSeat: () => {} }));
 
 // isAiEnabled reads useAuthStore().isChildAccount directly (#919) rather than
 // the useQuery-backed useChildAccount() composable, which a Pinia setup

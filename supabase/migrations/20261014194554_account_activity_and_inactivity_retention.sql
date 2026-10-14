@@ -108,6 +108,9 @@ grant execute on function public.touch_account_activity() to authenticated, serv
 --   notice_due   unused 12 months, and no notice since the last activity
 --   notice_sent  notice sent, less than 30 days ago, nothing since
 --   deletable    notice sent 30+ days ago and still nothing since
+--
+-- The 12 months and 30 days are the app's INACTIVE_MONTHS and NOTICE_GRACE_DAYS
+-- (src/lib/account/retentionPeriods.ts); change them together.
 create or replace function private.account_retention()
 returns table (
   user_id                   uuid,
