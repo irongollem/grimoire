@@ -27,6 +27,7 @@ import {
 import type { Tool } from "@/cartographer/tools";
 import type { ObjectCategory, PackCategory } from "@/cartographer/packSchema";
 import { BASE_TILE_SIZE } from "@/cartographer/packSchema";
+import type { DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { renderMap, type MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { pickVariant } from "@/cartographer/tileVariants";
@@ -169,6 +170,11 @@ function fakeStructure(): ReturnType<typeof useCartographerStructure> {
   return stub as unknown as ReturnType<typeof useCartographerStructure>;
 }
 
+// A two-by-one table, so a hit can land on its second cell.
+const DRESSING_CATALOG: DressingCatalog = new Map([
+  ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: null }],
+]);
+
 interface Harness {
   layers: Ref<DungeonMapLayers>;
   dirty: Ref<boolean>;
@@ -176,6 +182,9 @@ interface Harness {
   activeTool: Ref<Tool>;
   canvasEl: Ref<HTMLCanvasElement | null>;
   editor: ReturnType<typeof useMapCanvasEditor>;
+  dressingBrushId: Ref<string | null>;
+  dressingRotation: Ref<number>;
+  selectedDressingId: Ref<string | null>;
   getReferenceImage: ReturnType<typeof vi.fn<(tilePx: number, offset: { x: number; y: number }) => MapRenderReferenceImage | null>>;
 }
 
@@ -190,6 +199,9 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
   const runtime = fakeRuntime();
   const packRuntime = computed(() => runtime) as ComputedRef<TilePackRuntime | null>;
   const getReferenceImage = vi.fn((): MapRenderReferenceImage | null => null);
+  const dressingBrushId = ref<string | null>(null);
+  const dressingRotation = ref(0);
+  const selectedDressingId = ref<string | null>(null);
 
   const opts: MapCanvasEditorOptions = {
     canvasEl,
@@ -201,6 +213,10 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
     packRuntime,
     selectablePacks: computed(() => [{ pack_id: "pack-1", pack_version: 3 }]),
     loadedRuntimes,
+    dressing: ref(DRESSING_CATALOG),
+    dressingBrushId,
+    dressingRotation,
+    selectedDressingId,
     cellGlyphs: computed(() => ({})),
     activeTool,
     tools: [
@@ -222,7 +238,10 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
   };
 
   const editor = useMapCanvasEditor(opts);
-  return { layers, dirty, editRevision, activeTool, canvasEl, editor, getReferenceImage };
+  return {
+    layers, dirty, editRevision, activeTool, canvasEl, editor, getReferenceImage,
+    dressingBrushId, dressingRotation, selectedDressingId,
+  };
 }
 
 function down(x: number, y: number, init: PointerEventInit = {}): PointerEvent {
@@ -964,6 +983,10 @@ describe("altHeld", () => {
           packRuntime: computed(() => runtime) as ComputedRef<TilePackRuntime | null>,
           selectablePacks: computed(() => [{ pack_id: "pack-1", pack_version: 3 }]),
           loadedRuntimes: ref(new Map()),
+          dressing: ref(new Map()),
+          dressingBrushId: ref<string | null>(null),
+          dressingRotation: ref(0),
+          selectedDressingId: ref<string | null>(null),
           cellGlyphs: computed(() => ({})),
           activeTool: ref<Tool>("floor"),
           tools: [{ id: "floor", shortcut: "f" }],
@@ -1001,5 +1024,208 @@ describe("altHeld", () => {
     expect(editor.altHeld.value).toBe(true);
     window.dispatchEvent(new Event("blur"));
     expect(editor.altHeld.value).toBe(false);
+  });
+});
+
+// ── Dressing tool (epic #1062) ───────────────────────────────────────────
+// The gestures themselves are covered in useDressingTool.test.ts; these prove
+// the editor routes pointer events to it and keeps undo, the eraser and the
+// render scene in step.
+
+describe("dressing tool", () => {
+  const CELL = BASE_TILE_SIZE; // a cell's CSS pixels at zoom 1
+
+  function armed() {
+    const h = makeHarness();
+    h.activeTool.value = "dressing";
+    h.dressingBrushId.value = "table";
+    return h;
+  }
+
+  /** The placement ids on the layer, in insertion order. */
+  const ids = (layers: Ref<DungeonMapLayers>) => Object.keys(layers.value.dressing);
+
+  it("a click with a prop armed places it at that cell as one undo step and selects it", () => {
+    const { editor, layers, selectedDressingId } = armed();
+    clickCell(editor, 2 * CELL + 5, CELL + 5);
+    const [id] = ids(layers);
+    expect(layers.value.dressing[id]).toMatchObject({ prop_id: "table", x: 2, y: 1, rotation: 0 });
+    expect(selectedDressingId.value).toBe(id);
+    editor.undoEdit();
+    expect(ids(layers)).toEqual([]);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("with nothing armed, a click on a placed prop selects it and a click elsewhere deselects", () => {
+    const { editor, layers, dressingBrushId, selectedDressingId } = armed();
+    clickCell(editor, 5, 5);
+    dressingBrushId.value = null;
+    selectedDressingId.value = null;
+    clickCell(editor, CELL + 5, 5); // the table's second cell
+    expect(selectedDressingId.value).toBe(ids(layers)[0]);
+    clickCell(editor, 6 * CELL, 6 * CELL);
+    expect(selectedDressingId.value).toBeNull();
+  });
+
+  it("dragging a placed prop moves it by whole cells, keeping the grab offset, as one undo step", () => {
+    const { editor, layers, dressingBrushId } = armed();
+    clickCell(editor, 5, 5);
+    dressingBrushId.value = null;
+    const [id] = ids(layers);
+    editor.onPointerDown(down(CELL + 5, 5)); // grab by the second cell
+    editor.onPointerMove(move(4 * CELL + 5, 2 * CELL + 5));
+    editor.onPointerMove(move(5 * CELL + 5, 2 * CELL + 5));
+    editor.onPointerUp(up(5 * CELL + 5, 2 * CELL + 5));
+    expect(layers.value.dressing[id]).toMatchObject({ x: 4, y: 2 });
+    editor.undoEdit(); // the move alone
+    expect(layers.value.dressing[id]).toMatchObject({ x: 0, y: 0 });
+    editor.undoEdit(); // then the placement
+    expect(ids(layers)).toEqual([]);
+  });
+
+  it("a right-click removes the topmost prop under the pointer without panning", () => {
+    const { editor, layers, selectedDressingId } = armed();
+    clickCell(editor, 5, 5);
+    const down2 = down(CELL + 5, 5, { button: 2 });
+    editor.onPointerDown(down2);
+    editor.onPointerUp(up(CELL + 5, 5, { button: 2 }));
+    expect(ids(layers)).toEqual([]);
+    expect(selectedDressingId.value).toBeNull();
+    expect(editor.canUndo.value).toBe(true);
+  });
+
+  it("Alt+click removes too", () => {
+    const { editor, layers } = armed();
+    clickCell(editor, 5, 5);
+    editor.onPointerDown(down(5, 5, { altKey: true }));
+    editor.onPointerUp(up(5, 5, { altKey: true }));
+    expect(ids(layers)).toEqual([]);
+  });
+
+  it("the Eraser takes a prop before the object under it", () => {
+    const { editor, layers, activeTool } = armed();
+    clickCell(editor, 5, 5);
+    activeTool.value = "eraser";
+    clickCell(editor, 5, 5);
+    expect(ids(layers)).toEqual([]);
+  });
+
+  it("feeds the renderer a ghost under the cursor while armed, none once the pointer leaves", async () => {
+    const { editor, dressingRotation } = armed();
+    dressingRotation.value = 90;
+    editor.onPointerMove(move(3 * CELL + 5, 4 * CELL + 5));
+    await nextTick();
+    const scene = () => mockedRenderMap.mock.calls.at(-1)![0];
+    expect(scene().dressingGhost).toEqual({
+      placement: { prop_id: "table", x: 3, y: 4, rotation: 90, z: 0 },
+      alpha: expect.any(Number),
+    });
+    editor.onPointerLeave(up(0, 0));
+    await nextTick();
+    expect(scene().dressingGhost).toBeNull();
+  });
+
+  it("feeds the renderer the selected prop's id, and drops it when the tool is left", async () => {
+    const { editor, activeTool, selectedDressingId } = armed();
+    clickCell(editor, 5, 5);
+    await nextTick();
+    const scene = () => mockedRenderMap.mock.calls.at(-1)![0];
+    expect(scene().selectedDressingId).toBe(selectedDressingId.value);
+    activeTool.value = "floor";
+    await nextTick();
+    expect(selectedDressingId.value).toBeNull();
+  });
+
+  it("undoing the placement leaves no dangling selection", async () => {
+    const { editor, selectedDressingId } = armed();
+    clickCell(editor, 5, 5);
+    expect(selectedDressingId.value).not.toBeNull();
+    editor.undoEdit();
+    await nextTick();
+    expect(selectedDressingId.value).toBeNull();
+  });
+
+  it("rotateSelectedDressing turns the selection (one undo step) and the brush with it", () => {
+    const { editor, layers, dressingRotation, selectedDressingId } = armed();
+    clickCell(editor, 5, 5);
+    editor.rotateSelectedDressing(90);
+    expect(layers.value.dressing[selectedDressingId.value!].rotation).toBe(90);
+    expect(dressingRotation.value).toBe(90);
+    editor.undoEdit();
+    expect(layers.value.dressing[selectedDressingId.value!].rotation).toBe(0);
+  });
+
+  it("deleteSelectedDressing removes the selection as one undo step", () => {
+    const { editor, layers, selectedDressingId } = armed();
+    clickCell(editor, 5, 5);
+    editor.deleteSelectedDressing();
+    expect(ids(layers)).toEqual([]);
+    expect(selectedDressingId.value).toBeNull();
+    editor.undoEdit();
+    expect(ids(layers)).toHaveLength(1);
+  });
+
+  it("a middle-button press is left to the pan", () => {
+    const { editor, layers } = armed();
+    editor.onPointerDown(down(5, 5, { button: 1 }));
+    editor.onPointerUp(up(5, 5, { button: 1 }));
+    expect(ids(layers)).toEqual([]);
+  });
+});
+
+describe("dressing keys", () => {
+  // The window keydown listener lives in onMounted, so the harness has to be
+  // built inside a mounted component.
+  function mountHarness(): Harness {
+    let captured!: Harness;
+    mount(defineComponent({
+      setup() {
+        captured = makeHarness();
+        return () => h("div");
+      },
+    }));
+    captured.activeTool.value = "dressing";
+    captured.dressingBrushId.value = "table";
+    return captured;
+  }
+
+  const press = (key: string) => window.dispatchEvent(new KeyboardEvent("keydown", { key }));
+
+  it("Q and E turn the brush while nothing is selected", () => {
+    const { dressingRotation } = mountHarness();
+    press("e");
+    expect(dressingRotation.value).toBe(90);
+    press("q");
+    press("q");
+    expect(dressingRotation.value).toBe(270);
+  });
+
+  it("Q and E turn the selected prop, one undo step each, and the brush follows", () => {
+    const { editor, layers, dressingRotation, selectedDressingId } = mountHarness();
+    clickCell(editor, 5, 5);
+    press("e");
+    press("e");
+    const id = selectedDressingId.value!;
+    expect(layers.value.dressing[id].rotation).toBe(180);
+    expect(dressingRotation.value).toBe(180);
+    editor.undoEdit();
+    expect(layers.value.dressing[id].rotation).toBe(90);
+  });
+
+  it("Delete removes the selected prop; with nothing selected it does nothing", () => {
+    const { editor, layers, selectedDressingId } = mountHarness();
+    press("Delete");
+    expect(editor.canUndo.value).toBe(false);
+    clickCell(editor, 5, 5);
+    press("Delete");
+    expect(Object.keys(layers.value.dressing)).toEqual([]);
+    expect(selectedDressingId.value).toBeNull();
+  });
+
+  it("Escape puts the armed prop down first, then leaves the tool", () => {
+    const { dressingBrushId, activeTool } = mountHarness();
+    press("Escape");
+    expect(dressingBrushId.value).toBeNull();
+    expect(activeTool.value).toBe("dressing");
   });
 });

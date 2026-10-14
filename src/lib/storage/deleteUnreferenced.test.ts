@@ -108,7 +108,7 @@ describe("deleteUnreferencedByPublicUrl", () => {
   it("counts the Dungeon Craft library's pictures as references (#1060)", async () => {
     const { IMAGE_REFERENCES } = await import("./deleteUnreferenced");
     const tables = IMAGE_REFERENCES.map(([table]) => table as string);
-    for (const t of ["library_traps", "library_dungeon_features", "library_puzzles"]) expect(tables).toContain(t);
+    for (const t of ["library_traps", "library_dungeon_features", "library_puzzles", "library_dressing"]) expect(tables).toContain(t);
   });
 
   it("deletes only the unreferenced URLs out of several, in one call", async () => {

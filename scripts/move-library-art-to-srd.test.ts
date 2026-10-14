@@ -70,7 +70,7 @@ describe("qualify", () => {
   });
 
   it("sends Dungeon Craft library art to the srd/ of its own bucket (#1060)", () => {
-    const cases = [["trap", "trap-images"], ["dungeon_feature", "dungeon-feature-images"], ["puzzle", "puzzle-images"]] as const;
+    const cases = [["trap", "trap-images"], ["dungeon_feature", "dungeon-feature-images"], ["puzzle", "puzzle-images"], ["dressing", "dressing-images"]] as const;
     for (const [kind, bucket] of cases) {
       const q = qualify(`https://cdn.example.com/${bucket}/${ADMIN}/x.webp`, kind) as Qualified;
       expect(q.targetBucket).toBe(bucket);
@@ -227,7 +227,7 @@ describe("encode round trip", () => {
 
 describe("updateOrder", () => {
   it("rewrites the source rows last, so an interrupted job is still a job on the next run", () => {
-    for (const kind of ["item", "monster", "background", "species", "trap", "dungeon_feature", "puzzle"] as const) {
+    for (const kind of ["item", "monster", "background", "species", "trap", "dungeon_feature", "puzzle", "dressing"] as const) {
       const order = updateOrder(kind);
       const sources = SOURCE_COLUMNS.filter((c) => c.kind === kind);
       expect(order.slice(-sources.length).map((c) => `${c.table}.${c.column}`)).toEqual(sources.map((c) => `${c.table}.${c.column}`));
@@ -244,6 +244,7 @@ describe("updateOrder", () => {
     expect(updateOrder("trap").map((c) => `${c.table}.${c.column}`)).toEqual(["library_traps.image_url"]);
     expect(updateOrder("dungeon_feature").map((c) => `${c.table}.${c.column}`)).toEqual(["library_dungeon_features.image_url"]);
     expect(updateOrder("puzzle").map((c) => `${c.table}.${c.column}`)).toEqual(["library_puzzles.image_url"]);
+    expect(updateOrder("dressing").map((c) => `${c.table}.${c.column}`)).toEqual(["library_dressing.image_url"]);
   });
 });
 

@@ -34,6 +34,8 @@ export const LIBRARY_TABLES = [
   { table: "library_traps", key: "id", prune: false },
   { table: "library_dungeon_features", key: "id", prune: false },
   { table: "library_puzzles", key: "id", prune: false },
+  // Dressing (#1062): placed props reference these by slug, so never prune.
+  { table: "library_dressing", key: "id", prune: false },
   { table: "library_roll_tables", key: "id", prune: false },
   { table: "library_monster_art_canonical", key: "entry_id", prune: false },
   { table: "library_spell_art_canonical", key: "entry_id", prune: false },

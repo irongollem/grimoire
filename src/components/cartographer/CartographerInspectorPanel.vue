@@ -110,39 +110,20 @@
           @click="$emit('update:activeObjectCategory', cat)"
         />
       </div>
-      <div class="flex flex-wrap items-center gap-1">
-        <span class="text-eyebrow text-muted-foreground w-full">Rotate</span>
-        <AppButton
-          variant="chip"
-          size="xs"
-          label="–1°"
-          tooltip="–1° ([)"
-          @click="$emit('update:stampRotation', (stampRotation + 359) % 360)"
-        />
-        <AppButton
-          variant="chip"
-          size="xs"
-          label="↺ Q"
-          tooltip="Rotate CCW 90° (Q)"
-          @click="$emit('update:stampRotation', (stampRotation + 270) % 360)"
-        />
-        <span class="text-caption text-foreground w-9 text-center">{{ stampRotation }}°</span>
-        <AppButton
-          variant="chip"
-          size="xs"
-          label="↻ E"
-          tooltip="Rotate CW 90° (E)"
-          @click="$emit('update:stampRotation', (stampRotation + 90) % 360)"
-        />
-        <AppButton
-          variant="chip"
-          size="xs"
-          label="+1°"
-          tooltip="+1° (])"
-          @click="$emit('update:stampRotation', (stampRotation + 1) % 360)"
-        />
-      </div>
+      <RotationControl :model-value="stampRotation" @update:model-value="$emit('update:stampRotation', $event)" />
     </div>
+
+    <!-- Dressing: props placed at any angle (epic #1062) -->
+    <CartographerDressingPanel
+      v-if="activeTool === 'dressing'"
+      :brush-id="dressingBrushId"
+      :brush-rotation="dressingRotation"
+      :selected="selectedDressing"
+      @update:brush-id="$emit('update:dressingBrushId', $event)"
+      @update:brush-rotation="$emit('update:dressingRotation', $event)"
+      @rotate-selected="$emit('rotateSelectedDressing', $event)"
+      @delete-selected="$emit('deleteSelectedDressing')"
+    />
 
     <!-- Annotation editor -->
     <div v-if="activeTool === 'annotate' && selectedCell">
@@ -272,6 +253,8 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
+import CartographerDressingPanel from "@/components/cartographer/CartographerDressingPanel.vue";
+import RotationControl from "@/components/cartographer/RotationControl.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 
@@ -310,6 +293,10 @@ defineProps<{
   activeObjectCategory: string;
   objectCategories: readonly string[];
   stampRotation: number;
+  /** Dressing tool: the armed prop, the rotation a new one gets, and the selected placed prop. */
+  dressingBrushId: string | null;
+  dressingRotation: number;
+  selectedDressing: { name: string; rotation: number } | null;
   selectedCell: [number, number] | null;
   /** Select tool — a read-only summary of the selected cell. */
   selectedCellFloor: boolean;
@@ -337,6 +324,10 @@ defineEmits<{
   "update:currentPackId": [id: string];
   "update:activeObjectCategory": [cat: string];
   "update:stampRotation": [deg: number];
+  "update:dressingBrushId": [id: string | null];
+  "update:dressingRotation": [deg: number];
+  rotateSelectedDressing: [deg: number];
+  deleteSelectedDressing: [];
   "update:annotationText": [text: string];
   "update:linkedNoteId": [id: string];
   "update:linkedEncounterId": [id: string];

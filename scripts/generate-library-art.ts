@@ -127,14 +127,50 @@ const MANIFEST_FILE = "manifest.json";
  * `trap`, `dungeon_feature` and `puzzle` are publish-only library kinds (#1060): each writes `image_url` + `image_focal_point`
  * on the rows of its library table (`library_traps`, `library_dungeon_features`, `library_puzzles`) named by their slug ids
  * (`id` + `alsoIds`), in that table's bucket under `srd/`, like `background`.
+ * `dressing` is publish-only too (top-down map props, epic #1062): it writes `library_dressing.image_url` into
+ * `dressing-images` under `srd/`, and NEVER a focal point (the table has no such column: a prop is drawn whole on a map
+ * grid, never cropped, so no focal guess is made or charged for it). The picture is not a portrait: the WebP must be
+ * transparent and exactly `footprint_w * 256` by `footprint_h * 256` px for its row (`checkDressingSize`), and publish
+ * refuses a mismatch before anything is uploaded.
  */
-export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class" | "campaign_item" | "subclass" | "hero" | "trap" | "dungeon_feature" | "puzzle";
+export type ArtKind = "spell" | "item" | "monster" | "species" | "background" | "class" | "campaign_item" | "subclass" | "hero" | "trap" | "dungeon_feature" | "puzzle" | "dressing";
 
-/** The library table behind each Dungeon Craft kind: rows named by slug id, `image_url` + `image_focal_point`, stored under `srd/` (#1060). */
-const DUNGEON_CRAFT_TABLE: Partial<Record<ArtKind, "library_traps" | "library_dungeon_features" | "library_puzzles">> = { trap: "library_traps", dungeon_feature: "library_dungeon_features", puzzle: "library_puzzles" };
+/**
+ * The library table behind each publish-only library kind: rows named by slug id, `image_url`, stored under `srd/`
+ * (#1060, #1062). Every one but dressing also carries `image_focal_point` (see `KINDS_WITHOUT_FOCAL_POINT`).
+ */
+const PUBLISH_ONLY_LIBRARY_TABLE: Partial<Record<ArtKind, "library_traps" | "library_dungeon_features" | "library_puzzles" | "library_dressing">> = { trap: "library_traps", dungeon_feature: "library_dungeon_features", puzzle: "library_puzzles", dressing: "library_dressing" };
+
+/** Kinds whose table has no focal point column: a publish makes no focal guess for them (a prop is never cropped). */
+const KINDS_WITHOUT_FOCAL_POINT: ReadonlySet<ArtKind> = new Set<ArtKind>(["dressing"]);
+
+/** True when a publish of this kind guesses and writes a focal point. */
+export function kindHasFocalPoint(kind: ArtKind): boolean {
+  return !KINDS_WITHOUT_FOCAL_POINT.has(kind);
+}
+
+/** Pixels per map grid cell in a dressing picture (a 2x1 long table is 512x256). */
+export const DRESSING_CELL_PX = 256;
+
+/**
+ * Refuses a dressing picture that does not match its row: it must have an alpha channel and measure exactly
+ * `footprint_w * 256` by `footprint_h * 256` px, because the map draws it into that many grid cells without cropping.
+ */
+export function checkDressingSize(
+  prop: { id: string; name: string; footprint_w: number; footprint_h: number },
+  image: { width: number | undefined; height: number | undefined; hasAlpha: boolean | undefined },
+): void {
+  const expectedW = prop.footprint_w * DRESSING_CELL_PX;
+  const expectedH = prop.footprint_h * DRESSING_CELL_PX;
+  if (image.width !== expectedW || image.height !== expectedH) {
+    const actual = image.width === undefined || image.height === undefined ? "unreadable" : `${image.width}x${image.height}`;
+    throw new Error(`Dressing "${prop.name}" (${prop.id}) is a ${prop.footprint_w}x${prop.footprint_h} cell prop: expected ${expectedW}x${expectedH} px, got ${actual}.`);
+  }
+  if (image.hasAlpha !== true) throw new Error(`Dressing "${prop.name}" (${prop.id}) has no transparency: a prop is drawn on the map, so its WebP needs an alpha channel.`);
+}
 
 /** Storage bucket per kind. Canonical art lives under `srd/` in all three (see CLAUDE.md, Storage Path Convention). */
-export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images", campaign_item: "item-images", subclass: "class-images", hero: "npc-portraits", trap: "trap-images", dungeon_feature: "dungeon-feature-images", puzzle: "puzzle-images" };
+export const BUCKET_FOR_KIND: Record<ArtKind, string> = { spell: "spell-images", item: "item-images", monster: "monster-images", species: "species-images", background: "background-images", class: "class-images", campaign_item: "item-images", subclass: "class-images", hero: "npc-portraits", trap: "trap-images", dungeon_feature: "dungeon-feature-images", puzzle: "puzzle-images", dressing: "dressing-images" };
 
 /**
  * How canonical item art is staged, passed where the app passes a campaign's
@@ -257,6 +293,7 @@ const TABLES_FOR_KIND: Record<ArtKind, string> = {
   trap: "library_traps (by id)",
   dungeon_feature: "library_dungeon_features (by id)",
   puzzle: "library_puzzles (by id)",
+  dressing: "library_dressing (image_url only, by id)",
 };
 
 // ---------------------------------------------------------------------------
@@ -1297,7 +1334,7 @@ async function selectRows(client: SupabaseClient, entry: ManifestEntry): Promise
     if (missing.length > 0) throw new Error(`${entry.slug}: library background ${missing.join(", ")} no longer exists.`);
     return ids;
   }
-  const libraryTable = DUNGEON_CRAFT_TABLE[entry.kind];
+  const libraryTable = PUBLISH_ONLY_LIBRARY_TABLE[entry.kind];
   if (libraryTable) {
     const ids = [...new Set([entry.id, ...entry.alsoIds].filter((id): id is string => id !== null))].sort();
     const { data, error } = await client.from(libraryTable).select("id").in("id", ids);
@@ -1391,7 +1428,7 @@ async function writeRows(client: SupabaseClient, entry: ManifestEntry, ids: stri
     if (rows.error) throw new Error(`Could not update library_backgrounds: ${rows.error.message}`);
     return;
   }
-  const libraryTable = DUNGEON_CRAFT_TABLE[entry.kind];
+  const libraryTable = PUBLISH_ONLY_LIBRARY_TABLE[entry.kind];
   if (libraryTable) {
     const rows = await client.from(libraryTable).update({ image_url: url }).in("id", ids);
     if (rows.error) throw new Error(`Could not update ${libraryTable}: ${rows.error.message}`);
@@ -1465,7 +1502,8 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
     check((await client.from("library_backgrounds").update({ focal_point: focal }).in("id", ids)).error, "library_backgrounds");
     return;
   }
-  const libraryTable = DUNGEON_CRAFT_TABLE[entry.kind];
+  const libraryTable = PUBLISH_ONLY_LIBRARY_TABLE[entry.kind];
+  if (!kindHasFocalPoint(entry.kind)) return;
   if (libraryTable) {
     check((await client.from(libraryTable).update({ image_focal_point: focal }).in("id", ids)).error, libraryTable);
     return;
@@ -1495,6 +1533,16 @@ async function writeFocalGuess(client: SupabaseClient, entry: ManifestEntry, ids
   const names = itemNames(entry).map((name) => name.toLowerCase());
   check((await client.from("library_art_defaults").update({ image_focal_point: focal, focal_point_checked_at: null }).eq("content_type", "item").in("content_name", names)).error, "library_art_defaults");
   check((await client.from("library_items").update({ image_focal_point: focal }).in("id", ids)).error, "library_items");
+}
+
+/** Reads each dressing row's footprint and checks the one picture fits every row it is published to. */
+async function assertDressingSizes(client: SupabaseClient, ids: string[], finalBytes: Uint8Array): Promise<void> {
+  const { data, error } = await client.from("library_dressing").select("id, name, footprint_w, footprint_h").in("id", ids);
+  if (error) throw new Error(`Could not read library_dressing: ${error.message}`);
+  const meta = await sharp(finalBytes).metadata();
+  for (const row of data as { id: string; name: string; footprint_w: number; footprint_h: number }[]) {
+    checkDressingSize(row, { width: meta.width, height: meta.height, hasAlpha: meta.hasAlpha });
+  }
 }
 
 async function runPublish(opts: PublishOptions): Promise<void> {
@@ -1542,13 +1590,14 @@ async function runPublish(opts: PublishOptions): Promise<void> {
     const storedUrl = assetCdnUrl(bucket, path, cdnBase);
     if (storedUrl === null) throw new Error(`Bucket ${bucket} is not served through the asset CDN (or no CDN base is set).`);
     const rowIds = await selectRows(client, entry);
+    if (entry.kind === "dressing") await assertDressingSizes(client, rowIds, finalBytes);
 
     console.log(`${entry.slug} (${itemNames(entry).join("; ")})`);
     for (const u of uploads) console.log(`  R2 ${u.key} ${u.bytes.byteLength} bytes`);
     console.log(`  provenance ${bucket} ${path} owner ${rowOwner ?? owner ?? "(resolved at --write)"}`);
     console.log(`  ${TABLES_FOR_KIND[entry.kind]} -> ${storedUrl}`);
     console.log(`  rows: ${rowIds.join(", ")}`);
-    console.log("  focal: guessed by the text model after upload, marked unchecked for the focal-point queue");
+    console.log(kindHasFocalPoint(entry.kind) ? "  focal: guessed by the text model after upload, marked unchecked for the focal-point queue" : "  focal: none (this kind is drawn whole, never cropped)");
     if (!opts.write || r2 === null || owner === null) continue;
 
     // Fix the path before the first byte leaves, so a re-run reuses it.
@@ -1563,6 +1612,15 @@ async function runPublish(opts: PublishOptions): Promise<void> {
     }
     await registerImageProvenance(client, bucket, path, rowOwner ?? owner, prov);
     await writeRows(client, entry, rowIds, storedUrl);
+    if (!kindHasFocalPoint(entry.kind)) {
+      manifest = updateEntry(manifest, entry.slug, {
+        status: "published",
+        publish: { bucket, path, url: storedUrl, publishedAt: new Date().toISOString(), rowsUpdated: rowIds },
+      });
+      writeManifest(opts.out, manifest);
+      console.log(`  published ${storedUrl}`);
+      continue;
+    }
     let focal: FocalPoint | null = null;
     try {
       if (openaiKey === null || focalModel === null) throw new Error("no model");

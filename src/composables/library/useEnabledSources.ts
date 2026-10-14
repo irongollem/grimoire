@@ -14,6 +14,7 @@ const AVAILABLE_ITEM_KEY   = "available-library-item-sources";
 const AVAILABLE_SPECIES_KEY = "available-library-species-sources";
 const AVAILABLE_BACKGROUND_KEY = "available-library-background-sources";
 const AVAILABLE_DUNGEON_CRAFT_KEY = "available-library-dungeon-craft-sources";
+const AVAILABLE_DRESSING_KEY = "available-library-dressing-sources";
 
 export interface EnabledSource {
   id: string;
@@ -285,6 +286,24 @@ export function useDungeonCraftBooksOffered() {
   return computed(() => !!query.data.value?.length);
 }
 
+async function fetchAvailableLibraryDressingSources(): Promise<AvailableLibrarySource[]> {
+  const { data, error } = await supabase.rpc("get_library_dressing_sources");
+  if (error) throw error;
+  return (data ?? []) as AvailableLibrarySource[];
+}
+
+/**
+ * The Dressing books a DM may enable for the table: every source holding props for
+ * the Cartographer, enabled as a whole book (epic #1062). No ruleset: props have no edition.
+ */
+export function useAvailableLibraryDressingSources() {
+  return useQuery({
+    queryKey: [AVAILABLE_DRESSING_KEY] as const,
+    queryFn: fetchAvailableLibraryDressingSources,
+    staleTime: Infinity,
+  });
+}
+
 function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: [ENABLED_KEY] });
   queryClient.invalidateQueries({ queryKey: [USER_ENABLED_KEY] });
@@ -303,6 +322,8 @@ function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["library-dungeon-features"] });
   queryClient.invalidateQueries({ queryKey: ["library-puzzles"] });
   queryClient.invalidateQueries({ queryKey: ["library-roll-tables"] });
+  // Dressing props for the Cartographer (#1062).
+  queryClient.invalidateQueries({ queryKey: ["library-dressing"] });
 }
 
 async function fetchAvailablePlayerBooks(): Promise<AvailableLibrarySource[]> {

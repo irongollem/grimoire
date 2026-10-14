@@ -27,7 +27,7 @@ function emptyMap(): DungeonMap {
     campaign_id: null,
     name: "Test",
     description: null,
-    layers: { floor: {}, solidBlock: {}, object: {}, annotation: {} },
+    layers: { floor: {}, solidBlock: {}, object: {}, annotation: {}, dressing: {} },
     metadata: {},
     default_pack_id: null,
     tags: [],
@@ -45,7 +45,7 @@ describe("liveDrawingCalibration", () => {
     map.layers.floor["7,4"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
     // Painted bbox (5,3)->(7,4) = 3 cols x 2 rows, +3 cells padding per side
     // (the default) = 9 cols x 8 rows; origin at (5-3, 3-3) = (2, 0).
-    expect(liveDrawingCalibration(map)).toEqual({
+    expect(liveDrawingCalibration(map, new Map())).toEqual({
       cells_per_image_width: 9,
       origin_x_pct: 0,
       origin_y_pct: 0,
@@ -57,7 +57,7 @@ describe("liveDrawingCalibration", () => {
   it("respects a custom paddingCells argument, same as computeBakedDimensions", () => {
     const map = emptyMap();
     map.layers.floor["0,0"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
-    expect(liveDrawingCalibration(map, 0)).toEqual({
+    expect(liveDrawingCalibration(map, new Map(), 0)).toEqual({
       cells_per_image_width: 1,
       origin_x_pct: 0,
       origin_y_pct: 0,
@@ -73,7 +73,7 @@ describe("styledPictureCalibration", () => {
     map.layers.floor["5,3"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
     map.layers.floor["7,4"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
     const geometry = { effWidth: 2000, effHeight: 1000, offsetX: 0, offsetY: 500, cellsPerImageWidth: 9, originXPct: 0, originYPct: 0.25 };
-    expect(styledPictureCalibration(map, geometry)).toEqual({
+    expect(styledPictureCalibration(map, new Map(), geometry)).toEqual({
       cells_per_image_width: 9,
       origin_x_pct: 0,
       origin_y_pct: 0.25,
@@ -97,10 +97,11 @@ describe("bakeAiStyleInput", () => {
   it("falls back to a margin-free bakeMapForAI when there is no Picture", async () => {
     const map = emptyMap();
     const runtimes = new Map();
+    const dressing = new Map();
     const glyphs = {};
-    const result = await bakeAiStyleInput(map, runtimes, null, glyphs);
+    const result = await bakeAiStyleInput(map, runtimes, dressing, null, glyphs);
     expect(STYLE_INPUT_PADDING_CELLS).toBe(0);
-    expect(mocks.bakeMapForAI).toHaveBeenCalledWith(map, runtimes, { paddingCells: 0 }, glyphs, "openai");
+    expect(mocks.bakeMapForAI).toHaveBeenCalledWith(map, runtimes, dressing, { paddingCells: 0 }, glyphs, "openai");
     expect(mocks.bakeMap).not.toHaveBeenCalled();
     expect(result.blob).toBeInstanceOf(Blob);
     expect(result.geometry).toBe(fakeGeometry);
@@ -109,7 +110,7 @@ describe("bakeAiStyleInput", () => {
   it("falls back to bakeMapForAI when the Picture has no calibration to place it by", async () => {
     const map = emptyMap();
     const picture: MapImageLayer = { kind: "picture", url: "https://cdn.example/scan.webp", calibration: null };
-    await bakeAiStyleInput(map, new Map(), picture, {});
+    await bakeAiStyleInput(map, new Map(), new Map(), picture, {});
     expect(mocks.bakeMapForAI).toHaveBeenCalled();
     expect(mocks.bakeMap).not.toHaveBeenCalled();
   });

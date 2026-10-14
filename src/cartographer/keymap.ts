@@ -13,6 +13,12 @@ export type KeyAction =
   | { kind: "center" }
   /** Degrees to add before taking mod 360. Q/E are 90° steps, [/] are 1° trims. */
   | { kind: "rotateStamp"; delta: number }
+  /** Dressing tool: turns the selected prop, or the brush when none is selected. */
+  | { kind: "rotateDressing"; delta: number }
+  /** Dressing tool: removes the selected prop (a no-op when none is). */
+  | { kind: "deleteDressing" }
+  /** Dressing tool: puts the armed prop down without leaving the tool. */
+  | { kind: "disarmDressing" }
   | { kind: "selectTool"; tool: Tool };
 
 export interface KeyEventLike {
@@ -28,7 +34,12 @@ export interface KeyEventLike {
 export interface KeyContext {
   activeTool: Tool;
   tools: ReadonlyArray<{ id: Tool; shortcut?: string; disabled?: boolean }>;
+  /** A Dressing prop is picked as the brush; Escape then puts it down before it leaves the tool. */
+  dressingArmed?: boolean;
 }
+
+// Delete and Backspace are the same key on the two keyboard families.
+const DRESSING_DELETE_KEYS = new Set(["delete", "backspace"]);
 
 const STAMP_ROTATIONS: Record<string, number> = { q: 270, e: 90, "[": 359, "]": 1 };
 
@@ -53,12 +64,20 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   // `{ kind: "selectTool", tool: "select" }`, so it stays a no-op if a future
   // context ever disables the tool instead of assuming it's always there.
   if (key === "escape") {
+    if (ctx.activeTool === "dressing" && ctx.dressingArmed) return { kind: "disarmDressing" };
     const select = ctx.tools.find((t) => t.id === "select");
     return select && !select.disabled ? { kind: "selectTool", tool: select.id } : null;
   }
 
   if (ctx.activeTool === "stamp" && key in STAMP_ROTATIONS) {
     return { kind: "rotateStamp", delta: STAMP_ROTATIONS[key] };
+  }
+
+  // Same turn keys as the stamp, and likewise checked before the shortcut
+  // lookup so `e` turns the prop instead of picking the Eraser.
+  if (ctx.activeTool === "dressing") {
+    if (key in STAMP_ROTATIONS) return { kind: "rotateDressing", delta: STAMP_ROTATIONS[key] };
+    if (DRESSING_DELETE_KEYS.has(key)) return { kind: "deleteDressing" };
   }
 
   const tool = ctx.tools.find((t) => t.shortcut === key);

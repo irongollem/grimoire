@@ -59,7 +59,7 @@ async function fetchManifest(url: string): Promise<TilePackManifest> {
   return (await res.json()) as TilePackManifest;
 }
 
-function loadImage(url: string): Promise<HTMLImageElement | null> {
+export function loadImage(url: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img);

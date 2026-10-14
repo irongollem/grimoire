@@ -8,10 +8,18 @@
 
 import { WALL_BAND_RATIO, type PackCategory } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
-import { cellKey, type CellKey, type DungeonMapLayers, type CellMetadata } from "@/types/dungeonMap.types";
+import { cellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
 import { classifyJoint, type CellEdge } from "@/cartographer/edges";
 import { boundaryEdges } from "@/cartographer/floodFill";
 import type { Tool } from "@/cartographer/tools";
+import {
+  drawDressing,
+  dressingCellBounds,
+  dressingDrawOrder,
+  dressingFootprint,
+  strokeDressingOutline,
+  type DressingCatalog,
+} from "@/cartographer/dressing";
 
 export interface MapRenderScene {
   ctx: CanvasRenderingContext2D;
@@ -65,6 +73,12 @@ export interface MapRenderScene {
    * standalone `/cartographer/:id` route, which passes no site.
    */
   referenceImage?: MapRenderReferenceImage | null;
+  /** Dressing props by id (epic #1062), with whatever art has loaded so far. */
+  dressing: DressingCatalog;
+  /** A prop being placed or dragged, drawn translucent above the map. */
+  dressingGhost?: { placement: DressingPlacement; alpha: number } | null;
+  /** The selected placement, outlined. */
+  selectedDressingId?: string | null;
 }
 
 export interface MapRenderReferenceImage {
@@ -106,6 +120,9 @@ export function renderMap(scene: MapRenderScene): void {
     derivedSpaces,
     selectedSpaceKey,
     referenceImage,
+    dressing,
+    dressingGhost,
+    selectedDressingId,
   } = scene;
   const { minX, minY, maxX, maxY } = bounds;
 
@@ -293,6 +310,21 @@ export function renderMap(scene: MapRenderScene): void {
     }
   }
 
+  // Dressing layer (epic #1062) — props above the stamped objects, in stacking
+  // order. A prop is culled when its rotated footprint misses the visible cells.
+  for (const [, placement] of dressingDrawOrder(layers.dressing)) {
+    const cb = dressingCellBounds(placement, dressing);
+    if (cb.maxX < minX || cb.minX > maxX || cb.maxY < minY || cb.minY > maxY) continue;
+    drawDressing(
+      ctx,
+      placement,
+      dressing.get(placement.prop_id),
+      placement.x * tilePx - viewportOffset.x,
+      placement.y * tilePx - viewportOffset.y,
+      tilePx,
+    );
+  }
+
   // Derived-space outlines (#868) — the Space tool's "here's the region
   // you'd claim" preview. Traces the space's true perimeter (not per-cell
   // boxes) via `boundaryEdges`, same helper Wrap Walls uses to find the
@@ -402,6 +434,34 @@ export function renderMap(scene: MapRenderScene): void {
     ctx.strokeStyle = "rgba(80,180,255,0.85)";
     ctx.lineWidth = 2;
     ctx.strokeRect(drawX + 1, drawY + 1, tilePx - 2, tilePx - 2);
+  }
+
+  // Dressing ghost and selection outline
+  if (dressingGhost) {
+    const { placement, alpha } = dressingGhost;
+    drawDressing(
+      ctx,
+      placement,
+      dressing.get(placement.prop_id),
+      placement.x * tilePx - viewportOffset.x,
+      placement.y * tilePx - viewportOffset.y,
+      tilePx,
+      alpha,
+    );
+  }
+  const selectedDressing = selectedDressingId ? layers.dressing[selectedDressingId] : undefined;
+  if (selectedDressing) {
+    const { w, h } = dressingFootprint(selectedDressing, dressing);
+    strokeDressingOutline(
+      ctx,
+      selectedDressing,
+      w,
+      h,
+      selectedDressing.x * tilePx - viewportOffset.x,
+      selectedDressing.y * tilePx - viewportOffset.y,
+      tilePx,
+      "rgba(80,180,255,0.9)",
+    );
   }
 
   // Origin marker

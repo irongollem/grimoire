@@ -22,6 +22,8 @@ export type Tool =
   | "fill"
   | "wrap"
   | "stamp"
+  // Props (epic #1062): tables, beds, coffins placed at any angle, above objects.
+  | "dressing"
   | "annotate"
   | "link"
   | "template"

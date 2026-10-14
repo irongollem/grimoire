@@ -21,6 +21,7 @@ import { resolveKeyAction } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory, type ObjectCategory } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
+import type { DressingCatalog } from "@/cartographer/dressing";
 import { renderMap, type MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { pickVariant } from "@/cartographer/tileVariants";
 import * as paintOps from "@/cartographer/paintOps";
@@ -35,6 +36,7 @@ import { cellsInRect, rectangleGesture } from "@/lib/map/gestures/rectangle";
 import { cellsInLine } from "@/lib/map/gestures/line";
 import { useCartographerStructureTools } from "@/composables/cartographer/useCartographerStructureTools";
 import type { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
+import { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
 import type { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 import {
@@ -65,6 +67,14 @@ export interface MapCanvasEditorOptions {
   packRuntime: ComputedRef<TilePackRuntime | null>;
   selectablePacks: ComputedRef<ReadonlyArray<{ pack_id: string; pack_version: number }>>;
   loadedRuntimes: Ref<Map<string, TilePackRuntime>>;
+  /** Dressing props by id (epic #1062); swapped for a new Map as art loads. */
+  dressing: Ref<DressingCatalog>;
+  /** Dressing tool state MapWorkbench owns so the inspector can show it: the
+   *  prop picked as the brush, the rotation a new prop gets, and the placed
+   *  prop that is selected (epic #1062). */
+  dressingBrushId: Ref<string | null>;
+  dressingRotation: Ref<number>;
+  selectedDressingId: Ref<string | null>;
   cellGlyphs: ComputedRef<Record<CellKey, PackCategory>>;
   activeTool: Ref<Tool>;
   /** Enough of the palette for hotkey resolution — MapWorkbench owns the full `TOOLS` array. */
@@ -108,7 +118,7 @@ const EDGE_HOVER_THRESHOLD = 0.25;
 export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
-    cellGlyphs, activeTool, tools, viewMode, activeObjectCategory, stampRotation, activeTemplateShape,
+    dressing, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, activeObjectCategory, stampRotation, activeTemplateShape,
     caveRadius, selectedCell, inspectorPanelRef, structure, mapKey, getReferenceImage, extraRenderDeps,
     plan, activeLayer,
   } = opts;
@@ -206,6 +216,21 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     },
   }));
   const structureTools = useCartographerStructureTools(structure, { activeTool, dirty: dirtyWithRevision });
+
+  // The Dressing tool's gestures (epic #1062); this module only routes to it.
+  const dressingTool = useDressingTool({
+    layers, catalog: dressing, activeTool, brushId: dressingBrushId, brushRotation: dressingRotation,
+    selectedId: selectedDressingId,
+    isActive: () => !viewMode() && !isPlanLayerActive(),
+    snapshotStr, pushCommand, markDirty,
+  });
+
+  /** Fractional cell coordinates under a pointer event, for hit-testing props. */
+  function fractionalCellAt(ev: PointerEvent): [number, number] {
+    const world = pointerToWorld(getLocalPointer(ev));
+    const tilePx = tilePixelSize();
+    return [world.x / tilePx, world.y / tilePx];
+  }
 
   // ── Plan layer (#884 S7b) ────────────────────────────────────────────────
   // Absent entirely without a `site` — `planTools` stays null and every
@@ -606,6 +631,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       metadata: metadata.value,
       glyphs: cellGlyphs.value,
       runtimes: loadedRuntimes.value,
+      dressing: dressing.value,
       fallbackRuntime: packRuntime.value,
       currentPackId: currentPackId.value,
       activeTool: activeTool.value,
@@ -616,6 +642,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       previewCells: previewCells.value,
       referenceImage: getReferenceImage(tilePx, viewportOffset.value),
       ...structureTools.renderStructureScene(),
+      ...dressingTool.renderScene(),
     });
 
     // ── Plan overlay (#884 S7b) — drawn over the Drawing, on the same
@@ -657,8 +684,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     : [];
   watch(
     [
-      zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool,
-      previewCells, metadata, selectedCell, cellGlyphs, ...extraRenderDeps, ...planRenderDeps,
+      zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, hoverCell, hoveredEdge, activeTool,
+      previewCells, metadata, selectedCell, cellGlyphs,
+      dressingTool.hover, dressingBrushId, dressingRotation, selectedDressingId, ...extraRenderDeps, ...planRenderDeps,
     ],
     () => scheduleRender(),
     { deep: true },
@@ -712,6 +740,17 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     }
 
     const [cx, cy] = viewportToCell(local.x, local.y);
+
+    // Dressing: place, pick up, move and remove props. It leaves a middle
+    // button or Shift press unhandled so those still pan.
+    if (activeTool.value === "dressing"
+      && dressingTool.onPointerDown({
+        cell: [cx, cy], frac: fractionalCellAt(ev), button: ev.button, altKey: ev.altKey, shiftKey: ev.shiftKey,
+      })) {
+      if (ev.button === 2) ev.preventDefault();
+      if (dressingTool.isDragging()) canvasEl.value?.setPointerCapture(ev.pointerId);
+      return;
+    }
 
     // Stamp right-click: erase object at cell.
     if (activeTool.value === "stamp" && ev.button === 2) {
@@ -820,6 +859,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     else if (activeTool.value === "stamp") { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
     else if (activeTool.value === "eraser") {
       if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
+      else if (dressingTool.eraseTopAt(fractionalCellAt(ev))) { /* props draw above objects, so they go first */ }
       else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
       else if (layers.value.annotation[cellKey(cx, cy)]) {
         const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; markDirty();
@@ -837,6 +877,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const local = getLocalPointer(ev);
     const [cx, cy] = viewportToCell(local.x, local.y);
     hoverCell.value = [cx, cy];
+    dressingTool.setHover([cx, cy]);
+    dressingTool.onPointerMove([cx, cy]);
 
     // Select tool: the press hasn't committed to click-or-drag yet.
     // Once it travels past the slop it's a drag, so hand off to the ordinary
@@ -897,6 +939,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       else if (tool === "stamp") { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
       else if (tool === "eraser") {
         if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
+        else if (dressingTool.eraseTopAt(fractionalCellAt(ev))) { /* props draw above objects, so they go first */ }
         else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
         else if (layers.value.annotation[cellKey(cx, cy)]) {
           const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; markDirty();
@@ -917,6 +960,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // Also bound to `@pointerleave` (MapWorkbench's template) — clears the
     // Plan's hover state (door edge highlight, pen cursor tracking) either way.
     planTools?.onPointerLeave();
+    if (dressingTool.isDragging()) {
+      dressingTool.onPointerUp();
+      canvasEl.value?.releasePointerCapture(ev.pointerId);
+    }
     if (isPanning.value) {
       isPanning.value = false;
       canvasEl.value?.releasePointerCapture(ev.pointerId);
@@ -1031,6 +1078,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       previewCells.value = new Set();
       isPainting.value = false;
     }
+    dressingTool.cancelDrag();
     isPanning.value = false;
     pendingSelectStart = null;
     lastPointer = null;
@@ -1153,7 +1201,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         targetIsTextEntry: !!target
           && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable),
       },
-      { activeTool: activeTool.value, tools },
+      { activeTool: activeTool.value, tools, dressingArmed: dressingBrushId.value !== null },
     );
     if (!action) return;
 
@@ -1162,6 +1210,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "redo": redoEdit(); break;
       case "center": centerMap(); break;
       case "rotateStamp": stampRotation.value = (stampRotation.value + action.delta) % 360; break;
+      case "rotateDressing": dressingTool.turn(action.delta); break;
+      case "deleteDressing": dressingTool.deleteSelected(); break;
+      case "disarmDressing": dressingTool.disarm(); break;
       case "selectTool": activeTool.value = action.tool; break;
     }
     ev.preventDefault();
@@ -1221,8 +1272,17 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     onPointerDown,
     onPointerMove,
     onPointerUp,
+    /** The pointer left the canvas: ends any gesture, and the Dressing ghost goes with it. */
+    onPointerLeave(ev: PointerEvent): void {
+      onPointerUp(ev);
+      dressingTool.clearHover();
+    },
     onDoubleClick,
     onWheel,
     structureTools,
+    /** Turns the selected Dressing prop (one undo step) and the brush with it. */
+    rotateSelectedDressing: dressingTool.rotateSelected,
+    /** Removes the selected Dressing prop (one undo step). */
+    deleteSelectedDressing: dressingTool.deleteSelected,
   };
 }

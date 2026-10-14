@@ -73,6 +73,11 @@ describe("authorizePath — admin-only shared prefixes", () => {
     }
   });
 
+  it("lets an admin write Dressing art under srd/ (#1062) and refuses a non-admin", () => {
+    expect(authorizePath(asAdmin("dressing-images", "srd/dressing_long_table.webp")).allowed).toBe(true);
+    expect(authorizePath(asUser("dressing-images", "srd/dressing_long_table.webp")).allowed).toBe(false);
+  });
+
   it("refuses srd/ to a non-admin — acceptance criterion on #577", () => {
     expect(authorizePath(asUser("monster-images", "srd/owlbear.webp")).allowed).toBe(false);
     expect(authorizePath(asUser("spell-images", "srd/fireball.webp")).allowed).toBe(false);

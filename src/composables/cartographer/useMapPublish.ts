@@ -17,6 +17,7 @@
 import { computed, ref, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { bakeMap, computeBakedDimensions } from "@/cartographer/bake";
+import type { DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
 import { placementColumnFor, placementTargetId } from "@/lib/dungeon-features/library";
@@ -143,6 +144,8 @@ export function useMapPublish(opts: {
   /** The current map, merged with in-progress layers/metadata edits, or null while unloaded — same contract as useMapExport's buildMap. */
   map: () => DungeonMap | null;
   runtimes: () => Map<string, TilePackRuntime>;
+  /** Dressing props by id, so placed props bake with their art and size the extent. */
+  dressing: () => DressingCatalog;
   glyphs: () => Record<CellKey, PackCategory>;
   structure: () => DerivedStructure;
 }) {
@@ -234,7 +237,7 @@ export function useMapPublish(opts: {
 
   const bakedDims = computed(() => {
     const map = opts.map();
-    return map ? computeBakedDimensions(map) : null;
+    return map ? computeBakedDimensions(map, opts.dressing()) : null;
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────
@@ -281,12 +284,12 @@ export function useMapPublish(opts: {
       // through wherever nothing is painted — and write it + its own
       // calibration + the rev the DM is publishing. The Picture (map_url) is
       // a separate layer and Publish never touches it.
-      const blob = await bakeMap(map, opts.runtimes(), { transparent: true }, opts.glyphs());
+      const blob = await bakeMap(map, opts.runtimes(), opts.dressing(), { transparent: true }, opts.glyphs());
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
       const url = await uploadToBucket({ bucket: "locationImages", blob, userId: user.id, contentType: "image/webp" });
       if (!url) throw new Error("Upload failed");
-      const dims = computeBakedDimensions(map);
+      const dims = computeBakedDimensions(map, opts.dressing());
       wrote = true;
       await updateLocationDrawing.mutateAsync({
         id: targetSiteId.value,

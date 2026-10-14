@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { chooseStyleImageSize, computeBakedDimensions, padToAspect, padToStyleAspect } from "./bake";
 import type { DungeonMap } from "@/types/dungeonMap.types";
+import type { DressingCatalog } from "./dressing";
+
+const none: DressingCatalog = new Map();
+const props: DressingCatalog = new Map([
+  ["bed", { id: "bed", name: "Bed", footprint_w: 2, footprint_h: 3, image: null }],
+  ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: null }],
+]);
 
 function emptyMap(): DungeonMap {
   return {
@@ -9,7 +16,7 @@ function emptyMap(): DungeonMap {
     campaign_id: null,
     name: "Test",
     description: null,
-    layers: { floor: {}, solidBlock: {}, object: {}, annotation: {} },
+    layers: { floor: {}, solidBlock: {}, object: {}, annotation: {}, dressing: {} },
     metadata: {},
     default_pack_id: null,
     tags: [],
@@ -24,7 +31,7 @@ describe("computeBakedDimensions", () => {
   it("returns padding-only dimensions when the map is empty", () => {
     // No painted cells: bbox collapses to (0,0)→(0,0) = 1×1 cell, plus 3 cells
     // of padding on each side = 7×7.
-    expect(computeBakedDimensions(emptyMap())).toEqual({ cols: 7, rows: 7, originCellX: -3, originCellY: -3 });
+    expect(computeBakedDimensions(emptyMap(), none)).toEqual({ cols: 7, rows: 7, originCellX: -3, originCellY: -3 });
   });
 
   it("expands the bbox to include every painted layer", () => {
@@ -33,7 +40,7 @@ describe("computeBakedDimensions", () => {
     map.layers.solidBlock["7,4"] = { pack_id: "p", pack_version: 1, variant: 0 };
     map.layers.object["2,6"] = { pack_id: "p", pack_version: 1, variant: 0, category: "objectChest" };
     // bbox (2,3)→(7,6) = 6 cols × 4 rows, plus 6 cells of padding total.
-    expect(computeBakedDimensions(map)).toEqual({ cols: 12, rows: 10, originCellX: -1, originCellY: 0 });
+    expect(computeBakedDimensions(map, none)).toEqual({ cols: 12, rows: 10, originCellX: -1, originCellY: 0 });
   });
 
   it("handles negative coordinates (infinite-canvas origin)", () => {
@@ -41,14 +48,47 @@ describe("computeBakedDimensions", () => {
     map.layers.floor["-2,-3"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
     map.layers.floor["1,2"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
     // bbox (-2,-3)→(1,2) = 4 cols × 6 rows + 6 cells of padding.
-    expect(computeBakedDimensions(map)).toEqual({ cols: 10, rows: 12, originCellX: -5, originCellY: -6 });
+    expect(computeBakedDimensions(map, none)).toEqual({ cols: 10, rows: 12, originCellX: -5, originCellY: -6 });
   });
 
   it("respects a custom paddingCells argument", () => {
     const map = emptyMap();
     map.layers.floor["0,0"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
-    expect(computeBakedDimensions(map, 0)).toEqual({ cols: 1, rows: 1, originCellX: 0, originCellY: 0 });
-    expect(computeBakedDimensions(map, 5)).toEqual({ cols: 11, rows: 11, originCellX: -5, originCellY: -5 });
+    expect(computeBakedDimensions(map, none, 0)).toEqual({ cols: 1, rows: 1, originCellX: 0, originCellY: 0 });
+    expect(computeBakedDimensions(map, none, 5)).toEqual({ cols: 11, rows: 11, originCellX: -5, originCellY: -5 });
+  });
+});
+
+describe("computeBakedDimensions with Dressing (#1062)", () => {
+  it("grows the extent for a multi-cell prop, not just its anchor", () => {
+    const map = emptyMap();
+    map.layers.floor["0,0"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
+    map.layers.dressing.a = { prop_id: "bed", x: 0, y: 0, rotation: 0, z: 0 };
+    // bed covers x 0..1, y 0..2
+    expect(computeBakedDimensions(map, props, 0)).toEqual({ cols: 2, rows: 3, originCellX: 0, originCellY: 0 });
+  });
+
+  it("grows for the rotated footprint", () => {
+    const map = emptyMap();
+    map.layers.dressing.a = { prop_id: "table", x: 3, y: 4, rotation: 90, z: 0 };
+    // a quarter turn stands the 2x1 table 1x2 on its anchor: cell x 3, cells y 4..5
+    expect(computeBakedDimensions(map, props, 0)).toEqual({ cols: 1, rows: 2, originCellX: 3, originCellY: 4 });
+    // at 45 degrees (centre 3.5, 5) the corners reach 1.06 cells out each way:
+    // x 2.44..4.56, y 3.94..6.06, and every cell they touch counts
+    map.layers.dressing.a = { prop_id: "table", x: 3, y: 4, rotation: 45, z: 0 };
+    expect(computeBakedDimensions(map, props, 0)).toEqual({ cols: 3, rows: 4, originCellX: 2, originCellY: 3 });
+  });
+
+  it("lets a placement alone set the extent", () => {
+    const map = emptyMap();
+    map.layers.dressing.a = { prop_id: "table", x: 10, y: 10, rotation: 0, z: 0 };
+    expect(computeBakedDimensions(map, props, 0)).toEqual({ cols: 2, rows: 1, originCellX: 10, originCellY: 10 });
+  });
+
+  it("counts a prop missing from the catalog as 1x1", () => {
+    const map = emptyMap();
+    map.layers.dressing.a = { prop_id: "gone", x: 2, y: 2, rotation: 0, z: 0 };
+    expect(computeBakedDimensions(map, none, 0)).toEqual({ cols: 1, rows: 1, originCellX: 2, originCellY: 2 });
   });
 });
 

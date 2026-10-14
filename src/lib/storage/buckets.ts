@@ -191,6 +191,15 @@ export const BUCKETS = {
     generateVariants: true,
     cdn: true,
   },
+  // Dressing (#1062): a shared prop library, canonical art under srd/ only.
+  dressingImages: {
+    id: "dressing-images",
+    maxBytes: FIVE_MB,
+    mimeTypes: IMAGE_MIMES,
+    public: true,
+    generateVariants: true,
+    cdn: true,
+  },
   locationImages: {
     id: "location-images",
     maxBytes: FIVE_MB,

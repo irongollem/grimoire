@@ -7,7 +7,7 @@ describe("LIBRARY_TABLES", () => {
   });
 
   it("mirrors the Dungeon Craft library, unpruned because user rows reference it (#1060)", () => {
-    for (const table of ["library_traps", "library_dungeon_features", "library_puzzles", "library_roll_tables"]) {
+    for (const table of ["library_traps", "library_dungeon_features", "library_puzzles", "library_dressing", "library_roll_tables"]) {
       const entry = LIBRARY_TABLES.find((t) => t.table === table);
       expect(entry).toMatchObject({ key: "id", prune: false });
     }

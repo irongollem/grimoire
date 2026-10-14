@@ -330,7 +330,7 @@ select is(
         'class_choice_rest_resets', 'class_ritual_policies',
         'class_spellcasting_policies', 'metamagic_options',
         'multiclass_prerequisites', 'system_classes', 'content_sources',
-        'library_backgrounds', 'library_dungeon_features', 'library_items',
+        'library_backgrounds', 'library_dressing', 'library_dungeon_features', 'library_items',
         'library_monsters', 'library_puzzles', 'library_roll_tables', 'library_rules',
         'library_species', 'library_traps',
         'library_spells', 'library_tile_packs',

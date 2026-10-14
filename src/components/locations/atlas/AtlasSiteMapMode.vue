@@ -423,6 +423,7 @@ const {
       : null;
   },
   runtimes: () => drawingWorkbenchRef.value?.getRuntimes() ?? new Map(),
+  dressing: () => drawingWorkbenchRef.value?.getDressingCatalog() ?? new Map(),
   mapName: () => drawingWorkbenchRef.value?.getName() ?? location.name,
   glyphs: () => drawingWorkbenchRef.value?.getCellGlyphs() ?? {},
   site: () => ({ id: location.id, name: location.name, picture: mapStack.value.picture }),
@@ -468,6 +469,7 @@ const mapPublish = useMapPublish({
       : null;
   },
   runtimes: () => drawingWorkbenchRef.value?.getRuntimes() ?? new Map(),
+  dressing: () => drawingWorkbenchRef.value?.getDressingCatalog() ?? new Map(),
   glyphs: () => drawingWorkbenchRef.value?.getCellGlyphs() ?? {},
   structure: () => drawingWorkbenchRef.value?.getStructure() ?? { spaces: [], ways: [], stairs: [], links: [] },
 });

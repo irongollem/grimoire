@@ -13,6 +13,8 @@ import {
   assertMaySpend,
   backgroundContext,
   buildVariants,
+  checkDressingSize,
+  kindHasFocalPoint,
   emptyManifest,
   encodeFinal,
   entrySlug,
@@ -197,6 +199,29 @@ describe("slugs and paths", () => {
     expect(BUCKET_FOR_KIND.hero).toBe("npc-portraits");
     expect([BUCKET_FOR_KIND.trap, BUCKET_FOR_KIND.dungeon_feature, BUCKET_FOR_KIND.puzzle]).toEqual(["trap-images", "dungeon-feature-images", "puzzle-images"]);
     for (const k of ["trap", "dungeon_feature", "puzzle"] as const) expect(isCdnBucket(BUCKET_FOR_KIND[k])).toBe(true);
+    expect(BUCKET_FOR_KIND.dressing).toBe("dressing-images");
+    // Becomes true once dressing-images joins the CDN bucket registry (src/lib/storage/buckets.ts, parallel change).
+    expect(isCdnBucket(BUCKET_FOR_KIND.dressing)).toBe(true);
+  });
+
+  it("makes no focal guess for dressing, and does for every other kind", () => {
+    expect(kindHasFocalPoint("dressing")).toBe(false);
+    for (const k of ["spell", "item", "monster", "trap", "dungeon_feature", "puzzle", "hero"] as const) expect(kindHasFocalPoint(k)).toBe(true);
+  });
+
+  it("checks a dressing picture against its footprint", () => {
+    const table = { id: "dressing_long_table", name: "Long table", footprint_w: 2, footprint_h: 1 };
+    expect(() => checkDressingSize(table, { width: 512, height: 256, hasAlpha: true })).not.toThrow();
+    expect(() => checkDressingSize(table, { width: 256, height: 512, hasAlpha: true })).toThrow(/Long table.*expected 512x256.*got 256x512/);
+    expect(() => checkDressingSize(table, { width: undefined, height: undefined, hasAlpha: true })).toThrow(/unreadable/);
+    expect(() => checkDressingSize(table, { width: 512, height: 256, hasAlpha: false })).toThrow(/no transparency/);
+  });
+
+  it("scales dressing variants without upscaling or collapsing a wide or tall prop", () => {
+    expect(variantSize({ width: 1024, height: 256 }, 400)).toEqual({ width: 400, height: 100 });
+    expect(variantSize({ width: 512, height: 256 }, 600)).toEqual({ width: 512, height: 256 });
+    expect(variantSize({ width: 256, height: 1024 }, 200)).toEqual({ width: 200, height: 800 });
+    expect(variantSize({ width: 256, height: 256 }, 300)).toEqual({ width: 256, height: 256 });
   });
 
   it("never upscales a variant", () => {

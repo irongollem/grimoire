@@ -5,7 +5,7 @@ import {
   type DungeonMap,
   type DungeonMapInsert,
   type DungeonMapUpdate,
-  emptyLayers,
+  withLayerDefaults,
 } from "@/types/dungeonMap.types";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
@@ -18,13 +18,19 @@ import { computed, isRef, ref } from "vue";
 // after a promote/delete disposition.
 const QUERY_KEY = "dungeon_maps";
 
+/** Rows are cast, not typed by the client, so a map saved before a layer
+ *  existed arrives without that key. Every read goes through here. */
+function readDungeonMap(row: DungeonMap): DungeonMap {
+  return { ...row, layers: withLayerDefaults(row.layers) };
+}
+
 async function fetchDungeonMaps(): Promise<DungeonMap[]> {
   const { data, error } = await supabase
     .from("dungeon_maps")
     .select("*")
     .order("updated_at", { ascending: false });
   if (error) throw error;
-  return data as DungeonMap[];
+  return (data as DungeonMap[]).map(readDungeonMap);
 }
 
 async function fetchDungeonMap(id: string): Promise<DungeonMap | null> {
@@ -34,7 +40,7 @@ async function fetchDungeonMap(id: string): Promise<DungeonMap | null> {
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
-  return data as DungeonMap | null;
+  return data ? readDungeonMap(data as DungeonMap) : null;
 }
 
 async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string }): Promise<DungeonMap> {
@@ -43,7 +49,7 @@ async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string 
   const payload = {
     name: map.name,
     description: map.description ?? null,
-    layers: map.layers ?? emptyLayers(),
+    layers: withLayerDefaults(map.layers),
     metadata: map.metadata ?? {},
     default_pack_id: map.default_pack_id ?? null,
     tags: map.tags ?? [],
@@ -59,7 +65,7 @@ async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string 
     .select()
     .single();
   if (error) throw error;
-  return data as DungeonMap;
+  return readDungeonMap(data as DungeonMap);
 }
 
 async function updateDungeonMap(id: string, update: DungeonMapUpdate): Promise<DungeonMap> {
@@ -70,7 +76,7 @@ async function updateDungeonMap(id: string, update: DungeonMapUpdate): Promise<D
     .select()
     .single();
   if (error) throw error;
-  return data as DungeonMap;
+  return readDungeonMap(data as DungeonMap);
 }
 
 async function deleteDungeonMap(id: string): Promise<void> {

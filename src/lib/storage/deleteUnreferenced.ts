@@ -83,6 +83,8 @@ export const IMAGE_REFERENCES = [
   ["library_traps", ["image_url"]],
   ["library_dungeon_features", ["image_url"]],
   ["library_puzzles", ["image_url"]],
+  // Dressing (#1062): canonical art under srd/ must never be swept either.
+  ["library_dressing", ["image_url"]],
   ["library_monster_art", ["image_url", "cutout_url"]],
   ["library_monster_art_canonical", ["image_url", "cutout_url"]],
   ["library_spell_art", ["image_url"]],

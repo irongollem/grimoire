@@ -45,11 +45,32 @@ export interface CellMetadata {
   monster_spawn_ids?: string[];
 }
 
+/**
+ * One prop from the Dressing library placed on a map (epic #1062). Props sit
+ * on their own layer, not in the cell grids: they cover several cells, turn
+ * to any angle, and overlap each other.
+ */
+export interface DressingPlacement {
+  prop_id: string;
+  /** Anchor cell: the top-left of the footprint as turned to the nearest
+   *  quarter, so a quarter-turned 2x1 table stands 1x2 from here on whole cells. */
+  x: number;
+  y: number;
+  /** Degrees 0-359, clockwise, about that footprint's centre (dressingCentre). */
+  rotation: number;
+  /** Stacking order, higher draws on top. Stored because jsonb does not
+   *  preserve object key order, so insertion order could not say which prop
+   *  is on top after a reload. */
+  z: number;
+}
+
 export interface DungeonMapLayers {
   floor: Record<CellKey, FloorCell>;
   solidBlock: Record<CellKey, SolidCell>;
   object: Record<CellKey, ObjectCell>;
   annotation: Record<CellKey, AnnotationCell>;
+  /** Keyed by a placement uuid. */
+  dressing: Record<string, DressingPlacement>;
 }
 
 export interface DungeonMap {
@@ -76,7 +97,15 @@ export type DungeonMapInsert = Omit<DungeonMap, "id" | "user_id" | "created_at" 
 export type DungeonMapUpdate = Partial<DungeonMapInsert>;
 
 export function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, object: {}, annotation: {} };
+  return { floor: {}, solidBlock: {}, object: {}, annotation: {}, dressing: {} };
+}
+
+/**
+ * A map saved before a layer existed reads that layer as empty; the DB
+ * default carries every key for new rows, but older rows lack the newer ones.
+ */
+export function withLayerDefaults(raw: Partial<DungeonMapLayers> | null | undefined): DungeonMapLayers {
+  return { ...emptyLayers(), ...raw };
 }
 
 export function cellKey(x: number, y: number): CellKey {

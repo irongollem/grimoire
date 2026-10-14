@@ -15,7 +15,7 @@
  * `library_monster_art_canonical.image_url` and `.cutout_url` for monsters,
  * `library_backgrounds.image_url` for backgrounds, `library_species.image_url`
  * for species, `library_traps` / `library_dungeon_features` / `library_puzzles`
- * `.image_url` for Dungeon Craft, #1060; an `app-art/` URL is already canonical and ignored), keeps those whose URL sits
+ * `.image_url` for Dungeon Craft, #1060, and `library_dressing.image_url`, #1062; an `app-art/` URL is already canonical and ignored), keeps those whose URL sits
  * in a user-uuid folder of a registered image bucket, and for each distinct
  * image:
  *
@@ -84,7 +84,7 @@ const VARIANT_QUALITY = 80;
 const PAGE = 1000;
 const CONCURRENCY = 4;
 
-export type ArtKind = "item" | "monster" | "background" | "species" | "trap" | "dungeon_feature" | "puzzle";
+export type ArtKind = "item" | "monster" | "background" | "species" | "trap" | "dungeon_feature" | "puzzle" | "dressing";
 
 /** The bucket each kind of canonical art lives in once moved. */
 export const TARGET_BUCKET: Readonly<Record<ArtKind, string>> = {
@@ -95,6 +95,7 @@ export const TARGET_BUCKET: Readonly<Record<ArtKind, string>> = {
   trap: "trap-images",
   dungeon_feature: "dungeon-feature-images",
   puzzle: "puzzle-images",
+  dressing: "dressing-images",
 };
 
 interface ColumnSpec {
@@ -114,6 +115,8 @@ export const SOURCE_COLUMNS: readonly (ColumnSpec & { orderBy: string })[] = [
   { table: "library_traps", column: "image_url", kind: "trap", orderBy: "id" },
   { table: "library_dungeon_features", column: "image_url", kind: "dungeon_feature", orderBy: "id" },
   { table: "library_puzzles", column: "image_url", kind: "puzzle", orderBy: "id" },
+  // Dressing (#1062): same shape, a prop library whose rows are the only copy.
+  { table: "library_dressing", column: "image_url", kind: "dressing", orderBy: "id" },
 ];
 
 /**

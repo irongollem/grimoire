@@ -297,3 +297,49 @@ describe("eraseWallAtCellEdge", () => {
     expect(ctx.layers.floor[cellKey(1, 1)]?.wallW).toBeDefined();
   });
 });
+
+describe("dressing ops", () => {
+  it("places a prop on top, normalising the rotation", () => {
+    const { layers } = makeCtx();
+    expect(paintOps.placeDressing(layers, { prop_id: "bed", x: 2, y: 3, rotation: -90 }, "a")).toBe(true);
+    expect(paintOps.placeDressing(layers, { prop_id: "table", x: 0, y: 0, rotation: 450 }, "b")).toBe(true);
+    expect(layers.dressing.a).toEqual({ prop_id: "bed", x: 2, y: 3, rotation: 270, z: 0 });
+    expect(layers.dressing.b).toEqual({ prop_id: "table", x: 0, y: 0, rotation: 90, z: 1 });
+  });
+
+  it("refuses to place over an existing id", () => {
+    const { layers } = makeCtx();
+    paintOps.placeDressing(layers, { prop_id: "bed", x: 0, y: 0, rotation: 0 }, "a");
+    expect(paintOps.placeDressing(layers, { prop_id: "bed", x: 5, y: 5, rotation: 0 }, "a")).toBe(false);
+    expect(layers.dressing.a.x).toBe(0);
+  });
+
+  it("replaces the dressing object instead of mutating it", () => {
+    const { layers } = makeCtx();
+    paintOps.placeDressing(layers, { prop_id: "bed", x: 0, y: 0, rotation: 0 }, "a");
+    const before = layers.dressing;
+    paintOps.moveDressing(layers, "a", 4, 4);
+    expect(layers.dressing).not.toBe(before);
+    expect(before.a.x).toBe(0);
+    expect(layers.dressing.a).toMatchObject({ x: 4, y: 4 });
+  });
+
+  it("reports no change for a missing id or an unchanged value", () => {
+    const { layers } = makeCtx();
+    paintOps.placeDressing(layers, { prop_id: "bed", x: 1, y: 1, rotation: 0 }, "a");
+    expect(paintOps.moveDressing(layers, "nope", 0, 0)).toBe(false);
+    expect(paintOps.moveDressing(layers, "a", 1, 1)).toBe(false);
+    expect(paintOps.rotateDressing(layers, "nope", 90)).toBe(false);
+    expect(paintOps.rotateDressing(layers, "a", 360)).toBe(false);
+    expect(paintOps.removeDressing(layers, "nope")).toBe(false);
+  });
+
+  it("rotates and removes", () => {
+    const { layers } = makeCtx();
+    paintOps.placeDressing(layers, { prop_id: "bed", x: 1, y: 1, rotation: 0 }, "a");
+    expect(paintOps.rotateDressing(layers, "a", -45)).toBe(true);
+    expect(layers.dressing.a.rotation).toBe(315);
+    expect(paintOps.removeDressing(layers, "a")).toBe(true);
+    expect(layers.dressing).toEqual({});
+  });
+});

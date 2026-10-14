@@ -57,7 +57,7 @@
         @pointerdown="onPointerDown"
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"
-        @pointerleave="onPointerUp"
+        @pointerleave="onPointerLeave"
         @dblclick="onDoubleClick"
         @wheel.prevent="onWheel"
         @contextmenu.prevent
@@ -202,6 +202,9 @@
           :active-object-category="activeObjectCategory"
           :object-categories="OBJECT_CATEGORIES"
           :stamp-rotation="stampRotation"
+          :dressing-brush-id="dressingBrushId"
+          :dressing-rotation="dressingRotation"
+          :selected-dressing="selectedDressingInfo"
           :selected-cell="selectedCell"
           :selected-cell-floor="selectedCellFloor"
           :selected-cell-solid="selectedCellSolid"
@@ -225,6 +228,10 @@
           @update:current-pack-id="currentPackId = $event"
           @update:active-object-category="activeObjectCategory = $event as ObjectCategory"
           @update:stamp-rotation="stampRotation = $event"
+          @update:dressing-brush-id="dressingBrushId = $event"
+          @update:dressing-rotation="dressingRotation = $event"
+          @rotate-selected-dressing="rotateSelectedDressing"
+          @delete-selected-dressing="deleteSelectedDressing"
           @update:annotation-text="annotationText = $event"
           @update:linked-note-id="linkedNoteId = $event"
           @update:linked-encounter-id="linkedEncounterId = $event"
@@ -301,6 +308,7 @@
 //
 //   getName / getCampaignId / getLayers / getMetadata / getCurrentPackId
 //   getRuntimes       — loaded tile-pack runtimes, keyed by pack id
+//   getDressingCatalog — Dressing props by id, with the art loaded so far (#1062)
 //   getCellGlyphs     — resolved hazard/feature/note/encounter glyphs (#804)
 //   getStructure      — derived spaces/ways/zones/links, Publish's input
 //   getCellsPainted / getPackName — the status line's two workbench-owned segments
@@ -326,6 +334,7 @@ import {
   IconFill,
   IconWrapWalls,
   IconObjectStamp,
+  IconDressing,
   IconAnnotate,
   IconEntityLink,
   IconRoomTemplate,
@@ -353,12 +362,14 @@ import { useNotes } from "@/composables/notes/useNotes";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
 import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useDressingCatalog } from "@/composables/cartographer/useLibraryDressing";
 import { loadUserPack, useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { loadLibraryPack, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Tool } from "@/cartographer/tools";
 import {
   emptyLayers,
+  withLayerDefaults,
   cellKey,
   type CellKey,
   type DungeonMap,
@@ -437,6 +448,7 @@ watch(firstPublishedPackId, (id) => {
 }, { immediate: true });
 const packLoadError = ref<string | null>(null);
 const loadedRuntimes = ref(new Map<string, TilePackRuntime>());
+const { catalog: dressingCatalog } = useDressingCatalog();
 const packRuntime = computed(() => loadedRuntimes.value.get(currentPackId.value) ?? null);
 const loadedPackIds = computed(() => new Set(loadedRuntimes.value.keys()));
 // True while the canvas has nothing to paint with yet: either the library
@@ -508,6 +520,7 @@ const TOOLS: ToolDef[] = [
   { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d" },
   { id: "solid",    label: "Solid block",   icon: IconCube,         shortcut: "s" },
   { id: "stamp",    label: "Object stamp",  icon: IconObjectStamp,  shortcut: "o" },
+  { id: "dressing", label: "Dressing",      icon: IconDressing,     shortcut: "g" },
   { id: "rect",     label: "Rectangle",     icon: IconRect,         shortcut: "r" },
   { id: "line",     label: "Line",          icon: IconDrawLine,     shortcut: "l" },
   { id: "fill",     label: "Fill",          icon: IconFill,         shortcut: "f" },
@@ -525,6 +538,12 @@ const TOOLS: ToolDef[] = [
 // M4 — Object stamp tool state
 const activeObjectCategory = ref<ObjectCategory>("objectChest");
 const stampRotation = ref(0); // degrees; M6 free rotation (any integer 0–359)
+
+// Dressing tool state (epic #1062): the prop armed in the panel, the rotation a
+// new one gets, and the placed prop that is selected.
+const dressingBrushId = ref<string | null>(null);
+const dressingRotation = ref(0);
+const selectedDressingId = ref<string | null>(null);
 
 // M6 — Room template tool state
 type TemplateShape = "circle" | "octagon" | "hex";
@@ -712,6 +731,16 @@ const selectedCellLinkedNames = computed(() => {
   return names;
 });
 
+// The selected placed prop as the Dressing panel shows it. A prop whose book was
+// switched off still resolves (the catalog holds every library prop), so
+// "Unknown prop" means the row is gone from the library altogether.
+const selectedDressingInfo = computed(() => {
+  const id = selectedDressingId.value;
+  const placement = id ? layers.value.dressing[id] : undefined;
+  if (!placement) return null;
+  return { name: dressingCatalog.value.get(placement.prop_id)?.name ?? "Unknown prop", rotation: placement.rotation };
+});
+
 const cellsPainted = computed(() => Object.keys(layers.value.floor).length);
 const activeToolLabel = computed(() => TOOLS.find((t) => t.id === activeTool.value)?.label ?? activeTool.value);
 
@@ -719,7 +748,7 @@ const activeToolLabel = computed(() => TOOLS.find((t) => t.id === activeTool.val
 // toolPointerDown/Move/Up. Select/Pan/Fill/Wrap/Annotate/Link/Eraser/Space
 // have nothing to invert, so they're deliberately absent here.
 const INVERTIBLE_TOOLS = new Set<Tool>([
-  "floor", "cave", "solid", "wall", "stamp", "door", "rect", "line", "template",
+  "floor", "cave", "solid", "wall", "stamp", "dressing", "door", "rect", "line", "template",
 ]);
 
 /** The canvas pill's text: the Drawing tool (with " · erase" appended while
@@ -846,10 +875,11 @@ function setPlanActiveRegion(id: string | null, role: RegionRole): void {
 // variant picking, the render loop. See useMapCanvasEditor.ts.
 const {
   zoom, hoverCell, altHeld, canUndo, canRedo, undoEdit, redoEdit, centerMap,
-  onPointerDown, onPointerMove, onPointerUp, onDoubleClick, onWheel, structureTools,
+  onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onDoubleClick, onWheel, structureTools,
+  rotateSelectedDressing, deleteSelectedDressing,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
-  cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
+  dressing: dressingCatalog, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
   activeObjectCategory, stampRotation, activeTemplateShape, caveRadius,
   selectedCell, inspectorPanelRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
@@ -905,7 +935,7 @@ function cloneLayers(src: DungeonMapLayers | null | undefined): DungeonMapLayers
   // JSON round-trip — layers are pure data, and this strips Vue's readonly proxy
   // wrapping that comes off TanStack Query's cached result so the editor owns a
   // writable copy.
-  return JSON.parse(JSON.stringify(src)) as DungeonMapLayers;
+  return withLayerDefaults(JSON.parse(JSON.stringify(src)) as Partial<DungeonMapLayers>);
 }
 
 /** (Re)initializes every editable field from `m` — the `map` prop's watcher,
@@ -942,6 +972,7 @@ defineExpose({
   getMetadata: () => metadata.value,
   getCurrentPackId: () => currentPackId.value,
   getRuntimes: () => loadedRuntimes.value,
+  getDressingCatalog: () => dressingCatalog.value,
   getCellGlyphs: () => cellGlyphs.value,
   getStructure: () => structure.structure.value,
   getCellsPainted: () => cellsPainted.value,

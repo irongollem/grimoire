@@ -73,6 +73,7 @@ select set_eq(
   $$,
   $$ values ('validate_app_invite'),
             ('get_library_background_sources'),
+            ('get_library_dressing_sources'),
             ('get_library_dungeon_craft_sources'),
             ('get_library_item_sources'),
             ('get_library_monster_sources'),

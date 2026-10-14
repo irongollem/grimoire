@@ -25,6 +25,7 @@ import { placePicture } from "@/lib/locations/mapStack";
 import type { MapImageLayer, MapStack } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY, type GridCalibration } from "@/types/location.types";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
+import type { DressingCatalog } from "./dressing";
 
 /**
  * No margin around the plan in the styler's input. The image model fills its
@@ -47,8 +48,8 @@ export const STYLE_INPUT_PADDING_CELLS = 0;
  * `styledPictureCalibration` below — padding shifts *where* an image cell
  * (0,0) sits in the frame, never *which map cell* it is.
  */
-export function liveDrawingCalibration(map: DungeonMap, paddingCells?: number): GridCalibration {
-  const dims = computeBakedDimensions(map, paddingCells);
+export function liveDrawingCalibration(map: DungeonMap, dressing: DressingCatalog, paddingCells?: number): GridCalibration {
+  const dims = computeBakedDimensions(map, dressing, paddingCells);
   return {
     cells_per_image_width: dims.cols,
     origin_x_pct: 0,
@@ -76,8 +77,8 @@ export function liveDrawingCalibration(map: DungeonMap, paddingCells?: number): 
  * the grid a little in its own render, which is exactly what the Layers
  * panel's Calibrate action stays available to correct.
  */
-export function styledPictureCalibration(map: DungeonMap, geometry: AspectPadGeometry): GridCalibration {
-  const { origin_cell_x, origin_cell_y } = liveDrawingCalibration(map, STYLE_INPUT_PADDING_CELLS);
+export function styledPictureCalibration(map: DungeonMap, dressing: DressingCatalog, geometry: AspectPadGeometry): GridCalibration {
+  const { origin_cell_x, origin_cell_y } = liveDrawingCalibration(map, dressing, STYLE_INPUT_PADDING_CELLS);
   return {
     cells_per_image_width: geometry.cellsPerImageWidth,
     origin_x_pct: geometry.originXPct,
@@ -113,21 +114,22 @@ async function loadBitmap(url: string): Promise<ImageBitmap> {
 export async function bakeAiStyleInput(
   map: DungeonMap,
   runtimes: Map<string, TilePackRuntime>,
+  dressing: DressingCatalog,
   picture: MapImageLayer | null,
   glyphs: Record<CellKey, PackCategory> = {},
   provider: StyleImageProvider = "openai",
 ): Promise<{ blob: Blob; geometry: AspectPadGeometry; size: { width: number; height: number } }> {
   if (!picture?.calibration) {
-    return bakeMapForAI(map, runtimes, { paddingCells: STYLE_INPUT_PADDING_CELLS }, glyphs, provider);
+    return bakeMapForAI(map, runtimes, dressing, { paddingCells: STYLE_INPUT_PADDING_CELLS }, glyphs, provider);
   }
 
   const ts = BASE_TILE_SIZE;
-  const dims = computeBakedDimensions(map, STYLE_INPUT_PADDING_CELLS);
+  const dims = computeBakedDimensions(map, dressing, STYLE_INPUT_PADDING_CELLS);
   const frameW = dims.cols * ts;
   const frameH = dims.rows * ts;
 
   const [drawingBlob, pictureBitmap] = await Promise.all([
-    bakeMap(map, runtimes, { transparent: true, paddingCells: STYLE_INPUT_PADDING_CELLS }, glyphs),
+    bakeMap(map, runtimes, dressing, { transparent: true, paddingCells: STYLE_INPUT_PADDING_CELLS }, glyphs),
     loadBitmap(picture.url),
   ]);
   const drawingBitmap = await createImageBitmap(drawingBlob);
@@ -136,7 +138,7 @@ export async function bakeAiStyleInput(
   // rest of this shape is never consulted, so it's filled with inert values.
   const stackForPlacement: MapStack = {
     picture,
-    drawing: { kind: "drawing", url: "", calibration: liveDrawingCalibration(map, STYLE_INPUT_PADDING_CELLS) },
+    drawing: { kind: "drawing", url: "", calibration: liveDrawingCalibration(map, dressing, STYLE_INPUT_PADDING_CELLS) },
     primary: null,
     frameCalibration: null,
     blank: null,

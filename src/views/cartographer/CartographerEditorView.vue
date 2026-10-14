@@ -220,6 +220,7 @@ const {
 } = useMapExport({
   buildMap: () => (map.value ? { ...map.value, layers: requireWorkbench().getLayers(), metadata: requireWorkbench().getMetadata() } : null),
   runtimes: () => requireWorkbench().getRuntimes(),
+  dressing: () => requireWorkbench().getDressingCatalog(),
   mapName: () => requireWorkbench().getName(),
   glyphs: () => requireWorkbench().getCellGlyphs(),
 });
@@ -227,6 +228,7 @@ const {
 const mapPublish = useMapPublish({
   map: () => (map.value ? { ...map.value, layers: requireWorkbench().getLayers(), metadata: requireWorkbench().getMetadata() } : null),
   runtimes: () => requireWorkbench().getRuntimes(),
+  dressing: () => requireWorkbench().getDressingCatalog(),
   glyphs: () => requireWorkbench().getCellGlyphs(),
   structure: () => requireWorkbench().getStructure(),
 });
@@ -303,7 +305,7 @@ async function onDownloadPng(): Promise<void> {
   baking.value = true;
   try {
     const bakedMap = { ...map.value, layers: wb.getLayers(), metadata: wb.getMetadata() };
-    const blob = await bakeMapAsPng(bakedMap, wb.getRuntimes(), {}, wb.getCellGlyphs());
+    const blob = await bakeMapAsPng(bakedMap, wb.getRuntimes(), wb.getDressingCatalog(), {}, wb.getCellGlyphs());
     downloadBlob(blob, `${wb.getName() || "map"}.png`);
   } finally {
     baking.value = false;

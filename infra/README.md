@@ -239,6 +239,12 @@ Ordered smallest/least painful first, so any surprise surfaces cheaply;
   npm run r2:copy -- --bucket trap-images && npm run r2:copy -- --bucket trap-images --verify --deep && echo "done: trap-images"
   ```
 
+- [ ] `dressing-images` — new with #1062 (canonical art under `srd/`); copy once art is published
+
+  ```bash
+  npm run r2:copy -- --bucket dressing-images && npm run r2:copy -- --bucket dressing-images --verify --deep && echo "done: dressing-images"
+  ```
+
 - [x] `faction-images` — done 7 Aug 2026 (5 objects, `--verify --deep` clean)
 
   ```bash
@@ -305,11 +311,11 @@ After the last box is ticked, one loop re-verifies every bucket and names any
 that fail. This is the line to run again before #617 ever deletes anything:
 
 ```bash
-for b in sound-images pantheon-emblems loot-images puzzle-images trap-images \
+for b in sound-images pantheon-emblems loot-images puzzle-images trap-images dressing-images \
          faction-images spell-images item-images npc-portraits location-images \
          monster-images asset-images chronicle sounds mini-models; do
   npm run r2:copy -- --bucket "$b" --verify --deep || { echo "FAILED: $b"; exit 1; }
-done && echo "all 15 buckets verified byte-identical"
+done && echo "all 16 buckets verified byte-identical"
 ```
 
 Interrupted at any point? Just re-run the bucket's line — the copy skips

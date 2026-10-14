@@ -1,7 +1,7 @@
 -- Content referential integrity — dangling shared-content references.
 --
 -- The shared library tables (library_monsters/library_spells/library_items/
--- library_species/library_backgrounds, and since #1060 library_traps) are referenced from user data by TEXT ids with no FK (slugs
+-- library_species/library_backgrounds, since #1060 library_traps, since #1062 library_dressing) are referenced from user data by TEXT ids with no FK (slugs
 -- can't FK a uuid column, and species refs deliberately hold either shape).
 -- Twice now an id transition remapped most-but-not-all referrers and shipped
 -- silently:
@@ -143,6 +143,14 @@ select check_name, cnt from (
   -- These carry shared ids inside documents rather than columns, so no schema
   -- introspection reveals them and no FK can guard them. Every one was already
   -- populated in production and unchecked here until #583.
+  -- #1062: a Cartographer map's dressing layer is a record of placement uuid ->
+  -- { prop_id, ... }. A missing prop still draws (a 1x1 placeholder) but at
+  -- the wrong size, so a re-keyed or deleted library prop is caught here.
+  union all select 'dungeon_maps.layers.dressing{}.prop_id -> library_dressing',
+    (select count(*) from dungeon_maps dm
+       cross join lateral jsonb_each(
+         case when jsonb_typeof(dm.layers -> 'dressing') = 'object' then dm.layers -> 'dressing' else '{}'::jsonb end) as pl
+       where not exists (select 1 from library_dressing d where d.id = pl.value->>'prop_id'))
   union all select 'party_members.wildshape_state.monster_id -> library/monsters',
     (select count(*) from party_members pm
        where pm.wildshape_state is not null and pm.wildshape_state->>'monster_id' is not null

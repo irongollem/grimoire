@@ -127,6 +127,17 @@ Doors live on edges (replacing the wall segment on that edge) — exactly as in 
 
 ---
 
+### Dressing: a prop library beside the packs, not inside them (#1062)
+
+**Chosen:** generic props (tables, beds, coffins, campfires, 62 of them to start) live in their own shared library, `library_dressing`, with art in `dressing-images/srd/`. A DM places them on any map whatever pack painted it: a table is a table on marble, sand or lava rock. The packs keep their six themed object categories (a lava brazier, a marble statue); a pack chest and a Dressing chest on the same map is fine.
+
+- **Opt-in per source, like every library.** `grimoire-dressing` is a `content_sources` row a DM switches on through the book icon in the Dressing panel, and it starts off. Enablement decides what the picker offers, never whether a placed prop draws (the #954 rule): the renderer reads every `library_dressing` row.
+- **Its own layer, not the object grid.** `layers.object` is keyed by one cell, so a stamp cannot span cells or overlap. `layers.dressing` is a record of placement uuid to `{ prop_id, x, y, rotation, z }`: a footprint of up to 4x4 cells, any angle, and `z` for stacking, because jsonb does not keep object key order and insertion order would not survive a reload.
+- **The battle map gets Dressing through the bake.** The runner draws `locations.map_layer_url`, the image Publish bakes, and nothing under `src/lib/battlemap/` reads `dungeon_maps.layers`. A prop appears in play after a re-publish, with no runner change. Hiding or revealing single props in play is not built.
+- **Library only in v1.** No DM-uploaded props and no per-user art overrides, so no campaign-scoped Dressing row exists. Both have precedents if they are ever wanted (`user_tile_packs`, `library_monster_art`).
+
+**Rejected:** adding the props as a seventh category to every pack, which would mean twelve copies of every table and a map whose furniture changes when its floor does.
+
 ## Tile Pack System
 
 A tile pack is a versioned bundle of WebP assets keyed against a strongly-typed schema. The schema is the source of truth for what every pack must contain.
@@ -364,7 +375,7 @@ create table dungeon_maps (
   user_id     uuid not null references auth.users(id) on delete cascade,
   name        text not null,
   description text,
-  layers      jsonb not null default '{"floor":{},"solidBlock":{},"object":{},"annotation":{}}'::jsonb,
+  layers      jsonb not null default '{"floor":{},"solidBlock":{},"object":{},"annotation":{},"dressing":{}}'::jsonb,  -- dressing since #1062
   metadata    jsonb not null default '{}'::jsonb,   -- per-cell entity links (see below)
   default_pack_id text,                              -- last-used pack, for UI restore
   tags        text[] not null default '{}',
@@ -397,7 +408,7 @@ export interface PackRef {
   pack_id: string
   pack_version: number
   variant: number
-  rotation?: 0 | 90 | 180 | 270   // optional; only meaningful for the object layer
+  rotation?: number                // degrees about the cell centre; only the object layer uses it
 }
 
 // An edge segment — wall or door — owned by a cell on its N or W side
@@ -440,6 +451,7 @@ export interface DungeonMap {
     solidBlock:  Record<CellKey, SolidCell>
     object:      Record<CellKey, ObjectCell>
     annotation:  Record<CellKey, AnnotationCell>
+    dressing:    Record<string, DressingPlacement>   // keyed by placement uuid (#1062)
   }
   metadata: Record<CellKey, CellMetadata>      // entity links (see below)
   default_pack_id: string | null
@@ -447,6 +459,15 @@ export interface DungeonMap {
   notes: TiptapDoc | null
   created_at: string
   updated_at: string
+}
+
+// One Dressing prop on the map (#1062). Not cell-keyed: a prop spans cells and overlaps others.
+export interface DressingPlacement {
+  prop_id: string    // library_dressing.id
+  x: number          // anchor cell: top-left of the footprint as turned to the nearest quarter
+  y: number
+  rotation: number   // degrees 0-359, clockwise about that footprint's centre
+  z: number          // stacking order, higher on top (jsonb loses key order)
 }
 
 export interface CellMetadata {
@@ -459,6 +480,8 @@ export interface CellMetadata {
   monster_spawn_ids?: string[]
 }
 ```
+
+**A layer added later reads as empty on older maps.** `dungeon_maps.layers` has no shape constraint and old rows were not backfilled when `dressing` arrived: a backfill writes `layers`, which bumps every map's `rev` and marks every published site "behind" for a change that draws nothing. Instead every read goes through `withLayerDefaults()` (`useDungeonMaps.ts`'s `readDungeonMap`, and `cloneLayers` in `MapWorkbench.vue`), and the column default carries every key for new maps. A prop's `prop_id` is a text reference inside a document, so `supabase/checks/content_integrity.sql` checks it against `library_dressing`.
 
 ### Movement / sight blocking — derived, not stored
 
@@ -571,6 +594,7 @@ The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer
 | Door          | `D`    | floor.edges | Replaces wall on an edge; toggles open/closed.         |
 | Solid block   | `S`    | solidBlock  | Full-cell thick walls (battlement, mountain rock).     |
 | Object stamp  | `O`    | object      | Picker for chests, statues, braziers, rubble, debris.  |
+| Dressing      | `G`    | dressing    | Places library props (#1062); see "Dressing tool" below. |
 | Rectangle     | `R`    | floor       | Drag to fill a rect with floor. Shift = wrap walls.    |
 | Line          | `L`    | floor       | Drag to draw a single-tile-wide line of floor.         |
 | Fill          | `F`    | floor       | Flood-fill contiguous floor cells.                     |
@@ -581,6 +605,16 @@ The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer
 | Space         | `P`    | structure   | Structure group — see the next section.                |
 | Link entity   | `K`    | metadata    | Structure group. Attach a trap / encounter / feature / note to a cell. |
 | Pan           | RMB    | —           | Right-mouse drag; middle-mouse or space-drag also pans. |
+
+#### Dressing tool (#1062)
+
+The pointer logic lives in `useDressingTool.ts`, wired from `useMapCanvasEditor.ts` the way the Space tool's is; the panel is `CartographerDressingPanel.vue`.
+
+- **Turning keeps the grid.** A prop turns about the centre of its footprint as turned to the nearest quarter, with the anchor at that footprint's top-left (`dressingCentre`). The epic's draft said "about the footprint's centre", which leaves a 2x1 table half a cell off the grid after a quarter turn, because its centre sits on a cell edge one way and mid-cell the other. A free angle still turns about a fixed centre.
+- **Pick, then place.** Picking a prop in the panel arms it, and a translucent ghost of its footprint follows the pointer (the object stamp has none). A click places it with its top-left at the hovered cell, and the new prop is selected, so Q/E or Delete act on it at once. Clicking the armed prop again, or Esc, puts it down; a second Esc returns to Select as before.
+- **Select, move, turn, delete.** With nothing armed, a click selects the topmost prop under the pointer (by `z`, through its rotated footprint) and a drag moves it a whole cell at a time. Q/E turn it 90 degrees and `[`/`]` one degree, as the stamp does; turning a prop also sets the brush to that angle, so the next one matches. Delete or Backspace removes it.
+- **Erase.** Right-click or Alt+click with the Dressing tool removes the topmost prop under the pointer. The Eraser takes a prop before an object, because props draw above objects.
+- Each place, drag, turn and delete is one undo step (the editor's whole-state snapshots already cover the new layer).
 
 #### UX notes for edge-based tools
 
@@ -622,6 +656,7 @@ Contextual to the active tool:
 
 - **Pack picker** (always visible): grid of loaded packs with thumbnails; clicking sets the brush's pack. Shows "Load more packs" button to pull from storage.
 - **Tool-specific options**: brush size (1, 3, 5 cells), rectangle fill mode (outline / filled), object rotation.
+- **Dressing panel** (#1062): the book icon for Dressing sources, a search over names and tags, the enabled books' props grouped by kind (furniture, containers, loot, remains, tavern and kitchen, workshop, arcane, religious, camp and travel, prison, outdoor) as tiles with their footprint, and, with a placed prop selected, its name, rotation and Delete. The rotation row is `RotationControl.vue`, shared with the object stamp.
 - **Cell inspector** (when a cell is selected): shows linked entities, edit/remove links.
 - **Select section**: with a cell selected, a read-only summary computed in `MapWorkbench.vue` and handed down as plain props (the same "MapWorkbench computes, the panel renders" shape as `annotationText`/`linkedNoteId`) — coordinates, floor (yes/no), solid block (yes/no), each present edge with its kind (wall/closed door/open door; N/W read straight off the cell, E/S off the neighbour's W/N per the NW-ownership rule), the object category if any, the annotation text if any, and linked note/encounter/trap/feature names. With nothing selected: "Click a cell to see what is in it. Drag to move the map."
 
@@ -705,6 +740,10 @@ Cartographer is the authoring side; [Atlas](world-building.md) is where baked ma
    Each kind is written in one request for its inserts and one for its updates: the updates go through `update_location_map_regions`, `update_location_doors` and `update_location_placements` (migration `20261008200423`), which apply each row's own columns in one transaction, so a row that is missing or not the DM's refuses the whole set instead of leaving part of it written.
 4. Space matching (`matchSpace` in `publish.ts`) tries, **in order**: (1) identical `cell_signature` — a plain re-publish of the same cells; (2) best Jaccard overlap ≥ 0.5 among bound-space candidates — the room moved or resized; (3) an exact name match between the space's annotation and the bound room's name — shape changed enough to lose overlap, but the DM's label survived. First match wins; ties are broken by best overlap score.
 
+### Dressing reaches the battle map by re-publishing (#1062)
+
+The runner draws the baked `map_layer_url`, never `dungeon_maps.layers`, so a prop placed or moved shows in play after the next Publish. Placing one changes `layers`, which bumps `rev`, so the status bar and the Structure panel already say the site is behind. Props are not structure: `deriveStructure` ignores them, so they never create, reshape or block a room.
+
 ### Reverse navigation
 
 On a location detail page, if `source_map_id` is set, show an **Edit map in Cartographer** link that opens `/cartographer/:id`.
@@ -736,6 +775,8 @@ async function bakeMap(map: DungeonMap, options: BakeOptions): Promise<Blob> {
   return await canvas.convertToBlob({ type: 'image/webp', quality: 0.9 })
 }
 ```
+
+Since #1062 the real bake (`src/cartographer/bake.ts`) also draws the Dressing layer, after objects and before glyphs, from a `DressingCatalog` every caller passes beside `runtimes` (`MapWorkbench`'s `getDressingCatalog()`). Its extent counts every cell a prop's rotated footprint reaches, not just the anchor, through the one `paintedExtent()` that both `computeBakedDimensions` and the raster use. A prop whose art has not loaded bakes as its footprint-shaped placeholder rather than vanishing. The AI styler input is built by the same bake, so Dressing reaches it too.
 
 If the result exceeds 5 MB:
 
@@ -1124,6 +1165,28 @@ Done = a DM can redraw a dungeon, publish again, and trust that hand-named rooms
 | [supabase/migrations/20260908215643_the_publish_remembers_what_it_wrote.sql](../../supabase/migrations/20260908215643_the_publish_remembers_what_it_wrote.sql) | `dungeon_maps.rev` + trigger, `locations.map_published_rev`, `location_placements.source_cell_key` |
 
 **Deleted:** `CartographerSaveAtlasModal.vue` (the old location-picker modal) — no legacy path kept.
+
+### M10: Dressing (#1062) ✅ shipped
+
+A shared library of top-down props a DM places on any map, whatever pack it uses. Decisions in "Dressing: a prop library beside the packs" above; the tool under "Dressing tool".
+
+#### As-built files
+
+| Path | Purpose |
+| --- | --- |
+| [supabase/migrations/20261014102253_dressing_library.sql](../../supabase/migrations/20261014102253_dressing_library.sql) | `library_dressing`, the `grimoire-dressing` source, `get_library_dressing_sources()`, `dressing_images_srd_*` storage policies, the `layers` column default |
+| [supabase/migrations/20261014102255_dressing_library_content.sql](../../supabase/migrations/20261014102255_dressing_library_content.sql) | The first catalog: 62 props, no art yet |
+| [supabase/tests/dressing_library.test.sql](../../supabase/tests/dressing_library.test.sql) | Read for all, admin writes, footprint and group checks, the book listing, the layer default |
+| [src/types/dressing.types.ts](../../src/types/dressing.types.ts) | `LibraryDressing`, `DRESSING_GROUPS` |
+| [src/cartographer/dressing.ts](../../src/cartographer/dressing.ts) | Footprints, rotated bounds, hit testing by `z`, drawing and the placeholder (no vue) |
+| [src/cartographer/dressingImages.ts](../../src/cartographer/dressingImages.ts) | The pack-independent image loader, cached by url, and the catalog builder |
+| [src/cartographer/paintOps.ts](../../src/cartographer/paintOps.ts) | `placeDressing` / `moveDressing` / `rotateDressing` / `removeDressing` |
+| [src/composables/cartographer/useLibraryDressing.ts](../../src/composables/cartographer/useLibraryDressing.ts) | The offered props (enabled books), every prop (resolution), and the live catalog |
+| [src/composables/cartographer/useDressingTool.ts](../../src/composables/cartographer/useDressingTool.ts) | Place, select, drag, turn, delete, erase, ghost |
+| [src/components/cartographer/CartographerDressingPanel.vue](../../src/components/cartographer/CartographerDressingPanel.vue) | The Inspector panel |
+| [src/components/cartographer/RotationControl.vue](../../src/components/cartographer/RotationControl.vue) | The rotate row, shared with the object stamp |
+
+The art is made outside the app and published with `scripts/generate-library-art.ts`, kind `dressing`: transparent WebP at 256 px per cell (a 2x1 table is 512x256), seen from directly above, no cast shadow past the footprint, neutral enough to sit on any pack. Publish refuses a picture whose size does not match its row's footprint, and makes no focal guess (a prop is never cropped). The bucket joined every registry: `buckets.ts`, `STORAGE_WRITE_POLICY`, `dev-buckets.data.ts`, `IMAGE_COLUMNS`, `IMAGE_REFERENCES`, `LIBRARY_TABLES`, `move-library-art-to-srd.ts` and the R2 checklist in `infra/README.md`.
 
 ### Future (post-M7)
 

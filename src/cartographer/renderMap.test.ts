@@ -5,6 +5,7 @@ import type { TilePackManifest } from "@/cartographer/packSchema";
 import type { ValidationResult } from "@/cartographer/validatePack";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
+import type { DressingCatalog } from "./dressing";
 
 // ── Fake canvas context ─────────────────────────────────────────────────────
 // happy-dom's canvas.getContext("2d") returns null, and even a real one would
@@ -19,9 +20,12 @@ interface DrawImageCall {
   y: number;
   w: number;
   h: number;
+  alpha: number;
 }
 
 interface FakeCtx {
+  globalAlpha: number;
+  roundRect(x: number, y: number, w: number, h: number, r: number): void;
   imageSmoothingEnabled: boolean;
   fillStyle: string;
   strokeStyle: string;
@@ -37,6 +41,7 @@ interface FakeCtx {
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
   stroke(): void;
+  closePath(): void;
   fill(): void;
   arc(x: number, y: number, r: number, start: number, end: number): void;
   save(): void;
@@ -54,15 +59,19 @@ interface Recorder {
   fillStyles: string[];
   strokeStyles: string[];
   texts: string[];
+  translates: [number, number][];
+  roundRects: number;
 }
 
 function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
-  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [] };
+  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [], translates: [], roundRects: 0 };
   let fillStyle = "";
   let strokeStyle = "";
   const noop = (): void => {};
   const fake: FakeCtx = {
     imageSmoothingEnabled: true,
+    globalAlpha: 1,
+    roundRect: () => { rec.roundRects++; },
     lineWidth: 1,
     lineCap: "butt",
     textAlign: "start",
@@ -76,17 +85,18 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
     strokeRect: () => rec.calls.push("strokeRect"),
     drawImage: (source, x, y, w, h) => {
       rec.calls.push("drawImage");
-      rec.drawImages.push({ source, x, y, w, h });
+      rec.drawImages.push({ source, x, y, w, h, alpha: fake.globalAlpha });
     },
     beginPath: () => rec.calls.push("beginPath"),
     moveTo: () => rec.calls.push("moveTo"),
     lineTo: () => rec.calls.push("lineTo"),
     stroke: () => rec.calls.push("stroke"),
+    closePath: noop,
     fill: () => rec.calls.push("fill"),
     arc: () => rec.calls.push("arc"),
     save: () => rec.calls.push("save"),
     restore: () => rec.calls.push("restore"),
-    translate: noop,
+    translate: (x, y) => { rec.translates.push([x, y]); },
     rotate: noop,
     fillText: (text) => { rec.calls.push("fillText"); rec.texts.push(text); },
     setLineDash: () => rec.calls.push("setLineDash"),
@@ -154,6 +164,7 @@ function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderS
     hoverCell: null,
     selectedCell: null,
     previewCells: new Set(),
+    dressing: new Map(),
     ...overrides,
   };
   return { scene, rec };
@@ -368,5 +379,87 @@ describe("renderMap — derived-space outlines (#868)", () => {
     renderMap(scene);
 
     expect(rec.texts).toContain("Region 1");
+  });
+});
+
+describe("renderMap: Dressing layer (#1062)", () => {
+  const art = (name: string): CanvasImageSource => ({ name }) as unknown as CanvasImageSource;
+  const catalog: DressingCatalog = new Map([
+    ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: art("table") }],
+    ["bed", { id: "bed", name: "Bed", footprint_w: 1, footprint_h: 2, image: art("bed") }],
+    ["bare", { id: "bare", name: "Bare", footprint_w: 1, footprint_h: 1, image: null }],
+  ]);
+
+  it("draws a prop's image over its whole footprint, at the anchor cell", () => {
+    const layers = emptyLayers();
+    layers.dressing.a = { prop_id: "table", x: 1, y: 2, rotation: 0, z: 0 };
+    const { scene, rec } = baseScene({ layers, dressing: catalog });
+    renderMap(scene);
+    const call = rec.drawImages.find((c) => (c.source as { name?: string }).name === "table")!;
+    expect(call.w).toBe(128);
+    expect(call.h).toBe(64);
+    expect(rec.translates).toContainEqual([64 + 64, 2 * 64 + 32]);
+  });
+
+  it("draws a footprint placeholder when the prop has no image", () => {
+    const layers = emptyLayers();
+    layers.dressing.a = { prop_id: "bare", x: 0, y: 0, rotation: 0, z: 0 };
+    const { scene, rec } = baseScene({ layers, dressing: catalog });
+    renderMap(scene);
+    expect(rec.roundRects).toBe(1);
+    expect(rec.drawImages).toHaveLength(0);
+  });
+
+  it("draws a placement whose prop is missing from the catalog as a placeholder", () => {
+    const layers = emptyLayers();
+    layers.dressing.a = { prop_id: "gone", x: 0, y: 0, rotation: 0, z: 0 };
+    const { scene, rec } = baseScene({ layers, dressing: catalog });
+    renderMap(scene);
+    expect(rec.roundRects).toBe(1);
+  });
+
+  it("draws in z order, not insertion order", () => {
+    const layers = emptyLayers();
+    layers.dressing.top = { prop_id: "bed", x: 0, y: 0, rotation: 0, z: 5 };
+    layers.dressing.low = { prop_id: "table", x: 0, y: 0, rotation: 0, z: 1 };
+    const { scene, rec } = baseScene({ layers, dressing: catalog });
+    renderMap(scene);
+    expect(rec.drawImages.map((c) => (c.source as { name: string }).name)).toEqual(["table", "bed"]);
+  });
+
+  it("draws above the stamped objects", () => {
+    const layers = emptyLayers();
+    layers.object[cellKey(0, 0)] = { pack_id: "p", pack_version: 1, variant: 0, category: "floor" as never };
+    layers.dressing.a = { prop_id: "table", x: 0, y: 0, rotation: 0, z: 0 };
+    const { scene, rec } = baseScene({ layers, dressing: catalog, runtimes: new Map([["p", makeRuntime("p")]]) });
+    renderMap(scene);
+    const names = rec.drawImages.map((c) => (c.source as { name?: string }).name ?? "tile");
+    expect(names.lastIndexOf("table")).toBeGreaterThan(names.indexOf("tile"));
+  });
+
+  it("culls a prop wholly outside the visible cells, and keeps one that reaches in", () => {
+    const layers = emptyLayers();
+    layers.dressing.far = { prop_id: "table", x: 20, y: 20, rotation: 0, z: 0 };
+    layers.dressing.edge = { prop_id: "bed", x: -1, y: 0, rotation: 90, z: 1 };
+    const { scene, rec } = baseScene({ layers, dressing: catalog });
+    renderMap(scene);
+    const names = rec.drawImages.map((c) => (c.source as { name: string }).name);
+    expect(names).not.toContain("table");
+    expect(names).toContain("bed");
+  });
+
+  it("draws the ghost translucent, and the selection outline", () => {
+    const layers = emptyLayers();
+    layers.dressing.a = { prop_id: "table", x: 0, y: 0, rotation: 0, z: 0 };
+    const { scene, rec } = baseScene({
+      layers,
+      dressing: catalog,
+      dressingGhost: { placement: { prop_id: "bed", x: 3, y: 3, rotation: 0, z: 0 }, alpha: 0.5 },
+      selectedDressingId: "a",
+    });
+    renderMap(scene);
+    const ghost = rec.drawImages.find((c) => (c.source as { name: string }).name === "bed")!;
+    expect(ghost.alpha).toBe(0.5);
+    expect(rec.strokeStyles).toContain("rgba(80,180,255,0.9)");
   });
 });

@@ -20,10 +20,10 @@
 //                  (`(storage.foldername(name))[1] = auth.uid()::text`)
 //   `srd/…`        monster-images + spell-images + item-images +
 //                  background-images + species-images + class-images +
-//                  trap-images + dungeon-feature-images + puzzle-images, app
+//                  trap-images + dungeon-feature-images + puzzle-images + dressing-images, app
 //                  admins only (migrations 20260514000003 / 20260514000004 /
 //                  20261002150137 / 20261005142210 / 20261005144201 /
-//                  20261011190104 / 20261014070034)
+//                  20261011190104 / 20261014070034 / 20261014102253)
 //   `library/…`    sounds only, app admins only — the shared sound catalogue
 //                  (migration 20260728000004)
 //
@@ -115,6 +115,9 @@ export const STORAGE_WRITE_POLICY: readonly BucketWritePolicy[] = [
   image("dungeon-feature-images", ["srd"]),
   image("monster-images", ["srd"]),
   image("trap-images", ["srd"]),
+  // srd/ for Dressing, a shared prop library (#1062). Like background-images, its
+  // RLS has srd/ policies only; the owner prefix is the rule every image bucket has.
+  image("dressing-images", ["srd"]),
   image("location-images"),
   image("faction-images"),
   image("pantheon-emblems"),

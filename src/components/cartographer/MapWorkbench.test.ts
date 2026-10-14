@@ -15,7 +15,7 @@
 // mocked out — this test is about the prop surface, not about exercising
 // Supabase.
 import { mount, flushPromises, enableAutoUnmount } from "@vue/test-utils";
-import { computed, ref } from "vue";
+import { computed, ref, shallowRef } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MapWorkbench from "./MapWorkbench.vue";
 import CartographerInspectorPanel from "./CartographerInspectorPanel.vue";
@@ -37,6 +37,7 @@ vi.mock("@/composables/dungeon-features/useDungeonFeatures", () => ({
   useDungeonFeatures: () => ({ data: ref([]) }),
   useDungeonFeatureIndex: () => ({ data: ref([]), byId: ref(new Map()) }),
 }));
+vi.mock("@/composables/cartographer/useLibraryDressing", () => ({ useDressingCatalog: () => ({ catalog: shallowRef(new Map()) }) }));
 vi.mock("@/composables/cartographer/usePublishedSites", () => ({ usePublishedSites: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/cartographer/useTilePacks", () => ({
   useTilePacks: () => ({ campaignPacks: ref([]) }),

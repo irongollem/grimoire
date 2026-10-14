@@ -13,6 +13,7 @@ import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { classifyJoint } from "./edges";
 import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";
 import { encodeWebp } from "@/lib/webpEncode";
+import { drawDressing, dressingCellBounds, dressingDrawOrder, type DressingCatalog } from "./dressing";
 
 export interface BakeOptions {
   /** Cells of black padding around the painted extent. Default: 3. */
@@ -50,25 +51,10 @@ export const DEFAULT_BAKE_PADDING_CELLS = 3;
  */
 export function computeBakedDimensions(
   map: DungeonMap,
+  dressing: DressingCatalog,
   paddingCells: number = DEFAULT_BAKE_PADDING_CELLS,
 ): { cols: number; rows: number; originCellX: number; originCellY: number } {
-  const allKeys = [
-    ...Object.keys(map.layers.floor),
-    ...Object.keys(map.layers.solidBlock),
-    ...Object.keys(map.layers.object),
-    ...Object.keys(map.layers.annotation),
-  ];
-  let minX = 0, minY = 0, maxX = 0, maxY = 0;
-  let any = false;
-  for (const k of allKeys) {
-    const [xs, ys] = k.split(",");
-    const x = Number(xs), y = Number(ys);
-    if (!any || x < minX) minX = x;
-    if (!any || y < minY) minY = y;
-    if (!any || x > maxX) maxX = x;
-    if (!any || y > maxY) maxY = y;
-    any = true;
-  }
+  const { minX, minY, maxX, maxY } = paintedExtent(map, dressing);
   return {
     cols: maxX - minX + 1 + paddingCells * 2,
     rows: maxY - minY + 1 + paddingCells * 2,
@@ -77,11 +63,46 @@ export function computeBakedDimensions(
   };
 }
 
+/**
+ * The painted bounding box in cells. One helper for both the dimensions and
+ * the raster, because they must agree: a Dressing prop counts by every cell
+ * its rotated footprint reaches, not by its anchor, so a table at the edge
+ * is never cut off.
+ */
+function paintedExtent(map: DungeonMap, dressing: DressingCatalog): { minX: number; minY: number; maxX: number; maxY: number } {
+  const layers = map.layers;
+  const allKeys = [
+    ...Object.keys(layers.floor),
+    ...Object.keys(layers.solidBlock),
+    ...Object.keys(layers.object),
+    ...Object.keys(layers.annotation),
+  ];
+  let minX = 0, minY = 0, maxX = 0, maxY = 0;
+  let any = false;
+  const include = (x: number, y: number, x2 = x, y2 = y): void => {
+    if (!any || x < minX) minX = x;
+    if (!any || y < minY) minY = y;
+    if (!any || x2 > maxX) maxX = x2;
+    if (!any || y2 > maxY) maxY = y2;
+    any = true;
+  };
+  for (const k of allKeys) {
+    const [xs, ys] = k.split(",");
+    include(Number(xs), Number(ys));
+  }
+  for (const placement of Object.values(layers.dressing)) {
+    const b = dressingCellBounds(placement, dressing);
+    include(b.minX, b.minY, b.maxX, b.maxY);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
 // ── Internal helpers ───────────────────────────────────────────────────────
 
 function renderToCanvas(
   map: DungeonMap,
   runtimes: Map<string, TilePackRuntime>,
+  dressing: DressingCatalog,
   paddingCells: number,
   glyphs: Record<CellKey, PackCategory> = {},
   transparent: boolean = false,
@@ -89,24 +110,7 @@ function renderToCanvas(
   const ts = BASE_TILE_SIZE;
   const layers = map.layers;
 
-  const allKeys = [
-    ...Object.keys(layers.floor),
-    ...Object.keys(layers.solidBlock),
-    ...Object.keys(layers.object),
-    ...Object.keys(layers.annotation),
-  ];
-
-  let minX = 0, minY = 0, maxX = 0, maxY = 0;
-  let any = false;
-  for (const k of allKeys) {
-    const [xs, ys] = k.split(",");
-    const x = Number(xs), y = Number(ys);
-    if (!any || x < minX) minX = x;
-    if (!any || y < minY) minY = y;
-    if (!any || x > maxX) maxX = x;
-    if (!any || y > maxY) maxY = y;
-    any = true;
-  }
+  const { minX, minY, maxX, maxY } = paintedExtent(map, dressing);
 
   const cols = maxX - minX + 1 + paddingCells * 2;
   const rows = maxY - minY + 1 + paddingCells * 2;
@@ -227,6 +231,12 @@ function renderToCanvas(
     }
   }
 
+  // Dressing layer (epic #1062) — props above the stamped objects, in stacking
+  // order, same placement maths as the live editor.
+  for (const [, placement] of dressingDrawOrder(layers.dressing)) {
+    drawDressing(ctx, placement, dressing.get(placement.prop_id), dx(placement.x), dy(placement.y), ts);
+  }
+
   // Hazard / feature glyph layer (#804) — same convention as the live editor
   // renderer (renderMap.ts): `glyphs` is resolved OUTSIDE this function from
   // the linked trap's/feature's live hazard_glyph/feature_glyph (see
@@ -271,10 +281,11 @@ const MAX_BYTES = 5 * 1024 * 1024;
 export async function bakeMap(
   map: DungeonMap,
   runtimes: Map<string, TilePackRuntime>,
+  dressing: DressingCatalog,
   options: BakeOptions = {},
   glyphs: Record<CellKey, PackCategory> = {},
 ): Promise<Blob> {
-  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3, glyphs, options.transparent ?? false);
+  const canvas = renderToCanvas(map, runtimes, dressing, options.paddingCells ?? 3, glyphs, options.transparent ?? false);
   let blob = await encodeWebp(canvas, 0.9);
   if (blob.size > MAX_BYTES) {
     blob = await encodeWebp(canvas, 0.75);
@@ -289,10 +300,11 @@ export async function bakeMap(
 export async function bakeMapAsPng(
   map: DungeonMap,
   runtimes: Map<string, TilePackRuntime>,
+  dressing: DressingCatalog,
   options: BakeOptions = {},
   glyphs: Record<CellKey, PackCategory> = {},
 ): Promise<Blob> {
-  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3, glyphs);
+  const canvas = renderToCanvas(map, runtimes, dressing, options.paddingCells ?? 3, glyphs);
   return canvas.convertToBlob({ type: "image/png" });
 }
 
@@ -462,13 +474,14 @@ export function fitStyleInputCanvas(
 export async function bakeMapForAI(
   map: DungeonMap,
   runtimes: Map<string, TilePackRuntime>,
+  dressing: DressingCatalog,
   options: BakeOptions = {},
   glyphs: Record<CellKey, PackCategory> = {},
   provider: StyleImageProvider = "openai",
 ): Promise<{ blob: Blob; geometry: AspectPadGeometry; size: { width: number; height: number } }> {
   const paddingCells = options.paddingCells ?? 3;
-  const canvas = renderToCanvas(map, runtimes, paddingCells, glyphs);
-  const dims = computeBakedDimensions(map, paddingCells);
+  const canvas = renderToCanvas(map, runtimes, dressing, paddingCells, glyphs);
+  const dims = computeBakedDimensions(map, dressing, paddingCells);
   const { canvas: fitted, geometry, size } = fitStyleInputCanvas(canvas, dims.cols, provider);
   const blob = await fitted.convertToBlob({ type: "image/png" });
   return { blob, geometry, size };

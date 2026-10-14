@@ -12,6 +12,7 @@
 // `if (changed) dirty.value = true;` at the call site.
 
 import { cellKey, type DungeonMapLayers, type EdgeSeg, type EdgeSegType } from "@/types/dungeonMap.types";
+import { nextDressingZ } from "@/cartographer/dressing";
 import type { ObjectCategory } from "@/cartographer/packSchema";
 import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
 
@@ -121,6 +122,58 @@ export function eraseObjectAt(ctx: PaintContext, x: number, y: number): boolean 
   const next = { ...ctx.layers.object };
   delete next[k];
   ctx.layers.object = next;
+  return true;
+}
+
+// ── Dressing (props, epic #1062) ──────────────────────────────────────────────
+// Placements are keyed by a uuid the caller mints, so tests stay deterministic.
+// Like the cell layers above, each op replaces `layers.dressing` rather than
+// mutating it.
+
+function normaliseRotation(degrees: number): number {
+  return ((Math.round(degrees) % 360) + 360) % 360;
+}
+
+export function placeDressing(
+  layers: DungeonMapLayers,
+  placement: { prop_id: string; x: number; y: number; rotation: number },
+  id: string,
+): boolean {
+  if (layers.dressing[id]) return false;
+  layers.dressing = {
+    ...layers.dressing,
+    [id]: {
+      prop_id: placement.prop_id,
+      x: placement.x,
+      y: placement.y,
+      rotation: normaliseRotation(placement.rotation),
+      z: nextDressingZ(layers.dressing),
+    },
+  };
+  return true;
+}
+
+export function moveDressing(layers: DungeonMapLayers, id: string, x: number, y: number): boolean {
+  const current = layers.dressing[id];
+  if (!current || (current.x === x && current.y === y)) return false;
+  layers.dressing = { ...layers.dressing, [id]: { ...current, x, y } };
+  return true;
+}
+
+export function rotateDressing(layers: DungeonMapLayers, id: string, rotation: number): boolean {
+  const current = layers.dressing[id];
+  if (!current) return false;
+  const next = normaliseRotation(rotation);
+  if (next === current.rotation) return false;
+  layers.dressing = { ...layers.dressing, [id]: { ...current, rotation: next } };
+  return true;
+}
+
+export function removeDressing(layers: DungeonMapLayers, id: string): boolean {
+  if (!layers.dressing[id]) return false;
+  const next = { ...layers.dressing };
+  delete next[id];
+  layers.dressing = next;
   return true;
 }
 

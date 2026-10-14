@@ -43,6 +43,7 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 | Door | `D` | Click a wall edge to add a door; click an existing door to toggle open/closed; right-click removes it, leaving the wall. |
 | Solid block | `S` | Fills a cell with a thick, full-cell wall mass (battlement stone, mountain rock), different from the thin edge-based Wall tool. |
 | Object stamp | `O` | Stamps furniture, chests, statues, braziers, rubble, and debris from the pack. |
+| Dressing | `G` | Places props from the library (tables, beds, coffins) at any angle, above the stamped objects. See Dressing below. |
 | Rectangle | `R` | Drag to fill a rectangle of floor. Hold **Shift** to also wrap walls around the perimeter: the fastest way to make a room. |
 | Line | `L` | Drag to draw a straight run of floor. |
 | Fill | `F` | Flood-fills a contiguous floor region. |
@@ -55,6 +56,16 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 | Pan | (drag, badge **RMB**) | Middle-mouse or right-click drag pans from any tool. |
 
 Space and Link entity are grouped as **Structure** tools in the palette, separate from the paint tools above: they claim or annotate what the drawing *means* rather than adding pixels.
+
+## Dressing
+
+Dressing is a library of top-down props: long tables, beds, coffins, barrels. Unlike the Object stamp, a prop can be several cells big, sits above the objects, and turns to any angle.
+
+Open the Dressing tool (`G`), pick a prop in the side panel, and click the map to place it. A faint copy follows your cursor so you can see where it will land. After the click the prop stays selected: `Q` and `E` turn it a quarter turn, `[` and `]` nudge it one degree, and `Delete` removes it. The buttons under **Rotate** in the panel do the same. With no prop selected, those keys turn the next one you place.
+
+To move a prop, put it down first (click the picked prop again in the panel, or press `Esc`), then drag it on the map. Right-click, or hold **Alt** and click, removes the prop under the cursor, and the Eraser takes props before anything beneath them. Every placement, move, turn and removal is one step in Undo.
+
+Props come in books, and every book is off until you switch it on. Click the **book icon** at the top of the Dressing panel to choose which books this campaign uses. Props already on a map keep showing even if you later switch their book off.
 
 ## Rooms are detected automatically
 

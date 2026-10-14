@@ -63,6 +63,7 @@
 
 import { computed, ref, watch } from "vue";
 import { bakeAiStyleInput, styledPictureCalibration } from "@/cartographer/aiStyleInput";
+import type { DressingCatalog } from "@/cartographer/dressing";
 import { blobToBase64, base64ToBlob } from "@/cartographer/imageCodec";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
@@ -119,6 +120,8 @@ export function useMapExport(opts: {
   /** The current map, merged with in-progress layers/metadata edits, or null while unloaded. */
   buildMap: () => DungeonMap | null;
   runtimes: () => Map<string, TilePackRuntime>;
+  /** Dressing props by id, so placed props bake with their art and size the extent. */
+  dressing: () => DressingCatalog;
   mapName: () => string;
   /** Resolved trap/feature glyph categories (#804) — see cartographer/glyphs.ts. */
   glyphs: () => Record<CellKey, PackCategory>;
@@ -217,7 +220,7 @@ export function useMapExport(opts: {
     try {
       const target = fixedTarget.value;
       const { blob: pngBlob, geometry, size } =
-        await bakeAiStyleInput(map, opts.runtimes(), target?.picture ?? null, opts.glyphs(), provider);
+        await bakeAiStyleInput(map, opts.runtimes(), opts.dressing(), target?.picture ?? null, opts.glyphs(), provider);
       const image_b64 = await blobToBase64(pngBlob);
 
       const { data, error } = await supabase.functions.invoke<StyleMapResponse>("style-map", {
@@ -239,7 +242,7 @@ export function useMapExport(opts: {
       // known (`size`, from the bake functions above) — see this module's
       // header for why that makes the pre-send geometry a safe basis for the
       // calibration, with no need to measure what comes back to derive it.
-      styleResultCalibration.value = styledPictureCalibration(map, geometry);
+      styleResultCalibration.value = styledPictureCalibration(map, opts.dressing(), geometry);
       void warnIfStyleResultSizeDrifted(styleResultBlob.value, size);
       if (styleResultUrl.value) URL.revokeObjectURL(styleResultUrl.value);
       styleResultUrl.value = URL.createObjectURL(styleResultBlob.value);

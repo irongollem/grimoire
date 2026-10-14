@@ -4,7 +4,7 @@ export type { LucideIcon as AppIcon } from '@lucide/vue'
 
 import {
   AlertCircle, AlertTriangle, AlignCenter, AlignLeft, AlignRight,
-  Archive, ArrowUpFromLine, Award, Axe,
+  Archive, Armchair, ArrowUpFromLine, Award, Axe,
   Backpack, BarChart2, BetweenHorizontalEnd, BetweenVerticalEnd, Cast,
   BookMarked, BookOpen, BookPlus, BookText, BookUser, Bookmark, Box, Brain, BrickWall, Brush, Bug,
   Calendar, CalendarCheck, CalendarDays, CalendarPlus, CalendarX,
@@ -113,6 +113,9 @@ export { Box as IconCube }
 /** Object stamp: not `Package`, which beside `IconCube` (Solid block) in the
  *  same palette read as the same box twice. */
 export { Stamp as IconObjectStamp }
+/** Dressing (epic #1062): furniture and other props placed at any angle. An
+ *  armchair, so it does not read as the Object stamp beside it. */
+export { Armchair as IconDressing }
 /** Annotate places text on the map (shortcut T), so a text glyph, not the
  *  pen the Line tool used to share with it. */
 export { Type as IconAnnotate }
