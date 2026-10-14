@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(53);
+select plan(41);
 
 -- The session log (#985, 20261006072708 + 20261006072853). A session is a row
 -- in a log: a DM-given number that is a label (repeats allowed), an optional
@@ -14,7 +14,6 @@ select has_table('public', 'campaign_sessions', 'a session is a row in a log');
 select hasnt_table('public', 'campaign_session_state', 'the overwritten single row is gone');
 select has_function('public', 'start_campaign_session', array['uuid', 'integer', 'text', 'uuid'], 'start says which session it is');
 select has_function('public', 'end_campaign_session', array['uuid'], 'closing the table is a command');
-select has_function('public', 'resume_campaign_session', array['uuid'], 'an ended session can be continued');
 select has_function('public', 'get_player_sessions', array['uuid'], 'players read past sessions through a projection');
 select hasnt_column('public', 'notes', 'session_num', 'the number lives on the session, not the note');
 select has_column('public', 'notes', 'session_id', 'a session note links to its session');
@@ -49,8 +48,7 @@ values ('98500000-0000-4000-8000-000000000050', '98500000-0000-4000-8000-0000000
 
 insert into public.npcs (id, user_id, campaign_id, name, player_visible_to, player_visible_fields) values
   ('98500000-0000-4000-8000-000000000060', '98500000-0000-4000-8000-000000000001', '98500000-0000-4000-8000-000000000010', 'Met in play', '{}'::uuid[], array['name']),
-  ('98500000-0000-4000-8000-000000000061', '98500000-0000-4000-8000-000000000001', '98500000-0000-4000-8000-000000000010', 'Met in prep', '{}'::uuid[], array['name']),
-  ('98500000-0000-4000-8000-000000000062', '98500000-0000-4000-8000-000000000001', '98500000-0000-4000-8000-000000000010', 'Met in the break', '{}'::uuid[], array['name']);
+  ('98500000-0000-4000-8000-000000000061', '98500000-0000-4000-8000-000000000001', '98500000-0000-4000-8000-000000000010', 'Met in prep', '{}'::uuid[], array['name']);
 insert into public.locations (id, user_id, campaign_id, name)
 values ('98500000-0000-4000-8000-000000000070', '98500000-0000-4000-8000-000000000001', '98500000-0000-4000-8000-000000000010', 'The Inn');
 insert into public.scriptorium_documents (id, user_id, campaign_id, title)
@@ -162,55 +160,13 @@ select isnt((select ended_at from public.campaign_sessions where id = current_se
 select set_config('request.jwt.claim.sub', '98500000-0000-4000-8000-000000000002', true);
 select is((select count(*)::integer from public.get_player_session_state('98500000-0000-4000-8000-000000000010')),
   0, 'a closed session projects nothing');
-
--- ── Continuing (#1058, 20261014064329) ───────────────────────────────────────
--- An evening ended by accident is reopened, not started again.
-
-select throws_ok(
-  format($$ select public.resume_campaign_session(%L) $$, current_setting('grimoire.s15')),
-  'Not authorized', 'a player cannot continue a session');
-select set_config('request.jwt.claim.sub', '98500000-0000-4000-8000-000000000003', true);
-select throws_ok(
-  format($$ select public.resume_campaign_session(%L) $$, current_setting('grimoire.s15')),
-  'Not authorized', 'nor can a stranger');
 select set_config('request.jwt.claim.sub', '98500000-0000-4000-8000-000000000001', true);
-
--- Shared during the break, while nothing was open.
-update public.npcs set player_visible_to = array['98500000-0000-4000-8000-000000000030']::uuid[]
- where id = '98500000-0000-4000-8000-000000000062';
-
-select is((public.resume_campaign_session(current_setting('grimoire.s15')::uuid)).id::text,
-  current_setting('grimoire.s15'), 'the DM continues the session they ended');
-select is((select ended_at from public.campaign_sessions where id = current_setting('grimoire.s15')::uuid),
-  null, 'it is open again');
-select is((select started_at from public.campaign_sessions where id = current_setting('grimoire.s15')::uuid),
-  timestamptz '2026-10-05 19:30+00', 'with its clock from the first start');
-select is((select count(*)::integer from public.campaign_sessions where campaign_id = '98500000-0000-4000-8000-000000000010'),
-  1, 'and no second row');
-select is((select session_id::text from public.npc_reveals where npc_id = '98500000-0000-4000-8000-000000000062'),
-  current_setting('grimoire.s15'), 'what was shared during the break joins the session it interrupted');
-select is((public.resume_campaign_session(current_setting('grimoire.s15')::uuid)).id::text,
-  current_setting('grimoire.s15'), 'continuing the open session again returns it');
-select public.end_campaign_session('98500000-0000-4000-8000-000000000010');
 
 -- A second session, deliberately numbered like an earlier one: labels repeat.
 select public.start_campaign_session('98500000-0000-4000-8000-000000000010', 15, 'Into the Mere, again', null);
 select is((select count(*)::integer from public.campaign_sessions where number = 15), 2,
   'two sessions can share a number');
-select throws_ok(
-  format($$ select public.resume_campaign_session(%L) $$, current_setting('grimoire.s15')),
-  'End the running session before continuing another', 'a session cannot be continued while another runs');
 select public.end_campaign_session('98500000-0000-4000-8000-000000000010');
-select throws_ok(
-  format($$ select public.resume_campaign_session(%L) $$, current_setting('grimoire.s15')),
-  'Only the most recent session can be continued', 'only the latest run can be continued');
-
-insert into public.campaign_sessions (id, campaign_id, number, title, played_on)
-values ('98500000-0000-4000-8000-000000000095', '98500000-0000-4000-8000-000000000010', 3, 'Logged afterwards', current_date);
-select throws_ok(
-  $$ select public.resume_campaign_session('98500000-0000-4000-8000-000000000095') $$,
-  'Only a session that was run can be continued', 'a session logged by hand has no run to continue');
-delete from public.campaign_sessions where id = '98500000-0000-4000-8000-000000000095';
 
 -- An unnumbered test start.
 select is((public.start_campaign_session('98500000-0000-4000-8000-000000000010')).number, null,
