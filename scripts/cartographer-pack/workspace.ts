@@ -4,6 +4,8 @@ import sharp, { type OverlayOptions } from "sharp";
 import {
   BASE_TILE_SIZE,
   TILE_PACK_SCHEMA,
+  WALL_BAND_PX,
+  WALL_BAND_RATIO,
   type PackCategory,
   type TilePackManifest,
 } from "../../src/cartographer/packSchema.ts";
@@ -97,7 +99,7 @@ function stairRotation(side: string | undefined): number {
 
 function templateSvg(job: GenerationJob): string {
   const size = 1024;
-  const band = Math.round(size * 0.18);
+  const band = Math.round(size * WALL_BAND_RATIO);
   const offset = Math.round((size - band) / 2);
   let footprint = `<rect width="${size}" height="${size}" fill="#d8dee9"/>`;
   if (job.mechanics.footprint === "centered-horizontal-edge") {
@@ -258,7 +260,7 @@ async function normalizeTransparent(source: string, destination: string, job: Ge
   const horizontal = job.mechanics.footprint === "centered-horizontal-edge";
   const vertical = job.mechanics.footprint === "centered-vertical-edge";
   const roundedJunction = job.mechanics.footprint === "rounded-junction";
-  const band = Math.round(BASE_TILE_SIZE * 0.18);
+  const band = WALL_BAND_PX;
   let artwork: Buffer;
 
   if (metadata.hasAlpha && (horizontal || vertical)) {
