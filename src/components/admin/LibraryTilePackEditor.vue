@@ -173,7 +173,7 @@ const dirty = computed(() =>
   name.value !== props.pack.name
   || description.value !== props.pack.description
   || sortOrder.value !== String(props.pack.sort_order)
-  || licenseKeys.value.join(" ") !== props.pack.license_keys.join(" ")
+  || licenseKeys.value.join("\0") !== props.pack.license_keys.join("\0")
   || contentSourceKey.value !== (props.pack.content_source_key ?? ""),
 );
 

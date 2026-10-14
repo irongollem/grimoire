@@ -49,10 +49,18 @@
   background-color: var(--card);
 }
 :root[data-theme^="vellum"] select.bg-background:not([multiple]):not([size]) {
-  /* keep base.css's gradient caret, drop only the paper */
+  /* keep base.css's gradient caret, drop only the paper. The paper rule above
+     also sets size, repeat and a FIXED attachment, and it outranks base.css's
+     caret rule; restoring only the image drew the 0.25em caret as a 627px tile
+     pinned to the window, a brown diagonal that slid as the page scrolled. So
+     every caret property comes back with it. */
   background-image:
     linear-gradient(45deg, transparent 42%, var(--muted-foreground) 42%, var(--muted-foreground) 66%, transparent 66%),
     linear-gradient(135deg, transparent 34%, var(--muted-foreground) 34%, var(--muted-foreground) 58%, transparent 58%);
+  background-position: right 0.70em center, right 0.45em center;
+  background-size: 0.25em 0.25em;
+  background-repeat: no-repeat;
+  background-attachment: scroll;
 }
 :root[data-theme="vellum-dark"] body,
 :root[data-theme="vellum-dark"] .bg-background {
@@ -461,8 +469,10 @@
 /* Those labels now own the plate's bottom-right corner, which is where the
    AI chip sits, so the chip stands on top of them instead of under them. It
    stays on the picture's right edge rather than crossing to the left corner:
-   it speaks for the picture, and a long book title can reach the left. */
-:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div) > .relative.shrink-0.overflow-hidden.h-36 > span.absolute.bottom-1\.5 {
+   it speaks for the picture, and a long book title can reach the left. Only
+   when there is a label: the wrapper is always rendered, and a DM's own card
+   with no source leaves it empty, which must not lift the chip over nothing. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div > *) > .relative.shrink-0.overflow-hidden.h-36 > span.absolute.bottom-1\.5 {
   bottom: 2.1rem;
 }
 /* The character-sheet export preview is a real page lying on the desk:
