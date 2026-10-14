@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-4">
     <!-- Welcome: an empty state with its ink stain -->
-    <section class="torn hearth-card ink-seep rounded-lg p-4" :style="inkStyle" aria-labelledby="hearth-welcome">
+    <section class="torn hearth-paper hearth-card ink-seep rounded-lg p-4" :style="inkStyle" aria-labelledby="hearth-welcome">
       <h2 id="hearth-welcome" class="hearth-display text-heading">Welcome to the table</h2>
       <p class="mt-1.5 text-body text-muted-foreground">
         You have a seat at {{ campaignName }}. Two things before the first session, and the rest gathers
@@ -10,7 +10,7 @@
     </section>
 
     <!-- Step I: a character -->
-    <section class="torn hearth-card rounded-lg p-4" aria-labelledby="hearth-step-character">
+    <section class="torn hearth-paper hearth-card rounded-lg p-4" aria-labelledby="hearth-step-character">
       <div class="flex items-start gap-3">
         <span class="step" aria-hidden="true">I</span>
         <div>
@@ -52,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import "./hearth-paper.css";
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import HearthNextSession from "@/components/player/hearth/HearthNextSession.vue";

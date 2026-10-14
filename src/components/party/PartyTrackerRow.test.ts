@@ -42,7 +42,7 @@ function member(ruleset: RulesetKey, speciesId: string): PartyMember {
 }
 
 /** Mounts the row with its heavier panels stubbed. */
-function mountRow(m: PartyMember, speciesName: string | null) {
+function mountRow(m: PartyMember, speciesName: string | null, caretakerName: string | null = null) {
   return mount(PartyTrackerRow, {
     props: {
       member: m,
@@ -51,6 +51,7 @@ function mountRow(m: PartyMember, speciesName: string | null) {
       classLabel: "Wizard",
       levelDisplay: 3,
       companions: [],
+      caretakerName,
     },
     global: {
       stubs: {
@@ -130,5 +131,20 @@ describe("PartyTrackerRow critical-hit choice", () => {
 
   it("drops it once the character is dead, where damage has nothing left to do", () => {
     expect(mountRow(atZero(3), null).text()).not.toContain("Critical hit");
+  });
+});
+
+describe("PartyTrackerRow caretaker chip", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    useCampaignStore().activeCampaignId = CAMPAIGN_ID;
+  });
+
+  it("says who is playing a minded character", () => {
+    expect(mountRow(member("2014", "s"), null, "Tomas").text()).toContain("with Tomas");
+  });
+
+  it("shows no chip when nobody is minding it", () => {
+    expect(mountRow(member("2014", "s"), null).text()).not.toContain("with ");
   });
 });

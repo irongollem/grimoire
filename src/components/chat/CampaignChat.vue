@@ -120,6 +120,7 @@ import { postgrestMessage, useChatSendFailure } from "@/composables/campaign/cha
 import { useQueryClient } from "@tanstack/vue-query";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { resolveItemById, useItemsByIds } from "@/composables/items/useItemsByIds";
+import { useSpeaker } from "@/composables/party/useSpeaker";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
@@ -212,6 +213,7 @@ const { reportChatFailure, reportMessageFailure } = useChatSendFailure();
 const chatOpen = () => appUi.chatOpen;
 const { data: members } = useCampaignMembers(chatOpen);
 const { data: party }    = useParty(chatOpen);
+const { speakerName } = useSpeaker(chatOpen);
 // Both lookups below resolve an item a chat message already names, so they read exactly
 // those items by id, with no source or edition filter (#961), and only while the panel is open.
 const namedItemIds = computed(() =>
@@ -307,7 +309,7 @@ function resolveClaimerName(): string {
   if (appUi.dmTalkAsNpcName) return appUi.dmTalkAsNpcName;
   if (auth.linkedPartyMemberId) {
     const character = (party.value ?? []).find(p => p.id === auth.linkedPartyMemberId);
-    if (character?.name) return character.name;
+    if (character?.name) return speakerName(character);
   }
   return auth.publicName ?? 'Someone';
 }

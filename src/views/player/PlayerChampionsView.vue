@@ -17,7 +17,7 @@
     <ListSkeleton v-if="isPending" variant="rows" :count="3" />
 
     <!-- Empty -->
-    <div v-else-if="!characters?.length && !offeredCharacters?.length" class="rounded-lg border border-border bg-card p-8 text-center space-y-3">
+    <div v-else-if="!characters?.length && !offeredCharacters?.length && !minded.length" class="rounded-lg border border-border bg-card p-8 text-center space-y-3">
       <IconDM class="h-8 w-8 text-muted-foreground/40 mx-auto" />
       <div>
         <template v-if="laidToRest.length">
@@ -128,6 +128,45 @@
         </div>
       </div>
 
+      <!-- Characters handed to me for a session (#1059): played, never rebuilt -->
+      <div v-if="!appUi.dmPreviewMode && minded.length" class="space-y-3">
+        <h2 class="text-heading-sm font-semibold text-foreground">Looking after</h2>
+        <div
+          v-for="entry in minded"
+          :key="entry.member.id"
+          class="rounded-lg border bg-card overflow-hidden"
+          :class="entry.member.id === auth.linkedPartyMemberId ? 'border-primary/50' : 'border-border'"
+        >
+          <div class="flex items-center gap-3 p-3">
+            <div class="w-12 h-16 rounded-md overflow-hidden bg-muted shrink-0">
+              <FocalImage
+                :src="entry.member.portrait_url"
+                :alt="entry.member.name"
+                format="portrait"
+                :focal-point="entry.member.portrait_focal_point ?? null"
+                :placeholder="placeholderUrl('character')"
+              />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-heading-xs font-bold text-foreground truncate">{{ entry.member.name }}</h3>
+              <p class="text-caption text-muted-foreground italic truncate">
+                For {{ entry.ownerName ?? "their player" }}, this session
+              </p>
+            </div>
+            <AppButton
+              v-if="entry.member.id !== auth.linkedPartyMemberId"
+              variant="subtle"
+              size="md"
+              :loading="switchingId === entry.member.id"
+              :disabled="switching"
+              label="Play"
+              @click="switchTo(entry.member.id)"
+            />
+            <span v-else class="shrink-0 text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground">Active</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Offered by DM -->
       <div v-if="!appUi.dmPreviewMode && offeredCharacters?.length" class="space-y-3">
         <div class="flex items-center gap-2">
@@ -200,6 +239,7 @@ import { RouterLink, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { IconAdd, IconDM } from '@/lib/icons';
 import { useMyCharacters, useSetActiveCharacter, useParty, useOfferedCharacters, useAssumeCharacter } from '@/composables/party/useParty';
+import { usePlayableCharacters } from '@/composables/party/usePlayableCharacters';
 import { useDetachCharacter, useCloneCharacter } from '@/composables/party/useCharacterPool';
 import { useConfirm } from '@/composables/useConfirm';
 import { useSpeciesNames } from '@/composables/rules/useSpecies';
@@ -233,7 +273,15 @@ const offeredCharacters = computed(() => {
 const { data: memorials } = useCampaignMemorials();
 const activeOf = (members: PartyMember[] | undefined) =>
   members && memorials.value ? activeMembers(members, memorials.value) : members;
-const characters = computed(() => activeOf(appUi.dmPreviewMode ? allChars.value : myChars.value));
+const { characters: playable, switchTo, switching, switchingId } = usePlayableCharacters();
+const minded = computed(() => playable.value.filter((c) => c.kind === "minding"));
+// The seat's own character list includes whatever the seat points at, so a
+// character being looked after is shown in its own section, not as one of mine.
+const mindedIds = computed(() => new Set(minded.value.map((c) => c.member.id)));
+const characters = computed(() => {
+  const list = activeOf(appUi.dmPreviewMode ? allChars.value : myChars.value);
+  return appUi.dmPreviewMode ? list : list?.filter((c) => !mindedIds.value.has(c.id));
+});
 const laidToRest = computed(() => {
   const mine = myChars.value;
   if (appUi.dmPreviewMode || !mine || !memorials.value) return [];

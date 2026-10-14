@@ -37,6 +37,12 @@ vi.mock("@/stores/ui/app", () => ({
   useAppUiStore: () => ({ dmPreviewMode: false }),
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/party/useSpeaker", () => ({
+  useSpeaker: () => ({
+    speaker: (c: { name: string }) => ({ name: c.name, forPartyMemberId: null }),
+    forPartyMemberIdOfName: () => null,
+  }),
+}));
 vi.mock("@/composables/campaign/useCampaignMembers", () => ({
   useCampaignMembers: () => ({ data: { value: [] } }),
 }));

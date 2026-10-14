@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   isOwner: { value: true },
   me: { value: "owner" },
   rows: { value: [] as unknown[] },
+  active: { value: [] as unknown[] },
+  endHandOver: vi.fn(),
+  isDM: { value: true },
 }));
 
 const member = { id: "m1", user_id: "u1", role: "player", display_name: "Robin", party_member_id: null };
@@ -34,10 +37,18 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isOwner() { return mocks.isOwner.value; },
     activeCampaign: { user_id: "owner" },
+    activeCampaignId: "c1",
   }),
 }));
 vi.mock("@/stores/auth", () => ({
-  useAuthStore: () => ({ user: { get id() { return mocks.me.value; } } }),
+  useAuthStore: () => ({
+    user: { get id() { return mocks.me.value; } },
+    get isDM() { return mocks.isDM.value; },
+  }),
+}));
+vi.mock("@/composables/party/useCharacterCaretakers", () => ({
+  useCharacterCaretakers: () => ({ active: mocks.active }),
+  useEndHandOver: () => ({ isPending: { value: false }, mutate: mocks.endHandOver }),
 }));
 vi.mock("@/composables/party/useParty", () => ({
   useParty: () => ({ data: { value: party }, isPending: { value: false } }),
@@ -61,7 +72,7 @@ const EntityComboboxStub = {
 };
 
 function mountTab() {
-  return mount(MembersTab, { global: { stubs: { EntityCombobox: EntityComboboxStub, CharacterApprovalQueue: true } } });
+  return mount(MembersTab, { global: { stubs: { EntityCombobox: EntityComboboxStub, CharacterApprovalQueue: true, HandOverDialog: true } } });
 }
 
 beforeEach(() => {
@@ -71,6 +82,9 @@ beforeEach(() => {
   mocks.isOwner.value = true;
   mocks.me.value = "owner";
   mocks.rows.value = [member];
+  mocks.active.value = [];
+  mocks.endHandOver.mockReset();
+  mocks.isDM.value = true;
 });
 
 function labels(wrapper: ReturnType<typeof mountTab>) {
@@ -154,6 +168,47 @@ describe("MembersTab", () => {
       const buttons = labels(mountTab());
       expect(buttons).not.toContain("Make co-DM");
       expect(buttons).not.toContain("Hand back the chair");
+    });
+  });
+
+  describe("hand-overs (#1059)", () => {
+    const handOver = { id: "h1", campaign_id: "c1", party_member_id: "p2", caretaker_user_id: "u3" };
+    const caretakerRow = { id: "m3", user_id: "u3", role: "player", display_name: "Tomas", party_member_id: "p2" };
+    const ownerOfMine = { ...member, party_member_id: "p2" };
+
+    beforeEach(() => {
+      mocks.rows.value = [ownerRow, ownerOfMine, caretakerRow];
+      mocks.active.value = [handOver];
+    });
+
+    it("says the character is with the caretaker, and who is looking after it", () => {
+      const text = mountTab().text();
+      expect(text).toContain("Mine is with Tomas");
+      expect(text).toContain("Looking after Mine");
+    });
+
+    it("lets the DM take the character back", async () => {
+      const wrapper = mountTab();
+      await wrapper.findAll("button").find((b) => b.text() === "Take back")!.trigger("click");
+      expect(mocks.endHandOver).toHaveBeenCalledWith(handOver, expect.anything());
+    });
+
+    it("offers the DM Hand to… on an owned character with no hand-over, and not while one is active", () => {
+      mocks.active.value = [];
+      expect(labels(mountTab())).toContain("Hand over…");
+      mocks.active.value = [handOver];
+      expect(labels(mountTab()).some((l) => l.startsWith("Hand "))).toBe(false);
+    });
+
+    it("hides Hand to… from a player", () => {
+      mocks.active.value = [];
+      mocks.isDM.value = false;
+      expect(labels(mountTab()).some((l) => l.startsWith("Hand "))).toBe(false);
+    });
+
+    it("offers a player no take back", () => {
+      mocks.isDM.value = false;
+      expect(labels(mountTab())).not.toContain("Take back");
     });
   });
 });

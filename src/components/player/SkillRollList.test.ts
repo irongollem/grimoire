@@ -7,6 +7,7 @@ import type { PartyMember } from "@/types/party.types";
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendFlavorMessage: vi.fn() }) }));
 vi.mock("@/composables/campaign/chatSendErrors", () => ({ useChatSendFailure: () => ({ reportChatFailure: vi.fn() }) }));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll: vi.fn() }) }));
+vi.mock("@/composables/party/useSpeaker", () => ({ useSpeaker: () => ({ speakerName: (m: { name: string }) => m.name }) }));
 vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/campaign/useWhisperRecipients", () => ({
   useWhisperRecipients: () => ({ allowedIds: ref(new Set()), query: { isSuccess: ref(true) } }),

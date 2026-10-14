@@ -1,6 +1,6 @@
 <template>
   <HearthSection title="Vitals">
-    <div class="torn bg-card border rounded-lg flex flex-col gap-3 p-3.5">
+    <div class="flex flex-col gap-3">
       <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
         <div class="flex items-baseline gap-1.5" :aria-label="`Hit points ${hp.current} of ${hp.max}`">
           <span class="hearth-num" :class="hp.textClass">{{ hp.current }}</span>

@@ -89,6 +89,9 @@
         Live
       </AppButton>
 
+      <!-- Only for someone looking after another player's character (#1059). -->
+      <CharacterSwitcher />
+
       <DiceRoller />
 
       <AppButton
@@ -347,6 +350,7 @@ import { useCalendarStore } from "@/stores/calendar";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RouteSkeleton from "@/components/common/feedback/RouteSkeleton.vue";
 import { navigationPending } from "@/router/navigationPending";
+import CharacterSwitcher from "@/components/player/caretaking/CharacterSwitcher.vue";
 import DiceRoller from "@/components/common/dice/DiceRoller.vue";
 import { useNeedsInitiativeRoll } from "@/composables/encounters/useNeedsInitiativeRoll";
 import { usePlayerEncounterLive } from "@/composables/encounters/useEncounterLive";

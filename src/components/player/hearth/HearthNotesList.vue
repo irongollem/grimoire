@@ -9,12 +9,14 @@
       </RouterLink>
     </template>
 
-    <ul v-if="notes.length" class="torn hearth-card divide-y divide-border/60 rounded-lg">
+    <HearthScratchPad />
+
+    <ul v-if="notes.length" class="-mx-3 divide-y divide-border/60">
       <li v-for="note in notes" :key="note.id">
         <component
           :is="note.to ? RouterLink : 'div'"
           :to="note.to ?? undefined"
-          class="block min-h-11 px-3.5 py-2.5"
+          class="block min-h-11 px-3 py-2.5"
           :class="note.to ? 'hover:bg-accent/40' : ''"
         >
           <span class="flex items-baseline justify-between gap-2">
@@ -33,7 +35,7 @@
       </li>
     </ul>
     <BannerLoader v-else-if="isLoading" class="h-5" />
-    <p v-else class="torn hearth-card rounded-lg px-3.5 py-3 text-body italic text-muted-foreground">
+    <p v-else class="text-body italic text-muted-foreground">
       Nothing written yet.
     </p>
   </HearthSection>
@@ -43,6 +45,7 @@
 import { RouterLink } from "vue-router";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import HearthNoteLabel from "./HearthNoteLabel.vue";
+import HearthScratchPad from "./HearthScratchPad.vue";
 import HearthSection from "./HearthSection.vue";
 import { useMyRecentNotes, type RecentNote } from "@/composables/notes/useMyRecentNotes";
 import { IconAdd } from "@/lib/icons";

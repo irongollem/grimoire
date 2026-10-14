@@ -7,7 +7,9 @@ import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
-import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata, LootChestMetadata } from "@/types/chat.types";
+import { useSpeaker } from "@/composables/party/useSpeaker";
+import type { Speaker } from "@/lib/player/speaker";
+import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata, LootChestMetadata, SpeakerMetadata } from "@/types/chat.types";
 import { formatCoinParts } from "@/rules/currency";
 import type { RollResult } from "@/lib/dice/dice";
 
@@ -51,6 +53,15 @@ type ProbeMessage = Pick<CampaignMessage, "id" | "campaign_id" | "user_id" | "re
 const unreadProbe = ref<ProbeMessage[]>([]);
 let historyWanted = false;
 let historyLoadedFor: string | null = null;
+
+/** `for_party_member_id` when the line speaks for someone else's character (#1059); nothing otherwise. */
+function forTag(speaker: Speaker): SpeakerMetadata | Record<string, never> {
+  return speaker.forPartyMemberId ? { for_party_member_id: speaker.forPartyMemberId } : {};
+}
+
+function speakerMetadata(speaker: Speaker): SpeakerMetadata | null {
+  return speaker.forPartyMemberId ? { for_party_member_id: speaker.forPartyMemberId } : null;
+}
 
 function compareMessages(a: Pick<CampaignMessage, "created_at" | "id">, b: Pick<CampaignMessage, "created_at" | "id">) {
   return a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
@@ -324,6 +335,11 @@ export function useCampaignMessages() {
     () => appUi.chatOpen || (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId) != null,
   );
   const { data: campaignMembers } = useCampaignMembers(() => appUi.chatOpen || appUi.dmPreviewMode);
+  // Hand-overs (#1059) matter only to a member who has a seat or has the chat
+  // open, the same gate as the party list above.
+  const speakers = useSpeaker(
+    () => appUi.chatOpen || (!appUi.dmPreviewMode && auth.linkedPartyMemberId != null),
+  );
 
   async function ensureMessage(messageId: string) {
     if (messages.value.some((message) => message.id === messageId)) return;
@@ -339,17 +355,35 @@ export function useCampaignMessages() {
     if (data) mergeMessages([data as CampaignMessage]);
   }
 
-  // Name resolution priority: NPC persona → previewed character → linked character → display name
-  function getSenderName() {
-    if (appUi.dmTalkAsNpcName) return appUi.dmTalkAsNpcName;
+  // Name resolution priority: NPC persona → previewed character → linked character → display name.
+  // A linked character handed to this member for the session reads "Tomas, for Mira" (#1059).
+  function currentSpeaker(): Speaker {
+    if (appUi.dmTalkAsNpcName) return { name: appUi.dmTalkAsNpcName, forPartyMemberId: null };
     const memberId = appUi.dmPreviewMode
       ? appUi.dmPreviewPartyMemberId
       : auth.linkedPartyMemberId;
     if (memberId && partyMembers.value) {
       const character = partyMembers.value.find(m => m.id === memberId);
-      if (character?.name) return character.name;
+      if (character?.name) {
+        return appUi.dmPreviewMode
+          ? { name: character.name, forPartyMemberId: null }
+          : speakers.speaker(character);
+      }
     }
-    return auth.publicName ?? "Unknown";
+    return { name: auth.publicName ?? "Unknown", forPartyMemberId: null };
+  }
+
+  function getSenderName() {
+    return currentSpeaker().name;
+  }
+
+  /** The speaker for a line whose caller named the sender: tagged when the name speaks for a minded character. */
+  function speakerForName(senderName: string): Speaker {
+    const characters = partyMembers.value;
+    return {
+      name: senderName,
+      forPartyMemberId: characters ? speakers.forPartyMemberIdOfName(senderName, characters) : null,
+    };
   }
 
   // In preview mode the DM sees only what the previewed player would see:
@@ -384,12 +418,15 @@ export function useCampaignMessages() {
   async function sendFlavorMessage(text: string, skillLabel?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
-    const metadata: FlavorMetadata | null = skillLabel ? { skill_label: skillLabel } : null;
+    const speaker = currentSpeaker();
+    const metadata: FlavorMetadata | SpeakerMetadata | null = skillLabel
+      ? { skill_label: skillLabel, ...forTag(speaker) }
+      : speakerMetadata(speaker);
     const insert: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: null,
-      sender_name: getSenderName(),
+      sender_name: speaker.name,
       message: text,
       type: "system",
       metadata,
@@ -402,14 +439,15 @@ export function useCampaignMessages() {
   async function sendMessage(text: string, recipientUserId: string | null = null) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id || !text.trim()) return;
+    const speaker = currentSpeaker();
     const insert: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: recipientUserId,
-      sender_name: getSenderName(),
+      sender_name: speaker.name,
       message: text.trim(),
       type: "chat",
-      metadata: null,
+      metadata: speakerMetadata(speaker),
     };
     const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
     if (error) throw error;
@@ -475,14 +513,15 @@ export function useCampaignMessages() {
     if (!cid || !auth.user?.id) return;
     // Crits are always public — too exciting to hide
     const effectiveRecipient = result.isCrit ? null : recipientUserId;
+    const speaker = senderName === undefined ? currentSpeaker() : speakerForName(senderName);
     const insert: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: effectiveRecipient,
-      sender_name: senderName ?? getSenderName(),
+      sender_name: speaker.name,
       message: `rolled ${result.label} = ${result.total}`,
       type: effectiveRecipient ? "dm_roll" : "roll",
-      metadata: result,
+      metadata: { ...result, ...forTag(speaker) },
     };
     const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
     if (error) throw error;

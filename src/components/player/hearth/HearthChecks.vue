@@ -3,7 +3,7 @@
     <template #end>
       <span class="text-label italic text-muted-foreground">Tap to roll · hold for advantage</span>
     </template>
-    <div class="torn bg-card border rounded-lg overflow-hidden">
+    <div class="overflow-hidden">
       <AbilityScoreTable
         layout="sheet"
         :scores="effectiveScores"

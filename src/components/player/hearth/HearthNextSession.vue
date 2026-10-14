@@ -1,5 +1,5 @@
 <template>
-  <section class="torn hearth-card rounded-lg p-3.5" aria-label="Next session">
+  <section class="torn hearth-paper hearth-card rounded-lg p-3.5" aria-label="Next session">
     <div v-if="session" class="flex flex-col gap-2">
       <div class="flex items-baseline justify-between gap-2">
         <span class="text-eyebrow text-muted-foreground">{{ invite ? "Can you make it?" : "Next session" }}</span>
@@ -55,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import "./hearth-paper.css";
 import { computed } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";

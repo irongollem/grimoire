@@ -10,6 +10,17 @@ export interface RollMetadata {
   manual?: boolean;
   /** True for spell/weapon damage rolls — suppresses d20-centric display in chat. */
   isDamage?: boolean;
+  /** Set when the roll was made for a character its roller is minding (#1059). */
+  for_party_member_id?: string;
+}
+
+/**
+ * Carried by a line sent for a character someone else owns, while it is handed
+ * to the sender for the session (#1059). The owner's "while you were away"
+ * summary reads messages by this key.
+ */
+export interface SpeakerMetadata {
+  for_party_member_id: string;
 }
 
 export interface ItemDropClaim {
@@ -95,6 +106,7 @@ export interface PlayerOfferMetadata {
 
 export interface FlavorMetadata {
   skill_label: string;
+  for_party_member_id?: string;
 }
 
 export type EntityLinkType = 'note' | 'quest' | 'npc' | 'location' | 'calendar_event';
@@ -173,7 +185,7 @@ export interface CampaignMessage {
   sender_name: string | null;
   message: string;
   type: MessageType;
-  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | LootChestMetadata | EntityLinkMetadata | null;
+  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | SpeakerMetadata | LootChestMetadata | EntityLinkMetadata | null;
   created_at: string;
 }
 

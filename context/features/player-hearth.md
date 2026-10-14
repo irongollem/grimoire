@@ -22,6 +22,15 @@ changing a section's composition.
   the open `campaign_sessions` row the DM's Start session created, pushed
   live through the `campaign_sessions` doorbell; the banner says "Session 15"
   when the session has a number) or between sessions. The player has no switch.
+- **A job board** (maintainer, 14 Oct 2026). The sections sit on a recessed
+  board (`.hearth-board`) and each is one torn paper with a brass pin
+  (`.hearth-paper`, `src/components/player/hearth/hearth-paper.css`): its
+  rubric heading is on the paper, and nothing inside a section draws a second
+  paper. The board is the page darkened with umber (gilt cut with ink) in a
+  light theme, and with gilt cut with oxblood in a dark one (darkening a dark
+  page read as "pure black"). Below `md` (48rem) there is no board: the papers
+  sit on the page, which a phone cannot spare a frame of padding from. Papers
+  are never rotated: several hold controls.
 - **A fixed composition.** Not the DM dashboard's widget grid (#760). A player
   surface on `dashboard_layouts` is a later upgrade, not a missing feature.
 - **Tablets are landscape first.** From `lg` (64rem) the sections form three
@@ -49,15 +58,16 @@ changing a section's composition.
 
 | Section | Source |
 | --- | --- |
-| In the realm | campaign `today*`, `useCalendarStore().adapter`, `usePlayerCalendarEventsRange`, `weekContainingToday` (`src/lib/hearth/calendarWeek.ts`, mirrors `CalendarGrid`'s row rule), `nextUpcomingEvents` (`src/lib/calendar/upcoming.ts`) for the next two |
+| In the realm | campaign `today*`, `useCalendarStore().adapter`, `usePlayerCalendarEventsRange`, `weekContainingToday` (`src/lib/hearth/calendarWeek.ts`, mirrors `CalendarGrid`'s row rule), `nextUpcomingEvents` (`src/lib/calendar/upcoming.ts`) for the next two. Drawn as a dateline (the day a large rubric numeral, the month in Cinzel, "Tenday 1 of Hammer, 1490 DR" in italic below) and the week as beads on a thread: days gone inked, today a larger gilt diamond, days ahead open, a day with an event in the rubric; each bead names its day to a screen reader and on hover. This replaced the canvas's row of boxed numerals (maintainer, 14 Oct 2026: it showed no sense of where in the tenday you stand) |
 | Character | `useParty()` member (preview-aware, as the sheet resolves it), `characterSummary` (`src/lib/partyMemberDisplay.ts`), and the numbers from `useMemberVitals` (`src/composables/party/`, shared with Vitals): AC, initiative (the Wild Shape form's DEX while shaped), speed, passive, hit points |
 | Next session | in DM preview the RSVP is disabled ("The player answers here."); `useSessionProposals`, `useAllSessionAvailability`, `useUpsertAvailability`, `pickNextSession` and friends (`src/lib/calendar/nextSession.ts`, shared with the DM's Next session widget) |
 | New for you | `usePlayerUnread().items`: the same lists and the same `isNew` checks as the Journal tab's dot, so the list and the dot cannot disagree |
 | Your quests / Right now | `currentBeatsByQuest` (`src/lib/hearth/currentBeats.ts`) over `usePlayerVisibleQuests` + `usePlayerQuestBeats`: the beats a live thread cursor stands on (`is_current`) |
-| Your notes | `useMyRecentNotes` (`src/composables/notes/`): the player's own `entity_notes` (scoped by `user_id` and `campaign_id` in the query) merged with `useMyJournalEntries`; each entity note's label resolves its own subject through `useMentionName` (`HearthNoteLabel`), so only the source a note's type needs is read, "???" when unknown. In DM preview a notice replaces the list and no query runs (the notes are the player's own) |
+| Your notes | `useMyRecentNotes` (`src/composables/notes/`): the player's own `entity_notes` (scoped by `user_id` and `campaign_id` in the query) merged with `useMyJournalEntries`; each entity note's label resolves its own subject through `useMentionName` (`HearthNoteLabel`), so only the source a note's type needs is read, "???" when unknown. In DM preview a notice replaces the list and no query runs (the notes are the player's own). Above the list, an always-open scratch pad (`HearthScratchPad`, `useJournalScratch`): an unsent draft kept in this browser per user and campaign; **Add to journal** opens the journal's own new-entry form (`?tab=mine&from=scratch`, never the text in the URL) with the pad pasted in, and the pad clears only once that entry is saved |
 | Live band | session start time, a confirmed proposal dated today for the title, and `combatTurnLine` (`src/lib/hearth/turnLine.ts`) over the shared `liveState` |
 | Vitals | `useMemberVitals`, `PlayerHpControls` and `PlayerConditions`, the sheet's own controls |
 | Spellcasting | `member.concentration` + `useConcentration`, `PlayerSpellSlotStrip` + `useSpellSlotWrite` |
+| While you were away (#1059) | Owner only. `useWhileAway` (`src/composables/player/`): the character's newest hand-over (`useCharacterCaretakers`) while it is in force or for 7 days after it ends, and the caretaker's lines tagged `metadata.for_party_member_id` in `campaign_messages`; `src/lib/hearth/whileAway.ts` words the headline and the summary. Root `WHILE_AWAY_KEY`, refreshed by the `character_caretakers` and `campaign_messages` rings. First in the between-sessions stack, and in the at-the-table stack only while in force. While the hand-over runs it is titled "While you're away" and drops its headline, because the caretaking notice at the top of the Hearth (`CharacterCaretakingNotice`, the sheet's own, via `useCaretaking`) already says who has the character and carries **Take back** (to the owner) or **Hand back** (to the caretaker) |
 | Checks | `useCharacterRolls` (`src/composables/party/`) + `SkillRollList` + `AbilityScoreTable layout="sheet"`: the character sheet's own paths; pure scores and saves in `src/rules/characterChecks.ts` |
 | Waiting for you | unread handouts + `openTableItems(messages, me, startedAt)` |
 | Session notes | one `player_journal_entries` row per session (category `session`), found again by `findSessionNote` (`src/lib/hearth/sessionNote.ts`), saved by `useAutosave`. The pad stays shut until the journal has loaded and the session has a start (`canEditSessionNote`), or an early keystroke would create a second entry; in DM preview a notice replaces it |

@@ -47,6 +47,7 @@ vi.mock("@/composables/encounters/useCompanions", () => ({
   useCompanions: () => ({ data: { value: mocks.companions } }),
   useDeleteCompanion: () => ({ mutateAsync: vi.fn() }),
 }));
+vi.mock("@/composables/party/useSpeaker", () => ({ useSpeaker: () => ({ caretakerNameOf: () => null }) }));
 vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: { value: [] } }) }));
 vi.mock("@/composables/notes/usePlayerJournal", () => ({
   useDmAllSharedJournalEntries: () => ({ data: { value: [] } }),

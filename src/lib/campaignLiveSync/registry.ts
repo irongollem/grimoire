@@ -14,6 +14,10 @@ import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 
 /** Root of every NPC memory query (#1019); the table rings the `npc_memories` signal. */
 export const NPC_MEMORIES_KEY = "npc-memories";
+/** Root of every hand-over query (#1059); the table rings the `character_caretakers` signal. */
+export const CHARACTER_CARETAKERS_KEY = "character-caretakers";
+/** Root of the owner's "while you were away" lines (#1059): the hand-over and chat rings refresh it. */
+export const WHILE_AWAY_KEY = "while-away";
 /** Every [secret] block in the campaign, for the NPC memory picker (#1053); any entity that can hold one rings it. */
 export const CAMPAIGN_SECRETS_KEY = "campaign-secrets";
 export const BEATS_KEY = "quest_beats";
@@ -141,6 +145,9 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   // A role change (#590) moves a campaign between a DM's list and a player's,
   // so the other account's switcher and DM gate re-read the role-scoped lists.
   campaign_members: ["campaign-members", "campaigns", "my-memberships"],
+  // A line a caretaker sends for a character reaches its owner's Hearth as it
+  // is sent (#1059); the query is mounted only while there is a hand-over.
+  campaign_messages: ["loot_placements", WHILE_AWAY_KEY],
 };
 
 /** Every signal and its keys, exactly one entry per signal. Exported for the
@@ -181,6 +188,9 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["npc_reveals", ["npc-reveals", PLAYER_NPCS_KEY, "session-learned"]],
   ["npc_pc_notes", ["npc_pc_notes"]],
   ["npc_memories", [NPC_MEMORIES_KEY]],
+  // Who is minding whose character (#1059). Ending one also moves the
+  // caretaker's seat, which rings `campaign_members` on its own.
+  ["character_caretakers", [CHARACTER_CARETAKERS_KEY, WHILE_AWAY_KEY]],
   ["player_npc_ratings", ["player_npc_ratings"]],
   ["npc_favors", ["npc_favors"]],
   ["faction_party_members", ["faction-party-members", "party-member-factions", "player-faction-party-members", PLAYER_FACTIONS_KEY]],

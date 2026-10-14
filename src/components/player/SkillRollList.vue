@@ -36,6 +36,7 @@ import { computed } from "vue";
 import SkillRollRow from "@/components/player/SkillRollRow.vue";
 import type { RollMode } from "@/lib/dice/roller";
 import { combineModes } from "@/lib/dice/dice";
+import { useSpeaker } from "@/composables/party/useSpeaker";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
@@ -65,6 +66,7 @@ const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifie
 const halves = [SKILLS.slice(0, 9), SKILLS.slice(9)];
 
 const { sendFlavorMessage } = useCampaignMessages();
+const { speakerName } = useSpeaker();
 const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
 const campaignStore = useCampaignStore();
@@ -133,7 +135,7 @@ async function rollSkill(skill: (typeof SKILLS)[number], override: RollMode | nu
   // condition-imposed disadvantage: opposing sources cancel to normal (5e RAW).
   const mode: RollMode = combineModes(override ?? "normal", checkDisadvantage ? "disadvantage" : "normal");
   const modifier = skillBonusValue(skill) + checkPenalty;
-  const name = member.name;
+  const name = speakerName(member);
 
   if (isImmersive) {
     const label = `${skill.label} Check`;

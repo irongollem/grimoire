@@ -1,6 +1,6 @@
 <template>
   <HearthSection v-if="hasSlots || concentration" title="Spellcasting">
-    <div class="torn bg-card border rounded-lg flex flex-col gap-3 p-3.5">
+    <div class="flex flex-col gap-3">
       <div v-if="concentration" class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex min-w-0 flex-col">
           <span class="text-eyebrow text-muted-foreground">Concentrating</span>

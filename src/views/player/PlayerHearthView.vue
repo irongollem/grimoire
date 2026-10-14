@@ -26,14 +26,17 @@
       Your character did not load. Reload to try again.
     </p>
 
-    <HearthFirstVisit v-else-if="!member" />
+    <HearthFirstVisit v-else-if="!member" class="hearth-board" />
 
     <!-- At the table. DOM order is the phone's reading order; from lg the
          three wrappers are columns: [vitals, spellcasting] [checks]
          [waiting, right now, session note]. -->
-    <div v-else-if="isRunning" class="hearth-stack hearth-live">
+    <div v-else-if="isRunning" class="hearth-board hearth-stack hearth-live">
       <HearthLiveBanner :started-at="startedAt" :member-id="member.id" :number="session?.number ?? null" :title="session?.title ?? null" />
+      <!-- A character handed over (#1059): what the sheet says, with its button. -->
+      <CharacterCaretakingNotice :member="member" class="hearth-wide torn hearth-paper" />
       <div class="hearth-col">
+        <HearthWhileAway :member="member" active-only />
         <HearthVitals :member="member" />
         <HearthSpellcasting :member="member" />
       </div>
@@ -49,8 +52,10 @@
 
     <!-- Between sessions: [date, character] [next session, new for you]
          [quests, notes], which read top to bottom as the phone order. -->
-    <div v-else class="hearth-stack">
+    <div v-else class="hearth-board hearth-stack">
+      <CharacterCaretakingNotice :member="member" class="hearth-wide torn hearth-paper" />
       <div class="hearth-col">
+        <HearthWhileAway :member="member" />
         <HearthDateStrip />
         <HearthCharacterCard :member="member" />
       </div>
@@ -83,6 +88,8 @@ import HearthRightNow from "@/components/player/hearth/HearthRightNow.vue";
 import HearthSpellcasting from "@/components/player/hearth/HearthSpellcasting.vue";
 import HearthVitals from "@/components/player/hearth/HearthVitals.vue";
 import HearthWaiting from "@/components/player/hearth/HearthWaiting.vue";
+import HearthWhileAway from "@/components/player/hearth/HearthWhileAway.vue";
+import CharacterCaretakingNotice from "@/components/player/caretaking/CharacterCaretakingNotice.vue";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { usePlayerCalendarEventsRange } from "@/composables/calendar/useCalendarEvents";
 import { useAllSessionAvailability, useSessionProposals } from "@/composables/calendar/useScheduling";
@@ -162,6 +169,17 @@ const startedAt = computed(() => session.value?.startedAt ?? null);
   font-family: "Cinzel", Georgia, serif;
 }
 
+/* The board the notices are pinned to; its ground and edge live in
+   hearth-paper.css with the papers. A phone has no board (maintainer, 14 Oct
+   2026): the papers sit on the page, which the narrow screen cannot spare a
+   frame of padding from. */
+@media (min-width: 48rem) {
+  .hearth-board {
+    padding: 1rem;
+    border-radius: 0.75rem;
+  }
+}
+
 /* Phone: the column wrappers vanish and every section is an item of one flex
    column, in DOM order. From lg the wrappers become real columns. */
 .hearth-stack {
@@ -174,6 +192,9 @@ const startedAt = computed(() => session.value?.startedAt ?? null);
 }
 
 @media (min-width: 64rem) {
+  .hearth-board {
+    padding: 1.25rem;
+  }
   .hearth-stack {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -185,7 +206,8 @@ const startedAt = computed(() => session.value?.startedAt ?? null);
     gap: 1rem;
     min-width: 0;
   }
-  .hearth-live > :first-child {
+  .hearth-live > :first-child,
+  .hearth-wide {
     grid-column: 1 / -1;
   }
 }

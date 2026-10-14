@@ -75,6 +75,15 @@
           <p v-if="member.player_name" class="text-caption text-muted-foreground">
             {{ member.player_name }}
           </p>
+          <div v-if="caretakerName">
+            <AppButton
+              as="span"
+              variant="tinted"
+              size="xs"
+              tone="info"
+              :label="`with ${caretakerName}`"
+            />
+          </div>
           <AppButton
             v-if="effectiveLocationId"
             :variant="hasLocationOverride ? 'tinted' : 'ghost'"
@@ -326,6 +335,8 @@ const {
   companions: Companion[];
   dmSharedJournal?: PlayerJournalEntry[];
   dmPlayerName?: string;
+  /** Who is playing this character for its owner right now (#1059). */
+  caretakerName?: string | null;
 }>();
 
 // One row per member: conditions and anything else below resolve per character.

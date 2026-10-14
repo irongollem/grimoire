@@ -236,6 +236,7 @@ import TabBar from "@/components/common/controls/TabBar.vue";
 import SortControl from "@/components/common/controls/SortControl.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
+import { useJournalScratch } from "@/composables/notes/useJournalScratch";
 import { useRecordDraft } from "@/composables/useRecordDraft";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -487,6 +488,23 @@ function openNew() {
   showForm.value = true;
 }
 
+// ── Hearth scratch pad hand-off ───────────────────────────────────────────────
+// "Add to journal" on the Hearth arrives with `?from=scratch`: open the same new-entry
+// form with the pad's text as its body. The pad is only cleared once that entry is saved.
+const scratch = useJournalScratch();
+const fromScratch = ref(false);
+
+function consumeScratchFlag() {
+  if (route.query.from !== "scratch") return;
+  const { from: _from, ...rest } = route.query;
+  void router.replace({ query: rest });
+  if (scratch.isBlank.value) return openNew();
+  formContent.value = scratch.content.value;
+  fromScratch.value = true;
+  openNew();
+}
+watch(() => route.query.from, consumeScratchFlag, { immediate: true });
+
 function toggleFormPrivacy() {
   formIsPrivate.value = !formIsPrivate.value;
   if (!formIsPrivate.value) formSharedWithDm.value = false;
@@ -494,6 +512,7 @@ function toggleFormPrivacy() {
 
 function cancelForm() {
   showForm.value = false;
+  fromScratch.value = false;
   formTitle.value = "";
   formContent.value = "";
   formRefType.value = "";
@@ -552,6 +571,7 @@ async function submitNew() {
       ref_id:     formRefId.value || null,
       ref_label:  resolveLabel(formRefType.value, formRefId.value, refOptions.value),
     });
+    if (fromScratch.value) scratch.clear();
     cancelForm();
   } finally {
     saving.value = false;

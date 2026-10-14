@@ -655,6 +655,97 @@ owner_user_id = auth.uid() or (owner_user_id is null and user_id = auth.uid())
   itself was later dropped as unread, `20261008233451`: recipes reach a character
   through `crafting_recipes.player_visible_to`.)
 
+#### Look after my character (#1059, migration `20261014214947`)
+
+"I can't make it tonight, can someone play my character?" The character's
+owner, or a DM of the table, hands it to another member for a session
+(`character_caretakers`). The caretaker plays it at the table and it stays the
+owner's: nobody shares a login and nothing about who owns it changes. The
+player-side counterpart of co-DM (collaboration.md).
+
+**Minding is a seat.** Everything a player does as their character keys on the
+seat, `campaign_members.party_member_id`: the play RPCs, loot claims, the
+`party_members` update policy, every read of what a character has been shown
+(`player_visible_to`, the reveal tables, the projection RPCs), and the client's
+`auth.linkedPartyMemberId`. So a caretaker gets no parallel set of checks:
+while a hand-over is active their seat may point at the minded character,
+beside the owner's seat, which never moves, and switching between their own
+character and the minded one is the ordinary set-active write
+(`useSetActiveCharacter`). They read what the character knows and nothing of
+the owner's own, because journal entries and entity notes key on the user, not
+the seat. The alternative, a `may_play_character` helper threaded through
+every RPC, ~40 visibility policies and ~25 client call sites, was weighed and
+dropped (maintainer, 14 Oct 2026).
+
+That makes "seated on a character another player owns" mean exactly "minding
+it" (production had no such seat when this shipped), and the seat guard now
+refuses one, a DM's write included, without an active hand-over. Two things
+hold it there:
+
+- **A caretaker plays, never rebuilds.** Class rows, level up, retire and detach
+  already admitted only the owner or the DM. The rest is held by two guards:
+  `private.guard_caretaker_party_member_update` lets a caretaker change only an
+  allow-list of play columns (hit points, conditions, death saves, coins, slots,
+  resources, hit dice, concentration, Wild Shape, weapon masteries, infusions,
+  disguise) and, in `class_choices`, only `<key>_active` toggles;
+  `private.guard_caretaker_character_spells` lets them spend `uses_remaining`
+  and nothing else. An allow-list, so a new column is the owner's until someone
+  decides otherwise. Both key on `private.plays_for_another(pm)`: someone else
+  owns it and the caller is not its DM. Preparing the day's spells is play, so
+  `set_character_spell_prepared` now admits the seat like cast and rest do.
+- **The seat goes home.** `private.settle_caretaker_seats(campaign)` moves every
+  seat that sits on another player's character without an active hand-over back
+  to its member's own character (the one they left for it, recorded in
+  `return_member_id` when they took it up, else the one they played most
+  recently), after a hand-over is ended or deleted, a session ends, or the
+  character leaves the table. The client hears it as a `campaign_members` ring.
+
+**Lapse is derived, not stored.** A hand-over is active while it is not revoked
+and its session has not ended (`private.minds_character`; the client's mirror is
+`src/lib/player/caretaking.ts`, over the open session from
+`get_player_session_state`). One granted between sessions has no session yet and
+is active until the next one ends: starting or continuing a session files it
+under that session, as start files what was shared during prep. Continuing an
+ended session (#1058) makes its hand-overs active again with no write of their
+own. `session_id` is a session link like the learned moments, so
+`merge_campaign_sessions` moves it.
+
+**Who does what.** The owner or a DM hands a character over (one at a time: a
+new hand-over ends the last); the owner, a DM or the caretaker ends it, once,
+and the server stamps when and by whom (`revoked_at`, `revoked_by`; clients
+hold `update (revoked_at)` only). Every member reads the table's hand-overs,
+because rolls and chat say "Tomas, for Mira" and the party tracker shows who
+is minding whom. Rings `character_caretakers`. `supabase/tests/character_caretakers.test.sql`
+holds the model.
+
+A security review before it shipped found three more places the seat reached
+that are the player's rather than the table's, now held the same way: a
+caretaker plays a companion (hit points, conditions, in the fight) but does
+not rename or delete one they did not bring (`private.guard_caretaker_companions`),
+does not refill a level-up spell swap (`open_spell_change_windows` refuses
+`level_up` for them; a long rest still opens its windows), and does not spend
+the character's downtime (`spend_downtime_draw`).
+
+**Client.** `src/lib/player/caretaking.ts` (the active rule) and
+`useCharacterCaretakers` (`src/composables/party/`) are the one read of the
+table's hand-overs. The switcher (`CharacterSwitcher`, in `PlayerLayout`'s
+header, shown only to someone minding a character) is round portraits, the one
+being played ringed and in colour; a tap or `mod+shift+u` switches through
+`usePlayableCharacters`, which is the seat write above. On the sheet
+(`PlayerCharacterView`) `isSeated` is the old "seat points here" and `isOwner`
+is now "seated and not minding": a caretaker keeps every play control, loses
+lore, level up, edit, export and the owner's menu, and sees "You're looking
+after Mira for Pia" with **Hand back** (`CaretakingNotice`); level up and edit
+show `MindedCharacterGate` instead. The owner's menu offers "Ask someone to look
+after Mira" (`HandOverDialog`, shared with the DM's **Hand over…** in
+`MembersTab`) and, while one is active, **Take back**. One speaker rule
+(`src/lib/player/speaker.ts`, `useSpeaker`) names a line sent for a minded
+character "Tomas, for Mira" and tags it `metadata.for_party_member_id`, which
+the owner's Hearth reads (player-hearth.md). The party tracker shows "with
+Tomas". A seat the server moves home reaches the caretaker through
+`usePlayerRemovalGuard`, which re-reads the member's own row on every
+`campaign_members` ring. Manual: `src/manual/player-portal-look-after.md`.
+
 #### What a table approves (#943 wave 4, migration `20261003105147`)
 
 Content works the way the edition does: a player builds what they like, and the

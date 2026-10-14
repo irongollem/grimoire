@@ -6,7 +6,7 @@
   />
   <p
     v-else-if="isError"
-    class="torn hearth-card rounded-lg px-3.5 py-3 text-body italic text-muted-foreground"
+    class="text-body italic text-muted-foreground"
     role="alert"
   >
     Your notes did not load. Reload to try again.

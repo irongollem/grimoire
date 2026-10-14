@@ -7,8 +7,8 @@
       </span>
     </template>
 
-    <ul v-if="waiting.length" class="flex flex-col gap-2">
-      <li v-for="w in waiting" :key="w.key" class="torn bg-card border rounded-lg flex items-center gap-3 p-3">
+    <ul v-if="waiting.length" class="flex flex-col divide-y divide-border/60">
+      <li v-for="w in waiting" :key="w.key" class="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
         <div class="flex min-w-0 flex-1 flex-col">
           <span class="text-eyebrow text-muted-foreground">{{ w.eyebrow }}</span>
           <span class="truncate text-body font-semibold">{{ w.title }}</span>
@@ -19,7 +19,7 @@
         <AppButton v-else variant="subtle" size="md" :label="w.action" @click="appUi.openChatAt(w.messageId)" />
       </li>
     </ul>
-    <p v-else class="px-1 text-body text-muted-foreground">Nothing waiting for you.</p>
+    <p v-else class="text-body text-muted-foreground">Nothing waiting for you.</p>
   </HearthSection>
 </template>
 

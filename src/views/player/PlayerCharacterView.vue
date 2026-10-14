@@ -29,6 +29,7 @@
         :campaign="campaign.activeCampaign"
       />
       <CharacterApprovalNotice v-if="member.campaign_id" :member="member" />
+      <CharacterCaretakingNotice :member="member" :viewed-by-dm="!!memberId" />
       <MemorialBanner v-if="memorialInEffect" :memorial="memorialInEffect" :viewer="memorialViewer" />
       <!-- The gear in view is the active table's, so only a character seated there can be compared. -->
       <AcCalculatedNotice v-if="campaign.activeCampaign && member.campaign_id === campaign.activeCampaign.id" :member="member" />
@@ -40,7 +41,7 @@
           :wildshape="activeWildshape ?? undefined"
           :beast-speed="beastMonster?.stat_block?.speed"
           :effective-dex="effectiveScores.dex"
-          :hide-player-actions="hidePlayerActions"
+          :hide-player-actions="hidePlayerActions || isMindingThis"
           @level-up="emit('level-up')"
         >
           <template #conditions>
@@ -82,14 +83,14 @@
           :block="isPhone"
           class="rounded-md border border-border/50 bg-muted/40 p-1"
         />
-        <div v-if="!hidePlayerActions && member" class="flex items-center gap-2 max-sm:w-full sm:ml-auto">
+        <div v-if="!hidePlayerActions && !isMindingThis && member" class="flex items-center gap-2 max-sm:w-full sm:ml-auto">
           <AppButton v-if="!appUi.dmPreviewMode" to="/play/champions" variant="subtle" size="sm" class="max-sm:flex-1" label="My Characters" />
           <AppButton :to="{ name: 'play-character-sheet' }" variant="subtle" size="sm" class="max-sm:flex-1" label="Export Sheet" />
           <OverflowMenu
-            v-if="canRetire"
+            v-if="ownerMenuItems.length"
             :label="`More actions for ${member.name}`"
-            :items="[{ key: 'retire', label: 'Retire…' }]"
-            @select="retireOpen = true"
+            :items="ownerMenuItems"
+            @select="onOwnerMenu"
           />
         </div>
       </div>
@@ -142,6 +143,13 @@
 
     <RollToast :result="lastRoll" />
 
+    <HandOverDialog
+      v-if="handOverOpen && member && campaign.activeCampaignId"
+      open
+      :member="member"
+      :campaign-id="campaign.activeCampaignId"
+      @close="handOverOpen = false"
+    />
     <SetDownDialog v-if="retireOpen && member" open mode="retired" :member="member" @close="retireOpen = false" />
   </div>
 </template>
@@ -171,6 +179,10 @@ import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue
 import PlayerHpStrip from "@/components/player/PlayerHpStrip.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
 import PlayerTracksSection from "@/components/player/PlayerTracksSection.vue";
+import CharacterCaretakingNotice from "@/components/player/caretaking/CharacterCaretakingNotice.vue";
+import HandOverDialog from "@/components/party/HandOverDialog.vue";
+import { useCaretaking } from "@/composables/party/useCaretaking";
+import type { OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import PlayerSkillsTab from "@/components/player/PlayerSkillsTab.vue";
 import { useSpecies } from "@/composables/rules/useSpecies";
 import OverflowMenu from "@/components/common/overlays/OverflowMenu.vue";
@@ -237,9 +249,17 @@ const {
 
 const { isDruid } = useWildshapeDruid(resolvedMemberId, () => member.value);
 
-const isOwner = computed(
+// Seated: this is the character the signed-in player's seat points at. That is
+// true of the owner and of someone looking after it (#1059).
+const isSeated = computed(
   () => !appUi.dmPreviewMode && !!auth.linkedPartyMemberId && auth.linkedPartyMemberId === member.value?.id,
 );
+
+// ── Looking after a character (#1059) ─────────────────────────────────────────
+const handOverOpen = ref(false);
+const { handOver, isMindingThis } = useCaretaking(() => member.value, () => !!props.memberId);
+/** Build and story controls: the owner's, not a caretaker's. */
+const isOwner = computed(() => isSeated.value && !isMindingThis.value);
 
 // ── Memorial (#982) ───────────────────────────────────────────────────────────
 // The sheet stays as it was; a banner says where they are, and the owner may retire.
@@ -261,7 +281,22 @@ const canRetire = computed(() => memberOwnedByMe.value && !appUi.dmPreviewMode &
 
 // The owner edits their own character; the DM does from the preview and from the
 // party page (the only place a memberId is passed in). Anyone else reads.
-const canManage = computed(() => isOwner.value || appUi.dmPreviewMode || !!props.memberId);
+const canManage = computed(() => isSeated.value || appUi.dmPreviewMode || !!props.memberId);
+
+const ownerMenuItems = computed<OverflowMenuEntry[]>(() => {
+  const m = member.value;
+  if (!m) return [];
+  const items: OverflowMenuEntry[] = [];
+  if (memberOwnedByMe.value && !appUi.dmPreviewMode && !handOver.value) {
+    items.push({ key: "hand-over", label: `Ask someone to look after ${m.name}` });
+  }
+  if (canRetire.value) items.push({ key: "retire", label: "Retire…" });
+  return items;
+});
+function onOwnerMenu(key: string) {
+  if (key === "hand-over") handOverOpen.value = true;
+  else if (key === "retire") retireOpen.value = true;
+}
 
 // ── Shapeshifter ───────────────────────────────────────────────────────────────
 const trueSpeciesId = computed(() => member.value?.species_id ?? "");

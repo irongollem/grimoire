@@ -4,11 +4,11 @@
       <RouterLink to="/play/journal" class="text-eyebrow text-primary hover:underline">Journal</RouterLink>
     </template>
 
-    <ul v-if="rows.length" class="torn hearth-card divide-y divide-border/60 rounded-lg">
+    <ul v-if="rows.length" class="-mx-3 divide-y divide-border/60">
       <li v-for="row in rows" :key="row.questId">
         <RouterLink
           :to="{ name: 'play-quest-detail', params: { id: row.questId } }"
-          class="flex min-h-11 items-start gap-3 px-3.5 py-2.5 hover:bg-accent/40"
+          class="flex min-h-11 items-start gap-3 px-3 py-2.5 hover:bg-accent/40"
         >
           <span class="min-w-0 flex-1">
             <span class="block text-body font-semibold">{{ row.title }}</span>
@@ -28,7 +28,7 @@
       </li>
     </ul>
     <BannerLoader v-else-if="isLoading" class="h-5" />
-    <p v-else class="torn hearth-card rounded-lg px-3.5 py-3 text-body italic text-muted-foreground">
+    <p v-else class="text-body italic text-muted-foreground">
       No quests underway yet.
     </p>
   </HearthSection>

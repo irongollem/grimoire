@@ -1,5 +1,6 @@
 import { useConfirm } from "@/composables/useConfirm";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { useSpeaker } from "@/composables/party/useSpeaker";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
@@ -27,6 +28,7 @@ export function useConcentration() {
   const { mutateAsync: updateMember } = useUpdatePartyMember();
   const { confirm } = useConfirm();
   const { sendFlavorMessage } = useCampaignMessages();
+  const { speakerName } = useSpeaker();
   const { reportChatFailure } = useChatSendFailure();
   const { promptRoll } = usePromptedRoll();
 
@@ -108,7 +110,7 @@ export function useConcentration() {
       counts: { 20: 1 },
       modifier,
       label,
-      senderName: member.name,
+      senderName: speakerName(member),
     });
     if (!result) return true;
     const success = result.total >= dc;

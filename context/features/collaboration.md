@@ -115,7 +115,7 @@ inner-joins `campaign_members` on the caller's own row and filters by role:
 `private.is_campaign_dm()` reads, so the list cannot disagree with what RLS will
 permit. A campaign may seat several `dm` rows: its owner's
 (`create_dm_membership` on insert, flipped by `transfer_campaign_ownership`)
-and any co-DM's (#590, see [Co-DM](#co-dm)). So "campaigns I DM" and
+and any co-DM's (#590, see [Co-DM](#co-dm-590)). So "campaigns I DM" and
 `campaigns.user_id = me` are different sets, and a consumer that means
 ownership (the quota) reads `useOwnedCampaigns`, which scopes by `user_id` in
 the query. The switcher labels a co-DMed campaign "Co-DM" and offers no
@@ -187,7 +187,7 @@ Creating a campaign from the player shell is a lens change and goes through
 campaign active under the player lens.
 
 There are two roles. A `dm` row is either the campaign's **owner**
-(`campaigns.user_id`) or a **co-DM** (#590): see [Co-DM](#co-dm) below for
+(`campaigns.user_id`) or a **co-DM** (#590): see [Co-DM](#co-dm-590) below for
 what differs.
 
 **DM (`role = 'dm'`)**
@@ -501,7 +501,9 @@ and names the offending policy.
 co-DM's own account, so nobody shares a login. There is no third role value:
 every `dm` check already meant "may run this table". Migration
 `20261013231042_co_dm_takes_the_chair` holds the model and its reasons;
-`supabase/tests/co_dm_boundary.test.sql` holds it to it.
+`supabase/tests/co_dm_boundary.test.sql` holds it to it. Its player-side
+counterpart, a player's character handed to someone else for a session (#1059),
+is in party-characters.md, "Look after my character".
 
 | | Owner | Co-DM | Player |
 | --- | --- | --- | --- |

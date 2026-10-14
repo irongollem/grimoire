@@ -349,6 +349,7 @@ import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useAppUiStore } from "@/stores/ui/app";
 import { usePlayerUiStore } from "@/stores/ui/player";
 import { useAuthStore } from "@/stores/auth";
+import { useSpeaker } from "@/composables/party/useSpeaker";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { parsedToCounts } from "@/lib/dice/dice";
@@ -383,6 +384,7 @@ const appUi = useAppUiStore();
 const playerUi = usePlayerUiStore();
 const auth = useAuthStore();
 const { sendRoll } = useCampaignMessages();
+const { speakerName } = useSpeaker();
 const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
 const { data: discoveries, isLoading: isLoadingDiscoveries } = usePlayerDiscoveries();
@@ -395,6 +397,8 @@ const { mutate: togglePinnedForm } = useTogglePinnedForm();
 // Resolve current party member
 const memberId = computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
 const member = computed(() => partyMembers.value?.find((m) => m.id === memberId.value) ?? null);
+// A character handed to this player for the session speaks as "Tomas, for Mira" (#1059).
+const speakerNameOf = (m: { id: string; name: string } | null) => (m ? speakerName(m) : undefined);
 
 // ── Class detection ───────────────────────────────────────────────────────────
 // Druid and ranger are read from the class rows: party_members.class only
@@ -614,7 +618,7 @@ async function rollAttack(attackBonus: number, actionName: string, override: Rol
     modifier: attackBonus,
     label,
     mode,
-    senderName: member.value?.name,
+    senderName: speakerNameOf(member.value),
   });
   if (result) lastRoll.value = { label, total: result.total };
 }
@@ -628,7 +632,7 @@ async function rollCheck(modifier: number, label: string, override: RollMode | n
     modifier,
     label: fullLabel,
     mode,
-    senderName: member.value?.name,
+    senderName: speakerNameOf(member.value),
   });
   if (result) lastRoll.value = { label: fullLabel, total: result.total };
 }
@@ -644,7 +648,7 @@ async function rollActionDamage(structure: ActionStructure, actionName: string) 
     // Non-standard dice (or a flat amount): no physical-dice prompt, roll it directly
     const { total, breakdown } = rollParsed(parsed);
     lastRoll.value = { label, total };
-    sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }, null, member.value?.name).catch((e) => reportChatFailure(e, "post the roll to the chat"));
+    sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true }, null, speakerNameOf(member.value)).catch((e) => reportChatFailure(e, "post the roll to the chat"));
     return;
   }
 
@@ -652,7 +656,7 @@ async function rollActionDamage(structure: ActionStructure, actionName: string) 
     counts,
     modifier: parsed.modifier,
     label,
-    senderName: member.value?.name,
+    senderName: speakerNameOf(member.value),
     isDamage: true,
   });
   if (result) lastRoll.value = { label, total: result.total };

@@ -1,6 +1,6 @@
 <template>
   <HearthSection :title="title">
-    <p class="torn hearth-card rounded-lg px-3.5 py-3 text-body italic text-muted-foreground">
+    <p class="text-body italic text-muted-foreground">
       <slot />
     </p>
   </HearthSection>

@@ -1,5 +1,5 @@
 <template>
-  <section class="torn hearth-card rounded-lg p-3.5" :aria-label="`${displayName}, at a glance`">
+  <section class="torn hearth-paper hearth-card rounded-lg p-3.5" :aria-label="`${displayName}, at a glance`">
     <div class="flex gap-3">
       <div class="card-plate relative h-27 w-18 shrink-0 overflow-hidden rounded-md bg-muted/50">
         <FocalImage
@@ -87,6 +87,7 @@
 </template>
 
 <script setup lang="ts">
+import "./hearth-paper.css";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/media/FocalImage.vue";

@@ -1,5 +1,5 @@
 <template>
-  <section class="hearth-band torn" aria-label="Session in progress">
+  <section class="hearth-band hearth-paper torn" aria-label="Session in progress">
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2.5">
       <div class="flex min-w-0 flex-1 basis-48 flex-col gap-0.5">
         <p class="hearth-eyebrow flex items-center gap-2">
@@ -21,6 +21,7 @@
 </template>
 
 <script setup lang="ts">
+import "./hearth-paper.css";
 import { computed } from "vue";
 import { useIntervalFn, useNow } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";

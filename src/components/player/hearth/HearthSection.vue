@@ -1,6 +1,6 @@
 <template>
-  <section class="flex flex-col gap-2.5" :aria-labelledby="headingId">
-    <header class="flex items-center gap-2.5 px-1">
+  <section class="torn hearth-paper flex flex-col gap-2.5 rounded-lg p-4 pt-6" :aria-labelledby="headingId">
+    <header class="flex items-center gap-2.5">
       <h2 :id="headingId" class="hearth-rubric whitespace-nowrap">{{ title }}</h2>
       <span class="hearth-rule flex-1" aria-hidden="true" />
       <slot name="end" />
@@ -10,6 +10,7 @@
 </template>
 
 <script setup lang="ts">
+import "./hearth-paper.css";
 import { useId } from "vue";
 
 /**

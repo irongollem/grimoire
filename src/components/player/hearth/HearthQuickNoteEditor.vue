@@ -1,5 +1,5 @@
 <template>
-  <div class="torn bg-card border rounded-lg flex flex-col gap-2.5 p-3.5">
+  <div class="flex flex-col gap-2.5">
     <RichTextEditor
       :key="revision"
       v-model="draft.content"

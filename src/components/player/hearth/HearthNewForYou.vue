@@ -6,9 +6,9 @@
       </span>
     </template>
 
-    <ul v-if="shown.length" class="torn hearth-card divide-y divide-border/60 rounded-lg">
+    <ul v-if="shown.length" class="-mx-3 divide-y divide-border/60">
       <li v-for="item in shown" :key="`${item.kind}-${item.id}`">
-        <RouterLink :to="item.to" class="flex min-h-11 items-center gap-3 px-3.5 py-2.5 hover:bg-accent/40">
+        <RouterLink :to="item.to" class="flex min-h-11 items-center gap-3 px-3 py-2.5 hover:bg-accent/40">
           <component :is="KIND[item.kind].icon" class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
           <span class="min-w-0 flex-1">
             <span class="block truncate text-body font-semibold">{{ item.title }}</span>
@@ -20,7 +20,7 @@
         </RouterLink>
       </li>
     </ul>
-    <p v-else class="torn hearth-card rounded-lg px-3.5 py-3 text-body italic text-muted-foreground">
+    <p v-else class="text-body italic text-muted-foreground">
       Nothing new since you last looked.
     </p>
   </HearthSection>

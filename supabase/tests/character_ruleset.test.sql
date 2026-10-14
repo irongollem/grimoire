@@ -36,7 +36,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(73);
+select plan(74);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('94300000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -334,12 +334,17 @@ $$, 'P0001', 'Cannot link a character from another campaign',
   'a DM cannot point their own seat at an unowned character in someone else''s campaign');
 select is((pg_temp.pm('e3')).owner_user_id, null, 'so that character is still nobody''s');
 
--- An owned character is never re-owned, whoever moves the seat.
+-- An owned character is never re-owned, whoever moves the seat. Since #1059 a
+-- DM cannot even point another player's seat at it: it is its owner's to hand
+-- over, for a session.
 select pg_temp.as_user(1);
-update public.campaign_members set party_member_id = '94300000-0000-4000-8000-0000000000e1'
- where campaign_id = '94300000-0000-4000-8000-0000000000c1' and user_id = '94300000-0000-4000-8000-000000000004';
+select throws_ok($$
+  update public.campaign_members set party_member_id = '94300000-0000-4000-8000-0000000000e1'
+   where campaign_id = '94300000-0000-4000-8000-0000000000c1' and user_id = '94300000-0000-4000-8000-000000000004'
+$$, 'P0001', 'That character belongs to another player',
+  'a DM does not seat a player on another player''s character');
 select is((pg_temp.pm('e1')).owner_user_id, '94300000-0000-4000-8000-000000000002'::uuid,
-  'a DM pointing another seat at an owned character does not change its owner');
+  'and its owner is unchanged');
 
 -- ── The switch ───────────────────────────────────────────────────────────────
 

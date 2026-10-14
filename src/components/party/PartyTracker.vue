@@ -63,6 +63,7 @@
         :companions="companionsFor(member.id)"
         :dm-shared-journal="dmSharedEntriesFor(member.id)"
         :dm-player-name="dmPlayerNameFor(member.id)"
+        :caretaker-name="caretakerNameOf(member.id)"
         @open-companion-form="handleOpenCompanionForm"
         @delete-companion="deleteCompanion"
       />
@@ -112,6 +113,7 @@ import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useCompanions, useDeleteCompanion } from "@/composables/encounters/useCompanions";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
+import { useSpeaker } from "@/composables/party/useSpeaker";
 import { useDmAllSharedJournalEntries } from "@/composables/notes/usePlayerJournal";
 import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
@@ -132,6 +134,8 @@ import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import type { Companion } from "@/types/companion.types";
 const { data: party, isError, refetch } = useActiveParty();
+// Who is playing a character handed over for the session (#1059).
+const { caretakerNameOf } = useSpeaker();
 const xpLevellingEnabled = useIsRuleEnabled("xp_levelling");
 const { data: allLocations } = useAllLocations();
 const locationNameMap = computed(() => {

@@ -2,7 +2,7 @@
   <HearthSection v-if="now" title="Right now">
     <RouterLink
       :to="{ name: 'play-quest-detail', params: { id: now.questId } }"
-      class="torn bg-card border rounded-lg flex flex-col gap-1.5 p-3.5 transition-colors hover:bg-accent"
+      class="-mx-3 flex flex-col gap-1.5 rounded-md px-3 py-2 transition-colors hover:bg-accent/40"
     >
       <span class="text-eyebrow text-muted-foreground">{{ now.title }}</span>
       <p v-for="line in now.current" :key="line.text" class="m-0 text-body">

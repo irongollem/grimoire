@@ -16,7 +16,7 @@
       <div
         v-for="member in members"
         :key="member.id"
-        class="rounded-lg border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-4"
+        class="rounded-lg border border-border bg-card p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-4"
       >
         <!-- Avatar + identity -->
         <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -97,6 +97,22 @@
 
         <div class="flex items-center gap-2 shrink-0">
           <AppButton
+            v-if="handableCharacter(member)"
+            variant="subtle"
+            size="sm"
+            label="Hand over…"
+            :tooltip="`Hand ${handableCharacter(member)!.name} to someone for the session`"
+            @click="handingOver = handableCharacter(member)"
+          />
+          <AppButton
+            v-if="auth.isDM && handOversOfRow(member).length"
+            variant="subtle"
+            size="sm"
+            label="Take back"
+            :disabled="endHandOver.isPending.value"
+            @click="takeBack(member)"
+          />
+          <AppButton
             v-if="isOwner && member.role === 'player'"
             variant="subtle"
             size="sm"
@@ -134,6 +150,13 @@
             @click="confirmRemove(member)"
           />
         </div>
+
+        <!-- Who has whose character tonight (#1059), on its own line under the row:
+             a caretaker keeps their own character, so this sits beside the picker,
+             never in its place. -->
+        <p v-if="handOverLine(member)" class="sm:basis-full text-caption italic text-muted-foreground">
+          {{ handOverLine(member) }}
+        </p>
       </div>
 
       <!-- Empty -->
@@ -199,6 +222,14 @@
       </div>
     </template>
 
+    <HandOverDialog
+      v-if="handingOver && campaignStore.activeCampaignId"
+      :open="true"
+      :member="handingOver"
+      :campaign-id="campaignStore.activeCampaignId"
+      @close="handingOver = null"
+    />
+
     <!-- Confirm remove dialog -->
     <div
       v-if="memberToRemove"
@@ -260,6 +291,7 @@ import {
   useSetMemberRole,
 } from "@/composables/campaign/useCampaignMembers";
 import { useParty, useDeletePartyMember } from "@/composables/party/useParty";
+import { useCharacterCaretakers, useEndHandOver } from "@/composables/party/useCharacterCaretakers";
 import { FALLEN_DELETE_REASON, hasMemorialInEffect, useCampaignMemorials } from "@/composables/memorials/useMemorials";
 import { useDetachCharacter } from "@/composables/party/useCharacterPool";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
@@ -268,11 +300,13 @@ import { useToast } from "@/composables/useToast";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import HandOverDialog from "@/components/party/HandOverDialog.vue";
 import CharacterApprovalQueue from "@/components/campaign/CharacterApprovalQueue.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { CampaignMember, CampaignRole } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
+import type { CharacterCaretaker } from "@/types/caretaker.types";
 
 
 const membersQuery = useCampaignMembers();
@@ -302,6 +336,68 @@ const isOwnRow = (m: CampaignMember) => m.user_id === auth.user?.id;
 function roleLabel(m: CampaignMember): string {
   if (isOwnerRow(m)) return "Owner";
   return m.role === "dm" ? "Co-DM" : "Player";
+}
+
+// Hand-overs in force (#1059): a caretaker's row says who they look after, the
+// owner's row says who has the character, and the DM may end either.
+const caretakers = useCharacterCaretakers(() => campaignStore.activeCampaignId);
+const endHandOver = useEndHandOver();
+
+// Until the hand-overs have loaded a row says nothing about them, and offers no
+// "Hand over…" that might be wrong.
+function minding(m: CampaignMember): CharacterCaretaker[] {
+  const active = caretakers.active.value;
+  if (!active) return [];
+  return active.filter((h) => h.caretaker_user_id === m.user_id);
+}
+
+function withCaretaker(m: CampaignMember): CharacterCaretaker | null {
+  const active = caretakers.active.value;
+  if (!active || !m.party_member_id) return null;
+  return (
+    active.find(
+      (h) => h.party_member_id === m.party_member_id && h.caretaker_user_id !== m.user_id,
+    ) ?? null
+  );
+}
+
+function handOversOfRow(m: CampaignMember): CharacterCaretaker[] {
+  const owned = withCaretaker(m);
+  return owned ? [owned] : minding(m);
+}
+
+// The DM may hand a player's own character to someone else (#1059), while it is not already handed over.
+const handingOver = ref<PartyMember | null>(null);
+function handableCharacter(m: CampaignMember): PartyMember | null {
+  if (!auth.isDM || m.role !== "player" || !m.party_member_id || !caretakers.active.value) return null;
+  if (withCaretaker(m)) return null;
+  const character = partyMembers.value.find((pm) => pm.id === m.party_member_id);
+  return character && character.owner_user_id === m.user_id ? character : null;
+}
+
+const characterNameOf = (partyMemberId: string): string =>
+  partyMembers.value.find((pm) => pm.id === partyMemberId)?.name ?? "a character";
+const userNameOf = (userId: string): string =>
+  members.value.find((m) => m.user_id === userId)?.display_name || "another player";
+
+/** "Brakka is with Tomas." and/or "Looking after Mira." for a row; null when neither. */
+function handOverLine(m: CampaignMember): string | null {
+  const parts: string[] = [];
+  const handedOut = withCaretaker(m);
+  if (handedOut) {
+    parts.push(`${characterNameOf(handedOut.party_member_id)} is with ${userNameOf(handedOut.caretaker_user_id)}.`);
+  }
+  const minded = minding(m);
+  if (minded.length) {
+    parts.push(`Looking after ${minded.map((h) => characterNameOf(h.party_member_id)).join(" and ")}.`);
+  }
+  return parts.length ? parts.join(" ") : null;
+}
+
+function takeBack(m: CampaignMember) {
+  for (const handOver of handOversOfRow(m)) {
+    endHandOver.mutate(handOver, { onError: (error) => toast.error(toast.fromError(error)) });
+  }
 }
 
 function sittingOutName(m: CampaignMember): string | null {

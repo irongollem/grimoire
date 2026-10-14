@@ -14,7 +14,8 @@ select set_eq(
   $$ select c.conrelid::regclass::text from pg_constraint c
       where c.contype = 'f' and c.confrelid = 'public.campaign_sessions'::regclass $$,
   array['notes', 'session_proposals', 'encounter_state', 'npc_reveals', 'location_reveals',
-        'handout_reveals', 'discovered_monsters', 'quest_beat_transitions', 'npc_memories'],
+        'handout_reveals', 'discovered_monsters', 'quest_beat_transitions', 'npc_memories',
+        'character_caretakers'],
   'the merge moves every link into the session log'
 );
 

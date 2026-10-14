@@ -77,6 +77,8 @@ const SECTIONS = [
   "HearthWaiting",
   "HearthRightNow",
   "HearthQuickNote",
+  "HearthWhileAway",
+  "CharacterCaretakingNotice",
 ] as const;
 
 function mountView() {
@@ -134,7 +136,7 @@ describe("PlayerHearthView", () => {
   it("shows the between-sessions sections when a character is linked and no session is running", () => {
     state.linkedPartyMemberId = "pm-1";
     expect(sections(mountView()).sort()).toEqual(
-      ["HearthCharacterCard", "HearthDateStrip", "HearthNewForYou", "HearthNextSession", "HearthNotes", "HearthQuests"].sort(),
+      ["CharacterCaretakingNotice", "HearthCharacterCard", "HearthDateStrip", "HearthNewForYou", "HearthNextSession", "HearthNotes", "HearthQuests", "HearthWhileAway"].sort(),
     );
   });
 
@@ -142,7 +144,7 @@ describe("PlayerHearthView", () => {
     state.linkedPartyMemberId = "pm-1";
     state.isRunning = true;
     expect(sections(mountView()).sort()).toEqual(
-      ["HearthChecks", "HearthLiveBanner", "HearthQuickNote", "HearthRightNow", "HearthSpellcasting", "HearthVitals", "HearthWaiting"].sort(),
+      ["CharacterCaretakingNotice", "HearthChecks", "HearthLiveBanner", "HearthQuickNote", "HearthRightNow", "HearthSpellcasting", "HearthVitals", "HearthWaiting", "HearthWhileAway"].sort(),
     );
   });
 
@@ -150,7 +152,7 @@ describe("PlayerHearthView", () => {
     state.linkedPartyMemberId = "pm-1";
     state.isRunning = true;
     expect(sections(mountView())).toEqual([
-      "HearthLiveBanner", "HearthVitals", "HearthSpellcasting", "HearthChecks", "HearthWaiting", "HearthRightNow", "HearthQuickNote",
+      "HearthLiveBanner", "CharacterCaretakingNotice", "HearthWhileAway", "HearthVitals", "HearthSpellcasting", "HearthChecks", "HearthWaiting", "HearthRightNow", "HearthQuickNote",
     ]);
   });
 

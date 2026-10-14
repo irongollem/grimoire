@@ -1,7 +1,8 @@
 <template>
   <div class="pb-8 space-y-6">
     <PageHeader flush title="Level Up" description="Choose what your character gains." />
-    <div v-if="!member" class="text-center py-16">
+    <MindedCharacterGate v-if="minded" :name="minded.member.name" :owner-name="minded.ownerName" />
+    <div v-else-if="!member" class="text-center py-16">
       <p class="text-body text-muted-foreground italic">No character linked.</p>
     </div>
     <template v-else>
@@ -28,6 +29,8 @@ import { useAuthStore } from "@/stores/auth";
 import { useParty } from "@/composables/party/useParty";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import LevelUpWizard from "@/levelup/LevelUpWizard.vue";
+import MindedCharacterGate from "@/components/player/caretaking/MindedCharacterGate.vue";
+import { usePlayableCharacters } from "@/composables/party/usePlayableCharacters";
 import DeLevelPanel from "@/components/levelup/DeLevelPanel.vue";
 
 const route = useRoute();
@@ -43,6 +46,10 @@ const member = computed(() =>
     ? (partyMembers.value.find((m) => m.id === memberId.value) ?? null)
     : null,
 );
+
+// Looking after a character is not owning it (#1059): levelling is the owner's.
+const { characters: playable } = usePlayableCharacters();
+const minded = computed(() => playable.value.find((c) => c.kind === "minding" && c.member.id === memberId.value) ?? null);
 
 const { data: characterClasses } = useCharacterClasses(memberId);
 
