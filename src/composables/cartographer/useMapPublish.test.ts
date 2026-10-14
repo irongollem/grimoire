@@ -76,7 +76,7 @@ const region = (id: string, spaceId: string) => ({ id, space_location_id: spaceI
 function setup() {
   const publisher = useMapPublish({
     map: () => ({ id: "map-1", rev: 7 }) as unknown as DungeonMap,
-    runtimes: () => new Map(), dressing: () => new Map(),
+    runtimes: () => new Map(), dressing: () => new Map(), loadDressing: async () => new Map(),
     glyphs: () => ({}),
     structure: () => ({}) as unknown as DerivedStructure,
   });

@@ -53,7 +53,10 @@ export function dressingFootprint(placement: DressingPlacement, catalog: Dressin
  * footprint's top-left. Turning about the UNROTATED footprint's centre would
  * leave a 2x1 table half a cell off the grid after a quarter turn (its centre
  * sits on a cell edge one way and mid-cell the other); this way every quarter
- * turn lands on whole cells, and a free angle turns about a fixed centre.
+ * turn lands on whole cells. No single centre can do that for both quarters of
+ * a non-square prop, so a free angle turns about its NEAREST quarter's centre:
+ * a 2x1 turned past 45 degrees steps half a cell, to the centre it will have at
+ * 90. A square prop's centre never moves.
  */
 export function dressingCentre(placement: DressingPlacement, w: number, h: number): CellPoint {
   const quarter = (((Math.round(placement.rotation / 90) % 4) + 4) % 4);

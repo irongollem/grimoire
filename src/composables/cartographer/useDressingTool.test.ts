@@ -38,8 +38,25 @@ describe("useDressingTool", () => {
     const [id] = Object.keys(layers.value.dressing);
     expect(layers.value.dressing[id]).toMatchObject({ prop_id: "table", x: 3, y: 2, rotation: 90 });
     expect(selectedId.value).toBe(id);
+    // Committed on release, not on the press.
+    expect(pushCommand).not.toHaveBeenCalled();
+    tool.onPointerUp();
     expect(pushCommand).toHaveBeenCalledTimes(1);
     expect(markDirty).toHaveBeenCalledTimes(1);
+  });
+
+  it("a placement cancelled before its release (a late pinch) is taken back and leaves the map clean", () => {
+    const { tool, layers, selectedId, pushCommand, markDirty } = setup();
+    selectedId.value = "earlier";
+    tool.onPointerDown(pointer(1.5, 1.5));
+    expect(Object.keys(layers.value.dressing)).toHaveLength(1);
+    tool.cancelGesture();
+    expect(layers.value.dressing).toEqual({});
+    expect(selectedId.value).toBe("earlier");
+    expect(tool.isHolding()).toBe(false);
+    tool.onPointerUp();
+    expect(pushCommand).not.toHaveBeenCalled();
+    expect(markDirty).not.toHaveBeenCalled();
   });
 
   it("leaves a middle-button or Shift press to the editor's pan", () => {
@@ -58,6 +75,7 @@ describe("useDressingTool", () => {
   it("a click that misses every prop deselects", () => {
     const { tool, brushId, selectedId } = setup();
     tool.onPointerDown(pointer(0.5, 0.5));
+    tool.onPointerUp();
     brushId.value = null;
     expect(selectedId.value).not.toBeNull();
     tool.onPointerDown(pointer(8, 8));
@@ -67,27 +85,33 @@ describe("useDressingTool", () => {
   it("a drag that goes nowhere pushes no undo step", () => {
     const { tool, brushId, pushCommand } = setup();
     tool.onPointerDown(pointer(0.5, 0.5));
+    tool.onPointerUp();
     brushId.value = null;
     pushCommand.mockClear();
     tool.onPointerDown(pointer(0.5, 0.5));
-    expect(tool.isDragging()).toBe(true);
+    expect(tool.isHolding()).toBe(true);
     tool.onPointerMove([0, 0]);
     tool.onPointerUp();
-    expect(tool.isDragging()).toBe(false);
+    expect(tool.isHolding()).toBe(false);
     expect(pushCommand).not.toHaveBeenCalled();
   });
 
-  it("cancelDrag puts the prop back where it was picked up", () => {
-    const { tool, layers, brushId, selectedId } = setup();
+  it("cancelGesture puts a dragged prop back where it was picked up, and leaves the map clean", () => {
+    const { tool, layers, brushId, selectedId, pushCommand, markDirty } = setup();
     tool.onPointerDown(pointer(0.5, 0.5));
+    tool.onPointerUp();
     brushId.value = null;
     const id = selectedId.value!;
     tool.onPointerDown(pointer(0.5, 0.5));
     tool.onPointerMove([4, 4]);
     expect(layers.value.dressing[id]).toMatchObject({ x: 4, y: 4 });
-    tool.cancelDrag();
+    pushCommand.mockClear();
+    markDirty.mockClear();
+    tool.cancelGesture();
     expect(layers.value.dressing[id]).toMatchObject({ x: 0, y: 0 });
-    expect(tool.isDragging()).toBe(false);
+    expect(tool.isHolding()).toBe(false);
+    expect(pushCommand).not.toHaveBeenCalled();
+    expect(markDirty).not.toHaveBeenCalled();
   });
 
   it("turn rotates the brush when nothing is selected, wrapping at 360", () => {

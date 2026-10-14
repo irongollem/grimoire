@@ -309,6 +309,7 @@
 //   getName / getCampaignId / getLayers / getMetadata / getCurrentPackId
 //   getRuntimes       — loaded tile-pack runtimes, keyed by pack id
 //   getDressingCatalog — Dressing props by id, with the art loaded so far (#1062)
+//   loadDressingCatalog — the same once every placed prop's art is in: what a bake reads
 //   getCellGlyphs     — resolved hazard/feature/note/encounter glyphs (#804)
 //   getStructure      — derived spaces/ways/zones/links, Publish's input
 //   getCellsPainted / getPackName — the status line's two workbench-owned segments
@@ -448,7 +449,6 @@ watch(firstPublishedPackId, (id) => {
 }, { immediate: true });
 const packLoadError = ref<string | null>(null);
 const loadedRuntimes = ref(new Map<string, TilePackRuntime>());
-const { catalog: dressingCatalog } = useDressingCatalog();
 const packRuntime = computed(() => loadedRuntimes.value.get(currentPackId.value) ?? null);
 const loadedPackIds = computed(() => new Set(loadedRuntimes.value.keys()));
 // True while the canvas has nothing to paint with yet: either the library
@@ -544,6 +544,11 @@ const stampRotation = ref(0); // degrees; M6 free rotation (any integer 0–359)
 const dressingBrushId = ref<string | null>(null);
 const dressingRotation = ref(0);
 const selectedDressingId = ref<string | null>(null);
+// Art is loaded for what is on the map and the armed prop, nothing else.
+const { catalog: dressingCatalog, load: loadDressingCatalog } = useDressingCatalog(() => {
+  const ids = Object.values(layers.value.dressing).map((placement) => placement.prop_id);
+  return dressingBrushId.value ? [...ids, dressingBrushId.value] : ids;
+});
 
 // M6 — Room template tool state
 type TemplateShape = "circle" | "octagon" | "hex";
@@ -973,6 +978,7 @@ defineExpose({
   getCurrentPackId: () => currentPackId.value,
   getRuntimes: () => loadedRuntimes.value,
   getDressingCatalog: () => dressingCatalog.value,
+  loadDressingCatalog,
   getCellGlyphs: () => cellGlyphs.value,
   getStructure: () => structure.structure.value,
   getCellsPainted: () => cellsPainted.value,

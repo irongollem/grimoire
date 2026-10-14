@@ -67,6 +67,7 @@
                 v-if="prop.image_url"
                 :src="prop.image_url"
                 alt=""
+                crossorigin="anonymous"
                 loading="lazy"
                 class="max-h-full max-w-full object-contain"
               />

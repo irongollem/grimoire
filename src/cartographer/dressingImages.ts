@@ -9,11 +9,15 @@ import type { DressingCatalog, DressingProp } from "./dressing";
 const imageCache = new Map<string, Promise<HTMLImageElement | null>>();
 
 /** Resolves null when the image fails, like the pack loader: a missing picture
- *  falls back to the placeholder instead of breaking the map. */
+ *  falls back to the placeholder instead of breaking the map. A failure is not
+ *  cached, so a brief CDN error costs one draw, not the rest of the session. */
 export function loadDressingImage(url: string): Promise<HTMLImageElement | null> {
   const cached = imageCache.get(url);
   if (cached) return cached;
-  const pending = loadImage(url);
+  const pending = loadImage(url).then((img) => {
+    if (!img) imageCache.delete(url);
+    return img;
+  });
   imageCache.set(url, pending);
   return pending;
 }

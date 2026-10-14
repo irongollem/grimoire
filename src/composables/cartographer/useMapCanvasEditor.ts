@@ -748,7 +748,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         cell: [cx, cy], frac: fractionalCellAt(ev), button: ev.button, altKey: ev.altKey, shiftKey: ev.shiftKey,
       })) {
       if (ev.button === 2) ev.preventDefault();
-      if (dressingTool.isDragging()) canvasEl.value?.setPointerCapture(ev.pointerId);
+      if (dressingTool.isHolding()) canvasEl.value?.setPointerCapture(ev.pointerId);
       return;
     }
 
@@ -960,7 +960,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // Also bound to `@pointerleave` (MapWorkbench's template) — clears the
     // Plan's hover state (door edge highlight, pen cursor tracking) either way.
     planTools?.onPointerLeave();
-    if (dressingTool.isDragging()) {
+    if (dressingTool.isHolding()) {
       dressingTool.onPointerUp();
       canvasEl.value?.releasePointerCapture(ev.pointerId);
     }
@@ -1025,7 +1025,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // a pinch lands a few tens of milliseconds after the first, and without the
   // wait that first finger would already have painted a cell. If the second
   // finger comes later still, a Drawing stroke already under way is rolled
-  // back to where it started. Mouse and pen input skip all of this.
+  // back to where it started, and a prop just placed or picked up is taken
+  // back or put down where it was. Mouse and pen input skip all of this.
 
   const TOUCH_HOLD_MS = 90;
   const TOUCH_SLOP_PX = 6;
@@ -1078,7 +1079,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       previewCells.value = new Set();
       isPainting.value = false;
     }
-    dressingTool.cancelDrag();
+    dressingTool.cancelGesture();
     isPanning.value = false;
     pendingSelectStart = null;
     lastPointer = null;

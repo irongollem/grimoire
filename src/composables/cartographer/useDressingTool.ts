@@ -10,6 +10,13 @@
 // Undo is the editor's whole-state snapshot, so each gesture here is one
 // before/after pair: a click places one prop, a drag moves one, a key turns
 // one, however many pointer-move events the drag took.
+//
+// A press that places or grabs a prop stays open until its release, and only
+// the release commits it (dirty flag, undo step). On a phone the second finger
+// of a pinch can land after the editor's touch hold has already handed the
+// first finger's press to this tool; `cancelGesture` then takes the placement
+// back, or puts the dragged prop down where it was, and the map is left as
+// clean as it was before the press.
 
 import { ref, watch, type Ref } from "vue";
 import type { Tool } from "@/cartographer/tools";
@@ -47,6 +54,13 @@ export interface DressingPointer {
   shiftKey: boolean;
 }
 
+interface PlaceState {
+  id: string;
+  before: string;
+  /** What was selected before the press, restored if the placement is taken back. */
+  previousSelection: string | null;
+}
+
 interface DragState {
   id: string;
   /** Anchor minus pointer cell, in whole cells, fixed at grab time. */
@@ -61,6 +75,7 @@ export function useDressingTool(opts: DressingToolOptions) {
 
   /** Whole cell the pointer is over, for the ghost. Null once it leaves the canvas. */
   const hover = ref<[number, number] | null>(null);
+  let place: PlaceState | null = null;
   let drag: DragState | null = null;
 
   // Leaving the tool drops the selection (its outline would hang on a canvas
@@ -110,6 +125,8 @@ export function useDressingTool(opts: DressingToolOptions) {
    */
   function onPointerDown(p: DressingPointer): boolean {
     if (p.button === 1 || (p.shiftKey && p.button === 0)) return false;
+    // A press whose release never arrived is finished as if it had.
+    onPointerUp();
 
     // Right button, or Alt with the left: take the topmost prop under the pointer away.
     if (p.button === 2 || p.altKey) {
@@ -120,10 +137,12 @@ export function useDressingTool(opts: DressingToolOptions) {
     const armed = brushId.value;
     if (armed) {
       const id = crypto.randomUUID();
-      commit(() =>
-        paintOps.placeDressing(layers.value, { prop_id: armed, x: p.cell[0], y: p.cell[1], rotation: brushRotation.value }, id),
-      );
-      selectedId.value = id;
+      const before = snapshotStr();
+      const placement = { prop_id: armed, x: p.cell[0], y: p.cell[1], rotation: brushRotation.value };
+      if (paintOps.placeDressing(layers.value, placement, id)) {
+        place = { id, before, previousSelection: selectedId.value };
+        selectedId.value = id;
+      }
       return true;
     }
 
@@ -144,33 +163,41 @@ export function useDressingTool(opts: DressingToolOptions) {
     return true;
   }
 
-  /** True between grabbing a placed prop and releasing it: the editor captures the pointer for it. */
-  function isDragging(): boolean {
-    return drag !== null;
+  /** True between a press that placed or grabbed a prop and its release: the editor captures the pointer for it. */
+  function isHolding(): boolean {
+    return place !== null || drag !== null;
   }
 
   function onPointerMove(cell: [number, number]): void {
     if (!drag) return;
     if (paintOps.moveDressing(layers.value, drag.id, cell[0] + drag.offset[0], cell[1] + drag.offset[1])) {
       drag.moved = true;
-      markDirty();
     }
   }
 
-  /** Ends a drag; one undo step if the prop actually moved. */
+  /** Ends the press: a placement is one undo step, a drag one if the prop actually moved. */
   function onPointerUp(): void {
-    if (!drag) return;
-    const done = drag;
+    const done = place ?? (drag?.moved ? drag : null);
+    place = null;
     drag = null;
-    if (done.moved) pushCommand(done.before, snapshotStr());
+    if (!done) return;
+    markDirty();
+    pushCommand(done.before, snapshotStr());
   }
 
-  /** A second finger landed mid-drag (a pinch): put the prop back where it was picked up. */
-  function cancelDrag(): void {
-    if (!drag) return;
-    const { id, origin } = drag;
-    drag = null;
-    paintOps.moveDressing(layers.value, id, origin[0], origin[1]);
+  /** A second finger landed mid-press (a pinch): take a placement back, or put a dragged prop down where it was picked up. */
+  function cancelGesture(): void {
+    if (place) {
+      const { id, previousSelection } = place;
+      place = null;
+      paintOps.removeDressing(layers.value, id);
+      selectedId.value = previousSelection;
+    }
+    if (drag) {
+      const { id, origin } = drag;
+      drag = null;
+      paintOps.moveDressing(layers.value, id, origin[0], origin[1]);
+    }
   }
 
   /**
@@ -236,8 +263,8 @@ export function useDressingTool(opts: DressingToolOptions) {
     onPointerDown,
     onPointerMove,
     onPointerUp,
-    isDragging,
-    cancelDrag,
+    isHolding,
+    cancelGesture,
     eraseTopAt,
     rotateSelected,
     deleteSelected,

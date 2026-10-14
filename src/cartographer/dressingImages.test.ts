@@ -29,6 +29,14 @@ describe("loadDressingImage", () => {
     mocks.loadImage.mockResolvedValue(null);
     expect(await loadDressingImage("bad")).toBeNull();
   });
+
+  it("tries a failed url again rather than caching the failure", async () => {
+    const img = {} as HTMLImageElement;
+    mocks.loadImage.mockResolvedValueOnce(null).mockResolvedValueOnce(img);
+    expect(await loadDressingImage("flaky")).toBeNull();
+    expect(await loadDressingImage("flaky")).toBe(img);
+    expect(mocks.loadImage).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("buildDressingCatalog", () => {

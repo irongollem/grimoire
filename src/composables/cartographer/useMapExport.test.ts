@@ -130,7 +130,7 @@ describe("useMapExport", () => {
 
   describe("the campaign the render runs under", () => {
     it("sends the active campaign, not the map's id", async () => {
-      const exp = useMapExport({ buildMap: fakeMap, runtimes: () => new Map(), dressing: () => new Map(), mapName: () => "Test", glyphs: () => ({}) });
+      const exp = useMapExport({ buildMap: fakeMap, runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "Test", glyphs: () => ({}) });
       await exp.onGenerateStyle();
       expect(mocks.invoke).toHaveBeenCalledWith("style-map", expect.objectContaining({
         body: expect.objectContaining({ campaign_id: "camp-1" }),
@@ -139,7 +139,7 @@ describe("useMapExport", () => {
 
     it("asks for a campaign instead of calling the styler without one", async () => {
       mocks.activeCampaign = null;
-      const exp = useMapExport({ buildMap: fakeMap, runtimes: () => new Map(), dressing: () => new Map(), mapName: () => "Test", glyphs: () => ({}) });
+      const exp = useMapExport({ buildMap: fakeMap, runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "Test", glyphs: () => ({}) });
       await exp.onGenerateStyle();
       expect(mocks.invoke).not.toHaveBeenCalled();
       expect(exp.styleError.value).toMatch(/Choose a campaign/);
@@ -151,7 +151,7 @@ describe("useMapExport", () => {
       const map = fakeMap();
       const exp = useMapExport({
         buildMap: () => map,
-        runtimes: () => new Map(), dressing: () => new Map(),
+        runtimes: () => new Map(), loadDressing: async () => new Map(),
         mapName: () => "Test",
         glyphs: () => ({}),
       });
@@ -187,7 +187,7 @@ describe("useMapExport", () => {
       mocks.allLocations.value = [{ id: "loc-9", map_url: "https://cdn.example/existing.webp" }];
       const exp = useMapExport({
         buildMap: () => null,
-        runtimes: () => new Map(), dressing: () => new Map(),
+        runtimes: () => new Map(), loadDressing: async () => new Map(),
         mapName: () => "",
         glyphs: () => ({}),
       });
@@ -204,7 +204,7 @@ describe("useMapExport", () => {
     it("seeds styleAtlasLocationId from the site, with no host wiring needed", () => {
       const exp = useMapExport({
         buildMap: () => null,
-        runtimes: () => new Map(), dressing: () => new Map(),
+        runtimes: () => new Map(), loadDressing: async () => new Map(),
         mapName: () => "",
         glyphs: () => ({}),
         site: siteWithPicture(null),
@@ -218,7 +218,7 @@ describe("useMapExport", () => {
       const picture: MapImageLayer = { kind: "picture", url: "https://cdn.example/scan.webp", calibration: null };
       const exp = useMapExport({
         buildMap: () => map,
-        runtimes: () => new Map(), dressing: () => new Map(),
+        runtimes: () => new Map(), loadDressing: async () => new Map(),
         mapName: () => "Test",
         glyphs: () => ({}),
         site: siteWithPicture(picture),
@@ -231,7 +231,7 @@ describe("useMapExport", () => {
       const picture: MapImageLayer = { kind: "picture", url: "https://cdn.example/scan.webp", calibration: null };
       const exp = useMapExport({
         buildMap: () => null,
-        runtimes: () => new Map(), dressing: () => new Map(),
+        runtimes: () => new Map(), loadDressing: async () => new Map(),
         mapName: () => "",
         glyphs: () => ({}),
         site: siteWithPicture(picture),
@@ -243,7 +243,7 @@ describe("useMapExport", () => {
       const map = fakeMap();
       const exp = useMapExport({
         buildMap: () => map,
-        runtimes: () => new Map(), dressing: () => new Map(),
+        runtimes: () => new Map(), loadDressing: async () => new Map(),
         mapName: () => "Test",
         glyphs: () => ({}),
         site: siteWithPicture(null),
@@ -273,7 +273,7 @@ describe("useMapExport", () => {
       const map = fakeMap();
       const exp = useMapExport({
         buildMap: () => map,
-        runtimes: () => new Map(), dressing: () => new Map(),
+        runtimes: () => new Map(), loadDressing: async () => new Map(),
         mapName: () => "Test",
         glyphs: () => ({}),
         site: siteWithPicture(null),
@@ -294,14 +294,14 @@ describe("useMapExport", () => {
   describe("resolving the campaign's actual image provider (not always OpenAI)", () => {
     it("defaults to openai when image_provider is null", () => {
       mocks.activeCampaign = { id: "camp-1", image_provider: null };
-      const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), dressing: () => new Map(), mapName: () => "", glyphs: () => ({}) });
+      const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "", glyphs: () => ({}) });
       expect(exp.styleCost.value).toBe(1); // costOf(1) * imageMultiplierFor("openai")=1
       expect(mocks.imageMultiplierFor).toHaveBeenCalledWith("openai");
     });
 
     it("prices a Gemini campaign at Gemini's own multiplier, not OpenAI's", () => {
       mocks.activeCampaign = { id: "camp-1", image_provider: "gemini" };
-      const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), dressing: () => new Map(), mapName: () => "", glyphs: () => ({}) });
+      const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "", glyphs: () => ({}) });
       // costOf(1) * imageMultiplierFor("gemini") = 0.5, charged as a whole
       // credit, rounded up (wholeCredits).
       expect(exp.styleCost.value).toBe(1);
@@ -312,19 +312,19 @@ describe("useMapExport", () => {
       mocks.activeCampaign = { id: "camp-1", image_provider: "gemini" };
       mocks.decryptedOpenAiKey = "sk-openai-unrelated";
       mocks.decryptedGeminiKey = "";
-      const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), dressing: () => new Map(), mapName: () => "", glyphs: () => ({}) });
+      const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "", glyphs: () => ({}) });
       // Has an OpenAI key but not a Gemini one — a Gemini campaign must not
       // read BYOK true off the wrong provider's key.
       expect(exp.styleByok.value).toBe(false);
       mocks.decryptedGeminiKey = "gm-key";
-      const exp2 = useMapExport({ buildMap: () => null, runtimes: () => new Map(), dressing: () => new Map(), mapName: () => "", glyphs: () => ({}) });
+      const exp2 = useMapExport({ buildMap: () => null, runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "", glyphs: () => ({}) });
       expect(exp2.styleByok.value).toBe(true);
     });
 
     it("neither prices nor bakes before the provider is known, rather than guessing OpenAI's shape", async () => {
       mocks.activeCampaign = { id: "camp-1", image_provider: "gemini" };
       mocks.configLoaded = false;
-      const exp = useMapExport({ buildMap: () => fakeMap(), runtimes: () => new Map(), dressing: () => new Map(), mapName: () => "Test", glyphs: () => ({}) });
+      const exp = useMapExport({ buildMap: () => fakeMap(), runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "Test", glyphs: () => ({}) });
       expect(exp.styleCost.value).toBeNull();
       await exp.onGenerateStyle();
       expect(mocks.bakeAiStyleInput).not.toHaveBeenCalled();
@@ -336,7 +336,7 @@ describe("useMapExport", () => {
       const map = fakeMap();
       const exp = useMapExport({
         buildMap: () => map,
-        runtimes: () => new Map(), dressing: () => new Map(),
+        runtimes: () => new Map(), loadDressing: async () => new Map(),
         mapName: () => "Test",
         glyphs: () => ({}),
       });
