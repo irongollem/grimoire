@@ -32,7 +32,8 @@ export type AdminAuditAction =
   | "account_ban"
   | "account_unban"
   | "credit_pack_refund"
-  | "terms_notice_sent";
+  | "terms_notice_sent"
+  | "inactivity_notice_sent";
 
 export async function recordAdminAction(
   admin: SupabaseClient,

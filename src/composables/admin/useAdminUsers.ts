@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabase'
 import { invokeDeleteAccount } from '@/composables/account/useAccountDeletion'
 import type { PlanId } from '@/types/subscription.types'
 
+export type ExemptReason = "plan" | "parent" | "banned" | "seated";
+export type RetentionState = "exempt" | "kept" | "notice_due" | "notice_sent" | "deletable";
+
 export interface AdminUser {
   user_id: string
   email: string
@@ -15,6 +18,16 @@ export interface AdminUser {
   suspended_at: string | null
   /** Hard lock-out — GoTrue ban, cannot sign in. */
   banned: boolean
+  /** Last time the account was used; never null. */
+  last_active_at: string
+  /** Campaigns they own, the demo copy excluded. */
+  campaigns_owned: number
+  /** Seats in other people's campaigns. */
+  campaigns_playing: number
+  is_child: boolean
+  exempt_reason: ExemptReason | null
+  retention_state: RetentionState
+  inactivity_notice_sent_at: string | null
 }
 
 async function fetchAdminUsers(): Promise<AdminUser[]> {

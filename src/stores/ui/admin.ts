@@ -2,6 +2,7 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import type { FocalKind, FocalStatus } from "@/lib/library/focalQueue";
+import type { AccountSegment } from "@/lib/admin/accountSegments";
 import type { AdminAuditAction } from "@/composables/admin/useAdminAuditLog";
 
 export const useAdminUiStore = defineStore("ui:admin", () => {
@@ -40,6 +41,24 @@ export const useAdminUiStore = defineStore("ui:admin", () => {
     adminAuditFilterAction.value = "all";
   }
 
+  // Admin → Users: the account list's search, segment and retention filters.
+  const adminUsersSearch = ref("");
+  const adminUsersSegment = ref<AccountSegment | "all">("all");
+  const adminUsersRetention = ref<"all" | "notice_due" | "notice_sent" | "deletable">("all");
+
+  const adminUsersHasActiveFilters = computed(
+    () =>
+      adminUsersSearch.value !== "" ||
+      adminUsersSegment.value !== "all" ||
+      adminUsersRetention.value !== "all",
+  );
+
+  function resetAdminUsersFilters() {
+    adminUsersSearch.value = "";
+    adminUsersSegment.value = "all";
+    adminUsersRetention.value = "all";
+  }
+
   // Admin → Requests (#643)
   const adminDsrSearch = ref("");
   const adminDsrFilterStatus = ref<"all" | "open" | "answered">("all");
@@ -65,6 +84,11 @@ export const useAdminUiStore = defineStore("ui:admin", () => {
     adminAuditFilterAction,
     adminAuditHasActiveFilters,
     resetAdminAuditFilters,
+    adminUsersSearch,
+    adminUsersSegment,
+    adminUsersRetention,
+    adminUsersHasActiveFilters,
+    resetAdminUsersFilters,
     adminDsrSearch,
     adminDsrFilterStatus,
     adminDsrHasActiveFilters,

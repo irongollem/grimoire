@@ -119,6 +119,7 @@ insert into definer_registry (name, kind, reason) values
   ('spend_feature_spell_slot', 'refuses', null),
   ('take_spellcasting_rest', 'refuses', null),
   ('tick_quest_clock', 'refuses', null),
+  ('touch_account_activity', 'self', 'stamps the caller''s own last activity; keys only on auth.uid() and the time is always now()'),
   ('transfer_campaign_ownership', 'refuses', null),
   ('transition_quest_runtime', 'refuses', null),
   ('update_combatant_position', 'refuses', null),

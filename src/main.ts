@@ -12,6 +12,7 @@ import { createSessionRecovery } from "./lib/auth/sessionRecovery";
 import { createQueryPersistence } from "./lib/queryPersistence/persistence";
 import { isStaticContent, persistClass } from "./lib/queryPersistence/policy";
 import { track } from "./lib/analytics";
+import { touchAccountActivity } from "./lib/account/accountActivity";
 import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
 import { useAuthStore } from "./stores/auth";
 import { installStaleChunkRecovery, chunksArrived } from "./lib/staleChunkRecovery";
@@ -195,6 +196,18 @@ supabase.auth.onAuthStateChange((event, session) => {
   // Reset rather than invalidate, so another account's rows leave the screen
   // before the refetch lands, not after it (#981).
   setTimeout(() => void resetForNewIdentity(queryClient, isStaticContent), 0);
+});
+
+// The retention period (accounts unused for 12 months get a deletion notice)
+// needs real activity, and `last_sign_in_at` only moves on a fresh sign-in, which
+// a long-lived refresh token never does. So a restored session, a sign-in and a
+// token refresh each stamp the account, throttled to once an hour per tab.
+// Deferred by a tick because auth-js awaits this listener (see the notes above).
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event !== "INITIAL_SESSION" && event !== "SIGNED_IN" && event !== "TOKEN_REFRESHED") return;
+  const userId = session?.user?.id;
+  if (!userId) return;
+  setTimeout(() => touchAccountActivity(userId), 0);
 });
 
 // Every AI generator registers itself so the badge can discover it without

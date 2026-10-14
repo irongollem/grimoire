@@ -124,6 +124,17 @@ Proposal emails link `/play/settings` (the RSVP toggles).
 - **50 per run.** One invocation sends to at most 50 recipients, sequentially, to stay inside the function's time limit; `pending` says how many are left, and the admin runs it again. One `terms_notice_sent` audit row (`{ terms_version, sent, failed }`) is written per run that sent anything.
 - **Wording.** The "what's new" list is `TERMS_CHANGES` in `_shared/consent.ts`, the same list the in-app Terms gate shows. Rewrite it in the same change as a `TERMS_VERSION` bump. The email itself is `_shared/termsNotice.ts`; email addresses are never returned or logged.
 
+## Inactivity notice (admin)
+
+`send-inactivity-notice` is an admin-only edge function that emails accounts unused for 12 months, as the first half of the retention rule in the privacy policy: still unused 30 days after the notice, an admin may delete the account. Body `{ dryRun?: boolean }`; it returns `{ configured, pending, previouslyFailed, sent, failed, batchSize }`. A dry run only counts. `pending` is as it stands after the call (recipients still due minus `sent`).
+
+- **Manual only, by design.** An admin presses the button; deletion is a separate admin action after the 30 days.
+- **Who gets it, and why.** The recipients come from the `inactivity_notice_recipients()` RPC (service role only), which holds every account whose retention state is `notice_due`. Never due: Pro, Tester and admin accounts, parents of a child account, banned accounts, and players seated in a campaign whose DM was active within 12 months. A child account's notice goes to the parent's address; when no parent address is found the row carries the child's reserved login address, which the function skips (`isChildLoginEmail`), as it does a missing email.
+- **Real activity.** `last_active_at` is stamped by `touch_account_activity()`, which `src/main.ts` calls on `INITIAL_SESSION`, `SIGNED_IN` and `TOKEN_REFRESHED` through `src/lib/account/accountActivity.ts` (at most once an hour per user per tab, and the server also ignores a stamp within the hour). Any visit keeps the account.
+- **Idempotent.** After each attempt `record_inactivity_notice(user, sent)` stores `sent_at` or `failed_at`. A notice counts as sent only while it is newer than the last activity, so an account that returns and goes quiet again is mailed again, and a crash mid-run never mails anyone twice. Never-attempted recipients come first, earlier failures last.
+- **50 per run.** At most 50 recipients, sequentially; `pending` says how many are left. One `inactivity_notice_sent` audit row (`{ sent, failed }`) is written per run that sent anything.
+- **Wording.** `_shared/inactivityNotice.ts` (adult and parent variants; the deletion date is the send date plus 30 days). It is a service notice with no marketing content. Email addresses are never returned or logged.
+
 ## Configuration (production)
 
 Without configuration the function is deployed but inert (`{ configured:

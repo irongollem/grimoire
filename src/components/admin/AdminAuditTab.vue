@@ -173,6 +173,8 @@ function detailSummary(entry: AdminAuditEntry): string {
       return `${d.ledger_rows_anonymized ?? 0} ledger rows anonymized`;
     case "terms_notice_sent":
       return `version ${d.terms_version ?? "?"} · ${d.sent ?? "?"} sent, ${d.failed ?? "?"} failed`;
+    case "inactivity_notice_sent":
+      return `${d.sent ?? "?"} sent, ${d.failed ?? "?"} failed`;
     default:
       return "";
   }

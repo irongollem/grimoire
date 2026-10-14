@@ -69,6 +69,14 @@ afterwards.
   soft-opt-in exemptions in all three are built around an existing *sale*, so
   they do not cover users who have never paid.
 
+*Tooling (14 Oct 2026).* Admin → Users groups accounts by use (new, active,
+exploring, lapsed, bounced) and offers an **Email** link per row that opens the
+admin's own mail client on a pre-filled draft from an editable template. That is
+deliberately a draft per person, sent by hand from a human address, so it stays
+inside the conditions above; a "send to all" button would not. Note what the
+template may say: a list of what is new since the person left is a reason to come
+back, which is a pitch, and the privacy policy promises these emails carry none.
+
 **The objection record.** The two email purposes above rely on being genuinely
 stoppable, so a request to stop has to outlive the person who received it.
 Whatever form that record takes, it holds an email address indefinitely for the

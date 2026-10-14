@@ -1,110 +1,127 @@
 <template>
   <div class="space-y-4">
-    <AppInput
-      v-model="userSearch"
-      type="search"
-      size="body"
-      tone="muted"
-      placeholder="Search by email or name…"
-    />
+    <AccountRetentionPanel :users="allUsers" />
 
-    <div v-if="usersQuery.isPending.value" class="text-muted-foreground text-body">
-      Loading users…
+    <div class="space-y-3">
+      <div class="flex flex-wrap gap-2">
+        <AppButton
+          size="sm"
+          variant="subtle"
+          :active="ui.adminUsersSegment === 'all'"
+          :label="`All ${allUsers.length}`"
+          @click="ui.adminUsersSegment = 'all'"
+        />
+        <AppButton
+          v-for="seg in SEGMENT_ORDER"
+          :key="seg"
+          size="sm"
+          variant="subtle"
+          :active="ui.adminUsersSegment === seg"
+          :label="`${SEGMENT_INFO[seg].label} ${counts[seg]}`"
+          :title="SEGMENT_INFO[seg].description"
+          @click="ui.adminUsersSegment = seg"
+        />
+      </div>
+
+      <AppInput
+        v-model="ui.adminUsersSearch"
+        type="search"
+        size="body"
+        tone="muted"
+        placeholder="Search by email or name…"
+      />
+      <div class="flex flex-wrap gap-2 items-center">
+        <SegmentedControl v-model="ui.adminUsersRetention" :options="RETENTION_OPTIONS" size="sm" wrap />
+        <AppButton
+          v-if="ui.adminUsersHasActiveFilters"
+          variant="subtle"
+          size="sm"
+          label="Clear"
+          @click="ui.resetAdminUsersFilters()"
+        />
+      </div>
     </div>
+
+    <OutreachTemplateEditor v-model="template" @save="saveOutreachTemplate" @reset="template = resetOutreachTemplate()" />
+
+    <ListSkeleton v-if="usersQuery.isPending.value" variant="rows" :count="6" />
     <div v-else-if="usersQuery.isError.value" class="text-destructive text-body">
       Failed to load users.
     </div>
     <div v-else class="space-y-2">
       <p v-if="deleteError" class="text-caption-sm text-destructive">{{ deleteError }}</p>
-      <div
+      <AdminUserRow
         v-for="user in filteredUsers"
         :key="user.user_id"
-        class="rounded-lg border border-border bg-card px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
-      >
-        <div class="flex-1 min-w-0">
-          <p class="text-body text-foreground truncate">{{ user.email }}</p>
-          <p class="text-caption text-muted-foreground">
-            {{ user.display_name ?? '—' }}
-            <span class="mx-1 opacity-40">·</span>
-            Joined {{ formatDate(user.created_at) }}
-          </p>
-        </div>
-        <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <AppButton v-if="user.banned" as="span" variant="tinted" size="xs" tone="danger" label="Locked" />
-          <AppButton v-else-if="user.suspended_at" as="span" variant="tinted" size="xs" tone="caution" label="Frozen" />
-          <span class="text-label font-semibold px-2 py-0.5 rounded border"
-            :class="planBadgeClass(user.plan_id)">
-            {{ user.plan_id }}
-          </span>
-          <span class="text-caption text-muted-foreground">{{ user.ai_credits }} cr</span>
-          <div class="flex gap-1">
-            <!-- The current plan is the `active` one; AppButton blocks the click
-                 while disabled, so the guard the raw handler carried is gone. -->
-            <AppButton
-              v-for="pid in PLAN_IDS"
-              :key="pid"
-              variant="subtle"
-              size="xs"
-              :active="user.plan_id === pid"
-              :label="pid"
-              :disabled="user.plan_id === pid || usersQuery.setPlan.isPending.value"
-              @click="usersQuery.setPlan.mutate({ userId: user.user_id, planId: pid })"
-            />
-          </div>
-
-          <!-- Soft freeze (paid actions) -->
-          <AppButton
-            size="xs"
-            :variant="user.suspended_at ? 'tinted' : 'subtle'"
-            :tone="user.suspended_at ? 'caution' : undefined"
-            :emphasis="user.suspended_at ? 'outline' : undefined"
-            :label="user.suspended_at ? 'Unfreeze' : 'Freeze'"
-            :disabled="usersQuery.setSuspended.isPending.value"
-            @click="toggleFreeze(user)"
-          />
-
-          <!-- Hard lock-out (login ban) -->
-          <AppButton
-            size="xs"
-            :variant="user.banned ? 'tinted' : 'destructive'"
-            :tone="user.banned ? 'success' : undefined"
-            :emphasis="user.banned ? 'outline' : undefined"
-            :label="user.banned ? 'Unlock' : 'Lock out'"
-            :disabled="usersQuery.setBanned.isPending.value"
-            @click="toggleBan(user)"
-          />
-
-          <!-- Permanent erasure (#631) -->
-          <AppButton
-            size="xs"
-            variant="tinted"
-            tone="danger"
-            emphasis="soft"
-            label="Delete"
-            :disabled="usersQuery.deleteUser.isPending.value"
-            @click="deleteUserAccount(user)"
-          />
-        </div>
-      </div>
+        :user="user"
+        :template="template"
+        :now="now"
+        :busy="busy"
+        @set-plan="(u, planId) => usersQuery.setPlan.mutate({ userId: u.user_id, planId })"
+        @toggle-freeze="toggleFreeze"
+        @toggle-ban="toggleBan"
+        @delete="deleteUserAccount"
+      />
       <p v-if="filteredUsers.length === 0" class="text-body text-muted-foreground text-center py-8">
-        No users match your search.
+        No users match your filters.
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed, ref } from "vue";
 import { useAdminUsers, type AdminUser } from "@/composables/admin/useAdminUsers";
 import { accountDeletionErrorMessage } from "@/composables/account/useAccountDeletion";
 import { useConfirm } from "@/composables/useConfirm";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import type { PlanId } from "@/types/subscription.types";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import AccountRetentionPanel from "@/components/admin/AccountRetentionPanel.vue";
+import AdminUserRow from "@/components/admin/AdminUserRow.vue";
+import OutreachTemplateEditor from "@/components/admin/OutreachTemplateEditor.vue";
+import { useAdminUiStore } from "@/stores/ui/admin";
+import { accountSegment, countBySegment, SEGMENT_INFO, SEGMENT_ORDER } from "@/lib/admin/accountSegments";
+import {
+  loadOutreachTemplate,
+  resetOutreachTemplate,
+  saveOutreachTemplate,
+} from "@/lib/admin/outreachEmail";
 
 const usersQuery = useAdminUsers();
+const ui = useAdminUiStore();
 const { confirm } = useConfirm();
 const deleteError = ref("");
+const template = ref(loadOutreachTemplate());
+const now = new Date();
+
+const RETENTION_OPTIONS = [
+  { value: "all", label: "Any status" },
+  { value: "notice_due", label: "Notice due" },
+  { value: "notice_sent", label: "Notice sent" },
+  { value: "deletable", label: "Ready to delete" },
+] as const;
+
+const allUsers = computed(() => usersQuery.data.value ?? []);
+const counts = computed(() => countBySegment(allUsers.value, now));
+
+const busy = computed(() => ({
+  plan: usersQuery.setPlan.isPending.value,
+  freeze: usersQuery.setSuspended.isPending.value,
+  ban: usersQuery.setBanned.isPending.value,
+  delete: usersQuery.deleteUser.isPending.value,
+}));
+
+const filteredUsers = computed(() => {
+  const q = ui.adminUsersSearch.trim().toLowerCase();
+  return allUsers.value.filter((u) => {
+    if (ui.adminUsersSegment !== "all" && accountSegment(u, now) !== ui.adminUsersSegment) return false;
+    if (ui.adminUsersRetention !== "all" && u.retention_state !== ui.adminUsersRetention) return false;
+    if (!q) return true;
+    return u.email.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q);
+  });
+});
 
 async function toggleFreeze(user: AdminUser) {
   const suspend = !user.suspended_at;
@@ -148,26 +165,5 @@ async function deleteUserAccount(user: AdminUser) {
     const code = err instanceof Error ? err.message : String(err);
     deleteError.value = accountDeletionErrorMessage(code);
   }
-}
-
-const PLAN_IDS: PlanId[] = ["free", "tester", "pro"];
-const userSearch = ref("");
-
-const filteredUsers = computed(() => {
-  const q = userSearch.value.trim().toLowerCase();
-  if (!q) return usersQuery.data.value ?? [];
-  return (usersQuery.data.value ?? []).filter(
-    (u) => u.email.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q),
-  );
-});
-
-function planBadgeClass(planId: string) {
-  if (planId === "pro") return "border-tone-caution/40 text-ink-caution";
-  if (planId === "tester") return "border-tone-info/40 text-ink-info";
-  return "border-border text-muted-foreground";
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 </script>

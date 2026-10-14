@@ -19,6 +19,7 @@ export const ADMIN_AUDIT_ACTIONS = [
   "dsr_request_logged",
   "dsr_request_answered",
   "terms_notice_sent",
+  "inactivity_notice_sent",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
@@ -85,4 +86,5 @@ export const ADMIN_AUDIT_LABELS: Record<AdminAuditAction, string> = {
   dsr_request_logged: "Data request recorded",
   dsr_request_answered: "Data request answered",
   terms_notice_sent: "Terms notice sent",
+  inactivity_notice_sent: "Inactivity notice sent",
 };

@@ -23,7 +23,7 @@ decided answer, not that every number is small.
 
 | Category | What it is | Period | Mechanism |
 | --- | --- | --- | --- |
-| Account and authored content | Profile, subscription, preferences, consents, and the ~104 tables holding campaigns, characters, NPCs, notes, art rows, memberships | **As long as the account exists** | `on delete cascade` from `auth.users` — see data-subject-rights.md §2 |
+| Account and authored content | Profile, subscription, preferences, consents, `account_activity`, and the ~104 tables holding campaigns, characters, NPCs, notes, art rows, memberships | **As long as the account is used**: 12 months unused brings a notice, and the account is deleted if still unused 30 days after it (exemptions in §2) | `private.account_retention()` works out who is due what; `send-inactivity-notice` mails; the admin deletes through `delete-account`, so the `on delete cascade` from `auth.users` does the rest (data-subject-rights.md §2) |
 | Financial evidence | `ai_credit_ledger`, `purchase_consents` | **7 years** from the end of the financial year; anonymized earlier if the account is erased | `private.purge_expired_retention()` |
 | Accountability log | `admin_audit_log` | **7 years**, same clock | `private.purge_expired_retention()` |
 | Data-subject request log | `dsr_requests` | **7 years** from `received_at` — not `created_at`, which differs for the email channel | `private.purge_expired_retention()` |
@@ -52,6 +52,36 @@ cascade nor named in that test's two lists. A new table now has to be given an
 answer before the suite goes green.
 
 ## 2. The numbers that are not obvious
+
+**An unused account was the one category whose answer was "forever".** Until
+14 Oct 2026 the account row said "as long as the account exists", which for an
+account its owner walked away from resolves to never. The decided period
+(`20261014194554`): unused for 12 months, a notice; still unused 30 days after
+the notice, deleted. Three choices in it are deliberate:
+
+- **Activity is stamped by the app, not read from auth.** `last_sign_in_at` only
+  moves on a fresh sign-in and a refresh token avoids one for months, so in
+  production 25 of 36 accounts looked as if they were only ever used on their
+  first day. `touch_account_activity()` stamps `account_activity.last_active_at`
+  at most hourly; the table is deny-all, because an own-row write policy would let
+  an account set its own date to 2999 and opt out of the period.
+- **Activity after a notice cancels it without clearing anything.** The state
+  compares the notice timestamp with the last activity, so a visit simply makes
+  the notice stale, and the next 12 quiet months bring a fresh one.
+- **Deletion has a person behind it.** The sender is admin-triggered (like the
+  Terms notice) and so is the deletion, from Admin → Users, through the same
+  `delete-account` erasure as every other deletion. Irreversible, so not a cron.
+  The cost is that the period is only as punctual as the admin: the Users tab
+  shows the counts due a notice and past one, which is the prompt.
+
+Exempt, because deleting would be wrong or impossible: Pro, Tester and admin
+accounts (`is_user_pro`); a parent of a live child account (`delete-account`
+refuses it); a locked-out account (a "sign in to keep it" notice would be
+untrue, and abuse cases are reviewed by hand); and a player seated in a
+campaign whose DM has been active within the period, because their character is
+part of a game that is still going. A child account's notice goes to the
+parent's address. The public wording is section 5 of the privacy policy
+(marketing repo).
 
 **Seven years is measured from the end of the financial year, not from the row.**
 Art. 52 AWR runs the clock from the close of the book year the transaction fell

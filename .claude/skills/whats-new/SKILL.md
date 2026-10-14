@@ -199,13 +199,15 @@ Write `.claude/skills/whats-new/last-posted.json` with full 40-character hashes:
 
 `previous` is the way back: `/whats-new <previous>` covers the same range again.
 
-Commit that one file, by path, so it is not left loose in a checkout other work commits from with `-a`. The path after `--` is what keeps anything else already staged out of the commit; the `add` is there because a path-limited commit refuses a file git does not know yet:
+Then add the post's one or two biggest items to `src/lib/admin/releaseHighlights.ts`, one line each with today's date as `releasedAt`. That list feeds the admin's "what changed since you left" email to accounts that went quiet (Admin → Users), so write each line for someone who used the app once and never came back: what they would notice, in plain words, no issue numbers. Skip it when the post held only fixes.
+
+Commit those files, by path, so they are not left loose in a checkout other work commits from with `-a`. The paths after `--` are what keep anything else already staged out of the commit; the `add` is there because a path-limited commit refuses a file git does not know yet:
 
 ```bash
-git add .claude/skills/whats-new/last-posted.json
+git add .claude/skills/whats-new/last-posted.json src/lib/admin/releaseHighlights.ts
 git commit -m "chore(whats-new): record <short end> as the last announced commit" \
   -m "Co-Authored-By: <Model Name> <noreply@anthropic.com>" \
-  -- .claude/skills/whats-new/last-posted.json
+  -- .claude/skills/whats-new/last-posted.json src/lib/admin/releaseHighlights.ts
 ```
 
 Do not push.
