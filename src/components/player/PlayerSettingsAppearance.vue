@@ -1,17 +1,24 @@
 <template>
-  <!-- Theme override -->
-  <SettingsSection title="Appearance" description="Your DM sets the campaign theme. Override it here if you prefer a different look.">
-    <div class="flex items-center justify-between">
-      <p class="text-label-lg text-foreground ">Theme</p>
-      <!-- The selected option used to be a solid bg-primary fill — one of the
-           four rival "selected" treatments SegmentedControl exists to retire
-           in favour of AppButton's gold `active` tint. -->
-      <SegmentedControl
-        :model-value="currentOverride"
-        :options="THEME_OVERRIDE_OPTIONS"
-        size="sm"
-        class="shrink-0"
-        @update:model-value="setOverride"
+  <!-- Theme: the DM's list, plus following the campaign (#1059 era, 14 Oct 2026) -->
+  <SettingsSection title="Appearance" description="Your DM chooses the campaign's look. Pick your own here, or follow the campaign.">
+    <div class="flex flex-col gap-1.5" role="radiogroup" aria-label="Theme">
+      <ThemeSwatchButton
+        v-if="campaignTheme"
+        :theme="campaignTheme"
+        :label="`Follow campaign (${campaignTheme.label})`"
+        :active="themeOverride === followCampaign"
+        role="radio"
+        :aria-checked="themeOverride === followCampaign"
+        @select="setOverride(followCampaign)"
+      />
+      <ThemeSwatchButton
+        v-for="theme in themes"
+        :key="theme.id"
+        :theme="theme"
+        :active="themeOverride === theme.id"
+        role="radio"
+        :aria-checked="themeOverride === theme.id"
+        @select="setOverride(theme.id)"
       />
     </div>
   </SettingsSection>
@@ -55,39 +62,26 @@
 
   <!-- Reload app -->
   <SettingsSection title="App" description="If something looks stuck or out of date, a full reload fixes it.">
-    <button
-      type="button"
-      class="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 text-label-lg font-semibold text-foreground hover:border-primary/50 transition-colors"
-      @click="reloadApp"
-    >
-      <IconReset class="h-3.5 w-3.5" />
-      Reload app
-    </button>
+    <AppButton variant="outline" size="sm" label="Reload app" :icon="IconReset" @click="reloadApp" />
   </SettingsSection>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import SettingsSection from "@/components/common/settings/SettingsSection.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
-import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import ThemeSwatchButton from "@/components/common/settings/ThemeSwatchButton.vue";
 import { IconReset } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
-import type { ThemeOverride } from "@/lib/themeRuntime";
 import { useLocalePrefs } from "@/composables/useLocalePrefs";
 import { useWakeLock } from "@/composables/player/useWakeLock";
 import { formatChatTimestamp } from "@/lib/utils";
 
-const { themeOverride, setOverride } = useTheme();
-const currentOverride = themeOverride;
-
-const THEME_OVERRIDE_OPTIONS: { value: ThemeOverride; label: string }[] = [
-  { value: "campaign", label: "Campaign" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-  { value: "system", label: "System" },
-];
+const { themes, themeOverride, campaignThemeId, followCampaign, setOverride } = useTheme();
+/** The campaign's own theme, drawn on the "Follow campaign" choice. */
+const campaignTheme = computed(() => themes.find((t) => t.id === campaignThemeId.value) ?? null);
 
 const FALLBACK_LOCALES = [
   "en-US","en-GB","nl-NL","nl-BE","de-DE","fr-FR","fr-BE","es-ES","it-IT",

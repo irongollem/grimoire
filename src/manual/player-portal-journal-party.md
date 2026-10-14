@@ -62,7 +62,7 @@ Reached from the hamburger menu. Sections, top to bottom:
 - **Email Notifications**: separate toggles for "Shared session notes" and "Session date proposals".
 - **Combat Notifications**: "Turn audio cue" and "Dice roll sounds" toggles.
 - **Dice**: choose where rolls come from (the built-in digital roller, or a physical-dice entry mode).
-- **Appearance**: theme override (Campaign / Light / Dark / System) and a chat-timestamp locale override.
+- **Appearance**: your own theme. **Follow campaign** uses the look your DM chose; or pick any of the same themes your DM can choose from. Also a chat-timestamp locale override.
 - **Screen**: a wake-lock toggle to keep the device awake during long sessions.
 - **App**: a force-reload if the app looks stuck or stale.
 - **Account**: links out to the account page for billing and account-level settings.

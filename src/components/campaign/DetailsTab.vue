@@ -109,24 +109,13 @@
     <div>
       <label class="block text-label-lg font-semibold text-muted-foreground mb-2">THEME</label>
       <div class="flex flex-col gap-1.5">
-        <AppButton
+        <ThemeSwatchButton
           v-for="theme in themes"
           :key="theme.id"
-          variant="outline"
-          fill="muted"
-          size="md"
-          block
+          :theme="theme"
           :active="form.theme === theme.id"
-          @click="form.theme = theme.id"
-        >
-          <div class="shrink-0 flex gap-1">
-            <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--background'] }" />
-            <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--primary'] }" />
-            <span class="block h-4 w-4 rounded-full border border-black/10" :style="{ background: theme.vars['--card'] }" />
-          </div>
-          <span class="flex-1 text-caption font-semibold text-foreground">{{ theme.label }}</span>
-          <IconCheck v-if="form.theme === theme.id" class="h-3.5 w-3.5 text-primary shrink-0" />
-        </AppButton>
+          @select="form.theme = theme.id"
+        />
       </div>
     </div>
 
@@ -200,6 +189,7 @@
 import { DEFAULT_THEME_ID } from "@/lib/themes";
 import { ref, computed } from "vue";
 import { IconCheck, IconGenerate } from '@/lib/icons';
+import ThemeSwatchButton from '@/components/common/settings/ThemeSwatchButton.vue';
 import { useTheme } from "@/composables/useTheme";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById, useUpdateCampaign } from "@/composables/campaign/useCampaigns";

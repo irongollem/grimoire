@@ -14,7 +14,17 @@ const STORAGE_KEY = "grimoire-theme";
 export const SPLASH_COLORS_KEY = "grimoire-splash-colors";
 const OVERRIDE_KEY = "grimoire-theme-override";
 
-export type ThemeOverride = "campaign" | "light" | "dark" | "system";
+/**
+ * The player's own theme (maintainer, 14 Oct 2026: "let players pick just as a
+ * DM can, but leave follow campaign in there"): `"campaign"` follows the DM's
+ * choice, anything else is the id of the theme they picked. It replaced a
+ * light/dark/system switch that only moved within the campaign's family, so a
+ * player at a Tome table could never have Vellum.
+ */
+export type ThemeOverride = string;
+export const FOLLOW_CAMPAIGN = "campaign";
+
+const isThemeId = (id: string | null): id is string => id !== null && THEMES.some((t) => t.id === id);
 
 const activeId = ref<string>(safeLocalStorage().getItem(STORAGE_KEY) ?? DEFAULT_THEME_ID);
 /** The theme the campaign asked for, before the player's override. STORAGE_KEY
@@ -26,9 +36,10 @@ const campaignThemeId = ref<string>(
   safeLocalStorage().getItem(CAMPAIGN_KEY) ?? safeLocalStorage().getItem(STORAGE_KEY) ?? DEFAULT_THEME_ID,
 );
 
-const themeOverride = ref<ThemeOverride>(
-  (safeLocalStorage().getItem(OVERRIDE_KEY) as ThemeOverride) ?? "campaign",
-);
+// Anything stored that is not a theme id (the light/dark/system values the old
+// switch saved among them) follows the campaign.
+const storedOverride = safeLocalStorage().getItem(OVERRIDE_KEY);
+const themeOverride = ref<ThemeOverride>(isThemeId(storedOverride) ? storedOverride : FOLLOW_CAMPAIGN);
 
 /**
  * The member of `themeId`'s family in the given mode: a player who prefers dark
@@ -58,19 +69,9 @@ export function darkTwinStyle(themeId: string): Record<string, string> {
   return theme ? { ...theme.vars } : {};
 }
 
-/** Read the browser's current preferred colour scheme. */
-function systemMode(): "light" | "dark" {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-/** Resolve the campaign theme through the player's light, dark or system override. */
+/** The theme to apply: the player's own pick, else the campaign's. */
 function resolveThemeId(campaignThemeId: string): string {
-  switch (themeOverride.value) {
-    case "light":  return themeInMode(campaignThemeId, "light");
-    case "dark":   return themeInMode(campaignThemeId, "dark");
-    case "system": return themeInMode(campaignThemeId, systemMode());
-    default:       return campaignThemeId;
-  }
+  return isThemeId(themeOverride.value) ? themeOverride.value : campaignThemeId;
 }
 
 /** Every custom property any theme sets, so a switch can clear the ones the
@@ -110,8 +111,8 @@ export function setTheme(id: string) {
 
 /** Persist the player's override and immediately reapply the campaign theme. */
 export function setOverride(override: ThemeOverride) {
-  themeOverride.value = override;
-  safeLocalStorage().setItem(OVERRIDE_KEY, override);
+  themeOverride.value = isThemeId(override) ? override : FOLLOW_CAMPAIGN;
+  safeLocalStorage().setItem(OVERRIDE_KEY, themeOverride.value);
   // Re-apply with the campaign's theme — the override will resolve it
   setTheme(campaignThemeId.value);
 }
@@ -119,17 +120,11 @@ export function setOverride(override: ThemeOverride) {
 /** Call once at app startup to restore the saved theme. */
 export function initTheme() {
   setTheme(campaignThemeId.value);
-
-  // Listen for system preference changes when in "system" mode
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    if (themeOverride.value === "system") {
-      const theme = THEMES.find((t) => t.id === themeInMode(campaignThemeId.value, systemMode()));
-      if (theme) applyTheme(theme);
-    }
-  });
 }
 
 /** The applied theme id, read-only. */
 export const activeThemeId = readonly(activeId);
-/** The player's light/dark/system override, read-only. */
+/** The theme the campaign asked for, before the player's own pick, read-only. */
+export const campaignThemeIdState = readonly(campaignThemeId);
+/** The player's own theme, or "campaign", read-only. */
 export const themeOverrideState = readonly(themeOverride);

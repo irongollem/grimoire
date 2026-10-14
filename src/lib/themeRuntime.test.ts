@@ -67,14 +67,25 @@ describe("applyTheme", () => {
     expect(root.getAttribute("data-theme")).toBe("tome");
   });
 
-  it("resolves overrides from the campaign theme, not the last applied one", () => {
+  it("applies the player's own theme over any campaign's, and follows the campaign again on request", () => {
+    setOverride("campaign");
+    setTheme("tome");
+    expect(activeThemeId.value).toBe("tome");
+    setOverride("vellum");
+    expect(activeThemeId.value).toBe("vellum");
+    // The DM changing the campaign does not move a player who picked their own.
+    setTheme("grimoire");
+    expect(activeThemeId.value).toBe("vellum");
+    setOverride("campaign");
+    expect(activeThemeId.value).toBe("grimoire");
+  });
+
+  it("follows the campaign for anything that is not a theme, the old light/dark/system values included", () => {
     setOverride("campaign");
     setTheme("vellum");
     setOverride("dark");
-    expect(activeThemeId.value).toBe("vellum-dark");
-    setOverride("light");
     expect(activeThemeId.value).toBe("vellum");
-    setOverride("campaign");
+    setOverride("no-such-theme");
     expect(activeThemeId.value).toBe("vellum");
   });
 });

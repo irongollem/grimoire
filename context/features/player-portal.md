@@ -525,7 +525,7 @@ Personal preferences for the player's session:
 - **Email Notifications** — Toggles for emails when the DM publishes something for you. Hidden entirely for a young player's account (#919): it has no email of its own to notify, so `PlayerSettingsNotifications.vue` renders nothing for this section when `useChildAccount().isChild` is true. See [young-players.md](young-players.md)
 - **Combat Notifications** — Toggle for turn audio cue (chime when your turn starts) and dice roll sounds (clack per roll; distinct crit/fumble sounds)
 - **Dice** — Tool mode (digital dice roller) vs Physical mode (prompts to enter your own roll result)
-- **Appearance** — Theme override: Campaign (DM's chosen theme) / Light / Dark / System
+- **Appearance**: the player's own theme (14 Oct 2026): "Follow campaign" (drawn in the campaign theme's swatches) or any theme the DM can pick, the same `ThemeSwatchButton` list as the DM's Details tab. `themeRuntime` stores `"campaign"` or a theme id under `grimoire-theme-override`; anything else, the old light/dark/system values included, follows the campaign. It replaced a light/dark/system switch that only moved within the campaign's family, so a player at a Tome table could never have Vellum
 - **Timestamps** — Override chat timestamp format; defaults to the browser's locale
 - **Screen** — Wake lock toggle (prevents device sleep during long sessions)
 - **App** — Install PWA prompt (native on Chrome/Edge, manual instructions for iOS/Android)
