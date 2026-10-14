@@ -33,18 +33,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { IconClock } from "@/lib/icons";
-import { useToast } from "@/composables/useToast";
-import {
-  useCampaignSession,
-  isSessionStale,
-  formatSessionElapsed,
-} from "@/composables/campaign/useCampaignSession";
+import { isSessionStale, formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
+import { useSessionActions } from "@/composables/sessions/useSessionActions";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
-const toast = useToast();
-const { session, loaded, pending, end } = useCampaignSession();
+// The shared end: the same toast as every other End, with its Undo, which is
+// what a wrong answer here needs (#1058).
+const { session, loaded, pending, endSession } = useSessionActions();
 
 const open = ref(false);
 /**
@@ -84,13 +81,7 @@ function keepRunning() {
 async function onEnd() {
   answered.value = true;
   try {
-    const closed = await end();
-    const parts: string[] = [];
-    if (closed.encounters_ended) parts.push(`${closed.encounters_ended} encounter${closed.encounters_ended === 1 ? "" : "s"} stopped`);
-    if (closed.chains_paused) parts.push(`${closed.chains_paused} quest${closed.chains_paused === 1 ? "" : "s"} paused`);
-    toast.success(parts.length ? `Session ended: ${parts.join(", ")}.` : "Session ended.");
-  } catch (cause) {
-    toast.error(cause instanceof Error ? cause.message : "The session could not be ended");
+    await endSession();
   } finally {
     open.value = false;
   }

@@ -57,13 +57,23 @@ Ending closes what the session contains:
 - Any running encounter stops.
 - Every open quest chain **pauses at its current beat**: nothing is lost. Next session you pick each one up exactly where the party left it, and the paused chains are listed on your dashboard in the meantime.
 
-A toast confirms what happened, e.g. "Session ended: 1 encounter stopped, 2 quests paused." The session stays in your log.
+A toast confirms what happened, e.g. "Session ended: 1 encounter stopped, 2 quests paused." The session stays in your log. The toast has an **Undo** button: if you ended it by mistake, click it and the same session carries on.
 
 ### Ending it matters
 
 While a session runs, your reveals reach your players. A session you forgot to end is still broadcasting on Wednesday afternoon, so the reveal you make while prepping next week's dungeon lands in the party's chat.
 
 The live rail (under the session control) shows how long the session has been running, which is usually enough to notice. If one has been running for more than six hours, Grimoire asks **Still playing?** the next time you open the app: a dialog, not a toast, because the question has real consequences and a toast that times out would default to "keep broadcasting." Answer **Still playing** to keep it running or **End session** to close it.
+
+### Continuing a session
+
+An evening sometimes ends before the table does: a mis-tap on **End**, the wrong answer to **Still playing?**, or a long dinner break. Pick it back up rather than starting a new one, so the whole evening stays one session in the log.
+
+When the last session you ran has ended, the **Start session** dialog offers a choice at the top: **Continue session 14** or **Start session 15**. Continue reopens that session with its number, title and clock. Anything you shared with the players during the break is filed under it too. Its length in the log runs from when it first started to when it last ended, break included.
+
+Grimoire picks **Continue** for you when the session ended in the last four hours and started within the last day, which is what a break looks like. Otherwise it picks **Start**, and you can switch either way. Only the most recent session can be continued, and not while another one is running. Encounters that ending stopped and quest chains it paused stay that way; pick them up as you would at the start of any session.
+
+If an interrupted evening already became two sessions, merge them from the log (below).
 
 ## The Sessions section
 

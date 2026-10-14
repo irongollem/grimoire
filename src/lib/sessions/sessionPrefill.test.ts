@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { CampaignSession } from "@/types/session.types";
 import type { SessionProposal } from "@/types/scheduling.types";
 import {
+  continuableSession,
+  continueLabel,
+  formatEndedAgo,
   formatSessionDay,
   lastPlayedSession,
+  prefersContinue,
   nextSessionNumber,
   sortSessionLog,
   todaysScheduledSession,
@@ -66,5 +70,66 @@ describe("todaysScheduledSession", () => {
   });
   it("ignores other days", () => {
     expect(todaysScheduledSession([p({ proposed_date: "2026-10-07" })], "2026-10-06")).toBeNull();
+  });
+});
+
+describe("continuableSession", () => {
+  const older = row({ id: "a", number: 13, started_at: "2026-09-20T19:00:00Z", ended_at: "2026-09-20T23:00:00Z" });
+  const ended = row({ id: "b", number: 14, started_at: "2026-10-06T19:00:00Z", ended_at: "2026-10-06T21:00:00Z" });
+  const logged = row({ id: "c", number: 15, played_on: "2026-10-07" });
+
+  it("offers the most recent run once it has ended", () => {
+    expect(continuableSession([older, ended])?.id).toBe("b");
+  });
+  it("skips a session logged by hand, which had no run", () => {
+    expect(continuableSession([older, ended, logged])?.id).toBe("b");
+  });
+  it("offers nothing while a session is open", () => {
+    expect(continuableSession([older, row({ id: "d", started_at: "2026-10-08T19:00:00Z" })])).toBeNull();
+  });
+  it("offers nothing in a log that was never run", () => {
+    expect(continuableSession([logged])).toBeNull();
+  });
+});
+
+describe("prefersContinue", () => {
+  const at = (iso: string) => Date.parse(iso);
+  const tonight = { started_at: "2026-10-06T19:00:00Z", ended_at: "2026-10-06T21:00:00Z" };
+
+  it("continues after a break at the table", () => {
+    expect(prefersContinue(tonight, at("2026-10-06T21:40:00Z"))).toBe(true);
+  });
+  it("starts afresh once the break is longer than an evening's", () => {
+    expect(prefersContinue(tonight, at("2026-10-07T01:30:00Z"))).toBe(false);
+  });
+  it("starts afresh after a forgotten session, however recently it was closed", () => {
+    const forgotten = { started_at: "2026-10-02T19:00:00Z", ended_at: "2026-10-05T15:00:00Z" };
+    expect(prefersContinue(forgotten, at("2026-10-05T16:00:00Z"))).toBe(false);
+  });
+  it("continues a long evening that \"Still playing?\" ended by mistake", () => {
+    const marathon = { started_at: "2026-10-06T12:00:00Z", ended_at: "2026-10-06T19:00:00Z" };
+    expect(prefersContinue(marathon, at("2026-10-06T19:05:00Z"))).toBe(true);
+  });
+  it("has no opinion about a session that is running or was never run", () => {
+    expect(prefersContinue({ started_at: "2026-10-06T19:00:00Z", ended_at: null })).toBe(false);
+    expect(prefersContinue({ started_at: null, ended_at: null })).toBe(false);
+  });
+});
+
+describe("continueLabel / formatEndedAgo", () => {
+  it("names the session it continues", () => {
+    expect(continueLabel({ number: 14 })).toBe("Continue session 14");
+    expect(continueLabel({ number: null })).toBe("Continue session");
+  });
+  const ended = row({ started_at: "2026-10-06T19:00:00Z", ended_at: "2026-10-06T21:00:00Z" });
+  const at = (iso: string) => Date.parse(iso);
+  it("says how long the break has been", () => {
+    expect(formatEndedAgo(ended, at("2026-10-06T21:00:30Z"))).toBe("ended just now");
+    expect(formatEndedAgo(ended, at("2026-10-06T21:01:00Z"))).toBe("ended 1 minute ago");
+    expect(formatEndedAgo(ended, at("2026-10-06T21:20:00Z"))).toBe("ended 20 minutes ago");
+    expect(formatEndedAgo(ended, at("2026-10-06T23:30:00Z"))).toBe("ended 2 hours ago");
+  });
+  it("names the day once it was another day", () => {
+    expect(formatEndedAgo(ended, at("2026-10-09T20:00:00Z"))).toBe("played Tuesday 6 October");
   });
 });

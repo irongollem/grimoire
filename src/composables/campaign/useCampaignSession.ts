@@ -78,6 +78,13 @@ export interface StartSessionOptions {
   title?: string | null;
   /** The scheduled session whose title prefilled the dialog. */
   proposalId?: string | null;
+  /**
+   * Continue this ended session instead of starting a new one (#1058): the row
+   * is reopened, so an evening interrupted by a mis-tap on End or a long break
+   * stays one session. Number, title and proposal are the session's own then,
+   * and are ignored.
+   */
+  continueId?: string | null;
 }
 
 export function useCampaignSession() {
@@ -118,20 +125,25 @@ export function useCampaignSession() {
     const previousId = session.value?.campaign_id === campaignId ? session.value.id : null;
     pending.value = true;
     try {
-      const { data, error } = await supabase.rpc("start_campaign_session", {
-        p_campaign_id: campaignId,
-        p_number: options.number ?? null,
-        p_title: options.title?.trim() || null,
-        p_proposal_id: options.proposalId ?? null,
-      });
+      const { data, error } = options.continueId
+        ? await supabase.rpc("resume_campaign_session", { p_session_id: options.continueId })
+        : await supabase.rpc("start_campaign_session", {
+            p_campaign_id: campaignId,
+            p_number: options.number ?? null,
+            p_title: options.title?.trim() || null,
+            p_proposal_id: options.proposalId ?? null,
+          });
       if (error) throw error;
       const row = data as CampaignSession;
       adopt(row);
       void queryClient.invalidateQueries({ queryKey: ["campaign-sessions"] });
-      // The RPC files the prep moments (reveals) under the new session.
+      // Both RPCs file what was shared while nothing was open (prep, or the
+      // break) under the session they open.
       void queryClient.invalidateQueries({ queryKey: ["npc-reveals"] });
       void queryClient.invalidateQueries({ queryKey: [SESSION_LEARNED_KEY] });
-      if (row.id !== previousId) void announceSessionStart(campaignId);
+      if (row.id !== previousId) {
+        void announceSessionStart(campaignId, options.continueId ? "⚔️ The session continues." : undefined);
+      }
     } finally {
       pending.value = false;
     }
@@ -186,9 +198,9 @@ export function useCampaignSession() {
  * announcement is a session; a start that failed because chat was unreachable
  * is a DM standing at a table that will not begin.
  */
-async function announceSessionStart(campaignId: string): Promise<void> {
+async function announceSessionStart(campaignId: string, message = "⚔️ The session begins."): Promise<void> {
   try {
-    await sendCampaignAnnouncement(campaignId, "⚔️ The session begins.");
+    await sendCampaignAnnouncement(campaignId, message);
   } catch (cause) {
     console.error("The session started but could not be announced", cause);
   }

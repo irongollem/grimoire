@@ -15,9 +15,14 @@ vi.mock("@/lib/supabase", () => ({
   supabase: { rpc: (...args: unknown[]) => rpc(...args), from: () => sessionRead },
 }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "campaign-1" }) }));
-vi.mock("@/composables/campaign/useCampaignBroadcast", () => ({ sendCampaignAnnouncement: vi.fn() }));
+const announce = vi.fn();
+vi.mock("@/composables/campaign/useCampaignBroadcast", () => ({
+  sendCampaignAnnouncement: (...args: unknown[]) => announce(...args),
+}));
 vi.mock("@/composables/quests/useQuestFlow", () => ({ QUEST_RUNTIME_QUERY_KEYS: [] }));
 
+import { createApp, defineComponent, h } from "vue";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
 import { useAppUiStore } from "@/stores/ui/app";
 import {
@@ -27,6 +32,7 @@ import {
   isSessionStale,
   refetchCampaignSession,
   STALE_SESSION_HOURS,
+  useCampaignSession,
 } from "./useCampaignSession";
 import type { CampaignSession } from "@/types/session.types";
 
@@ -39,6 +45,7 @@ async function readSession(open: CampaignSession | null): Promise<void> {
 beforeEach(async () => {
   setActivePinia(createPinia());
   rpc.mockReset();
+  announce.mockReset();
   // Clear the module's live session through the real API: the log has no open row.
   await readSession(null);
 });
@@ -166,5 +173,42 @@ describe("ensureCampaignSession", () => {
     rpc.mockResolvedValue({ data: row({ id: "new" }), error: null });
     expect(await ensureCampaignSession("campaign-1")).toEqual({ id: "new", started: true });
     expect(rpc).toHaveBeenCalledWith("start_campaign_session", { p_campaign_id: "campaign-1" });
+  });
+});
+
+/** The composable needs a component and a query client around it. */
+function mountSession(): ReturnType<typeof useCampaignSession> {
+  let live!: ReturnType<typeof useCampaignSession>;
+  const app = createApp(
+    defineComponent({
+      setup() {
+        live = useCampaignSession();
+        return () => h("div");
+      },
+    }),
+  );
+  app.use(VueQueryPlugin, { queryClient: new QueryClient() });
+  app.mount(document.createElement("div"));
+  return live;
+}
+
+describe("continuing an ended session (#1058)", () => {
+  it("reopens the row instead of starting another, and says so to the table", async () => {
+    const live = mountSession();
+    rpc.mockResolvedValue({ data: row({ id: "s14", number: 14 }), error: null });
+    await live.start({ continueId: "s14", number: 15, title: "ignored" });
+    expect(rpc).toHaveBeenCalledWith("resume_campaign_session", { p_session_id: "s14" });
+    expect(rpc).not.toHaveBeenCalledWith("start_campaign_session", expect.anything());
+    expect(live.session.value?.id).toBe("s14");
+    expect(useAppUiStore().sessionRunning).toBe(true);
+    expect(announce).toHaveBeenCalledWith("campaign-1", "⚔️ The session continues.");
+  });
+
+  it("starts a new one when nothing is continued", async () => {
+    const live = mountSession();
+    rpc.mockResolvedValue({ data: row({ id: "s15", number: 15 }), error: null });
+    await live.start({ number: 15 });
+    expect(rpc).toHaveBeenCalledWith("start_campaign_session", expect.objectContaining({ p_number: 15 }));
+    expect(announce).toHaveBeenCalledWith("campaign-1", "⚔️ The session begins.");
   });
 });

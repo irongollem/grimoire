@@ -71,7 +71,13 @@ import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import { useSessionNoteLinks, useSessionRecap } from "@/composables/notes/useNotes";
 import { pickNextSession, sessionTimeRange } from "@/lib/calendar/nextSession";
 import { sessionLabel, sessionShortLabel } from "@/lib/sessions/sessionLabel";
-import { lastPlayedSession, nextSessionNumber } from "@/lib/sessions/sessionPrefill";
+import {
+  continuableSession,
+  continueLabel,
+  lastPlayedSession,
+  nextSessionNumber,
+  prefersContinue,
+} from "@/lib/sessions/sessionPrefill";
 import {
   countOf,
   isRunningSession,
@@ -106,7 +112,11 @@ const noted = computed(() => new Set((noteLinks.value ?? []).flatMap((n) => (n.s
 const gaps = computed(() => sessionsWithoutNotes(log.value ?? [], noted.value).slice(0, 2));
 
 const elapsed = computed(() => formatSessionElapsed(running.value?.started_at ?? null, now.value.getTime()));
+// Says what the dialog will default to: continuing tonight's session after a
+// break (#1058), otherwise starting the next.
 const startLabel = computed(() => {
+  const continuable = continuableSession(log.value ?? []);
+  if (continuable && prefersContinue(continuable, now.value.getTime())) return continueLabel(continuable);
   const number = nextSessionNumber(log.value ?? []);
   return number === null ? "Start session" : `Start session ${number}`;
 });
