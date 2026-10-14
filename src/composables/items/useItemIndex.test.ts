@@ -33,7 +33,7 @@ vi.mock("@/composables/library/useEnabledSources", () => ({
 }));
 vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ ruleset: ref("2024") }) }));
 vi.mock("pinia", async (orig) => ({ ...(await orig<typeof import("pinia")>()), storeToRefs: (s: unknown) => s }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: ref("camp-1") }) }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: ref("camp-1"), activeCampaign: ref({ id: "camp-1", user_id: "owner-1" }) }) }));
 
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import type { ItemIndexEntry } from "@/types/item.types";
@@ -72,8 +72,12 @@ describe("useItemIndex (#972)", () => {
     expect(cols).not.toBe("*");
     expect(cols).toContain("item_type");
     expect(cols).toContain("rarity");
-    expect(own?.ops).toContainEqual(["eq", ["user_id", "user-1"]]);
-    expect(own?.ops).toContainEqual(["or", ["campaign_id.eq.camp-1,campaign_id.is.null"]]);
+    // Co-DM (#590): the campaign's rows by any author, plus the caller's and the owner's library.
+    expect(own?.ops).toContainEqual([
+      "or",
+      ["campaign_id.eq.camp-1,and(campaign_id.is.null,user_id.in.(user-1,owner-1))"],
+    ]);
+    expect(own?.ops.some(([m, a]) => m === "eq" && a[0] === "user_id")).toBe(false);
     expect(own?.ops).toContainEqual(["or", ["ruleset.is.null,ruleset.eq.2024"]]);
   });
 

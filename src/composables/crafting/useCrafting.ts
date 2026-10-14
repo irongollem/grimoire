@@ -2,6 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import type {
   CraftingRecipe,
   CraftingRecipeInsert,
@@ -719,7 +720,9 @@ export function useImportStarterRecipes() {
         supabase
           .from("items")
           .select("id, name")
-          .eq("user_id", user!.id)
+          // Co-DM (#590): the campaign's items whoever authored them, plus the
+          // caller's and the owner's library, so a co-DM does not mint a second copy.
+          .or(campaignScopeFilter(campaignId, user!.id, campaign.activeCampaign?.user_id ?? null))
           .in("name", outputNames),
         supabase
           .from("library_items")

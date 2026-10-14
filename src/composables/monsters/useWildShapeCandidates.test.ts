@@ -35,7 +35,7 @@ const rules = wildShapeRules({ edition: "2024", druidLevel: 4, isCircleOfMoon: f
 
 const entry = (id: string, name: string, over: Partial<MonsterIndexEntry> = {}): MonsterIndexEntry => ({
   id, name, monster_type: "beast", size: "medium", challenge_rating: "1/4", speed: "40 ft.", source: "x",
-  source_title: null, image_url: null, portrait_focal_point: null, cutout_url: null, is_shared: true, campaign_id: null,
+  source_title: null, image_url: null, portrait_focal_point: null, cutout_url: null, is_shared: true, campaign_id: null, user_id: null,
   ...over,
 });
 

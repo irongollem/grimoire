@@ -106,6 +106,7 @@ import { formatChatTimestamp } from "@/lib/utils";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import { useCampaignDmIds } from "@/composables/campaign/useCampaignDmIds";
 import type { Item, ItemEntry } from "@/types/item.types";
 
 const {
@@ -114,7 +115,6 @@ const {
   canWriteEntries,
   authorPartyMemberId,
   canModerate,
-  dmUserId,
   hideContent = false,
 } = defineProps<{
   item: Item;
@@ -129,16 +129,10 @@ const {
    *  so it suppresses the read-only content block that every other parent
    *  wants. */
   hideContent?: boolean;
-  /**
-   * The campaign owner's user id. An entry is labelled "DM" only when
-   * `entry.user_id` matches this — never merely because `party_member_id` is
-   * null, since `item_entries_insert` accepts a null `party_member_id` from
-   * any campaign member (a player with no linked character posts null too).
-   */
-  dmUserId: string | null;
 }>();
 
 const auth = useAuthStore();
+const dmIds = useCampaignDmIds();
 const { confirm } = useConfirm();
 
 const itemId = computed(() => item.id);
@@ -168,7 +162,10 @@ function isBlankDoc(json: string | null): boolean {
 }
 
 function authorLabel(entry: ItemEntry): string {
-  if (entry.user_id === dmUserId) return "DM";
+  // An entry is labelled "DM" only when its author is a DM of the campaign (owner or
+  // co-DM), never merely because `party_member_id` is null: `item_entries_insert`
+  // accepts null from any member (a player with no linked character posts null too).
+  if (dmIds.value.has(entry.user_id)) return "DM";
   const member = partyMembers.value?.find((m) => m.id === entry.party_member_id);
   return member?.name ?? "Unknown hand";
 }

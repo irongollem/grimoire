@@ -164,6 +164,9 @@ export interface MonsterIndexEntry {
   cutout_url: string | null;
   is_shared: boolean;
   campaign_id: string | null;
+  /** Author of an own row; null for a library row. With `campaign_id` null and
+   *  another account's id, it is another DM's library (#590): readable, not editable. */
+  user_id: string | null;
 }
 
 export interface DiscoveredMonster {

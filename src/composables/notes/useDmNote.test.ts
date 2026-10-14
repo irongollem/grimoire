@@ -173,7 +173,7 @@ describe("useDmNote", () => {
     handle.draft.content = doc("Patron of the watch");
     await settle();
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
-      entity_type: "deity", entity_id: "d1", is_private: true, shared_with_dm: false, campaign_id: "camp-of-tyr",
+      entity_type: "deity", entity_id: "d1", is_private: true, shared_with_dm: false, written_as_dm: true, campaign_id: "camp-of-tyr",
     }));
     expect(mocks.updates).toHaveLength(0);
     expect(mocks.upserts[0].row).toMatchObject({ entity_type: "deity", entity_label: "Tyr" });

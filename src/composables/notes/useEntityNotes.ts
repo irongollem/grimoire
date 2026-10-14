@@ -30,6 +30,8 @@ export function useCreateEntityNote() {
       is_private: boolean;
       shared_with_dm?: boolean;
       campaign_id?: string | null;
+      /** Only kept for a note without a campaign; the server stamps a campaign note's. */
+      written_as_dm?: boolean;
     }) => {
       const user = getCurrentUser();
       const { data, error } = await supabase

@@ -173,6 +173,26 @@ describe("reading what ends a save's conditions (#1050)", () => {
     expect(firstEnd(saveOf("The target must succeed on a DC 18 Wisdom saving throw or be charmed by the vampire for 24 hours.", "Charm"))).toBeUndefined();
   });
 
+  it("reads a count with no 'for' straight after the condition, and caps a repeat with it", () => {
+    const rattleback =
+      "Melee Weapon Attack: +8 to hit, 5 ft., one target, 14 (2d8+5) piercing damage + 7 (2d6) poison. Target: DC 15 Con save or poisoned 1 min. While poisoned this way target can't regain hp. Target can re-save at end of each of its turns success ends effect on itself.";
+    expect(saveOf(rattleback, "Bite")?.conditions).toEqual([{ name: "Poisoned", ends: { kind: "save", at: "end", remaining: 10 } }]);
+    expect(saveOf("Target: DC 13 Wis save or frightened 2 rounds.", "Glare")?.conditions).toEqual([
+      { name: "Frightened", ends: { kind: "rounds", remaining: 2 } },
+    ]);
+    // A bare hour is still left to the DM, and a count elsewhere in the prose is no condition's.
+    expect(firstEnd(saveOf("Target: DC 13 Con save or poisoned 1 hour.", "Sting"))).toBeUndefined();
+    expect(firstEnd(saveOf("Within 1 minute of eating, target: DC 13 Con save or poisoned.", "Sting"))).toBeUndefined();
+  });
+
+  it("holds a terse count to the condition it follows in the prose check", () => {
+    const con15 = { ability: "con", dc: 15 } as const;
+    const terse = "Target: DC 15 Con save or poisoned 1 min. Target can re-save at end of each of its turns success ends effect on itself.";
+    expect(endsInProse({ kind: "save", at: "end", remaining: 10 }, terse, con15, "Poisoned")).toBe(true);
+    expect(endsInProse({ kind: "rounds", remaining: 10 }, terse, con15, "Poisoned")).toBe(true);
+    expect(endsInProse({ kind: "rounds", remaining: 10 }, "Within 1 minute, target: DC 15 Con save or poisoned.", con15, "Poisoned")).toBe(false);
+  });
+
   it("gives each condition its own duration", () => {
     expect(
       firstEnd(saveOf("Hit: 20 (4d8 + 2) poison damage, and the target must succeed on a DC 15 Constitution saving throw or be poisoned and blinded until the end of its next turn.")),

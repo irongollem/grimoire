@@ -214,6 +214,7 @@ export function useDmNote(subject: MaybeRefOrGetter<DmNoteSubject | null>) {
     notes: () => entityNotes.data.value,
     userId: () => auth.user?.id,
     isPrivate: true,
+    writtenAsDm: true,
     campaignFor: (snapshot) => entityCampaign(snapshot.entityType as DmNoteEntityType, snapshot.entityId),
     onSaved: (snapshot) => {
       const type = snapshot.entityType as DmNoteEntityType;

@@ -62,6 +62,12 @@ export function useMyEntityNote(options: {
   userId: MaybeRefOrGetter<string | null | undefined>;
   isPrivate: boolean;
   /**
+   * Which of the viewer's notes this is: their DM note (the DM-notes box) or
+   * their player note (the player portal). Someone who has sat in the DM chair
+   * and at the table has one of each on the same entity (#590).
+   */
+  writtenAsDm: boolean;
+  /**
    * The campaign a note this creates is filed under, asked at the moment it is
    * created; omitted, it is created without a campaign.
    */
@@ -69,7 +75,7 @@ export function useMyEntityNote(options: {
   /** Called after each save that landed, with the snapshot that was written. */
   onSaved?: (snapshot: MyNoteDraft) => void;
 }) {
-  const { isPrivate } = options;
+  const { isPrivate, writtenAsDm } = options;
   const createMut = useCreateEntityNote();
   const updateMut = useUpdateEntityNote();
   const deleteMut = useDeleteEntityNote();
@@ -77,7 +83,8 @@ export function useMyEntityNote(options: {
   const mine = computed(
     () =>
       toValue(options.notes)?.find(
-        (n) => n.user_id === toValue(options.userId) && n.is_private === isPrivate,
+        (n) =>
+          n.user_id === toValue(options.userId) && n.is_private === isPrivate && n.written_as_dm === writtenAsDm,
       ) ?? null,
   );
 
@@ -112,6 +119,7 @@ export function useMyEntityNote(options: {
       content: snapshot.content ?? "",
       is_private: isPrivate,
       shared_with_dm: sharedWithDm,
+      written_as_dm: writtenAsDm,
       ...(campaignId !== undefined && { campaign_id: campaignId }),
     });
     // The next save updates this row rather than creating a second one, even

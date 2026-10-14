@@ -96,6 +96,8 @@ async function fetchRecentEntityNotes(campaignId: string, userId: string, limit:
     .select("*")
     .eq("user_id", userId)
     .eq("campaign_id", campaignId)
+    // A player's own notes: not the DM notes they wrote while in the chair (#590).
+    .eq("written_as_dm", false)
     .order("updated_at", { ascending: false })
     .limit(limit * OVERFETCH);
   if (error) throw error;

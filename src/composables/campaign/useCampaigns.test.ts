@@ -35,6 +35,7 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import {
   fetchCampaignsAs,
+  fetchOwnedCampaigns,
   useAllDmCampaigns,
   useDmArchivedCampaigns,
   useDmCampaigns,
@@ -84,6 +85,28 @@ describe("fetchCampaignsAs", () => {
 
     expect(await fetchCampaignsAs("dm", false)).toEqual([]);
     expect(calls.select).toBe("");
+  });
+});
+
+describe("fetchOwnedCampaigns", () => {
+  beforeEach(() => {
+    calls.select = "";
+    calls.filters = [];
+    rows = [];
+    currentUser = { id: "me" };
+  });
+
+  it("scopes by ownership in the query, so a co-DM seat (#590) never counts against the quota", async () => {
+    await fetchOwnedCampaigns();
+
+    expect(calls.select).not.toContain("campaign_members");
+    expect(calls.filters).toEqual([["user_id", "me"]]);
+  });
+
+  it("returns nothing when there is no signed-in user", async () => {
+    currentUser = null;
+
+    expect(await fetchOwnedCampaigns()).toEqual([]);
   });
 });
 

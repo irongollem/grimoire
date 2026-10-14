@@ -44,6 +44,7 @@ vi.mock("@/lib/supabase", () => ({
     from: (table: string) => { mocks.from(table); return chain(table); },
     functions: { invoke: mocks.invoke },
   },
+  getCurrentUser: () => ({ id: "user-1" }),
 }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get activeCampaignId() { return mocks.campaignId; } }) }));
 vi.mock("@/composables/library/useEnabledSources", () => ({

@@ -39,7 +39,6 @@ import { combineModes } from "@/lib/dice/dice";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useWhisperRecipients } from "@/composables/campaign/useWhisperRecipients";
@@ -68,9 +67,10 @@ const halves = [SKILLS.slice(0, 9), SKILLS.slice(9)];
 const { sendFlavorMessage } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
 const { promptRoll } = usePromptedRoll();
-const { data: campaignMembers } = useCampaignMembers();
 const campaignStore = useCampaignStore();
-const dmUserId = computed(() => campaignMembers.value?.find((m) => m.role === "dm")?.user_id ?? null);
+// Several DMs can sit at one table (#590); the owner is the one deterministic recipient.
+// Every DM of the campaign can read the whisper anyway.
+const dmUserId = computed(() => campaignStore.activeCampaign?.user_id ?? null);
 const auth = useAuthStore();
 const { allowedIds: whisperableIds, query: whisperQuery } = useWhisperRecipients();
 // An immersive roll reaches the DM as a whisper, and a young player and an

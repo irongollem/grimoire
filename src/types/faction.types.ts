@@ -189,6 +189,10 @@ export interface EntityNote {
   content: string | null;
   is_private: boolean;
   shared_with_dm: boolean;
+  /** A DM note: written privately as a DM of its campaign (#590). Stamped by
+   *  the server for campaign notes and never changed, so a seat that rotates
+   *  between DM and player keeps its two kinds of note apart. */
+  written_as_dm: boolean;
   created_at: string;
   updated_at: string;
 }

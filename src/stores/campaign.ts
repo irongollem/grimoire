@@ -334,6 +334,17 @@ export const useCampaignStore = defineStore("campaign", () => {
     () => activeCampaign.value?.ai_enabled === true && !useAuthStore().isChildAccount,
   );
 
+  // A campaign can seat more than one DM (#590): its owner, and any co-DM the
+  // owner hands the chair to. Both are `role = 'dm'` and RLS gives both the
+  // campaign; ownership is `campaigns.user_id` alone. This decides only which
+  // owner-only controls render (who sits in the DM chair, the danger zone, the
+  // campaign's AI keys); the server refuses the rest whatever the UI shows.
+  const isOwner = computed(() => {
+    const campaign = activeCampaign.value;
+    const userId = useAuthStore().user?.id;
+    return campaign !== null && userId !== undefined && campaign.user_id === userId;
+  });
+
   const todayYear  = computed(() => activeCampaign.value?.current_year ?? 1495);
   const todayMonth = computed(() => activeCampaign.value?.current_month ?? 1);
   const todayDay   = computed(() => activeCampaign.value?.current_day ?? 1);
@@ -343,6 +354,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     activeCampaign,
     activeRuleset,
     isAiEnabled,
+    isOwner,
     decryptedOpenAiKey,
     decryptedAnthropicKey,
     decryptedGeminiKey,

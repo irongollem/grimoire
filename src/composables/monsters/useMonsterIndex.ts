@@ -6,6 +6,7 @@ import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
+import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import type { MonsterIndexEntry } from "@/types/monster.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
@@ -29,9 +30,9 @@ const CUSTOM_INDEX_KEY = ["monsters", "index"] as const;
 // cutout of its own (its art lives in the art tables).
 const SHARED_INDEX_COLUMNS =
   "id, name, monster_type, size, source, source_title, image_url, portrait_focal_point, challenge_rating:stat_block->>challenge_rating, speed:stat_block->>speed";
-const CUSTOM_INDEX_COLUMNS = `${SHARED_INDEX_COLUMNS}, campaign_id, cutout_url`;
+const CUSTOM_INDEX_COLUMNS = `${SHARED_INDEX_COLUMNS}, campaign_id, cutout_url, user_id`;
 
-type LibraryIndexRow = Omit<MonsterIndexEntry, "is_shared" | "campaign_id" | "cutout_url">;
+type LibraryIndexRow = Omit<MonsterIndexEntry, "is_shared" | "campaign_id" | "cutout_url" | "user_id">;
 type CustomIndexRow = Omit<MonsterIndexEntry, "is_shared">;
 
 async function fetchLibraryIndex(slugs: string[], ruleset: RulesetKey): Promise<MonsterIndexEntry[]> {
@@ -47,24 +48,22 @@ async function fetchLibraryIndex(slugs: string[], ruleset: RulesetKey): Promise<
       .range(from, to),
   );
   // Shared rows belong to no campaign; which campaigns see them is decided by enabled sources.
-  return (rows as LibraryIndexRow[]).map((row) => ({ ...row, campaign_id: null, cutout_url: null, is_shared: true }));
+  return (rows as LibraryIndexRow[]).map((row) => ({ ...row, campaign_id: null, cutout_url: null, user_id: null, is_shared: true }));
 }
 
-async function fetchCustomIndex(campaignId: string | null, ruleset: RulesetKey): Promise<MonsterIndexEntry[]> {
+async function fetchCustomIndex(campaignId: string | null, ownerId: string | null, ruleset: RulesetKey): Promise<MonsterIndexEntry[]> {
   const user = getCurrentUser();
   if (!user) throw new Error("useMonsterIndex read custom monsters without a signed-in user");
   // Membership: open5e imports are legacy and come from library_monsters now; a
-  // row with no ruleset fits both; the DM's globals plus this campaign's own.
+  // row with no ruleset fits both; the campaign's own rows (any DM's, #590) plus the
+  // caller's and the owner's personal library.
   // Expressed in the query so it filters rather than downloads. `open5e_import` may be null on old rows, so "not true" is spelled out.
-  let query = supabase
+  const query = supabase
     .from("monsters")
     .select(CUSTOM_INDEX_COLUMNS)
-    .eq("user_id", user.id)
+    .or(campaignScopeFilter(campaignId, user.id, ownerId))
     .or("open5e_import.is.null,open5e_import.eq.false")
     .or(`ruleset.is.null,ruleset.eq.${ruleset}`);
-  query = campaignId
-    ? query.or(`campaign_id.eq.${campaignId},campaign_id.is.null`)
-    : query.is("campaign_id", null);
   const { data, error } = await query.order("name", { ascending: true });
   if (error) throw error;
   return (data as CustomIndexRow[]).map((row) => ({ ...row, is_shared: false }));
@@ -89,7 +88,7 @@ export function useMonsterIndex(getOptions?: () => { enabled?: boolean; sides?: 
   const isEnabled = () => getOptions?.().enabled !== false;
   const { slugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
   const { ruleset } = useTableRuleset();
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_INDEX_KEY, INDEX_SHAPE, slugs.value, ruleset.value] as const),
@@ -102,8 +101,8 @@ export function useMonsterIndex(getOptions?: () => { enabled?: boolean; sides?: 
   });
 
   const customQuery = useQuery({
-    queryKey: computed(() => [...CUSTOM_INDEX_KEY, activeCampaignId.value, ruleset.value] as const),
-    queryFn: ({ queryKey: [, , campaignId, rs] }) => fetchCustomIndex(campaignId, rs),
+    queryKey: computed(() => [...CUSTOM_INDEX_KEY, activeCampaignId.value, activeCampaign.value?.user_id ?? null, ruleset.value] as const),
+    queryFn: ({ queryKey: [, , campaignId, ownerId, rs] }) => fetchCustomIndex(campaignId, ownerId, rs),
     enabled: () => isEnabled() && getOptions?.().sides !== "library" && getCurrentUser() !== null,
     staleTime: Infinity,
   });

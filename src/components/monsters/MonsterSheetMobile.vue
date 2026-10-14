@@ -81,7 +81,9 @@
       </RouterLink>
     </template>
 
-    <DmNoteBox v-if="!monster.is_shared" type="monster" :id="monster.id" :label="monster.name" />
+    <ReadOnlyLibraryNote v-if="isReadOnly" />
+
+    <DmNoteBox v-if="!monster.is_shared" type="monster" :id="monster.id" :label="monster.name" :readonly="isReadOnly" />
 
     <AccordionSection v-model:open="openSections.lore" title="Lore">
       <div class="flex flex-col gap-4">
@@ -124,6 +126,17 @@
         :label="cloning ? 'Copying…' : 'Customize'"
         @click="customize"
       />
+      <MonsterCopyToCampaign v-else-if="isReadOnly" :monster="monster" #default="{ open }">
+        <AppButton
+          variant="primary"
+          size="md"
+          class="flex-1"
+          :icon="IconCopy"
+          icon-size="md"
+          label="Copy to campaign…"
+          @click="open"
+        />
+      </MonsterCopyToCampaign>
       <AppButton
         v-else
         variant="primary"
@@ -139,7 +152,7 @@
     <!-- Overflow ⋮ sheet: Send to Scriptorium / Delete live in the edit form
          (they require the form to be mounted), so these route into it. Duplicate
          is offered for custom monsters only (SRD uses Customize above). -->
-    <template #menu="{ close }">
+    <template v-if="!isReadOnly" #menu="{ close }">
       <AppButton
         v-if="!monster.is_shared"
         variant="menu"
@@ -192,6 +205,10 @@ import TraitList from "@/components/common/statblock/TraitList.vue";
 import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import QuickFact from "@/components/common/entity/QuickFact.vue";
 import AccordionSection from "@/components/common/AccordionSection.vue";
+import MonsterCopyToCampaign from "@/components/monsters/MonsterCopyToCampaign.vue";
+import ReadOnlyLibraryNote from "@/components/common/entity/ReadOnlyLibraryNote.vue";
+import { isReadOnlyLibraryRow } from "@/composables/campaign/campaignLibraryScope";
+import { useAuthStore } from "@/stores/auth";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import { IconCopy, IconDelete, IconEdit, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";
 import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/monsters/useMonsters";
@@ -208,6 +225,10 @@ const { monster } = defineProps<{ monster: Monster }>();
 const description = useMonsterDescription(() => monster);
 
 const router = useRouter();
+
+// A co-DM reads the owner's personal library rows but cannot edit them (#590).
+const auth = useAuthStore();
+const isReadOnly = computed(() => isReadOnlyLibraryRow(monster, auth.user?.id ?? null));
 
 // ── Display helpers (mirror the desktop sheet) ──────────────────────────────────
 const subtitle = computed(() => `${monster.size} ${monster.monster_type}, ${monster.alignment}`);

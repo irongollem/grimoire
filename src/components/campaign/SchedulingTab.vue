@@ -280,7 +280,7 @@
         />
 
         <AppButton
-          v-if="isDM"
+          v-if="campaign.isOwner"
           variant="subtle"
           size="sm"
           class="hover:text-destructive hover:border-destructive"
@@ -315,7 +315,6 @@ import {
 } from "@/composables/campaign/useCampaigns";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAuthStore } from "@/stores/auth";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { notifyProposalCreated } from "@/composables/campaign/useEmailNotify";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
@@ -325,7 +324,6 @@ import { buildSessionFeed, type IcsSessionEvent } from "@edge-shared/ics.ts";
 import { downloadBlob } from "@/lib/downloadBlob";
 
 const campaign = useCampaignStore();
-const auth = useAuthStore();
 const { isChild } = useChildAccount();
 const { data: proposals } = useSessionProposals();
 const { data: allAvailability } = useAllSessionAvailability();
@@ -340,8 +338,6 @@ const { mutateAsync: doRegenerateToken, isPending: isRegenerating } =
   useRegenerateIcalToken();
 
 // ── Computed ──────────────────────────────────────────────────────────────────
-
-const isDM = computed(() => auth.isDM);
 
 const icalFeedUrl = computed(() => {
   const token = campaignData.value?.ical_token;

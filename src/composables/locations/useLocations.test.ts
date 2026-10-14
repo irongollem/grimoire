@@ -175,7 +175,7 @@ describe("location list reads", () => {
     // The filter must be widened rather than an exact match, or the global
     // row above would already have been silently dropped by supabase.
     const orCall = mocks.calls.find((c) => c.method === "or");
-    expect(orCall?.args[0]).toBe("campaign_id.eq.campaign-1,campaign_id.is.null");
+    expect(orCall?.args[0]).toBe("campaign_id.eq.campaign-1,and(campaign_id.is.null,user_id.in.(user-1))");
     unmount();
   });
 

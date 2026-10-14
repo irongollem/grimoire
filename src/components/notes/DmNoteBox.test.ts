@@ -5,13 +5,22 @@ import { computed, reactive, ref } from "vue";
 import { useScratchpadStore } from "@/stores/scratchpad";
 import DmNoteBox from "./DmNoteBox.vue";
 
-const seen = vi.hoisted(() => ({ subjects: [] as unknown[], loading: { value: false } }));
+const seen = vi.hoisted(() => ({
+  subjects: [] as unknown[],
+  loading: { value: false },
+  others: { value: [] as Array<{ id: string; heading: string; content: string }> },
+  content: { value: null as string | null },
+}));
+
+vi.mock("@/composables/notes/useOtherDmNotes", () => ({
+  useOtherDmNotes: () => ({ notes: computed(() => seen.others.value), isLoading: ref(false) }),
+}));
 
 vi.mock("@/composables/notes/useDmNote", () => ({
   useDmNote: (subject: () => unknown) => {
     seen.subjects.push(subject);
     return {
-      draft: reactive({ content: null }),
+      draft: reactive({ content: seen.content.value }),
       status: computed(() => "saved"),
       saveError: computed(() => ""),
       revision: ref(0),
@@ -21,6 +30,7 @@ vi.mock("@/composables/notes/useDmNote", () => ({
 }));
 
 const stubs = {
+  RichTextViewer: { props: ["content"], template: "<div data-test='viewer'>{{ content }}</div>" },
   RichTextEditor: { template: "<div data-test='editor' />" },
   AutosaveStatus: { template: "<div data-test='status' />" },
 };
@@ -32,6 +42,21 @@ describe("DmNoteBox", () => {
     setActivePinia(createPinia());
     seen.subjects.length = 0;
     seen.loading.value = false;
+    seen.others.value = [];
+    seen.content.value = null;
+  });
+
+  // A co-DM on the owner's library row (#590): the row's write matches nothing
+  // under RLS, so the note shows without an editor, a save status, or a
+  // scratchpad entry that would offer to edit it after all.
+  it("shows a read-only note with no editor, status or scratchpad entry", () => {
+    seen.content.value = "<p>Lies about Garagai.</p>";
+    const store = useScratchpadStore();
+    const w = mount(DmNoteBox, { props: { ...props, readonly: true }, global: { stubs } });
+    expect(w.find("[data-test=editor]").exists()).toBe(false);
+    expect(w.find("[data-test=status]").exists()).toBe(false);
+    expect(w.find("[data-test=viewer]").text()).toContain("Lies about Garagai.");
+    expect(store.pageSubject).toBeNull();
   });
 
   it("renders the editor and registers its entity with the scratchpad", () => {
@@ -39,7 +64,7 @@ describe("DmNoteBox", () => {
     const w = mount(DmNoteBox, { props, global: { stubs } });
     expect(w.find("[data-test=editor]").exists()).toBe(true);
     expect(w.text()).toContain("DM notes");
-    expect(w.text()).toContain("Only you see this");
+    expect(w.text()).toContain("Players never see this");
     expect(store.pageSubject).toEqual(props);
     w.unmount();
     expect(store.pageSubject).toBeNull();
@@ -83,5 +108,21 @@ describe("DmNoteBox", () => {
   it("shows the save status once the note has loaded", () => {
     const w = mount(DmNoteBox, { props, global: { stubs } });
     expect(w.find("[data-test=status]").exists()).toBe(true);
+  });
+
+  it("shows nothing extra when no other DM has written a note", () => {
+    const w = mount(DmNoteBox, { props, global: { stubs } });
+    expect(w.find("[data-test=other-dm-note]").exists()).toBe(false);
+  });
+
+  it.each(["inline", "panel"] as const)("lists each co-DM's note read-only in the %s variant", (variant) => {
+    seen.others.value = [{ id: "a", heading: "Jeffrey's note", content: "the innkeeper is the cult leader" }];
+    const w = mount(DmNoteBox, { props: { ...props, variant }, global: { stubs } });
+    const other = w.get("[data-test=other-dm-note]");
+    expect(other.attributes("data-hand")).toBeDefined();
+    expect(other.text()).toContain("Jeffrey's note");
+    expect(other.find("[data-test=viewer]").text()).toContain("innkeeper");
+    expect(other.find("[data-test=editor]").exists()).toBe(false);
+    expect(w.findAll("[data-test=editor]")).toHaveLength(1);
   });
 });

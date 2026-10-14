@@ -26,6 +26,7 @@ vi.mock("@/lib/supabase", () => ({
       },
     }),
   },
+  getCurrentUser: () => ({ id: "user-1" }),
 }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "campaign-1" }) }));
 

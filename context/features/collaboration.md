@@ -49,7 +49,7 @@ Members are managed in `src/components/campaign/MembersTab.vue`, backed by the `
 Each membership row has:
 
 - `campaign_id` / `user_id` — the join key (unique pair)
-- `role` — `'dm'` or `'player'`
+- `role` — `'dm'` or `'player'`. Several `dm` rows may exist: the owner's, and any co-DM's (#590)
 - `party_member_id` — FK to `party_members`; links the user account to their character
 - `display_name` — the name shown in the member list; backfilled from `user_metadata.display_name` or email on first login if blank
 - `joined_at` / `updated_at`
@@ -58,7 +58,7 @@ The Members tab shows every member with:
 
 - An avatar initial, role badge, and online/offline presence indicator (green dot = currently connected)
 - For players: a character assignment dropdown (only shows party members not already assigned to another player)
-- A remove button for players (with a confirmation dialog). Players can rejoin via a new invite. The DM cannot be removed. Removal **detaches** the player's owned characters back to their personal pool automatically (an `AFTER DELETE` trigger on `campaign_members`, migration `20260814221409`) — nothing is deleted, and the dialog says so. In the "characters without a player" list, claimed characters (`owner_user_id` set) offer Detach only; genuine delete remains for unclaimed DM-managed rows, which is also all RLS still permits.
+- A remove button for players (with a confirmation dialog). Players can rejoin via a new invite. The owner cannot be removed; a co-DM can be, by the owner. Removal **detaches** the player's owned characters back to their personal pool automatically (an `AFTER DELETE` trigger on `campaign_members`, migration `20260814221409`) — nothing is deleted, and the dialog says so. In the "characters without a player" list, claimed characters (`owner_user_id` set) offer Detach only; genuine delete remains for unclaimed DM-managed rows, which is also all RLS still permits.
 
 The DM membership is created automatically by the `create_dm_membership` trigger that fires `after insert on campaigns`. DMs never need to join their own campaign via invite.
 
@@ -107,16 +107,19 @@ inner-joins `campaign_members` on the caller's own row and filters by role:
 | ----------------------- | ------ | ----------------------------------------------------------- |
 | `useDmCampaigns`        | DM     | sidebar switcher, scope fields, homebrew editors, transfer, danger zone, downgrade trigger |
 | `useDmArchivedCampaigns`| DM     | the switcher's Archived section                              |
-| `useAllDmCampaigns`     | DM     | the downgrade picker (archived included, matching the quota) |
+| `useAllDmCampaigns`     | DM     | Hall of the Fallen, the Scriptorium (archived included) |
+| `useOwnedCampaigns`     | Owner  | the downgrade picker, which must match the quota (`campaigns.user_id = me`) |
 | `usePlayerCampaigns`    | Player | `PlayerHomeView`, the player shell's campaign sheet, post-join hydration |
 
 `campaign_members.role` is the scope because it is the column
 `private.is_campaign_dm()` reads, so the list cannot disagree with what RLS will
-permit. Exactly one `dm` row exists per campaign and it is always the owner
-(`create_dm_membership` on insert, flipped atomically by
-`transfer_campaign_ownership`), so "campaigns I DM" and `campaigns.user_id = me`
-are the same set — the membership join is used because it scopes both lenses
-with one shape.
+permit. A campaign may seat several `dm` rows: its owner's
+(`create_dm_membership` on insert, flipped by `transfer_campaign_ownership`)
+and any co-DM's (#590, see [Co-DM](#co-dm)). So "campaigns I DM" and
+`campaigns.user_id = me` are different sets, and a consumer that means
+ownership (the quota) reads `useOwnedCampaigns`, which scopes by `user_id` in
+the query. The switcher labels a co-DMed campaign "Co-DM" and offers no
+archive or restore on it.
 
 Two entry points sit outside the lists and are guarded separately.
 `switchUserMode()` takes `campaignsInTargetLens` and drops a remembered id the
@@ -183,7 +186,9 @@ Creating a campaign from the player shell is a lens change and goes through
 `"player"` only got the router guard to bounce it back to `/play/home` with a DM
 campaign active under the player lens.
 
-There are two roles:
+There are two roles. A `dm` row is either the campaign's **owner**
+(`campaigns.user_id`) or a **co-DM** (#590): see [Co-DM](#co-dm) below for
+what differs.
 
 **DM (`role = 'dm'`)**
 
@@ -489,8 +494,100 @@ final assertion is structural — every write policy on those 27 tables must con
 `campaign_id`, so a future migration that recreates one without the gate fails there
 and names the offending policy.
 
+### Co-DM (#590)
+
+"I can't make it tonight, can someone take my chair?" A co-DM is a second
+`campaign_members` row with `role = 'dm'` that is not the owner's, on the
+co-DM's own account, so nobody shares a login. There is no third role value:
+every `dm` check already meant "may run this table". Migration
+`20261013231042_co_dm_takes_the_chair` holds the model and its reasons;
+`supabase/tests/co_dm_boundary.test.sql` holds it to it.
+
+| | Owner | Co-DM | Player |
+| --- | --- | --- | --- |
+| Run the session (runtime, quests, encounters, chat, invites for players) | yes | yes | no |
+| Read and edit every row in the campaign, whoever wrote it | yes | yes | no |
+| Delete an authored row (NPC, quest, place, faction, deity, session record…) | anything in the campaign | only rows they wrote | no |
+| Read the other DMs' personal libraries (`campaign_id` null) | read only | read only | no |
+| Read the other DMs' DM notes on an entity | yes | yes | no |
+| Seat or unseat a DM, mint or read a DM invite | yes | hand back their own chair only | no |
+| Campaign row: AI keys/providers/opt-in, calendar feed token, archive | yes | no | no |
+| Delete or transfer the campaign | yes | no | no |
+
+How it is enforced:
+
+- **Content.** Each swept table's select and update policies OR in
+  `(campaign_id is not null and private.is_campaign_dm(campaign_id))`; delete
+  ORs in `private.is_campaign_owner(campaign_id)`; library tables add
+  `(campaign_id is null and user_id = any ((select private.dm_library_authors())::uuid[]))`
+  to select only (the cast keeps it one evaluation per statement, not per
+  row). Personal notes and calendar events are not a library. Factions,
+  deities, pantheons and session records were already DM-wide; their delete
+  is now the author's or the owner's too. The parts of an entity (a quest's
+  beats, edges and objectives, a recipe's parts, a playlist's tracks, a
+  faction's links) follow whoever may edit it, since re-routing a quest is an
+  edit.
+- **Lists scope themselves.** The library arm is a ceiling: every client list
+  that reads "this campaign plus the library" (`useLocations`, loot and roll
+  tables, quest filters, global search, counts) scopes the library half to the
+  caller in the query with `campaignScopeFilter(campaignId, me, null)`, so the
+  other DMs' library rows reach the screen only by id (an encounter hydrating)
+  or through the monster and item pickers, which mark them read-only.
+- **An edit is not a theft.** `private.guard_content_author` refuses anyone,
+  the author included, changing a row's `user_id` by editing it (authors
+  change only through `private.move_campaign_content`), and refuses a
+  non-author moving a row out of its campaign. Clearing `campaign_id` is the
+  author's or the owner's, and is allowed once the campaign row is gone, so
+  deleting a campaign still returns a co-DM's homebrew to their library.
+  `npc_memories` keeps its own trigger, which quietly keeps the author.
+- **A library place is readable, so it is no longer "mine".** Write policies
+  that once said `l.campaign_id is null or is_campaign_dm(...)` relied on the
+  `locations` subquery being author-only. Now a co-DM can see the owner's
+  library places, so every site-plan write names the author:
+  `(l.campaign_id is null and l.user_id = auth.uid())`. Any new policy that
+  reaches a library table through a subquery must do the same.
+- **A seat that rotates.** The same person may be co-DM one session and a
+  player the next, so a private note records how it was written:
+  `entity_notes.written_as_dm`, stamped by `private.stamp_entity_note_role`
+  from the author's role at write time for a campaign note and never changed.
+  The table's DMs read campaign notes with the flag; a note written as a
+  player never becomes readable by promoting its author, and a DM note stays
+  readable after its author stands down. `useMyEntityNote` takes `writtenAsDm`
+  so the DM-notes box and the player notes widget each edit their own.
+- **The chair.** `guard_campaign_member_self_update` lets only the owner change
+  a role, except a co-DM setting their own row from `dm` to `player`.
+  `private.guard_dm_seat_delete` keeps a DM's seat the owner's to remove, and
+  `campaign_invites_dm_all` lets only the owner insert or even read a `dm`
+  invite: its token is a seat.
+  `consume_campaign_invite` already admitted with the invite's role.
+- **The campaign row.** `campaigns_update` admits any DM;
+  `private.guard_campaign_owner_columns` refuses a non-owner changing
+  ownership, the AI keys and providers, `ai_enabled`, `ical_token` or
+  `is_archived`. The Settings view hides the AI Assistant and Danger Zone tabs
+  from a co-DM, and Scheduling hides "Regenerate URL".
+- **Nothing a co-DM wrote is lost when they leave.** Handing the chair back,
+  being removed, or deleting the account runs
+  `private.move_campaign_content`, which passes their rows in the campaign to
+  the owner. Their own things go with the account, as a player's do: private
+  notes, chat, document imports, minis, attached tile packs. The account case runs `before delete on auth.users`, because the
+  cascades fire in no promised order. `transfer_campaign_ownership` uses the
+  same mover, which also fixed what its inline list had dropped: site plans,
+  the site state log, session records and DM item entries.
+- **Client.** `useCampaignStore().isOwner` gates owner-only controls.
+  `useItemIndex` / `useMonsterIndex` read the campaign's rows (any author)
+  plus the caller's and the owner's library (`campaignScopeFilter`). Monster
+  and item views hide every write control on a row
+  `isReadOnlyLibraryRow` marks, because an update on it matches nothing under
+  RLS; `DmNoteBox` takes `readonly` there too. `DmNoteBox` shows the other DMs'
+  entity notes read-only under your own, and says "Players never see this"
+  rather than "Only you see this", which a second DM made untrue.
+  A whisper "to the DM" goes to the owner, and every DM reads it.
+
 **Helper functions:**
 
 - `private.is_campaign_member(cid uuid)` — returns true if `auth.uid()` has any row in `campaign_members` for that campaign.
-- `private.is_campaign_dm(cid uuid)` — returns true if `auth.uid()` has a `dm` row for that campaign.
+- `private.is_campaign_dm(cid uuid)` — returns true if `auth.uid()` has a `dm` row for that campaign: the owner or a co-DM.
+- `private.is_campaign_owner(cid uuid)` — true if `auth.uid()` owns the campaign (`campaigns.user_id`). Total: false, never NULL.
+- `private.dm_library_authors()` — the other DMs at the caller's tables, as an array, never NULL; the read-only library arm.
+- `private.can_use_in_campaign(author, row_campaign, campaign)` — whether a trap, loot table or item may be cited from a campaign: the caller's own, already in it, or the owner's library.
 - Both are `security definer` with `stable` volatility and an explicit `search_path`, preventing privilege escalation or search-path injection. They live in `private` rather than `public` so PostgREST cannot publish them as RPC endpoints — see the `SECURITY DEFINER` rules in CLAUDE.md.

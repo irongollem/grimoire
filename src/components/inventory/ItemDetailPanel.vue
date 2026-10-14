@@ -223,7 +223,6 @@
               :can-write-entries="canWriteEntries"
               :author-party-member-id="authorPartyMemberId"
               :can-moderate="canModerate"
-              :dm-user-id="dmUserId"
             />
 
             <!-- Curse (DM sees it always with reveal toggle; players only see it when revealed) -->
@@ -434,10 +433,9 @@ const emit = defineEmits<{
 // mirror ItemSheet.vue's split rather than assuming a single audience.
 const auth = useAuthStore();
 const appUi = useAppUiStore();
-const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 
 const isRealDm = computed(() => auth.isDM && !appUi.dmPreviewMode);
-const dmUserId = computed(() => activeCampaign.value?.user_id ?? null);
 const authorPartyMemberId = computed(() =>
   isRealDm.value ? null : (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId),
 );

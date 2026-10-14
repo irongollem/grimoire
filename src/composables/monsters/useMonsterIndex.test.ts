@@ -37,7 +37,10 @@ vi.mock("@/stores/campaign", async () => {
   const { ref: vueRef } = await import("vue");
   return {
     useCampaignStore: () => {
-      return { activeCampaignId: vueRef<string | null>(campaign.id) };
+      return {
+        activeCampaignId: vueRef<string | null>(campaign.id),
+        activeCampaign: vueRef(campaign.id ? { id: campaign.id, user_id: "owner-1" } : null),
+      };
     },
   };
 });
@@ -89,11 +92,12 @@ describe("useMonsterIndex", () => {
     const custom = mocks.calls.find((c) => c.table === "monsters");
     expect(custom?.select).not.toContain("*");
     expect(custom?.select).toContain("challenge_rating:stat_block->>challenge_rating");
-    expect(custom?.eq).toEqual([["user_id", "user-1"]]);
+    // Co-DM (#590): not narrowed to the caller's authorship; the owner's library is readable.
+    expect(custom?.eq).toEqual([]);
     expect(custom?.or).toEqual([
+      "campaign_id.eq.camp-1,and(campaign_id.is.null,user_id.in.(user-1,owner-1))",
       "open5e_import.is.null,open5e_import.eq.false",
       "ruleset.is.null,ruleset.eq.2024",
-      "campaign_id.eq.camp-1,campaign_id.is.null",
     ]);
   });
 
@@ -101,8 +105,7 @@ describe("useMonsterIndex", () => {
     run(() => useMonsterIndex());
     await flushPromises();
     const custom = mocks.calls.find((c) => c.table === "monsters");
-    expect(custom?.is).toEqual([["campaign_id", null]]);
-    expect(custom?.or.some((f) => f.startsWith("campaign_id"))).toBe(false);
+    expect(custom?.or).toContain("and(campaign_id.is.null,user_id.eq.user-1)");
   });
 
   it("merges library then custom, sorted by name, without deduping, marking shared rows", async () => {

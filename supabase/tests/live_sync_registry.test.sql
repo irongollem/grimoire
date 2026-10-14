@@ -246,17 +246,18 @@ select is(
 -- The same reason for `notes_player` and `factions_player`: a player reads a
 -- shared note or faction through its projection, which withholds "DM only"
 -- blocks, so no policy may hand them the row with the block still in it
--- (20261007092700). Notes are read by their owner; factions by the campaign's DM.
+-- (20261007092700). Notes are read by their author and the campaign's DMs
+-- (a co-DM taking the chair, #590); factions by the campaign's DMs.
 select is(
   (select coalesce(string_agg(tablename || '.' || policyname, ', ' order by tablename, policyname), '')
      from pg_policies
     where schemaname = 'public' and cmd in ('SELECT', 'ALL')
       and ((tablename = 'notes' and not (policyname = 'notes_select'
-                                         and qual = '(( SELECT auth.uid() AS uid) = user_id)'))
+                                         and qual = '((( SELECT auth.uid() AS uid) = user_id) OR ((campaign_id IS NOT NULL) AND private.is_campaign_dm(campaign_id)))'))
         or (tablename = 'factions' and not (policyname = 'factions_select'
                                             and qual = 'private.is_campaign_dm(campaign_id)')))),
   '',
-  'no policy but the owner''s or the DM''s lets anyone select notes or factions rows');
+  'no policy but the author''s or the DMs'' lets anyone select notes or factions rows');
 
 -- Nothing is published for postgres_changes (20261009233206): every row stays
 -- on the server, and the DM-only quest runtime, beats and objectives reach

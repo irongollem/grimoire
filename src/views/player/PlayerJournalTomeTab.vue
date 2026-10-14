@@ -5,7 +5,6 @@
     :can-write-entries="canWriteEntries"
     :author-party-member-id="authorPartyMemberId"
     :can-moderate="false"
-    :dm-user-id="dmUserId"
   />
 </template>
 
@@ -35,9 +34,8 @@ const props = defineProps<{
 }>();
 
 const auth = useAuthStore();
-const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 
-const dmUserId = computed(() => activeCampaign.value?.user_id ?? null);
 const authorPartyMemberId = computed(() => auth.linkedPartyMemberId);
 const canWriteEntries = computed(() => props.item.content_player_writable);
 

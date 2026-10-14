@@ -304,6 +304,9 @@ export interface ItemIndexEntry {
   is_shared: boolean;
   /** Always null for a library row. */
   campaign_id: string | null;
+  /** Author of an own row; null for a library row. With `campaign_id` null and
+   *  another account's id, it is another DM's library (#590): readable, not editable. */
+  user_id: string | null;
   ruleset: RulesetKey | null;
 }
 

@@ -27,19 +27,20 @@ function row(over: Partial<EntityNote> = {}): EntityNote {
     content: doc("Owes us a favour"),
     is_private: true,
     shared_with_dm: false,
+    written_as_dm: false,
     created_at: "2026-10-05",
     updated_at: "2026-10-05",
     ...over,
   };
 }
 
-function setup(initial: EntityNote[] = [], isPrivate = true) {
+function setup(initial: EntityNote[] = [], isPrivate = true, writtenAsDm = false) {
   const notes = ref<EntityNote[] | undefined>(initial);
   const entityId = ref("npc-1");
   let handle!: ReturnType<typeof useMyEntityNote>;
   mount(defineComponent({
     setup() {
-      handle = useMyEntityNote({ entityType: "npc", entityId, notes, userId: "me", isPrivate });
+      handle = useMyEntityNote({ entityType: "npc", entityId, notes, userId: "me", isPrivate, writtenAsDm });
       return () => null;
     },
   }));
@@ -74,6 +75,24 @@ describe("useMyEntityNote", () => {
     remove.mockReset().mockResolvedValue(undefined);
   });
   afterEach(() => vi.useRealTimers());
+
+  // Someone who has sat in the DM chair and at the table holds both on the
+  // same entity (#590); each surface edits its own and never the other.
+  it("picks the DM note or the player note by how it was written", () => {
+    const notes = [
+      row({ id: "as-player", content: doc("I think he lies") }),
+      row({ id: "as-dm", written_as_dm: true, content: doc("He lies") }),
+    ];
+    expect(setup(notes, true, false).handle.draft.noteId).toBe("as-player");
+    expect(setup(notes, true, true).handle.draft.noteId).toBe("as-dm");
+  });
+
+  it("says which kind of note it creates", async () => {
+    const { handle } = setup([], true, true);
+    handle.draft.content = doc("Cult leader");
+    await settle();
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ written_as_dm: true }));
+  });
 
   it("writes nothing for an untouched or blank note", async () => {
     const { handle } = setup();

@@ -40,10 +40,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconDocument } from '@/lib/icons';
+import { isReadOnlyLibraryRow } from "@/composables/campaign/campaignLibraryScope";
+import { useAuthStore } from "@/stores/auth";
 import { useMonsterWithArt } from "@/composables/monsters/useMonsters";
 import { useDetailModal } from "@/composables/useDetailModal";
 import PageHeader from "@/components/common/list/PageHeader.vue";
@@ -57,6 +59,7 @@ const route = useRoute();
 const router = useRouter();
 
 const isNew = computed(() => route.name === "monster-new");
+const auth = useAuthStore();
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 
 // The same reasoning MonstersView uses to decide whether to keep drawing the
@@ -66,7 +69,11 @@ const { asModal, close } = useDetailModal("/monsters");
 // Broader than the composable's `?edit=true` test, because /monsters/new is an
 // edit screen without ever saying so in the query. That route is not nested
 // under the list, so `asModal` is false there regardless.
-const isEditing = computed(() => isNew.value || route.query.edit === "true");
+// A co-DM may read the owner's personal library rows but never write them (#590),
+// so `?edit=true` is not honoured for one, as it is not for a shared library row.
+const isEditing = computed(
+  () => isNew.value || (route.query.edit === "true" && !isReadOnly.value),
+);
 
 const isMobile = useIsMobile();
 const showMobileRead = computed(() => isMobile.value && !isEditing.value && !isNew.value);
@@ -88,6 +95,10 @@ const isLoading = computed(() => !isNew.value && resolvedLoading.value);
 
 const resolvedMonster = computed(() => (isNew.value ? null : withArt.value));
 
+const isReadOnly = computed(
+  () => !!resolvedMonster.value && isReadOnlyLibraryRow(resolvedMonster.value, auth.user?.id ?? null),
+);
+
 const pageTitle = computed(() => {
   if (isNew.value) return "New Monster";
   return resolvedMonster.value?.name ?? "Loading…";
@@ -99,4 +110,15 @@ const pageDescription = computed(() => {
   const sourceLabel = m.is_shared ? ` · ${m.source_title ?? m.source ?? "Reference"}` : "";
   return `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}${sourceLabel}`;
 });
+
+// A link or bookmark can still carry `?edit=true` for a row the caller may not
+// edit; drop it so the read-only sheet shows rather than a full-screen route
+// with nothing to render.
+watch(
+  () => isReadOnly.value && route.query.edit === "true",
+  (blocked) => {
+    if (blocked) stopEditing();
+  },
+  { immediate: true },
+);
 </script>

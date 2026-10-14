@@ -4,6 +4,11 @@ import { ref, computed, watch } from "vue";
 import { useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
+/** A stored lens, or "" (never chosen) for anything the app does not write. */
+export function readUserMode(raw: string): "dm" | "player" | "" {
+  return raw === "dm" || raw === "player" ? raw : "";
+}
+
 export const useAppUiStore = defineStore("ui:app", () => {
   // Chat panel
   const chatOpen = ref(false);
@@ -62,7 +67,15 @@ export const useAppUiStore = defineStore("ui:app", () => {
   // accounts that predate the mode, the router guard infers it once from the
   // loaded membership's role. Switch via useModeSwitch(), never by writing
   // this ref directly — the switch also swaps the per-mode active campaign.
-  const userMode = useStorage<"dm" | "player" | "">("grimoire:user-mode", "", safeLocalStorage());
+  //
+  // Read through a guard: anything stored that is not a mode reads as "never
+  // chosen". The lens fence (#847) acts only on a known mode, so a value the
+  // app never writes (a quoted `"dm"` left by hand-edited storage was seen
+  // locally) would otherwise switch the fence off while the shell still
+  // rendered the DM side. Unknown falls back to the inference above instead.
+  const userMode = useStorage<"dm" | "player" | "">("grimoire:user-mode", "", safeLocalStorage(), {
+    serializer: { read: readUserMode, write: (mode) => mode },
+  });
 
   // Whether the campaign's session is live (#758). A *mirror* of
   // "a session in `campaign_sessions` is open" (#985), owned by `useCampaignSession()` and

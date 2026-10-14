@@ -9,7 +9,11 @@
   >
     <template #actions>
       <MonsterRevealControl v-if="monster" :monster="monster" />
+      <MonsterCopyToCampaign v-if="monster && isReadOnly" :monster="monster" #default="{ open }">
+        <AppButton variant="subtle" size="sm" label="Copy to campaign…" :icon="IconCopy" @click="open" />
+      </MonsterCopyToCampaign>
       <AppButton
+        v-else
         variant="subtle"
         size="sm"
         label="Edit"
@@ -18,9 +22,10 @@
       />
     </template>
 
+    <ReadOnlyLibraryNote v-if="isReadOnly" class="mb-4" />
     <MonsterSheet v-if="monster" :monster="monster">
       <template v-if="!monster.is_shared" #dm-note>
-        <DmNoteBox type="monster" :id="monster.id" :label="monster.name" />
+        <DmNoteBox type="monster" :id="monster.id" :label="monster.name" :readonly="isReadOnly" />
       </template>
     </MonsterSheet>
     <p v-else class="py-16 text-center text-body text-muted-foreground italic">
@@ -49,7 +54,11 @@ import EntityDetailModal from "@/components/common/overlays/EntityDetailModal.vu
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import MonsterSheet from "@/components/monsters/MonsterSheet.vue";
 import { useMonsterWithArt } from "@/composables/monsters/useMonsters";
-import { IconEdit } from "@/lib/icons";
+import MonsterCopyToCampaign from "@/components/monsters/MonsterCopyToCampaign.vue";
+import ReadOnlyLibraryNote from "@/components/common/entity/ReadOnlyLibraryNote.vue";
+import { isReadOnlyLibraryRow } from "@/composables/campaign/campaignLibraryScope";
+import { useAuthStore } from "@/stores/auth";
+import { IconCopy, IconEdit } from "@/lib/icons";
 import { monsterIdentityLine } from "@/lib/monsterDisplay";
 
 const { id } = defineProps<{ id: string }>();
@@ -57,6 +66,12 @@ const { id } = defineProps<{ id: string }>();
 const emit = defineEmits<{ close: [] }>();
 
 const { monster, isLoading } = useMonsterWithArt(toRef(() => id));
+
+const auth = useAuthStore();
+// A co-DM reads the owner's personal library rows but cannot edit them (#590).
+const isReadOnly = computed(
+  () => !!monster.value && isReadOnlyLibraryRow(monster.value, auth.user?.id ?? null),
+);
 
 const displayName = computed(() => monster.value?.name ?? "Monster");
 

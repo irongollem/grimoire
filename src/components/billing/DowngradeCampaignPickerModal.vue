@@ -78,7 +78,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { IconArchive } from '@/lib/icons'
-import { useAllDmCampaigns, useArchiveCampaign } from '@/composables/campaign/useCampaigns'
+import { useOwnedCampaigns, useArchiveCampaign } from '@/composables/campaign/useCampaigns'
 import { useCampaignStore } from '@/stores/campaign'
 import AppButton from '@/components/common/controls/AppButton.vue'
 import AppModal from '@/components/common/overlays/AppModal.vue'
@@ -103,7 +103,7 @@ const subtitle = computed(() => {
 
 const router = useRouter()
 const campaignStore = useCampaignStore()
-const { data: campaignData } = useAllDmCampaigns()
+const { data: campaignData } = useOwnedCampaigns()
 const { mutateAsync: archiveCampaign, isPending: isArchiving } = useArchiveCampaign()
 
 // The demo campaign (#912) is not on the plan's count, so it is neither offered
@@ -113,7 +113,7 @@ const allCampaigns = computed(() => (campaignData.value ?? []).filter(c => c.dem
 /**
  * Which campaign the DM keeps. Seeded from the list rather than at setup: this
  * modal is mounted by `DefaultLayout` as soon as the campaign quota is known,
- * whether or not it is shown, so its setup can run before `useAllDmCampaigns`
+ * whether or not it is shown, so its setup can run before `useOwnedCampaigns`
  * resolves. Reading `allCampaigns.value[0]` there always saw an empty array and
  * left the picker permanently unselected, with the confirm button disabled
  * until the DM clicked a row by hand.

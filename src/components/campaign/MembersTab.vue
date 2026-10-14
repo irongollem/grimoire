@@ -60,7 +60,7 @@
                   : 'bg-primary/15 text-primary'
               "
             >
-              {{ member.role }}
+              {{ roleLabel(member) }}
             </span>
           </div>
         </div>
@@ -85,27 +85,55 @@
           />
         </div>
 
-        <!-- DM label -->
+        <!-- DM rows: a co-DM's character sits out while they run the game -->
         <div v-else class="shrink-0">
-          <p class="text-caption text-muted-foreground italic">
+          <p v-if="sittingOutName(member)" class="text-caption text-muted-foreground italic">
+            Character: {{ sittingOutName(member) }}, sitting out
+          </p>
+          <p v-else class="text-caption text-muted-foreground italic">
             Dungeon Master
           </p>
         </div>
 
-        <!-- Remove button (can't remove DM — that's the campaign owner) -->
-        <AppButton
-          v-if="member.role === 'player'"
-          variant="ghost"
-          tone="danger"
-          fill="tone"
-          size="icon-xs"
-          icon-size="md"
-          class="shrink-0"
-          :icon="IconRemoveUser"
-          tooltip="Remove from campaign"
-          :disabled="removeMember.isPending.value"
-          @click="confirmRemove(member)"
-        />
+        <div class="flex items-center gap-2 shrink-0">
+          <AppButton
+            v-if="isOwner && member.role === 'player'"
+            variant="subtle"
+            size="sm"
+            label="Make co-DM"
+            :disabled="setRole.isPending.value"
+            @click="changeRole(member, 'dm')"
+          />
+          <AppButton
+            v-if="isOwner && isCoDm(member)"
+            variant="subtle"
+            size="sm"
+            label="Back to player"
+            :disabled="setRole.isPending.value"
+            @click="changeRole(member, 'player')"
+          />
+          <AppButton
+            v-if="isOwnRow(member) && isCoDm(member)"
+            variant="subtle"
+            size="sm"
+            label="Hand back the chair"
+            :disabled="setRole.isPending.value"
+            @click="handBackChair(member)"
+          />
+          <!-- The owner can't be removed; a co-DM is the owner's to remove. -->
+          <AppButton
+            v-if="member.role === 'player' || (isOwner && isCoDm(member))"
+            variant="ghost"
+            tone="danger"
+            fill="tone"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconRemoveUser"
+            tooltip="Remove from campaign"
+            :disabled="removeMember.isPending.value"
+            @click="confirmRemove(member)"
+          />
+        </div>
       </div>
 
       <!-- Empty -->
@@ -181,7 +209,7 @@
         class="bg-card border border-border rounded-lg p-6 w-full max-w-sm space-y-4 shadow-gold-glow"
       >
         <h3 class="text-heading font-semibold text-foreground">
-          Remove Player?
+          {{ memberToRemove.role === "dm" ? "Remove co-DM?" : "Remove Player?" }}
         </h3>
         <p class="text-body text-muted-foreground italic">
           Remove
@@ -189,6 +217,9 @@
             memberToRemove.display_name || "this player"
           }}</strong>
           from the campaign? They can rejoin via a new invite link.
+        </p>
+        <p v-if="memberToRemove.role === 'dm'" class="text-body text-muted-foreground italic">
+          What they wrote stays in the campaign and passes to you.
         </p>
         <p v-if="removedPlayerCharacters.length" class="text-body text-muted-foreground italic">
           Character<span v-if="removedPlayerCharacters.length > 1">s</span>
@@ -226,6 +257,7 @@ import {
   useCampaignMembers,
   useUpdateCampaignMember,
   useRemoveCampaignMember,
+  useSetMemberRole,
 } from "@/composables/campaign/useCampaignMembers";
 import { useParty, useDeletePartyMember } from "@/composables/party/useParty";
 import { FALLEN_DELETE_REASON, hasMemorialInEffect, useCampaignMemorials } from "@/composables/memorials/useMemorials";
@@ -237,7 +269,9 @@ import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CharacterApprovalQueue from "@/components/campaign/CharacterApprovalQueue.vue";
-import type { CampaignMember } from "@/types/campaign.types";
+import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
+import type { CampaignMember, CampaignRole } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 
 
@@ -246,6 +280,9 @@ const { isOnline } = useCampaignPresence();
 const partyQuery = useParty();
 const updateMember = useUpdateCampaignMember();
 const removeMember = useRemoveCampaignMember();
+const setRole = useSetMemberRole();
+const campaignStore = useCampaignStore();
+const auth = useAuthStore();
 const deleteCharacter = useDeletePartyMember();
 const { data: memorials } = useCampaignMemorials();
 const onTheWall = (pm: PartyMember) => hasMemorialInEffect(memorials.value, pm.id);
@@ -254,6 +291,39 @@ const { confirm } = useConfirm();
 const toast = useToast();
 // Bumped when a cancelled hand-over must put every seat dropdown back on its stored value.
 const comboboxKey = ref(0);
+
+const isOwner = computed(() => campaignStore.isOwner);
+const ownerId = computed(() => campaignStore.activeCampaign?.user_id);
+
+const isOwnerRow = (m: CampaignMember) => m.user_id === ownerId.value;
+const isCoDm = (m: CampaignMember) => m.role === "dm" && !isOwnerRow(m);
+const isOwnRow = (m: CampaignMember) => m.user_id === auth.user?.id;
+
+function roleLabel(m: CampaignMember): string {
+  if (isOwnerRow(m)) return "Owner";
+  return m.role === "dm" ? "Co-DM" : "Player";
+}
+
+function sittingOutName(m: CampaignMember): string | null {
+  if (!isCoDm(m) || !m.party_member_id) return null;
+  return partyMembers.value.find((pm) => pm.id === m.party_member_id)?.name ?? null;
+}
+
+// The server refuses a change the caller may not make; show why.
+function changeRole(member: CampaignMember, role: CampaignRole) {
+  setRole.mutate(
+    { id: member.id, role },
+    { onError: (error) => toast.error(toast.fromError(error)) },
+  );
+}
+
+async function handBackChair(member: CampaignMember) {
+  const ok = await confirm(
+    "You become a player again. What you wrote stays in the campaign and passes to the owner.",
+    { title: "Hand back the chair?", confirmLabel: "Hand back", danger: false },
+  );
+  if (ok) changeRole(member, "player");
+}
 
 const members = computed(() => membersQuery.data.value ?? []);
 const partyMembers = computed(() => partyQuery.data.value ?? []);

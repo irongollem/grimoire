@@ -44,11 +44,13 @@ const QUERY_KEY = "campaigns";
  *
  * The lens is `campaign_members.role` — the column `private.is_campaign_dm()`
  * reads — so this list cannot disagree with what RLS will actually permit.
- * Exactly one `dm` row exists per campaign and it is always the owner
- * (`create_dm_membership` on insert; `transfer_campaign_ownership` flips both
- * sides atomically), so "campaigns I DM" and "campaigns.user_id = me" are the
- * same set; the membership join is used because it is the one RLS keys off and
- * it scopes the player lens with the same shape.
+ * A campaign may seat several DMs (#590): its owner plus any co-DMs, all
+ * `role = 'dm'`. So "campaigns I DM" (this list) and "campaigns I own"
+ * (`campaigns.user_id = me`, what `check_quota` counts) now differ. A consumer
+ * that means ownership (the downgrade picker, which must match the quota) must
+ * not use this: it reads `useOwnedCampaigns`, which scopes by `user_id` in the
+ * query. The membership join stays the lens for everything else because it is
+ * the one RLS keys off and it scopes the player lens with the same shape.
  *
  * `archived` narrows to `is_archived`; `null` means both, for the quota-facing
  * callers that must count a campaign whether or not it is archived.
@@ -72,6 +74,23 @@ export async function fetchCampaignsAs(
   // backup serialisation, `switchToCampaign`, a campaign update — carries a
   // joined array that was never part of the row.
   return (data ?? []).map(({ campaign_members: _join, ...campaign }) => campaign as Campaign);
+}
+
+/**
+ * Campaigns this account OWNS, archived or not. Ownership is
+ * `campaigns.user_id`, scoped in the query itself: RLS also shows a co-DM's
+ * campaigns (#590), so an unfiltered read would count them against the quota.
+ */
+export async function fetchOwnedCampaigns(): Promise<Campaign[]> {
+  const user = getCurrentUser();
+  if (!user) return [];
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return data as Campaign[];
 }
 
 async function createCampaign(campaign: CampaignInsert): Promise<Campaign> {
@@ -280,7 +299,17 @@ export function useDmArchivedCampaigns() {
   return useDmCampaignRows((campaigns) => campaigns.filter((c) => c.is_archived));
 }
 
-/** Every campaign this account DMs, archived or not — the quota-facing list. */
+/** Every campaign this account OWNS, archived or not — the quota-facing list.
+ *  Not `useAllDmCampaigns`: a co-DM seat (#590) is no part of the quota. */
+export function useOwnedCampaigns({ enabled = true }: { enabled?: MaybeRefOrGetter<boolean> } = {}) {
+  return useQuery({
+    queryKey: [QUERY_KEY, "owned"] as const,
+    queryFn: fetchOwnedCampaigns,
+    enabled: () => toValue(enabled),
+  });
+}
+
+/** Every campaign this account DMs (owned or co-DMed), archived or not. */
 export function useAllDmCampaigns({ enabled = true }: { enabled?: MaybeRefOrGetter<boolean> } = {}) {
   return useDmCampaignRows((campaigns) => campaigns, enabled);
 }

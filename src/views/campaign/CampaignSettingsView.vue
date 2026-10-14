@@ -172,10 +172,16 @@ const campaignStore = useCampaignStore();
 const pendingReviews = useCampaignPendingContentReviews();
 const waitingCount = computed(() => pendingReviews.data.value?.length ?? 0);
 
+// Tabs that write owner-only `campaigns` columns (provider keys, AI switch,
+// ownership, deletion) or act on them. A co-DM (#590) does not see them; the
+// database refuses the writes regardless. AI Connections is per-user (the
+// signed-in account's own OAuth grants) so every DM keeps it.
+const OWNER_ONLY_TABS = new Set<SettingsTab>(["ai", "danger"]);
+
 const tabs = computed(() => {
   // Import Document stays visible with AI off: a wiki export is read without
   // AI (#932), and the tab itself offers only that source until AI is on.
-  return ALL_TABS.map((t) =>
+  return ALL_TABS.filter((t) => campaignStore.isOwner || !OWNER_ONLY_TABS.has(t.id)).map((t) =>
     t.id === "members" && waitingCount.value > 0 ? { ...t, label: `${t.label} (${waitingCount.value})` } : t,
   );
 });

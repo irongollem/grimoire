@@ -11,7 +11,8 @@
  *           the cloaker's next turn." (the source's turn: anyone but the bearer)  terse: "DC 13
  *           Dex save or be blinded until end of its next turn."
  *  rounds  "...or be poisoned for 1 minute." (ten rounds)  "...restrained for 3 rounds."
- *           Tome of Beasts 3: "blinded for 1 min (DC 17 Con negates)."
+ *           Tome of Beasts 3: "blinded for 1 min (DC 17 Con negates)."  Kobold Press, no "for":
+ *           "Target: DC 15 Con save or poisoned 1 min."
  *
  * Each condition holds its own end (#1055): a repeat that names a condition ("ending the
  * restrained condition on itself") ends only that one, and the others keep their own stated
@@ -138,6 +139,12 @@ const DURATION = new RegExp(
   "i",
 );
 const DURATION_AT = new RegExp(`^(?:${DURATION.source})`, "i");
+/**
+ * A count right after the condition word with no "for": Kobold Press's terse "Target: DC 15
+ * Con save or poisoned 1 min." Group 1 is the count and 2 the unit. Only ever read straight
+ * after a condition, where a bare count can mean nothing else.
+ */
+const BARE_COUNT = new RegExp(`^[a-z]+\\s+${NUMBER}\\s+(rounds?|minutes?|min)\\b`, "i");
 /** Words between a condition and a duration that hand the duration to something else ("prone, and it can't take reactions until..."). */
 const HANDS_OFF = /\bcan'?t\b|\bcannot\b|\bspeed\b|\breactions?\b|\bwhich\b|\band (?:it|its|the|they|their)\b|\bunless\b|\bwhile\b/i;
 /** The bearer's own turn: "its next turn", "the target's next turn". Any other possessive is the source's. */
@@ -154,10 +161,21 @@ function durationFrom(m: RegExpExecArray): SaveEnds | null {
     if (!whose || /\s(?:is|are|was)$|^(?:is|are)$/i.test(whose)) return null;
     return { kind: "turn", at: edgeOf(m[1]), of: SELF.test(whose) ? "self" : "source" };
   }
-  const n = count(m[3]);
-  const rounds = /^min/i.test(m[4]) ? n * 10 : n;
+  return countedRounds(m[3], m[4]);
+}
+
+/** "1 minute" is ten rounds; null for a count a runner cannot hold. */
+function countedRounds(word: string, unit: string): SaveEnds | null {
+  const n = count(word);
+  const rounds = /^min/i.test(unit) ? n * 10 : n;
   // A ten-minute effect still outlasts any fight; an hour (and longer) is not counted in rounds.
   return n >= 1 && rounds <= 100 ? { kind: "rounds", remaining: rounds } : null;
+}
+
+/** The terse count right after the condition mentioned at `at` ("poisoned 1 min"), or null. */
+function bareCountAt(region: string, at: number): SaveEnds | null {
+  const m = BARE_COUNT.exec(region.slice(at));
+  return m ? countedRounds(m[1], m[2]) : null;
 }
 
 /**
@@ -166,6 +184,8 @@ function durationFrom(m: RegExpExecArray): SaveEnds | null {
  * rounds and charmed for 1 minute" the minute is the charm's, not the stun's.
  */
 function durationAfter(region: string, at: number): SaveEnds | null {
+  const bare = bareCountAt(region, at);
+  if (bare) return bare;
   const clause = region.slice(at, at + 120).split(/[.;]/)[0];
   const first = /\b(?:for|until|til)\b/i.exec(clause);
   if (!first || HANDS_OFF.test(clause.slice(0, first.index))) return null;
@@ -255,6 +275,11 @@ export function endsInProse(ends: SaveEnds, body: string, save: SaveOf, name: Sr
   }
   for (const m of body.matchAll(new RegExp(DURATION.source, "gi"))) {
     const read = durationFrom(m);
+    if (read && sameEnds(read, ends, save)) return true;
+  }
+  // The terse count counts only straight after this condition, as the reader takes it.
+  for (const m of body.matchAll(new RegExp(CONDITION_STEMS[name].source, "gi"))) {
+    const read = bareCountAt(body, m.index);
     if (read && sameEnds(read, ends, save)) return true;
   }
   return false;

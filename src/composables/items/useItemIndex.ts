@@ -5,6 +5,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
+import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { mergeLibraryWithCustom } from "@/lib/library/libraryShadow";
 import type { ItemIndexEntry } from "@/types/item.types";
@@ -18,9 +19,9 @@ const INDEX_SHAPE = "v2";
 // `cost` and `subtype` are shown in the store's add list and Card Forge; `tags` are matched by the inventory add box.
 const INDEX_COLUMNS =
   "id, name, item_type, subtype, tags, rarity, cost, source, source_document_key, source_record_key, image_url, ruleset";
-const CUSTOM_INDEX_COLUMNS = `${INDEX_COLUMNS}, campaign_id`;
+const CUSTOM_INDEX_COLUMNS = `${INDEX_COLUMNS}, campaign_id, user_id`;
 
-type LibraryIndexRow = Omit<ItemIndexEntry, "is_shared" | "campaign_id">;
+type LibraryIndexRow = Omit<ItemIndexEntry, "is_shared" | "campaign_id" | "user_id">;
 type CustomIndexRow = Omit<ItemIndexEntry, "is_shared">;
 
 async function fetchLibraryIndex(enabledSlugs: string[], ruleset: RulesetKey): Promise<ItemIndexEntry[]> {
@@ -35,19 +36,22 @@ async function fetchLibraryIndex(enabledSlugs: string[], ruleset: RulesetKey): P
       .order("id", { ascending: true })
       .range(from, to),
   );
-  return (rows as LibraryIndexRow[]).map((row) => ({ ...row, is_shared: true, campaign_id: null }));
+  return (rows as LibraryIndexRow[]).map((row) => ({ ...row, is_shared: true, campaign_id: null, user_id: null }));
 }
 
 async function fetchCustomIndex(
   userId: string,
   campaignId: string | null,
+  ownerId: string | null,
   ruleset: RulesetKey,
 ): Promise<ItemIndexEntry[]> {
   // Scoped here rather than left to RLS (a ceiling, not a filter). The scope and
   // edition filters are the ones `browse_items` applies to the browse list.
-  let query = supabase.from("items").select(CUSTOM_INDEX_COLUMNS).eq("user_id", userId);
-  query = campaignId === null ? query.is("campaign_id", null) : query.or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
-  const { data, error } = await query
+  // Co-DM (#590): any DM's campaign rows, plus the caller's and the owner's library.
+  const { data, error } = await supabase
+    .from("items")
+    .select(CUSTOM_INDEX_COLUMNS)
+    .or(campaignScopeFilter(campaignId, userId, ownerId))
     .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("name", { ascending: true });
   if (error) throw error;
@@ -65,7 +69,7 @@ async function fetchCustomIndex(
  */
 export function useItemIndex(getOptions?: () => { enabled?: boolean }) {
   const isEnabled = () => getOptions?.().enabled !== false;
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
   const { ruleset } = useTableRuleset();
   const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
 
@@ -80,11 +84,11 @@ export function useItemIndex(getOptions?: () => { enabled?: boolean }) {
   });
 
   const customQuery = useQuery({
-    queryKey: computed(() => ["items", "index", activeCampaignId.value, ruleset.value] as const),
-    queryFn: ({ queryKey: [, , campaignId, rs] }) => {
+    queryKey: computed(() => ["items", "index", activeCampaignId.value, activeCampaign.value?.user_id ?? null, ruleset.value] as const),
+    queryFn: ({ queryKey: [, , campaignId, ownerId, rs] }) => {
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
-      return fetchCustomIndex(user.id, campaignId, rs);
+      return fetchCustomIndex(user.id, campaignId, ownerId, rs);
     },
     // Own rows only exist for a signed-in caller; never fire the read to fail it.
     enabled: () => isEnabled() && getCurrentUser() !== null,

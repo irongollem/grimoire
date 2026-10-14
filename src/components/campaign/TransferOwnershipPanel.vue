@@ -241,11 +241,11 @@ watch(campaignId, () => {
   reassignCampaignId.value = "";
 });
 
-// Everyone but the current DM. The RPC re-checks membership server-side; this is
+// Every member but the current owner, co-DMs included (#590). The RPC re-checks membership server-side; this is
 // only about not offering a choice that would be rejected.
 const candidates = computed(() =>
   (membersQuery.data.value ?? [])
-    .filter((m) => m.role !== "dm")
+    .filter((m) => m.user_id !== campaign.value?.user_id)
     .map((m) => ({ id: m.user_id, name: m.display_name || "(unnamed player)" })),
 );
 

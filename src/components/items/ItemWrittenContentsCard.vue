@@ -30,7 +30,6 @@
         :can-write-entries="true"
         :author-party-member-id="null"
         :can-moderate="true"
-        :dm-user-id="dmUserId"
         hide-content
       />
     </template>
@@ -47,7 +46,6 @@
  * `effectiveContent` from the two models and writes NULL/false when the fold
  * is closed, so this component never decides what gets saved.
  */
-import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
@@ -65,6 +63,5 @@ const hasWrittenContent = defineModel<boolean>("hasWrittenContent", { required: 
 const content = defineModel<string | null>("content", { required: true });
 const playerWritable = defineModel<boolean>("playerWritable", { required: true });
 
-const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
-const dmUserId = computed(() => activeCampaign.value?.user_id ?? null);
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 </script>

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(27);
 
 -- #983. A DM note is the DM writing to their future self and never reaches a
 -- player (src/lib/dmNotes/registry.ts). It lives either in a notes column on a
@@ -14,9 +14,12 @@ select hasnt_column('public', 'deities', 'dm_notes', 'a deity''s DM note is not 
 select hasnt_column('public', 'species', 'notes', 'a species'' DM note is not a column players can select');
 select hasnt_column('public', 'hall_of_heroes', 'notes', 'a hero''s DM note is not a column every account can read');
 
--- The registry's column stores. Any read policy beyond the owner's would hand
+-- The registry's column stores. Any read policy beyond the DMs' would hand
 -- the note to whoever it admits; players reach these rows only through
--- projections that null the column (player_projections.test.sql).
+-- projections that null the column (player_projections.test.sql). The DMs are
+-- the author, the campaign's DMs (a co-DM taking the chair, #590), and for a
+-- library row (no campaign) the DMs who share a table with the author. Pinned to the
+-- exact text so an arm that admits anyone else fails here.
 select is(
   (select coalesce(string_agg(tablename || '.' || policyname, ', ' order by tablename, policyname), '')
      from pg_policies
@@ -24,9 +27,9 @@ select is(
       and tablename in ('npcs', 'monsters', 'items', 'traps', 'puzzle_rooms', 'dungeon_features',
                         'loot_tables', 'roll_tables', 'locations')
       and cmd in ('SELECT', 'ALL')
-      and qual <> '(( SELECT auth.uid() AS uid) = user_id)'),
+      and qual <> '((( SELECT auth.uid() AS uid) = user_id) OR ((campaign_id IS NOT NULL) AND private.is_campaign_dm(campaign_id)) OR ((campaign_id IS NULL) AND (user_id = ANY (( SELECT private.dm_library_authors() AS dm_library_authors)::uuid[]))))'),
   '',
-  'every table holding a DM-notes column is readable by its owner only');
+  'every table holding a DM-notes column is readable by its DMs only');
 
 -- A private note's rows must never travel as a payload; the table rings the
 -- doorbell instead (live_sync_registry.test.sql).
@@ -86,10 +89,19 @@ select lives_ok(
 
 -- The positive control for every "cannot read" below: the rows are there.
 select is(
-  (select count(*)::int from public.entity_notes where entity_id = 'f-1')
+  (select count(*)::int from public.entity_notes
+    where entity_id = 'f-1' and user_id = '98300000-0000-4000-8000-000000000001')
     + (select count(*)::int from public.dm_note_touches where user_id = '98300000-0000-4000-8000-000000000001'),
   2,
   'the DM reads back their own note and touch');
+
+-- And the co-DM's DM note on the same faction: the table's DMs read each
+-- other's (#590), which is what a stand-in needs at the table.
+select is(
+  (select count(*)::int from public.entity_notes
+    where entity_id = 'f-1' and user_id = '98300000-0000-4000-8000-000000000004'),
+  1,
+  'the DM reads their co-DM''s DM note on the same entity');
 
 select throws_ok(
   $$ insert into public.dm_note_touches (user_id, campaign_id, entity_type, entity_id, entity_label)

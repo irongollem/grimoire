@@ -7,18 +7,18 @@ summary: One private note on every NPC, place, monster and more, saved as you ty
 keywords: dm notes, scratchpad, notes, private, secrets, pin, autosave, session, jot, shortcut
 ---
 
-Every entity you can open has a **DM notes** box: one private note that only you can see. It sits on the entity's own page, saves itself as you type, and is there whether you are reading the page or editing it. You never have to open an editor to jot something down.
+Every entity you can open has a **DM notes** box: one private note your players never see. It sits on the entity's own page, saves itself as you type, and is there whether you are reading the page or editing it. You never have to open an editor to jot something down.
 
 ## Key ideas
 
 | Term | Meaning |
 | --- | --- |
-| DM notes box | The note on an entity's page. It reads **DM notes** with **Only you see this** beside it. |
+| DM notes box | The note on an entity's page. It reads **DM notes** with **Players never see this** beside it. |
 | Scratchpad | A side panel that shows the DM note of whatever you are looking at, so you can write while you browse. |
 | Pin | Keeps one note in the scratchpad while you move to other pages. |
 | This session | The list of everything you wrote a note on since the running session started. |
 
-DM notes are not the same as **Campaign Notes**. Session notes are written for the table and can be shared with players; a DM note is for you and is never shown to anyone else, in any form. There is no sharing switch.
+DM notes are not the same as **Campaign Notes**. Session notes are written for the table and can be shared with players; a DM note is for you and is never shown to a player, in any form. There is no sharing switch. If your campaign has a co-DM, the two of you read each other's notes: on a page whose note lives with the entity (an NPC, a monster, a place) you share one note, and elsewhere theirs shows under yours, read only.
 
 ## Where you find a DM note
 

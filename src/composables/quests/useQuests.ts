@@ -2,6 +2,7 @@ import { computed, isRef, ref } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useToast } from "@/composables/useToast";
@@ -413,7 +414,9 @@ export function useQuestFilterEntities(enabled?: () => boolean) {
     queryKey: computed(() => [QUEST_FILTER_ENTITIES_KEY, campaignId.value] as const),
     queryFn: async ({ queryKey: [, cid] }): Promise<QuestFilterEntityOption[]> => {
       if (cid === null) throw new Error("useQuestFilterEntities fetched without a campaign");
-      const campaignOrGlobal = `campaign_id.eq.${cid},campaign_id.is.null`;
+      const user = getCurrentUser();
+      if (!user) throw new Error("useQuestFilterEntities read without a signed-in user");
+      const campaignOrGlobal = campaignScopeFilter(cid, user.id, null);
       const [npcs, locations, factions] = await Promise.all([
         supabase.from("npcs").select("id, name").or(campaignOrGlobal).order("name"),
         supabase.from("locations").select("id, name").or(campaignOrGlobal).order("name"),

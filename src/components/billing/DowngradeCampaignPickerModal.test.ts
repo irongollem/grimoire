@@ -10,7 +10,7 @@ vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/composables/campaign/useCampaigns", async () => {
   const { ref } = await import("vue");
   return {
-    useAllDmCampaigns: () => ({ data: ref([]) }),
+    useOwnedCampaigns: () => ({ data: ref([]) }),
     useArchiveCampaign: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
   };
 });

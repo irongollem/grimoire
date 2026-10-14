@@ -103,6 +103,15 @@
                 >
                   <span class="truncate">{{ c.name }}</span>
                   <AppButton
+                    v-if="isCoDm(c)"
+                    as="span"
+                    variant="tinted"
+                    size="xs"
+                    tone="info"
+                    label="Co-DM"
+                    class="shrink-0"
+                  />
+                  <AppButton
                     v-if="c.demo_source"
                     as="span"
                     variant="tinted"
@@ -168,6 +177,7 @@
                 <p class="text-caption-sm text-muted-foreground/60 truncate">{{ c.name }}</p>
               </span>
               <button
+                v-if="!isCoDm(c)"
                 class="text-label text-primary/70 hover:text-primary transition-colors disabled:opacity-40 shrink-0"
                 :disabled="!canCreateCampaign || isRestoring"
                 :title="canCreateCampaign ? 'Restore campaign' : 'Upgrade to restore'"
@@ -296,6 +306,12 @@ const nameLoading = computed(() => {
   return !!activeId && !activeCampaign.value && campaigns.value.some((c) => c.id === activeId);
 });
 const showArchived = ref(false);
+
+// A campaign can seat several DMs (#590). One the account does not own is a
+// seat it was handed: labelled, and without the owner-only archive/restore.
+function isCoDm(c: Campaign): boolean {
+  return auth.user !== null && c.user_id !== auth.user.id;
+}
 
 const isFirstCampaign = computed(() => campaigns.value.length === 0);
 

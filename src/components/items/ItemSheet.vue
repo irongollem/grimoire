@@ -194,7 +194,6 @@
           :can-write-entries="canWriteEntries"
           :author-party-member-id="authorPartyMemberId"
           :can-moderate="!playerView"
-          :dm-user-id="dmUserId"
         />
 
         <!-- Curse (DM always sees it; players never see it from this template view) -->
@@ -303,9 +302,8 @@ const { data: allCampaigns } = useDmCampaigns();
 const sheetArtTab = ref<'identified' | 'mundane'>('identified');
 
 // ── Written contents + entries ───────────────────────────────────────────────
-const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 const auth = useAuthStore();
-const dmUserId = computed(() => activeCampaign.value?.user_id ?? null);
 const canWriteEntries = computed(
   () => !props.playerView || props.item.content_player_writable,
 );

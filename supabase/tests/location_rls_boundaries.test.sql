@@ -68,9 +68,11 @@ select set_config('request.jwt.claims',
 -- The point of #787: the place remembers, not the quest — and not one DM's
 -- private copy. The original predicate reached `locations` directly, so it was
 -- filtered away before is_campaign_dm ran and this returned 0.
+-- Counted by fact: since #590 the owner can see the co-DM's place, so F1's
+-- arrival now writes its explored log row too, where before it was refused.
 select is(
   (select count(*)::integer from public.location_state_events
-    where location_id = '7ff00000-0000-4000-8000-000000000020'),
+    where location_id = '7ff00000-0000-4000-8000-000000000020' and fact = 'looted'),
   1,
   'a campaign DM sees state another DM asserted'
 );

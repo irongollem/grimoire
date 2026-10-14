@@ -5,6 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import type {
   CampaignMember,
+  CampaignRole,
   CampaignMemberUpdate,
   CampaignInvite,
   CampaignInviteInsert,
@@ -29,6 +30,20 @@ async function updateMember(id: string, update: CampaignMemberUpdate): Promise<C
   const { data, error } = await supabase
     .from("campaign_members")
     .update(update)
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as CampaignMember;
+}
+
+// A role change (#590). The database decides who may make it (the owner for
+// anyone, a co-DM for their own row only) and refuses the rest with an
+// exception, which `throw error` hands to the caller's toast.
+async function setMemberRole(id: string, role: CampaignRole): Promise<CampaignMember> {
+  const { data, error } = await supabase
+    .from("campaign_members")
+    .update({ role })
     .eq("id", id)
     .select()
     .single();
@@ -81,6 +96,22 @@ export function useUpdateCampaignMember() {
     mutationFn: ({ id, update }: { id: string; update: CampaignMemberUpdate }) =>
       updateMember(id, update),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [MEMBERS_KEY] }),
+  });
+}
+
+/** Seat a player in the DM chair, or hand it back. Whatever a co-DM wrote
+ *  passes to the owner on the server when they step down, so content reads
+ *  refresh with the roster. */
+export function useSetMemberRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, role }: { id: string; role: CampaignRole }) => setMemberRole(id, role),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [MEMBERS_KEY] }),
+        queryClient.invalidateQueries({ queryKey: MY_MEMBERSHIPS_KEY }),
+      ]);
+    },
   });
 }
 

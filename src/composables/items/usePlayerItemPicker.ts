@@ -24,6 +24,7 @@ export function projectionIndexEntry(item: Item): ItemIndexEntry {
     image_url: item.image_url,
     is_shared: false,
     campaign_id: item.campaign_id,
+    user_id: item.user_id,
     ruleset: item.ruleset ?? null,
   };
 }

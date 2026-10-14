@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
     campaign_id: "campaign-1",
   } as Record<string, unknown>,
   isShared: false,
+  userId: "me",
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
@@ -48,6 +49,10 @@ vi.mock("@/composables/items/useItems", () => ({
     isLoading: ref(false),
   }),
   useCustomizeLibraryItem: () => ({ customizeLibraryItem: vi.fn() }),
+}));
+
+vi.mock("@/stores/auth", () => ({
+  useAuthStore: () => ({ user: { id: mocks.userId } }),
 }));
 
 vi.mock("@/composables/useToast", () => ({
@@ -178,5 +183,64 @@ describe("ItemDetailView — copy to campaign (#598)", () => {
     // The copy lands in another campaign, which this page cannot show — no
     // create-style navigation follows it, unlike "Clone" on this same row.
     expect(mocks.replace).not.toHaveBeenCalledWith(expect.stringContaining("/vault/"));
+  });
+});
+
+
+describe("ItemDetailView — a co-DM's view of the owner's personal item (#590)", () => {
+  beforeEach(() => {
+    mocks.route.name = "item-detail";
+    mocks.route.params = { id: "item-1" };
+    mocks.isShared = false;
+    mocks.userId = "me";
+  });
+
+  function ownersItem(userId: string) {
+    mocks.item = {
+      id: "item-1",
+      name: "Longsword of Testing",
+      item_type: "weapon",
+      rarity: "uncommon",
+      campaign_id: null,
+      user_id: userId,
+    };
+  }
+
+  function actionLabels(wrapper: Awaited<ReturnType<typeof mountView>>) {
+    return wrapper.findAll("button").map((b) => b.text());
+  }
+
+  it("offers Edit on the caller's own library item, and no caption", async () => {
+    mocks.route.query = {};
+    ownersItem("me");
+    const wrapper = await mountView();
+    expect(actionLabels(wrapper).some((l) => l.includes("Edit"))).toBe(true);
+    expect(wrapper.find('[data-testid="read-only-library-note"]').exists()).toBe(false);
+  });
+
+  it("hides Edit and says why on another DM's library item, keeping Copy to campaign", async () => {
+    mocks.route.query = {};
+    ownersItem("owner");
+    const wrapper = await mountView();
+    const labels = actionLabels(wrapper);
+    expect(labels.some((l) => l.includes("Edit"))).toBe(false);
+    expect(labels.some((l) => l.includes("Copy to campaign"))).toBe(true);
+    expect(wrapper.get('[data-testid="read-only-library-note"]').text()).toContain("Read only");
+  });
+
+  it("ignores ?edit=true for it: no editor, no Save, no Delete", async () => {
+    mocks.route.query = { edit: "true" };
+    ownersItem("owner");
+    const wrapper = await mountView();
+    expect(wrapper.findComponent({ name: "ItemDetail" }).exists()).toBe(false);
+    const labels = actionLabels(wrapper);
+    expect(labels.some((l) => /Save|Delete|Clone/.test(l))).toBe(false);
+  });
+
+  it("still opens the editor on the caller's own library item", async () => {
+    mocks.route.query = { edit: "true" };
+    ownersItem("me");
+    const wrapper = await mountView();
+    expect(wrapper.findComponent({ name: "ItemDetail" }).exists()).toBe(true);
   });
 });

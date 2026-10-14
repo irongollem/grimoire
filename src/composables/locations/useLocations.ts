@@ -2,6 +2,7 @@ import { computed, isRef, ref, toValue, type MaybeRefOrGetter } from "vue";
 import type { Ref } from "vue";
 import { useQueries, useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import { createIdBatcher } from "@/lib/batchById";
 import { MissingRowError } from "@/lib/queryRetry";
 import { useCampaignStore } from "@/stores/campaign";
@@ -102,10 +103,12 @@ async function fetchLocations(campaignId: string, parentId: string | null): Prom
   // the filter is what makes CampaignScopeField's "General" option actually
   // show the location anywhere, rather than just accepting the write and then
   // hiding the row.
+  const user = getCurrentUser();
+  if (!user) throw new Error("Locations read without a signed-in user");
   let query = supabase
     .from("locations")
     .select("*")
-    .or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
+    .or(campaignScopeFilter(campaignId, user.id, null));
 
   query = parentId === null ? query.is("parent_id", null) : query.eq("parent_id", parentId);
 
@@ -125,10 +128,12 @@ async function fetchAllLocations(campaignId: string): Promise<LocationSummary[]>
   // location tree) disagrees with the Atlas about which locations exist.
   // Slim on purpose (#972): the tree and its pickers need these columns, not
   // every description. A place shown in full is read by id (`useLocation`).
+  const user = getCurrentUser();
+  if (!user) throw new Error("Locations read without a signed-in user");
   const { data, error } = await supabase
     .from("locations")
     .select(LOCATION_SUMMARY_SELECT)
-    .or(`campaign_id.eq.${campaignId},campaign_id.is.null`)
+    .or(campaignScopeFilter(campaignId, user.id, null))
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
   if (error) throw error;

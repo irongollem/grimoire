@@ -35,9 +35,11 @@ select is_empty($$
 $$, 'an ordinary user cannot rewrite an official feature');
 select is((pg_temp.feature('f1')).name, 'Official Test Feature', 'and it is unchanged');
 
+-- Refused before RLS is consulted: no edit changes a row's author (#590,
+-- private.guard_content_author), and making it official is exactly that.
 select throws_ok($$
   update public.class_features set user_id = null where id = '94500000-0000-4000-8000-0000000000f2'
-$$, '42501', 'new row violates row-level security policy for table "class_features"',
+$$, '42501', 'A row''s author does not change by editing it',
   'a user cannot turn their own feature into an official one');
 select is((pg_temp.feature('f2')).user_id, '94500000-0000-4000-8000-000000000001'::uuid, 'it is still theirs');
 

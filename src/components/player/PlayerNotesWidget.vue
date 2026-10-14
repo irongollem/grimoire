@@ -151,8 +151,8 @@ const { data: notes } = useEntityNotes(() => entityType, () => entityId);
 
 // Both of the viewer's own notes save themselves as they type.
 const noteSource = { entityType: () => entityType, entityId: () => entityId, notes, userId: myUserId };
-const privateNote = useMyEntityNote({ ...noteSource, isPrivate: true });
-const partyNote = useMyEntityNote({ ...noteSource, isPrivate: false });
+const privateNote = useMyEntityNote({ ...noteSource, isPrivate: true, writtenAsDm: false });
+const partyNote = useMyEntityNote({ ...noteSource, isPrivate: false, writtenAsDm: false });
 
 const othersNotes = computed(() =>
   (notes.value ?? []).filter((n) => n.user_id !== myUserId.value && !n.is_private),

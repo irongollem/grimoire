@@ -4,7 +4,7 @@ section: Getting Started
 section_order: 0
 order: 3
 summary: Generate invite links, manage members, and preview the player portal.
-keywords: invite, player, join, link, token, membership, role, access, preview
+keywords: invite, player, join, link, token, membership, role, access, preview, co-dm, co-DM, stand-in, take my chair
 ---
 
 Players join your campaign through a one-click link you generate: there's no separate "player account setup" step. Open **Campaign Settings → Members & Invites**, which holds both the member list and the invite-link manager on one tab.
@@ -60,6 +60,14 @@ After a player joins, find their row on the **Members & Invites** tab and use th
 Click the person-remove icon (**Remove from campaign**) on a player's row. The confirmation dialog names the player and, if they have a linked character, tells you it's returning to their own character pool automatically: nothing is deleted, and they can bring it to another campaign later. Confirm with **Remove**.
 
 A player who was removed (or whose link was cleared) can leave characters with no assigned player. These show under **Characters without a player**, where you can assign one to a new player, or, for a character the player claimed themselves, **Detach** it back to their pool, or, for one you created and manages, remove it outright.
+
+## A co-DM: when you can't make it
+
+If you can't run a session, someone else can take your chair on their own account; nobody shares a password. On the **Members & Invites** tab, click **Make co-DM** on a player's row, or create an invite link and set **Joins as** to **Co-DM** for someone who isn't in the game yet. Only you, the campaign's owner, can do either.
+
+A co-DM runs the campaign exactly as you would: sessions, encounters, quests, chat, NPCs and places, your DM notes included. They can edit everything, and they can read (not change) the monsters, items and other things in your personal library that your campaign uses. They can't delete what you wrote, change who else is a DM, touch the campaign's AI keys or calendar link, or delete or hand over the campaign.
+
+A player who becomes co-DM keeps their character; it sits out while they run the game. When you're back, click **Back to player** on their row, or they can click **Hand back the chair** themselves. Anything they wrote stays in the campaign and becomes yours, even if they later delete their account.
 
 ## Presence and DM Preview Mode
 

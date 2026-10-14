@@ -2,7 +2,8 @@ import { computed, type Ref } from "vue";
 import { refDebounced, useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useQuery } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
+import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import { orFilterValue } from "@/lib/postgrestFilter";
 import { useCampaignStore } from "@/stores/campaign";
 import { placeRoute } from "@/lib/locations/placeRoute";
@@ -82,10 +83,10 @@ async function fetchThumbnails(campaignId: string, npcIds: string[], monsterIds:
   return out;
 }
 
-/** `campaign_id = active OR campaign_id is null`: the scope `useItems` /
- *  `useMonsterIndex` give their own lists. Without a campaign, nothing narrows. */
-function scopedToCampaign<T extends { or: (filter: string) => T }>(builder: T, campaignId: string | null): T {
-  return campaignId ? builder.or(`campaign_id.eq.${campaignId},campaign_id.is.null`) : builder;
+/** The campaign's rows (any DM's) plus the caller's own library: the scope
+ *  `useItems` / `useMonsterIndex` give their own lists. */
+function scopedToCampaign<T extends { or: (filter: string) => T }>(builder: T, campaignId: string | null, userId: string): T {
+  return builder.or(campaignScopeFilter(campaignId, userId, null));
 }
 
 /** Which books and edition the keyword tier reads, resolved the way the
@@ -101,6 +102,8 @@ interface SearchScope {
 
 async function searchAll(query: string, campaignId: string | null, scope: SearchScope): Promise<SearchResult> {
   const noRows = { data: [] as { id: string; name: string }[], error: null };
+  const user = getCurrentUser();
+  if (!user) throw new Error("global search ran without a signed-in user");
   const q = `%${query}%`;
 
   const [
@@ -127,6 +130,7 @@ async function searchAll(query: string, campaignId: string | null, scope: Search
       supabase.from("monsters").select("id, name").ilike("name", q).not("open5e_import", "eq", true)
         .or(`ruleset.is.null,ruleset.eq.${scope.tableRuleset}`),
       campaignId,
+      user.id,
     ).limit(LIMIT),
     scope.slugs.length === 0
       ? Promise.resolve(noRows)
@@ -138,11 +142,11 @@ async function searchAll(query: string, campaignId: string | null, scope: Search
       ? Promise.resolve(noRows)
       : supabase.from("library_spells").select("id, name").ilike("name", q)
         .in("source", scope.slugs).eq("ruleset", scope.buildRuleset).limit(LIMIT),
-    scopedToCampaign(supabase.from("items").select("id, name").ilike("name", q), campaignId).limit(LIMIT),
+    scopedToCampaign(supabase.from("items").select("id, name").ilike("name", q), campaignId, user.id).limit(LIMIT),
     // `.or` rather than `.eq` — a location with campaign_id null is meant to
     // be visible in every campaign (#596), same as items/spells/species below.
     campaignId
-      ? supabase.from("locations").select("id, name").or(`campaign_id.eq.${campaignId},campaign_id.is.null`).ilike("name", q).limit(LIMIT)
+      ? supabase.from("locations").select("id, name").or(campaignScopeFilter(campaignId, user.id, null)).ilike("name", q).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
     campaignId
       ? supabase.from("quests").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)

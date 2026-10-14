@@ -2,14 +2,16 @@ import { computed, toValue, type Ref, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import type { LootTable, LootTableInsert, LootTableUpdate } from "@/types/lootTable.types";
 
 const QUERY_KEY = "loot_tables";
 
 async function fetchLootTables(campaignId: string | null): Promise<LootTable[]> {
   let q = supabase.from("loot_tables").select("*").order("name", { ascending: true });
-  if (campaignId) q = q.or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
-  else q = q.is("campaign_id", null);
+  const user = getCurrentUser();
+  if (!user) throw new Error("loot tables read without a signed-in user");
+  q = q.or(campaignScopeFilter(campaignId, user.id, null));
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as LootTable[];

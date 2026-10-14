@@ -31,7 +31,7 @@
         <input
           v-model="newExpiry"
           type="datetime-local"
-          class="flex-1 rounded-md border border-input bg-muted/40 px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          :class="cn(fieldVariants({ size: 'sm', control: 'input' }), 'flex-1')"
         />
         <AppButton
           variant="primary"
@@ -122,6 +122,8 @@ import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composa
 import type { AppInvite, GrantedPlan } from "@/composables/admin/useAppInvites";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import { fieldVariants } from "@/components/common/controls/fieldVariants";
+import { cn } from "@/lib/utils";
 
 const invitesQuery = useAppInvites();
 const createInvite = useCreateAppInvite();

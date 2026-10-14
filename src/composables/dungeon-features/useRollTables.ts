@@ -2,6 +2,7 @@ import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import type { RollTable, RollTableInsert, RollTableUpdate } from "@/types/rollTable.types";
 import { ROLL_TABLE_SEEDS } from "@/data/rollTableSeeds";
 import { missingSeeds } from "@/lib/dungeon-features/rollTableSeedNames";
@@ -10,8 +11,9 @@ const QUERY_KEY = "roll_tables";
 
 async function fetchRollTables(campaignId: string | null): Promise<RollTable[]> {
   let q = supabase.from("roll_tables").select("*").order("name", { ascending: true });
-  if (campaignId) q = q.or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
-  else q = q.is("campaign_id", null);
+  const user = getCurrentUser();
+  if (!user) throw new Error("roll tables read without a signed-in user");
+  q = q.or(campaignScopeFilter(campaignId, user.id, null));
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as RollTable[];
@@ -136,7 +138,9 @@ export function usePopulateRollTables() {
       const { data: existing, error: fetchErr } = await supabase
         .from("roll_tables")
         .select("name")
-        .eq("user_id", user!.id);
+        // The seeds land in this campaign, so de-dup against its tables whoever
+        // authored them (#590); a co-DM's populate must not double the owner's seeds.
+        .eq("campaign_id", campaignId);
       if (fetchErr) throw fetchErr;
       const existingNames = (existing ?? []).map((r: { name: string }) => r.name);
 

@@ -24,7 +24,7 @@
           <input
             v-model="newExpiry"
             type="datetime-local"
-            class="w-full rounded-md border border-input bg-muted/40 px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            :class="cn(fieldVariants({ size: 'body', control: 'input' }), 'w-full')"
           />
         </div>
 
@@ -39,6 +39,12 @@
             size="body"
           />
         </div>
+      </div>
+
+      <!-- Only the owner can seat another DM; a co-DM invites players. -->
+      <div v-if="campaignStore.isOwner" class="space-y-1">
+        <label class="block text-caption text-muted-foreground italic">Joins as</label>
+        <SegmentedControl v-model="newRole" :options="ROLE_OPTIONS" size="sm" />
       </div>
 
       <AppButton
@@ -66,8 +72,20 @@
       >
         <div class="flex items-start justify-between gap-2">
           <div class="space-y-0.5 min-w-0">
-            <p v-if="invite.label" class="text-heading-sm font-semibold text-foreground">
-              {{ invite.label }}
+            <p
+              v-if="invite.label || invite.role === 'dm'"
+              class="flex items-center gap-2 text-heading-sm font-semibold text-foreground"
+            >
+              <span v-if="invite.label">{{ invite.label }}</span>
+              <AppButton
+                v-if="invite.role === 'dm'"
+                as="span"
+                variant="tinted"
+                size="xs"
+                tone="info"
+                label="Co-DM"
+                class="shrink-0"
+              />
             </p>
             <p class="text-caption text-muted-foreground italic space-x-3">
               <span>{{ invite.use_count }}{{ invite.max_uses ? `/${invite.max_uses}` : '' }} uses</span>
@@ -131,8 +149,19 @@ import {
 } from "@/composables/campaign/useCampaignMembers";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { fieldVariants } from "@/components/common/controls/fieldVariants";
+import { cn } from "@/lib/utils";
+import { useCampaignStore } from "@/stores/campaign";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import type { CampaignInvite } from "@/types/campaign.types";
+import type { CampaignInvite, CampaignRole } from "@/types/campaign.types";
+
+const campaignStore = useCampaignStore();
+
+const ROLE_OPTIONS: ReadonlyArray<{ value: CampaignRole; label: string }> = [
+  { value: "player", label: "Player" },
+  { value: "dm", label: "Co-DM" },
+];
 
 const invitesQuery = useCampaignInvites();
 const createInvite = useCreateCampaignInvite();
@@ -143,6 +172,7 @@ const invites = computed(() => invitesQuery.data.value ?? []);
 const newLabel = ref("");
 const newExpiry = ref("");
 const newMaxUses = ref<number | null>(null);
+const newRole = ref<CampaignRole>("player");
 const copiedId = ref<string | null>(null);
 
 function inviteUrl(token: string) {
@@ -164,7 +194,9 @@ function isExpired(invite: CampaignInvite) {
 }
 
 function handleCreate() {
-  const payload: Parameters<typeof createInvite.mutate>[0] = {};
+  const payload: Parameters<typeof createInvite.mutate>[0] = {
+    role: campaignStore.isOwner ? newRole.value : "player",
+  };
   if (newLabel.value.trim()) payload.label = newLabel.value.trim();
   if (newExpiry.value) payload.expires_at = new Date(newExpiry.value).toISOString();
   if (newMaxUses.value) payload.max_uses = newMaxUses.value;
@@ -173,6 +205,7 @@ function handleCreate() {
       newLabel.value = "";
       newExpiry.value = "";
       newMaxUses.value = null;
+      newRole.value = "player";
     },
   });
 }

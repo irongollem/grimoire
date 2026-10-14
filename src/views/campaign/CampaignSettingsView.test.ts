@@ -5,6 +5,7 @@ import CampaignSettingsView from "./CampaignSettingsView.vue";
 
 const mocks = vi.hoisted(() => ({
   aiEnabled: true,
+  isOwner: true,
   query: {} as Record<string, string>,
   replace: vi.fn(),
   waiting: 0,
@@ -19,7 +20,7 @@ vi.mock("vue-router", () => ({
   useRouter: () => ({ replace: mocks.replace }),
 }));
 vi.mock("@/stores/campaign", () => ({
-  useCampaignStore: () => ({ activeCampaign: { id: "c1", name: "Test" }, isAiEnabled: mocks.aiEnabled }),
+  useCampaignStore: () => ({ activeCampaign: { id: "c1", name: "Test" }, isAiEnabled: mocks.aiEnabled, isOwner: mocks.isOwner }),
 }));
 
 const stub = (name: string) => ({ name, template: `<div data-stub="${name}" />` });
@@ -54,7 +55,30 @@ describe("CampaignSettingsView tabs", () => {
   beforeEach(() => {
     mocks.waiting = 0;
     mocks.aiEnabled = true;
+    mocks.isOwner = true;
     mocks.query = {};
+  });
+
+  it("shows the owner every tab, including AI Assistant and Danger Zone", () => {
+    const l = labels(mountView());
+    expect(l).toContain("AI Assistant");
+    expect(l).toContain("Danger Zone");
+  });
+
+  it("hides the owner-only tabs from a co-DM but keeps AI Connections (#590)", () => {
+    mocks.isOwner = false;
+    const l = labels(mountView());
+    expect(l).not.toContain("AI Assistant");
+    expect(l).not.toContain("Danger Zone");
+    expect(l).toContain("AI Connections");
+    expect(l).toContain("Scheduling");
+  });
+
+  it("falls back to Details when a co-DM deep-links to the Danger Zone (#590)", () => {
+    mocks.isOwner = false;
+    mocks.query = { tab: "danger" };
+    const w = mountView();
+    expect(w.find('[data-stub="DetailsTab"]').exists()).toBe(true);
   });
 
   it("lists Import Document with AI on", () => {

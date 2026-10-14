@@ -19,7 +19,17 @@
       <!-- View-mode controls (existing, owned items only) -->
       <template v-if="!isNewItem && !isShared && !isEditing">
         <ItemSendMenu v-if="item" :item="item" />
+        <!-- A co-DM's view of the owner's personal item (#590): no Edit, since
+             an UPDATE on it matches nothing under RLS. Copying inserts a new
+             row under the caller, which is allowed. -->
         <PageHeaderAction
+          v-if="isReadOnly"
+          label="Copy to campaign…"
+          :icon="IconCopy"
+          @click="openCopy"
+        />
+        <PageHeaderAction
+          v-else
           label="Edit"
           :icon="IconEdit"
           @click="startEditing"
@@ -75,6 +85,7 @@
       <LoadingSpinner />
     </div>
     <template v-else>
+      <ReadOnlyLibraryNote v-if="isReadOnly" class="mb-4" />
       <ItemSheet v-if="!isEditing && item" :item="item" />
       <ItemDetail
         v-else
@@ -83,7 +94,7 @@
         :item="isNewItem ? null : (item ?? null)"
         :prefill-name="isNewItem ? (route.query.name as string | undefined) : undefined"
       />
-      <DmNoteBox v-if="item && !isNewItem && !isShared" class="mt-6" type="item" :id="item.id" :label="item.name" />
+      <DmNoteBox v-if="item && !isNewItem && !isShared" class="mt-6" type="item" :id="item.id" :label="item.name" :readonly="isReadOnly" />
     </template>
 
     <CopyToCampaignDialog
@@ -110,6 +121,9 @@ import PageHeaderAction from "@/components/common/list/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
+import ReadOnlyLibraryNote from "@/components/common/entity/ReadOnlyLibraryNote.vue";
+import { isReadOnlyLibraryRow } from "@/composables/campaign/campaignLibraryScope";
+import { useAuthStore } from "@/stores/auth";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import ItemDetail from "@/components/items/ItemDetail.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
@@ -127,7 +141,15 @@ const { data: resolvedData, isLoading: itemLoading } = useResolvedItem(id);
 const item = computed(() => resolvedData.value?.item ?? null);
 // Shared/SRD rows are strictly read-only — ?edit=true is never honored for them.
 const isShared = computed(() => resolvedData.value?.isShared === true);
-const isEditing = computed(() => !isShared.value && (isNewItem.value || route.query.edit === "true"));
+// A co-DM reads the owner's personal library rows but never edits them (#590);
+// `?edit=true` is not honoured for one either.
+const auth = useAuthStore();
+const isReadOnly = computed(
+  () => !!item.value && !isShared.value && isReadOnlyLibraryRow(item.value, auth.user?.id ?? null),
+);
+const isEditing = computed(
+  () => !isShared.value && !isReadOnly.value && (isNewItem.value || route.query.edit === "true"),
+);
 
 const itemDetail = ref<InstanceType<typeof ItemDetail> | null>(null);
 

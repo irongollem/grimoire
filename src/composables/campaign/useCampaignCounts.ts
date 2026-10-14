@@ -1,6 +1,7 @@
 import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getCurrentUser } from "@/lib/supabase";
+import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import { useCampaignStore } from "@/stores/campaign";
 
 /**
@@ -26,12 +27,14 @@ async function countRows(
   return count;
 }
 
-/** Places include the global ones (`campaign_id` null), like the Atlas's own list. */
+/** Places include the caller's own global ones (`campaign_id` null), like the Atlas's own list. */
 async function countLocations(campaignId: string): Promise<number> {
+  const user = getCurrentUser();
+  if (!user) throw new Error("Counting locations without a signed-in user");
   const { count, error } = await supabase
     .from("locations")
     .select("id", { count: "exact", head: true })
-    .or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
+    .or(campaignScopeFilter(campaignId, user.id, null));
   if (error) throw error;
   if (count === null) throw new Error("Counting locations returned no count");
   return count;
