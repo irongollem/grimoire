@@ -87,11 +87,17 @@ select ok(
      where table_schema = 'public' and table_name = 'dungeon_maps' and column_name = 'layers') like '%"dressing": {}%',
   'a new map''s layers start with an empty dressing layer');
 
--- The source starts off: nothing in the migration enables it anywhere.
+-- The source starts off: a new campaign and a new account do not get it. Asked
+-- of rows made here rather than of the whole table, which a DM switching the
+-- book on in a local stack would otherwise fail.
+insert into public.campaigns (id, user_id, name, ruleset)
+values ('10620000-0000-4000-8000-0000000000c1', '10620000-0000-4000-8000-000000000002', 'Ben''s table', '2024');
 select is(
-  (select count(*)::int from public.campaign_enabled_sources where source_slug = 'grimoire-dressing')
-    + (select count(*)::int from public.user_enabled_sources where source_slug = 'grimoire-dressing'),
-  0, 'no campaign or user has the dressing book switched on by default');
+  (select count(*)::int from public.campaign_enabled_sources
+    where source_slug = 'grimoire-dressing' and campaign_id = '10620000-0000-4000-8000-0000000000c1')
+    + (select count(*)::int from public.user_enabled_sources
+        where source_slug = 'grimoire-dressing' and user_id = '10620000-0000-4000-8000-000000000002'),
+  0, 'a new campaign and a new account do not have the dressing book switched on');
 
 select * from finish();
 rollback;
