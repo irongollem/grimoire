@@ -25,8 +25,7 @@
           <div class="flex-1 min-w-0">
             <p class="text-heading-sm font-bold text-foreground">{{ cls.class_name }}</p>
             <p class="text-eyebrow text-muted-foreground/70">
-              {{ cls.definition_kind === 'system' ? 'Official' : (cls.source_document_key ? 'Imported' : 'Custom') }}
-              <template v-if="cls.source_revision"> · {{ cls.source_revision }}</template>
+              {{ classKindLabel(cls) }}
             </p>
             <p v-if="cls.primary_ability" class="text-caption text-muted-foreground mt-0.5">{{ cls.primary_ability }}</p>
           </div>
@@ -214,6 +213,7 @@
 </template>
 
 <script setup lang="ts">
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { ref, computed, watch, nextTick } from "vue";
 import { revealInScrollParent } from "@/lib/motion";
 import FocalImage from "@/components/common/media/FocalImage.vue";
@@ -239,6 +239,15 @@ const {
 } = form;
 
 const showProfs = ref(false);
+
+const { labelFor } = useSourceTitles();
+/** A system class is its book's: name the book. An imported or homebrew one keeps its kind. */
+function classKindLabel(cls: (typeof mergedClasses.value)[number]): string {
+  if (cls.definition_kind === "system") {
+    return labelFor(cls.source_document_key, cls.source_revision) ?? "Class";
+  }
+  return cls.source_document_key ? "Imported" : "Custom";
+}
 
 // The class grid is long, so on a phone the subclass question appears below the
 // fold the moment a class that needs one is picked; bring it into view.

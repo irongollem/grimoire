@@ -6,11 +6,12 @@
     </div>
 
     <div v-if="isLoading" class="flex justify-center py-16"><LoadingSpinner /></div>
-    <p v-else-if="!table" class="text-body text-muted-foreground italic">This roll table is not in the library.</p>
+    <p v-else-if="!table" class="text-body text-muted-foreground italic">This roll table could not be found.</p>
     <div v-else class="flex flex-col gap-4 max-w-2xl">
       <!-- Read-only library banner (same shape as MonsterDetail's) -->
       <LibraryReadOnlyBanner
-        message="Read-only reference. Use it in your campaign to get your own editable copy."
+        :source="table.source"
+        message="Use it in your campaign to get your own editable copy."
         action-label="Use in campaign"
         busy-label="Copying…"
         :busy="using"

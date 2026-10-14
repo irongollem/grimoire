@@ -3,7 +3,7 @@
     <!-- Action bar -->
     <div v-if="!editable" class="flex items-center gap-2">
       <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
-        {{ sub.user_id === null ? "Library · read only" : "Read only" }}
+        {{ readOnlyLabel }}
       </span>
     </div>
     <div v-else class="flex items-center justify-end gap-2">
@@ -41,9 +41,7 @@
           <span class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
             {{ sub.class_name }}
           </span>
-          <span v-if="sub.source" class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
-            {{ sub.source }}
-          </span>
+          <SourceBadge :source="sub.source_document_key ?? sub.source" :title="sub.source_revision" />
           <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ sub.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
           </span>
@@ -131,6 +129,8 @@
 </template>
 
 <script setup lang="ts">
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
@@ -146,6 +146,13 @@ import { SUBCLASS_ABILITY_OPTIONS, SUBCLASS_SLOT_COLUMNS } from "@/levelup/subcl
 import type { CustomSubclass } from "@/levelup/customTypes";
 
 const props = defineProps<{ sub: CustomSubclass }>();
+
+const { labelFor } = useSourceTitles();
+const bookLabel = computed(() => labelFor(props.sub.source_document_key ?? props.sub.source, props.sub.source_revision));
+/** A subclass nobody owns is a book's; name the book. */
+const readOnlyLabel = computed(() =>
+  props.sub.user_id === null && bookLabel.value ? `${bookLabel.value}, read only` : "Read only",
+);
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();

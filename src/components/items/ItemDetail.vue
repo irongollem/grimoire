@@ -327,8 +327,8 @@
               target="_blank"
               rel="noopener noreferrer"
               class="hover:text-foreground hover:underline transition-colors"
-            >{{ itemSourceLabel(source, props.item.source_title) }}</a>
-            <span v-else>{{ itemSourceLabel(source, props.item.source_title) }}</span>
+            >{{ sourceLabel }}</a>
+            <span v-else>{{ sourceLabel }}</span>
           </div>
           <!-- Custom items: editable -->
           <AppInput
@@ -392,10 +392,10 @@ import {
   RARITY_PRICE_HINTS,
   isWeaponType,
   isArmorType,
-  itemSourceLabel,
 } from "@/types/item.types";
 import type { Item, ItemType, ItemRarity, WeaponMasteryProperty } from "@/types/item.types";
 import type { DamageRoll } from "@/lib/dice/dice";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
@@ -404,6 +404,12 @@ import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 
 const props = defineProps<{ item: Item | null; prefillName?: string }>();
+
+// Library items name their book by source_document_key; their `source` is only 'srd' or null.
+const { labelFor } = useSourceTitles();
+const sourceLabel = computed(() =>
+  props.item ? labelFor(props.item.source_document_key ?? props.item.source, props.item.source_title) : null,
+);
 const router = useRouter();
 const route = useRoute();
 

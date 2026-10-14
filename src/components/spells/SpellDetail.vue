@@ -17,6 +17,7 @@
     <SpellDetailHeader
       :has-spell="!!spell"
       :is-shared="isShared"
+      :source-label="sourceLabel"
       :is-ai-enabled="isAiEnabled"
       :is-saving="isSaving"
       :is-deleting="isDeleting"
@@ -60,8 +61,8 @@
               target="_blank"
               rel="noopener noreferrer"
               class="hover:text-foreground hover:underline transition-colors"
-            >{{ spellSourceLabel(source, props.spell.source_title) }}</a>
-            <span v-else>{{ spellSourceLabel(source, props.spell.source_title) }}</span>
+            >{{ sourceLabel }}</a>
+            <span v-else>{{ sourceLabel }}</span>
           </div>
           <AppInput
             v-else
@@ -266,8 +267,9 @@ import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import TagInput from "@/components/common/controls/TagInput.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
-import { SPELL_SCHOOLS, spellLevelLabel, spellSourceLabel } from "@/types/spell.types";
+import { SPELL_SCHOOLS, spellLevelLabel } from "@/types/spell.types";
 import type { Spell, SpellSchool } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/spells/useSpells";
 import { useUpsertLibrarySpellArt } from "@/composables/library/useLibrarySpellArt";
@@ -296,6 +298,8 @@ const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
 const { mutateAsync: upsertLibraryArt } = useUpsertLibrarySpellArt();
 const isShared = computed(() => !!props.isShared);
+const { labelFor } = useSourceTitles();
+const sourceLabel = computed(() => labelFor(props.spell?.source, props.spell?.source_title));
 // An admin's edit to a shared library row is the canonical art, and canonical art
 // lives under srd/, never a user folder (CLAUDE.md storage convention, #952).
 const auth = useAuthStore();

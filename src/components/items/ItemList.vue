@@ -57,7 +57,7 @@
               :subtitle="itemSubtitle(item)"
               :image-url="item.image_url"
               :fallback-icon="itemTypeIcon(item.item_type)"
-              :tags="item.tags"
+              :tags="rowTags(item)"
             >
               <template v-if="!selecting" #actions>
                 <AppButton
@@ -69,7 +69,6 @@
                   label="Edit"
                   tooltip="Edit item"
                 />
-                <span v-else class="text-label text-muted-foreground">Reference</span>
               </template>
             </EntityListRow>
           </BulkSelectableCard>
@@ -126,14 +125,9 @@
               ]"
               tooltip="Edit item"
             />
-            <!-- Library rows only: an owned row in select mode shows nothing
-                 here, leaving this corner to BulkSelectableCard's checkbox.
-                 A plain v-else labelled the DM's own items "Reference" the
-                 moment select mode hid their Edit button. -->
-            <span
-              v-else-if="item.is_shared"
-              class="flex h-6 items-center rounded bg-black/50 px-1.5 text-label text-white backdrop-blur-sm"
-            >Reference</span>
+            <!-- Nothing else lives in this corner: an owned row in select mode
+                 leaves it to BulkSelectableCard's checkbox, and the row's book
+                 is named in the body below, never over the picture. -->
           </template>
 
           <template #image-footer>
@@ -155,6 +149,10 @@
           </template>
 
           <template #body>
+            <div v-if="sourceLabelOf(item)" class="flex items-center">
+              <SourceBadge :source="sourceKey(item)" :title="item.source_title" class="max-w-full truncate" />
+            </div>
+
             <!-- Damage / AC quick stat -->
             <div
               v-if="item.damage_rolls?.length || item.armor_class || item.charges"
@@ -202,8 +200,10 @@ import { IconCaravan, IconCircle, IconCoins, IconComponent, IconDocument, IconEd
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/controls/appButtonVariants";
 import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
-import type { ItemType } from "@/types/item.types";
+import type { ItemBrowseRow, ItemType } from "@/types/item.types";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
@@ -278,6 +278,16 @@ const emit = defineEmits<{ "toggle-select": [id: string] }>();
 
 const queryClient = useQueryClient();
 
+// A library item names its book by `source_document_key` ('grimoire-bundled');
+// its `source` is only 'srd' or null. An own row typed its source by hand.
+const { labelFor } = useSourceTitles();
+const sourceKey = (item: ItemBrowseRow) => item.source_document_key ?? item.source;
+const sourceLabelOf = (item: ItemBrowseRow) => labelFor(sourceKey(item), item.source_title);
+function rowTags(item: ItemBrowseRow): string[] {
+  const label = sourceLabelOf(item);
+  return label ? [label, ...item.tags] : item.tags;
+}
+
 // Mirrors the track this grid used to declare:
 // `repeat(auto-fill, minmax(11.25rem, 1fr))` with `gap-3`.
 const GRID_MIN_WIDTH_REM = 11.25;
@@ -289,11 +299,12 @@ const layout = useListLayout("items", "grid");
 const itemKey = (item: { id: string }) => item.id;
 
 // Row height before a row is measured (px), in the default Vellum theme:
-// 2 border + 144 artwork (h-36) + 24 body padding (p-3) + 19 for the tag chips
-// (text-label 11px at line-height 1, plus py-1) = 189. A card with a stat line
-// as well runs ~25px taller (pt-1, a 17px text-caption line, gap-1), one with
-// neither ~19px shorter; rows are re-measured as they mount.
-const GRID_ROW_PX = 189;
+// 2 border + 144 artwork (h-36) + 24 body padding (p-3) + 23 for the book line
+// (the source badge plus gap-1; nearly every row names a book) + 19 for the tag
+// chips (text-label 11px at line-height 1, plus py-1) = 212. A card with a stat
+// line as well runs ~25px taller (pt-1, a 17px text-caption line, gap-1), one
+// with neither ~19px shorter; rows are re-measured as they mount.
+const GRID_ROW_PX = 212;
 const {
   rows,
   selectableIds,

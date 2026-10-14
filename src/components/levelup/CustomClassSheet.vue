@@ -142,6 +142,7 @@
 </template>
 
 <script setup lang="ts">
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCopy, IconDelete, IconEdit } from '@/lib/icons';
@@ -165,9 +166,12 @@ const editable = computed(() =>
   canEditClass(props.cls, { userId: auth.user?.id ?? null, isAdmin: auth.isAppAdmin }),
 );
 /** A class nobody owns is the library's; one owned by someone else (a DM's, read by a player) is theirs. */
-const readOnlyLabel = computed(() =>
-  !isCustomClass(props.cls) || props.cls.user_id === null ? "Library · read only" : "Read only",
-);
+const { labelFor } = useSourceTitles();
+const readOnlyLabel = computed(() => {
+  const isLibrary = !isCustomClass(props.cls) || props.cls.user_id === null;
+  const book = isLibrary ? labelFor(props.cls.source_document_key, props.cls.source_revision) : null;
+  return book ? `${book}, read only` : "Read only";
+});
 
 async function handleDuplicate() {
   if (editable.value) return;

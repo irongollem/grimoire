@@ -60,12 +60,14 @@ import { isReadOnlyLibraryRow } from "@/composables/campaign/campaignLibraryScop
 import { useAuthStore } from "@/stores/auth";
 import { IconCopy, IconEdit } from "@/lib/icons";
 import { monsterIdentityLine } from "@/lib/monsterDisplay";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 
 const { id } = defineProps<{ id: string }>();
 
 const emit = defineEmits<{ close: [] }>();
 
 const { monster, isLoading } = useMonsterWithArt(toRef(() => id));
+const { labelFor } = useSourceTitles();
 
 const auth = useAuthStore();
 // A co-DM reads the owner's personal library rows but cannot edit them (#590).
@@ -79,7 +81,7 @@ const displayName = computed(() => monster.value?.name ?? "Monster");
 const subtitle = computed(() => {
   const m = monster.value;
   if (!m) return undefined;
-  const source = m.is_shared ? m.source_title ?? m.source ?? "Reference" : null;
+  const source = labelFor(m.source, m.source_title);
   return [monsterIdentityLine(m), `CR ${m.stat_block.challenge_rating}`, source]
     .filter(Boolean)
     .join(" · ");

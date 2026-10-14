@@ -58,6 +58,8 @@ export interface Background extends VersionedContentMetadata {
   tags: string[];
   source: string | null;
   source_title?: string | null;
+  /** The book a library row (or a copy of one) belongs to: the key to label it by. */
+  source_document_key?: string | null;
   source_url?: string | null;
   open5e_import?: boolean;
   image_url: string | null;

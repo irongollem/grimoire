@@ -21,12 +21,9 @@
         <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">
           {{ spell.name }}
         </h3>
-        <LibraryBadge
-          v-if="spell.is_shared"
-          :label="sourceLabel"
-          :title="sourceLabel"
-          class="max-w-22 shrink-0 truncate"
-        />
+        <div class="flex shrink-0 items-center gap-1">
+          <SourceBadge :source="spell.source" :title="spell.source_title" class="max-w-22 truncate" />
+        </div>
       </div>
 
       <p class="text-caption text-muted-foreground capitalize italic">
@@ -76,8 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
-import { computed } from "vue";
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
 import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
@@ -95,6 +91,4 @@ const { spell } = defineProps<{
 }>();
 
 const emit = defineEmits<{ activate: [] }>();
-
-const sourceLabel = computed(() => spell.source_title ?? spell.source ?? "Reference");
 </script>

@@ -13,7 +13,7 @@
       />
     </div>
     <p v-else class="text-caption text-muted-foreground italic text-right">
-      Reference: read only
+      {{ sourceName ? `From ${sourceName}, read only.` : "Read only." }}
     </p>
 
     <!-- Identity card: two-column layout -->
@@ -44,10 +44,7 @@
               v-else-if="sizeFromSubrace"
               class="text-label bg-primary/10 text-primary rounded px-2 py-0.5"
             >Size by subrace</span>
-            <span
-              v-if="species.source"
-              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
-            >{{ species.source }}</span>
+            <SourceBadge :source="species.source" />
           </div>
           <div v-if="speedPills.length || speedFromSubrace" class="flex flex-wrap gap-1">
             <span
@@ -150,9 +147,14 @@ import { speciesSizeFromSubrace, speedLabels, subraceStatPills, walkSpeedFromSub
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ species: Species; isShared?: boolean }>();
+
+const { labelFor } = useSourceTitles();
+const sourceName = computed(() => labelFor(props.species.source));
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();

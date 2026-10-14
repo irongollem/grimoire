@@ -35,6 +35,9 @@ function row(i: number): ItemBrowseRow {
     has_content: false,
     campaign_id: null,
     is_shared: true,
+    source: null,
+    source_title: null,
+    source_document_key: "grimoire-bundled",
   };
 }
 

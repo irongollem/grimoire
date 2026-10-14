@@ -66,7 +66,7 @@
             v-for="src in enabledSourceData ?? []"
             :key="src.source_slug"
             :value="src.source_slug"
-          >{{ src.source_title ?? src.source_slug }}</option>
+          >{{ labelFor(src.source_slug, src.source_title) }}</option>
         </ListFilterSelect>
         <!--
           Type covers all 14 standard D&D creature types — too many to sit as
@@ -191,7 +191,7 @@
               v-for="src in enabledSourceData ?? []"
               :key="src.source_slug"
               :value="src.source_slug"
-            >{{ src.source_title ?? src.source_slug }}</option>
+            >{{ labelFor(src.source_slug, src.source_title) }}</option>
           </ListFilterSelect>
         </div>
         <div>
@@ -300,6 +300,7 @@ import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
 import { useMonstersUiStore } from "@/stores/ui/monsters";
 import { useCampaignStore } from "@/stores/campaign";
@@ -359,6 +360,7 @@ const TYPE_OPTIONS = [
 // enabledSourceData also feeds the Source filter dropdown below; the enable/
 // disable wiring itself now lives inside SourcesPickerPanel.
 const { data: enabledSourceData } = useEnabledSources();
+const { labelFor } = useSourceTitles();
 const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLibrarySources();
 
 // ── Mobile filter chrome ────────────────────────────────────────────────────
@@ -366,7 +368,8 @@ const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLib
 
 const sourceLabel = (slug: string): string => {
   if (slug === "custom") return "Custom";
-  return enabledSourceData.value?.find((s) => s.source_slug === slug)?.source_title ?? slug;
+  const title = enabledSourceData.value?.find((s) => s.source_slug === slug)?.source_title;
+  return labelFor(slug, title) ?? slug;
 };
 const typeLabel = (v: string) => TYPE_OPTIONS.find((o) => o.value === v)?.label ?? v;
 

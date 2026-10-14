@@ -4,6 +4,13 @@ import SpeciesSheet from "./SpeciesSheet.vue";
 import type { Species } from "@/types/species.types";
 
 vi.mock("vue-router", () => ({ useRoute: () => ({ path: "/species" }), useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@/composables/library/useSourceTitles", async () => {
+  const { sourceLabel } = await import("@/lib/library/sourceLabel");
+  const titles = new Map<string, string>();
+  return {
+    useSourceTitles: () => ({ labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, titles) }),
+  };
+});
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
 vi.mock("@/composables/rules/useSpecies", () => ({ useDeleteSpecies: () => ({ mutate: vi.fn() }) }));
 

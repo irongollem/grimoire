@@ -57,9 +57,13 @@
             >{{ trap.trap_type }}</span>
           </div>
           <div class="p-2.5 flex flex-col gap-1">
-            <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="flex-1 text-heading-xs font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
+              <div class="flex shrink-0 items-center gap-1">
+                <SourceBadge :source="isLibraryTrap(trap) ? trap.source : undefined" class="max-w-22 truncate" />
+              </div>
+            </div>
             <div class="flex items-center gap-2">
-              <LibraryBadge v-if="isLibraryTrap(trap)" />
               <span v-if="trap.cr" class="text-label text-muted-foreground">CR {{ trap.cr }}</span>
               <span v-if="trap.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
             </div>
@@ -81,7 +85,7 @@
           :subtitle="trapSubtitle(trap)"
           :image-url="trap.image_url"
           :fallback-icon="IconTrap"
-          :tags="isLibraryTrap(trap) ? ['Library', trap.trap_type, ...trap.tags] : [trap.trap_type, ...trap.tags]"
+          :tags="trapTags(trap)"
         />
       </BulkSelectableCard>
     </template>
@@ -90,7 +94,8 @@
 
 <script setup lang="ts">
 import { useDungeonCraftBooksOffered } from "@/composables/library/useEnabledSources";
-import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { RouterLink, useRouter } from "vue-router";
@@ -111,10 +116,17 @@ import PlacedInLine from "./PlacedInLine.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
+const { labelFor } = useSourceTitles();
+
+// Only library rows carry a source; an own row's tags start at its type.
+function trapTags(trap: TrapEntry): string[] {
+  const label = isLibraryTrap(trap) ? labelFor(trap.source) : null;
+  return label ? [label, trap.trap_type, ...trap.tags] : [trap.trap_type, ...trap.tags];
+}
 // An empty list with Grimoire's books on offer means none is switched on (#1060).
 const booksOffered = useDungeonCraftBooksOffered();
 const emptyDescription = computed(() =>
-  booksOffered.value ? "Add the Grimoire library from the book icon above, or create your own." : "Build your first trap: set the trigger, DCs, damage, and CR.",
+  booksOffered.value ? "Switch on a book from the book icon above, or create your own." : "Build your first trap: set the trigger, DCs, damage, and CR.",
 );
 
 const { data: traps, isLoading: trapsLoading } = useTrapIndex();

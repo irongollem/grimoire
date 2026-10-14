@@ -43,6 +43,7 @@
 import { computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { IconDocument } from '@/lib/icons';
 import { isReadOnlyLibraryRow } from "@/composables/campaign/campaignLibraryScope";
 import { useAuthStore } from "@/stores/auth";
@@ -56,6 +57,7 @@ import MonsterDetailModal from "@/components/monsters/MonsterDetailModal.vue";
 import MonsterSheetMobile from "@/components/monsters/MonsterSheetMobile.vue";
 
 const route = useRoute();
+const { labelFor } = useSourceTitles();
 const router = useRouter();
 
 const isNew = computed(() => route.name === "monster-new");
@@ -107,8 +109,8 @@ const pageTitle = computed(() => {
 const pageDescription = computed(() => {
   const m = resolvedMonster.value;
   if (!m) return "";
-  const sourceLabel = m.is_shared ? ` · ${m.source_title ?? m.source ?? "Reference"}` : "";
-  return `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}${sourceLabel}`;
+  const label = labelFor(m.source, m.source_title);
+  return `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}${label ? ` · ${label}` : ""}`;
 });
 
 // A link or bookmark can still carry `?edit=true` for a row the caller may not

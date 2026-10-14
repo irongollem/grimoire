@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { sourceLabel } from "@/lib/library/sourceLabel";
 import { mount } from "@vue/test-utils";
 import { ref, defineComponent, h } from "vue";
 import MonsterDetail from "./MonsterDetail.vue";
@@ -52,6 +53,11 @@ function monster(overrides: Partial<Monster> = {}): Monster {
 }
 
 // FocalImage mounts the AI chip, whose module reads `useStorage`: keep the real exports.
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, new Map()),
+  }),
+}));
 vi.mock("@vueuse/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vueuse/core")>()),
   useMediaQuery: () => false,

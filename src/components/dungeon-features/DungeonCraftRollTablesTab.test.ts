@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushMicrotasks, useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
+import { sourceLabel } from "@/lib/library/sourceLabel";
 import DungeonCraftRollTablesTab from "./DungeonCraftRollTablesTab.vue";
 import type { LibraryRollTable, RollTable } from "@/types/rollTable.types";
 
@@ -28,6 +29,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // The empty-state copy asks whether the library has books on offer (#1060).
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (s: string | null | undefined, t?: string | null) =>
+      sourceLabel(s, t, new Map([["grimoire-dungeon-craft", "Grimoire Dungeon Craft"]])),
+  }),
+}));
 vi.mock("@/composables/library/useEnabledSources", () => ({
   useDungeonCraftBooksOffered: () => ref(false),
 }));
@@ -123,10 +130,10 @@ describe("DungeonCraftRollTablesTab — library tables (#1060)", () => {
     mocks.library = [libraryTable()];
   });
 
-  it("lists library tables marked Library and opens one in the read-only sheet", async () => {
+  it("lists library tables badged with their book and opens one in the read-only sheet", async () => {
     const wrapper = mountTab();
     await flushMicrotasks();
-    expect(wrapper.text()).toContain("Library");
+    expect(wrapper.text()).toContain("Grimoire Dungeon Craft");
     await findCardButton(wrapper, "Forest Road")!.trigger("click");
     expect(wrapper.find('[data-testid="library-sheet"]').text()).toBe("grimoire_forest_road");
     expect(wrapper.find('[data-testid="detail-view"]').exists()).toBe(false);
@@ -146,6 +153,6 @@ describe("DungeonCraftRollTablesTab — library tables (#1060)", () => {
     mocks.tables = [table({ name: "forest road" })];
     const wrapper = mountTab();
     await flushMicrotasks();
-    expect(wrapper.text()).not.toContain("Library");
+    expect(wrapper.text()).not.toContain("Grimoire Dungeon Craft");
   });
 });

@@ -133,7 +133,7 @@
           {{ spell.classes.join(", ") }}
         </div>
         <div
-          v-if="spell.source"
+          v-if="sourceLabel"
           class="font-stat text-sm text-muted-foreground italic"
         >
           <a
@@ -142,8 +142,8 @@
             target="_blank"
             rel="noopener noreferrer"
             class="hover:text-foreground hover:underline transition-colors"
-          >{{ spellSourceLabel(spell.source, spell.source_title) }}</a>
-          <span v-else>{{ spellSourceLabel(spell.source, spell.source_title) }}</span>
+          >{{ sourceLabel }}</a>
+          <span v-else>{{ sourceLabel }}</span>
         </div>
 
         <!-- Filled by the page that owns the sheet (the DM's note, custom spells). -->
@@ -204,9 +204,10 @@ import {
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { useSpellKnowers } from "@/composables/party/useCharacterSpells";
 import { useNpcSpellCasters } from "@/composables/npcs/useNpcs";
-import { SCHOOL_TEXT, ATTACK_TYPES, spellLevelOrdinal, spellSourceLabel } from "@/types/spell.types";
+import { SCHOOL_TEXT, ATTACK_TYPES, spellLevelOrdinal } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 
 const props = defineProps<{
   spell: Spell;
@@ -217,6 +218,8 @@ const props = defineProps<{
   compact?: boolean;
 }>();
 
+const { labelFor } = useSourceTitles();
+const sourceLabel = computed(() => labelFor(props.spell.source, props.spell.source_title));
 const { data: knowers } = useSpellKnowers(computed(() => props.spell.id));
 const { data: npcCasters } = useNpcSpellCasters(computed(() => props.spell.id));
 

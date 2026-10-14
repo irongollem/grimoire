@@ -212,8 +212,8 @@
           </div>
           <div>
             <p class="text-heading-sm font-bold text-foreground">{{ background.name }}</p>
-            <p v-if="background.source_title || background.source" class="text-label text-muted-foreground mt-0.5">
-              {{ background.source_title ?? background.source }}
+            <p v-if="bgSourceLabel" class="text-label text-muted-foreground mt-0.5">
+              {{ bgSourceLabel }}
             </p>
           </div>
         </div>
@@ -276,7 +276,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
-import { useBackground } from "@/composables/rules/useBackgrounds";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
+import { backgroundSourceKey, useBackground } from "@/composables/rules/useBackgrounds";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useAllDeities } from "@/composables/deities/useDeities";
 import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
@@ -303,6 +304,10 @@ const ALIGNMENT_OPTIONS = [
 
 const backgroundId = computed(() => member.background_id ?? "");
 const { data: background } = useBackground(backgroundId);
+const { labelFor } = useSourceTitles();
+const bgSourceLabel = computed(() =>
+  background.value ? labelFor(backgroundSourceKey(background.value), background.value.source_title) : null,
+);
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 
 // ── About (player_description) ────────────────────────────────────────────────

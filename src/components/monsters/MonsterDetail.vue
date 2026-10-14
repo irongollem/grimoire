@@ -31,7 +31,9 @@
     <!-- Read-only library banner -->
     <LibraryReadOnlyBanner
       v-if="isShared"
-      message="Read-only reference. Customize to create your own editable copy."
+      :source="props.monster?.source"
+      :source-title="props.monster?.source_title"
+      message="Customize it to make your own editable copy."
       action-label="Customize"
       busy-label="Copying…"
       :busy="cloning"

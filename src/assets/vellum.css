@@ -458,6 +458,13 @@
   font-weight: 400;
 }
 :root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .relative.shrink-0.overflow-hidden.h-36 img) > .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div > span:last-child { border: 1px solid rgb(0 0 0 / 0.25); }
+/* Those labels now own the plate's bottom-right corner, which is where the
+   AI chip sits, so the chip stands on top of them instead of under them. It
+   stays on the picture's right edge rather than crossing to the left corner:
+   it speaks for the picture, and a long book title can reach the left. */
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):has(> .flex.flex-1.flex-col.p-3 > div:first-child > h3 + div) > .relative.shrink-0.overflow-hidden.h-36 > span.absolute.bottom-1\.5 {
+  bottom: 2.1rem;
+}
 /* The character-sheet export preview is a real page lying on the desk:
    square corners and a soft contact-plus-lift shadow (the one place a
    shadow belongs, since it stands for printed paper). */

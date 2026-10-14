@@ -49,7 +49,12 @@
           edit-label="Edit background"
           @select="emit('select', b)"
         >
-          <h3 class="line-clamp-1 text-heading-xs leading-tight font-bold text-foreground">{{ b.name }}</h3>
+          <div class="flex items-start justify-between gap-2">
+            <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">{{ b.name }}</h3>
+            <div class="flex shrink-0 items-center gap-1">
+              <SourceBadge :source="backgroundSourceKey(b)" :title="b.source_title" class="max-w-22 truncate" />
+            </div>
+          </div>
           <p
             v-if="b.feature_name"
             class="line-clamp-1 text-caption italic text-muted-foreground"
@@ -57,12 +62,7 @@
           >{{ b.feature_name }}</p>
           <!-- Skills, tools and languages in one line; the full lists live on the detail page. -->
           <p v-if="profsSummary(b)" class="line-clamp-2 text-caption text-foreground/70">{{ profsSummary(b) }}</p>
-          <span
-            v-if="b.source_title || b.source"
-            class="mt-auto truncate pt-1.5 text-label text-muted-foreground"
-            :title="b.source_title ?? b.source ?? ''"
-          >{{ b.source_title ?? b.source }}</span>
-          <div v-if="b.tags.length" class="flex flex-wrap gap-1">
+          <div v-if="b.tags.length" class="mt-auto flex flex-wrap gap-1">
             <span
               v-for="tag in b.tags.slice(0, 3)"
               :key="tag"
@@ -78,7 +78,7 @@
           :subtitle="backgroundSubtitle(b)"
           :image-url="b.image_url"
           :fallback-icon="IconBookUser"
-          :tags="b.tags"
+          :tags="rowTags(b)"
         >
           <template v-if="!readonly && !isLibraryBackground(b)" #actions>
             <AppButton
@@ -107,7 +107,7 @@
 import { computed } from "vue";
 import { IconBookUser, IconEdit } from '@/lib/icons';
 import { useCodexUiStore } from "@/stores/ui/codex";
-import { isLibraryBackground, useBackgrounds } from "@/composables/rules/useBackgrounds";
+import { backgroundBookKey, backgroundSourceKey, isLibraryBackground, useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useListLayout } from "@/composables/useListLayout";
@@ -118,6 +118,8 @@ import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import type { Background } from "@/types/background.types";
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { selectMode } = defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
@@ -125,6 +127,13 @@ const emit = defineEmits<{ select: [bg: Background] }>();
 
 const codexUi = useCodexUiStore();
 const { data: backgrounds, isLoading } = useBackgrounds();
+const { labelFor } = useSourceTitles();
+
+/** A row's tags, the book it comes from first. */
+function rowTags(b: Background): string[] {
+  const label = labelFor(backgroundSourceKey(b), b.source_title);
+  return label ? [label, ...b.tags] : b.tags;
+}
 
 function profsSummary(b: Background): string {
   const parts: string[] = [];
@@ -141,8 +150,9 @@ const filtered = computed(() => {
 
   if (codexUi.backgroundsFilterSource === "custom") {
     list = list.filter((b) => !isLibraryBackground(b));
-  } else if (codexUi.backgroundsFilterSource === "library") {
-    list = list.filter((b) => isLibraryBackground(b));
+  } else if (codexUi.backgroundsFilterSource !== "all") {
+    // Anything else is a book's key.
+    list = list.filter((b) => backgroundBookKey(b) === codexUi.backgroundsFilterSource);
   }
 
   if (codexUi.backgroundsSearch.trim()) {

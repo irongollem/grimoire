@@ -66,13 +66,13 @@
         </ListFilterSelect>
         <ListFilterSelect v-if="sources.length" v-model="sourceFilter" aria-label="Source filter">
           <option value="">All sources</option>
-          <option v-for="s in sources" :key="s.slug" :value="s.slug">{{ itemSourceLabel(s.slug, s.title) }}</option>
+          <option v-for="s in sources" :key="s.slug" :value="s.slug">{{ labelFor(s.slug, s.title) }}</option>
         </ListFilterSelect>
         <ListFilterSelect v-model="scopeFilter" aria-label="Scope filter">
           <option value="">Usable here</option>
           <option value="campaign">This campaign</option>
           <option value="general">General</option>
-          <option value="library">Library</option>
+          <option value="library">Books</option>
           <option value="other_campaign">Other campaigns</option>
         </ListFilterSelect>
       </ListFilterBar>
@@ -116,6 +116,7 @@
 import { computed, ref, watch } from "vue";
 import { IconAdd, IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
@@ -128,7 +129,7 @@ import ItemList from "@/components/items/ItemList.vue";
 import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
-import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";
+import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS } from "@/types/item.types";
 import { useItemsUiStore } from "@/stores/ui/items";
 import { useAvailableLibraryItemSources } from "@/composables/library/useEnabledSources";
 import { useBulkSelection } from "@/composables/useBulkSelection";
@@ -181,6 +182,7 @@ const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const itemListRef = ref<InstanceType<typeof ItemList> | null>(null);
 // The Source filter's options come from the same server page the grid shows.
+const { labelFor } = useSourceTitles();
 const sources = computed(() => itemListRef.value?.sources ?? []);
 
 function toggleSelecting() {

@@ -23,6 +23,12 @@ const mocks = vi.hoisted(() => ({
   rows: [] as SpellBrowseRow[],
   filters: [] as Array<Record<string, string>>,
 }));
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (source: string | null | undefined, title?: string | null) => (source ? (title ?? source) : null),
+  }),
+}));
+
 vi.mock("@/composables/spells/useSpellBrowse", () => ({
   useSpellBrowse: (filters: () => Record<string, string>) => {
     mocks.filters.push(filters());
@@ -243,7 +249,7 @@ describe("SpellList cards", () => {
   });
 
   it("shows the level on the art and the source on a library row", async () => {
-    mocks.rows = [makeSpell({ level: 3, is_shared: true, source_title: "Deep Magic" })];
+    mocks.rows = [makeSpell({ level: 3, is_shared: true, source: "deep-magic", source_title: "Deep Magic" })];
     const wrapper = await mountList();
     expect(wrapper.text()).toContain("3rd");
     expect(wrapper.text()).toContain("Deep Magic");

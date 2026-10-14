@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushMicrotasks, useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
+import { sourceLabel } from "@/lib/library/sourceLabel";
 import DungeonCraftTrapsTab from "./DungeonCraftTrapsTab.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import { useTrapsUiStore } from "@/stores/ui/traps";
@@ -36,6 +37,12 @@ function trap(overrides: Partial<Trap> = {}): Trap {
 const mocks = vi.hoisted(() => ({ traps: [] as ReturnType<typeof trap>[], offered: false }));
 
 // The empty-state copy asks whether the library has books on offer (#1060).
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (s: string | null | undefined, t?: string | null) =>
+      sourceLabel(s, t, new Map([["grimoire-dungeon-craft", "Grimoire Dungeon Craft"]])),
+  }),
+}));
 vi.mock("@/composables/library/useEnabledSources", () => ({
   useDungeonCraftBooksOffered: () => ref(mocks.offered),
 }));
@@ -148,13 +155,13 @@ describe("DungeonCraftTrapsTab — library traps (#1060)", () => {
     ];
   });
 
-  it("marks library rows Library, once, and links them by slug", async () => {
+  it("badges library rows with their book, once, and links them by slug", async () => {
     const wrapper = mount(DungeonCraftTrapsTab, {
       global: { plugins: [createPinia()], stubs: { CopyToCampaignDialog: true, RouterLink: RouterLinkStub } },
     });
     await flushMicrotasks();
     expect(wrapper.text()).toContain("Hidden Pit");
-    expect(wrapper.text().match(/Library/g)).toHaveLength(1);
+    expect(wrapper.text().match(/Grimoire Dungeon Craft/g)).toHaveLength(1);
     expect(wrapper.findAllComponents(RouterLinkStub).map((l) => l.props("to"))).toContain("/traps/grimoire_hidden_pit");
   });
 

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { sourceLabel } from "@/lib/library/sourceLabel";
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import MonsterSheetMobile from "./MonsterSheetMobile.vue";
@@ -8,6 +9,11 @@ import type { Monster } from "@/types/monster.types";
 
 const mocks = vi.hoisted(() => ({ userId: "me" }));
 
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, new Map()),
+  }),
+}));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: mocks.userId } }) }));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), RouterLink: { template: "<a><slot /></a>" } }));
 vi.mock("@/composables/monsters/useMonsters", () => ({

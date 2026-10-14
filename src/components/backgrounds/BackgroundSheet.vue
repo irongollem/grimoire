@@ -36,10 +36,7 @@
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="text-heading-lg font-bold text-foreground leading-tight">{{ background.name }}</h1>
           <div class="flex flex-wrap gap-1.5">
-            <span
-              v-if="background.source_title || background.source"
-              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
-            >{{ background.source_title ?? background.source }}</span>
+            <SourceBadge :source="backgroundSourceKey(background)" :title="background.source_title" />
           </div>
         </div>
       </div>
@@ -265,7 +262,8 @@ import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAddItem, IconClose, IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { isLibraryBackground, useDeleteBackground } from "@/composables/rules/useBackgrounds";
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
+import { backgroundSourceKey, isLibraryBackground, useDeleteBackground } from "@/composables/rules/useBackgrounds";
 import { useParty } from "@/composables/party/useParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useCampaignStore } from "@/stores/campaign";

@@ -118,6 +118,7 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 // Itself, for the phone sheet: the sheet variant is this component's own list.
 import SourcesPickerPanel from "./SourcesPickerPanel.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { useSourceCue } from "@/composables/library/useSourceCue";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useToast } from "@/composables/useToast";
@@ -198,13 +199,13 @@ interface PickerRow {
   locked: boolean;
 }
 
-const SRD_TITLES: Readonly<Record<string, string>> = { "srd-2014": "SRD 2014", "srd-2024": "SRD 2024" };
+const { labelFor } = useSourceTitles();
 
 const rows = computed<PickerRow[]>(() => {
   const listed = (availableSources ?? []).map((src) => ({
     source: src.source,
     source_title: src.source_title,
-    title: src.source_title ?? src.source,
+    title: labelFor(src.source, src.source_title) ?? src.source,
     count: src.count,
     locked: scope === "player" && STANDALONE_LIBRARY_SLUGS.includes(src.source),
   }));
@@ -212,7 +213,7 @@ const rows = computed<PickerRow[]>(() => {
   // The SRDs are always on, so they show even when the library lists nothing for them.
   const missing = STANDALONE_LIBRARY_SLUGS
     .filter((slug) => !listed.some((row) => row.source === slug))
-    .map((slug) => ({ source: slug, source_title: null, title: SRD_TITLES[slug] ?? slug, count: null, locked: true }));
+    .map((slug) => ({ source: slug, source_title: null, title: labelFor(slug) ?? slug, count: null, locked: true }));
   return [...missing, ...listed];
 });
 

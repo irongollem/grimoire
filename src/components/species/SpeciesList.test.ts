@@ -47,6 +47,13 @@ function sharedSpecies(slug: string): Species {
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
 const allSpecies = ref<Species[]>([]);
+vi.mock("@/composables/library/useSourceTitles", async () => {
+  const { sourceLabel } = await import("@/lib/library/sourceLabel");
+  const titles = new Map<string, string>();
+  return {
+    useSourceTitles: () => ({ labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, titles) }),
+  };
+});
 vi.mock("@/composables/rules/useSpecies", () => ({
   // No campaign blocklist under test here, so the gated `data` (used in
   // selectMode, the player picker) matches the ungated `all` (used in the DM

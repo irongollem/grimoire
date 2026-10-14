@@ -41,6 +41,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityDetailModal from "@/components/common/overlays/EntityDetailModal.vue";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { useSpellWithArt } from "@/composables/spells/useSpellWithArt";
 import { IconEdit } from "@/lib/icons";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -58,6 +59,8 @@ const canEdit = computed(() => auth.isDM && !appUi.dmPreviewMode);
 
 const { spell, isLibrarySpell, isLoading } = useSpellWithArt(toRef(() => id));
 
+const { labelFor } = useSourceTitles();
+
 const displayName = computed(() => spell.value?.name ?? "Spell");
 
 // A note is stored against a row in `spells`, so only a custom spell (a uuid)
@@ -67,7 +70,7 @@ const showDmNote = computed(() => canEdit.value && !isLibrarySpell.value && isUu
 const subtitle = computed(() => {
   const s = spell.value;
   if (!s) return undefined;
-  const source = isLibrarySpell.value ? (s.source_title ?? s.source ?? "Reference") : null;
+  const source = labelFor(s.source, s.source_title);
   return [
     `${spellLevelLabel(s.level)} ${s.school}${s.ritual ? " (ritual)" : ""}`,
     source,

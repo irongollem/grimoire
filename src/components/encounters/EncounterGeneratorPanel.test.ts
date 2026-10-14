@@ -1,4 +1,5 @@
 import { mount, RouterLinkStub } from "@vue/test-utils";
+import { sourceLabel } from "@/lib/library/sourceLabel";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import EncounterGeneratorPanel from "./EncounterGeneratorPanel.vue";
@@ -16,6 +17,11 @@ const isAiEnabled = ref(true);
 // catch existed) before the useGenerationGate extraction.
 const canCreateEncounter = ref(true);
 
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, new Map()),
+  }),
+}));
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRouter: () => ({ push: mocks.push }),

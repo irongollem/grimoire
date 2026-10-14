@@ -208,7 +208,7 @@
         </div>
 
         <div
-          v-if="item.source"
+          v-if="sourceLabel"
           class="font-stat text-sm text-muted-foreground italic"
         >
           <a
@@ -217,11 +217,9 @@
             target="_blank"
             rel="noopener noreferrer"
             class="hover:text-foreground hover:underline transition-colors"
-            >{{ itemSourceLabel(item.source, item.source_title) }}</a
+            >{{ sourceLabel }}</a
           >
-          <span v-else>{{
-            itemSourceLabel(item.source, item.source_title)
-          }}</span>
+          <span v-else>{{ sourceLabel }}</span>
         </div>
       </div>
     </div>
@@ -284,8 +282,8 @@ import {
   ITEM_RARITY_LABELS,
   RARITY_SURFACE_VAR,
   RARITY_TEXT,
-  itemSourceLabel,
 } from "@/types/item.types";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { Item } from "@/types/item.types";
 
@@ -294,6 +292,12 @@ const props = defineProps<{
   playerView?: boolean;
   priceOverride?: string | null;
 }>();
+
+// Library items name their book by source_document_key; their `source` is only 'srd' or null.
+const { labelFor } = useSourceTitles();
+const sourceLabel = computed(() =>
+  labelFor(props.item.source_document_key ?? props.item.source, props.item.source_title),
+);
 
 const containedIn = useLootTablesByItem(computed(() => props.item.id));
 const { data: holders } = useItemHolders(computed(() => props.item.id), () => !props.playerView);

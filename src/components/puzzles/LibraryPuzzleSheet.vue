@@ -1,11 +1,12 @@
 <template>
   <PageHeader :title="puzzle?.name ?? 'Puzzle'">
     <div v-if="isLoading" class="flex justify-center py-16"><LoadingSpinner /></div>
-    <p v-else-if="!puzzle" class="text-body text-muted-foreground italic">This puzzle is not in the library.</p>
+    <p v-else-if="!puzzle" class="text-body text-muted-foreground italic">This puzzle could not be found.</p>
     <div v-else class="flex flex-col gap-5 max-w-2xl">
       <!-- Read-only library banner (same shape as MonsterDetail's) -->
       <LibraryReadOnlyBanner
-        message="Read-only reference. Use it in your campaign to get your own editable copy."
+        :source="puzzle.source"
+        message="Use it in your campaign to get your own editable copy."
         action-label="Use in campaign"
         busy-label="Copying…"
         :busy="using"

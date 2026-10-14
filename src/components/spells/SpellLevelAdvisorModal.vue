@@ -192,7 +192,7 @@
                 <div class="border-t border-primary/20 pt-2 flex flex-col gap-1">
                   <span
                     class="text-eyebrow text-muted-foreground"
-                    >Reference spells at this level</span
+                    >Spells from your books at this level</span
                   >
                   <p
                     v-if="refSpells.control && adv.effectType === 'control'"

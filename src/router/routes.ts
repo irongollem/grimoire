@@ -1000,7 +1000,7 @@ export const routes: RouteRecordRaw[] = [
     path: "/soundboard/credits",
     name: "sound-library-credits",
     component: () => import("@/views/soundboard/SoundLibraryCreditsView.vue"),
-    meta: { requiresAuth: true, title: "Sound library credits" },
+    meta: { requiresAuth: true, title: "Grimoire Sounds credits" },
   },
   {
     path: "/spotify/callback",

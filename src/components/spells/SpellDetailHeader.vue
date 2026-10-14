@@ -72,7 +72,7 @@
           @click="$emit('save')"
         />
       </template>
-      <span v-else class="text-caption text-muted-foreground italic">Reference spell: art only</span>
+      <span v-else class="text-caption text-muted-foreground italic">{{ sourceLabel ? `From ${sourceLabel}: art only` : "Art only" }}</span>
     </div>
   </div>
 </template>
@@ -85,6 +85,8 @@ import EntitySendMenu from "@/components/common/entity/EntitySendMenu.vue";
 defineProps<{
   hasSpell: boolean;
   isShared: boolean;
+  /** The book this library spell comes from, when it names one. */
+  sourceLabel: string | null;
   isAiEnabled: boolean;
   isSaving: boolean;
   isDeleting: boolean;

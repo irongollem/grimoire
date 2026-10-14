@@ -1,5 +1,5 @@
 <template>
-  <ListPageLayout title="Sound library credits">
+  <ListPageLayout title="Grimoire Sounds credits">
     <template #actions>
       <RouterLink
         to="/soundboard"
@@ -11,7 +11,7 @@
 
     <div class="space-y-5">
       <p class="text-body text-muted-foreground max-w-3xl">
-        Every sound in the Grimoire library is either public domain (CC0) or Creative Commons
+        Every sound in Grimoire Sounds is either public domain (CC0) or Creative Commons
         Attribution. The attributed ones are credited below, and each credit travels with the sound
         onto your board; you don't have to reproduce any of this yourself.
       </p>

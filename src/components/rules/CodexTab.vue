@@ -152,7 +152,7 @@
           :focal-point="bg.focal_point ?? null"
           :fallback-icon="IconQuest"
           :title="bg.name"
-          :meta="bg.source_title ?? undefined"
+          :meta="bgSourceLabel(bg) ?? undefined"
           @click="selectedBackground = bg"
         />
       </div>
@@ -164,7 +164,7 @@
         <div v-if="selectedBackground" class="flex shrink-0 items-start gap-3 px-5 py-4 border-b border-border">
           <div class="flex-1 min-w-0">
             <h2 :id="backgroundHeadingId" class="text-heading font-bold text-foreground">{{ selectedBackground.name }}</h2>
-            <span v-if="selectedBackground.source_title" class="text-label text-muted-foreground">{{ selectedBackground.source_title }}</span>
+            <span v-if="bgSourceLabel(selectedBackground)" class="text-label text-muted-foreground">{{ bgSourceLabel(selectedBackground) }}</span>
           </div>
           <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedBackground = null" />
         </div>
@@ -441,6 +441,8 @@
 <script setup lang="ts">
 import { ref, computed, shallowRef, useId } from "vue";
 import { IconChevronRight, IconClose, IconParty, IconPopulate, IconQuest, IconSun } from '@/lib/icons';
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
+import type { Background } from "@/types/background.types";
 import type { Species } from "@/types/species.types";
 import { speciesSizeFromSubrace, subraceStatPills, walkSpeedFromSubrace } from "@/rules/speciesStats";
 import FocalImage from "@/components/common/media/FocalImage.vue";
@@ -453,7 +455,7 @@ import SegmentedControl, { type SegmentedOption } from "@/components/common/cont
 import CodexCard from "./CodexCard.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
-import { useBackgrounds } from "@/composables/rules/useBackgrounds";
+import { backgroundSourceKey, useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import { useAllCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
@@ -472,6 +474,10 @@ type CodexSection = (typeof CODEX_SECTIONS)[number]["value"];
 const codexSection = ref<CodexSection>("species");
 
 // ── Species ──
+const { labelFor } = useSourceTitles();
+function bgSourceLabel(bg: Background): string | null {
+  return labelFor(backgroundSourceKey(bg), bg.source_title);
+}
 const { data: allSpecies } = useAllSpecies();
 const selectedSpecies = ref<Species | null>(null);
 const speciesHeadingId = useId();

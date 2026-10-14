@@ -49,10 +49,10 @@
         CR {{ crText(monster.stat_block.challenge_rating) }}
       </span>
       <span
-        v-if="monster.is_shared"
+        v-if="sourceName"
         class="rounded bg-black/55 px-2 py-0.5 text-eyebrow font-bold text-white"
       >
-        {{ monster.source_title ?? monster.source ?? "Reference" }}
+        {{ sourceName }}
       </span>
       <span
         v-if="isDiscovered"
@@ -209,6 +209,7 @@ import MonsterCopyToCampaign from "@/components/monsters/MonsterCopyToCampaign.v
 import ReadOnlyLibraryNote from "@/components/common/entity/ReadOnlyLibraryNote.vue";
 import { isReadOnlyLibraryRow } from "@/composables/campaign/campaignLibraryScope";
 import { useAuthStore } from "@/stores/auth";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import { IconCopy, IconDelete, IconEdit, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";
 import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/monsters/useMonsters";
@@ -223,6 +224,9 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 const { monster } = defineProps<{ monster: Monster }>();
 
 const description = useMonsterDescription(() => monster);
+
+const { labelFor } = useSourceTitles();
+const sourceName = computed(() => labelFor(monster.source, monster.source_title));
 
 const router = useRouter();
 

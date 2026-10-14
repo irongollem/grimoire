@@ -37,8 +37,8 @@
         >
           Lair: {{ lairLocation.name }}
         </RouterLink>
-        <p v-if="monster.source" class="text-caption text-muted-foreground italic">
-          Source: {{ monster.source }}
+        <p v-if="sourceName" class="text-caption text-muted-foreground italic">
+          Source: {{ sourceName }}
         </p>
       </div>
 
@@ -140,10 +140,14 @@ import { useMonsterDescription } from "@/composables/monsters/useMonsterDescript
 import { useMonsterLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { placeRoute } from "@/lib/locations/placeRoute";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ monster: Monster }>();
+
+const { labelFor } = useSourceTitles();
+const sourceName = computed(() => labelFor(props.monster.source, props.monster.source_title));
 
 const description = useMonsterDescription(() => props.monster);
 

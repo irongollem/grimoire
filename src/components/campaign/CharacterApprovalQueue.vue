@@ -117,6 +117,7 @@ import {
   type CharacterContentReview,
 } from "@/composables/party/useCharacterContentReviews";
 import { useParty } from "@/composables/party/useParty";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 
@@ -157,13 +158,15 @@ const groups = computed<Group[]>(() => {
   return [...byCharacter.values()];
 });
 
+const { labelFor } = useSourceTitles();
+
 function characterName(review: CharacterContentReview): string {
   return groups.value.find((group) => group.characterId === review.party_member_id)?.heading ?? "the character";
 }
 
 /** Naming the reach is the point: "for everyone" is a different decision from "for this character". */
 function tableConfirmation(review: CharacterContentReview): { message: string; title: string; confirmLabel: string } {
-  const book = review.source_title ?? review.source_slug ?? "this book";
+  const book = labelFor(review.source_slug, review.source_title) ?? "this book";
   if (review.reason === "blocked") {
     return {
       title: `Unblock ${review.label} for the table?`,

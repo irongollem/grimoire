@@ -4,6 +4,12 @@ import { ref } from "vue";
 import SpellSheet from "./SpellSheet.vue";
 import type { Spell } from "@/types/spell.types";
 
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (source: string | null | undefined, title?: string | null) => (source ? (title ?? source) : null),
+  }),
+}));
+
 vi.mock("@/composables/party/useCharacterSpells", () => ({ useSpellKnowers: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcSpellCasters: () => ({ data: ref([]) }) }));
 

@@ -57,8 +57,8 @@
             <p v-if="bg.feature_name" class="text-caption text-muted-foreground mt-1.5 italic line-clamp-1">
               {{ bg.feature_name }}
             </p>
-            <p v-if="bg.source_title" class="text-caption-sm text-muted-foreground/50 mt-1">
-              {{ bg.source_title }}
+            <p v-if="bgSourceLabel(bg)" class="text-caption-sm text-muted-foreground/50 mt-1">
+              {{ bgSourceLabel(bg) }}
             </p>
           </div>
         </button>
@@ -213,6 +213,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
+import { backgroundSourceKey } from "@/composables/rules/useBackgrounds";
+import type { Background } from "@/types/background.types";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -230,6 +233,10 @@ const { form } = defineProps<{ form: CharacterCreationForm }>();
 
 const { f, allBackgrounds, selectedBg, onBackgroundSelect, backgroundAsiChoice, originFeat } = form;
 const { is2024 } = useRuleset();
+const { labelFor } = useSourceTitles();
+function bgSourceLabel(bg: Background): string | null {
+  return labelFor(backgroundSourceKey(bg), bg.source_title);
+}
 
 const showIdentity    = ref(false);
 const showPersonality = ref(false);

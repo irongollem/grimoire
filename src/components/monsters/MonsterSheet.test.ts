@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { sourceLabel } from "@/lib/library/sourceLabel";
 import { mount } from "@vue/test-utils";
 import { computed, ref } from "vue";
 import MonsterSheet from "./MonsterSheet.vue";
@@ -9,6 +10,11 @@ import type { Monster } from "@/types/monster.types";
 const LORE = "A shaggy black bear that forages at the forest edge.";
 const descriptionIds: Array<string | null> = [];
 
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, new Map()),
+  }),
+}));
 vi.mock("@/composables/monsters/useMonsters", () => ({
   useLibraryMonsterDescription: (id: () => string | null) => {
     descriptionIds.push(id());

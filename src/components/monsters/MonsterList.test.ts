@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { sourceLabel } from "@/lib/library/sourceLabel";
 import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { reactive, ref, computed, defineComponent, h } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -43,6 +44,11 @@ function monster(overrides: Partial<Monster> = {}): Monster {
 // which is the one under test here (MonsterGridCard/EntityMobileCard belong
 // to other files and are stubbed away below).
 // FocalImage mounts the AI chip, whose module reads `useStorage`: keep the real exports.
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, new Map()),
+  }),
+}));
 vi.mock("@vueuse/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vueuse/core")>()),
   useMediaQuery: () => false,

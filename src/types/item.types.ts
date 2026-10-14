@@ -1,18 +1,7 @@
 import type { DamageRoll } from "@/lib/dice/dice";
 import type { VersionedContentMetadata } from "@/types/content.types";
-import { OPEN5E_SOURCE_LABELS } from "@/types/spell.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type { RulesetKey } from "@/types/ruleset.types";
-
-// Prefer the stored title from the DB; fall back to our hardcoded map, then the raw slug.
-export function itemSourceLabel(
-  slug: string | null,
-  title?: string | null,
-): string {
-  if (!slug) return "Custom";
-  if (title) return title;
-  return OPEN5E_SOURCE_LABELS[slug] ?? slug;
-}
 
 export const ITEM_TYPES = [
   "weapon",
@@ -211,10 +200,16 @@ export interface ItemBrowseRow {
   campaign_id: string | null;
   /** A shared library row rather than one of the DM's own. */
   is_shared: boolean;
+  /** A DM's typed source, or a library row's legacy slug ('srd' on bundled gear). */
+  source: string | null;
+  source_title: string | null;
+  /** The book a library row (or a copy of one) belongs to: the key to label it by. */
+  source_document_key: string | null;
 }
 
 /** One entry of the Source filter, as `browse_items` reports it. */
 export interface ItemBrowseSource {
+  /** `source_document_key`, else `source`: the same key an item's badge is labelled by. */
   slug: string;
   title: string | null;
 }

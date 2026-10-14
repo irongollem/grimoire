@@ -21,7 +21,7 @@
       <ListSearchInput v-model="codexUi.backgroundsSearch" placeholder="Search backgrounds…" />
       <ListFilterGroup
         v-model="codexUi.backgroundsFilterSource"
-        :options="BACKGROUND_SOURCE_OPTIONS"
+        :options="backgroundSourceOptions"
         aria-label="Background source filter"
       />
     </ListFilterBar>
@@ -137,7 +137,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { useCodexUiStore } from "@/stores/ui/codex";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useBackground } from "@/composables/rules/useBackgrounds";
-import { BACKGROUND_SOURCE_OPTIONS } from "@/components/backgrounds/backgroundSourceOptions";
+import { useBackgroundSourceOptions } from "@/composables/rules/useBackgroundSourceOptions";
 import { usePickerCharacter } from "@/composables/party/usePickerCharacter";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
@@ -168,6 +168,7 @@ import type { Background } from "@/types/background.types";
 
 const router = useRouter();
 const codexUi = useCodexUiStore();
+const backgroundSourceOptions = useBackgroundSourceOptions();
 const queryClient = useQueryClient();
 const { mutateAsync: update } = useUpdatePartyMember();
 

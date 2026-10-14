@@ -32,6 +32,12 @@ const mocks = vi.hoisted(() => ({
   prefetch: vi.fn(),
 }));
 
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (source: string | null | undefined, title?: string | null) => (source ? (title ?? source) : null),
+  }),
+}));
+
 vi.mock("@/composables/items/useItemBrowse", () => ({
   useItemBrowse: (getFilters: () => unknown) => {
     mocks.lastFilters = getFilters;
@@ -77,6 +83,9 @@ function makeItem(overrides: Partial<ItemBrowseRow> = {}): ItemBrowseRow {
     has_content: false,
     campaign_id: null,
     is_shared: false,
+    source: null,
+    source_title: null,
+    source_document_key: null,
     ...overrides,
   };
 }
@@ -149,16 +158,24 @@ describe("ItemList — bulk selection (#875)", () => {
     expect(cards[1].props("selecting")).toBe(false);
   });
 
-  it("in select mode an owned row shows neither Edit nor the Reference badge, a library row keeps Reference", async () => {
+  it("in select mode an owned row shows no Edit and no book, a library row names its book", async () => {
     mocks.rows = [
       makeItem({ id: "11111111-1111-4111-8111-111111111111", name: "Owned Sword" }),
-      makeItem({ id: "srd_owlbear_feather", name: "Owlbear Feather", is_shared: true }),
+      makeItem({
+        id: "srd_owlbear_feather",
+        name: "Owlbear Feather",
+        is_shared: true,
+        source: null,
+        source_document_key: "grimoire-bundled",
+        source_title: "Grimoire Equipment",
+      }),
     ];
     const wrapper = await mountList({ selecting: true });
     const [owned, library] = wrapper.findAllComponents(BulkSelectableCard);
     expect(owned.find('a[href*="edit=true"]').exists()).toBe(false);
-    expect(owned.text()).not.toContain("Reference");
-    expect(library.text()).toContain("Reference");
+    expect(owned.text()).not.toContain("Grimoire Equipment");
+    expect(library.text()).toContain("Grimoire Equipment");
+    expect(library.text()).not.toContain("Reference");
   });
 
   it("does not enter selecting mode for any row when the list-wide flag is off", async () => {

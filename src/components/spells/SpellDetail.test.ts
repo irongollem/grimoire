@@ -24,6 +24,12 @@ const activeCampaignId = ref<string | null>("campaign-1");
 // through Pinia's storeToRefs, which only picks up properties that are
 // themselves refs/reactive — a plain getter is invisible to it.
 // A DM, not the admin: shared-art edits stay personal overrides and upload to the user's folder.
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (source: string | null | undefined, title?: string | null) => (source ? (title ?? source) : null),
+  }),
+}));
+
 vi.mock("@/stores/auth", () => ({
   useAuthStore: () => ({ isAppAdmin: false }),
 }));
@@ -259,6 +265,7 @@ describe("SpellDetailHeader send actions", () => {
     isDeleting: false,
     isSendingToScriptorium: false,
     canSave: true,
+    sourceLabel: null,
   };
 
   function mountHeader(isShared: boolean) {

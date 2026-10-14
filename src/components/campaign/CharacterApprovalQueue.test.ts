@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import CharacterApprovalQueue from "./CharacterApprovalQueue.vue";
 import type { CharacterContentReview } from "@/composables/party/useCharacterContentReviews";
+import { sourceLabel } from "@/lib/library/sourceLabel";
 
 const mocks = vi.hoisted(() => ({
   mutateAsync: vi.fn<(input: { reviewId: string; scope: string; seenUpdatedAt?: string }) => Promise<number>>(),
@@ -33,6 +34,11 @@ vi.mock("@tanstack/vue-query", async (importOriginal) => ({
 }));
 vi.mock("@/composables/party/useParty", () => ({
   useParty: () => ({ data: { value: state.party } }),
+}));
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (source: string | null | undefined, title?: string | null) => sourceLabel(source, title, new Map<string, string>()),
+  }),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/useToast", () => ({

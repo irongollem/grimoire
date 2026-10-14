@@ -149,7 +149,7 @@
               <div class="flex flex-col gap-1.5">
                 <div class="flex flex-wrap gap-1">
                   <span v-if="displaySize" class="px-2 py-0.5 rounded bg-primary/10 text-primary text-label">{{ capitalize(displaySize) }}</span>
-                  <span v-if="displaySpecies.source" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ displaySpecies.source }}</span>
+                  <SourceBadge :source="displaySpecies.source" />
                 </div>
                 <div v-if="speedPills.length" class="flex flex-wrap gap-1">
                   <span v-for="pill in speedPills" :key="pill" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ pill }}</span>
@@ -196,6 +196,7 @@
 </template>
 
 <script setup lang="ts">
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { ref, computed, defineAsyncComponent } from "vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { IconClose, IconShield } from '@/lib/icons';

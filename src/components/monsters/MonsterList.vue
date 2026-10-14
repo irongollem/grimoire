@@ -185,6 +185,7 @@ import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
@@ -214,17 +215,19 @@ const monsterKey = (monster: MonsterBrowseRow) => monster.id;
 
 // The page header's toggle writes the same key.
 const layout = useListLayout("monsters", "grid");
+const { labelFor } = useSourceTitles();
 // The phone's grid is the two-column gallery skeleton.
 const skeletonVariant = computed(() => {
   if (layout.value === "rows") return isMobile.value ? "rows" : "tiles";
   return isMobile.value ? "gallery" : "grid";
 });
 
-// Tags on the desktop row: challenge rating and habitat, as the phone card shows them.
+// Tags on the desktop row: the book it is from, then challenge rating and habitat.
 function monsterRowTags(monster: MonsterBrowseRow): string[] {
   const tags = [crLabel(monster.challenge_rating)];
   if (monster.habitat) tags.push(monster.habitat);
-  return tags;
+  const book = labelFor(monster.source, monster.source_title);
+  return book ? [book, ...tags] : tags;
 }
 
 // The page is one server page at a time (#972): `browse_monsters` owns

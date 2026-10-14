@@ -1,17 +1,34 @@
 import { computed } from "vue";
-import { useContentLicenses } from "@/composables/library/useContentLicenses";
+import { useQuery } from "@tanstack/vue-query";
+import { supabase } from "@/lib/supabase";
+import { sourceLabel } from "@/lib/library/sourceLabel";
+
+const SOURCE_TITLES_KEY = ["content-source-titles"] as const;
+
+async function fetchSourceTitles(): Promise<{ key: string; title: string }[]> {
+  // Read from the table itself, not `get_content_licenses`: that one lists only
+  // the books with monsters, spells, items, species, rules or classes in them,
+  // so a Dungeon Craft or Backgrounds book had no title to look up.
+  const { data, error } = await supabase.from("content_sources").select("key, title");
+  if (error) throw error;
+  return data;
+}
 
 /**
- * Book titles by `content_sources` key, for rows whose `source` names a book
- * ("srd-2024" reads "System Reference Document 5.2"). A homebrew row's `source`
- * is free text, so a key with no book is shown as written.
+ * Labels for a row's source (see `sourceLabel`). Every badge, tag, header line
+ * and filter option that names a book goes through `labelFor`, so a book is
+ * called the same thing on every screen. Books change only by migration, hence
+ * `staleTime: Infinity`.
  */
 export function useSourceTitles() {
-  const { data } = useContentLicenses();
+  const { data } = useQuery({
+    queryKey: SOURCE_TITLES_KEY,
+    queryFn: fetchSourceTitles,
+    staleTime: Infinity,
+  });
   const titles = computed(() => new Map((data.value ?? []).map((s) => [s.key, s.title])));
-  function titleFor(source: string | null): string | null {
-    if (!source) return null;
-    return titles.value.get(source) ?? source;
+  function labelFor(source: string | null | undefined, storedTitle?: string | null): string | null {
+    return sourceLabel(source, storedTitle, titles.value);
   }
-  return { titleFor };
+  return { labelFor };
 }

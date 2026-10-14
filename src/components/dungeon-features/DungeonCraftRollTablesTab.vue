@@ -61,11 +61,11 @@
           @click="selectedRollTableId = t.id"
         >
           <div class="flex items-start justify-between gap-2 mb-1 w-full">
-            <h3 class="text-heading-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
-            <span class="flex items-center gap-1 shrink-0">
-              <LibraryBadge v-if="isLibraryTable(t)" />
+            <h3 class="flex-1 text-heading-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
+            <div class="flex shrink-0 items-center gap-1">
+              <SourceBadge :source="isLibraryTable(t) ? t.source : undefined" class="max-w-22 truncate" />
               <span class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold">{{ t.dice }}</span>
-            </span>
+            </div>
           </div>
           <p v-if="t.description" class="text-caption text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
           <p class="text-caption-sm text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "entry" : "entries" }}</p>
@@ -96,7 +96,7 @@
           <span class="min-w-0 flex-1">
             <span class="block truncate text-heading-xs font-bold text-foreground">{{ t.name }}</span>
             <span class="block text-label text-muted-foreground">
-              <template v-if="isLibraryTable(t)">Library · </template>{{ t.dice }} · {{ t.entries.length }} {{ t.entries.length === 1 ? "entry" : "entries" }}
+              <template v-if="tableBook(t)">{{ tableBook(t) }} · </template>{{ t.dice }} · {{ t.entries.length }} {{ t.entries.length === 1 ? "entry" : "entries" }}
             </span>
           </span>
         </AppButton>
@@ -107,7 +107,8 @@
 
 <script setup lang="ts">
 import { useDungeonCraftBooksOffered } from "@/composables/library/useEnabledSources";
-import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { ref, computed } from "vue";
 import { useLibraryRollTables, useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { isLibraryId, shadowByName } from "@/lib/dungeon-features/library";
@@ -134,7 +135,7 @@ defineExpose({ selectedRollTableId, inlineNewRollTable, closeInlineRollTable });
 // An empty list with Grimoire's books on offer means none is switched on (#1060).
 const booksOffered = useDungeonCraftBooksOffered();
 const emptyDescription = computed(() =>
-  booksOffered.value ? "Add the Grimoire library from the book icon above, or create your own." : "Build a wandering monster table or two; the DM rolls live during play to surface what shows up.",
+  booksOffered.value ? "Switch on a book from the book icon above, or create your own." : "Build a wandering monster table or two; the DM rolls live during play to surface what shows up.",
 );
 
 const { data: ownTables, isLoading: ownLoading } = useRollTables();
@@ -148,6 +149,9 @@ const rollTables = computed<RollTableEntryRow[] | undefined>(() =>
 );
 const rollTablesLoading = computed(() => ownLoading.value || libraryLoading.value);
 const isLibraryTable = (t: RollTableEntryRow): t is LibraryRollTable => isLibraryId(t.id);
+const { labelFor } = useSourceTitles();
+/** The book a library table is from; an own table has none. */
+const tableBook = (t: RollTableEntryRow) => (isLibraryTable(t) ? labelFor(t.source) : null);
 const rollTablesSearch    = ref("");
 const rollTablesDieFilter = ref("");
 

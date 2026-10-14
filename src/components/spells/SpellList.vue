@@ -143,7 +143,7 @@
               :subtitle="mobileSubtitle(spell)"
               :image-url="spell.image_url"
               :fallback-icon="IconNavSpellbook"
-              :tags="[spellLevelOrdinal(spell.level)]"
+              :tags="rowTags(spell)"
               @pointerenter="prefetchSpell(spell.id)"
               @focusin="prefetchSpell(spell.id)"
             />
@@ -168,6 +168,7 @@ import { fetchResolvedSpell, resolvedSpellKey } from "@/composables/spells/useSp
 import { useSpellBrowse } from "@/composables/spells/useSpellBrowse";
 import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell } from "@/composables/party/useCharacterSpells";
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { SCHOOL_BG, spellLevelOrdinal } from "@/types/spell.types";
 import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
@@ -361,6 +362,15 @@ const skeletonVariant = computed(() => {
   if (!mobileLayout.value) return desktopLayout.value === "rows" ? "tiles" : "grid";
   return layout.value === "rows" ? "rows" : "gallery";
 });
+
+const { labelFor } = useSourceTitles();
+
+// The book's name leads the row's tags; a row with no source adds none.
+function rowTags(spell: SpellBrowseRow): string[] {
+  const label = labelFor(spell.source, spell.source_title);
+  const level = spellLevelOrdinal(spell.level);
+  return label ? [label, level] : [level];
+}
 
 function mobileSubtitle(spell: SpellBrowseRow): string {
   const school = spell.school.charAt(0).toUpperCase() + spell.school.slice(1);

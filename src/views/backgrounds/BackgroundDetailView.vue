@@ -16,7 +16,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { isLibraryBackground, useBackground } from "@/composables/rules/useBackgrounds";
+import { backgroundSourceKey, isLibraryBackground, useBackground } from "@/composables/rules/useBackgrounds";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
@@ -28,6 +29,7 @@ const detailRef = ref<InstanceType<typeof BackgroundDetail> | null>(null);
 
 const route = useRoute();
 const router = useRouter();
+const { labelFor } = useSourceTitles();
 
 const isNew = computed(() => route.name === "background-new");
 // A library background is read-only, so a stale ?edit=true on one opens the sheet.
@@ -47,7 +49,7 @@ const pageTitle = computed(() => {
 const pageDescription = computed(() => {
   const b = background.value;
   if (!b) return "";
-  return b.feature_name ?? b.source_title ?? b.source ?? "";
+  return b.feature_name ?? labelFor(backgroundSourceKey(b), b.source_title) ?? "";
 });
 
 function onCancel() {

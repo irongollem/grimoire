@@ -194,7 +194,7 @@
         <ListSearchInput v-model="codexUi.backgroundsSearch" placeholder="Search backgrounds…" />
         <ListFilterGroup
           v-model="codexUi.backgroundsFilterSource"
-          :options="BACKGROUND_SOURCE_OPTIONS"
+          :options="backgroundSourceOptions"
           aria-label="Background source filter"
         />
       </ListFilterBar>
@@ -281,7 +281,7 @@ import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.
 import SpeciesList from "@/components/species/SpeciesList.vue";
 import SpeciesOpen5ePanel from "@/components/species/SpeciesOpen5ePanel.vue";
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
-import { BACKGROUND_SOURCE_OPTIONS } from "@/components/backgrounds/backgroundSourceOptions";
+import { useBackgroundSourceOptions } from "@/composables/rules/useBackgroundSourceOptions";
 import ClassList from "@/components/levelup/ClassList.vue";
 import ArchetypeList from "@/components/levelup/ArchetypeList.vue";
 import AbilityList from "@/components/features/AbilityList.vue";
@@ -315,6 +315,7 @@ const SIZE_OPTIONS = [
 ] as const;
 
 const codexUi = useCodexUiStore();
+const backgroundSourceOptions = useBackgroundSourceOptions();
 const generatorsUi = useGeneratorUiStore();
 const speciesUi = useSpeciesUiStore();
 const isAiEnabled = computed(() => useCampaignStore().isAiEnabled);

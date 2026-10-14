@@ -13,6 +13,13 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
 }));
 
+vi.mock("@/composables/library/useSourceTitles", async () => {
+  const { sourceLabel } = await import("@/lib/library/sourceLabel");
+  const titles = new Map([["srd-2014", "SRD 5.1"], ["srd-2024", "SRD 5.2"]]);
+  return {
+    useSourceTitles: () => ({ labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, titles) }),
+  };
+});
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ error: mocks.toastError, fromError: (e: unknown, fb: string) => `${fb}` + (e instanceof Error ? ` ${e.message}` : "") }),
 }));
@@ -70,7 +77,7 @@ describe("SourcesPickerPanel", () => {
     const w = mountPicker("player");
     const boxes = w.findAll("input[type=checkbox]");
     // srd-2024 is not in the library list, so it is added; order: missing first, then listed.
-    expect(w.text()).toContain("SRD 2024");
+    expect(w.text()).toContain("SRD 5.2");
     const locked = boxes.filter((b) => (b.element as HTMLInputElement).disabled);
     expect(locked).toHaveLength(2);
     expect(locked.every((b) => (b.element as HTMLInputElement).checked)).toBe(true);

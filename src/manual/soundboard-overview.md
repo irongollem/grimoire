@@ -22,7 +22,7 @@ The Soundboard holds the ambient tracks, music, and one-shot effects you cue up 
 ## Adding and organizing sounds
 
 1. Click **Add Sound**. It shows your remaining quota on free plans, e.g. "Add Sound (14/20)".
-2. Choose a source: **URL**, **Upload** (Pro), **Spotify**, **Generate** (AI, needs the campaign's AI Assistant on, and works on every plan, billed to credits), or browse the **Grimoire library** (free, curated, doesn't count against your quota) or Freesound's CC0/CC-BY clips.
+2. Choose a source: **URL**, **Upload** (Pro), **Spotify**, **Generate** (AI, needs the campaign's AI Assistant on, and works on every plan, billed to credits), or browse **Grimoire Sounds** (free, curated, doesn't count against your quota) or Freesound's CC0/CC-BY clips.
 3. Assign it to a **page**: a separate board you switch between with the tabs at the top. Create more pages from those tabs (also quota-gated on free plans).
 4. Search and filter by category to find a sound fast mid-session.
 5. Drag cards to reorder them within a page: disabled while a filter is active, so you don't lose track of position.

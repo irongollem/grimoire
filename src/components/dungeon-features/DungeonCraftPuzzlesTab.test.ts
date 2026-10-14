@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushMicrotasks, useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
+import { sourceLabel } from "@/lib/library/sourceLabel";
 import DungeonCraftPuzzlesTab from "./DungeonCraftPuzzlesTab.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
@@ -38,6 +39,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // The empty-state copy asks whether the library has books on offer (#1060).
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (s: string | null | undefined, t?: string | null) =>
+      sourceLabel(s, t, new Map([["grimoire-dungeon-craft", "Grimoire Dungeon Craft"]])),
+  }),
+}));
 vi.mock("@/composables/library/useEnabledSources", () => ({
   useDungeonCraftBooksOffered: () => ref(false),
 }));
@@ -163,12 +170,12 @@ describe("DungeonCraftPuzzlesTab — library puzzles (#1060)", () => {
     mocks.library = [libraryPuzzle()];
   });
 
-  it("lists library puzzles beside own ones, marked Library", async () => {
+  it("lists library puzzles beside own ones, badged with their book", async () => {
     const wrapper = mountTab();
     await flushMicrotasks();
     expect(wrapper.text()).toContain("Riddle Door");
     expect(wrapper.text()).toContain("Riddle of the Sphinx");
-    expect(wrapper.text()).toContain("Library");
+    expect(wrapper.text()).toContain("Grimoire Dungeon Craft");
   });
 
   it("hides a library puzzle that an own puzzle of the same name shadows", async () => {
@@ -176,7 +183,7 @@ describe("DungeonCraftPuzzlesTab — library puzzles (#1060)", () => {
     const wrapper = mountTab();
     await flushMicrotasks();
     expect(wrapper.text().match(/Riddle Door/gi)).toHaveLength(1);
-    expect(wrapper.text()).not.toContain("Library");
+    expect(wrapper.text()).not.toContain("Grimoire Dungeon Craft");
   });
 
   it("applies the type filter to library rows too", async () => {

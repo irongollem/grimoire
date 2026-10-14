@@ -98,6 +98,7 @@
 </template>
 
 <script setup lang="ts">
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { ref, computed, onBeforeUnmount } from "vue";
 import { IconAdd, IconLayers, IconPopulate } from '@/lib/icons';
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
@@ -206,15 +207,15 @@ function subtitle(sc: CustomSubclass): string {
   return parts.join(" · ");
 }
 
+const { labelFor } = useSourceTitles();
+
 /**
  * The book an archetype comes from, as people know it: an imported one carries
  * its document's name in `source_revision`; the SRD's is shortened to fit the
  * line. A homebrew archetype names whatever the DM typed, or nothing.
  */
 function bookOf(sc: CustomSubclass): string | null {
-  if (sc.source_document_key === "srd-2014") return "SRD 5.1";
-  if (sc.source_document_key === "srd-2024") return "SRD 5.2";
-  return sc.source_revision ?? sc.source;
+  return labelFor(sc.source_document_key ?? sc.source, sc.source_revision);
 }
 
 /** The base class's picture, from the library's classes or the DM's own; null when it has none. */

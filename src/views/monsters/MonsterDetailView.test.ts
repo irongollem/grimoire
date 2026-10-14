@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { sourceLabel } from "@/lib/library/sourceLabel";
 import { mount, flushPromises } from "@vue/test-utils";
 import { reactive, ref } from "vue";
 import MonsterDetailView from "./MonsterDetailView.vue";
@@ -12,6 +13,11 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
 }));
 
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, new Map()),
+  }),
+}));
 vi.mock("vue-router", () => ({
   useRoute: () => reactive(mocks.route),
   useRouter: () => ({ replace: mocks.replace }),

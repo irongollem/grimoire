@@ -58,7 +58,7 @@
       <p class="text-body text-foreground">{{ spell.classes.join(", ") }}</p>
     </AccordionSection>
 
-    <AccordionSection v-if="spell.source" v-model:open="openSections.source" title="Source">
+    <AccordionSection v-if="sourceLabel" v-model:open="openSections.source" title="Source">
       <p class="text-body italic text-muted-foreground">
         <a
           v-if="spell.source_url"
@@ -102,7 +102,8 @@ import {
   spellDuration,
   spellRange,
 } from "@/lib/spells/spellFacts";
-import { SCHOOL_BG, spellLevelLabel, spellSourceLabel, type Spell } from "@/types/spell.types";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
+import { SCHOOL_BG, spellLevelLabel, type Spell } from "@/types/spell.types";
 
 const { spell } = defineProps<{
   spell: Spell;
@@ -121,7 +122,8 @@ const durationLine = computed(() =>
   needsConcentrationNote(spell) ? `${spellDuration(spell)} (concentration)` : spellDuration(spell),
 );
 
-const sourceLabel = computed(() => spellSourceLabel(spell.source, spell.source_title));
+const { labelFor } = useSourceTitles();
+const sourceLabel = computed(() => labelFor(spell.source, spell.source_title));
 
 // Everything the sheet shows is short and worth reading at once, so every
 // section starts open (the monster and NPC sheets keep their long ones shut).

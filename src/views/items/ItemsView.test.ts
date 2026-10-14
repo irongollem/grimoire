@@ -26,6 +26,12 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
 }));
 
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (source: string | null | undefined, title?: string | null) => (source ? (title ?? source) : null),
+  }),
+}));
+
 vi.mock("@/components/items/ItemList.vue", () => ({
   default: defineComponent({
     name: "ItemList",

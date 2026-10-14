@@ -59,18 +59,18 @@
               class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
               :class="PUZZLE_TYPE_BG[puzzle.puzzle_type]"
             >{{ puzzle.puzzle_type }}</span>
-            <LibraryBadge
-              v-if="isLibraryPuzzle(puzzle)"
-              tone="overlay"
-              class="absolute top-2 right-2"
-            />
             <span
               class="absolute bottom-2 right-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
               :class="PUZZLE_DIFFICULTY_BG[puzzle.difficulty]"
             >{{ puzzle.difficulty }}</span>
           </div>
           <div class="p-2.5 flex flex-col gap-1">
-            <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="flex-1 text-heading-xs font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
+              <div class="flex shrink-0 items-center gap-1">
+                <SourceBadge :source="isLibraryPuzzle(puzzle) ? puzzle.source : undefined" class="max-w-22 truncate" />
+              </div>
+            </div>
             <div class="flex items-center gap-2">
               <span class="text-caption-sm text-muted-foreground italic">
                 {{ puzzle.hints.length }} hint{{ puzzle.hints.length === 1 ? '' : 's' }}
@@ -97,7 +97,7 @@
           :subtitle="puzzleSubtitle(puzzle)"
           :image-url="puzzle.image_url"
           :fallback-icon="IconPuzzle"
-          :tags="isLibraryPuzzle(puzzle) ? ['Library', puzzle.puzzle_type, puzzle.difficulty] : [puzzle.puzzle_type, puzzle.difficulty]"
+          :tags="puzzleTags(puzzle)"
         />
       </BulkSelectableCard>
     </template>
@@ -106,7 +106,8 @@
 
 <script setup lang="ts">
 import { useDungeonCraftBooksOffered } from "@/composables/library/useEnabledSources";
-import LibraryBadge from "@/components/common/entity/LibraryBadge.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { RouterLink, useRouter } from "vue-router";
@@ -132,7 +133,7 @@ const router = useRouter();
 // An empty list with Grimoire's books on offer means none is switched on (#1060).
 const booksOffered = useDungeonCraftBooksOffered();
 const emptyDescription = computed(() =>
-  booksOffered.value ? "Add the Grimoire library from the book icon above, or create your own." : "Build your first puzzle room: set the riddle, add tiered hints, and record the solution.",
+  booksOffered.value ? "Switch on a book from the book icon above, or create your own." : "Build your first puzzle room: set the riddle, add tiered hints, and record the solution.",
 );
 
 const { data: ownPuzzles, isLoading: ownLoading } = usePuzzles();
@@ -146,6 +147,13 @@ const puzzles = computed<PuzzleEntry[] | undefined>(() =>
 );
 const puzzlesLoading = computed(() => ownLoading.value || libraryLoading.value);
 const isLibraryPuzzle = (p: PuzzleEntry): p is LibraryPuzzle => isLibraryId(p.id);
+const { labelFor } = useSourceTitles();
+
+// Only library rows carry a source; an own row's tags start at its type.
+function puzzleTags(puzzle: PuzzleEntry): string[] {
+  const label = isLibraryPuzzle(puzzle) ? labelFor(puzzle.source) : null;
+  return label ? [label, puzzle.puzzle_type, puzzle.difficulty] : [puzzle.puzzle_type, puzzle.difficulty];
+}
 const puzzlesUi = usePuzzlesUiStore();
 // Filter state lives in the UI store, not local refs, so it survives
 // navigating into a puzzle and back without outliving the session.

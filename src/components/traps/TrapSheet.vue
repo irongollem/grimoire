@@ -3,7 +3,8 @@
     <!-- Read-only library banner (same wording as MonsterDetail) -->
     <LibraryReadOnlyBanner
       v-if="library"
-      message="Read-only reference. Customize to create your own editable copy."
+      :source="librarySource"
+      message="Customize it to make your own editable copy."
       action-label="Customize"
       busy-label="Copying…"
       :busy="cloning"
@@ -200,6 +201,7 @@ const cloneMut = useCloneLibraryTrap();
 
 // A library trap is read-only; Customize is the one way it becomes editable.
 const library = computed(() => isLibraryTrap(props.trap));
+const librarySource = computed(() => (isLibraryTrap(props.trap) ? props.trap.source : undefined));
 const cloning = computed(() => cloneMut.isPending.value);
 
 async function customize() {

@@ -58,7 +58,8 @@ export const useCodexUiStore = defineStore("ui:codex", () => {
 
   // Backgrounds UI state
   const backgroundsSearch = ref("");
-  const backgroundsFilterSource = ref<"all" | "custom" | "library">("all");
+  /** "all", "custom" (the DM's own), or a book's `content_sources` key. */
+  const backgroundsFilterSource = ref("all");
 
   const backgroundsHasActiveFilters = computed(
     () => backgroundsSearch.value !== "" || backgroundsFilterSource.value !== "all",

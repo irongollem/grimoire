@@ -177,6 +177,7 @@ import {
 } from "@/lib/encounters/resolveGeneratedCombatants";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import type { EncounterCombatantAiResult } from "@/ai/types";
 
 type EncounterDifficultyOption = "auto" | "easy" | "medium" | "hard" | "deadly";
@@ -271,14 +272,15 @@ function setVersionPick(entryIndex: number, monsterId: string) {
   else delete versionPicks.value[entryIndex];
 }
 
+const { labelFor } = useSourceTitles();
+
 /** Labels one version of an ambiguous name for the picker: where it comes
  *  from, and its CR — the CR is the point, since same-named versions are
- *  rebalanced across publishers and drive the XP budget. "???" is the repo's
- *  unknown marker: a library row missing all source metadata is a data gap
- *  worth seeing, not something to blank over. */
+ *  rebalanced across publishers and drive the XP budget. A DM's own row is
+ *  "Custom" here because the picker must tell own from book. */
 function versionLabel(m: ResolvableMonster): string {
-  const origin = m.is_shared ? (m.source_title ?? m.source ?? "???") : "Your bestiary";
-  return `${origin} · CR ${m.challenge_rating}`;
+  const origin = m.is_shared ? labelFor(m.source, m.source_title) : "Custom";
+  return origin ? `${origin} · CR ${m.challenge_rating}` : `CR ${m.challenge_rating}`;
 }
 
 function versionOptions(match: GeneratedCombatantMatch): { id: string; name: string }[] {

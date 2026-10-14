@@ -48,23 +48,15 @@
     <!-- ── 2. Scroll body ─────────────────────────────────────────────────── -->
     <main class="flex-1 space-y-3 overflow-y-auto p-3 pb-28">
       <!-- Read-only library banner (Customize clones to an editable copy) -->
-      <section
+      <LibraryReadOnlyBanner
         v-if="isShared"
-        class="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 px-4 py-3"
-      >
-        <p class="text-body italic text-muted-foreground">
-          Read-only reference.
-        </p>
-        <AppButton
-          variant="primary"
-          size="md"
-          class="shrink-0"
-          :icon="IconCopy"
-          :label="isCloning ? 'Copying…' : 'Customize'"
-          :disabled="isCloning"
-          @click="emit('customize')"
-        />
-      </section>
+        :source="form.source"
+        message="Customize it to make your own editable copy."
+        action-label="Customize"
+        busy-label="Copying…"
+        :busy="isCloning"
+        @action="emit('customize')"
+      />
 
       <!-- Portrait card (interactive even for library monsters: art override): Picture / Cutout (#917 story 2) -->
       <section class="overflow-hidden rounded-xl border border-border bg-card">
@@ -268,6 +260,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import LibraryReadOnlyBanner from "@/components/common/entity/LibraryReadOnlyBanner.vue";
 import MobileEditBar from "@/components/common/entity/MobileEditBar.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";

@@ -68,9 +68,13 @@
             edit-label="Edit species"
             @select="emit('select', s)"
           >
-            <h3 class="line-clamp-1 text-heading-xs leading-tight font-bold text-foreground">{{ s.name }}</h3>
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">{{ s.name }}</h3>
+              <div class="flex shrink-0 items-center gap-1">
+                <SourceBadge :source="s.source" class="max-w-22 truncate" />
+              </div>
+            </div>
             <p class="text-caption text-muted-foreground italic">{{ speciesSubtitle(s) }}</p>
-            <p v-if="s.source" class="text-label text-muted-foreground">{{ s.source }}</p>
             <div v-if="s.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
               <span
                 v-for="tag in s.tags.slice(0, 3)"
@@ -94,7 +98,7 @@
             :subtitle="speciesSubtitle(s)"
             :image-url="s.image_url"
             :fallback-icon="IconSpecies"
-            :tags="s.tags"
+            :tags="rowTags(s)"
           >
             <template v-if="!readonly && isUuid(s.id)" #actions>
               <AppButton
@@ -141,6 +145,8 @@ import { allowedSpecies } from "@/lib/campaignContentGating";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useListLayout } from "@/composables/useListLayout";
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
@@ -161,6 +167,13 @@ const { selectMode } = defineProps<{ readonly?: boolean; selectMode?: boolean; s
 const emit = defineEmits<{ select: [species: Species] }>();
 
 const speciesUi = useSpeciesUiStore();
+const { labelFor } = useSourceTitles();
+
+/** A row's tags, the book it comes from first. */
+function rowTags(s: Species): string[] {
+  const label = labelFor(s.source);
+  return label ? [label, ...s.tags] : s.tags;
+}
 const { activeCampaign, activeCampaignId } = storeToRefs(useCampaignStore());
 // Picking (select mode) obeys the campaign's blocklist; browsing the codex does
 // not, because the DM still needs to open and edit a species they switched off

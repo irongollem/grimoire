@@ -8,6 +8,13 @@ vi.mock("vue-router", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 const viewer = vi.hoisted(() => ({ user: { id: "u1" } as { id: string } | null, isAppAdmin: false }));
+vi.mock("@/composables/library/useSourceTitles", async () => {
+  const { sourceLabel } = await import("@/lib/library/sourceLabel");
+  const titles = new Map<string, string>();
+  return {
+    useSourceTitles: () => ({ labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, titles) }),
+  };
+});
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => viewer }));
 vi.mock("@/composables/rules/useFeatures", () => ({ useAllFeatures: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/rules/useCustomClasses", async (orig) => ({
@@ -42,7 +49,7 @@ const base = {
 describe("CustomClassSheet", () => {
   it("hides Edit and Delete for a library class and offers Duplicate", () => {
     const w = mount(CustomClassSheet, { props: { cls: base as unknown as SystemClass } });
-    expect(w.text()).toContain("Library · read only");
+    expect(w.text()).toContain("Read only");
     expect(w.text()).toContain("Duplicate to customise");
     expect(w.text()).not.toContain("Edit");
     expect(w.text()).not.toContain("Delete");
@@ -53,13 +60,13 @@ describe("CustomClassSheet", () => {
     const w = mount(CustomClassSheet, { props: { cls: custom } });
     expect(w.text()).toContain("Edit");
     expect(w.text()).toContain("Delete");
-    expect(w.text()).not.toContain("Library · read only");
+    expect(w.text()).not.toContain("Read only");
   });
 
   it("keeps a shared book class read-only for a DM, with Duplicate", () => {
     const shared = { ...base, user_id: null, campaign_id: null } as unknown as CustomClass;
     const w = mount(CustomClassSheet, { props: { cls: shared } });
-    expect(w.text()).toContain("Library · read only");
+    expect(w.text()).toContain("Read only");
     expect(w.text()).toContain("Duplicate to customise");
     expect(w.text()).not.toContain("Delete");
   });

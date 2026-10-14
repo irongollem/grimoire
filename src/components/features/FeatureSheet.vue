@@ -25,10 +25,7 @@
           <span v-if="feature.kind === 'feat' && feature.repeatable" class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             Repeatable
           </span>
-          <span v-if="isOfficial" class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">Official</span>
-          <span v-if="bookTitle" class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
-            {{ bookTitle }}
-          </span>
+          <SourceBadge :source="feature.source" />
           <span v-if="feature.ruleset" class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ feature.ruleset }} rules
           </span>
@@ -97,6 +94,7 @@ import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteFeature } from "@/composables/rules/useFeatures";
+import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { parseMechanics } from "@/rules/features/mechanics";
 import { ACTIVATION_LABELS, FEAT_CATEGORY_LABELS, type ClassFeature } from "@/types/feature.types";
@@ -114,10 +112,10 @@ const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
 const deleteMut = useDeleteFeature();
-const { titleFor } = useSourceTitles();
+const { labelFor } = useSourceTitles();
 
 const isOfficial = computed(() => feature.user_id === null);
-const bookTitle = computed(() => titleFor(feature.source));
+const bookTitle = computed(() => labelFor(feature.source));
 const mechanics = computed(() => parseMechanics(feature.mechanics).mechanics);
 const hasMechanics = computed(() => summarizeMechanics(mechanics.value).length > 0);
 const activationLabel = computed(() => (mechanics.value.activation ? ACTIVATION_LABELS[mechanics.value.activation] : "Passive"));

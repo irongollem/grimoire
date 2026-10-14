@@ -18,7 +18,7 @@ export interface ContentLicenseSource {
   species_count: number;
   rule_count: number;
   class_count: number;
-  entry_count: number;             // sum of the six counts above
+  entry_count: number;             // the six counts above, plus backgrounds and Dungeon Craft (no column of their own)
   sort_order: number;
 }
 

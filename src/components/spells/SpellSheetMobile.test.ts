@@ -4,6 +4,12 @@ import SpellSheetMobile from "./SpellSheetMobile.vue";
 import type { Spell } from "@/types/spell.types";
 
 const push = vi.fn();
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({
+    labelFor: (source: string | null | undefined, title?: string | null) => (source ? (title ?? source) : null),
+  }),
+}));
+
 vi.mock("vue-router", () => ({ useRouter: () => ({ push, back: vi.fn() }) }));
 vi.mock("@/components/notes/DmNoteBox.vue", () => ({
   default: { name: "DmNoteBox", props: ["type", "id", "label"], template: '<div data-testid="dm-note">{{ type }}</div>' },

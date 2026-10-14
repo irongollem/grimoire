@@ -77,7 +77,7 @@
             v-for="src in enabledSourceData ?? []"
             :key="src.source_slug"
             :value="src.source_slug"
-          >{{ src.source_title ?? src.source_slug }}</option>
+          >{{ labelFor(src.source_slug, src.source_title) }}</option>
         </ListFilterSelect>
       </ListFilterBar>
     </template>
@@ -145,6 +145,7 @@ import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { useEnabledSources, useAvailableLibrarySpellSources } from "@/composables/library/useEnabledSources";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
@@ -170,6 +171,7 @@ const LEVEL_FILTERS = [
 // enabledSourceData also feeds the Source filter dropdown below; the enable/
 // disable wiring itself now lives inside SourcesPickerPanel.
 const { data: enabledSourceData } = useEnabledSources();
+const { labelFor } = useSourceTitles();
 const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLibrarySpellSources();
 
 // ── Bulk move-to-campaign (#875) ─────────────────────────────────────────────

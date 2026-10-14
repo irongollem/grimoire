@@ -60,7 +60,7 @@ function toHit(row: SoundLibraryEntry): ProviderHit {
 export const libraryProvider: SoundProvider = {
   id: LIBRARY_PROVIDER_ID,
   sourceType: "library",
-  label: "Grimoire library",
+  label: "Grimoire Sounds",
   attributionNote:
     "Creative Commons audio we host ourselves. Free on every tier, and it does not count against your sound limit.",
   // One character is worth searching here: the catalogue is ours and small, so

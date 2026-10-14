@@ -57,16 +57,12 @@ const { features, listKey, fallbackIcon, badgesFor } = defineProps<{
 
 const layout = useListLayout(listKey, "rows");
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
-const { titleFor } = useSourceTitles();
+const { labelFor } = useSourceTitles();
 const featureKey = (f: ClassFeature) => f.id;
 
 function tagsFor(feat: ClassFeature): string[] {
-  const tags = badgesFor(feat);
-  if (feat.user_id === null) tags.push("Official");
-  const book = titleFor(feat.source);
-  if (book) tags.push(book);
-  tags.push(...feat.tags);
-  return tags;
+  const book = labelFor(feat.source);
+  return [...(book ? [book] : []), ...badgesFor(feat), ...feat.tags];
 }
 
 // Row heights before measuring (px). Row: p-4 (32) + border (2) + title 20,

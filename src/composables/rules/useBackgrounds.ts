@@ -24,6 +24,16 @@ export function isLibraryBackground(background: Pick<Background, "id">): boolean
   return !isUuid(background.id);
 }
 
+/** What a background's source is called: its book's key, or what a DM typed on their own row. */
+export function backgroundSourceKey(background: Background): string | null {
+  return background.source_document_key ?? background.source;
+}
+
+/** The key of the book a library background belongs to, or null for the user's own. */
+export function backgroundBookKey(background: Background): string | null {
+  return isLibraryBackground(background) ? backgroundSourceKey(background) : null;
+}
+
 /** A `library_backgrounds` row in the shape the custom table's rows have. It has no owner. */
 export function backgroundFromLibraryRow(row: Omit<Background, "user_id">): Background {
   return { ...row, user_id: "" };
