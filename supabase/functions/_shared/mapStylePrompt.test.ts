@@ -22,6 +22,14 @@ describe("buildMapStylePrompt", () => {
     expect(prompt).toContain("Workbenches full of tools.");
   });
 
+  it("forbids a painted grid in every preset, since the app overlays its own", () => {
+    for (const preset of ["playable", "explorer", "isometric", "tactical", "tome", "woodcut"]) {
+      const prompt = buildMapStylePrompt(preset, "X", null, null);
+      expect(prompt).toMatch(/Do not draw a grid/);
+      expect(prompt).not.toMatch(/gridded/);
+    }
+  });
+
   it("never names a publisher's book as the style", () => {
     for (const preset of ["playable", "explorer", "isometric", "tactical", "tome", "woodcut"]) {
       expect(buildMapStylePrompt(preset, "X", null, null)).not.toMatch(/D&D|Player's Handbook|OneDnD|5e/);

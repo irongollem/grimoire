@@ -13,6 +13,15 @@ const KEEP_LAYOUT =
 
 // Style words only, never a publisher's product or house art: asking the model
 // to imitate a named book is asking it to reproduce someone's trade dress.
+/**
+ * Every preset, the isometric one included. The app lays its own grid over a styled map at play, so a grid painted into the
+ * picture competes with it: two sets of lines that never quite agree. Models add one unasked, because "battle map" is mostly
+ * gridded pictures, and they repaint any cell lines they can see in the input (the old tile floors drew a square per cell).
+ * Seen on a styled Sugarwell map, 15 Oct 2026, where lines ran even through the plain black padding around the building.
+ */
+const NO_GRID =
+  "Do not draw a grid, cell lines, squares or any measuring marks anywhere in the picture, and do not paint floors as square tiles that line up into a grid; the app overlays its own grid.";
+
 export const PRESET_PROMPTS: Record<string, string> = {
   playable:
     "modern illustrated dungeon map, warm candlelight color palette, clean readable encounter zones, detailed environmental dressing, contemporary painted fantasy tabletop illustration",
@@ -21,7 +30,7 @@ export const PRESET_PROMPTS: Record<string, string> = {
   isometric:
     "isometric 3D dungeon cutaway, axonometric projection, painted stone walls and wooden floors, deep dramatic shadows, painted fantasy adventure interior illustration, may reinterpret room layout in 3D perspective",
   tactical:
-    "tactical battle map, bold encounter zone outlines, numbered encounter areas, high-contrast surface textures, neutral gridded background, optimised for Foundry VTT and Roll20 display",
+    "tactical battle map, bold encounter zone outlines, numbered encounter areas, high-contrast surface textures, plain neutral background, optimised for Foundry VTT and Roll20 display",
   tome:
     "medieval illuminated manuscript page, intricate decorative parchment border, gilded drop-cap details, scriptorium brown ink illustration with subtle gold leaf accents, monastic cartography style",
   woodcut:
@@ -42,6 +51,7 @@ export function buildMapStylePrompt(
   if (mapName.trim()) parts.push(`The place: ${mapName.trim()}.`);
   if (mapDescription?.trim()) parts.push(mapDescription.trim());
   parts.push(`Style: ${PRESET_PROMPTS[preset]}.`);
+  parts.push(NO_GRID);
   if (suffix?.trim()) parts.push(suffix.trim());
   parts.push(`Add ${WATERMARK}.`);
   return parts.join(" ");
