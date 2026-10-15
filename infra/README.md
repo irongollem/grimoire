@@ -239,7 +239,7 @@ Ordered smallest/least painful first, so any surprise surfaces cheaply;
   npm run r2:copy -- --bucket trap-images && npm run r2:copy -- --bucket trap-images --verify --deep && echo "done: trap-images"
   ```
 
-- [ ] `dressing-images` — new with #1062 (canonical art under `srd/`); copy once art is published
+- [x] `dressing-images` — done 16 Oct 2026 (empty in Supabase, `--verify --deep` clean: born on R2, the art tool writes there directly)
 
   ```bash
   npm run r2:copy -- --bucket dressing-images && npm run r2:copy -- --bucket dressing-images --verify --deep && echo "done: dressing-images"
