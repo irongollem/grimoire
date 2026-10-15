@@ -14,6 +14,8 @@ export interface DressingProp {
   footprint_h: number;
   /** Null until the art is loaded (or painted): drawn as a placeholder. */
   image: CanvasImageSource | null;
+  /** Lies on the floor: casts no shadow of its own, only an occlusion rim (#1065). */
+  flat: boolean;
 }
 
 export type DressingCatalog = ReadonlyMap<string, DressingProp>;

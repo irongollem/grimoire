@@ -22,7 +22,7 @@ vi.mock("@/components/common/settings/SourcesPickerPanel.vue", () => ({
 function prop(over: Partial<LibraryDressing>): LibraryDressing {
   return {
     id: "p", name: "Prop", group_key: "furniture", tags: [], footprint_w: 1, footprint_h: 1,
-    image_url: null, source: "grimoire-dressing", ...over,
+    image_url: null, source: "grimoire-dressing", flat: false, ...over,
   };
 }
 

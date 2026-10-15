@@ -7,7 +7,7 @@ import { buildDressingCatalog, clearDressingImageCache, loadDressingImage } from
 import type { LibraryDressing } from "@/types/dressing.types";
 
 function row(id: string, w = 1, h = 1, image_url: string | null = null): LibraryDressing {
-  return { id, name: id, group_key: "furniture", tags: [], footprint_w: w, footprint_h: h, image_url, source: "grimoire-dressing" };
+  return { id, name: id, group_key: "furniture", tags: [], footprint_w: w, footprint_h: h, image_url, source: "grimoire-dressing", flat: false };
 }
 
 describe("loadDressingImage", () => {
@@ -43,7 +43,7 @@ describe("buildDressingCatalog", () => {
   it("maps rows to props, with null art where no image is loaded", () => {
     const img = {} as CanvasImageSource;
     const catalog = buildDressingCatalog([row("a", 2, 1, "https://cdn/a.webp"), row("b"), row("c", 1, 1, "https://cdn/c.webp")], new Map([["https://cdn/a.webp", img]]));
-    expect(catalog.get("a")).toEqual({ id: "a", name: "a", footprint_w: 2, footprint_h: 1, image: img });
+    expect(catalog.get("a")).toEqual({ id: "a", name: "a", footprint_w: 2, footprint_h: 1, image: img, flat: false });
     expect(catalog.get("b")?.image).toBeNull();
     expect(catalog.get("c")?.image).toBeNull();
   });

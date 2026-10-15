@@ -12,7 +12,9 @@ export type DressingGroup =
   | "religious"
   | "camp"
   | "prison"
-  | "outdoor";
+  | "outdoor"
+  | "crossings"
+  | "vermin";
 
 /** Picker order, with the label each group shows. */
 export const DRESSING_GROUPS: ReadonlyArray<{ key: DressingGroup; label: string }> = [
@@ -27,6 +29,8 @@ export const DRESSING_GROUPS: ReadonlyArray<{ key: DressingGroup; label: string 
   { key: "camp", label: "Camp and travel" },
   { key: "prison", label: "Prison" },
   { key: "outdoor", label: "Outdoor" },
+  { key: "crossings", label: "Bridges and walkways" },
+  { key: "vermin", label: "Vermin" },
 ];
 
 export interface LibraryDressing {
@@ -42,4 +46,9 @@ export interface LibraryDressing {
   image_url: string | null;
   /** `content_sources` key of the book this prop belongs to. */
   source: string;
+  /**
+   * Lies on the floor (a rug, a bloodstain, a body): the map draws it only an occlusion rim, never
+   * a cast shadow, which would lift it off the ground (#1065).
+   */
+  flat: boolean;
 }

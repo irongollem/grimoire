@@ -1,6 +1,7 @@
 -- #1062: the Dressing library (library_dressing), its source and its book-icon
 -- function, from migrations 20261014102253_dressing_library and
--- 20261014102255_dressing_library_content.
+-- 20261014102255_dressing_library_content, plus #1065's flat props, groups and
+-- set books (20261015224350_dressing_flat_and_set_books).
 --
 --   1 Ada (app admin)   2 Ben (ordinary DM)
 --
@@ -11,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(19);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('10620000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -98,6 +99,19 @@ select is(
     + (select count(*)::int from public.user_enabled_sources
         where source_slug = 'grimoire-dressing' and user_id = '10620000-0000-4000-8000-000000000002'),
   0, 'a new campaign and a new account do not have the dressing book switched on');
+
+-- #1065: a prop that lies on the floor is flagged flat (it casts no shadow of its own), a
+-- standing one is not; the tile sets' groups exist; each set's book starts off like any book.
+select is((select flat from public.library_dressing where id = 'dressing_rug'), true, 'a rug lies flat');
+select is((select flat from public.library_dressing where id = 'dressing_wagon'), false, 'a wagon stands up');
+select is(
+  (select count(*)::int from public.content_sources where key = 'grimoire-dressing-sewers' and title = 'Grimoire Sewers'),
+  1, 'the Sewers book exists under its own title');
+set local role postgres;
+select lives_ok(
+  $$ insert into public.library_dressing (id, name, group_key) values ('zz1065_bridge', 'Probe bridge', 'crossings'),
+                                                                     ('zz1065_nest', 'Probe nest', 'vermin') $$,
+  'bridges and vermin are groups a prop may belong to');
 
 select * from finish();
 rollback;

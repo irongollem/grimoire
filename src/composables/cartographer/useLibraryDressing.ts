@@ -12,7 +12,7 @@ import type { LibraryDressing } from "@/types/dressing.types";
 
 const LIBRARY_KEY = "library-dressing";
 const LIBRARY_STALE_MS = 60 * 60 * 1000;
-const COLUMNS = "id, name, group_key, tags, footprint_w, footprint_h, image_url, source";
+const COLUMNS = "id, name, group_key, tags, footprint_w, footprint_h, image_url, source, flat";
 
 async function fetchAllLibraryDressing(): Promise<LibraryDressing[]> {
   const { data, error } = await supabase.from("library_dressing").select(COLUMNS).order("name", { ascending: true });

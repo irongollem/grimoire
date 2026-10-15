@@ -172,7 +172,7 @@ function fakeStructure(): ReturnType<typeof useCartographerStructure> {
 
 // A two-by-one table, so a hit can land on its second cell.
 const DRESSING_CATALOG: DressingCatalog = new Map([
-  ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: null }],
+  ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: null, flat: false }],
 ]);
 
 interface Harness {
