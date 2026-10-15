@@ -13,8 +13,8 @@ Open **Cartographer → Tile Packs** (the **Tile Packs** button on the map list)
 
 | Term | Meaning |
 | --- | --- |
-| Pack | A themed set of floor/wall/door/object art a map can paint with |
-| Slot | One required tile in a pack (a floor variant, a wall segment, a door…) |
+| Pack | A themed set of floor, wall, door, water and object art a map can paint with |
+| Slot | One required tile in a pack (a floor variant, a wall segment, a doorway, a door…) |
 | Proof | The first three tiles (floor, wall, solid block) generated for approval before the rest |
 
 ## Available packs
@@ -32,7 +32,7 @@ Generating a pack works on every plan: you need an active campaign selected, its
 1. Enter a **Concept name** (up to 100 characters) and a **Description** (up to 1,000 characters): materials, motifs, palette, and mood.
 2. Click **Create generation run**.
 
-Generation uses GPT Image 2 at low quality and spends credits one tile at a time. **Each tile costs 12 credits, and that includes up to three retries.** You're charged once when a tile first generates; regenerating it costs nothing until all four attempts are used, after which the tile shows **No retries left**. A complete required set is 20 tiles, so a full pack costs 240 credits whether you accept every tile on the first try or retry your way through all of them.
+Generation uses GPT Image 2 at low quality and spends credits one tile at a time. **Each tile costs 12 credits, and that includes up to three retries.** You're charged once when a tile first generates; regenerating it costs nothing until all four attempts are used, after which the tile shows **No retries left**. A complete required set is 16 drawn tiles (the sideways walls and doorway are the horizontal ones turned, so they cost nothing), so a full pack costs 192 credits whether you accept every tile on the first try or retry your way through all of them.
 
 The run first generates three **style proofs** (a floor, a wall, and a solid block) and pauses. Review them at their actual tile scale:
 
@@ -42,6 +42,12 @@ The run first generates three **style proofs** (a floor, a wall, and a solid blo
 While a run is generating, its card shows a progress bar and **completed/total jobs**. Any failed slot lists its error with a **Retry (N left)** button, or **No retries left** once they're exhausted. **Cancel** stops a run before it spends any more credits; reloading the page doesn't lose progress: the run resumes from wherever it left off.
 
 Generated packs join your normal Cartographer pack picker once every required slot passes validation.
+
+## What a pack contains
+
+A door is made of two tiles: a **doorway** (the opening and its frame, set into the wall) and a **door leaf** (the door itself, which Grimoire swings open on its hinge). Beyond the required set a pack can also carry water, curbs for its banks, grates and sluice gates for walls, decals for walls (pipes, holes, carvings), stairs, rubble, and objects. Optional art is never required, and a pack without it still works. A pack can also give its objects and decals their own names, which then appear in the map editor.
+
+Packs made before this format (older uploads) are missing the doorway and door leaf. Re-upload or regenerate them to get proper doors.
 
 ## Tips
 

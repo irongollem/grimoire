@@ -71,13 +71,21 @@ The gate is now `hasCompleteArt` (`src/cartographer/packCoverage.ts`): every *re
 
 **`packCoverage.ts` is the single answer to "what does this pack actually have".** It is read by the publish gate, by `generate_library_pack`'s slot selection and by all three admin components. Two notions of missing coexist deliberately: *undeclared* (the manifest omits the slot — what `validatePack` and `createGenerationPlan`'s default `missingSlots()` see) and *undrawn* (declared, no bytes — what everything in the admin lane means). Confusing them is what shipped the empty packs.
 
+### One drawing module (#1065)
+
+`src/cartographer/drawMap.ts` is the one implementation of what a map looks like: floor and terrain, rock, walls, doors, joints, curbs, stamped objects, Dressing, glyphs and the render-time shadows. The live editor (`renderMap.ts`) and the offline bake (`bake.ts`) both call it. They used to carry a copy each and the copies had drifted: the bake had no fallback runtime and never drew rounded corners. A change to how a map looks is made once, in `drawMap.ts`, and reaches the editor and the published picture together.
+
+What stays with the callers is everything that is not pack content: the background fill, annotations and every editor-only overlay (grid, hover, previews, selection). Two hooks, `afterGround` and `afterDressing`, let the editor slot its grid and its derived-space outlines into the stack without `drawMap.ts` knowing about either. Like `renderMap.ts` it takes plain values only and must not import `vue`. The runtime lookup differs on purpose: the live editor falls back to the active pack for an unknown pack id, the bake does not, because a bake must not draw a map in a pack it was not painted with.
+
 ### Publishing art made outside the app (#891)
 
-Since 14 Oct 2026 the library packs are painted outside the app, by an image agent on a subscription rather than the admin lane's API key, as edits of the base set (`src/assets/tile-base/`). `npm run tile-pack:publish -- --pack <id> --dir <folder>` puts one pack's finished art in: a folder of 128×128 WebP tiles at the paths a manifest names, the rotated slots included. It rebuilds the manifest at schema 3 from the folder alone (a repaint replaces every slot, so two lanes' walls never mix in one pack), marks each tile with its AI provenance, uploads to R2 at `library-tile-packs/<row id>/v<n>/…`, and writes the manifest last so it never names bytes that are not there yet. Dry run by default; `--write`, plus `--yes-production` off loopback.
+Since 14 Oct 2026 the library packs are painted outside the app, by an image agent on a subscription rather than the admin lane's API key, as edits of the base set (`src/assets/tile-base/`). `npm run tile-pack:publish -- --pack <id> --dir <folder>` puts one pack's finished art in: a folder of 128×128 WebP tiles at the paths a manifest names, the rotated slots included. It rebuilds the manifest at the current schema from the folder alone (a repaint replaces every slot, so two lanes' walls never mix in one pack), marks each tile with its AI provenance, uploads to R2 at `library-tile-packs/<row id>/v<n>/…`, and writes the manifest last so it never names bytes that are not there yet. Dry run by default; `--write`, plus `--yes-production` off loopback.
 
 **The row stays a draft.** Review it in Admin → Content and press Publish, which runs `hasCompleteArt`; `--publish` does the same from the script. A published version is never repainted in place: `--version <latest + 1>` drafts a new row beside it, which is how a repaint is compared with the art it would replace.
 
 **`seed-library-tile-packs` must not be used for this.** It re-reads all twelve packs from `public/cartographer/` and keeps `byteSize` only for slots with a file on disk, so one run would erase every tile the admin lane ever made.
+
+**The art is a sprite sheet cut afterwards (#1065).** A set is painted as a few sheets (one seamless floor, a structure sheet, scatter and glyphs) so it reads as one place, then cut into the 128×128 tiles. The manifest fields no tile can carry come from an optional `pack.json` beside the tiles (`SIDECAR_FILE`, parsed by `parsePackSidecar` in `scripts/lib/tile-pack-publish.ts`): `continuous` (category to period, a positive integer), `labels` (category to non-empty names) and `doorLeaf` (`hingeX` and `hingeY` from 0 to 1, `openDegrees` from 1 to 180). Every problem in the file is reported, not just the first, and nothing invalid is applied. The sidecar is the only source of these fields: `buildManifest` never inherits them from the older published version, for the same reason it never inherits slots. Without a `pack.json` the pack has none of them.
 
 `wallRoundJoint` is left out of these packs (`--exclude wallRoundJoint`) until #1063: the renderer puts a round joint's carve on the outside of a room's corner, so on a rectangular room each corner draws as a square block of wall. Without the category, maps fall back to the plain `wallJoint` squares, which draw correctly.
 
@@ -87,7 +95,7 @@ Each row in Admin → Content opens an editor: the pack's name, description, lic
 
 **The description is the art bible, which is why editing it matters.** `createGenerationPlan` feeds it straight to the image model, and `update_library_pack` patches `manifest.name`/`manifest.description` alongside the columns so the two cannot drift — a rename that left the manifest stale would brief the next run from text the admin had already changed. `stone-dungeon` was carrying "Tiles in this pack are placeholder-generated until the AI generation pipeline ships M1 assets" as its brief, which is exactly what an unreachable field decays into.
 
-**Generation against an existing pack fills gaps in place.** `generate_library_pack` keeps the pack's `pack_id`, `pack_version` and manifest, and plans jobs only for undrawn slots — `undrawnSlotIds`, optionally narrowed to the required floor, since a migrated pack declares ~53 slots of which 20 are load-bearing and each costs real provider spend. The planner always supported this (`createGenerationPlan`'s `selectedSlotIds`); what was missing was an action that targeted a row instead of creating one.
+**Generation against an existing pack fills gaps in place.** `generate_library_pack` keeps the pack's `pack_id`, `pack_version` and manifest, and plans jobs only for undrawn slots: `undrawnSlotIds`, optionally narrowed to the required floor, since a migrated pack declares ~53 slots of which 19 are load-bearing and each costs real provider spend. The planner always supported this (`createGenerationPlan`'s `selectedSlotIds`); what was missing was an action that targeted a row instead of creating one.
 
 **The proof phase is conditional, and this is the subtle part.** `PROOF_SLOTS` is `floor:0`, `wallSegmentH:0`, `solidBlock:0`. A gap-filling run on a pack that already has those three plans none of them, and a run left in `proof_pending` with zero proof jobs can never reach `awaiting_approval` — that transition fires in `completeSlot` only when a proof job completes — so it would hang unadvanceable. Such a run opens directly in `generating` (`initialGenerationStatus`). `styleReferences` then falls back to downloading the pack's own existing proof-slot tiles, so the new art is briefed by the pack it is joining rather than by nothing.
 
@@ -123,7 +131,7 @@ Project-wide policy. The pack loader **rejects any non-`.webp` asset**. Exports 
 - Wall-as-cell exclusively — silently steals 25–40% of grid area to walls, doesn't VTT-round-trip cleanly.
 - Edge-walls only — forces all walls to be thin; loses the dungeoneering aesthetic of thick masonry.
 
-Doors live on edges (replacing the wall segment on that edge) — exactly as in reality. Crossing a door = crossing an edge, not entering a cell.
+Doors live on edges (replacing the wall segment on that edge), exactly as in reality. Crossing a door = crossing an edge, not entering a cell. Grates and sluices (#1065) are edge segments too: they cut the space flood fill like walls and are not ways, so a canal passing through a grate does not join two rooms.
 
 ### Infinite canvas with crop-on-export
 
@@ -154,77 +162,64 @@ A tile pack is a versioned bundle of WebP assets keyed against a strongly-typed 
 
 ### Schema (`src/cartographer/packSchema.ts`)
 
+The schema is at **version 4**. Three kinds of category exist: `random` (interchangeable variants, a min and a max), `directional` (a fixed set of sides, optionally `variantsPerSide`) and `optional` (zero up to a max). The table below is generated from `TILE_PACK_SCHEMA`; the code is the source of truth, so re-read `packSchema.ts` rather than trusting this copy after a bump.
+
+| Category | Required | Shape |
+| --- | --- | --- |
+| `floor` | required | 8 to 64 variants (64 so a continuous floor can be cut 8×8) |
+| `wallSegmentH` | required | 2 to 6 variants |
+| `wallSegmentV` | required | 2 to 6 variants (rotation-derived from H) |
+| `wallJoint` | optional | directional: L_NE, L_SE, L_SW, L_NW, T_N, T_E, T_S, T_W, CROSS |
+| `wallRoundJoint` | optional | directional: L_NE, L_SE, L_SW, L_NW |
+| `doorwayH` | required | 1 to 3 variants: the opening and its frame, in the wall band |
+| `doorwayV` | required | 1 to 3 variants (rotation-derived from `doorwayH`) |
+| `doorLeaf` | required | 1 to 3 variants: the door alone, never squashed |
+| `solidBlock` | required | 4 to 12 variants |
+| `stairsUp`, `stairsDown` | optional | directional: N, E, S, W |
+| `curbH`, `curbV` | optional | 0 to 6 variants: a low ledge on an edge between terrain and floor |
+| `curbPost` | optional | 0 to 2 variants: where a curb meets a wall or turns |
+| `terrainWater` | optional | 0 to 64 variants: a continuous texture (water, sludge, lava, a stream) |
+| `edgeGrateH`, `edgeGrateV` | optional | 0 to 3 variants each: bars across an opening in a wall |
+| `edgeSluiceH`, `edgeSluiceV` | optional | 0 to 3 variants each: a gate in a wall |
+| `wallDecal` | optional | 0 to 8 variants: a pipe mouth, a rat hole, a carving, drawn over a wall |
+| `rubble`, `debris` | optional | 0 to 4 variants each |
+| `objectChest`, `objectBarrel`, `objectTable`, `objectStatue`, `objectPillar`, `objectBrazier` | optional | 0 to 4 variants each |
+| `hazard*` (twelve, `hazardGeneric` included) | optional | 0 to 4 variants each; see Schema v3 |
+| `feature*` (eleven, `featureGeneric` included) | optional | 0 to 4 variants each; see Schema v3 |
+
+The required set is floor 8, wall H 2 and V 2, doorway H 1 and V 1, door leaf 1 and solid block 4: **19 slots**, of which three are rotations of another (`wallSegmentV` ×2 and `doorwayV`), so **16 renders** are drawn by hand or by the generator. `REQUIRED_CATEGORIES` is derived from the table, never listed.
+
 ```ts
-export type CategoryKind =
-  | 'random'        // multiple interchangeable variants, picked randomly per cell
-  | 'directional'   // fixed set of side/orientation slots
-  | 'optional'      // not required for pack validity
-
-export type RandomCategory = { kind: 'random'; min: number; max: number }
-export type DirectionalCategory = {
-  kind: 'directional'
-  sides: readonly string[]
-  variantsPerSide?: number   // default 1
-  optional?: boolean
-}
-export type OptionalCategory = { kind: 'optional'; min: 0; max: number }
-
-export const TILE_PACK_SCHEMA = {
-  version: 1,
-  categories: {
-    // Floor — full-cell tile under foot
-    floor:            { kind: 'random',      min: 8, max: 16 },
-
-    // Edge walls — sit on cell edges. The H/V split is for AI-generation quality
-    // (perspective, lighting); the renderer picks H or V based on edge orientation.
-    wallSegmentH:     { kind: 'random',      min: 2, max: 6 },     // wall on a horizontal edge (N or S of a cell)
-    wallSegmentV:     { kind: 'random',      min: 2, max: 6 },     // wall on a vertical edge (E or W of a cell)
-
-    // Optional corner art at grid intersections where 2+ walls meet.
-    // M1 omits this — perpendicular wall segments simply abut at corners.
-    // M2 can ship corners and the renderer will substitute them where they fit.
-    wallJoint:        { kind: 'directional', sides: ['L_NE','L_SE','L_SW','L_NW','T_N','T_E','T_S','T_W','CROSS'], optional: true },
-
-    // Doors are edges too — they replace the wall segment on that edge.
-    doorClosedH:      { kind: 'random',      min: 1, max: 3 },
-    doorClosedV:      { kind: 'random',      min: 1, max: 3 },
-    doorOpenH:        { kind: 'random',      min: 1, max: 3 },
-    doorOpenV:        { kind: 'random',      min: 1, max: 3 },
-
-    // Cell-based thick walls — 5 ft cubes of solid material (battlement, mountain rock).
-    // Lives on the `solidBlock` layer, not as an edge.
-    solidBlock:       { kind: 'random',      min: 4, max: 12 },
-
-    // Vertical traversal
-    stairsUp:         { kind: 'directional', sides: ['N','E','S','W'], optional: true },
-    stairsDown:       { kind: 'directional', sides: ['N','E','S','W'], optional: true },
-
-    // Decorative overlays (alpha-transparent, sit on the object layer)
-    rubble:           { kind: 'optional',    min: 0, max: 4 },
-    debris:           { kind: 'optional',    min: 0, max: 4 },
-  },
-} as const
-
-export type RequiredCategory = /* derived: all entries with optional !== true */
-export type PackCategory = keyof typeof TILE_PACK_SCHEMA.categories
-
 export interface TilePackManifest {
   pack_id: string              // e.g. "stone-dungeon"
-  name: string                 // "Stone Dungeon"
+  name: string
   description: string
   pack_version: number         // bumped per pack release
   schema_version: number       // matches TILE_PACK_SCHEMA.version at author time
   base_tile_size: 128          // source resolution; always 128
-  assets: Record<PackCategory, AssetSlot[]>
+  assets: Partial<Record<PackCategory, AssetSlot[]>>
+  palette?: Partial<Record<PackCategory, [number, number, number]>>  // placeholder colours
+  continuous?: Partial<Record<PackCategory, number>>   // schema 4: a texture's period, in cells
+  labels?: Partial<Record<PackCategory, string[]>>     // schema 4: a name per variant
+  doorLeaf?: { hingeX: number; hingeY: number; openDegrees: number }  // schema 4
 }
 
 export interface AssetSlot {
   side?: string                // for directional categories
   variant: number              // 0-indexed
   url: string                  // relative to pack root or full URL
-  byteSize: number             // for budget warnings
+  byteSize?: number            // for budget warnings
+  rev?: number                 // ms epoch of the last write; the CDN cache key (see AssetSlot.rev)
 }
 ```
+
+**The three schema 4 manifest fields** are carried through every writer (`upsertManifestSlot`, the edge function's `completeSlot` and `completeRotation`, `buildManifest`):
+
+- `continuous` is the texture's period in cells. Its variants are the cells of one seamless texture in row-major order, and the renderer picks by position, not by hash: `floor`, `solidBlock` and `terrainWater` take `(x mod n) + n·(y mod n)`; `wallSegmentH` and `curbH` take `x mod n`; `wallSegmentV` and `curbV` take `y mod n` (they are the H tiles turned, so they continue along y and share the H period). A category without a period, and a pack that declares fewer pieces than the position needs, keep the stored hash variant. Only a wall's pieces continue along it: a doorway, grate or sluice is one fitting and keeps its stored variant.
+- `labels` is a display name per variant, so a forest's `objectPillar` reads "Old tree" in the stamp picker and a sewer's decals read "Outflow pipe" and "Rat hole".
+- `doorLeaf` says where the hinge sits in the leaf tile (fractions of the tile) and how far an open door swings. Absent, the renderer uses `DEFAULT_DOOR_LEAF` (hinge at 0.25, 0.5; 80 degrees), which suits a leaf drawn exactly where it sits in a `doorwayH` opening (the opening spans x 0.25 to 0.75 of the tile).
+
+`palette` is the per-category RGB base colour for procedural placeholders and for colour-aware prompts. `rev` on a slot is stamped whenever its bytes are written, because a replaced tile lands at the same path and the CDN serves objects `immutable` for a month; readers append it as a query parameter.
 
 ### Validator (`src/cartographer/validatePack.ts`)
 
@@ -237,7 +232,7 @@ validatePack(manifest: TilePackManifest): {
 }
 ```
 
-Validation runs at:
+A manifest whose `schema_version` is newer than the app's gets a warning; an older one is silent (see Schema v4 for why that no longer means "compatible"). Validation runs at:
 
 1. Pack load (rejects invalid packs with a toast: "Stone Dungeon is missing 4 required tiles — pack not loaded").
 2. Pack authoring tooling (CLI / future AI generator) iterates `missing` slots to generate exactly what's needed.
@@ -254,11 +249,12 @@ tile-packs/stone-dungeon/v1/floor/1.webp
 tile-packs/stone-dungeon/v1/wallSegmentH/0.webp
 tile-packs/stone-dungeon/v1/wallSegmentH/1.webp
 tile-packs/stone-dungeon/v1/wallSegmentV/0.webp
-tile-packs/stone-dungeon/v1/doorClosedH/0.webp
+tile-packs/stone-dungeon/v1/doorwayH/0.webp
+tile-packs/stone-dungeon/v1/doorLeaf/0.webp
 tile-packs/stone-dungeon/v1/solidBlock/0.webp
 ```
 
-Directional categories (`wallJoint`, `stairsUp`, `stairsDown`) keep the `<side>/` subfolder; random categories store variants directly under the category folder.
+Directional categories (`wallJoint`, `wallRoundJoint`, `stairsUp`, `stairsDown`) keep the `<side>/` subfolder; random categories store variants directly under the category folder.
 
 The starter Stone pack mirrors this under `public/cartographer/stone-dungeon/v1/`.
 
@@ -306,16 +302,16 @@ An import may record provider, model, quality, provider request id, duration, to
 
 `import` rejects undecodable, undersized, or extreme-aspect-ratio sources, retains the accepted high-resolution file, then deterministically crops/fits, reconstructs required alpha, resizes, converts, writes the canonical WebP, and updates the draft/runtime manifests. `reject` records a reason without disturbing other slots; `plan --slot <category:side?:variant>` adds or refreshes an individual schema slot.
 
-`validate` checks schema completeness plus deployed file existence, format, exact dimensions, alpha, and open-door clearance. It also fails on any `validatePack` warning (duplicate slot claim, non-WebP asset, a category over its schema max) and on a floor or solidBlock whose opposite edges differ by more than `MAX_EDGE_DELTA` — 40, set at roughly twice the worst of the twelve accepted `celestial-observatory/v1` tiles. `qa` additionally produces:
+`validate` checks schema completeness plus deployed file existence, format, exact dimensions, alpha, and that the `doorwayH`/`doorwayV` opening is transparently clear (the leaf, not the doorway, is what closes it). It also fails on any `validatePack` warning (duplicate slot claim, non-WebP asset, a category over its schema max) and on a floor or solidBlock whose opposite edges differ by more than `MAX_EDGE_DELTA` (40), set at roughly twice the worst of the twelve accepted `celestial-observatory/v1` tiles. `qa` additionally produces:
 
 - a labelled contact sheet;
 - repeated floor seam strips;
 - a seeded 20×20 floor field with no immediate orthogonal repeats when alternatives exist;
-- wall/door alignment;
+- wall, doorway and door-leaf alignment (the leaf is checked along the horizontal band);
 - a procedurally assembled sample map;
 - a machine-readable validation report.
 
-The checked vertical slice is `celestial-observatory/v1`: all 20 schema-required slots plus directional rounded-corner, staircase, and cross-junction proofs. It demonstrates a non-standard theme with real interactively generated artwork; optional prop categories remain intentionally ungenerated.
+The checked vertical slice is `celestial-observatory/v1`: all schema-required slots (20 at schema 1 to 3, 19 since the door tiles became a doorway and a leaf) plus directional rounded-corner, staircase, and cross-junction proofs. It demonstrates a non-standard theme with real interactively generated artwork; optional prop categories remain intentionally ungenerated.
 
 This tooling is maintainer-only. It does not implement #384's customer UI, uploads/storage, RLS, campaign sharing, PRO gates, credit reservations, cancellation/refunds, or direct Images API execution.
 
@@ -325,7 +321,7 @@ The #772 vertical slice supports a qualified **yes**: a user can eventually choo
 
 The experiment established a useful boundary:
 
-- Code can guarantee schema coverage, slot identity, paths, dimensions, WebP encoding, alpha masks, open-door gaps, rounded-corner silhouettes, stable variation selection, retry isolation, and reproducible QA.
+- Code can guarantee schema coverage, slot identity, paths, dimensions, WebP encoding, alpha masks, doorway openings, rounded-corner silhouettes, stable variation selection, retry isolation, and reproducible QA.
 - Image generation can produce a coherent non-standard visual family and genuinely distinct variants when every job shares an approved art bible and representative visual references.
 - Image generation does not reliably guarantee exact geometry, transparency, seamlessness, orientation, or absence of white/checkerboard residue. Those failures occurred even with explicit prompts and templates; deterministic normalization and QA caught or repaired them.
 - Global quality cannot be judged slot-by-slot. Contact sheets, tiled fields, seams, and assembled-map previews are necessary to expose repetition and cross-category drift.
@@ -359,6 +355,8 @@ corners, stairs, and other complex slots. Keep the routing policy out of the
 tile-pack schema and record provider/model/quality on each attempt.
 
 The generation plan in this ticket is the provider-neutral input to that flow. #384 must add durable queues, provider request ids, cancellation, storage/RLS, credit reservation/finalization/refunds, progress UI, and recovery for interrupted jobs. It should not promise "perfected" output: the defensible product promise is a **complete, validated, coherently generated tileset with bounded automated refinement and user-controlled final review**.
+
+**Schema 4 tooling.** The plan lists 16 renders for the 19 required slots; `ROTATION_DERIVED` in `authoringPlan.ts` names the three rotations, and `slotMechanics` there is also what `qa.ts` asks which categories are transparent outside their footprint, so a new transparent category (a curb, a grate, a decal) is checked without anyone listing it. The base shapes in `src/assets/tile-base/` hold the new categories (`doorwayH/V`, `doorLeaf`, `curbH/V`, `edgeGrateH/V`, `edgeSluiceH/V`); `_defs.md` describes them. `placeholderTile.ts` draws a procedural stand-in for each, so a pack missing an optional slot still draws.
 
 ### Pack versioning & the Update Tileset button
 
@@ -421,10 +419,11 @@ export interface PackRef {
   rotation?: number                // degrees about the cell centre; only the object layer uses it
 }
 
-// An edge segment — wall or door — owned by a cell on its N or W side
+// An edge segment (wall, door, grate or sluice) owned by a cell on its N or W side
 // (south/east edges are owned by the cell to the north/west — "NW ownership").
 export interface EdgeSeg extends PackRef {
-  type: 'wall' | 'doorClosed' | 'doorOpen'
+  type: 'wall' | 'doorClosed' | 'doorOpen' | 'grate' | 'sluice'
+  decal?: number            // a `wallDecal` variant; on type 'wall' only (#1065)
 }
 
 // Floor layer: a cell carries an optional floor tile + optional N/W edge walls.
@@ -459,6 +458,7 @@ export interface DungeonMap {
   layers: {
     floor:       Record<CellKey, FloorCell>
     solidBlock:  Record<CellKey, SolidCell>
+    terrain:     Record<CellKey, TerrainCell>        // = PackRef, the pack's `terrainWater` (#1065)
     object:      Record<CellKey, ObjectCell>
     annotation:  Record<CellKey, AnnotationCell>
     dressing:    Record<string, DressingPlacement>   // keyed by placement uuid (#1062)
@@ -490,6 +490,8 @@ export interface CellMetadata {
   monster_spawn_ids?: string[]
 }
 ```
+
+**The map data keeps `doorClosed` and `doorOpen` (#1065).** That is the drawn state of a door edge and it already feeds publish (`DOOR_EDGE_KIND`); only how it is drawn changed, from two tiles to a doorway plus a swung leaf.
 
 **A layer added later reads as empty on older maps.** `dungeon_maps.layers` has no shape constraint and old rows were not backfilled when `dressing` arrived: a backfill writes `layers`, which bumps every map's `rev` and marks every published site "behind" for a change that draws nothing. Instead every read goes through `withLayerDefaults()` (`useDungeonMaps.ts`'s `readDungeonMap`, and `cloneLayers` in `MapWorkbench.vue`), and the column default carries every key for new maps. A prop's `prop_id` is a text reference inside a document, so `supabase/checks/content_integrity.sql` checks it against `library_dressing`.
 
@@ -600,10 +602,11 @@ The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer
 | Select        | Esc    | —           | The default tool on open. Click selects a cell for the inspector's read-only summary; drag pans, exactly like Pan — a DM's first tap never paints. Grouped in "View" beside Pan, not Draw. |
 | Floor brush   | `B`    | floor       | Paints floor cells with a random variant.              |
 | Eraser        | `E`    | active      | Removes from the active layer / edge.                  |
-| Wall          | `W`    | floor.edges | Edge-hover targeting; see UX notes.                    |
+| Wall          | `W`    | floor.edges | Edge-hover targeting; the Inspector picks Wall, Grate, Sluice or Decal ("Wall kinds and decals"). |
 | Door          | `D`    | floor.edges | Replaces wall on an edge; toggles open/closed.         |
+| Water         | `H`    | terrain     | Paints terrain (the pack's `terrainWater`) with the floor brush's shapes; see "Terrain and curbs". |
 | Solid block   | `S`    | solidBlock  | Full-cell thick walls (battlement, mountain rock).     |
-| Object stamp  | `O`    | object      | Picker for chests, statues, braziers, rubble, debris.  |
+| Object stamp  | `O`    | object      | Picker for chests, statues, braziers, stairs, rubble, debris, named by the pack ("Stamps"). |
 | Dressing      | `G`    | dressing    | Places library props (#1062); see "Dressing tool" below. |
 | Rectangle     | `R`    | floor       | Drag to fill a rect with floor. Shift = wrap walls.    |
 | Line          | `L`    | floor       | Drag to draw a single-tile-wide line of floor.         |
@@ -629,7 +632,7 @@ The pointer logic lives in `useDressingTool.ts`, wired from `useMapCanvasEditor.
 #### UX notes for edge-based tools
 
 - **Wall brush targeting**: when the cursor is within 25% of a cell edge, that edge highlights as a thick coloured strip. Click places a wall on it. Drag along multiple edges to lay a continuous run. `Shift`+click a cell = walls on all 4 of its edges.
-- **Door tool**: hovers the same way as the wall brush. Click on a wall edge converts it to `doorClosed`. Click an existing door toggles `doorClosed` ↔ `doorOpen`. Right-click removes the door, leaving the wall.
+- **Door tool**: hovers the same way as the wall brush. Click on a wall edge converts it to `doorClosed`. Click an existing door toggles `doorClosed` ↔ `doorOpen`, which swings the leaf (see Wall Rendering). Right-click removes the door, leaving the wall. The tool did not change with schema 4.
 - **Solid block vs. wall brush**: these are two different tools by design. The wall brush gives you a thin wall on an edge (a curtain, a partition, a worked-stone room boundary). The solid block tool gives you a thick wall in a cell (a sand-filled battlement, mountain rock, a 5 ft slab of masonry). The DM picks based on the dungeon's mass.
 - **Rectangle + Shift**: Shift-dragging the rectangle tool fills the area with floor *and* runs `wrap walls` on the rectangle perimeter — the most common "make a room" gesture.
 - **Alt inverts a painting tool** — the same modifier idea the Plan's Door tool already used for Alt+click-to-delete (`usePlanCanvasTools.ts`). Holding Alt while a Drawing tool would paint erases what it paints instead, as one undoable stroke: floor/cave → `eraseCell`, solid → `eraseSolidAt`, stamp → `eraseObjectAt`, wall → `eraseWallAtCellEdge`, door → `removeDoorAtEdge` (same function RMB already used), rect/line/template → erase the cells the shape covers. Select/Pan/Fill/Wrap/Annotate/Link/Eraser/Space have no inverse and ignore Alt. RMB/middle/shift still pan exactly as before — Alt is a separate, additive modifier, never a pan trigger. The canvas pill appends " · erase" while Alt is held over an invertible tool; Alt state is tracked at the window level (`altHeld` in `useMapCanvasEditor.ts`) so the pill reacts even with the pointer sitting still, cleared on blur so alt-tabbing away never leaves it stuck.
@@ -690,7 +693,17 @@ Map list filters (search by name, tag, pack) → `useCartographerUiStore`, with 
 
 ## Wall Rendering (no bitmask auto-tiler in M1)
 
-Edge-based walls eliminate the 8-neighbour bitmask problem entirely. A wall is a straight segment of one of two orientations (horizontal or vertical), so there is no "which variant fits this corner?" calculation. The renderer just picks a random variant from the pack's `wallSegmentH` or `wallSegmentV` slot, keyed deterministically by `hash(map_id, edgeKey) % variantCount`.
+Edge-based walls eliminate the 8-neighbour bitmask problem entirely. A wall is a straight segment of one of two orientations (horizontal or vertical), so there is no "which variant fits this corner?" calculation. The renderer picks a variant from the pack's `wallSegmentH` or `wallSegmentV` slot: by position when the manifest declares the category `continuous` (so a run of wall reads as one texture), otherwise by the stored hash variant, `hash(map_id, edgeKey) % variantCount`. All of it is `drawEdgeSeg` in `drawMap.ts`; an edge seg picks its category from its type and axis (`EDGE_CATEGORY`).
+
+### Doors, grates and sluices
+
+A door is two pieces, not four tiles (#1065 decision 2). The doorway tile (`doorwayH`) is the opening and its frame in the wall band, squashed onto the band like a wall. The leaf (`doorLeaf`) is the door alone, never squashed, drawn over the doorway. A `doorClosed` edge draws the leaf as it sits in the opening; a `doorOpen` edge draws the same tile turned on its hinge by the manifest's `doorLeaf.openDegrees` about `(hingeX, hingeY)`, the canvas rotation being clockwise, which swings an N edge's leaf into the cell south of it. Closed is 0 degrees. A vertical door is the horizontal construction turned a quarter clockwise about the edge tile's centre, as its `doorwayV` art is. The leaf follows the edge's drawn state only: nothing draws door state live from the `door_id` facts in play (#868), because the battle map is the baked image.
+
+A grate (`edgeGrateH/V`) is bars across an opening in a wall, a sluice (`edgeSluiceH/V`) a gate in one; a canal passes through the first and out of the second. Both are drawn in place of the wall segment on their edge, are not squashed, and are not ways in the derived structure.
+
+### Decals
+
+A `decal` on a wall edge is a `wallDecal` variant drawn over the ordinary wall segment: a pipe mouth, a rat hole, a carving. On a vertical wall it is turned like the leaf. Only a plain wall can carry one.
 
 ### Where corners come from
 
@@ -720,15 +733,53 @@ When two walls of different packs meet at an intersection, each segment renders 
 
 Cell-based thick walls (`solidBlock` layer) **do** benefit from the classic 8-neighbour bitmask — a contiguous mass of solid stone should have an outer edge that looks like a wall and an interior that looks like quarried rock. **This is deferred to M2**; M1 renders `solidBlock` cells as flat textured squares (random variant from the pack). When the bitmask renderer lands in M2, packs can optionally ship `solidBlock_*` edge variants; falling back to the flat tile remains valid.
 
+### Terrain and curbs (#1065)
+
+`layers.terrain` is a per-cell ground material (`TerrainCell`, a `PackRef` to the pack's `terrainWater`: water, sludge, lava, a stream). **A terrain cell draws its texture instead of the floor tile in that cell.** It is still open floor for everything else: the space flood fill, publish and the walls all key on floor cells, so painting terrain on a cell with no floor gives that cell a floor too (`paintTerrainAt` with `floorVariant`). Erasing terrain keeps the floor; erasing the cell takes its terrain with it, so water is never left over a floor that is gone.
+
+The **Water tool** (`H`) paints and erases terrain with the floor brush's shapes. Alt erases the water and keeps the floor. The Inspector's hint says the same.
+
+**Curbs are drawn automatically**, never placed. `curbEdges` finds every edge between a terrain cell and a non-terrain floor cell that has no edge seg (a wall, grate or sluice already marks that edge) and draws `curbH` or `curbV` on the gridline exactly like a wall tile. A `curbPost` is drawn at a corner where a curb meets a wall or turns. The water under a curb is **sunk**: `paintSunkEdges` darkens the terrain along its banks, more along the top and left banks because the light is top-left (`SHADOW.sunkEdge`). A pack with no curb art still draws the sunk edge; a pack with no `terrainWater` draws no water.
+
+### Shadows (#1065)
+
+Shadows are drawn by the app at render time from the silhouettes of what stands up, not painted into the art. The light is top-left, so a shadow falls down and to the right. Everything is a fraction of `tilePx` (`SHADOW` in `drawMap.ts`), so the look holds at any zoom and in the 128 px bake.
+
+| Class | What is in it | Occlusion | Cast |
+| --- | --- | --- | --- |
+| raised | solid rock, wall edges, joints | yes | long (0.11 across, 0.14 down of a tile) |
+| low | curbs and their posts | yes | short, a third of raised |
+| standing | `object*` stamps and standing Dressing props | yes | short, a third of raised |
+| flat | rubble, debris, hazard and feature glyphs, flat Dressing props | yes | none |
+
+**Occlusion** is the tight dark contact line where a thing meets the floor (no offset, a blur of about 4 px at 128 px per cell). **Cast** is the offset, softer shadow. Flat things get occlusion only because an offset shadow makes a flat thing look lifted off the floor (`isFlatCategory`: `rubble`, `debris`, `hazard*`, `feature*`; a Dressing prop is flat when its `library_dressing.flat` is true). Two stairs break the pattern on purpose: **a stair up** rises to the walls' height, so it is drawn above both shadow passes; **a stair down** is a hollow, drawn before the shadows, whose top and left inner edges darken (`SHADOW.hollow`).
+
+The shadow layer is one offscreen canvas, transparent except for the shadows, built by `renderShadowLayer` and laid over the ground. **The live editor caches it** (`cachedShadowLayer` in `renderMap.ts`), keyed on the `layers` object and `layersRevision`, the Dressing catalogue, the runtimes (art arrival), the pack ids, `tilePx` (zoom) and the cell window, **and never on hover**, so moving the mouse never re-blurs the map. `layersRevision` is what the editor bumps on an edit; a scene without one rebuilds every frame. Canvas features are detected: where there is no offscreen canvas (the node tests, an old browser) `makeCanvas` is absent and the map draws without shadows rather than failing.
+
+### Wall kinds and decals (#1065)
+
+The Wall tool (`W`) has a **kind** in the Inspector (`WALL_KINDS` in `wallKinds.ts`): **Wall**, **Grate**, **Sluice** and **Decal**.
+
+- Wall, Grate and Sluice paint an edge (`paintWallAtCellEdge` with a `PaintedWallKind`), reading their art from `wallKindCategory` (`wallSegmentH/V`, `edgeGrateH/V`, `edgeSluiceH/V`). A door is never overwritten. A plain wall only restyles a wall of another pack; a grate or sluice replaces a wall of any pack, or the other opening, but not a copy of itself from the same pack.
+- Decal does not create an edge. It lists the pack's `wallDecal` variants by their `labels` (or "Decal n" without one, `decalLabel`) and sets the chosen one on an existing wall edge (`setDecalAtEdge`). Alt removes it. On anything that is not a plain wall it does nothing. A pack with no decals says so.
+
+The Select section of the Inspector names a decorated wall "Wall (decal)", and a grate or sluice by its kind.
+
+### Stamps (#1065)
+
+`stampCategories.ts` owns what the Object stamp tool (`O`) can place: the six `object*` categories plus `stairsUp`, `stairsDown`, `rubble` and `debris` (`STAMP_CATEGORIES`). The stairs and the two litter categories existed in the schema and the renderer, but no UI could place them before schema 4. The picker shows the pack's own name for a stamp (`stampLabel`: the first of `labels[category]`, else the schema's plain name with `object` dropped), so a forest reads "Old tree". **Stairs pick their side from the stamp's rotation** (`stairSide`: 0 degrees north, 90 east, 180 south, 270 west, unturned is north), and draw the art for that side; they never found their art before.
+
 ### When rendering recomputes
 
 The renderer maintains a dirty set of `(layer, key)` entries. Recompute fires on:
 
-- Edge wall paint / erase / door toggle.
+- Edge wall paint / erase / door toggle / decal / terrain paint.
 - Solid block paint / erase.
 - Pack update (Update Tileset action) — invalidates everything for the updated pack.
 
-Floor and object layers do simple random-variant lookup keyed by `hash(map_id, x, y) % variantCount` — no recomputation needed.
+Floor and object layers do simple random-variant lookup keyed by `hash(map_id, x, y) % variantCount`, unless the manifest declares the category `continuous`, in which case the position picks the variant (see Schema); no recomputation needed.
+
+**Draw order** (`drawMapContent`): floor and terrain, the sunk-edge darkening, `afterGround` (the live grid), stairs down, flat objects, the shadow layer, curbs and posts, flat Dressing, standing objects, standing Dressing, stairs up, solid rock, edge segs (walls, doorways, leaves, grates, sluices, decals), corner joints, `afterDressing`, then glyphs. Annotations are the caller's.
 
 ---
 
@@ -946,6 +997,16 @@ Pure functions, fully unit-tested:
 - `public/cartographer/stone-dungeon/v1/manifest.json` — `schema_version` bumped to 2; `wallRoundJoint` slots declared (use placeholder art until WebP lands).
 - `src/views/cartographer/CartographerEditorView.vue` — two new tools wired into TOOLS, pointer handlers, inspector panels; round-corner rendering branch in `render()`; fine-rotation `[` / `]` hotkeys.
 
+### Schema v4: a set builds a whole map ([#1065](https://github.com/irongollem/grimoire/issues/1065))
+
+The library repaint (#891) delivers each set as sprite sheets cut into tiles, and a set is meant to build a whole map from itself alone: its own water, crossings and scatter. Schema 4 is what lets the Cartographer draw that. It added the optional categories `curbH/V`, `curbPost`, `terrainWater`, `edgeGrateH/V`, `edgeSluiceH/V` and `wallDecal`, raised `floor` to 64 variants, and gave manifests `continuous`, `labels` and `doorLeaf`. Maps gained `layers.terrain`, the edge types `grate` and `sluice`, and `EdgeSeg.decal`.
+
+**It is the first non-additive bump.** `doorClosedH/V` and `doorOpenH/V` are gone, replaced by `doorwayH/V` and `doorLeaf`, with no alias and no upgrade shim (CLAUDE.md rule 1). A schema 3 manifest therefore loads with its four door slots as extras and draws placeholder doors until the pack is repainted; the required set changed with it (19 slots, 16 renders). Production had no custom user packs and 8 maps, so the migration is that every library pack is repainted at schema 4 (#891) and maps move with the existing Update Tileset button. Placeholder doors on a stale pack are the visible symptom of a pack that has not been moved yet.
+
+**This ends the "older packs are silent" assumption.** The Schema v3 note below is true of that bump: it added only optional categories, so an older pack was still complete and warning would have been noise. `validatePack` still warns only when a pack is *newer* than the runtime, but a silent older pack is no longer a compatible one. Its required set can be missing the new required categories, which the required-category check reports as missing slots. The warning rule has not changed; what changed is that "older is fine" stopped being a guarantee, so do not infer it from the silence.
+
+**Custom uploads.** `register_upload` in the tile-pack edge function demanded `schema_version === 2` until #1065, which means no custom pack could have been uploaded since schema 3. It now compares against `TILE_PACK_SCHEMA.version`, never a literal.
+
 ### Schema v3 — a hazard says how it looks ([#804](https://github.com/irongollem/grimoire/issues/804))
 
 23 new **optional** categories: eleven `hazard*` plus `hazardGeneric`, ten
@@ -978,10 +1039,11 @@ which is the property that was asked for.
 
 **The version warning changed with this bump.** `validatePack` now warns only
 when a pack is *newer* than the runtime. A pack older than the runtime is
-silent: every bump so far has added only optional categories, and the
-required-category check already catches a genuinely incomplete pack. Without
-this, v3 would have made every existing v2 pack start warning — which trains a
-reader to ignore warnings.
+silent: up to this bump every change had added only optional categories, and
+the required-category check already catches a genuinely incomplete pack.
+Without this, v3 would have made every existing v2 pack start warning, which
+trains a reader to ignore warnings. Schema 4 removed the premise that older is
+always compatible (see Schema v4), though not the rule.
 
 **The link tool reaches traps and features now.** `CellMetadata` has carried
 `trap_id` and `feature_id` since the Cartographer shipped, but the inspector
@@ -995,7 +1057,7 @@ one on a location is the room itself, which has no cell to mark.
 #### Open items
 
 - Real bundled WebP art for `wallRoundJoint` on Stone Dungeon and other packs — existing bundled manifests still fall back to the placeholder. M7 now provides the production generation and QA loop; regenerating the fundamental bundled catalogue is a separate content-production pass after the customer workflow is proven.
-- Other bundled packs still ship `schema_version: 1` and lack `wallRoundJoint` slots; corners on those packs render as before (sharp wallJoint).
+- Other bundled packs still ship `schema_version: 1` and lack `wallRoundJoint` slots; corners on those packs render as before (sharp wallJoint). Their door slots are the removed schema 3 names, so they draw placeholder doors until repainted at schema 4 (#891).
 
 ### M7 — Community / custom packs (PRO) — ✅ shipped
 
@@ -1011,7 +1073,7 @@ Done = users own their aesthetic.
 #### As-built upload and sharing
 
 - `/cartographer/packs` accepts either a zip or a selected folder.
-- The browser requires `manifest.json`, current schema v2, complete required slots, canonical WebP-only assets, and exact 128×128 decoded dimensions before any upload begins. Missing slots are displayed with `formatMissingForDisplay()`.
+- The browser requires `manifest.json`, the current schema version (it demanded 2 until #1065, so no custom pack could be registered after schema 3), complete required slots, canonical WebP-only assets, and exact 128×128 decoded dimensions before any upload begins. Missing slots are displayed with `formatMissingForDisplay()`.
 - The server re-runs authoritative manifest validation and Pro enforcement before registering a pack. Storage writes remain owner-prefixed and RLS-protected.
 - `user_tile_packs` is the registry. `campaign_tile_packs` shares a pack read-only with campaign members; only the owning DM can toggle sharing.
 - The bucket is private. Ownership/campaign membership is checked before signed URLs are issued. A non-Pro member can consume a shared pack but cannot upload, generate, or share one.
@@ -1209,20 +1271,19 @@ The art is made outside the app and published with `scripts/generate-library-art
 
 ## Starter Pack: Stone Dungeon (M1 asset list)
 
-This is the exact asset list to hand to AI generation for the starter pack. All files are **128×128 WebP**, seamless tileable, generated with prompts including "top-down view, perpendicular grid alignment, seamless edges, no shadows beyond cell bounds". Place under `public/cartographer/stone-dungeon/v1/`.
+This is the asset list as first handed to AI generation for the starter pack (door rows brought to schema 4). All files are **128×128 WebP**, seamless tileable, generated with prompts including "top-down view, perpendicular grid alignment, seamless edges, no shadows beyond cell bounds". Place under `public/cartographer/stone-dungeon/v1/`.
 
 | Path                              | Count  | Notes                                                          |
 | --------------------------------- | ------ | -------------------------------------------------------------- |
 | `floor/0.webp` … `floor/9.webp`   | 10     | Random variants; subtle wear; mostly stone blocks.             |
 | `wallSegmentH/0.webp` … `3.webp`  | 4      | Wall on a horizontal cell edge (see design notes below).       |
 | `wallSegmentV/0.webp` … `3.webp`  | 4      | Wall on a vertical cell edge (see design notes below).         |
-| `doorClosedH/0.webp`              | 1      | Closed wooden door; replaces a horizontal wall segment.        |
-| `doorClosedV/0.webp`              | 1      | Closed wooden door; replaces a vertical wall segment.          |
-| `doorOpenH/0.webp`                | 1      | Open variant of the horizontal door.                           |
-| `doorOpenV/0.webp`                | 1      | Open variant of the vertical door.                             |
+| `doorwayH/0.webp`                 | 1      | The opening and its frame, in the horizontal wall band.        |
+| `doorwayV/0.webp`                 | 1      | The same for a vertical wall (rotation of `doorwayH`).         |
+| `doorLeaf/0.webp`                 | 1      | The door alone; the renderer swings it on its hinge.           |
 | `solidBlock/0.webp` … `5.webp`    | 6      | Full-cell thick walls — dressed stone block, sand-filled mass. |
 | `rubble/0.webp` … `rubble/3.webp` | 4      | Decorative debris; partial-cell coverage with alpha.           |
-| **Total**                         | **32** | Optional categories deferred to v2 (see below).                |
+| **Total**                         | **31** | Optional categories deferred to v2 (see below).                |
 
 **Wall segment design notes:**
 
@@ -1267,7 +1328,8 @@ The shared style guide:
 - **Tile packs** are versioned, schema-validated, WebP-only. Starter pack bundled; others from Storage.
 - **Cells** carry per-cell pack references so a single map can mix themes cleanly (per-brush theme switching).
 - **Walls** are **edge-based** by default (stored as `wallN` / `wallW` on floor cells, NW ownership). The `solidBlock` layer carries **cell-based** thick walls for masonry mass.
-- **Doors** are edge state — they replace a wall segment on an edge.
+- **Doors** are edge state: they replace a wall segment on an edge, drawn as a doorway tile plus a leaf swung on its hinge (closed 0°, open `openDegrees`). Grates and sluices are edge state too.
+- **Terrain** (`layers.terrain`) is drawn instead of the floor in its cell; curbs appear on its banks by themselves; shadows are drawn at render time by `drawMap.ts`, which the editor and the bake share.
 - **No bitmask auto-tiler in M1** — wall segments are straight and abut at intersections; optional `wallJoint` corner art layers in M2 if packs provide it.
 - **Movement / sight blocking** is derived per-edge from `wallN` / `wallW` / `solidBlock` — never stored.
 - **Infinite canvas** with crop-on-export and 3-cell black padding.
@@ -1346,7 +1408,7 @@ The migration file is in place but **not yet applied to the remote Supabase proj
 - [x] Undo/redo — CommandStack (100-step cap); Ctrl+Z / Ctrl+Shift+Z; undo/redo buttons in status bar. Each stroke or one-shot action is one undo unit.
 - [x] Corner joints — programmatic filled-square fallback at H+V intersections; routes to `wallJoint` pack art when available (classifyJoint: L_NE/SE/SW/NW, T_N/E/S/W, CROSS).
 - [x] SolidBlock rendering — full-cell tile above floor, below edge walls.
-- [x] Door rendering — wallN/wallW type-aware: picks doorClosedH/V or doorOpenH/V tile category.
+- [x] Door rendering: wallN/wallW type-aware: a `doorwayH/V` tile plus a `doorLeaf` (closed, or swung open on its hinge).
 - [x] Zoom 5%–400%; center map (C); undo/redo indicators in status bar.
 
 ### New files added in M2

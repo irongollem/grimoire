@@ -4,7 +4,7 @@ section: Cartographer
 section_order: 10
 order: 0
 summary: Draw dungeon maps with tile packs, publish them to Atlas sites, and reuse the same editor inside a site's Build mode.
-keywords: cartographer, dungeon map, tile map, floor, wall, door, object, annotation, publish, atlas, map editor, space, structure
+keywords: cartographer, dungeon map, tile map, floor, wall, door, water, grate, sluice, decal, stairs, shadow, object, annotation, publish, atlas, map editor, space, structure
 ---
 
 **Cartographer** is Grimoire's tile-based map editor. Draw rooms cell by cell, place walls and doors, stamp furniture and objects, annotate areas, and export the result as a polished image, or publish it into an Atlas site, where Grimoire reads the rooms and doors straight out of your drawing.
@@ -39,10 +39,11 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 | --- | --- | --- |
 | Floor brush | `B` | Paints floor cells with a random variant from the active pack. |
 | Eraser | `E` | Removes floor, walls, and objects from a cell. |
-| Wall | `W` | Click a cell edge to place a wall; drag along multiple edges for a run. Shift+click a cell walls all 4 of its edges. |
-| Door | `D` | Click a wall edge to add a door; click an existing door to toggle open/closed; right-click removes it, leaving the wall. |
+| Wall | `W` | Click a cell edge to place a wall; drag along multiple edges for a run. Shift+click a cell walls all 4 of its edges. The side panel picks what the tool places: **Wall**, **Grate**, **Sluice** or **Decal** (see Walls, grates and decals below). |
+| Door | `D` | Click a wall edge to add a door; click an existing door to toggle open/closed (the door swings on its hinge); right-click removes it, leaving the wall. |
+| Water | `H` | Paints water (or whatever the pack's liquid is) over the floor; a cell with no floor gets one. Hold **Alt** to erase the water and keep the floor. |
 | Solid block | `S` | Fills a cell with a thick, full-cell wall mass (battlement stone, mountain rock), different from the thin edge-based Wall tool. |
-| Object stamp | `O` | Stamps furniture, chests, statues, braziers, rubble, and debris from the pack. |
+| Object stamp | `O` | Stamps furniture, chests, statues, braziers, stairs up and down, rubble, and debris from the pack. Each stamp carries the pack's own name, so a forest pack offers an "Old tree" where a dungeon offers a pillar. Turn a stair with `Q` and `E` to choose which side you climb or descend from. |
 | Dressing | `G` | Places props from the library (tables, beds, coffins) at any angle, above the stamped objects. See Dressing below. |
 | Rectangle | `R` | Drag to fill a rectangle of floor. Hold **Shift** to also wrap walls around the perimeter: the fastest way to make a room. |
 | Line | `L` | Drag to draw a straight run of floor. |
@@ -56,6 +57,27 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 | Pan | (drag, badge **RMB**) | Middle-mouse or right-click drag pans from any tool. |
 
 Space and Link entity are grouped as **Structure** tools in the palette, separate from the paint tools above: they claim or annotate what the drawing *means* rather than adding pixels.
+
+## Walls, grates and decals
+
+With the Wall tool active, the side panel offers four kinds:
+
+- **Wall** is the ordinary wall.
+- **Grate** is bars across an opening in a wall, such as a canal passing under it. Grimoire does not treat it as a way out of a room.
+- **Sluice** is a gate in a wall, for water leaving a room.
+- **Decal** dresses a wall that is already there: a pipe mouth, a rat hole, a carving. Choose the decal from the list (a pack names its own), then click a wall. Hold **Alt** and click to take it off again. If the pack has no decals, the panel says so.
+
+Grates and sluices paint like walls and replace a wall underneath. They never replace a door.
+
+## Water and banks
+
+Paint water with the **Water** tool (`H`). The water is drawn instead of the floor in that cell, and Grimoire adds a low curb along every edge where water meets dry floor, with a post where a curb meets a wall or turns a corner. The water sits sunk below its banks, darker along the top and left. You do not place curbs yourself. A pack without water art simply has none to paint, and a pack without curbs still gets the sunken look.
+
+Erasing a floor cell takes its water with it.
+
+## Shadows and depth
+
+Grimoire draws shadows for you, from a light at the top left: walls, rock, statues and furniture throw soft shadows down and to the right, and low things like curbs throw short ones. Flat things (rubble, heaps, trap and feature markers) get only a thin dark line where they meet the floor, so they stay lying down. A staircase up is drawn above the shadows, because it climbs to the height of the walls. A staircase down looks like a hollow, with its top and left edges darkened. The same shadows are in the picture you export or publish.
 
 ## Dressing
 
@@ -79,7 +101,7 @@ Nothing here writes to your Atlas until you publish. A **Re-detect** button just
 
 ## Layers
 
-Every map paints in this order: **Floor** (base terrain) → **Solid Blocks** (full-cell thick walls) → **Walls** (edge segments, including doors) → **Objects** (furniture/decoration) → **Annotations** (text labels). There is no separate zone-painting layer inside the Cartographer any more: hazard/terrain zones are drawn on a site's **Plan** once it's published; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
+Every map paints in this order: **Floor** (base terrain, with water drawn in place of the floor where you painted it) → **Solid Blocks** (full-cell thick walls) → **Walls** (edge segments, including doors, grates and sluices) → **Objects** (furniture/decoration) → **Annotations** (text labels). There is no separate zone-painting layer inside the Cartographer any more: hazard/terrain zones are drawn on a site's **Plan** once it's published; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
 
 ## View mode and edit mode
 

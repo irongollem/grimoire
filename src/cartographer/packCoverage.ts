@@ -50,7 +50,7 @@ export interface SlotCoverage {
   readonly declared: boolean;
   /** Declared *and* carrying bytes. */
   readonly drawn: boolean;
-  /** Part of the schema's required floor — the 20 tiles a pack cannot render without. */
+  /** Part of the schema's required floor: the 19 tiles a pack cannot render without. */
   readonly required: boolean;
   /** When these bytes were last written; the cache key a reader must use. See `AssetSlot.rev`. */
   readonly rev?: number;
