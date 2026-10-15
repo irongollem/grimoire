@@ -24,7 +24,7 @@ describe("initialGenerationStatus", () => {
     // gap-filling run's plan never includes them. Left in proof_pending, the
     // run could never reach awaiting_approval (nothing would ever complete
     // the proof phase) and would hang forever.
-    const jobs = [{ id: "doorClosedH:0" }, { id: "wallJoint:L_NE:0" }];
+    const jobs = [{ id: "doorwayH:0" }, { id: "wallJoint:L_NE:0" }];
     expect(initialGenerationStatus(jobs)).toBe("generating");
   });
 
@@ -166,7 +166,7 @@ describe("baseReferenceCandidates", () => {
 
   it("asks for one file when a category has no sides", () => {
     expect(baseReferenceCandidates({ category: "floor" })).toEqual(["_base/v1/floor.webp"]);
-    expect(baseReferenceCandidates({ category: "doorOpenH" })).toEqual(["_base/v1/doorOpenH.webp"]);
+    expect(baseReferenceCandidates({ category: "doorLeaf" })).toEqual(["_base/v1/doorLeaf.webp"]);
   });
 
   it("names every file the seed script actually writes", async () => {
@@ -183,8 +183,10 @@ describe("baseReferenceCandidates", () => {
     const grid = [
       { category: "floor" }, { category: "solidBlock" },
       { category: "wallSegmentH" }, { category: "wallSegmentV" },
-      { category: "doorClosedH" }, { category: "doorClosedV" },
-      { category: "doorOpenH" }, { category: "doorOpenV" },
+      { category: "doorwayH" }, { category: "doorwayV" }, { category: "doorLeaf" },
+      { category: "curbH" }, { category: "curbV" },
+      { category: "edgeGrateH" }, { category: "edgeGrateV" },
+      { category: "edgeSluiceH" }, { category: "edgeSluiceV" },
       { category: "wallJoint", side: "CROSS" },
       { category: "wallRoundJoint", side: "L_SW" },
       { category: "stairsUp", side: "E" }, { category: "stairsDown", side: "W" },

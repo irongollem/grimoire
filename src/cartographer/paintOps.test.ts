@@ -343,3 +343,97 @@ describe("dressing ops", () => {
     expect(layers.dressing).toEqual({});
   });
 });
+
+describe("terrain", () => {
+  it("paints water and the floor under it when the cell has none", () => {
+    const ctx = makeCtx();
+    expect(paintOps.paintTerrainAt(ctx, 1, 2, 4, 7)).toBe(true);
+    expect(ctx.layers.terrain[cellKey(1, 2)]).toEqual({ pack_id: "pack-a", pack_version: 1, variant: 4 });
+    expect(ctx.layers.floor[cellKey(1, 2)]?.floor?.variant).toBe(7);
+  });
+
+  it("keeps an existing floor, and a cell with only walls still gains one", () => {
+    const ctx = makeCtx();
+    paintOps.paintCell(ctx, 0, 0, 1);
+    paintOps.paintTerrainAt(ctx, 0, 0, 4, 7);
+    expect(ctx.layers.floor[cellKey(0, 0)]?.floor?.variant).toBe(1);
+
+    paintOps.paintWallAtCellEdge(ctx, { x: 5, y: 5, side: "N" }, paintOps.createStrokeState(), 0);
+    paintOps.paintTerrainAt(ctx, 5, 5, 4, 7);
+    expect(ctx.layers.floor[cellKey(5, 5)]?.floor?.variant).toBe(7);
+    expect(ctx.layers.floor[cellKey(5, 5)]?.wallN).toBeDefined();
+  });
+
+  it("is a no-op for the same water, and erases only the water", () => {
+    const ctx = makeCtx();
+    paintOps.paintTerrainAt(ctx, 0, 0, 4, 7);
+    expect(paintOps.paintTerrainAt(ctx, 0, 0, 4, 7)).toBe(false);
+    expect(paintOps.eraseTerrainAt(ctx, 0, 0)).toBe(true);
+    expect(ctx.layers.terrain[cellKey(0, 0)]).toBeUndefined();
+    expect(ctx.layers.floor[cellKey(0, 0)]?.floor).toBeDefined();
+    expect(paintOps.eraseTerrainAt(ctx, 0, 0)).toBe(false);
+  });
+
+  it("eraseCell takes the cell's terrain with it", () => {
+    const ctx = makeCtx();
+    paintOps.paintTerrainAt(ctx, 0, 0, 4, 7);
+    expect(paintOps.eraseCell(ctx, 0, 0)).toBe(true);
+    expect(ctx.layers.floor[cellKey(0, 0)]).toBeUndefined();
+    expect(ctx.layers.terrain[cellKey(0, 0)]).toBeUndefined();
+  });
+});
+
+describe("wall kinds and decals", () => {
+  const edge = { x: 2, y: 3, side: "N" as const };
+
+  it("writes a grate or sluice edge", () => {
+    const ctx = makeCtx();
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 1, "grate");
+    expect(ctx.layers.floor[cellKey(2, 3)]?.wallN?.type).toBe("grate");
+    paintOps.paintWallAtCellEdge(ctx, { x: 2, y: 3, side: "W" }, paintOps.createStrokeState(), 1, "sluice");
+    expect(ctx.layers.floor[cellKey(2, 3)]?.wallW?.type).toBe("sluice");
+  });
+
+  it("a grate replaces a plain wall, dropping its decal, and never a door", () => {
+    const ctx = makeCtx();
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 1);
+    paintOps.setDecalAtEdge(ctx, edge, 0);
+    expect(paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 2, "grate")).toBe(true);
+    expect(ctx.layers.floor[cellKey(2, 3)]?.wallN).toEqual({
+      pack_id: "pack-a", pack_version: 1, type: "grate", variant: 2,
+    });
+
+    const doors = makeCtx();
+    paintOps.paintDoorAtEdge(doors, edge, paintOps.createStrokeState(), 0);
+    expect(paintOps.paintWallAtCellEdge(doors, edge, paintOps.createStrokeState(), 2, "grate")).toBe(false);
+    expect(doors.layers.floor[cellKey(2, 3)]?.wallN?.type).toBe("doorClosed");
+  });
+
+  it("a plain wall does not overwrite a grate", () => {
+    const ctx = makeCtx();
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 1, "grate");
+    expect(paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 1)).toBe(false);
+  });
+
+  it("sets a decal only on a wall, and removes it again", () => {
+    const ctx = makeCtx();
+    expect(paintOps.setDecalAtEdge(ctx, edge, 1)).toBe(false); // nothing there
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 0);
+    expect(paintOps.setDecalAtEdge(ctx, edge, 1)).toBe(true);
+    expect(ctx.layers.floor[cellKey(2, 3)]?.wallN?.decal).toBe(1);
+    expect(paintOps.setDecalAtEdge(ctx, edge, 1)).toBe(false);
+    expect(paintOps.setDecalAtEdge(ctx, edge, undefined)).toBe(true);
+    expect("decal" in (ctx.layers.floor[cellKey(2, 3)]?.wallN ?? {})).toBe(false);
+  });
+
+  it("refuses a decal on a grate, a sluice or a door, and finds the owner from the S side", () => {
+    const ctx = makeCtx();
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 0, "sluice");
+    expect(paintOps.setDecalAtEdge(ctx, edge, 0)).toBe(false);
+
+    const walls = makeCtx();
+    paintOps.paintWallAtCellEdge(walls, edge, paintOps.createStrokeState(), 0);
+    expect(paintOps.setDecalAtEdge(walls, { x: 2, y: 2, side: "S" }, 0)).toBe(true);
+    expect(walls.layers.floor[cellKey(2, 3)]?.wallN?.decal).toBe(0);
+  });
+});

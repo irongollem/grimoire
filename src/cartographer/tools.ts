@@ -12,6 +12,8 @@ export type Tool =
   // "look, don't paint" tools) rather than with Draw.
   | "select"
   | "floor"
+  // Water (tile packs v4): paints a cell's terrain, drawn in place of its floor.
+  | "terrain"
   | "eraser"
   | "pan"
   | "wall"

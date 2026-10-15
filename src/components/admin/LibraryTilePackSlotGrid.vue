@@ -198,7 +198,7 @@ async function onFileChosen(event: Event): Promise<void> {
  * A vertical wall or door is its horizontal twin turned a quarter — the plan
  * never makes a job for one (`createGenerationPlan` collapses it onto the
  * source) and `runJob` derives it from the result. So asking for
- * `doorClosedV:0` renders `doorClosedH:0` and writes both, and the tooltip has
+ * `doorwayV:0` renders `doorwayH:0` and writes both, and the tooltip has
  * to say so: an admin who regenerates the vertical door three times running,
  * wondering why the horizontal one keeps changing too, is the confusion this
  * one line prevents.

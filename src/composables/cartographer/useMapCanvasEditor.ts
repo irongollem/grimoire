@@ -19,12 +19,15 @@ import type { Tool } from "@/cartographer/tools";
 import { pinchOf, pinchViewport, zoomAtPoint, type Pinch, type CanvasViewport } from "@/cartographer/viewport";
 import { resolveKeyAction } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata } from "@/types/dungeonMap.types";
-import { BASE_TILE_SIZE, type PackCategory, type ObjectCategory } from "@/cartographer/packSchema";
+import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
+import type { StampCategory } from "@/cartographer/stampCategories";
+import { wallKindCategory, type WallKind } from "@/cartographer/wallKinds";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { DressingCatalog } from "@/cartographer/dressing";
 import { renderMap, type MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { pickVariant } from "@/cartographer/tileVariants";
 import * as paintOps from "@/cartographer/paintOps";
+import type { PaintedWallKind } from "@/cartographer/paintOps";
 import type { PaintContext } from "@/cartographer/paintOps";
 import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
@@ -80,8 +83,11 @@ export interface MapCanvasEditorOptions {
   /** Enough of the palette for hotkey resolution — MapWorkbench owns the full `TOOLS` array. */
   tools: ReadonlyArray<{ id: Tool; shortcut?: string; disabled?: boolean }>;
   viewMode: () => boolean;
-  activeObjectCategory: Ref<ObjectCategory>;
+  activeObjectCategory: Ref<StampCategory>;
   stampRotation: Ref<number>;
+  /** What the wall tool paints (or, for "decal", sets on an existing wall) and the decal variant it sets. */
+  activeWallKind: Ref<WallKind>;
+  activeWallDecal: Ref<number>;
   activeTemplateShape: Ref<TemplateShape>;
   caveRadius: Ref<number>;
   selectedCell: Ref<[number, number] | null>;
@@ -118,7 +124,7 @@ const EDGE_HOVER_THRESHOLD = 0.25;
 export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
-    dressing, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, activeObjectCategory, stampRotation, activeTemplateShape,
+    dressing, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape,
     caveRadius, selectedCell, inspectorPanelRef, structure, mapKey, getReferenceImage, extraRenderDeps,
     plan, activeLayer,
   } = opts;
@@ -304,10 +310,17 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     return pickVariant(mapKey.value, "floor", x, y, floorVariantCount());
   }
 
-  function pickWallVariant(x: number, y: number, side: "N" | "W"): number {
+  function pickWallVariant(x: number, y: number, side: "N" | "W", kind: PaintedWallKind = "wall"): number {
     if (!packRuntime.value) return 0;
-    const category = side === "N" ? "wallSegmentH" : "wallSegmentV";
+    // The plain wall keeps its original seed label ("wallSegmentH/V"): it is
+    // locked by tests, and changing it re-randomises every saved map.
+    const category = wallKindCategory(kind, side);
     return pickVariant(mapKey.value, category, x, y, packRuntime.value.variantCount(category));
+  }
+
+  function pickTerrainVariant(x: number, y: number): number {
+    if (!packRuntime.value) return 0;
+    return pickVariant(mapKey.value, "terrain", x, y, packRuntime.value.variantCount("terrainWater"));
   }
 
   function pickSolidVariant(x: number, y: number): number {
@@ -320,7 +333,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     return pickVariant(mapKey.value, category, x, y, packRuntime.value.variantCount(category));
   }
 
-  function pickObjectVariant(cat: ObjectCategory, x: number, y: number): number {
+  function pickObjectVariant(cat: StampCategory, x: number, y: number): number {
     if (!packRuntime.value) return 0;
     return pickVariant(mapKey.value, cat, x, y, packRuntime.value.variantCount(cat));
   }
@@ -413,6 +426,30 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   // ── Wall placement (edge-based, NW ownership) ──────────────────────────
 
+  // The wall tool's primary action: Wall, Grate and Sluice paint their edge;
+  // Decal sets the active decal on a wall that is already there.
+  function paintWallKindAtCellEdge(edge: CellEdge): void {
+    const kind = activeWallKind.value;
+    if (kind === "decal") {
+      if (paintOps.setDecalAtEdge(paintContext(), edge, activeWallDecal.value)) markDirty();
+      return;
+    }
+    const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
+    const variant = pickWallVariant(canon.x, canon.y, canon.side, kind);
+    strokeState.active = isPainting.value;
+    if (paintOps.paintWallAtCellEdge(paintContext(), edge, strokeState, variant, kind)) markDirty();
+  }
+
+  // The wall tool's Alt action: the Decal kind peels a decal off, the others erase the edge.
+  function eraseWallKindAtCellEdge(edge: CellEdge): void {
+    if (activeWallKind.value === "decal") {
+      if (paintOps.setDecalAtEdge(paintContext(), edge, undefined)) markDirty();
+      return;
+    }
+    eraseWallAtCellEdge(edge);
+  }
+
+  // Plain wall, for shift+click lines: the stroke tracker and kind do not apply.
   function paintWallAtCellEdge(edge: CellEdge): void {
     const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
     const variant = pickWallVariant(canon.x, canon.y, canon.side);
@@ -432,7 +469,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   function paintDoorAtEdge(edge: CellEdge): void {
     const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-    const cat: PackCategory = canon.side === "N" ? "doorClosedH" : "doorClosedV";
+    const cat: PackCategory = canon.side === "N" ? "doorwayH" : "doorwayV";
     const newDoorVariant = pickDoorVariant(canon.x, canon.y, cat);
     if (paintOps.paintDoorAtEdge(paintContext(), edge, strokeState, newDoorVariant)) markDirty();
   }
@@ -459,6 +496,20 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   function eraseCell(x: number, y: number): void {
     if (paintOps.eraseCell(paintContext(), x, y)) markDirty();
+  }
+
+  // ── Terrain tool ────────────────────────────────────────────────────────
+
+  function paintTerrainAt(x: number, y: number): void {
+    if (!packRuntime.value) return;
+    const changed = paintOps.paintTerrainAt(
+      paintContext(), x, y, pickTerrainVariant(x, y), pickFloorVariant(x, y),
+    );
+    if (changed) markDirty();
+  }
+
+  function eraseTerrainAt(x: number, y: number): void {
+    if (paintOps.eraseTerrainAt(paintContext(), x, y)) markDirty();
   }
 
   // ── One-shot actions ────────────────────────────────────────────────────
@@ -625,6 +676,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       canvasWidth: canvas.width,
       canvasHeight: canvas.height,
       tilePx,
+      // Edits mutate `layers` in place, so its identity alone cannot tell the
+      // shadow cache that walls moved; the edit counter can (#1065).
+      layersRevision: editRevision.value,
       viewportOffset: viewportOffset.value,
       bounds,
       layers: layers.value,
@@ -855,6 +909,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     }
 
     if (activeTool.value === "floor") { if (ev.altKey) eraseCell(cx, cy); else paintCell(cx, cy); }
+    else if (activeTool.value === "terrain") { if (ev.altKey) eraseTerrainAt(cx, cy); else paintTerrainAt(cx, cy); }
     else if (activeTool.value === "solid") { if (ev.altKey) eraseSolidAt(cx, cy); else paintSolidAt(cx, cy); }
     else if (activeTool.value === "stamp") { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
     else if (activeTool.value === "eraser") {
@@ -865,9 +920,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; markDirty();
       }
       else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
+      else if (layers.value.terrain[cellKey(cx, cy)]) eraseTerrainAt(cx, cy);
       else eraseCell(cx, cy);
     } else if (activeTool.value === "wall" && hoveredEdge.value) {
-      if (ev.altKey) eraseWallAtCellEdge(hoveredEdge.value); else paintWallAtCellEdge(hoveredEdge.value);
+      if (ev.altKey) eraseWallKindAtCellEdge(hoveredEdge.value); else paintWallKindAtCellEdge(hoveredEdge.value);
     } else if (activeTool.value === "door" && hoveredEdge.value) {
       if (ev.altKey) removeDoorAtEdge(hoveredEdge.value); else paintDoorAtEdge(hoveredEdge.value);
     }
@@ -935,6 +991,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       } else if (tool === "cave") {
         if (ev.altKey) eraseCaveAt(cx, cy); else paintCaveAt(cx, cy);
       } else if (tool === "floor") { if (ev.altKey) eraseCell(cx, cy); else paintCell(cx, cy); }
+      else if (tool === "terrain") { if (ev.altKey) eraseTerrainAt(cx, cy); else paintTerrainAt(cx, cy); }
       else if (tool === "solid") { if (ev.altKey) eraseSolidAt(cx, cy); else paintSolidAt(cx, cy); }
       else if (tool === "stamp") { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
       else if (tool === "eraser") {
@@ -945,9 +1002,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
           const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; markDirty();
         }
         else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
+        else if (layers.value.terrain[cellKey(cx, cy)]) eraseTerrainAt(cx, cy);
         else eraseCell(cx, cy);
       } else if (tool === "wall" && hoveredEdge.value) {
-        if (ev.altKey) eraseWallAtCellEdge(hoveredEdge.value); else paintWallAtCellEdge(hoveredEdge.value);
+        if (ev.altKey) eraseWallKindAtCellEdge(hoveredEdge.value); else paintWallKindAtCellEdge(hoveredEdge.value);
       } else if (tool === "door" && hoveredEdge.value) {
         if (ev.altKey) removeDoorAtEdge(hoveredEdge.value); else paintDoorAtEdge(hoveredEdge.value);
       }

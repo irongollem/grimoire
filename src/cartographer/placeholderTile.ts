@@ -37,10 +37,18 @@ const STONE_DEFAULTS: Record<string, [number, number, number]> = {
   wallSegmentV:  [40, 36, 32],
   wallJoint:     [30, 28, 26],
   wallRoundJoint:[30, 28, 26],
-  doorClosedH:   [110, 70, 35],
-  doorClosedV:   [110, 70, 35],
-  doorOpenH:     [150, 110, 70],
-  doorOpenV:     [150, 110, 70],
+  doorwayH:      [40, 36, 32],
+  doorwayV:      [40, 36, 32],
+  doorLeaf:      [110, 70, 35],
+  curbH:         [150, 145, 135],
+  curbV:         [150, 145, 135],
+  curbPost:      [140, 135, 125],
+  terrainWater:  [50, 110, 120],
+  edgeGrateH:    [40, 36, 32],
+  edgeGrateV:    [40, 36, 32],
+  edgeSluiceH:   [40, 36, 32],
+  edgeSluiceV:   [40, 36, 32],
+  wallDecal:     [20, 18, 16],
   solidBlock:    [55, 50, 45],
   stairsUp:      [95, 85, 70],
   stairsDown:    [70, 62, 52],
@@ -111,7 +119,7 @@ export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCa
   const base = resolveBase(k.category, palette);
 
   // Fill with jittered base colour for the floor variants and solid blocks.
-  if (k.category === "floor" || k.category === "solidBlock") {
+  if (k.category === "floor" || k.category === "solidBlock" || k.category === "terrainWater") {
     const [r, g, b] = lumaJitter(base, seed, 12);
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
     ctx.fillRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
@@ -134,9 +142,7 @@ export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCa
   // shifted by half a tile so the painted strip lands ON the gridline,
   // straddling both adjacent cells equally. Real WebP assets must follow the
   // same convention — see public/cartographer/stone-dungeon/v1/README.md.
-  if (k.category === "wallSegmentH" || k.category === "wallSegmentV" ||
-      k.category === "doorClosedH"  || k.category === "doorClosedV"  ||
-      k.category === "doorOpenH"    || k.category === "doorOpenV") {
+  if (k.category === "wallSegmentH" || k.category === "wallSegmentV") {
     ctx.clearRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
     ctx.fillStyle = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
     const isHorizontal = k.category.endsWith("H");
@@ -146,6 +152,85 @@ export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCa
       ctx.fillRect(0, offset, BASE_TILE_SIZE, thickness);
     } else {
       ctx.fillRect(offset, 0, thickness, BASE_TILE_SIZE);
+    }
+    return finalise(canvas, id);
+  }
+
+  // ── Fittings in the wall band (#1065): doorway, grate, sluice ──
+  // The wall band with a centred gap half the cell wide. The doorway frames the
+  // gap with a darker post at each side; a grate crosses it with bars; a
+  // sluice closes it with a brown gate. Drawn as H and turned for V so the
+  // vertical placeholder is the horizontal one turned, as the real art is.
+  if (isGapFitting(k.category)) {
+    const S = BASE_TILE_SIZE;
+    const horizontal = k.category.endsWith("H");
+    ctx.clearRect(0, 0, S, S);
+    if (!horizontal) {
+      ctx.translate(S / 2, S / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.translate(-S / 2, -S / 2);
+    }
+    const thickness = WALL_BAND_PX;
+    const top = Math.round((S - thickness) / 2);
+    const gapStart = S * 0.25;
+    const gapEnd = S * 0.75;
+    ctx.fillStyle = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
+    ctx.fillRect(0, top, gapStart, thickness);
+    ctx.fillRect(gapEnd, top, S - gapEnd, thickness);
+    const post = Math.round(S * 0.06);
+    if (k.category.startsWith("doorway")) {
+      ctx.fillStyle = `rgb(${Math.round(base[0] * 0.55)}, ${Math.round(base[1] * 0.55)}, ${Math.round(base[2] * 0.55)})`;
+      ctx.fillRect(gapStart, top, post, thickness);
+      ctx.fillRect(gapEnd - post, top, post, thickness);
+    } else if (k.category.startsWith("edgeGrate")) {
+      ctx.fillStyle = "rgb(120, 125, 130)";
+      const bars = 5;
+      for (let i = 0; i < bars; i++) {
+        const bx = gapStart + ((gapEnd - gapStart) * (i + 0.5)) / bars;
+        ctx.fillRect(bx - 2, top, 4, thickness);
+      }
+    } else {
+      ctx.fillStyle = "rgb(110, 75, 40)";
+      ctx.fillRect(gapStart, top + thickness * 0.25, gapEnd - gapStart, thickness * 0.5);
+    }
+    return finalise(canvas, id);
+  }
+
+  // The door leaf: a slab lying in the doorway's gap, x 0.25..0.75 of the
+  // tile on the band's centre line, hinged at its left end (DEFAULT_DOOR_LEAF).
+  if (k.category === "doorLeaf") {
+    const S = BASE_TILE_SIZE;
+    const slab = Math.round(WALL_BAND_PX * 0.5);
+    ctx.clearRect(0, 0, S, S);
+    ctx.fillStyle = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
+    ctx.fillRect(S * 0.25, Math.round((S - slab) / 2), S * 0.5, slab);
+    return finalise(canvas, id);
+  }
+
+  // A curb: a thin ledge band (14% of the tile), centred like a wall but thinner.
+  if (k.category === "curbH" || k.category === "curbV") {
+    const S = BASE_TILE_SIZE;
+    const thickness = Math.round(S * 0.14);
+    const offset = Math.round((S - thickness) / 2);
+    ctx.clearRect(0, 0, S, S);
+    ctx.fillStyle = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
+    if (k.category === "curbH") ctx.fillRect(0, offset, S, thickness);
+    else ctx.fillRect(offset, 0, thickness, S);
+    return finalise(canvas, id);
+  }
+
+  // A curb post and a wall decal are small centred stamps.
+  if (k.category === "curbPost" || k.category === "wallDecal") {
+    const S = BASE_TILE_SIZE;
+    ctx.clearRect(0, 0, S, S);
+    ctx.fillStyle = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
+    if (k.category === "curbPost") {
+      const side = Math.round(S * 0.14);
+      ctx.fillRect((S - side) / 2, (S - side) / 2, side, side);
+    } else {
+      ctx.beginPath();
+      ctx.arc(S / 2, S / 2, Math.round(S * 0.09), 0, Math.PI * 2);
+      ctx.fill();
     }
     return finalise(canvas, id);
   }
@@ -343,6 +428,13 @@ export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCa
   ctx.fillText(k.category, 4, 14);
   ctx.fillText(`v${k.variant}`, 4, 26);
   return finalise(canvas, id);
+}
+
+type GapFitting = "doorwayH" | "doorwayV" | "edgeGrateH" | "edgeGrateV" | "edgeSluiceH" | "edgeSluiceV";
+function isGapFitting(category: string): category is GapFitting {
+  return category === "doorwayH" || category === "doorwayV" ||
+    category === "edgeGrateH" || category === "edgeGrateV" ||
+    category === "edgeSluiceH" || category === "edgeSluiceV";
 }
 
 function finalise(canvas: HTMLCanvasElement, id: string): HTMLCanvasElement {

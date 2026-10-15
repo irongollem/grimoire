@@ -4,6 +4,69 @@
  */
 import { BASE_TILE_SIZE, TILE_PACK_SCHEMA, categoryDef, type AssetSlot, type PackCategory, type TilePackManifest } from "../../src/cartographer/packSchema.ts";
 
+/**
+ * The optional `pack.json` beside a pack's tiles: the manifest fields no tile can carry (schema 4). It is the ONLY source of
+ * them, on purpose: a repaint replaces the pack, so nothing is inherited from an older published version.
+ */
+export type PackSidecar = Pick<TilePackManifest, "continuous" | "labels" | "doorLeaf">;
+
+export const SIDECAR_FILE = "pack.json";
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+const isCategory = (key: string): key is PackCategory => Object.hasOwn(TILE_PACK_SCHEMA.categories, key);
+
+/** Validates a parsed `pack.json`. Every problem is reported (not just the first), and nothing invalid is returned. */
+export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: string[] } {
+  const errors: string[] = [];
+  const sidecar: PackSidecar = {};
+  if (!isRecord(raw)) return { sidecar, errors: [`${SIDECAR_FILE}: must be a JSON object`] };
+  for (const key of Object.keys(raw)) {
+    if (key !== "continuous" && key !== "labels" && key !== "doorLeaf") errors.push(`${SIDECAR_FILE}: unknown key "${key}" (expected continuous, labels, doorLeaf)`);
+  }
+
+  if (raw.continuous !== undefined) {
+    if (!isRecord(raw.continuous)) errors.push(`${SIDECAR_FILE}: continuous must be an object of category to period`);
+    else {
+      const continuous: Partial<Record<PackCategory, number>> = {};
+      for (const [category, period] of Object.entries(raw.continuous)) {
+        if (!isCategory(category)) errors.push(`${SIDECAR_FILE}: continuous.${category} is not a schema category`);
+        else if (typeof period !== "number" || !Number.isInteger(period) || period < 1) errors.push(`${SIDECAR_FILE}: continuous.${category} must be a positive integer period`);
+        else continuous[category] = period;
+      }
+      sidecar.continuous = continuous;
+    }
+  }
+
+  if (raw.labels !== undefined) {
+    if (!isRecord(raw.labels)) errors.push(`${SIDECAR_FILE}: labels must be an object of category to names`);
+    else {
+      const labels: Partial<Record<PackCategory, string[]>> = {};
+      for (const [category, names] of Object.entries(raw.labels)) {
+        if (!isCategory(category)) errors.push(`${SIDECAR_FILE}: labels.${category} is not a schema category`);
+        else if (!Array.isArray(names) || names.some((name) => typeof name !== "string" || name.trim() === "")) errors.push(`${SIDECAR_FILE}: labels.${category} must be an array of non-empty strings`);
+        else labels[category] = names as string[];
+      }
+      sidecar.labels = labels;
+    }
+  }
+
+  if (raw.doorLeaf !== undefined) {
+    const leaf = raw.doorLeaf;
+    if (!isRecord(leaf)) errors.push(`${SIDECAR_FILE}: doorLeaf must be an object`);
+    else {
+      const { hingeX, hingeY, openDegrees } = leaf;
+      const fraction = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+      if (!fraction(hingeX)) errors.push(`${SIDECAR_FILE}: doorLeaf.hingeX must be a number from 0 to 1`);
+      if (!fraction(hingeY)) errors.push(`${SIDECAR_FILE}: doorLeaf.hingeY must be a number from 0 to 1`);
+      if (typeof openDegrees !== "number" || !Number.isFinite(openDegrees) || openDegrees < 1 || openDegrees > 180) errors.push(`${SIDECAR_FILE}: doorLeaf.openDegrees must be a number from 1 to 180`);
+      if (fraction(hingeX) && fraction(hingeY) && typeof openDegrees === "number" && openDegrees >= 1 && openDegrees <= 180) {
+        sidecar.doorLeaf = { hingeX, hingeY, openDegrees };
+      }
+    }
+  }
+  return { sidecar: errors.length ? {} : sidecar, errors };
+}
+
 export interface TileFile {
   /** Path relative to the pack folder, exactly as the manifest's `url` names it: `floor/0.webp`, `stairsUp/N/0.webp`. */
   relative: string;
@@ -46,12 +109,14 @@ export function slotForPath(relative: string): TileSlot | { error: string } {
  * A whole new manifest for the pack, built from the tiles alone: a repaint replaces every slot, so no slot of the old art
  * survives beside the new (a pack that mixed two lanes' walls would not read as one set). The palette is kept, because the
  * loader still draws placeholders from it for any optional slot the pack leaves empty. `rev` is stamped on every slot so a
- * DM who already loaded the pack is not served the old tile from the CDN's month-long cache.
+ * DM who already loaded the pack is not served the old tile from the CDN's month-long cache. `continuous`, `labels` and
+ * `doorLeaf` come from the sidecar alone (already validated by `parsePackSidecar`) and are never inherited from `base`.
  */
 export function buildManifest(
   base: Pick<TilePackManifest, "pack_id" | "name" | "description" | "pack_version" | "palette">,
   files: readonly TileFile[],
   rev: number,
+  sidecar: PackSidecar = {},
 ): { manifest: TilePackManifest; errors: string[] } {
   const errors: string[] = [];
   const assets: Partial<Record<PackCategory, AssetSlot[]>> = {};
@@ -69,6 +134,9 @@ export function buildManifest(
     base_tile_size: BASE_TILE_SIZE,
     assets,
     ...(base.palette ? { palette: base.palette } : {}),
+    ...(sidecar.continuous ? { continuous: sidecar.continuous } : {}),
+    ...(sidecar.labels ? { labels: sidecar.labels } : {}),
+    ...(sidecar.doorLeaf ? { doorLeaf: sidecar.doorLeaf } : {}),
   };
   return { manifest, errors };
 }

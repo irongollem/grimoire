@@ -85,14 +85,14 @@ function clearRoundedInterior(ctx: CanvasRenderingContext2D, side: string | unde
 /**
  * Whether a tile's art is cropped and redrawn *into* the wall band.
  *
- * True for a wall or a shut door, whose art lives entirely on the gridline —
- * squashing it there is what guarantees a consistent band whatever the model
- * drew. False for an open door, which is the one edge category with art
- * deliberately outside the band: an ajar leaf hangs into the adjacent
- * half-cell, and squashing flattens it back onto the wall.
+ * True for a wall, doorway, grate or sluice, whose art lives entirely on the
+ * gridline — squashing it there is what guarantees a consistent band whatever
+ * the model drew. False for the door leaf, which is drawn turned on its hinge
+ * (squashing would flatten it), and for a curb, which keeps its own, thinner
+ * thickness rather than the wall's.
  */
 export function squashesOntoBand(category: SlotIdentity["category"], footprint: SlotMechanics["footprint"]): boolean {
-  if (category === "doorOpenH" || category === "doorOpenV") return false;
+  if (category === "doorLeaf" || category === "curbH" || category === "curbV") return false;
   return footprint === "centered-horizontal-edge" || footprint === "centered-vertical-edge";
 }
 

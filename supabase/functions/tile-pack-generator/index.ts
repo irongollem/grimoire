@@ -3,7 +3,7 @@ import { createClient, type User } from "@supabase/supabase-js";
 import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, rotationFor, slotId, slotRelativePath, type GenerationAttempt, type GenerationJob, type GenerationPlan, type ImageGenerationQuality, type PackArtBible } from "../../../src/cartographer/authoringPlan.ts";
 import { validatePack } from "../../../src/cartographer/validatePack.ts";
 import { coverageCounts, hasCompleteArt, undrawnSlotIds } from "../../../src/cartographer/packCoverage.ts";
-import type { TilePackManifest } from "../../../src/cartographer/packSchema.ts";
+import { TILE_PACK_SCHEMA, type TilePackManifest } from "../../../src/cartographer/packSchema.ts";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
@@ -530,7 +530,9 @@ async function registerUpload(userId: string, body: Record<string, unknown>): Pr
   // (the same split as the soundboard's own-audio upload).
   if (!(await isUserPro(admin, userId))) return json({ error: "pro_required" }, 403);
   const manifest = body.manifest as TilePackManifest | undefined;
-  if (!manifest || manifest.schema_version !== 2 || manifest.base_tile_size !== 128 || !manifest.pack_id.startsWith("custom-")) {
+  // The current version, never a literal: a literal here went stale at schema 3 and
+  // silently refused every upload the client (which requires the current one) made.
+  if (!manifest || manifest.schema_version !== TILE_PACK_SCHEMA.version || manifest.base_tile_size !== 128 || !manifest.pack_id.startsWith("custom-")) {
     return json({ error: "invalid_manifest" }, 400);
   }
   const validation = validatePack(manifest);

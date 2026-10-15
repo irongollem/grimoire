@@ -124,8 +124,8 @@ describe("packCoverage", () => {
 });
 
 describe("coverageCounts", () => {
-  it("counts the required floor at the schema's 20-tile minimum", () => {
-    expect(coverageCounts(manifestWith([])).required).toBe(20);
+  it("counts the required floor at the schema's 19-tile minimum", () => {
+    expect(coverageCounts(manifestWith([])).required).toBe(19);
   });
 
   it("counts surplus declared slots as drawn without counting them as required", () => {
@@ -133,10 +133,10 @@ describe("coverageCounts", () => {
     manifest.assets.floor?.push({ variant: 8, url: "floor/8.webp", byteSize: 2048 });
     const counts = coverageCounts(manifest);
 
-    expect(counts.required).toBe(20);
-    expect(counts.requiredDrawn).toBe(20);
-    expect(counts.drawn).toBe(21);
-    expect(counts.declared).toBe(21);
+    expect(counts.required).toBe(19);
+    expect(counts.requiredDrawn).toBe(19);
+    expect(counts.drawn).toBe(20);
+    expect(counts.declared).toBe(20);
   });
 });
 
@@ -158,7 +158,7 @@ describe("undrawnSlotIds", () => {
 
     expect(undrawnSlotIds(manifest)).toContain("objectChest:0");
     expect(undrawnSlotIds(manifest, { requiredOnly: true })).not.toContain("objectChest:0");
-    expect(undrawnSlotIds(manifest, { requiredOnly: true })).toHaveLength(20);
+    expect(undrawnSlotIds(manifest, { requiredOnly: true })).toHaveLength(19);
   });
 
   it("returns ids createGenerationPlan accepts", () => {

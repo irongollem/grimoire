@@ -31,14 +31,14 @@ describe("preparePackUpload", () => {
     const prepared = await preparePackUpload([zipFor()]);
 
     expect(prepared.manifest.pack_id).toBe("moon-vault");
-    expect(prepared.assets.size).toBe(20);
-    expect([...prepared.assets.keys()]).toContain(slotRelativePath({ category: "doorOpenH", variant: 0 }));
+    expect(prepared.assets.size).toBe(19);
+    expect([...prepared.assets.keys()]).toContain(slotRelativePath({ category: "doorLeaf", variant: 0 }));
   });
 
   it("rejects an incomplete pack with the exact missing slot list", async () => {
     const manifest = completeManifest();
-    manifest.assets.doorOpenH = [];
+    manifest.assets.doorLeaf = [];
 
-    await expect(preparePackUpload([zipFor(manifest)])).rejects.toThrow("doorOpenH/0");
+    await expect(preparePackUpload([zipFor(manifest)])).rejects.toThrow("doorLeaf/0");
   });
 });

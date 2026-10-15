@@ -89,9 +89,9 @@ describe("libraryTileUrl", () => {
   // path — so the stamp is the only thing that tells a browser the door it
   // cached yesterday is not the door stored there now.
   it("cache-keys on the slot's own rev when it has one", () => {
-    const url = libraryTileUrl(pack, { url: "doorClosedH/0.webp", rev: 1758529974000 });
+    const url = libraryTileUrl(pack, { url: "doorwayH/0.webp", rev: 1758529974000 });
 
-    expect(url).toContain("/3f1b0c2e-0000-4000-8000-000000000001/v1/doorClosedH/0.webp");
+    expect(url).toContain("/3f1b0c2e-0000-4000-8000-000000000001/v1/doorwayH/0.webp");
     expect(url.endsWith("?v=1758529974000")).toBe(true);
   });
 
@@ -100,8 +100,8 @@ describe("libraryTileUrl", () => {
   });
 
   it("gives two revisions of one slot different URLs", () => {
-    const before = libraryTileUrl(pack, { url: "doorClosedH/0.webp", rev: 1758529974000 });
-    const after = libraryTileUrl(pack, { url: "doorClosedH/0.webp", rev: 1758529999000 });
+    const before = libraryTileUrl(pack, { url: "doorwayH/0.webp", rev: 1758529974000 });
+    const after = libraryTileUrl(pack, { url: "doorwayH/0.webp", rev: 1758529999000 });
 
     expect(before).not.toBe(after);
   });

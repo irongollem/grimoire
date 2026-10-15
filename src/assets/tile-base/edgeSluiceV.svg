@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- EDGE SLUICE: the wall band with an opening (x 256..768) closed by a gate.
+       Seen from above: a thin plate across the opening, a guide post at each
+       end and the winch wheel centred on the wall line. Symmetric across the
+       band. -->
+  <defs>
+    <linearGradient id="band" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6d6d6d"/><stop offset=".5" stop-color="#8e8e8e"/><stop offset="1" stop-color="#6d6d6d"/>
+    </linearGradient>
+  </defs>
+  <g transform="rotate(90 512 512)">
+    <rect x="0" y="384" width="256" height="256" fill="url(#band)"/>
+    <rect x="768" y="384" width="256" height="256" fill="url(#band)"/>
+    <rect x="0" y="384" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="0" y="614" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="768" y="384" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="768" y="614" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="236" y="384" width="20" height="256" fill="#000000" opacity=".4"/>
+    <rect x="768" y="384" width="20" height="256" fill="#000000" opacity=".4"/>
+    <rect x="262" y="494" width="500" height="36" fill="#9a9a9a" stroke="#1a1a1a" stroke-opacity=".8" stroke-width="5"/>
+    <rect x="262" y="494" width="500" height="8" fill="#ffffff" opacity=".3"/>
+    <rect x="262" y="522" width="500" height="8" fill="#000000" opacity=".3"/>
+    <g fill="#4a4a4a" stroke="#1a1a1a" stroke-opacity=".85" stroke-width="4">
+      <rect x="256" y="480" width="44" height="64" rx="6"/>
+      <rect x="724" y="480" width="44" height="64" rx="6"/>
+    </g>
+    <circle cx="512" cy="512" r="40" fill="#6d6d6d" stroke="#1a1a1a" stroke-opacity=".85" stroke-width="5"/>
+    <g stroke="#1a1a1a" stroke-opacity=".8" stroke-width="7" stroke-linecap="round">
+      <path d="M512 480 V544 M480 512 H544 M489 489 L535 535 M535 489 L489 535"/>
+    </g>
+    <circle cx="512" cy="512" r="10" fill="#3c3c3c"/>
+  </g>
+</svg>

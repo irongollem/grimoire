@@ -28,13 +28,15 @@ export function validatePack(manifest: TilePackManifest): ValidationResult {
   const extras: string[] = [];
   const warnings: string[] = [];
 
-  // A pack OLDER than the runtime schema is not a problem by itself: every
-  // schema bump so far only adds `optional` categories, so an old pack that
-  // still satisfies every REQUIRED category (checked below, independently of
-  // this comparison) is simply an older pack — warning about it here would be
-  // noise on every v2 pack the moment the runtime moved to v3. Only a pack
-  // NEWER than the runtime is worth flagging: it may declare categories this
-  // build doesn't know how to interpret yet.
+  // A pack OLDER than the runtime schema is not flagged by this comparison:
+  // the required categories are checked below, independently of it, and that
+  // is what says whether the pack is usable. Bumps up to 3 only added optional
+  // categories, so an older pack stayed silent. That stopped being true at 4
+  // (#1065), which removed the four door categories: a v3 pack now lists its
+  // door slots as extras and is missing the doorway and the leaf, which is the
+  // list the Update Tileset path and the #891 repaint work through. Only a pack
+  // NEWER than the runtime is worth flagging here: it may declare categories
+  // this build doesn't know how to interpret yet.
   if (manifest.schema_version > TILE_PACK_SCHEMA.version) {
     warnings.push(
       `Pack schema_version ${manifest.schema_version} is newer than this app's schema version ${TILE_PACK_SCHEMA.version}. Some categories may not render correctly.`,

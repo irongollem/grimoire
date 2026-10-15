@@ -10,7 +10,7 @@ describe("categoryLabel", () => {
 
   it("leaves a single-letter word capitalised — it is an axis, not a word", () => {
     expect(categoryLabel("wallSegmentH")).toBe("wall segment H");
-    expect(categoryLabel("doorOpenV")).toBe("door open V");
+    expect(categoryLabel("edgeGrateV")).toBe("edge grate V");
   });
 
   it("passes a single lowercase word through unchanged", () => {

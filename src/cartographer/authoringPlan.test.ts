@@ -25,15 +25,15 @@ function manifest() {
 }
 
 describe("createGenerationPlan", () => {
-  it("plans 16 renders for the schema's 20 required slots, the other 4 being rotations", () => {
+  it("plans 16 renders for the schema's 19 required slots, the other 3 being rotations", () => {
     const plan = createGenerationPlan({ manifest: manifest(), artBible: bible, now: "2026-08-25T00:00:00.000Z" });
 
-    // The required floor is 20 slots; four of them — wallSegmentV x2,
-    // doorClosedV, doorOpenV — are their horizontal counterparts turned
-    // ninety degrees, so they are produced rather than rendered. A pack pays
-    // for 16 and receives 20, and the vertical walls cannot drift from the
+    // The required floor is 19 slots; three of them — wallSegmentV x2 and
+    // doorwayV — are their horizontal counterparts turned ninety degrees, so
+    // they are produced rather than rendered. A pack pays for 16 and receives
+    // 19, and the vertical walls cannot drift from the
     // horizontal ones the way `celestial-observatory`'s did (22px against 14px).
-    expect(enumerateSchemaSlots(false)).toHaveLength(20);
+    expect(enumerateSchemaSlots(false)).toHaveLength(19);
     expect(plan.jobs).toHaveLength(16);
     expect(plan.jobs.map((job) => job.id).filter((id) => rotationFor(id))).toEqual([]);
     expect(plan.jobs.filter((job) => job.slot.category === "floor")).toHaveLength(8);
@@ -107,18 +107,18 @@ describe("createGenerationPlan", () => {
     expect(rebuilt.jobs[0]!.attempts).toEqual(first.jobs[0]!.attempts);
   });
 
-  // The schema allows 8-16 floors and 1-3 doors; bounding the addressable set by
+  // The schema allows 8-64 floors and 1-3 doorways; bounding the addressable set by
   // `min` made every variant above the minimum impossible to author.
   it("can target any variant the schema allows, not only the required minimum", () => {
     const plan = createGenerationPlan({
       manifest: manifest(),
       artBible: bible,
-      selectedSlotIds: ["floor:15", "doorClosedH:2"],
+      selectedSlotIds: ["floor:15", "doorwayH:2"],
     });
 
-    expect(plan.jobs.map((job) => job.id)).toEqual(["floor:15", "doorClosedH:2"]);
+    expect(plan.jobs.map((job) => job.id)).toEqual(["floor:15", "doorwayH:2"]);
     expect(enumerateSchemaSlots(false).filter((slot) => slot.category === "floor")).toHaveLength(8);
-    expect(enumerateSchemaSlots(true).filter((slot) => slot.category === "floor")).toHaveLength(16);
+    expect(enumerateSchemaSlots(true).filter((slot) => slot.category === "floor")).toHaveLength(64);
   });
 
   it("can target one optional or existing schema slot explicitly", () => {
@@ -244,7 +244,7 @@ describe("rotation-derived slots", () => {
 
   it("plans the horizontal source when the vertical is asked for", () => {
     expect(plan(["wallSegmentV:0"]).jobs.map((j) => j.id)).toEqual(["wallSegmentH:0"]);
-    expect(plan(["doorOpenV:0"]).jobs.map((j) => j.id)).toEqual(["doorOpenH:0"]);
+    expect(plan(["doorwayV:0"]).jobs.map((j) => j.id)).toEqual(["doorwayH:0"]);
   });
 
   it("plans one job when both a source and its rotation are selected", () => {
@@ -304,15 +304,29 @@ describe("every category states its viewpoint in the subject line (#902)", () =>
     expect(silent, "categories whose subject line never says where the camera is").toEqual([]);
   });
 
-  it("asks the open door for a door, not for a doorway", () => {
+  it("asks for one leaf, never a pair, and an empty doorway with no door in it", () => {
     const plan = createGenerationPlan({
       manifest: createDraftManifest({ packId: "t", name: "T", description: "d", packVersion: 1 }),
       artBible: bible,
-      selectedSlotIds: ["doorOpenH:0", "doorClosedH:0"],
+      selectedSlotIds: ["doorwayH:0", "doorLeaf:0"],
     });
-    const open = plan.jobs.find((job) => job.id === "doorOpenH:0")!.prompt.category_request;
-    expect(open).toMatch(/standing open/i);
-    expect(open).not.toMatch(/doorway/i);
-    for (const job of plan.jobs) expect(job.prompt.category_request).toMatch(/one leaf, never a pair/i);
+    const doorway = plan.jobs.find((job) => job.id === "doorwayH:0")!.prompt.category_request;
+    const leaf = plan.jobs.find((job) => job.id === "doorLeaf:0")!.prompt.category_request;
+    expect(leaf).toMatch(/one leaf, never a pair/i);
+    expect(doorway).toMatch(/empty/i);
+    expect(doorway).toMatch(/no door/i);
+  });
+
+  it("gives the leaf an edge footprint without tiling, and the new categories their mechanics", () => {
+    const leaf = slotMechanics({ category: "doorLeaf", variant: 0 });
+    expect(leaf.footprint).toBe("centered-horizontal-edge");
+    expect(leaf.alpha).toBe("transparent-outside-footprint");
+    expect(leaf.tileable_edges).toEqual([]);
+    expect(slotMechanics({ category: "edgeGrateV", variant: 0 }).footprint).toBe("centered-vertical-edge");
+    expect(slotMechanics({ category: "curbH", variant: 0 }).footprint).toBe("centered-horizontal-edge");
+    expect(slotMechanics({ category: "terrainWater", variant: 0 }).tileable_edges).toEqual(["N", "E", "S", "W"]);
+    expect(slotMechanics({ category: "terrainWater", variant: 0 }).alpha).toBe("opaque");
+    expect(slotMechanics({ category: "curbPost", variant: 0 }).footprint).toBe("centered-overlay");
+    expect(slotMechanics({ category: "wallDecal", variant: 0 }).footprint).toBe("centered-overlay");
   });
 });

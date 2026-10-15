@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { renderMap, type MapRenderScene } from "./renderMap";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
 import type { DressingCatalog } from "./dressing";
-import { makeCtx, makeRuntime, sourceOf, type Recorder } from "./testCanvas";
+import { makeCtx, makeLayerFactory, makeRuntime, sourceOf, type Recorder } from "./testCanvas";
 
 
 function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderScene; rec: Recorder } {
@@ -323,5 +323,46 @@ describe("renderMap: Dressing layer (#1062)", () => {
     const ghost = rec.drawImages.find((c) => (c.source as { name: string }).name === "bed")!;
     expect(ghost.alpha).toBe(0.5);
     expect(rec.strokeStyles).toContain("rgba(80,180,255,0.9)");
+  });
+});
+
+
+describe("renderMap — shadow cache", () => {
+  const stoneLayers = (): ReturnType<typeof emptyLayers> => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(1, 1)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 }, wallN: { pack_id: "stone-dungeon", pack_version: 1, variant: 0, type: "wall" } };
+    return layers;
+  };
+
+  it("reuses the shadow layer across renders that differ only by hover, and rebuilds on an edit", () => {
+    const f = makeLayerFactory();
+    const layers = stoneLayers();
+    const runtimes = new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]);
+    const dressing: DressingCatalog = new Map();
+    const scene = (overrides: Partial<MapRenderScene> = {}): MapRenderScene =>
+      baseScene({ layers, runtimes, dressing, makeCanvas: f.makeCanvas, layersRevision: 1, ...overrides }).scene;
+
+    renderMap(scene());
+    const built = f.layers.length;
+    expect(built).toBeGreaterThan(0);
+
+    renderMap(scene({ hoverCell: [2, 2], selectedCell: [1, 1], previewCells: new Set([cellKey(3, 3)]) }));
+    expect(f.layers).toHaveLength(built);
+
+    renderMap(scene({ layersRevision: 2 }));
+    expect(f.layers.length).toBeGreaterThan(built);
+  });
+
+  it("rebuilds when the zoom or the window changes", () => {
+    const f = makeLayerFactory();
+    const layers = stoneLayers();
+    const runtimes = new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]);
+    const dressing: DressingCatalog = new Map();
+    const scene = (overrides: Partial<MapRenderScene>): MapRenderScene =>
+      baseScene({ layers, runtimes, dressing, makeCanvas: f.makeCanvas, layersRevision: 1, ...overrides }).scene;
+    renderMap(scene({}));
+    const built = f.layers.length;
+    renderMap(scene({ tilePx: 32 }));
+    expect(f.layers.length).toBeGreaterThan(built);
   });
 });

@@ -49,6 +49,32 @@ interface FakeCtx {
   rotate(angle: number): void;
   fillText(text: string, x: number, y: number, maxWidth?: number): void;
   setLineDash(segments: number[]): void;
+  shadowColor: string;
+  shadowBlur: number;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
+  createLinearGradient(x0: number, y0: number, x1: number, y1: number): FakeGradient;
+}
+
+interface FakeGradient {
+  addColorStop(offset: number, color: string): void;
+}
+
+export interface GradientCall {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  stops: [number, string][];
+}
+
+/** A drawImage made while a drop shadow was set: what the shadow passes record. */
+export interface ShadowDraw {
+  source: unknown;
+  color: string;
+  blur: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 export interface Recorder {
@@ -59,14 +85,20 @@ export interface Recorder {
   strokeStyles: string[];
   texts: string[];
   translates: [number, number][];
+  rotates: number[];
   roundRects: number;
+  gradients: GradientCall[];
+  /** The fillStyle in force at each fillRect (a gradient object or a colour string). */
+  fillRectStyles: unknown[];
+  shadowDraws: ShadowDraw[];
 }
 
 export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
-  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [], translates: [], roundRects: 0 };
-  let fillStyle = "";
+  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [], translates: [], rotates: [], roundRects: 0, gradients: [], fillRectStyles: [], shadowDraws: [] };
+  let fillStyle: unknown = "";
   let strokeStyle = "";
   const noop = (): void => {};
+  const saved: { c: string; b: number; x: number; y: number }[] = [];
   const fake: FakeCtx = {
     imageSmoothingEnabled: true,
     globalAlpha: 1,
@@ -76,15 +108,27 @@ export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
     textAlign: "start",
     textBaseline: "alphabetic",
     font: "",
-    get fillStyle() { return fillStyle; },
-    set fillStyle(v: string) { fillStyle = v; rec.fillStyles.push(v); },
+    get fillStyle() { return fillStyle as string; },
+    set fillStyle(v: string) { fillStyle = v; if (typeof v === "string") rec.fillStyles.push(v); },
     get strokeStyle() { return strokeStyle; },
     set strokeStyle(v: string) { strokeStyle = v; rec.strokeStyles.push(v); },
-    fillRect: (x, y, w, h) => { rec.calls.push("fillRect"); rec.fillRects.push({ x, y, w, h }); },
+    fillRect: (x, y, w, h) => { rec.calls.push("fillRect"); rec.fillRects.push({ x, y, w, h }); rec.fillRectStyles.push(fillStyle); },
     strokeRect: () => rec.calls.push("strokeRect"),
     drawImage: (source, x, y, w, h) => {
       rec.calls.push("drawImage");
       rec.drawImages.push({ source, x, y, w, h, alpha: fake.globalAlpha });
+      if (fake.shadowColor) {
+        rec.shadowDraws.push({ source, color: fake.shadowColor, blur: fake.shadowBlur, offsetX: fake.shadowOffsetX, offsetY: fake.shadowOffsetY });
+      }
+    },
+    shadowColor: "",
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    createLinearGradient: (x0, y0, x1, y1) => {
+      const call: GradientCall = { x0, y0, x1, y1, stops: [] };
+      rec.gradients.push(call);
+      return { addColorStop: (offset, color) => { call.stops.push([offset, color]); }, call } as FakeGradient;
     },
     beginPath: () => rec.calls.push("beginPath"),
     moveTo: () => rec.calls.push("moveTo"),
@@ -93,10 +137,17 @@ export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
     closePath: noop,
     fill: () => rec.calls.push("fill"),
     arc: () => rec.calls.push("arc"),
-    save: () => rec.calls.push("save"),
-    restore: () => rec.calls.push("restore"),
+    save: () => {
+      rec.calls.push("save");
+      saved.push({ c: fake.shadowColor, b: fake.shadowBlur, x: fake.shadowOffsetX, y: fake.shadowOffsetY });
+    },
+    restore: () => {
+      rec.calls.push("restore");
+      const top = saved.pop();
+      if (top) { fake.shadowColor = top.c; fake.shadowBlur = top.b; fake.shadowOffsetX = top.x; fake.shadowOffsetY = top.y; }
+    },
     translate: (x, y) => { rec.translates.push([x, y]); },
-    rotate: noop,
+    rotate: (angle) => { rec.rotates.push(angle); },
     fillText: (text) => { rec.calls.push("fillText"); rec.texts.push(text); },
     setLineDash: () => rec.calls.push("setLineDash"),
   };
@@ -125,6 +176,8 @@ export function makeRuntime(
     /** Categories whose tiles report `isPlaceholder`. */
     placeholders?: PackCategory[];
     palette?: TilePackManifest["palette"];
+    doorLeaf?: TilePackManifest["doorLeaf"];
+    continuous?: TilePackManifest["continuous"];
   } = {},
 ): TilePackRuntime {
   const manifest: TilePackManifest = {
@@ -136,6 +189,8 @@ export function makeRuntime(
     base_tile_size: BASE_TILE_SIZE,
     assets: {},
     ...(opts.palette ? { palette: opts.palette } : {}),
+    ...(opts.doorLeaf ? { doorLeaf: opts.doorLeaf } : {}),
+    ...(opts.continuous ? { continuous: opts.continuous } : {}),
   };
   const validation: ValidationResult = { valid: true, missing: [], extras: [], warnings: [] };
   return {
@@ -151,4 +206,32 @@ export function makeRuntime(
 
 export function sourceOf(call: DrawImageCall): TileSentinel {
   return call.source as TileSentinel;
+}
+
+// ── Fake layer canvases ─────────────────────────────────────────────────────
+// What `makeCanvas` returns in a test: every canvas it hands out, with its own
+// recorder, so a test can read which tiles went to which shadow class. The
+// canvas handed back is a sentinel the compositing drawImage then names.
+
+export interface FakeLayer {
+  canvas: { layer: number };
+  rec: Recorder;
+  width: number;
+  height: number;
+}
+
+export function makeLayerFactory(): {
+  makeCanvas: (w: number, h: number) => { canvas: CanvasImageSource; ctx: CanvasRenderingContext2D };
+  layers: FakeLayer[];
+} {
+  const layers: FakeLayer[] = [];
+  return {
+    layers,
+    makeCanvas: (width, height) => {
+      const { ctx, rec } = makeCtx();
+      const canvas = { layer: layers.length };
+      layers.push({ canvas, rec, width, height });
+      return { canvas: canvas as unknown as CanvasImageSource, ctx };
+    },
+  };
 }

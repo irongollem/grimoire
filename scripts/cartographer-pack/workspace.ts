@@ -97,27 +97,56 @@ function stairRotation(side: string | undefined): number {
   }
 }
 
+/** Mirror of `squashesOntoBand` in src/cartographer/normalizeGeneratedTile.ts,
+ *  which cannot be imported here (it pulls the `@/` alias and browser APIs). */
+function squashesOntoBand(category: PackCategory, footprint: GenerationJob["mechanics"]["footprint"]): boolean {
+  if (category === "doorLeaf" || category === "curbH" || category === "curbV") return false;
+  return footprint === "centered-horizontal-edge" || footprint === "centered-vertical-edge";
+}
+
+interface Rect { x: number; y: number; w: number; h: number }
+
+/** Footprint of a horizontal edge slot in a `size` square. A doorway, grate and
+ *  sluice are the wall band with a centred gap half the cell wide (the opening
+ *  spans 0.25..0.75, matching DEFAULT_DOOR_LEAF); the leaf is the slab that
+ *  fills that opening; a curb is a thinner ledge than a wall. */
+function edgeRects(category: PackCategory, size: number, band: number): Rect[] {
+  const offset = Math.round((size - band) / 2);
+  const gapStart = Math.round(size * 0.25);
+  const gapEnd = Math.round(size * 0.75);
+  switch (category) {
+    case "doorwayH": case "doorwayV":
+    case "edgeGrateH": case "edgeGrateV":
+    case "edgeSluiceH": case "edgeSluiceV":
+      return [
+        { x: 0, y: offset, w: gapStart, h: band },
+        { x: gapEnd, y: offset, w: size - gapEnd, h: band },
+      ];
+    case "doorLeaf":
+      return [{ x: gapStart, y: offset, w: gapEnd - gapStart, h: band }];
+    case "curbH": case "curbV": {
+      const thin = Math.round(size * 0.14);
+      return [{ x: 0, y: Math.round((size - thin) / 2), w: size, h: thin }];
+    }
+    default:
+      return [{ x: 0, y: offset, w: size, h: band }];
+  }
+}
+
 function templateSvg(job: GenerationJob): string {
   const size = 1024;
   const band = Math.round(size * WALL_BAND_RATIO);
-  const offset = Math.round((size - band) / 2);
   let footprint = `<rect width="${size}" height="${size}" fill="#d8dee9"/>`;
-  if (job.mechanics.footprint === "centered-horizontal-edge") {
-    if (job.slot.category === "doorOpenH") {
-      const gap = Math.round(size * 0.28);
-      const leaf = Math.round((size - gap) / 2);
-      footprint = `<rect y="${offset}" width="${leaf}" height="${band}" fill="#586577"/><rect x="${leaf + gap}" y="${offset}" width="${leaf}" height="${band}" fill="#586577"/>`;
-    } else {
-      footprint = `<rect y="${offset}" width="${size}" height="${band}" fill="#586577"/>`;
-    }
-  } else if (job.mechanics.footprint === "centered-vertical-edge") {
-    if (job.slot.category === "doorOpenV") {
-      const gap = Math.round(size * 0.28);
-      const leaf = Math.round((size - gap) / 2);
-      footprint = `<rect x="${offset}" width="${band}" height="${leaf}" fill="#586577"/><rect x="${offset}" y="${leaf + gap}" width="${band}" height="${leaf}" fill="#586577"/>`;
-    } else {
-      footprint = `<rect x="${offset}" width="${band}" height="${size}" fill="#586577"/>`;
-    }
+  if (job.mechanics.footprint === "centered-horizontal-edge" || job.mechanics.footprint === "centered-vertical-edge") {
+    // Drawn as the horizontal shape and transposed for a vertical edge, so the
+    // two orientations cannot drift apart.
+    const vertical = job.mechanics.footprint === "centered-vertical-edge";
+    footprint = edgeRects(job.slot.category, size, band)
+      .map((r) => {
+        const [x, y, w, h] = vertical ? [r.y, r.x, r.h, r.w] : [r.x, r.y, r.w, r.h];
+        return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#586577"/>`;
+      })
+      .join("");
   } else if (job.mechanics.footprint === "rounded-junction") {
     const corner = interiorCorner(job.slot.side, size);
     footprint = `<rect width="${size}" height="${size}" fill="#586577"/><circle cx="${corner.x}" cy="${corner.y}" r="${Math.round(size * 0.65)}" fill="#fff"/>`;
@@ -262,14 +291,17 @@ async function normalizeTransparent(source: string, destination: string, job: Ge
   const roundedJunction = job.mechanics.footprint === "rounded-junction";
   const band = WALL_BAND_PX;
   let artwork: Buffer;
+  // Mirrors the app's normaliser: a doorway, grate and sluice squash onto the
+  // wall band; a door leaf and a curb keep their own shape and thickness.
+  const squash = squashesOntoBand(job.slot.category, job.mechanics.footprint);
 
-  if (metadata.hasAlpha && (horizontal || vertical)) {
+  if (metadata.hasAlpha && squash) {
     const trimmed = sharp(source).trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } });
     artwork = await trimmed
       .resize(horizontal ? BASE_TILE_SIZE : band, horizontal ? band : BASE_TILE_SIZE, { fit: "contain", background: TRANSPARENT })
       .png()
       .toBuffer();
-  } else if (horizontal || vertical) {
+  } else if (squash) {
     const square = await sharp(source).resize(BASE_TILE_SIZE, BASE_TILE_SIZE, { fit: "cover", position: "centre" }).png().toBuffer();
     artwork = await sharp(square)
       .extract(horizontal
@@ -277,7 +309,8 @@ async function normalizeTransparent(source: string, destination: string, job: Ge
         : { left: Math.floor((BASE_TILE_SIZE - band) / 2), top: 0, width: band, height: BASE_TILE_SIZE })
       .png()
       .toBuffer();
-  } else if (roundedJunction) {
+  } else if (roundedJunction || horizontal || vertical) {
+    // Rounded junctions and the un-squashed edge slots (leaf, curb) fill the cell.
     artwork = await sharp(source)
       .resize(BASE_TILE_SIZE, BASE_TILE_SIZE, { fit: "cover", position: "centre" })
       .png()
@@ -294,15 +327,7 @@ async function normalizeTransparent(source: string, destination: string, job: Ge
   const left = Math.round((BASE_TILE_SIZE - (artMeta.width ?? BASE_TILE_SIZE)) / 2);
   const top = Math.round((BASE_TILE_SIZE - (artMeta.height ?? BASE_TILE_SIZE)) / 2);
   const composites: OverlayOptions[] = [{ input: artwork, left, top }];
-  if (job.slot.category === "doorOpenH" || job.slot.category === "doorOpenV") {
-    const gap = Math.round(BASE_TILE_SIZE * 0.28);
-    const horizontalGap = job.slot.category === "doorOpenH";
-    const clearingMask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${BASE_TILE_SIZE}" height="${BASE_TILE_SIZE}">
-      <rect x="${horizontalGap ? Math.round((BASE_TILE_SIZE - gap) / 2) : 0}" y="${horizontalGap ? 0 : Math.round((BASE_TILE_SIZE - gap) / 2)}"
-        width="${horizontalGap ? gap : BASE_TILE_SIZE}" height="${horizontalGap ? BASE_TILE_SIZE : gap}" fill="#fff"/>
-    </svg>`);
-    composites.push({ input: clearingMask, blend: "dest-out" });
-  } else if (roundedJunction) {
+  if (roundedJunction) {
     const corner = interiorCorner(job.slot.side, BASE_TILE_SIZE);
     const clearingMask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${BASE_TILE_SIZE}" height="${BASE_TILE_SIZE}">
       <circle cx="${corner.x}" cy="${corner.y}" r="${Math.round(BASE_TILE_SIZE * 0.65)}" fill="#fff"/>

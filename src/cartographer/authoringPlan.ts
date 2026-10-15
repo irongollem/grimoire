@@ -136,7 +136,8 @@ export interface CreatePlanInput {
 }
 
 const EDGE_CATEGORIES = new Set<PackCategory>([
-  "wallSegmentH", "wallSegmentV", "doorClosedH", "doorClosedV", "doorOpenH", "doorOpenV",
+  "wallSegmentH", "wallSegmentV", "doorwayH", "doorwayV",
+  "curbH", "curbV", "edgeGrateH", "edgeGrateV", "edgeSluiceH", "edgeSluiceV",
 ]);
 const OVERLAY_CATEGORIES = new Set<PackCategory>([
   "rubble", "debris", "objectChest", "objectBarrel", "objectTable",
@@ -149,6 +150,8 @@ const OVERLAY_CATEGORIES = new Set<PackCategory>([
   "featureSecretDoor", "featureHiddenPassage", "featureCache", "featureMovingWall",
   "featureLever", "featureAltar", "featureFountain", "featureStatue",
   "featureRubble", "featureInscription", "featureGeneric",
+  // #1065 — a curb post and a wall decal are small centred stamps too.
+  "curbPost", "wallDecal",
 ]);
 
 /**
@@ -177,12 +180,21 @@ export const ROTATION_DERIVED: Readonly<Record<string, { readonly from: string; 
   "wallSegmentV:3": { from: "wallSegmentH:3", degrees: 90 },
   "wallSegmentV:4": { from: "wallSegmentH:4", degrees: 90 },
   "wallSegmentV:5": { from: "wallSegmentH:5", degrees: 90 },
-  "doorClosedV:0": { from: "doorClosedH:0", degrees: 90 },
-  "doorClosedV:1": { from: "doorClosedH:1", degrees: 90 },
-  "doorClosedV:2": { from: "doorClosedH:2", degrees: 90 },
-  "doorOpenV:0": { from: "doorOpenH:0", degrees: 90 },
-  "doorOpenV:1": { from: "doorOpenH:1", degrees: 90 },
-  "doorOpenV:2": { from: "doorOpenH:2", degrees: 90 },
+  "doorwayV:0": { from: "doorwayH:0", degrees: 90 },
+  "doorwayV:1": { from: "doorwayH:1", degrees: 90 },
+  "doorwayV:2": { from: "doorwayH:2", degrees: 90 },
+  "curbV:0": { from: "curbH:0", degrees: 90 },
+  "curbV:1": { from: "curbH:1", degrees: 90 },
+  "curbV:2": { from: "curbH:2", degrees: 90 },
+  "curbV:3": { from: "curbH:3", degrees: 90 },
+  "curbV:4": { from: "curbH:4", degrees: 90 },
+  "curbV:5": { from: "curbH:5", degrees: 90 },
+  "edgeGrateV:0": { from: "edgeGrateH:0", degrees: 90 },
+  "edgeGrateV:1": { from: "edgeGrateH:1", degrees: 90 },
+  "edgeGrateV:2": { from: "edgeGrateH:2", degrees: 90 },
+  "edgeSluiceV:0": { from: "edgeSluiceH:0", degrees: 90 },
+  "edgeSluiceV:1": { from: "edgeSluiceH:1", degrees: 90 },
+  "edgeSluiceV:2": { from: "edgeSluiceH:2", degrees: 90 },
   // Stairs and round joints rotate about the cell centre from their N / L_NE
   // original. The joint order follows `clearRoundedInterior`'s carve corners:
   // bottom-left turns to top-left, then top-right, then bottom-right.
@@ -248,17 +260,22 @@ export function slotRelativePath(slot: SlotIdentity): string {
 
 export function slotMechanics(slot: SlotIdentity): SlotMechanics {
   let footprint: SlotFootprint = "full-cell";
-  if (slot.category.endsWith("H") && EDGE_CATEGORIES.has(slot.category)) footprint = "centered-horizontal-edge";
+  // The door leaf is not named like an edge category (no H/V) but is one: it is
+  // the closed leaf lying along the band exactly where it sits in a doorwayH.
+  if (slot.category === "doorLeaf") footprint = "centered-horizontal-edge";
+  else if (slot.category.endsWith("H") && EDGE_CATEGORIES.has(slot.category)) footprint = "centered-horizontal-edge";
   else if (slot.category.endsWith("V") && EDGE_CATEGORIES.has(slot.category)) footprint = "centered-vertical-edge";
   else if (slot.category === "wallRoundJoint") footprint = "rounded-junction";
   else if (OVERLAY_CATEGORIES.has(slot.category)) footprint = "centered-overlay";
 
-  const alpha = EDGE_CATEGORIES.has(slot.category) || slot.category === "wallRoundJoint" || OVERLAY_CATEGORIES.has(slot.category)
+  const alpha = EDGE_CATEGORIES.has(slot.category) || slot.category === "doorLeaf" || slot.category === "wallRoundJoint" || OVERLAY_CATEGORIES.has(slot.category)
     ? "transparent-outside-footprint"
     : "opaque";
-  const tileableEdges = slot.category === "wallJoint" || slot.category === "wallRoundJoint"
+  const tileableEdges = slot.category === "doorLeaf"
+    ? ([] as const) // a leaf spans only the opening; it joins nothing
+    : slot.category === "wallJoint" || slot.category === "wallRoundJoint"
     ? jointEdges(slot.side)
-    : slot.category === "floor" || slot.category === "solidBlock"
+    : slot.category === "floor" || slot.category === "solidBlock" || slot.category === "terrainWater"
     ? (["N", "E", "S", "W"] as const)
     : footprint === "centered-horizontal-edge"
       ? (["E", "W"] as const)
@@ -335,24 +352,34 @@ function categoryRequest(slot: SlotIdentity, mechanics: SlotMechanics): string {
       // the most repeated tile on a map, so a door baked into it appears in
       // every wall run in the dungeon.
       return `A straight unbroken wall running through the exact canvas centre on the ${mechanics.footprint === "centered-horizontal-edge" ? "horizontal" : "vertical"} axis. Wall only, along its whole length: no door, no gate, no archway, no window, no opening or break of any kind — those are separate tiles. ${variation}`;
-    case "doorClosedH":
-    case "doorClosedV":
-      // Every other category restates the viewpoint in this line; the doors
-      // were the only ones that did not, and they are the category with the
-      // strongest prior pulling the other way — "a closed door", unqualified,
-      // means a front-facing door to any image model. The convention was in
-      // the shared rendering notes and the constraints, and it lost to the
-      // subject line, which is what generated door FACES: panelled, handled,
-      // an elevation laid into a wall.
-      return `Seen from DIRECTLY ABOVE, looking down on the top edge of a single closed door. Its face is not visible — from this angle a door is a narrow slab filling the gap in the wall, showing only the end grain of its boards, its hinges at one side and a handle projecting from the other. ONE leaf, never a pair. It sits inside the wall's opening with the frame's rebate visible on either side of it.`;
-    case "doorOpenH":
-    case "doorOpenV":
-      // This line used to ask for "an unmistakably open DOORWAY ... keeping the
-      // crossing visibly clear". A doorway is an opening, so the prompt was
-      // literally requesting a hole — and every generation duly minimised the
-      // leaf into a threshold lip or omitted it. The failure was compliance,
-      // not misunderstanding. What is wanted is a DOOR, standing open.
-      return `Seen from DIRECTLY ABOVE, looking down on a single door STANDING OPEN. The door itself is the subject: one leaf, swung back on its hinges so it juts out from the wall into the space beside it, seen as a narrow slab showing the end grain of its boards. Its face is not visible from this angle. ONE leaf, never a pair. The gap it has left in the wall is empty, with nothing drawn across it.`;
+    case "doorwayH":
+    case "doorwayV":
+      // The opening alone. The old door prompts asked for a door and the model
+      // drew one; the leaf is now its own tile drawn over this, so a door here
+      // would show twice (and never swing).
+      return `Seen from DIRECTLY ABOVE, looking down on the opening in a wall and its door frame and threshold. The opening is EMPTY: no door, no gate, no leaf, nothing drawn across it. The frame posts sit at each side of an opening half the cell wide, with the wall band continuing on either side. ${variation}`;
+    case "doorLeaf":
+      // Every earlier door prompt failed the same way: an unqualified "door"
+      // means a front-facing elevation to an image model, so the viewpoint and
+      // the end-grain are spelled out. This tile is composited over a doorwayH
+      // and turned on its hinge, so it must be ONLY the leaf, at the exact
+      // position it occupies when shut.
+      return `Seen from DIRECTLY ABOVE, looking down on ONE closed door leaf, a narrow slab lying exactly in the opening of a wall, spanning it from hinge to latch. Its face is not visible from this angle: only its end grain, with the hinges at its left end. ONE leaf, never a pair. Nothing else: no wall, no frame, no floor. ${variation}`;
+    case "curbH":
+    case "curbV":
+      return `A low continuous ledge seen from DIRECTLY ABOVE: the edge of a walkway where it drops to water or a lower level. Thinner than a wall, running the full length of the tile with its ends matching so it repeats without a seam. ${variation}`;
+    case "curbPost":
+      return `A squat stone post seen from DIRECTLY ABOVE, the kind set where a curb meets a wall or turns a corner. One post only, centred, nothing around it. ${variation}`;
+    case "terrainWater":
+      return `A continuous seamless liquid surface seen from DIRECTLY ABOVE, the pack's own water: no banks, no edges, no shoreline, no grid, no borders. It tiles on all four edges. ${variation}`;
+    case "edgeGrateH":
+    case "edgeGrateV":
+      return `Seen from DIRECTLY ABOVE, a set of iron bars across an opening in the wall band, where water or a passage runs through. The wall continues on both sides of the bars. ${variation}`;
+    case "edgeSluiceH":
+    case "edgeSluiceV":
+      return `Seen from DIRECTLY ABOVE, a gate set in the wall band, with its frame and winch. The wall continues on both sides of the gate. ${variation}`;
+    case "wallDecal":
+      return `A small detail set INTO a wall, seen from DIRECTLY ABOVE: a pipe mouth, a hole or a carving. No wall around it, centred in the tile. ${variation}`;
     case "stairsUp":
     case "stairsDown":
       return `A top-down ${slot.category === "stairsUp" ? "ascending" : "descending"} stair tile oriented toward ${slot.side}.`;
@@ -457,14 +484,16 @@ function categoryRequest(slot: SlotIdentity, mechanics: SlotMechanics): string {
   }
 }
 
-function mechanicalConstraints(mechanics: SlotMechanics): string[] {
+function mechanicalConstraints(mechanics: SlotMechanics, slot: SlotIdentity): string[] {
   const constraints = [
     "exact orthographic top-down view",
     "one tile asset only; no sprite sheet, grid, text, characters, or watermark",
     "even readable lighting with no cast shadow beyond the tile contract",
     "preserve clear shapes when reduced to 128×128",
   ];
-  if (mechanics.footprint === "centered-horizontal-edge") {
+  if (slot.category === "doorLeaf") {
+    constraints.push("the leaf lies on the exact vertical centre line, spanning x 25% to 75% of the canvas, hinged at its left end; everything outside it is transparent");
+  } else if (mechanics.footprint === "centered-horizontal-edge") {
     constraints.push("structure runs left-to-right in a narrow band through the exact vertical centre and terminates cleanly at both side edges");
   } else if (mechanics.footprint === "centered-vertical-edge") {
     constraints.push("structure runs top-to-bottom in a narrow band through the exact horizontal centre and terminates cleanly at both end edges");
@@ -515,7 +544,7 @@ const VIEWPOINT = "Seen from directly above, in plan, as on a battle map.";
 function buildPrompt(slot: SlotIdentity, artBible: PackArtBible, mechanics: SlotMechanics): PromptSpec {
   const theme = sharedTheme(artBible);
   const request = `${VIEWPOINT} ${categoryRequest(slot, mechanics)}`;
-  const constraints = mechanicalConstraints(mechanics);
+  const constraints = mechanicalConstraints(mechanics, slot);
   return {
     use_case: "stylized-concept",
     asset_type: `Cartographer VTT tile — ${slot.category}`,

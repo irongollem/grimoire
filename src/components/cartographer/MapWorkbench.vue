@@ -200,7 +200,11 @@
           :pack-validation-missing="packRuntime?.validation.missing.length ?? 0"
           :active-tool="activeTool"
           :active-object-category="activeObjectCategory"
-          :object-categories="OBJECT_CATEGORIES"
+          :object-categories="STAMP_CATEGORIES"
+          :manifest="packRuntime?.manifest ?? null"
+          :active-wall-kind="activeWallKind"
+          :active-wall-decal="activeWallDecal"
+          :wall-decal-count="packRuntime?.variantCount('wallDecal') ?? 0"
           :stamp-rotation="stampRotation"
           :dressing-brush-id="dressingBrushId"
           :dressing-rotation="dressingRotation"
@@ -226,7 +230,9 @@
           @update:name="name = $event"
           @update:campaign-id="campaignId = $event"
           @update:current-pack-id="currentPackId = $event"
-          @update:active-object-category="activeObjectCategory = $event as ObjectCategory"
+          @update:active-object-category="activeObjectCategory = $event"
+          @update:active-wall-kind="activeWallKind = $event"
+          @update:active-wall-decal="activeWallDecal = $event"
           @update:stamp-rotation="stampRotation = $event"
           @update:dressing-brush-id="dressingBrushId = $event"
           @update:dressing-rotation="dressingRotation = $event"
@@ -322,6 +328,7 @@ import { computed, onMounted, ref, watch, type Component } from "vue";
 import {
   IconSelect,
   IconBrush,
+  IconWater,
   IconEraser,
   IconHand,
   IconCenter,
@@ -376,8 +383,10 @@ import {
   type DungeonMap,
   type DungeonMapLayers,
   type CellMetadata,
+  type EdgeSegType,
 } from "@/types/dungeonMap.types";
-import { OBJECT_CATEGORIES, type ObjectCategory } from "@/cartographer/packSchema";
+import { STAMP_CATEGORIES, type StampCategory } from "@/cartographer/stampCategories";
+import type { WallKind } from "@/cartographer/wallKinds";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { resolveCellGlyphs } from "@/cartographer/glyphs";
@@ -515,6 +524,7 @@ const activeTool = ref<Tool>("select");
 const TOOLS: ToolDef[] = [
   { id: "select",   label: "Select",        icon: IconSelect,       group: "view" },
   { id: "floor",    label: "Floor brush",   icon: IconBrush,        shortcut: "b" },
+  { id: "terrain",  label: "Water",         icon: IconWater,        shortcut: "h" },
   { id: "eraser",   label: "Eraser",        icon: IconEraser,       shortcut: "e" },
   { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w" },
   { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d" },
@@ -536,8 +546,13 @@ const TOOLS: ToolDef[] = [
 ];
 
 // M4 — Object stamp tool state
-const activeObjectCategory = ref<ObjectCategory>("objectChest");
+const activeObjectCategory = ref<StampCategory>("objectChest");
 const stampRotation = ref(0); // degrees; M6 free rotation (any integer 0–359)
+
+// Wall tool state (tile packs v4): which kind of edge it paints, and which
+// `wallDecal` variant the Decal kind sets on an existing wall.
+const activeWallKind = ref<WallKind>("wall");
+const activeWallDecal = ref(0);
 
 // Dressing tool state (epic #1062): the prop armed in the panel, the rotation a
 // new one gets, and the placed prop that is selected.
@@ -712,8 +727,11 @@ const selectedCellEdges = computed(() => {
   if (!selectedCell.value) return [];
   const [x, y] = selectedCell.value;
   return (["N", "E", "S", "W"] as const)
-    .map((side) => ({ side, kind: edgeSegAt(x, y, side)?.type }))
-    .filter((e): e is { side: "N" | "E" | "S" | "W"; kind: "wall" | "doorClosed" | "doorOpen" } => !!e.kind);
+    .map((side) => {
+      const seg = edgeSegAt(x, y, side);
+      return { side, kind: seg?.type, decal: seg?.decal };
+    })
+    .filter((e): e is { side: "N" | "E" | "S" | "W"; kind: EdgeSegType; decal: number | undefined } => !!e.kind);
 });
 
 const selectedCellObjectCategory = computed(() => {
@@ -753,7 +771,7 @@ const activeToolLabel = computed(() => TOOLS.find((t) => t.id === activeTool.val
 // toolPointerDown/Move/Up. Select/Pan/Fill/Wrap/Annotate/Link/Eraser/Space
 // have nothing to invert, so they're deliberately absent here.
 const INVERTIBLE_TOOLS = new Set<Tool>([
-  "floor", "cave", "solid", "wall", "stamp", "dressing", "door", "rect", "line", "template",
+  "floor", "terrain", "cave", "solid", "wall", "stamp", "dressing", "door", "rect", "line", "template",
 ]);
 
 /** The canvas pill's text: the Drawing tool (with " · erase" appended while
@@ -885,7 +903,7 @@ const {
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
-  activeObjectCategory, stampRotation, activeTemplateShape, caveRadius,
+  activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape, caveRadius,
   selectedCell, inspectorPanelRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],

@@ -7,7 +7,14 @@
 // building the `MapRenderScene`.
 
 import type { PackCategory } from "@/cartographer/packSchema";
-import { drawMapContent } from "@/cartographer/drawMap";
+import {
+  drawMapContent,
+  offscreenMakeCanvas,
+  renderShadowLayer,
+  type DrawMapInput,
+  type MakeCanvas,
+  type ShadowLayer,
+} from "@/cartographer/drawMap";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { cellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
 import type { CellEdge } from "@/cartographer/edges";
@@ -78,6 +85,16 @@ export interface MapRenderScene {
   dressingGhost?: { placement: DressingPlacement; alpha: number } | null;
   /** The selected placement, outlined. */
   selectedDressingId?: string | null;
+  /**
+   * Bumps on every edit of `layers` (the editor's `editRevision`). The editor
+   * paints INTO the same `layers` object, so its identity cannot tell the
+   * shadow cache that the map changed; this can. Absent means the caller cannot
+   * say, and the shadows are then rebuilt every frame rather than risk showing
+   * a stale one.
+   */
+  layersRevision?: number;
+  /** Canvas factory for the shadow layers; defaults to OffscreenCanvas where it exists. Tests pass a fake. */
+  makeCanvas?: MakeCanvas;
 }
 
 export interface MapRenderReferenceImage {
@@ -92,7 +109,66 @@ export interface MapRenderReferenceImage {
   opacity: number;
 }
 
-// ── Geometry helpers ───────────────────────────────────────────────────────
+// ── Shadow cache ───────────────────────────────────────────────────────────
+// Shadows are blurred silhouettes of the whole window, and this function runs
+// on every hover and mouse move, so they are rendered once and reused. The key
+// is everything the layer's pixels depend on and nothing the interaction state
+// touches: hover, selection and previews are not in it.
+
+interface ShadowKey {
+  layers: DungeonMapLayers;
+  revision: number;
+  dressing: DressingCatalog;
+  runtimes: TilePackRuntime[];
+  fallback: TilePackRuntime | null;
+  currentPackId: string;
+  tilePx: number;
+  bounds: MapRenderScene["bounds"];
+  offsetX: number;
+  offsetY: number;
+}
+
+let shadowCache: { key: ShadowKey; layer: ShadowLayer | null } | null = null;
+
+function sameShadowKey(a: ShadowKey, b: ShadowKey): boolean {
+  return (
+    a.layers === b.layers &&
+    a.revision === b.revision &&
+    a.dressing === b.dressing &&
+    a.fallback === b.fallback &&
+    a.currentPackId === b.currentPackId &&
+    a.tilePx === b.tilePx &&
+    a.offsetX === b.offsetX &&
+    a.offsetY === b.offsetY &&
+    a.bounds.minX === b.bounds.minX &&
+    a.bounds.minY === b.bounds.minY &&
+    a.bounds.maxX === b.bounds.maxX &&
+    a.bounds.maxY === b.bounds.maxY &&
+    a.runtimes.length === b.runtimes.length &&
+    a.runtimes.every((r, i) => r === b.runtimes[i])
+  );
+}
+
+function cachedShadowLayer(scene: MapRenderScene, input: DrawMapInput): ShadowLayer | null {
+  if (!input.makeCanvas) return null;
+  if (scene.layersRevision === undefined) return renderShadowLayer(input);
+  const key: ShadowKey = {
+    layers: scene.layers,
+    revision: scene.layersRevision,
+    dressing: scene.dressing,
+    runtimes: [...scene.runtimes.values()],
+    fallback: scene.fallbackRuntime,
+    currentPackId: scene.currentPackId,
+    tilePx: scene.tilePx,
+    bounds: scene.bounds,
+    offsetX: scene.viewportOffset.x,
+    offsetY: scene.viewportOffset.y,
+  };
+  if (shadowCache && sameShadowKey(shadowCache.key, key)) return shadowCache.layer;
+  const layer = renderShadowLayer(input);
+  shadowCache = { key, layer };
+  return layer;
+}
 
 // ── Canvas rendering ───────────────────────────────────────────────────────
 
@@ -145,7 +221,7 @@ export function renderMap(scene: MapRenderScene): void {
   const rt = (pid: string): TilePackRuntime | null =>
     runtimes.size > 0 ? (runtimes.get(pid) ?? fallbackRuntime ?? null) : null;
 
-  drawMapContent({
+  const content: DrawMapInput = {
     ctx,
     tilePx,
     origin: viewportOffset,
@@ -156,6 +232,7 @@ export function renderMap(scene: MapRenderScene): void {
     glyphs,
     glyphPackId: currentPackId,
     dressing,
+    makeCanvas: scene.makeCanvas ?? offscreenMakeCanvas(),
     afterGround: () => {
       // Grid overlay
       ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
@@ -220,7 +297,9 @@ export function renderMap(scene: MapRenderScene): void {
         }
       }
     },
-  });
+  };
+  // Shadows come from the cache; a null layer (no OffscreenCanvas) draws none.
+  drawMapContent({ ...content, shadows: true, shadowLayer: cachedShadowLayer(scene, content) });
 
   // Annotation layer — text labels centered in each cell
   ctx.textAlign = "center";

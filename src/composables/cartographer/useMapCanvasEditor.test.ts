@@ -25,7 +25,9 @@ import {
   type DungeonMapLayers,
 } from "@/types/dungeonMap.types";
 import type { Tool } from "@/cartographer/tools";
-import type { ObjectCategory, PackCategory } from "@/cartographer/packSchema";
+import type { PackCategory } from "@/cartographer/packSchema";
+import type { StampCategory } from "@/cartographer/stampCategories";
+import type { WallKind } from "@/cartographer/wallKinds";
 import { BASE_TILE_SIZE } from "@/cartographer/packSchema";
 import type { DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
@@ -185,6 +187,10 @@ interface Harness {
   dressingBrushId: Ref<string | null>;
   dressingRotation: Ref<number>;
   selectedDressingId: Ref<string | null>;
+  activeObjectCategory: Ref<StampCategory>;
+  stampRotation: Ref<number>;
+  activeWallKind: Ref<WallKind>;
+  activeWallDecal: Ref<number>;
   getReferenceImage: ReturnType<typeof vi.fn<(tilePx: number, offset: { x: number; y: number }) => MapRenderReferenceImage | null>>;
 }
 
@@ -202,6 +208,10 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
   const dressingBrushId = ref<string | null>(null);
   const dressingRotation = ref(0);
   const selectedDressingId = ref<string | null>(null);
+  const activeObjectCategory = ref<StampCategory>("objectChest");
+  const stampRotation = ref(0);
+  const activeWallKind = ref<WallKind>("wall");
+  const activeWallDecal = ref(0);
 
   const opts: MapCanvasEditorOptions = {
     canvasEl,
@@ -224,8 +234,10 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
       { id: "wall", shortcut: "w" },
     ],
     viewMode: () => false,
-    activeObjectCategory: ref<ObjectCategory>("objectChest"),
-    stampRotation: ref(0),
+    activeObjectCategory,
+    stampRotation,
+    activeWallKind,
+    activeWallDecal,
     activeTemplateShape: ref("circle"),
     caveRadius: ref(2),
     selectedCell: ref(null),
@@ -241,6 +253,7 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
   return {
     layers, dirty, editRevision, activeTool, canvasEl, editor, getReferenceImage,
     dressingBrushId, dressingRotation, selectedDressingId,
+    activeObjectCategory, stampRotation, activeWallKind, activeWallDecal,
   };
 }
 
@@ -483,6 +496,126 @@ describe("stroke painting", () => {
     expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
     expect(layers.value.floor["2,0" as CellKey]).toBeUndefined();
     expect(editor.canUndo.value).toBe(false);
+  });
+});
+
+describe("terrain tool", () => {
+  it("a drag paints water and its floor, and collapses into ONE undo command", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "terrain";
+    editor.onPointerDown(down(10, 10)); // (0,0)
+    editor.onPointerMove(move(138, 10)); // (1,0)
+    editor.onPointerUp(up(138, 10));
+
+    for (const k of ["0,0", "1,0"] as CellKey[]) {
+      expect(layers.value.terrain[k]).toMatchObject({ pack_id: "pack-1" });
+      expect(layers.value.floor[k]?.floor).toBeDefined();
+    }
+    expect(layers.value.terrain["0,0" as CellKey]?.variant).toBe(
+      pickVariant("map-test", "terrain", 0, 0, 6),
+    );
+
+    editor.undoEdit();
+    expect(layers.value.terrain["0,0" as CellKey]).toBeUndefined();
+    expect(layers.value.terrain["1,0" as CellKey]).toBeUndefined();
+    expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("Alt erases the water and keeps the floor", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "terrain";
+    clickCell(editor, 10, 10);
+    editor.onPointerDown(down(10, 10, { altKey: true }));
+    editor.onPointerUp(up(10, 10, { altKey: true }));
+    expect(layers.value.terrain["0,0" as CellKey]).toBeUndefined();
+    expect(layers.value.floor["0,0" as CellKey]?.floor).toBeDefined();
+  });
+
+  it("the eraser takes the water before the floor", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "terrain";
+    clickCell(editor, 10, 10);
+    activeTool.value = "eraser";
+    clickCell(editor, 10, 10);
+    expect(layers.value.terrain["0,0" as CellKey]).toBeUndefined();
+    expect(layers.value.floor["0,0" as CellKey]?.floor).toBeDefined();
+    clickCell(editor, 10, 10);
+    expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
+  });
+});
+
+describe("wall kinds", () => {
+  function hoverTopEdge(editor: Harness["editor"]): void {
+    editor.onPointerMove(move(64, 10)); // the N edge of (0,0)
+  }
+
+  it.each([
+    ["wall", "wallSegmentH"],
+    ["grate", "edgeGrateH"],
+    ["sluice", "edgeSluiceH"],
+  ] as const)("paints a %s edge with variants from %s", (kind, category) => {
+    const { editor, layers, activeTool, activeWallKind } = makeHarness();
+    activeTool.value = "wall";
+    activeWallKind.value = kind;
+    hoverTopEdge(editor);
+    clickCell(editor, 64, 10);
+    const seg = layers.value.floor["0,0" as CellKey]?.wallN;
+    expect(seg?.type).toBe(kind);
+    expect(seg?.variant).toBe(pickVariant("map-test", category, 0, 0, 6));
+  });
+
+  it("Alt with a painted kind erases the edge", () => {
+    const { editor, layers, activeTool, activeWallKind } = makeHarness();
+    activeTool.value = "wall";
+    activeWallKind.value = "grate";
+    hoverTopEdge(editor);
+    clickCell(editor, 64, 10);
+    editor.onPointerDown(down(64, 10, { altKey: true }));
+    editor.onPointerUp(up(64, 10, { altKey: true }));
+    expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
+  });
+
+  it("Decal sets the chosen decal on an existing wall, and Alt removes it", () => {
+    const { editor, layers, activeTool, activeWallKind, activeWallDecal } = makeHarness();
+    activeTool.value = "wall";
+    hoverTopEdge(editor);
+    clickCell(editor, 64, 10);
+    activeWallKind.value = "decal";
+    activeWallDecal.value = 2;
+    clickCell(editor, 64, 10);
+    expect(layers.value.floor["0,0" as CellKey]?.wallN).toMatchObject({ type: "wall", decal: 2 });
+
+    editor.onPointerDown(down(64, 10, { altKey: true }));
+    editor.onPointerUp(up(64, 10, { altKey: true }));
+    const wall = layers.value.floor["0,0" as CellKey]?.wallN;
+    expect(wall?.type).toBe("wall");
+    expect(wall?.decal).toBeUndefined();
+  });
+
+  it("Decal on an empty edge paints nothing and pushes no command", () => {
+    const { editor, layers, activeTool, activeWallKind } = makeHarness();
+    activeTool.value = "wall";
+    activeWallKind.value = "decal";
+    hoverTopEdge(editor);
+    clickCell(editor, 64, 10);
+    expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
+    expect(editor.canUndo.value).toBe(false);
+  });
+});
+
+describe("stamp categories", () => {
+  it("a stairsUp stamp writes an object cell with that category and the stamp rotation", () => {
+    const { editor, layers, activeTool, activeObjectCategory, stampRotation } = makeHarness();
+    activeTool.value = "stamp";
+    activeObjectCategory.value = "stairsUp";
+    stampRotation.value = 90;
+    clickCell(editor, 10, 10);
+    expect(layers.value.object["0,0" as CellKey]).toMatchObject({
+      category: "stairsUp",
+      rotation: 90,
+      variant: pickVariant("map-test", "stairsUp", 0, 0, 6),
+    });
   });
 });
 
@@ -991,8 +1124,10 @@ describe("altHeld", () => {
           activeTool: ref<Tool>("floor"),
           tools: [{ id: "floor", shortcut: "f" }],
           viewMode: () => false,
-          activeObjectCategory: ref<ObjectCategory>("objectChest"),
+          activeObjectCategory: ref<StampCategory>("objectChest"),
           stampRotation: ref(0),
+          activeWallKind: ref<WallKind>("wall"),
+          activeWallDecal: ref(0),
           activeTemplateShape: ref("circle"),
           caveRadius: ref(2),
           selectedCell: ref(null),

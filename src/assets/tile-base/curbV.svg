@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- CURB: a low stone ledge on the gridline, 14 percent of the cell thick (y 441..583),
+       thinner than a wall (25 percent) because it is a step, not a barrier. Same
+       coursed-stone logic as wallSegmentH at smaller scale. Shading is
+       symmetric across the thickness (light centre, dark at both edges) so the
+       vertical variant is this turned. -->
+  <g transform="rotate(90 512 512)">
+    <rect x="0" y="441" width="1024" height="142" fill="#6a6a6a"/>
+    <g stroke="#232323" stroke-width="10" stroke-opacity=".9" fill="none">
+      <path d="M150 441 V583 M420 441 V583 M690 441 V583 M940 441 V583"/>
+    </g>
+    <rect x="0" y="480" width="1024" height="64" fill="#ffffff" opacity=".12"/>
+    <rect x="0" y="441" width="1024" height="18" fill="#000000" opacity=".34"/>
+    <rect x="0" y="565" width="1024" height="18" fill="#000000" opacity=".34"/>
+  </g>
+</svg>

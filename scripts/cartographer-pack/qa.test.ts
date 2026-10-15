@@ -78,8 +78,8 @@ describe("minimum required pack loop", () => {
       now: "2026-08-25T00:00:00.000Z",
     });
 
-    const openDoorTemplate = state.plan.jobs.find((job) => job.id === "doorOpenH:0")!;
-    const template = await sharp(path.join(workspaceRoot, openDoorTemplate.paths.template)).raw().toBuffer({ resolveWithObject: true });
+    const doorwayTemplate = state.plan.jobs.find((job) => job.id === "doorwayH:0")!;
+    const template = await sharp(path.join(workspaceRoot, doorwayTemplate.paths.template)).raw().toBuffer({ resolveWithObject: true });
     const templatePixel = (x: number, y: number) => template.data[(y * template.info.width + x) * template.info.channels]!;
     expect(templatePixel(450, 430)).toBeGreaterThan(230);
     expect(templatePixel(100, 430)).toBeLessThan(150);
@@ -88,7 +88,10 @@ describe("minimum required pack loop", () => {
       const source = path.join(repoRoot, `source-${index}.png`);
       const hue = (index * 31) % 255;
       const color = `rgb(${hue},${(hue + 70) % 255},${(hue + 140) % 255})`;
-      const artwork = job.mechanics.footprint === "centered-horizontal-edge"
+      // A doorway must have an opening: the QA clears-gap check rejects a solid bar.
+      const artwork = job.slot.category === "doorwayH"
+        ? `<rect width="256" height="256" fill="#fff"/><rect y="105" width="256" height="46" fill="${color}"/><rect x="80" y="95" width="96" height="66" fill="#fff"/>`
+        : job.mechanics.footprint === "centered-horizontal-edge"
         ? `<rect width="256" height="256" fill="#fff"/><rect y="105" width="256" height="46" fill="${color}"/>`
         : job.mechanics.footprint === "centered-vertical-edge"
           ? `<rect width="256" height="256" fill="#fff"/><rect x="105" width="46" height="256" fill="${color}"/>`
@@ -187,12 +190,12 @@ describe("checks that were measured and then discarded", () => {
     const manifest = fixtureManifest({
       floor: [{ variant: 0, url: "floor/0.webp" }],
       solidBlock: [{ variant: 0, url: "solidBlock/0.webp" }],
-      doorClosedH: [{ variant: 0, url: "doorClosedH/0.webp" }],
+      doorwayH: [{ variant: 0, url: "doorwayH/0.webp" }],
     });
 
     const report = await generateQa({ repoRoot, workspaceRoot, manifest });
 
-    expect(report.assets.find((asset) => asset.category === "doorClosedH")).toMatchObject({
+    expect(report.assets.find((asset) => asset.category === "doorwayH")).toMatchObject({
       exists: false,
       issues: ["file is missing"],
     });

@@ -2,6 +2,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp, { type OverlayOptions } from "sharp";
 import { BASE_TILE_SIZE, type AssetSlot, type PackCategory, type TilePackManifest } from "../../src/cartographer/packSchema.ts";
+import { slotMechanics } from "../../src/cartographer/authoringPlan.ts";
 import { validatePack, type ValidationResult } from "../../src/cartographer/validatePack.ts";
 
 export interface AssetCheck {
@@ -40,9 +41,10 @@ function slotPath(packRoot: string, slot: AssetSlot): string {
   return path.join(packRoot, slot.url);
 }
 
+/** Derived from the schema's own mechanics so a new transparent category
+ *  (a curb, a grate, a decal) is checked without anyone remembering to list it. */
 function needsTransparency(category: PackCategory): boolean {
-  return category === "wallSegmentH" || category === "wallSegmentV" || category === "wallRoundJoint" ||
-    category.startsWith("door") || category === "rubble" || category === "debris" || category.startsWith("object");
+  return slotMechanics({ category, variant: 0 }).alpha === "transparent-outside-footprint";
 }
 
 async function edgeDelta(file: string): Promise<number> {
@@ -130,9 +132,9 @@ async function checkAsset(packRoot: string, category: PackCategory, slot: AssetS
     if (needsTransparency(category) && await lightBoundaryRatio(file) > 0.02) {
       check.issues.push("opaque light background reaches the asset boundary");
     }
-    if (category === "doorOpenH" || category === "doorOpenV") {
+    if (category === "doorwayH" || category === "doorwayV") {
       const gap = Math.round(BASE_TILE_SIZE * 0.12);
-      const horizontal = category === "doorOpenH";
+      const horizontal = category === "doorwayH";
       const gapBuffer = await image.clone().extract(horizontal
         ? { left: Math.round((BASE_TILE_SIZE - gap) / 2), top: Math.round(BASE_TILE_SIZE * 0.42), width: gap, height: Math.round(BASE_TILE_SIZE * 0.16) }
         : { left: Math.round(BASE_TILE_SIZE * 0.42), top: Math.round((BASE_TILE_SIZE - gap) / 2), width: Math.round(BASE_TILE_SIZE * 0.16), height: gap })
@@ -141,7 +143,7 @@ async function checkAsset(packRoot: string, category: PackCategory, slot: AssetS
         .toBuffer();
       const gapStats = await sharp(gapBuffer).stats();
       const gapAlpha = gapStats.channels.at(-1);
-      if ((gapAlpha?.mean ?? 255) > 32) check.issues.push(`open-door crossing is not transparently clear (mean alpha ${gapAlpha?.mean ?? 255})`);
+      if ((gapAlpha?.mean ?? 255) > 32) check.issues.push(`doorway opening is not transparently clear (mean alpha ${gapAlpha?.mean ?? 255})`);
     }
     if (category === "floor" || category === "solidBlock") {
       check.edge_delta = await edgeDelta(file);
@@ -292,13 +294,14 @@ async function alignmentPreview(output: string, slots: LocatedSlot[]): Promise<v
   const composites: OverlayOptions[] = [];
   for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) composites.push({ input: floor, left: x * BASE_TILE_SIZE, top: y * BASE_TILE_SIZE });
   const edgePlacements: [PackCategory, number, number][] = [
-    ["wallSegmentH", 1, 2], ["doorClosedH", 2, 2], ["doorOpenH", 3, 2],
-    ["wallSegmentV", 2, 1], ["doorClosedV", 2, 3], ["doorOpenV", 2, 4],
+    ["wallSegmentH", 1, 2], ["doorwayH", 2, 2], ["doorLeaf", 2, 2],
+    ["wallSegmentV", 2, 1], ["doorwayV", 2, 3],
   ];
   for (const [category, x, y] of edgePlacements) {
     const file = first(category);
     if (!file) continue;
-    const horizontal = category.endsWith("H");
+    // The leaf is not named like an edge but lies along the horizontal band.
+    const horizontal = category.endsWith("H") || category === "doorLeaf";
     composites.push({
       input: file,
       left: horizontal ? x * BASE_TILE_SIZE : x * BASE_TILE_SIZE - BASE_TILE_SIZE / 2,
@@ -325,7 +328,7 @@ async function sampleMap(output: string, slots: LocatedSlot[], seed: string): Pr
       composites.push({ input: file, left: x * BASE_TILE_SIZE, top: y * BASE_TILE_SIZE });
     }
   }
-  const door = files("doorClosedH")[0];
+  const door = files("doorwayH")[0];
   if (door) composites.push({ input: door, left: 4 * BASE_TILE_SIZE, top: BASE_TILE_SIZE / 2 });
   await sharp({ create: { width: width * BASE_TILE_SIZE, height: height * BASE_TILE_SIZE, channels: 3, background: "#020617" } })
     .composite(composites)

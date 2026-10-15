@@ -55,12 +55,12 @@ describe("schema_version comparison", () => {
 describe("duplicate slot identities", () => {
   it("warns for duplicate variants", () => {
     const manifest = emptyManifest();
-    manifest.assets.doorClosedH = [
-      { variant: 0, url: "doorClosedH/0.webp" },
-      { variant: 0, url: "doorClosedH/duplicate.webp" },
+    manifest.assets.wallSegmentH = [
+      { variant: 0, url: "wallSegmentH/0.webp" },
+      { variant: 0, url: "wallSegmentH/duplicate.webp" },
     ];
 
-    expect(validatePack(manifest).warnings).toContain("doorClosedH/0: duplicate asset slot");
+    expect(validatePack(manifest).warnings).toContain("wallSegmentH/0: duplicate asset slot");
   });
 
   it("checks optional assets as part of the same WebP-only schema", () => {

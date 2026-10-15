@@ -11,10 +11,16 @@ export interface PackRef {
   rotation?: number;
 }
 
-export type EdgeSegType = "wall" | "doorClosed" | "doorOpen";
+// `doorClosed` / `doorOpen` are the drawn state of a door edge and feed publish
+// (`structure.ts DOOR_EDGE_KIND`); since schema 4 (#1065) they draw a doorway
+// plus a leaf turned on its hinge. `grate` and `sluice` are wall-band fittings
+// that cut the space flood fill like a wall and are never a way.
+export type EdgeSegType = "wall" | "doorClosed" | "doorOpen" | "grate" | "sluice";
 
 export interface EdgeSeg extends PackRef {
   type: EdgeSegType;
+  /** A `wallDecal` variant set into this wall. Meaningful on `type: "wall"` only. */
+  decal?: number;
 }
 
 export interface FloorCell {
@@ -24,6 +30,9 @@ export interface FloorCell {
 }
 
 export type SolidCell = PackRef;
+
+/** A per-cell ground material (the pack's `terrainWater`), drawn instead of the floor in its cell. */
+export type TerrainCell = PackRef;
 
 export interface ObjectCell extends PackRef {
   category: PackCategory;
@@ -67,6 +76,8 @@ export interface DressingPlacement {
 export interface DungeonMapLayers {
   floor: Record<CellKey, FloorCell>;
   solidBlock: Record<CellKey, SolidCell>;
+  /** A per-cell ground material, drawn instead of the floor in its cell. */
+  terrain: Record<CellKey, TerrainCell>;
   object: Record<CellKey, ObjectCell>;
   annotation: Record<CellKey, AnnotationCell>;
   /** Keyed by a placement uuid. */
@@ -97,7 +108,7 @@ export type DungeonMapInsert = Omit<DungeonMap, "id" | "user_id" | "created_at" 
 export type DungeonMapUpdate = Partial<DungeonMapInsert>;
 
 export function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, object: {}, annotation: {}, dressing: {} };
+  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {} };
 }
 
 /**

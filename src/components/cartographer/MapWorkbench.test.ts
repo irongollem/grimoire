@@ -234,6 +234,11 @@ describe("MapWorkbench", () => {
     expect(wrapper.text()).not.toContain("Claim");
   });
 
+  it("offers the Water terrain tool in the Drawing palette", () => {
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+    expect(wrapper.text()).toContain("Water");
+  });
+
   it("shows the layer selector with a site, in edit mode, and can switch layers by hand", async () => {
     const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithNoImagery }, ...editModeStubs });
     expect(wrapper.text()).toContain("Drawing");

@@ -6,7 +6,7 @@ image edit that says "like this, but in <material>".
 
 ## The rule these are drawn to
 
-Measured 21 Sep 2026 by restyling three candidate `doorOpenH` bases into two
+Measured 21 Sep 2026 by restyling three candidate door-leaf bases (an open-door tile, since retired) into two
 dissimilar materials (weathered oak; wet sewer brick) on `gpt-image-2.5-flare`:
 
 - **Flat vs shaded barely mattered.** Both transferred geometry equally well.
@@ -30,10 +30,17 @@ different fill colour" — which is the principle to carry into the glyph tiles.
 - Wall band is 25% (`WALL_BAND_RATIO`), so y 384..640 for a horizontal band,
   centred on the gridline at 512. An edge tile is drawn straddling that line,
   covering half of each adjacent cell.
-- Doorway opening is 50% of the cell: x 256..768.
-- An open door's leaf is hinged at the opening's edge, is as long as the
-  opening is wide, and swings 60° into the adjacent half-cell (reach 443px,
-  inside the 512px available).
+- Doorway opening is 50% of the cell: x 256..768, left empty (the floor shows
+  through). Grates and sluices share that opening and close it with bars or a
+  gate.
+- `doorLeaf` is the shut leaf alone, exactly where it lies in a doorway's
+  opening (x 256..768 on the band's centre line, 25% across), hinged at its
+  left end. The renderer draws it over the doorway and turns it on the hinge
+  (schema 4 has no separate open-door tile).
+- A curb is 14% thick (y 441..583), thinner than a wall.
+- Shading is symmetric across the band for every edge shape, so the V file is
+  the H file turned 90°. The leaf is the one exception: it is never turned into
+  a V variant.
 - Neutral greys only. No colour, no material identity — that is the part the
   generator replaces.
 - **No annotation.** No text, no guide lines, no dimension marks. The previous
@@ -53,7 +60,7 @@ committed — so the SVG cannot silently disagree with what the generator sees.
 
 ## Progress
 
-**The set is complete at 21.** One geometry per `(category, side)` for every
+**The set is complete at 26 files.** One geometry per `(category, side)` for every
 category that is grid-bound — variants share a shape, so `floor:0` and
 `floor:7` need one reference between them. Authored once, for every pack ever
 generated.
@@ -61,7 +68,8 @@ generated.
 | group | files | done |
 |---|---|---|
 | structural — floor, solidBlock, wallSegment H/V | 4 | yes |
-| doors — closed and open, H/V | 4 | yes |
+| doorways — doorwayH/V, doorLeaf | 3 | yes |
+| edges — curbH/V, edgeGrateH/V, edgeSluiceH/V | 6 | yes |
 | joints — wallJoint, wallRoundJoint x4 | 5 | yes |
 | stairs — up/down x4 sides | 8 | yes |
 | scatter — rubble, debris | — | **not in the set** (see below) |
@@ -69,8 +77,7 @@ generated.
 | hazards | — | **not in the set** (see below) |
 | features | — | **not in the set** (see below) |
 
-The first eight are exactly the schema's REQUIRED categories, so every pack's
-20 mandatory slots now has a geometry reference; everything remaining is an
+Every REQUIRED category of schema 4 has a geometry reference here; everything remaining is an
 optional category a pack may ship nothing for.
 
 **`wallJoint` needs one file, not nine.** The renderer scales it to a
@@ -100,8 +107,8 @@ the gaps. That was a harness bug that briefly looked like a bad tile.
 when it does not line up exactly.** That selects the grid-bound categories and
 nothing else — floor and solidBlock (gaps unless full-bleed), wall segments
 (the band must land on the gridline at a matching thickness), doors (must align
-to that band), joints (bulge at every corner unless exactly band-thick), stairs
-(must span the cell). Twelve categories, 21 geometries. Everything else is a
+to that band; the leaf must fit the opening), joints (bulge at every corner unless exactly band-thick), stairs
+(must span the cell). Grid-bound categories only, 26 geometries. Everything else is a
 centred stamp with a margin, free to be whatever the model makes of it.
 
 The rule cuts along a different axis from "is this shape important". A hazard

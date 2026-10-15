@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- DOORWAY: the wall band with its opening (x 256..768) left EMPTY, so the
+       floor shows through. Seen from above a frame is only the two wall ends
+       either side of the gap, shaded dark where they face it. No leaf: the leaf
+       is its own tile, drawn over this one turned on its hinge. Shading is
+       symmetric across the band so the vertical variant is this turned. -->
+  <defs>
+    <linearGradient id="band" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6d6d6d"/><stop offset=".5" stop-color="#8e8e8e"/><stop offset="1" stop-color="#6d6d6d"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <rect x="0" y="384" width="256" height="256" fill="url(#band)"/>
+    <rect x="768" y="384" width="256" height="256" fill="url(#band)"/>
+    <rect x="0" y="384" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="0" y="614" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="768" y="384" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="768" y="614" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="236" y="384" width="20" height="256" fill="#000000" opacity=".4"/>
+    <rect x="768" y="384" width="20" height="256" fill="#000000" opacity=".4"/>
+  </g>
+</svg>

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- EDGE GRATE: the wall band with an opening (x 256..768) closed by upright
+       bars, as where a canal passes under a wall. From above the bars are a
+       row of round tops along the wall line plus the rail that ties them; the
+       water or floor shows between. Symmetric across the band. -->
+  <defs>
+    <linearGradient id="band" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6d6d6d"/><stop offset=".5" stop-color="#8e8e8e"/><stop offset="1" stop-color="#6d6d6d"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <rect x="0" y="384" width="256" height="256" fill="url(#band)"/>
+    <rect x="768" y="384" width="256" height="256" fill="url(#band)"/>
+    <rect x="0" y="384" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="0" y="614" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="768" y="384" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="768" y="614" width="256" height="26" fill="#000000" opacity=".34"/>
+    <rect x="236" y="384" width="20" height="256" fill="#000000" opacity=".4"/>
+    <rect x="768" y="384" width="20" height="256" fill="#000000" opacity=".4"/>
+    <rect x="256" y="500" width="512" height="24" fill="#2e2e2e" stroke="#1a1a1a" stroke-opacity=".8" stroke-width="4"/>
+    <rect x="256" y="506" width="512" height="6" fill="#ffffff" opacity=".25"/>
+    <g fill="#8a8a8a" stroke="#1a1a1a" stroke-opacity=".85" stroke-width="4">
+      <circle cx="290" cy="512" r="15"/>
+      <circle cx="354" cy="512" r="15"/>
+      <circle cx="418" cy="512" r="15"/>
+      <circle cx="482" cy="512" r="15"/>
+      <circle cx="546" cy="512" r="15"/>
+      <circle cx="610" cy="512" r="15"/>
+      <circle cx="674" cy="512" r="15"/>
+      <circle cx="738" cy="512" r="15"/>
+    </g>
+  </g>
+</svg>

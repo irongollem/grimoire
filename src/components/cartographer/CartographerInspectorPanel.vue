@@ -70,12 +70,12 @@
             <dt class="text-muted-foreground mb-0.5">Edges</dt>
             <dd v-for="e in selectedCellEdges" :key="e.side" class="flex items-center justify-between">
               <span>{{ e.side }}</span>
-              <span class="text-foreground">{{ edgeKindLabel(e.kind) }}</span>
+              <span class="text-foreground">{{ edgeKindLabel(e.kind, e.decal) }}</span>
             </dd>
           </div>
           <div v-if="selectedCellObjectCategory" class="flex items-center justify-between">
             <dt class="text-muted-foreground">Object</dt>
-            <dd class="text-foreground capitalize">{{ objectCategoryLabel(selectedCellObjectCategory) }}</dd>
+            <dd class="text-foreground">{{ stampLabel(manifest, selectedCellObjectCategory) }}</dd>
           </div>
           <div v-if="annotationText" class="flex items-center justify-between">
             <dt class="text-muted-foreground">Label</dt>
@@ -92,6 +92,45 @@
       </p>
     </div>
 
+    <!-- Terrain: water drawn in place of the floor -->
+    <div v-if="activeTool === 'terrain'">
+      <p class="text-caption-sm text-muted-foreground">
+        Paint water over the floor; a cell with no floor gets one. Alt erases the water and keeps the floor.
+      </p>
+    </div>
+
+    <!-- Wall kinds: what the wall tool paints, or the decal it sets on a wall -->
+    <div v-if="activeTool === 'wall'">
+      <label class="block text-eyebrow text-muted-foreground mb-1">
+        Edge
+      </label>
+      <SegmentedControl
+        :model-value="activeWallKind"
+        :options="WALL_KINDS"
+        size="xs"
+        block
+        wrap
+        class="mb-2"
+        @update:model-value="$emit('update:activeWallKind', $event)"
+      />
+      <template v-if="activeWallKind === 'decal'">
+        <div v-if="wallDecalCount > 0" class="grid grid-cols-1 gap-1 mb-2">
+          <AppButton
+            v-for="i in wallDecalCount"
+            :key="i"
+            variant="ghost"
+            fill="muted"
+            size="caption"
+            :active="activeWallDecal === i - 1"
+            :label="decalLabel(manifest, i - 1)"
+            @click="$emit('update:activeWallDecal', i - 1)"
+          />
+        </div>
+        <p v-else class="text-caption-sm text-muted-foreground italic mb-2">This pack has no wall decals.</p>
+        <p class="text-caption-sm text-muted-foreground">Click a wall to dress it. Alt removes the decal.</p>
+      </template>
+    </div>
+
     <!-- Object stamp picker -->
     <div v-if="activeTool === 'stamp'">
       <label class="block text-eyebrow text-muted-foreground mb-1">
@@ -104,9 +143,8 @@
           variant="ghost"
           fill="muted"
           size="caption"
-          class="capitalize"
           :active="activeObjectCategory === cat"
-          :label="cat.replace('object', '')"
+          :label="stampLabel(manifest, cat)"
           @click="$emit('update:activeObjectCategory', cat)"
         />
       </div>
@@ -257,6 +295,10 @@ import CartographerDressingPanel from "@/components/cartographer/CartographerDre
 import RotationControl from "@/components/cartographer/RotationControl.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
+import type { EdgeSegType } from "@/types/dungeonMap.types";
+import type { PackCategory, TilePackManifest } from "@/cartographer/packSchema";
+import { decalLabel, stampLabel, type StampCategory } from "@/cartographer/stampCategories";
+import { WALL_KINDS, type WallKind } from "@/cartographer/wallKinds";
 
 const CAVE_RADIUS_OPTIONS = [3, 5, 7, 9].map((size) => ({ value: size, label: String(size) }));
 
@@ -279,7 +321,9 @@ interface EntityOption {
 
 interface SelectedCellEdge {
   side: "N" | "E" | "S" | "W";
-  kind: "wall" | "doorClosed" | "doorOpen";
+  kind: EdgeSegType;
+  /** A `wallDecal` variant dressing a wall edge. */
+  decal?: number;
 }
 
 defineProps<{
@@ -291,8 +335,14 @@ defineProps<{
   packValidationMissing: number;
   activeTool: string;
   activeObjectCategory: string;
-  objectCategories: readonly string[];
+  objectCategories: readonly StampCategory[];
   stampRotation: number;
+  /** The active pack's manifest: its `labels` name stamps and decals. Null until a pack loads. */
+  manifest: Pick<TilePackManifest, "labels"> | null;
+  /** Wall tool: the kind it paints, and the decal variant the Decal kind sets. */
+  activeWallKind: WallKind;
+  activeWallDecal: number;
+  wallDecalCount: number;
   /** Dressing tool: the armed prop, the rotation a new one gets, and the selected placed prop. */
   dressingBrushId: string | null;
   dressingRotation: number;
@@ -302,7 +352,7 @@ defineProps<{
   selectedCellFloor: boolean;
   selectedCellSolid: boolean;
   selectedCellEdges: SelectedCellEdge[];
-  selectedCellObjectCategory: string | null;
+  selectedCellObjectCategory: PackCategory | null;
   selectedCellLinkedNames: string[];
   annotationText: string;
   linkedNoteId: string;
@@ -322,8 +372,10 @@ defineEmits<{
   "update:name": [value: string];
   "update:campaignId": [id: string | null];
   "update:currentPackId": [id: string];
-  "update:activeObjectCategory": [cat: string];
+  "update:activeObjectCategory": [cat: StampCategory];
   "update:stampRotation": [deg: number];
+  "update:activeWallKind": [kind: WallKind];
+  "update:activeWallDecal": [variant: number];
   "update:dressingBrushId": [id: string | null];
   "update:dressingRotation": [deg: number];
   rotateSelectedDressing: [deg: number];
@@ -345,14 +397,10 @@ const EDGE_KIND_LABEL: Record<SelectedCellEdge["kind"], string> = {
   wall: "Wall",
   doorClosed: "Closed door",
   doorOpen: "Open door",
+  grate: "Grate",
+  sluice: "Sluice gate",
 };
-function edgeKindLabel(kind: SelectedCellEdge["kind"]): string {
-  return EDGE_KIND_LABEL[kind];
-}
-
-/** "objectChest" -> "Chest" — same trick the object-stamp picker above uses
- *  on its button labels (`cat.replace('object', '')`, styled `capitalize`). */
-function objectCategoryLabel(category: string): string {
-  return category.replace("object", "");
+function edgeKindLabel(kind: SelectedCellEdge["kind"], decal: number | undefined): string {
+  return decal === undefined ? EDGE_KIND_LABEL[kind] : `${EDGE_KIND_LABEL[kind]} (decal)`;
 }
 </script>

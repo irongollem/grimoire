@@ -8,7 +8,7 @@
 // dependencies: cells are drawn at 1:1 scale (BASE_TILE_SIZE px per cell).
 
 import { BASE_TILE_SIZE, type PackCategory } from "./packSchema";
-import { drawMapContent } from "./drawMap";
+import { drawMapContent, offscreenMakeCanvas } from "./drawMap";
 import type { TilePackRuntime } from "./packLoader";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";
@@ -138,6 +138,8 @@ function renderToCanvas(
     // glyphs draw against the map's own persisted default pack.
     glyphPackId: map.default_pack_id,
     dressing,
+    shadows: true,
+    makeCanvas: offscreenMakeCanvas(),
   });
 
   const dx = (cx: number) => (cx - minX + paddingCells) * ts;

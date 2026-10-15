@@ -11,6 +11,9 @@
  * rebuilt from the folder alone (see `buildManifest`).
  *
  * Bytes go to R2 at `library-tile-packs/<row id>/v<version>/<path>`, the key the CDN serves and `libraryTileUrl` reads.
+ * An optional `pack.json` in the folder carries what no tile can: `{ continuous?, labels?, doorLeaf? }` (see `parsePackSidecar`).
+ * It is the only source of those manifest fields; they are never carried over from an older published version.
+ *
  * The row stays a draft unless `--publish` is passed AND the pack has every required tile; publishing a reviewed draft is
  * otherwise the admin's Publish button, which runs the same check (`publish_library_pack`).
  *
@@ -24,7 +27,7 @@
  *          --exclude <category>[,…], --publish
  */
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { parseArgs } from "node:util";
 import { headObject, putObject } from "../supabase/functions/_shared/r2/client.ts";
@@ -36,7 +39,7 @@ import { hasCompleteArt } from "../src/cartographer/packCoverage.ts";
 import { BASE_TILE_SIZE, type TilePackManifest } from "../src/cartographer/packSchema.ts";
 import { isLoopback } from "./lib/dev-stack.ts";
 import { createServiceClient, requireEnv } from "./lib/seed-helpers.ts";
-import { buildManifest, type TileFile } from "./lib/tile-pack-publish.ts";
+import { SIDECAR_FILE, buildManifest, parsePackSidecar, type TileFile } from "./lib/tile-pack-publish.ts";
 
 /** Literal, as in seed-library-tile-packs: `src/lib/storage/buckets.ts` reads `import.meta.env` and cannot load under node. */
 const BUCKET = "library-tile-packs";
@@ -59,6 +62,14 @@ function walk(dir: string): string[] {
     const path = join(dir, name);
     return statSync(path).isDirectory() ? walk(path) : [path];
   });
+}
+
+function parseSidecarFile(path: string): ReturnType<typeof parsePackSidecar> {
+  try {
+    return parsePackSidecar(JSON.parse(readFileSync(path, "utf8")));
+  } catch (error) {
+    return { sidecar: {}, errors: [`${SIDECAR_FILE}: ${error instanceof Error ? error.message : String(error)}`] };
+  }
 }
 
 async function main(): Promise<void> {
@@ -107,7 +118,10 @@ async function main(): Promise<void> {
   const marked = files.map((f) => ({ ...f, bytes: markGeneratedImage(f.bytes, "image/webp", prov) })).map((f) => ({ ...f, byteSize: f.bytes.byteLength }));
 
   const description = values.description ?? template.description ?? "";
-  const { manifest, errors } = buildManifest({ pack_id: template.pack_id, name: template.name, description, pack_version: version, palette: template.manifest.palette }, marked, Date.now());
+  const sidecarPath = join(values.dir, SIDECAR_FILE);
+  const parsed = existsSync(sidecarPath) ? parseSidecarFile(sidecarPath) : { sidecar: {}, errors: [] };
+  problems.push(...parsed.errors);
+  const { manifest, errors } = buildManifest({ pack_id: template.pack_id, name: template.name, description, pack_version: version, palette: template.manifest.palette }, marked, Date.now(), parsed.sidecar);
   problems.push(...errors);
   if (problems.length) throw new Error(`Refusing to publish ${values.pack}:\n  ${problems.join("\n  ")}`);
   const complete = hasCompleteArt(manifest);

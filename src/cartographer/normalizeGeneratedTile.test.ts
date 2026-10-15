@@ -19,23 +19,23 @@ describe("stripBoundaryLightPixels", () => {
 });
 
 describe("squashesOntoBand", () => {
-  it("squashes a wall and a shut door onto the gridline", () => {
+  it("squashes a wall, doorway, grate and sluice onto the gridline", () => {
     expect(squashesOntoBand("wallSegmentH", "centered-horizontal-edge")).toBe(true);
     expect(squashesOntoBand("wallSegmentV", "centered-vertical-edge")).toBe(true);
-    expect(squashesOntoBand("doorClosedH", "centered-horizontal-edge")).toBe(true);
-    expect(squashesOntoBand("doorClosedV", "centered-vertical-edge")).toBe(true);
+    expect(squashesOntoBand("doorwayH", "centered-horizontal-edge")).toBe(true);
+    expect(squashesOntoBand("doorwayV", "centered-vertical-edge")).toBe(true);
+    expect(squashesOntoBand("edgeGrateH", "centered-horizontal-edge")).toBe(true);
+    expect(squashesOntoBand("edgeSluiceV", "centered-vertical-edge")).toBe(true);
   });
 
   /**
-   * The regression. An open door is the one edge category whose art lives
-   * partly OUTSIDE the band — an ajar leaf swings into the adjacent half-cell.
-   * Squashing it onto the band flattens the leaf back onto the wall, and the
-   * threshold clear then removes what survived, so the pipeline could only
-   * ever emit "a wall with a hole in it" however well the tile was drawn.
+   * The door leaf is drawn turned on its hinge, and a curb keeps its own,
+   * thinner thickness: squashing either onto the wall band would undo that.
    */
-  it("never squashes an open door, despite its edge footprint", () => {
-    expect(squashesOntoBand("doorOpenH", "centered-horizontal-edge")).toBe(false);
-    expect(squashesOntoBand("doorOpenV", "centered-vertical-edge")).toBe(false);
+  it("never squashes a door leaf or a curb, despite their edge footprint", () => {
+    expect(squashesOntoBand("doorLeaf", "centered-horizontal-edge")).toBe(false);
+    expect(squashesOntoBand("curbH", "centered-horizontal-edge")).toBe(false);
+    expect(squashesOntoBand("curbV", "centered-vertical-edge")).toBe(false);
   });
 
   it("leaves non-edge footprints alone", () => {

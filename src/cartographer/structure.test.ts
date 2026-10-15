@@ -24,7 +24,7 @@ import type { PackCategory } from "./packSchema";
 const PACK: PackRef = { pack_id: "p", pack_version: 1, variant: 0 };
 
 function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, object: {}, annotation: {}, dressing: {} };
+  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {} };
 }
 
 function addFloor(layers: DungeonMapLayers, x: number, y: number): void {
@@ -92,6 +92,17 @@ describe("deriveSpaces", () => {
 
     const spaces = deriveSpaces(layers);
     expect(spaces).toHaveLength(2);
+  });
+
+  it("a grate edge splits two spaces and creates no way", () => {
+    const layers = emptyLayers();
+    addFloor(layers, 0, 0);
+    addFloor(layers, 1, 0);
+    addEdge(layers, 0, 0, "E", "grate");
+
+    const spaces = deriveSpaces(layers);
+    expect(spaces).toHaveLength(2);
+    expect(deriveWays(layers, spaces)).toEqual([]);
   });
 
   it("an open door edge (arch) also cuts the fill into two spaces", () => {

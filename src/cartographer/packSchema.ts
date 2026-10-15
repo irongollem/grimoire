@@ -25,22 +25,35 @@ export interface OptionalCategoryDef {
 export type CategoryDef = RandomCategoryDef | DirectionalCategoryDef | OptionalCategoryDef;
 
 export const TILE_PACK_SCHEMA = {
-  version: 3,
+  version: 4,
   categories: {
-    floor:          { kind: "random",      min: 8,  max: 16 },
+    // Schema v4: 64 so a continuous floor can be cut 8x8 (manifest `continuous`).
+    floor:          { kind: "random",      min: 8,  max: 64 },
     wallSegmentH:   { kind: "random",      min: 2,  max: 6  },
     wallSegmentV:   { kind: "random",      min: 2,  max: 6  },
     wallJoint:      { kind: "directional", sides: ["L_NE","L_SE","L_SW","L_NW","T_N","T_E","T_S","T_W","CROSS"], optional: true },
     // Schema v2: rounded corner art for L-corners. When a pack ships these,
     // the renderer uses them at right-angle corners instead of wallJoint.
     wallRoundJoint: { kind: "directional", sides: ["L_NE","L_SE","L_SW","L_NW"], optional: true },
-    doorClosedH:    { kind: "random",      min: 1,  max: 3  },
-    doorClosedV:    { kind: "random",      min: 1,  max: 3  },
-    doorOpenH:      { kind: "random",      min: 1,  max: 3  },
-    doorOpenV:      { kind: "random",      min: 1,  max: 3  },
+    // Schema v4 (#1065) replaced the four door categories: a door is a doorway
+    // (the opening and its frame, in the wall band) plus a separate leaf the
+    // renderer turns on its hinge. doorwayV is rotation-derived from doorwayH.
+    doorwayH:       { kind: "random",      min: 1,  max: 3  },
+    doorwayV:       { kind: "random",      min: 1,  max: 3  },
+    doorLeaf:       { kind: "random",      min: 1,  max: 3  },
     solidBlock:     { kind: "random",      min: 4,  max: 12 },
     stairsUp:       { kind: "directional", sides: ["N","E","S","W"], optional: true },
     stairsDown:     { kind: "directional", sides: ["N","E","S","W"], optional: true },
+    // Schema v4 (#1065): terrain, curbs, wall fittings. All optional.
+    curbH:          { kind: "optional",    min: 0,  max: 6  },
+    curbV:          { kind: "optional",    min: 0,  max: 6  },
+    curbPost:       { kind: "optional",    min: 0,  max: 2  },
+    terrainWater:   { kind: "optional",    min: 0,  max: 64 },
+    edgeGrateH:     { kind: "optional",    min: 0,  max: 3  },
+    edgeGrateV:     { kind: "optional",    min: 0,  max: 3  },
+    edgeSluiceH:    { kind: "optional",    min: 0,  max: 3  },
+    edgeSluiceV:    { kind: "optional",    min: 0,  max: 3  },
+    wallDecal:      { kind: "optional",    min: 0,  max: 8  },
     rubble:         { kind: "optional",    min: 0,  max: 4  },
     debris:         { kind: "optional",    min: 0,  max: 4  },
     objectChest:    { kind: "optional",    min: 0,  max: 4  },
@@ -110,6 +123,30 @@ export const REQUIRED_CATEGORIES: readonly PackCategory[] = REQUIRED_CATEGORIES_
 
 export const BASE_TILE_SIZE = 128;
 
+/**
+ * Whether a category lies on the floor rather than standing up from it.
+ *
+ * Flat things (heaps, nests, rubble, trap and feature glyphs) get ambient
+ * occlusion only: an offset cast shadow makes a flat thing look lifted off the
+ * floor (#1065 decision 3). Everything that stands (objects, walls, curbs) casts.
+ */
+export function isFlatCategory(category: PackCategory): boolean {
+  return (
+    category === "rubble" ||
+    category === "debris" ||
+    category.startsWith("hazard") ||
+    category.startsWith("feature")
+  );
+}
+
+/**
+ * Where a door leaf hinges and how far it swings when no pack says otherwise.
+ * The leaf tile is the closed leaf exactly where it sits in a `doorwayH`
+ * opening: the opening spans x 0.25..0.75 of the tile on the band's centre
+ * line, so the hinge is at the leaf's left end.
+ */
+export const DEFAULT_DOOR_LEAF = { hingeX: 0.25, hingeY: 0.5, openDegrees: 80 } as const;
+
 export interface AssetSlot {
   side?: string;
   variant: number;
@@ -146,6 +183,24 @@ export interface TilePackManifest {
    *  placeholderTile falls back to the built-in stone-dungeon defaults. Image
    *  generators may also read this palette for colour-aware prompt construction. */
   palette?: Partial<Record<PackCategory, [number, number, number]>>;
+  /**
+   * Schema v4: the texture period, in cells, of a category drawn as one
+   * continuous surface. Its variants are the cells of a single seamless
+   * texture in row-major order and the renderer picks by position instead of
+   * by hash. A category without a period keeps the stored hash variant.
+   */
+  continuous?: Partial<Record<PackCategory, number>>;
+  /**
+   * Schema v4: a display name per variant, so a forest's `objectPillar` reads
+   * "Old tree" in the stamp picker and a sewer's decals read "Rat hole".
+   */
+  labels?: Partial<Record<PackCategory, string[]>>;
+  /**
+   * Schema v4: how the door leaf moves. `hingeX`/`hingeY` are the hinge's
+   * position in the leaf tile as fractions 0..1 of the tile; `openDegrees` is
+   * how far an open door swings. Absent: `DEFAULT_DOOR_LEAF`.
+   */
+  doorLeaf?: { hingeX: number; hingeY: number; openDegrees: number };
 }
 
 export function categoryDef(cat: PackCategory): CategoryDef {

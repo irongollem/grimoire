@@ -13,7 +13,7 @@
 
 import { cellKey, type DungeonMapLayers, type EdgeSeg, type EdgeSegType } from "@/types/dungeonMap.types";
 import { nextDressingZ } from "@/cartographer/dressing";
-import type { ObjectCategory } from "@/cartographer/packSchema";
+import type { StampCategory } from "@/cartographer/stampCategories";
 import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
 
 export interface PaintContext {
@@ -68,12 +68,53 @@ export function paintCell(ctx: PaintContext, x: number, y: number, variant: numb
   return true;
 }
 
+// A cell's terrain goes with the cell: water drawn over a floor that is no
+// longer there would be a ghost the walls, spaces and publish cannot see.
 export function eraseCell(ctx: PaintContext, x: number, y: number): boolean {
   const k = cellKey(x, y);
-  if (!ctx.layers.floor[k]) return false;
-  const next = { ...ctx.layers.floor };
+  const hadFloor = Boolean(ctx.layers.floor[k]);
+  const hadTerrain = Boolean(ctx.layers.terrain[k]);
+  if (!hadFloor && !hadTerrain) return false;
+  if (hadFloor) {
+    const next = { ...ctx.layers.floor };
+    delete next[k];
+    ctx.layers.floor = next;
+  }
+  if (hadTerrain) eraseTerrainAt(ctx, x, y);
+  return true;
+}
+
+// ── Terrain tool ────────────────────────────────────────────────────────────
+
+/**
+ * Paints water (the pack's `terrainWater`) on a cell. Terrain is drawn in
+ * place of the floor, but everything else keys on floor cells, so a cell with
+ * no floor gets one too when the caller passes `floorVariant`.
+ */
+export function paintTerrainAt(
+  ctx: PaintContext,
+  x: number,
+  y: number,
+  variant: number,
+  floorVariant?: number,
+): boolean {
+  const k = cellKey(x, y);
+  let changed = false;
+  if (floorVariant !== undefined && !ctx.layers.floor[k]?.floor) {
+    changed = paintCell(ctx, x, y, floorVariant);
+  }
+  const existing = ctx.layers.terrain[k];
+  if (existing?.pack_id === ctx.packId && existing.variant === variant) return changed;
+  ctx.layers.terrain[k] = { pack_id: ctx.packId, pack_version: ctx.packVersion, variant };
+  return true;
+}
+
+export function eraseTerrainAt(ctx: PaintContext, x: number, y: number): boolean {
+  const k = cellKey(x, y);
+  if (!ctx.layers.terrain[k]) return false;
+  const next = { ...ctx.layers.terrain };
   delete next[k];
-  ctx.layers.floor = next;
+  ctx.layers.terrain = next;
   return true;
 }
 
@@ -101,7 +142,7 @@ export function paintObjectAt(
   ctx: PaintContext,
   x: number,
   y: number,
-  category: ObjectCategory,
+  category: StampCategory,
   variant: number,
   rotation: number,
 ): boolean {
@@ -179,7 +220,16 @@ export function removeDressing(layers: DungeonMapLayers, id: string): boolean {
 
 // ── Wall placement (edge-based, NW ownership) ─────────────────────────────────
 
-export function paintWallAtCellEdge(ctx: PaintContext, edge: CellEdge, stroke: StrokeState, variant: number): boolean {
+/** The edge kinds the wall tool paints. A decal is not one: it dresses an existing wall. */
+export type PaintedWallKind = Extract<EdgeSegType, "wall" | "grate" | "sluice">;
+
+export function paintWallAtCellEdge(
+  ctx: PaintContext,
+  edge: CellEdge,
+  stroke: StrokeState,
+  variant: number,
+  kind: PaintedWallKind = "wall",
+): boolean {
   const dir = edgeDirection(edge.side);
   // Direction lock: first paint of a stroke commits H or V; later perpendicular
   // edges are ignored. Single clicks (no later moves) are unaffected.
@@ -195,8 +245,7 @@ export function paintWallAtCellEdge(ctx: PaintContext, edge: CellEdge, stroke: S
   const ownerKey = cellKey(canon.x, canon.y);
   const ownerCell = ctx.layers.floor[ownerKey] ?? {};
   const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
-  // Preserve doors. For walls, skip only if same pack — different pack restyling the edge.
-  if (existing && (existing.type !== "wall" || existing.pack_id === ctx.packId)) {
+  if (existing && !mayOverwriteEdge(existing, kind, ctx.packId)) {
     stroke.painted.add(strokeKey);
     return false;
   }
@@ -204,7 +253,7 @@ export function paintWallAtCellEdge(ctx: PaintContext, edge: CellEdge, stroke: S
   const seg: EdgeSeg = {
     pack_id: ctx.packId,
     pack_version: ctx.packVersion,
-    type: "wall",
+    type: kind,
     variant,
   };
 
@@ -213,6 +262,34 @@ export function paintWallAtCellEdge(ctx: PaintContext, edge: CellEdge, stroke: S
     : { ...ownerCell, wallW: seg };
 
   stroke.painted.add(strokeKey);
+  return true;
+}
+
+// Doors are never overwritten. A plain wall only restyles a wall of another
+// pack; a grate or sluice replaces a wall (any pack) or the other opening,
+// but not a copy of itself from the same pack.
+function mayOverwriteEdge(existing: EdgeSeg, kind: PaintedWallKind, packId: string): boolean {
+  if (existing.type === "doorClosed" || existing.type === "doorOpen") return false;
+  if (kind === "wall") return existing.type === "wall" && existing.pack_id !== packId;
+  return !(existing.type === kind && existing.pack_id === packId);
+}
+
+/**
+ * Sets (or, with `undefined`, removes) the decal on a wall edge. A decal only
+ * dresses a plain wall, so any other edge is a no-op.
+ */
+export function setDecalAtEdge(ctx: PaintContext, edge: CellEdge, decal: number | undefined): boolean {
+  const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
+  const ownerKey = cellKey(canon.x, canon.y);
+  const ownerCell = ctx.layers.floor[ownerKey];
+  if (!ownerCell) return false;
+  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
+  if (!existing || existing.type !== "wall" || existing.decal === decal) return false;
+  const { decal: _previous, ...rest } = existing;
+  const seg: EdgeSeg = decal === undefined ? rest : { ...rest, decal };
+  ctx.layers.floor[ownerKey] = canon.side === "N"
+    ? { ...ownerCell, wallN: seg }
+    : { ...ownerCell, wallW: seg };
   return true;
 }
 

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- DOOR LEAF, SHUT, SEEN FROM DIRECTLY ABOVE. Exactly the closed leaf as it
+       lies in a doorway's opening (x 256..768 on the band's centre line),
+       hinged at its left end (25% across, 50% down). Alone on the tile: the
+       wall is not drawn, because the renderer draws this over the doorway and
+       turns it on the hinge. A slab showing its TOP EDGE: board ends as short
+       lines across the thickness, hinge knuckles at the pivot, a lever from the
+       side. Panels or a handle plate belong to a door's face, which cannot be
+       seen from overhead. -->
+  <defs>
+    <linearGradient id="leaf" x1="0" y1="470" x2="0" y2="554" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b9b9b9"/><stop offset=".5" stop-color="#a2a2a2"/><stop offset="1" stop-color="#8a8a8a"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <rect x="262" y="470" width="500" height="84" fill="url(#leaf)" stroke="#1a1a1a" stroke-opacity=".8" stroke-width="5"/>
+    <g stroke="#1a1a1a" stroke-opacity=".45" stroke-width="4">
+      <path d="M330 470 V554"/><path d="M398 470 V554"/><path d="M466 470 V554"/>
+      <path d="M534 470 V554"/><path d="M602 470 V554"/><path d="M670 470 V554"/>
+    </g>
+    <rect x="262" y="470" width="500" height="9" fill="#ffffff" opacity=".38"/>
+    <rect x="262" y="545" width="500" height="9" fill="#000000" opacity=".30"/>
+    <rect x="700" y="554" width="46" height="18" rx="7" fill="#3f3f3f" stroke="#1a1a1a" stroke-opacity=".7" stroke-width="3"/>
+    <g fill="#3c3c3c" stroke="#1a1a1a" stroke-opacity=".85" stroke-width="3">
+      <rect x="240" y="478" width="44" height="20" rx="10"/>
+      <rect x="240" y="526" width="44" height="20" rx="10"/>
+    </g>
+  </g>
+</svg>
