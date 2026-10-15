@@ -90,3 +90,4 @@ graphify-out/
 # Paper-doll species renders awaiting review (scripts/generate-dolls.ts)
 .doll-out/
 perf-results/
+library-art-report.json
