@@ -6,16 +6,15 @@
 // "vue". The view stays responsible for reading its refs each frame and
 // building the `MapRenderScene`.
 
-import { WALL_BAND_RATIO, type PackCategory } from "@/cartographer/packSchema";
+import type { PackCategory } from "@/cartographer/packSchema";
+import { drawMapContent } from "@/cartographer/drawMap";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { cellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
-import { classifyJoint, type CellEdge } from "@/cartographer/edges";
+import type { CellEdge } from "@/cartographer/edges";
 import { boundaryEdges } from "@/cartographer/floodFill";
 import type { Tool } from "@/cartographer/tools";
 import {
   drawDressing,
-  dressingCellBounds,
-  dressingDrawOrder,
   dressingFootprint,
   strokeDressingOutline,
   type DressingCatalog,
@@ -139,259 +138,89 @@ export function renderMap(scene: MapRenderScene): void {
     ctx.restore();
   }
 
+  // Pack content (floor .. glyphs) is drawn by the shared module the offline
+  // bake also uses. Every pack layer is skipped while no runtime has loaded,
+  // and an unknown pack id falls back to the active pack's runtime here —
+  // neither of which the bake does.
   const rt = (pid: string): TilePackRuntime | null =>
-    runtimes.get(pid) ?? fallbackRuntime ?? null;
+    runtimes.size > 0 ? (runtimes.get(pid) ?? fallbackRuntime ?? null) : null;
 
-  // Floor layer
-  if (runtimes.size > 0) {
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const k = cellKey(x, y);
-        const cell = layers.floor[k];
-        if (!cell?.floor) continue;
-        const drawX = x * tilePx - viewportOffset.x;
-        const drawY = y * tilePx - viewportOffset.y;
-        const r = rt(cell.floor.pack_id);
-        if (!r) continue;
-        const tile = r.getTile("floor", cell.floor.variant);
-        ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
-      }
-    }
-  }
-
-  // SolidBlock layer — full-cell thick walls rendered above the floor
-  if (runtimes.size > 0) {
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const solid = layers.solidBlock[cellKey(x, y)];
-        if (!solid) continue;
-        const drawX = x * tilePx - viewportOffset.x;
-        const drawY = y * tilePx - viewportOffset.y;
-        const r = rt(solid.pack_id);
-        if (!r) continue;
-        const tile = r.getTile("solidBlock", solid.variant);
-        ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
-      }
-    }
-  }
-
-  // Grid overlay
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let x = minX; x <= maxX + 1; x++) {
-    const px = x * tilePx - viewportOffset.x;
-    ctx.moveTo(px, 0);
-    ctx.lineTo(px, canvasHeight);
-  }
-  for (let y = minY; y <= maxY + 1; y++) {
-    const py = y * tilePx - viewportOffset.y;
-    ctx.moveTo(0, py);
-    ctx.lineTo(canvasWidth, py);
-  }
-  ctx.stroke();
-
-  // Edge walls — drawn AFTER the grid so walls visually mask the gridline
-  // they sit on. The wall tile is 128×128 with the painted strip in the
-  // CENTER (vertically for H, horizontally for V). We shift the tile by
-  // half a tile so the strip lands ON the gridline, straddling both
-  // adjacent cells equally. NW ownership: cell stores wallN/wallW.
-  if (runtimes.size > 0) {
-    const halfTile = tilePx / 2;
-    for (let y = minY; y <= maxY + 1; y++) {
-      for (let x = minX; x <= maxX + 1; x++) {
-        const cell = layers.floor[cellKey(x, y)];
-        if (!cell) continue;
-        const drawX = x * tilePx - viewportOffset.x;
-        const drawY = y * tilePx - viewportOffset.y;
-        if (cell.wallN) {
-          const seg = cell.wallN;
-          const r = rt(seg.pack_id);
-          if (r) {
-            const cat: PackCategory = seg.type === "doorClosed" ? "doorClosedH"
-              : seg.type === "doorOpen" ? "doorOpenH" : "wallSegmentH";
-            const tile = r.getTile(cat, seg.variant);
-            ctx.drawImage(tile.source, drawX, drawY - halfTile, tilePx, tilePx);
-          }
-        }
-        if (cell.wallW) {
-          const seg = cell.wallW;
-          const r = rt(seg.pack_id);
-          if (r) {
-            const cat: PackCategory = seg.type === "doorClosed" ? "doorClosedV"
-              : seg.type === "doorOpen" ? "doorOpenV" : "wallSegmentV";
-            const tile = r.getTile(cat, seg.variant);
-            ctx.drawImage(tile.source, drawX - halfTile, drawY, tilePx, tilePx);
-          }
-        }
-      }
-    }
-
-    // Corner joints — fill / tile the gap at every grid intersection where H and
-    // V wall strips meet. Uses the pack's optional wallJoint directional art when
-    // available; falls back to a programmatic filled square otherwise.
-  // A joint is exactly as thick as the walls meeting it — anything else
-    // steps in or out at every intersection. Was an independent 35/128.
-    const thickness = tilePx * WALL_BAND_RATIO;
-    const halfThick = thickness / 2;
-    for (let jy = minY; jy <= maxY + 1; jy++) {
-      for (let jx = minX; jx <= maxX + 1; jx++) {
-        const wH = !!layers.floor[cellKey(jx - 1, jy)]?.wallN;
-        const eH = !!layers.floor[cellKey(jx, jy)]?.wallN;
-        const nV = !!layers.floor[cellKey(jx, jy - 1)]?.wallW;
-        const sV = !!layers.floor[cellKey(jx, jy)]?.wallW;
-        if (!(wH || eH) || !(nV || sV)) continue;
-        const cornerX = jx * tilePx - viewportOffset.x;
-        const cornerY = jy * tilePx - viewportOffset.y;
-        const side = classifyJoint(wH, eH, nV, sV);
-        // Check all four adjacent walls for pack ownership — avoids falling back to
-        // currentPackId and having corners change style when the active pack switches.
-        const jointPackId =
-          layers.floor[cellKey(jx, jy)]?.wallN?.pack_id ??
-          layers.floor[cellKey(jx - 1, jy)]?.wallN?.pack_id ??
-          layers.floor[cellKey(jx, jy)]?.wallW?.pack_id ??
-          layers.floor[cellKey(jx, jy - 1)]?.wallW?.pack_id ??
-          currentPackId;
-        const jointRt = rt(jointPackId);
-
-        // M6 schema v2: wallRoundJoint — drawn at full tile size centered on the corner.
-        // Only honoured when the pack ships REAL art for it — procedural placeholders
-        // fall through to the standard wallJoint handling so rectangular rooms don't
-        // unexpectedly grow rounded corners before real round-corner art exists.
-        if (side?.startsWith("L_") && jointRt && jointRt.variantCount("wallRoundJoint", side) > 0) {
-          const roundTile = jointRt.getTile("wallRoundJoint", 0, side);
-          if (!roundTile.isPlaceholder) {
-            ctx.drawImage(roundTile.source, cornerX - tilePx / 2, cornerY - tilePx / 2, tilePx, tilePx);
-            continue;
-          }
-        }
-
-        // Prefer directional tile, fall back to generic (no side), then procedural square.
-        const directional = side && jointRt && jointRt.variantCount("wallJoint", side) > 0
-          ? jointRt.getTile("wallJoint", 0, side) : null;
-        const generic = !directional?.source && jointRt
-          ? jointRt.getTile("wallJoint", 0) : null;
-        const jointTile = directional ?? generic;
-        if (jointTile && !jointTile.isPlaceholder) {
-          ctx.drawImage(jointTile.source, cornerX - halfThick, cornerY - halfThick, thickness, thickness);
-        } else {
-          // Fallback square: use pack palette colour (wallJoint → wallSegmentH → stone default).
-          const pal = jointRt?.manifest.palette;
-          const [r, g, b] = pal?.wallJoint ?? pal?.wallSegmentH ?? [40, 36, 32];
-          ctx.fillStyle = `rgb(${r},${g},${b})`;
-          ctx.fillRect(cornerX - halfThick, cornerY - halfThick, thickness, thickness);
-        }
-      }
-    }
-  }
-
-  // Object layer — stamps drawn above walls
-  if (runtimes.size > 0) {
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const obj = layers.object[cellKey(x, y)];
-        if (!obj) continue;
-        const drawX = x * tilePx - viewportOffset.x;
-        const drawY = y * tilePx - viewportOffset.y;
-        const objRt = rt(obj.pack_id);
-        if (!objRt) continue;
-        const tile = objRt.getTile(obj.category as PackCategory, obj.variant);
-        const rotation = (obj as { rotation?: number }).rotation ?? 0;
-        if (rotation) {
-          ctx.save();
-          ctx.translate(drawX + tilePx / 2, drawY + tilePx / 2);
-          ctx.rotate((rotation * Math.PI) / 180);
-          ctx.drawImage(tile.source, -tilePx / 2, -tilePx / 2, tilePx, tilePx);
-          ctx.restore();
-        } else {
-          ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
-        }
-      }
-    }
-  }
-
-  // Dressing layer (epic #1062) — props above the stamped objects, in stacking
-  // order. A prop is culled when its rotated footprint misses the visible cells.
-  for (const [, placement] of dressingDrawOrder(layers.dressing)) {
-    const cb = dressingCellBounds(placement, dressing);
-    if (cb.maxX < minX || cb.minX > maxX || cb.maxY < minY || cb.minY > maxY) continue;
-    drawDressing(
-      ctx,
-      placement,
-      dressing.get(placement.prop_id),
-      placement.x * tilePx - viewportOffset.x,
-      placement.y * tilePx - viewportOffset.y,
-      tilePx,
-    );
-  }
-
-  // Derived-space outlines (#868) — the Space tool's "here's the region
-  // you'd claim" preview. Traces the space's true perimeter (not per-cell
-  // boxes) via `boundaryEdges`, same helper Wrap Walls uses to find the
-  // edges facing void.
-  if (derivedSpaces && derivedSpaces.length > 0) {
-    for (const space of derivedSpaces) {
-      const isSelected = space.key === selectedSpaceKey;
-      ctx.strokeStyle = isSelected ? "rgba(96,165,250,0.9)" : "rgba(255,255,255,0.35)";
-      ctx.lineWidth = isSelected ? 2.5 : 1.5;
-      ctx.setLineDash([tilePx * 0.15, tilePx * 0.1]);
+  drawMapContent({
+    ctx,
+    tilePx,
+    origin: viewportOffset,
+    bounds,
+    layers,
+    runtime: rt,
+    defaultPackId: currentPackId,
+    glyphs,
+    glyphPackId: currentPackId,
+    dressing,
+    afterGround: () => {
+      // Grid overlay
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      for (const { x, y, side } of boundaryEdges(new Set(space.cells))) {
-        const baseX = x * tilePx - viewportOffset.x;
-        const baseY = y * tilePx - viewportOffset.y;
-        switch (side) {
-          case "N": ctx.moveTo(baseX, baseY);           ctx.lineTo(baseX + tilePx, baseY); break;
-          case "S": ctx.moveTo(baseX, baseY + tilePx);   ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-          case "W": ctx.moveTo(baseX, baseY);            ctx.lineTo(baseX, baseY + tilePx); break;
-          case "E": ctx.moveTo(baseX + tilePx, baseY);   ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-        }
+      for (let x = minX; x <= maxX + 1; x++) {
+        const px = x * tilePx - viewportOffset.x;
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, canvasHeight);
+      }
+      for (let y = minY; y <= maxY + 1; y++) {
+        const py = y * tilePx - viewportOffset.y;
+        ctx.moveTo(0, py);
+        ctx.lineTo(canvasWidth, py);
       }
       ctx.stroke();
-      ctx.setLineDash([]);
+    },
+    afterDressing: () => {
+      // Derived-space outlines (#868) — the Space tool's "here's the region
+      // you'd claim" preview. Traces the space's true perimeter (not per-cell
+      // boxes) via `boundaryEdges`, same helper Wrap Walls uses to find the
+      // edges facing void.
+      if (derivedSpaces && derivedSpaces.length > 0) {
+        for (const space of derivedSpaces) {
+          const isSelected = space.key === selectedSpaceKey;
+          ctx.strokeStyle = isSelected ? "rgba(96,165,250,0.9)" : "rgba(255,255,255,0.35)";
+          ctx.lineWidth = isSelected ? 2.5 : 1.5;
+          ctx.setLineDash([tilePx * 0.15, tilePx * 0.1]);
+          ctx.beginPath();
+          for (const { x, y, side } of boundaryEdges(new Set(space.cells))) {
+            const baseX = x * tilePx - viewportOffset.x;
+            const baseY = y * tilePx - viewportOffset.y;
+            switch (side) {
+              case "N": ctx.moveTo(baseX, baseY);           ctx.lineTo(baseX + tilePx, baseY); break;
+              case "S": ctx.moveTo(baseX, baseY + tilePx);   ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
+              case "W": ctx.moveTo(baseX, baseY);            ctx.lineTo(baseX, baseY + tilePx); break;
+              case "E": ctx.moveTo(baseX + tilePx, baseY);   ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
+            }
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
 
-      // An annotation-sourced name is already drawn by the annotation layer
-      // below, at the cell it was typed into — drawing it again at the
-      // space's centroid would show the same name twice on screen. Only a
-      // space with no annotation of its own (still "Region N") needs this
-      // layer to say its name at all.
-      if (space.nameSource !== "annotation") {
-        const cx = space.cells.reduce((sum, c) => sum + Number(c.split(",")[0]), 0) / space.cells.length;
-        const cy = space.cells.reduce((sum, c) => sum + Number(c.split(",")[1]), 0) / space.cells.length;
-        const labelX = (cx + 0.5) * tilePx - viewportOffset.x;
-        const labelY = (cy + 0.5) * tilePx - viewportOffset.y;
-        const fontSize = Math.max(10, Math.round(tilePx * 0.18));
-        ctx.font = `bold ${fontSize}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillStyle = "rgba(0,0,0,0.6)";
-        ctx.fillText(space.displayName, labelX + 1, labelY + 1);
-        ctx.fillStyle = isSelected ? "rgba(191,219,254,0.95)" : "rgba(255,255,255,0.75)";
-        ctx.fillText(space.displayName, labelX, labelY);
+          // An annotation-sourced name is already drawn by the annotation layer
+          // below, at the cell it was typed into — drawing it again at the
+          // space's centroid would show the same name twice on screen. Only a
+          // space with no annotation of its own (still "Region N") needs this
+          // layer to say its name at all.
+          if (space.nameSource !== "annotation") {
+            const cx = space.cells.reduce((sum, c) => sum + Number(c.split(",")[0]), 0) / space.cells.length;
+            const cy = space.cells.reduce((sum, c) => sum + Number(c.split(",")[1]), 0) / space.cells.length;
+            const labelX = (cx + 0.5) * tilePx - viewportOffset.x;
+            const labelY = (cy + 0.5) * tilePx - viewportOffset.y;
+            const fontSize = Math.max(10, Math.round(tilePx * 0.18));
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.fillText(space.displayName, labelX + 1, labelY + 1);
+            ctx.fillStyle = isSelected ? "rgba(191,219,254,0.95)" : "rgba(255,255,255,0.75)";
+            ctx.fillText(space.displayName, labelX, labelY);
+          }
+        }
       }
-    }
-  }
-
-  // Hazard / feature glyph layer (#804) — a placed trap's or feature's
-  // visual glyph, drawn above objects. There is no per-cell stored pack_id
-  // for these (they aren't authored through a stamp tool; `glyphs` is
-  // resolved live off the linked trap/feature — see cartographer/glyphs.ts),
-  // so they draw against the currently active pack, same fallback rule as
-  // the corner-joint code above. Variant is always 0 — this is a drawing
-  // hint, not an authored stamp with variety to pick between.
-  if (runtimes.size > 0) {
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const category = glyphs[cellKey(x, y)];
-        if (!category) continue;
-        const r = rt(currentPackId);
-        if (!r) continue;
-        const drawX = x * tilePx - viewportOffset.x;
-        const drawY = y * tilePx - viewportOffset.y;
-        const tile = r.getTile(category, 0);
-        ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
-      }
-    }
-  }
+    },
+  });
 
   // Annotation layer — text labels centered in each cell
   ctx.textAlign = "center";

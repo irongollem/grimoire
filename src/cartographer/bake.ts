@@ -7,13 +7,13 @@
 // Mirrors the render logic in CartographerEditorView but without viewport/zoom
 // dependencies: cells are drawn at 1:1 scale (BASE_TILE_SIZE px per cell).
 
-import { BASE_TILE_SIZE, WALL_BAND_RATIO, type PackCategory } from "./packSchema";
+import { BASE_TILE_SIZE, type PackCategory } from "./packSchema";
+import { drawMapContent } from "./drawMap";
 import type { TilePackRuntime } from "./packLoader";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
-import { classifyJoint } from "./edges";
 import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";
 import { encodeWebp } from "@/lib/webpEncode";
-import { drawDressing, dressingCellBounds, dressingDrawOrder, type DressingCatalog } from "./dressing";
+import { dressingCellBounds, type DressingCatalog } from "./dressing";
 
 export interface BakeOptions {
   /** Cells of black padding around the painted extent. Default: 3. */
@@ -21,7 +21,7 @@ export interface BakeOptions {
   /**
    * Skip the opaque `#000` ground fill so a cell with no floor stays alpha 0
    * — the Drawing layer (epic #884) sits over a Picture, which must show
-   * through wherever nothing is painted. Wall-joint fill (`rgb(40,36,32)`)
+   * through wherever nothing is painted. Wall-joint fill (the pack palette)
    * is unaffected: that paints per-cell where a joint is actually drawn, not
    * the whole canvas, so it stays opaque even in transparent mode. Default
    * false — the PNG download and the AI-styler input both want an opaque
@@ -121,138 +121,27 @@ function renderToCanvas(
     ctx.fillRect(0, 0, cols * ts, rows * ts);
   }
 
-  const rt = (packId: string): TilePackRuntime | null => runtimes.get(packId) ?? null;
+  // Pack content is drawn by the module the live editor shares (drawMap.ts),
+  // so the two cannot drift again. The resolver has NO fallback runtime on
+  // purpose: a bake must not draw a map in a pack it was not painted with, so
+  // a cell whose pack is not loaded is skipped rather than redrawn in another.
+  drawMapContent({
+    ctx,
+    tilePx: ts,
+    origin: { x: (minX - paddingCells) * ts, y: (minY - paddingCells) * ts },
+    bounds: { minX, minY, maxX, maxY },
+    layers,
+    runtime: (packId) => runtimes.get(packId) ?? null,
+    defaultPackId: null,
+    glyphs,
+    // There is no "currently active pack" once baking runs headless, so
+    // glyphs draw against the map's own persisted default pack.
+    glyphPackId: map.default_pack_id,
+    dressing,
+  });
+
   const dx = (cx: number) => (cx - minX + paddingCells) * ts;
   const dy = (cy: number) => (cy - minY + paddingCells) * ts;
-  const halfTile = ts / 2;
-
-  // Floor layer
-  for (const [k, cell] of Object.entries(layers.floor)) {
-    const [xs, ys] = k.split(",");
-    const x = Number(xs), y = Number(ys);
-    if (!cell.floor) continue;
-    const r = rt(cell.floor.pack_id);
-    if (!r) continue;
-    const tile = r.getTile("floor", cell.floor.variant);
-    ctx.drawImage(tile.source, dx(x), dy(y), ts, ts);
-  }
-
-  // Solid block layer
-  for (const [k, cell] of Object.entries(layers.solidBlock)) {
-    const [xs, ys] = k.split(",");
-    const x = Number(xs), y = Number(ys);
-    const r = rt(cell.pack_id);
-    if (!r) continue;
-    const tile = r.getTile("solidBlock", cell.variant);
-    ctx.drawImage(tile.source, dx(x), dy(y), ts, ts);
-  }
-
-  // Wall segments
-  for (const [k, cell] of Object.entries(layers.floor)) {
-    const [xs, ys] = k.split(",");
-    const x = Number(xs), y = Number(ys);
-    if (cell.wallN) {
-      const r = rt(cell.wallN.pack_id);
-      if (r) {
-        const cat: PackCategory =
-          cell.wallN.type === "doorClosed" ? "doorClosedH"
-          : cell.wallN.type === "doorOpen" ? "doorOpenH"
-          : "wallSegmentH";
-        const tile = r.getTile(cat, cell.wallN.variant);
-        ctx.drawImage(tile.source, dx(x), dy(y) - halfTile, ts, ts);
-      }
-    }
-    if (cell.wallW) {
-      const r = rt(cell.wallW.pack_id);
-      if (r) {
-        const cat: PackCategory =
-          cell.wallW.type === "doorClosed" ? "doorClosedV"
-          : cell.wallW.type === "doorOpen" ? "doorOpenV"
-          : "wallSegmentV";
-        const tile = r.getTile(cat, cell.wallW.variant);
-        ctx.drawImage(tile.source, dx(x) - halfTile, dy(y), ts, ts);
-      }
-    }
-  }
-
-  // Corner joints
-  // A joint is exactly as thick as the walls meeting it — anything else
-  // steps in or out at every intersection. Was an independent 35/128.
-  const thickness = ts * WALL_BAND_RATIO;
-  const halfThick = thickness / 2;
-  ctx.fillStyle = "rgb(40, 36, 32)";
-  for (let jy = minY - 1; jy <= maxY + 2; jy++) {
-    for (let jx = minX - 1; jx <= maxX + 2; jx++) {
-      const wH = !!layers.floor[`${jx - 1},${jy}`]?.wallN;
-      const eH = !!layers.floor[`${jx},${jy}`]?.wallN;
-      const nV = !!layers.floor[`${jx},${jy - 1}`]?.wallW;
-      const sV = !!layers.floor[`${jx},${jy}`]?.wallW;
-      if (!(wH || eH) || !(nV || sV)) continue;
-      const cx = dx(jx), cy = dy(jy);
-      const side = classifyJoint(wH, eH, nV, sV);
-      const jointPackId =
-        layers.floor[`${jx},${jy}`]?.wallN?.pack_id ??
-        layers.floor[`${jx - 1},${jy}`]?.wallN?.pack_id ??
-        layers.floor[`${jx},${jy}`]?.wallW?.pack_id ??
-        layers.floor[`${jx},${jy - 1}`]?.wallW?.pack_id;
-      const jointRt = jointPackId ? rt(jointPackId) : null;
-      const directional = side && jointRt && jointRt.variantCount("wallJoint", side) > 0
-        ? jointRt.getTile("wallJoint", 0, side) : null;
-      const generic = !directional?.source && jointRt ? jointRt.getTile("wallJoint", 0) : null;
-      const jointTile = directional ?? generic;
-      if (jointTile && !jointTile.isPlaceholder) {
-        ctx.drawImage(jointTile.source, cx - halfThick, cy - halfThick, thickness, thickness);
-      } else {
-        const pal = jointRt?.manifest.palette;
-        const [r, g, b] = pal?.wallJoint ?? pal?.wallSegmentH ?? [40, 36, 32];
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
-        ctx.fillRect(cx - halfThick, cy - halfThick, thickness, thickness);
-      }
-    }
-  }
-
-  // Object layer (with rotation)
-  for (const [k, obj] of Object.entries(layers.object)) {
-    const [xs, ys] = k.split(",");
-    const x = Number(xs), y = Number(ys);
-    const r = rt(obj.pack_id);
-    if (!r) continue;
-    const tile = r.getTile(obj.category as PackCategory, obj.variant);
-    const rotation = obj.rotation ?? 0;
-    const px = dx(x), py = dy(y);
-    if (rotation) {
-      ctx.save();
-      ctx.translate(px + ts / 2, py + ts / 2);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.drawImage(tile.source, -ts / 2, -ts / 2, ts, ts);
-      ctx.restore();
-    } else {
-      ctx.drawImage(tile.source, px, py, ts, ts);
-    }
-  }
-
-  // Dressing layer (epic #1062) — props above the stamped objects, in stacking
-  // order, same placement maths as the live editor.
-  for (const [, placement] of dressingDrawOrder(layers.dressing)) {
-    drawDressing(ctx, placement, dressing.get(placement.prop_id), dx(placement.x), dy(placement.y), ts);
-  }
-
-  // Hazard / feature glyph layer (#804) — same convention as the live editor
-  // renderer (renderMap.ts): `glyphs` is resolved OUTSIDE this function from
-  // the linked trap's/feature's live hazard_glyph/feature_glyph (see
-  // cartographer/glyphs.ts). There is no "currently active pack" once baking
-  // runs headless, so this draws against the map's own persisted default
-  // pack — skipped (like every other layer here) when that pack isn't
-  // present in `runtimes`.
-  const glyphRt = map.default_pack_id ? rt(map.default_pack_id) : null;
-  if (glyphRt) {
-    for (const [k, category] of Object.entries(glyphs)) {
-      const [xs, ys] = k.split(",");
-      const x = Number(xs), y = Number(ys);
-      const tile = glyphRt.getTile(category, 0);
-      ctx.drawImage(tile.source, dx(x), dy(y), ts, ts);
-    }
-  }
 
   // Annotation layer
   ctx.textAlign = "center";

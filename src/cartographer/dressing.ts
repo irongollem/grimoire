@@ -22,7 +22,7 @@ export type DressingCatalog = ReadonlyMap<string, DressingProp>;
 
 export type DressingLayer = Readonly<Record<string, DressingPlacement>>;
 
-type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 export interface CellPoint {
   x: number;

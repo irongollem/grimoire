@@ -14,7 +14,7 @@ import {
 } from "./dressing";
 
 function prop(id: string, w: number, h: number, image: CanvasImageSource | null = null): DressingProp {
-  return { id, name: id, footprint_w: w, footprint_h: h, image };
+  return { id, name: id, footprint_w: w, footprint_h: h, image, flat: false };
 }
 const catalog: DressingCatalog = new Map([
   ["table", prop("table", 2, 1)],
