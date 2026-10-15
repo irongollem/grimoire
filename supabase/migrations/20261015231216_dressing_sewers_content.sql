@@ -10,7 +10,7 @@
 insert into public.library_dressing (id, name, group_key, tags, footprint_w, footprint_h, source, flat)
 select id, name, group_key, tags, footprint_w, footprint_h, 'grimoire-dressing-sewers', flat
   from jsonb_populate_recordset(null::public.library_dressing, $content$[
-  {"id": "dressing_sewer_plank_bridge", "name": "Plank bridge", "group_key": "crossings", "tags": ["sewer", "bridge", "canal"], "footprint_w": 3, "footprint_h": 1, "flat": false},
+  {"id": "dressing_sewer_plank_bridge", "name": "Plank bridge", "group_key": "crossings", "tags": ["sewer", "bridge", "canal"], "footprint_w": 4, "footprint_h": 1, "flat": false},
   {"id": "dressing_sewer_arch_bridge", "name": "Stone arch bridge", "group_key": "crossings", "tags": ["sewer", "bridge", "canal"], "footprint_w": 3, "footprint_h": 1, "flat": false},
   {"id": "dressing_sewer_grating", "name": "Iron grating walkway", "group_key": "crossings", "tags": ["sewer", "walkway", "canal"], "footprint_w": 2, "footprint_h": 1, "flat": true},
   {"id": "dressing_sewer_plank_walkway", "name": "Plank walkway", "group_key": "crossings", "tags": ["sewer", "walkway", "canal"], "footprint_w": 4, "footprint_h": 1, "flat": false},
