@@ -147,7 +147,13 @@ jobs:
       - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: 2.109.1
+      # Pull the stack's images from ghcr.io, as the Edge Function deploy below
+      # does and for the same reason: the default registries cap anonymous
+      # pulls per source IP, GitHub's runners share their IPs, and run
+      # 38655054325 (15 Oct 2026) failed here on "toomanyrequests".
       - name: Replay every migration into a fresh database
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
         run: supabase start
       - name: Database tests (pgTAP — RLS, RPCs, triggers)
         run: supabase test db
@@ -220,6 +226,8 @@ jobs:
       # Replays every migration. The data the journeys load is not from a seed
       # (the real-data dump is not in the repo): the next step creates it.
       - name: Start the local stack
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io # see the database job
         run: supabase start
       - name: Create the synthetic fixture
         run: npm run perf:fixture
