@@ -43,9 +43,14 @@ update public.campaign_members set party_member_id = '10590000-0000-4000-8000-00
  where campaign_id = '10590000-0000-4000-8000-0000000000c1' and user_id = '10590000-0000-4000-8000-000000000003';
 select set_config('grimoire.pm_campaign_transition', 'off', true);
 
+-- Its own spells: the library is empty in a fresh database, so a fixture that
+-- picked from it inserted nothing there and the refusal below passed vacuously.
+insert into public.library_spells (id, name, level, school, casting_time, range, duration, conceptual_key, ruleset, source, source_title, source_document_key, source_record_key) values
+  ('test_caretaker_spell_1', 'Test Caretaker Charm', 1, 'enchantment', 'Action', '30 ft.', '1 hour', 'test-caretaker-charm', '2024', 'test-caretaker', 'Test Caretaker', 'test-caretaker', 'test_caretaker_spell_1'),
+  ('test_caretaker_spell_2', 'Test Caretaker Bolt', 1, 'evocation', 'Action', '60 ft.', 'Instantaneous', 'test-caretaker-bolt', '2024', 'test-caretaker', 'Test Caretaker', 'test-caretaker', 'test_caretaker_spell_2');
+
 insert into public.character_spells (id, party_member_id, spell_id, source_type, source_label, uses_remaining)
-select '10590000-0000-4000-8000-0000000000b1', '10590000-0000-4000-8000-0000000000a1', s.id, 'feat', 'Fey Touched', 1
-  from public.library_spells s limit 1;
+values ('10590000-0000-4000-8000-0000000000b1', '10590000-0000-4000-8000-0000000000a1', 'test_caretaker_spell_1', 'feat', 'Fey Touched', 1);
 
 -- The fixture's spell is from a book the table has not enabled; that review is
 -- not under test here, and a pending one would bench the character (CR001).
@@ -161,7 +166,7 @@ select throws_ok($$ update public.party_members set class_choices = class_choice
   where id = '10590000-0000-4000-8000-0000000000a1' $$,
   '42501', 'A character you are looking after keeps the choices its player made', 'the caretaker does not change a build choice');
 select throws_ok($$ insert into public.character_spells (party_member_id, spell_id, source_type, source_label)
-  select '10590000-0000-4000-8000-0000000000a1', s.id, 'feat', 'Magic Initiate' from public.library_spells s offset 1 limit 1 $$,
+  values ('10590000-0000-4000-8000-0000000000a1', 'test_caretaker_spell_2', 'feat', 'Magic Initiate') $$,
   '42501', 'A character you are looking after keeps the spells its player chose', 'the caretaker does not learn a spell for it');
 select throws_ok($$ select public.set_character_down('10590000-0000-4000-8000-0000000000a1', 'retired', null, null, null, null, null) $$,
   'P0001', 'Access denied', 'the caretaker does not retire the character');
