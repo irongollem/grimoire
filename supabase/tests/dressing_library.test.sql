@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(20);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('10620000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -34,6 +34,11 @@ set local role authenticated;
 select pg_temp.as_user(2);
 select is((select count(*)::int from public.library_dressing where source = 'grimoire-dressing'), 62,
   'an ordinary user reads the whole seeded catalog of 62 props');
+select is(
+  (select row(count(*), count(*) filter (where flat), count(*) filter (where group_key = 'crossings'))::text
+     from public.library_dressing where source = 'grimoire-dressing-sewers'),
+  row(22, 16, 4)::text,
+  'the Sewers book seeds 22 props, 16 lying flat and 4 crossings');
 select is(
   (select row(footprint_w, footprint_h, group_key)::text from public.library_dressing where id = 'dressing_wagon'),
   row(2, 3, 'camp')::text,
