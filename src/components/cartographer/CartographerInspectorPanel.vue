@@ -18,6 +18,22 @@
 
     <div>
       <label class="block text-eyebrow text-muted-foreground mb-1">
+        Light
+      </label>
+      <SegmentedControl
+        :model-value="darkness"
+        :options="DARKNESS_OPTIONS"
+        size="xs"
+        block
+        @update:model-value="$emit('update:darkness', $event)"
+      />
+      <p class="text-caption-sm text-muted-foreground mt-1">
+        {{ DARKNESS_OPTIONS.find((o) => o.value === darkness)?.tooltip }}
+      </p>
+    </div>
+
+    <div>
+      <label class="block text-eyebrow text-muted-foreground mb-1">
         Tile Pack
       </label>
       <div class="space-y-1">
@@ -293,9 +309,9 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
 import CartographerDressingPanel from "@/components/cartographer/CartographerDressingPanel.vue";
 import RotationControl from "@/components/cartographer/RotationControl.vue";
-import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
-import type { EdgeSegType } from "@/types/dungeonMap.types";
+import type { DarknessLevel, EdgeSegType } from "@/types/dungeonMap.types";
 import type { PackCategory, TilePackManifest } from "@/cartographer/packSchema";
 import { decalLabel, stampLabel, type StampCategory } from "@/cartographer/stampCategories";
 import { WALL_KINDS, type WallKind } from "@/cartographer/wallKinds";
@@ -330,6 +346,7 @@ defineProps<{
   name: string;
   campaignId: string | null;
   currentPackId: string;
+  darkness: DarknessLevel;
   bundledPacks: readonly BundledPack[];
   loadedPackIds: Set<string>;
   packValidationMissing: number;
@@ -372,6 +389,7 @@ defineEmits<{
   "update:name": [value: string];
   "update:campaignId": [id: string | null];
   "update:currentPackId": [id: string];
+  "update:darkness": [level: DarknessLevel];
   "update:activeObjectCategory": [cat: StampCategory];
   "update:stampRotation": [deg: number];
   "update:activeWallKind": [kind: WallKind];
@@ -388,6 +406,13 @@ defineEmits<{
   "update:activeTemplateShape": [shape: string];
   "update:caveRadius": [size: number];
 }>();
+
+// The rules' three levels of light. The line under the control says the same as the tooltip: a phone has no hover.
+const DARKNESS_OPTIONS: SegmentedOption<DarknessLevel>[] = [
+  { value: "daylight", label: "Daylight", tooltip: "Bright light everywhere." },
+  { value: "dim", label: "Dim", tooltip: "Dim light everywhere, as at twilight." },
+  { value: "dark", label: "Dark", tooltip: "Darkness wherever no light reaches." },
+];
 
 const annotationInputEl = ref<AppInputHandle | null>(null);
 

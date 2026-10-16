@@ -70,7 +70,7 @@ export function buildMapLive(
     }),
   );
 
-  return { version: 1, groups, lights, sprites: gatherSprites(map, runtimes, dressing, originCellX, originCellY) };
+  return { version: 1, darkness: map.darkness, groups, lights, sprites: gatherSprites(map, runtimes, dressing, originCellX, originCellY) };
 }
 
 /**

@@ -16,7 +16,8 @@ import {
   type ShadowLayer,
 } from "@/cartographer/drawMap";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
-import { cellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
+import { paintVeil } from "@/lib/battlemap/darkness";
+import { cellKey, type CellKey, type DarknessLevel, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
 import type { CellEdge } from "@/cartographer/edges";
 import { boundaryEdges } from "@/cartographer/floodFill";
 import type { Tool } from "@/cartographer/tools";
@@ -54,6 +55,8 @@ export interface MapRenderScene {
    * has to travel with the rest of the scene.
    */
   currentPackId: string;
+  /** The map's ambient light; the DM's veil for it is laid over the drawing (absent = daylight). */
+  darkness?: DarknessLevel;
   // Interaction state render() reads — same types the view already declares
   // for these refs.
   activeTool: Tool;
@@ -170,6 +173,26 @@ function cachedShadowLayer(scene: MapRenderScene, input: DrawMapInput): ShadowLa
   return layer;
 }
 
+/** The cell box around everything painted, or null for an empty map: the area the veil covers. */
+function paintedExtent(layers: DungeonMapLayers): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  let extent: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
+  for (const cells of [layers.floor, layers.terrain, layers.solidBlock, layers.object]) {
+    for (const key of Object.keys(cells) as CellKey[]) {
+      const [xs, ys] = key.split(",");
+      const x = Number(xs);
+      const y = Number(ys);
+      if (!extent) extent = { minX: x, minY: y, maxX: x, maxY: y };
+      else {
+        extent.minX = Math.min(extent.minX, x);
+        extent.minY = Math.min(extent.minY, y);
+        extent.maxX = Math.max(extent.maxX, x);
+        extent.maxY = Math.max(extent.maxY, y);
+      }
+    }
+  }
+  return extent;
+}
+
 // ── Canvas rendering ───────────────────────────────────────────────────────
 
 export function renderMap(scene: MapRenderScene): void {
@@ -198,6 +221,7 @@ export function renderMap(scene: MapRenderScene): void {
     dressing,
     dressingGhost,
     selectedDressingId,
+    darkness,
   } = scene;
   const { minX, minY, maxX, maxY } = bounds;
 
@@ -301,6 +325,24 @@ export function renderMap(scene: MapRenderScene): void {
   };
   // Shadows come from the cache; a null layer (no OffscreenCanvas) draws none.
   drawMapContent({ ...content, shadows: true, shadowLayer: cachedShadowLayer(scene, content) });
+
+  // The DM's darkness veil, over the drawing but under the editing aids (labels, link dots, selection), so what
+  // the DM is working on stays readable. The same function paints it on the battle map.
+  if (darkness) {
+    const extent = paintedExtent(layers);
+    if (extent) {
+      paintVeil(
+        ctx,
+        {
+          x: extent.minX * tilePx - viewportOffset.x,
+          y: extent.minY * tilePx - viewportOffset.y,
+          w: (extent.maxX - extent.minX + 1) * tilePx,
+          h: (extent.maxY - extent.minY + 1) * tilePx,
+        },
+        darkness,
+      );
+    }
+  }
 
   // Annotation layer — text labels centered in each cell
   ctx.textAlign = "center";

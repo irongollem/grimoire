@@ -154,6 +154,7 @@ const baseMap: DungeonMap = {
   layers: emptyLayers(),
   metadata: {},
   default_pack_id: null,
+  darkness: "daylight",
   tags: [],
   notes: null,
   rev: 1,
@@ -420,6 +421,26 @@ describe("MapWorkbench", () => {
     };
     expect(vm.getName()).toBe("Test Dungeon");
     expect(vm.getLayers()).toEqual(emptyLayers());
+    expect(vm.isDirty()).toBe(false);
+  });
+  it("keeps the map's light level: edited from the Light control, an unsaved change, restored by resetEdits", async () => {
+    const wrapper = mount(MapWorkbench, {
+      props: { map: { ...baseMap, darkness: "dim" }, viewMode: false },
+      global: { stubs: { CampaignScopeField: true } },
+    });
+    const vm = wrapper.vm as unknown as {
+      getDarkness: () => string;
+      isDirty: () => boolean;
+      resetEdits: () => void;
+    };
+    expect(vm.getDarkness()).toBe("dim");
+    const dark = wrapper.findAll("button").find((b) => b.text() === "Dark");
+    expect(dark).toBeDefined();
+    await dark?.trigger("click");
+    expect(vm.getDarkness()).toBe("dark");
+    expect(vm.isDirty()).toBe(true);
+    vm.resetEdits();
+    expect(vm.getDarkness()).toBe("dim");
     expect(vm.isDirty()).toBe(false);
   });
 });

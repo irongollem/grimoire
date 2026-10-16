@@ -5,6 +5,7 @@
  */
 
 import type { SwayMotion } from "@/cartographer/packSchema";
+import type { DarknessLevel } from "@/types/dungeonMap.types";
 
 /** One animated overlay: a seamless transparent image tiled over a cell group, drifting and breathing. */
 export interface MotionOverlay {
@@ -61,6 +62,8 @@ export interface MapLiveSprite {
 
 export interface MapLive {
   version: 1;
+  /** The map's ambient light at publish time: the battle map's darkness veil reads it. */
+  darkness: DarknessLevel;
   groups: MapLiveGroup[];
   lights: MapLiveLight[];
   /** Standing objects first (row-major), then Dressing in draw order: the order they stack in the bake. */

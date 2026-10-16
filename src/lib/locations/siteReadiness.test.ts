@@ -212,6 +212,7 @@ describe("publishStaleness", () => {
       layers: emptyLayers(),
       metadata: {},
       default_pack_id: null,
+      darkness: "daylight",
       tags: [],
       notes: null,
       campaign_id: null,

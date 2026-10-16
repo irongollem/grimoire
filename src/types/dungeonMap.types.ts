@@ -84,6 +84,12 @@ export interface DungeonMapLayers {
   dressing: Record<string, DressingPlacement>;
 }
 
+/**
+ * How lit the whole map is (epic #1073), the rules' three: daylight is bright light everywhere, dim is dim light
+ * everywhere (twilight), dark is darkness wherever no light reaches. One level per map.
+ */
+export type DarknessLevel = "daylight" | "dim" | "dark";
+
 export interface DungeonMap {
   id: string;
   user_id: string;
@@ -95,6 +101,8 @@ export interface DungeonMap {
   layers: DungeonMapLayers;
   metadata: Record<CellKey, CellMetadata>;
   default_pack_id: string | null;
+  /** The map's ambient light. Counts toward `rev`, so changing it makes a published site stale. */
+  darkness: DarknessLevel;
   tags: string[];
   notes: unknown; // Tiptap JSON
   /** Bumped by a DB trigger whenever `layers` or `metadata` change (#868).

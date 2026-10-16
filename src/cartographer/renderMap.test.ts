@@ -366,3 +366,27 @@ describe("renderMap — shadow cache", () => {
     expect(f.layers.length).toBeGreaterThan(built);
   });
 });
+
+describe("renderMap: darkness veil", () => {
+  const paintOne = () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(2, 3)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };
+    return layers;
+  };
+  const veilRects = (rec: Recorder) => rec.fillRects.filter((_, i) => String(rec.fillRectStyles[i]).startsWith("rgba(8, 10, 24"));
+
+  it("lays the veil over the painted area only", () => {
+    const { scene, rec } = baseScene({ layers: paintOne(), darkness: "dark" });
+    renderMap(scene);
+    expect(veilRects(rec)).toEqual([{ x: 128, y: 192, w: 64, h: 64 }]);
+  });
+
+  it("casts no veil in daylight or on an empty map", () => {
+    const day = baseScene({ layers: paintOne(), darkness: "daylight" });
+    renderMap(day.scene);
+    expect(veilRects(day.rec)).toHaveLength(0);
+    const empty = baseScene({ darkness: "dark" });
+    renderMap(empty.scene);
+    expect(veilRects(empty.rec)).toHaveLength(0);
+  });
+});

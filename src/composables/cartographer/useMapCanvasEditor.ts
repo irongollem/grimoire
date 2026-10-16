@@ -18,7 +18,7 @@ import type { AppInputHandle } from "@/components/common/controls/fieldVariants"
 import type { Tool } from "@/cartographer/tools";
 import { pinchOf, pinchViewport, zoomAtPoint, type Pinch, type CanvasViewport } from "@/cartographer/viewport";
 import { resolveKeyAction } from "@/cartographer/keymap";
-import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata } from "@/types/dungeonMap.types";
+import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DarknessLevel } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
 import type { StampCategory } from "@/cartographer/stampCategories";
 import { wallKindCategory, type WallKind } from "@/cartographer/wallKinds";
@@ -67,6 +67,8 @@ export interface MapCanvasEditorOptions {
    *  `update:dirty` event at all). */
   editRevision: Ref<number>;
   currentPackId: Ref<string>;
+  /** The map's ambient light; the preview lays the DM's veil for it over the drawing. */
+  darkness: Ref<DarknessLevel>;
   packRuntime: ComputedRef<TilePackRuntime | null>;
   selectablePacks: ComputedRef<ReadonlyArray<{ pack_id: string; pack_version: number }>>;
   loadedRuntimes: Ref<Map<string, TilePackRuntime>>;
@@ -123,7 +125,7 @@ const EDGE_HOVER_THRESHOLD = 0.25;
 
 export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
-    canvasEl, layers, metadata, dirty, editRevision, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
+    canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
     dressing, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape,
     caveRadius, selectedCell, inspectorPanelRef, structure, mapKey, getReferenceImage, extraRenderDeps,
     plan, activeLayer,
@@ -688,6 +690,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       dressing: dressing.value,
       fallbackRuntime: packRuntime.value,
       currentPackId: currentPackId.value,
+      darkness: darkness.value,
       activeTool: activeTool.value,
       viewMode: viewMode(),
       hoveredEdge: hoveredEdge.value,
@@ -738,7 +741,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     : [];
   watch(
     [
-      zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, hoverCell, hoveredEdge, activeTool,
+      zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoveredEdge, activeTool,
       previewCells, metadata, selectedCell, cellGlyphs,
       dressingTool.hover, dressingBrushId, dressingRotation, selectedDressingId, ...extraRenderDeps, ...planRenderDeps,
     ],

@@ -12,7 +12,7 @@ const FOREST = { labels: { objectPillar: ["Old tree"], wallDecal: ["Outflow pipe
 function mountPanel(over: Record<string, unknown> = {}) {
   return mount(CartographerInspectorPanel, {
     props: {
-      name: "Map", campaignId: null, currentPackId: "p", bundledPacks: [], loadedPackIds: new Set<string>(),
+      name: "Map", campaignId: null, currentPackId: "p", darkness: "daylight", bundledPacks: [], loadedPackIds: new Set<string>(),
       packValidationMissing: 0, activeTool: "wall", activeObjectCategory: "objectChest",
       objectCategories: STAMP_CATEGORIES, stampRotation: 0, manifest: FOREST,
       activeWallKind: "wall", activeWallDecal: 0, wallDecalCount: 2,

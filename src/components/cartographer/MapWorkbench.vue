@@ -195,6 +195,7 @@
           :name="name"
           :campaign-id="campaignId"
           :current-pack-id="currentPackId"
+          :darkness="darkness"
           :bundled-packs="selectablePacks"
           :loaded-pack-ids="loadedPackIds"
           :pack-validation-missing="packRuntime?.validation.missing.length ?? 0"
@@ -230,6 +231,7 @@
           @update:name="name = $event"
           @update:campaign-id="campaignId = $event"
           @update:current-pack-id="currentPackId = $event"
+          @update:darkness="setDarkness"
           @update:active-object-category="activeObjectCategory = $event"
           @update:active-wall-kind="activeWallKind = $event"
           @update:active-wall-decal="activeWallDecal = $event"
@@ -312,7 +314,7 @@
 // read live refs internally, so reactivity still flows through them
 // correctly when called from inside a parent `computed`.
 //
-//   getName / getCampaignId / getLayers / getMetadata / getCurrentPackId
+//   getName / getCampaignId / getLayers / getMetadata / getCurrentPackId / getDarkness
 //   getRuntimes       — loaded tile-pack runtimes, keyed by pack id
 //   getDressingCatalog — Dressing props by id, with the art loaded so far (#1062)
 //   loadDressingCatalog — the same once every placed prop's art is in: what a bake reads
@@ -380,6 +382,7 @@ import {
   withLayerDefaults,
   cellKey,
   type CellKey,
+  type DarknessLevel,
   type DungeonMap,
   type DungeonMapLayers,
   type CellMetadata,
@@ -480,6 +483,7 @@ const packLabel = computed(() => {
   if (!hasPublishedPacks.value) return "No packs published";
   return currentPackId.value;
 });
+const darkness = ref<DarknessLevel>("daylight");
 const dirty = ref(false);
 watch(dirty, (v) => emit("update:dirty", v), { immediate: true });
 
@@ -494,6 +498,13 @@ watch(editRevision, (rev) => emit("update:editRevision", rev));
 function markDirty(): void {
   dirty.value = true;
   editRevision.value++;
+}
+
+/** The Light control: a map-wide setting that, like a stroke, is an unsaved change (and re-arms the site's autosave). */
+function setDarkness(level: DarknessLevel): void {
+  if (darkness.value === level) return;
+  darkness.value = level;
+  markDirty();
 }
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
@@ -901,7 +912,7 @@ const {
   onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onDoubleClick, onWheel, structureTools,
   rotateSelectedDressing, deleteSelectedDressing,
 } = useMapCanvasEditor({
-  canvasEl, layers, metadata, dirty, editRevision, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
+  canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
   activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape, caveRadius,
   selectedCell, inspectorPanelRef, structure, mapKey: computed(() => map?.id || "new"),
@@ -967,6 +978,7 @@ function applyMapToState(m: DungeonMap | null): void {
   if (m) {
     name.value = m.name;
     campaignId.value = m.campaign_id;
+    darkness.value = m.darkness;
     layers.value = cloneLayers(m.layers);
     metadata.value = JSON.parse(JSON.stringify(m.metadata ?? {})) as Record<CellKey, CellMetadata>;
     // Neither present means the library has not answered yet; keep whatever
@@ -994,6 +1006,7 @@ defineExpose({
   getLayers: () => layers.value,
   getMetadata: () => metadata.value,
   getCurrentPackId: () => currentPackId.value,
+  getDarkness: () => darkness.value,
   getRuntimes: () => loadedRuntimes.value,
   getDressingCatalog: () => dressingCatalog.value,
   loadDressingCatalog,

@@ -22,6 +22,13 @@ function runtimes(entries: [string, TilePackRuntime][]): Map<string, TilePackRun
 const NO_DRESSING: DressingCatalog = new Map();
 
 describe("buildMapLive", () => {
+  it("carries the map's darkness level", () => {
+    for (const darkness of ["daylight", "dim", "dark"] as const) {
+      const map = { ...mapWith(emptyLayers()), darkness };
+      expect(buildMapLive(map, runtimes([]), NO_DRESSING, 0, 0).darkness).toBe(darkness);
+    }
+  });
+
   it("groups terrain by pack as water, in image cells, with the pack's terrainWater overlays", () => {
     const layers = emptyLayers();
     layers.terrain[cellKey(2, 3)] = ref("sea");

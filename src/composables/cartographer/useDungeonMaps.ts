@@ -52,6 +52,7 @@ async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string 
     layers: withLayerDefaults(map.layers),
     metadata: map.metadata ?? {},
     default_pack_id: map.default_pack_id ?? null,
+    darkness: map.darkness ?? "daylight",
     tags: map.tags ?? [],
     notes: map.notes ?? null,
     // NULL = available in every campaign; unset defaults to that rather than

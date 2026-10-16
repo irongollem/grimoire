@@ -30,6 +30,7 @@ function emptyMap(): DungeonMap {
     layers: { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {} },
     metadata: {},
     default_pack_id: null,
+    darkness: "daylight",
     tags: [],
     notes: null,
     created_at: "",

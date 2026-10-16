@@ -217,7 +217,7 @@ describe("resolveBattleSurface", () => {
 
   describe("live snapshot (#1073)", () => {
     const live: MapLive = {
-      version: 1,
+      version: 1, darkness: "daylight",
       groups: [{ kind: "water", cells: ["1,1"], overlays: [] }],
       lights: [],
       sprites: [],

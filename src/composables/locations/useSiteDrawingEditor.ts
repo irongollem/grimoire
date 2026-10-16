@@ -90,6 +90,7 @@ export function useSiteDrawingEditor(
         layers: wb.getLayers(),
         metadata: wb.getMetadata(),
         default_pack_id: wb.getCurrentPackId(),
+        darkness: wb.getDarkness(),
         tags: drawingMap.value?.tags ?? [],
         notes: null as unknown,
         campaign_id: wb.getCampaignId(),

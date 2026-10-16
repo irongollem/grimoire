@@ -10,6 +10,7 @@ const motion = vi.hoisted(() => ({ reduced: false }));
 vi.mock("@/lib/motion", () => ({ prefersReducedMotion: () => motion.reduced }));
 
 import BattleMapStack from "./BattleMapStack.vue";
+import BattleMapVeil from "./BattleMapVeil.vue";
 
 const LiveLayerStub = defineComponent({
   props: { stratum: { type: String, required: true } },
@@ -18,7 +19,7 @@ const LiveLayerStub = defineComponent({
 });
 
 const sprite = { url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } };
-const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 1, groups: [], lights: [], sprites });
+const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 1, darkness: "daylight", groups: [], lights: [], sprites });
 
 function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null } = {}) {
   return mount(BattleMapStack, {
@@ -81,5 +82,16 @@ describe("BattleMapStack standing image", () => {
   it("keeps the full image with no stand-live picture or no sprites", () => {
     expect(topLayer(mountStack({ standLiveUrl: null }))).toBeUndefined();
     expect(topLayer(mountStack({ live: live([]) }))).toBeUndefined();
+  });
+  it("mounts the darkness veil last for a dim or dark map, even under reduced motion", () => {
+    motion.reduced = true;
+    const w = mountStack({ live: { ...live([]), darkness: "dark" } });
+    expect(w.findComponent(BattleMapVeil).exists()).toBe(true);
+    expect(w.html().indexOf("veil")).toBeGreaterThan(w.html().indexOf("<svg"));
+  });
+
+  it("mounts no veil in daylight or without a snapshot", () => {
+    expect(mountStack().findComponent(BattleMapVeil).exists()).toBe(false);
+    expect(mountStack({ live: null }).findComponent(BattleMapVeil).exists()).toBe(false);
   });
 });

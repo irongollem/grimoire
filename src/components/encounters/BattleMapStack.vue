@@ -58,11 +58,23 @@
     :live="live"
     @ready="readyLive = live"
   />
+
+  <!-- Last, so room focus, tokens and fog (the views draw them after the stack) stay above the veil. -->
+  <BattleMapVeil
+    v-if="live && live.darkness !== 'daylight'"
+    :host-w="hostW"
+    :host-h="hostH"
+    :pan-x="panX"
+    :pan-y="panY"
+    :image-w="imageW"
+    :image-h="imageH"
+    :darkness="live.darkness"
+  />
 </template>
 
 <script setup lang="ts">
 // The picture of a battle map, bottom to top (epic #1073): the ground image, the ground live layer (water), the grid,
-// the standing image, the top live layer. "Props, trees, walls are ON the grid while the floor is UNDER it", so the
+// the standing image, the top live layer, the darkness veil. "Props, trees, walls are ON the grid while the floor is UNDER it", so the
 // grid is cut between two images of the same Drawing. Room focus, tokens and fog stay with the view and draw above.
 // `standUrl` is null when the shown image is not the Drawing or the drawing predates the split.
 //
@@ -72,6 +84,7 @@
 // is ever missing.
 import { computed, shallowRef } from "vue";
 import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
+import BattleMapVeil from "@/components/encounters/BattleMapVeil.vue";
 import { prefersReducedMotion } from "@/lib/motion";
 import type { MapLive } from "@/types/mapLive.types";
 

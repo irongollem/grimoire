@@ -35,6 +35,7 @@ function makeFakeWorkbench() {
     getLayers: () => ({}) as DungeonMapLayers,
     getMetadata: () => ({}),
     getCurrentPackId: () => "stone-dungeon",
+    getDarkness: () => "dim" as const,
     getRuntimes: () => new Map(),
     getCellGlyphs: () => ({}),
     getStructure: () => ({ spaces: [], ways: [], stairs: [], links: [] }),

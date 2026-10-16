@@ -263,6 +263,7 @@ async function onSave(): Promise<void> {
       layers: wb.getLayers(),
       metadata: wb.getMetadata(),
       default_pack_id: wb.getCurrentPackId(),
+      darkness: wb.getDarkness(),
       tags: (map.value as DungeonMap | null)?.tags ?? [],
       notes: null as unknown,
       campaign_id: wb.getCampaignId(),
