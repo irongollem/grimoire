@@ -11,6 +11,7 @@
 // tier — catalogue rows do not count against the sound cap.
 
 import { supabase } from "@/lib/supabase";
+import { likeLiteral, orFilterValue } from "@/lib/postgrestFilter";
 import type { SoundLibraryEntry } from "@/types/sound.types";
 import type {
   SoundProvider,
@@ -25,12 +26,17 @@ export const LIBRARY_PROVIDER_ID = "grimoire";
 const PAGE_SIZE = 20;
 
 /**
- * PostgREST `or=` takes a comma-separated filter list, and commas/parens inside
- * a value would be read as syntax. Catalogue queries are DM-typed free text, so
- * the separators have to go before the value is embedded.
+ * The `or=` filter for a DM-typed search over title, collection and tags.
+ * Every value is quoted (`orFilterValue`), so `,` `.` `:` `(` `)` and `"` in the
+ * text are data rather than PostgREST syntax: "drip." or "door: creak" used to
+ * make the whole request a 400 when only `,` and the parentheses were stripped.
+ * `likeLiteral` keeps a typed `%` or `_` from acting as a wildcard, and the tag
+ * is one quoted array element, so a tag with spaces matches as written.
  */
-function escapeForOrFilter(value: string): string {
-  return value.replace(/[,()]/g, " ").trim();
+export function librarySearchFilter(term: string): string {
+  const like = orFilterValue(`%${likeLiteral(term)}%`);
+  const tag = orFilterValue(`{"${term.replace(/["\\]/g, "\\$&")}"}`);
+  return `title.ilike.${like},collection.ilike.${like},tags.cs.${tag}`;
 }
 
 function toHit(row: SoundLibraryEntry): ProviderHit {
@@ -69,7 +75,7 @@ export const libraryProvider: SoundProvider = {
 
   async search({ query, page, filters }: ProviderSearchParams): Promise<ProviderSearchResult> {
     const from = (page - 1) * PAGE_SIZE;
-    const term = escapeForOrFilter(query);
+    const term = query.trim();
 
     let request = supabase
       .from("sound_library")
@@ -93,9 +99,7 @@ export const libraryProvider: SoundProvider = {
       // Title, collection and tags all searched: a DM types "rain" thinking of
       // the grouping, "gutter" thinking of the file, and "storm" thinking of
       // the theme label. All three should find something.
-      request = request.or(
-        `title.ilike.%${term}%,collection.ilike.%${term}%,tags.cs.{${term}}`,
-      );
+      request = request.or(librarySearchFilter(term));
     }
 
     const { data, error, count } = await request;
