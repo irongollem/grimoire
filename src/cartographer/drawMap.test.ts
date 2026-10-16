@@ -474,7 +474,8 @@ describe("lights", () => {
     expect(rec.radialGradients[0]).toMatchObject({ x0: 2.5 * 128, y0: 3.5 * 128, r0: 0, x1: 2.5 * 128, y1: 3.5 * 128, r1: 8 * 128 });
     expect(rec.radialGradients[0].stops).toEqual([
       [0, "rgba(255,128,48,0.6)"],
-      [0.5, "rgba(255,128,48,0.36)"],
+      [0.125, "rgba(255,128,48,0.33)"],
+      [0.5, "rgba(255,128,48,0.132)"],
       [1, "rgba(255,128,48,0)"],
     ]);
     expect(rec.fillRects).toContainEqual({ x: 2.5 * 128 - 8 * 128, y: 3.5 * 128 - 8 * 128, w: 16 * 128, h: 16 * 128 });

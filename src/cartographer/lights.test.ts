@@ -21,23 +21,30 @@ describe("lightReachCells", () => {
 });
 
 describe("lightStops", () => {
-  it("holds through the bright light and fades through the dim ring to nothing", () => {
+  it("is strongest at the flame, falls fast through the bright light and fades to nothing through the dim ring", () => {
     expect(lightStops({ color: "#ff0000", bright: 30, dim: 30, intensity: 1 })).toEqual([
       [0, "rgba(255,0,0,1)"],
-      [0.5, "rgba(255,0,0,0.6)"],
+      [0.125, "rgba(255,0,0,0.55)"],
+      [0.5, "rgba(255,0,0,0.22)"],
       [1, "rgba(255,0,0,0)"],
     ]);
   });
 
   it("puts the bright edge where the rules put it: a lamp's 15 feet of 45", () => {
-    expect(lightStops({ color: "#ff0000", bright: 15, dim: 30 })[1][0]).toBeCloseTo(1 / 3);
+    expect(lightStops({ color: "#ff0000", bright: 15, dim: 30 })[2][0]).toBeCloseTo(1 / 3);
   });
 
   it("fades a dim-only light (a glowing mushroom) the whole way from a softer start", () => {
     expect(lightStops({ color: "#00ff00", bright: 0, dim: 20, intensity: 1 })).toEqual([
       [0, "rgba(0,255,0,0.5)"],
+      [0.3, "rgba(0,255,0,0.2)"],
       [1, "rgba(0,255,0,0)"],
     ]);
+  });
+
+  it("ends a light with no dim ring at its bright edge", () => {
+    const stops = lightStops({ color: "#0000ff", bright: 10, dim: 0, intensity: 1 });
+    expect(stops.at(-1)).toEqual([1, "rgba(0,0,255,0.22)"]);
   });
 
   it("uses the default intensity when none is given", () => {
