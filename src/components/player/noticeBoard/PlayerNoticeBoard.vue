@@ -1,6 +1,6 @@
 <template>
   <div class="relative h-full w-full">
-    <NoticeBoardViewport :surface="board.surface" :pins="pins" :selected-id="selectedId" @select="onSelect" />
+    <NoticeBoardViewport :surface="board.surface" :scatter="board.scatter" :pins="pins" :selected-id="selectedId" @select="onSelect" />
 
     <NoticePinReader :open="selectedPin !== null" :face="selectedPin" :origin="origin" :surface="board.surface" @close="closeReader">
       <template #actions>

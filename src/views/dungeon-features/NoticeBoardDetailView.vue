@@ -16,13 +16,14 @@
     <p v-else-if="!board" class="py-16 text-center text-body italic text-muted-foreground">This notice board no longer exists.</p>
 
     <div v-else class="flex flex-col gap-5">
-      <NoticeBoardControls ref="controls" :board="board" />
+      <NoticeBoardControls ref="controls" :board="board" :pins="boardFaces" />
 
       <div class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <!-- The board, large and editable. It fills this box; on a phone it pans, and the panel stacks beneath. -->
         <div class="h-[55vh] min-h-80 overflow-hidden rounded-lg border border-border lg:sticky lg:top-0 lg:h-[70vh] lg:self-start">
           <NoticeBoardViewport
             :surface="board.surface"
+            :scatter="board.scatter"
             :pins="boardFaces"
             editable
             :selected-id="selectedId"

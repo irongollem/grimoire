@@ -47,6 +47,26 @@
       <span v-if="board.presented_at" class="text-caption font-semibold text-primary" role="status">
         On every player's screen now
       </span>
+      <AppButton
+        variant="outline"
+        size="md"
+        :icon="IconShuffle"
+        :label="board.scatter.length ? 'Scatter again' : 'Add scatter'"
+        tooltip="Strews old tacks and torn scraps over the empty parts of the board, so it looks used. The emptier the board, the more."
+        :disabled="update.isPending.value"
+        data-scatter-add
+        @click="addScatter"
+      />
+      <AppButton
+        v-if="board.scatter.length"
+        variant="ghost"
+        size="md"
+        :icon="IconEraser"
+        label="Clear scatter"
+        :disabled="update.isPending.value"
+        data-scatter-clear
+        @click="setScatter([])"
+      />
       <AutosaveStatus class="ml-auto" :status="status" :error="saveError" />
     </div>
   </div>
@@ -54,8 +74,8 @@
 
 <script setup lang="ts">
 /**
- * The board's own settings: its name (which saves itself), its surface, who can see it, and whether the table is
- * looking at it together right now. Reveal and Present write at once, because they are decisions at the table and a
+ * The board's own settings: its name (which saves itself), its surface, who can see it, whether the table is looking
+ * at it together right now, and its scatter of old tacks and scraps. Reveal, Present and the scatter write at once, because they are decisions at the table and a
  * debounce would leave the players waiting on a toggle that looks already thrown.
  */
 import { reactive, useId, watch } from "vue";
@@ -69,10 +89,15 @@ import {
   useSetNoticeBoardRevealed,
   useUpdateNoticeBoard,
 } from "@/composables/noticeBoards/useNoticeBoards";
-import { IconCast } from "@/lib/icons";
-import type { NoticeBoard, NoticeBoardSurface } from "@/types/noticeBoard.types";
+import { IconCast, IconEraser, IconShuffle } from "@/lib/icons";
+import { scatterBoard } from "@/lib/noticeBoard/scatter";
+import type { NoticeBoard, NoticeBoardSurface, NoticePinFace, NoticeScatterPiece } from "@/types/noticeBoard.types";
 
-const { board } = defineProps<{ board: NoticeBoard }>();
+const { board, pins } = defineProps<{
+  board: NoticeBoard;
+  /** What is on the board (up and taken), which the scatter keeps clear of. */
+  pins: readonly NoticePinFace[];
+}>();
 
 const uid = useId();
 const update = useUpdateNoticeBoard();
@@ -117,6 +142,14 @@ function setRevealed(value: boolean) {
 }
 function present(value: boolean) {
   presenting.mutate({ boardId: board.id, present: value });
+}
+// Worked out from the pins as they stand now and stored, so it stays put when a pin moves later; a fresh seed each
+// press, so pressing again re-rolls it.
+function addScatter() {
+  setScatter(scatterBoard(pins, crypto.randomUUID()));
+}
+function setScatter(scatter: NoticeScatterPiece[]) {
+  update.mutate({ id: board.id, update: { scatter } });
 }
 
 defineExpose({ saveNow, hold, release });

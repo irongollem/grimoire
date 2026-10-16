@@ -25,7 +25,7 @@
         transform: `translate(${Math.round(offset.x)}px, ${Math.round(offset.y)}px)`,
       }"
     >
-      <NoticeBoardSurface :surface="surface">
+      <NoticeBoardSurface :surface="surface" :scatter="scatter">
         <NoticeBoardPin
           v-for="pin in pins"
           :key="pin.id"
@@ -69,12 +69,13 @@ import {
   type PanOffset,
   zoomAt,
 } from "@/lib/noticeBoard/geometry";
-import type { NoticeBoardSurface as Surface, NoticePinFace } from "@/types/noticeBoard.types";
+import type { NoticeBoardSurface as Surface, NoticePinFace, NoticeScatterPiece } from "@/types/noticeBoard.types";
 import NoticeBoardPin from "./NoticeBoardPin.vue";
 import NoticeBoardSurface from "./NoticeBoardSurface.vue";
 
-const { surface, pins, editable = false, selectedId = null } = defineProps<{
+const { surface, scatter = [], pins, editable = false, selectedId = null } = defineProps<{
   surface: Surface;
+  scatter?: readonly NoticeScatterPiece[];
   /** In reading order. Callers never pass drafts. */
   pins: NoticePinFace[];
   editable?: boolean;

@@ -26,12 +26,27 @@ export interface NoticeBoard {
   is_revealed: boolean;
   /** Set while the DM presents the board; taking a notice works only then. */
   presented_at: string | null;
+  /** The leftover tacks and torn scraps behind the pins, placed when the DM asked for them (src/lib/noticeBoard/scatter.ts). */
+  scatter: NoticeScatterPiece[];
   created_at: string;
   updated_at: string;
 }
 
+/** One piece of a board's scatter (migration 20261016101612): decoration, never a control. */
+export interface NoticeScatterPiece {
+  /** A torn scrap (scrap-*, poster-scrap-*) or a lone tack-* or nail. */
+  art: string;
+  /** Its centre, as fractions of the board. */
+  x: number;
+  y: number;
+  /** Tilt in degrees. */
+  r: number;
+  /** The tack or nail still holding a scrap; null for a lone tack. */
+  tack: string | null;
+}
+
 export type NoticeBoardInsert = Pick<NoticeBoard, "campaign_id" | "name"> & Partial<Pick<NoticeBoard, "surface">>;
-export type NoticeBoardUpdate = Partial<Pick<NoticeBoard, "name" | "surface" | "is_revealed" | "presented_at">>;
+export type NoticeBoardUpdate = Partial<Pick<NoticeBoard, "name" | "surface" | "is_revealed" | "presented_at" | "scatter">>;
 
 export interface NoticeBoardPin {
   id: string;
@@ -130,6 +145,7 @@ export interface PlayerNoticeBoard {
   name: string;
   surface: NoticeBoardSurface;
   presented_at: string | null;
+  scatter: NoticeScatterPiece[];
   /** The last change a player can see: the board appearing, or a notice going up, being edited or taken. Not the board
    * row's own stamp, which presenting moves; this is what the unread dot compares against. */
   updated_at: string;

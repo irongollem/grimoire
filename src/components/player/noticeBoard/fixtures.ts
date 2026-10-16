@@ -52,6 +52,7 @@ export function board(over: Partial<PlayerNoticeBoard> = {}): PlayerNoticeBoard 
     name: "The Notice Board at The Pulled Sugar Inn",
     surface: "cork",
     presented_at: null,
+    scatter: [],
     updated_at: "2026-10-15T10:00:00Z",
     location_ids: [],
     pins: [grellPoster, goatNote, ratsStub],

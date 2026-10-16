@@ -4,6 +4,7 @@
     <div class="nb-stage" :style="stageStyle">
       <!-- The frame's shade falls on the surface, under the pins. -->
       <div class="nb-rails" aria-hidden="true" />
+      <NoticeBoardScatter v-if="scatter.length" :pieces="scatter" />
       <div class="nb-pins"><slot /></div>
       <div class="nb-frame" aria-hidden="true" />
     </div>
@@ -20,9 +21,14 @@
  */
 import { computed } from "vue";
 import { cssUrl, FRAME_SCALE, FRAMES, frameUrl, surfaceImageSet } from "@/lib/noticeBoard/art";
-import type { NoticeBoardSurface } from "@/types/noticeBoard.types";
+import type { NoticeBoardSurface, NoticeScatterPiece } from "@/types/noticeBoard.types";
+import NoticeBoardScatter from "./NoticeBoardScatter.vue";
 
-const { surface } = defineProps<{ surface: NoticeBoardSurface }>();
+const { surface, scatter = [] } = defineProps<{
+  surface: NoticeBoardSurface;
+  /** The leftover tacks and scraps behind the pins; a board nobody scattered has none. */
+  scatter?: readonly NoticeScatterPiece[];
+}>();
 
 const stageStyle = computed(() => {
   const { slice } = FRAMES[surface];
