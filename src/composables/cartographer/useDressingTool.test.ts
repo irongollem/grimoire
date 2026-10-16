@@ -6,7 +6,7 @@ import type { Tool } from "@/cartographer/tools";
 import { emptyLayers, type DungeonMapLayers } from "@/types/dungeonMap.types";
 
 const CATALOG: DressingCatalog = new Map([
-  ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: null, flat: false, light: null }],
+  ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: null, flat: false, light: null, url: null, sway: null }],
 ]);
 
 function setup(active = true) {

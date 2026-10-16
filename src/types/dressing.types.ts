@@ -1,7 +1,7 @@
 // Dressing: the shared library of top-down props a DM places on a Cartographer
 // map (epic #1062). Rows live in `library_dressing`.
 
-import type { TileLight } from "@/cartographer/packSchema";
+import type { SwayMotion, TileLight } from "@/cartographer/packSchema";
 
 export type DressingGroup =
   | "furniture"
@@ -55,4 +55,6 @@ export interface LibraryDressing {
   flat: boolean;
   /** The light this prop gives (a lantern, a campfire), or null for none. Read from the art by the art pipeline. */
   light: TileLight | null;
+  /** How the prop sways in the live battle map (#1073), or null to stand still. */
+  sway: SwayMotion | null;
 }

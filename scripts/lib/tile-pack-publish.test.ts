@@ -54,7 +54,8 @@ describe("pack.json sidecar", () => {
     continuous: { floor: 8, terrainWater: 4 },
     labels: { wallDecal: ["Outflow pipe", "Rat hole"] },
     doorLeaf: { hingeX: 0.25, hingeY: 0.5, openDegrees: 80 },
-    lights: { objectBrazier: [{ color: "#ffb347", bright: 20, dim: 20, intensity: 0.7 }, null, { color: "#44aaff", bright: 0, dim: 10 }] },
+    lights: { objectBrazier: [{ color: "#ffb347", bright: 20, dim: 20, intensity: 0.7 }, null, { color: "#44aaff", bright: 0, dim: 10, pulse: 0.4 }, { color: "#ff6020", bright: 20, dim: 10, flicker: 0.25 }] },
+    sway: { objectPillar: [{ amount: 3, speed: 1.2 }, null, { amount: 8, speed: 4 }] },
     flush: ["curbH", "curbV", "curbPost"],
     motion: {
       terrainWater: [{ url: "motion/foam.webp", cells: 4, drift: [0.1, -0.05], alpha: 0.5, breathe: { amount: 0.3, speed: 2, phase: 1 } }],
@@ -72,6 +73,7 @@ describe("pack.json sidecar", () => {
     expect(manifest.doorLeaf).toEqual(good.doorLeaf);
     expect(manifest.lights).toEqual(good.lights);
     expect(manifest.flush).toEqual(good.flush);
+    expect(manifest.sway).toEqual(good.sway);
   });
 
   it("copies motion into the manifest when its files are in the folder, without calling them slots", () => {
@@ -142,6 +144,19 @@ describe("pack.json sidecar", () => {
     ["overlay alpha above 1", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [0, 0], alpha: 1.5 }] } }, /motion.terrainWater\[0\]/],
     ["a breathe speed past 10", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [0, 0], alpha: 0.5, breathe: { amount: 0.2, speed: 11, phase: 0 } }] } }, /motion.terrainWater\[0\]/],
     ["an overlay with another key", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [0, 0], alpha: 0.5, blend: "add" }] } }, /motion.terrainWater\[0\]/],
+    ["flicker and pulse together", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: 20, flicker: 0.2, pulse: 0.2 }] } }, /lights.objectBrazier\[0\]/],
+    ["a flicker of zero", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: 20, flicker: 0 }] } }, /lights.objectBrazier\[0\]/],
+    ["a pulse above 1", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: 20, pulse: 1.5 }] } }, /lights.objectBrazier\[0\]/],
+    ["sway that is not an object", { sway: [] }, /sway must be an object/],
+    ["sway for a non-category", { sway: { lavaFall: [null] } }, /sway.lavaFall is not a schema category/],
+    ["sway for a floor", { sway: { floor: [{ amount: 3, speed: 1 }] } }, /sway.floor does not draw as a standing object/],
+    ["sway for a flat category", { sway: { rubble: [{ amount: 3, speed: 1 }] } }, /sway.rubble does not draw as a standing object/],
+    ["sway for stairs", { sway: { stairsUp: [{ amount: 3, speed: 1 }] } }, /sway.stairsUp does not draw as a standing object/],
+    ["sway that is not an array", { sway: { objectPillar: { amount: 3, speed: 1 } } }, /must be an array/],
+    ["a sway amount past 8 degrees", { sway: { objectPillar: [{ amount: 9, speed: 1 }] } }, /sway.objectPillar\[0\]/],
+    ["a sway amount of zero", { sway: { objectPillar: [{ amount: 0, speed: 1 }] } }, /sway.objectPillar\[0\]/],
+    ["a sway speed past 4", { sway: { objectPillar: [null, { amount: 3, speed: 5 }] } }, /sway.objectPillar\[1\]/],
+    ["a sway with another key", { sway: { objectPillar: [{ amount: 3, speed: 1, phase: 0 }] } }, /sway.objectPillar\[0\]/],
     ["a light with another key", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: 20, flicker: true }] } }, /lights.objectBrazier\[0\]/],
   ])("refuses %s", (_name, raw, message) => {
     const { sidecar, errors } = parsePackSidecar(raw);

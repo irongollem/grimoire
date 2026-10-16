@@ -29,6 +29,7 @@
         :host-h="hostH"
         :image-url="image.url"
         :stand-url="standUrl"
+        :stand-live-url="standLiveUrl"
         :pan-x="panX"
         :pan-y="panY"
         :image-w="imageNaturalW * scale"
@@ -138,6 +139,12 @@ const live = computed(() =>
 // The standing half rides with the Drawing the same way; a hand-calibrated Picture has none.
 const standUrl = computed(() =>
   location.value?.map_layer_url && location.value.map_layer_url === image.value?.url ? location.value.map_layer_stand_url : null,
+);
+
+const standLiveUrl = computed(() =>
+  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url
+    ? location.value.map_layer_stand_live_url
+    : null,
 );
 
 // Decode only when the source string actually changes (a plain `computed`

@@ -5,7 +5,7 @@
 // No vue and no DOM globals at module scope: the editor renderer, the bake
 // (OffscreenCanvas) and the tests all import this.
 
-import type { TileLight } from "@/cartographer/packSchema";
+import type { SwayMotion, TileLight } from "@/cartographer/packSchema";
 import type { DressingPlacement } from "@/types/dungeonMap.types";
 
 export interface DressingProp {
@@ -19,6 +19,10 @@ export interface DressingProp {
   flat: boolean;
   /** The light this prop gives, or null for none. */
   light: TileLight | null;
+  /** The art's url, null until painted. The live layer draws a swaying prop from it (#1073). */
+  url: string | null;
+  /** How the prop sways in the live battle map, or null to stand still. */
+  sway: SwayMotion | null;
 }
 
 export type DressingCatalog = ReadonlyMap<string, DressingProp>;

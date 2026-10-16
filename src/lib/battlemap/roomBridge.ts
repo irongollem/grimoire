@@ -70,6 +70,9 @@ export interface BattleSurface {
    *  the same reason as `live`: a hand-calibrated Picture has no standing layer. Null for a drawing published
    *  before the split. */
   standUrl: string | null;
+  /** The standing half without the props that sway (#1073), shown in place of `standUrl` while the top live layer
+   *  animates. Set under the same rule as `standUrl`; null when nothing sways. */
+  standLiveUrl: string | null;
 }
 
 function liveFor(loc: Location, imageUrl: string): MapLive | null {
@@ -78,6 +81,10 @@ function liveFor(loc: Location, imageUrl: string): MapLive | null {
 
 function standFor(loc: Location, imageUrl: string): string | null {
   return loc.map_layer_url !== null && loc.map_layer_url === imageUrl ? loc.map_layer_stand_url : null;
+}
+
+function standLiveFor(loc: Location, imageUrl: string): string | null {
+  return loc.map_layer_url !== null && loc.map_layer_url === imageUrl ? loc.map_layer_stand_live_url : null;
 }
 
 /**
@@ -109,6 +116,7 @@ export function resolveBattleSurface(params: {
       imageUrl: ownImage.url,
       live: liveFor(encounterLocation, ownImage.url),
       standUrl: standFor(encounterLocation, ownImage.url),
+      standLiveUrl: standLiveFor(encounterLocation, ownImage.url),
     };
   }
 
@@ -132,6 +140,7 @@ export function resolveBattleSurface(params: {
         imageUrl: parentImage.url,
         live: liveFor(parent, parentImage.url),
         standUrl: standFor(parent, parentImage.url),
+        standLiveUrl: standLiveFor(parent, parentImage.url),
       };
     }
   }

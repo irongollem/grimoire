@@ -42,6 +42,8 @@ export function buildDressingCatalog(
       image: row.image_url === null ? null : (images.get(row.image_url) ?? null),
       flat: row.flat,
       light: row.light,
+      url: row.image_url,
+      sway: row.sway,
     });
   }
   return catalog;

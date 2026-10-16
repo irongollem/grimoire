@@ -35,6 +35,11 @@ export interface BakeOptions {
    * `all`, the whole map in one image.
    */
   pass?: MapPass;
+  /**
+   * Leave out the objects and Dressing the live battle map draws swaying (#1073), for the standing image that
+   * rides under the live layer. Default false: every other surface shows the full standing image.
+   */
+  omitSway?: boolean;
 }
 
 export const DEFAULT_BAKE_PADDING_CELLS = 3;
@@ -114,6 +119,7 @@ function renderToCanvas(
   glyphs: Record<CellKey, PackCategory> = {},
   transparent: boolean = false,
   pass: MapPass = "all",
+  omitSway: boolean = false,
 ): OffscreenCanvas {
   const ts = BASE_TILE_SIZE;
   const layers = map.layers;
@@ -150,6 +156,7 @@ function renderToCanvas(
     shadows: true,
     makeCanvas: offscreenMakeCanvas(),
     pass,
+    omitSway,
   });
 
   const dx = (cx: number) => (cx - minX + paddingCells) * ts;
@@ -187,7 +194,7 @@ export async function bakeMap(
   options: BakeOptions = {},
   glyphs: Record<CellKey, PackCategory> = {},
 ): Promise<Blob> {
-  const canvas = renderToCanvas(map, runtimes, dressing, options.paddingCells ?? 3, glyphs, options.transparent ?? false, options.pass ?? "all");
+  const canvas = renderToCanvas(map, runtimes, dressing, options.paddingCells ?? 3, glyphs, options.transparent ?? false, options.pass ?? "all", options.omitSway ?? false);
   let blob = await encodeWebp(canvas, 0.9);
   if (blob.size > MAX_BYTES) {
     blob = await encodeWebp(canvas, 0.75);

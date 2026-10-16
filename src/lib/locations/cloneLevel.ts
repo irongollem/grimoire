@@ -83,6 +83,7 @@ function blankLocationFields(): Omit<
   | "description"
   | "map_layer_url"
   | "map_layer_stand_url"
+  | "map_layer_stand_live_url"
   | "map_layer_calibration"
   | "plan_size"
 > {
@@ -127,6 +128,7 @@ export function planCloneLevel(source: CloneLevelSource): CloneLevelPlan {
     grid_calibration: site.grid_calibration,
     map_layer_url: site.map_layer_url,
     map_layer_stand_url: site.map_layer_stand_url,
+    map_layer_stand_live_url: site.map_layer_stand_live_url,
     map_layer_calibration: site.map_layer_calibration,
     plan_size: site.plan_size,
     // A clone of a floor is a floor: the flag is a fact about the
@@ -147,6 +149,7 @@ export function planCloneLevel(source: CloneLevelSource): CloneLevelPlan {
       grid_calibration: null,
       map_layer_url: null,
       map_layer_stand_url: null,
+      map_layer_stand_live_url: null,
       map_layer_calibration: null,
       plan_size: null,
     },

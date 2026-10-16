@@ -106,8 +106,8 @@ select is(
   'a seeded prop carries its footprint and group');
 select is(
   (select light::text from public.library_dressing where id = 'dressing_campfire'),
-  '{"dim": 20, "color": "#ff8424", "bright": 20}',
-  'a campfire gives light as a torch does: 20 feet bright, 20 more dim');
+  '{"dim": 20, "color": "#ff8424", "bright": 20, "flicker": 0.5}',
+  'a campfire gives light as a torch does: 20 feet bright, 20 more dim, and its flame flickers (#1073)');
 
 -- ── writes ──────────────────────────────────────────────────────────────────
 

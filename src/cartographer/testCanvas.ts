@@ -202,6 +202,9 @@ export function makeRuntime(
     lights?: TilePackManifest["lights"];
     flush?: TilePackManifest["flush"];
     motion?: TilePackManifest["motion"];
+    sway?: TilePackManifest["sway"];
+    /** Manifest asset slots (their urls), for what reads a slot rather than a drawn tile. */
+    assets?: TilePackManifest["assets"];
   } = {},
 ): TilePackRuntime {
   const manifest: TilePackManifest = {
@@ -211,13 +214,14 @@ export function makeRuntime(
     pack_version: 1,
     schema_version: 2,
     base_tile_size: BASE_TILE_SIZE,
-    assets: {},
+    assets: opts.assets ?? {},
     ...(opts.palette ? { palette: opts.palette } : {}),
     ...(opts.doorLeaf ? { doorLeaf: opts.doorLeaf } : {}),
     ...(opts.continuous ? { continuous: opts.continuous } : {}),
     ...(opts.lights ? { lights: opts.lights } : {}),
     ...(opts.flush ? { flush: opts.flush } : {}),
     ...(opts.motion ? { motion: opts.motion } : {}),
+    ...(opts.sway ? { sway: opts.sway } : {}),
   };
   const validation: ValidationResult = { valid: true, missing: [], extras: [], warnings: [] };
   return {

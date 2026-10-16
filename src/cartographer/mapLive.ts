@@ -4,10 +4,12 @@
 // own image-cell space (cell (0,0) = the image's top-left cell, the space the fog mask and tokens use).
 
 import type { DungeonMap, CellKey } from "@/types/dungeonMap.types";
-import type { MapLive, MapLiveGroup, MotionOverlay } from "@/types/mapLive.types";
+import type { MapLive, MapLiveGroup, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
-import type { DressingCatalog } from "@/cartographer/dressing";
+import { dressingCentre, dressingDrawOrder, type DressingCatalog } from "@/cartographer/dressing";
+import { dressingSway, objectSway, phaseAt } from "@/cartographer/sway";
 import { gatherLightSources } from "@/cartographer/drawMap";
+import { cellKey } from "@/types/dungeonMap.types";
 
 function toImageCell(key: CellKey, originCellX: number, originCellY: number): string {
   const [xs, ys] = key.split(",");
@@ -62,8 +64,58 @@ export function buildMapLive(
       bright: light.bright,
       dim: light.dim,
       ...(light.intensity !== undefined ? { intensity: light.intensity } : {}),
+      ...(light.flicker !== undefined ? { flicker: light.flicker } : {}),
+      ...(light.pulse !== undefined ? { pulse: light.pulse } : {}),
+      phase: phaseAt(x - originCellX, y - originCellY),
     }),
   );
 
-  return { version: 1, groups, lights };
+  return { version: 1, groups, lights, sprites: gatherSprites(map, runtimes, dressing, originCellX, originCellY) };
+}
+
+/**
+ * The things that sway, as sprites. Chosen by the same predicate the bake uses to leave them out (`objectSway`,
+ * `dressingSway`), so a standing bake made with `omitSway` plus these sprites shows every prop exactly once.
+ * Standing objects in row-major order (the order the bake paints them), then Dressing by z.
+ */
+function gatherSprites(
+  map: DungeonMap,
+  runtimes: Map<string, TilePackRuntime>,
+  dressing: DressingCatalog,
+  originCellX: number,
+  originCellY: number,
+): MapLiveSprite[] {
+  const sprites: MapLiveSprite[] = [];
+  const cells = Object.keys(map.layers.object).map((key) => {
+    const [xs, ys] = key.split(",");
+    return { x: Number(xs), y: Number(ys) };
+  });
+  cells.sort((a, b) => a.y - b.y || a.x - b.x);
+  for (const { x, y } of cells) {
+    const obj = map.layers.object[cellKey(x, y)];
+    if (!obj) continue;
+    const art = objectSway(obj, runtimes.get(obj.pack_id) ?? null);
+    if (!art) continue;
+    const cx = x + 0.5 - originCellX;
+    const cy = y + 0.5 - originCellY;
+    sprites.push({ url: art.url, x: cx, y: cy, w: 1, h: 1, rotation: obj.rotation ?? 0, sway: { ...art.sway, phase: phaseAt(cx, cy) } });
+  }
+  for (const [, placement] of dressingDrawOrder(map.layers.dressing)) {
+    const prop = dressing.get(placement.prop_id);
+    const art = dressingSway(prop);
+    if (!prop || !art) continue;
+    const c = dressingCentre(placement, prop.footprint_w, prop.footprint_h);
+    const cx = c.x - originCellX;
+    const cy = c.y - originCellY;
+    sprites.push({
+      url: art.url,
+      x: cx,
+      y: cy,
+      w: prop.footprint_w,
+      h: prop.footprint_h,
+      rotation: placement.rotation,
+      sway: { ...art.sway, phase: phaseAt(cx, cy) },
+    });
+  }
+  return sprites;
 }

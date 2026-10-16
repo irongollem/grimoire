@@ -44,6 +44,7 @@ function site(overrides: Partial<Location> = {}): Location {
     grid_calibration: null,
     map_layer_url: null,
     map_layer_stand_url: null,
+    map_layer_stand_live_url: null,
     map_layer_calibration: null,
     map_live: null,
     map_scale: null,

@@ -41,6 +41,7 @@
         :host-h="hostH"
         :image-url="surface.imageUrl"
         :stand-url="surface.standUrl"
+        :stand-live-url="surface.standLiveUrl"
         :pan-x="panX"
         :pan-y="panY"
         :image-w="imageNaturalW * scale"

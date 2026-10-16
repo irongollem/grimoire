@@ -26,23 +26,28 @@ const mocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
   updateDrawing: vi.fn(),
   updateLocation: vi.fn(),
+  snapshot: null as unknown,
   passes: [] as (string | undefined)[],
+  omits: [] as (boolean | undefined)[],
   uploads: [] as (string | undefined)[],
 }));
 
 vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidate }) }));
 vi.mock("@/cartographer/bake", () => ({
-  bakeMap: async (_m: unknown, _r: unknown, _d: unknown, options: { pass?: string }) => {
+  bakeMap: async (_m: unknown, _r: unknown, _d: unknown, options: { pass?: string; omitSway?: boolean }) => {
     mocks.passes.push(options.pass);
+    mocks.omits.push(options.omitSway);
     return new Blob();
   },
   computeBakedDimensions: () => ({ cols: 4, rows: 4, originCellX: 0, originCellY: 0 }),
 }));
-const SNAPSHOT = { version: 1, groups: [], lights: [] };
-vi.mock("@/cartographer/mapLive", () => ({ buildMapLive: () => SNAPSHOT }));
+const SNAPSHOT = { version: 1, groups: [], lights: [], sprites: [] };
+const SWAYING = { ...SNAPSHOT, sprites: [{ url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } }] };
+vi.mock("@/cartographer/mapLive", () => ({ buildMapLive: () => mocks.snapshot }));
 vi.mock("@/lib/storage", () => ({
   uploadToBucket: async ({ path }: { path?: string }) => {
     mocks.uploads.push(path);
+    if (path?.endsWith("-stand-live.webp")) return "https://cdn/stand-live.webp";
     return path ? "https://cdn/stand.webp" : "https://cdn/x.webp";
   },
 }));
@@ -101,6 +106,8 @@ describe("useMapPublish.publish", () => {
     vi.clearAllMocks();
     mocks.order.length = 0;
     mocks.passes.length = 0;
+    mocks.omits.length = 0;
+    mocks.snapshot = SNAPSHOT;
     mocks.uploads.length = 0;
     const record = (name: string) => async () => void mocks.order.push(name);
     mocks.updateDrawing.mockImplementation(record("drawing"));
@@ -154,6 +161,20 @@ describe("useMapPublish.publish", () => {
     expect(mocks.updateDrawing.mock.calls[0]![0]).toMatchObject({
       mapLayerUrl: "https://cdn/x.webp",
       mapLayerStandUrl: "https://cdn/stand.webp",
+      mapLayerStandLiveUrl: null,
+    });
+  });
+
+  it("bakes a third image without the swaying props when the snapshot has sprites", async () => {
+    mocks.snapshot = SWAYING;
+    const { publish } = setup();
+    await publish();
+    expect(mocks.passes).toEqual(["ground", "standing", "standing"]);
+    expect(mocks.omits).toEqual([undefined, undefined, true]);
+    expect(mocks.uploads[2]).toMatch(/^user-1\/.+-stand-live\.webp$/);
+    expect(mocks.updateDrawing.mock.calls[0]![0]).toMatchObject({
+      mapLayerStandUrl: "https://cdn/stand.webp",
+      mapLayerStandLiveUrl: "https://cdn/stand-live.webp",
     });
   });
 

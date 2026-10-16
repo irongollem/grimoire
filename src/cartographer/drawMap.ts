@@ -19,6 +19,7 @@
 import { DEFAULT_DOOR_LEAF, MAX_LIGHT_RANGE, WALL_BAND_RATIO, isFlatCategory, type PackCategory, type TileLight } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type ObjectCell } from "@/types/dungeonMap.types";
+import { dressingSway, objectSway } from "@/cartographer/sway";
 import { classifyJoint } from "@/cartographer/edges";
 import { lightReachCells, lightStops } from "@/cartographer/lights";
 import {
@@ -83,6 +84,12 @@ export interface DrawMapInput {
    * whole map in one go (the live editor, the PNG download, the AI input).
    */
   pass?: MapPass;
+  /**
+   * Leave out the standing objects and Dressing that sway in the live battle map (`objectSway`, `dressingSway`), so
+   * the live layer can draw them moving without a still copy under it. The shadow layer keeps them: their shadow
+   * stays on the floor. Default false.
+   */
+  omitSway?: boolean;
 }
 
 export type MapPass = "all" | "ground" | "standing";
@@ -233,6 +240,8 @@ interface Frame {
   glyphPackId: string | null;
   dressing: DressingCatalog;
   makeCanvas: MakeCanvas | undefined;
+  /** Leave out what the live layer draws swaying (#1073); see `omitSway` on the input. */
+  omitSway: boolean;
 }
 
 interface Target {
@@ -565,6 +574,7 @@ function paintObjects(f: Frame, t: Target, cls: ObjectClass): void {
       if (!obj || objectClass(obj.category) !== cls) continue;
       const objRt = runtime(obj.pack_id);
       if (!objRt) continue;
+      if (f.omitSway && objectSway(obj, objRt)) continue;
       const drawX = x * tilePx - t.ox;
       const drawY = y * tilePx - t.oy;
       // A stair is directional: its art comes per side, already facing that way, so the
@@ -608,6 +618,7 @@ function paintDressing(f: Frame, t: Target, flat: boolean): void {
   for (const [, placement] of dressingDrawOrder(layers.dressing)) {
     const prop = dressing.get(placement.prop_id);
     if ((prop?.flat === true) !== flat) continue;
+    if (f.omitSway && dressingSway(prop)) continue;
     const cb = dressingCellBounds(placement, dressing);
     if (cb.maxX < bounds.minX || cb.minX > bounds.maxX || cb.maxY < bounds.minY || cb.minY > bounds.maxY) continue;
     drawDressing(t.ctx, placement, prop, placement.x * tilePx - t.ox, placement.y * tilePx - t.oy, tilePx);
@@ -744,6 +755,7 @@ const frameOf = (input: DrawMapInput, bounds: DrawMapInput["bounds"]): Frame => 
   glyphPackId: input.glyphPackId,
   dressing: input.dressing,
   makeCanvas: input.makeCanvas,
+  omitSway: input.omitSway ?? false,
 });
 
 /**
@@ -784,7 +796,8 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
   const height = Math.ceil((wide.maxY - wide.minY + 1) * tilePx);
   const out = makeCanvas(width, height);
   if (!out) return null;
-  const f = frameOf(input, wide);
+  // The shadow keeps what sways: the live layer draws the prop moving, its shadow stays on the floor.
+  const f: Frame = { ...frameOf(input, wide), omitSway: false };
 
   const silhouette = (paint: (t: Target) => void): CanvasImageSource | null => {
     const made = makeCanvas(width, height);

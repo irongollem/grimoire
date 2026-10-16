@@ -4,6 +4,8 @@
  * Every cell key is an image cell: the published Drawing's own cell space, where cell (0,0) is the image's top-left.
  */
 
+import type { SwayMotion } from "@/cartographer/packSchema";
+
 /** One animated overlay: a seamless transparent image tiled over a cell group, drifting and breathing. */
 export interface MotionOverlay {
   /** Absolute URL in a snapshot; relative to the pack folder in a pack manifest. */
@@ -33,10 +35,34 @@ export interface MapLiveLight {
   bright: number;
   dim: number;
   intensity?: number;
+  /** At most one of the two (see `TileLight`): the live layer brightens the steady baked glow by up to this fraction. */
+  flicker?: number;
+  pulse?: number;
+  /** Radians, from the light's position, so neighbouring fires never flicker in lockstep. */
+  phase: number;
+}
+
+/**
+ * A standing thing that sways (a tree, a mushroom): the live layer draws it from `url` instead of the standing
+ * bake, which leaves it out. Centre and size are in image cells, `rotation` is the placement's own turn in degrees.
+ */
+export interface MapLiveSprite {
+  url: string;
+  /** Centre, fractional image cells. */
+  x: number;
+  y: number;
+  /** Drawn size in cells, before the turn. */
+  w: number;
+  h: number;
+  rotation: number;
+  /** `amount` degrees at most, `speed` rad/s, `phase` radians from the position. */
+  sway: SwayMotion & { phase: number };
 }
 
 export interface MapLive {
   version: 1;
   groups: MapLiveGroup[];
   lights: MapLiveLight[];
+  /** Standing objects first (row-major), then Dressing in draw order: the order they stack in the bake. */
+  sprites: MapLiveSprite[];
 }

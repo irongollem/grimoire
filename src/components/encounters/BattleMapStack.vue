@@ -43,12 +43,12 @@
   </svg>
 
   <!-- Standing: props, walls, doors and labels draw over the grid. Same box as the ground, so it needs no calibration of its own. -->
-  <svg v-if="standUrl" class="map-svg" :viewBox="`0 0 ${hostW} ${hostH}`" preserveAspectRatio="none">
-    <image :href="standUrl" :x="panX" :y="panY" :width="imageW" :height="imageH" />
+  <svg v-if="shownStandUrl" class="map-svg" :viewBox="`0 0 ${hostW} ${hostH}`" preserveAspectRatio="none">
+    <image :href="shownStandUrl" :x="panX" :y="panY" :width="imageW" :height="imageH" />
   </svg>
 
   <BattleMapLiveLayer
-    v-if="live && cellPx > 0"
+    v-if="topAnimates && cellPx > 0"
     stratum="top"
     :host-w="hostW"
     :host-h="hostH"
@@ -56,6 +56,7 @@
     :origin-x="originX"
     :origin-y="originY"
     :live="live"
+    @ready="readyLive = live"
   />
 </template>
 
@@ -64,14 +65,23 @@
 // the standing image, the top live layer. "Props, trees, walls are ON the grid while the floor is UNDER it", so the
 // grid is cut between two images of the same Drawing. Room focus, tokens and fog stay with the view and draw above.
 // `standUrl` is null when the shown image is not the Drawing or the drawing predates the split.
+//
+// What sways is drawn by the top live layer, so while that layer animates the standing image is `standLiveUrl`, the
+// same picture without those props. The swap waits for the layer's `ready` (every sprite decoded): until then, and
+// for a reduced-motion user, or when a sprite fails to load, every prop stays in the full `standUrl` and nothing
+// is ever missing.
+import { computed, shallowRef } from "vue";
 import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
+import { prefersReducedMotion } from "@/lib/motion";
 import type { MapLive } from "@/types/mapLive.types";
 
-defineProps<{
+const { standUrl, standLiveUrl, live } = defineProps<{
   hostW: number;
   hostH: number;
   imageUrl: string;
   standUrl: string | null;
+  /** The standing image without the swaying props, or null when nothing sways. */
+  standLiveUrl: string | null;
   panX: number;
   panY: number;
   /** The image's drawn size on screen, in px. */
@@ -86,6 +96,15 @@ defineProps<{
   originY: number;
   live: MapLive | null;
 }>();
+
+const topAnimates = computed(
+  () => live !== null && standLiveUrl !== null && live.sprites.length > 0 && !prefersReducedMotion(),
+);
+// Ready is remembered per snapshot: a new one has sprites of its own to load before its standing image can drop them.
+// A shallow ref, because it is compared by identity: `ref` would wrap the snapshot in a reactive proxy that never
+// equals the raw object the prop carries, and the stack would never swap.
+const readyLive = shallowRef<MapLive | null>(null);
+const shownStandUrl = computed(() => (topAnimates.value && readyLive.value === live ? standLiveUrl : standUrl));
 </script>
 
 <style scoped>

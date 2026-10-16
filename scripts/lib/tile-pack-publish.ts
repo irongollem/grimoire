@@ -3,13 +3,13 @@
  * manifest. Kept apart so the mapping from file path to slot is tested without a network.
  */
 import type { MotionOverlay } from "../../src/types/mapLive.types.ts";
-import { BASE_TILE_SIZE, MAX_LIGHT_FEET, TILE_PACK_SCHEMA, categoryDef, type AssetSlot, type PackCategory, type TileLight, type TilePackManifest } from "../../src/cartographer/packSchema.ts";
+import { BASE_TILE_SIZE, MAX_LIGHT_FEET, OBJECT_CATEGORIES, TILE_PACK_SCHEMA, categoryDef, isFlatCategory, type AssetSlot, type PackCategory, type SwayMotion, type TileLight, type TilePackManifest } from "../../src/cartographer/packSchema.ts";
 
 /**
  * The optional `pack.json` beside a pack's tiles: the manifest fields no tile can carry (schema 4). It is the ONLY source of
  * them, on purpose: a repaint replaces the pack, so nothing is inherited from an older published version.
  */
-export type PackSidecar = Pick<TilePackManifest, "continuous" | "labels" | "doorLeaf" | "lights" | "flush" | "motion">;
+export type PackSidecar = Pick<TilePackManifest, "continuous" | "labels" | "doorLeaf" | "lights" | "flush" | "motion" | "sway">;
 
 export const SIDECAR_FILE = "pack.json";
 
@@ -20,14 +20,37 @@ const isCategory = (key: string): key is PackCategory => Object.hasOwn(TILE_PACK
 function parseLight(entry: unknown): TileLight | null | "invalid" {
   if (entry === null) return null;
   if (!isRecord(entry)) return "invalid";
-  const { color, bright, dim, intensity } = entry;
-  if (Object.keys(entry).some((key) => key !== "color" && key !== "bright" && key !== "dim" && key !== "intensity")) return "invalid";
+  const { color, bright, dim, intensity, flicker, pulse } = entry;
+  if (Object.keys(entry).some((key) => key !== "color" && key !== "bright" && key !== "dim" && key !== "intensity" && key !== "flicker" && key !== "pulse")) return "invalid";
   if (typeof color !== "string" || !/^#[0-9a-f]{6}$/.test(color)) return "invalid";
   const feet = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= MAX_LIGHT_FEET;
   if (!feet(bright) || !feet(dim) || bright + dim === 0) return "invalid";
-  if (intensity === undefined) return { color, bright, dim };
-  if (typeof intensity !== "number" || !Number.isFinite(intensity) || intensity <= 0 || intensity > 1) return "invalid";
-  return { color, bright, dim, intensity };
+  // The same rule as the database column: a fraction above 0 up to 1, and a light flickers or pulses, never both.
+  const fraction = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v > 0 && v <= 1;
+  if (intensity !== undefined && !fraction(intensity)) return "invalid";
+  if (flicker !== undefined && !fraction(flicker)) return "invalid";
+  if (pulse !== undefined && !fraction(pulse)) return "invalid";
+  if (flicker !== undefined && pulse !== undefined) return "invalid";
+  return {
+    color,
+    bright,
+    dim,
+    ...(intensity !== undefined ? { intensity } : {}),
+    ...(flicker !== undefined ? { flicker } : {}),
+    ...(pulse !== undefined ? { pulse } : {}),
+  };
+}
+
+/** The categories that draw as standing objects, the only things the live layer can sway. */
+const SWAYING_CATEGORIES: ReadonlySet<PackCategory> = new Set(OBJECT_CATEGORIES.filter((category) => !isFlatCategory(category)));
+
+/** One `sway` entry (#1073): null (stands still) or `{ amount, speed }` within the database column's bounds. */
+function parseSway(entry: unknown): SwayMotion | null | "invalid" {
+  if (entry === null) return null;
+  if (!isRecord(entry) || Object.keys(entry).some((key) => key !== "amount" && key !== "speed")) return "invalid";
+  const { amount, speed } = entry;
+  const within = (v: unknown, max: number): v is number => typeof v === "number" && Number.isFinite(v) && v > 0 && v <= max;
+  return within(amount, 8) && within(speed, 4) ? { amount, speed } : "invalid";
 }
 
 const MOTION_URL = /^motion\/[a-z0-9-]+\.webp$/;
@@ -54,7 +77,7 @@ export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: 
   const sidecar: PackSidecar = {};
   if (!isRecord(raw)) return { sidecar, errors: [`${SIDECAR_FILE}: must be a JSON object`] };
   for (const key of Object.keys(raw)) {
-    if (key !== "continuous" && key !== "labels" && key !== "doorLeaf" && key !== "lights" && key !== "flush" && key !== "motion") errors.push(`${SIDECAR_FILE}: unknown key "${key}" (expected continuous, labels, doorLeaf, lights, flush, motion)`);
+    if (key !== "continuous" && key !== "labels" && key !== "doorLeaf" && key !== "lights" && key !== "flush" && key !== "motion" && key !== "sway") errors.push(`${SIDECAR_FILE}: unknown key "${key}" (expected continuous, labels, doorLeaf, lights, flush, motion, sway)`);
   }
 
   if (raw.continuous !== undefined) {
@@ -108,7 +131,7 @@ export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: 
           const parsed: (TileLight | null)[] = [];
           entries.forEach((entry, variant) => {
             const light = parseLight(entry);
-            if (light === "invalid") errors.push(`${SIDECAR_FILE}: lights.${category}[${variant}] must be null or { color: "#rrggbb", bright: 0 to ${MAX_LIGHT_FEET} feet, dim: 0 to ${MAX_LIGHT_FEET} feet, not both 0, intensity?: above 0 up to 1 }`);
+            if (light === "invalid") errors.push(`${SIDECAR_FILE}: lights.${category}[${variant}] must be null or { color: "#rrggbb", bright: 0 to ${MAX_LIGHT_FEET} feet, dim: 0 to ${MAX_LIGHT_FEET} feet, not both 0, intensity?: above 0 up to 1, flicker? or pulse?: above 0 up to 1, not both }`);
             else parsed.push(light);
           });
           lights[category] = parsed;
@@ -137,6 +160,27 @@ export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: 
         }
       }
       sidecar.motion = motion;
+    }
+  }
+  if (raw.sway !== undefined) {
+    if (!isRecord(raw.sway)) errors.push(`${SIDECAR_FILE}: sway must be an object of category to sways`);
+    else {
+      const sway: Partial<Record<PackCategory, (SwayMotion | null)[]>> = {};
+      for (const [category, entries] of Object.entries(raw.sway)) {
+        if (!isCategory(category)) errors.push(`${SIDECAR_FILE}: sway.${category} is not a schema category`);
+        else if (!SWAYING_CATEGORIES.has(category)) errors.push(`${SIDECAR_FILE}: sway.${category} does not draw as a standing object (only ${[...SWAYING_CATEGORIES].join(", ")} can sway)`);
+        else if (!Array.isArray(entries)) errors.push(`${SIDECAR_FILE}: sway.${category} must be an array of sways or null`);
+        else {
+          const parsed: (SwayMotion | null)[] = [];
+          entries.forEach((entry, variant) => {
+            const one = parseSway(entry);
+            if (one === "invalid") errors.push(`${SIDECAR_FILE}: sway.${category}[${variant}] must be null or { amount: above 0 up to 8 degrees, speed: above 0 up to 4 rad/s } and nothing else`);
+            else parsed.push(one);
+          });
+          sway[category] = parsed;
+        }
+      }
+      sidecar.sway = sway;
     }
   }
   return { sidecar: errors.length ? {} : sidecar, errors };
@@ -225,6 +269,7 @@ export function buildManifest(
     ...(sidecar.lights ? { lights: sidecar.lights } : {}),
     ...(sidecar.flush ? { flush: sidecar.flush } : {}),
     ...(sidecar.motion ? { motion: sidecar.motion } : {}),
+    ...(sidecar.sway ? { sway: sidecar.sway } : {}),
   };
   return { manifest, errors };
 }

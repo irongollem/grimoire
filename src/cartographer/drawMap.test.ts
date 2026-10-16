@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { curbEdges, curbPosts, drawMapContent, renderShadowLayer, variantAt, type DrawMapInput } from "./drawMap";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
-import type { DressingCatalog } from "./dressing";
+import type { DressingCatalog, DressingProp } from "./dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { makeCtx, makeLayerFactory, makeRuntime, sourceOf, type Recorder } from "./testCanvas";
 
@@ -67,7 +67,7 @@ describe("drawMapContent", () => {
     layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "chest", variant: 0 } as never;
     layers.dressing.a = { prop_id: "table", x: 3, y: 3, rotation: 0, z: 0 };
     const catalog: DressingCatalog = new Map([
-      ["table", { id: "table", name: "T", footprint_w: 1, footprint_h: 1, image: null, flat: false, light: null }],
+      ["table", { id: "table", name: "T", footprint_w: 1, footprint_h: 1, image: null, flat: false, light: null, url: null, sway: null }],
     ]);
     const events: string[] = [];
     const { input: i, rec } = input(makeRuntime(PACK), {
@@ -147,6 +147,41 @@ describe("drawMapContent", () => {
         drawMapContent(i);
       }
       expect(events).toEqual(["ground:ground", "dressing:standing"]);
+    });
+  });
+
+  describe("omitSway", () => {
+    const SWAY = { amount: 4, speed: 1 };
+    const swayLayers = (): ReturnType<typeof emptyLayers> => {
+      const layers = emptyLayers();
+      layers.object[cellKey(1, 1)] = { ...ref, category: "objectPillar", variant: 0 };
+      layers.object[cellKey(2, 1)] = { ...ref, category: "objectPillar", variant: 1 };
+      layers.dressing.a = { prop_id: "palm", x: 3, y: 3, rotation: 0, z: 0 };
+      layers.dressing.b = { prop_id: "rock", x: 4, y: 3, rotation: 0, z: 1 };
+      return layers;
+    };
+    const art = {} as CanvasImageSource;
+    const palm: DressingProp = { id: "palm", name: "P", footprint_w: 1, footprint_h: 1, image: art, flat: false, light: null, url: "https://cdn/palm.webp", sway: SWAY };
+    const rock: DressingProp = { ...palm, id: "rock", sway: null };
+    const runtime = () =>
+      makeRuntime(PACK, {
+        sway: { objectPillar: [SWAY, null] },
+        assets: { objectPillar: [{ variant: 0, url: "https://cdn/tree.webp" }, { variant: 1, url: "https://cdn/stump.webp" }] },
+      });
+    const count = (omitSway: boolean): number => {
+      const { input: i, rec } = input(runtime(), {
+        layers: swayLayers(),
+        dressing: new Map([["palm", palm], ["rock", rock]]),
+        pass: "standing",
+        omitSway,
+      });
+      drawMapContent(i);
+      return rec.drawImages.length;
+    };
+
+    it("leaves out exactly the objects and Dressing that sway", () => {
+      expect(count(false)).toBe(4);
+      expect(count(true)).toBe(2);
     });
   });
 
@@ -653,8 +688,8 @@ describe("lights", () => {
     layers.dressing.b = { prop_id: "plain", x: 4, y: 4, rotation: 0, z: 0 };
     layers.dressing.c = { prop_id: "brazier", x: 3, y: 0, rotation: 90, z: 0 };
     const catalog: DressingCatalog = new Map([
-      ["brazier", { id: "brazier", name: "B", footprint_w: 2, footprint_h: 1, image: null, flat: false, light: FIRE }],
-      ["plain", { id: "plain", name: "P", footprint_w: 1, footprint_h: 1, image: null, flat: false, light: null }],
+      ["brazier", { id: "brazier", name: "B", footprint_w: 2, footprint_h: 1, image: null, flat: false, light: FIRE, url: null, sway: null }],
+      ["plain", { id: "plain", name: "P", footprint_w: 1, footprint_h: 1, image: null, flat: false, light: null, url: null, sway: null }],
     ]);
     const rec = lightsOf(makeRuntime(PACK), { layers, dressing: catalog });
     expect(rec.radialGradients.map((g) => [g.x0, g.y0])).toEqual([

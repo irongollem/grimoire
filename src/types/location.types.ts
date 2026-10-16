@@ -231,6 +231,12 @@ export interface Location {
    */
   map_layer_stand_url: string | null;
   /**
+   * The standing half without the props that sway in the live layer (#1073). The battle map shows it instead of
+   * `map_layer_stand_url` only while its top live layer is animating and ready; every other surface shows the full
+   * standing image. Null when nothing on the map sways, and for a drawing published before this.
+   */
+  map_layer_stand_live_url: string | null;
+  /**
    * `GridCalibration` of `map_layer_url`, computed by Publish from the
    * bake's own padding — never eyeballed. Null iff `map_layer_url` is null.
    */
@@ -399,6 +405,7 @@ export type LocationInsert = Omit<
   | "map_published_rev"
   | "map_layer_url"
   | "map_layer_stand_url"
+  | "map_layer_stand_live_url"
   | "map_layer_calibration"
   | "map_live"
   | "map_scale"
@@ -417,6 +424,8 @@ export type LocationInsert = Omit<
   map_layer_url?: string | null;
   /** Omit to take the column default of null: no drawing yet. */
   map_layer_stand_url?: string | null;
+  /** Omit to take the column default of null: no drawing yet. */
+  map_layer_stand_live_url?: string | null;
   /** Omit to take the column default of null: no drawing yet. */
   map_layer_calibration?: GridCalibration | null;
   /** Omit to take the column default of null: no drawing yet. */

@@ -190,6 +190,22 @@ export interface TileLight {
   /** Further feet of dim light beyond the bright radius, 0..`MAX_LIGHT_FEET`; bright and dim are not both 0. */
   dim: number;
   intensity?: number;
+  /**
+   * Epic #1073, at most one of `flicker` and `pulse`, a fraction `0 < x <= 1` by which the live battle map brightens
+   * the glow above its steady baked level. `flicker` is a fire (fast and irregular), `pulse` a glow that breathes
+   * (slow and smooth). The baked picture always holds the steady glow; only the live layer moves.
+   */
+  flicker?: number;
+  pulse?: number;
+}
+
+/**
+ * Epic #1073: how a standing thing sways in the live battle map (a forest's trees, mushrooms, reeds). `amount` is
+ * the furthest it leans from upright in degrees, `0 < a <= 8`; `speed` is the rate of the sway in rad/s, `0 < s <= 4`.
+ */
+export interface SwayMotion {
+  amount: number;
+  speed: number;
 }
 
 export const DEFAULT_LIGHT_INTENSITY = 0.35;
@@ -250,6 +266,11 @@ export interface TilePackManifest {
    * pack folder (`motion/foam.webp`) and resolved to absolute where slot urls are.
    */
   motion?: Partial<Record<"terrainWater" | "solidBlock", MotionOverlay[]>>;
+  /**
+   * Epic #1073: which variants sway in the live battle map, indexed by variant like `lights`. A `null` entry (or a
+   * category with no entry) stands still. Only standing objects sway, so a forest's trees and not its rubble.
+   */
+  sway?: Partial<Record<PackCategory, (SwayMotion | null)[]>>;
 }
 
 export function categoryDef(cat: PackCategory): CategoryDef {

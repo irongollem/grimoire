@@ -290,9 +290,17 @@ export function useMapPublish(opts: {
       // a separate layer and Publish never touches it.
       const dressing = await opts.loadDressing();
       // Two images, the same size and origin: the ground (floor, shadows, rock) the battle map's grid draws over,
-      // and the standing half (props, walls, doors, labels) that draws over the grid.
+      // and the standing half (props, walls, doors, labels) that draws over the grid. When something sways in the
+      // live layer, a third: the standing half without it, which the battle map shows only while the live layer
+      // animates (it draws the swaying props itself, so a still copy under them would double them).
+      const dims = computeBakedDimensions(map, dressing);
+      const mapLive = buildMapLive(map, opts.runtimes(), dressing, dims.originCellX, dims.originCellY);
       const groundBlob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "ground" }, opts.glyphs());
       const standBlob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "standing" }, opts.glyphs());
+      const standLiveBlob =
+        mapLive.sprites.length > 0
+          ? await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "standing", omitSway: true }, opts.glyphs())
+          : null;
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
       const url = await uploadToBucket({ bucket: "locationImages", blob: groundBlob, userId: user.id, contentType: "image/webp" });
@@ -305,13 +313,23 @@ export function useMapPublish(opts: {
         contentType: "image/webp",
       });
       if (!standUrl) throw new Error("Upload failed");
-      const dims = computeBakedDimensions(map, dressing);
-      const mapLive = buildMapLive(map, opts.runtimes(), dressing, dims.originCellX, dims.originCellY);
+      let standLiveUrl: string | null = null;
+      if (standLiveBlob) {
+        standLiveUrl = await uploadToBucket({
+          bucket: "locationImages",
+          blob: standLiveBlob,
+          userId: user.id,
+          path: `${user.id}/${crypto.randomUUID()}-stand-live.webp`,
+          contentType: "image/webp",
+        });
+        if (!standLiveUrl) throw new Error("Upload failed");
+      }
       wrote = true;
       await updateLocationDrawing.mutateAsync({
         id: targetSiteId.value,
         mapLayerUrl: url,
         mapLayerStandUrl: standUrl,
+        mapLayerStandLiveUrl: standLiveUrl,
         mapLayerCalibration: {
           cells_per_image_width: dims.cols,
           origin_x_pct: 0,

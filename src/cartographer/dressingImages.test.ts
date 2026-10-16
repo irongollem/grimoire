@@ -7,7 +7,7 @@ import { buildDressingCatalog, clearDressingImageCache, loadDressingImage } from
 import type { LibraryDressing } from "@/types/dressing.types";
 
 function row(id: string, w = 1, h = 1, image_url: string | null = null): LibraryDressing {
-  return { id, name: id, group_key: "furniture", tags: [], footprint_w: w, footprint_h: h, image_url, source: "grimoire-dressing", flat: false, light: null };
+  return { id, name: id, group_key: "furniture", tags: [], footprint_w: w, footprint_h: h, image_url, source: "grimoire-dressing", flat: false, light: null, sway: null };
 }
 
 describe("loadDressingImage", () => {
@@ -43,7 +43,7 @@ describe("buildDressingCatalog", () => {
   it("maps rows to props, with null art where no image is loaded", () => {
     const img = {} as CanvasImageSource;
     const catalog = buildDressingCatalog([row("a", 2, 1, "https://cdn/a.webp"), row("b"), row("c", 1, 1, "https://cdn/c.webp")], new Map([["https://cdn/a.webp", img]]));
-    expect(catalog.get("a")).toEqual({ id: "a", name: "a", footprint_w: 2, footprint_h: 1, image: img, flat: false, light: null });
+    expect(catalog.get("a")).toEqual({ id: "a", name: "a", footprint_w: 2, footprint_h: 1, image: img, flat: false, light: null, url: "https://cdn/a.webp", sway: null });
     expect(catalog.get("b")?.image).toBeNull();
     expect(catalog.get("c")?.image).toBeNull();
   });
@@ -53,6 +53,13 @@ describe("buildDressingCatalog", () => {
     const catalog = buildDressingCatalog([{ ...row("lantern"), light: lantern }, row("plain")], new Map());
     expect(catalog.get("lantern")?.light).toEqual(lantern);
     expect(catalog.get("plain")?.light).toBeNull();
+  });
+
+  it("carries a prop's sway through, and none as null", () => {
+    const sway = { amount: 3, speed: 1.2 };
+    const catalog = buildDressingCatalog([{ ...row("palm", 1, 1, "https://cdn/p.webp"), sway }, row("plain")], new Map());
+    expect(catalog.get("palm")?.sway).toEqual(sway);
+    expect(catalog.get("plain")?.sway).toBeNull();
   });
 
   it("looks the art up by url, so a republished picture is not shadowed by the old one", () => {

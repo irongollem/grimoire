@@ -82,18 +82,17 @@ async function uploadPrepared(files: File[]): Promise<UserTilePack> {
 
 export async function loadUserPack(pack: UserTilePack): Promise<TilePackRuntime> {
   const manifest = cloneManifest(pack.manifest);
+  // Live motion (water overlays, swaying objects) comes from library packs only. A DM's own pack serves its art
+  // through one-hour signed urls from a private bucket, which a published snapshot cannot keep and players cannot
+  // read, so motion declared here would publish urls that die within the hour.
+  delete manifest.motion;
+  delete manifest.sway;
   const paths: string[] = [];
   const slots: { url: string }[] = [];
   for (const entries of Object.values(manifest.assets)) {
     for (const slot of entries ?? []) {
       paths.push(`${pack.user_id}/${pack.pack_id}/v${pack.pack_version}/${slot.url}`);
       slots.push(slot);
-    }
-  }
-  for (const overlays of Object.values(manifest.motion ?? {})) {
-    for (const overlay of overlays) {
-      paths.push(`${pack.user_id}/${pack.pack_id}/v${pack.pack_version}/${overlay.url}`);
-      slots.push(overlay);
     }
   }
   const { data, error } = await supabase.storage.from("tile-packs").createSignedUrls(paths, 60 * 60);

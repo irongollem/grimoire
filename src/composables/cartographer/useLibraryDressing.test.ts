@@ -21,7 +21,7 @@ vi.mock("@/cartographer/dressingImages", async () => {
 import { useDressingCatalog } from "./useLibraryDressing";
 
 function row(id: string, image_url: string | null): LibraryDressing {
-  return { id, name: id, group_key: "furniture", tags: [], footprint_w: 2, footprint_h: 1, image_url, source: "grimoire", flat: false, light: null };
+  return { id, name: id, group_key: "furniture", tags: [], footprint_w: 2, footprint_h: 1, image_url, source: "grimoire", flat: false, light: null, sway: null };
 }
 
 describe("useDressingCatalog", () => {

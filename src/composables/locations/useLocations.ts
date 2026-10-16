@@ -220,7 +220,7 @@ async function deleteLocation(id: string): Promise<void> {
   // location still existed.
   const { data: loc, error: readError } = await supabase
     .from("locations")
-    .select("image_url, map_url, map_layer_url, map_layer_stand_url")
+    .select("image_url, map_url, map_layer_url, map_layer_stand_url, map_layer_stand_live_url")
     .eq("id", id)
     // A second delete of the same place (a double click, another tab) finds no
     // row: nothing to clean up, and the delete below is a no-op, not an error.
@@ -235,7 +235,7 @@ async function deleteLocation(id: string): Promise<void> {
   // image_url/map_url/map_layer_url — only remove the files nothing else
   // still references.
   if (loc) {
-    await deleteUnreferencedByPublicUrl({ urls: [loc.image_url, loc.map_url, loc.map_layer_url, loc.map_layer_stand_url] });
+    await deleteUnreferencedByPublicUrl({ urls: [loc.image_url, loc.map_url, loc.map_layer_url, loc.map_layer_stand_url, loc.map_layer_stand_live_url] });
   }
 }
 
@@ -543,7 +543,7 @@ export function usePlayerVisibleLocation(id: string | Ref<string>) {
 
 /**
  * Update a location's Drawing layer: `map_layer_url` (ground) +
- * `map_layer_stand_url` + their one
+ * `map_layer_stand_url` + `map_layer_stand_live_url` (the standing half without what sways, or null) + their one
  * `map_layer_calibration` + `map_live` + `source_map_id`, from a Cartographer publish
  * (epic #884). The Picture (`map_url`) is a separate layer underneath and is
  * never touched here; see `useUpdateLocationPicture`.
@@ -555,6 +555,7 @@ export function useUpdateLocationDrawing() {
       id,
       mapLayerUrl,
       mapLayerStandUrl,
+      mapLayerStandLiveUrl,
       mapLayerCalibration,
       mapLive,
       sourceMapId,
@@ -562,6 +563,7 @@ export function useUpdateLocationDrawing() {
       id: string;
       mapLayerUrl: string;
       mapLayerStandUrl: string;
+      mapLayerStandLiveUrl: string | null;
       mapLayerCalibration: GridCalibration;
       mapLive: MapLive;
       sourceMapId: string;
@@ -569,6 +571,7 @@ export function useUpdateLocationDrawing() {
       updateLocation(id, {
         map_layer_url: mapLayerUrl,
         map_layer_stand_url: mapLayerStandUrl,
+        map_layer_stand_live_url: mapLayerStandLiveUrl,
         map_layer_calibration: mapLayerCalibration,
         map_live: mapLive,
         source_map_id: sourceMapId,
@@ -642,6 +645,7 @@ export function useSaveStyledSitePicture() {
         grid_calibration: calibration,
         map_layer_url: null,
         map_layer_stand_url: null,
+        map_layer_stand_live_url: null,
         map_layer_calibration: null,
         map_live: null,
         source_map_id: null,

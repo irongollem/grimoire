@@ -5,8 +5,8 @@ import type { DressingCatalog } from "./dressing";
 
 const none: DressingCatalog = new Map();
 const props: DressingCatalog = new Map([
-  ["bed", { id: "bed", name: "Bed", footprint_w: 2, footprint_h: 3, image: null, flat: false, light: null }],
-  ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: null, flat: false, light: null }],
+  ["bed", { id: "bed", name: "Bed", footprint_w: 2, footprint_h: 3, image: null, flat: false, light: null, url: null, sway: null }],
+  ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: null, flat: false, light: null, url: null, sway: null }],
 ]);
 
 function emptyMap(): DungeonMap {

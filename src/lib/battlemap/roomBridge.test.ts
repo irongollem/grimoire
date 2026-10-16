@@ -50,6 +50,7 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     grid_calibration: null,
     map_layer_url: null,
     map_layer_stand_url: null,
+    map_layer_stand_live_url: null,
     map_layer_calibration: null,
     map_live: null,
     map_scale: null,
@@ -147,6 +148,7 @@ describe("resolveBattleSurface", () => {
       imageUrl: "https://example.test/map.webp",
       live: null,
       standUrl: null,
+      standLiveUrl: null,
     });
   });
 
@@ -176,6 +178,26 @@ describe("resolveBattleSurface", () => {
       expect(surface?.standUrl).toBe("https://example.test/stand.webp");
     });
 
+    it("carries the stand-live url under the same rule as the standing url", () => {
+      const drawing = makeLocation({
+        location_type: "dungeon",
+        map_layer_url: "https://example.test/drawing.webp",
+        map_layer_stand_url: "https://example.test/stand.webp",
+        map_layer_stand_live_url: "https://example.test/stand-live.webp",
+        map_layer_calibration: makeCalibration(),
+      });
+      expect(resolveBattleSurface({ encounterLocation: drawing, parent: null, regions: [] })?.standLiveUrl).toBe(
+        "https://example.test/stand-live.webp",
+      );
+      const picture = makeLocation({
+        location_type: "dungeon",
+        map_url: "https://example.test/picture.webp",
+        grid_calibration: makeCalibration(),
+        map_layer_stand_live_url: "https://example.test/stand-live.webp",
+      });
+      expect(resolveBattleSurface({ encounterLocation: picture, parent: null, regions: [] })?.standLiveUrl).toBeNull();
+    });
+
     it("is null for a Picture, and for a drawing published before the split", () => {
       const picture = makeLocation({
         location_type: "dungeon",
@@ -198,6 +220,7 @@ describe("resolveBattleSurface", () => {
       version: 1,
       groups: [{ kind: "water", cells: ["1,1"], overlays: [] }],
       lights: [],
+      sprites: [],
     };
 
     it("carries the snapshot when the surface is the Drawing", () => {

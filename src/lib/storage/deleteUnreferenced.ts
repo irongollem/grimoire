@@ -53,7 +53,7 @@ export const IMAGE_REFERENCES = [
   ["monsters", ["image_url", "cutout_url"]],
   ["items", ["image_url", "mundane_image_url"]],
   ["traps", ["image_url"]],
-  ["locations", ["image_url", "map_url", "map_layer_url", "map_layer_stand_url"]],
+  ["locations", ["image_url", "map_url", "map_layer_url", "map_layer_stand_url", "map_layer_stand_live_url"]],
   ["npcs", ["portrait_url", "cutout_url", "disguise_portrait_url"]],
   ["spells", ["image_url"]],
   ["species", ["image_url"]],
