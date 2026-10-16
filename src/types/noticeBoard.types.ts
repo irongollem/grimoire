@@ -32,7 +32,7 @@ export interface NoticeBoard {
   updated_at: string;
 }
 
-/** One piece of a board's scatter (migration 20261016101612): decoration, never a control. */
+/** One piece of a board's scatter (migration 20261016174906): decoration, never a control. */
 export interface NoticeScatterPiece {
   /** A torn scrap (scrap-*, poster-scrap-*) or a lone tack-* or nail. */
   art: string;

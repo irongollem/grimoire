@@ -1,6 +1,6 @@
 // A board's scatter: the leftover tacks and torn scraps of notices long gone, which make a board look used rather than
 // freshly hung. The DM asks for it with a button once the board is arranged, so it is worked out from the space the
-// pins leave at that moment and stored on the board (migration 20261016101612); a pin dragged later never reshuffles
+// pins leave at that moment and stored on the board (migration 20261016174906); a pin dragged later never reshuffles
 // it. A board that is mostly empty gets the most, a crowded one next to none.
 import type { NoticeScatterPiece } from "@/types/noticeBoard.types";
 import { BOARD_H, BOARD_W, POSTER_SCRAPS, SCRAPS, TACKS, hash, pinSize, type PinSlot } from "./geometry";
