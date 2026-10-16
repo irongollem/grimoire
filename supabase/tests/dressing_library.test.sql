@@ -5,7 +5,8 @@
 -- 20261016000843_dressing_dungeons_book, 20261016002526_dressing_homes_and_forests_books,
 -- 20261016133920_dressing_volcanoes_book, 20261016135253_dressing_palaces_book,
 -- 20261016141230_dressing_deserts_book, 20261016195838_dressing_glaciers_book,
--- 20261016195839_dressing_depths_book, 20261016195840_dressing_lights).
+-- 20261016195839_dressing_depths_book, 20261016195840_dressing_lights,
+-- 20261016201720_dressing_temples_book).
 --
 --   1 Ada (app admin)   2 Ben (ordinary DM)
 --
@@ -16,7 +17,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(36);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('10620000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -83,6 +84,11 @@ select is(
      from public.library_dressing where source = 'grimoire-dressing-depths'),
   row(22, 12, 3)::text,
   'the Depths book seeds 22 props, 12 lying flat and 3 crossings');
+select is(
+  (select row(count(*), count(*) filter (where flat), count(*) filter (where group_key = 'crossings'), count(light))::text
+     from public.library_dressing where source = 'grimoire-dressing-temples'),
+  row(19, 6, 3, 6)::text,
+  'the Temples book seeds 19 props, 6 lying flat, 3 crossings and 6 that give light');
 select is(
   (select row(footprint_w, footprint_h, group_key)::text from public.library_dressing where id = 'dressing_wagon'),
   row(2, 3, 'camp')::text,
