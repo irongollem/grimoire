@@ -351,15 +351,32 @@ describe("decals and stairs", () => {
     expect(rec.rotates).toEqual([Math.PI]);
   });
 
-  it("gives a stair down a hollow on its top and left inner edges", () => {
+  it("gives a stair down a hollow on its top and left inner edges, laid only over the stair itself", () => {
+    const layers = emptyLayers();
+    layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "stairsDown", variant: 0 };
+    const f = makeLayerFactory();
+    const { input: i, rec } = input(makeRuntime(PACK), { layers, makeCanvas: f.makeCanvas });
+    drawMapContent(i);
+    // The stair and its fade go into a cell canvas, faded source-atop, and that canvas onto the map.
+    const cell = f.layers.find((l) => l.width === 128 && l.height === 128);
+    expect(cell).toBeDefined();
+    expect(cats(cell!.rec)).toEqual(["stairsDown"]);
+    expect(cell!.rec.gradients).toHaveLength(2);
+    expect(cell!.rec.gradients[0]).toMatchObject({ x0: 0, y0: 0, y1: 128 * 0.35 });
+    expect(cell!.rec.gradients[0].stops[0][1]).toContain("0.7");
+    expect(cell!.rec.gradients[1]).toMatchObject({ x0: 0, y0: 0, x1: 128 * 0.35 });
+    expect(cell!.ctx.globalCompositeOperation).toBe("source-atop");
+    expect(rec.gradients).toHaveLength(0);
+    expect(rec.drawImages.some((d) => (d.source as unknown) === cell!.canvas && d.x === 256 && d.y === 256)).toBe(true);
+  });
+
+  it("draws a stair down without its hollow when no canvas can be made", () => {
     const layers = emptyLayers();
     layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "stairsDown", variant: 0 };
     const { input: i, rec } = input(makeRuntime(PACK), { layers });
     drawMapContent(i);
-    expect(rec.gradients).toHaveLength(2);
-    expect(rec.gradients[0]).toMatchObject({ x0: 256, y0: 256, y1: 256 + 128 * 0.35 });
-    expect(rec.gradients[0].stops[0][1]).toContain("0.7");
-    expect(rec.gradients[1]).toMatchObject({ x0: 256, y0: 256, x1: 256 + 128 * 0.35 });
+    expect(cats(rec)).toEqual(["stairsDown"]);
+    expect(rec.gradients).toHaveLength(0);
   });
 });
 

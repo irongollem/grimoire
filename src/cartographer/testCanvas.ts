@@ -24,6 +24,7 @@ export interface DrawImageCall {
 
 interface FakeCtx {
   globalAlpha: number;
+  globalCompositeOperation: string;
   roundRect(x: number, y: number, w: number, h: number, r: number): void;
   imageSmoothingEnabled: boolean;
   fillStyle: string;
@@ -102,6 +103,7 @@ export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
   const fake: FakeCtx = {
     imageSmoothingEnabled: true,
     globalAlpha: 1,
+    globalCompositeOperation: "source-over",
     roundRect: () => { rec.roundRects++; },
     lineWidth: 1,
     lineCap: "butt",
@@ -215,6 +217,7 @@ export function sourceOf(call: DrawImageCall): TileSentinel {
 
 export interface FakeLayer {
   canvas: { layer: number };
+  ctx: CanvasRenderingContext2D;
   rec: Recorder;
   width: number;
   height: number;
@@ -230,7 +233,7 @@ export function makeLayerFactory(): {
     makeCanvas: (width, height) => {
       const { ctx, rec } = makeCtx();
       const canvas = { layer: layers.length };
-      layers.push({ canvas, rec, width, height });
+      layers.push({ canvas, ctx, rec, width, height });
       return { canvas: canvas as unknown as CanvasImageSource, ctx };
     },
   };

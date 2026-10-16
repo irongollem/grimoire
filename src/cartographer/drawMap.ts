@@ -217,6 +217,7 @@ interface Frame {
   glyphs: Record<CellKey, PackCategory>;
   glyphPackId: string | null;
   dressing: DressingCatalog;
+  makeCanvas: MakeCanvas | undefined;
 }
 
 interface Target {
@@ -526,7 +527,7 @@ function drawTurned(ctx: Ctx2D, source: CanvasImageSource, drawX: number, drawY:
   ctx.restore();
 }
 
-/** The stamped objects of one class; a stair down also gets its hollow. */
+/** The stamped objects of one class; a stair down also gets its hollow (with canvases). */
 function paintObjects(f: Frame, t: Target, cls: ObjectClass): void {
   const { tilePx, bounds, layers, runtime } = f;
   const { ctx } = t;
@@ -543,18 +544,30 @@ function paintObjects(f: Frame, t: Target, cls: ObjectClass): void {
       // no side (as every object did) never found the art and drew the placeholder. A
       // pack without art for that side falls back to its N stair, turned (#1065).
       const side = cls === "stairsUp" || cls === "stairsDown" ? stairSide(obj.rotation) : null;
-      if (side && objRt.variantCount(obj.category, side) > 0) {
-        ctx.drawImage(objRt.getTile(obj.category, obj.variant, side).source, drawX, drawY, tilePx, tilePx);
-      } else {
-        const tile = side ? objRt.getTile(obj.category, obj.variant, "N") : objRt.getTile(obj.category, obj.variant);
-        drawTurned(ctx, tile.source, drawX, drawY, tilePx, obj.rotation);
-      }
-      if (cls === "stairsDown") {
+      const paint = (c: Ctx2D, px: number, py: number): void => {
+        if (side && objRt.variantCount(obj.category, side) > 0) {
+          c.drawImage(objRt.getTile(obj.category, obj.variant, side).source, px, py, tilePx, tilePx);
+        } else {
+          const tile = side ? objRt.getTile(obj.category, obj.variant, "N") : objRt.getTile(obj.category, obj.variant);
+          drawTurned(c, tile.source, px, py, tilePx, obj.rotation);
+        }
+      };
+      // A stair down is a hollow: its top and left inner edges darken. The fade is laid only over the stair's own
+      // pixels (drawn alone into a cell canvas, faded `source-atop`), so a stair painted with a ragged natural outline
+      // keeps it instead of sinking into a dark square of floor (Icy Cave, 16 Oct 2026). Without canvases (node tests,
+      // an old browser) the stair draws without its hollow, as the map draws without shadows.
+      const cell = cls === "stairsDown" ? f.makeCanvas?.(tilePx, tilePx) : null;
+      if (cell) {
+        paint(cell.ctx, 0, 0);
         const span = tilePx * SHADOW.hollow.span;
-        ctx.fillStyle = fadeFrom(ctx, drawX, drawY, drawX, drawY + span, SHADOW.hollow.alpha);
-        ctx.fillRect(drawX, drawY, tilePx, span);
-        ctx.fillStyle = fadeFrom(ctx, drawX, drawY, drawX + span, drawY, SHADOW.hollow.alpha);
-        ctx.fillRect(drawX, drawY, span, tilePx);
+        cell.ctx.globalCompositeOperation = "source-atop";
+        cell.ctx.fillStyle = fadeFrom(cell.ctx, 0, 0, 0, span, SHADOW.hollow.alpha);
+        cell.ctx.fillRect(0, 0, tilePx, span);
+        cell.ctx.fillStyle = fadeFrom(cell.ctx, 0, 0, span, 0, SHADOW.hollow.alpha);
+        cell.ctx.fillRect(0, 0, span, tilePx);
+        ctx.drawImage(cell.canvas, drawX, drawY, tilePx, tilePx);
+      } else {
+        paint(ctx, drawX, drawY);
       }
     }
   }
@@ -616,6 +629,7 @@ const frameOf = (input: DrawMapInput, bounds: DrawMapInput["bounds"]): Frame => 
   glyphs: input.glyphs,
   glyphPackId: input.glyphPackId,
   dressing: input.dressing,
+  makeCanvas: input.makeCanvas,
 });
 
 /**
