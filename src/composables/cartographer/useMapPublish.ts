@@ -17,6 +17,7 @@
 import { computed, ref, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { bakeMap, computeBakedDimensions } from "@/cartographer/bake";
+import { buildMapLive } from "@/cartographer/mapLive";
 import type { DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
@@ -294,6 +295,7 @@ export function useMapPublish(opts: {
       const url = await uploadToBucket({ bucket: "locationImages", blob, userId: user.id, contentType: "image/webp" });
       if (!url) throw new Error("Upload failed");
       const dims = computeBakedDimensions(map, dressing);
+      const mapLive = buildMapLive(map, opts.runtimes(), dressing, dims.originCellX, dims.originCellY);
       wrote = true;
       await updateLocationDrawing.mutateAsync({
         id: targetSiteId.value,
@@ -305,6 +307,7 @@ export function useMapPublish(opts: {
           origin_cell_x: dims.originCellX,
           origin_cell_y: dims.originCellY,
         },
+        mapLive,
         sourceMapId: map.id,
       });
       // (b) Spaces — create rooms + bind fresh regions; reshape existing ones;

@@ -90,6 +90,12 @@ export async function loadUserPack(pack: UserTilePack): Promise<TilePackRuntime>
       slots.push(slot);
     }
   }
+  for (const overlays of Object.values(manifest.motion ?? {})) {
+    for (const overlay of overlays) {
+      paths.push(`${pack.user_id}/${pack.pack_id}/v${pack.pack_version}/${overlay.url}`);
+      slots.push(overlay);
+    }
+  }
   const { data, error } = await supabase.storage.from("tile-packs").createSignedUrls(paths, 60 * 60);
   if (error) throw error;
   data.forEach((signed, index) => {

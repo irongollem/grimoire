@@ -9,6 +9,7 @@ import {
 } from "@/lib/battlemap/roomBridge";
 import type { GridCalibration, Location } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
+import type { MapLive } from "@/types/mapLive.types";
 import type { RunCombatant } from "@/types/encounter.types";
 
 function makeCalibration(overrides: Partial<GridCalibration> = {}): GridCalibration {
@@ -49,6 +50,7 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     grid_calibration: null,
     map_layer_url: null,
     map_layer_calibration: null,
+    map_live: null,
     map_scale: null,
     plan_size: null,
     era_start: null,
@@ -142,6 +144,48 @@ describe("resolveBattleSurface", () => {
       focusCells: [],
       calibration,
       imageUrl: "https://example.test/map.webp",
+      live: null,
+    });
+  });
+
+  describe("live snapshot (#1073)", () => {
+    const live: MapLive = {
+      version: 1,
+      groups: [{ kind: "water", cells: ["1,1"], overlays: [] }],
+      lights: [],
+    };
+
+    it("carries the snapshot when the surface is the Drawing", () => {
+      const location = makeLocation({
+        location_type: "dungeon",
+        map_layer_url: "https://example.test/drawing.webp",
+        map_layer_calibration: makeCalibration(),
+        map_live: live,
+      });
+      expect(resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] })?.live).toBe(live);
+    });
+
+    it("carries the site's snapshot for a room opened on its site's Drawing", () => {
+      const room = makeLocation({ id: "room-1", parent_id: "site-1" });
+      const site = makeLocation({
+        id: "site-1",
+        location_type: "dungeon",
+        map_layer_url: "https://example.test/drawing.webp",
+        map_layer_calibration: makeCalibration(),
+        map_live: live,
+      });
+      const surface = resolveBattleSurface({ encounterLocation: room, parent: site, regions: [] });
+      expect(surface?.live).toBe(live);
+    });
+
+    it("is null when the surface is a Picture, even if a snapshot exists", () => {
+      const location = makeLocation({
+        location_type: "dungeon",
+        map_url: "https://example.test/picture.webp",
+        grid_calibration: makeCalibration(),
+        map_live: live,
+      });
+      expect(resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] })?.live).toBeNull();
     });
   });
 

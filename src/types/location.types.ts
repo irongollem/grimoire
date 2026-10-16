@@ -1,4 +1,5 @@
 import type { AiProvenance } from "@/ai/provenance";
+import type { MapLive } from "@/types/mapLive.types";
 
 export type LocationType =
   | "world"
@@ -229,6 +230,12 @@ export interface Location {
    */
   map_layer_calibration: GridCalibration | null;
   /**
+   * The live-layer snapshot Publish writes beside the Drawing (epic #1073): water motion now, lights and vision
+   * later, in the Drawing's image-cell space. Players cannot read `dungeon_maps`, so it rides on the location.
+   * Null when the site has no drawing, or the drawing predates it. Only meaningful for `map_layer_url`.
+   */
+  map_live: MapLive | null;
+  /**
    * How far apart two points on the Picture are, for a world, region or city
    * map measured in miles or kilometres (#932). Null until the DM sets it.
    * Read through `lib/locations/mapScale.ts`: the jsonb is untrusted there.
@@ -385,6 +392,7 @@ export type LocationInsert = Omit<
   | "map_published_rev"
   | "map_layer_url"
   | "map_layer_calibration"
+  | "map_live"
   | "map_scale"
   | "plan_size"
   | "is_level"
@@ -397,10 +405,12 @@ export type LocationInsert = Omit<
   map_published_rev?: number | null;
   /** Omit to take the column default of false — a place on its parent's floor. */
   is_level?: boolean;
-  /** Omit to take the column default of null — no drawing yet. */
+  /** Omit to take the column default of null: no drawing yet. */
   map_layer_url?: string | null;
-  /** Omit to take the column default of null — no drawing yet. */
+  /** Omit to take the column default of null: no drawing yet. */
   map_layer_calibration?: GridCalibration | null;
+  /** Omit to take the column default of null: no drawing yet. */
+  map_live?: MapLive | null;
   /** Omit to take the column default of null — the map has no scale yet. */
   map_scale?: MapScale | null;
   /** Omit to take the column default of null — no blank-grid plan yet. */

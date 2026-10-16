@@ -201,6 +201,7 @@ export function makeRuntime(
     continuous?: TilePackManifest["continuous"];
     lights?: TilePackManifest["lights"];
     flush?: TilePackManifest["flush"];
+    motion?: TilePackManifest["motion"];
   } = {},
 ): TilePackRuntime {
   const manifest: TilePackManifest = {
@@ -216,6 +217,7 @@ export function makeRuntime(
     ...(opts.continuous ? { continuous: opts.continuous } : {}),
     ...(opts.lights ? { lights: opts.lights } : {}),
     ...(opts.flush ? { flush: opts.flush } : {}),
+    ...(opts.motion ? { motion: opts.motion } : {}),
   };
   const validation: ValidationResult = { valid: true, missing: [], extras: [], warnings: [] };
   return {

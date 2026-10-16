@@ -76,6 +76,9 @@ export async function loadLibraryPack(pack: LibraryTilePack): Promise<TilePackRu
       slot.url = libraryTileUrl(pack, slot);
     }
   }
+  for (const overlays of Object.values(manifest.motion ?? {})) {
+    for (const overlay of overlays) overlay.url = getPublicUrl("libraryTilePacks", libraryPackObjectPath(pack, overlay.url));
+  }
   const manifestUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/json" }));
   try { return await loadPack(manifestUrl); } finally { URL.revokeObjectURL(manifestUrl); }
 }

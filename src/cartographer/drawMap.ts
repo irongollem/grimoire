@@ -626,7 +626,7 @@ function paintGlyphs(f: Frame, t: Target): void {
 
 // ── Lights ─────────────────────────────────────────────────────────────────
 
-interface LightSource {
+export interface LightSource {
   /** Centre of the source, in cells. */
   x: number;
   y: number;
@@ -634,42 +634,58 @@ interface LightSource {
 }
 
 /**
- * Every light that can reach the window: object cells, wall decals and dressing props whose pack (or library row)
- * declares one. Sources are gathered from `MAX_LIGHT_RANGE` cells beyond the window, so a lantern just off screen
- * still lights the edge. A wall decal sits on its edge's midpoint (edges are stored NW-owned: a cell's `wallN` runs
- * along its top, its `wallW` along its left).
+ * Every light source on a map: object cells, wall decals and dressing props whose pack (or library row) declares
+ * one. A wall decal sits on its edge's midpoint (edges are stored NW-owned: a cell's `wallN` runs along its top,
+ * its `wallW` along its left). With `reach`, only sources inside that inclusive cell window (the draw window plus
+ * `MAX_LIGHT_RANGE`, so a lantern just off screen still lights the edge) are returned; with null, the whole map.
+ * No window and no canvas: the live snapshot (#1073) reuses it.
  */
-function gatherLights(f: Frame): LightSource[] {
-  const { bounds, layers, runtime, dressing } = f;
-  const reach = {
-    minX: bounds.minX - MAX_LIGHT_RANGE,
-    minY: bounds.minY - MAX_LIGHT_RANGE,
-    maxX: bounds.maxX + MAX_LIGHT_RANGE,
-    maxY: bounds.maxY + MAX_LIGHT_RANGE,
-  };
+export function gatherLightSources(
+  layers: DungeonMapLayers,
+  runtime: DrawMapInput["runtime"],
+  dressing: DressingCatalog,
+  reach: DrawMapInput["bounds"] | null,
+): LightSource[] {
   const out: LightSource[] = [];
-  for (let y = reach.minY; y <= reach.maxY; y++) {
-    for (let x = reach.minX; x <= reach.maxX; x++) {
-      const key = cellKey(x, y);
-      const obj: ObjectCell | undefined = layers.object[key];
-      const objLight = obj ? runtime(obj.pack_id)?.manifest.lights?.[obj.category]?.[obj.variant] : null;
-      if (objLight) out.push({ x: x + 0.5, y: y + 0.5, light: objLight });
-      const cell = layers.floor[key];
-      for (const [seg, sx, sy] of [[cell?.wallN, x + 0.5, y], [cell?.wallW, x, y + 0.5]] as const) {
-        if (seg?.type !== "wall" || seg.decal === undefined) continue;
-        const decalLight = runtime(seg.pack_id)?.manifest.lights?.wallDecal?.[seg.decal];
-        if (decalLight) out.push({ x: sx, y: sy, light: decalLight });
-      }
+  const visit = (x: number, y: number): void => {
+    const key = cellKey(x, y);
+    const obj: ObjectCell | undefined = layers.object[key];
+    const objLight = obj ? runtime(obj.pack_id)?.manifest.lights?.[obj.category]?.[obj.variant] : null;
+    if (objLight) out.push({ x: x + 0.5, y: y + 0.5, light: objLight });
+    const cell = layers.floor[key];
+    for (const [seg, sx, sy] of [[cell?.wallN, x + 0.5, y], [cell?.wallW, x, y + 0.5]] as const) {
+      if (seg?.type !== "wall" || seg.decal === undefined) continue;
+      const decalLight = runtime(seg.pack_id)?.manifest.lights?.wallDecal?.[seg.decal];
+      if (decalLight) out.push({ x: sx, y: sy, light: decalLight });
+    }
+  };
+  if (reach) {
+    for (let y = reach.minY; y <= reach.maxY; y++) for (let x = reach.minX; x <= reach.maxX; x++) visit(x, y);
+  } else {
+    const keys = new Set([...Object.keys(layers.object), ...Object.keys(layers.floor)]);
+    for (const key of keys) {
+      const [xs, ys] = key.split(",");
+      visit(Number(xs), Number(ys));
     }
   }
   for (const placement of Object.values(layers.dressing)) {
     const prop = dressing.get(placement.prop_id);
     if (!prop?.light) continue;
     const c = dressingCentre(placement, prop.footprint_w, prop.footprint_h);
-    if (c.x < reach.minX || c.x > reach.maxX + 1 || c.y < reach.minY || c.y > reach.maxY + 1) continue;
+    if (reach && (c.x < reach.minX || c.x > reach.maxX + 1 || c.y < reach.minY || c.y > reach.maxY + 1)) continue;
     out.push({ x: c.x, y: c.y, light: prop.light });
   }
   return out;
+}
+
+function gatherLights(f: Frame): LightSource[] {
+  const { bounds, layers, runtime, dressing } = f;
+  return gatherLightSources(layers, runtime, dressing, {
+    minX: bounds.minX - MAX_LIGHT_RANGE,
+    minY: bounds.minY - MAX_LIGHT_RANGE,
+    maxX: bounds.maxX + MAX_LIGHT_RANGE,
+    maxY: bounds.maxY + MAX_LIGHT_RANGE,
+  });
 }
 
 /**

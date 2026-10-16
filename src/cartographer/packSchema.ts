@@ -1,6 +1,8 @@
 // Tile pack schema — source of truth for what every pack must contain.
 // See context/features/cartographer.md "Tile Pack System".
 
+import type { MotionOverlay } from "@/types/mapLive.types";
+
 export type CategoryKind = "random" | "directional" | "optional";
 
 export interface RandomCategoryDef {
@@ -242,6 +244,12 @@ export interface TilePackManifest {
    * water is level with its banks, so it gets no darkened sunk edge. Absent: every piece casts as its category does.
    */
   flush?: PackCategory[];
+  /**
+   * Epic #1073: animated overlays the live battle map lays over this set's water. `terrainWater` drifts over the
+   * painted water cells, `solidBlock` over the set's outer mass (the Water set's open sea). Urls are relative to the
+   * pack folder (`motion/foam.webp`) and resolved to absolute where slot urls are.
+   */
+  motion?: Partial<Record<"terrainWater" | "solidBlock", MotionOverlay[]>>;
 }
 
 export function categoryDef(cat: PackCategory): CategoryDef {

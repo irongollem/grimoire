@@ -33,6 +33,8 @@ vi.mock("@/cartographer/bake", () => ({
   bakeMap: async () => new Blob(),
   computeBakedDimensions: () => ({ cols: 4, rows: 4, originCellX: 0, originCellY: 0 }),
 }));
+const SNAPSHOT = { version: 1, groups: [], lights: [] };
+vi.mock("@/cartographer/mapLive", () => ({ buildMapLive: () => SNAPSHOT }));
 vi.mock("@/lib/storage", () => ({ uploadToBucket: async () => "https://cdn/x.webp" }));
 vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "user-1" }) }));
 vi.mock("@/lib/queueEmbeddings", () => ({ queueEmbeddingsInBackground: mocks.embed }));
@@ -124,6 +126,12 @@ describe("useMapPublish.publish", () => {
       ],
       summary: {},
     } as unknown as PublishPlan;
+  });
+
+  it("writes the live snapshot with the Drawing (#1073)", async () => {
+    const { publish } = setup();
+    await publish();
+    expect(mocks.updateDrawing.mock.calls[0]![0]).toMatchObject({ mapLive: SNAPSHOT });
   });
 
   it("writes one request per table, in table order, and the rev claim last", async () => {

@@ -2,13 +2,14 @@
  * The pure half of `scripts/publish-tile-pack.ts` (#891): a folder of runtime tiles becomes the slots of a library pack's
  * manifest. Kept apart so the mapping from file path to slot is tested without a network.
  */
+import type { MotionOverlay } from "../../src/types/mapLive.types.ts";
 import { BASE_TILE_SIZE, MAX_LIGHT_FEET, TILE_PACK_SCHEMA, categoryDef, type AssetSlot, type PackCategory, type TileLight, type TilePackManifest } from "../../src/cartographer/packSchema.ts";
 
 /**
  * The optional `pack.json` beside a pack's tiles: the manifest fields no tile can carry (schema 4). It is the ONLY source of
  * them, on purpose: a repaint replaces the pack, so nothing is inherited from an older published version.
  */
-export type PackSidecar = Pick<TilePackManifest, "continuous" | "labels" | "doorLeaf" | "lights" | "flush">;
+export type PackSidecar = Pick<TilePackManifest, "continuous" | "labels" | "doorLeaf" | "lights" | "flush" | "motion">;
 
 export const SIDECAR_FILE = "pack.json";
 
@@ -29,13 +30,31 @@ function parseLight(entry: unknown): TileLight | null | "invalid" {
   return { color, bright, dim, intensity };
 }
 
+const MOTION_URL = /^motion\/[a-z0-9-]+\.webp$/;
+const finiteIn = (v: unknown, min: number, max: number): v is number => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
+
+/** One `motion` overlay (#1073), or null when it breaks the rule. The url names a file under the pack's `motion/` folder. */
+function parseOverlay(entry: unknown): MotionOverlay | null {
+  if (!isRecord(entry)) return null;
+  if (Object.keys(entry).some((key) => key !== "url" && key !== "cells" && key !== "drift" && key !== "alpha" && key !== "breathe")) return null;
+  const { url, cells, drift, alpha, breathe } = entry;
+  if (typeof url !== "string" || !MOTION_URL.test(url)) return null;
+  if (!finiteIn(cells, 1, 16) || !finiteIn(alpha, 0, 1)) return null;
+  if (!Array.isArray(drift) || drift.length !== 2 || !finiteIn(drift[0], -5, 5) || !finiteIn(drift[1], -5, 5)) return null;
+  const overlay: MotionOverlay = { url, cells, drift: [drift[0], drift[1]], alpha };
+  if (breathe === undefined) return overlay;
+  if (!isRecord(breathe) || Object.keys(breathe).some((key) => key !== "amount" && key !== "speed" && key !== "phase")) return null;
+  if (!finiteIn(breathe.amount, 0, 1) || !finiteIn(breathe.speed, 0, 10) || typeof breathe.phase !== "number" || !Number.isFinite(breathe.phase)) return null;
+  return { ...overlay, breathe: { amount: breathe.amount, speed: breathe.speed, phase: breathe.phase } };
+}
+
 /** Validates a parsed `pack.json`. Every problem is reported (not just the first), and nothing invalid is returned. */
 export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: string[] } {
   const errors: string[] = [];
   const sidecar: PackSidecar = {};
   if (!isRecord(raw)) return { sidecar, errors: [`${SIDECAR_FILE}: must be a JSON object`] };
   for (const key of Object.keys(raw)) {
-    if (key !== "continuous" && key !== "labels" && key !== "doorLeaf" && key !== "lights" && key !== "flush") errors.push(`${SIDECAR_FILE}: unknown key "${key}" (expected continuous, labels, doorLeaf, lights, flush)`);
+    if (key !== "continuous" && key !== "labels" && key !== "doorLeaf" && key !== "lights" && key !== "flush" && key !== "motion") errors.push(`${SIDECAR_FILE}: unknown key "${key}" (expected continuous, labels, doorLeaf, lights, flush, motion)`);
   }
 
   if (raw.continuous !== undefined) {
@@ -102,6 +121,24 @@ export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: 
     if (!Array.isArray(raw.flush) || raw.flush.some((category) => typeof category !== "string" || !isCategory(category))) errors.push(`${SIDECAR_FILE}: flush must be an array of schema categories`);
     else sidecar.flush = raw.flush as PackCategory[];
   }
+  if (raw.motion !== undefined) {
+    if (!isRecord(raw.motion)) errors.push(`${SIDECAR_FILE}: motion must be an object of terrainWater / solidBlock to overlays`);
+    else {
+      const motion: NonNullable<PackSidecar["motion"]> = {};
+      for (const [key, entries] of Object.entries(raw.motion)) {
+        if (key !== "terrainWater" && key !== "solidBlock") errors.push(`${SIDECAR_FILE}: motion.${key} is not terrainWater or solidBlock`);
+        else if (!Array.isArray(entries)) errors.push(`${SIDECAR_FILE}: motion.${key} must be an array of overlays`);
+        else {
+          const parsed = entries.map(parseOverlay);
+          parsed.forEach((overlay, index) => {
+            if (!overlay) errors.push(`${SIDECAR_FILE}: motion.${key}[${index}] must be { url: "motion/<name>.webp", cells: 1 to 16, drift: [x, y] each within -5 to 5, alpha: 0 to 1, breathe?: { amount: 0 to 1, speed: 0 to 10, phase } } and nothing else`);
+          });
+          if (parsed.every((overlay) => overlay !== null)) motion[key] = parsed as MotionOverlay[];
+        }
+      }
+      sidecar.motion = motion;
+    }
+  }
   return { sidecar: errors.length ? {} : sidecar, errors };
 }
 
@@ -158,10 +195,20 @@ export function buildManifest(
 ): { manifest: TilePackManifest; errors: string[] } {
   const errors: string[] = [];
   const assets: Partial<Record<PackCategory, AssetSlot[]>> = {};
+  const motionFiles = new Set<string>();
   for (const file of [...files].sort((a, b) => a.relative.localeCompare(b.relative, "en", { numeric: true }))) {
+    // Motion overlays are images beside the tiles, not slots: the sidecar names them.
+    if (file.relative.startsWith("motion/")) {
+      if (MOTION_URL.test(file.relative)) motionFiles.add(file.relative);
+      else errors.push(`${file.relative}: motion files must be motion/<name>.webp (lowercase letters, digits, hyphens)`);
+      continue;
+    }
     const slot = slotForPath(file.relative);
     if ("error" in slot) { errors.push(slot.error); continue; }
     (assets[slot.category] ??= []).push({ ...(slot.side ? { side: slot.side } : {}), variant: slot.variant, url: slot.relative, byteSize: file.byteSize, rev });
+  }
+  for (const overlays of Object.values(sidecar.motion ?? {})) {
+    for (const overlay of overlays) if (!motionFiles.has(overlay.url)) errors.push(`pack.json names ${overlay.url}, which is not in the folder`);
   }
   const manifest: TilePackManifest = {
     pack_id: base.pack_id,
@@ -177,6 +224,7 @@ export function buildManifest(
     ...(sidecar.doorLeaf ? { doorLeaf: sidecar.doorLeaf } : {}),
     ...(sidecar.lights ? { lights: sidecar.lights } : {}),
     ...(sidecar.flush ? { flush: sidecar.flush } : {}),
+    ...(sidecar.motion ? { motion: sidecar.motion } : {}),
   };
   return { manifest, errors };
 }

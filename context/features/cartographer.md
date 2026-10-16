@@ -792,6 +792,14 @@ Each light is one radial gradient filled over its bounding square with `globalCo
 
 **Draw order** (`drawMapContent`): floor and terrain, the sunk-edge darkening, `afterGround` (the live grid), stairs down, the shadow layer, curbs and posts, flat objects and flat Dressing, the lights, standing objects, standing Dressing, stairs up, solid rock, edge segs (walls, doorways, leaves, grates, sluices, decals), corner joints, `afterDressing`, then glyphs. Annotations are the caller's.
 
+### Live snapshot (#1073)
+
+Publish writes `locations.map_live` (`MapLive`, `src/types/mapLive.types.ts`) in the same update as `map_layer_url`, `map_layer_calibration` and `source_map_id`, built by `buildMapLive` (`src/cartographer/mapLive.ts`). It is written at publish, beside the Drawing, because players cannot read `dungeon_maps` (owner and campaign DMs only), while `get_player_visible_locations` already hands them the location under the `is_map_shared` gate. The battle map's live layer reads it; later stories (darkness, vision) reuse the same snapshot and canvas.
+
+It holds `groups` (cell sets with the motion overlays that animate them) and `lights` (every source `gatherLightSources` finds over the whole map, in cells with the Drawing's lighting fields). Every cell key is an **image cell**: the Drawing's own cell space, where cell (0,0) is the image's top-left, the space the fog mask and tokens use. A map cell `(mx, my)` is image cell `(mx - originCellX, my - originCellY)`, with the origin from `computeBakedDimensions`, the same numbers stored as `origin_cell_x/y`. A `water` group is a pack's painted `terrain` cells and is kept even with no overlays; an `outer` group is a pack's `solidBlock` cells and exists only when the pack has overlays for it.
+
+A pack declares its motion in the `pack.json` sidecar: `motion: { terrainWater?: MotionOverlay[], solidBlock?: MotionOverlay[] }`. `terrainWater` overlays animate the set's painted water, `solidBlock` overlays the set's outer mass (the Water set's open sea). An overlay is a seamless transparent WebP under `motion/` in the pack folder (`url: "motion/foam.webp"`), tiled every `cells` cells, drifting `drift` cells per second, at base `alpha` with an optional `breathe`. The publish script validates the sidecar, uploads the files beside the tiles (they are not slots) and refuses an overlay whose file is missing. The loaders (`loadLibraryPack`, `loadUserPack`) resolve the urls to absolute where they resolve slot urls, so a snapshot carries absolute urls. A site republished without motion, or never republished, has `map_live` null or empty and the battle map simply shows the baked picture.
+
 ---
 
 ## Atlas Integration

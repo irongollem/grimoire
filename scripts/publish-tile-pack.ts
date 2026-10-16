@@ -11,7 +11,7 @@
  * rebuilt from the folder alone (see `buildManifest`).
  *
  * Bytes go to R2 at `library-tile-packs/<row id>/v<version>/<path>`, the key the CDN serves and `libraryTileUrl` reads.
- * An optional `pack.json` in the folder carries what no tile can: `{ continuous?, labels?, doorLeaf? }` (see `parsePackSidecar`).
+ * An optional `pack.json` in the folder carries what no tile can: `{ continuous?, labels?, doorLeaf?, lights?, flush?, motion? }` (see `parsePackSidecar`).
  * It is the only source of those manifest fields; they are never carried over from an older published version.
  *
  * The row stays a draft unless `--publish` is passed AND the pack has every required tile; publishing a reviewed draft is
@@ -109,6 +109,12 @@ async function main(): Promise<void> {
     if (excluded.has(rel.split("/")[0])) continue;
     const bytes = new Uint8Array(readFileSync(path));
     const size = webpDimensions(bytes);
+    // A motion overlay (#1073) is a seamless tile of its own size, not a 128 px slot: it only has to be a WebP.
+    if (rel.startsWith("motion/")) {
+      if (!size) problems.push(`${rel}: not a WebP`);
+      else files.push({ relative: rel, byteSize: bytes.byteLength, bytes });
+      continue;
+    }
     if (!size || size.width !== BASE_TILE_SIZE || size.height !== BASE_TILE_SIZE) { problems.push(`${rel}: not a ${BASE_TILE_SIZE}×${BASE_TILE_SIZE} WebP`); continue; }
     files.push({ relative: rel, byteSize: bytes.byteLength, bytes });
   }

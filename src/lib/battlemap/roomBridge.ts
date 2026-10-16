@@ -16,6 +16,7 @@
 import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration, Location } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
+import type { MapLive } from "@/types/mapLive.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import { primaryImage } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
@@ -62,6 +63,13 @@ export interface BattleSurface {
   /** The map image the battle view actually draws — the site's Drawing when
    *  it has one, else its Picture (#884: `primaryImage`'s url). */
   imageUrl: string;
+  /** The live-layer snapshot (#1073), only when `imageUrl` IS the site's Drawing: the snapshot is in the Drawing's
+   *  image cells, so over a hand-calibrated Picture it would not line up. Null otherwise. */
+  live: MapLive | null;
+}
+
+function liveFor(loc: Location, imageUrl: string): MapLive | null {
+  return loc.map_layer_url !== null && loc.map_layer_url === imageUrl ? loc.map_live : null;
 }
 
 /**
@@ -91,6 +99,7 @@ export function resolveBattleSurface(params: {
       focusCells: [],
       calibration: ownImage.calibration,
       imageUrl: ownImage.url,
+      live: liveFor(encounterLocation, ownImage.url),
     };
   }
 
@@ -112,6 +121,7 @@ export function resolveBattleSurface(params: {
         focusCells,
         calibration,
         imageUrl: parentImage.url,
+        live: liveFor(parent, parentImage.url),
       };
     }
   }

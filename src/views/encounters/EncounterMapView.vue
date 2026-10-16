@@ -74,6 +74,17 @@
         </g>
       </svg>
 
+      <!-- Live layer (#1073): water motion over the Drawing, under room focus, tokens and fog. -->
+      <BattleMapLiveLayer
+        v-if="surface?.live && location && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :live="surface.live"
+      />
+
       <!-- Room focus layer: dims the plan outside the encounter's room and
            outlines it + its terrain zones (frame 13). Only when the map is a
            site plan the encounter is anchored to a room on — a plain
@@ -158,6 +169,7 @@ import { useEncounterLive, liveState } from "@/composables/encounters/useEncount
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
+import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
 import BattleMapRoomFocusLayer from "@/components/encounters/BattleMapRoomFocusLayer.vue";
 import BattleMapLegend from "@/components/encounters/BattleMapLegend.vue";
 import BattleMapToolbar, {

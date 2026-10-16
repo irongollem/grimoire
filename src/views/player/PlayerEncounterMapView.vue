@@ -61,6 +61,17 @@
         </g>
       </svg>
 
+      <!-- Live layer (#1073): water motion over the Drawing, under tokens and fog. -->
+      <BattleMapLiveLayer
+        v-if="live && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :live="live"
+      />
+
       <BattleMapTokenLayer
         v-if="location && imageReady && cellPx > 0 && liveCombatants"
         :host-w="hostW"
@@ -111,6 +122,7 @@ import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDollFigures";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
+import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
 import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
 import { primaryImage } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
@@ -147,6 +159,10 @@ const { data: location } = usePlayerVisibleLocation(locationIdRef);
 // has one, else its Picture (#884: never `location.map_url` directly, or a
 // Drawing-only battle map would render nothing).
 const image = computed(() => primaryImage(location.value));
+// The snapshot is in the Drawing's image cells, so it only applies when the Drawing is what is on screen.
+const live = computed(() =>
+  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url ? location.value.map_live : null,
+);
 
 // Decode only when the source string actually changes (a plain `computed`
 // would re-decode on every liveState mutation, including unrelated token

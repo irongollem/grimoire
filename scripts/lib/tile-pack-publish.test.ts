@@ -56,7 +56,12 @@ describe("pack.json sidecar", () => {
     doorLeaf: { hingeX: 0.25, hingeY: 0.5, openDegrees: 80 },
     lights: { objectBrazier: [{ color: "#ffb347", bright: 20, dim: 20, intensity: 0.7 }, null, { color: "#44aaff", bright: 0, dim: 10 }] },
     flush: ["curbH", "curbV", "curbPost"],
+    motion: {
+      terrainWater: [{ url: "motion/foam.webp", cells: 4, drift: [0.1, -0.05], alpha: 0.5, breathe: { amount: 0.3, speed: 2, phase: 1 } }],
+      solidBlock: [{ url: "motion/glint.webp", cells: 2, drift: [0, 0], alpha: 0.4 }],
+    },
   };
+  const motionFiles = [{ relative: "motion/foam.webp", byteSize: 10 }, { relative: "motion/glint.webp", byteSize: 10 }];
 
   it("copies a valid sidecar into the manifest", () => {
     const { sidecar, errors } = parsePackSidecar(good);
@@ -67,6 +72,25 @@ describe("pack.json sidecar", () => {
     expect(manifest.doorLeaf).toEqual(good.doorLeaf);
     expect(manifest.lights).toEqual(good.lights);
     expect(manifest.flush).toEqual(good.flush);
+  });
+
+  it("copies motion into the manifest when its files are in the folder, without calling them slots", () => {
+    const { sidecar } = parsePackSidecar(good);
+    const { manifest, errors } = buildManifest(base, [...files, ...motionFiles], 1, sidecar);
+    expect(errors).toEqual([]);
+    expect(manifest.motion).toEqual(good.motion);
+    expect(Object.keys(manifest.assets)).not.toContain("motion");
+  });
+
+  it("refuses a motion overlay whose file is missing from the folder", () => {
+    const { sidecar } = parsePackSidecar(good);
+    const { errors } = buildManifest(base, files, 1, sidecar);
+    expect(errors.join(" ")).toMatch(/motion\/foam.webp, which is not in the folder/);
+  });
+
+  it("refuses a motion file that is not motion/<name>.webp", () => {
+    const { errors } = buildManifest(base, [...files, { relative: "motion/Foam 1.webp", byteSize: 1 }], 1);
+    expect(errors.join(" ")).toMatch(/motion files must be/);
   });
 
   it("leaves the fields off without a sidecar, and never inherits them from the base", () => {
@@ -107,6 +131,17 @@ describe("pack.json sidecar", () => {
     ["negative dim feet", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: -5 }] } }, /lights.objectBrazier\[0\]/],
     ["an intensity of zero", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: 20, intensity: 0 }] } }, /lights.objectBrazier\[0\]/],
     ["an intensity above 1", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: 20, intensity: 1.2 }] } }, /lights.objectBrazier\[0\]/],
+    ["motion that is not an object", { motion: [] }, /motion must be an object/],
+    ["motion for another surface", { motion: { lava: [] } }, /motion.lava is not terrainWater or solidBlock/],
+    ["motion that is not an array", { motion: { terrainWater: {} } }, /motion.terrainWater must be an array/],
+    ["an overlay url outside motion/", { motion: { terrainWater: [{ url: "foam.webp", cells: 4, drift: [0, 0], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
+    ["an overlay url with capitals", { motion: { terrainWater: [{ url: "motion/Foam.webp", cells: 4, drift: [0, 0], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
+    ["overlay cells past 16", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 17, drift: [0, 0], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
+    ["overlay drift past 5", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [6, 0], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
+    ["an overlay drift of one number", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [1], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
+    ["overlay alpha above 1", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [0, 0], alpha: 1.5 }] } }, /motion.terrainWater\[0\]/],
+    ["a breathe speed past 10", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [0, 0], alpha: 0.5, breathe: { amount: 0.2, speed: 11, phase: 0 } }] } }, /motion.terrainWater\[0\]/],
+    ["an overlay with another key", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [0, 0], alpha: 0.5, blend: "add" }] } }, /motion.terrainWater\[0\]/],
     ["a light with another key", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: 20, flicker: true }] } }, /lights.objectBrazier\[0\]/],
   ])("refuses %s", (_name, raw, message) => {
     const { sidecar, errors } = parsePackSidecar(raw);

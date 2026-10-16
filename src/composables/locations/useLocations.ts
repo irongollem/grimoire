@@ -9,6 +9,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useToast } from "@/composables/useToast";
 import type { GridCalibration, Location, LocationInsert, LocationSummary, LocationUpdate, MapScale } from "@/types/location.types";
+import type { MapLive } from "@/types/mapLive.types";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { LOCATION_SUMMARY_SELECT, VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { PLANAR_LOCATIONS, type LocationPreset } from "@/data/settingLocations";
@@ -542,7 +543,7 @@ export function usePlayerVisibleLocation(id: string | Ref<string>) {
 
 /**
  * Update a location's Drawing layer — `map_layer_url` + its own
- * `map_layer_calibration` + `source_map_id` — from a Cartographer publish
+ * `map_layer_calibration` + `map_live` + `source_map_id`, from a Cartographer publish
  * (epic #884). The Picture (`map_url`) is a separate layer underneath and is
  * never touched here; see `useUpdateLocationPicture`.
  */
@@ -553,16 +554,19 @@ export function useUpdateLocationDrawing() {
       id,
       mapLayerUrl,
       mapLayerCalibration,
+      mapLive,
       sourceMapId,
     }: {
       id: string;
       mapLayerUrl: string;
       mapLayerCalibration: GridCalibration;
+      mapLive: MapLive;
       sourceMapId: string;
     }) =>
       updateLocation(id, {
         map_layer_url: mapLayerUrl,
         map_layer_calibration: mapLayerCalibration,
+        map_live: mapLive,
         source_map_id: sourceMapId,
       }),
     onSuccess: (_data, { id }) => {
@@ -634,6 +638,7 @@ export function useSaveStyledSitePicture() {
         grid_calibration: calibration,
         map_layer_url: null,
         map_layer_calibration: null,
+        map_live: null,
         source_map_id: null,
         map_published_rev: null,
       }),
