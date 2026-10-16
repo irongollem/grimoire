@@ -16,13 +16,15 @@
 //
 // Like renderMap this takes plain values only, so it must not import "vue".
 
-import { DEFAULT_DOOR_LEAF, WALL_BAND_RATIO, isFlatCategory, type PackCategory } from "@/cartographer/packSchema";
+import { DEFAULT_DOOR_LEAF, MAX_LIGHT_RANGE, WALL_BAND_RATIO, isFlatCategory, type PackCategory, type TileLight } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type ObjectCell } from "@/types/dungeonMap.types";
 import { classifyJoint } from "@/cartographer/edges";
+import { lightReachCells, lightStops } from "@/cartographer/lights";
 import {
   drawDressing,
   dressingCellBounds,
+  dressingCentre,
   dressingDrawOrder,
   type Ctx2D,
   type DressingCatalog,
@@ -63,6 +65,8 @@ export interface DrawMapInput {
   afterGround?: () => void;
   /** Called after dressing and the walls, before glyphs (the live derived-space outlines). */
   afterDressing?: () => void;
+  /** Draw the glow of things that give light (a lantern, a fire). Needs no canvas, only the 2D context. */
+  lights: boolean;
   /** Draw render-time shadows. Needs `makeCanvas` (or a prebuilt `shadowLayer`); without one the map draws without. */
   shadows?: boolean;
   /** A canvas factory for the shadow layers; absent where there is no offscreen canvas (node tests, old browsers). */
@@ -605,6 +609,76 @@ function paintGlyphs(f: Frame, t: Target): void {
   }
 }
 
+// ── Lights ─────────────────────────────────────────────────────────────────
+
+interface LightSource {
+  /** Centre of the source, in cells. */
+  x: number;
+  y: number;
+  light: TileLight;
+}
+
+/**
+ * Every light that can reach the window: object cells, wall decals and dressing props whose pack (or library row)
+ * declares one. Sources are gathered from `MAX_LIGHT_RANGE` cells beyond the window, so a lantern just off screen
+ * still lights the edge. A wall decal sits on its edge's midpoint (edges are stored NW-owned: a cell's `wallN` runs
+ * along its top, its `wallW` along its left).
+ */
+function gatherLights(f: Frame): LightSource[] {
+  const { bounds, layers, runtime, dressing } = f;
+  const reach = {
+    minX: bounds.minX - MAX_LIGHT_RANGE,
+    minY: bounds.minY - MAX_LIGHT_RANGE,
+    maxX: bounds.maxX + MAX_LIGHT_RANGE,
+    maxY: bounds.maxY + MAX_LIGHT_RANGE,
+  };
+  const out: LightSource[] = [];
+  for (let y = reach.minY; y <= reach.maxY; y++) {
+    for (let x = reach.minX; x <= reach.maxX; x++) {
+      const key = cellKey(x, y);
+      const obj: ObjectCell | undefined = layers.object[key];
+      const objLight = obj ? runtime(obj.pack_id)?.manifest.lights?.[obj.category]?.[obj.variant] : null;
+      if (objLight) out.push({ x: x + 0.5, y: y + 0.5, light: objLight });
+      const cell = layers.floor[key];
+      for (const [seg, sx, sy] of [[cell?.wallN, x + 0.5, y], [cell?.wallW, x, y + 0.5]] as const) {
+        if (seg?.type !== "wall" || seg.decal === undefined) continue;
+        const decalLight = runtime(seg.pack_id)?.manifest.lights?.wallDecal?.[seg.decal];
+        if (decalLight) out.push({ x: sx, y: sy, light: decalLight });
+      }
+    }
+  }
+  for (const placement of Object.values(layers.dressing)) {
+    const prop = dressing.get(placement.prop_id);
+    if (!prop?.light) continue;
+    const c = dressingCentre(placement, prop.footprint_w, prop.footprint_h);
+    if (c.x < reach.minX || c.x > reach.maxX + 1 || c.y < reach.minY || c.y > reach.maxY + 1) continue;
+    out.push({ x: c.x, y: c.y, light: prop.light });
+  }
+  return out;
+}
+
+/**
+ * The glow of every light, laid with `screen` so overlapping glows mix and brighten without clipping to flat colour
+ * (additive `lighter` flooded whole rooms once several lights met, 16 Oct 2026). Each is one radial
+ * gradient filled over its bounding square: holding through the bright light, fading through the dim ring to nothing.
+ */
+function paintLights(f: Frame, t: Target): void {
+  const { tilePx } = f;
+  const { ctx } = t;
+  for (const { x, y, light } of gatherLights(f)) {
+    const cx = x * tilePx - t.ox;
+    const cy = y * tilePx - t.oy;
+    const radius = lightReachCells(light) * tilePx;
+    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    for (const [offset, color] of lightStops(light)) gradient.addColorStop(offset, color);
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.fillStyle = gradient;
+    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+    ctx.restore();
+  }
+}
+
 // ── Shadows ────────────────────────────────────────────────────────────────
 
 /**
@@ -725,9 +799,9 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
 /**
  * Draws the pack content in this order: ground (floor, terrain, sunk edges),
  * `afterGround`, stairs down, the shadows, curbs and posts, flat objects and
- * flat dressing, standing objects and dressing, stairs up, walls and everything in
- * them (rock, edges, joints), `afterDressing`, glyphs. Without shadows the
- * order is the same with the shadow step simply absent.
+ * flat dressing, the lights, standing objects and dressing, stairs up, walls and
+ * everything in them (rock, edges, joints), `afterDressing`, glyphs. Without
+ * shadows or lights the order is the same with that step simply absent.
  */
 export function drawMapContent(input: DrawMapInput): void {
   const { ctx, origin, bounds, afterGround, afterDressing } = input;
@@ -749,6 +823,8 @@ export function drawMapContent(input: DrawMapInput): void {
   // silhouette, so drawn over them it greys them out entirely instead of rimming them.
   paintObjects(f, t, "flat");
   paintDressing(f, t, true);
+  // Light lands on the floor, the shadows and the flat things; what stands and the walls draw over it.
+  if (input.lights) paintLights(f, t);
   paintObjects(f, t, "standing");
   paintDressing(f, t, false);
   // A stair up rises to the walls' height, so it is drawn above the shadows.

@@ -171,6 +171,36 @@ export interface AssetSlot {
   rev?: number;
 }
 
+/**
+ * A thing that gives light (a torch, a lantern, a glowing mushroom), in the terms of the 5e rules (the same in 2014
+ * and 2024): bright light in a radius of `bright` feet and dim light for an additional `dim` feet, so a torch is
+ * `{ bright: 20, dim: 20 }`, a candle 5 and 5, a hooded lantern 30 and 30. Something the rules list no light for is
+ * given the nearest listed source (a brazier or a campfire as a torch); a glow that only shows its surroundings is dim
+ * light only (`bright: 0`). The map lays a glow in `color` that holds across the bright radius and fades to nothing
+ * through the dim ring; the glows of neighbours mix. `intensity` is the glow's alpha in the bright light,
+ * `0 < i <= 1`; absent, `DEFAULT_LIGHT_INTENSITY`. Feet turn into cells at `FEET_PER_CELL`.
+ */
+export interface TileLight {
+  /** `#rrggbb`. */
+  color: string;
+  /** Radius of bright light in feet, 0..`MAX_LIGHT_FEET`. */
+  bright: number;
+  /** Further feet of dim light beyond the bright radius, 0..`MAX_LIGHT_FEET`; bright and dim are not both 0. */
+  dim: number;
+  intensity?: number;
+}
+
+export const DEFAULT_LIGHT_INTENSITY = 0.35;
+
+/** One map cell is a 5-foot square, as the rules draw it. */
+export const FEET_PER_CELL = 5;
+
+/** The most either radius of a light may be, in feet (a bullseye lantern's 60). */
+export const MAX_LIGHT_FEET = 60;
+
+/** The widest a light reaches, in cells: the drawing gathers sources this far outside its window. */
+export const MAX_LIGHT_RANGE = (MAX_LIGHT_FEET * 2) / FEET_PER_CELL;
+
 export interface TilePackManifest {
   pack_id: string;
   name: string;
@@ -201,6 +231,11 @@ export interface TilePackManifest {
    * how far an open door swings. Absent: `DEFAULT_DOOR_LEAF`.
    */
   doorLeaf?: { hingeX: number; hingeY: number; openDegrees: number };
+  /**
+   * Schema v4: the light each variant gives, indexed by variant like `labels`. A `null` entry (or a category with no
+   * entry) gives none. A lit lantern or a glowing mushroom lights the floor around it in its own colour.
+   */
+  lights?: Partial<Record<PackCategory, (TileLight | null)[]>>;
 }
 
 export function categoryDef(cat: PackCategory): CategoryDef {

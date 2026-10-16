@@ -55,6 +55,7 @@ interface FakeCtx {
   shadowOffsetX: number;
   shadowOffsetY: number;
   createLinearGradient(x0: number, y0: number, x1: number, y1: number): FakeGradient;
+  createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): FakeGradient;
 }
 
 interface FakeGradient {
@@ -67,6 +68,18 @@ export interface GradientCall {
   x1: number;
   y1: number;
   stops: [number, string][];
+}
+
+export interface RadialGradientCall {
+  x0: number;
+  y0: number;
+  r0: number;
+  x1: number;
+  y1: number;
+  r1: number;
+  stops: [number, string][];
+  /** The globalCompositeOperation in force when the gradient was made. */
+  composite: string;
 }
 
 /** A drawImage made while a drop shadow was set: what the shadow passes record. */
@@ -89,17 +102,18 @@ export interface Recorder {
   rotates: number[];
   roundRects: number;
   gradients: GradientCall[];
+  radialGradients: RadialGradientCall[];
   /** The fillStyle in force at each fillRect (a gradient object or a colour string). */
   fillRectStyles: unknown[];
   shadowDraws: ShadowDraw[];
 }
 
 export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
-  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [], translates: [], rotates: [], roundRects: 0, gradients: [], fillRectStyles: [], shadowDraws: [] };
+  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [], translates: [], rotates: [], roundRects: 0, gradients: [], radialGradients: [], fillRectStyles: [], shadowDraws: [] };
   let fillStyle: unknown = "";
   let strokeStyle = "";
   const noop = (): void => {};
-  const saved: { c: string; b: number; x: number; y: number }[] = [];
+  const saved: { c: string; b: number; x: number; y: number; op: string }[] = [];
   const fake: FakeCtx = {
     imageSmoothingEnabled: true,
     globalAlpha: 1,
@@ -132,6 +146,11 @@ export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
       rec.gradients.push(call);
       return { addColorStop: (offset, color) => { call.stops.push([offset, color]); }, call } as FakeGradient;
     },
+    createRadialGradient: (x0, y0, r0, x1, y1, r1) => {
+      const call: RadialGradientCall = { x0, y0, r0, x1, y1, r1, stops: [], composite: fake.globalCompositeOperation };
+      rec.radialGradients.push(call);
+      return { addColorStop: (offset, color) => { call.stops.push([offset, color]); }, call } as FakeGradient;
+    },
     beginPath: () => rec.calls.push("beginPath"),
     moveTo: () => rec.calls.push("moveTo"),
     lineTo: () => rec.calls.push("lineTo"),
@@ -141,12 +160,12 @@ export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
     arc: () => rec.calls.push("arc"),
     save: () => {
       rec.calls.push("save");
-      saved.push({ c: fake.shadowColor, b: fake.shadowBlur, x: fake.shadowOffsetX, y: fake.shadowOffsetY });
+      saved.push({ c: fake.shadowColor, b: fake.shadowBlur, x: fake.shadowOffsetX, y: fake.shadowOffsetY, op: fake.globalCompositeOperation });
     },
     restore: () => {
       rec.calls.push("restore");
       const top = saved.pop();
-      if (top) { fake.shadowColor = top.c; fake.shadowBlur = top.b; fake.shadowOffsetX = top.x; fake.shadowOffsetY = top.y; }
+      if (top) { fake.shadowColor = top.c; fake.shadowBlur = top.b; fake.shadowOffsetX = top.x; fake.shadowOffsetY = top.y; fake.globalCompositeOperation = top.op; }
     },
     translate: (x, y) => { rec.translates.push([x, y]); },
     rotate: (angle) => { rec.rotates.push(angle); },
@@ -180,6 +199,7 @@ export function makeRuntime(
     palette?: TilePackManifest["palette"];
     doorLeaf?: TilePackManifest["doorLeaf"];
     continuous?: TilePackManifest["continuous"];
+    lights?: TilePackManifest["lights"];
   } = {},
 ): TilePackRuntime {
   const manifest: TilePackManifest = {
@@ -193,6 +213,7 @@ export function makeRuntime(
     ...(opts.palette ? { palette: opts.palette } : {}),
     ...(opts.doorLeaf ? { doorLeaf: opts.doorLeaf } : {}),
     ...(opts.continuous ? { continuous: opts.continuous } : {}),
+    ...(opts.lights ? { lights: opts.lights } : {}),
   };
   const validation: ValidationResult = { valid: true, missing: [], extras: [], warnings: [] };
   return {

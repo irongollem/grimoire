@@ -1,6 +1,8 @@
 // Dressing: the shared library of top-down props a DM places on a Cartographer
 // map (epic #1062). Rows live in `library_dressing`.
 
+import type { TileLight } from "@/cartographer/packSchema";
+
 export type DressingGroup =
   | "furniture"
   | "containers"
@@ -51,4 +53,6 @@ export interface LibraryDressing {
    * a cast shadow, which would lift it off the ground (#1065).
    */
   flat: boolean;
+  /** The light this prop gives (a lantern, a campfire), or null for none. Read from the art by the art pipeline. */
+  light: TileLight | null;
 }

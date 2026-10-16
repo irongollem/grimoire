@@ -2,18 +2,32 @@
  * The pure half of `scripts/publish-tile-pack.ts` (#891): a folder of runtime tiles becomes the slots of a library pack's
  * manifest. Kept apart so the mapping from file path to slot is tested without a network.
  */
-import { BASE_TILE_SIZE, TILE_PACK_SCHEMA, categoryDef, type AssetSlot, type PackCategory, type TilePackManifest } from "../../src/cartographer/packSchema.ts";
+import { BASE_TILE_SIZE, MAX_LIGHT_FEET, TILE_PACK_SCHEMA, categoryDef, type AssetSlot, type PackCategory, type TileLight, type TilePackManifest } from "../../src/cartographer/packSchema.ts";
 
 /**
  * The optional `pack.json` beside a pack's tiles: the manifest fields no tile can carry (schema 4). It is the ONLY source of
  * them, on purpose: a repaint replaces the pack, so nothing is inherited from an older published version.
  */
-export type PackSidecar = Pick<TilePackManifest, "continuous" | "labels" | "doorLeaf">;
+export type PackSidecar = Pick<TilePackManifest, "continuous" | "labels" | "doorLeaf" | "lights">;
 
 export const SIDECAR_FILE = "pack.json";
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isCategory = (key: string): key is PackCategory => Object.hasOwn(TILE_PACK_SCHEMA.categories, key);
+
+/** One `lights` entry: null (no light) or a light that satisfies the same rule as the database column. */
+function parseLight(entry: unknown): TileLight | null | "invalid" {
+  if (entry === null) return null;
+  if (!isRecord(entry)) return "invalid";
+  const { color, bright, dim, intensity } = entry;
+  if (Object.keys(entry).some((key) => key !== "color" && key !== "bright" && key !== "dim" && key !== "intensity")) return "invalid";
+  if (typeof color !== "string" || !/^#[0-9a-f]{6}$/.test(color)) return "invalid";
+  const feet = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= MAX_LIGHT_FEET;
+  if (!feet(bright) || !feet(dim) || bright + dim === 0) return "invalid";
+  if (intensity === undefined) return { color, bright, dim };
+  if (typeof intensity !== "number" || !Number.isFinite(intensity) || intensity <= 0 || intensity > 1) return "invalid";
+  return { color, bright, dim, intensity };
+}
 
 /** Validates a parsed `pack.json`. Every problem is reported (not just the first), and nothing invalid is returned. */
 export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: string[] } {
@@ -21,7 +35,7 @@ export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: 
   const sidecar: PackSidecar = {};
   if (!isRecord(raw)) return { sidecar, errors: [`${SIDECAR_FILE}: must be a JSON object`] };
   for (const key of Object.keys(raw)) {
-    if (key !== "continuous" && key !== "labels" && key !== "doorLeaf") errors.push(`${SIDECAR_FILE}: unknown key "${key}" (expected continuous, labels, doorLeaf)`);
+    if (key !== "continuous" && key !== "labels" && key !== "doorLeaf" && key !== "lights") errors.push(`${SIDECAR_FILE}: unknown key "${key}" (expected continuous, labels, doorLeaf, lights)`);
   }
 
   if (raw.continuous !== undefined) {
@@ -62,6 +76,26 @@ export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: 
       if (fraction(hingeX) && fraction(hingeY) && typeof openDegrees === "number" && openDegrees >= 1 && openDegrees <= 180) {
         sidecar.doorLeaf = { hingeX, hingeY, openDegrees };
       }
+    }
+  }
+  if (raw.lights !== undefined) {
+    if (!isRecord(raw.lights)) errors.push(`${SIDECAR_FILE}: lights must be an object of category to lights`);
+    else {
+      const lights: Partial<Record<PackCategory, (TileLight | null)[]>> = {};
+      for (const [category, entries] of Object.entries(raw.lights)) {
+        if (!isCategory(category)) errors.push(`${SIDECAR_FILE}: lights.${category} is not a schema category`);
+        else if (!Array.isArray(entries)) errors.push(`${SIDECAR_FILE}: lights.${category} must be an array of lights or null`);
+        else {
+          const parsed: (TileLight | null)[] = [];
+          entries.forEach((entry, variant) => {
+            const light = parseLight(entry);
+            if (light === "invalid") errors.push(`${SIDECAR_FILE}: lights.${category}[${variant}] must be null or { color: "#rrggbb", bright: 0 to ${MAX_LIGHT_FEET} feet, dim: 0 to ${MAX_LIGHT_FEET} feet, not both 0, intensity?: above 0 up to 1 }`);
+            else parsed.push(light);
+          });
+          lights[category] = parsed;
+        }
+      }
+      sidecar.lights = lights;
     }
   }
   return { sidecar: errors.length ? {} : sidecar, errors };
@@ -137,6 +171,7 @@ export function buildManifest(
     ...(sidecar.continuous ? { continuous: sidecar.continuous } : {}),
     ...(sidecar.labels ? { labels: sidecar.labels } : {}),
     ...(sidecar.doorLeaf ? { doorLeaf: sidecar.doorLeaf } : {}),
+    ...(sidecar.lights ? { lights: sidecar.lights } : {}),
   };
   return { manifest, errors };
 }

@@ -772,7 +772,19 @@ The renderer maintains a dirty set of `(layer, key)` entries. Recompute fires on
 
 Floor and object layers do simple random-variant lookup keyed by `hash(map_id, x, y) % variantCount`, unless the manifest declares the category `continuous`, in which case the position picks the variant (see Schema); no recomputation needed.
 
-**Draw order** (`drawMapContent`): floor and terrain, the sunk-edge darkening, `afterGround` (the live grid), stairs down, the shadow layer, curbs and posts, flat objects and flat Dressing, standing objects, standing Dressing, stairs up, solid rock, edge segs (walls, doorways, leaves, grates, sluices, decals), corner joints, `afterDressing`, then glyphs. Annotations are the caller's.
+### Lights
+
+Things that give light lay a soft additive glow of their colour on what is around them (`paintLights` in `drawMap.ts`; the arithmetic is in `lights.ts`). This is step one of map lighting: a light reaches everything within its reach, and light-blocking walls come later, so a glow currently crosses walls. A light is `TileLight`, in the terms of the 5e rules (the same in 2014 and 2024): `{ color: "#rrggbb", bright: feet, dim: feet, intensity?: 0 < i <= 1 }`, bright light in a radius of `bright` feet and dim light for an additional `dim` feet, each 0..60 and not both 0 (a torch is 20 and 20, a candle 5 and 5, a lamp 15 and 30, a hooded lantern 30 and 30). What the rules give no light for takes the nearest listed source (a brazier or a campfire as a torch), and glowing fungi and crystals are dim light only. Feet become cells at `FEET_PER_CELL` (5); the default intensity is `DEFAULT_LIGHT_INTENSITY` (0.35). Bright and dim are kept apart rather than folded into one radius because the next steps (a map's darkness, darkvision, light-blocking walls) are judged in exactly those terms.
+
+Sources are gathered per frame from three places, each from the window expanded by `MAX_LIGHT_RANGE` cells (120 feet, the longest reach) so a lantern just off screen still lights the edge:
+
+- **Object cells**: the pack manifest's `lights[category][variant]` (schema 4, optional like `labels`, a `null` entry means no light), at the cell centre.
+- **Wall decals**: `lights.wallDecal[decal]` of the pack the edge seg names, at the edge's midpoint.
+- **Dressing**: `library_dressing.light` (jsonb, null for none) via `DressingProp.light`, at the footprint centre.
+
+Each light is one radial gradient filled over its bounding square with `globalCompositeOperation = "screen"`: the glow holds through the bright light (dropping gently to 60% of its intensity at the bright edge), then fades through the dim ring to nothing; a dim-only light starts at half intensity and fades the whole way. Screen mixes and brightens neighbouring glows where they overlap without clipping to flat colour; additive `lighter`, tried first, flooded whole rooms once several lights met. The pass sits after flat objects and flat Dressing and before standing ones, so the glow lands on the floor, the shadows and flat things while standing things and walls draw over it. There is no cache: it is a handful of gradient fills per frame, and the live editor and the bake both pass `lights: true`. The colours for library content are read from the art by the art pipeline, and pack authors declare them in the `pack.json` sidecar (`lights`, validated by `parsePackSidecar` to the same rule as the database check).
+
+**Draw order** (`drawMapContent`): floor and terrain, the sunk-edge darkening, `afterGround` (the live grid), stairs down, the shadow layer, curbs and posts, flat objects and flat Dressing, the lights, standing objects, standing Dressing, stairs up, solid rock, edge segs (walls, doorways, leaves, grates, sluices, decals), corner joints, `afterDressing`, then glyphs. Annotations are the caller's.
 
 ---
 

@@ -5,7 +5,7 @@
 -- 20261016000843_dressing_dungeons_book, 20261016002526_dressing_homes_and_forests_books,
 -- 20261016133920_dressing_volcanoes_book, 20261016135253_dressing_palaces_book,
 -- 20261016141230_dressing_deserts_book, 20261016142507_dressing_glaciers_book,
--- 20261016144937_dressing_depths_book).
+-- 20261016144937_dressing_depths_book, 20261016145300_dressing_lights).
 --
 --   1 Ada (app admin)   2 Ben (ordinary DM)
 --
@@ -16,7 +16,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(35);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('10620000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -87,6 +87,10 @@ select is(
   (select row(footprint_w, footprint_h, group_key)::text from public.library_dressing where id = 'dressing_wagon'),
   row(2, 3, 'camp')::text,
   'a seeded prop carries its footprint and group');
+select is(
+  (select light::text from public.library_dressing where id = 'dressing_campfire'),
+  '{"dim": 20, "color": "#ff8424", "bright": 20}',
+  'a campfire gives light as a torch does: 20 feet bright, 20 more dim');
 
 -- ── writes ──────────────────────────────────────────────────────────────────
 
@@ -114,6 +118,26 @@ select throws_ok(
 select throws_ok(
   $$ insert into public.library_dressing (id, name, group_key) values ('zz1062_group', 'Odd', 'kitchenware') $$,
   '23514', null, 'a group outside the catalog''s groups is refused');
+select lives_ok(
+  $$ insert into public.library_dressing (id, name, group_key, light)
+     values ('zz_light_ok', 'Lamp', 'camp', '{"color": "#ffb957", "bright": 30, "dim": 30, "intensity": 0.5}') $$,
+  'a light with a colour, bright and dim feet and an intensity is accepted');
+select throws_ok(
+  $$ insert into public.library_dressing (id, name, group_key, light) values ('zz_light_norange', 'Lamp', 'camp', '{"color": "#ffb957", "bright": 20}') $$,
+  '23514', null, 'a light without its dim feet is refused (a missing key fails, never passes as NULL)');
+select throws_ok(
+  $$ insert into public.library_dressing (id, name, group_key, light) values ('zz_light_colour', 'Lamp', 'camp', '{"color": "orange", "bright": 20, "dim": 20}') $$,
+  '23514', null, 'a light whose colour is not #rrggbb is refused');
+select throws_ok(
+  $$ insert into public.library_dressing (id, name, group_key, light) values ('zz_light_far', 'Lamp', 'camp', '{"color": "#ffb957", "bright": 90, "dim": 20}') $$,
+  '23514', null, 'a light past sixty feet of bright light is refused');
+select throws_ok(
+  $$ insert into public.library_dressing (id, name, group_key, light) values ('zz_light_extra', 'Lamp', 'camp', '{"color": "#ffb957", "bright": 20, "dim": 20, "flicker": true}') $$,
+  '23514', null, 'a light with an unknown key is refused');
+select throws_ok(
+  $$ insert into public.library_dressing (id, name, group_key, light) values ('zz_light_none', 'Lamp', 'camp', '{"color": "#ffb957", "bright": 0, "dim": 0}') $$,
+  '23514', null, 'a light with neither bright nor dim feet is refused');
+delete from public.library_dressing where id = 'zz_light_ok';
 with d as (delete from public.library_dressing where id = 'zz1062_probe' returning 1)
 select is((select count(*)::int from d), 1, 'the admin deletes a prop');
 

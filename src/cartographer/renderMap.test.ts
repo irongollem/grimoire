@@ -247,9 +247,9 @@ describe("renderMap — derived-space outlines (#868)", () => {
 describe("renderMap: Dressing layer (#1062)", () => {
   const art = (name: string): CanvasImageSource => ({ name }) as unknown as CanvasImageSource;
   const catalog: DressingCatalog = new Map([
-    ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: art("table"), flat: false }],
-    ["bed", { id: "bed", name: "Bed", footprint_w: 1, footprint_h: 2, image: art("bed"), flat: false }],
-    ["bare", { id: "bare", name: "Bare", footprint_w: 1, footprint_h: 1, image: null, flat: false }],
+    ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: art("table"), flat: false, light: null }],
+    ["bed", { id: "bed", name: "Bed", footprint_w: 1, footprint_h: 2, image: art("bed"), flat: false, light: null }],
+    ["bare", { id: "bare", name: "Bare", footprint_w: 1, footprint_h: 1, image: null, flat: false, light: null }],
   ]);
 
   it("draws a prop's image over its whole footprint, at the anchor cell", () => {

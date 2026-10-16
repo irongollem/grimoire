@@ -138,6 +138,7 @@ function renderToCanvas(
     // glyphs draw against the map's own persisted default pack.
     glyphPackId: map.default_pack_id,
     dressing,
+    lights: true,
     shadows: true,
     makeCanvas: offscreenMakeCanvas(),
   });

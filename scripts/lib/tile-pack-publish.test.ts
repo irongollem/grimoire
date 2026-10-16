@@ -54,6 +54,7 @@ describe("pack.json sidecar", () => {
     continuous: { floor: 8, terrainWater: 4 },
     labels: { wallDecal: ["Outflow pipe", "Rat hole"] },
     doorLeaf: { hingeX: 0.25, hingeY: 0.5, openDegrees: 80 },
+    lights: { objectBrazier: [{ color: "#ffb347", bright: 20, dim: 20, intensity: 0.7 }, null, { color: "#44aaff", bright: 0, dim: 10 }] },
   };
 
   it("copies a valid sidecar into the manifest", () => {
@@ -63,14 +64,16 @@ describe("pack.json sidecar", () => {
     expect(manifest.continuous).toEqual(good.continuous);
     expect(manifest.labels).toEqual(good.labels);
     expect(manifest.doorLeaf).toEqual(good.doorLeaf);
+    expect(manifest.lights).toEqual(good.lights);
   });
 
   it("leaves the fields off without a sidecar, and never inherits them from the base", () => {
-    const inherited = { ...base, continuous: { floor: 8 }, labels: { wallDecal: ["Old"] }, doorLeaf: { hingeX: 0, hingeY: 0, openDegrees: 1 } };
+    const inherited = { ...base, continuous: { floor: 8 }, labels: { wallDecal: ["Old"] }, doorLeaf: { hingeX: 0, hingeY: 0, openDegrees: 1 }, lights: { objectBrazier: [{ color: "#ffffff", bright: 5, dim: 5 }] } };
     const { manifest } = buildManifest(inherited, files, 1);
     expect(manifest).not.toHaveProperty("continuous");
     expect(manifest).not.toHaveProperty("labels");
     expect(manifest).not.toHaveProperty("doorLeaf");
+    expect(manifest).not.toHaveProperty("lights");
   });
 
   it("accepts a partial sidecar", () => {
@@ -88,6 +91,20 @@ describe("pack.json sidecar", () => {
     ["a hinge outside the tile", { doorLeaf: { hingeX: 1.5, hingeY: 0.5, openDegrees: 80 } }, /hingeX/],
     ["a door that does not swing", { doorLeaf: { hingeX: 0.25, hingeY: 0.5, openDegrees: 0 } }, /openDegrees/],
     ["a door swinging past 180", { doorLeaf: { hingeX: 0.25, hingeY: 0.5, openDegrees: 181 } }, /openDegrees/],
+    ["lights that are not an object", { lights: [] }, /lights must be an object/],
+    ["lights for a non-category", { lights: { lavaFall: [null] } }, /lights.lavaFall is not a schema category/],
+    ["lights that are not an array", { lights: { objectBrazier: { color: "#ffffff", bright: 20, dim: 20 } } }, /must be an array/],
+    ["a light that is not an object", { lights: { objectBrazier: ["#ffffff"] } }, /lights.objectBrazier\[0\]/],
+    ["a colour that is not #rrggbb", { lights: { objectBrazier: [{ color: "#FFF", bright: 20, dim: 20 }] } }, /lights.objectBrazier\[0\]/],
+    ["an upper-case colour", { lights: { objectBrazier: [{ color: "#FFAA00", bright: 20, dim: 20 }] } }, /lights.objectBrazier\[0\]/],
+    ["neither bright nor dim light", { lights: { objectBrazier: [{ color: "#ffffff", bright: 0, dim: 0 }] } }, /lights.objectBrazier\[0\]/],
+    ["a light without its dim feet", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20 }] } }, /lights.objectBrazier\[0\]/],
+    ["a light in cells (the old range)", { lights: { objectBrazier: [{ color: "#ffffff", range: 2 }] } }, /lights.objectBrazier\[0\]/],
+    ["bright light past sixty feet", { lights: { objectBrazier: [null, { color: "#ffffff", bright: 65, dim: 0 }] } }, /lights.objectBrazier\[1\]/],
+    ["negative dim feet", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: -5 }] } }, /lights.objectBrazier\[0\]/],
+    ["an intensity of zero", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: 20, intensity: 0 }] } }, /lights.objectBrazier\[0\]/],
+    ["an intensity above 1", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: 20, intensity: 1.2 }] } }, /lights.objectBrazier\[0\]/],
+    ["a light with another key", { lights: { objectBrazier: [{ color: "#ffffff", bright: 20, dim: 20, flicker: true }] } }, /lights.objectBrazier\[0\]/],
   ])("refuses %s", (_name, raw, message) => {
     const { sidecar, errors } = parsePackSidecar(raw);
     expect(errors.join(" ")).toMatch(message);

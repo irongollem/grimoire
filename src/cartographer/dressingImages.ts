@@ -41,6 +41,7 @@ export function buildDressingCatalog(
       footprint_h: row.footprint_h,
       image: row.image_url === null ? null : (images.get(row.image_url) ?? null),
       flat: row.flat,
+      light: row.light,
     });
   }
   return catalog;

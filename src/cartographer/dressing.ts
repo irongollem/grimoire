@@ -5,6 +5,7 @@
 // No vue and no DOM globals at module scope: the editor renderer, the bake
 // (OffscreenCanvas) and the tests all import this.
 
+import type { TileLight } from "@/cartographer/packSchema";
 import type { DressingPlacement } from "@/types/dungeonMap.types";
 
 export interface DressingProp {
@@ -16,6 +17,8 @@ export interface DressingProp {
   image: CanvasImageSource | null;
   /** Lies on the floor: casts no shadow of its own, only an occlusion rim (#1065). */
   flat: boolean;
+  /** The light this prop gives, or null for none. */
+  light: TileLight | null;
 }
 
 export type DressingCatalog = ReadonlyMap<string, DressingProp>;

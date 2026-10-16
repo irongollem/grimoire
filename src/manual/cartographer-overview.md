@@ -77,7 +77,7 @@ Erasing a floor cell takes its water with it.
 
 ## Shadows and depth
 
-Grimoire draws shadows for you, from a light at the top left: walls, rock, statues and furniture throw soft shadows down and to the right, and low things like curbs throw short ones. Flat things (rubble, heaps, trap and feature markers) get only a thin dark line where they meet the floor, so they stay lying down. A staircase up is drawn above the shadows, because it climbs to the height of the walls. A staircase down looks like a hollow, with its top and left edges darkened. The same shadows are in the picture you export or publish.
+Grimoire draws shadows for you, from a light at the top left: walls, rock, statues and furniture throw soft shadows down and to the right, and low things like curbs throw short ones. Flat things (rubble, heaps, trap and feature markers) get only a thin dark line where they meet the floor, so they stay lying down. A staircase up is drawn above the shadows, because it climbs to the height of the walls. A staircase down looks like a hollow, with its top and left edges darkened. Lanterns, fires, torches and glowing things light up the floor around them in their own colour, and where two glows meet they mix. The same shadows and lights are in the picture you export or publish.
 
 ## Dressing
 

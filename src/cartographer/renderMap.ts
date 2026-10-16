@@ -232,6 +232,7 @@ export function renderMap(scene: MapRenderScene): void {
     glyphs,
     glyphPackId: currentPackId,
     dressing,
+    lights: true,
     makeCanvas: scene.makeCanvas ?? offscreenMakeCanvas(),
     afterGround: () => {
       // Grid overlay
