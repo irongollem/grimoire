@@ -34,7 +34,7 @@ export function validatePack(manifest: TilePackManifest): ValidationResult {
   // categories, so an older pack stayed silent. That stopped being true at 4
   // (#1065), which removed the four door categories: a v3 pack now lists its
   // door slots as extras and is missing the doorway and the leaf, which is the
-  // list the Update Tileset path and the #891 repaint work through. Only a pack
+  // list the #891 repaint works through. Only a pack
   // NEWER than the runtime is worth flagging here: it may declare categories
   // this build doesn't know how to interpret yet.
   if (manifest.schema_version > TILE_PACK_SCHEMA.version) {

@@ -358,18 +358,11 @@ The generation plan in this ticket is the provider-neutral input to that flow. #
 
 **Schema 4 tooling.** The plan lists 16 renders for the 19 required slots; `ROTATION_DERIVED` in `authoringPlan.ts` names the three rotations, and `slotMechanics` there is also what `qa.ts` asks which categories are transparent outside their footprint, so a new transparent category (a curb, a grate, a decal) is checked without anyone listing it. The base shapes in `src/assets/tile-base/` hold the new categories (`doorwayH/V`, `doorLeaf`, `curbH/V`, `edgeGrateH/V`, `edgeSluiceH/V`); `_defs.md` describes them. `placeholderTile.ts` draws a procedural stand-in for each, so a pack missing an optional slot still draws.
 
-### Pack versioning & the Update Tileset button
+### Pack versioning
 
-Every map cell stores `pack_id` **and** `pack_version`. The editor scans the set of distinct `(pack_id, pack_version)` pairs on load; if a newer version of any used pack exists, an **Update Tileset** affordance appears.
+Every map cell stores `pack_id` **and** `pack_version`, but only the id picks the art. The editor and the bake load one runtime per pack id, the library pack's **published** version (`useLibraryTilePacks().publishedPacks`, `MapWorkbench.vue` keys `loadedRuntimes` by pack id, `renderMap`/`drawMap` look a ref up with `runtimes.get(pack_id)`), so publishing a new version of a pack and archiving the old one moves every map drawn with it at once. Variants are kept by number; a variant the new version does not have borrows another drawn variant of the same category and side (`standInVariant` in `packLoader.ts`), and only a category with no art at all draws a placeholder. The stored `pack_version` is a record of what the cell was painted with, not a lock.
 
-Update flow:
-
-1. Show diff: "Stone Dungeon v1 → v3. 4 new floor variants, 2 wall variants replaced."
-2. On confirm, walk cells with the stale pack version:
-   - If the cell's `(category, side, variant)` still exists in the new manifest → bump `pack_version`, keep variant.
-   - If the variant was removed → fall back to variant `0` of the same `(category, side)` slot, log a warning.
-   - Never silently drop cells.
-3. Save the map.
+An **Update Tileset** button that walked cells onto a newer version was planned here and never built; per-id resolution made it unnecessary. To see a repaint on existing maps, publish the new version in Admin and archive the old one.
 
 ---
 
@@ -775,7 +768,7 @@ The renderer maintains a dirty set of `(layer, key)` entries. Recompute fires on
 
 - Edge wall paint / erase / door toggle / decal / terrain paint.
 - Solid block paint / erase.
-- Pack update (Update Tileset action) — invalidates everything for the updated pack.
+- A pack's runtime changing (a new version published and loaded): everything drawn with that pack.
 
 Floor and object layers do simple random-variant lookup keyed by `hash(map_id, x, y) % variantCount`, unless the manifest declares the category `continuous`, in which case the position picks the variant (see Schema); no recomputation needed.
 
@@ -923,9 +916,8 @@ Done = a 30×30 dungeon with rooms and corridors can be built in <2 minutes.
 - IndexedDB cache for loaded packs.
 - Second pack: **Sandstone Tomb**.
 - Per-brush pack switching; cross-pack auto-tile connection.
-- Update Tileset button (pack-version migration).
 
-Done = paint with two packs on one map; pack updates apply cleanly.
+Done = paint with two packs on one map. (A planned Update Tileset button for pack-version migration was dropped: maps resolve a pack by id to its published version, see Pack versioning.)
 
 ### M4 — Object layer & entity links ✅ shipped
 
@@ -1001,7 +993,7 @@ Pure functions, fully unit-tested:
 
 The library repaint (#891) delivers each set as sprite sheets cut into tiles, and a set is meant to build a whole map from itself alone: its own water, crossings and scatter. Schema 4 is what lets the Cartographer draw that. It added the optional categories `curbH/V`, `curbPost`, `terrainWater`, `edgeGrateH/V`, `edgeSluiceH/V` and `wallDecal`, raised `floor` to 64 variants, and gave manifests `continuous`, `labels` and `doorLeaf`. Maps gained `layers.terrain`, the edge types `grate` and `sluice`, and `EdgeSeg.decal`.
 
-**It is the first non-additive bump.** `doorClosedH/V` and `doorOpenH/V` are gone, replaced by `doorwayH/V` and `doorLeaf`, with no alias and no upgrade shim (CLAUDE.md rule 1). A schema 3 manifest therefore loads with its four door slots as extras and draws placeholder doors until the pack is repainted; the required set changed with it (19 slots, 16 renders). Production had no custom user packs and 8 maps, so the migration is that every library pack is repainted at schema 4 (#891) and maps move with the existing Update Tileset button. Placeholder doors on a stale pack are the visible symptom of a pack that has not been moved yet.
+**It is the first non-additive bump.** `doorClosedH/V` and `doorOpenH/V` are gone, replaced by `doorwayH/V` and `doorLeaf`, with no alias and no upgrade shim (CLAUDE.md rule 1). A schema 3 manifest therefore loads with its four door slots as extras and draws placeholder doors until the pack is repainted; the required set changed with it (19 slots, 16 renders). Production had no custom user packs and 8 maps, so the migration is that every library pack is repainted at schema 4 (#891) and its new version published in Admin; maps follow at once, because a map resolves a pack by id to its published version (see Pack versioning). Placeholder doors are the visible symptom of a pack whose published version is still older than schema 4.
 
 **This ends the "older packs are silent" assumption.** The Schema v3 note below is true of that bump: it added only optional categories, so an older pack was still complete and warning would have been noise. `validatePack` still warns only when a pack is *newer* than the runtime, but a silent older pack is no longer a compatible one. Its required set can be missing the new required categories, which the required-category check reports as missing slots. The warning rule has not changed; what changed is that "older is fine" stopped being a guarantee, so do not infer it from the silence.
 
