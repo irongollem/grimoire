@@ -145,6 +145,8 @@ export interface CurbEdge {
   y: number;
   axis: "H" | "V";
   packId: string;
+  /** Which side of the gridline the water is on: N or S for an H curb, W or E for a V curb. */
+  waterSide: "N" | "S" | "E" | "W";
 }
 
 /**
@@ -163,10 +165,10 @@ export function curbEdges(layers: DungeonMapLayers): CurbEdge[] {
     const { pack_id: packId } = terrain;
     const bank = (nx: number, ny: number): boolean =>
       !layers.terrain[cellKey(nx, ny)] && !!layers.floor[cellKey(nx, ny)]?.floor;
-    if (bank(x, y - 1) && !hasSeg(x, y, "wallN")) out.push({ x, y, axis: "H", packId });
-    if (bank(x, y + 1) && !hasSeg(x, y + 1, "wallN")) out.push({ x, y: y + 1, axis: "H", packId });
-    if (bank(x - 1, y) && !hasSeg(x, y, "wallW")) out.push({ x, y, axis: "V", packId });
-    if (bank(x + 1, y) && !hasSeg(x + 1, y, "wallW")) out.push({ x: x + 1, y, axis: "V", packId });
+    if (bank(x, y - 1) && !hasSeg(x, y, "wallN")) out.push({ x, y, axis: "H", packId, waterSide: "S" });
+    if (bank(x, y + 1) && !hasSeg(x, y + 1, "wallN")) out.push({ x, y: y + 1, axis: "H", packId, waterSide: "N" });
+    if (bank(x - 1, y) && !hasSeg(x, y, "wallW")) out.push({ x, y, axis: "V", packId, waterSide: "E" });
+    if (bank(x + 1, y) && !hasSeg(x + 1, y, "wallW")) out.push({ x: x + 1, y, axis: "V", packId, waterSide: "W" });
   }
   return out;
 }
@@ -344,12 +346,16 @@ function fadeFrom(ctx: Ctx2D, x0: number, y0: number, x1: number, y1: number, al
  * light comes from the top-left, so they stand in its way.
  */
 function paintSunkEdges(f: Frame, t: Target): void {
-  const { tilePx, bounds, layers } = f;
+  const { tilePx, bounds, layers, runtime } = f;
   const { ctx } = t;
   const span = tilePx * SHADOW.sunkEdge.span;
   for (let y = bounds.minY; y <= bounds.maxY; y++) {
     for (let x = bounds.minX; x <= bounds.maxX; x++) {
-      if (!layers.terrain[cellKey(x, y)]) continue;
+      const terrain = layers.terrain[cellKey(x, y)];
+      if (!terrain) continue;
+      // Water whose banks lie flush with it (surf on a beach) is not sunk below them: no darkened edge, or the surf
+      // and the waves would not meet (Water, 16 Oct 2026).
+      if (runtime(terrain.pack_id)?.manifest.flush?.includes("curbH")) continue;
       const sx = x * tilePx - t.ox;
       const sy = y * tilePx - t.oy;
       const { near, far } = SHADOW.sunkEdge;
@@ -476,22 +482,30 @@ function paintJoints(f: Frame, t: Target): void {
 }
 
 /** Curbs on the banks of terrain, positioned on the gridline exactly like wall tiles. */
-function paintCurbs(f: Frame, t: Target): void {
+/**
+ * The curbs along every bank. Curb art is painted with the land along its top and the water along its bottom (`curbH`;
+ * `curbV` is it turned a quarter clockwise, so its water is on the left), and each curb is turned a half where the
+ * water lies the other way, so surf always washes up from the water onto the land (Water, 16 Oct 2026).
+ * `shadowPass` leaves out the pieces a pack declares `flush`: they lie flat with the ground and cast nothing.
+ */
+function paintCurbs(f: Frame, t: Target, shadowPass = false): void {
   const { tilePx, bounds, runtime } = f;
   for (const c of curbEdges(f.layers)) {
     if (c.x < bounds.minX || c.x > bounds.maxX + 1 || c.y < bounds.minY || c.y > bounds.maxY + 1) continue;
     const r = runtime(c.packId);
     const category = c.axis === "H" ? "curbH" : "curbV";
     if (!r || r.variantCount(category) === 0) continue;
+    if (shadowPass && r.manifest.flush?.includes(category)) continue;
     const tile = r.getTile(category, variantAt(r, category, c.x, c.y, 0));
     const drawX = c.x * tilePx - t.ox;
     const drawY = c.y * tilePx - t.oy;
-    if (c.axis === "H") t.ctx.drawImage(tile.source, drawX, drawY - tilePx / 2, tilePx, tilePx);
-    else t.ctx.drawImage(tile.source, drawX - tilePx / 2, drawY, tilePx, tilePx);
+    const flipped = c.waterSide === "N" || c.waterSide === "E";
+    if (c.axis === "H") drawTurned(t.ctx, tile.source, drawX, drawY - tilePx / 2, tilePx, flipped ? 180 : undefined);
+    else drawTurned(t.ctx, tile.source, drawX - tilePx / 2, drawY, tilePx, flipped ? 180 : undefined);
   }
 }
 
-function paintPosts(f: Frame, t: Target): void {
+function paintPosts(f: Frame, t: Target, shadowPass = false): void {
   const { tilePx, bounds, runtime } = f;
   const size = tilePx * SHADOW.post;
   for (const p of curbPosts(f.layers)) {
@@ -499,6 +513,7 @@ function paintPosts(f: Frame, t: Target): void {
     const r = runtime(p.packId);
     const count = r ? r.variantCount("curbPost") : 0;
     if (!r || count === 0) continue;
+    if (shadowPass && r.manifest.flush?.includes("curbPost")) continue;
     const tile = r.getTile("curbPost", Math.abs(p.x * 31 + p.y * 17) % count);
     t.ctx.drawImage(tile.source, p.x * tilePx - t.ox - size / 2, p.y * tilePx - t.oy - size / 2, size, size);
   }
@@ -758,8 +773,8 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
     paintJoints(f, t);
   });
   const low = silhouette((t) => {
-    paintCurbs(f, t);
-    paintPosts(f, t);
+    paintCurbs(f, t, true);
+    paintPosts(f, t, true);
   });
   const standing = silhouette((t) => {
     paintObjects(f, t, "standing");

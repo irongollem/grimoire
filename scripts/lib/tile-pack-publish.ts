@@ -8,7 +8,7 @@ import { BASE_TILE_SIZE, MAX_LIGHT_FEET, TILE_PACK_SCHEMA, categoryDef, type Ass
  * The optional `pack.json` beside a pack's tiles: the manifest fields no tile can carry (schema 4). It is the ONLY source of
  * them, on purpose: a repaint replaces the pack, so nothing is inherited from an older published version.
  */
-export type PackSidecar = Pick<TilePackManifest, "continuous" | "labels" | "doorLeaf" | "lights">;
+export type PackSidecar = Pick<TilePackManifest, "continuous" | "labels" | "doorLeaf" | "lights" | "flush">;
 
 export const SIDECAR_FILE = "pack.json";
 
@@ -35,7 +35,7 @@ export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: 
   const sidecar: PackSidecar = {};
   if (!isRecord(raw)) return { sidecar, errors: [`${SIDECAR_FILE}: must be a JSON object`] };
   for (const key of Object.keys(raw)) {
-    if (key !== "continuous" && key !== "labels" && key !== "doorLeaf" && key !== "lights") errors.push(`${SIDECAR_FILE}: unknown key "${key}" (expected continuous, labels, doorLeaf, lights)`);
+    if (key !== "continuous" && key !== "labels" && key !== "doorLeaf" && key !== "lights" && key !== "flush") errors.push(`${SIDECAR_FILE}: unknown key "${key}" (expected continuous, labels, doorLeaf, lights, flush)`);
   }
 
   if (raw.continuous !== undefined) {
@@ -97,6 +97,10 @@ export function parsePackSidecar(raw: unknown): { sidecar: PackSidecar; errors: 
       }
       sidecar.lights = lights;
     }
+  }
+  if (raw.flush !== undefined) {
+    if (!Array.isArray(raw.flush) || raw.flush.some((category) => typeof category !== "string" || !isCategory(category))) errors.push(`${SIDECAR_FILE}: flush must be an array of schema categories`);
+    else sidecar.flush = raw.flush as PackCategory[];
   }
   return { sidecar: errors.length ? {} : sidecar, errors };
 }
@@ -172,6 +176,7 @@ export function buildManifest(
     ...(sidecar.labels ? { labels: sidecar.labels } : {}),
     ...(sidecar.doorLeaf ? { doorLeaf: sidecar.doorLeaf } : {}),
     ...(sidecar.lights ? { lights: sidecar.lights } : {}),
+    ...(sidecar.flush ? { flush: sidecar.flush } : {}),
   };
   return { manifest, errors };
 }

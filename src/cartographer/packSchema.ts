@@ -236,6 +236,12 @@ export interface TilePackManifest {
    * entry) gives none. A lit lantern or a glowing mushroom lights the floor around it in its own colour.
    */
   lights?: Partial<Record<PackCategory, (TileLight | null)[]>>;
+  /**
+   * Categories this pack draws lying flush with the ground, so they cast no shadow and no contact rim: surf along a
+   * beach, where the curb is a line of foam and not a stone lip (Water, 16 Oct 2026). Flush curbs also mean the
+   * water is level with its banks, so it gets no darkened sunk edge. Absent: every piece casts as its category does.
+   */
+  flush?: PackCategory[];
 }
 
 export function categoryDef(cat: PackCategory): CategoryDef {

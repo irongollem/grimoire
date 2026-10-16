@@ -55,6 +55,7 @@ describe("pack.json sidecar", () => {
     labels: { wallDecal: ["Outflow pipe", "Rat hole"] },
     doorLeaf: { hingeX: 0.25, hingeY: 0.5, openDegrees: 80 },
     lights: { objectBrazier: [{ color: "#ffb347", bright: 20, dim: 20, intensity: 0.7 }, null, { color: "#44aaff", bright: 0, dim: 10 }] },
+    flush: ["curbH", "curbV", "curbPost"],
   };
 
   it("copies a valid sidecar into the manifest", () => {
@@ -65,6 +66,7 @@ describe("pack.json sidecar", () => {
     expect(manifest.labels).toEqual(good.labels);
     expect(manifest.doorLeaf).toEqual(good.doorLeaf);
     expect(manifest.lights).toEqual(good.lights);
+    expect(manifest.flush).toEqual(good.flush);
   });
 
   it("leaves the fields off without a sidecar, and never inherits them from the base", () => {
@@ -83,6 +85,7 @@ describe("pack.json sidecar", () => {
   it.each([
     ["a non-object", [], /must be a JSON object/],
     ["an unknown key", { door: {} }, /unknown key "door"/],
+    ["flush that is not a list of categories", { flush: ["curbH", "surf"] }, /flush must be an array of schema categories/],
     ["a non-category period", { continuous: { lavaFall: 2 } }, /not a schema category/],
     ["a zero period", { continuous: { floor: 0 } }, /positive integer/],
     ["a fractional period", { continuous: { floor: 2.5 } }, /positive integer/],

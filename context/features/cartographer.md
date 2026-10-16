@@ -772,6 +772,12 @@ The renderer maintains a dirty set of `(layer, key)` entries. Recompute fires on
 
 Floor and object layers do simple random-variant lookup keyed by `hash(map_id, x, y) % variantCount`, unless the manifest declares the category `continuous`, in which case the position picks the variant (see Schema); no recomputation needed.
 
+### Curbs face their water
+
+Curb art is painted with the land along its top and the water along its bottom (`curbH`; `curbV` is it turned a quarter clockwise, so its water is on the left). `curbEdges` records each curb's `waterSide`, and `paintCurbs` turns a curb a half where the water lies the other way, so surf always washes up from the water onto the land and a stone lip always has its wet face to the water. A pack painted the other way round is turned once when it is assembled, not in the renderer.
+
+A pack may declare categories `flush` in its manifest (the `pack.json` sidecar's `flush`): pieces that lie level with the ground, like a line of surf on a beach. Flush curbs and posts are left out of the shadow layer, and water whose curbs are flush is not darkened along its banks (no sunk edge), so the surf and the waves meet. Before this, surf cast a shadow and sat in a dark band (Water, 16 Oct 2026).
+
 ### Lights
 
 Things that give light lay a soft additive glow of their colour on what is around them (`paintLights` in `drawMap.ts`; the arithmetic is in `lights.ts`). This is step one of map lighting: a light reaches everything within its reach, and light-blocking walls come later, so a glow currently crosses walls. A light is `TileLight`, in the terms of the 5e rules (the same in 2014 and 2024): `{ color: "#rrggbb", bright: feet, dim: feet, intensity?: 0 < i <= 1 }`, bright light in a radius of `bright` feet and dim light for an additional `dim` feet, each 0..60 and not both 0 (a torch is 20 and 20, a candle 5 and 5, a lamp 15 and 30, a hooded lantern 30 and 30). What the rules give no light for takes the nearest listed source (a brazier or a campfire as a torch), and glowing fungi and crystals are dim light only. Feet become cells at `FEET_PER_CELL` (5); the default intensity is `DEFAULT_LIGHT_INTENSITY` (0.35). Bright and dim are kept apart rather than folded into one radius because the next steps (a map's darkness, darkvision, light-blocking walls) are judged in exactly those terms.

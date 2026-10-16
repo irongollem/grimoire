@@ -271,7 +271,7 @@ describe("curbEdges and curbPosts", () => {
     layers.floor[cellKey(1, 1)] = floorCell;
     layers.floor[cellKey(2, 1)] = floorCell;
     layers.terrain[cellKey(1, 1)] = water;
-    expect(curbEdges(layers)).toEqual([{ x: 2, y: 1, axis: "V", packId: PACK }]);
+    expect(curbEdges(layers)).toEqual([{ x: 2, y: 1, axis: "V", packId: PACK, waterSide: "W" }]);
   });
 
   it("gives none where the edge already carries a seg, nor between terrain cells, nor to void", () => {
@@ -282,6 +282,13 @@ describe("curbEdges and curbPosts", () => {
     layers.terrain[cellKey(1, 1)] = water;
     layers.terrain[cellKey(0, 1)] = water; // next to void on the far side, next to terrain here
     expect(curbEdges(layers)).toEqual([]);
+  });
+
+  it("records which side the water is on, so a curb can face it", () => {
+    const layers = emptyLayers();
+    for (const [x, y] of [[2, 2], [2, 1], [2, 3], [1, 2], [3, 2]]) layers.floor[cellKey(x, y)] = floorCell;
+    layers.terrain[cellKey(2, 2)] = water;
+    expect(curbEdges(layers).map((c) => `${c.axis}${c.x},${c.y}${c.waterSide}`).sort()).toEqual(["H2,2S", "H2,3N", "V2,2E", "V3,2W"]);
   });
 
   it("puts a post where a curb meets a wall", () => {
@@ -312,13 +319,55 @@ describe("curbEdges and curbPosts", () => {
     const v = rec.drawImages.find((d) => sourceOf(d).category === "curbV");
     const h = rec.drawImages.find((d) => sourceOf(d).category === "curbH");
     expect(v).toMatchObject({ x: 256 - 64, y: 128, w: 128 });
-    expect(h).toMatchObject({ x: 128, y: 256 - 64, w: 128 });
+    // the H curb has its water to the north, so it is turned a half about the centre of its spot on the gridline
+    expect(h).toMatchObject({ x: -64, y: -64, w: 128 });
+    expect(rec.translates).toContainEqual([128 + 64, 256]);
     const post = rec.drawImages.find((d) => sourceOf(d).category === "curbPost");
     expect(post?.w).toBeCloseTo(128 * 0.24);
     expect(post!.x + post!.w / 2).toBeCloseTo(256);
     expect(post!.y + post!.h / 2).toBeCloseTo(256);
   });
 });
+describe("curbs on the map", () => {
+  const floorCell = { floor: ref };
+  const lake = () => {
+    const layers = emptyLayers();
+    for (const [x, y] of [[2, 2], [2, 1], [2, 3]]) layers.floor[cellKey(x, y)] = floorCell;
+    layers.terrain[cellKey(2, 2)] = water;
+    return layers;
+  };
+
+  it("draws a curb as painted where the water is below it, and turned a half where it is above", () => {
+    const { input: i, rec } = input(makeRuntime(PACK, { categoryCounts: { curbH: 1 } }), { layers: lake() });
+    drawMapContent(i);
+    const curbs = rec.drawImages.filter((d) => sourceOf(d)?.category === "curbH");
+    expect(curbs).toHaveLength(2);
+    // the top bank (water south of it) is drawn as painted; the bottom bank (water north) is turned 180 degrees
+    expect(rec.rotates).toEqual([Math.PI]);
+  });
+
+  it("sinks water below stone banks but not below flush ones (surf on a beach)", () => {
+    const sunk = (rt: TilePackRuntime) => {
+      const { input: i, rec } = input(rt, { layers: lake() });
+      drawMapContent(i);
+      return rec.gradients.length;
+    };
+    expect(sunk(makeRuntime(PACK, { categoryCounts: { curbH: 1 } }))).toBeGreaterThan(0);
+    expect(sunk(makeRuntime(PACK, { categoryCounts: { curbH: 1 }, flush: ["curbH", "curbV"] }))).toBe(0);
+  });
+
+  it("leaves a pack's flush curbs out of the shadows, and keeps a stone lip's", () => {
+    const shadowCats = (rt: TilePackRuntime) => {
+      const f = makeLayerFactory();
+      const { input: i } = input(rt, { layers: lake(), shadows: true, makeCanvas: f.makeCanvas });
+      renderShadowLayer(i);
+      return cats(f.layers[2].rec);
+    };
+    expect(shadowCats(makeRuntime(PACK, { categoryCounts: { curbH: 1 } }))).toContain("curbH");
+    expect(shadowCats(makeRuntime(PACK, { categoryCounts: { curbH: 1 }, flush: ["curbH", "curbV", "curbPost"] }))).not.toContain("curbH");
+  });
+});
+
 
 describe("decals and stairs", () => {
   it("draws a wall's decal over it, turned on a V wall", () => {

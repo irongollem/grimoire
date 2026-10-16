@@ -200,6 +200,7 @@ export function makeRuntime(
     doorLeaf?: TilePackManifest["doorLeaf"];
     continuous?: TilePackManifest["continuous"];
     lights?: TilePackManifest["lights"];
+    flush?: TilePackManifest["flush"];
   } = {},
 ): TilePackRuntime {
   const manifest: TilePackManifest = {
@@ -214,6 +215,7 @@ export function makeRuntime(
     ...(opts.doorLeaf ? { doorLeaf: opts.doorLeaf } : {}),
     ...(opts.continuous ? { continuous: opts.continuous } : {}),
     ...(opts.lights ? { lights: opts.lights } : {}),
+    ...(opts.flush ? { flush: opts.flush } : {}),
   };
   const validation: ValidationResult = { valid: true, missing: [], extras: [], warnings: [] };
   return {
