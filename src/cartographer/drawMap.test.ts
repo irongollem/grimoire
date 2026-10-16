@@ -397,7 +397,7 @@ describe("shadows", () => {
     expect(cast?.offsetY).toBeCloseTo(128 * 0.14);
   });
 
-  it("composites the shadows before standing things and the stair up after them, walls last", () => {
+  it("composites the shadows before flat and standing things and the stair up after them, walls last", () => {
     const f = makeLayerFactory();
     const { input: i, rec } = input(makeRuntime(PACK, { variantCount: 2 }), {
       layers: shadowLayers(),
@@ -406,8 +406,9 @@ describe("shadows", () => {
     });
     drawMapContent(i);
     const order = rec.drawImages.map((d) => (d.source as { layer?: number }).layer !== undefined ? "shadow" : sourceOf(d).category);
-    expect(order.indexOf("rubble")).toBeLessThan(order.indexOf("shadow"));
-    expect(order.indexOf("shadow")).toBeLessThan(order.indexOf("objectChest"));
+    // A flat thing's own occlusion is in the layer: drawn under it, it would grey the thing out.
+    expect(order.indexOf("shadow")).toBeLessThan(order.indexOf("rubble"));
+    expect(order.indexOf("rubble")).toBeLessThan(order.indexOf("objectChest"));
     expect(order.indexOf("objectChest")).toBeLessThan(order.indexOf("stairsUp"));
     expect(order.indexOf("stairsUp")).toBeLessThan(order.indexOf("wallSegmentH"));
   });

@@ -710,8 +710,8 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
 
 /**
  * Draws the pack content in this order: ground (floor, terrain, sunk edges),
- * `afterGround`, stairs down, flat objects, the shadows, curbs and posts, flat
- * dressing, standing objects and dressing, stairs up, walls and everything in
+ * `afterGround`, stairs down, the shadows, curbs and posts, flat objects and
+ * flat dressing, standing objects and dressing, stairs up, walls and everything in
  * them (rock, edges, joints), `afterDressing`, glyphs. Without shadows the
  * order is the same with the shadow step simply absent.
  */
@@ -725,13 +725,15 @@ export function drawMapContent(input: DrawMapInput): void {
   afterGround?.();
 
   paintObjects(f, t, "stairsDown");
-  paintObjects(f, t, "flat");
 
   const layer = input.shadowLayer !== undefined ? input.shadowLayer : input.shadows ? renderShadowLayer(input) : null;
   if (layer) ctx.drawImage(layer.canvas, layer.left, layer.top, layer.width, layer.height);
 
   paintCurbs(f, t);
   paintPosts(f, t);
+  // Flat things go above the shadow layer, which holds their own occlusion: that is a blurred copy of their whole
+  // silhouette, so drawn over them it greys them out entirely instead of rimming them.
+  paintObjects(f, t, "flat");
   paintDressing(f, t, true);
   paintObjects(f, t, "standing");
   paintDressing(f, t, false);
