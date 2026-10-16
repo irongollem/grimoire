@@ -4,7 +4,8 @@
 -- Lava Cavern draws the cavern and the fortress walls (basalt, lava as the set's liquid, obsidian walls banded in brass,
 -- red-hot portcullises); this book holds what furnishes them: crossings over the lava, the efreeti's throne, a throne-room
 -- mosaic, a lava forge, a fire altar and summoning circle, silk cushions, a hookah, brass urns, a gong, melted gold, a
--- salamander nest. One book per tile set, opt-in per source like every book (20261015224350), titled "Grimoire <Area>"
+-- salamander nest; and the cave itself: basalt column clusters, obsidian spikes and shards, lava pools large and small, a
+-- glowing crack, a steam vent, a magma geyser, volcanic boulders, a charred tree and an ash heap. One book per tile set, opt-in per source like every book (20261015224350), titled "Grimoire <Area>"
 -- with the publisher "Dungeon Grimoire" (20261014100306). `flat` marks what lies on the floor and so casts no shadow of
 -- its own. No art here: the library art tool publishes pictures to these rows. `on conflict do nothing`, as every
 -- library seed.
@@ -35,6 +36,17 @@ select id, name, group_key, tags, footprint_w, footprint_h, 'grimoire-dressing-v
   {"id": "dressing_volcano_melted_gold", "name": "Melted gold", "group_key": "loot", "tags": ["volcano", "loot"], "footprint_w": 1, "footprint_h": 1, "flat": true},
   {"id": "dressing_volcano_salamander_nest", "name": "Salamander nest", "group_key": "vermin", "tags": ["volcano", "nest"], "footprint_w": 1, "footprint_h": 1, "flat": true},
   {"id": "dressing_volcano_hanging_cage", "name": "Iron cage", "group_key": "prison", "tags": ["volcano", "prison"], "footprint_w": 1, "footprint_h": 1, "flat": false},
-  {"id": "dressing_volcano_brazier_tripod", "name": "Tripod brazier", "group_key": "religious", "tags": ["volcano", "religious"], "footprint_w": 1, "footprint_h": 1, "flat": false}
+  {"id": "dressing_volcano_brazier_tripod", "name": "Tripod brazier", "group_key": "religious", "tags": ["volcano", "religious"], "footprint_w": 1, "footprint_h": 1, "flat": false},
+  {"id": "dressing_volcano_basalt_columns", "name": "Basalt columns", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 2, "footprint_h": 2, "flat": false},
+  {"id": "dressing_volcano_obsidian_spikes", "name": "Obsidian spikes", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 1, "footprint_h": 1, "flat": false},
+  {"id": "dressing_volcano_obsidian_shards", "name": "Obsidian shard field", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 1, "footprint_h": 1, "flat": true},
+  {"id": "dressing_volcano_lava_pool", "name": "Lava pool", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 2, "footprint_h": 2, "flat": true},
+  {"id": "dressing_volcano_small_lava_pool", "name": "Small lava pool", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 1, "footprint_h": 1, "flat": true},
+  {"id": "dressing_volcano_steam_vent", "name": "Steam vent", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 1, "footprint_h": 1, "flat": true},
+  {"id": "dressing_volcano_magma_geyser", "name": "Magma geyser", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 1, "footprint_h": 1, "flat": false},
+  {"id": "dressing_volcano_boulders", "name": "Volcanic boulders", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 1, "footprint_h": 1, "flat": false},
+  {"id": "dressing_volcano_charred_tree", "name": "Charred tree", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 2, "footprint_h": 2, "flat": false},
+  {"id": "dressing_volcano_ash_heap", "name": "Ash heap", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 1, "footprint_h": 1, "flat": true},
+  {"id": "dressing_volcano_lava_crack", "name": "Glowing lava crack", "group_key": "outdoor", "tags": ["volcano", "nature"], "footprint_w": 2, "footprint_h": 1, "flat": true}
 ]$content$::jsonb)
 on conflict (id) do nothing;
