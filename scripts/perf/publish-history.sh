@@ -9,6 +9,12 @@
 # (it shares no history with the code: it is a data log, and keeping it out of
 # main's history keeps `git log` readable). Concurrent releases race on the
 # push; a rejected push is refetched and retried, never forced.
+#
+# The branch also carries a vercel.json that turns Vercel's deployments off.
+# Vercel's Git integration previews every branch push, and reads vercel.json
+# from the commit it deploys, so the repo's own (which disables only main) never
+# applies here: every release's history line was a preview build of a branch
+# with no package.json, failing on `npm install` (exit 254) and emailing.
 set -eu
 
 entry_file=${1:?usage: publish-history.sh <entry-file>}
@@ -32,12 +38,13 @@ while [ "$attempt" -le 5 ]; do
     git -C "$wt" checkout --orphan "$branch-new" >/dev/null 2>&1
     git -C "$wt" rm -rf -q . >/dev/null
   fi
+  printf '%s\n' '{ "git": { "deploymentEnabled": false } }' > "$wt/vercel.json"
   touch "$wt/history.jsonl"
   # Guarantee the previous last line ended in a newline before appending.
   if [ -s "$wt/history.jsonl" ] && [ "$(tail -c1 "$wt/history.jsonl" | wc -l)" -eq 0 ]; then echo >> "$wt/history.jsonl"; fi
   cat "$entry_file" >> "$wt/history.jsonl"
   echo >> "$wt/history.jsonl"
-  git -C "$wt" add history.jsonl
+  git -C "$wt" add history.jsonl vercel.json
   # shellcheck disable=SC2086
   git -C "$wt" $identity commit -q -m "perf: history for ${GITHUB_SHA:-local}"
   if git -C "$wt" push -q "$remote" "HEAD:refs/heads/$branch"; then
