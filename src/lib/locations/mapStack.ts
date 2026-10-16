@@ -35,7 +35,7 @@ export const BLANK_CELL_PX = 64;
 
 export type MapStackSource = Pick<
   Location,
-  "map_url" | "grid_calibration" | "map_layer_url" | "map_layer_calibration" | "plan_size"
+  "map_url" | "grid_calibration" | "map_layer_url" | "map_layer_stand_url" | "map_layer_calibration" | "plan_size"
 >;
 
 export type MapLayerKind = "picture" | "drawing";
@@ -83,6 +83,9 @@ export interface MapStack {
   picture: MapImageLayer | null;
   /** `map_layer_url` (+ `map_layer_calibration`). */
   drawing: MapImageLayer | null;
+  /** `map_layer_stand_url`: the Drawing's standing half (props, walls, doors), shown over the Drawing in the very
+   *  same box and over the grid. Null without a drawing, and for one published before the split. */
+  standing: { url: string } | null;
   /** The image whose natural pixel box IS the frame: drawing if present,
    *  else picture, else null. */
   primary: MapImageLayer | null;
@@ -100,6 +103,7 @@ export interface MapStack {
 const EMPTY_STACK: MapStack = {
   picture: null,
   drawing: null,
+  standing: null,
   primary: null,
   frameCalibration: null,
   blank: null,
@@ -130,6 +134,8 @@ export function buildMapStack(loc: MapStackSource | null | undefined): MapStack 
     ? { kind: "drawing", url: loc.map_layer_url, calibration: loc.map_layer_calibration }
     : null;
 
+  const standing = drawing && loc.map_layer_stand_url ? { url: loc.map_layer_stand_url } : null;
+
   const primary = drawing ?? picture;
 
   const blank: BlankGrid | null =
@@ -146,6 +152,7 @@ export function buildMapStack(loc: MapStackSource | null | undefined): MapStack 
   return {
     picture,
     drawing,
+    standing,
     primary,
     frameCalibration: frameCal,
     blank,

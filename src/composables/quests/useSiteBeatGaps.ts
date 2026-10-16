@@ -79,6 +79,7 @@ export function deriveReadinessBySite(
         map_url: location.map_url,
         grid_calibration: location.grid_calibration,
         map_layer_url: location.map_layer_url,
+        map_layer_stand_url: location.map_layer_stand_url,
         map_layer_calibration: location.map_layer_calibration,
         plan_size: location.plan_size,
       },

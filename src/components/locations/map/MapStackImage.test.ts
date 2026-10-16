@@ -7,6 +7,7 @@ function stackOf(over: Partial<MapStack>): MapStack {
   return {
     picture: null,
     drawing: null,
+    standing: null,
     primary: null,
     frameCalibration: null,
     blank: null,
@@ -43,6 +44,23 @@ describe("MapStackImage", () => {
     expect(ground.attributes("width")).toBe("640");
     expect(ground.attributes("height")).toBe("384");
     expect(ground.attributes("viewBox")).toBe("0 0 640 384");
+  });
+
+  it("lays the standing half over the drawing, and hides it with the drawing", () => {
+    const drawing = { kind: "drawing" as const, url: "/ground.webp", calibration: null };
+    const stack = stackOf({ drawing, primary: drawing, standing: { url: "/stand.webp" }, hasAnyLayer: true });
+    const wrapper = mount(MapStackImage, { props: { stack } });
+    const urls = wrapper.findAll("img").map((i) => i.attributes("src"));
+    expect(urls).toEqual(["/ground.webp", "/stand.webp"]);
+
+    const hidden = mount(MapStackImage, { props: { stack, visible: { picture: true, drawing: false } } });
+    expect(hidden.findAll("img")[1]!.attributes("style")).toContain("visibility: hidden");
+  });
+
+  it("draws no standing image over a picture", () => {
+    const picture = { kind: "picture" as const, url: "/picture.webp", calibration: null };
+    const stack = stackOf({ picture, primary: picture, standing: { url: "/stand.webp" }, hasAnyLayer: true });
+    expect(mount(MapStackImage, { props: { stack } }).findAll("img")).toHaveLength(1);
   });
 
   it("places the picture under the drawing with a % style from placePicture once both are measured", async () => {

@@ -139,6 +139,7 @@ export async function bakeAiStyleInput(
   const stackForPlacement: MapStack = {
     picture,
     drawing: { kind: "drawing", url: "", calibration: liveDrawingCalibration(map, dressing, STYLE_INPUT_PADDING_CELLS) },
+    standing: null,
     primary: null,
     frameCalibration: null,
     blank: null,

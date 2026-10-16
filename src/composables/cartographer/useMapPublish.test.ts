@@ -26,16 +26,26 @@ const mocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
   updateDrawing: vi.fn(),
   updateLocation: vi.fn(),
+  passes: [] as (string | undefined)[],
+  uploads: [] as (string | undefined)[],
 }));
 
 vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidate }) }));
 vi.mock("@/cartographer/bake", () => ({
-  bakeMap: async () => new Blob(),
+  bakeMap: async (_m: unknown, _r: unknown, _d: unknown, options: { pass?: string }) => {
+    mocks.passes.push(options.pass);
+    return new Blob();
+  },
   computeBakedDimensions: () => ({ cols: 4, rows: 4, originCellX: 0, originCellY: 0 }),
 }));
 const SNAPSHOT = { version: 1, groups: [], lights: [] };
 vi.mock("@/cartographer/mapLive", () => ({ buildMapLive: () => SNAPSHOT }));
-vi.mock("@/lib/storage", () => ({ uploadToBucket: async () => "https://cdn/x.webp" }));
+vi.mock("@/lib/storage", () => ({
+  uploadToBucket: async ({ path }: { path?: string }) => {
+    mocks.uploads.push(path);
+    return path ? "https://cdn/stand.webp" : "https://cdn/x.webp";
+  },
+}));
 vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "user-1" }) }));
 vi.mock("@/lib/queueEmbeddings", () => ({ queueEmbeddingsInBackground: mocks.embed }));
 vi.mock("@/lib/locations/publish", async (importActual) => ({
@@ -90,6 +100,8 @@ describe("useMapPublish.publish", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.order.length = 0;
+    mocks.passes.length = 0;
+    mocks.uploads.length = 0;
     const record = (name: string) => async () => void mocks.order.push(name);
     mocks.updateDrawing.mockImplementation(record("drawing"));
     mocks.insertLocations.mockImplementation(record("rooms"));
@@ -132,6 +144,17 @@ describe("useMapPublish.publish", () => {
     const { publish } = setup();
     await publish();
     expect(mocks.updateDrawing.mock.calls[0]![0]).toMatchObject({ mapLive: SNAPSHOT });
+  });
+
+  it("bakes the ground and the standing half and writes both urls", async () => {
+    const { publish } = setup();
+    await publish();
+    expect(mocks.passes).toEqual(["ground", "standing"]);
+    expect(mocks.uploads[1]).toMatch(/^user-1\/.+-stand\.webp$/);
+    expect(mocks.updateDrawing.mock.calls[0]![0]).toMatchObject({
+      mapLayerUrl: "https://cdn/x.webp",
+      mapLayerStandUrl: "https://cdn/stand.webp",
+    });
   });
 
   it("writes one request per table, in table order, and the rev claim last", async () => {

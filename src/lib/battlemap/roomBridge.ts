@@ -66,10 +66,18 @@ export interface BattleSurface {
   /** The live-layer snapshot (#1073), only when `imageUrl` IS the site's Drawing: the snapshot is in the Drawing's
    *  image cells, so over a hand-calibrated Picture it would not line up. Null otherwise. */
   live: MapLive | null;
+  /** The Drawing's standing half (#1073), drawn over the grid. Set only when `imageUrl` IS the site's Drawing, for
+   *  the same reason as `live`: a hand-calibrated Picture has no standing layer. Null for a drawing published
+   *  before the split. */
+  standUrl: string | null;
 }
 
 function liveFor(loc: Location, imageUrl: string): MapLive | null {
   return loc.map_layer_url !== null && loc.map_layer_url === imageUrl ? loc.map_live : null;
+}
+
+function standFor(loc: Location, imageUrl: string): string | null {
+  return loc.map_layer_url !== null && loc.map_layer_url === imageUrl ? loc.map_layer_stand_url : null;
 }
 
 /**
@@ -100,6 +108,7 @@ export function resolveBattleSurface(params: {
       calibration: ownImage.calibration,
       imageUrl: ownImage.url,
       live: liveFor(encounterLocation, ownImage.url),
+      standUrl: standFor(encounterLocation, ownImage.url),
     };
   }
 
@@ -122,6 +131,7 @@ export function resolveBattleSurface(params: {
         calibration,
         imageUrl: parentImage.url,
         live: liveFor(parent, parentImage.url),
+        standUrl: standFor(parent, parentImage.url),
       };
     }
   }

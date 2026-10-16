@@ -1,0 +1,99 @@
+<template>
+  <!-- Ground: the floor, shadows and rock of the Drawing (or the whole picture when it has no standing half). -->
+  <svg class="map-svg" :viewBox="`0 0 ${hostW} ${hostH}`" preserveAspectRatio="none">
+    <image :href="imageUrl" :x="panX" :y="panY" :width="imageW" :height="imageH" />
+  </svg>
+
+  <BattleMapLiveLayer
+    v-if="live && cellPx > 0"
+    stratum="ground"
+    :host-w="hostW"
+    :host-h="hostH"
+    :cell-px="cellPx"
+    :origin-x="originX"
+    :origin-y="originY"
+    :live="live"
+  />
+
+  <svg v-if="showGrid" class="map-svg" :viewBox="`0 0 ${hostW} ${hostH}`" preserveAspectRatio="none">
+    <g class="grid">
+      <line
+        v-for="(x, i) in gridVerticals"
+        :key="`v-${i}`"
+        :x1="x"
+        :y1="0"
+        :x2="x"
+        :y2="hostH"
+        stroke="#000"
+        :stroke-opacity="gridStrokeOpacity"
+        stroke-width="1"
+      />
+      <line
+        v-for="(y, i) in gridHorizontals"
+        :key="`h-${i}`"
+        :x1="0"
+        :y1="y"
+        :x2="hostW"
+        :y2="y"
+        stroke="#000"
+        :stroke-opacity="gridStrokeOpacity"
+        stroke-width="1"
+      />
+    </g>
+  </svg>
+
+  <!-- Standing: props, walls, doors and labels draw over the grid. Same box as the ground, so it needs no calibration of its own. -->
+  <svg v-if="standUrl" class="map-svg" :viewBox="`0 0 ${hostW} ${hostH}`" preserveAspectRatio="none">
+    <image :href="standUrl" :x="panX" :y="panY" :width="imageW" :height="imageH" />
+  </svg>
+
+  <BattleMapLiveLayer
+    v-if="live && cellPx > 0"
+    stratum="top"
+    :host-w="hostW"
+    :host-h="hostH"
+    :cell-px="cellPx"
+    :origin-x="originX"
+    :origin-y="originY"
+    :live="live"
+  />
+</template>
+
+<script setup lang="ts">
+// The picture of a battle map, bottom to top (epic #1073): the ground image, the ground live layer (water), the grid,
+// the standing image, the top live layer. "Props, trees, walls are ON the grid while the floor is UNDER it", so the
+// grid is cut between two images of the same Drawing. Room focus, tokens and fog stay with the view and draw above.
+// `standUrl` is null when the shown image is not the Drawing or the drawing predates the split.
+import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
+import type { MapLive } from "@/types/mapLive.types";
+
+defineProps<{
+  hostW: number;
+  hostH: number;
+  imageUrl: string;
+  standUrl: string | null;
+  panX: number;
+  panY: number;
+  /** The image's drawn size on screen, in px. */
+  imageW: number;
+  imageH: number;
+  showGrid: boolean;
+  gridVerticals: number[];
+  gridHorizontals: number[];
+  gridStrokeOpacity: number;
+  cellPx: number;
+  originX: number;
+  originY: number;
+  live: MapLive | null;
+}>();
+</script>
+
+<style scoped>
+.map-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+</style>

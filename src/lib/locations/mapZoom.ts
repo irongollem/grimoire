@@ -216,13 +216,14 @@ export function planAscent(
  * Decodes every image layer of a map stack before the animation starts. A
  * cross-fade to an undecoded image flashes white at exactly the moment the
  * eye is following the motion, which is the one frame that must not be
- * wrong — and with a Drawing over a Picture (#884), both layers paint at
- * once, so both need to be ready. Resolves either way — a failed preload
+ * wrong. With a Drawing over a Picture (#884), and the Drawing's
+ * standing half over it (#1073), every layer paints at once, so each needs
+ * to be ready. Resolves either way: a failed preload
  * should degrade to a slightly rougher transition, never to no navigation
  * at all.
  */
 export function preloadStack(stack: MapStack): Promise<void> {
-  const urls = [stack.picture?.url, stack.drawing?.url].filter((url): url is string => !!url);
+  const urls = [stack.picture?.url, stack.drawing?.url, stack.standing?.url].filter((url): url is string => !!url);
   return Promise.all(urls.map(preloadOneImage)).then(() => undefined);
 }
 

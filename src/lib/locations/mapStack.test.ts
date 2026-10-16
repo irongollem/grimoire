@@ -17,6 +17,7 @@ function source(over: Partial<MapStackSource> = {}): MapStackSource {
     map_url: null,
     grid_calibration: null,
     map_layer_url: null,
+    map_layer_stand_url: null,
     map_layer_calibration: null,
     plan_size: null,
     ...over,
@@ -29,6 +30,7 @@ describe("buildMapStack", () => {
       expect(buildMapStack(loc)).toEqual({
         picture: null,
         drawing: null,
+        standing: null,
         primary: null,
         frameCalibration: null,
         blank: null,
@@ -41,6 +43,7 @@ describe("buildMapStack", () => {
     expect(buildMapStack(source())).toEqual({
       picture: null,
       drawing: null,
+      standing: null,
       primary: null,
       frameCalibration: null,
       blank: null,
@@ -119,6 +122,22 @@ describe("buildMapStack", () => {
     );
     expect(stack.blank).toBeNull();
     expect(stack.primary).toBe(stack.picture);
+  });
+});
+
+describe("standing layer (#1073)", () => {
+  const cal = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 };
+
+  it("is the Drawing's standing half when the Drawing has one", () => {
+    const stack = buildMapStack(
+      source({ map_layer_url: "/ground.webp", map_layer_stand_url: "/stand.webp", map_layer_calibration: cal }),
+    );
+    expect(stack.standing).toEqual({ url: "/stand.webp" });
+  });
+
+  it("is null for a drawing published before the split, and without a drawing", () => {
+    expect(buildMapStack(source({ map_layer_url: "/ground.webp", map_layer_calibration: cal })).standing).toBeNull();
+    expect(buildMapStack(source({ map_layer_stand_url: "/stand.webp" })).standing).toBeNull();
   });
 });
 

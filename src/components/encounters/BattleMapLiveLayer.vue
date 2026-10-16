@@ -9,22 +9,24 @@
 </template>
 
 <script setup lang="ts">
-// The live layer (epic #1073): a canvas between the map image and the tokens that animates what the published
+// The live layer (epic #1073): a canvas over a map image, one per side of the grid (`stratum`), that animates what the published
 // snapshot (`locations.map_live`) says moves. Water first; lights and vision reuse the same snapshot and canvas.
 // With reduced motion, a hidden tab or nothing to animate it draws nothing and runs no loop: the baked picture
 // already shows the water.
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { hasMotion, overlayFrame } from "@/lib/battlemap/liveLayer";
+import { groupsIn, hasMotion, overlayFrame, type Stratum } from "@/lib/battlemap/liveLayer";
 import { prefersReducedMotion } from "@/lib/motion";
 import type { MapLive, MotionOverlay } from "@/types/mapLive.types";
 
-const { hostW, hostH, cellPx, originX, originY, live } = defineProps<{
+const { hostW, hostH, cellPx, originX, originY, live, stratum } = defineProps<{
   hostW: number;
   hostH: number;
   cellPx: number;
   originX: number;
   originY: number;
   live: MapLive | null;
+  /** Under the grid (`ground`: water, the open mass) or over what stands (`top`: nothing yet). */
+  stratum: Stratum;
 }>();
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
@@ -71,7 +73,7 @@ function render(t: number) {
   if (!ctx) return;
   ctx.clearRect(0, 0, hostW, hostH);
   if (!live || cellPx <= 0 || hostW <= 0 || hostH <= 0) return;
-  for (const group of live.groups) {
+  for (const group of groupsIn(live, stratum)) {
     if (group.overlays.length === 0) continue;
     ctx.save();
     ctx.beginPath();
@@ -97,7 +99,7 @@ function tick(now: number) {
 function shouldRun(): boolean {
   return (
     typeof requestAnimationFrame === "function" &&
-    hasMotion(live) &&
+    hasMotion(live, stratum) &&
     cellPx > 0 &&
     !document.hidden &&
     !prefersReducedMotion()
@@ -131,7 +133,7 @@ onBeforeUnmount(() => {
   stop();
 });
 
-watch(() => [live, cellPx], sync);
+watch(() => [live, cellPx, stratum], sync);
 </script>
 
 <style scoped>

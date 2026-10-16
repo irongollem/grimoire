@@ -34,51 +34,21 @@
       <!-- Empty / error states -->
       <div v-if="loadingState" class="empty-state">{{ loadingState }}</div>
 
-      <!-- Map + grid via SVG (single layer, simple, accessible) -->
-      <svg
-        v-else-if="location && imageReady"
-        class="map-svg"
-        :viewBox="`0 0 ${hostW} ${hostH}`"
-        preserveAspectRatio="none"
-      >
-        <image
-          :href="surface?.imageUrl ?? undefined"
-          :x="panX"
-          :y="panY"
-          :width="imageNaturalW * scale"
-          :height="imageNaturalH * scale"
-        />
-        <g v-if="showGrid" class="grid">
-          <line
-            v-for="(x, i) in gridVerticals"
-            :key="`v-${i}`"
-            :x1="x"
-            :y1="0"
-            :x2="x"
-            :y2="hostH"
-            stroke="#000"
-            :stroke-opacity="gridStrokeOpacity"
-            stroke-width="1"
-          />
-          <line
-            v-for="(y, i) in gridHorizontals"
-            :key="`h-${i}`"
-            :x1="0"
-            :y1="y"
-            :x2="hostW"
-            :y2="y"
-            stroke="#000"
-            :stroke-opacity="gridStrokeOpacity"
-            stroke-width="1"
-          />
-        </g>
-      </svg>
-
-      <!-- Live layer (#1073): water motion over the Drawing, under room focus, tokens and fog. -->
-      <BattleMapLiveLayer
-        v-if="surface?.live && location && imageReady && cellPx > 0"
+      <!-- Ground, water, grid, standing, top live layer (#1073), under room focus, tokens and fog. -->
+      <BattleMapStack
+        v-else-if="location && surface && imageReady"
         :host-w="hostW"
         :host-h="hostH"
+        :image-url="surface.imageUrl"
+        :stand-url="surface.standUrl"
+        :pan-x="panX"
+        :pan-y="panY"
+        :image-w="imageNaturalW * scale"
+        :image-h="imageNaturalH * scale"
+        :show-grid="showGrid"
+        :grid-verticals="gridVerticals"
+        :grid-horizontals="gridHorizontals"
+        :grid-stroke-opacity="gridStrokeOpacity"
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
@@ -169,7 +139,7 @@ import { useEncounterLive, liveState } from "@/composables/encounters/useEncount
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
-import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
+import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import BattleMapRoomFocusLayer from "@/components/encounters/BattleMapRoomFocusLayer.vue";
 import BattleMapLegend from "@/components/encounters/BattleMapLegend.vue";
 import BattleMapToolbar, {
@@ -520,14 +490,6 @@ const gridStrokeOpacity = computed(
 }
 .map-canvas-host:active {
   cursor: grabbing;
-}
-
-.map-svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  user-select: none;
 }
 
 .empty-state {

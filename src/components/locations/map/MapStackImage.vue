@@ -51,6 +51,23 @@
     />
 
     <!--
+      The Drawing's standing half (props, walls, doors), over the ground in
+      exactly the Drawing's box: both bakes share one size, origin and
+      calibration, so it needs no placement of its own. It follows the
+      Drawing's visibility. (The regions layer's trace grid is an editing aid
+      drawn by the slotted overlay above all of this, so unlike the battle
+      map it is not cut between the two.)
+    -->
+    <img
+      v-if="stack.primary?.kind === 'drawing' && stack.standing"
+      :src="stack.standing.url"
+      class="pointer-events-none rounded-lg absolute inset-0 h-full w-full"
+      :style="primaryStyle"
+      draggable="false"
+      alt=""
+    />
+
+    <!--
       No image layer — a blank grid ground at the plan's natural size (#884).
       An inline SVG rather than a sized div on purpose: with `width`/`height`
       attributes and a matching `viewBox` it has an intrinsic ratio, so the

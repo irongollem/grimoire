@@ -294,6 +294,7 @@ const readiness = computed(() => site.value
       map_url: site.value.map_url,
       grid_calibration: site.value.grid_calibration,
       map_layer_url: site.value.map_layer_url,
+      map_layer_stand_url: site.value.map_layer_stand_url,
       map_layer_calibration: site.value.map_layer_calibration,
       plan_size: site.value.plan_size,
     },

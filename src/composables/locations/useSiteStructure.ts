@@ -46,6 +46,7 @@ export function useSiteStructure(location: Ref<LocationSummary | null | undefine
         map_url: location.value?.map_url ?? null,
         grid_calibration: location.value?.grid_calibration ?? null,
         map_layer_url: location.value?.map_layer_url ?? null,
+        map_layer_stand_url: location.value?.map_layer_stand_url ?? null,
         map_layer_calibration: location.value?.map_layer_calibration ?? null,
         plan_size: location.value?.plan_size ?? null,
       },

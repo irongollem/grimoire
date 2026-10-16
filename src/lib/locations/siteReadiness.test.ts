@@ -10,6 +10,7 @@ function siteLoc(over: Partial<MapStackSource> = {}): MapStackSource {
     map_url: null,
     grid_calibration: null,
     map_layer_url: null,
+    map_layer_stand_url: null,
     map_layer_calibration: null,
     plan_size: null,
     ...over,

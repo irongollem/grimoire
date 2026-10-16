@@ -49,6 +49,7 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     is_battle_map: false,
     grid_calibration: null,
     map_layer_url: null,
+    map_layer_stand_url: null,
     map_layer_calibration: null,
     map_live: null,
     map_scale: null,
@@ -145,6 +146,50 @@ describe("resolveBattleSurface", () => {
       calibration,
       imageUrl: "https://example.test/map.webp",
       live: null,
+      standUrl: null,
+    });
+  });
+
+  describe("standing layer (#1073)", () => {
+    it("carries the standing url when the surface is the Drawing", () => {
+      const location = makeLocation({
+        location_type: "dungeon",
+        map_layer_url: "https://example.test/drawing.webp",
+        map_layer_stand_url: "https://example.test/stand.webp",
+        map_layer_calibration: makeCalibration(),
+      });
+      expect(resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] })?.standUrl).toBe(
+        "https://example.test/stand.webp",
+      );
+    });
+
+    it("carries the site's standing url for a room opened on its site's Drawing", () => {
+      const room = makeLocation({ id: "room-1", parent_id: "site-1" });
+      const site = makeLocation({
+        id: "site-1",
+        location_type: "dungeon",
+        map_layer_url: "https://example.test/drawing.webp",
+        map_layer_stand_url: "https://example.test/stand.webp",
+        map_layer_calibration: makeCalibration(),
+      });
+      const surface = resolveBattleSurface({ encounterLocation: room, parent: site, regions: [] });
+      expect(surface?.standUrl).toBe("https://example.test/stand.webp");
+    });
+
+    it("is null for a Picture, and for a drawing published before the split", () => {
+      const picture = makeLocation({
+        location_type: "dungeon",
+        map_url: "https://example.test/picture.webp",
+        grid_calibration: makeCalibration(),
+        map_layer_stand_url: "https://example.test/stand.webp",
+      });
+      expect(resolveBattleSurface({ encounterLocation: picture, parent: null, regions: [] })?.standUrl).toBeNull();
+      const old = makeLocation({
+        location_type: "dungeon",
+        map_layer_url: "https://example.test/drawing.webp",
+        map_layer_calibration: makeCalibration(),
+      });
+      expect(resolveBattleSurface({ encounterLocation: old, parent: null, regions: [] })?.standUrl).toBeNull();
     });
   });
 

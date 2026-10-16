@@ -91,6 +91,65 @@ describe("drawMapContent", () => {
     expect(idx("wallJoint")).toBeLessThan(idx("trap"));
   });
 
+  describe("passes", () => {
+    const passLayers = (): ReturnType<typeof emptyLayers> => {
+      const layers = emptyLayers();
+      layers.floor[cellKey(1, 1)] = { floor: ref, wallN: { ...ref, type: "wall" }, wallW: { ...ref, type: "wall" } };
+      layers.solidBlock[cellKey(3, 3)] = { pack_id: PACK, pack_version: 1, variant: 0 } as never;
+      layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "chest", variant: 0 } as never;
+      return layers;
+    };
+    const run = (pass?: DrawMapInput["pass"]): (string | undefined)[] => {
+      const { input: i, rec } = input(makeRuntime(PACK), { layers: passLayers(), glyphs: { [cellKey(4, 4)]: "trap" } as never, pass });
+      drawMapContent(i);
+      return rec.drawImages.map((d) => sourceOf(d)?.category);
+    };
+
+    it("ground draws the floor and the rock, and nothing that stands", () => {
+      const cats = run("ground");
+      expect(cats).toContain("floor");
+      expect(cats).toContain("solidBlock");
+      expect(cats).not.toContain("chest");
+      expect(cats).not.toContain("wallSegmentH");
+      expect(cats).not.toContain("trap");
+    });
+
+    it("standing draws props, walls and glyphs, and no floor or rock", () => {
+      const cats = run("standing");
+      expect(cats).toContain("chest");
+      expect(cats).toContain("wallSegmentH");
+      expect(cats).toContain("trap");
+      expect(cats).not.toContain("floor");
+      expect(cats).not.toContain("solidBlock");
+    });
+
+    it("an absent pass is the whole map, in the order it always was", () => {
+      expect(run()).toEqual(run("all"));
+      const cats = run();
+      expect(cats.indexOf("chest")).toBeLessThan(cats.indexOf("solidBlock"));
+      expect(cats.indexOf("solidBlock")).toBeLessThan(cats.indexOf("wallSegmentH"));
+    });
+
+    it("the two passes together draw what the whole map does", () => {
+      const sorted = (a: (string | undefined)[]): string[] => a.map(String).sort();
+      expect(sorted([...run("ground"), ...run("standing")])).toEqual(sorted(run("all")));
+    });
+
+    it("runs afterGround only in the ground pass and afterDressing only in the standing pass", () => {
+      const events: string[] = [];
+      for (const pass of ["ground", "standing"] as const) {
+        const { input: i } = input(makeRuntime(PACK), {
+          layers: passLayers(),
+          pass,
+          afterGround: () => events.push(`ground:${pass}`),
+          afterDressing: () => events.push(`dressing:${pass}`),
+        });
+        drawMapContent(i);
+      }
+      expect(events).toEqual(["ground:ground", "dressing:standing"]);
+    });
+  });
+
   const lCorner = (): ReturnType<typeof emptyLayers> => {
     const layers = emptyLayers();
     layers.floor[cellKey(1, 1)] = { floor: ref, wallN: { ...ref, type: "wall" }, wallW: { ...ref, type: "wall" } };

@@ -56,6 +56,7 @@ type SiteMapLayersLocation = Pick<
   | "map_url"
   | "grid_calibration"
   | "map_layer_url"
+  | "map_layer_stand_url"
   | "map_layer_calibration"
   | "plan_size"
   | "source_map_id"
@@ -72,6 +73,7 @@ function site(overrides: Partial<SiteMapLayersLocation> = {}): SiteMapLayersLoca
     map_url: null,
     grid_calibration: null,
     map_layer_url: null,
+    map_layer_stand_url: null,
     map_layer_calibration: null,
     plan_size: null,
     source_map_id: null,

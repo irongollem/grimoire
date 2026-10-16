@@ -8,7 +8,7 @@
 // dependencies: cells are drawn at 1:1 scale (BASE_TILE_SIZE px per cell).
 
 import { BASE_TILE_SIZE, type PackCategory } from "./packSchema";
-import { drawMapContent, offscreenMakeCanvas } from "./drawMap";
+import { drawMapContent, offscreenMakeCanvas, type MapPass } from "./drawMap";
 import type { TilePackRuntime } from "./packLoader";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";
@@ -28,6 +28,13 @@ export interface BakeOptions {
    * backing, same as before.
    */
   transparent?: boolean;
+  /**
+   * Which part of the map to bake: `ground` (floor, shadows, rock) or
+   * `standing` (props, walls, glyphs, labels). Both come out the same size and
+   * at the same origin and padding, so one calibration fits both. Default
+   * `all`, the whole map in one image.
+   */
+  pass?: MapPass;
 }
 
 export const DEFAULT_BAKE_PADDING_CELLS = 3;
@@ -106,6 +113,7 @@ function renderToCanvas(
   paddingCells: number,
   glyphs: Record<CellKey, PackCategory> = {},
   transparent: boolean = false,
+  pass: MapPass = "all",
 ): OffscreenCanvas {
   const ts = BASE_TILE_SIZE;
   const layers = map.layers;
@@ -141,12 +149,14 @@ function renderToCanvas(
     lights: true,
     shadows: true,
     makeCanvas: offscreenMakeCanvas(),
+    pass,
   });
 
   const dx = (cx: number) => (cx - minX + paddingCells) * ts;
   const dy = (cy: number) => (cy - minY + paddingCells) * ts;
 
-  // Annotation layer
+  // Annotation layer: labels stand on the map, so the ground image has none.
+  if (pass === "ground") return canvas;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const fontSize = Math.round(ts * 0.16);
@@ -177,7 +187,7 @@ export async function bakeMap(
   options: BakeOptions = {},
   glyphs: Record<CellKey, PackCategory> = {},
 ): Promise<Blob> {
-  const canvas = renderToCanvas(map, runtimes, dressing, options.paddingCells ?? 3, glyphs, options.transparent ?? false);
+  const canvas = renderToCanvas(map, runtimes, dressing, options.paddingCells ?? 3, glyphs, options.transparent ?? false, options.pass ?? "all");
   let blob = await encodeWebp(canvas, 0.9);
   if (blob.size > MAX_BYTES) {
     blob = await encodeWebp(canvas, 0.75);

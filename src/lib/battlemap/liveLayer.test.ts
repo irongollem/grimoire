@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { hasMotion, overlayFrame } from "./liveLayer";
-import type { MotionOverlay } from "@/types/mapLive.types";
+import { groupsIn, hasMotion, overlayFrame } from "./liveLayer";
+import type { MapLive, MotionOverlay } from "@/types/mapLive.types";
 
 const base: MotionOverlay = { url: "u", cells: 4, drift: [0.5, -0.25], alpha: 0.6 };
 
@@ -36,10 +36,31 @@ describe("overlayFrame", () => {
   });
 });
 
+const live = (...kinds: ("water" | "outer")[]): MapLive => ({
+  version: 1,
+  groups: kinds.map((kind) => ({ kind, cells: ["0,0"], overlays: [base] })),
+  lights: [],
+});
+
+describe("groupsIn", () => {
+  it("gives the ground layer the water and the outer mass", () => {
+    expect(groupsIn(live("water", "outer"), "ground").map((g) => g.kind)).toEqual(["water", "outer"]);
+  });
+
+  it("gives the top layer nothing yet", () => {
+    expect(groupsIn(live("water", "outer"), "top")).toEqual([]);
+    expect(groupsIn(null, "ground")).toEqual([]);
+  });
+});
+
 describe("hasMotion", () => {
   it("needs at least one overlay", () => {
-    expect(hasMotion(null)).toBe(false);
-    expect(hasMotion({ groups: [{ overlays: [] }] })).toBe(false);
-    expect(hasMotion({ groups: [{ overlays: [], }, { overlays: [base] }] })).toBe(true);
+    expect(hasMotion(null, "ground")).toBe(false);
+    expect(hasMotion({ version: 1, groups: [{ kind: "water", cells: [], overlays: [] }], lights: [] }, "ground")).toBe(false);
+    expect(hasMotion(live("water"), "ground")).toBe(true);
+  });
+
+  it("runs no loop for the top layer while it has nothing to draw", () => {
+    expect(hasMotion(live("water"), "top")).toBe(false);
   });
 });

@@ -289,17 +289,29 @@ export function useMapPublish(opts: {
       // calibration + the rev the DM is publishing. The Picture (map_url) is
       // a separate layer and Publish never touches it.
       const dressing = await opts.loadDressing();
-      const blob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true }, opts.glyphs());
+      // Two images, the same size and origin: the ground (floor, shadows, rock) the battle map's grid draws over,
+      // and the standing half (props, walls, doors, labels) that draws over the grid.
+      const groundBlob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "ground" }, opts.glyphs());
+      const standBlob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "standing" }, opts.glyphs());
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
-      const url = await uploadToBucket({ bucket: "locationImages", blob, userId: user.id, contentType: "image/webp" });
+      const url = await uploadToBucket({ bucket: "locationImages", blob: groundBlob, userId: user.id, contentType: "image/webp" });
       if (!url) throw new Error("Upload failed");
+      const standUrl = await uploadToBucket({
+        bucket: "locationImages",
+        blob: standBlob,
+        userId: user.id,
+        path: `${user.id}/${crypto.randomUUID()}-stand.webp`,
+        contentType: "image/webp",
+      });
+      if (!standUrl) throw new Error("Upload failed");
       const dims = computeBakedDimensions(map, dressing);
       const mapLive = buildMapLive(map, opts.runtimes(), dressing, dims.originCellX, dims.originCellY);
       wrote = true;
       await updateLocationDrawing.mutateAsync({
         id: targetSiteId.value,
         mapLayerUrl: url,
+        mapLayerStandUrl: standUrl,
         mapLayerCalibration: {
           cells_per_image_width: dims.cols,
           origin_x_pct: 0,

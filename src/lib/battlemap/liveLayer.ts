@@ -2,7 +2,7 @@
 // in, the tile size, tiling offset and alpha out. The component owns the canvas and the animation loop; nothing
 // here touches the DOM, so it can be tested with plain numbers.
 
-import type { MotionOverlay } from "@/types/mapLive.types";
+import type { MapLive, MapLiveGroup, MotionOverlay } from "@/types/mapLive.types";
 
 export interface OverlayFrame {
   /** Drawn size of one repeat, in px. */
@@ -32,7 +32,21 @@ export function overlayFrame(overlay: MotionOverlay, cellPx: number, originX: nu
   return { size, offsetX, offsetY, alpha };
 }
 
-/** Whether the snapshot has anything to animate. */
-export function hasMotion(live: { groups: { overlays: unknown[] }[] } | null): boolean {
-  return live !== null && live.groups.some((g) => g.overlays.length > 0);
+/**
+ * Which side of the grid a live layer sits on. The ground layer is under the grid, over the ground picture (water
+ * and the open mass outside the map); the top layer is over the standing picture (nothing yet: swaying things).
+ */
+export type Stratum = "ground" | "top";
+
+const GROUND_KINDS: ReadonlySet<MapLiveGroup["kind"]> = new Set(["water", "outer"]);
+
+/** The groups of a snapshot that belong to one stratum. */
+export function groupsIn(live: MapLive | null, stratum: Stratum): MapLiveGroup[] {
+  if (live === null || stratum === "top") return [];
+  return live.groups.filter((g) => GROUND_KINDS.has(g.kind));
+}
+
+/** Whether the snapshot has anything to animate in this stratum. */
+export function hasMotion(live: MapLive | null, stratum: Stratum): boolean {
+  return groupsIn(live, stratum).some((g) => g.overlays.length > 0);
 }

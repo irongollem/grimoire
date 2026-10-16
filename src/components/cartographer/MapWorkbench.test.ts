@@ -166,6 +166,7 @@ const siteWithPicture: MapStackSource & { id: string } = {
   map_url: "https://example.test/picture.webp",
   grid_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 },
   map_layer_url: null,
+  map_layer_stand_url: null,
   map_layer_calibration: null,
   plan_size: null,
 };
@@ -177,6 +178,7 @@ const siteWithNoImagery: MapStackSource & { id: string } = {
   map_url: null,
   grid_calibration: null,
   map_layer_url: null,
+  map_layer_stand_url: null,
   map_layer_calibration: null,
   plan_size: null,
 };
@@ -188,6 +190,7 @@ const siteWithDrawing: MapStackSource & { id: string } = {
   map_url: null,
   grid_calibration: null,
   map_layer_url: "https://example.test/drawing.webp",
+  map_layer_stand_url: null,
   map_layer_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 },
   plan_size: null,
 };

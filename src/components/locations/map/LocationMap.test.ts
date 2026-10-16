@@ -21,6 +21,7 @@ const stack = buildMapStack({
   map_url: "https://example.test/world.webp",
   grid_calibration: null,
   map_layer_url: null,
+  map_layer_stand_url: null,
   map_layer_calibration: null,
   plan_size: null,
 });

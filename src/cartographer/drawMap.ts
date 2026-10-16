@@ -76,7 +76,16 @@ export interface DrawMapInput {
    * reuse it across frames. `null` means "none could be made": draw without.
    */
   shadowLayer?: ShadowLayer | null;
+  /**
+   * Which part of the map to draw. The battle map lays its grid between the
+   * floor and what stands on it, so a bake is made twice: `ground` is what the
+   * grid draws over, `standing` what draws over the grid. Absent is `all`, the
+   * whole map in one go (the live editor, the PNG download, the AI input).
+   */
+  pass?: MapPass;
 }
+
+export type MapPass = "all" | "ground" | "standing";
 
 /**
  * Render-time shadows (#1065 decision 3). The light is top-left, so a shadow
@@ -833,38 +842,52 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
  * flat dressing, the lights, standing objects and dressing, stairs up, walls and
  * everything in them (rock, edges, joints), `afterDressing`, glyphs. Without
  * shadows or lights the order is the same with that step simply absent.
+ *
+ * `pass: "ground"` draws the first half and then the rock; `pass: "standing"`
+ * draws standing objects and dressing, stairs up, edges, joints,
+ * `afterDressing` and glyphs, and nothing else.
  */
 export function drawMapContent(input: DrawMapInput): void {
   const { ctx, origin, bounds, afterGround, afterDressing } = input;
   const f = frameOf(input, bounds);
   const t: Target = { ctx, ox: origin.x, oy: origin.y };
 
-  paintGround(f, t);
-  paintSunkEdges(f, t);
-  afterGround?.();
+  const pass = input.pass ?? "all";
 
-  paintObjects(f, t, "stairsDown");
+  if (pass !== "standing") {
+    paintGround(f, t);
+    paintSunkEdges(f, t);
+    afterGround?.();
 
-  const layer = input.shadowLayer !== undefined ? input.shadowLayer : input.shadows ? renderShadowLayer(input) : null;
-  if (layer) ctx.drawImage(layer.canvas, layer.left, layer.top, layer.width, layer.height);
+    paintObjects(f, t, "stairsDown");
 
-  paintCurbs(f, t);
-  paintPosts(f, t);
-  // Flat things go above the shadow layer, which holds their own occlusion: that is a blurred copy of their whole
-  // silhouette, so drawn over them it greys them out entirely instead of rimming them.
-  paintObjects(f, t, "flat");
-  paintDressing(f, t, true);
-  // Light lands on the floor, the shadows and the flat things; what stands and the walls draw over it.
-  if (input.lights) paintLights(f, t);
-  paintObjects(f, t, "standing");
-  paintDressing(f, t, false);
-  // A stair up rises to the walls' height, so it is drawn above the shadows.
-  paintObjects(f, t, "stairsUp");
+    const layer = input.shadowLayer !== undefined ? input.shadowLayer : input.shadows ? renderShadowLayer(input) : null;
+    if (layer) ctx.drawImage(layer.canvas, layer.left, layer.top, layer.width, layer.height);
 
-  paintSolid(f, t);
-  paintEdges(f, t);
-  paintJoints(f, t);
+    paintCurbs(f, t);
+    paintPosts(f, t);
+    // Flat things go above the shadow layer, which holds their own occlusion: that is a blurred copy of their whole
+    // silhouette, so drawn over them it greys them out entirely instead of rimming them.
+    paintObjects(f, t, "flat");
+    paintDressing(f, t, true);
+    // Light lands on the floor, the shadows and the flat things; what stands and the walls draw over it.
+    if (input.lights) paintLights(f, t);
+    // Rock is the outer mass (the Water set's open sea is solid rock), so the ground pass owns it: its live glints
+    // are drawn under the grid. In the whole map it still draws after the stairs up, as it always did.
+    if (pass === "ground") paintSolid(f, t);
+  }
 
-  afterDressing?.();
-  paintGlyphs(f, t);
+  if (pass !== "ground") {
+    paintObjects(f, t, "standing");
+    paintDressing(f, t, false);
+    // A stair up rises to the walls' height, so it is drawn above the shadows.
+    paintObjects(f, t, "stairsUp");
+
+    if (pass === "all") paintSolid(f, t);
+    paintEdges(f, t);
+    paintJoints(f, t);
+
+    afterDressing?.();
+    paintGlyphs(f, t);
+  }
 }

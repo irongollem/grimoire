@@ -311,6 +311,7 @@ const {
     | "map_url"
     | "grid_calibration"
     | "map_layer_url"
+    | "map_layer_stand_url"
     | "map_layer_calibration"
     | "plan_size"
     | "source_map_id"

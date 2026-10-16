@@ -22,50 +22,21 @@
     >
       <div v-if="loadingState" class="empty-state">{{ loadingState }}</div>
 
-      <svg
-        v-else-if="location && imageReady"
-        class="map-svg"
-        :viewBox="`0 0 ${hostW} ${hostH}`"
-        preserveAspectRatio="none"
-      >
-        <image
-          :href="image?.url ?? undefined"
-          :x="panX"
-          :y="panY"
-          :width="imageNaturalW * scale"
-          :height="imageNaturalH * scale"
-        />
-        <g class="grid">
-          <line
-            v-for="(x, i) in gridVerticals"
-            :key="`v-${i}`"
-            :x1="x"
-            :y1="0"
-            :x2="x"
-            :y2="hostH"
-            stroke="#000"
-            :stroke-opacity="gridStrokeOpacity"
-            stroke-width="1"
-          />
-          <line
-            v-for="(y, i) in gridHorizontals"
-            :key="`h-${i}`"
-            :x1="0"
-            :y1="y"
-            :x2="hostW"
-            :y2="y"
-            stroke="#000"
-            :stroke-opacity="gridStrokeOpacity"
-            stroke-width="1"
-          />
-        </g>
-      </svg>
-
-      <!-- Live layer (#1073): water motion over the Drawing, under tokens and fog. -->
-      <BattleMapLiveLayer
-        v-if="live && imageReady && cellPx > 0"
+      <!-- Ground, water, grid, standing, top live layer (#1073), under tokens and fog. -->
+      <BattleMapStack
+        v-else-if="location && image && imageReady"
         :host-w="hostW"
         :host-h="hostH"
+        :image-url="image.url"
+        :stand-url="standUrl"
+        :pan-x="panX"
+        :pan-y="panY"
+        :image-w="imageNaturalW * scale"
+        :image-h="imageNaturalH * scale"
+        :show-grid="true"
+        :grid-verticals="gridVerticals"
+        :grid-horizontals="gridHorizontals"
+        :grid-stroke-opacity="gridStrokeOpacity"
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
@@ -122,7 +93,7 @@ import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDollFigures";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
-import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
+import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
 import { primaryImage } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
@@ -162,6 +133,11 @@ const image = computed(() => primaryImage(location.value));
 // The snapshot is in the Drawing's image cells, so it only applies when the Drawing is what is on screen.
 const live = computed(() =>
   location.value?.map_layer_url && location.value.map_layer_url === image.value?.url ? location.value.map_live : null,
+);
+
+// The standing half rides with the Drawing the same way; a hand-calibrated Picture has none.
+const standUrl = computed(() =>
+  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url ? location.value.map_layer_stand_url : null,
 );
 
 // Decode only when the source string actually changes (a plain `computed`
@@ -369,14 +345,6 @@ const gridStrokeOpacity = computed(
 }
 .map-canvas-host:active {
   cursor: grabbing;
-}
-
-.map-svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  user-select: none;
 }
 
 .empty-state {

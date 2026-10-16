@@ -8,7 +8,7 @@ import { buildMapStack } from "@/lib/locations/mapStack";
 config.global.stubs = { ...config.global.stubs, AiImageBadge: true };
 
 function stackFor(mapUrl: string) {
-  return buildMapStack({ map_url: mapUrl, grid_calibration: null, map_layer_url: null, map_layer_calibration: null, plan_size: null });
+  return buildMapStack({ map_url: mapUrl, grid_calibration: null, map_layer_url: null, map_layer_stand_url: null, map_layer_calibration: null, plan_size: null });
 }
 
 describe("MapFrame", () => {

@@ -225,6 +225,12 @@ export interface Location {
    */
   map_layer_url: string | null;
   /**
+   * The Drawing's standing half (props, walls, doors, labels): the battle map lays its grid between `map_layer_url`
+   * (then the ground: floor, shadows, rock) and this. Same size, origin and `map_layer_calibration` as the ground.
+   * Null for a drawing published before the split, whose one picture is all ground.
+   */
+  map_layer_stand_url: string | null;
+  /**
    * `GridCalibration` of `map_layer_url`, computed by Publish from the
    * bake's own padding — never eyeballed. Null iff `map_layer_url` is null.
    */
@@ -317,6 +323,7 @@ export const LOCATION_SUMMARY_COLUMNS = [
   "map_url",
   "grid_calibration",
   "map_layer_url",
+  "map_layer_stand_url",
   "map_layer_calibration",
   "plan_size",
   "map_published_rev",
@@ -391,6 +398,7 @@ export type LocationInsert = Omit<
   | "sort_order"
   | "map_published_rev"
   | "map_layer_url"
+  | "map_layer_stand_url"
   | "map_layer_calibration"
   | "map_live"
   | "map_scale"
@@ -407,6 +415,8 @@ export type LocationInsert = Omit<
   is_level?: boolean;
   /** Omit to take the column default of null: no drawing yet. */
   map_layer_url?: string | null;
+  /** Omit to take the column default of null: no drawing yet. */
+  map_layer_stand_url?: string | null;
   /** Omit to take the column default of null: no drawing yet. */
   map_layer_calibration?: GridCalibration | null;
   /** Omit to take the column default of null: no drawing yet. */

@@ -30,6 +30,7 @@ function loc(over: Partial<Location> = {}): Location {
     is_battle_map: false,
     grid_calibration: null,
     map_layer_url: null,
+    map_layer_stand_url: null,
     map_layer_calibration: null,
     map_live: null,
     map_scale: null,
