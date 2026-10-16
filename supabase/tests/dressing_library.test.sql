@@ -4,8 +4,8 @@
 -- set books (20261015224350_dressing_flat_and_set_books, 20261015231216_dressing_sewers_content,
 -- 20261016000843_dressing_dungeons_book, 20261016002526_dressing_homes_and_forests_books,
 -- 20261016133920_dressing_volcanoes_book, 20261016135253_dressing_palaces_book,
--- 20261016141230_dressing_deserts_book, 20261016142507_dressing_glaciers_book,
--- 20261016144937_dressing_depths_book, 20261016145300_dressing_lights).
+-- 20261016141230_dressing_deserts_book, 20261016195838_dressing_glaciers_book,
+-- 20261016195839_dressing_depths_book, 20261016195840_dressing_lights).
 --
 --   1 Ada (app admin)   2 Ben (ordinary DM)
 --
