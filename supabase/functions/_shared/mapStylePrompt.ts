@@ -11,8 +11,6 @@ const WATERMARK = "a small 'dungeongrimoire.com' text watermark in the bottom-ri
 const KEEP_LAYOUT =
   "Repaint this top-down map image in the style below without changing its layout: every wall, door, stair and room outline stays exactly where the input image draws it, at the same size and position. Do not add rooms, walls, corridors or buildings the input does not have, and do not add a title, banner or cartouche. The small white words on the input are notes saying what belongs where: paint those things, and do not write the words.";
 
-// Style words only, never a publisher's product or house art: asking the model
-// to imitate a named book is asking it to reproduce someone's trade dress.
 /**
  * Every preset, the isometric one included. The app lays its own grid over a styled map at play, so a grid painted into the
  * picture competes with it: two sets of lines that never quite agree. Models add one unasked, because "battle map" is mostly
@@ -22,6 +20,8 @@ const KEEP_LAYOUT =
 const NO_GRID =
   "Do not draw a grid, cell lines, squares or any measuring marks anywhere in the picture, and do not paint floors as square tiles that line up into a grid; the app overlays its own grid.";
 
+// Style words only, never a publisher's product or house art: asking the model
+// to imitate a named book is asking it to reproduce someone's trade dress.
 export const PRESET_PROMPTS: Record<string, string> = {
   playable:
     "modern illustrated dungeon map, warm candlelight color palette, clean readable encounter zones, detailed environmental dressing, contemporary painted fantasy tabletop illustration",
