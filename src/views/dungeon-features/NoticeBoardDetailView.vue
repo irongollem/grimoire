@@ -34,7 +34,7 @@
         <aside class="flex min-w-0 flex-col gap-5" data-board-panel>
           <NoticePinAdd :disabled="adding" @add="onAdd" />
           <NoticePinList
-            :pins="pins ?? []"
+            :pins="orderedPins"
             :selected-id="selectedId"
             :taker-name="takerName"
             @select="(id) => (selectedId = id)"
@@ -73,6 +73,7 @@ import {
   useUpdateNoticeBoardPin,
 } from "@/composables/noticeBoards/useNoticeBoards";
 import { IconCheck, IconDelete } from "@/lib/icons";
+import { inReadingOrder, reorderWrites } from "@/lib/noticeBoard/readingOrder";
 import { toPinFace } from "@/lib/noticeBoard/faces";
 import { findFreeSpot } from "@/lib/noticeBoard/geometry";
 import type { NoticePinStyle } from "@/types/noticeBoard.types";
@@ -93,6 +94,8 @@ const { confirm } = useConfirm();
 const boardId = computed(() => String(route.params.id));
 const { data: board, isLoading: boardLoading } = useNoticeBoard(boardId);
 const { data: pins } = useNoticeBoardPins(boardId);
+// Sorted here as well as by the query, so a reorder's optimistic write moves the row before the refetch lands.
+const orderedPins = computed(() => inReadingOrder(pins.value ?? []));
 const { data: party } = useParty();
 
 const updatePin = useUpdateNoticeBoardPin();
@@ -121,7 +124,7 @@ watch(selectedPin, (pin) => {
 // Drafts never reach the viewport: players would otherwise see a half-written notice the moment the board is shown,
 // and the DM would arrange a notice that is not up yet.
 const boardFaces = computed(() =>
-  (pins.value ?? []).filter((p) => p.status !== "draft").map((p) => toPinFace(p, takerName(p.taken_by))),
+  orderedPins.value.filter((p) => p.status !== "draft").map((p) => toPinFace(p, takerName(p.taken_by))),
 );
 
 function onMove(id: string, x: number, y: number) {
@@ -151,18 +154,10 @@ async function onAdd(style: NoticePinStyle) {
   }
 }
 
-/** Reading order is sort_order; a swap renumbers the board's pins so ties from older rows cannot swallow the move. */
 function onReorder(id: string, direction: -1 | 1) {
-  const up = (pins.value ?? []).filter((p) => p.status === "up");
-  const from = up.findIndex((p) => p.id === id);
-  const to = from + direction;
-  if (from < 0 || to < 0 || to >= up.length) return;
-  const order = up.map((p) => p.id);
-  [order[from], order[to]] = [order[to], order[from]];
-  order.forEach((pinId, index) => {
-    const current = up.find((p) => p.id === pinId);
-    if (current && current.sort_order !== index) updatePin.mutate({ id: pinId, update: { sort_order: index } });
-  });
+  for (const write of reorderWrites(orderedPins.value, id, direction)) {
+    updatePin.mutate({ id: write.id, update: { sort_order: write.sort_order } });
+  }
 }
 
 async function onDone() {

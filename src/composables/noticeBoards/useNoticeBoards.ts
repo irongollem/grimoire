@@ -216,7 +216,11 @@ export function useCreateNoticeBoardPin() {
 /**
  * Optimistic: a pin being dragged writes on every drop, and without the cache
  * patch it would snap back to its old spot until the refetch lands. Both pin
- * lists (one board's, the campaign's) are patched and restored on error.
+ * lists (one board's, the campaign's) are patched, take the saved row on
+ * success, and are restored and refetched on error. A success refetches
+ * nothing: the write rings the campaign doorbell, which refreshes every
+ * notice-board query in every tab, this one included, so invalidating here too
+ * would fetch everything twice per drop and per autosave.
  */
 export function useUpdateNoticeBoardPin() {
   const queryClient = useQueryClient();
@@ -224,10 +228,8 @@ export function useUpdateNoticeBoardPin() {
     mutationFn: ({ id, update }: { id: string; update: NoticeBoardPinUpdate }) => updateNoticeBoardPin(id, update),
     onMutate: async ({ id, update }) => {
       await queryClient.cancelQueries({ queryKey: [NOTICE_BOARDS_KEY] });
-      const snapshots = queryClient.getQueriesData<NoticeBoardPin[]>({ queryKey: [NOTICE_BOARDS_KEY] });
+      const snapshots = pinLists(queryClient);
       for (const [key, pins] of snapshots) {
-        // Only the two pin lists are arrays of pins; boards and single boards are left alone.
-        if (!Array.isArray(pins) || (key[1] !== "pins" && key[1] !== "campaign-pins")) continue;
         queryClient.setQueryData<NoticeBoardPin[]>(
           key,
           pins.map((p) => (p.id === id ? { ...p, ...update } : p)),
@@ -235,11 +237,29 @@ export function useUpdateNoticeBoardPin() {
       }
       return { snapshots };
     },
+    onSuccess: (saved) => {
+      for (const [key, pins] of pinLists(queryClient)) {
+        queryClient.setQueryData<NoticeBoardPin[]>(
+          key,
+          pins.map((p) => (p.id === saved.id ? saved : p)),
+        );
+      }
+    },
     onError: (_error, _vars, context) => {
       for (const [key, pins] of context?.snapshots ?? []) queryClient.setQueryData(key, pins);
+      void invalidateAll(queryClient);
     },
-    onSettled: () => invalidateAll(queryClient),
   });
+}
+
+/** The two cached pin lists (one board's, the campaign's); boards and single boards are left alone. */
+function pinLists(queryClient: QueryClient): [readonly unknown[], NoticeBoardPin[]][] {
+  return queryClient
+    .getQueriesData<NoticeBoardPin[]>({ queryKey: [NOTICE_BOARDS_KEY] })
+    .filter((entry): entry is [readonly unknown[], NoticeBoardPin[]] => {
+      const [key, pins] = entry;
+      return Array.isArray(pins) && (key[1] === "pins" || key[1] === "campaign-pins");
+    });
 }
 
 export function useDeleteNoticeBoardPin() {

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(42);
+select plan(44);
 
 -- notice_boards (20261015234112, #1064): the DM pins notices to a board; players read a revealed board only through
 -- get_player_notice_boards, which shows a pin's face and keeps its quest and handout back until it is taken; and while
@@ -50,10 +50,13 @@ insert into public.locations (id, user_id, campaign_id, name, player_visible_to)
   ('10640000-0000-4000-8000-000000000062', '10640000-0000-4000-8000-000000000001', '10640000-0000-4000-8000-000000000010', 'The cellar', '{}'),
   ('10640000-0000-4000-8000-000000000061', '10640000-0000-4000-8000-000000000004', '10640000-0000-4000-8000-000000000011', 'Their inn', '{}');
 
--- Wren's own campaign-less quest: the same-campaign trigger lets a pin name it (its owner is a member), so the take
--- itself must refuse to touch it.
+-- The DM's own campaign-less quest and account-wide handout: the same-campaign trigger lets a pin name them (their owner
+-- is the DM), but a take reveals and shares within the pin's campaign only, so the pin refuses them
+-- (20261016002013).
 insert into public.quests (id, user_id, campaign_id, title, status) values
-  ('10640000-0000-4000-8000-000000000032', '10640000-0000-4000-8000-000000000002', null, 'Wren''s private errand', 'undiscovered');
+  ('10640000-0000-4000-8000-000000000032', '10640000-0000-4000-8000-000000000001', null, 'A private errand', 'undiscovered');
+insert into public.scriptorium_documents (id, user_id, campaign_id, title) values
+  ('10640000-0000-4000-8000-000000000041', '10640000-0000-4000-8000-000000000001', null, 'Account-wide rumours');
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -193,12 +196,26 @@ select throws_ok($$ update public.notice_board_pins set status = 'up' where id =
 select throws_ok($$ update public.notice_board_pins set quest_id = null where id = '10640000-0000-4000-8000-000000000080' $$,
   '23514', 'A taken notice keeps what it offered', 'a taken notice cannot be re-pointed at another quest');
 
--- A pin naming Wren's private quest: taking it reveals nothing of it.
-select lives_ok($$
-  insert into public.notice_board_pins (id, user_id, campaign_id, board_id, style, headline, quest_id) values
-    ('10640000-0000-4000-8000-000000000083', '10640000-0000-4000-8000-000000000001', '10640000-0000-4000-8000-000000000010',
+-- A notice offers only what a take can give: its own campaign's quest and handout.
+select throws_ok($$
+  insert into public.notice_board_pins (user_id, campaign_id, board_id, style, headline, quest_id) values
+    ('10640000-0000-4000-8000-000000000001', '10640000-0000-4000-8000-000000000010',
      '10640000-0000-4000-8000-000000000070', 'note', 'An errand', '10640000-0000-4000-8000-000000000032')
-$$, 'the DM pins a notice naming a member''s campaign-less quest');
+$$, '23514', 'A notice offers only a quest from its own campaign', 'a notice cannot offer a campaign-less quest');
+select throws_ok($$
+  insert into public.notice_board_pins (user_id, campaign_id, board_id, style, headline, handout_id) values
+    ('10640000-0000-4000-8000-000000000001', '10640000-0000-4000-8000-000000000010',
+     '10640000-0000-4000-8000-000000000070', 'note', 'Rumours', '10640000-0000-4000-8000-000000000041')
+$$, '23514', 'A notice offers only a handout from its own campaign', 'nor an account-wide handout');
+
+-- A board's stamp for the player is its newest visible notice, not the board row presenting bumps. A draft is not news.
+select lives_ok($$
+  insert into public.notice_board_pins (id, user_id, campaign_id, board_id, style, headline, status, updated_at) values
+    ('10640000-0000-4000-8000-000000000084', '10640000-0000-4000-8000-000000000001', '10640000-0000-4000-8000-000000000010',
+     '10640000-0000-4000-8000-000000000070', 'note', 'Help wanted', 'up', '2099-01-01T00:00:00Z'),
+    ('10640000-0000-4000-8000-000000000085', '10640000-0000-4000-8000-000000000001', '10640000-0000-4000-8000-000000000010',
+     '10640000-0000-4000-8000-000000000070', 'note', 'Not yet', 'draft', '2099-06-01T00:00:00Z')
+$$, 'the DM puts up a new notice and starts a draft');
 
 select set_config('request.jwt.claim.sub', '10640000-0000-4000-8000-000000000002', true);
 select is((select p ->> 'quest_id' from jsonb_array_elements(public.get_player_notice_boards('10640000-0000-4000-8000-000000000010')) b,
@@ -208,10 +225,12 @@ select is((select p ->> 'quest_id' from jsonb_array_elements(public.get_player_n
 select is((select p ->> 'taken_by_name' from jsonb_array_elements(public.get_player_notice_boards('10640000-0000-4000-8000-000000000010')) b,
                  jsonb_array_elements(b -> 'pins') p
             where p ->> 'id' = '10640000-0000-4000-8000-000000000080'), 'Wren', 'and who took it');
-select is(public.take_notice_board_pin('10640000-0000-4000-8000-000000000083') ->> 'outcome', 'taken', 'Wren takes the errand notice');
-select is((select status::text || ':' || cardinality(player_visible_to)::text from public.quests
-            where id = '10640000-0000-4000-8000-000000000032'), 'undiscovered:0',
-  'and her private quest outside the campaign is left exactly as it was');
+select is((select (b ->> 'updated_at')::timestamptz from jsonb_array_elements(public.get_player_notice_boards('10640000-0000-4000-8000-000000000010')) b
+            where b ->> 'id' = '10640000-0000-4000-8000-000000000070'), '2099-01-01T00:00:00Z'::timestamptz,
+  'the board reads as changed when a notice goes up, and a draft does not move it');
+select is((select b -> 'pins' -> -1 ->> 'id' from jsonb_array_elements(public.get_player_notice_boards('10640000-0000-4000-8000-000000000010')) b
+            where b ->> 'id' = '10640000-0000-4000-8000-000000000070'), '10640000-0000-4000-8000-000000000080',
+  'the taken stub reads after every notice still up, though it was pinned first');
 
 select * from finish();
 rollback;

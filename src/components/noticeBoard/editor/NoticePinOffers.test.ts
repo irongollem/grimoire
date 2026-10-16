@@ -8,7 +8,12 @@ import { pinToDraft } from "./pinDraft";
 import { grellRow } from "./pinRows";
 
 vi.mock("@/composables/quests/useQuests", () => ({
-  useQuests: () => ({ data: ref([{ id: "q1", title: "The Burned Barn" }]) }),
+  useQuests: () => ({
+    data: ref([
+      { id: "q1", title: "The Burned Barn", campaign_id: "camp-1" },
+      { id: "q2", title: "Someone else's errand", campaign_id: "camp-2" },
+    ]),
+  }),
 }));
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({
   useScriptoriumDocuments: () => ({
@@ -21,10 +26,10 @@ vi.mock("@/composables/scriptorium/useScriptorium", () => ({
 }));
 
 describe("NoticePinOffers", () => {
-  const mountOffers = () => {
+  const mountOffers = (locked = false) => {
     const draft = reactive(pinToDraft(grellRow()));
     const w = mount(NoticePinOffers, {
-      props: { draft, campaignId: "camp-1" },
+      props: { draft, campaignId: "camp-1", locked },
       global: { directives: { "no-pwm": {} }, stubs: { Teleport: true } },
     });
     return { w, draft };
@@ -35,12 +40,18 @@ describe("NoticePinOffers", () => {
     expect(mountOffers().w.text()).toContain("shared with them");
   });
 
-  it("offers the campaign's quests, and only handouts usable in this campaign", () => {
+  it("offers only the board's own campaign's quests and handouts, never account-wide ones a take cannot give", () => {
     const { w } = mountOffers();
     const combos = w.findAllComponents({ name: "EntityCombobox" });
     const names = combos.map((c) => (c.props("options") as { name: string }[]).map((o) => o.name));
     expect(names[0]).toEqual(["The Burned Barn"]);
-    expect(names[1]).toEqual(["Grell's confession", "Account-wide rumours"]);
+    expect(names[1]).toEqual(["Grell's confession"]);
+  });
+
+  it("shows a taken notice's offer read-only, since the database refuses to change it", () => {
+    const { w } = mountOffers(true);
+    expect(w.findAllComponents({ name: "EntityCombobox" })).toHaveLength(0);
+    expect(w.text()).toContain("keeps what it offered");
   });
 
   it("writes the chosen quest into the draft, and null when cleared", async () => {

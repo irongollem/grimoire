@@ -130,6 +130,8 @@ export interface PlayerNoticeBoard {
   name: string;
   surface: NoticeBoardSurface;
   presented_at: string | null;
+  /** The last change a player can see: the board appearing, or a notice going up, being edited or taken. Not the board
+   * row's own stamp, which presenting moves; this is what the unread dot compares against. */
   updated_at: string;
   /** Places the board hangs at (location_placements), for the player's place panel. */
   location_ids: string[];

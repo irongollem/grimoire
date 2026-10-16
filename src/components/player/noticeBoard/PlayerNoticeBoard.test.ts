@@ -79,6 +79,15 @@ describe("PlayerNoticeBoard take flow", () => {
     expect(mocks.push).toHaveBeenCalledWith({ name: "play-quest-detail", params: { id: "q-grell" } });
   });
 
+  it("a notice that carries only a handout does not claim a quest", async () => {
+    mocks.take.mockResolvedValue({ outcome: "taken", taken_by_name: "Aria", quest_id: null, handout_id: "h-grell" });
+    const w = await mountBoard({ presented_at: "2026-10-15T20:00:00Z" });
+    await w.findComponent({ name: "AppButton" }).trigger("click");
+    await flushPromises();
+    expect(mocks.success).toHaveBeenCalledWith("You took the wanted poster for Grell Ashmantle.", undefined, undefined);
+    expect(mocks.push).toHaveBeenCalledWith({ name: "play-handout", params: { id: "h-grell" } });
+  });
+
   it("losing a race is not an error: names the winner and still opens the handout", async () => {
     mocks.take.mockResolvedValue({ outcome: "already_taken", taken_by_name: "Chicory", quest_id: "q-grell", handout_id: "h-grell" });
     const w = await mountBoard({ presented_at: "2026-10-15T20:00:00Z" });

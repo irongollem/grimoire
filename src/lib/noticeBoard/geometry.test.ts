@@ -3,6 +3,7 @@ import {
   BOARD_H,
   BOARD_W,
   boardScale,
+  keepOnBoard,
   clampScale,
   constrainPan,
   findFreeSpot,
@@ -129,5 +130,27 @@ describe("findFreeSpot", () => {
     const spot = findFreeSpot(crowd, "note", "sm");
     expect(spot.x).toBeGreaterThanOrEqual(0);
     expect(spot.x).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("keepOnBoard", () => {
+  it("leaves a pin that fits where it is", () => {
+    expect(keepOnBoard(0.25, 0.3, "note", "md")).toEqual({ x: 0.25, y: 0.3 });
+  });
+
+  it("nudges a pin flush to the right back on when it grows to Large", () => {
+    const flush = 1 - 300 / BOARD_W;
+    expect(keepOnBoard(flush, 0.1, "note", "lg")).toEqual({ x: 1 - 400 / BOARD_W, y: 0.1 });
+  });
+
+  it("never rounds a pin back over the far edge", () => {
+    const { h } = pinSize("poster", "lg");
+    const at = keepOnBoard(0.1, 1, "poster", "lg");
+    expect(at.y * BOARD_H + h).toBeLessThanOrEqual(BOARD_H);
+    expect(at.x).toBe(0.1);
+  });
+
+  it("keeps a pin off the near edges too", () => {
+    expect(keepOnBoard(-0.2, -0.01, "letter", "sm")).toEqual({ x: 0, y: 0 });
   });
 });

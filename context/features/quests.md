@@ -971,9 +971,9 @@ heard is not unheard, and the DM can hide the beat.
 (`20261015234112`, #1064). It is `unlock_quest`'s write plus the recipients, which `unlock_quest` alone never adds: a
 quest nobody may see is not one the party has heard of. Two paths call it. A shared handout that embeds the quest
 (`apply_handout_reveals`), and a player taking a notice from a presented notice board (`take_notice_board_pin`), the
-first quest reveal a player sets off rather than the DM. The campaign is a parameter, not a courtesy: a notice may name
-a member's own campaign-less quest (the same-campaign trigger allows it), and the take, running as a definer, must not
-publish it. A quest outside the campaign is left alone. Add a third path through this function, never beside it.
+first quest reveal a player sets off rather than the DM. The campaign is a parameter, not a courtesy: the take runs as a
+definer, so a quest outside the campaign is left alone. A notice can no longer name one (`20261016002013` refuses a
+campaign-less quest or handout on a pin, which the generic same-campaign trigger allows), so the guard is a second line. Add a third path through this function, never beside it.
 
 **`unlock_quest` deliberately leaves `parent_quest_id` alone.** "Unlocked by"
 and "child of" are different relations: one trigger can legitimately open both a

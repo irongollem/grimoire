@@ -30,6 +30,7 @@ import NoticePinReader from "@/components/noticeBoard/NoticePinReader.vue";
 import { useTakeNoticePin } from "@/composables/noticeBoards/usePlayerNoticeBoards";
 import { useToast } from "@/composables/useToast";
 import { noticePhrase } from "@/lib/noticeBoard/faces";
+import { inReadingOrder } from "@/lib/noticeBoard/readingOrder";
 import type { PlayerNoticeBoard, PlayerNoticePin } from "@/types/noticeBoard.types";
 
 const TAKE_WAITS = "Taking a notice happens at the table, when your DM brings the party to the board.";
@@ -43,7 +44,7 @@ const toast = useToast();
 const { mutateAsync: takePin, isPending: taking } = useTakeNoticePin();
 
 const presented = computed(() => board.presented_at !== null);
-const pins = computed(() => [...board.pins].sort((a, b) => a.sort_order - b.sort_order));
+const pins = computed(() => inReadingOrder(board.pins));
 
 const selectedId = ref<string | null>(null);
 const origin = ref<HTMLElement | null>(null);
@@ -101,8 +102,9 @@ async function take() {
     closeReader();
     if (result.outcome === "taken") {
       const questId = result.quest_id;
+      // A notice may carry only a handout, which opens below; only a quest lands in the quest log.
       toast.success(
-        `You took ${noticePhrase(pin)}. It is in your quest log.`,
+        questId ? `You took ${noticePhrase(pin)}. It is in your quest log.` : `You took ${noticePhrase(pin)}.`,
         undefined,
         questId ? { action: { label: "Open quest", run: () => openQuest(questId) } } : undefined,
       );

@@ -58,7 +58,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import { canAnimate, whenSettled } from "@/lib/motion";
 import { edgeFor, tackUrl } from "@/lib/noticeBoard/art";
 import { pinLabel } from "@/lib/noticeBoard/faces";
-import { BOARD_H, BOARD_W, pinSize, seededRotation, seededTack } from "@/lib/noticeBoard/geometry";
+import { keepOnBoard, pinSize, seededRotation, seededTack } from "@/lib/noticeBoard/geometry";
 import type { NoticePinFace as Face } from "@/types/noticeBoard.types";
 import NoticePinFace from "./NoticePinFace.vue";
 import NoticePinStub from "./NoticePinStub.vue";
@@ -114,15 +114,9 @@ function onPointerDown(event: PointerEvent) {
   (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
 }
 
-function clamp01(value: number, max: number): number {
-  return Math.min(Math.max(value, 0), max);
-}
-
 function dropAt(event: PointerEvent): { x: number; y: number } | null {
   if (!press || event.pointerId !== press.id) return null;
-  const x = clamp01(press.fx + (event.clientX - press.x) / press.w, 1 - size.value.w / BOARD_W);
-  const y = clamp01(press.fy + (event.clientY - press.y) / press.h, 1 - size.value.h / BOARD_H);
-  return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+  return keepOnBoard(press.fx + (event.clientX - press.x) / press.w, press.fy + (event.clientY - press.y) / press.h, face.style, face.size);
 }
 
 function onPointerMove(event: PointerEvent) {

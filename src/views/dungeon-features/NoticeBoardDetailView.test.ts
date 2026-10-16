@@ -113,16 +113,17 @@ describe("NoticeBoardDetailView", () => {
     expect(w.getComponent(NoticeBoardViewport).props("pins")).toHaveLength(2);
   });
 
-  it("opens the editor for a pin picked from the list, and renumbers on a reorder", async () => {
+  it("opens the editor for a pin picked from the list, and trades two numbers on a reorder", async () => {
     const w = mountView();
     w.getComponent(NoticePinList).vm.$emit("select", "pin-grell");
     await flushPromises();
     expect(w.get("[data-editor]").attributes("data-pin")).toBe("pin-grell");
 
     w.getComponent(NoticePinList).vm.$emit("move", "pin-goat", 1);
-    expect(mocks.updatePin).toHaveBeenCalledWith({ id: "pin-grell", update: { sort_order: 0 } });
-    // The goat already holds sort_order 1, so only the pin that actually moved is written.
-    expect(mocks.updatePin).toHaveBeenCalledTimes(1);
+    // The goat (1) and the poster (2) trade numbers: two writes, nothing else on the board moves.
+    expect(mocks.updatePin).toHaveBeenCalledWith({ id: "pin-goat", update: { sort_order: 2 } });
+    expect(mocks.updatePin).toHaveBeenCalledWith({ id: "pin-grell", update: { sort_order: 1 } });
+    expect(mocks.updatePin).toHaveBeenCalledTimes(2);
   });
 
   it("pins a taken notice back up from the list", () => {

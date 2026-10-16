@@ -148,6 +148,20 @@ export function pinSize(style: NoticePinStyle, size: NoticePinSize): PinSize {
   return { w, h: Math.round(w * ASPECT[style]) };
 }
 
+/**
+ * The nearest spot that keeps a pin of this kind and size wholly on the board, to the thousandth the row stores. The
+ * far bound rounds down, so rounding never pushes a pin back over the edge. A drag clamps through it, and so does a
+ * change of size or kind, which grows the paper from its top-left corner.
+ */
+export function keepOnBoard(x: number, y: number, style: NoticePinStyle, size: NoticePinSize): { x: number; y: number } {
+  const { w, h } = pinSize(style, size);
+  const fit = (value: number, max: number) => {
+    const bound = Math.floor(max * 1000) / 1000;
+    return Math.min(Math.max(Math.round(value * 1000) / 1000, 0), bound);
+  };
+  return { x: fit(x, 1 - w / BOARD_W), y: fit(y, 1 - h / BOARD_H) };
+}
+
 export interface PinSlot {
   style: NoticePinStyle;
   size: NoticePinSize;

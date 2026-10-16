@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { QueryClient } from "@tanstack/vue-query";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import { createApp, defineComponent, h } from "vue";
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
@@ -24,6 +26,7 @@ import {
   updateNoticeBoardPin,
   deleteNoticeBoard,
   deleteNoticeBoardPin,
+  useUpdateNoticeBoardPin,
 } from "./useNoticeBoards";
 
 const FLAGON = "The Rusty Flagon's board";
@@ -162,5 +165,41 @@ describe("pin cache shape", () => {
     const qc = new QueryClient();
     qc.setQueryData(["notice-boards", "pins", "b1"], [{ id: "p1", x: 0.1 }]);
     expect(qc.getQueriesData({ queryKey: ["notice-boards"] })).toHaveLength(1);
+  });
+});
+
+describe("updating a pin", () => {
+  function mountWith<T>(qc: QueryClient, setup: () => T): T {
+    let out!: T;
+    const app = createApp(defineComponent({ setup() { out = setup(); return () => h("div"); } }));
+    app.use(VueQueryPlugin, { queryClient: qc });
+    app.mount(document.createElement("div"));
+    return out;
+  }
+
+  it("writes the saved row into both pin lists and leaves the refetch to the doorbell", async () => {
+    const qc = new QueryClient();
+    const before = { id: "p1", x: 0.1, updated_at: "t0" };
+    qc.setQueryData(["notice-boards", "pins", "b1"], [before]);
+    qc.setQueryData(["notice-boards", "campaign-pins", "camp-1"], [before]);
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    mocks.from.mockReturnValue(chain({ data: { id: "p1", x: 0.4, updated_at: "t1" }, error: null }));
+    const update = mountWith(qc, () => useUpdateNoticeBoardPin());
+    await update.mutateAsync({ id: "p1", update: { x: 0.4 } });
+    expect(qc.getQueryData(["notice-boards", "pins", "b1"])).toEqual([{ id: "p1", x: 0.4, updated_at: "t1" }]);
+    expect(qc.getQueryData(["notice-boards", "campaign-pins", "camp-1"])).toEqual([{ id: "p1", x: 0.4, updated_at: "t1" }]);
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it("puts the pin back and refetches when the write fails", async () => {
+    const qc = new QueryClient();
+    const before = { id: "p1", x: 0.1, updated_at: "t0" };
+    qc.setQueryData(["notice-boards", "pins", "b1"], [before]);
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    mocks.from.mockReturnValue(chain({ data: null, error: new Error("denied") }));
+    const update = mountWith(qc, () => useUpdateNoticeBoardPin());
+    await expect(update.mutateAsync({ id: "p1", update: { x: 0.4 } })).rejects.toThrow("denied");
+    expect(qc.getQueryData(["notice-boards", "pins", "b1"])).toEqual([before]);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["notice-boards"] });
   });
 });

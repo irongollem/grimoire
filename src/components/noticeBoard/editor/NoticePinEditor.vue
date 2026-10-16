@@ -92,7 +92,7 @@
       <SegmentedControl v-model="draft.size" :options="SIZE_OPTIONS" size="sm" />
     </div>
 
-    <NoticePinOffers :draft="draft" :campaign-id="pin.campaign_id" />
+    <NoticePinOffers :draft="draft" :campaign-id="pin.campaign_id" :locked="pin.status === 'taken'" />
 
     <div v-if="pin.status === 'taken'" class="rounded-md bg-muted/50 px-3 py-2 text-caption text-foreground">
       {{ stubLabel(previewFace) }}. Pin it back up and it hangs on the board again; nothing it revealed is undone.
@@ -139,6 +139,7 @@ import {
 import { IconDelete, IconUpload } from "@/lib/icons";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { stubLabel, STYLE_LABELS, toPinFace } from "@/lib/noticeBoard/faces";
+import { keepOnBoard } from "@/lib/noticeBoard/geometry";
 import { cn } from "@/lib/utils";
 import {
   NOTICE_PIN_SIZES,
@@ -186,6 +187,10 @@ const { status, dirty, saving, saveError, saveNow, reset, hold, release } = useA
   errorMessage: "Could not save this notice",
   async save(snapshot) {
     const next = draftToUpdate(snapshot);
+    // A bigger size or a taller kind grows the paper from its corner; one near the edge is nudged back on. The spot
+    // read here is the row's current one (a drag writes it straight into the cache), so this never puts a stale one back.
+    const spot = keepOnBoard(pin.x, pin.y, snapshot.style, snapshot.size);
+    if (spot.x !== pin.x || spot.y !== pin.y) Object.assign(next, spot);
     const saved = await update.mutateAsync({ id: pin.id, update: next });
     version.value = saved.updated_at;
     const written = next.image_url ?? null;
@@ -272,10 +277,12 @@ async function putUp() {
 }
 async function takeDown() {
   await saveNow();
+  if (dirty.value) return;
   await update.mutateAsync({ id: pin.id, update: { status: "draft" } });
 }
 async function pinBackUp() {
   await saveNow();
+  if (dirty.value) return;
   await backUp.mutateAsync(pin.id);
 }
 async function remove() {

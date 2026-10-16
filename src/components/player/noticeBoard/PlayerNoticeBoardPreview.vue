@@ -26,8 +26,9 @@ import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import NoticeBoardPin from "@/components/noticeBoard/NoticeBoardPin.vue";
 import NoticeBoardStateChip from "@/components/noticeBoard/NoticeBoardStateChip.vue";
 import NoticeBoardSurface from "@/components/noticeBoard/NoticeBoardSurface.vue";
+import { inReadingOrder } from "@/lib/noticeBoard/readingOrder";
 import type { PlayerNoticeBoard } from "@/types/noticeBoard.types";
 
 const { board, isNew = false } = defineProps<{ board: PlayerNoticeBoard; isNew?: boolean }>();
-const pins = computed(() => [...board.pins].sort((a, b) => a.sort_order - b.sort_order));
+const pins = computed(() => inReadingOrder(board.pins));
 </script>

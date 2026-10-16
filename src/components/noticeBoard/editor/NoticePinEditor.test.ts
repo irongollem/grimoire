@@ -141,6 +141,23 @@ describe("NoticePinEditor", () => {
     expect(mocks.update).toHaveBeenCalledWith({ id: "pin-goat", update: { status: "draft" } });
   });
 
+  it("leaves the pin where it is when the edit before Take down fails to save", async () => {
+    mocks.update.mockRejectedValueOnce(new Error("offline"));
+    const w = mountEditor(pinRow({ status: "up" }));
+    await w.get('input[id$="-headline"]').setValue("FOUND: one goat");
+    await find(w, "Take down")?.trigger("click");
+    await flushPromises();
+    expect(mocks.update).not.toHaveBeenCalledWith({ id: "pin-goat", update: { status: "draft" } });
+  });
+
+  it("nudges a pin back onto the board when a bigger size would hang it over the edge", async () => {
+    const w = mountEditor(pinRow({ status: "up", x: 1 - 300 / 1600 }));
+    await find(w, "Large")?.trigger("click");
+    await find(w, "Take down")?.trigger("click");
+    await flushPromises();
+    expect(mocks.update.mock.calls[0][0].update).toMatchObject({ size: "lg", x: 0.75, y: 0.2 });
+  });
+
   it("pins a taken notice back up and names who took it", async () => {
     const w = mountEditor(pinRow({ status: "taken", taken_by: "m1", taken_at: "2026-10-16T20:00:00Z", taken_session_number: 12 }));
     expect(w.text()).toContain("nothing it revealed is undone");
