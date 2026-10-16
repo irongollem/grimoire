@@ -1,6 +1,7 @@
 import type { App } from "vue";
 import type { Router } from "vue-router";
 import { isStaleChunkError } from "../staleChunkRecovery";
+import { isLeavingPage, watchPageLeaving } from "./pageLeaving";
 import type { CaptureHint, ErrorTrackingClient } from "./sentryClient";
 
 /**
@@ -74,7 +75,7 @@ function usableDsn(value: string | undefined): string | null {
 export { usableDsn };
 
 function route(error: unknown, hint?: CaptureHint): void {
-  if (!enabled || failed) return;
+  if (!enabled || failed || isLeavingPage()) return;
   if (client) {
     client.capture(error, hint);
     return;
@@ -142,6 +143,7 @@ export function initErrorTracking(app: App, router: Router): void {
   enabled = true;
   dsnInUse = dsn;
   appInUse = app;
+  watchPageLeaving();
 
   // Stand-in for the errorHandler that `Sentry.init({ app })` installs. Vue only
   // logs when no handler is set, so keep logging when there is nothing to chain.

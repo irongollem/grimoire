@@ -3,6 +3,7 @@ import type { App } from "vue";
 import { scrubEvent } from "@edge-shared/observability/scrub.ts";
 import { isStaleChunkError } from "../staleChunkRecovery";
 import { classifyPlainError } from "./plainErrors";
+import { isLeavingPage } from "./pageLeaving";
 
 /**
  * Error tracking (#644) — Sentry, EU region (`ingest.de.sentry.io`).
@@ -123,6 +124,9 @@ export function startErrorTracking(app: App, dsn: string): ErrorTrackingClient {
     denyUrls: DENY_URLS,
 
     beforeSend(event, hint) {
+      // A request the browser tore down because the page is unloading
+      // (pageLeaving.ts): a reload or a navigation, not a defect.
+      if (isLeavingPage()) return null;
       // A stale-chunk failure is an expected consequence of deploying while
       // tabs are open, and `installStaleChunkRecovery` already fixes it by
       // reloading. Reporting it would make every deploy look like an incident.
