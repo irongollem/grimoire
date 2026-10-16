@@ -66,7 +66,7 @@ All nav items defined in `src/lib/playerNav.ts` (`ALL_PLAYER_NAV`), 14 tabs in d
 | `/play`           | Hearth    | The player's home: between sessions, at the table and first visit. Its own doc: [player-hearth.md](player-hearth.md) (#977) |
 | `/play/character` | Character | Active character sheet — stats, skills, features, combat, wild shape            |
 | `/play/spells`    | Spellbook | Full spell management: prepared list, spellbook, innate spells, browse          |
-| `/play/journal`   | Journal   | Personal adventure journal (My Journal / Party Journal / Quest Log / Puzzles / DM Notes / Handouts tabs) |
+| `/play/journal`   | Journal   | Personal adventure journal (My Journal / Party Journal / Quest Log / Puzzles / DM Notes / Handouts / Notice Boards tabs) |
 | `/play/inventory` | Inventory | Paper doll, containers, coin purse, carry weight                                |
 | `/play/calendar`  | Calendar  | Current in-game date; upcoming/confirmed session dates                         |
 | `/play/party`     | People    | Your company (party strip) + the People ledger (#987)                           |
@@ -85,6 +85,7 @@ Additional sub-routes not in the nav bar:
 - `/play/encounter` — Live encounter view (mobile full-screen; tablet shows sidebar panel)
 - `/play/quests` — Redirects to `/play/journal?tab=quest-log`
 - `/play/quests/:id` — Quest detail with giver NPC, objectives, rewards, rich text description
+- `/play/notice-boards/:id` — A notice board, full height (`PlayerNoticeBoardView.vue`, route `play-notice-board`, `fullscreenMobile`); see "Notice boards"
 - `/play/handouts/:id` — A shared Scriptorium handout in the reader (`PlayerHandoutView.vue`); see "Handouts" under Adventure Journal
 - `/play/puzzles` — Redirects to `/play/journal?tab=puzzles`
 - `/play/puzzles/:id` — Puzzle detail with shared hints and player notes
@@ -386,7 +387,7 @@ Back route goes to `/play` (character sheet) if the player triggered it from the
 
 Route: `/play/journal` (`PlayerJournalView.vue`)
 
-A personal journal owned by each player character, and also the home of the Quest Log and Puzzles tabs (`/play/quests` and `/play/puzzles` redirect here; see those sections below). Six tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), **Quest Log**, **Puzzles**, **DM Notes** (read-only view of notes the DM has shared, read through `get_player_visible_notes` so DM-only secret blocks never arrive; a DM previewing a member sees exactly that member's notes) and **Handouts** (Scriptorium documents the DM has shared with this player).
+A personal journal owned by each player character, and also the home of the Quest Log and Puzzles tabs (`/play/quests` and `/play/puzzles` redirect here; see those sections below). Seven tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), **Quest Log**, **Puzzles**, **DM Notes** (read-only view of notes the DM has shared, read through `get_player_visible_notes` so DM-only secret blocks never arrive; a DM previewing a member sees exactly that member's notes) **Handouts** (Scriptorium documents the DM has shared with this player) and **Notice Boards** (see "Notice boards").
 
 Each entry has:
 
@@ -530,6 +531,26 @@ Personal preferences for the player's session:
 - **Screen** — Wake lock toggle (prevents device sleep during long sessions)
 - **App** — Install PWA prompt (native on Chrome/Edge, manual instructions for iOS/Android)
 - **Account** — Read-only email and current role; a young player's account signs in with a login name rather than an email, and is managed from the parent's own Account → Family page, not from here
+
+## Notice boards (#1064)
+
+A tavern board the DM pins quests to. Players find one in three places: the **Notice Boards** tab of the Journal (`/play/journal?tab=notice-boards`, a live miniature per board with a "Presenting now" chip and a new dot), a **Notice board** section on the panel of any place it hangs at (after Wares), and the full-screen overlay that opens by itself when the DM presents it. The page is `/play/notice-boards/:id` (`PlayerNoticeBoardView.vue`); opening it marks the board read, and a DM edit relights the dot. A board the DM has not revealed, or has taken down, reads "Notice board not available".
+
+**One component, two hosts.** `components/player/noticeBoard/PlayerNoticeBoard.vue` holds the viewport, the lean-in reader and the take flow; the page and `NoticeBoardPresenter.vue` both host it. Every device shows the same arrangement of the board (see "Screens and raster art" in the issue): the whole board when it fits, otherwise a readable floor you pan along.
+
+**Reading is never gated.** Tapping a pin that is up leans in on it (`NoticePinReader`, growing from the pin). Anyone can read any pin at any time. Only a notice that offers something shows **Take this notice**.
+
+**Take waits for the table.** The button is live only while the board is presented (`presented_at` set); otherwise it is disabled with "Taking a notice happens at the table, when your DM brings the party to the board." The RPC enforces the same rule, so the button is a courtesy, not the guard. The reason is grief: nobody can strip the board at 2am before the session, or take the notice the table is still arguing over, without the table watching. A take reveals the quest to the whole party and opens its handout, so the taker gains nothing the others lack.
+
+**Losing a race costs nothing.** Two taps at once resolve to one take. The second player sees "Chicory got there first." and the same handout opens for them. `already_taken` is an answer, not an error; only a real failure goes to the error toast. A taker gets "You took ... It is in your quest log." with an action to open the quest, and the handout opens.
+
+**Others' takes.** When a pin you can see goes from up to taken and this tab did not take it, an info toast says "Aria took ..." with a "Read it" action to its handout. The tear-off itself plays on every open board; the viewport does it.
+
+**The stub.** A taken notice leaves its tack and a torn corner; tapping it toggles a line "Taken by Chicory, session 3". The DM pinning the notice back up removes the stub and never un-reveals anything.
+
+**Present now.** `NoticeBoardPresenter.vue` is mounted in `PlayerLayout` (so the DM's own screens never open it). It opens a full-screen overlay when `usePresentedNoticeBoard()` returns a board the player has not dismissed. A presentation is keyed on board id plus `presented_at`; closing dismisses only that one, kept in memory (a reload mid-presentation brings the board back, as being at the table would). A new `presented_at` opens it again; the DM stopping closes it. It stays closed over the board's own page, and closes itself when a take or a toast action opens a handout, rather than covering it.
+
+Live data arrives through the campaign doorbell (`player-notice-boards` key), never a poll.
 
 ## Live Encounter (Player)
 

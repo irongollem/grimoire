@@ -16,6 +16,14 @@ export const useDungeonFeaturesUiStore = defineStore("ui:dungeonFeatures", () =>
     lootTablesTierFilter.value = "";
   }
 
+  // Notice Boards tab filters
+  const noticeBoardsSearch = ref("");
+  const noticeBoardsHasActiveFilters = computed(() => noticeBoardsSearch.value !== "");
+
+  function resetNoticeBoardsFilters() {
+    noticeBoardsSearch.value = "";
+  }
+
   // Dungeon Craft (Dungeon Features) UI state
   const dungeonFeaturesSearch = ref("");
   const dungeonFeaturesFilterType = ref("");
@@ -34,6 +42,9 @@ export const useDungeonFeaturesUiStore = defineStore("ui:dungeonFeatures", () =>
     lootTablesTierFilter,
     lootTablesHasActiveFilters,
     resetLootTablesFilters,
+    noticeBoardsSearch,
+    noticeBoardsHasActiveFilters,
+    resetNoticeBoardsFilters,
     dungeonFeaturesSearch,
     dungeonFeaturesFilterType,
     dungeonFeaturesHasActiveFilters,

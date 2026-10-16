@@ -20,7 +20,7 @@ async function fetchSitePlacements(spaceIds: readonly string[]): Promise<Locatio
   const { data, error } = await supabase
     .from("location_placements")
     .select(
-      "*, trap:traps(id, name), dungeon_feature:dungeon_features(id, name), roll_table:roll_tables(id, name), loot_table:loot_tables(id, name)",
+      "*, trap:traps(id, name), dungeon_feature:dungeon_features(id, name), roll_table:roll_tables(id, name), loot_table:loot_tables(id, name), notice_board:notice_boards(id, name)",
     )
     .in("location_id", spaceIds);
   if (error) throw error;

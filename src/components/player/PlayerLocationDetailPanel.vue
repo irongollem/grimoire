@@ -67,6 +67,14 @@
       <PlayerStoreWares :location-id="loc.id" />
     </div>
 
+    <!-- Boards hung here (#1064): the projection lists revealed boards only. -->
+    <div v-if="boardsHere.length" class="border-t border-border pt-3" data-place-boards>
+      <p class="text-label text-muted-foreground mb-2">Notice board</p>
+      <div class="flex flex-col gap-2">
+        <PlayerNoticeBoardPreview v-for="b in boardsHere" :key="b.id" :board="b" :is-new="isNoticeBoardNew(b.id, b.updated_at)" />
+      </div>
+    </div>
+
     <!-- Linked NPCs (when shared) -->
     <div v-if="loc.is_npcs_shared" class="border-t border-border pt-3">
       <p class="text-label text-muted-foreground mb-2">People in the Area</p>
@@ -106,6 +114,9 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import PlayerStoreWares from "@/components/locations/place/PlayerStoreWares.vue";
+import PlayerNoticeBoardPreview from "@/components/player/noticeBoard/PlayerNoticeBoardPreview.vue";
+import { usePlayerNoticeBoards } from "@/composables/noticeBoards/usePlayerNoticeBoards";
+import { useReadItems } from "@/composables/player/useReadItems";
 import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import LocationMap from "@/components/locations/map/LocationMap.vue";
 import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
@@ -137,6 +148,9 @@ defineEmits<{
   'open-npc': [npc: PlayerNpc];
 }>();
 
+const { data: noticeBoards } = usePlayerNoticeBoards();
+const { isNew: isNoticeBoardNew } = useReadItems("notice_board");
+const boardsHere = computed(() => (noticeBoards.value ?? []).filter((b) => b.location_ids.includes(loc.id)));
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(loc.location_type));
 const mapStack = computed(() => buildMapStack(loc));
 const playerPins = computed(() =>

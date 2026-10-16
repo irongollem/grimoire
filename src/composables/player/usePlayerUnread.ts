@@ -1,6 +1,7 @@
 import { computed } from "vue";
 import type { RouteLocationRaw } from "vue-router";
 import { useReadMarkers } from "@/composables/player/useReadItems";
+import { usePlayerNoticeBoards } from "@/composables/noticeBoards/usePlayerNoticeBoards";
 import { usePlayerHandouts } from "@/composables/scriptorium/usePlayerHandouts";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { usePlayerVisiblePuzzles } from "@/composables/dungeon-features/usePuzzles";
@@ -73,18 +74,22 @@ export function usePlayerUnread() {
   const { data: puzzles } = usePlayerVisiblePuzzles();
   const { data: handouts } = usePlayerHandouts();
   const { data: notes } = usePlayerVisibleNotes();
-  // One request for all four types (#999); they used to be four.
-  const { isNew: isNewOfType } = useReadMarkers(["quest", "puzzle", "handout", "note"]);
+  const { data: noticeBoards } = usePlayerNoticeBoards();
+  // One request for all five types (#999); they used to be four.
+  const { isNew: isNewOfType } = useReadMarkers(["quest", "puzzle", "handout", "note", "notice_board"]);
   const isQuestNew = (id: string, updatedAt?: string) => isNewOfType("quest", id, updatedAt);
   const isPuzzleNew = (id: string, updatedAt?: string) => isNewOfType("puzzle", id, updatedAt);
   const isHandoutNew = (id: string, updatedAt?: string) => isNewOfType("handout", id, updatedAt);
   const isNoteNew = (id: string, updatedAt?: string) => isNewOfType("note", id, updatedAt);
+  const isNoticeBoardNew = (id: string, updatedAt?: string) => isNewOfType("notice_board", id, updatedAt);
 
   const sections = computed(() => ({
     quests: anyUnread((quests.value ?? []).filter((q) => QUEST_LOG_STATUSES.includes(q.status)), isQuestNew),
     puzzles: anyUnread(puzzles.value, isPuzzleNew),
     handouts: anyUnread(handouts.value, isHandoutNew),
     dmNotes: anyUnread(notes.value, isNoteNew),
+    // The RPC lists revealed boards only, so any new one is news for the player.
+    noticeBoards: anyUnread(noticeBoards.value, isNoticeBoardNew),
   }));
 
   /** The Journal tile in the nav: anything new in any of its sections. */
@@ -104,5 +109,5 @@ export function usePlayerUnread() {
     }),
   );
 
-  return { sections, journal, unreadPaths, items };
+  return { sections, journal, unreadPaths, items, isNoticeBoardNew };
 }

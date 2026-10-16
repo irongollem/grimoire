@@ -21,7 +21,7 @@ import type {
 import { OBJECTIVES_KEY } from "@/lib/campaignLiveSync/registry";
 import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
 
-const QUESTS_KEY     = "quests";
+export const QUESTS_KEY = "quests";
 const REFS_KEY       = "quest_refs";
 const CONSEQUENCE_EVENTS_KEY = "quest_consequence_events";
 const QUEST_FILTER_ENTITIES_KEY = "quest_filter_entities";

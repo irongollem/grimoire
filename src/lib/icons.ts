@@ -239,6 +239,7 @@ export { Dna as IconSpecies }
 export { Brain as IconMind }
 export { Feather as IconFeather }
 export { Gift as IconLoot }
+export { Pin as IconNoticeBoard }
 export { ShoppingBag as IconShop }
 export { Truck as IconCaravan }
 export { Wine as IconTavern }

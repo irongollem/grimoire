@@ -1,13 +1,13 @@
 // ── Prep material anchored to a room (#788, epic #780) ───────────────────────
 //
 // A row places one piece of reusable prep material — a trap, a dungeon
-// feature, a roll table or a loot table — inside a location. It is a
+// feature, a roll table, a loot table or a notice board — inside a location. It is a
 // many-to-many join, not a `location_id` column on each of those tables:
 // a trap template may sit in several rooms, and `dungeon_features` in
 // particular carries no `campaign_id` at all (it's a user-scoped catalogue),
 // so a single-location column would make a reusable fixture single-use.
 //
-// Exactly one of the six `*_id` columns (the two `library_*` ones are #1060) is set — a real FK each, not a
+// Exactly one of the seven `*_id` columns (the two `library_*` ones are #1060, `notice_board_id` is #1064) is set — a real FK each, not a
 // polymorphic (kind, ref_id) pair — enforced by the
 // `location_placements_one_target` check constraint. There is deliberately
 // no `kind` column in the database; `placementKind` below derives it for
@@ -26,6 +26,8 @@ export interface LocationPlacement {
   /** Library trap / feature (#1060): referenced, not copied. Join the exclusive arc. */
   library_trap_id: string | null;
   library_dungeon_feature_id: string | null;
+  /** A notice board hanging at this place (#1064). A board belongs to one campaign and the policy only allows a place in that campaign. */
+  notice_board_id: string | null;
   /** DM note on what this entry is doing in this room, e.g. "triggers the
    *  portcullis at the far end" — the catalogue entry says what it is, this
    *  says what it's for here. */
@@ -47,6 +49,7 @@ export interface LocationPlacementInsert {
   loot_table_id?: string | null;
   library_trap_id?: string | null;
   library_dungeon_feature_id?: string | null;
+  notice_board_id?: string | null;
   note?: string | null;
   sort_order?: number | null;
   source_cell_key?: CellKey | null;
@@ -66,6 +69,7 @@ export const LOCATION_PLACEMENT_KINDS = [
   "dungeon_feature",
   "roll_table",
   "loot_table",
+  "notice_board",
 ] as const;
 export type LocationPlacementKind = (typeof LOCATION_PLACEMENT_KINDS)[number];
 
@@ -74,10 +78,11 @@ export const LOCATION_PLACEMENT_KIND_LABELS: Record<LocationPlacementKind, strin
   dungeon_feature: "Feature",
   roll_table: "Roll Table",
   loot_table: "Loot Table",
+  notice_board: "Notice Board",
 };
 
 /**
- * Which of the six exclusive-arc FK columns is set on a row. The database
+ * Which of the seven exclusive-arc FK columns is set on a row. The database
  * enforces exactly one via `location_placements_one_target`
  * (`num_nonnulls(...) = 1`), so this always resolves for a row that actually
  * came from the table — the thrown branch only fires for a malformed literal
@@ -87,12 +92,13 @@ export const LOCATION_PLACEMENT_KIND_LABELS: Record<LocationPlacementKind, strin
 export function placementKind(
   row: Pick<
     LocationPlacement,
-    "trap_id" | "dungeon_feature_id" | "roll_table_id" | "loot_table_id" | "library_trap_id" | "library_dungeon_feature_id"
+    "trap_id" | "dungeon_feature_id" | "roll_table_id" | "loot_table_id" | "library_trap_id" | "library_dungeon_feature_id" | "notice_board_id"
   >,
 ): LocationPlacementKind {
   if (row.trap_id || row.library_trap_id) return "trap";
   if (row.dungeon_feature_id || row.library_dungeon_feature_id) return "dungeon_feature";
   if (row.roll_table_id) return "roll_table";
   if (row.loot_table_id) return "loot_table";
+  if (row.notice_board_id) return "notice_board";
   throw new Error("location_placements row has no target set (violates location_placements_one_target)");
 }

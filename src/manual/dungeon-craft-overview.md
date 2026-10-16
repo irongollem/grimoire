@@ -3,13 +3,13 @@ title: "Dungeon Craft: Overview"
 section: Dungeon Craft
 section_order: 9
 order: 0
-summary: What Dungeon Craft contains and when to use each of its six tabs.
-keywords: dungeon craft, overview, traps, puzzles, roll tables, loot tables, features, cartographer, hidden doors
+summary: What Dungeon Craft contains and when to use each of its seven tabs.
+keywords: dungeon craft, overview, traps, puzzles, roll tables, loot tables, notice boards, features, cartographer, hidden doors
 ---
 
-**Dungeon Craft** is a hub of six preparation tools for designing complex environments and drawing the maps that go with them. Find it under **Compendium → Dungeon Craft** in the sidebar (`/dungeon-craft`). It isn't just for dungeons: use it any time you want scripted hazards, interactive puzzles, random tables, a loot drop, or a tile-based map.
+**Dungeon Craft** is a hub of seven preparation tools for designing complex environments and drawing the maps that go with them. Find it under **Compendium → Dungeon Craft** in the sidebar (`/dungeon-craft`). It isn't just for dungeons: use it any time you want scripted hazards, interactive puzzles, random tables, a loot drop, a board of notices for the party, or a tile-based map.
 
-## The six tabs
+## The seven tabs
 
 ### Features
 
@@ -31,13 +31,17 @@ Custom random tables for any die (d4 through d100). Roll directly in Grimoire an
 
 Define loot drop tables with specific items, random-rarity items, and currency pools. Roll for loot, preview results, and drop the chest directly to campaign chat for players to claim. See [Dungeon Craft: Loot Tables](#dungeon-craft-loot-tables).
 
+### Notice Boards
+
+Cork and plank boards where you pin notes, wanted posters, sealed letters and pictures. A notice can carry a quest and a handout, which reach the whole party when a player takes it at the table. Show a board to your players, or present it to open it on every screen, and hang it at a place in your Atlas. See [Dungeon Craft: Notice Boards](#dungeon-craft-notice-boards).
+
 ### Cartographer
 
-Grimoire's tile-based map editor, embedded here as a sixth tab so map-drawing sits next to the rest of your dungeon prep. It's the same editor as the standalone **Publish → Cartographer** entry in the sidebar (desktop only): both open the same list of maps. See [Cartographer: Overview](#cartographer-overview).
+Grimoire's tile-based map editor, embedded here as a seventh tab so map-drawing sits next to the rest of your dungeon prep. It's the same editor as the standalone **Publish → Cartographer** entry in the sidebar (desktop only): both open the same list of maps. See [Cartographer: Overview](#cartographer-overview).
 
 ## Populate Examples
 
-Features, Traproom, Enigmarium, and Roll Tables each have a **Populate Examples** button (labelled **Populate Traproom** on the Traps tab) that seeds curated template content: pre-built traps, puzzles, features, and tables to use as-is or as a starting point. It's safe to run more than once, since it skips anything you've already got by name. Loot Tables and Cartographer have no populate button.
+Features, Traproom, Enigmarium, and Roll Tables each have a **Populate Examples** button (labelled **Populate Traproom** on the Traps tab) that seeds curated template content: pre-built traps, puzzles, features, and tables to use as-is or as a starting point. It's safe to run more than once, since it skips anything you've already got by name. Loot Tables, Notice Boards and Cartographer have no populate button.
 
 ## AI generators
 

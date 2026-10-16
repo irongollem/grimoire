@@ -91,6 +91,7 @@ import {
 } from "@/composables/locations/useLocationPlacements";
 import type { LocationPlacementWithLocation } from "@/composables/locations/useLocationPlacements";
 import { useLocationTree } from "@/composables/locations/useLocations";
+import { useCampaignStore } from "@/stores/campaign";
 import type { LocationPlacementInsert, LocationPlacementKind } from "@/types/locationPlacement.types";
 import { placementColumnFor } from "@/lib/dungeon-features/library";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
@@ -111,8 +112,18 @@ const { locationOptions } = useLocationTree();
  *  the DM never hits the (location_id, <kind>_id) unique constraint from the UI. */
 const existingLocationIds = computed(() => new Set((placements.value ?? []).map((p) => p.location_id)));
 
+const campaign = useCampaignStore();
+
+/** The picker lists the campaign's places plus the all-campaign ones
+ *  (`campaign_id` null). A board belongs to one campaign and its insert policy
+ *  accepts only a place in that campaign, so for a board an all-campaign place
+ *  is not offered rather than offered and refused (#1064). */
 const locationPickerOptions = computed<LocationOption[]>(() =>
-  locationOptions.value.filter((l) => !existingLocationIds.value.has(l.id)),
+  locationOptions.value.filter(
+    (l) =>
+      !existingLocationIds.value.has(l.id) &&
+      (kind !== "notice_board" || l.campaign_id === campaign.activeCampaignId),
+  ),
 );
 
 const newLocationId = ref("");
@@ -124,6 +135,7 @@ function buildInsert(locationId: string): LocationPlacementInsert {
     case "dungeon_feature": return { ...base, [placementColumnFor("dungeon_feature", entityId)]: entityId };
     case "roll_table": return { ...base, roll_table_id: entityId };
     case "loot_table": return { ...base, loot_table_id: entityId };
+    case "notice_board": return { ...base, notice_board_id: entityId };
   }
 }
 

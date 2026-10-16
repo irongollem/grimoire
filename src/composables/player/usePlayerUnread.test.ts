@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   puzzles: [] as unknown[],
   handouts: [] as unknown[],
   notes: [] as unknown[],
+  noticeBoards: [] as unknown[],
   newIds: new Set<string>(),
 }));
 
@@ -24,6 +25,10 @@ vi.mock("@/composables/notes/useNotes", async () => {
   const { ref: r } = await import("vue");
   return { usePlayerVisibleNotes: () => ({ data: r(state.notes) }) };
 });
+vi.mock("@/composables/noticeBoards/usePlayerNoticeBoards", async () => {
+  const { ref: r } = await import("vue");
+  return { usePlayerNoticeBoards: () => ({ data: r(state.noticeBoards) }) };
+});
 vi.mock("@/composables/player/useReadItems", () => ({
   useReadMarkers: () => ({ isNew: (type: string, id: string) => state.newIds.has(`${type}:${id}`) }),
 }));
@@ -35,6 +40,7 @@ beforeEach(() => {
   state.puzzles = [];
   state.handouts = [];
   state.notes = [];
+  state.noticeBoards = [];
   state.newIds = new Set();
 });
 
@@ -62,9 +68,19 @@ describe("usePlayerUnread", () => {
     state.handouts = [{ id: "h1", updated_at: "2026-10-01" }];
     state.newIds.add("handout:h1");
     const { sections, journal, unreadPaths } = usePlayerUnread();
-    expect(sections.value).toEqual({ quests: false, puzzles: false, handouts: true, dmNotes: false });
+    expect(sections.value).toEqual({ quests: false, puzzles: false, handouts: true, dmNotes: false, noticeBoards: false });
     expect(journal.value).toBe(true);
     expect(unreadPaths.value).toEqual(["/play/journal"]);
+  });
+
+  it("lights the Journal when a revealed notice board is new, and not when it is read", () => {
+    state.noticeBoards = [{ id: "b1", name: "The Rusty Flagon's board", updated_at: "2026-10-15" }];
+    expect(usePlayerUnread().journal.value).toBe(false);
+    state.newIds = new Set(["notice_board:b1"]);
+    const { sections, journal, isNoticeBoardNew } = usePlayerUnread();
+    expect(sections.value.noticeBoards).toBe(true);
+    expect(journal.value).toBe(true);
+    expect(isNoticeBoardNew("b1", "2026-10-15")).toBe(true);
   });
 
   it("ignores a shared quest that the Quest Log does not list", () => {
@@ -95,7 +111,8 @@ describe("unread items", () => {
     state.puzzles = [{ id: "p1", name: "Riddle", updated_at: "2026-10-03" }];
     state.handouts = [{ id: "h1", title: "Map", updated_at: "2026-10-04" }];
     state.notes = [{ id: "n1", title: "Rumour", updated_at: "2026-10-01" }];
-    state.newIds = new Set(["quest:q1", "quest:q0", "puzzle:p1", "handout:h1", "note:n1"]);
+    state.noticeBoards = [{ id: "b1", name: "The Rusty Flagon's board", updated_at: "2026-10-05" }];
+    state.newIds = new Set(["quest:q1", "quest:q0", "puzzle:p1", "handout:h1", "note:n1", "notice_board:b1"]);
     const { items, sections } = usePlayerUnread();
     expect(items.value.map((i) => i.id)).toEqual(["h1", "p1", "q1", "n1"]);
     expect(items.value[0].to).toEqual({ name: "play-handout", params: { id: "h1" } });

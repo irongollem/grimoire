@@ -87,7 +87,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import PlacementNoteInput from "@/components/locations/place/PlacementNoteInput.vue";
 import PlacementRow from "@/components/locations/place/PlacementRow.vue";
 import LocationPlacementAdd from "@/components/locations/place/LocationPlacementAdd.vue";
-import { IconClose, IconDungeon, IconLoot, IconMap, IconTable, IconTrap } from "@/lib/icons";
+import { IconClose, IconDungeon, IconLoot, IconMap, IconNoticeBoard, IconTable, IconTrap } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import {
   useLocationPlacements,
@@ -117,6 +117,7 @@ const KIND_ICON = {
   dungeon_feature: IconDungeon,
   roll_table: IconTable,
   loot_table: IconLoot,
+  notice_board: IconNoticeBoard,
 } as const;
 
 
@@ -130,6 +131,7 @@ function nameOf(p: LocationPlacementWithEntity): string {
     case "dungeon_feature": return p.dungeon_feature?.name ?? "???";
     case "roll_table": return p.roll_table?.name ?? "???";
     case "loot_table": return p.loot_table?.name ?? "???";
+    case "notice_board": return p.notice_board?.name ?? "???";
   }
 }
 
@@ -142,6 +144,7 @@ function hrefOf(p: LocationPlacementWithEntity): string {
     case "dungeon_feature": return `/dungeon-features/${p.dungeon_feature_id ?? p.library_dungeon_feature_id}`;
     case "roll_table": return `/roll-tables/${p.roll_table_id}`;
     case "loot_table": return `/loot-tables/${p.loot_table_id}`;
+    case "notice_board": return `/notice-boards/${p.notice_board_id}`;
   }
 }
 

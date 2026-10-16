@@ -14,7 +14,7 @@ import type { LocationType } from "@/types/location.types";
 
 /**
  * A placement row joined to the one referenced entity's display name — never
- * more than one of the four is non-null, mirroring the exclusive-arc FKs on
+ * more than one of the five is non-null, mirroring the exclusive-arc FKs on
  * the row itself (see `placementKind` in the types file).
  *
  * Resolving the name via an embedded select rather than cross-referencing
@@ -29,6 +29,7 @@ export interface LocationPlacementWithEntity extends LocationPlacement {
   dungeon_feature: { id: string; name: string } | null;
   roll_table: { id: string; name: string } | null;
   loot_table: { id: string; name: string } | null;
+  notice_board: { id: string; name: string } | null;
 }
 
 /**
@@ -60,6 +61,7 @@ function targetOf(row: {
   loot_table_id?: string | null;
   library_trap_id?: string | null;
   library_dungeon_feature_id?: string | null;
+  notice_board_id?: string | null;
 }): { kind: LocationPlacementKind; id: string } {
   const normalized = {
     trap_id: row.trap_id ?? null,
@@ -68,6 +70,7 @@ function targetOf(row: {
     loot_table_id: row.loot_table_id ?? null,
     library_trap_id: row.library_trap_id ?? null,
     library_dungeon_feature_id: row.library_dungeon_feature_id ?? null,
+    notice_board_id: row.notice_board_id ?? null,
   };
   const kind = placementKind(normalized);
   const id =
@@ -87,7 +90,7 @@ async function fetchLocationPlacements(locationId: string): Promise<LocationPlac
   const { data, error } = await supabase
     .from("location_placements")
     .select(
-      "*, trap:traps(id, name), library_trap:library_traps(id, name), dungeon_feature:dungeon_features(id, name), library_dungeon_feature:library_dungeon_features(id, name), roll_table:roll_tables(id, name), loot_table:loot_tables(id, name)",
+      "*, trap:traps(id, name), library_trap:library_traps(id, name), dungeon_feature:dungeon_features(id, name), library_dungeon_feature:library_dungeon_features(id, name), roll_table:roll_tables(id, name), loot_table:loot_tables(id, name), notice_board:notice_boards(id, name)",
     )
     .eq("location_id", locationId)
     .order("sort_order", { ascending: true, nullsFirst: false })

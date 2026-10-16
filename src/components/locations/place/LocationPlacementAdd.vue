@@ -22,8 +22,8 @@
 <script setup lang="ts">
 /**
  * The "Prepared Here" add row (#788), split out of `LocationPlacements` so the
- * four pick lists it needs (traps, dungeon features, roll tables, loot
- * tables) are read when Build mounts it, not on every place the DM merely
+ * five pick lists it needs (traps, dungeon features, roll tables, loot
+ * tables, notice boards) are read when Build mounts it, not on every place the DM merely
  * selects (#972, story 11). The parent renders it in Build only.
  */
 import { computed, ref, watch } from "vue";
@@ -31,7 +31,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
-import { IconDungeon, IconLoot, IconTable, IconTrap } from "@/lib/icons";
+import { IconDungeon, IconLoot, IconNoticeBoard, IconTable, IconTrap } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useCreateLocationPlacement } from "@/composables/locations/useLocationPlacements";
 import type { LocationPlacementWithEntity } from "@/composables/locations/useLocationPlacements";
@@ -40,6 +40,7 @@ import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeo
 import { placementColumnFor, placementTargetId } from "@/lib/dungeon-features/library";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useLootTables } from "@/composables/dungeon-features/useLootTables";
+import { useNoticeBoards } from "@/composables/noticeBoards/useNoticeBoards";
 import { LOCATION_PLACEMENT_KIND_LABELS, placementKind } from "@/types/locationPlacement.types";
 import type { LocationPlacementInsert, LocationPlacementKind } from "@/types/locationPlacement.types";
 
@@ -56,6 +57,7 @@ const KIND_OPTIONS: SegmentedOption<LocationPlacementKind>[] = [
   { value: "dungeon_feature", label: "Feature", icon: IconDungeon },
   { value: "roll_table", label: "Roll Table", icon: IconTable },
   { value: "loot_table", label: "Loot Table", icon: IconLoot },
+  { value: "notice_board", label: "Notice Board", icon: IconNoticeBoard },
 ];
 
 // Default (browsing) scope for the picker — general + active campaign, same
@@ -67,6 +69,8 @@ const { data: pickableTraps } = useTrapIndex();
 const { data: dungeonFeatures } = useDungeonFeatureIndex();
 const { data: pickableRollTables } = useRollTables();
 const { data: pickableLootTables } = useLootTables();
+// Boards are read for the active campaign only, which is the one place a board may hang (#1064).
+const { data: pickableNoticeBoards } = useNoticeBoards();
 
 const newKind = ref<LocationPlacementKind>("trap");
 const newEntityId = ref("");
@@ -81,10 +85,11 @@ const existingIdsByKind = computed(() => {
     dungeon_feature: new Set(),
     roll_table: new Set(),
     loot_table: new Set(),
+    notice_board: new Set(),
   };
   for (const p of placements) {
     const kind = placementKind(p);
-    const id = placementTargetId(p) ?? p.roll_table_id ?? p.loot_table_id;
+    const id = placementTargetId(p) ?? p.roll_table_id ?? p.loot_table_id ?? p.notice_board_id;
     if (id) sets[kind].add(id);
   }
   return sets;
@@ -101,6 +106,7 @@ const pickerOptions = computed<Array<{ id: string; name: string }>>(() => {
     case "dungeon_feature": return (dungeonFeatures.value ?? []).filter((f) => !existing.has(f.id));
     case "roll_table": return (pickableRollTables.value ?? []).filter((t) => !existing.has(t.id));
     case "loot_table": return (pickableLootTables.value ?? []).filter((t) => !existing.has(t.id));
+    case "notice_board": return (pickableNoticeBoards.value ?? []).filter((b) => !existing.has(b.id));
     default: return [];
   }
 });
@@ -112,6 +118,7 @@ function buildInsert(kind: LocationPlacementKind, entityId: string): LocationPla
     case "dungeon_feature": return { ...base, [placementColumnFor("dungeon_feature", entityId)]: entityId };
     case "roll_table": return { ...base, roll_table_id: entityId };
     case "loot_table": return { ...base, loot_table_id: entityId };
+    case "notice_board": return { ...base, notice_board_id: entityId };
   }
 }
 

@@ -259,6 +259,9 @@
        account discovers it needs to become parent-managed. -->
   <TermsGate />
 
+  <!-- "Present now" (#1064): the board the DM brings the table to opens on every player's screen. -->
+  <NoticeBoardPresenter />
+
   <!-- The death notice (#982): once per person, never over a live encounter. -->
   <MemorialTolling :suppressed="anyRunning" />
 
@@ -341,6 +344,7 @@
 
 <script setup lang="ts">
 import MemorialTolling from "@/components/memorials/MemorialTolling.vue";
+import NoticeBoardPresenter from "@/components/player/noticeBoard/NoticeBoardPresenter.vue";
 import BrandLogo from "@/components/brand/BrandLogo.vue";
 import { ref, computed, watch, defineAsyncComponent, useTemplateRef } from "vue";
 import { useRoute, useRouter } from "vue-router";

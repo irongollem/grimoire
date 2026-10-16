@@ -41,6 +41,7 @@ function placement(over: Partial<LocationPlacementWithEntity> = {}): LocationPla
     loot_table_id: null,
     library_trap_id: null,
     library_dungeon_feature_id: null,
+    notice_board_id: null,
     note: null,
     sort_order: null,
     source_cell_key: null,
@@ -50,6 +51,7 @@ function placement(over: Partial<LocationPlacementWithEntity> = {}): LocationPla
     dungeon_feature: null,
     roll_table: null,
     loot_table: null,
+    notice_board: null,
     ...over,
   };
 }

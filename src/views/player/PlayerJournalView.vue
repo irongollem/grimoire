@@ -17,7 +17,7 @@
           :options="sortOptions"
         />
         <AppButton
-          v-if="!activeTome && activeTab !== 'dm-notes' && activeTab !== 'handouts' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
+          v-if="!activeTome && activeTab !== 'dm-notes' && activeTab !== 'handouts' && activeTab !== 'notice-boards' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
           variant="primary"
           size="md"
           :icon="IconAdd"
@@ -175,6 +175,14 @@
       :format-date="formatDate"
     />
 
+    <!-- Notice Boards tab -->
+    <PlayerJournalNoticeBoardsTab
+      v-else-if="activeTab === 'notice-boards'"
+      :is-loading="loadingNoticeBoards"
+      :boards="noticeBoards ?? []"
+      :is-new="isNoticeBoardNew"
+    />
+
     <!-- Party Journal tab -->
     <PlayerJournalPartyTab
       v-else-if="activeTab === 'party'"
@@ -245,6 +253,8 @@ import PlayerJournalMyTab from "./PlayerJournalMyTab.vue";
 import PlayerJournalPartyTab from "./PlayerJournalPartyTab.vue";
 import PlayerJournalDmNotesTab from "./PlayerJournalDmNotesTab.vue";
 import PlayerJournalHandoutsTab from "./PlayerJournalHandoutsTab.vue";
+import PlayerJournalNoticeBoardsTab from "./PlayerJournalNoticeBoardsTab.vue";
+import { usePlayerNoticeBoards } from "@/composables/noticeBoards/usePlayerNoticeBoards";
 import { usePlayerHandouts } from "@/composables/scriptorium/usePlayerHandouts";
 import PlayerJournalQuestLogTab from "./PlayerJournalQuestLogTab.vue";
 import PlayerJournalPuzzlesTab from "./PlayerJournalPuzzlesTab.vue";
@@ -378,6 +388,8 @@ const { isNew: isNoteNew } = useReadItems("note");
 const { isNew: isQuestNew } = useReadItems("quest");
 const { isNew: isHandoutNew } = useReadItems("handout");
 const { data: handouts, isLoading: loadingHandouts } = usePlayerHandouts();
+const { isNew: isNoticeBoardNew } = useReadItems("notice_board");
+const { data: noticeBoards, isLoading: loadingNoticeBoards } = usePlayerNoticeBoards();
 const { mutate: markRead } = useMarkRead();
 
 const selectedNote = ref<string | null>(null);
@@ -395,8 +407,8 @@ const router = useRouter();
 // admitting an arbitrary tome item id — TabBar's own T stays inferred as
 // this widened type wherever activeTab feeds it, so the static tabs simply
 // show none-active while a tome tab is open.
-type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes" | "handouts" | (string & {});
-const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "puzzles", "dm-notes", "handouts"];
+type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes" | "handouts" | "notice-boards" | (string & {});
+const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "puzzles", "dm-notes", "handouts", "notice-boards"];
 
 // One tab per document item currently in the party's inventory — derived
 // from the inventory + player-visible-items queries rather than stored
@@ -433,6 +445,7 @@ const TABS = computed(() => [
   { id: "puzzles"   as const, label: "Puzzles",       count: puzzles.value?.length ?? 0, dot: unread.value.puzzles },
   { id: "dm-notes"  as const, label: "DM Notes",      count: dmNotes.value.length, dot: unread.value.dmNotes },
   { id: "handouts"  as const, label: "Handouts",      count: handouts.value?.length ?? 0, dot: unread.value.handouts },
+  { id: "notice-boards" as const, label: "Notice Boards", count: noticeBoards.value?.length ?? 0, dot: unread.value.noticeBoards },
 ]);
 
 // A tab dot is the same rule as the card dots below it (usePlayerUnread), so a

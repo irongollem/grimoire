@@ -261,7 +261,7 @@ export function resolvePreparedMarks(input: PreparedMarksInput): PreparedMark[] 
 
   for (const placement of input.placements) {
     const kind = placementKind(placement);
-    if (kind === "roll_table" || kind === "loot_table") continue; // never drawn
+    if (kind === "roll_table" || kind === "loot_table" || kind === "notice_board") continue; // never drawn
 
     if (kind === "trap") {
       const trap = trapsById.get(placementTargetId(placement)!);

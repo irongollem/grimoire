@@ -79,7 +79,7 @@ than one cursor through that same ledger at once.
   (`waiting`) for as long as another open thread of the quest could still
   reach the beat by some route (#1011), then merges them into the earliest
   arrival and fires the beat's arrival rules exactly once. It no longer waits
-  on every *authored* incoming route: an alternative ending (one route will
+  on every _authored_ incoming route: an alternative ending (one route will
   never be walked because its sibling was) needs no funnel beat, and a thread
   that was never opened, has ended, or stands somewhere the join is
   unreachable from never strands it.
@@ -109,7 +109,7 @@ than one cursor through that same ledger at once.
   dates" under the data model.
 - **A route's gate is a set of conditions, not one (#1011).** Any number of
   conditions, combined by the route's `gate_mode` (`all` | `any`); each
-  condition is an objective plus the *set* of statuses that satisfy it, and
+  condition is an objective plus the _set_ of statuses that satisfy it, and
   `dormant` is nameable at last ("unless her trust is broken" is
   `{dormant, pending, complete}`).
 - **Settled is final for rules (#1011).** `complete` and `fail` move only an
@@ -418,7 +418,7 @@ rules fired."), `QuestClockDial.vue` (display only; `lib/quests/clockDial.ts`).
 **Backup (`useCampaignBackup`).** A backup carries `quest_clocks` (absent from
 older backups, read as empty). Restore inserts only the authored columns
 (`filled` and `created_by` have no client grant), so a restored clock starts
-empty, and it inserts clocks *before* the rules that watch or tick them. The
+empty, and it inserts clocks _before_ the rules that watch or tick them. The
 rule columns `on_clock_id`, `target_clock_id`, `target_location_id` and
 `target_faction_id` are remapped like every other FK. Objective rows
 (`due_*`), edges (`gate_mode`) and factions (`party_standing`) are carried
@@ -841,7 +841,7 @@ only, unlike the beat attacher, which also offers account-wide ones. `action_pay
 It performs at once when `after_days = 0`, can be delayed or held like any
 verb, and undo withdraws only the recipients it added. The beat payoff list
 adds it as the "Handout" quick-add; the Advance dialog reads "The party
-receives <title>". The runtime RPC's payoff and held payloads must carry
+receives `<title>`". The runtime RPC's payoff and held payloads must carry
 `target_document_id` and the title as `target_document` for the Advance dialog
 to name it. In the cockpit, an attached handout's contained view has a "Give to
 players" button, which is the Scriptorium's own `HandoutShareControl`
@@ -879,7 +879,7 @@ quest-settled condition (`on_objective_id`/`on_objective_status`, or
 (so the `scope` prop and its beat-only branches are gone, not kept as dead
 code paths). Both surfaces still share the same action half: the ledger verbs, `tick_clock`
 and the eleven world actions, plus the delay field. The four targeted verbs of
-#1011 (`tick_clock`, `move_npc`, `add_companion`, `shift_faction_standing`)
+\#1011 (`tick_clock`, `move_npc`, `add_companion`, `shift_faction_standing`)
 share one set of fields, `QuestWorldVerbFields.vue`, fed by
 `useWorldVerbTargets` and validated by `worldVerbReady` / `worldVerbInsertFields`
 in `lib/quests/consequences.ts`, so the two panels cannot drift. A clock-fills condition
@@ -966,6 +966,14 @@ renders as "Rumoured: …". Undo restores `undiscovered` **only if the quest is
 still `active`** — one the DM has since settled is not yanked back into hiding
 by an unrelated step-back — and does not revert the beat's visibility: a rumour
 heard is not unheard, and the DM can hide the beat.
+
+**Revealing a quest to the party is one function: `private.reveal_quest_to(campaign, quest, members)`**
+(`20261015234112`, #1064). It is `unlock_quest`'s write plus the recipients, which `unlock_quest` alone never adds: a
+quest nobody may see is not one the party has heard of. Two paths call it. A shared handout that embeds the quest
+(`apply_handout_reveals`), and a player taking a notice from a presented notice board (`take_notice_board_pin`), the
+first quest reveal a player sets off rather than the DM. The campaign is a parameter, not a courtesy: a notice may name
+a member's own campaign-less quest (the same-campaign trigger allows it), and the take, running as a definer, must not
+publish it. A quest outside the campaign is left alone. Add a third path through this function, never beside it.
 
 **`unlock_quest` deliberately leaves `parent_quest_id` alone.** "Unlocked by"
 and "child of" are different relations: one trigger can legitimately open both a
@@ -1277,7 +1285,7 @@ canvas.
   `converge_mode` existed since #850 but had **no editor anywhere**: it could
   only be set by the designer or the database. The control shows only where
   it can matter, `convergeMatters`: the beat has at least one incoming route
-  *and* the quest has a parallel route somewhere (a quest of choices alone has
+  _and_ the quest has a parallel route somewhere (a quest of choices alone has
   one cursor and nothing to wait for). Saves on click through
   `useUpdateQuestBeat`.
 - **"Add parallel route"** opens the beat composer already carrying
@@ -1332,8 +1340,8 @@ fires on `!bound || !waysOut` and ignores the floor plan: the board's chip
 answers "can the party walk this site", while this header only has to agree
 with the rows underneath it. A site missing only its map therefore shows
 caution here and no gap chip on the board, and both are right. The third row
-also moved from `unboundSpaces > 0` to `caption !== null`, so the *untraced
-rooms* gap — which `siteReadiness()` has always computed and captioned, and
+also moved from `unboundSpaces > 0` to `caption !== null`, so the _untraced
+rooms_ gap — which `siteReadiness()` has always computed and captioned, and
 which `bound` counts — finally has a line it can appear on instead of being a
 gap with no row.
 
@@ -1384,11 +1392,11 @@ exactly where the old panel was.
 
 `QuestBeatFillBar.vue`, mounted at the top of `QuestBeatFields.vue`, proposes the beat's **title, read-aloud and DM lead** from the quest around it. It shows only when AI is enabled; steer box, cost badge and button. State: `src/ai/useQuestBeatFill.ts` (label "Beat"). `generate-entity-text` with `generator: "quest_beat"`, ledger reason `quest_beat_generation`.
 
-*Grounding* (`buildBeatFillConstraints`, `src/lib/quests/beatFill.ts`): the quest's title and summary; this beat's kind, current title and an excerpt of its notes; the place it is staged at; the story thread when the quest runs more than one; up to three beats that come before and three it leads to (title plus a 160 character excerpt of each lead, so the fill continues the flow rather than restating it); and the open (dormant or pending) objectives. Every line is clipped to 400 characters and there are at most 12, because either overrun is a 400 from the server. `normalizeBeatFill` accepts a result with read-aloud or DM lead; a title alone is not a fill.
+_Grounding_ (`buildBeatFillConstraints`, `src/lib/quests/beatFill.ts`): the quest's title and summary; this beat's kind, current title and an excerpt of its notes; the place it is staged at; the story thread when the quest runs more than one; up to three beats that come before and three it leads to (title plus a 160 character excerpt of each lead, so the fill continues the flow rather than restating it); and the open (dormant or pending) objectives. Every line is clipped to 400 characters and there are at most 12, because either overrun is a 400 from the server. `normalizeBeatFill` accepts a result with read-aloud or DM lead; a title alone is not a fill.
 
-*It writes into the beat page's draft, not the database.* `applyBeatFill` (`beatDraft.ts`) sets the fields the fill returned and keeps the rest, then the beat autosaves like any edit. If the beat already has read-aloud or lead text, the DM is asked "Replace the existing text?" **before** the spend, so declining costs nothing.
+_It writes into the beat page's draft, not the database._ `applyBeatFill` (`beatDraft.ts`) sets the fields the fill returned and keeps the rest, then the beat autosaves like any edit. If the beat already has read-aloud or lead text, the DM is asked "Replace the existing text?" **before** the spend, so declining costs nothing.
 
-*Provenance signature:* the draft carries `ai_provenance` plus `ai_content`, a signature of title, lead and read-aloud at the moment the fill landed (`contentSignature`). `questBeatDraftToUpdate` keeps the provenance as generated while the live text still matches that signature and stores `markEdited()` once the DM changes any of the three; edits to unrelated fields (such as how it plays) do not flip it, and a refetched row compares equal by value so it is not seen as a change.
+_Provenance signature:_ the draft carries `ai_provenance` plus `ai_content`, a signature of title, lead and read-aloud at the moment the fill landed (`contentSignature`). `questBeatDraftToUpdate` keeps the provenance as generated while the live text still matches that signature and stores `markEdited()` once the DM changes any of the three; edits to unrelated fields (such as how it plays) do not flip it, and a refetched row compares equal by value so it is not seen as a change.
 
 ### The run cockpit (frame `04 Run`)
 
@@ -1652,7 +1660,7 @@ story's file. `SiteMapRoomRules.vue` therefore authors the four ledger verbs
 only (`raise`/`reveal`/`complete`/`fail`), which is the case the complaint
 actually named ("Cleared → complete objective X") — a DM who wants a world
 action on a room-fact condition still has it, on the quest's own overview.
-The room panel's existing-rules list still *displays* any rule on that room
+The room panel's existing-rules list still _displays_ any rule on that room
 regardless of which surface authored it, via the shared
 `describeQuestConsequenceAction` — a world-action rule created on
 `QuestRulesPanel.vue` shows there too, just not addable from the room.
@@ -1825,12 +1833,12 @@ route by **spawning a thread** in the same transaction — its own cursor,
 `enter` transition and arrival rules — while the calling thread's cursor does
 not move. Arriving at a `converge_mode: 'all'` beat parks the thread
 (`private.settle_thread_arrival`, via `compute_arrival_status`) for as long as
-`private.quest_join_blocked` is true, i.e. while any *other* live thread of the
+`private.quest_join_blocked` is true, i.e. while any _other_ live thread of the
 quest (one that can still move) could reach the beat
 (`private.quest_beat_reaches`: a recursive walk of every route kind, gates
 ignored because a closed gate can open, archived beats not walked). Threads
-already parked at this join are the ones being waited *for*, and a thread
-parked at a *different* join does not block: it cannot move until that join
+already parked at this join are the ones being waited _for_, and a thread
+parked at a _different_ join does not block: it cannot move until that join
 releases, so counting it let two joins that reach each other (a loop) wait on
 each other forever. Once nothing can
 still reach it, `private.settle_converge_joins` releases the join: the earliest
@@ -1852,7 +1860,7 @@ from `close_quest_thread` (including a thread that never had a cursor, which
 nothing, since ending a merged thread can release another join. A join with a
 single waiting thread "merges" into that thread alone; that is how a join is
 released when the thread it waited on ends elsewhere. Before #1011 the only
-trigger was another thread *arriving*, so closing the straggler left its
+trigger was another thread _arriving_, so closing the straggler left its
 siblings parked forever. The DM closing a thread is therefore a join-releasing
 act, and needs nothing extra.
 
@@ -1936,7 +1944,7 @@ rather than a cleared list and a banner. "Select all" picks only unplayed
 beats, and ticking a beat already in the record shows a warning that recording
 it again appends a second entry. The single Record button became two actions
 that say what they do — **Mark as played** (`placeCursor: false`) and **Mark as
-played and put the party at “<last selected>”** (`placeCursor: true`). The
+played and put the party at “`<last selected>`”** (`placeCursor: true`). The
 first version (7 Sep 2026) had none of this: boxes cleared on success with no
 visible change, and re-recording duplicated history silently.
 
@@ -2122,7 +2130,7 @@ there.
   "on arrival"; the straggler a join waits for is exactly the one that never
   arrives.
 - **The server never closes a quest.** When the ledger settles the DM is
-  *asked* (`QuestSettledPrompt`); no trigger writes `quests.status`. A quest
+  _asked_ (`QuestSettledPrompt`); no trigger writes `quests.status`. A quest
   can be settled with objectives still open, and a ledger can settle before
   the story is over. Do not add the automatic version.
 - **Clocks do not tick on a calendar, and deadlines are not clocks.** They are

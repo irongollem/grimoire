@@ -9,6 +9,8 @@ import {
   BEATS_KEY,
   QUEST_RUNTIME_QUERY_KEYS,
   LISTENER_ONLY_SIGNALS,
+  NOTICE_BOARDS_KEY,
+  PLAYER_NOTICE_BOARDS_KEY,
   CAMPAIGN_SECRETS_KEY,
   PLAYER_FACTIONS_KEY,
   PLAYER_NOTES_KEY,
@@ -134,6 +136,15 @@ describe("live sync registries", () => {
     // the only thing that reaches them.
     expect(SIGNAL_KEYS.get("notes_player")).toContain(PLAYER_NOTES_KEY);
     expect(SIGNAL_KEYS.get("factions_player")).toContain(PLAYER_FACTIONS_KEY);
+  });
+
+  it("refreshes the DM's and the players' notice boards from either table, and from a placement", () => {
+    // #1064: a pin the DM moves, or one a player tears down, reaches every open
+    // board; a placement hangs a board at a place the player's panel reads.
+    for (const signal of ["notice_boards", "notice_board_pins"]) {
+      expect([...(SIGNAL_KEYS.get(signal) ?? [])].sort(), signal).toEqual([NOTICE_BOARDS_KEY, PLAYER_NOTICE_BOARDS_KEY].sort());
+    }
+    expect(SIGNAL_KEYS.get("location_placements")).toContain(PLAYER_NOTICE_BOARDS_KEY);
   });
 
   it("defines every signal once", () => {

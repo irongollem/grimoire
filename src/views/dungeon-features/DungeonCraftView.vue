@@ -106,6 +106,17 @@
         />
       </template>
 
+      <!-- Notice Boards tab actions -->
+      <template v-else-if="activeTab === 'notice-boards'">
+        <ListActionButton
+          variant="primary"
+          :icon="IconAdd"
+          label="New Notice Board"
+          mobile-label="Board"
+          @click="router.push('/notice-boards/new')"
+        />
+      </template>
+
       <!-- Cartographer tab actions -->
       <template v-else-if="activeTab === 'cartographer'">
         <ListActionButton
@@ -146,6 +157,7 @@
     <DungeonCraftTrapsTab v-else-if="activeTab === 'traps'" />
     <DungeonCraftRollTablesTab v-else-if="activeTab === 'roll-tables'" ref="rollTablesTabRef" />
     <DungeonCraftLootTablesTab v-else-if="activeTab === 'loot-tables'" />
+    <DungeonCraftNoticeBoardsTab v-else-if="activeTab === 'notice-boards'" />
     <DungeonCraftCartographerTab v-else-if="activeTab === 'cartographer'" />
     <DungeonCraftPuzzlesTab v-else />
   </PageHeader>
@@ -175,6 +187,7 @@ import DungeonCraftTrapsTab from "@/components/dungeon-features/DungeonCraftTrap
 import DungeonCraftPuzzlesTab from "@/components/dungeon-features/DungeonCraftPuzzlesTab.vue";
 import DungeonCraftRollTablesTab from "@/components/dungeon-features/DungeonCraftRollTablesTab.vue";
 import DungeonCraftLootTablesTab from "@/components/dungeon-features/DungeonCraftLootTablesTab.vue";
+import DungeonCraftNoticeBoardsTab from "@/components/dungeon-features/DungeonCraftNoticeBoardsTab.vue";
 import DungeonCraftCartographerTab from "@/components/dungeon-features/DungeonCraftCartographerTab.vue";
 
 const route  = useRoute();
@@ -184,17 +197,18 @@ const puzzlesUi = usePuzzlesUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
-type Tab = "features" | "traps" | "puzzles" | "roll-tables" | "loot-tables" | "cartographer";
+type Tab = "features" | "traps" | "puzzles" | "roll-tables" | "loot-tables" | "notice-boards" | "cartographer";
 const TABS: { id: Tab; label: string }[] = [
   { id: "features",     label: "Features" },
   { id: "traps",        label: "Traproom" },
   { id: "puzzles",      label: "Enigmarium" },
   { id: "roll-tables",  label: "Roll Tables" },
   { id: "loot-tables",  label: "Loot Tables" },
+  { id: "notice-boards", label: "Notice Boards" },
   { id: "cartographer", label: "Cartographer" },
 ];
 
-const VALID_TABS: Tab[] = ["features", "traps", "puzzles", "roll-tables", "loot-tables", "cartographer"];
+const VALID_TABS: Tab[] = ["features", "traps", "puzzles", "roll-tables", "loot-tables", "notice-boards", "cartographer"];
 const rawTab = route.query.tab as string | undefined;
 const activeTab = ref<Tab>(
   VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "features",
@@ -207,6 +221,7 @@ const TAB_LAYOUTS = {
   puzzles: useListLayout("puzzles", "grid"),
   "roll-tables": useListLayout("roll-tables", "grid"),
   "loot-tables": useListLayout("loot-tables", "grid"),
+  "notice-boards": useListLayout("notice-boards", "grid"),
 } as const;
 
 const activeLayout = computed<ListLayout>({
@@ -224,8 +239,8 @@ const showLayoutToggle = computed(() => {
   return true;
 });
 
-// The library's four kinds are the first four tabs; Loot Tables and the Cartographer have none.
-const showSources = computed(() => !["loot-tables", "cartographer"].includes(activeTab.value));
+// The library's four kinds are the first four tabs; Loot Tables, Notice Boards and the Cartographer have none.
+const showSources = computed(() => !["loot-tables", "notice-boards", "cartographer"].includes(activeTab.value));
 const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLibraryDungeonCraftSources();
 
 const MANUAL_PAGE_BY_TAB: Record<Tab, string> = {
@@ -234,6 +249,7 @@ const MANUAL_PAGE_BY_TAB: Record<Tab, string> = {
   puzzles: "dungeon-craft-puzzles",
   "roll-tables": "dungeon-craft-roll-tables",
   "loot-tables": "dungeon-craft-loot-tables",
+  "notice-boards": "dungeon-craft-notice-boards",
   cartographer: "cartographer-overview",
 };
 const manualPage = computed(() => MANUAL_PAGE_BY_TAB[activeTab.value]);

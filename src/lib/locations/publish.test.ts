@@ -93,6 +93,7 @@ function makePlacement(overrides: Partial<LocationPlacement> = {}): LocationPlac
     loot_table_id: null,
     library_trap_id: null,
     library_dungeon_feature_id: null,
+    notice_board_id: null,
     note: null,
     sort_order: null,
     source_cell_key: null,

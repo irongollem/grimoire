@@ -73,7 +73,6 @@ Both the per-entity panel and the grid-card line invalidate the same two broad q
 
 What it does mean is that in a co-DM campaign this whole mechanism behaves as **per-DM private prep layered over a nominally shared world**. Two DMs prepping the same dungeon each see only their own placements of their own catalogue entries, never a merged view. That is inherited from the same "authored possessions are owner-scoped" decision as `traps` and `puzzle_rooms`, and it is deliberate — but it is the kind of thing that would surprise a co-DM pair expecting one shared prep space, so it is written down rather than discovered.
 
-
 ---
 
 ## Dungeon Features (Secret Doors, Hazards, Enigmas)
@@ -413,12 +412,12 @@ Tables carry an optional CR tier for filtering: `Any`, `CR 0–4`, `CR 5–10`, 
 **Retrieval grounding — the first generator with a constraint band.** The mechanism is the #595/#600 shape (read combat-encounters.md's "Monster retrieval" for the full rationale), with one structural addition documented here because no other generator has needed it:
 
 - **Corpora**: two, like monsters — `item_embeddings` (uuid) and `library_item_embeddings` (text id), migration `20260805000005`. Embed format is `buildItemEmbedText` in `_shared/entityEmbedText.ts` (name, rarity/type/subtype, attunement clause, cost, tags, description at 500 chars). The attunement clause carries the requirement **text**, not just the boolean, and that is load-bearing: all 16 library items attuned "by a Druid" mention druids nowhere else — not in the name, description or tags — so embedding the boolean alone makes "a hoard of druidic items" unanswerable. Two shapes exist in the data (677 of 685 rows are full sentences, 8 custom rows are fragments like "Druid or Ranger"); the builder detects the prefix rather than blindly concatenating — deliberately ONE format for both corpora so a homebrew sword and a library sword rank against the same query on the same terms. `dm_notes` is excluded on purpose: `library_items` has no such column, and including it would make a custom item's vector drift from its shared twin's for reasons unrelated to what the item is.
-- **The band**: "loot for a level 7 party" is a _constraint_ query wearing a semantic query's clothes — cosine similarity ranks a Vorpal Sword top for "impressive treasure", and a model handed that candidate uses it. So `match_custom_items`/`match_library_items` take `p_rarities` + `p_exclude_attunement` and apply them in the `WHERE` **before** ranking, exactly like the enabled-sources gate; retrieval then ranks thematically _inside_ the band. The rarities are derived server-side from `cr_tier` (`RARITIES_BY_TIER` in the edge function, mirrored for display only by `LOOT_TIER_RARITIES`) — never taken from the request, or the gate would be caller-controlled. The unembedded-append path in `_shared/itemRetrieval.ts` re-applies the same predicates, or it would be a hole straight through the gate.
+- **The band**: "loot for a level 7 party" is a *constraint* query wearing a semantic query's clothes — cosine similarity ranks a Vorpal Sword top for "impressive treasure", and a model handed that candidate uses it. So `match_custom_items`/`match_library_items` take `p_rarities` + `p_exclude_attunement` and apply them in the `WHERE` **before** ranking, exactly like the enabled-sources gate; retrieval then ranks thematically *inside* the band. The rarities are derived server-side from `cr_tier` (`RARITIES_BY_TIER` in the edge function, mirrored for display only by `LOOT_TIER_RARITIES`) — never taken from the request, or the gate would be caller-controlled. The unembedded-append path in `_shared/itemRetrieval.ts` re-applies the same predicates, or it would be a hole straight through the gate.
 - **Sources gate**: the library RPC filters on `source_document_key` (not `source`) because that is what the item index (`useItemIndex`) and `browse_items` filter on — the two must agree or the generator offers books the Vault itself doesn't show. `'grimoire-bundled'` is always included, matching that query's `.in()` list exactly.
 - **Offer**: `item|Name|rarity|type` lines in a `---BEGIN VAULT ITEMS---` block, custom rows first so a DM's own copy wins a name collision with a library row.
 - **Fallback**: identical contract to the other generators — any retrieval failure drops the block and generates ungrounded. The response carries `grounded: boolean` so the panel can explain unresolved names as "ran without your Vault" rather than letting them read as a resolution bug.
 
-**Resolution guard** (`src/ai/resolveGeneratedLoot.ts` + tests): the model returns item _names_; every entry is resolved against the merged item index (`useItemIndex`: the DM's own items plus the enabled library books). A resolved item entry stores the item's id as-is in `LootEntry.item_id` (jsonb, so a vault uuid or a library text id), exactly like the manual picker; nothing is cloned (#954). Unresolved names are surfaced struck-through with a reason and left out of the created table: never dropped silently, never written as stub item rows (#337). Duplicate item entries are surfaced rather than merged. Malformed-but-recoverable values are repaired, not rejected (drop chance clamped to 1–100, dice wins over `fixed_qty`, unknown `item_type_filter` dropped while the entry survives) — entry validation itself stays in `validateEntries`, the single client-side validation point.
+**Resolution guard** (`src/ai/resolveGeneratedLoot.ts` + tests): the model returns item *names*; every entry is resolved against the merged item index (`useItemIndex`: the DM's own items plus the enabled library books). A resolved item entry stores the item's id as-is in `LootEntry.item_id` (jsonb, so a vault uuid or a library text id), exactly like the manual picker; nothing is cloned (#954). Unresolved names are surfaced struck-through with a reason and left out of the created table: never dropped silently, never written as stub item rows (#337). Duplicate item entries are surfaced rather than merged. Malformed-but-recoverable values are repaired, not rejected (drop chance clamped to 1–100, dice wins over `fixed_qty`, unknown `item_type_filter` dropped while the entry survives) — entry validation itself stays in `validateEntries`, the single client-side validation point.
 
 **Embed-on-write**: `queueItemEmbedding` (`useItems.ts`) fires `embed-content` (`mode: "single"`, entity `item`) after create/update, after the downtime seed-reward mint, after a Customize clone of a library item (`useCustomizeLibraryItem`, the one remaining copy path), and after the starter-recipe import mints the gear its outputs need (`useCrafting.ts` — a bulk insert that bypasses `useCreateItem`, so the hook has to be called at the insert; the burst stays small because only names that resolve to neither the vault nor `library_items` are minted at all). The Customize clone is embedded despite being byte-identical to its already-embedded library twin, because the twin is only retrievable while its source stays enabled — without it, an item visible in the Vault would be invisible to loot retrieval. A vault item written over the **MCP server** is embedded too, by `queueEmbedding()` in `_shared/mcp/tools.ts`, driven by each entity's `embedOnWrite` in the MCP registry — see combat-encounters.md for why that one is awaited rather than fire-and-forget. `library_item` is **batch-only** (`supportsSingle: false`): shared content has no `user_id` to authorize a single-mode call against, and it only changes on an admin import.
 
@@ -457,6 +456,41 @@ Clicking **Drop chest** sends a `loot_chest` message to campaign chat via `sendL
 The editor blocks saving when any entry has a drop_chance outside 1–100, an Item entry without an item_id, or a Random entry without a rarity selected.
 
 ---
+
+## Notice Boards (#1064)
+
+### What they are
+
+A tavern notice board the DM builds and pins quests to: hand-written notes, wanted posters, pictures and sealed letters, each hung a little askew under a tack. Players read what is pinned and, while the DM presents the board, take a notice. "Notice Board" is the name everywhere; "Quest Board" is the DM's `/quests` kanban and is a different thing.
+
+Unlike the rest of Dungeon Craft, a board always belongs to one campaign (`campaign_id` is required): it reveals that campaign's quests and shares that campaign's handouts. It shows no library source, so the tab has no sources picker. There is no manual page of its own yet; the tab's help link opens the Dungeon Craft overview.
+
+### DM view
+
+- **List** (`DungeonCraftNoticeBoardsTab`): each board is a card with a small live preview of its up and taken pins (drafts are left out), its name, how many notices are up, and a chip, "Shown to players" or "Presenting". Search is kept in `useDungeonFeaturesUiStore` (`noticeBoardsSearch`) with a Clear button. The empty state says what a board is. **New Notice Board** opens `/notice-boards/new`.
+- **New** (`NoticeBoardNewView`): a name and a surface, each shown as a swatch of the real texture: "Tavern cork, oak frame" or "Frontier planks, pine frame". Create is the one explicit save and returns to the list.
+- **Editor** (`NoticeBoardDetailView`, `/notice-boards/:id`): saves itself, so there is no Save. Done leaves for the list; Delete asks first and returns to the list. The board is large and editable: drag a pin to move it (written optimistically as a fraction of the board), tap one to select it, tap a taken stub to see who took it. At 390px the board pans and the side panel stacks beneath it.
+
+### Pins
+
+A pin has a style (note, wanted poster, sealed letter, picture), a headline, a body (plain multi-line text, set in the hand on the face), a reward (posters), a seal (letters: red tower or black stag), a size, a picture, and optionally a quest and a handout it offers. Its angle and tack colour are seeded from its id; the DM does not set them.
+
+- **Draft first.** **Add to the board** creates the pin as a draft at the emptiest free spot and selects it. A draft never reaches the board view, so players cannot see a half-written notice and the DM does not arrange one that is not up. **Put it up** (needs a headline, text or picture) hangs it; **Take down** returns it to drafts.
+- **The pin list** groups pins as On the board (in reading order, with move earlier or later, which renumbers `sort_order`), Drafts, and Taken (who, which session, **Pin back up**).
+- **The pin editor** autosaves its face, offers and size, with a live preview of the face as a reader sees it. A wanted poster can take its name and portrait from an NPC or monster ("From an NPC or monster" copies the name into the headline and the portrait into the picture). **Offers** takes a quest and a handout, usable in the board's campaign only; taking the notice reveals the quest to the whole party and shares the handout with them.
+- **Pin back up** undoes a take. As with unsharing a handout, it never un-reveals anything.
+
+### Showing and presenting
+
+**Hidden from players / Shown to players** reveals the board for reading in the portal. **Present now** (only when shown) opens the board on every player's screen at the table until **Stop presenting**; the tooltip says so. Hiding a board also stops presenting it. Presenting a board takes down any other presented board of the campaign.
+
+### The take rule
+
+A player can take a notice only while its board is presented, and only a notice that offers something. The take happens in one transaction: the quest becomes visible to the party and moves undiscovered to active the same way `unlock_quest` does it, the handout is shared through `share_handout`, the pin is marked taken by that character in the current session, and a line goes to campaign chat. Two players tapping at once resolve to one take; the second sees who got there first and the handout opens for them anyway. A taken pin leaves a stub (its tack and a torn corner) until the DM pins it back up.
+
+### Placement
+
+A board can hang at a place (`<EntityPlacements kind="notice_board" />`, "Hangs at" in the editor), so it shows on that tavern in the Atlas, the site's Run surface and the player's view of the place.
 
 ## Key Capabilities / USPs
 
@@ -571,3 +605,31 @@ The editor blocks saving when any entry has a drop_chance outside 1–100, an It
 | `tags`        | string[]     |                                |
 | `notes`       | string\|null | DM-only                        |
 | `ai_provenance` | jsonb\|null | Set by the AI loot generator (#602); null on hand-authored tables |
+
+### NoticeBoard (`notice_boards` table)
+
+| Field          | Type           | Notes                                                        |
+| -------------- | -------------- | ------------------------------------------------------------ |
+| `name`         | string         | Required                                                     |
+| `surface`      | cork\|planks   | Cork hangs in an oak frame, planks in a pine one             |
+| `campaign_id`  | string         | Required: a board is never account-wide                      |
+| `is_revealed`  | boolean        | Readable by players in the portal                            |
+| `presented_at` | string\|null   | Set while presenting; taking works only then. Needs `is_revealed` |
+
+### NoticeBoardPin (`notice_board_pins` table)
+
+| Field                  | Type           | Notes                                                    |
+| ---------------------- | -------------- | -------------------------------------------------------- |
+| `board_id`             | string         | FK to the board                                          |
+| `style`                | note\|poster\|letter\|image |                                       |
+| `headline`             | string\|null   | A poster's subject, a letter's addressee, a note's first line |
+| `body`                 | string\|null   | The hand-written text                                    |
+| `reward`               | string\|null   | A poster's bounty                                        |
+| `image_url`            | string\|null   | A pinned picture or a poster's portrait                  |
+| `seal`                 | red\|black\|null | Letters only                                          |
+| `size`                 | sm\|md\|lg     |                                                          |
+| `x`, `y`               | number         | Top-left corner as a fraction (0 to 1) of the 3:2 board  |
+| `sort_order`           | number         | Reading order                                            |
+| `status`               | draft\|up\|taken | Drafts are off the board                              |
+| `quest_id`, `handout_id` | string\|null | What taking the notice reveals and shares; same campaign |
+| `taken_by`, `taken_at`, `taken_session_number` | | Set together by the take, cleared together by Pin back up |

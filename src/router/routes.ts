@@ -161,6 +161,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Handout", fullscreenMobile: true },
   },
   {
+    path: "/play/notice-boards/:id",
+    name: "play-notice-board",
+    component: () => import("@/views/player/PlayerNoticeBoardView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Notice Board", fullscreenMobile: true },
+  },
+  {
     path: "/play/notes",
     redirect: "/play/journal",
   },
@@ -580,6 +586,7 @@ export const routes: RouteRecordRaw[] = [
   { path: "/puzzles",          redirect: { path: "/dungeon-craft", query: { tab: "puzzles" } } },
   { path: "/roll-tables",      redirect: { path: "/dungeon-craft", query: { tab: "roll-tables" } } },
   { path: "/loot-tables",      redirect: { path: "/dungeon-craft", query: { tab: "loot-tables" } } },
+  { path: "/notice-boards",    redirect: { path: "/dungeon-craft", query: { tab: "notice-boards" } } },
 
   { path: "/roll-tables/new", redirect: { path: "/dungeon-craft", query: { tab: "roll-tables" } } },
   { path: "/roll-tables/:id", redirect: { path: "/dungeon-craft", query: { tab: "roll-tables" } } },
@@ -622,6 +629,20 @@ export const routes: RouteRecordRaw[] = [
     name: "loot-table-detail",
     component: () => import("@/views/dungeon-features/LootTableDetailView.vue"),
     meta: { requiresAuth: true, title: "Loot Table" },
+  },
+
+  // Notice board (#1064): a board is created with a name, then built in place (it saves itself).
+  {
+    path: "/notice-boards/new",
+    name: "notice-board-new",
+    component: () => import("@/views/dungeon-features/NoticeBoardNewView.vue"),
+    meta: { requiresAuth: true, title: "New Notice Board" },
+  },
+  {
+    path: "/notice-boards/:id",
+    name: "notice-board-detail",
+    component: () => import("@/views/dungeon-features/NoticeBoardDetailView.vue"),
+    meta: { requiresAuth: true, title: "Notice Board" },
   },
 
   // Trap detail

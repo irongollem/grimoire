@@ -111,6 +111,11 @@ describe("deleteUnreferencedByPublicUrl", () => {
     for (const t of ["library_traps", "library_dungeon_features", "library_puzzles", "library_dressing"]) expect(tables).toContain(t);
   });
 
+  it("counts a notice pin's picture as a reference (#1064)", async () => {
+    const { IMAGE_REFERENCES } = await import("./deleteUnreferenced");
+    expect(IMAGE_REFERENCES.find(([table]) => table === "notice_board_pins")?.[1]).toEqual(["image_url"]);
+  });
+
   it("deletes only the unreferenced URLs out of several, in one call", async () => {
     const { deleteUnreferencedByPublicUrl } = await import("./deleteUnreferenced");
     const kept = "https://cdn.example.com/location-images/u1/map.webp";

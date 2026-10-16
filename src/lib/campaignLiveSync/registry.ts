@@ -29,6 +29,10 @@ export const PLAYER_NPCS_KEY = "player-npcs";
 export const PLAYER_NOTES_KEY = "player-notes";
 export const PLAYER_FACTIONS_KEY = "player-factions";
 export const PLAYER_HANDOUTS_KEY = "player-handouts";
+/** The DM's notice boards and their pins (#1064). */
+export const NOTICE_BOARDS_KEY = "notice-boards";
+/** The players' projection of the revealed boards (get_player_notice_boards). */
+export const PLAYER_NOTICE_BOARDS_KEY = "player-notice-boards";
 export const BACKLINKS_KEY = "backlinks";
 export const RUNTIME_KEY = "quest_runtime_state";
 export const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
@@ -109,6 +113,10 @@ export const SYNC_TABLES = [
   // object is a passed-around prop at the table, so an entry must reach
   // everyone, not just refetch for whoever wrote it.
   ["item_entries",            "item-entries"],
+  // The notice board (#1064): a pin the DM puts up, or a player tears down, must
+  // reach every open board. Both tables refresh both roots (see the overrides).
+  ["notice_boards",           NOTICE_BOARDS_KEY],
+  ["notice_board_pins",       NOTICE_BOARDS_KEY],
 ] as const;
 
 /** One transition writes a cursor, a log row and sometimes a thread, and the
@@ -142,6 +150,10 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   items: ["items", CAMPAIGN_SECRETS_KEY],
   puzzle_rooms: ["puzzle_rooms", CAMPAIGN_SECRETS_KEY],
   npcs: ["npcs", PLAYER_NPCS_KEY],
+  // The DM's editor and the players' view read the same two tables; a player
+  // taking a pin also rings it, which is how the DM watches a notice come down.
+  notice_boards: [NOTICE_BOARDS_KEY, PLAYER_NOTICE_BOARDS_KEY],
+  notice_board_pins: [NOTICE_BOARDS_KEY, PLAYER_NOTICE_BOARDS_KEY],
   // A role change (#590) moves a campaign between a DM's list and a player's,
   // so the other account's switcher and DM gate re-read the role-scoped lists.
   campaign_members: ["campaign-members", "campaigns", "my-memberships"],
@@ -200,7 +212,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // Doors and rooms opened at the table: read through the location_state view,
   // and by players through get_player_visible_site_state.
   ["location_state_events", ["location-state", "player-visible-site-state"]],
-  ["location_placements", ["location-placements"]],
+  // A board hung at a place shows on the player's place panel (#1064).
+  ["location_placements", ["location-placements", PLAYER_NOTICE_BOARDS_KEY]],
   // A fired or dismissed consequence moves the runtime the DM is running, and
   // get_player_visible_quest_beats reads it for the players' story so far.
   ["quest_consequence_events", ["quest_consequence_events", RUNTIME_CONTEXT_KEY, BEATS_KEY, TRANSITIONS_KEY]],

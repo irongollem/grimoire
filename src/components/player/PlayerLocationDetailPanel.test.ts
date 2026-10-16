@@ -16,6 +16,14 @@ vi.mock("@/lib/storage", async (importOriginal) => ({
 function queryPlugin(): [typeof VueQueryPlugin, { queryClient: QueryClient }] {
   return [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }];
 }
+import { ref } from "vue";
+import { board } from "@/components/player/noticeBoard/fixtures";
+
+const boards = vi.hoisted(() => ({ list: [] as unknown[] }));
+vi.mock("@/composables/noticeBoards/usePlayerNoticeBoards", () => ({
+  usePlayerNoticeBoards: () => ({ data: ref(boards.list) }),
+}));
+vi.mock("@/composables/player/useReadItems", () => ({ useReadItems: () => ({ isNew: () => false }) }));
 import PlayerLocationDetailPanel from "./PlayerLocationDetailPanel.vue";
 import type { Location } from "@/types/location.types";
 
@@ -39,6 +47,7 @@ function panel(over: Record<string, unknown>) {
         PlayerStoreWares: true,
         PlayerNotesWidget: true,
         RichTextViewer: true,
+        PlayerNoticeBoardPreview: { props: ["board"], template: '<a data-board-card>{{ board.name }}</a>' },
       },
     },
   });
@@ -66,5 +75,24 @@ describe("PlayerLocationDetailPanel AI badge", () => {
     const w = panel({ image_url: null });
     await flushPromises();
     expect(w.text()).not.toContain("AI");
+  });
+});
+
+describe("PlayerLocationDetailPanel notice board", () => {
+  it("lists a revealed board hung at this place", async () => {
+    boards.list = [board({ location_ids: ["l1"] }), board({ id: "board-2", name: "Chapel door", location_ids: ["elsewhere"] })];
+    const w = panel({});
+    await flushPromises();
+    expect(w.text()).toContain("Notice board");
+    expect(w.findAll("[data-board-card]")).toHaveLength(1);
+    expect(w.text()).toContain("The Notice Board at The Pulled Sugar Inn");
+    expect(w.text()).not.toContain("Chapel door");
+  });
+
+  it("shows no section when no board hangs here", async () => {
+    boards.list = [board({ location_ids: ["elsewhere"] })];
+    const w = panel({});
+    await flushPromises();
+    expect(w.find("[data-place-boards]").exists()).toBe(false);
   });
 });

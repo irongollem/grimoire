@@ -26,6 +26,7 @@ function targetIdOf(placement: LocationPlacementWithLocation, kind: LocationPlac
     case "dungeon_feature": return placement.dungeon_feature_id ?? placement.library_dungeon_feature_id;
     case "roll_table": return placement.roll_table_id;
     case "loot_table": return placement.loot_table_id;
+    case "notice_board": return placement.notice_board_id;
   }
 }
 
