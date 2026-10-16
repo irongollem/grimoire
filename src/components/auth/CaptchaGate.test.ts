@@ -154,6 +154,19 @@ describe("CaptchaGate", () => {
     expect(wrapper.classes()).toContain("absolute");
   });
 
+  it("keeps a failed check in the flow, so it cannot cover the submit button, until a token arrives", async () => {
+    const wrapper = await mountGate();
+    widget["before-interactive-callback"]();
+    widget["after-interactive-callback"]();
+    widget["error-callback"]("600010");
+    await flushPromises();
+    expect(wrapper.classes()).not.toContain("absolute");
+
+    widget.callback("tok");
+    await flushPromises();
+    expect(wrapper.classes()).toContain("absolute");
+  });
+
   it("removes the widget and settles a waiting submit when the form goes away", async () => {
     const wrapper = await mountGate();
     const taken = wrapper.vm.take();

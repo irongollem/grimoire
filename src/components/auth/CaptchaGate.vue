@@ -51,6 +51,7 @@ function handOut(fresh: string, resolve: (token: string) => void) {
 }
 
 function onToken(fresh: string) {
+  interactive.value = false;
   const waiter = waiters.shift();
   if (waiter) handOut(fresh, waiter.resolve);
   else token = fresh;
@@ -58,6 +59,11 @@ function onToken(fresh: string) {
 
 function onError(code: string): boolean {
   token = null;
+  // A failed check stays on screen ("Verification failed", with Turnstile's
+  // Troubleshoot link) after the interaction that preceded it has ended, so
+  // the host goes back into the flow; out of it, the failure box sat on top
+  // of the submit button.
+  interactive.value = true;
   rejectWaiters();
   // 110xxx is Turnstile's configuration family: a wrong site key, or a
   // hostname missing from the widget's list. That fails for every visitor and
