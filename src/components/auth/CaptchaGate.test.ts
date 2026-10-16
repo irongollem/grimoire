@@ -94,18 +94,58 @@ describe("CaptchaGate", () => {
     await expect(taken).resolves.toBe("fresh");
   });
 
-  it("rejects a waiting submit when the widget errors, and reports only a configuration error", async () => {
+  it("rejects a waiting submit when the widget errors, and reports every code once per page", async () => {
     const wrapper = await mountGate();
 
     const first = wrapper.vm.take();
     expect(widget["error-callback"]("300030")).toBe(true);
     await expect(first).rejects.toBeInstanceOf(CaptchaUnavailableError);
-    expect(mocks.report).not.toHaveBeenCalled();
+    expect(mocks.report).toHaveBeenCalledTimes(1);
+    expect(mocks.report.mock.calls[0][0].message).toBe("Turnstile error 300030");
+    expect(mocks.report.mock.calls[0][2]).toEqual({ code: "300030" });
+
+    // Turnstile retries on its own; the same failure again is not a new report.
+    widget["error-callback"]("300030");
+    expect(mocks.report).toHaveBeenCalledTimes(1);
 
     const second = wrapper.vm.take();
     widget["error-callback"]("110200");
     await expect(second).rejects.toBeInstanceOf(CaptchaUnavailableError);
-    expect(mocks.report).toHaveBeenCalledTimes(1);
+    expect(mocks.report).toHaveBeenCalledTimes(2);
+    expect(mocks.report.mock.calls[1][0].message).toBe("Turnstile configuration error 110200");
+  });
+
+  it("reports a submit that waits on a check which never answers", async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = await mountGate();
+      void wrapper.vm.take().catch(() => {});
+      await vi.advanceTimersByTimeAsync(19_000);
+      expect(mocks.report).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(mocks.report).toHaveBeenCalledTimes(1);
+      expect(mocks.report.mock.calls[0][0].message).toBe("Turnstile gave no token");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not call waiting on the visitor's click a stall, nor a submit that got its token", async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = await mountGate();
+      void wrapper.vm.take();
+      widget["before-interactive-callback"]();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(mocks.report).not.toHaveBeenCalled();
+
+      widget["after-interactive-callback"]();
+      widget.callback("tok");
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(mocks.report).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not report an unlisted domain on a Vercel deployment URL, but still reports a bad site key there", async () => {
@@ -132,6 +172,8 @@ describe("CaptchaGate", () => {
 
     await expect(taken).resolves.toBe("tok-1");
     expect(mocks.load).toHaveBeenCalledTimes(2);
+    expect(mocks.report).toHaveBeenCalledTimes(1);
+    expect(mocks.report.mock.calls[0][0].message).toBe("Turnstile script did not load");
   });
 
   it("rejects the submit when the retried load is blocked too", async () => {

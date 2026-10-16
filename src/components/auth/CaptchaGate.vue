@@ -35,7 +35,31 @@ let unmounted = false;
 let token: string | null = null;
 let waiters: { resolve: (token: string) => void; reject: (err: Error) => void }[] = [];
 
+// A submit can also wait on a check that never answers at all, neither token
+// nor error, and the button sits on its loading label for good. That leaves no
+// trace anywhere, so a submit still waiting after this long, while Turnstile is
+// not asking the visitor for a click, is reported as a stall.
+const STALL_MS = 20_000;
+let stallTimer: ReturnType<typeof setTimeout> | undefined;
+
+function watchForStall() {
+  if (stallTimer !== undefined) return;
+  stallTimer = setTimeout(() => {
+    stallTimer = undefined;
+    if (waiters.length === 0) return;
+    // Waiting on the visitor's click is not a stall; look again later.
+    if (interactive.value) watchForStall();
+    else report("Turnstile gave no token", "stall", { waitedMs: STALL_MS, widgetRendered: widgetId !== null });
+  }, STALL_MS);
+}
+
+function stopWatchingForStall() {
+  clearTimeout(stallTimer);
+  stallTimer = undefined;
+}
+
 function rejectWaiters() {
+  stopWatchingForStall();
   const waiting = waiters;
   waiters = [];
   for (const waiter of waiting) waiter.reject(new CaptchaUnavailableError());
@@ -55,6 +79,7 @@ function onToken(fresh: string) {
   const waiter = waiters.shift();
   if (waiter) handOut(fresh, waiter.resolve);
   else token = fresh;
+  if (waiters.length === 0) stopWatchingForStall();
 }
 
 function onError(code: string): boolean {
@@ -65,14 +90,24 @@ function onError(code: string): boolean {
   // of the submit button.
   interactive.value = true;
   rejectWaiters();
-  // 110xxx is Turnstile's configuration family: a wrong site key, or a
-  // hostname missing from the widget's list. That fails for every visitor and
-  // only we can fix it. The rest are one browser's trouble, which Turnstile
-  // retries on its own.
-  if (code.startsWith("110") && !isUnlistedDeploymentHost(code)) {
-    reportHandledError(new Error(`Turnstile configuration error ${code}`), "CaptchaGate");
-  }
+  report(code.startsWith("110") ? `Turnstile configuration error ${code}` : `Turnstile error ${code}`, code);
   return true;
+}
+
+// Every failure is reported, because this widget stands in front of sign-in:
+// when it breaks, nobody gets past it, and a visitor stuck on it can tell us
+// nothing. The 110xxx family is configuration (a wrong site key, a hostname
+// missing from the widget's list), which fails every visitor and only we can
+// fix; the rest are usually one browser's trouble (a blocker, a privacy mode)
+// and are grouped per code, so a code that turns up everywhere stands out.
+// Once per code per page: Turnstile retries on its own and would otherwise
+// report the same failure every few seconds.
+const reported = new Set<string>();
+
+function report(message: string, code: string, extra?: Record<string, unknown>) {
+  if (reported.has(code) || isUnlistedDeploymentHost(code)) return;
+  reported.add(code);
+  reportHandledError(new Error(message), "CaptchaGate", { code, ...extra });
 }
 
 // 110200 is "domain not allowed". Every Vercel deployment also answers on its
@@ -103,6 +138,9 @@ async function start() {
       "after-interactive-callback": () => (interactive.value = false),
     });
   } catch {
+    // Almost always a content blocker, which the form's message names; it is
+    // still a visitor who cannot sign in.
+    report("Turnstile script did not load", "script");
     rejectWaiters();
   } finally {
     starting = false;
@@ -115,6 +153,7 @@ function take(): Promise<string | undefined> {
   const ready = token;
   if (ready) return new Promise((resolve) => handOut(ready, resolve));
   const waiting = new Promise<string>((resolve, reject) => waiters.push({ resolve, reject }));
+  watchForStall();
   // No widget means the script did not load; asking again is the retry.
   void start();
   return waiting;
