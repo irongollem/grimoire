@@ -17,6 +17,7 @@ const board: NoticeBoard = {
   surface: "cork",
   is_revealed: true,
   presented_at: null,
+  scatter: [],
   created_at: "",
   updated_at: "",
 };

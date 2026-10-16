@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(47);
 
 -- notice_boards (20261015234112, #1064): the DM pins notices to a board; players read a revealed board only through
 -- get_player_notice_boards, which shows a pin's face and keeps its quest and handout back until it is taken; and while
@@ -120,6 +120,10 @@ select set_config('request.jwt.claim.sub', '10640000-0000-4000-8000-000000000001
 select lives_ok($$ update public.notice_boards set is_revealed = true where id = '10640000-0000-4000-8000-000000000070' $$, 'the DM reveals the board');
 select throws_ok($$ update public.notice_boards set presented_at = now() where id = '10640000-0000-4000-8000-000000000071' $$,
   '23514', null, 'an unrevealed board cannot be presented');
+select lives_ok($$ update public.notice_boards set scatter = '[{"art": "scrap-1", "x": 0.2, "y": 0.3, "r": 12, "tack": "tack-red"}]'
+                    where id = '10640000-0000-4000-8000-000000000070' $$, 'the DM scatters the board');
+select throws_ok($$ update public.notice_boards set scatter = '{"art": "nail"}' where id = '10640000-0000-4000-8000-000000000070' $$,
+  '23514', null, 'a scatter is a list of pieces');
 
 -- ── A revealed board: faces, never links ──────────────────────────────────────
 
@@ -133,6 +137,8 @@ select is((select (p ->> 'offers')::boolean and p -> 'quest_id' = 'null'::jsonb 
   true, 'the poster says it offers something, and not what');
 select is(public.get_player_notice_boards('10640000-0000-4000-8000-000000000010') -> 0 -> 'location_ids',
   '["10640000-0000-4000-8000-000000000060"]'::jsonb, 'the projection says where the board hangs, and only where the party has been');
+select is(public.get_player_notice_boards('10640000-0000-4000-8000-000000000010') -> 0 -> 'scatter' -> 0 ->> 'art', 'scrap-1',
+  'the player draws the scatter too');
 select throws_ok($$ select public.take_notice_board_pin('10640000-0000-4000-8000-000000000080') $$,
   '42501', 'The board is not in front of the party', 'nothing can be taken until the DM presents the board');
 

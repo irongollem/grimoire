@@ -56,7 +56,7 @@
  */
 import { computed, nextTick, ref, watch } from "vue";
 import { canAnimate, whenSettled } from "@/lib/motion";
-import { edgeFor, tackUrl } from "@/lib/noticeBoard/art";
+import { CAST_EDGE, tackUrl } from "@/lib/noticeBoard/art";
 import { pinLabel } from "@/lib/noticeBoard/faces";
 import { keepOnBoard, pinSize, seededRotation, seededTack } from "@/lib/noticeBoard/geometry";
 import type { NoticePinFace as Face } from "@/types/noticeBoard.types";
@@ -94,7 +94,7 @@ const rootStyle = computed(() => ({
   width: `calc(var(--u) * ${size.value.w})`,
   height: `calc(var(--u) * ${size.value.h})`,
   "--tilt": `${tilt.value}deg`,
-  "--nb-edge": edgeFor(face.style),
+  "--nb-cast-edge": CAST_EDGE,
 }));
 const tiltStyle = computed(() => ({ transform: `rotate(${tilt.value}deg)` }));
 
@@ -278,8 +278,8 @@ watch(
   box-sizing: border-box;
   transform: translate(calc(var(--u) * 5), calc(var(--u) * 7)) rotate(var(--tilt)) scale(1.035);
   border: calc(var(--u) * 2) solid transparent;
-  border-image: var(--nb-edge) 12 fill / calc(var(--u) * 12) / calc(var(--u) * 7) round;
-  filter: brightness(0) blur(calc(var(--u) * 3));
+  border-image: var(--nb-cast-edge) 12 fill / calc(var(--u) * 12) / calc(var(--u) * 7) round;
+  filter: blur(calc(var(--u) * 3));
   opacity: 0.28;
   transition:
     transform 160ms ease-out,
@@ -292,7 +292,7 @@ watch(
 .nb-pin.is-selected .nb-cast,
 .nb-pin.is-dragging .nb-cast {
   transform: translate(calc(var(--u) * 9), calc(var(--u) * 12)) rotate(var(--tilt)) scale(1.06);
-  filter: brightness(0) blur(calc(var(--u) * 4.5));
+  filter: blur(calc(var(--u) * 4.5));
   opacity: 0.24;
 }
 .nb-pin:hover:not(.is-dragging) .nb-lift,

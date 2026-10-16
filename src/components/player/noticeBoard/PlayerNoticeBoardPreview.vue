@@ -6,7 +6,7 @@
   >
     <!-- A live miniature: the same surface and pins as the board, a card-width wide. Inert, so the link takes the tap. -->
     <div class="pointer-events-none" aria-hidden="true">
-      <NoticeBoardSurface :surface="board.surface">
+      <NoticeBoardSurface :surface="board.surface" :scatter="board.scatter">
         <NoticeBoardPin v-for="pin in pins" :key="pin.id" :face="pin" :editable="false" :selected="false" />
       </NoticeBoardSurface>
     </div>

@@ -30,7 +30,7 @@
       >
         <!-- The board itself, small. Inert: the pins are buttons, and a link must not hold buttons. -->
         <div class="pointer-events-none overflow-hidden rounded-md" inert aria-hidden="true" data-board-preview>
-          <NoticeBoardSurface :surface="board.surface">
+          <NoticeBoardSurface :surface="board.surface" :scatter="board.scatter">
             <NoticeBoardPin v-for="face in previewFaces(board.id)" :key="face.id" :face="face" />
           </NoticeBoardSurface>
         </div>

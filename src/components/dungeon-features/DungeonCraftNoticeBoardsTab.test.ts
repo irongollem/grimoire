@@ -17,6 +17,7 @@ function board(overrides: Partial<NoticeBoard> = {}): NoticeBoard {
     surface: "cork",
     is_revealed: false,
     presented_at: null,
+    scatter: [],
     created_at: "",
     updated_at: "",
     ...overrides,

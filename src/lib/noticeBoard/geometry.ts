@@ -80,7 +80,7 @@ export function zoomAt(
 // ── Seeded look ──────────────────────────────────────────────────────────────
 
 /** FNV-1a: a pin's id has to give the same tilt and tack on every device and every render, and nothing here needs more. */
-function hash(text: string): number {
+export function hash(text: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
     h ^= text.charCodeAt(i);

@@ -51,6 +51,13 @@ export const NOTE_EDGE = tornEdge("faf6ee", "cfc3ad");
 /** Sun-yellowed, a cheaper paper than a hand-written note. */
 export const POSTER_EDGE = tornEdge("e6d3a1", "a38d5a");
 
+/**
+ * A pin's cast shadow: the same torn edge, already black, so the shadow needs only a blur. It used to be the paper's
+ * own edge turned black by `brightness(0)`, and where a browser dropped that filter the shadow showed as a second
+ * cream sheet poking out past the paper's bottom and right (16 Oct 2026).
+ */
+export const CAST_EDGE = tornEdge("000000", "000000");
+
 /** The torn edge a style's paper is cut with. */
 export function edgeFor(style: "note" | "poster" | "letter" | "image"): string {
   return style === "poster" ? POSTER_EDGE : NOTE_EDGE;
