@@ -94,6 +94,22 @@ describe("sentry facade", () => {
     expect(startErrorTracking).toHaveBeenCalledOnce();
   });
 
+  it("reports nothing while the page is leaving, and reports again once it is restored", async () => {
+    const mod = await load();
+    mod.initErrorTracking(createApp({}), fakeRouter().router);
+    window.dispatchEvent(new Event("pagehide"));
+    mod.reportHandledError(new Error("Failed to send a request to the Edge Function"), "background-indexing");
+    await flush();
+    expect(startErrorTracking).not.toHaveBeenCalled();
+
+    // Back from the back-forward cache: the page is live again.
+    window.dispatchEvent(new Event("pageshow"));
+    const real = new Error("real");
+    mod.reportHandledError(real, "t");
+    await vi.waitFor(() => expect(capture).toHaveBeenCalledOnce());
+    expect(capture.mock.calls[0]![0]).toBe(real);
+  });
+
   it("ignores stale-chunk router errors", async () => {
     const mod = await load();
     const { router, fail } = fakeRouter();
