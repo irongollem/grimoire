@@ -108,6 +108,19 @@ describe("CaptchaGate", () => {
     expect(mocks.report).toHaveBeenCalledTimes(1);
   });
 
+  it("does not report an unlisted domain on a Vercel deployment URL, but still reports a bad site key there", async () => {
+    vi.stubGlobal("location", { ...window.location, hostname: "grimoire-pslqd7qlx-team.vercel.app" });
+    try {
+      await mountGate();
+      widget["error-callback"]("110200");
+      expect(mocks.report).not.toHaveBeenCalled();
+      widget["error-callback"]("110100");
+      expect(mocks.report).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("rejects when the script is blocked, and loads it again on the next submit", async () => {
     mocks.load.mockRejectedValueOnce(new CaptchaUnavailableError());
     const wrapper = await mountGate();
