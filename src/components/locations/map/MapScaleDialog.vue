@@ -9,7 +9,7 @@
         to work out distance and travel time.
       </p>
 
-      <TwoPointImagePicker v-model:a="pointA" v-model:b="pointB" :map-url="mapUrl" @ready="onImageReady" />
+      <TwoPointImagePicker v-model:a="pointA" v-model:b="pointB" :map-url="mapUrl" :stand-url="standUrl" @ready="onImageReady" />
 
       <div class="flex flex-wrap items-end gap-4">
         <label class="flex flex-col gap-1">
@@ -81,11 +81,13 @@ import { buildMapScale, DISTANCE_UNITS, DISTANCE_UNIT_LABELS, type ImagePoint } 
 import type { DistanceUnit } from "@/rules/travelPace";
 import type { MapScale } from "@/types/location.types";
 
-const { open, mapUrl, existing = null, saving = false } = defineProps<{
+const { open, mapUrl, standUrl = null, existing = null, saving = false } = defineProps<{
   open: boolean;
   /** The caller's write is in flight; it closes the dialog when it lands. */
   saving?: boolean;
   mapUrl: string | null;
+  /** A Drawing's standing half, drawn over `mapUrl` so the walls are there to measure against. */
+  standUrl?: string | null;
   existing?: MapScale | null;
 }>();
 

@@ -38,6 +38,7 @@
     <MapScaleDialog
       :open="scaleOpen"
       :map-url="stack.primary?.url ?? null"
+      :stand-url="stack.standing?.url ?? null"
       :existing="scale"
       :saving="isSavingScale"
       @cancel="scaleOpen = false"

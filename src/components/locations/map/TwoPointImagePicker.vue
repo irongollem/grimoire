@@ -15,6 +15,15 @@
       draggable="false"
       @load="onImageLoad"
     />
+    <!-- A Drawing's standing half (walls, doors, props): a second bake of the
+         same size, so it lies over the ground in exactly its box. -->
+    <img
+      v-if="mapUrl && standUrl"
+      :src="standUrl"
+      class="absolute inset-0 w-full h-full pointer-events-none"
+      draggable="false"
+      alt=""
+    />
 
     <svg
       v-if="imageReady"
@@ -74,7 +83,11 @@ import type { ImagePoint, ImageSize } from "@/lib/locations/mapScale";
 const a = defineModel<ImagePoint>("a", { required: true });
 const b = defineModel<ImagePoint>("b", { required: true });
 
-const { mapUrl } = defineProps<{ mapUrl: string | null }>();
+const { mapUrl, standUrl = null } = defineProps<{
+  mapUrl: string | null;
+  /** Drawn over `mapUrl` in the same box: a Drawing's standing half. */
+  standUrl?: string | null;
+}>();
 
 const emit = defineEmits<{
   /** The image has loaded and its natural size is known: the moment a caller

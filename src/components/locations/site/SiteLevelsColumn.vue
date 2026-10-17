@@ -101,6 +101,7 @@ const levelSummaries = computed<SiteLevelSummary[]>(() =>
       id: level.id,
       name: level.name,
       thumbnailUrl: stack.primary?.url ?? null,
+      thumbnailStandUrl: stack.standing?.url ?? null,
       hasMap: stack.hasAnyLayer,
       roomCount: roomIds.length,
       clearedCount: roomIds.filter((id) => levelRoomStateOf(id, "cleared")?.value).length,

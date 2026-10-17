@@ -14,8 +14,16 @@
       :class="level.id === activeId ? 'border-primary/60 bg-primary/10' : 'hover:border-primary/40'"
       @click="$emit('select', level.id)"
     >
-      <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+      <div class="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
         <img v-if="level.thumbnailUrl" :src="level.thumbnailUrl" alt="" class="h-full w-full object-cover" />
+        <!-- A Drawing's walls, doors and props are its standing half, a second
+             bake of the same size: drawn over the ground in the same box. -->
+        <img
+          v-if="level.thumbnailUrl && level.thumbnailStandUrl"
+          :src="level.thumbnailStandUrl"
+          alt=""
+          class="absolute inset-0 h-full w-full object-cover"
+        />
         <!-- A blank-grid level (#884): a map layer exists, just no picture to
              thumbnail — the grid glyph says "a plan, no art yet", distinct
              from "no map yet" below. -->
@@ -51,6 +59,9 @@ export interface SiteLevelSummary {
    *  else null (#884: was the raw `map_url`; a level's map may now be a
    *  Drawing, or a blank grid with no image at all). */
   thumbnailUrl: string | null;
+  /** The Drawing's standing half (walls, doors, props), drawn over the
+   *  thumbnail; null for a Picture, and for a Drawing published before the split. */
+  thumbnailStandUrl: string | null;
   /** Whether this level has ANY map layer — Picture, Drawing, or a blank
    *  grid. A blank grid has `thumbnailUrl === null` but `hasMap === true`. */
   hasMap: boolean;
