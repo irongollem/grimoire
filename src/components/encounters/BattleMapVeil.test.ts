@@ -105,7 +105,7 @@ describe("BattleMapVeil", () => {
   });
 
   describe("for a player", () => {
-    const viewer = { x: 0.5, y: 0.5, darkvisionFeet: 10 };
+    const viewer = { x: 0.5, y: 0.5, darkvisionFeet: 10, blindsightFeet: 0, truesightFeet: 0 };
 
     it("paints what the viewers see instead of the DM's veil", () => {
       mount(BattleMapVeil, { props: { ...props, viewers: [viewer] } });

@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { parseSenses } from "@/lib/senses";
+import { parseSenses, senseRanges } from "@/lib/senses";
+
+/** Every sense at 0: what a character or a senses string without that sense has. */
+const NONE = { blindsight: 0, darkvision: 0, tremorsense: 0, truesight: 0 };
 
 describe("parseSenses", () => {
   it("returns [] for nullish/empty", () => {
@@ -34,5 +37,21 @@ describe("parseSenses", () => {
     expect(parseSenses("passive Perception 14")).toEqual([
       { label: "PP", value: "14" },
     ]);
+  });
+});
+
+describe("senseRanges", () => {
+  it("reads feet per sense", () => {
+    expect(senseRanges("darkvision 60 ft., blindsight 10 ft., passive Perception 12")).toEqual({ ...NONE,
+      darkvision: 60,
+      blindsight: 10,
+    });
+  });
+  it("keeps the largest of a repeated sense", () => {
+    expect(senseRanges("darkvision 60 ft., Darkvision 120 ft.")).toEqual({ ...NONE, darkvision: 120 });
+  });
+  it("ignores unrecognised text, rangeless entries and nullish input", () => {
+    expect(senseRanges("keen smell, truesight")).toEqual({ ...NONE });
+    expect(senseRanges(null)).toEqual({ ...NONE });
   });
 });

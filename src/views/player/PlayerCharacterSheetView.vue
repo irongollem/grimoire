@@ -26,6 +26,7 @@
         :inventory="inventory"
         :storage-key="member.id"
         :species-name="speciesName"
+        :senses-text="sensesText"
         :background-name="backgroundName"
         :items="items"
       >
@@ -52,6 +53,7 @@ import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
+import { characterSenses, formatSenses } from "@/rules/characterSenses";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useBackgroundNameMap } from "@/composables/rules/useBackgrounds";
 import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
@@ -84,6 +86,11 @@ const inventory = computed(() =>
 const { data: projection } = usePlayerItemProjection();
 const { items } = useStoredItemRefs(() => inventory.value.map(inventoryItemRef), projection);
 
+const sensesText = computed(() => {
+  const m = member.value;
+  const species = m?.species_id ? speciesById.value.get(m.species_id) : undefined;
+  return m ? formatSenses(characterSenses({ species, subrace: m.subrace, senses: m.senses })) : null;
+});
 const speciesName = computed(() =>
   member.value?.species_id ? (speciesById.value.get(member.value.species_id)?.name ?? null) : null,
 );

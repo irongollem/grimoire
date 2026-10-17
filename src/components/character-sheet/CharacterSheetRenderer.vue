@@ -285,7 +285,10 @@
                 <strong>Tools:</strong> {{ member.tool_proficiencies.join(", ") }}<br />
               </template>
               <template v-if="member.languages.length">
-                <strong>Languages:</strong> {{ member.languages.join(", ") }}
+                <strong>Languages:</strong> {{ member.languages.join(", ") }}<br />
+              </template>
+              <template v-if="sensesLine">
+                <strong>Senses:</strong> {{ sensesLine }}
               </template>
             </div>
           </div>
@@ -297,6 +300,7 @@
 </template>
 
 <script setup lang="ts">
+import { characterSenses, formatSenses } from "@/rules/characterSenses";
 import { computed } from "vue";
 import { SKILLS, type PartyMember, type SkillProficiencies } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
@@ -308,13 +312,15 @@ import type { SheetPageSize, SheetTheme } from "@/components/character-sheet/ill
 // mounted via a bare createApp for PDF export, where query composables
 // have no QueryClient to attach to. The same goes for `classInput`: the class
 // rows and their pinned definitions are loaded by the caller and handed in.
-const { member, inventory, classInput, theme = "default", speciesName = null, backgroundName = null, ac } = defineProps<{
+const { member, inventory, classInput, theme = "default", speciesName = null, backgroundName = null, ac, sensesText = null } = defineProps<{
   member: PartyMember;
   inventory: PartyInventoryItem[];
   classInput: SheetClassInput;
   pageSize?: SheetPageSize;
   theme?: SheetTheme;
   speciesName?: string | null;
+  /** The character's effective senses (species and own field, `formatSenses`); the own field alone when absent. */
+  sensesText?: string | null;
   backgroundName?: string | null;
   /** The calculated Armour Class, from `useArmorClass().acFor`. */
   ac: number;
@@ -340,6 +346,10 @@ const COINS = [
 const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
 // ── Data resolution ────────────────────────────────────────────────────────────
+
+const sensesLine = computed(
+  () => sensesText ?? formatSenses(characterSenses({ species: null, senses: member.senses })),
+);
 
 /** Resolved display name: subrace takes priority, then speciesName prop, else em dash */
 const species = computed(() => member.subrace ?? speciesName ?? "—");

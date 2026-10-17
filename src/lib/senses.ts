@@ -40,3 +40,19 @@ export function parseSenses(input: string | null | undefined): SenseEntry[] {
   }
   return out;
 }
+
+/**
+ * The range in feet of each icon-backed sense in a senses string ("darkvision 60 ft., blindsight 10 ft."). A sense
+ * listed twice keeps its largest range; entries without a number and text that names no sense are ignored. Every sense
+ * is in the result, 0 for one the text does not give, so a caller never has to supply a default.
+ */
+export function senseRanges(input: string | null | undefined): Record<SenseType, number> {
+  const out = Object.fromEntries(SENSE_TYPES.map((sense) => [sense, 0])) as Record<SenseType, number>;
+  for (const entry of parseSenses(input)) {
+    if (!entry.sense) continue;
+    const feet = Number(entry.value);
+    if (!Number.isFinite(feet) || feet <= 0) continue;
+    out[entry.sense] = Math.max(out[entry.sense], feet);
+  }
+  return out;
+}

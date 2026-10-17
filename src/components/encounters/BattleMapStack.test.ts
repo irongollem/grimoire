@@ -92,7 +92,7 @@ describe("BattleMapStack standing image", () => {
   });
 
   it("hands the veil the player's viewers and the pictures to show in grey", () => {
-    const viewers = [{ x: 2.5, y: 2.5, darkvisionFeet: 60 }];
+    const viewers = [{ x: 2.5, y: 2.5, darkvisionFeet: 60, blindsightFeet: 0, truesightFeet: 0 }];
     const veil = mountStack({ live: { ...live([]), darkness: "dark" }, viewers }).findComponent(BattleMapVeil);
     expect(veil.props("viewers")).toEqual(viewers);
     expect(veil.props("groundUrl")).toBe("ground.webp");

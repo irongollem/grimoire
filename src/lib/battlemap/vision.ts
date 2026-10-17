@@ -3,7 +3,7 @@
 // normally, dim light lightly obscured and darkness not at all. Darkvision within its range lifts that by one step:
 // dim light counts as bright and darkness as dim, seen only in shades of grey. Sight needs a clear line from a viewer
 // (story 6, `occlusion.ts`): nothing behind a wall, a closed door or solid rock is seen, lit or not, and darkvision
-// does not reach round them. With no viewer (no token placed) there is no line to test. Class features and spells that grant sight are the DM's to adjudicate, so nothing here reads them.
+// does not reach round them. With no viewer (no token placed) there is no line to test. Where the ranges come from (species, the character's senses field) is `characterSenses`; blindsight and truesight see in the dark whatever the light, within their range and a clear line.
 //
 // Pure and DOM-free.
 
@@ -11,11 +11,13 @@ import { FEET_PER_CELL } from "@/cartographer/packSchema";
 import { lightLevelAt, type LitSource } from "@/lib/battlemap/illumination";
 import { clearLine, nudgedOrigins, type Occluders } from "@/lib/battlemap/occlusion";
 
-/** A creature that sees for a player: centre in image cells and its darkvision range (0 for none). */
+/** A creature that sees for a player: centre in image cells and the range of each sense in feet (0 for none). */
 export interface Viewer {
   x: number;
   y: number;
   darkvisionFeet: number;
+  blindsightFeet: number;
+  truesightFeet: number;
 }
 
 /** The light a scene has before any viewer looks at it. */
@@ -31,7 +33,7 @@ export interface Vision {
   grey: Float32Array;
 }
 
-/** A darkvision range's edge is softened like a light's, across this many cells centred on the boundary. */
+/** A sense's range edge is softened like a light's, across this many cells centred on the boundary. */
 const SOFT_BAND_CELLS = 1 / 3;
 const HALF_BAND = SOFT_BAND_CELLS / 2;
 
@@ -53,22 +55,37 @@ function throughDarkvision(level: number): { seen: number; grey: number } {
   return { seen: 0.5 + level, grey: 1 - 2 * level };
 }
 
-/** Sight at one point given its light level; the best viewer wins. */
+/** How far a sense reaches a point: 1 inside its range, 0 beyond, softened across the range edge. */
+function reachOf(feet: number, v: Viewer, x: number, y: number): number {
+  if (feet <= 0) return 0;
+  const range = feet / FEET_PER_CELL;
+  return 1 - smoothstep(range - HALF_BAND, range + HALF_BAND, Math.hypot(x - v.x, y - v.y));
+}
+
+/**
+ * Sight at one point given its light level; the best sense of the best viewer wins.
+ * Blindsight perceives whatever the light, and is not sight, so it is never grey. Truesight sees in normal and
+ * magical darkness alike; until magical darkness exists (story 10) it reads as clear sight in the dark, and it is the
+ * sense that will see through that darkness. Tremorsense is deliberately not used here: it senses creatures touching
+ * the ground, not the surroundings, so it has nothing to say about what the map looks like.
+ */
 export function sightAt(level: number, viewers: readonly Viewer[], x: number, y: number): { seen: number; grey: number } {
   let seen = level;
   let grey = 0;
   if (level >= 1) return { seen, grey };
-  for (const v of viewers) {
-    if (v.darkvisionFeet <= 0) continue;
-    const range = v.darkvisionFeet / FEET_PER_CELL;
-    const reach = 1 - smoothstep(range - HALF_BAND, range + HALF_BAND, Math.hypot(x - v.x, y - v.y));
-    if (reach <= 0) continue;
-    const lifted = throughDarkvision(level);
+  const consider = (reach: number, lifted: { seen: number; grey: number }) => {
+    if (reach <= 0) return;
     const s = level + reach * (lifted.seen - level);
-    if (s > seen) {
+    const g = reach * lifted.grey;
+    if (s > seen || (s === seen && g < grey)) {
       seen = s;
-      grey = reach * lifted.grey;
+      grey = g;
     }
+  };
+  for (const v of viewers) {
+    consider(reachOf(v.darkvisionFeet, v, x, y), throughDarkvision(level));
+    consider(reachOf(v.blindsightFeet, v, x, y), { seen: 1, grey: 0 });
+    consider(reachOf(v.truesightFeet, v, x, y), { seen: 1, grey: 0 });
   }
   return { seen, grey };
 }

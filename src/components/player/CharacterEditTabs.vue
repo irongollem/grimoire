@@ -107,6 +107,11 @@
         <label class="block"><span class="field-label">Speed (ft)</span><AppInput v-model.number="f.speed" type="number" min="0" step="5" tone="filled" size="body" /></label>
         <label class="block"><span class="field-label">Initiative Bonus</span><AppInput v-model.number="f.initiative_bonus" type="number" tone="filled" size="body" placeholder="extra on top of DEX (e.g. Alert +5)" /></label>
         <label class="block"><span class="field-label">Carry Capacity Override</span><AppInput v-model="f.carry_capacity_override" type="text" tone="filled" size="body" placeholder="*2, +30, 150" /></label>
+        <label class="block col-span-2 sm:col-span-3">
+          <span class="field-label">Other senses (class, feats, items, spells)</span>
+          <AppInput :model-value="f.senses ?? ''" type="text" tone="filled" size="body" maxlength="200" placeholder="darkvision 60 ft., blindsight 10 ft." @update:model-value="(v) => (f.senses = v || null)" />
+          <span v-if="speciesDarkvision > 0" class="text-caption text-muted-foreground">From species: darkvision {{ speciesDarkvision }} ft.</span>
+        </label>
       </div>
 
       <div class="rounded-lg bg-muted/30 border border-border p-3 grid grid-cols-3 gap-2 text-center">
@@ -179,6 +184,7 @@ import { rulesetLabel } from "@/composables/party/useCharacterRuleset";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import AcFormField from "@/components/party/AcFormField.vue";
 import type { PartyMember } from "@/types/party.types";
+import { darkvisionFeet } from "@/rules/speciesStats";
 import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
@@ -192,6 +198,7 @@ import SegmentedControl from "@/components/common/controls/SegmentedControl.vue"
 import TagPickerInput from "@/components/common/controls/TagPickerInput.vue";
 
 const form = inject(CHARACTER_FORM_KEY)!;
+
 const {
   auth, f,
   activeTab,
@@ -203,6 +210,7 @@ const {
   resetSlotsToDefault,
   autosave, finishEditing, freeSpeciesPicks,
 } = form;
+const speciesDarkvision = computed(() => (selectedSpecies.value ? darkvisionFeet(selectedSpecies.value, f.subrace) : 0));
 
 // Leaving by any route (a picker link, the tab bar, back) writes what is pending
 // first, so an edit made a moment ago is never lost to the debounce.

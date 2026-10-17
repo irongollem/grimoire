@@ -39,6 +39,7 @@ export interface SheetExportOptions {
   /** Illustrated-mode plate theme. */
   illustratedTheme?: IllustratedTheme;
   speciesName?: string | null;
+  sensesText?: string | null;
   backgroundName?: string | null;
   /** The calculated Armour Class, from `useArmorClass().acFor`. */
   ac: number;
@@ -72,6 +73,7 @@ export function useCharacterSheetPdf() {
       theme = "default",
       illustratedTheme = "classic",
       speciesName = null,
+      sensesText = null,
       backgroundName = null,
       ac,
       items = [],
@@ -101,7 +103,7 @@ export function useCharacterSheetPdf() {
       speciesName,
       backgroundName,
       ac,
-      ...(mode === "illustrated" ? { items } : {}),
+      ...(mode === "illustrated" ? { items } : { sensesText }),
     });
     app.mount(container);
 

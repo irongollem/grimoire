@@ -419,6 +419,7 @@ export function useCharacterCreationForm() {
     temp_hp:       m?.temp_hp ?? 0,
     ac_formula:    (m?.ac_formula ?? null) as string | null,
     speed:         m?.speed ?? DEFAULT_WALK_SPEED,
+    senses:        (m?.senses ?? null) as string | null,
     initiative_bonus:   m?.initiative_bonus ?? 0,
     current_initiative: m?.current_initiative ?? null,
     str: m?.str ?? 8,

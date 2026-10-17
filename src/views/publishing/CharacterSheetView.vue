@@ -34,6 +34,7 @@
         :inventory="inventory"
         :storage-key="memberId"
         :species-name="speciesName"
+        :senses-text="sensesText"
         :background-name="backgroundName"
         :items="items"
       >
@@ -77,6 +78,7 @@ import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
+import { characterSenses, formatSenses } from "@/rules/characterSenses";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useBackgroundNameMap } from "@/composables/rules/useBackgrounds";
 import { useAuthStore } from "@/stores/auth";
@@ -126,6 +128,11 @@ const { items } = useStoredItemRefs(
 );
 
 /** Resolved names — fall back to null if the lookup maps aren't loaded yet */
+const sensesText = computed(() => {
+  const m = member.value;
+  const species = m?.species_id ? speciesById.value.get(m.species_id) : undefined;
+  return m ? formatSenses(characterSenses({ species, subrace: m.subrace, senses: m.senses })) : null;
+});
 const speciesName = computed(() =>
   member.value?.species_id ? (speciesById.value.get(member.value.species_id)?.name ?? null) : null,
 );

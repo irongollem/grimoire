@@ -222,11 +222,15 @@
         </dd>
       </div>
     </dl>
+    <p v-if="sensesText" class="basis-full text-caption text-muted-foreground">
+      <span class="font-semibold">Senses:</span> {{ sensesText }}
+    </p>
   </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { characterSenses, formatSenses } from "@/rules/characterSenses";
 import { ref, computed, nextTick, type ComponentPublicInstance } from "vue";
 import { IconAdd, IconStar } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
@@ -283,6 +287,12 @@ const { data: allSpecies } = useAllSpecies();
 const speciesName = computed(() =>
   (allSpecies.value ?? []).find(s => s.id === props.member.species_id)?.name ?? null,
 );
+
+// Species darkvision and the character's own senses field, the better of each (what the map reads too).
+const sensesText = computed(() => {
+  const species = (allSpecies.value ?? []).find((s) => s.id === props.member.species_id);
+  return formatSenses(characterSenses({ species, subrace: props.member.subrace, senses: props.member.senses }));
+});
 
 const auth = useAuthStore();
 const campaignStore = useCampaignStore();

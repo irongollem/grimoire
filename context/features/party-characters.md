@@ -126,7 +126,7 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 ### Stats Tab
 
 - **Ability Scores** (STR, DEX, CON, INT, WIS, CHA) with live modifier display
-- **Combat stats**: Max HP, Current HP, Temp HP, Armor Class (not a field: the live breakdown from the gear plus a formula choice, see below), Speed (ft), Initiative Bonus, Carry Capacity Override (`*2`, `+30`, `150`, or blank for STR×15)
+- **Combat stats**: Max HP, Current HP, Temp HP, Armor Class (not a field: the live breakdown from the gear plus a formula choice, see below), Speed (ft), Initiative Bonus, Carry Capacity Override (`*2`, `+30`, `150`, or blank for STR×15), Other senses (`party_members.senses`, free text such as "darkvision 60 ft., blindsight 10 ft." for class features, feats, items and spells; the species' own darkvision is shown beneath it and is not typed again)
 - **Computed passives** (read-only): Passive Perception, Insight, Investigation
 - **Spell Slots (Max per Level)** — 9-level grid with a "Reset to class defaults" action
 
@@ -922,7 +922,7 @@ The primary player-facing character sheet. Also used by the DM via `PartyMemberV
 **Header section** (`PlayerCharacterHeader`):
 
 - Portrait as a plate inset in the paper, name, class/level, species, inspiration star
-- Armor Class (in a shield, calculated, with a breakdown popover), Initiative, Speed, Proficiency, Hit Dice, boxed as on the 2024 sheet; `AcCalculatedNotice` sits above it for a character that still holds a pre-calculation AC
+- Armor Class (in a shield, calculated, with a breakdown popover), Initiative, Speed, Proficiency, Hit Dice, boxed as on the 2024 sheet, with a Senses line beneath when the character has any (species darkvision and the senses field, the better of each); `AcCalculatedNotice` sits above it for a character that still holds a pre-calculation AC
 - Current HP / Max HP with temp HP, a colour-coded meter (green → amber → red → grey at 0, and Stable / Dead states from `dyingStatus`) and the damage/heal/temp controls
 - Rest, conditions (slotted in from `PlayerConditions`) and the add-condition picker
 - The in-game date under the class line
@@ -1248,6 +1248,7 @@ Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `
 | `max_hp/current_hp/temp_hp`     | int    | Hit points                                             |
 | `ac`                            | int?   | Legacy: the AC a player saw before it was calculated; nullable, nothing writes it, dropped once all null (see Armor Class above) |
 | `speed`                         | int    | Speed in feet                                          |
+| `senses`                        | text   | Senses beyond the species', max 200 chars, nullable; effective senses are `characterSenses` in `src/rules/characterSenses.ts` |
 | `initiative_bonus`              | int    | Custom initiative modifier                             |
 | `proficiency_bonus`             | int    | Computed from level                                    |
 | `saving_throw_proficiencies`    | text[] | Ability keys (`["str","con"]`), never names such as "Wisdom" |

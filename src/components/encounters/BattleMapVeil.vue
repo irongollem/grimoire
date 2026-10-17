@@ -91,7 +91,10 @@ const grid = computed(() =>
 // Viewers arrive as a fresh array whenever the encounter state is pushed; sight only changes when one moves or its
 // range does, so an equal set keeps the previous array and the vision grid below is not rebuilt.
 const sameViewers = (a: readonly Viewer[], b: readonly Viewer[]) =>
-  a.length === b.length && a.every((v, i) => v.x === b[i].x && v.y === b[i].y && v.darkvisionFeet === b[i].darkvisionFeet);
+  a.length === b.length && a.every((v, i) => v.x === b[i].x && v.y === b[i].y && v.darkvisionFeet === b[i].darkvisionFeet &&
+      v.blindsightFeet === b[i].blindsightFeet &&
+      v.truesightFeet === b[i].truesightFeet,
+  );
 const stableViewers = computed<Viewer[] | null>((prev) => {
   if (!viewers) return null;
   return prev && sameViewers(prev, viewers) ? prev : viewers;

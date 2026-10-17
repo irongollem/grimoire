@@ -102,7 +102,7 @@ import { occludersOf } from "@/lib/battlemap/occlusion";
 import { seenCombatants, type LitScene, type Viewer } from "@/lib/battlemap/vision";
 import { useParty } from "@/composables/party/useParty";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
-import { darkvisionFeet } from "@/rules/speciesStats";
+import { characterSenses } from "@/rules/characterSenses";
 import { primaryImage } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -185,17 +185,17 @@ const liveCombatants = computed<RunCombatant[] | null>(() => {
   // In the dark a token you cannot see is not drawn either (#1073 story 5); fog above still applies.
   return sight.value ? seenCombatants(revealed, sight.value.scene, sight.value.viewers, ownInstanceId.value) : revealed;
 });
-// Sight (#1073 story 5): a player sees the lit map through their own token, by the rules. Darkvision comes from the
-// character's species traits (and subrace); class features and spells that grant sight are the DM's to adjudicate.
+// Sight (#1073 story 5): a player sees the lit map through their own token, by the rules. Senses are the better of the
+// species' darkvision and the character's own senses field (`characterSenses`).
 const { data: party } = useParty();
 const ownMember = computed(() =>
   auth.linkedPartyMemberId ? (party.value?.find((m) => m.id === auth.linkedPartyMemberId) ?? null) : null,
 );
 const { data: speciesById } = useSpeciesByIds(() => [ownMember.value?.species_id]);
-const ownDarkvisionFeet = computed(() => {
+const ownSenses = computed(() => {
   const member = ownMember.value;
   const species = member?.species_id ? speciesById.value.get(member.species_id) : undefined;
-  return species ? darkvisionFeet(species, member?.subrace) : 0;
+  return characterSenses({ species, subrace: member?.subrace, senses: member?.senses });
 });
 // Only a dark or dim map has sight to apply: in daylight everything is seen, so there is no scene and no viewers.
 // Viewers are the own token's centre; a player with no token on the map sees only what is lit.
@@ -205,7 +205,15 @@ const sight = computed<{ scene: LitScene; viewers: Viewer[] } | null>(() => {
   const own = liveState.value?.combatants_live?.find((c) => c.instance_id === ownInstanceId.value);
   if (!own?.position) return { scene, viewers: [] };
   const half = (own.footprint ?? 1) / 2;
-  return { scene, viewers: [{ x: own.position.x + half, y: own.position.y + half, darkvisionFeet: ownDarkvisionFeet.value }] };
+  const { darkvision, blindsight, truesight } = ownSenses.value;
+  const viewer: Viewer = {
+    x: own.position.x + half,
+    y: own.position.y + half,
+    darkvisionFeet: darkvision,
+    blindsightFeet: blindsight,
+    truesightFeet: truesight,
+  };
+  return { scene, viewers: [viewer] };
 });
 const viewers = computed<Viewer[] | null>(() => (sight.value ? sight.value.viewers : null));
 const dollFigures = useCombatantDollFigures(() => liveCombatants.value ?? []);

@@ -27,6 +27,8 @@ export interface AbilitiesFormSlice {
   temp_hp: number;
   ac_formula: string | null;
   speed: number;
+  /** Senses beyond the species' own, free text read by the battle map. */
+  senses: string | null;
   initiative_bonus: number;
   carry_capacity_override: string | null;
 }

@@ -107,6 +107,21 @@
         @update:model-value="(v) => patch({ carry_capacity_override: v || null })"
       />
     </label>
+    <label class="block col-span-2 sm:col-span-3">
+      <span class="field-label">Other senses (class, feats, items, spells)</span>
+      <AppInput
+        :model-value="form.senses ?? ''"
+        type="text"
+        tone="filled"
+        size="body"
+        maxlength="200"
+        placeholder="darkvision 60 ft., blindsight 10 ft."
+        @update:model-value="(v) => patch({ senses: v || null })"
+      />
+      <span v-if="speciesDarkvisionFeet > 0" class="text-caption text-muted-foreground">
+        From species: darkvision {{ speciesDarkvisionFeet }} ft.
+      </span>
+    </label>
   </div>
 
   <!-- Computed passives (read-only) -->
@@ -182,12 +197,14 @@ const ABILITY_STATS = [
   { key: "cha" as const, label: "CHA" },
 ];
 
-const { form, spellSlotMaxes, skillProficiencies, profBonus, acBreakdown, naturalSeed = null } = defineProps<{
+const { form, spellSlotMaxes, skillProficiencies, profBonus, acBreakdown, naturalSeed = null, speciesDarkvisionFeet = 0 } = defineProps<{
   form: AbilitiesFormSlice;
   /** The AC as the character is right now, from `useArmorClass().acBreakdownFor`. */
   acBreakdown: AcBreakdown;
   /** The species' natural armor AC, to seed the natural armor option. */
   naturalSeed?: number | null;
+  /** What the species already grants, shown so nobody types it again (0 for none). */
+  speciesDarkvisionFeet?: number;
   spellSlotMaxes: number[];
   skillProficiencies: SkillProficiencies;
   profBonus: number;

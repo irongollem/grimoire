@@ -152,6 +152,8 @@ export interface PartyMember {
   /** An extra AC calculation the character has; see the grammar below. */
   ac_formula?: string | null;
   speed: number;
+  /** Senses beyond the species' own ("darkvision 60 ft., blindsight 10 ft."); the battle map reads the ranges. */
+  senses?: string | null;
   initiative_bonus: number;
   current_initiative: number | null;
   str: number;

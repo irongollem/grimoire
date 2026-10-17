@@ -51,6 +51,7 @@
           :form="abilitiesSlice"
           :ac-breakdown="acBreakdown"
           :natural-seed="selectedSpecies?.natural_armor_ac ?? null"
+          :species-darkvision-feet="speciesDarkvisionFeet"
           :spell-slot-maxes="spellSlotMaxes"
           :skill-proficiencies="form.skill_proficiencies"
           :prof-bonus="profBonus"
@@ -114,6 +115,7 @@ import PartyMemberIdentityTab from "./PartyMemberIdentityTab.vue";
 import PartyMemberAbilitiesTab from "./PartyMemberAbilitiesTab.vue";
 import PartyMemberProficienciesTab from "./PartyMemberProficienciesTab.vue";
 import PartyMemberPersonaTab from "./PartyMemberPersonaTab.vue";
+import { darkvisionFeet } from "@/rules/speciesStats";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import {
@@ -184,6 +186,7 @@ const allSpeciesMap = computed<Record<string, string>>(() =>
 );
 
 const selectedSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === form.species_id) ?? null);
+const speciesDarkvisionFeet = computed(() => (selectedSpecies.value ? darkvisionFeet(selectedSpecies.value, form.subrace) : 0));
 const subraceOptions  = computed(() => selectedSpecies.value?.subraces?.map(sr => sr.name) ?? []);
 
 const selectedDisguiseSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === form.disguise_species_id) ?? null);
@@ -228,6 +231,7 @@ function toMemberDraft(m: PartyMember) {
     temp_hp: m.temp_hp,
     ac_formula: m.ac_formula ?? null,
     speed: m.speed,
+    senses: m.senses ?? null,
     initiative_bonus: m.initiative_bonus,
     str: m.str,
     dex: m.dex,
@@ -280,7 +284,7 @@ const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
 
 const CONFLICT_LABELS: Partial<Record<keyof MemberDraft, string>> = {
   name: "Name", player_name: "Player", max_hp: "Max HP", current_hp: "Current HP", temp_hp: "Temp HP",
-  ac_formula: "AC calculation", speed: "Speed", initiative_bonus: "Initiative", str: "Strength", dex: "Dexterity",
+  ac_formula: "AC calculation", speed: "Speed", senses: "Senses", initiative_bonus: "Initiative", str: "Strength", dex: "Dexterity",
   con: "Constitution", int: "Intelligence", wis: "Wisdom", cha: "Charisma",
   skill_proficiencies: "Skill proficiencies", saving_throw_proficiencies: "Saving throws",
   tool_proficiencies: "Tool proficiencies", languages: "Languages",
@@ -338,6 +342,7 @@ const abilitiesSlice = computed<AbilitiesFormSlice>(() => ({
   temp_hp: form.temp_hp,
   ac_formula: form.ac_formula,
   speed: form.speed,
+  senses: form.senses,
   initiative_bonus: form.initiative_bonus,
   carry_capacity_override: form.carry_capacity_override,
 }));
@@ -464,6 +469,7 @@ function buildPayload(d: MemberDraft): PartyMemberUpdate {
     temp_hp: d.temp_hp,
     ac_formula: d.ac_formula,
     speed: d.speed,
+    senses: d.senses?.trim() || null,
     initiative_bonus: d.initiative_bonus,
     str: d.str,
     dex: d.dex,

@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { NO_OCCLUDERS, occluders } from "./occlusion";
 import { canSee, playerVeilAlpha, seenCombatants, sightAt, visionGrid, type Viewer } from "./vision";
 
-const viewer = (darkvisionFeet: number, x = 5.5, y = 5.5): Viewer => ({ x, y, darkvisionFeet });
+const viewer = (darkvisionFeet: number, x = 5.5, y = 5.5): Viewer => ({ x, y, darkvisionFeet, blindsightFeet: 0, truesightFeet: 0 });
+const sensed = (senses: Partial<Viewer>, x = 5.5, y = 5.5): Viewer => ({ ...viewer(0, x, y), ...senses });
 const darkScene = { ambient: 0, sources: [], occluders: NO_OCCLUDERS };
 
 describe("sightAt", () => {
@@ -34,6 +35,32 @@ describe("sightAt", () => {
 
   it("lets the best viewer win", () => {
     expect(sightAt(0, [viewer(0), viewer(60), viewer(120)], 6, 5.5).seen).toBe(0.5);
+  });
+});
+
+describe("blindsight and truesight", () => {
+  it("blindsight perceives a dark point within range as clear, never grey", () => {
+    expect(sightAt(0, [sensed({ blindsightFeet: 10 })], 6.5, 5.5)).toEqual({ seen: 1, grey: 0 });
+    expect(sightAt(0, [sensed({ blindsightFeet: 10 })], 5.5 + 5, 5.5).seen).toBe(0);
+  });
+
+  it("blindsight does not reach round a wall", () => {
+    const wall = occluders({ walls: ["6,5:W"], doors: [], solid: [] });
+    const scene = { ambient: 0, sources: [], occluders: wall };
+    expect(canSee(scene, [sensed({ blindsightFeet: 30 })], 7, 5)).toBe(false);
+    expect(canSee(scene, [sensed({ blindsightFeet: 30 })], 4, 5)).toBe(true);
+  });
+
+  it("truesight shows darkness as clear within range", () => {
+    expect(sightAt(0, [sensed({ truesightFeet: 30 })], 8.5, 5.5)).toEqual({ seen: 1, grey: 0 });
+    expect(sightAt(0, [sensed({ truesightFeet: 30 })], 5.5 + 7, 5.5).seen).toBe(0);
+  });
+
+  it("the best sense wins per point", () => {
+    // Darkvision 60 reaches 12 cells but only to half sight in grey; blindsight 10 is clear but short.
+    const v = sensed({ darkvisionFeet: 60, blindsightFeet: 10 });
+    expect(sightAt(0, [v], 6.5, 5.5)).toEqual({ seen: 1, grey: 0 });
+    expect(sightAt(0, [v], 5.5 + 6, 5.5)).toEqual({ seen: 0.5, grey: 1 });
   });
 });
 

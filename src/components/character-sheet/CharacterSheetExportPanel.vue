@@ -39,6 +39,7 @@
             :page-size="pageSize"
             :theme="theme"
             :species-name="speciesName"
+            :senses-text="sensesText"
             :background-name="backgroundName"
             :ac="ac"
           />
@@ -127,12 +128,14 @@ import {
 import { useAllCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import type { SheetPageSize, SheetTheme } from "@/components/character-sheet/illustrated/sheetTypes";
 
-const { member, inventory, storageKey, speciesName = null, backgroundName = null, items = [] } = defineProps<{
+const { member, inventory, storageKey, speciesName = null, sensesText = null, backgroundName = null, items = [] } = defineProps<{
   member: PartyMember;
   inventory: PartyInventoryItem[];
   /** Per-character key for persisting the export-screen preferences. */
   storageKey: string;
   speciesName?: string | null;
+  /** Effective senses for the clean sheet's Senses line. */
+  sensesText?: string | null;
   backgroundName?: string | null;
   /** Vault items backing equipped weapons — real attack math on the illustrated front.
    *  The caller supplies its context's catalog (DM: the vault items it holds, player: usePlayerItemProjection + useStoredItemRefs). */
@@ -183,6 +186,7 @@ async function doExport() {
     theme: theme.value,
     illustratedTheme: illustratedTheme.value,
     speciesName,
+    sensesText,
     backgroundName,
     ac: ac.value,
     items,
