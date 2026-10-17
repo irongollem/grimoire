@@ -172,6 +172,23 @@ describe("darkvisionFeet", () => {
     expect(darkvisionFeet({ subraces: null, traits: [trait("Darkvision", tiptap)] })).toBe(60);
   });
 
+  it("reads a range whose number carries a mark of its own", () => {
+    const bold = JSON.stringify({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "You can see within " },
+            { type: "text", text: "60", marks: [{ type: "bold" }] },
+            { type: "text", text: " feet of you." },
+          ],
+        },
+      ],
+    });
+    expect(darkvisionFeet({ subraces: null, traits: [trait("Darkvision", bold)] })).toBe(60);
+  });
+
   it("lets a subrace's darkvision replace its parent's", () => {
     const species = {
       traits: [trait("Darkvision", "within 60 feet")],

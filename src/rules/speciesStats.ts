@@ -1,4 +1,5 @@
 import type { SpeciesSize, SpeciesSpeed, SpeciesSubrace, SpeciesTrait } from "@/types/species.types";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 
 /**
  * What a character of a species (and, optionally, one of its subraces) is:
@@ -116,8 +117,9 @@ export function setSpeedMode(
 /**
  * How far a character of this species sees by darkvision, in feet (0 when it has none). A subrace's own darkvision
  * trait replaces its parent's ("Superior Darkvision" 120 over 60). The range lives only in the trait's prose, which
- * is often a stringified Tiptap document, so it is the first number before "feet", "foot" or "ft" in the text; JSON
- * punctuation between the number and the unit does not get in the way of that match.
+ * is often a stringified Tiptap document, so it is the first number before "feet", "foot" or "ft" in the document's
+ * text. The text is read through the document rather than out of the JSON, because a mark on the number (a bold "60")
+ * puts the number and its unit in separate text nodes.
  */
 export function darkvisionFeet(
   species: Pick<SpeciesStatsSource, "subraces"> & { traits: SpeciesTrait[] | null },
@@ -126,7 +128,7 @@ export function darkvisionFeet(
   const subraceTrait = findSubrace(species, subraceName)?.traits.find(isDarkvisionTrait);
   const trait = subraceTrait ?? species.traits?.find(isDarkvisionTrait);
   if (!trait) return 0;
-  const match = /(\d+)\s*(?:feet|foot|ft)\b/i.exec(trait.description);
+  const match = /(\d+)[\s-]*(?:feet|foot|ft)\b/i.exec(tiptapToPlainText(trait.description));
   return match ? Number(match[1]) : 0;
 }
 
