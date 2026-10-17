@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyDisc, areaBlockingEdges, areaOutline, coverage, decodeMask, encodeMask, FLOOR_COVERAGE } from "./area";
+import { applyDisc, applyDiscs, areaBlockingEdges, areaOutline, coverage, decodeMask, encodeMask, FLOOR_COVERAGE } from "./area";
 import { emptyLayers, type DungeonMapLayers, type PackRef } from "@/types/dungeonMap.types";
 
 const REF: PackRef = { pack_id: "p", pack_version: 1, variant: 0 };
@@ -88,6 +88,34 @@ describe("applyDisc", () => {
     const more = applyDisc(carved, { x: 0.5, y: 0.5, r: 0.45 }, REF, "erase");
     expect(coverage(more.area["0,0"].mask)).toBeLessThan(FLOOR_COVERAGE);
     expect(more.floor["0,0"]).toBeUndefined();
+  });
+
+  it("erasing plain floor the disc wholly covers removes it, keeping walls", () => {
+    const base = emptyLayers();
+    base.floor["0,0"] = { floor: REF, wallN: { ...REF, type: "wall" } };
+    base.floor["1,0"] = { floor: REF };
+    const out = applyDisc(base, { x: 1, y: 0.5, r: 1.5 }, REF, "erase");
+    expect(out.floor["0,0"]).toEqual({ wallN: { ...REF, type: "wall" } });
+    expect(out.floor["1,0"]).toBeUndefined();
+    expect(out.area["0,0"]).toBeUndefined();
+    expect(out.area["1,0"]).toBeUndefined();
+  });
+});
+
+describe("applyDiscs", () => {
+  it("is the discs applied one by one, from a single copy of the records", () => {
+    const discs = [
+      { x: 0.5, y: 0.5, r: 0.6 },
+      { x: 1.2, y: 0.6, r: 0.6 },
+      { x: 2, y: 0.8, r: 0.6 },
+    ];
+    const oneByOne = discs.reduce((l, d) => applyDisc(l, d, REF, "paint"), emptyLayers());
+    expect(applyDiscs(emptyLayers(), discs, REF, "paint")).toEqual(oneByOne);
+  });
+
+  it("returns the input when no disc changed anything", () => {
+    const base = emptyLayers();
+    expect(applyDiscs(base, [{ x: 0.5, y: 0.5, r: 1 }], REF, "erase")).toBe(base);
   });
 });
 

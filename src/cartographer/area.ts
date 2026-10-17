@@ -80,8 +80,36 @@ export function applyDisc(
   ref: PackRef,
   mode: "paint" | "erase",
 ): DungeonMapLayers {
+  return applyDiscs(layers, [disc], ref, mode);
+}
+
+/**
+ * `applyDisc` for a run of discs (a brush stroke's segment), copying the `area`
+ * and `floor` records once for the whole run rather than once per disc.
+ */
+export function applyDiscs(
+  layers: DungeonMapLayers,
+  discs: readonly Disc[],
+  ref: PackRef,
+  mode: "paint" | "erase",
+): DungeonMapLayers {
   const area: Record<CellKey, AreaCell> = { ...layers.area };
   const floor: Record<CellKey, FloorCell> = { ...layers.floor };
+  let changed = false;
+  for (const disc of discs) {
+    if (discInto(area, floor, disc, ref, mode)) changed = true;
+  }
+  return changed ? { ...layers, area, floor } : layers;
+}
+
+/** Writes one disc into `area` and `floor` in place; true when it changed anything. */
+function discInto(
+  area: Record<CellKey, AreaCell>,
+  floor: Record<CellKey, FloorCell>,
+  disc: Disc,
+  ref: PackRef,
+  mode: "paint" | "erase",
+): boolean {
   let changed = false;
   const r2 = disc.r * disc.r;
 
@@ -102,10 +130,10 @@ export function applyDisc(
       }
       if (!any) continue;
 
-      const entry = layers.area[key];
+      const entry = area[key];
       let next: AreaCell | null;
       if (mode === "paint") {
-        if (!entry && hasFloor(layers, key)) continue; // plain floor is already fully floor
+        if (!entry && floor[key]?.floor !== undefined) continue; // plain floor is already fully floor
         const bits = entry ? decodeMask(entry.mask) : new Uint8Array(SUBS);
         for (let i = 0; i < SUBS; i++) if (discBits[i]) bits[i] = 1;
         const mask = encodeMask(bits);
@@ -119,13 +147,13 @@ export function applyDisc(
         if (mask === entry.mask) continue;
         next = mask === null ? null : { ...entry, mask };
       } else {
-        const plain = layers.floor[key]?.floor;
+        const plain = floor[key]?.floor;
         if (!plain) continue;
         const bits = new Uint8Array(SUBS);
         for (let i = 0; i < SUBS; i++) bits[i] = discBits[i] ? 0 : 1;
         const mask = encodeMask(bits);
-        if (mask === null) continue;
-        next = { ...plain, mask };
+        // A disc that covers the whole plain cell erases it outright.
+        next = mask === null ? null : { ...plain, mask };
       }
 
       changed = true;
@@ -143,7 +171,7 @@ export function applyDisc(
       }
     }
   }
-  return changed ? { ...layers, area, floor } : layers;
+  return changed;
 }
 
 function samePack(a: PackRef, b: PackRef): boolean {

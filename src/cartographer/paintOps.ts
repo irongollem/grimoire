@@ -11,7 +11,7 @@
 // for a no-op. None of them set a dirty flag themselves — the caller does
 // `if (changed) dirty.value = true;` at the call site.
 
-import { cellKey, type DungeonMapLayers, type EdgeSeg, type EdgeSegType } from "@/types/dungeonMap.types";
+import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type EdgeSegType } from "@/types/dungeonMap.types";
 import { nextDressingZ } from "@/cartographer/dressing";
 import type { StampCategory } from "@/cartographer/stampCategories";
 import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
@@ -53,10 +53,13 @@ export function edgeDirection(side: "N" | "E" | "S" | "W"): "H" | "V" {
 
 // ── Floor cell ──────────────────────────────────────────────────────────────
 
+// Plain floor is a whole square, so painting it over a brushed cell drops the
+// cell's coverage mask: otherwise the tile stays clipped to the old curve.
 export function paintCell(ctx: PaintContext, x: number, y: number, variant: number): boolean {
   const k = cellKey(x, y);
   const existing = ctx.layers.floor[k];
-  if (existing?.floor?.pack_id === ctx.packId && existing?.floor?.variant === variant) return false;
+  const hadArea = dropArea(ctx, k);
+  if (existing?.floor?.pack_id === ctx.packId && existing?.floor?.variant === variant) return hadArea;
   ctx.layers.floor[k] = {
     ...existing,
     floor: {
@@ -68,19 +71,30 @@ export function paintCell(ctx: PaintContext, x: number, y: number, variant: numb
   return true;
 }
 
-// A cell's terrain goes with the cell: water drawn over a floor that is no
-// longer there would be a ghost the walls, spaces and publish cannot see.
+// A cell's terrain and brushed area go with the cell: water or a curved floor
+// drawn where the floor is no longer there would be a ghost the walls, spaces
+// and publish cannot see. A brushed cell under half covered has no floor at
+// all, only its area entry, and is erased all the same.
 export function eraseCell(ctx: PaintContext, x: number, y: number): boolean {
   const k = cellKey(x, y);
   const hadFloor = Boolean(ctx.layers.floor[k]);
   const hadTerrain = Boolean(ctx.layers.terrain[k]);
-  if (!hadFloor && !hadTerrain) return false;
+  const hadArea = dropArea(ctx, k);
+  if (!hadFloor && !hadTerrain) return hadArea;
   if (hadFloor) {
     const next = { ...ctx.layers.floor };
     delete next[k];
     ctx.layers.floor = next;
   }
   if (hadTerrain) eraseTerrainAt(ctx, x, y);
+  return true;
+}
+
+function dropArea(ctx: PaintContext, k: CellKey): boolean {
+  if (!ctx.layers.area[k]) return false;
+  const next = { ...ctx.layers.area };
+  delete next[k];
+  ctx.layers.area = next;
   return true;
 }
 

@@ -34,6 +34,28 @@ describe("paintCell / eraseCell", () => {
     paintOps.paintCell(ctx, 1, 2, 3);
     expect(paintOps.paintCell(ctx, 1, 2, 4)).toBe(true);
   });
+
+  it("paints a brushed cell back to a whole square, dropping its mask", () => {
+    const ctx = makeCtx();
+    const floor = { pack_id: "pack-a", pack_version: 1, variant: 3 };
+    ctx.layers.floor[cellKey(1, 2)] = { floor };
+    ctx.layers.area[cellKey(1, 2)] = { ...floor, mask: "00000000ffffffff" };
+    expect(paintOps.paintCell(ctx, 1, 2, 3)).toBe(true);
+    expect(ctx.layers.area[cellKey(1, 2)]).toBeUndefined();
+    expect(ctx.layers.floor[cellKey(1, 2)]?.floor).toEqual(floor);
+  });
+
+  it("erases a brushed cell, with or without floor", () => {
+    const ctx = makeCtx();
+    const ref = { pack_id: "pack-a", pack_version: 1, variant: 0 };
+    ctx.layers.floor[cellKey(0, 0)] = { floor: ref };
+    ctx.layers.area[cellKey(0, 0)] = { ...ref, mask: "00ffffffffffffff" };
+    ctx.layers.area[cellKey(1, 0)] = { ...ref, mask: "000000000000000f" };
+    expect(paintOps.eraseCell(ctx, 0, 0)).toBe(true);
+    expect(paintOps.eraseCell(ctx, 1, 0)).toBe(true);
+    expect(ctx.layers.area).toEqual({});
+    expect(ctx.layers.floor).toEqual({});
+  });
 });
 
 describe("paintSolidAt / eraseSolidAt", () => {

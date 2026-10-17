@@ -34,7 +34,7 @@ import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill, boundaryEdges } from "@/cartographer/floodFill";
 import { CommandStack } from "@/cartographer/commandStack";
 import { cellsForTemplate } from "@/lib/map/gestures/template";
-import { applyDisc } from "@/cartographer/area";
+import { applyDiscs, type Disc } from "@/cartographer/area";
 import { cellsInRect, rectangleGesture } from "@/lib/map/gestures/rectangle";
 import { cellsInLine } from "@/lib/map/gestures/line";
 import { useCartographerStructureTools } from "@/composables/cartographer/useCartographerStructureTools";
@@ -591,13 +591,13 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const step = r / 3;
     const dist = from ? Math.hypot(x - from[0], y - from[1]) : 0;
     const n = from ? Math.max(1, Math.ceil(dist / step)) : 1;
-    let next = layers.value;
+    const discs: Disc[] = [];
     for (let i = 1; i <= n; i++) {
       const t = from ? i / n : 1;
-      const px = from ? from[0] + (x - from[0]) * t : x;
-      const py = from ? from[1] + (y - from[1]) * t : y;
-      next = applyDisc(next, { x: px, y: py, r }, ref, mode);
+      discs.push({ x: from ? from[0] + (x - from[0]) * t : x, y: from ? from[1] + (y - from[1]) * t : y, r });
     }
+    // One copy of the records per pointer move, however many discs the move needs.
+    const next = applyDiscs(layers.value, discs, ref, mode);
     brushLast = [x, y];
     if (next !== layers.value) {
       layers.value = next;
@@ -1363,6 +1363,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     onPointerLeave(ev: PointerEvent): void {
       onPointerUp(ev);
       dressingTool.clearHover();
+      // The brush's cursor circle follows the pointer; with the pointer gone it goes too.
+      hoverPoint.value = null;
     },
     onDoubleClick,
     onWheel,
