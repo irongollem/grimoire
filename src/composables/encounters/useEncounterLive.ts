@@ -3,7 +3,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
 import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
-import type { EncounterState, RunCombatant, RunningEncounterState } from "@/types/encounter.types";
+import type { EncounterState, MagicalDarknessZone, RunCombatant, RunningEncounterState } from "@/types/encounter.types";
 
 // ── Module-level singleton for running encounters ──────────────────────────────
 let stopRunRings: (() => void) | null = null;
@@ -155,6 +155,8 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
       // check (`shouldSeedFog`, fogMask.ts) reliably fires exactly once per
       // go-live rather than once per encounter ever.
       fog_mask: null,
+      // Likewise a new fight starts without the last one's spheres of darkness.
+      magical_darkness: [],
     };
     const { data, error } = await supabase
       .from("encounter_state")
@@ -180,6 +182,7 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
     combatants: RunCombatant[];
     eventsFired: string[];
     fogMask?: string | null;
+    magicalDarkness?: MagicalDarknessZone[];
   }
 
   function schedulePush(state: PushableState) {
@@ -214,6 +217,7 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
       events_fired: state.eventsFired,
     };
     if (state.fogMask !== undefined) patch.fog_mask = state.fogMask;
+    if (state.magicalDarkness !== undefined) patch.magical_darkness = state.magicalDarkness;
     const { error } = await supabase
       .from("encounter_state")
       .update(patch)

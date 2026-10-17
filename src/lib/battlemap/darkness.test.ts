@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { MakeCanvas } from "@/cartographer/drawFrame";
-import { DM_VEIL, VEIL_RGB, paintLitVeil, paintPlayerVeil, veilAlpha } from "./darkness";
+import { DM_VEIL, VEIL_RGB, paintLitVeil, paintPlayerVeil, paintZoneRings, veilAlpha, zoneIdAt } from "./darkness";
 
 /** A canvas factory whose image data is a plain array, so the painted pixels can be read back. */
 function fakeCanvas() {
@@ -116,5 +116,25 @@ describe("paintPlayerVeil", () => {
     const none = target();
     expect(paintPlayerVeil(none, rect, clear, 2, 1, makeCanvas, [picture("ground")])).toBe(false);
     expect(none.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe("zoneIdAt and paintZoneRings", () => {
+  const zones = [
+    { id: "a", x: 5, y: 5, radius: 20 },
+    { id: "b", x: 6, y: 5, radius: 10 },
+  ];
+  it("picks the topmost sphere holding the point, or none", () => {
+    expect(zoneIdAt(zones, 6, 5)).toBe("b");
+    expect(zoneIdAt(zones, 2, 5)).toBe("a");
+    expect(zoneIdAt(zones, 20, 20)).toBeNull();
+  });
+  it("strokes one dashed ring per sphere at its radius", () => {
+    const ctx = { save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), arc: vi.fn(), stroke: vi.fn(), setLineDash: vi.fn(), strokeStyle: "", lineWidth: 0 };
+    paintZoneRings(ctx, zones, 100, 50, 10);
+    expect(ctx.setLineDash).toHaveBeenCalled();
+    expect(ctx.arc).toHaveBeenNthCalledWith(1, 150, 100, 40, 0, Math.PI * 2);
+    expect(ctx.arc).toHaveBeenNthCalledWith(2, 160, 100, 20, 0, Math.PI * 2);
+    expect(ctx.stroke).toHaveBeenCalledTimes(2);
   });
 });

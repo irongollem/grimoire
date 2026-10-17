@@ -395,6 +395,15 @@ export type RunningEncounterState = Pick<
   "encounter_id" | "is_running" | "current_round" | "active_combatant_index" | "combatants_live"
 >;
 
+/** A sphere of magical darkness the DM placed (story 10 of #1073): centre in battle-map image cells (fractional, the
+ *  space of the fog and tokens), radius in feet. No light lifts it and darkvision cannot see into it. */
+export interface MagicalDarknessZone {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+}
+
 export interface EncounterState {
   id: string;
   encounter_id: string;
@@ -413,6 +422,8 @@ export interface EncounterState {
   /** VTT fog of war — semicolon-joined list of revealed "x,y" cell keys.
    *  null/empty = nothing revealed (full fog). See `src/lib/battlemap/fogMask.ts`. */
   fog_mask?: string | null;
+  /** Magical darkness on the battle map; reaches players through the player-safe projection. */
+  magical_darkness: MagicalDarknessZone[];
   started_at: string | null;
   updated_at: string;
 }

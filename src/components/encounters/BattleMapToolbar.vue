@@ -70,7 +70,7 @@
             @click="tool = t.id"
           />
         </div>
-        <template v-if="tool !== 'pan'">
+        <template v-if="isFogBrush">
           <div class="tool-group" role="radiogroup" aria-label="Brush shape">
             <AppButton
               v-for="s in BRUSH_SHAPES"
@@ -123,6 +123,27 @@
         />
       </div>
 
+      <!-- Magical darkness (story 10): a click on the map places a sphere or removes the one clicked. -->
+      <div class="fog-toolbox">
+        <span class="fog-label">Darkness</span>
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="xs"
+          :icon="IconMoon"
+          :active="tool === 'darkness'"
+          tooltip="Place or remove magical darkness"
+          @click="tool = tool === 'darkness' ? 'pan' : 'darkness'"
+        />
+        <SegmentedControl
+          v-if="tool === 'darkness'"
+          v-model="darknessRadius"
+          :options="DARKNESS_RADII"
+          variant="outline"
+          size="xs"
+        />
+      </div>
+
       <div class="topbar-right">
         <span class="hint">{{ scalePercent }}%</span>
         <AppButton
@@ -150,13 +171,16 @@ import {
   IconReveal,
   IconHide,
   IconCircle,
+  IconMoon,
   IconStop,
   IconReset,
   IconNavAtlas,
   IconEncounter,
 } from "@/lib/icons";
 
-export type BattleMapTool = "pan" | "reveal" | "rehide";
+export type BattleMapTool = "pan" | "reveal" | "rehide" | "darkness";
+/** Radii of a sphere of magical darkness in feet; 15 is the darkness spell. */
+export type DarknessRadius = 10 | 15 | 20 | 30;
 export type BattleMapBrushShape = "round" | "cell";
 type SiteEncounterValue = "site" | "encounter";
 
@@ -182,6 +206,7 @@ defineEmits<{
 }>();
 
 const tool = defineModel<BattleMapTool>("tool", { required: true });
+const darknessRadius = defineModel<DarknessRadius>("darknessRadius", { required: true });
 const brushShape = defineModel<BattleMapBrushShape>("brushShape", { required: true });
 const brushSize = defineModel<1 | 3 | 5>("brushSize", { required: true });
 const showTokens = defineModel<boolean>("showTokens", { required: true });
@@ -191,6 +216,8 @@ const showGrid = defineModel<boolean>("showGrid", { required: true });
 const previewAsPlayer = defineModel<boolean>("previewAsPlayer", { required: true });
 
 const router = useRouter();
+// The fog brushes' shape and size mean nothing to the darkness tool, which places by a click.
+const isFogBrush = computed(() => tool.value === "reveal" || tool.value === "rehide");
 
 const siteEncounterOptions = computed(() => [
   { value: "site" as SiteEncounterValue, label: "Site", icon: IconNavAtlas, tooltip: props.siteTooltip },
@@ -212,6 +239,12 @@ const TOOLS: { id: BattleMapTool; label: string; icon: Component }[] = [
 const BRUSH_SHAPES: { id: BattleMapBrushShape; label: string; icon: Component }[] = [
   { id: "round", label: "Round brush", icon: IconCircle },
   { id: "cell", label: "Cell brush", icon: IconStop },
+];
+const DARKNESS_RADII: { value: DarknessRadius; label: string }[] = [
+  { value: 10, label: "10 ft" },
+  { value: 15, label: "15 ft" },
+  { value: 20, label: "20 ft" },
+  { value: 30, label: "30 ft" },
 ];
 const BRUSH_SIZES = [1, 3, 5] as const;
 </script>

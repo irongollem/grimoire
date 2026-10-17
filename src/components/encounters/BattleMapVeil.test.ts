@@ -24,7 +24,7 @@ vi.mock("@/lib/battlemap/darkness", async (orig) => ({
 
 import BattleMapVeil from "./BattleMapVeil.vue";
 
-const ctx = { clearRect: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn() };
+const ctx = { clearRect: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(), arc: vi.fn(), stroke: vi.fn(), setLineDash: vi.fn() };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -104,8 +104,30 @@ describe("BattleMapVeil", () => {
     expect(painted.calls[painted.calls.length - 1].rect.w).toBe(400);
   });
 
+  describe("magical darkness", () => {
+    const zones = [{ x: 3.5, y: 2.5, radius: 10 }];
+
+    it("zeroes the sphere on a daylight map and rings it for the DM", () => {
+      mount(BattleMapVeil, { props: { ...props, live: snapshot({ darkness: "daylight" }), zones } });
+      const { grid, gw } = painted.calls[0];
+      // Sample (14, 10) is cell (3.6, 2.6), inside the sphere; the last sample, in the corner, is outside.
+      expect(grid[10 * gw + 14]).toBe(0);
+      expect(grid[grid.length - 1]).toBe(1);
+      expect(ctx.arc).toHaveBeenCalledTimes(1);
+    });
+
+    it("blinds a darkvision player inside the sphere", () => {
+      const viewer = { x: 0.5, y: 0.5, darkvisionFeet: 60, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 };
+      mount(BattleMapVeil, { props: { ...props, live: snapshot({ darkness: "daylight" }), viewers: [viewer], zones } });
+      const { seen, gw } = painted.player[0];
+      expect(seen[10 * gw + 14]).toBe(0);
+      expect(seen[22]).toBe(1);
+      expect(ctx.arc).not.toHaveBeenCalled();
+    });
+  });
+
   describe("for a player", () => {
-    const viewer = { x: 0.5, y: 0.5, darkvisionFeet: 10, blindsightFeet: 0, truesightFeet: 0 };
+    const viewer = { x: 0.5, y: 0.5, darkvisionFeet: 10, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 };
 
     it("paints what the viewers see instead of the DM's veil", () => {
       mount(BattleMapVeil, { props: { ...props, viewers: [viewer] } });

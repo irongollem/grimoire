@@ -63,7 +63,7 @@
 
   <!-- Last, so room focus, tokens and fog (the views draw them after the stack) stay above the veil. -->
   <BattleMapVeil
-    v-if="live && live.darkness !== 'daylight' && cellPx > 0"
+    v-if="live && (live.darkness !== 'daylight' || zones.length > 0) && cellPx > 0"
     :host-w="hostW"
     :host-h="hostH"
     :pan-x="panX"
@@ -75,6 +75,7 @@
     :origin-y="originY"
     :live="live"
     :viewers="viewers"
+    :zones="zones"
     :ground-url="imageUrl"
     :stand-url="standUrl"
   />
@@ -82,7 +83,7 @@
 
 <script setup lang="ts">
 // The picture of a battle map, bottom to top (epic #1073): the ground image, the ground live layer (water), the grid,
-// the standing image, the top live layer, the darkness veil. "Props, trees, walls are ON the grid while the floor is UNDER it", so the
+// the standing image, the top live layer, the darkness veil (mounted for a dark or dim map, or a daylight one with a sphere of magical darkness). "Props, trees, walls are ON the grid while the floor is UNDER it", so the
 // grid is cut between two images of the same Drawing. Room focus, tokens and fog stay with the view and draw above.
 // `standUrl` is null when the shown image is not the Drawing or the drawing predates the split.
 //
@@ -95,11 +96,12 @@
 import { computed, shallowRef } from "vue";
 import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
 import BattleMapVeil from "@/components/encounters/BattleMapVeil.vue";
+import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
 import type { Viewer } from "@/lib/battlemap/vision";
 import { prefersReducedMotion } from "@/lib/motion";
 import type { MapLive } from "@/types/mapLive.types";
 
-const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, viewers = null } = defineProps<{
+const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, viewers = null, zones = NO_ZONES } = defineProps<{
   hostW: number;
   hostH: number;
   imageUrl: string;
@@ -121,6 +123,8 @@ const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, view
   live: MapLive | null;
   /** The player's sight: set, the veil shows what these viewers see; null, the DM's translucent veil. */
   viewers?: Viewer[] | null;
+  /** Magical darkness: counts as a dark map for mounting the veil, even on a daylight one. */
+  zones?: readonly DarknessZone[];
 }>();
 
 const topAnimates = computed(

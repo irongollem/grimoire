@@ -4,6 +4,9 @@
 // map's ambient level is only a floor under every source. A light only reaches what it has a clear line to (story 6,
 // `occlusion.ts`): walls, closed doors and solid rock stop it. Callers with nothing that blocks pass `NO_OCCLUDERS`.
 //
+// Magical darkness (story 10) is a sphere no light lifts: a point inside one has level 0 whatever the lights and the
+// ambient level, and a light's line to a point that passes through one is stopped, the same way a wall stops it.
+//
 // Pure and DOM-free, so the Cartographer's preview and the battle map carve their veil from the same numbers.
 
 import { FEET_PER_CELL } from "@/cartographer/packSchema";
@@ -44,6 +47,37 @@ function contribution(bright: number, dim: number, dist: number): number {
   return bright > 0 ? dimPart + 0.5 * inside(brightEdge, dist) : dimPart;
 }
 
+/** A sphere of magical darkness: centre in image cells (fractional), radius in feet. */
+export interface DarknessZone {
+  x: number;
+  y: number;
+  radius: number;
+}
+
+export const NO_ZONES: readonly DarknessZone[] = [];
+
+/** Whether a point (cells) lies inside any zone. */
+export function inZone(zones: readonly DarknessZone[], x: number, y: number): boolean {
+  return zones.some((z) => Math.hypot(x - z.x, y - z.y) <= z.radius / FEET_PER_CELL);
+}
+
+/** Whether the segment (a to b, cells) touches any zone: its nearest point to a zone's centre is inside that zone. */
+export function segmentTouchesZone(
+  zones: readonly DarknessZone[],
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+): boolean {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  return zones.some((z) => {
+    const t = len2 === 0 ? 0 : Math.min(1, Math.max(0, ((z.x - ax) * dx + (z.y - ay) * dy) / len2));
+    return Math.hypot(ax + t * dx - z.x, ay + t * dy - z.y) <= z.radius / FEET_PER_CELL;
+  });
+}
+
 /** The light level at a point in cells: the brightest of the ambient level and every source with a clear line to it. */
 export function lightLevelAt(
   ambient: number,
@@ -51,11 +85,14 @@ export function lightLevelAt(
   occ: Occluders,
   x: number,
   y: number,
+  zones: readonly DarknessZone[] = NO_ZONES,
 ): number {
+  if (inZone(zones, x, y)) return 0;
   let level = ambient;
   for (const s of sources) {
     const c = contribution(s.bright, s.dim, Math.hypot(x - s.x, y - s.y));
     if (c <= level) continue;
+    if (segmentTouchesZone(zones, s.x, s.y, x, y)) continue;
     if (!nudgedOrigins(s.x, s.y).some(([ox, oy]) => clearLine(occ, ox, oy, x, y))) continue;
     level = c;
     if (level >= 1) return 1;
@@ -74,6 +111,8 @@ export interface IlluminationOptions {
   rows: number;
   /** Samples per cell along each axis. */
   samplesPerCell: number;
+  /** Magical darkness; absent means none. */
+  zones?: readonly DarknessZone[];
 }
 
 /**
@@ -81,7 +120,7 @@ export interface IlluminationOptions {
  * source only visits the samples inside its own reach (plus the soft band), so many lights on a big map stay cheap.
  */
 export function illuminationGrid(opts: IlluminationOptions): Float32Array {
-  const { ambient, sources, occluders: occ, minX, minY, cols, rows, samplesPerCell: spc } = opts;
+  const { ambient, sources, occluders: occ, minX, minY, cols, rows, samplesPerCell: spc, zones = NO_ZONES } = opts;
   const w = cols * spc;
   const h = rows * spc;
   const grid = new Float32Array(w * h).fill(ambient);
@@ -101,7 +140,26 @@ export function illuminationGrid(opts: IlluminationOptions): Float32Array {
         const px = minX + (i + 0.5) / spc;
         const level = contribution(s.bright, s.dim, Math.hypot(px - s.x, py - s.y));
         // The line test is the dear part, so it runs only for a sample the source would actually brighten.
-        if (level > grid[row + i] && origins.some(([ox, oy]) => clearLine(occ, ox, oy, px, py))) grid[row + i] = level;
+        if (
+          level > grid[row + i] &&
+          !segmentTouchesZone(zones, s.x, s.y, px, py) &&
+          origins.some(([ox, oy]) => clearLine(occ, ox, oy, px, py))
+        )
+          grid[row + i] = level;
+      }
+    }
+  }
+  // Magical darkness wins over everything above, ambient included.
+  for (const z of zones) {
+    const r = z.radius / FEET_PER_CELL;
+    const i0 = Math.max(0, Math.floor((z.x - r - minX) * spc - 0.5));
+    const i1 = Math.min(w - 1, Math.ceil((z.x + r - minX) * spc - 0.5));
+    const j0 = Math.max(0, Math.floor((z.y - r - minY) * spc - 0.5));
+    const j1 = Math.min(h - 1, Math.ceil((z.y + r - minY) * spc - 0.5));
+    for (let j = j0; j <= j1; j++) {
+      const py = minY + (j + 0.5) / spc;
+      for (let i = i0; i <= i1; i++) {
+        if (Math.hypot(minX + (i + 0.5) / spc - z.x, py - z.y) <= r) grid[j * w + i] = 0;
       }
     }
   }

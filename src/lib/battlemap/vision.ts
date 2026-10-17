@@ -5,10 +5,14 @@
 // (story 6, `occlusion.ts`): nothing behind a wall, a closed door or solid rock is seen, lit or not, and darkvision
 // does not reach round them. With no viewer (no token placed) there is no line to test. Where the ranges come from (species, the character's senses field) is `characterSenses`; blindsight and truesight see in the dark whatever the light, within their range and a clear line.
 //
+// Magical darkness (story 10) is darkness no light lifts and darkvision cannot see into. Blindsight perceives within
+// its range regardless (walls still stop it); truesight and Devil's Sight see in it and through it within their range;
+// everyone else sees nothing inside a zone and nothing behind one (a line that enters or crosses a zone is blocked).
+//
 // Pure and DOM-free.
 
 import { FEET_PER_CELL } from "@/cartographer/packSchema";
-import { lightLevelAt, type LitSource } from "@/lib/battlemap/illumination";
+import { inZone, lightLevelAt, NO_ZONES, segmentTouchesZone, type DarknessZone, type LitSource } from "@/lib/battlemap/illumination";
 import { clearLine, nudgedOrigins, type Occluders } from "@/lib/battlemap/occlusion";
 
 /** A creature that sees for a player: centre in image cells and the range of each sense in feet (0 for none). */
@@ -18,6 +22,8 @@ export interface Viewer {
   darkvisionFeet: number;
   blindsightFeet: number;
   truesightFeet: number;
+  /** A warlock's Devil's Sight: sees normally in magical and nonmagical darkness. */
+  devilsSightFeet: number;
 }
 
 /** The light a scene has before any viewer looks at it. */
@@ -25,6 +31,8 @@ export interface LitScene {
   ambient: number;
   sources: readonly LitSource[];
   occluders: Occluders;
+  /** Magical darkness; empty for none. */
+  zones: readonly DarknessZone[];
 }
 
 /** Per-sample sight: `seen` 1 clear, 0.5 lightly obscured, 0 blind; `grey` 1 where darkvision shows only shades of grey. */
@@ -62,32 +70,45 @@ function reachOf(feet: number, v: Viewer, x: number, y: number): number {
   return 1 - smoothstep(range - HALF_BAND, range + HALF_BAND, Math.hypot(x - v.x, y - v.y));
 }
 
+type Sight = { seen: number; grey: number };
+
+/** The better of two sights: more seen wins, and at equal sight the one with less grey. */
+function better(a: Sight, b: Sight): Sight {
+  return b.seen > a.seen || (b.seen === a.seen && b.grey < a.grey) ? b : a;
+}
+
 /**
- * Sight at one point given its light level; the best sense of the best viewer wins.
- * Blindsight perceives whatever the light, and is not sight, so it is never grey. Truesight sees in normal and
- * magical darkness alike; until magical darkness exists (story 10) it reads as clear sight in the dark, and it is the
- * sense that will see through that darkness. Tremorsense is deliberately not used here: it senses creatures touching
- * the ground, not the surroundings, so it has nothing to say about what the map looks like.
+ * What one viewer sees at a point given its light level. `blocked` is set when the point is in magical darkness or the
+ * line to it crosses some: then light and darkvision are of no use and only blindsight, truesight and Devil's Sight
+ * perceive it. Blindsight is not sight, so it is never grey; truesight and Devil's Sight see it clearly.
  */
-export function sightAt(level: number, viewers: readonly Viewer[], x: number, y: number): { seen: number; grey: number } {
-  let seen = level;
-  let grey = 0;
-  if (level >= 1) return { seen, grey };
-  const consider = (reach: number, lifted: { seen: number; grey: number }) => {
-    if (reach <= 0) return;
-    const s = level + reach * (lifted.seen - level);
-    const g = reach * lifted.grey;
-    if (s > seen || (s === seen && g < grey)) {
-      seen = s;
-      grey = g;
+function viewerSight(level: number, v: Viewer, x: number, y: number, blocked: boolean): Sight {
+  let best: Sight = { seen: blocked ? 0 : level, grey: 0 };
+  if (!blocked && level >= 1) return best;
+  if (!blocked) {
+    const reach = reachOf(v.darkvisionFeet, v, x, y);
+    if (reach > 0) {
+      const lifted = throughDarkvision(level);
+      best = better(best, { seen: level + reach * (lifted.seen - level), grey: reach * lifted.grey });
     }
-  };
-  for (const v of viewers) {
-    consider(reachOf(v.darkvisionFeet, v, x, y), throughDarkvision(level));
-    consider(reachOf(v.blindsightFeet, v, x, y), { seen: 1, grey: 0 });
-    consider(reachOf(v.truesightFeet, v, x, y), { seen: 1, grey: 0 });
   }
-  return { seen, grey };
+  for (const feet of [v.blindsightFeet, v.truesightFeet, v.devilsSightFeet]) {
+    const reach = reachOf(feet, v, x, y);
+    if (reach > 0) best = better(best, { seen: level + reach * (1 - level), grey: 0 });
+  }
+  return best;
+}
+
+/**
+ * Sight at one point given its light level; the best sense of the best viewer wins, with no walls or zones in the way.
+ * Blindsight perceives whatever the light, and is not sight, so it is never grey. Truesight and Devil's Sight see in
+ * the dark clearly. Tremorsense is deliberately not used here: it senses creatures touching the ground, not the
+ * surroundings, so it has nothing to say about what the map looks like.
+ */
+export function sightAt(level: number, viewers: readonly Viewer[], x: number, y: number): Sight {
+  let best: Sight = { seen: level, grey: 0 };
+  for (const v of viewers) best = better(best, viewerSight(level, v, x, y, false));
+  return best;
 }
 
 /** Where each viewer looks from: a viewer on a cell edge or corner (a large token's centre) looks from each cell it touches. */
@@ -96,22 +117,43 @@ function lookFrom(viewers: readonly Viewer[]): { viewer: Viewer; origins: [numbe
 }
 
 /**
- * Sight at one point through the occluders: only a viewer with a clear line counts, for light and for darkvision both.
+ * Sight at one point through the occluders and zones: only a viewer with a clear line counts, for light and for
+ * darkvision both, and a viewer whose every clear line crosses magical darkness it is not standing in has only the senses that perceive it.
  * With viewers but none that can see the point, it is unseen. With no viewers nothing is tested.
  */
 function sightThrough(
   occ: Occluders,
+  zones: readonly DarknessZone[],
   level: number,
   eyes: ReturnType<typeof lookFrom>,
-  viewers: readonly Viewer[],
   x: number,
   y: number,
-): { seen: number; grey: number } {
-  const all = sightAt(level, viewers, x, y);
-  if (viewers.length === 0 || all.seen <= 0) return all;
-  const open = eyes.filter((e) => e.origins.some(([ox, oy]) => clearLine(occ, ox, oy, x, y)));
-  if (open.length === 0) return { seen: 0, grey: 0 };
-  return open.length === eyes.length ? all : sightAt(level, open.map((e) => e.viewer), x, y);
+): Sight {
+  if (eyes.length === 0) return { seen: level, grey: 0 };
+  let best: Sight = { seen: 0, grey: 0 };
+  for (const { viewer, origins } of eyes) {
+    // The unblocked sight is an upper bound: skip the line tests when it cannot beat what is already found.
+    const bound = viewerSight(level, viewer, x, y, false);
+    if (bound.seen <= best.seen && !(bound.seen === best.seen && bound.grey < best.grey)) continue;
+    const open = origins.filter(([ox, oy]) => clearLine(occ, ox, oy, x, y));
+    if (open.length === 0) continue;
+    // A creature standing inside a sphere sees out of it: the zones holding the viewer's own origin do not block its
+    // line. The sample itself inside any zone is still unseen, and a different zone on the way still blocks.
+    const blocked =
+      zones.length > 0 &&
+      (inZone(zones, x, y) ||
+        open.every(([ox, oy]) =>
+          segmentTouchesZone(
+            zones.filter((z) => !inZone([z], ox, oy)),
+            ox,
+            oy,
+            x,
+            y,
+          ),
+        ));
+    best = better(best, blocked ? viewerSight(level, viewer, x, y, true) : bound);
+  }
+  return best;
 }
 
 export interface VisionGridOptions {
@@ -124,11 +166,12 @@ export interface VisionGridOptions {
   samplesPerCell: number;
   viewers: readonly Viewer[];
   occluders: Occluders;
+  zones?: readonly DarknessZone[];
 }
 
 /** Sight at every sample of the illumination grid. Sample i sits at cell `minX + (i + 0.5) / samplesPerCell`. */
 export function visionGrid(opts: VisionGridOptions): Vision {
-  const { illumination, minX, minY, cols, rows, samplesPerCell: spc, viewers, occluders: occ } = opts;
+  const { illumination, minX, minY, cols, rows, samplesPerCell: spc, viewers, occluders: occ, zones = NO_ZONES } = opts;
   const eyes = lookFrom(viewers);
   const w = cols * spc;
   const h = rows * spc;
@@ -138,7 +181,7 @@ export function visionGrid(opts: VisionGridOptions): Vision {
     const y = minY + (j + 0.5) / spc;
     for (let i = 0; i < w; i++) {
       const at = j * w + i;
-      const s = sightThrough(occ, illumination[at], eyes, viewers, minX + (i + 0.5) / spc, y);
+      const s = sightThrough(occ, zones, illumination[at], eyes, minX + (i + 0.5) / spc, y);
       seen[at] = s.seen;
       grey[at] = s.grey;
     }
@@ -159,8 +202,8 @@ export function playerVeilAlpha(seen: number): number {
 export function canSee(scene: LitScene, viewers: readonly Viewer[], cellX: number, cellY: number): boolean {
   const x = cellX + 0.5;
   const y = cellY + 0.5;
-  const level = lightLevelAt(scene.ambient, scene.sources, scene.occluders, x, y);
-  return sightThrough(scene.occluders, level, lookFrom(viewers), viewers, x, y).seen > SEEN_THRESHOLD;
+  const level = lightLevelAt(scene.ambient, scene.sources, scene.occluders, x, y, scene.zones);
+  return sightThrough(scene.occluders, scene.zones, level, lookFrom(viewers), x, y).seen > SEEN_THRESHOLD;
 }
 
 interface Placed {

@@ -43,6 +43,7 @@
         :origin-y="gridOrigin.y"
         :live="live"
         :viewers="viewers"
+        :zones="zones"
       />
 
       <BattleMapTokenLayer
@@ -97,7 +98,7 @@ import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDo
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
-import { AMBIENT } from "@/lib/battlemap/illumination";
+import { AMBIENT, NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
 import { occludersOf } from "@/lib/battlemap/occlusion";
 import { seenCombatants, type LitScene, type Viewer } from "@/lib/battlemap/vision";
 import { useParty } from "@/composables/party/useParty";
@@ -197,21 +198,30 @@ const ownSenses = computed(() => {
   const species = member?.species_id ? speciesById.value.get(member.species_id) : undefined;
   return characterSenses({ species, subrace: member?.subrace, senses: member?.senses });
 });
-// Only a dark or dim map has sight to apply: in daylight everything is seen, so there is no scene and no viewers.
+// Spheres of magical darkness the DM placed (story 10), from the player-safe projection of the live row.
+const zones = computed<readonly DarknessZone[]>(() => (liveState.value ? liveState.value.magical_darkness : NO_ZONES));
+// Only a dark or dim map, or one with a sphere of magical darkness, has sight to apply: in plain daylight everything is
+// seen, so there is no scene and no viewers.
 // Viewers are the own token's centre; a player with no token on the map sees only what is lit.
 const sight = computed<{ scene: LitScene; viewers: Viewer[] } | null>(() => {
-  if (!live.value || live.value.darkness === "daylight") return null;
-  const scene = { ambient: AMBIENT[live.value.darkness], sources: live.value.lights, occluders: occludersOf(live.value) };
+  if (!live.value || (live.value.darkness === "daylight" && zones.value.length === 0)) return null;
+  const scene: LitScene = {
+    ambient: AMBIENT[live.value.darkness],
+    sources: live.value.lights,
+    occluders: occludersOf(live.value),
+    zones: zones.value,
+  };
   const own = liveState.value?.combatants_live?.find((c) => c.instance_id === ownInstanceId.value);
   if (!own?.position) return { scene, viewers: [] };
   const half = (own.footprint ?? 1) / 2;
-  const { darkvision, blindsight, truesight } = ownSenses.value;
+  const { darkvision, blindsight, truesight, devilsSight } = ownSenses.value;
   const viewer: Viewer = {
     x: own.position.x + half,
     y: own.position.y + half,
     darkvisionFeet: darkvision,
     blindsightFeet: blindsight,
     truesightFeet: truesight,
+    devilsSightFeet: devilsSight,
   };
   return { scene, viewers: [viewer] };
 });

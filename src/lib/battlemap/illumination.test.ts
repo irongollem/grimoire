@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AMBIENT, illuminationGrid, lightLevelAt, type LitSource } from "./illumination";
+import { AMBIENT, illuminationGrid, lightLevelAt, segmentTouchesZone, type LitSource } from "./illumination";
 import { NO_OCCLUDERS, occluders } from "./occlusion";
 import { DM_VEIL, veilAlpha } from "./darkness";
 
@@ -135,5 +135,42 @@ describe("light against walls", () => {
     illuminationGrid({ ambient: 0, sources, occluders: occ, minX: 0, minY: 0, cols: 60, rows: 60, samplesPerCell: 4 });
     const ms = performance.now() - t0;
     expect(ms).toBeLessThan(2000);
+  });
+});
+
+describe("magical darkness", () => {
+  // A 15 ft sphere (3 cells) centred on (10, 10).
+  const sphere = [{ x: 10, y: 10, radius: 15 }];
+
+  it("is level 0 inside whatever the ambient and the lights", () => {
+    expect(lightLevelAt(AMBIENT.daylight, [], NO_OCCLUDERS, 11, 10, sphere)).toBe(0);
+    expect(lightLevelAt(AMBIENT.dark, [{ x: 10, y: 10, bright: 60, dim: 0 }], NO_OCCLUDERS, 10, 10, sphere)).toBe(0);
+    expect(lightLevelAt(AMBIENT.daylight, [], NO_OCCLUDERS, 14, 10, sphere)).toBe(1);
+  });
+
+  it("stops a light's line that passes through it", () => {
+    const lamp: LitSource = { x: 4, y: 10, bright: 60, dim: 0 };
+    expect(lightLevelAt(AMBIENT.dark, [lamp], NO_OCCLUDERS, 15, 10, sphere)).toBe(0);
+    expect(lightLevelAt(AMBIENT.dark, [lamp], NO_OCCLUDERS, 15, 10)).toBe(1);
+    // A line that misses the sphere is untouched.
+    expect(lightLevelAt(AMBIENT.dark, [lamp], NO_OCCLUDERS, 8, 4, sphere)).toBe(1);
+  });
+
+  it("segmentTouchesZone finds a crossing, a graze and a miss", () => {
+    expect(segmentTouchesZone(sphere, 0, 10, 20, 10)).toBe(true);
+    expect(segmentTouchesZone(sphere, 0, 13, 20, 13)).toBe(true);
+    expect(segmentTouchesZone(sphere, 0, 14, 20, 14)).toBe(false);
+    expect(segmentTouchesZone(sphere, 0, 10, 5, 10)).toBe(false);
+  });
+
+  it("the grid agrees with the pointwise level, zeroing the sphere even on a daylight map", () => {
+    const opts = { ambient: 1, sources: [], occluders: NO_OCCLUDERS, minX: 6, minY: 6, cols: 10, rows: 10, samplesPerCell: 2, zones: sphere };
+    const grid = illuminationGrid(opts);
+    const w = 20;
+    expect(grid[8 * w + 8]).toBe(0); // cell 10, 10
+    expect(grid[0]).toBe(1);
+    for (const [i, j] of [[8, 8], [0, 0], [14, 8], [3, 12]]) {
+      expect(grid[j * w + i]).toBeCloseTo(lightLevelAt(1, [], NO_OCCLUDERS, 6 + (i + 0.5) / 2, 6 + (j + 0.5) / 2, sphere), 6);
+    }
   });
 });

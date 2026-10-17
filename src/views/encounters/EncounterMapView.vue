@@ -4,6 +4,7 @@
       v-model:tool="tool"
       v-model:brush-shape="brushShape"
       v-model:brush-size="brushSize"
+      v-model:darkness-radius="darknessRadius"
       v-model:show-tokens="showTokens"
       v-model:show-zones="showZones"
       v-model:show-fog="showFog"
@@ -54,6 +55,7 @@
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
         :live="surface.live"
+        :zones="darknessZones"
       />
 
       <!-- Room focus layer: dims the plan outside the encounter's room and
@@ -146,6 +148,7 @@ import BattleMapLegend from "@/components/encounters/BattleMapLegend.vue";
 import BattleMapToolbar, {
   type BattleMapTool,
   type BattleMapBrushShape,
+  type DarknessRadius,
 } from "@/components/encounters/BattleMapToolbar.vue";
 import { seedFogMask, seedTokenPositions } from "@/lib/battlemap/roomBridge";
 import {
@@ -164,6 +167,8 @@ import {
   type FogBrushMode,
   type FogCellKey,
 } from "@/lib/battlemap/fogMask";
+import { zoneIdAt } from "@/lib/battlemap/darkness";
+import type { MagicalDarknessZone } from "@/types/encounter.types";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
 import { placeRoute } from "@/lib/locations/placeRoute";
@@ -249,6 +254,47 @@ watch(
   },
   { immediate: true },
 );
+
+// ── Magical darkness ──────────────────────────────────────────────────────
+// Spheres the DM places with the Darkness tool. Mirrored locally like the fog so a click lands at once; the veil (which
+// also draws each sphere's edge as a dashed ring, DM view only) and the players' projection follow the pushed state.
+const darknessRadius = ref<DarknessRadius>(15);
+const darknessZones = ref<MagicalDarknessZone[]>([]);
+
+watch(
+  () => liveState.value?.magical_darkness,
+  (zones) => {
+    if (zones) darknessZones.value = zones;
+  },
+  { immediate: true },
+);
+
+function pushDarkness() {
+  if (!isLive.value) return;
+  schedulePush({
+    round: store.round,
+    activeIndex: store.activeIndex,
+    combatants: store.combatants,
+    eventsFired: store.eventsFired,
+    magicalDarkness: darknessZones.value,
+  });
+}
+
+// A click inside a sphere removes the topmost one there; a click elsewhere places a new one centred on the click, in
+// the fractional image cells the fog and tokens use. There is no drag.
+function placeDarknessAt(clientX: number, clientY: number) {
+  const host = canvasHost.value;
+  if (!host || cellPx.value <= 0) return;
+  const rect = host.getBoundingClientRect();
+  const x = (clientX - rect.left - gridOrigin.value.x) / cellPx.value;
+  const y = (clientY - rect.top - gridOrigin.value.y) / cellPx.value;
+  const hit = zoneIdAt(darknessZones.value, x, y);
+  darknessZones.value =
+    hit === null
+      ? [...darknessZones.value, { id: crypto.randomUUID(), x, y, radius: darknessRadius.value }]
+      : darknessZones.value.filter((z) => z.id !== hit);
+  pushDarkness();
+}
 
 // Entering combat seeds the party into the room they already occupy, and
 // starts the room's own cells revealed — "you are standing in it" (frame
@@ -414,6 +460,10 @@ const brushing = ref(false);
 
 function onPointerDown(e: PointerEvent) {
   if (!imageReady.value) return;
+  if (tool.value === "darkness") {
+    placeDarknessAt(e.clientX, e.clientY);
+    return;
+  }
   if (tool.value !== "pan") {
     brushing.value = true;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);

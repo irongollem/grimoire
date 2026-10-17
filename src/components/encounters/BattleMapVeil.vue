@@ -14,13 +14,15 @@
 // `lib/battlemap/illumination.ts`). It runs no loop: a flickering fire does not move the veil, and reduced-motion
 // users get the same still picture. The stack mounts it last, so room focus, tokens and fog stay above it.
 //
+// Magical darkness (story 10) is an input to both grids; the DM's veil also rings each sphere in a dashed line.
+//
 // The DM sees the whole map under a translucent veil (`viewers` null, `paintLitVeil`). A player sees through their own
 // token (`viewers` set, `paintPlayerVeil`): what it cannot see is opaque, what it sees dimly is lightly veiled, and
 // where darkvision reaches into darkness the map's pictures show in grey (`lib/battlemap/vision.ts`). The grey needs
 // the stack's pictures as loaded images; until they arrive the veil is drawn without it and redrawn on load.
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
-import { domMakeCanvas, paintLitVeil, paintPlayerVeil, type GreyImage } from "@/lib/battlemap/darkness";
-import { AMBIENT, illuminationGrid } from "@/lib/battlemap/illumination";
+import { domMakeCanvas, paintLitVeil, paintPlayerVeil, paintZoneRings, type GreyImage } from "@/lib/battlemap/darkness";
+import { AMBIENT, illuminationGrid, NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
 import { occludersOf } from "@/lib/battlemap/occlusion";
 import { visionGrid, type Viewer } from "@/lib/battlemap/vision";
 import type { MapLive } from "@/types/mapLive.types";
@@ -40,6 +42,7 @@ const {
   originY,
   live,
   viewers = null,
+  zones = NO_ZONES,
   groundUrl = null,
   standUrl = null,
 } = defineProps<{
@@ -57,6 +60,8 @@ const {
   live: MapLive;
   /** Whose sight the veil shows: null is the DM's translucent veil over everything. */
   viewers?: Viewer[] | null;
+  /** Magical darkness: nothing in it is lit, and the DM sees each sphere's edge as a dashed ring. */
+  zones?: readonly DarknessZone[];
   /** The stack's pictures, drawn in grey where darkvision sees only shades of grey. */
   groundUrl?: string | null;
   standUrl?: string | null;
@@ -75,6 +80,11 @@ const rows = computed(() => (cellPx > 0 ? Math.ceil((panY + imageH - originY) / 
 // Walls, closed doors and solid rock stop light and sight; built once per snapshot.
 const occluders = computed(() => occludersOf(live));
 
+// The zones arrive as a fresh array on every re-read of the encounter state; an equal set keeps the previous one.
+const sameZones = (a: readonly DarknessZone[], b: readonly DarknessZone[]) =>
+  a.length === b.length && a.every((z, i) => z.x === b[i].x && z.y === b[i].y && z.radius === b[i].radius);
+const stableZones = computed<readonly DarknessZone[]>((prev) => (prev && sameZones(prev, zones) ? prev : zones));
+
 const grid = computed(() =>
   illuminationGrid({
     ambient: AMBIENT[live.darkness],
@@ -85,6 +95,7 @@ const grid = computed(() =>
     cols: cols.value,
     rows: rows.value,
     samplesPerCell: SAMPLES_PER_CELL,
+    zones: stableZones.value,
   }),
 );
 
@@ -93,7 +104,8 @@ const grid = computed(() =>
 const sameViewers = (a: readonly Viewer[], b: readonly Viewer[]) =>
   a.length === b.length && a.every((v, i) => v.x === b[i].x && v.y === b[i].y && v.darkvisionFeet === b[i].darkvisionFeet &&
       v.blindsightFeet === b[i].blindsightFeet &&
-      v.truesightFeet === b[i].truesightFeet,
+      v.truesightFeet === b[i].truesightFeet &&
+      v.devilsSightFeet === b[i].devilsSightFeet,
   );
 const stableViewers = computed<Viewer[] | null>((prev) => {
   if (!viewers) return null;
@@ -111,6 +123,7 @@ const vision = computed(() =>
         samplesPerCell: SAMPLES_PER_CELL,
         viewers: stableViewers.value,
         occluders: occluders.value,
+        zones: stableZones.value,
       })
     : null,
 );
@@ -162,13 +175,16 @@ function draw(): void {
   const gridW = cols.value * SAMPLES_PER_CELL;
   const gridH = rows.value * SAMPLES_PER_CELL;
   if (vision.value) paintPlayerVeil(ctx, rect, vision.value, gridW, gridH, makeCanvas, greyImages());
-  else paintLitVeil(ctx, rect, grid.value, gridW, gridH, makeCanvas);
+  else {
+    paintLitVeil(ctx, rect, grid.value, gridW, gridH, makeCanvas);
+    paintZoneRings(ctx, stableZones.value, originX, originY, cellPx);
+  }
   ctx.restore();
 }
 
 // Resizing a canvas clears it, and the host size is a prop, so redraw whenever any input changes.
 watch(
-  () => [hostW, hostH, panX, panY, imageW, imageH, cellPx, originX, originY, grid.value, vision.value, loadedImages.value],
+  () => [hostW, hostH, panX, panY, imageW, imageH, cellPx, originX, originY, grid.value, vision.value, stableZones.value, loadedImages.value],
   draw,
   { flush: "post" },
 );

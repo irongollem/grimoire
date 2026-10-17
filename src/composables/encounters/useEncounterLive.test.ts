@@ -119,6 +119,40 @@ describe("goLive", () => {
     );
   });
 
+  it("starts a fight with no magical darkness", async () => {
+    const { useEncounterLive } = await import("./useEncounterLive");
+    const { goLive } = useEncounterLive(() => "encounter-1");
+    await nextTick();
+
+    await goLive({ round: 1, activeIndex: 0, combatants: [] });
+
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ magical_darkness: [] }), { onConflict: "encounter_id" });
+  });
+
+  it("writes magical_darkness on a push only when the caller passes it", async () => {
+    vi.useFakeTimers();
+    try {
+      const { useEncounterLive } = await import("./useEncounterLive");
+      const { goLive, schedulePush } = useEncounterLive(() => "encounter-1");
+      await vi.advanceTimersByTimeAsync(0);
+      await goLive({ round: 1, activeIndex: 0, combatants: [] });
+      const base = { round: 1, activeIndex: 0, combatants: [], eventsFired: [] };
+      const zones = [{ id: "z1", x: 2.5, y: 3, radius: 15 }];
+
+      update.mockClear();
+      schedulePush({ ...base, magicalDarkness: zones });
+      await vi.advanceTimersByTimeAsync(400);
+      expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ magical_darkness: zones }));
+
+      update.mockClear();
+      schedulePush(base);
+      await vi.advanceTimersByTimeAsync(400);
+      expect((update.mock.calls as unknown[][])[0]?.[0]).not.toHaveProperty("magical_darkness");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   // The fight is filed under the session log's row, whether goLive found one
   // open or started an unnumbered one itself.
   it("files the fight under the session log row", async () => {

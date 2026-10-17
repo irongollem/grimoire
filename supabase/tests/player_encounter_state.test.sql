@@ -3,7 +3,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(17);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -188,6 +188,25 @@ select is(
   (select count(*)::integer from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010')),
   0,
   'non-members cannot read the projection'
+);
+
+-- #1073 story 10: magical darkness travels to players with the rest of the map, and its shape is held.
+reset role;
+update public.encounter_state
+set magical_darkness = '[{"id":"z1","x":4.5,"y":4.5,"radius":15}]'::jsonb
+where id = '57000000-0000-4000-8000-000000000040';
+select throws_ok(
+  $$update public.encounter_state set magical_darkness = '[{"id":"z2","x":1,"y":1,"radius":500}]'::jsonb where id = '57000000-0000-4000-8000-000000000040'$$,
+  '23514',
+  null,
+  'a sphere of magical darkness is bounded in size'
+);
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '57000000-0000-4000-8000-000000000002', true);
+select is(
+  (select magical_darkness from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010')),
+  '[{"id":"z1","x":4.5,"y":4.5,"radius":15}]'::jsonb,
+  'players see where magical darkness lies'
 );
 
 select * from finish();

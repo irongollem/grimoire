@@ -56,3 +56,21 @@ export function senseRanges(input: string | null | undefined): Record<SenseType,
   }
   return out;
 }
+
+/** The rules' range for Devil's Sight, used when the text names the invocation without a number. */
+const DEVILS_SIGHT_DEFAULT_FEET = 120;
+
+/**
+ * A warlock's Devil's Sight in feet from a senses string ("Devil's Sight 120 ft."): it has no glyph, so it is not one
+ * of `SENSE_TYPES`, but it lives in the same text. Named without a number it is the rules' 120 feet; absent it is 0.
+ */
+export function devilsSightRange(input: string | null | undefined): number {
+  if (!input) return 0;
+  let best = 0;
+  for (const part of input.split(",")) {
+    if (!/devil['\u2019]?s\s+sight/i.test(part)) continue;
+    const given = Number(part.match(/(\d+)/)?.[1]);
+    best = Math.max(best, Number.isFinite(given) && given > 0 ? given : DEVILS_SIGHT_DEFAULT_FEET);
+  }
+  return best;
+}

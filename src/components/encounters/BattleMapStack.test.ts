@@ -22,7 +22,7 @@ const LiveLayerStub = defineComponent({
 const sprite = { url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } };
 const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 1, darkness: "daylight", groups: [], lights: [], sprites, walls: [], doors: [], solid: [] });
 
-function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null; viewers?: Viewer[] | null } = {}) {
+function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null; viewers?: Viewer[] | null; zones?: { x: number; y: number; radius: number }[] } = {}) {
   return mount(BattleMapStack, {
     props: {
       hostW: 400,
@@ -92,12 +92,18 @@ describe("BattleMapStack standing image", () => {
   });
 
   it("hands the veil the player's viewers and the pictures to show in grey", () => {
-    const viewers = [{ x: 2.5, y: 2.5, darkvisionFeet: 60, blindsightFeet: 0, truesightFeet: 0 }];
+    const viewers = [{ x: 2.5, y: 2.5, darkvisionFeet: 60, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 }];
     const veil = mountStack({ live: { ...live([]), darkness: "dark" }, viewers }).findComponent(BattleMapVeil);
     expect(veil.props("viewers")).toEqual(viewers);
     expect(veil.props("groundUrl")).toBe("ground.webp");
     expect(veil.props("standUrl")).toBe("stand.webp");
     expect(mountStack({ live: { ...live([]), darkness: "dark" } }).findComponent(BattleMapVeil).props("viewers")).toBeNull();
+  });
+
+  it("mounts the veil on a daylight map when there is a sphere of magical darkness", () => {
+    const w = mountStack({ zones: [{ x: 2, y: 2, radius: 15 }] });
+    expect(w.findComponent(BattleMapVeil).exists()).toBe(true);
+    expect(w.findComponent(BattleMapVeil).props("zones")).toEqual([{ x: 2, y: 2, radius: 15 }]);
   });
 
   it("mounts no veil in daylight or without a snapshot", () => {

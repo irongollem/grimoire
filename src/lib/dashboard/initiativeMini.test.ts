@@ -31,6 +31,7 @@ function state(partial: Partial<EncounterState> & { combatants_live: RunCombatan
     current_round: 1,
     active_combatant_index: 0,
     events_fired: [],
+    magical_darkness: [],
     started_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...partial,

@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { illuminationGrid } from "./illumination";
 import { NO_OCCLUDERS, occluders } from "./occlusion";
 import { canSee, playerVeilAlpha, seenCombatants, sightAt, visionGrid, type Viewer } from "./vision";
 
-const viewer = (darkvisionFeet: number, x = 5.5, y = 5.5): Viewer => ({ x, y, darkvisionFeet, blindsightFeet: 0, truesightFeet: 0 });
+const viewer = (darkvisionFeet: number, x = 5.5, y = 5.5): Viewer => ({ x, y, darkvisionFeet, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 });
 const sensed = (senses: Partial<Viewer>, x = 5.5, y = 5.5): Viewer => ({ ...viewer(0, x, y), ...senses });
-const darkScene = { ambient: 0, sources: [], occluders: NO_OCCLUDERS };
+const darkScene = { ambient: 0, sources: [], occluders: NO_OCCLUDERS, zones: [] };
 
 describe("sightAt", () => {
   it("without darkvision, sees the light level as it is", () => {
@@ -46,7 +47,7 @@ describe("blindsight and truesight", () => {
 
   it("blindsight does not reach round a wall", () => {
     const wall = occluders({ walls: ["6,5:W"], doors: [], solid: [] });
-    const scene = { ambient: 0, sources: [], occluders: wall };
+    const scene = { ambient: 0, sources: [], occluders: wall, zones: [] };
     expect(canSee(scene, [sensed({ blindsightFeet: 30 })], 7, 5)).toBe(false);
     expect(canSee(scene, [sensed({ blindsightFeet: 30 })], 4, 5)).toBe(true);
   });
@@ -98,13 +99,13 @@ describe("playerVeilAlpha", () => {
 
 describe("canSee", () => {
   it("sees a lit cell and not a dark one", () => {
-    const lit = { ambient: 0, sources: [{ x: 2.5, y: 2.5, bright: 10, dim: 10 }], occluders: NO_OCCLUDERS };
+    const lit = { ambient: 0, sources: [{ x: 2.5, y: 2.5, bright: 10, dim: 10 }], occluders: NO_OCCLUDERS, zones: [] };
     expect(canSee(lit, [], 2, 2)).toBe(true);
     expect(canSee(lit, [], 20, 20)).toBe(false);
   });
 
   it("sees dim light through a lightly obscured step, and darkness only with darkvision in range", () => {
-    expect(canSee({ ambient: 0.5, sources: [], occluders: NO_OCCLUDERS }, [], 3, 3)).toBe(true);
+    expect(canSee({ ambient: 0.5, sources: [], occluders: NO_OCCLUDERS, zones: [] }, [], 3, 3)).toBe(true);
     expect(canSee(darkScene, [], 3, 3)).toBe(false);
     expect(canSee(darkScene, [viewer(60, 3.5, 3.5)], 5, 3)).toBe(true);
     expect(canSee(darkScene, [viewer(60, 3.5, 3.5)], 30, 3)).toBe(false);
@@ -134,7 +135,7 @@ describe("seenCombatants", () => {
 describe("sight against walls", () => {
   const wall = occluders({ walls: ["6,5:W"], doors: [], solid: [] });
   const lamp = { x: 8.5, y: 5.5, bright: 60, dim: 0 };
-  const scene = { ambient: 0, sources: [lamp], occluders: wall };
+  const scene = { ambient: 0, sources: [lamp], occluders: wall, zones: [] };
 
   it("does not see a lit cell behind a wall, and does with the wall gone", () => {
     expect(canSee(scene, [viewer(0, 5.5, 5.5)], 8, 5)).toBe(false);
@@ -144,8 +145,8 @@ describe("sight against walls", () => {
   });
 
   it("does not let darkvision reach round a wall", () => {
-    expect(canSee({ ambient: 0, sources: [], occluders: wall }, [viewer(60, 5.5, 5.5)], 7, 5)).toBe(false);
-    expect(canSee({ ambient: 0, sources: [], occluders: wall }, [viewer(60, 5.5, 5.5)], 4, 5)).toBe(true);
+    expect(canSee({ ambient: 0, sources: [], occluders: wall, zones: [] }, [viewer(60, 5.5, 5.5)], 7, 5)).toBe(false);
+    expect(canSee({ ambient: 0, sources: [], occluders: wall, zones: [] }, [viewer(60, 5.5, 5.5)], 4, 5)).toBe(true);
   });
 
   it("counts only the viewers with a clear line", () => {
@@ -173,5 +174,74 @@ describe("sight against walls", () => {
     visionGrid({ illumination, minX: 0, minY: 0, cols: 60, rows: 60, samplesPerCell: 4, viewers: [viewer(60, 30.5, 30.5)], occluders: occ });
     const ms = performance.now() - t0;
     expect(ms).toBeLessThan(1000);
+  });
+});
+
+describe("sight and magical darkness", () => {
+  // A 15 ft sphere (3 cells) centred on cell (10.5, 5.5); the viewer stands west of it, at (5.5, 5.5).
+  const zones = [{ x: 10.5, y: 5.5, radius: 15 }];
+  const daylit = { ambient: 1, sources: [], occluders: NO_OCCLUDERS, zones };
+
+  it("cannot be seen into by ordinary sight or darkvision", () => {
+    expect(canSee(daylit, [viewer(0)], 10, 5)).toBe(false);
+    expect(canSee(daylit, [viewer(120)], 10, 5)).toBe(false);
+  });
+
+  it("hides what is behind it from everyone without the right sense", () => {
+    expect(canSee(daylit, [viewer(0)], 15, 5)).toBe(false);
+    expect(canSee(daylit, [viewer(120)], 15, 5)).toBe(false);
+    expect(canSee(daylit, [viewer(0)], 5, 12)).toBe(true);
+  });
+
+  it("is seen into and through by truesight and Devil's Sight within their range", () => {
+    for (const sense of [{ truesightFeet: 60 }, { devilsSightFeet: 120 }]) {
+      expect(canSee(daylit, [sensed(sense)], 10, 5)).toBe(true);
+      expect(canSee(daylit, [sensed(sense)], 15, 5)).toBe(true);
+    }
+    expect(canSee(daylit, [sensed({ devilsSightFeet: 10 })], 10, 5)).toBe(false);
+    expect(sightAt(0, [sensed({ devilsSightFeet: 30 })], 8.5, 5.5)).toEqual({ seen: 1, grey: 0 });
+  });
+
+  it("is perceived by blindsight within range, but not round a wall", () => {
+    expect(canSee(daylit, [sensed({ blindsightFeet: 30 })], 10, 5)).toBe(true);
+    const wall = occluders({ walls: ["8,5:W"], doors: [], solid: [] });
+    expect(canSee({ ...daylit, occluders: wall }, [sensed({ blindsightFeet: 30 })], 10, 5)).toBe(false);
+  });
+
+  it("rings a vision grid: grey is gone inside the sphere for a darkvision viewer", () => {
+    const minX = 0;
+    const illumination = illuminationGrid({ ambient: 0, sources: [], occluders: NO_OCCLUDERS, minX, minY: 0, cols: 16, rows: 12, samplesPerCell: 1, zones });
+    const v = visionGrid({ illumination, minX, minY: 0, cols: 16, rows: 12, samplesPerCell: 1, viewers: [viewer(120)], occluders: NO_OCCLUDERS, zones });
+    const at = (x: number, y: number) => y * 16 + x;
+    expect(v.seen[at(6, 5)]).toBe(0.5); // dark but outside the sphere: darkvision's grey
+    expect(v.seen[at(10, 5)]).toBe(0); // inside it: nothing
+    const without = visionGrid({ illumination, minX, minY: 0, cols: 16, rows: 12, samplesPerCell: 1, viewers: [viewer(120)], occluders: NO_OCCLUDERS });
+    expect(without.seen[at(10, 5)]).toBe(0.5);
+  });
+
+  it("seenCombatants hides a token in the sphere", () => {
+    const kept = seenCombatants([{ instance_id: "m", position: { x: 10, y: 5 } }, { instance_id: "n", position: { x: 6, y: 5 } }], daylit, [viewer(0)], null);
+    expect(kept.map((c) => c.instance_id)).toEqual(["n"]);
+  });
+});
+
+describe("a viewer inside magical darkness", () => {
+  const zoneA = { x: 5.5, y: 5.5, radius: 15 };
+  const scene = (zones: { x: number; y: number; radius: number }[]) => ({ ambient: 1, sources: [], occluders: NO_OCCLUDERS, zones });
+
+  it("sees out to lit places beyond, but not what is inside the sphere", () => {
+    expect(canSee(scene([zoneA]), [viewer(0)], 12, 5)).toBe(true);
+    expect(canSee(scene([zoneA]), [viewer(0)], 6, 5)).toBe(false);
+  });
+
+  it("is still blocked by a different sphere on the way", () => {
+    const zoneB = { x: 10.5, y: 5.5, radius: 10 };
+    expect(canSee(scene([zoneA, zoneB]), [viewer(0)], 14, 5)).toBe(false);
+    expect(canSee(scene([zoneA]), [viewer(0)], 14, 5)).toBe(true);
+  });
+
+  it("a light inside a sphere lights nothing beyond it", async () => {
+    const { lightLevelAt } = await import("./illumination");
+    expect(lightLevelAt(0, [{ x: 5.5, y: 5.5, bright: 60, dim: 0 }], NO_OCCLUDERS, 12, 5, [zoneA])).toBe(0);
   });
 });

@@ -1,10 +1,13 @@
-import { SENSE_TYPES, senseRanges, type SenseType } from "@/lib/senses";
+import { devilsSightRange, SENSE_TYPES, senseRanges, type SenseType } from "@/lib/senses";
 import { darkvisionFeet } from "@/rules/speciesStats";
 
 type SpeciesForSenses = Parameters<typeof darkvisionFeet>[0];
 
 /** Feet per sense; 0 means the character does not have it. */
 export type SenseRanges = Record<SenseType, number>;
+
+/** The icon-backed senses plus Devil's Sight, which sees through magical darkness and has no glyph. */
+export type CharacterSenses = SenseRanges & { devilsSight: number };
 
 /**
  * What a character perceives beyond ordinary sight, in feet per sense: the better of what the species grants
@@ -15,20 +18,21 @@ export function characterSenses(input: {
   species: SpeciesForSenses | null | undefined;
   subrace?: string | null;
   senses: string | null | undefined;
-}): SenseRanges {
-  const out = senseRanges(input.senses);
+}): CharacterSenses {
+  const out = { ...senseRanges(input.senses), devilsSight: devilsSightRange(input.senses) };
   const fromSpecies = input.species ? darkvisionFeet(input.species, input.subrace) : 0;
   out.darkvision = Math.max(out.darkvision, fromSpecies);
   return out;
 }
 
-/** "Blindsight 10 ft., darkvision 60 ft." in a fixed order, for displays; "" when there are none. */
-export function formatSenses(ranges: SenseRanges): string {
+/** "Blindsight 10 ft., darkvision 60 ft., devil's sight 120 ft." in a fixed order, Devil's Sight last, for displays; "" when there are none. */
+export function formatSenses(ranges: SenseRanges & { devilsSight?: number }): string {
   const parts: string[] = [];
   for (const sense of SENSE_TYPES) {
     const feet = ranges[sense];
     if (feet) parts.push(`${sense} ${feet} ft.`);
   }
+  if (ranges.devilsSight) parts.push(`devil's sight ${ranges.devilsSight} ft.`);
   const text = parts.join(", ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

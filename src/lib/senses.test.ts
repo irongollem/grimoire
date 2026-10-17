@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSenses, senseRanges } from "@/lib/senses";
+import { devilsSightRange, parseSenses, senseRanges } from "@/lib/senses";
 
 /** Every sense at 0: what a character or a senses string without that sense has. */
 const NONE = { blindsight: 0, darkvision: 0, tremorsense: 0, truesight: 0 };
@@ -53,5 +53,14 @@ describe("senseRanges", () => {
   it("ignores unrecognised text, rangeless entries and nullish input", () => {
     expect(senseRanges("keen smell, truesight")).toEqual({ ...NONE });
     expect(senseRanges(null)).toEqual({ ...NONE });
+  });
+});
+
+describe("devilsSightRange", () => {
+  it("reads a number, defaults to 120 without one, and is 0 when absent", () => {
+    expect(devilsSightRange("Devil's Sight 30 ft.")).toBe(30);
+    expect(devilsSightRange("darkvision 60 ft., devil\u2019s sight")).toBe(120);
+    expect(devilsSightRange("darkvision 60 ft.")).toBe(0);
+    expect(devilsSightRange(null)).toBe(0);
   });
 });

@@ -7,6 +7,8 @@
 // built from what their tokens see instead, and is opaque where nothing is seen.
 
 import type { MakeCanvas } from "@/cartographer/drawFrame";
+import { FEET_PER_CELL } from "@/cartographer/packSchema";
+import type { DarknessZone } from "@/lib/battlemap/illumination";
 import { playerVeilAlpha, type Vision } from "@/lib/battlemap/vision";
 import type { DarknessLevel } from "@/types/dungeonMap.types";
 
@@ -170,4 +172,39 @@ export function domMakeCanvas(): MakeCanvas {
     const ctx = canvas.getContext("2d");
     return ctx ? { canvas, ctx } : null;
   };
+}
+
+/** The id of the topmost (latest placed) sphere holding the point, or null when it is in none. */
+export function zoneIdAt<T extends DarknessZone & { id: string }>(zones: readonly T[], x: number, y: number): string | null {
+  for (let i = zones.length - 1; i >= 0; i--) {
+    const z = zones[i];
+    if (Math.hypot(x - z.x, y - z.y) <= z.radius / FEET_PER_CELL) return z.id;
+  }
+  return null;
+}
+
+type RingTarget = Pick<CanvasRenderingContext2D, "save" | "restore" | "beginPath" | "arc" | "stroke" | "setLineDash"> & {
+  strokeStyle: CanvasRenderingContext2D["strokeStyle"];
+  lineWidth: number;
+};
+
+/** The DM's view of each sphere of magical darkness: a dashed ring on its edge. `originX/Y` is host px of image cell (0,0). */
+export function paintZoneRings(
+  ctx: RingTarget,
+  zones: readonly DarknessZone[],
+  originX: number,
+  originY: number,
+  cellPx: number,
+): void {
+  if (zones.length === 0 || cellPx <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(196, 181, 253, 0.9)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 6]);
+  for (const z of zones) {
+    ctx.beginPath();
+    ctx.arc(originX + z.x * cellPx, originY + z.y * cellPx, (z.radius / FEET_PER_CELL) * cellPx, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
