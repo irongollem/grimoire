@@ -9,6 +9,7 @@
 import type { PackCategory } from "@/cartographer/packSchema";
 import {
   drawMapContent,
+  gatherLightSources,
   offscreenMakeCanvas,
   renderShadowLayer,
   type DrawMapInput,
@@ -16,7 +17,8 @@ import {
   type ShadowLayer,
 } from "@/cartographer/drawMap";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
-import { paintVeil } from "@/lib/battlemap/darkness";
+import { paintLitVeil } from "@/lib/battlemap/darkness";
+import { AMBIENT, illuminationGrid } from "@/lib/battlemap/illumination";
 import { cellKey, type CellKey, type DarknessLevel, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
 import type { CellEdge } from "@/cartographer/edges";
 import { boundaryEdges } from "@/cartographer/floodFill";
@@ -173,6 +175,94 @@ function cachedShadowLayer(scene: MapRenderScene, input: DrawMapInput): ShadowLa
   return layer;
 }
 
+// ── Illumination cache ─────────────────────────────────────────────────────
+// The light level over the painted area depends on the map's content and its darkness, not on zoom, pan or hover, so
+// panning and hovering reuse it. Like the shadow layer it is keyed on the edit revision; a caller that cannot say
+// (no `layersRevision`) gets it rebuilt every frame rather than a stale one.
+
+/** Light levels sampled per cell along each axis. */
+const SAMPLES_PER_CELL = 4;
+
+interface Illumination {
+  extent: { minX: number; minY: number; maxX: number; maxY: number };
+  grid: Float32Array;
+  gridW: number;
+  gridH: number;
+}
+
+interface IlluminationKey {
+  layers: DungeonMapLayers;
+  revision: number;
+  dressing: DressingCatalog;
+  runtimes: TilePackRuntime[];
+  fallback: TilePackRuntime | null;
+  currentPackId: string;
+  darkness: DarknessLevel;
+}
+
+let illuminationCache: { key: IlluminationKey; value: Illumination | null } | null = null;
+
+function sameIlluminationKey(a: IlluminationKey, b: IlluminationKey): boolean {
+  return (
+    a.layers === b.layers &&
+    a.revision === b.revision &&
+    a.dressing === b.dressing &&
+    a.fallback === b.fallback &&
+    a.currentPackId === b.currentPackId &&
+    a.darkness === b.darkness &&
+    a.runtimes.length === b.runtimes.length &&
+    a.runtimes.every((r, i) => r === b.runtimes[i])
+  );
+}
+
+function buildIllumination(
+  scene: MapRenderScene,
+  darkness: DarknessLevel,
+  runtime: DrawMapInput["runtime"],
+): Illumination | null {
+  const extent = paintedExtent(scene.layers);
+  if (!extent) return null;
+  const sources = gatherLightSources(scene.layers, runtime, scene.dressing, null).map(({ x, y, light }) => ({
+    x,
+    y,
+    bright: light.bright,
+    dim: light.dim,
+  }));
+  const cols = extent.maxX - extent.minX + 1;
+  const rows = extent.maxY - extent.minY + 1;
+  const grid = illuminationGrid({
+    ambient: AMBIENT[darkness],
+    sources,
+    minX: extent.minX,
+    minY: extent.minY,
+    cols,
+    rows,
+    samplesPerCell: SAMPLES_PER_CELL,
+  });
+  return { extent, grid, gridW: cols * SAMPLES_PER_CELL, gridH: rows * SAMPLES_PER_CELL };
+}
+
+function cachedIllumination(
+  scene: MapRenderScene,
+  darkness: DarknessLevel,
+  runtime: DrawMapInput["runtime"],
+): Illumination | null {
+  if (scene.layersRevision === undefined) return buildIllumination(scene, darkness, runtime);
+  const key: IlluminationKey = {
+    layers: scene.layers,
+    revision: scene.layersRevision,
+    dressing: scene.dressing,
+    runtimes: [...scene.runtimes.values()],
+    fallback: scene.fallbackRuntime,
+    currentPackId: scene.currentPackId,
+    darkness,
+  };
+  if (illuminationCache && sameIlluminationKey(illuminationCache.key, key)) return illuminationCache.value;
+  const value = buildIllumination(scene, darkness, runtime);
+  illuminationCache = { key, value };
+  return value;
+}
+
 /** The cell box around everything painted, or null for an empty map: the area the veil covers. */
 function paintedExtent(layers: DungeonMapLayers): { minX: number; minY: number; maxX: number; maxY: number } | null {
   let extent: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
@@ -326,12 +416,13 @@ export function renderMap(scene: MapRenderScene): void {
   // Shadows come from the cache; a null layer (no OffscreenCanvas) draws none.
   drawMapContent({ ...content, shadows: true, shadowLayer: cachedShadowLayer(scene, content) });
 
-  // The DM's darkness veil, over the drawing but under the editing aids (labels, link dots, selection), so what
-  // the DM is working on stays readable. The same function paints it on the battle map.
-  if (darkness) {
-    const extent = paintedExtent(layers);
-    if (extent) {
-      paintVeil(
+  // The DM's darkness veil, carved by the map's lights, over the drawing but under the editing aids (labels, link
+  // dots, selection), so what the DM is working on stays readable. The same function paints it on the battle map.
+  if (darkness && darkness !== "daylight") {
+    const lit = cachedIllumination(scene, darkness, rt);
+    if (lit) {
+      const { extent } = lit;
+      paintLitVeil(
         ctx,
         {
           x: extent.minX * tilePx - viewportOffset.x,
@@ -339,7 +430,10 @@ export function renderMap(scene: MapRenderScene): void {
           w: (extent.maxX - extent.minX + 1) * tilePx,
           h: (extent.maxY - extent.minY + 1) * tilePx,
         },
-        darkness,
+        lit.grid,
+        lit.gridW,
+        lit.gridH,
+        content.makeCanvas,
       );
     }
   }

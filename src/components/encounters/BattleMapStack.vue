@@ -61,14 +61,17 @@
 
   <!-- Last, so room focus, tokens and fog (the views draw them after the stack) stay above the veil. -->
   <BattleMapVeil
-    v-if="live && live.darkness !== 'daylight'"
+    v-if="live && live.darkness !== 'daylight' && cellPx > 0"
     :host-w="hostW"
     :host-h="hostH"
     :pan-x="panX"
     :pan-y="panY"
     :image-w="imageW"
     :image-h="imageH"
-    :darkness="live.darkness"
+    :cell-px="cellPx"
+    :origin-x="originX"
+    :origin-y="originY"
+    :live="live"
   />
 </template>
 

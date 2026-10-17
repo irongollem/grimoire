@@ -373,20 +373,79 @@ describe("renderMap: darkness veil", () => {
     layers.floor[cellKey(2, 3)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };
     return layers;
   };
-  const veilRects = (rec: Recorder) => rec.fillRects.filter((_, i) => String(rec.fillRectStyles[i]).startsWith("rgba(8, 10, 24"));
+  const lantern = (id: string): DressingCatalog =>
+    new Map([[id, { id, name: "Lantern", footprint_w: 1, footprint_h: 1, image: null, flat: false, light: { color: "#ffaa33", bright: 10, dim: 10 }, url: null, sway: null }]]);
+
+  /** A canvas factory with readable image data: what the veil painted, per sample. */
+  function veilCanvas() {
+    const grids: { w: number; h: number; alpha: number[] }[] = [];
+    const makeCanvas = (w: number, h: number) => {
+      const { ctx } = makeCtx();
+      const fake = ctx as unknown as Record<string, unknown>;
+      fake.createImageData = (iw: number, ih: number) => ({ data: new Uint8ClampedArray(iw * ih * 4) });
+      const canvas: { veil?: boolean } = {};
+      fake.putImageData = (img: { data: Uint8ClampedArray }) => {
+        canvas.veil = true;
+        grids.push({ w, h, alpha: Array.from({ length: w * h }, (_, i) => img.data[i * 4 + 3]) });
+      };
+      return { canvas: canvas as unknown as CanvasImageSource, ctx };
+    };
+    return { makeCanvas, grids };
+  }
+  const veilDraws = (rec: Recorder) => rec.drawImages.filter((d) => (d.source as { veil?: boolean }).veil === true);
 
   it("lays the veil over the painted area only", () => {
-    const { scene, rec } = baseScene({ layers: paintOne(), darkness: "dark" });
+    const v = veilCanvas();
+    const { scene, rec } = baseScene({ layers: paintOne(), darkness: "dark", makeCanvas: v.makeCanvas });
     renderMap(scene);
-    expect(veilRects(rec)).toEqual([{ x: 128, y: 192, w: 64, h: 64 }]);
+    expect(veilDraws(rec).map(({ x, y, w, h }) => ({ x, y, w, h }))).toEqual([{ x: 128, y: 192, w: 64, h: 64 }]);
+    // One cell at 4 samples per cell, no light: the whole grid is the dark veil.
+    expect(v.grids[0].w).toBe(4);
+    expect(new Set(v.grids[0].alpha)).toEqual(new Set([Math.round(0.6 * 255)]));
   });
 
   it("casts no veil in daylight or on an empty map", () => {
-    const day = baseScene({ layers: paintOne(), darkness: "daylight" });
-    renderMap(day.scene);
-    expect(veilRects(day.rec)).toHaveLength(0);
-    const empty = baseScene({ darkness: "dark" });
-    renderMap(empty.scene);
-    expect(veilRects(empty.rec)).toHaveLength(0);
+    const day = veilCanvas();
+    const a = baseScene({ layers: paintOne(), darkness: "daylight", makeCanvas: day.makeCanvas });
+    renderMap(a.scene);
+    expect(veilDraws(a.rec)).toHaveLength(0);
+    const empty = veilCanvas();
+    const b = baseScene({ darkness: "dark", makeCanvas: empty.makeCanvas });
+    renderMap(b.scene);
+    expect(veilDraws(b.rec)).toHaveLength(0);
+  });
+
+  it("clears the veil around a light and keeps dim ambient at least dim", () => {
+    const layers = emptyLayers();
+    for (let x = 0; x < 6; x++) layers.floor[cellKey(x, 0)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };
+    layers.dressing["lamp"] = { prop_id: "lamp", x: 0, y: 0, rotation: 0, z: 0 };
+    const dark = veilCanvas();
+    renderMap(baseScene({ layers, dressing: lantern("lamp"), darkness: "dark", makeCanvas: dark.makeCanvas }).scene);
+    const alpha = dark.grids[0].alpha;
+    expect(alpha[0]).toBe(0); // at the lamp: bright
+    expect(alpha[alpha.length - 1]).toBe(Math.round(0.6 * 255)); // six cells off: beyond the 4-cell reach
+    const dim = veilCanvas();
+    renderMap(baseScene({ layers, dressing: lantern("lamp"), darkness: "dim", makeCanvas: dim.makeCanvas }).scene);
+    expect(dim.grids[0].alpha[0]).toBe(0);
+    expect(Math.max(...dim.grids[0].alpha)).toBe(Math.round(0.3 * 255));
+  });
+
+  it("reuses the light levels until the map is edited (the revision bumps) or its level changes", () => {
+    const layers = emptyLayers();
+    for (let x = 0; x < 8; x++) layers.floor[cellKey(x, 0)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };
+    const dressing = lantern("lamp");
+    const v = veilCanvas();
+    const scene = (o: Partial<MapRenderScene> = {}): MapRenderScene =>
+      baseScene({ layers, dressing, darkness: "dark", makeCanvas: v.makeCanvas, layersRevision: 1, ...o }).scene;
+    renderMap(scene());
+    const unlit = v.grids[0].alpha;
+    // The editor paints into the same layers object: only the revision says it changed.
+    layers.dressing["lamp"] = { prop_id: "lamp", x: 0, y: 0, rotation: 0, z: 0 };
+    renderMap(scene({ viewportOffset: { x: 30, y: 12 }, hoverCell: [1, 1], tilePx: 32 }));
+    expect(v.grids[1].alpha).toEqual(unlit);
+    renderMap(scene({ layersRevision: 2 }));
+    expect(v.grids[2].alpha).not.toEqual(unlit);
+    renderMap(scene({ layersRevision: 2, darkness: "dim" }));
+    expect(v.grids[3].alpha).not.toEqual(v.grids[2].alpha);
   });
 });
