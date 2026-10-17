@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { NO_OCCLUDERS, occluders } from "./occlusion";
 import { canSee, playerVeilAlpha, seenCombatants, sightAt, visionGrid, type Viewer } from "./vision";
 
 const viewer = (darkvisionFeet: number, x = 5.5, y = 5.5): Viewer => ({ x, y, darkvisionFeet });
-const darkScene = { ambient: 0, sources: [] };
+const darkScene = { ambient: 0, sources: [], occluders: NO_OCCLUDERS };
 
 describe("sightAt", () => {
   it("without darkvision, sees the light level as it is", () => {
@@ -47,6 +48,7 @@ describe("visionGrid", () => {
       rows: 1,
       samplesPerCell: 2,
       viewers: [viewer(5, 0.5, 0.5)],
+      occluders: NO_OCCLUDERS,
     });
     expect(Array.from(v.seen.slice(0, 4))).toEqual([0.5, 0.5, 0.5, 0]);
     expect(v.grey[0]).toBe(1);
@@ -69,13 +71,13 @@ describe("playerVeilAlpha", () => {
 
 describe("canSee", () => {
   it("sees a lit cell and not a dark one", () => {
-    const lit = { ambient: 0, sources: [{ x: 2.5, y: 2.5, bright: 10, dim: 10 }] };
+    const lit = { ambient: 0, sources: [{ x: 2.5, y: 2.5, bright: 10, dim: 10 }], occluders: NO_OCCLUDERS };
     expect(canSee(lit, [], 2, 2)).toBe(true);
     expect(canSee(lit, [], 20, 20)).toBe(false);
   });
 
   it("sees dim light through a lightly obscured step, and darkness only with darkvision in range", () => {
-    expect(canSee({ ambient: 0.5, sources: [] }, [], 3, 3)).toBe(true);
+    expect(canSee({ ambient: 0.5, sources: [], occluders: NO_OCCLUDERS }, [], 3, 3)).toBe(true);
     expect(canSee(darkScene, [], 3, 3)).toBe(false);
     expect(canSee(darkScene, [viewer(60, 3.5, 3.5)], 5, 3)).toBe(true);
     expect(canSee(darkScene, [viewer(60, 3.5, 3.5)], 30, 3)).toBe(false);
@@ -99,5 +101,50 @@ describe("seenCombatants", () => {
   it("hides everything but the own token from a blind viewer", () => {
     const kept = seenCombatants(list, darkScene, [viewer(0)], "p-1").map((c) => c.instance_id);
     expect(kept).toEqual(["p-1", "m-unplaced"]);
+  });
+});
+
+describe("sight against walls", () => {
+  const wall = occluders({ walls: ["6,5:W"], doors: [], solid: [] });
+  const lamp = { x: 8.5, y: 5.5, bright: 60, dim: 0 };
+  const scene = { ambient: 0, sources: [lamp], occluders: wall };
+
+  it("does not see a lit cell behind a wall, and does with the wall gone", () => {
+    expect(canSee(scene, [viewer(0, 5.5, 5.5)], 8, 5)).toBe(false);
+    expect(canSee(scene, [viewer(0, 5.5, 5.5)], 5, 5)).toBe(false);
+    expect(canSee({ ...scene, occluders: NO_OCCLUDERS }, [viewer(0, 5.5, 5.5)], 8, 5)).toBe(true);
+    expect(canSee(scene, [viewer(0, 7.5, 5.5)], 8, 5)).toBe(true);
+  });
+
+  it("does not let darkvision reach round a wall", () => {
+    expect(canSee({ ambient: 0, sources: [], occluders: wall }, [viewer(60, 5.5, 5.5)], 7, 5)).toBe(false);
+    expect(canSee({ ambient: 0, sources: [], occluders: wall }, [viewer(60, 5.5, 5.5)], 4, 5)).toBe(true);
+  });
+
+  it("counts only the viewers with a clear line", () => {
+    expect(canSee(scene, [viewer(0, 5.5, 5.5), viewer(0, 7.5, 5.5)], 8, 5)).toBe(true);
+  });
+
+  it("applies no line test with no viewer", () => {
+    expect(canSee(scene, [], 8, 5)).toBe(true);
+  });
+
+  it("hides a monster behind a wall from the player", () => {
+    const list = [
+      { instance_id: "p-1", position: { x: 5, y: 5 } },
+      { instance_id: "m-behind", position: { x: 8, y: 5 } },
+    ];
+    expect(seenCombatants(list, scene, [viewer(0, 5.5, 5.5)], "p-1").map((c) => c.instance_id)).toEqual(["p-1"]);
+  });
+
+  it("times a 60x60 vision grid", () => {
+    const walls: string[] = [];
+    for (let i = 0; i < 60; i += 5) for (let j = 0; j < 60; j += 3) walls.push(`${i},${j}:W`, `${j},${i}:N`);
+    const occ = occluders({ walls, doors: [], solid: [] });
+    const illumination = new Float32Array(240 * 240).fill(1);
+    const t0 = performance.now();
+    visionGrid({ illumination, minX: 0, minY: 0, cols: 60, rows: 60, samplesPerCell: 4, viewers: [viewer(60, 30.5, 30.5)], occluders: occ });
+    const ms = performance.now() - t0;
+    expect(ms).toBeLessThan(1000);
   });
 });

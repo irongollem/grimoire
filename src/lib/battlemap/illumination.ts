@@ -1,11 +1,13 @@
 // How lit a point of a map is (epic #1073 story 4), by the 5e rules, the same in 2014 and 2024: bright light is normal
 // sight, dim light lightly obscures, darkness heavily obscures. A light has a bright radius and a further dim ring.
 // Light does not add up: two dim rings that overlap are still dim, so the brightest source at a point decides, and a
-// map's ambient level is only a floor under every source.
+// map's ambient level is only a floor under every source. A light only reaches what it has a clear line to (story 6,
+// `occlusion.ts`): walls, closed doors and solid rock stop it. Callers with nothing that blocks pass `NO_OCCLUDERS`.
 //
 // Pure and DOM-free, so the Cartographer's preview and the battle map carve their veil from the same numbers.
 
 import { FEET_PER_CELL } from "@/cartographer/packSchema";
+import { clearLine, nudgedOrigins, type Occluders } from "@/lib/battlemap/occlusion";
 import type { DarknessLevel } from "@/types/dungeonMap.types";
 
 /** The light level a map's ambient setting gives everywhere: 1 bright, 0.5 dim, 0 darkness. */
@@ -42,11 +44,20 @@ function contribution(bright: number, dim: number, dist: number): number {
   return bright > 0 ? dimPart + 0.5 * inside(brightEdge, dist) : dimPart;
 }
 
-/** The light level at a point in cells: the brightest of the ambient level and every source. */
-export function lightLevelAt(ambient: number, sources: readonly LitSource[], x: number, y: number): number {
+/** The light level at a point in cells: the brightest of the ambient level and every source with a clear line to it. */
+export function lightLevelAt(
+  ambient: number,
+  sources: readonly LitSource[],
+  occ: Occluders,
+  x: number,
+  y: number,
+): number {
   let level = ambient;
   for (const s of sources) {
-    level = Math.max(level, contribution(s.bright, s.dim, Math.hypot(x - s.x, y - s.y)));
+    const c = contribution(s.bright, s.dim, Math.hypot(x - s.x, y - s.y));
+    if (c <= level) continue;
+    if (!nudgedOrigins(s.x, s.y).some(([ox, oy]) => clearLine(occ, ox, oy, x, y))) continue;
+    level = c;
     if (level >= 1) return 1;
   }
   return level;
@@ -55,6 +66,7 @@ export function lightLevelAt(ambient: number, sources: readonly LitSource[], x: 
 export interface IlluminationOptions {
   ambient: number;
   sources: readonly LitSource[];
+  occluders: Occluders;
   /** The first cell of the window. */
   minX: number;
   minY: number;
@@ -69,11 +81,12 @@ export interface IlluminationOptions {
  * source only visits the samples inside its own reach (plus the soft band), so many lights on a big map stay cheap.
  */
 export function illuminationGrid(opts: IlluminationOptions): Float32Array {
-  const { ambient, sources, minX, minY, cols, rows, samplesPerCell: spc } = opts;
+  const { ambient, sources, occluders: occ, minX, minY, cols, rows, samplesPerCell: spc } = opts;
   const w = cols * spc;
   const h = rows * spc;
   const grid = new Float32Array(w * h).fill(ambient);
   for (const s of sources) {
+    const origins = nudgedOrigins(s.x, s.y);
     const reach = (s.bright + s.dim) / FEET_PER_CELL + HALF_BAND;
     if (reach <= HALF_BAND) continue;
     // Sample i sits at cell minX + (i + 0.5) / spc.
@@ -85,8 +98,10 @@ export function illuminationGrid(opts: IlluminationOptions): Float32Array {
       const py = minY + (j + 0.5) / spc;
       const row = j * w;
       for (let i = i0; i <= i1; i++) {
-        const level = contribution(s.bright, s.dim, Math.hypot(minX + (i + 0.5) / spc - s.x, py - s.y));
-        if (level > grid[row + i]) grid[row + i] = level;
+        const px = minX + (i + 0.5) / spc;
+        const level = contribution(s.bright, s.dim, Math.hypot(px - s.x, py - s.y));
+        // The line test is the dear part, so it runs only for a sample the source would actually brighten.
+        if (level > grid[row + i] && origins.some(([ox, oy]) => clearLine(occ, ox, oy, px, py))) grid[row + i] = level;
       }
     }
   }

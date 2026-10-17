@@ -142,4 +142,20 @@ describe("buildMapLive", () => {
     const live = buildMapLive(mapWith(emptyLayers()), new Map(), NO_DRESSING, 0, 0);
     expect(JSON.parse(JSON.stringify(live))).toEqual(live);
   });
+
+  it("lists what blocks light and sight in image cells: walls, sluices, doors by drawn state, solid rock, no grates", () => {
+    const layers = emptyLayers();
+    const seg = (type: "wall" | "doorClosed" | "doorOpen" | "grate" | "sluice") => ({ ...ref("p"), type });
+    layers.floor[cellKey(3, 4)] = { wallN: seg("wall"), wallW: seg("doorClosed") };
+    layers.floor[cellKey(4, 4)] = { wallN: seg("doorOpen"), wallW: seg("grate") };
+    layers.floor[cellKey(5, 4)] = { wallN: seg("sluice") };
+    layers.solidBlock[cellKey(9, 9)] = ref("rock");
+    const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 1, 2);
+    expect(live.walls.sort()).toEqual(["2,2:N", "4,2:N"]);
+    expect(live.doors).toEqual([
+      { edge: "2,2:W", open: false },
+      { edge: "3,2:N", open: true },
+    ]);
+    expect(live.solid).toEqual(["8,7"]);
+  });
 });

@@ -98,6 +98,7 @@ import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
 import { AMBIENT } from "@/lib/battlemap/illumination";
+import { occludersOf } from "@/lib/battlemap/occlusion";
 import { seenCombatants, type LitScene, type Viewer } from "@/lib/battlemap/vision";
 import { useParty } from "@/composables/party/useParty";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
@@ -200,7 +201,7 @@ const ownDarkvisionFeet = computed(() => {
 // Viewers are the own token's centre; a player with no token on the map sees only what is lit.
 const sight = computed<{ scene: LitScene; viewers: Viewer[] } | null>(() => {
   if (!live.value || live.value.darkness === "daylight") return null;
-  const scene = { ambient: AMBIENT[live.value.darkness], sources: live.value.lights };
+  const scene = { ambient: AMBIENT[live.value.darkness], sources: live.value.lights, occluders: occludersOf(live.value) };
   const own = liveState.value?.combatants_live?.find((c) => c.instance_id === ownInstanceId.value);
   if (!own?.position) return { scene, viewers: [] };
   const half = (own.footprint ?? 1) / 2;

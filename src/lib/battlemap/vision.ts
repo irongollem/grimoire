@@ -1,13 +1,15 @@
 // What a player's token sees of a lit map (epic #1073 story 5), by the 5e rules, the same in 2014 and 2024. Light
 // decides first (`illumination.ts`: 1 bright, 0.5 dim, 0 darkness): a creature without darkvision sees bright light
 // normally, dim light lightly obscured and darkness not at all. Darkvision within its range lifts that by one step:
-// dim light counts as bright and darkness as dim, seen only in shades of grey. Walls do not block sight yet (story
-// 6), and class features and spells that grant sight are the DM's to adjudicate, so nothing here reads them.
+// dim light counts as bright and darkness as dim, seen only in shades of grey. Sight needs a clear line from a viewer
+// (story 6, `occlusion.ts`): nothing behind a wall, a closed door or solid rock is seen, lit or not, and darkvision
+// does not reach round them. With no viewer (no token placed) there is no line to test. Class features and spells that grant sight are the DM's to adjudicate, so nothing here reads them.
 //
 // Pure and DOM-free.
 
 import { FEET_PER_CELL } from "@/cartographer/packSchema";
 import { lightLevelAt, type LitSource } from "@/lib/battlemap/illumination";
+import { clearLine, nudgedOrigins, type Occluders } from "@/lib/battlemap/occlusion";
 
 /** A creature that sees for a player: centre in image cells and its darkvision range (0 for none). */
 export interface Viewer {
@@ -20,6 +22,7 @@ export interface Viewer {
 export interface LitScene {
   ambient: number;
   sources: readonly LitSource[];
+  occluders: Occluders;
 }
 
 /** Per-sample sight: `seen` 1 clear, 0.5 lightly obscured, 0 blind; `grey` 1 where darkvision shows only shades of grey. */
@@ -70,6 +73,30 @@ export function sightAt(level: number, viewers: readonly Viewer[], x: number, y:
   return { seen, grey };
 }
 
+/** Where each viewer looks from: a viewer on a cell edge or corner (a large token's centre) looks from each cell it touches. */
+function lookFrom(viewers: readonly Viewer[]): { viewer: Viewer; origins: [number, number][] }[] {
+  return viewers.map((viewer) => ({ viewer, origins: nudgedOrigins(viewer.x, viewer.y) }));
+}
+
+/**
+ * Sight at one point through the occluders: only a viewer with a clear line counts, for light and for darkvision both.
+ * With viewers but none that can see the point, it is unseen. With no viewers nothing is tested.
+ */
+function sightThrough(
+  occ: Occluders,
+  level: number,
+  eyes: ReturnType<typeof lookFrom>,
+  viewers: readonly Viewer[],
+  x: number,
+  y: number,
+): { seen: number; grey: number } {
+  const all = sightAt(level, viewers, x, y);
+  if (viewers.length === 0 || all.seen <= 0) return all;
+  const open = eyes.filter((e) => e.origins.some(([ox, oy]) => clearLine(occ, ox, oy, x, y)));
+  if (open.length === 0) return { seen: 0, grey: 0 };
+  return open.length === eyes.length ? all : sightAt(level, open.map((e) => e.viewer), x, y);
+}
+
 export interface VisionGridOptions {
   /** Light levels from `illuminationGrid` over the same window. */
   illumination: Float32Array;
@@ -79,11 +106,13 @@ export interface VisionGridOptions {
   rows: number;
   samplesPerCell: number;
   viewers: readonly Viewer[];
+  occluders: Occluders;
 }
 
 /** Sight at every sample of the illumination grid. Sample i sits at cell `minX + (i + 0.5) / samplesPerCell`. */
 export function visionGrid(opts: VisionGridOptions): Vision {
-  const { illumination, minX, minY, cols, rows, samplesPerCell: spc, viewers } = opts;
+  const { illumination, minX, minY, cols, rows, samplesPerCell: spc, viewers, occluders: occ } = opts;
+  const eyes = lookFrom(viewers);
   const w = cols * spc;
   const h = rows * spc;
   const seen = new Float32Array(w * h);
@@ -92,7 +121,7 @@ export function visionGrid(opts: VisionGridOptions): Vision {
     const y = minY + (j + 0.5) / spc;
     for (let i = 0; i < w; i++) {
       const at = j * w + i;
-      const s = sightAt(illumination[at], viewers, minX + (i + 0.5) / spc, y);
+      const s = sightThrough(occ, illumination[at], eyes, viewers, minX + (i + 0.5) / spc, y);
       seen[at] = s.seen;
       grey[at] = s.grey;
     }
@@ -113,7 +142,8 @@ export function playerVeilAlpha(seen: number): number {
 export function canSee(scene: LitScene, viewers: readonly Viewer[], cellX: number, cellY: number): boolean {
   const x = cellX + 0.5;
   const y = cellY + 0.5;
-  return sightAt(lightLevelAt(scene.ambient, scene.sources, x, y), viewers, x, y).seen > SEEN_THRESHOLD;
+  const level = lightLevelAt(scene.ambient, scene.sources, scene.occluders, x, y);
+  return sightThrough(scene.occluders, level, lookFrom(viewers), viewers, x, y).seen > SEEN_THRESHOLD;
 }
 
 interface Placed {

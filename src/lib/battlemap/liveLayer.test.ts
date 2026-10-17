@@ -41,6 +41,9 @@ const live = (...kinds: ("water" | "outer")[]): MapLive => ({
   groups: kinds.map((kind) => ({ kind, cells: ["0,0"], overlays: [base] })),
   lights: [],
   sprites: [],
+  walls: [],
+  doors: [],
+  solid: [],
 });
 
 const sprite: MapLiveSprite = { url: "t", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 4, speed: 1.5, phase: 0.7 } };
@@ -60,7 +63,7 @@ describe("groupsIn", () => {
 });
 
 describe("spritesIn and lightsIn", () => {
-  const snapshot: MapLive = { version: 1, darkness: "daylight", groups: [], lights: [fire, glow, steady], sprites: [sprite] };
+  const snapshot: MapLive = { version: 1, darkness: "daylight", groups: [], lights: [fire, glow, steady], sprites: [sprite], walls: [], doors: [], solid: [] };
 
   it("puts every sprite in the top layer and none in the ground layer", () => {
     expect(spritesIn(snapshot, "top")).toEqual([sprite]);
@@ -78,20 +81,20 @@ describe("spritesIn and lightsIn", () => {
 describe("hasMotion", () => {
   it("needs at least one overlay, sprite or moving light", () => {
     expect(hasMotion(null, "ground")).toBe(false);
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [{ kind: "water", cells: [], overlays: [] }], lights: [], sprites: [] }, "ground")).toBe(false);
+    expect(hasMotion({ version: 1, darkness: "daylight", groups: [{ kind: "water", cells: [], overlays: [] }], lights: [], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
     expect(hasMotion(live("water"), "ground")).toBe(true);
   });
 
   it("runs the top layer for sprites only", () => {
     expect(hasMotion(live("water"), "top")).toBe(false);
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [], sprites: [sprite] }, "top")).toBe(true);
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [], sprites: [sprite] }, "ground")).toBe(false);
+    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [], sprites: [sprite], walls: [], doors: [], solid: [] }, "top")).toBe(true);
+    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [], sprites: [sprite], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
   });
 
   it("runs the ground layer for a flickering or pulsing light, not a steady one", () => {
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [fire], sprites: [] }, "ground")).toBe(true);
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [glow], sprites: [] }, "ground")).toBe(true);
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [steady], sprites: [] }, "ground")).toBe(false);
+    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [fire], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
+    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [glow], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
+    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [steady], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
   });
 });
 

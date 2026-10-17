@@ -39,6 +39,9 @@ const snapshot = (over: Partial<MapLive> = {}): MapLive => ({
   groups: [],
   lights: [],
   sprites: [],
+  walls: [],
+  doors: [],
+  solid: [],
   ...over,
 });
 const torch = { x: 0.5, y: 0.5, color: "#ffaa33", bright: 10, dim: 10, phase: 0 };

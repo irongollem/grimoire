@@ -221,6 +221,9 @@ describe("resolveBattleSurface", () => {
       groups: [{ kind: "water", cells: ["1,1"], overlays: [] }],
       lights: [],
       sprites: [],
+      walls: [],
+      doors: [],
+      solid: [],
     };
 
     it("carries the snapshot when the surface is the Drawing", () => {

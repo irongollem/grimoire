@@ -19,6 +19,8 @@ import {
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { paintLitVeil } from "@/lib/battlemap/darkness";
 import { AMBIENT, illuminationGrid } from "@/lib/battlemap/illumination";
+import { occluders } from "@/lib/battlemap/occlusion";
+import { collectOcclusion } from "@/cartographer/mapLive";
 import { cellKey, type CellKey, type DarknessLevel, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
 import type { CellEdge } from "@/cartographer/edges";
 import { boundaryEdges } from "@/cartographer/floodFill";
@@ -233,6 +235,8 @@ function buildIllumination(
   const grid = illuminationGrid({
     ambient: AMBIENT[darkness],
     sources,
+    // The map's own walls and solid rock, in map cells (origin 0): the preview shows what the battle map will.
+    occluders: occluders(collectOcclusion(scene.layers, 0, 0)),
     minX: extent.minX,
     minY: extent.minY,
     cols,

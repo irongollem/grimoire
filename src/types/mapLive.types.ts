@@ -68,4 +68,17 @@ export interface MapLive {
   lights: MapLiveLight[];
   /** Standing objects first (row-major), then Dressing in draw order: the order they stack in the bake. */
   sprites: MapLiveSprite[];
+  /**
+   * What stops light and sight, in image cells (epic #1073 story 6). Edge keys are `"x,y:N"` (the top of cell x,y) and
+   * `"x,y:W"` (its left): walls and sluices here, solid rock in `solid` (`"x,y"`). A grate blocks nothing and is in neither.
+   */
+  walls: string[];
+  /** Door edges with their drawn state; a door blocks while not open. Kept apart so play can override `open`. */
+  doors: MapLiveDoor[];
+  solid: string[];
+}
+
+export interface MapLiveDoor {
+  edge: string;
+  open: boolean;
 }

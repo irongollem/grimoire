@@ -41,7 +41,7 @@ vi.mock("@/cartographer/bake", () => ({
   },
   computeBakedDimensions: () => ({ cols: 4, rows: 4, originCellX: 0, originCellY: 0 }),
 }));
-const SNAPSHOT = { version: 1, darkness: "daylight", groups: [], lights: [], sprites: [] };
+const SNAPSHOT = { version: 1, darkness: "daylight", groups: [], lights: [], sprites: [], walls: [], doors: [], solid: [] };
 const SWAYING = { ...SNAPSHOT, sprites: [{ url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } }] };
 vi.mock("@/cartographer/mapLive", () => ({ buildMapLive: () => mocks.snapshot }));
 vi.mock("@/lib/storage", () => ({

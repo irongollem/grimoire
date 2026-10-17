@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 // The darkness veil of a battle map (epic #1073): the map's ambient light level laid over the image, carved by the
-// snapshot's lights by the rules (bright clears, the dim ring halves, the brightest source wins; see
+// snapshot's lights by the rules, stopped by walls (bright clears, the dim ring halves, the brightest source wins; see
 // `lib/battlemap/illumination.ts`). It runs no loop: a flickering fire does not move the veil, and reduced-motion
 // users get the same still picture. The stack mounts it last, so room focus, tokens and fog stay above it.
 //
@@ -21,6 +21,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { domMakeCanvas, paintLitVeil, paintPlayerVeil, type GreyImage } from "@/lib/battlemap/darkness";
 import { AMBIENT, illuminationGrid } from "@/lib/battlemap/illumination";
+import { occludersOf } from "@/lib/battlemap/occlusion";
 import { visionGrid, type Viewer } from "@/lib/battlemap/vision";
 import type { MapLive } from "@/types/mapLive.types";
 
@@ -71,10 +72,14 @@ const firstRow = computed(() => (cellPx > 0 ? Math.floor((panY - originY) / cell
 const cols = computed(() => (cellPx > 0 ? Math.ceil((panX + imageW - originX) / cellPx) - firstCol.value : 0));
 const rows = computed(() => (cellPx > 0 ? Math.ceil((panY + imageH - originY) / cellPx) - firstRow.value : 0));
 
+// Walls, closed doors and solid rock stop light and sight; built once per snapshot.
+const occluders = computed(() => occludersOf(live));
+
 const grid = computed(() =>
   illuminationGrid({
     ambient: AMBIENT[live.darkness],
     sources: live.lights,
+    occluders: occluders.value,
     minX: firstCol.value,
     minY: firstRow.value,
     cols: cols.value,
@@ -102,6 +107,7 @@ const vision = computed(() =>
         rows: rows.value,
         samplesPerCell: SAMPLES_PER_CELL,
         viewers: stableViewers.value,
+        occluders: occluders.value,
       })
     : null,
 );

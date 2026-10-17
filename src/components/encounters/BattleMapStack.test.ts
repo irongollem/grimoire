@@ -20,7 +20,7 @@ const LiveLayerStub = defineComponent({
 });
 
 const sprite = { url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } };
-const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 1, darkness: "daylight", groups: [], lights: [], sprites });
+const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 1, darkness: "daylight", groups: [], lights: [], sprites, walls: [], doors: [], solid: [] });
 
 function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null; viewers?: Viewer[] | null } = {}) {
   return mount(BattleMapStack, {
