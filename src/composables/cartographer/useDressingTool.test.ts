@@ -11,7 +11,7 @@ const CATALOG: DressingCatalog = new Map([
 
 function setup(active = true) {
   const layers = ref<DungeonMapLayers>(emptyLayers());
-  const activeTool = ref<Tool>("dressing");
+  const activeTool = ref<Tool>("place");
   const brushId = ref<string | null>("table");
   const brushRotation = ref(0);
   const selectedId = ref<string | null>(null);

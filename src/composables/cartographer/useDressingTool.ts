@@ -1,4 +1,4 @@
-// The Dressing tool's interaction (epic #1062): place the armed prop, pick up
+// The Place tool's prop interaction (epic #1062): place the armed prop, pick up
 // and move a placed one, turn it, delete it.
 //
 // Pulled out of useMapCanvasEditor.ts the way useCartographerStructureTools
@@ -81,7 +81,7 @@ export function useDressingTool(opts: DressingToolOptions) {
   // Leaving the tool drops the selection (its outline would hang on a canvas
   // that no longer offers to do anything with it); the brush is kept.
   watch(activeTool, (tool) => {
-    if (tool !== "dressing") selectedId.value = null;
+    if (tool !== "place") selectedId.value = null;
   });
   // Undo, redo or an erase can remove the selected prop: never keep a handle
   // on something that is gone.
@@ -109,6 +109,7 @@ export function useDressingTool(opts: DressingToolOptions) {
     return true;
   }
 
+  /** Takes the topmost prop under the pointer away as one undo step; false when there is none. */
   function removeTopAt(frac: [number, number]): boolean {
     const id = hitTestDressing(layers.value.dressing, catalog.value, frac[0], frac[1]);
     if (!id) return false;
@@ -118,7 +119,7 @@ export function useDressingTool(opts: DressingToolOptions) {
   }
 
   /**
-   * The Dressing tool's press. Returns whether it consumed the event: a middle
+   * The Place tool's press for a prop. Returns whether it consumed the event: a middle
    * button or Shift press is left to the editor's pan, everything else
    * (including a right-click that hits nothing) is the tool's, so a right-click
    * never also drags the map.
@@ -244,7 +245,7 @@ export function useDressingTool(opts: DressingToolOptions) {
 
   /** What renderMap needs on top of the layers: the ghost under the cursor and the selection outline. */
   function renderScene(): { dressingGhost: { placement: DressingPlacement; alpha: number } | null; selectedDressingId: string | null } {
-    const live = isActive() && activeTool.value === "dressing";
+    const live = isActive() && activeTool.value === "place";
     const cell = hover.value;
     const armed = brushId.value;
     return {
@@ -261,6 +262,7 @@ export function useDressingTool(opts: DressingToolOptions) {
     setHover,
     clearHover,
     onPointerDown,
+    removeTopAt,
     onPointerMove,
     onPointerUp,
     isHolding,

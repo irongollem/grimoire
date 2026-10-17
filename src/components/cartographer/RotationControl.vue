@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-// The rotate row the Object stamp and the Dressing tool share: -1 degree,
+// The rotate row of the Place tool, for an object and a prop alike: -1 degree,
 // quarter turn left, readout, quarter turn right, +1 degree. The same four
 // steps the Q / E / [ / ] keys take (src/cartographer/keymap.ts).
 import AppButton from "@/components/common/controls/AppButton.vue";

@@ -1,21 +1,20 @@
-// The options slip: the wall tool's kind picker (and its decal list), the stamp picker's
-// pack-given names, and the Select summary of a decorated wall. They were the inspector's
+// The options slip: the wall tool's kind picker (and its decal list), the Place slip, and the Select summary of a decorated wall. They were the inspector's
 // blocks until the editor moved to a slim bar; EntityCombobox reaches for stores and
 // queries this test has no use for, so it is stubbed.
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import CartographerToolOptions from "./CartographerToolOptions.vue";
-import { STAMP_CATEGORIES } from "@/cartographer/stampCategories";
 
 const FOREST = { labels: { objectPillar: ["Old tree"], wallDecal: ["Outflow pipe", "Rat hole"] } };
 
 function mountOptions(over: Record<string, unknown> = {}) {
   return mount(CartographerToolOptions, {
     props: {
-      title: "Wall", activeTool: "wall", activeObjectCategory: "objectChest",
-      objectCategories: STAMP_CATEGORIES, stampRotation: 0, manifest: FOREST,
+      title: "Wall", activeTool: "wall", placeItem: null, placeLabel: "", placeImageUrl: null,
+      placeFootprint: null, placeRotation: 0, selectedPlaced: null, catalogueOpen: true, runtime: null,
+      manifest: FOREST,
       activeWallKind: "wall", activeWallDecal: 0, wallDecalCount: 2,
-      dressingBrushId: null, selectedCell: null,
+      selectedCell: null,
       selectedCellFloor: false, selectedCellSolid: false, selectedCellEdges: [],
       selectedCellObjectCategory: null, selectedCellLinkedNames: [], annotationText: "",
       linkedNoteId: "", linkedEncounterId: "", linkedTrapId: "", linkedFeatureId: "",
@@ -75,22 +74,39 @@ describe("wall kind block", () => {
   });
 });
 
-describe("stamp picker", () => {
-  it("names a stamp from the pack's labels, else from the schema", () => {
-    const wrapper = mountOptions({ title: "Object stamp", activeTool: "stamp" });
-    const labels = wrapper.findAll("button").map((b) => b.text());
-    expect(labels).toContain("Old tree"); // objectPillar, renamed by the pack
-    expect(labels).toContain("Chest");
-    expect(labels).toContain("Stairs up");
-    expect(labels).toContain("Stairs down");
-    expect(labels).toContain("Rubble");
-    expect(labels).toContain("Debris");
+describe("place slip", () => {
+  const chest = { kind: "object", category: "objectChest", variant: 1 };
+
+  it("names what is in hand, turns it, and says how to put it down", async () => {
+    const wrapper = mountOptions({ title: "Place", activeTool: "place", placeItem: chest, placeLabel: "Iron chest" });
+    expect(wrapper.text()).toContain("Iron chest");
+    expect(wrapper.text()).toContain("Esc puts it down");
+    await button(wrapper, "↻ E").trigger("click");
+    expect(wrapper.emitted("update:placeRotation")?.[0]).toEqual([90]);
   });
 
-  it("emits the category of a stairs stamp", async () => {
-    const wrapper = mountOptions({ title: "Object stamp", activeTool: "stamp" });
-    await button(wrapper, "Stairs down").trigger("click");
-    expect(wrapper.emitted("update:activeObjectCategory")?.[0]).toEqual(["stairsDown"]);
+  it("says so when nothing is in hand", () => {
+    const wrapper = mountOptions({ title: "Place", activeTool: "place" });
+    expect(wrapper.text()).toContain("Nothing in hand");
+  });
+
+  it("shows the selected placed prop with a Delete, instead of the item in hand", async () => {
+    const wrapper = mountOptions({
+      title: "Place", activeTool: "place", placeItem: chest, placeLabel: "Iron chest",
+      selectedPlaced: { name: "Long table", rotation: 90 },
+    });
+    expect(wrapper.text()).toContain("Long table");
+    expect(wrapper.text()).not.toContain("Iron chest");
+    await button(wrapper, "Delete").trigger("click");
+    expect(wrapper.emitted("deleteSelected")).toHaveLength(1);
+  });
+
+  it("offers the catalogue again only while its drawer is closed", async () => {
+    const closed = mountOptions({ title: "Place", activeTool: "place", catalogueOpen: false });
+    await button(closed, "Catalogue").trigger("click");
+    expect(closed.emitted("openCatalogue")).toHaveLength(1);
+    const open = mountOptions({ title: "Place", activeTool: "place", catalogueOpen: true });
+    expect(open.findAll("button").some((b) => b.text() === "Catalogue")).toBe(false);
   });
 });
 

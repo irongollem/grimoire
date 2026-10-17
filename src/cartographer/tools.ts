@@ -23,9 +23,9 @@ export type Tool =
   | "line"
   | "fill"
   | "wrap"
-  | "stamp"
-  // Props (epic #1062): tables, beds, coffins placed at any angle, above objects.
-  | "dressing"
+  // Place (#1073 story 11): the set's objects (chest, barrel, stairs, rubble) and the
+  // Dressing books' props (tables, beds, coffins at any angle) from one picture catalogue.
+  | "place"
   | "annotate"
   | "link"
   | "template"
@@ -35,3 +35,13 @@ export type Tool =
   // Zoning was retired (#884 S11) — a zone is now a Plan region authored
   // once in the Plan palette, never derived from the Drawing.
   | "space";
+
+/**
+ * What the Place tool puts down. An object is a set's own stamp (a chest, a barrel), either
+ * one chosen variant or "any", which mixes the variants by position the way the stamp always
+ * did; a prop is a Dressing book's, placed at any angle above the objects. The tool holds
+ * `null` when nothing is armed, which is when a click on a placed prop picks it up.
+ */
+export type PlaceItem =
+  | { kind: "object"; category: import("@/cartographer/stampCategories").StampCategory; variant: number | "any" }
+  | { kind: "prop"; propId: string };

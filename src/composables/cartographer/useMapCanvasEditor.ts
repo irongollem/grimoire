@@ -6,7 +6,7 @@
 // useCartographerStructureTools was pulled out of the pre-extraction
 // CartographerEditorView.vue for #868. MapWorkbench still owns tool
 // *selection* state (`activeTool`, the `TOOLS` palette, per-tool inspector
-// fields like `stampRotation`/`brushRadius`) and hands them in here as refs;
+// fields like `placeRotation`/`brushRadius`) and hands them in here as refs;
 // this composable owns what happens on the canvas once a tool is active.
 //
 // Every mutation function here writes through the same `layers`/`metadata`
@@ -15,12 +15,12 @@
 
 import { computed, customRef, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
-import type { Tool } from "@/cartographer/tools";
+import type { PlaceItem, Tool } from "@/cartographer/tools";
+import type { StampCategory } from "@/cartographer/stampCategories";
 import { pinchOf, pinchViewport, zoomAtPoint, type Pinch, type CanvasViewport } from "@/cartographer/viewport";
 import { clampBrushRadius, resolveKeyAction } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DarknessLevel } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
-import type { StampCategory } from "@/cartographer/stampCategories";
 import { wallKindCategory, type WallKind } from "@/cartographer/wallKinds";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { DressingCatalog } from "@/cartographer/dressing";
@@ -74,19 +74,18 @@ export interface MapCanvasEditorOptions {
   loadedRuntimes: Ref<Map<string, TilePackRuntime>>;
   /** Dressing props by id (epic #1062); swapped for a new Map as art loads. */
   dressing: Ref<DressingCatalog>;
-  /** Dressing tool state MapWorkbench owns so the inspector can show it: the
-   *  prop picked as the brush, the rotation a new prop gets, and the placed
-   *  prop that is selected (epic #1062). */
-  dressingBrushId: Ref<string | null>;
-  dressingRotation: Ref<number>;
+  /** The Place tool's state MapWorkbench owns so its drawer and slip can show it: what is
+   *  armed (an object, a prop, or null for nothing), and the placed prop that is selected
+   *  (epic #1062). */
+  placeItem: Ref<PlaceItem | null>;
   selectedDressingId: Ref<string | null>;
   cellGlyphs: ComputedRef<Record<CellKey, PackCategory>>;
   activeTool: Ref<Tool>;
   /** Enough of the palette for hotkey resolution — MapWorkbench owns the full `TOOLS` array. */
   tools: ReadonlyArray<{ id: Tool; shortcut?: string; disabled?: boolean }>;
   viewMode: () => boolean;
-  activeObjectCategory: Ref<StampCategory>;
-  stampRotation: Ref<number>;
+  /** Degrees an object or prop is put down at, shared by both (Q/E turn it). */
+  placeRotation: Ref<number>;
   /** What the wall tool paints (or, for "decal", sets on an existing wall) and the decal variant it sets. */
   activeWallKind: Ref<WallKind>;
   activeWallDecal: Ref<number>;
@@ -127,7 +126,7 @@ const EDGE_HOVER_THRESHOLD = 0.25;
 export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
-    dressing, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape,
+    dressing, placeItem, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, placeRotation, activeWallKind, activeWallDecal, activeTemplateShape,
     brushRadius, selectedCell, toolOptionsRef, structure, mapKey, getReferenceImage, extraRenderDeps,
     plan, activeLayer,
   } = opts;
@@ -231,9 +230,23 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   }));
   const structureTools = useCartographerStructureTools(structure, { activeTool, dirty: dirtyWithRevision });
 
-  // The Dressing tool's gestures (epic #1062); this module only routes to it.
+  // The armed prop as the Dressing gestures see it; putting it down empties the whole item.
+  const armedProp = computed<string | null>({
+    get: () => (placeItem.value?.kind === "prop" ? placeItem.value.propId : null),
+    set: (id) => { placeItem.value = id ? { kind: "prop", propId: id } : null; },
+  });
+  /** Right button, or Alt with the left: Place takes away instead of putting down. */
+  function placeErases(ev: PointerEvent): boolean {
+    return ev.button === 2 || (ev.altKey && ev.button === 0);
+  }
+  /** An object is armed: a click stamps it. Otherwise a click belongs to the props. */
+  function armedObject(): Extract<PlaceItem, { kind: "object" }> | null {
+    return placeItem.value?.kind === "object" ? placeItem.value : null;
+  }
+
+  // The Dressing gestures (epic #1062); this module only routes to them.
   const dressingTool = useDressingTool({
-    layers, catalog: dressing, activeTool, brushId: dressingBrushId, brushRotation: dressingRotation,
+    layers, catalog: dressing, activeTool, brushId: armedProp, brushRotation: placeRotation,
     selectedId: selectedDressingId,
     isActive: () => !viewMode() && !isPlanLayerActive(),
     snapshotStr, pushCommand, markDirty,
@@ -418,12 +431,18 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (paintOps.eraseSolidAt(paintContext(), x, y)) markDirty();
   }
 
-  // ── Object stamp tool ───────────────────────────────────────────────────
+  // ── Place tool: objects ───────────────────────────────────────────────────
 
   function paintObjectAt(x: number, y: number): void {
-    const variant = pickObjectVariant(activeObjectCategory.value, x, y);
+    const armed = armedObject();
+    if (!armed) return;
+    const count = packRuntime.value?.variantCount(armed.category) ?? 0;
+    // A chosen variant the active set does not have (the set was switched) mixes by position instead.
+    const variant = typeof armed.variant === "number" && armed.variant < count
+      ? armed.variant
+      : pickObjectVariant(armed.category, x, y);
     const changed = paintOps.paintObjectAt(
-      paintContext(), x, y, activeObjectCategory.value, variant, stampRotation.value,
+      paintContext(), x, y, armed.category, variant, placeRotation.value,
     );
     if (changed) markDirty();
   }
@@ -762,7 +781,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     [
       zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoverPoint, brushRadius, altHeld, hoveredEdge, activeTool,
       previewCells, metadata, selectedCell, cellGlyphs,
-      dressingTool.hover, dressingBrushId, dressingRotation, selectedDressingId, ...extraRenderDeps, ...planRenderDeps,
+      dressingTool.hover, placeItem, placeRotation, selectedDressingId, ...extraRenderDeps, ...planRenderDeps,
     ],
     () => scheduleRender(),
     { deep: true },
@@ -819,22 +838,24 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
     // Dressing: place, pick up, move and remove props. It leaves a middle
     // button or Shift press unhandled so those still pan.
-    if (activeTool.value === "dressing"
+    if (activeTool.value === "place" && placeErases(ev)) {
+      // Right button or Alt: a prop under the pointer goes first (it draws above objects), else the object.
+      if (ev.button === 2) ev.preventDefault();
+      if (!dressingTool.removeTopAt(fractionalCellAt(ev))) {
+        const before = snapshotStr();
+        eraseObjectAt(cx, cy);
+        const after = snapshotStr();
+        if (before !== after) pushCommand(before, after);
+      }
+      return;
+    }
+
+    if (activeTool.value === "place" && !armedObject()
       && dressingTool.onPointerDown({
         cell: [cx, cy], frac: fractionalCellAt(ev), button: ev.button, altKey: ev.altKey, shiftKey: ev.shiftKey,
       })) {
       if (ev.button === 2) ev.preventDefault();
       if (dressingTool.isHolding()) canvasEl.value?.setPointerCapture(ev.pointerId);
-      return;
-    }
-
-    // Stamp right-click: erase object at cell.
-    if (activeTool.value === "stamp" && ev.button === 2) {
-      ev.preventDefault();
-      const before = snapshotStr();
-      eraseObjectAt(cx, cy);
-      const after = snapshotStr();
-      if (before !== after) pushCommand(before, after);
       return;
     }
 
@@ -934,7 +955,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (activeTool.value === "floor") { if (ev.altKey) eraseCell(cx, cy); else paintCell(cx, cy); }
     else if (activeTool.value === "terrain") { if (ev.altKey) eraseTerrainAt(cx, cy); else paintTerrainAt(cx, cy); }
     else if (activeTool.value === "solid") { if (ev.altKey) eraseSolidAt(cx, cy); else paintSolidAt(cx, cy); }
-    else if (activeTool.value === "stamp") { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
+    else if (activeTool.value === "place" && armedObject()) { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
     else if (activeTool.value === "eraser") {
       if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
       else if (dressingTool.eraseTopAt(fractionalCellAt(ev))) { /* props draw above objects, so they go first */ }
@@ -1018,7 +1039,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       } else if (tool === "floor") { if (ev.altKey) eraseCell(cx, cy); else paintCell(cx, cy); }
       else if (tool === "terrain") { if (ev.altKey) eraseTerrainAt(cx, cy); else paintTerrainAt(cx, cy); }
       else if (tool === "solid") { if (ev.altKey) eraseSolidAt(cx, cy); else paintSolidAt(cx, cy); }
-      else if (tool === "stamp") { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
+      else if (tool === "place" && armedObject()) { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
       else if (tool === "eraser") {
         if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
         else if (dressingTool.eraseTopAt(fractionalCellAt(ev))) { /* props draw above objects, so they go first */ }
@@ -1285,7 +1306,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         targetIsTextEntry: !!target
           && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable),
       },
-      { activeTool: activeTool.value, tools, dressingArmed: dressingBrushId.value !== null },
+      { activeTool: activeTool.value, tools, placeArmed: placeItem.value !== null },
     );
     if (!action) return;
 
@@ -1293,10 +1314,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "undo": undoEdit(); break;
       case "redo": redoEdit(); break;
       case "center": centerMap(); break;
-      case "rotateStamp": stampRotation.value = (stampRotation.value + action.delta) % 360; break;
-      case "rotateDressing": dressingTool.turn(action.delta); break;
+      case "rotatePlace": dressingTool.turn(action.delta); break;
       case "deleteDressing": dressingTool.deleteSelected(); break;
-      case "disarmDressing": dressingTool.disarm(); break;
+      case "disarmPlace": placeItem.value = null; break;
       case "resizeBrush":
         brushRadius.value = clampBrushRadius(brushRadius.value + action.delta);
         break;

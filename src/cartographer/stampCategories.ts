@@ -1,4 +1,4 @@
-// What the stamp tool can place, and what the editor calls each thing.
+// The set objects the Place tool can stamp, and what the editor calls each thing.
 //
 // The pack schema owns the six object stamps (`OBJECT_CATEGORIES`); the
 // editor adds the stairs and the two loose-litter categories on top, which no
@@ -36,4 +36,18 @@ export function stampLabel(manifest: LabelledManifest | null | undefined, catego
 export function decalLabel(manifest: LabelledManifest | null | undefined, variant: number): string {
   const own = manifest?.labels?.wallDecal?.[variant];
   return own ? own : `Decal ${variant + 1}`;
+}
+
+/**
+ * One variant of an object type, named for its thumbnail's tooltip: the pack's label for that
+ * variant, else "<Type> n". (`stampLabel` reads variant 0's label as the type's own name, so
+ * a pack that names only that one still gets numbered siblings.)
+ */
+export function variantLabel(
+  manifest: LabelledManifest | null | undefined,
+  category: PackCategory,
+  variant: number,
+): string {
+  const own = manifest?.labels?.[category]?.[variant];
+  return own ? own : `${stampLabel(manifest, category)} ${variant + 1}`;
 }

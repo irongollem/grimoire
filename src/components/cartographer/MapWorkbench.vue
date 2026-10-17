@@ -112,14 +112,18 @@
             ref="toolOptionsRef"
             :title="canvasToolLabel"
             :active-tool="activeTool"
-            :active-object-category="activeObjectCategory"
-            :object-categories="STAMP_CATEGORIES"
-            :stamp-rotation="stampRotation"
+            :place-item="placeItem"
+            :place-label="placeItemInfo.label"
+            :place-image-url="placeItemInfo.imageUrl"
+            :place-footprint="placeItemInfo.footprint"
+            :place-rotation="placeRotation"
+            :selected-placed="selectedDressingInfo"
+            :catalogue-open="drawer === 'place'"
+            :runtime="packRuntime"
             :manifest="packRuntime?.manifest ?? null"
             :active-wall-kind="activeWallKind"
             :active-wall-decal="activeWallDecal"
             :wall-decal-count="packRuntime?.variantCount('wallDecal') ?? 0"
-            :dressing-brush-id="dressingBrushId"
             :selected-cell="selectedCell"
             :selected-cell-floor="selectedCellFloor"
             :selected-cell-solid="selectedCellSolid"
@@ -138,8 +142,10 @@
             :active-template-shape="activeTemplateShape"
             :template-shapes="TEMPLATE_SHAPES"
             :brush-radius="brushRadius"
-            @update:active-object-category="activeObjectCategory = $event"
-            @update:stamp-rotation="stampRotation = $event"
+            @update:place-rotation="placeRotation = $event"
+            @rotate-selected="rotateSelectedDressing"
+            @delete-selected="deleteSelectedDressing"
+            @open-catalogue="drawer = 'place'"
             @update:active-wall-kind="activeWallKind = $event"
             @update:active-wall-decal="activeWallDecal = $event"
             @update:annotation-text="annotationText = $event"
@@ -194,15 +200,13 @@
               @update:active-region-id="(id) => setPlanActiveRegion(id, 'zone')"
             />
           </div>
-          <CartographerDressingPanel
-            v-else-if="drawer === 'dressing'"
-            :brush-id="dressingBrushId"
-            :brush-rotation="dressingRotation"
-            :selected="selectedDressingInfo"
-            @update:brush-id="dressingBrushId = $event"
-            @update:brush-rotation="dressingRotation = $event"
-            @rotate-selected="rotateSelectedDressing"
-            @delete-selected="deleteSelectedDressing"
+          <CartographerPlaceCatalog
+            v-else-if="drawer === 'place'"
+            :item="placeItem"
+            :runtime="packRuntime"
+            :set-name="packLabel"
+            :recent="recentPlaced"
+            @pick="pickPlaceItem"
           />
           <CartographerStructurePanel
             v-else-if="drawer === 'spaces'"
@@ -324,7 +328,6 @@ import {
   IconFill,
   IconWrapWalls,
   IconObjectStamp,
-  IconDressing,
   IconAnnotate,
   IconEntityLink,
   IconRoomTemplate,
@@ -341,7 +344,7 @@ import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import CartographerBar from "@/components/cartographer/CartographerBar.vue";
 import CartographerDrawer from "@/components/cartographer/CartographerDrawer.vue";
-import CartographerDressingPanel from "@/components/cartographer/CartographerDressingPanel.vue";
+import CartographerPlaceCatalog from "@/components/cartographer/CartographerPlaceCatalog.vue";
 import CartographerToolRail, { type RailGroup } from "@/components/cartographer/CartographerToolRail.vue";
 import CartographerPlanOptions from "@/components/cartographer/CartographerPlanOptions.vue";
 import CartographerToolOptions from "@/components/cartographer/CartographerToolOptions.vue";
@@ -357,11 +360,12 @@ import { useNotes } from "@/composables/notes/useNotes";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
 import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
-import { useDressingCatalog } from "@/composables/cartographer/useLibraryDressing";
+import { useAllLibraryDressing, useDressingCatalog } from "@/composables/cartographer/useLibraryDressing";
 import { loadUserPack, useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { loadLibraryPack, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
 import { useCampaignStore } from "@/stores/campaign";
-import type { Tool } from "@/cartographer/tools";
+import type { PlaceItem, Tool } from "@/cartographer/tools";
+import { placeItemLabel, pushRecent } from "@/cartographer/placeItem";
 import {
   emptyLayers,
   withLayerDefaults,
@@ -373,7 +377,7 @@ import {
   type CellMetadata,
   type EdgeSegType,
 } from "@/types/dungeonMap.types";
-import { STAMP_CATEGORIES, type StampCategory } from "@/cartographer/stampCategories";
+import { STAMP_CATEGORIES } from "@/cartographer/stampCategories";
 import type { WallKind } from "@/cartographer/wallKinds";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { MapRenderReferenceImage } from "@/cartographer/renderMap";
@@ -512,6 +516,8 @@ interface ToolDef {
   icon: Component;
   /** Single keyboard key that activates this tool (lowercase, plain key — no modifiers). */
   shortcut?: string;
+  /** Further keys that pick the tool (Place answers to G, the key Dressing used). */
+  aliases?: readonly string[];
   /** Override for the tooltip's key, used for non-keyboard hints like "RMB" on Pan. */
   displayBadge?: string;
   disabled?: boolean;
@@ -536,8 +542,7 @@ const TOOLS: ToolDef[] = [
   { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w", group: "walls" },
   { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d", group: "walls" },
   { id: "wrap",     label: "Wrap",          icon: IconWrapWalls,    shortcut: "x", group: "walls" },
-  { id: "stamp",    label: "Object stamp",  icon: IconObjectStamp,  shortcut: "o", group: "things" },
-  { id: "dressing", label: "Dressing",      icon: IconDressing,     shortcut: "g", group: "things" },
+  { id: "place",    label: "Place",         icon: IconObjectStamp,  shortcut: "o", aliases: ["g"], group: "things" },
   { id: "annotate", label: "Label",         icon: IconAnnotate,     shortcut: "t", group: "notes" },
   { id: "link",     label: "Link",          icon: IconEntityLink,   shortcut: "k", group: "notes" },
   // "s" is already Rock's key, so Space takes "p" instead of the frame's literal key (#868).
@@ -570,24 +575,29 @@ function onRailTool(id: string): void {
   else plan.planTool.value = id as PlanTool;
 }
 
-// M4 — Object stamp tool state
-const activeObjectCategory = ref<StampCategory>("objectChest");
-const stampRotation = ref(0); // degrees; M6 free rotation (any integer 0–359)
+// Place tool state (#1073 story 11): what is armed, the rotation it goes down at, and the
+// last few picks. The default is the set's first object type, mixing its variants.
+const placeItem = ref<PlaceItem | null>({ kind: "object", category: STAMP_CATEGORIES[0], variant: "any" });
+const placeRotation = ref(0); // degrees; free rotation (any integer 0–359)
+const recentPlaced = ref<PlaceItem[]>([]);
+function pickPlaceItem(item: PlaceItem): void {
+  placeItem.value = item;
+  // What was selected on the map no longer is: Q/E and Delete now mean the item in hand.
+  selectedDressingId.value = null;
+  recentPlaced.value = pushRecent(recentPlaced.value, item);
+}
 
 // Wall tool state (tile packs v4): which kind of edge it paints, and which
 // `wallDecal` variant the Decal kind sets on an existing wall.
 const activeWallKind = ref<WallKind>("wall");
 const activeWallDecal = ref(0);
 
-// Dressing tool state (epic #1062): the prop armed in the panel, the rotation a
-// new one gets, and the placed prop that is selected.
-const dressingBrushId = ref<string | null>(null);
-const dressingRotation = ref(0);
+// The placed prop that is selected (epic #1062).
 const selectedDressingId = ref<string | null>(null);
 // Art is loaded for what is on the map and the armed prop, nothing else.
 const { catalog: dressingCatalog, load: loadDressingCatalog } = useDressingCatalog(() => {
   const ids = Object.values(layers.value.dressing).map((placement) => placement.prop_id);
-  return dressingBrushId.value ? [...ids, dressingBrushId.value] : ids;
+  return placeItem.value?.kind === "prop" ? [...ids, placeItem.value.propId] : ids;
 });
 
 // M6 — Room template tool state
@@ -777,7 +787,20 @@ const selectedCellLinkedNames = computed(() => {
   return names;
 });
 
-// The selected placed prop as the Dressing panel shows it. A prop whose book was
+// What Place holds, as the options slip shows it: its name and, for a prop, its picture and
+// footprint. Resolved against every library prop, so a prop whose book was switched off still has a name.
+const { data: everyLibraryProp } = useAllLibraryDressing();
+const placeItemInfo = computed(() => {
+  const item = placeItem.value;
+  const prop = item?.kind === "prop" ? everyLibraryProp.value?.find((p) => p.id === item.propId) : undefined;
+  return {
+    label: item ? placeItemLabel(item, packRuntime.value?.manifest ?? null, (id) => everyLibraryProp.value?.find((p) => p.id === id)?.name) : "",
+    imageUrl: prop ? prop.image_url : null,
+    footprint: prop ? { w: prop.footprint_w, h: prop.footprint_h } : null,
+  };
+});
+
+// The selected placed prop as the options slip shows it. A prop whose book was
 // switched off still resolves (the catalog holds every library prop), so
 // "Unknown prop" means the row is gone from the library altogether.
 const selectedDressingInfo = computed(() => {
@@ -795,7 +818,7 @@ const activeToolLabel = computed(() => TOOLS.find((t) => t.id === activeTool.val
 // toolPointerDown/Move/Up. Select/Pan/Fill/Wrap/Annotate/Link/Eraser/Space
 // have nothing to invert, so they're deliberately absent here.
 const INVERTIBLE_TOOLS = new Set<Tool>([
-  "floor", "terrain", "brush", "solid", "wall", "stamp", "dressing", "door", "rect", "line", "template",
+  "floor", "terrain", "brush", "solid", "wall", "place", "door", "rect", "line", "template",
 ]);
 
 /** The options slip's title: the Drawing tool (with " · erase" appended while
@@ -900,12 +923,12 @@ const LAYER_OPTIONS: SegmentedOption<"drawing" | "plan">[] = [
 ];
 
 // ── The right drawer: one panel at a time over the canvas's edge. Plan opens on its own
-// lists (they are how a traced shape is bound to a room); Dressing opens with its tool,
+// lists (they are how a traced shape is bound to a room); Place opens its catalogue with its tool,
 // because the props are picked there; Spaces is the DM's to open.
-type DrawerId = "spaces" | "dressing" | "plan";
+type DrawerId = "spaces" | "place" | "plan";
 const drawer = ref<DrawerId | null>(activeLayer.value === "plan" ? "plan" : null);
 const spacesDrawerId = computed<DrawerId>(() => (activeLayer.value === "plan" ? "plan" : "spaces"));
-const DRAWER_TITLE: Record<DrawerId, string> = { spaces: "Spaces on this map", dressing: "Dressing", plan: "Spaces and zones" };
+const DRAWER_TITLE: Record<DrawerId, string> = { spaces: "Spaces on this map", place: "Place", plan: "Spaces and zones" };
 const drawerTitle = computed(() => (drawer.value ? DRAWER_TITLE[drawer.value] : ""));
 function toggleSpaces(): void {
   drawer.value = drawer.value === spacesDrawerId.value ? null : spacesDrawerId.value;
@@ -915,8 +938,8 @@ watch(activeLayer, (layer) => {
 });
 watch(activeTool, (tool) => {
   if (activeLayer.value !== "drawing") return;
-  if (tool === "dressing") drawer.value = "dressing";
-  else if (drawer.value === "dressing") drawer.value = null;
+  if (tool === "place") drawer.value = "place";
+  else if (drawer.value === "place") drawer.value = null;
 });
 
 /** The Plan's own Spaces/Zones panels (#884 S11) set `activeRegionId` via
@@ -938,8 +961,8 @@ const {
   rotateSelectedDressing, deleteSelectedDressing,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
-  dressing: dressingCatalog, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
-  activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape, brushRadius,
+  dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
+  placeRotation, activeWallKind, activeWallDecal, activeTemplateShape, brushRadius,
   selectedCell, toolOptionsRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],

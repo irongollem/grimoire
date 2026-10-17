@@ -11,14 +11,12 @@ export type KeyAction =
   | { kind: "undo" }
   | { kind: "redo" }
   | { kind: "center" }
-  /** Degrees to add before taking mod 360. Q/E are 90° steps, [/] are 1° trims. */
-  | { kind: "rotateStamp"; delta: number }
-  /** Dressing tool: turns the selected prop, or the brush when none is selected. */
-  | { kind: "rotateDressing"; delta: number }
-  /** Dressing tool: removes the selected prop (a no-op when none is). */
+  /** Place tool: degrees to add before taking mod 360. Q/E are 90° steps, [/] are 1° trims. */
+  | { kind: "rotatePlace"; delta: number }
+  /** Place tool: removes the selected prop (a no-op when none is). */
   | { kind: "deleteDressing" }
-  /** Dressing tool: puts the armed prop down without leaving the tool. */
-  | { kind: "disarmDressing" }
+  /** Place tool: puts the armed item down without leaving the tool. */
+  | { kind: "disarmPlace" }
   /** Round brush: radius change in cells (`[` shrinks, `]` grows). */
   | { kind: "resizeBrush"; delta: number }
   | { kind: "selectTool"; tool: Tool };
@@ -35,9 +33,9 @@ export interface KeyEventLike {
 
 export interface KeyContext {
   activeTool: Tool;
-  tools: ReadonlyArray<{ id: Tool; shortcut?: string; disabled?: boolean }>;
-  /** A Dressing prop is picked as the brush; Escape then puts it down before it leaves the tool. */
-  dressingArmed?: boolean;
+  tools: ReadonlyArray<{ id: Tool; shortcut?: string; /** Further keys that pick the same tool (Place answers to G as well as O). */ aliases?: readonly string[]; disabled?: boolean }>;
+  /** Place has something armed (an object or a prop); Escape then puts it down before it leaves the tool. */
+  placeArmed?: boolean;
 }
 
 // Delete and Backspace are the same key on the two keyboard families.
@@ -74,27 +72,24 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   // `{ kind: "selectTool", tool: "select" }`, so it stays a no-op if a future
   // context ever disables the tool instead of assuming it's always there.
   if (key === "escape") {
-    if (ctx.activeTool === "dressing" && ctx.dressingArmed) return { kind: "disarmDressing" };
+    if (ctx.activeTool === "place" && ctx.placeArmed) return { kind: "disarmPlace" };
     const select = ctx.tools.find((t) => t.id === "select");
     return select && !select.disabled ? { kind: "selectTool", tool: select.id } : null;
-  }
-
-  if (ctx.activeTool === "stamp" && key in STAMP_ROTATIONS) {
-    return { kind: "rotateStamp", delta: STAMP_ROTATIONS[key] };
   }
 
   if (ctx.activeTool === "brush" && (key === "[" || key === "]")) {
     return { kind: "resizeBrush", delta: key === "[" ? -BRUSH_RADIUS_STEP : BRUSH_RADIUS_STEP };
   }
 
-  // Same turn keys as the stamp, and likewise checked before the shortcut
-  // lookup so `e` turns the prop instead of picking the Eraser.
-  if (ctx.activeTool === "dressing") {
-    if (key in STAMP_ROTATIONS) return { kind: "rotateDressing", delta: STAMP_ROTATIONS[key] };
+  // Q/E turn what Place holds, checked before the shortcut lookup so `e` turns it
+  // instead of picking the Eraser. The editor decides whether that is the selected
+  // prop or the armed item's rotation.
+  if (ctx.activeTool === "place") {
+    if (key in STAMP_ROTATIONS) return { kind: "rotatePlace", delta: STAMP_ROTATIONS[key] };
     if (DRESSING_DELETE_KEYS.has(key)) return { kind: "deleteDressing" };
   }
 
-  const tool = ctx.tools.find((t) => t.shortcut === key);
+  const tool = ctx.tools.find((t) => t.shortcut === key || t.aliases?.includes(key));
   if (tool && !tool.disabled) return { kind: "selectTool", tool: tool.id };
 
   return null;

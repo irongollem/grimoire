@@ -24,9 +24,8 @@ import {
   type CellMetadata,
   type DungeonMapLayers,
 } from "@/types/dungeonMap.types";
-import type { Tool } from "@/cartographer/tools";
+import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { PackCategory } from "@/cartographer/packSchema";
-import type { StampCategory } from "@/cartographer/stampCategories";
 import type { WallKind } from "@/cartographer/wallKinds";
 import { BASE_TILE_SIZE } from "@/cartographer/packSchema";
 import type { DressingCatalog } from "@/cartographer/dressing";
@@ -184,11 +183,9 @@ interface Harness {
   activeTool: Ref<Tool>;
   canvasEl: Ref<HTMLCanvasElement | null>;
   editor: ReturnType<typeof useMapCanvasEditor>;
-  dressingBrushId: Ref<string | null>;
-  dressingRotation: Ref<number>;
+  placeItem: Ref<PlaceItem | null>;
+  placeRotation: Ref<number>;
   selectedDressingId: Ref<string | null>;
-  activeObjectCategory: Ref<StampCategory>;
-  stampRotation: Ref<number>;
   activeWallKind: Ref<WallKind>;
   activeWallDecal: Ref<number>;
   getReferenceImage: ReturnType<typeof vi.fn<(tilePx: number, offset: { x: number; y: number }) => MapRenderReferenceImage | null>>;
@@ -205,11 +202,9 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
   const runtime = fakeRuntime();
   const packRuntime = computed(() => runtime) as ComputedRef<TilePackRuntime | null>;
   const getReferenceImage = vi.fn((): MapRenderReferenceImage | null => null);
-  const dressingBrushId = ref<string | null>(null);
-  const dressingRotation = ref(0);
+  const placeItem = ref<PlaceItem | null>({ kind: "object", category: "objectChest", variant: "any" });
+  const placeRotation = ref(0);
   const selectedDressingId = ref<string | null>(null);
-  const activeObjectCategory = ref<StampCategory>("objectChest");
-  const stampRotation = ref(0);
   const activeWallKind = ref<WallKind>("wall");
   const activeWallDecal = ref(0);
 
@@ -225,8 +220,7 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
     selectablePacks: computed(() => [{ pack_id: "pack-1", pack_version: 3 }]),
     loadedRuntimes,
     dressing: ref(DRESSING_CATALOG),
-    dressingBrushId,
-    dressingRotation,
+    placeItem,
     selectedDressingId,
     cellGlyphs: computed(() => ({})),
     activeTool,
@@ -235,8 +229,7 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
       { id: "wall", shortcut: "w" },
     ],
     viewMode: () => false,
-    activeObjectCategory,
-    stampRotation,
+    placeRotation,
     activeWallKind,
     activeWallDecal,
     activeTemplateShape: ref("circle"),
@@ -253,8 +246,7 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
   const editor = useMapCanvasEditor(opts);
   return {
     layers, dirty, editRevision, activeTool, canvasEl, editor, getReferenceImage,
-    dressingBrushId, dressingRotation, selectedDressingId,
-    activeObjectCategory, stampRotation, activeWallKind, activeWallDecal,
+    placeItem, placeRotation, selectedDressingId, activeWallKind, activeWallDecal,
   };
 }
 
@@ -647,10 +639,10 @@ describe("wall kinds", () => {
 
 describe("stamp categories", () => {
   it("a stairsUp stamp writes an object cell with that category and the stamp rotation", () => {
-    const { editor, layers, activeTool, activeObjectCategory, stampRotation } = makeHarness();
-    activeTool.value = "stamp";
-    activeObjectCategory.value = "stairsUp";
-    stampRotation.value = 90;
+    const { editor, layers, activeTool, placeItem, placeRotation } = makeHarness();
+    activeTool.value = "place";
+    placeItem.value = { kind: "object", category: "stairsUp", variant: "any" };
+    placeRotation.value = 90;
     clickCell(editor, 10, 10);
     expect(layers.value.object["0,0" as CellKey]).toMatchObject({
       category: "stairsUp",
@@ -660,10 +652,61 @@ describe("stamp categories", () => {
   });
 });
 
+describe("place tool: objects", () => {
+  it("a chosen variant is stamped as chosen, wherever the click lands", () => {
+    const { editor, layers, activeTool, placeItem } = makeHarness();
+    activeTool.value = "place";
+    placeItem.value = { kind: "object", category: "objectBarrel", variant: 3 };
+    clickCell(editor, 10, 10);
+    clickCell(editor, 10 + BASE_TILE_SIZE, 10);
+    expect(layers.value.object["0,0" as CellKey]).toMatchObject({ category: "objectBarrel", variant: 3 });
+    expect(layers.value.object["1,0" as CellKey]).toMatchObject({ category: "objectBarrel", variant: 3 });
+  });
+
+  it("Any mixes the variants by position, as the stamp always did", () => {
+    const { editor, layers, activeTool, placeItem } = makeHarness();
+    activeTool.value = "place";
+    placeItem.value = { kind: "object", category: "objectBarrel", variant: "any" };
+    clickCell(editor, 10, 10);
+    expect(layers.value.object["0,0" as CellKey]).toMatchObject({
+      variant: pickVariant("map-test", "objectBarrel", 0, 0, 6),
+    });
+  });
+
+  it("a variant the active set does not have falls back to mixing", () => {
+    const { editor, layers, activeTool, placeItem } = makeHarness();
+    activeTool.value = "place";
+    placeItem.value = { kind: "object", category: "objectBarrel", variant: 40 };
+    clickCell(editor, 10, 10);
+    expect(layers.value.object["0,0" as CellKey]).toMatchObject({
+      variant: pickVariant("map-test", "objectBarrel", 0, 0, 6),
+    });
+  });
+
+  it("with an object in hand, a right-click takes an object away, and a prop above it goes first", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "place";
+    clickCell(editor, 10, 10);
+    expect(layers.value.object["0,0" as CellKey]).toBeDefined();
+    editor.onPointerDown(down(10, 10, { button: 2 }));
+    editor.onPointerUp(up(10, 10, { button: 2 }));
+    expect(layers.value.object["0,0" as CellKey]).toBeUndefined();
+    expect(editor.canUndo.value).toBe(true);
+  });
+
+  it("with nothing in hand, a click on empty ground stamps nothing", () => {
+    const { editor, layers, activeTool, placeItem } = makeHarness();
+    activeTool.value = "place";
+    placeItem.value = null;
+    clickCell(editor, 10, 10);
+    expect(layers.value.object).toEqual({});
+  });
+});
+
 describe("eraser tool priority", () => {
   it("erases the object in preference to the floor beneath it", () => {
     const { editor, activeTool, layers } = makeHarness();
-    activeTool.value = "stamp";
+    activeTool.value = "place";
     clickCell(editor, 10, 10); // paint an object at (0,0)
     activeTool.value = "floor";
     clickCell(editor, 10, 10); // also floor it
@@ -1064,7 +1107,7 @@ describe("Alt inverts a painting tool", () => {
 
   it("stamp: Alt+click erases the object, same as RMB does", () => {
     const { editor, activeTool, layers } = makeHarness();
-    activeTool.value = "stamp";
+    activeTool.value = "place";
     clickCell(editor, 10, 10);
     expect(layers.value.object["0,0" as CellKey]).toBeDefined();
 
@@ -1159,15 +1202,13 @@ describe("altHeld", () => {
           selectablePacks: computed(() => [{ pack_id: "pack-1", pack_version: 3 }]),
           loadedRuntimes: ref(new Map()),
           dressing: ref(new Map()),
-          dressingBrushId: ref<string | null>(null),
-          dressingRotation: ref(0),
+          placeItem: ref<PlaceItem | null>(null),
           selectedDressingId: ref<string | null>(null),
           cellGlyphs: computed(() => ({})),
           activeTool: ref<Tool>(tool),
           tools: [{ id: "floor", shortcut: "f" }],
           viewMode: () => false,
-          activeObjectCategory: ref<StampCategory>("objectChest"),
-          stampRotation: ref(0),
+          placeRotation: ref(0),
           activeWallKind: ref<WallKind>("wall"),
           activeWallDecal: ref(0),
           activeTemplateShape: ref("circle"),
@@ -1225,13 +1266,13 @@ describe("altHeld", () => {
 // the editor routes pointer events to it and keeps undo, the eraser and the
 // render scene in step.
 
-describe("dressing tool", () => {
+describe("place tool: props", () => {
   const CELL = BASE_TILE_SIZE; // a cell's CSS pixels at zoom 1
 
   function armed() {
     const h = makeHarness();
-    h.activeTool.value = "dressing";
-    h.dressingBrushId.value = "table";
+    h.activeTool.value = "place";
+    h.placeItem.value = { kind: "prop", propId: "table" };
     return h;
   }
 
@@ -1250,9 +1291,9 @@ describe("dressing tool", () => {
   });
 
   it("with nothing armed, a click on a placed prop selects it and a click elsewhere deselects", () => {
-    const { editor, layers, dressingBrushId, selectedDressingId } = armed();
+    const { editor, layers, placeItem, selectedDressingId } = armed();
     clickCell(editor, 5, 5);
-    dressingBrushId.value = null;
+    placeItem.value = null;
     selectedDressingId.value = null;
     clickCell(editor, CELL + 5, 5); // the table's second cell
     expect(selectedDressingId.value).toBe(ids(layers)[0]);
@@ -1261,9 +1302,9 @@ describe("dressing tool", () => {
   });
 
   it("dragging a placed prop moves it by whole cells, keeping the grab offset, as one undo step", () => {
-    const { editor, layers, dressingBrushId } = armed();
+    const { editor, layers, placeItem } = armed();
     clickCell(editor, 5, 5);
-    dressingBrushId.value = null;
+    placeItem.value = null;
     const [id] = ids(layers);
     editor.onPointerDown(down(CELL + 5, 5)); // grab by the second cell
     editor.onPointerMove(move(4 * CELL + 5, 2 * CELL + 5));
@@ -1304,8 +1345,8 @@ describe("dressing tool", () => {
   });
 
   it("feeds the renderer a ghost under the cursor while armed, none once the pointer leaves", async () => {
-    const { editor, dressingRotation } = armed();
-    dressingRotation.value = 90;
+    const { editor, placeRotation } = armed();
+    placeRotation.value = 90;
     editor.onPointerMove(move(3 * CELL + 5, 4 * CELL + 5));
     await nextTick();
     const scene = () => mockedRenderMap.mock.calls.at(-1)![0];
@@ -1339,11 +1380,11 @@ describe("dressing tool", () => {
   });
 
   it("rotateSelectedDressing turns the selection (one undo step) and the brush with it", () => {
-    const { editor, layers, dressingRotation, selectedDressingId } = armed();
+    const { editor, layers, placeRotation, selectedDressingId } = armed();
     clickCell(editor, 5, 5);
     editor.rotateSelectedDressing(90);
     expect(layers.value.dressing[selectedDressingId.value!].rotation).toBe(90);
-    expect(dressingRotation.value).toBe(90);
+    expect(placeRotation.value).toBe(90);
     editor.undoEdit();
     expect(layers.value.dressing[selectedDressingId.value!].rotation).toBe(0);
   });
@@ -1366,7 +1407,7 @@ describe("dressing tool", () => {
   });
 });
 
-describe("dressing keys", () => {
+describe("place tool: keys", () => {
   // The window keydown listener lives in onMounted, so the harness has to be
   // built inside a mounted component.
   function mountHarness(): Harness {
@@ -1377,30 +1418,30 @@ describe("dressing keys", () => {
         return () => h("div");
       },
     }));
-    captured.activeTool.value = "dressing";
-    captured.dressingBrushId.value = "table";
+    captured.activeTool.value = "place";
+    captured.placeItem.value = { kind: "prop", propId: "table" };
     return captured;
   }
 
   const press = (key: string) => window.dispatchEvent(new KeyboardEvent("keydown", { key }));
 
   it("Q and E turn the brush while nothing is selected", () => {
-    const { dressingRotation } = mountHarness();
+    const { placeRotation } = mountHarness();
     press("e");
-    expect(dressingRotation.value).toBe(90);
+    expect(placeRotation.value).toBe(90);
     press("q");
     press("q");
-    expect(dressingRotation.value).toBe(270);
+    expect(placeRotation.value).toBe(270);
   });
 
   it("Q and E turn the selected prop, one undo step each, and the brush follows", () => {
-    const { editor, layers, dressingRotation, selectedDressingId } = mountHarness();
+    const { editor, layers, placeRotation, selectedDressingId } = mountHarness();
     clickCell(editor, 5, 5);
     press("e");
     press("e");
     const id = selectedDressingId.value!;
     expect(layers.value.dressing[id].rotation).toBe(180);
-    expect(dressingRotation.value).toBe(180);
+    expect(placeRotation.value).toBe(180);
     editor.undoEdit();
     expect(layers.value.dressing[id].rotation).toBe(90);
   });
@@ -1416,9 +1457,9 @@ describe("dressing keys", () => {
   });
 
   it("Escape puts the armed prop down first, then leaves the tool", () => {
-    const { dressingBrushId, activeTool } = mountHarness();
+    const { placeItem, activeTool } = mountHarness();
     press("Escape");
-    expect(dressingBrushId.value).toBeNull();
-    expect(activeTool.value).toBe("dressing");
+    expect(placeItem.value).toBeNull();
+    expect(activeTool.value).toBe("place");
   });
 });

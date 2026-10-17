@@ -150,7 +150,7 @@ export function eraseSolidAt(ctx: PaintContext, x: number, y: number): boolean {
   return true;
 }
 
-// ── Object stamp tool ────────────────────────────────────────────────────────
+// ── Place tool: objects ─────────────────────────────────────────────────────
 
 export function paintObjectAt(
   ctx: PaintContext,

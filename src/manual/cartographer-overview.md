@@ -23,7 +23,7 @@ Find it two ways: **Compendium → Dungeon Craft**, the **Cartographer** tab (wo
 
 The canvas is infinite: there's no fixed map size, so there's no "how big should this be?" decision to make up front.
 
-While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the tile set, the light, the Spaces drawer, the map's settings, undo and redo, and Delete, Cancel and Save. The tools are an icon rail down the left edge (hover for the name and key). The active tool and its options float in a slip at the top left of the map, and the Spaces and Dressing panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
+While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the tile set, the light, the Spaces drawer, the map's settings, undo and redo, and Delete, Cancel and Save. The tools are an icon rail down the left edge (hover for the name and key). The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
 
 | Action | Input |
 | --- | --- |
@@ -46,8 +46,7 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 | Door | `D` | Click a wall edge to add a door; click an existing door to toggle open/closed (the door swings on its hinge); right-click removes it, leaving the wall. |
 | Water | `H` | Paints water (or whatever the pack's liquid is) over the floor; a cell with no floor gets one. Hold **Alt** to erase the water and keep the floor. |
 | Rock | `S` | Fills a cell with a thick, full-cell wall mass (battlement stone, mountain rock), different from the thin edge-based Wall tool. |
-| Object stamp | `O` | Stamps furniture, chests, statues, braziers, stairs up and down, rubble, and debris from the pack. Each stamp carries the pack's own name, so a forest pack offers an "Old tree" where a dungeon offers a pillar. Turn a stair with `Q` and `E` to choose which side you climb or descend from. |
-| Dressing | `G` | Places props from the library (tables, beds, coffins) at any angle, above the stamped objects. See Dressing below. |
+| Place | `O` or `G` | Puts down objects from the tile set (chests, statues, braziers, stairs up and down, rubble, debris) and props from the library (tables, beds, coffins). Pick from the pictures in the Place panel. See Place below. Turn a stair with `Q` and `E` to choose which side you climb or descend from. |
 | Rectangle | `R` | Drag to fill a rectangle of floor. Hold **Shift** to also wrap walls around the perimeter: the fastest way to make a room. |
 | Line | `L` | Drag to draw a straight run of floor. |
 | Fill | `F` | Flood-fills a contiguous floor region. |
@@ -58,7 +57,7 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 | Link | `K` | Click a cell, then pick a trap, feature, encounter, or note to attach to it from the options at the top left. |
 | Pan | (drag, badge **RMB**) | Middle-mouse or right-click drag pans from any tool. |
 
-The rail groups the tools: **Look** (Select, Pan), **Floor** (Brush, Tiles, Rectangle, Line, Room, Fill, Water, Rock), **Walls** (Wall, Door, Wrap), **Things** (Object stamp, Dressing), **Notes** (Label, Link, Space) and the Eraser. Space and Link claim or annotate what the drawing *means* rather than adding pixels.
+The rail groups the tools: **Look** (Select, Pan), **Floor** (Brush, Tiles, Rectangle, Line, Room, Fill, Water, Rock), **Walls** (Wall, Door, Wrap), **Things** (Place), **Notes** (Label, Link, Space) and the Eraser. Space and Link claim or annotate what the drawing *means* rather than adding pixels.
 
 ## Walls, grates and decals
 
@@ -81,15 +80,17 @@ Erasing a floor cell takes its water with it.
 
 Grimoire draws shadows for you, from a light at the top left: walls, rock, statues and furniture throw soft shadows down and to the right, and low things like curbs throw short ones. Flat things (rubble, heaps, trap and feature markers) get only a thin dark line where they meet the floor, so they stay lying down. A staircase up is drawn above the shadows, because it climbs to the height of the walls. A staircase down looks like a hollow, with its top and left edges darkened. Lanterns, fires, torches and glowing things light up the floor around them in their own colour, and where two glows meet they mix. The same shadows and lights are in the picture you export or publish.
 
-## Dressing
+## Place
 
-Dressing is a library of top-down props: long tables, beds, coffins, barrels. Unlike the Object stamp, a prop can be several cells big, sits above the objects, and turns to any angle.
+Place puts things on the map from one panel of pictures. Press `O` (or `G`) and the Place panel opens on the right. At the top is a search box that looks through everything below it by name, label and tag. Under it, newest first, are the last things you picked.
 
-Open the Dressing tool (`G`), pick a prop in the Dressing drawer on the right, and click the map to place it. A faint copy follows your cursor so you can see where it will land. After the click the prop stays selected: `Q` and `E` turn it a quarter turn, `[` and `]` nudge it one degree, and `Delete` removes it. The buttons under **Rotate** in the drawer do the same. With no prop selected, those keys turn the next one you place.
+**The tile set's own objects** come first. Kinds with a single picture are one captioned tile each. A kind with several (chests, say) has its own row: an **Any** tile, which mixes the variants by position the way the stamp always did, and then one picture per variant, so you can choose the exact chest you want. Hover a picture for its name.
 
-To move a prop, put it down first (click the picked prop again in the panel, or press `Esc`), then drag it on the map. Right-click, or hold **Alt** and click, removes the prop under the cursor, and the Eraser takes props before anything beneath them. Every placement, move, turn and removal is one step in Undo.
+**Props** come next: long tables, beds, coffins, barrels. A prop can be several cells big, sits above the objects, and turns to any angle. They come in books, grouped by kind under each book's name. Below your books is **More books**: every book you have not switched on, with how many props it holds, a few of its pictures, and an **Enable** button. Enable one and its props appear in the panel at once. The book icon at the bottom of the panel manages the list, and props already on a map keep showing even if you later switch their book off.
 
-Props come in books, and every book is off until you switch it on. Click the **book icon** at the top of the Dressing panel to choose which books this campaign uses. Props already on a map keep showing even if you later switch their book off.
+Pick a picture and click the map to place it; for an object, drag to paint a run of them. A prop shows a faint copy that follows your cursor, and after the click it stays selected: `Q` and `E` turn it a quarter turn, `[` and `]` nudge it one degree, and `Delete` removes it. The **Rotate** buttons in the slip at the top left of the map do the same, and with nothing selected those keys turn the next thing you place.
+
+To move a prop, put what you are holding down first (`Esc`), then drag the prop on the map. Right-click, or hold **Alt** and click, takes away the prop under the cursor, or the object if there is no prop, and the Eraser takes props before anything beneath them. Every placement, move, turn and removal is one step in Undo.
 
 ## Rooms are detected automatically
 

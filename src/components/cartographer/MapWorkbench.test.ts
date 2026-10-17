@@ -37,7 +37,10 @@ vi.mock("@/composables/dungeon-features/useDungeonFeatures", () => ({
   useDungeonFeatures: () => ({ data: ref([]) }),
   useDungeonFeatureIndex: () => ({ data: ref([]), byId: ref(new Map()) }),
 }));
-vi.mock("@/composables/cartographer/useLibraryDressing", () => ({ useDressingCatalog: () => ({ catalog: shallowRef(new Map()) }) }));
+vi.mock("@/composables/cartographer/useLibraryDressing", () => ({
+  useDressingCatalog: () => ({ catalog: shallowRef(new Map()) }),
+  useAllLibraryDressing: () => ({ data: ref([]) }),
+}));
 vi.mock("@/composables/cartographer/usePublishedSites", () => ({ usePublishedSites: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/cartographer/useTilePacks", () => ({
   useTilePacks: () => ({ campaignPacks: ref([]) }),
@@ -428,7 +431,7 @@ describe("MapWorkbench", () => {
         "Select", "Pan",
         "Brush", "Tiles", "Rectangle", "Line", "Room", "Fill", "Water", "Rock",
         "Wall", "Door", "Wrap",
-        "Object stamp", "Dressing",
+        "Place",
         "Label", "Link", "Space",
         "Eraser",
       ]);
@@ -456,15 +459,15 @@ describe("MapWorkbench", () => {
       expect(wrapper.find("section[aria-label='Spaces on this map']").exists()).toBe(false);
     });
 
-    it("opens the Dressing drawer with its tool and puts it away with the next one", async () => {
+    it("opens the Place catalogue with its tool and puts it away with the next one", async () => {
       const wrapper = mount(MapWorkbench, {
         props: { map: baseMap, viewMode: false },
-        global: { stubs: { ...editModeStubs.global.stubs, CartographerDressingPanel: true } },
+        global: { stubs: { ...editModeStubs.global.stubs, CartographerPlaceCatalog: true } },
       });
-      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Dressing"]').trigger("click");
-      expect(wrapper.find("section[aria-label='Dressing']").exists()).toBe(true);
+      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Place"]').trigger("click");
+      expect(wrapper.find("section[aria-label='Place']").exists()).toBe(true);
       await wrapper.find('nav[aria-label="Map tools"] [aria-label="Tiles"]').trigger("click");
-      expect(wrapper.find("section[aria-label='Dressing']").exists()).toBe(false);
+      expect(wrapper.find("section[aria-label='Place']").exists()).toBe(false);
     });
 
     it("shows no bar, rail or slip in view mode", () => {

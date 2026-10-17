@@ -12,8 +12,7 @@ const ctx = (activeTool = "floor"): KeyContext => ({
     { id: "select" },
     { id: "floor", shortcut: "f" },
     { id: "wall", shortcut: "w" },
-    { id: "stamp", shortcut: "s" },
-    { id: "dressing", shortcut: "g" },
+    { id: "place", shortcut: "o", aliases: ["g"] },
     { id: "eraser", shortcut: "e" },
     { id: "brush", shortcut: "v", disabled: true },
   ],
@@ -45,11 +44,11 @@ describe("resolveKeyAction", () => {
     expect(resolveKeyAction(ev({ key: "C" }), ctx())).toEqual({ kind: "center" });
   });
 
-  it("rotates the stamp only while the stamp tool is active", () => {
-    expect(resolveKeyAction(ev({ key: "q" }), ctx("stamp"))).toEqual({ kind: "rotateStamp", delta: 270 });
-    expect(resolveKeyAction(ev({ key: "e" }), ctx("stamp"))).toEqual({ kind: "rotateStamp", delta: 90 });
-    expect(resolveKeyAction(ev({ key: "[" }), ctx("stamp"))).toEqual({ kind: "rotateStamp", delta: 359 });
-    expect(resolveKeyAction(ev({ key: "]" }), ctx("stamp"))).toEqual({ kind: "rotateStamp", delta: 1 });
+  it("rotates the item in hand only while the Place tool is active", () => {
+    expect(resolveKeyAction(ev({ key: "q" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 270 });
+    expect(resolveKeyAction(ev({ key: "e" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 90 });
+    expect(resolveKeyAction(ev({ key: "[" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 359 });
+    expect(resolveKeyAction(ev({ key: "]" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 1 });
     // With another tool active, q/e are free to fall through to tool shortcuts.
     expect(resolveKeyAction(ev({ key: "q" }), ctx("floor"))).toBeNull();
   });
@@ -80,7 +79,7 @@ describe("resolveKeyAction", () => {
       kind: "selectTool",
       tool: "select",
     });
-    expect(resolveKeyAction(ev({ key: "Escape" }), ctx("stamp"))).toEqual({
+    expect(resolveKeyAction(ev({ key: "Escape" }), ctx("place"))).toEqual({
       kind: "selectTool",
       tool: "select",
     });
@@ -91,44 +90,45 @@ describe("resolveKeyAction", () => {
     expect(resolveKeyAction(ev({ key: "Escape" }), noSelect)).toBeNull();
   });
 
-  describe("Dressing tool", () => {
+  describe("Place tool", () => {
     it("turns the prop on q, e, [ and ], ahead of the Eraser's own e", () => {
-      expect(resolveKeyAction(ev({ key: "q" }), ctx("dressing"))).toEqual({ kind: "rotateDressing", delta: 270 });
-      expect(resolveKeyAction(ev({ key: "e" }), ctx("dressing"))).toEqual({ kind: "rotateDressing", delta: 90 });
-      expect(resolveKeyAction(ev({ key: "[" }), ctx("dressing"))).toEqual({ kind: "rotateDressing", delta: 359 });
-      expect(resolveKeyAction(ev({ key: "]" }), ctx("dressing"))).toEqual({ kind: "rotateDressing", delta: 1 });
+      expect(resolveKeyAction(ev({ key: "q" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 270 });
+      expect(resolveKeyAction(ev({ key: "e" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 90 });
+      expect(resolveKeyAction(ev({ key: "[" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 359 });
+      expect(resolveKeyAction(ev({ key: "]" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 1 });
+    });
+
+    it("answers to G as well as O", () => {
+      expect(resolveKeyAction(ev({ key: "g" }), ctx("floor"))).toEqual({ kind: "selectTool", tool: "place" });
+      expect(resolveKeyAction(ev({ key: "o" }), ctx("floor"))).toEqual({ kind: "selectTool", tool: "place" });
     });
 
     it("leaves e to the Eraser on every other tool", () => {
       expect(resolveKeyAction(ev({ key: "e" }), ctx("floor"))).toEqual({ kind: "selectTool", tool: "eraser" });
     });
 
-    it("deletes on Delete and Backspace, only in the Dressing tool", () => {
-      expect(resolveKeyAction(ev({ key: "Delete" }), ctx("dressing"))).toEqual({ kind: "deleteDressing" });
-      expect(resolveKeyAction(ev({ key: "Backspace" }), ctx("dressing"))).toEqual({ kind: "deleteDressing" });
+    it("deletes on Delete and Backspace, only in the Place tool", () => {
+      expect(resolveKeyAction(ev({ key: "Delete" }), ctx("place"))).toEqual({ kind: "deleteDressing" });
+      expect(resolveKeyAction(ev({ key: "Backspace" }), ctx("place"))).toEqual({ kind: "deleteDressing" });
       expect(resolveKeyAction(ev({ key: "Delete" }), ctx("floor"))).toBeNull();
     });
 
     it("does not delete while typing in a field", () => {
-      expect(resolveKeyAction(ev({ key: "Backspace", targetIsTextEntry: true }), ctx("dressing"))).toBeNull();
+      expect(resolveKeyAction(ev({ key: "Backspace", targetIsTextEntry: true }), ctx("place"))).toBeNull();
     });
 
-    it("Escape puts an armed prop down instead of leaving the tool", () => {
-      expect(resolveKeyAction(ev({ key: "Escape" }), { ...ctx("dressing"), dressingArmed: true })).toEqual({
-        kind: "disarmDressing",
+    it("Escape puts the armed item down instead of leaving the tool", () => {
+      expect(resolveKeyAction(ev({ key: "Escape" }), { ...ctx("place"), placeArmed: true })).toEqual({
+        kind: "disarmPlace",
       });
     });
 
     it("Escape with nothing armed, or on another tool, selects Select as before", () => {
-      expect(resolveKeyAction(ev({ key: "Escape" }), ctx("dressing"))).toEqual({ kind: "selectTool", tool: "select" });
-      expect(resolveKeyAction(ev({ key: "Escape" }), { ...ctx("wall"), dressingArmed: true })).toEqual({
+      expect(resolveKeyAction(ev({ key: "Escape" }), ctx("place"))).toEqual({ kind: "selectTool", tool: "select" });
+      expect(resolveKeyAction(ev({ key: "Escape" }), { ...ctx("wall"), placeArmed: true })).toEqual({
         kind: "selectTool",
         tool: "select",
       });
-    });
-
-    it("picks the tool with g", () => {
-      expect(resolveKeyAction(ev({ key: "g" }), ctx("floor"))).toEqual({ kind: "selectTool", tool: "dressing" });
     });
   });
 });

@@ -75,30 +75,48 @@
       </template>
     </template>
 
-    <!-- Object stamp: the picker, scrolling if the pack names many. -->
-    <template v-else-if="activeTool === 'stamp'">
-      <div class="flex max-h-20 flex-wrap gap-1 overflow-y-auto">
+    <!-- Place: what is armed, how it is turned, and the way back to the catalogue. -->
+    <template v-else-if="activeTool === 'place'">
+      <template v-if="selectedPlaced">
+        <span class="text-caption text-foreground">{{ selectedPlaced.name }}</span>
+        <RotationControl :model-value="selectedPlaced.rotation" @update:model-value="emit('rotateSelected', $event)" />
         <AppButton
-          v-for="cat in objectCategories"
-          :key="cat"
-          variant="ghost"
-          fill="muted"
+          variant="destructive"
           size="xs"
-          :active="activeObjectCategory === cat"
-          :label="stampLabel(manifest, cat)"
-          @click="$emit('update:activeObjectCategory', cat)"
+          :icon="IconDelete"
+          label="Delete"
+          tooltip="Delete the selected prop (Delete)"
+          @click="emit('deleteSelected')"
         />
-      </div>
-      <RotationControl :model-value="stampRotation" @update:model-value="$emit('update:stampRotation', $event)" />
-    </template>
-
-    <!-- Dressing: the props live in the drawer; the slip says where. -->
-    <template v-else-if="activeTool === 'dressing'">
-      <span class="text-caption text-muted-foreground">
-        {{ dressingBrushId
-          ? "Click the map to place. Q / E turn it, Esc puts it down."
-          : "Pick a prop in the Dressing drawer, or click a placed prop to move it." }}
-      </span>
+      </template>
+      <template v-else>
+        <template v-if="placeItem">
+          <span class="flex size-9 shrink-0 items-center justify-center rounded-sm border border-border bg-card p-0.5">
+            <PlaceItemThumb
+              :item="placeItem"
+              :runtime="runtime"
+              :image-url="placeImageUrl"
+              :footprint="placeFootprint"
+            />
+          </span>
+          <span class="text-caption text-foreground">{{ placeLabel }}</span>
+          <RotationControl :model-value="placeRotation" @update:model-value="emit('update:placeRotation', $event)" />
+          <span class="text-caption-sm text-muted-foreground">Click the map to place. Esc puts it down.</span>
+        </template>
+        <span v-else class="text-caption text-muted-foreground italic">
+          Nothing in hand. Pick one from the catalogue, or click a placed prop to move it.
+        </span>
+      </template>
+      <AppButton
+        v-if="!catalogueOpen"
+        variant="ghost"
+        fill="muted"
+        size="xs"
+        :icon="IconLibrary"
+        label="Catalogue"
+        tooltip="Open the catalogue of objects and props"
+        @click="emit('openCatalogue')"
+      />
     </template>
 
     <!-- Label -->
@@ -189,10 +207,13 @@ import RotationControl from "@/components/cartographer/RotationControl.vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import type { EdgeSegType } from "@/types/dungeonMap.types";
 import type { PackCategory, TilePackManifest } from "@/cartographer/packSchema";
-import { decalLabel, stampLabel, type StampCategory } from "@/cartographer/stampCategories";
+import { decalLabel, stampLabel } from "@/cartographer/stampCategories";
 import { BRUSH_RADIUS_MAX, BRUSH_RADIUS_MIN, BRUSH_RADIUS_STEP } from "@/cartographer/keymap";
 import { WALL_KINDS, type WallKind } from "@/cartographer/wallKinds";
-import type { Tool } from "@/cartographer/tools";
+import type { PlaceItem, Tool } from "@/cartographer/tools";
+import type { TilePackRuntime } from "@/cartographer/packLoader";
+import PlaceItemThumb from "@/components/cartographer/PlaceItemThumb.vue";
+import { IconDelete, IconLibrary } from "@/lib/icons";
 
 interface TemplateShape {
   id: string;
@@ -216,15 +237,22 @@ const props = defineProps<{
   /** The tool's name, with " erase" appended while Alt inverts it. */
   title: string;
   activeTool: Tool;
-  activeObjectCategory: string;
-  objectCategories: readonly StampCategory[];
-  stampRotation: number;
+  /** What Place holds, or null for nothing; with its name and, for a prop, its picture and footprint. */
+  placeItem: PlaceItem | null;
+  placeLabel: string;
+  placeImageUrl: string | null;
+  placeFootprint: { w: number; h: number } | null;
+  placeRotation: number;
+  /** The placed prop that is selected: its name and rotation. */
+  selectedPlaced: { name: string; rotation: number } | null;
+  catalogueOpen: boolean;
+  /** The active tile set's runtime, for an object's thumbnail. */
+  runtime: TilePackRuntime | null;
   /** The active pack's manifest: its `labels` name stamps and decals. Null until a pack loads. */
   manifest: Pick<TilePackManifest, "labels"> | null;
   activeWallKind: WallKind;
   activeWallDecal: number;
   wallDecalCount: number;
-  dressingBrushId: string | null;
   selectedCell: [number, number] | null;
   /** Select: a read-only summary of the selected cell. */
   selectedCellFloor: boolean;
@@ -247,8 +275,10 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  "update:activeObjectCategory": [cat: StampCategory];
-  "update:stampRotation": [deg: number];
+  "update:placeRotation": [deg: number];
+  rotateSelected: [deg: number];
+  deleteSelected: [];
+  openCatalogue: [];
   "update:activeWallKind": [kind: WallKind];
   "update:activeWallDecal": [variant: number];
   "update:annotationText": [text: string];
@@ -272,8 +302,7 @@ const HINTS: Record<Tool, string> = {
   wall: "",
   door: "Click a wall edge to add a door; click a door to open or close it. Right-click removes it.",
   solid: "Paint thick, full-cell rock. Alt erases.",
-  stamp: "",
-  dressing: "",
+  place: "",
   rect: "Drag a rectangle of floor. Shift adds perimeter walls. Alt erases.",
   line: "Drag a straight run of floor. Alt erases.",
   fill: "Click to flood-fill a floor region.",

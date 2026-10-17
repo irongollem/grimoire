@@ -151,7 +151,7 @@ Doors live on edges (replacing the wall segment on that edge), exactly as in rea
 
 **Chosen:** generic props (tables, beds, coffins, campfires, 62 of them to start) live in their own shared library, `library_dressing`, with art in `dressing-images/srd/`. A DM places them on any map whatever pack painted it: a table is a table on marble, sand or lava rock. The packs keep their six themed object categories (a lava brazier, a marble statue); a pack chest and a Dressing chest on the same map is fine.
 
-- **Opt-in per source, like every library.** `grimoire-dressing` is a `content_sources` row a DM switches on through the book icon in the Dressing panel, and it starts off. Enablement decides what the picker offers, never whether a placed prop draws (the #954 rule): the renderer reads every `library_dressing` row.
+- **Opt-in per source, like every library.** `grimoire-dressing` is a `content_sources` row a DM switches on through the Enable button in the Place catalogue (or the book icon at its foot), and it starts off. Enablement decides what the picker offers, never whether a placed prop draws (the #954 rule): the renderer reads every `library_dressing` row.
 - **Its own layer, not the object grid.** `layers.object` is keyed by one cell, so a stamp cannot span cells or overlap. `layers.dressing` is a record of placement uuid to `{ prop_id, x, y, rotation, z }`: a footprint of up to 4x4 cells, any angle, and `z` for stacking, because jsonb does not keep object key order and insertion order would not survive a reload.
 - **The battle map gets Dressing through the bake.** The runner draws `locations.map_layer_url`, the image Publish bakes, and nothing under `src/lib/battlemap/` reads `dungeon_maps.layers`. A prop appears in play after a re-publish, with no runner change. Hiding or revealing single props in play is not built.
 - **Library only in v1.** No DM-uploaded props and no per-user art overrides, so no campaign-scoped Dressing row exists. Both have precedents if they are ever wanted (`user_tile_packs`, `library_monster_art`).
@@ -608,8 +608,8 @@ The maintainer's words: "When building a map, you want to maximise the amount of
 - **The bar** (`CartographerBar.vue`, 3rem). Host slots `bar-start` (scoped: `mapName`, `setName`) and `bar-end`; the workbench puts the **Drawing / Plan** switch after `bar-start` itself, because the layer is its state. Between them, what the workbench owns: the **tile set** (the set's name with a swatch of its floor, `CartographerPackSwatch.vue`; the menu lists the sets, with the "N slot(s) missing" note and "future strokes only" inside it), **Light** (Day / Dim / Dark), **Spaces N** (toggles the drawer), **settings** (a popover with the campaign scope, and the Reference toggle when a site's Picture can go underneath), undo and redo, and the host's `saveState` text. The standalone host fills `bar-start` with a back link and the map's name as a line field, `bar-end` with Delete / Cancel / Save; Atlas Build fills `bar-start` with its level picker and shows "Saving…", "Unsaved changes" or "Saved" (it autosaves, so no Save button, and its Done stays in the place pane). A rename marks the map dirty.
 - **The rail** (`CartographerToolRail.vue`) sits **beside** the canvas, not over it: 3rem is a small price for a map no tool ever covers, and it keeps the status bar clear. Icon-only `AppButton`s with an accessible name and a tooltip "Name (key)", the active tool marked, clusters separated by a rule. Below `lg` it lies down as a toolbar along the bottom and the slip spans the top. The Plan layer gets the same rail.
 - **The options slip** (`CartographerToolOptions.vue`, `CartographerPlanOptions.vue`, framed by `CartographerOptionsSlip.vue`, a `data-slip`) at the canvas's top left: the active tool's name (" · erase" while Alt is held over a tool that has an inverse; on the Plan, "Space · Pen") and its options inline: brush size, wall kind and decals, room shape, object category and rotation, the Label text, the Link pickers, Select's one-line cell summary (expandable), and for every other tool a one-line hint. It replaced the inspector and the tool pill; there is no inspector any more.
-- **The drawer** (`CartographerDrawer.vue`): one `data-slip` panel, 18rem wide, over the canvas's right edge, never shrinking the canvas; opens through `railTransition` in `src/lib/motion.ts` (still for reduced motion). Contents: **Spaces on this map** (`CartographerStructurePanel`), **Dressing** (opens with the Dressing tool, goes with it), and on the Plan the region and zone lists, which open with the layer. Below `lg` it is a `MobileSheet`.
-- **Popovers render at page level.** The Dressing sources picker (`SourcesPickerPanel`'s popover variant) was `absolute z-50` inside an inspector card, and Vellum gives a card `isolation: isolate`, so the next card painted over it. It, and the bar's menus (`CartographerPopover.vue`), now `Teleport` to the body with `position: fixed` through `useAnchoredPopover`, keeping `data-slip`.
+- **The drawer** (`CartographerDrawer.vue`): one `data-slip` panel, 18rem wide, over the canvas's right edge, never shrinking the canvas; opens through `railTransition` in `src/lib/motion.ts` (still for reduced motion). Contents: **Spaces on this map** (`CartographerStructurePanel`), **Place** (the picture catalogue; opens with the Place tool, goes with it), and on the Plan the region and zone lists, which open with the layer. Below `lg` it is a `MobileSheet`.
+- **Popovers render at page level.** The Dressing sources picker (`SourcesPickerPanel`'s popover variant, still reachable from the foot of the Place catalogue) was `absolute z-50` inside an inspector card, and Vellum gives a card `isolation: isolate`, so the next card painted over it. It, and the bar's menus (`CartographerPopover.vue`), now `Teleport` to the body with `position: fixed` through `useAnchoredPopover`, keeping `data-slip`.
 
 ### Toolbox (the rail)
 
@@ -630,22 +630,31 @@ The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer
 | Walls   | Wall          | `W`    | floor.edges | Edge-hover targeting; the options slip picks Wall, Grate, Sluice or Decal ("Wall kinds and decals"). |
 | Walls   | Door          | `D`    | floor.edges | Replaces wall on an edge; toggles open/closed.         |
 | Walls   | Wrap          | `X`    | floor.edges | One-shot: walls every floor-region edge facing void.   |
-| Things  | Object stamp  | `O`    | object      | Picker for chests, statues, braziers, stairs, rubble, debris, named by the pack ("Stamps"). |
-| Things  | Dressing      | `G`    | dressing    | Places library props (#1062); see "Dressing tool" below. |
+| Things  | Place         | `O` or `G` | object, dressing | One tool for the set's objects (chests, statues, braziers, stairs, rubble, debris) and the Dressing books' props (#1062); see "Place tool" below. |
 | Notes   | Label         | `T`    | annotation  | Text labels; also what names a Space.                  |
 | Notes   | Link          | `K`    | metadata    | Attach a trap / encounter / feature / note to a cell.  |
 | Notes   | Space         | `P`    | structure   | See the next section.                                  |
 | Eraser  | Eraser        | `E`    | active      | Removes from the active layer / edge.                  |
 
-#### Dressing tool (#1062)
+#### Place tool (#1073 story 11, merging the Object stamp and Dressing)
 
-The pointer logic lives in `useDressingTool.ts`, wired from `useMapCanvasEditor.ts` the way the Space tool's is; the panel is `CartographerDressingPanel.vue`.
+The maintainer, 17 Oct 2026: "We have a dressing tool which doesn't seem to do anything and an object stamp that only seems to stamp chests (where's the picker?)". Both are now **Place** (`O`; `G` still selects it, through the `aliases` field of the tool definition and `resolveKeyAction`), with one picture catalogue. There is no `stamp` or `dressing` tool id any more.
+
+**What it holds.** `PlaceItem` (`tools.ts`): an object (`category` plus `variant`, a number or `"any"`), a prop (`propId`), or `null` for nothing in hand. The default on first use is the first object type with Any. `placeItem` and the shared `placeRotation` live in `MapWorkbench`; the editor reads them as refs (`useMapCanvasEditor`'s `placeItem`, `placeRotation`).
+
+**The catalogue** (`CartographerPlaceCatalog.vue`, in the drawer, opened with the tool). One search box over all of it (names, variant labels, tags, book titles). Then, top to bottom: **Recent** (the last 8 picks this session, in memory in `MapWorkbench`; hidden while searching), **the active set** (its name; a kind with one picture, or none yet, is a single captioned tile in one shared flowing grid, since Any and the only variant are the same thing; a kind with two or more gets a row headed by the schema's name, with an **Any** tile, the first picture faded under a shuffle mark, then one tile per variant named by `variantLabel`; pictures are drawn from the pack runtime by `PackTileThumb.vue`, a placeholder drawn dimmed), **each Dressing book that is switched on** (titled through `useSourceTitles().labelFor`, props grouped by kind, `image_url` or a footprint box), and **More books**: every book the campaign has not switched on, with its prop count, a strip of up to four of its pictures and an **Enable** button that makes the same write the sources picker makes (`useEnableSource`, or `useEnableUserSource` outside a campaign) so the book's props appear without leaving the map. The catalogue no longer depends on the picker to show what exists; the picker stays at its foot for switching books off. Tiles are 3.5rem squares (`CartographerPlaceTile.vue`, an `AppButton`), the armed one ringed in the accent, `aria-pressed` and an accessible name on each.
+
+**The slip** (`CartographerToolOptions.vue`, Place section): the item in hand (small picture and name, `PlaceItemThumb.vue`), the rotation row, and a Catalogue button while the drawer is closed. With a placed prop selected it shows that prop's name, rotation and Delete instead.
+
+**Pick, then place.** Picking an object or prop arms it. An object is stamped as chosen: a numbered variant exactly, `"any"` by position as the stamp always did (`pickObjectVariant`), and a variant the active set does not have falls back to mixing. Click or drag paints objects; a prop shows a translucent ghost and a click places it with its top-left at the hovered cell and selects it. Esc puts whatever is in hand down (a second Esc returns to Select). Q/E turn the selected prop, or else the item in hand, 90 degrees; `[`/`]` one degree; turning a selected prop also sets the rotation of the next one.
+
+**Nothing in hand.** A click selects the topmost prop under the pointer (by `z`, through its rotated footprint) and a drag moves it a whole cell at a time; Delete or Backspace removes it. With an object in hand a click stamps instead, so put it down (Esc) to move props.
+
+**Erase.** Right-click, or Alt+click, removes the topmost prop under the pointer, else the object in the cell. The Eraser tool takes a prop before an object, because props draw above objects.
+
+The prop gestures live in `useDressingTool.ts`, wired from `useMapCanvasEditor.ts` the way the Space tool's is. Each place, drag, turn and delete is one undo step.
 
 - **Turning keeps the grid.** A prop turns about the centre of its footprint as turned to the nearest quarter, with the anchor at that footprint's top-left (`dressingCentre`). The epic's draft said "about the footprint's centre", which leaves a 2x1 table half a cell off the grid after a quarter turn, because its centre sits on a cell edge one way and mid-cell the other. The price is that a free angle turns about its nearest quarter's centre, so a non-square prop turned past 45 degrees steps half a cell to where it will sit at 90; no single centre puts both quarters on the grid. A square prop never moves.
-- **Pick, then place.** Picking a prop in the panel arms it, and a translucent ghost of its footprint follows the pointer (the object stamp has none). A click places it with its top-left at the hovered cell, and the new prop is selected, so Q/E or Delete act on it at once. Clicking the armed prop again, or Esc, puts it down; a second Esc returns to Select as before.
-- **Select, move, turn, delete.** With nothing armed, a click selects the topmost prop under the pointer (by `z`, through its rotated footprint) and a drag moves it a whole cell at a time. Q/E turn it 90 degrees and `[`/`]` one degree, as the stamp does; turning a prop also sets the brush to that angle, so the next one matches. Delete or Backspace removes it.
-- **Erase.** Right-click or Alt+click with the Dressing tool removes the topmost prop under the pointer. The Eraser takes a prop before an object, because props draw above objects.
-- Each place, drag, turn and delete is one undo step (the editor's whole-state snapshots already cover the new layer).
 
 #### UX notes for edge-based tools
 
@@ -653,7 +662,7 @@ The pointer logic lives in `useDressingTool.ts`, wired from `useMapCanvasEditor.
 - **Door tool**: hovers the same way as the wall brush. Click on a wall edge converts it to `doorClosed`. Click an existing door toggles `doorClosed` ↔ `doorOpen`, which swings the leaf (see Wall Rendering). Right-click removes the door, leaving the wall. The tool did not change with schema 4.
 - **Rock vs. Wall**: these are two different tools by design. Wall gives you a thin wall on an edge (a curtain, a partition, a worked-stone room boundary). Rock gives you a thick wall in a cell (a sand-filled battlement, mountain rock, a 5 ft slab of masonry). The DM picks based on the dungeon's mass.
 - **Rectangle + Shift**: Shift-dragging the rectangle tool fills the area with floor *and* runs `wrap walls` on the rectangle perimeter — the most common "make a room" gesture.
-- **Alt inverts a painting tool**: the same modifier idea the Plan's Door tool already used for Alt+click-to-delete (`usePlanCanvasTools.ts`). Holding Alt while a Drawing tool would paint erases what it paints instead, as one undoable stroke: floor → `eraseCell`, brush → `applyDiscs(..., "erase")`, solid → `eraseSolidAt`, stamp → `eraseObjectAt`, wall → `eraseWallAtCellEdge`, door → `removeDoorAtEdge` (same function RMB already used), rect/line/template → erase the cells the shape covers. Select/Pan/Fill/Wrap/Label/Link/Eraser/Space have no inverse and ignore Alt. RMB/middle/shift still pan exactly as before; Alt is a separate, additive modifier, never a pan trigger. The options slip's title appends " · erase" while Alt is held over an invertible tool; Alt state is tracked at the window level (`altHeld` in `useMapCanvasEditor.ts`) so the slip reacts even with the pointer sitting still, cleared on blur so alt-tabbing away never leaves it stuck.
+- **Alt inverts a painting tool**: the same modifier idea the Plan's Door tool already used for Alt+click-to-delete (`usePlanCanvasTools.ts`). Holding Alt while a Drawing tool would paint erases what it paints instead, as one undoable stroke: floor → `eraseCell`, brush → `applyDiscs(..., "erase")`, solid → `eraseSolidAt`, Place → `eraseObjectAt`, wall → `eraseWallAtCellEdge`, door → `removeDoorAtEdge` (same function RMB already used), rect/line/template → erase the cells the shape covers. Select/Pan/Fill/Wrap/Label/Link/Eraser/Space have no inverse and ignore Alt. RMB/middle/shift still pan exactly as before; Alt is a separate, additive modifier, never a pan trigger. The options slip's title appends " · erase" while Alt is held over an invertible tool; Alt state is tracked at the window level (`altHeld` in `useMapCanvasEditor.ts`) so the slip reacts even with the pointer sitting still, cleared on blur so alt-tabbing away never leaves it stuck.
 
 ### Structure tool group (#868, narrowed to Space alone by #884)
 
@@ -686,8 +695,8 @@ Nothing the Structure tool touches is derived structure itself — the derivatio
 There is no inspector. What it held now lives in three places:
 
 - **Map-wide, set once** (name, scope, light, tile set): the bar. See "Layout" above.
-- **The active tool's options**: the options slip. Brush size (`[` `]` resize), wall kind and decals, the object stamp's category and rotation, the Room shape, the Label text, the Link pickers, and a one-line hint for every tool with nothing to set.
-- **Lists that hold a picture's worth of detail**: the drawer. The Dressing panel (#1062): the book icon for Dressing sources, a search over names and tags, the enabled books' props grouped by kind as tiles with their footprint, and, with a placed prop selected, its name, rotation and Delete. The rotation row is `RotationControl.vue`, shared with the object stamp.
+- **The active tool's options**: the options slip. Brush size (`[` `]` resize), wall kind and decals, the Place item in hand and its rotation, the Room shape, the Label text, the Link pickers, and a one-line hint for every tool with nothing to set.
+- **Lists that hold a picture's worth of detail**: the drawer. The Place catalogue (see "Place tool" above): search, recent, the set's objects and the Dressing books as pictures, and the books on offer with Enable. The rotation row is `RotationControl.vue`, in the Place slip.
 - **Select section** (in the slip): with a cell selected, a read-only summary computed in `MapWorkbench.vue` and handed down as plain props (the same "MapWorkbench computes, the options render" shape as `annotationText`/`linkedNoteId`): one line ("Cell 4, 7: floor, 2 edges, 1 link"), and a Details toggle for coordinates, floor (yes/no), rock (yes/no), each present edge with its kind (wall/closed door/open door; N/W read straight off the cell, E/S off the neighbour's W/N per the NW-ownership rule), the object category if any, the label text if any, and linked note/encounter/trap/feature names. With nothing selected: "Click a cell to see what is in it. Drag to move the map."
 
 ### Canvas behaviour
@@ -784,7 +793,7 @@ The Select summary names a decorated wall "Wall (decal)", and a grate or sluice 
 
 ### Stamps (#1065)
 
-`stampCategories.ts` owns what the Object stamp tool (`O`) can place: the six `object*` categories plus `stairsUp`, `stairsDown`, `rubble` and `debris` (`STAMP_CATEGORIES`). The stairs and the two litter categories existed in the schema and the renderer, but no UI could place them before schema 4. The picker shows the pack's own name for a stamp (`stampLabel`: the first of `labels[category]`, else the schema's plain name with `object` dropped), so a forest reads "Old tree". **Stairs pick their side from the stamp's rotation** (`stairSide`: 0 degrees north, 90 east, 180 south, 270 west, unturned is north), and draw the art for that side; they never found their art before.
+`stampCategories.ts` owns what the Place tool (`O`) can stamp as an object: the six `object*` categories plus `stairsUp`, `stairsDown`, `rubble` and `debris` (`STAMP_CATEGORIES`). The stairs and the two litter categories existed in the schema and the renderer, but no UI could place them before schema 4. The catalogue shows the pack's own name for a stamp (`stampLabel`: the first of `labels[category]`, else the schema's plain name with `object` dropped), so a forest reads "Old tree"; each variant is named by `variantLabel` (the pack's label for it, else "<Type> n"). **Stairs pick their side from the stamp's rotation** (`stairSide`: 0 degrees north, 90 east, 180 south, 270 west, unturned is north), and draw the art for that side; they never found their art before.
 
 ### When rendering recomputes
 
@@ -1301,7 +1310,7 @@ Done = a DM can redraw a dungeon, publish again, and trust that hand-named rooms
 
 ### M10: Dressing (#1062) ✅ shipped
 
-A shared library of top-down props a DM places on any map, whatever pack it uses. Decisions in "Dressing: a prop library beside the packs" above; the tool under "Dressing tool".
+A shared library of top-down props a DM places on any map, whatever pack it uses. Decisions in "Dressing: a prop library beside the packs" above; the tool under "Place tool".
 
 #### As-built files
 
@@ -1316,8 +1325,8 @@ A shared library of top-down props a DM places on any map, whatever pack it uses
 | [src/cartographer/paintOps.ts](../../src/cartographer/paintOps.ts) | `placeDressing` / `moveDressing` / `rotateDressing` / `removeDressing` |
 | [src/composables/cartographer/useLibraryDressing.ts](../../src/composables/cartographer/useLibraryDressing.ts) | The offered props (enabled books), every prop (resolution), and the live catalog |
 | [src/composables/cartographer/useDressingTool.ts](../../src/composables/cartographer/useDressingTool.ts) | Place, select, drag, turn, delete, erase, ghost |
-| [src/components/cartographer/CartographerDressingPanel.vue](../../src/components/cartographer/CartographerDressingPanel.vue) | The Dressing drawer's content |
-| [src/components/cartographer/RotationControl.vue](../../src/components/cartographer/RotationControl.vue) | The rotate row, shared with the object stamp |
+| [src/components/cartographer/CartographerPlaceCatalog.vue](../../src/components/cartographer/CartographerPlaceCatalog.vue) | The Place drawer's content (with `CartographerPlaceTile`, `PackTileThumb`, `PlaceItemThumb`) |
+| [src/components/cartographer/RotationControl.vue](../../src/components/cartographer/RotationControl.vue) | The rotate row, shared by the Place slip |
 
 The art is made outside the app and published with `scripts/generate-library-art.ts`, kind `dressing`: transparent WebP at 256 px per cell (a 2x1 table is 512x256), seen from directly above, no cast shadow past the footprint, neutral enough to sit on any pack. Publish refuses a picture whose size does not match its row's footprint, and makes no focal guess (a prop is never cropped). The bucket joined every registry: `buckets.ts`, `STORAGE_WRITE_POLICY`, `dev-buckets.data.ts`, `IMAGE_COLUMNS`, `IMAGE_REFERENCES`, `LIBRARY_TABLES`, `move-library-art-to-srd.ts` and the R2 checklist in `infra/README.md`.
 
@@ -1502,7 +1511,7 @@ A second bundled pack, `wood-interior`, ships alongside `stone-dungeon`. Real We
 
 - [x] 6 optional object categories added to pack schema: `objectChest`, `objectBarrel`, `objectTable`, `objectStatue`, `objectPillar`, `objectBrazier`.
 - [x] Procedural placeholder tiles for each object type (distinct recognisable shapes, transparent background).
-- [x] Object stamp tool (O) — click to place, RMB to erase; drag paints; eraser removes object layer first.
+- [x] Object stamp tool (O), now the objects half of Place (#1073): click to place, RMB to erase; drag paints; eraser removes object layer first.
 - [x] Per-object rotation: Q/E keyboard shortcuts + rotation buttons in the options slip (0°/90°/180°/270°). Stored as `PackRef.rotation`.
 - [x] Label tool (T, then called Annotate): click a cell to select it; the options slip shows the text input; label rendered on canvas centered in cell with drop-shadow.
 - [x] Link tool (K, then called Link entity): click a cell to select it; the options slip shows Note + Encounter pickers (EntityCombobox); blue dot rendered on linked cells.
