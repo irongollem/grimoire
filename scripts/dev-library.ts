@@ -106,7 +106,7 @@ async function main(): Promise<void> {
     const local = columns.get(t.table);
     if (!local) throw new Error(`The local stack has no ${t.table}. Is it migrated? Try \`npm run db:reset\`.`);
     const rows = await remoteRows(remote, key, t.table, "filter" in t ? t.filter : "", t.key);
-    tables.push({ table: t.table, key: t.key, prune: t.prune, rows, columns: local });
+    tables.push({ table: t.table, key: t.key, prune: t.prune, identity: "identity" in t ? t.identity : undefined, rows, columns: local });
     console.log(`Read ${rows.length} ${t.table} rows from production.`);
   }
 

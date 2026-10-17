@@ -21,6 +21,16 @@ const IDENT = /^[a-z_][a-z0-9_]*$/;
  * duplicates.
  *
  * `filter` is a PostgREST filter for a table only part of which is shared.
+ *
+ * `identity` names a unique key besides `key` that a local row can already hold
+ * under another id: an official class feature minted locally by a data migration
+ * (`20261005181018`) has its own uuid, so production's row for the same
+ * feature conflicts on `class_features_official_identity_unique` instead of on
+ * the id. Such a local twin is deleted before the upsert, which only works for
+ * a table nothing references by `key` (no foreign key reaches `class_features`).
+ * `nullColumns` restates the unique index's predicate (it covers rows with no
+ * owner only), so a row it does not cover (a DM's own feature) is never taken
+ * for a twin.
  */
 export const LIBRARY_TABLES = [
   { table: "content_sources", key: "key", prune: false },
@@ -44,14 +54,28 @@ export const LIBRARY_TABLES = [
   // names its subclass by id, so without these a demo character cannot load.
   { table: "custom_classes", key: "id", prune: false, filter: "user_id=is.null" },
   { table: "custom_subclasses", key: "id", prune: false, filter: "user_id=is.null" },
-  { table: "class_features", key: "id", prune: false, filter: "user_id=is.null" },
-] as const satisfies readonly { table: string; key: string; prune: boolean; filter?: string }[];
+  {
+    table: "class_features",
+    key: "id",
+    prune: false,
+    filter: "user_id=is.null",
+    identity: { columns: ["source_document_key", "source_record_key", "ruleset"], nullColumns: ["user_id"] },
+  },
+] as const satisfies readonly { table: string; key: string; prune: boolean; filter?: string; identity?: MirrorIdentity }[];
+
+export interface MirrorIdentity {
+  columns: readonly string[];
+  /** The unique index covers only rows where these are null. */
+  nullColumns: readonly string[];
+}
 
 export interface MirrorTable {
   table: string;
   key: string;
   /** Delete local rows production lacks. See {@link LIBRARY_TABLES}. */
   prune: boolean;
+  /** A second unique key a local twin under another id may hold. See {@link LIBRARY_TABLES}. */
+  identity?: MirrorIdentity;
   rows: Record<string, unknown>[];
   /** The local table's insertable columns: everything but dropped and generated ones. */
   columns: string[];
@@ -97,6 +121,14 @@ export function buildMirrorSql(tables: MirrorTable[], tag: string): string {
     const cols = t.columns.filter((c) => carried.has(c)).map(ident);
     if (!cols.includes(key)) throw new Error(`${t.table}: the pulled rows do not carry the key column ${t.key}.`);
     const updates = cols.filter((c) => c !== key).map((c) => `${c} = excluded.${c}`);
+    if (t.identity) {
+      const match = t.identity.columns.map((c) => `l.${ident(c)} = p.${ident(c)}`).join(" and ");
+      lines.push(
+        `delete from public.${name} l using (select x.* from jsonb_array_elements(${dollar(JSON.stringify(t.rows), tag)}::jsonb) e ` +
+          `cross join lateral jsonb_populate_record(null::public.${name}, e) x) p ` +
+          `where ${match} and l.${key} <> p.${key}${t.identity.nullColumns.map((c) => ` and l.${ident(c)} is null`).join("")};`,
+      );
+    }
     lines.push(
       `insert into public.${name} (${cols.join(", ")}) select ${cols.map((c) => `x.${c}`).join(", ")} ` +
         `from jsonb_array_elements(${dollar(JSON.stringify(t.rows), tag)}::jsonb) e ` +

@@ -71,4 +71,26 @@ describe("buildMirrorSql (#953)", () => {
       buildMirrorSql([{ table: "library_rules", key: "id", prune: true, rows: [{ name: "x" }], columns: ["id", "name"] }], "t"),
     ).toThrow(/key column/);
   });
+
+  it("deletes a local twin under another id before upserting on the id, official rows only", () => {
+    const sql = buildMirrorSql(
+      [
+        {
+          table: "class_features",
+          key: "id",
+          prune: false,
+          identity: { columns: ["source_document_key", "source_record_key"], nullColumns: ["user_id"] },
+          rows: [{ id: "prod-1", source_document_key: "toh", source_record_key: "ash", user_id: null }],
+          columns: ["id", "source_document_key", "source_record_key", "user_id"],
+        },
+      ],
+      "t",
+    );
+    const del = sql.indexOf("delete from public.class_features l using");
+    expect(del).toBeGreaterThan(-1);
+    expect(del).toBeLessThan(sql.indexOf("insert into public.class_features"));
+    expect(sql).toContain(
+      "where l.source_document_key = p.source_document_key and l.source_record_key = p.source_record_key and l.id <> p.id and l.user_id is null;",
+    );
+  });
 });
