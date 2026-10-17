@@ -22,7 +22,7 @@ import type { DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
 import { placementColumnFor, placementTargetId } from "@/lib/dungeon-features/library";
-import { uploadToBucket } from "@/lib/storage";
+import { deleteByPublicUrl, deleteUnreferencedByPublicUrl, uploadToBucket } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/supabase";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { bindableSpaces, childSpaceType, isSiteType } from "@/lib/locations/tiers";
@@ -295,6 +295,8 @@ export function useMapPublish(opts: {
       // animates (it draws the swaying props itself, so a still copy under them would double them).
       const dims = computeBakedDimensions(map, dressing);
       const mapLive = buildMapLive(map, opts.runtimes(), dressing, dims.originCellX, dims.originCellY);
+      // The bakes stay one after another: each renders its full-size canvas synchronously, so running them together
+      // would only hold three of those canvases in memory at once. The uploads are network and run together.
       const groundBlob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "ground" }, opts.glyphs());
       const standBlob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "standing" }, opts.glyphs());
       const standLiveBlob =
@@ -303,43 +305,68 @@ export function useMapPublish(opts: {
           : null;
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
-      const url = await uploadToBucket({ bucket: "locationImages", blob: groundBlob, userId: user.id, contentType: "image/webp" });
-      if (!url) throw new Error("Upload failed");
-      const standUrl = await uploadToBucket({
-        bucket: "locationImages",
-        blob: standBlob,
-        userId: user.id,
-        path: `${user.id}/${crypto.randomUUID()}-stand.webp`,
-        contentType: "image/webp",
-      });
-      if (!standUrl) throw new Error("Upload failed");
-      let standLiveUrl: string | null = null;
-      if (standLiveBlob) {
-        standLiveUrl = await uploadToBucket({
+      const uploads = await Promise.allSettled([
+        uploadToBucket({ bucket: "locationImages", blob: groundBlob, userId: user.id, contentType: "image/webp" }),
+        uploadToBucket({
           bucket: "locationImages",
-          blob: standLiveBlob,
+          blob: standBlob,
           userId: user.id,
-          path: `${user.id}/${crypto.randomUUID()}-stand-live.webp`,
+          path: `${user.id}/${crypto.randomUUID()}-stand.webp`,
           contentType: "image/webp",
-        });
-        if (!standLiveUrl) throw new Error("Upload failed");
+        }),
+        standLiveBlob
+          ? uploadToBucket({
+              bucket: "locationImages",
+              blob: standLiveBlob,
+              userId: user.id,
+              path: `${user.id}/${crypto.randomUUID()}-stand-live.webp`,
+              contentType: "image/webp",
+            })
+          : null,
+      ]);
+      const uploaded = uploads.map((u) => (u.status === "fulfilled" ? u.value : null));
+      const [url, standUrl, standLiveUrl] = uploaded;
+      if (uploads.some((u) => u.status === "rejected") || !url || !standUrl || (standLiveBlob && !standLiveUrl)) {
+        // Nothing points at a half-published set yet, so whatever did upload is removed rather than stranded.
+        await deleteByPublicUrl(...uploaded).catch((e: unknown) => console.warn("Publish: could not remove partial upload", e));
+        const rejected = uploads.find((u): u is PromiseRejectedResult => u.status === "rejected");
+        throw rejected ? rejected.reason : new Error("Upload failed");
       }
+      // The images this publish replaces; removed once the site points at the new ones, unless something else
+      // (a campaign copy of the site) still holds them.
+      const previous = targetSite.value;
+      const replaced = previous
+        ? [previous.map_layer_url, previous.map_layer_stand_url, previous.map_layer_stand_live_url]
+        : [];
       wrote = true;
-      await updateLocationDrawing.mutateAsync({
-        id: targetSiteId.value,
-        mapLayerUrl: url,
-        mapLayerStandUrl: standUrl,
-        mapLayerStandLiveUrl: standLiveUrl,
-        mapLayerCalibration: {
-          cells_per_image_width: dims.cols,
-          origin_x_pct: 0,
-          origin_y_pct: 0,
-          origin_cell_x: dims.originCellX,
-          origin_cell_y: dims.originCellY,
-        },
-        mapLive,
-        sourceMapId: map.id,
-      });
+      try {
+        await updateLocationDrawing.mutateAsync({
+          id: targetSiteId.value,
+          mapLayerUrl: url,
+          mapLayerStandUrl: standUrl,
+          mapLayerStandLiveUrl: standLiveUrl,
+          mapLayerCalibration: {
+            cells_per_image_width: dims.cols,
+            origin_x_pct: 0,
+            origin_y_pct: 0,
+            origin_cell_x: dims.originCellX,
+            origin_cell_y: dims.originCellY,
+          },
+          mapLive,
+          sourceMapId: map.id,
+        });
+      } catch (e) {
+        // A write that failed leaves the new images unused; one that landed but reported a failure leaves the site
+        // holding them, and the reference check keeps them.
+        void deleteUnreferencedByPublicUrl({ urls: uploaded }).catch((err: unknown) =>
+          console.warn("Publish: could not remove unused images", err),
+        );
+        throw e;
+      }
+      // Best effort: a file left behind costs storage, not correctness, so it never fails the publish.
+      void deleteUnreferencedByPublicUrl({ urls: replaced.filter((u) => u && !uploaded.includes(u)) }).catch(
+        (e: unknown) => console.warn("Publish: could not remove the replaced images", e),
+      );
       // (b) Spaces — create rooms + bind fresh regions; reshape existing ones;
       // clear an orphan's geometry without touching the room it still names.
       // Room ids are minted here, so every region, way and placement below

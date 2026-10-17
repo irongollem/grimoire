@@ -30,6 +30,9 @@ const mocks = vi.hoisted(() => ({
   passes: [] as (string | undefined)[],
   omits: [] as (boolean | undefined)[],
   uploads: [] as (string | undefined)[],
+  failStandUpload: false,
+  deleteNow: vi.fn(),
+  deleteUnreferenced: vi.fn(),
 }));
 
 vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidate }) }));
@@ -45,8 +48,11 @@ const SNAPSHOT = { version: 1, darkness: "daylight", groups: [], lights: [], spr
 const SWAYING = { ...SNAPSHOT, sprites: [{ url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } }] };
 vi.mock("@/cartographer/mapLive", () => ({ buildMapLive: () => mocks.snapshot }));
 vi.mock("@/lib/storage", () => ({
+  deleteByPublicUrl: mocks.deleteNow,
+  deleteUnreferencedByPublicUrl: mocks.deleteUnreferenced,
   uploadToBucket: async ({ path }: { path?: string }) => {
     mocks.uploads.push(path);
+    if (mocks.failStandUpload && path?.endsWith("-stand.webp")) throw new Error("stand upload broke");
     if (path?.endsWith("-stand-live.webp")) return "https://cdn/stand-live.webp";
     return path ? "https://cdn/stand.webp" : "https://cdn/x.webp";
   },
@@ -63,7 +69,16 @@ vi.mock("@/composables/locations/useSitePlacements", () => ({ useSitePlacements:
 vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: () => ({ data: ref([]) }),
   useLocations: () => ({ data: ref([]) }),
-  useLocation: () => ({ data: ref({ id: "site-1", location_type: "dungeon", campaign_id: "camp-1" }) }),
+  useLocation: () => ({
+    data: ref({
+      id: "site-1",
+      location_type: "dungeon",
+      campaign_id: "camp-1",
+      map_layer_url: "https://cdn/old.webp",
+      map_layer_stand_url: "https://cdn/old-stand.webp",
+      map_layer_stand_live_url: null,
+    }),
+  }),
   useUpdateLocation: () => ({ mutateAsync: mocks.updateLocation }),
   useUpdateLocationDrawing: () => ({ mutateAsync: mocks.updateDrawing }),
   insertLocations: mocks.insertLocations,
@@ -109,6 +124,9 @@ describe("useMapPublish.publish", () => {
     mocks.omits.length = 0;
     mocks.snapshot = SNAPSHOT;
     mocks.uploads.length = 0;
+    mocks.failStandUpload = false;
+    mocks.deleteNow.mockResolvedValue(undefined);
+    mocks.deleteUnreferenced.mockResolvedValue(undefined);
     const record = (name: string) => async () => void mocks.order.push(name);
     mocks.updateDrawing.mockImplementation(record("drawing"));
     mocks.insertLocations.mockImplementation(record("rooms"));
@@ -176,6 +194,33 @@ describe("useMapPublish.publish", () => {
       mapLayerStandUrl: "https://cdn/stand.webp",
       mapLayerStandLiveUrl: "https://cdn/stand-live.webp",
     });
+  });
+
+  it("removes the images the publish replaced once the site points at the new ones, unless still referenced", async () => {
+    const { publish } = setup();
+    await publish();
+    expect(mocks.deleteUnreferenced).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteUnreferenced).toHaveBeenCalledWith({ urls: ["https://cdn/old.webp", "https://cdn/old-stand.webp"] });
+    expect(mocks.deleteNow).not.toHaveBeenCalled();
+  });
+
+  it("a failed upload removes the ones that landed, writes nothing and reports the error", async () => {
+    mocks.failStandUpload = true;
+    const { publish, review } = setup();
+    await publish();
+    expect(mocks.deleteNow).toHaveBeenCalledWith("https://cdn/x.webp", null, null);
+    expect(mocks.updateDrawing).not.toHaveBeenCalled();
+    expect(mocks.deleteUnreferenced).not.toHaveBeenCalled();
+    expect(review.value.error).toBe("stand upload broke");
+  });
+
+  it("a failed Drawing write offers the new images for removal and keeps the old ones", async () => {
+    mocks.updateDrawing.mockRejectedValueOnce({ message: "drawing broke" });
+    const { publish, review } = setup();
+    await publish();
+    expect(mocks.deleteUnreferenced).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteUnreferenced).toHaveBeenCalledWith({ urls: ["https://cdn/x.webp", "https://cdn/stand.webp", null] });
+    expect(review.value.error).toBe("drawing broke");
   });
 
   it("writes one request per table, in table order, and the rev claim last", async () => {
