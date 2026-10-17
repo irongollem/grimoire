@@ -13,6 +13,7 @@
     :origin-x="originX"
     :origin-y="originY"
     :live="live"
+    :ground="groundBox"
   />
 
   <svg v-if="showGrid" class="map-svg" :viewBox="`0 0 ${hostW} ${hostH}`" preserveAspectRatio="none">
@@ -56,6 +57,7 @@
     :origin-x="originX"
     :origin-y="originY"
     :live="live"
+    :stand-url="standLiveUrl"
     @ready="readyLive = live"
   />
 
@@ -85,7 +87,9 @@
 // `standUrl` is null when the shown image is not the Drawing or the drawing predates the split.
 //
 // What sways is drawn by the top live layer, so while that layer animates the standing image is `standLiveUrl`, the
-// same picture without those props. The swap waits for the layer's `ready` (every sprite decoded): until then, and
+// same picture without those props. The swap waits for the layer's `ready` (every sprite and `standLiveUrl` itself
+// decoded, so the walls never blink out while the new picture loads), and the layer draws the props from then on
+// only, so they never show twice. Until then, and
 // for a reduced-motion user, or when a sprite fails to load, every prop stays in the full `standUrl` and nothing
 // is ever missing.
 import { computed, shallowRef } from "vue";
@@ -95,7 +99,7 @@ import type { Viewer } from "@/lib/battlemap/vision";
 import { prefersReducedMotion } from "@/lib/motion";
 import type { MapLive } from "@/types/mapLive.types";
 
-const { standUrl, standLiveUrl, live, viewers = null } = defineProps<{
+const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, viewers = null } = defineProps<{
   hostW: number;
   hostH: number;
   imageUrl: string;
@@ -126,6 +130,8 @@ const topAnimates = computed(
 // A shallow ref, because it is compared by identity: `ref` would wrap the snapshot in a reactive proxy that never
 // equals the raw object the prop carries, and the stack would never swap.
 const readyLive = shallowRef<MapLive | null>(null);
+// The ground picture's box, so the ground layer keeps a light's flicker to its painted part.
+const groundBox = computed(() => ({ url: imageUrl, x: panX, y: panY, w: imageW, h: imageH }));
 const shownStandUrl = computed(() => (topAnimates.value && readyLive.value === live ? standLiveUrl : standUrl));
 </script>
 

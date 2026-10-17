@@ -3,6 +3,9 @@
 // here touches the DOM, so it can be tested with plain numbers.
 
 import type { MapLive, MapLiveGroup, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
+import { lightReachCells } from "@/cartographer/lights";
+import { lightMask, type LightMask } from "@/cartographer/lightMask";
+import { occludersOf } from "@/lib/battlemap/occlusion";
 
 export interface OverlayFrame {
   /** Drawn size of one repeat, in px. */
@@ -90,4 +93,40 @@ export function lightBoost(light: Pick<MapLiveLight, "flicker" | "pulse" | "phas
   }
   if (light.pulse !== undefined) return 0.5 + 0.5 * Math.sin(1.0 * t + light.phase);
   return 0;
+}
+
+/** A light's line-of-sight mask over its whole square, in image cells from (x0,y0). */
+export interface BoostMask {
+  mask: LightMask;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+const boostMasks = new WeakMap<MapLive, Map<MapLiveLight, BoostMask>>();
+
+/**
+ * The part of a moving light's reach it has a clear line to, so its flicker stops at the walls, doors and rock the
+ * baked glow already stops at (`renderLightLayer`, the same `lightMask`). The reach does not change as the light
+ * flickers, so one mask per light per snapshot does. The snapshot holds no floor, so the mask does not know painted
+ * ground: the component takes that from the ground picture's own transparency.
+ */
+export function boostMask(live: MapLive, light: MapLiveLight): BoostMask {
+  let perLive = boostMasks.get(live);
+  if (!perLive) {
+    perLive = new Map();
+    boostMasks.set(live, perLive);
+  }
+  let held = perLive.get(light);
+  if (!held) {
+    const reach = lightReachCells(light);
+    const x0 = Math.floor(light.x - reach);
+    const y0 = Math.floor(light.y - reach);
+    const x1 = Math.ceil(light.x + reach);
+    const y1 = Math.ceil(light.y + reach);
+    held = { mask: lightMask(occludersOf(live), light.x, light.y, reach, x0, y0, x1, y1, () => true), x0, y0, x1, y1 };
+    perLive.set(light, held);
+  }
+  return held;
 }

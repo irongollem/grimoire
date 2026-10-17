@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupsIn, hasMotion, lightBoost, lightsIn, overlayFrame, spritesIn, swayAngle } from "./liveLayer";
+import { boostMask, groupsIn, hasMotion, lightBoost, lightsIn, overlayFrame, spritesIn, swayAngle } from "./liveLayer";
 import type { MapLive, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
 
 const base: MotionOverlay = { url: "u", cells: 4, drift: [0.5, -0.25], alpha: 0.6 };
@@ -135,5 +135,26 @@ describe("lightBoost", () => {
       expect(v).toBeLessThanOrEqual(1);
       expect(Math.abs(lightBoost(glow, t + 0.016) - v)).toBeLessThan(0.02);
     }
+  });
+});
+
+describe("boostMask", () => {
+  // A 5 ft bright + 5 ft dim fire (two cells of reach) in cell (1,0), a wall on the left edge of cell (2,0).
+  const fire: MapLiveLight = { x: 1.5, y: 0.5, color: "#ff8800", bright: 5, dim: 5, flicker: 0.3, phase: 0 };
+  const walled: MapLive = { version: 1, darkness: "dark", groups: [], lights: [fire], sprites: [], walls: ["2,0:W"], doors: [], solid: [] };
+  const sampleAt = (m: ReturnType<typeof boostMask>, x: number, y: number) => {
+    const spc = m.mask.width / (m.x1 - m.x0);
+    return m.mask.alpha[Math.floor((y - m.y0) * spc) * m.mask.width + Math.floor((x - m.x0) * spc)];
+  };
+
+  it("stops at the walls the baked glow stops at", () => {
+    const m = boostMask(walled, fire);
+    expect(sampleAt(m, 1.2, 0.5)).toBe(255);
+    expect(sampleAt(m, 2.4, 0.5)).toBe(0);
+    expect(sampleAt(boostMask({ ...walled, walls: [] }, fire), 2.4, 0.5)).toBe(255);
+  });
+
+  it("is computed once per light per snapshot", () => {
+    expect(boostMask(walled, fire)).toBe(boostMask(walled, fire));
   });
 });
