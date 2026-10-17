@@ -1,9 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import * as lightMaskModule from "./lightMask";
 import { renderMap, type MapRenderScene } from "./renderMap";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
 import type { DressingCatalog } from "./dressing";
 import { makeCtx, makeLayerFactory, makeRuntime, sourceOf, type Recorder } from "./testCanvas";
 
+// Counts real mask computations (the wrapped function still runs).
+vi.mock("./lightMask", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lightMask")>();
+  return { ...actual, lightMask: vi.fn(actual.lightMask) };
+});
+const maskCalls = (): number => vi.mocked(lightMaskModule.lightMask).mock.calls.length;
 
 function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderScene; rec: Recorder } {
   const { ctx, rec } = makeCtx();
@@ -351,6 +358,48 @@ describe("renderMap — shadow cache", () => {
 
     renderMap(scene({ layersRevision: 2 }));
     expect(f.layers.length).toBeGreaterThan(built);
+  });
+
+  it("reuses the masked light glow across hover, and rebuilds it on an edit", () => {
+    const f = makeLayerFactory();
+    const layers = stoneLayers();
+    layers.object[cellKey(2, 2)] = { pack_id: "stone-dungeon", pack_version: 1, category: "objectBrazier", variant: 0 };
+    const rt = makeRuntime("stone-dungeon", { lights: { objectBrazier: [{ color: "#ff8030", bright: 20, dim: 20 }] } });
+    const runtimes = new Map([["stone-dungeon", rt]]);
+    const dressing: DressingCatalog = new Map();
+    const scene = (overrides: Partial<MapRenderScene> = {}): MapRenderScene =>
+      baseScene({ layers, runtimes, dressing, makeCanvas: f.makeCanvas, layersRevision: 1, ...overrides }).scene;
+    const masks = (): number => f.layers.flatMap((l) => l.rec.putImages).length;
+
+    renderMap(scene());
+    expect(masks()).toBe(1);
+    renderMap(scene({ hoverCell: [2, 2] }));
+    expect(masks()).toBe(1);
+    renderMap(scene({ layersRevision: 2 }));
+    expect(masks()).toBe(2);
+  });
+
+  it("a pan rebuilds the light layer but recomputes no masks; an edit recomputes them", () => {
+    const f = makeLayerFactory();
+    const layers = stoneLayers();
+    layers.object[cellKey(2, 2)] = { pack_id: "stone-dungeon", pack_version: 1, category: "objectBrazier", variant: 0 };
+    const rt = makeRuntime("stone-dungeon", { lights: { objectBrazier: [{ color: "#ff8030", bright: 20, dim: 20 }] } });
+    const runtimes = new Map([["stone-dungeon", rt]]);
+    const dressing: DressingCatalog = new Map();
+    const scene = (overrides: Partial<MapRenderScene> = {}): MapRenderScene =>
+      baseScene({ layers, runtimes, dressing, makeCanvas: f.makeCanvas, layersRevision: 5, ...overrides }).scene;
+    const puts = (): number => f.layers.flatMap((l) => l.rec.putImages).length;
+    const base = maskCalls();
+    renderMap(scene());
+    const first = puts();
+    expect(first).toBe(1);
+    expect(maskCalls() - base).toBe(1);
+    // A pan changes the window and offset: the layer is rebuilt (more canvases), the mask array is not recomputed.
+    renderMap(scene({ viewportOffset: { x: 40, y: 12 }, bounds: { minX: 0, minY: 0, maxX: 6, maxY: 6 } }));
+    expect(puts()).toBe(2);
+    expect(maskCalls() - base).toBe(1);
+    renderMap(scene({ layersRevision: 6 }));
+    expect(maskCalls() - base).toBe(2);
   });
 
   it("rebuilds when the zoom or the window changes", () => {

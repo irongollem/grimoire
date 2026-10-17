@@ -11,6 +11,9 @@ import {
   drawMapContent,
   gatherLightSources,
   offscreenMakeCanvas,
+  newLightMaskCache,
+  renderLightLayer,
+  type LightMaskCache,
   renderShadowLayer,
   type DrawMapInput,
   type MakeCanvas,
@@ -20,7 +23,7 @@ import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { paintLitVeil } from "@/lib/battlemap/darkness";
 import { AMBIENT, illuminationGrid } from "@/lib/battlemap/illumination";
 import { occluders } from "@/lib/battlemap/occlusion";
-import { collectOcclusion } from "@/cartographer/mapLive";
+import { collectOcclusion } from "@/cartographer/mapOcclusion";
 import { cellKey, type CellKey, type DarknessLevel, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
 import type { CellEdge } from "@/cartographer/edges";
 import { boundaryEdges } from "@/cartographer/floodFill";
@@ -135,7 +138,23 @@ interface ShadowKey {
   offsetY: number;
 }
 
-let shadowCache: { key: ShadowKey; layer: ShadowLayer | null } | null = null;
+interface LayerCache {
+  key: ShadowKey;
+  layer: ShadowLayer | null;
+}
+
+let shadowCache: LayerCache | null = null;
+let lightCache: LayerCache | null = null;
+let maskCache: { layers: DungeonMapLayers; revision: number; masks: LightMaskCache } | null = null;
+
+/** Light masks live per edit revision, not per zoom or window: a pan re-composites them, an edit rebuilds them. */
+function lightMasksFor(scene: MapRenderScene): LightMaskCache | undefined {
+  if (scene.layersRevision === undefined) return undefined;
+  if (!maskCache || maskCache.layers !== scene.layers || maskCache.revision !== scene.layersRevision) {
+    maskCache = { layers: scene.layers, revision: scene.layersRevision, masks: newLightMaskCache(scene.layers) };
+  }
+  return maskCache.masks;
+}
 
 function sameShadowKey(a: ShadowKey, b: ShadowKey): boolean {
   return (
@@ -156,9 +175,19 @@ function sameShadowKey(a: ShadowKey, b: ShadowKey): boolean {
   );
 }
 
-function cachedShadowLayer(scene: MapRenderScene, input: DrawMapInput): ShadowLayer | null {
+/**
+ * A window-sized canvas layer (shadows, the masked light glow) rebuilt only when the edit revision, the loaded packs
+ * or the window change, so hovering never re-blurs the map or re-walks every light's lines of sight. A caller that
+ * cannot name a revision gets a fresh build each frame rather than a stale one.
+ */
+function cachedLayer(
+  slot: "shadow" | "light",
+  scene: MapRenderScene,
+  input: DrawMapInput,
+  build: (input: DrawMapInput) => ShadowLayer | null,
+): ShadowLayer | null {
   if (!input.makeCanvas) return null;
-  if (scene.layersRevision === undefined) return renderShadowLayer(input);
+  if (scene.layersRevision === undefined) return build(input);
   const key: ShadowKey = {
     layers: scene.layers,
     revision: scene.layersRevision,
@@ -171,10 +200,12 @@ function cachedShadowLayer(scene: MapRenderScene, input: DrawMapInput): ShadowLa
     offsetX: scene.viewportOffset.x,
     offsetY: scene.viewportOffset.y,
   };
-  if (shadowCache && sameShadowKey(shadowCache.key, key)) return shadowCache.layer;
-  const layer = renderShadowLayer(input);
-  shadowCache = { key, layer };
-  return layer;
+  const held = slot === "shadow" ? shadowCache : lightCache;
+  if (held && sameShadowKey(held.key, key)) return held.layer;
+  const next = { key, layer: build(input) };
+  if (slot === "shadow") shadowCache = next;
+  else lightCache = next;
+  return next.layer;
 }
 
 // ── Illumination cache ─────────────────────────────────────────────────────
@@ -418,7 +449,12 @@ export function renderMap(scene: MapRenderScene): void {
     },
   };
   // Shadows come from the cache; a null layer (no OffscreenCanvas) draws none.
-  drawMapContent({ ...content, shadows: true, shadowLayer: cachedShadowLayer(scene, content) });
+  drawMapContent({
+    ...content,
+    shadows: true,
+    shadowLayer: cachedLayer("shadow", scene, content, renderShadowLayer),
+    lightLayer: content.lights ? cachedLayer("light", scene, content, (c) => renderLightLayer({ ...c, lightMasks: lightMasksFor(scene) })) : null,
+  });
 
   // The DM's darkness veil, carved by the map's lights, over the drawing but under the editing aids (labels, link
   // dots, selection), so what the DM is working on stays readable. The same function paints it on the battle map.

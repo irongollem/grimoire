@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { curbEdges, curbPosts, drawMapContent, renderShadowLayer, variantAt, type DrawMapInput } from "./drawMap";
+import { curbEdges, curbPosts, drawMapContent, renderLightLayer, renderShadowLayer, variantAt, type DrawMapInput } from "./drawMap";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
 import type { DressingCatalog, DressingProp } from "./dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
@@ -723,12 +723,90 @@ describe("lights", () => {
     layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
     const { input: i, rec } = input(lit({ objectBrazier: [null, FIRE] }), { layers, shadows: true, lights: true, makeCanvas: f.makeCanvas });
     drawMapContent(i);
-    // The glow is a gradient fill; a drawImage before it is a shadow or a flat thing, one after it is standing or a wall.
-    const lightAt = rec.calls.indexOf("fillRect");
-    const drawsBefore = rec.calls.slice(0, lightAt).filter((c) => c === "drawImage").length;
-    const order = rec.drawImages.map((d) => ((d.source as { layer?: number }).layer !== undefined ? "shadow" : sourceOf(d).category));
-    expect(order.slice(0, drawsBefore)).toContain("shadow");
-    expect(order.slice(0, drawsBefore)).toContain("rubble");
-    expect(order.slice(drawsBefore)).toEqual(["objectBrazier", "wallSegmentH"]);
+    // Two canvases reach the map: the shadow layer first, then the masked glow.
+    let canvases = 0;
+    const order = rec.drawImages.map((d) =>
+      (d.source as { layer?: number }).layer !== undefined ? (canvases++ === 0 ? "shadow" : "glow") : sourceOf(d).category,
+    );
+    expect(order).toEqual(["floor", "shadow", "rubble", "glow", "objectBrazier", "wallSegmentH"]);
+  });
+});
+
+describe("lights behind walls", () => {
+  const FIRE = { color: "#ff8030", bright: 20, dim: 20, intensity: 0.6 };
+  const rt = () => makeRuntime(PACK, { lights: { objectBrazier: [null, FIRE] } });
+  // A brazier in cell (1,2); a wall down the x = 3 gridline from y = 0 to 5. `door` swaps the segment on row 2.
+  const walled = (door?: "doorOpen" | "doorClosed") => {
+    const layers = emptyLayers();
+    layers.object[cellKey(1, 2)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
+    for (let y = 0; y <= 5; y++) {
+      layers.floor[cellKey(3, y)] = { floor: ref, wallW: { ...ref, type: y === 2 && door ? door : "wall" } };
+    }
+    return layers;
+  };
+  /** The light's visibility mask, 24 samples across (cells 0..5 at four per cell) as rows of bytes. */
+  const maskOf = (layers: ReturnType<typeof emptyLayers>) => {
+    const f = makeLayerFactory();
+    const { input: i } = input(rt(), { layers, lights: true, makeCanvas: f.makeCanvas });
+    drawMapContent(i);
+    const put = f.layers.flatMap((l) => l.rec.putImages);
+    expect(put).toHaveLength(1);
+    return { rows: (y: number) => put[0].alpha.slice(y * put[0].width, (y + 1) * put[0].width), width: put[0].width };
+  };
+  // The mask covers the light's whole square, here x -7..9 and y -6..10 (reach 8 around (1.5, 2.5)).
+  const sampleX = (cell: number): number => Math.floor((cell + 7) * 4);
+  const sampleY = (cell: number): number => Math.floor((cell + 6) * 4);
+
+  it("leaves the far side of a wall untouched and lights the near side", () => {
+    const m = maskOf(walled());
+    const row = m.rows(sampleY(2.5));
+    expect(row[sampleX(2.5)]).toBe(255);
+    expect(row[sampleX(4.5)]).toBe(0);
+    expect(m.rows(sampleY(0.5))[sampleX(4.5)]).toBe(0);
+    expect(m.rows(sampleY(0.5))[sampleX(0.5)]).toBe(255);
+  });
+
+  it("lets glow through an open door but not a closed one", () => {
+    const open = maskOf(walled("doorOpen"));
+    expect(open.rows(sampleY(2.5))[sampleX(4.5)]).toBe(255);
+    expect(open.rows(sampleY(0.5))[sampleX(4.5)]).toBe(0);
+    const shut = maskOf(walled("doorClosed"));
+    expect(shut.rows(sampleY(2.5))[sampleX(4.5)]).toBe(0);
+  });
+
+  it("lays the masked glow through the map's own canvas, built once for every light", () => {
+    const f = makeLayerFactory();
+    const layers = walled();
+    layers.object[cellKey(0, 4)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
+    const { input: i } = input(rt(), { layers, lights: true, makeCanvas: f.makeCanvas });
+    drawMapContent(i);
+    expect(f.layers.flatMap((l) => l.rec.putImages)).toHaveLength(2);
+  });
+
+  it("uses a prebuilt light layer without rebuilding it", () => {
+    const f = makeLayerFactory();
+    const { input: i } = input(rt(), { layers: walled(), lights: true, makeCanvas: f.makeCanvas });
+    const built = renderLightLayer(i);
+    const count = f.layers.length;
+    const again = input(rt(), { layers: walled(), lights: true, makeCanvas: f.makeCanvas, lightLayer: built });
+    drawMapContent(again.input);
+    expect(f.layers).toHaveLength(count);
+  });
+
+  it("skips the mask for a map with nothing to wall light off", () => {
+    const f = makeLayerFactory();
+    const layers = emptyLayers();
+    layers.object[cellKey(1, 2)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
+    const { input: i } = input(rt(), { layers, lights: true, makeCanvas: f.makeCanvas });
+    drawMapContent(i);
+    expect(f.layers.flatMap((l) => l.rec.putImages)).toHaveLength(0);
+    expect(f.layers.flatMap((l) => l.rec.radialGradients)).toHaveLength(1);
+  });
+
+  it("still draws the glow, unmasked, when no canvas can be made", () => {
+    const { input: i, rec } = input(rt(), { layers: walled(), lights: true });
+    drawMapContent(i);
+    expect(rec.radialGradients).toHaveLength(1);
+    expect(rec.fillRects.length).toBeGreaterThan(0);
   });
 });

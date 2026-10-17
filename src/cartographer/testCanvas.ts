@@ -54,6 +54,8 @@ interface FakeCtx {
   shadowBlur: number;
   shadowOffsetX: number;
   shadowOffsetY: number;
+  createImageData(width: number, height: number): { width: number; height: number; data: Uint8ClampedArray };
+  putImageData(image: { width: number; height: number; data: Uint8ClampedArray }, x: number, y: number): void;
   createLinearGradient(x0: number, y0: number, x1: number, y1: number): FakeGradient;
   createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): FakeGradient;
 }
@@ -106,10 +108,12 @@ export interface Recorder {
   /** The fillStyle in force at each fillRect (a gradient object or a colour string). */
   fillRectStyles: unknown[];
   shadowDraws: ShadowDraw[];
+  /** The alpha bytes of every image put on the canvas (a light's visibility mask). */
+  putImages: { width: number; height: number; alpha: number[] }[];
 }
 
 export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
-  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [], translates: [], rotates: [], roundRects: 0, gradients: [], radialGradients: [], fillRectStyles: [], shadowDraws: [] };
+  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [], translates: [], rotates: [], roundRects: 0, gradients: [], radialGradients: [], fillRectStyles: [], shadowDraws: [], putImages: [] };
   let fillStyle: unknown = "";
   let strokeStyle = "";
   const noop = (): void => {};
@@ -141,6 +145,10 @@ export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
     shadowBlur: 0,
     shadowOffsetX: 0,
     shadowOffsetY: 0,
+    createImageData: (width, height) => ({ width, height, data: new Uint8ClampedArray(width * height * 4) }),
+    putImageData: (image) => {
+      rec.putImages.push({ width: image.width, height: image.height, alpha: Array.from({ length: image.width * image.height }, (_, k) => image.data[k * 4 + 3]) });
+    },
     createLinearGradient: (x0, y0, x1, y1) => {
       const call: GradientCall = { x0, y0, x1, y1, stops: [] };
       rec.gradients.push(call);

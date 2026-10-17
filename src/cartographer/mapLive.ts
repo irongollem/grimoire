@@ -3,44 +3,14 @@
 // live layer needs (water cells and their motion now, lights and vision later) is captured here, in the Drawing's
 // own image-cell space (cell (0,0) = the image's top-left cell, the space the fog mask and tokens use).
 
-import type { DungeonMap, DungeonMapLayers, CellKey, FloorCell } from "@/types/dungeonMap.types";
-import type { MapLive, MapLiveDoor, MapLiveGroup, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
+import type { DungeonMap, CellKey } from "@/types/dungeonMap.types";
+import type { MapLive, MapLiveGroup, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { dressingCentre, dressingDrawOrder, type DressingCatalog } from "@/cartographer/dressing";
 import { dressingSway, objectSway, phaseAt } from "@/cartographer/sway";
 import { gatherLightSources } from "@/cartographer/drawMap";
+import { collectOcclusion, toImageCell } from "@/cartographer/mapOcclusion";
 import { cellKey } from "@/types/dungeonMap.types";
-
-function toImageCell(key: CellKey, originCellX: number, originCellY: number): string {
-  const [xs, ys] = key.split(",");
-  return `${Number(xs) - originCellX},${Number(ys) - originCellY}`;
-}
-
-/**
- * What blocks light and sight on a map, with every key shifted by the origin (0,0 for the editor, the image origin for
- * a snapshot). Walls and sluices are solid; doors keep their drawn state; grates are bars you can see through; solid
- * rock is its own cell layer.
- */
-export function collectOcclusion(
-  layers: DungeonMapLayers,
-  originCellX: number,
-  originCellY: number,
-): { walls: string[]; doors: MapLiveDoor[]; solid: string[] } {
-  const walls: string[] = [];
-  const doors: MapLiveDoor[] = [];
-  for (const [key, cell] of Object.entries(layers.floor) as [CellKey, FloorCell][]) {
-    const at = toImageCell(key, originCellX, originCellY);
-    for (const [side, seg] of [["N", cell.wallN], ["W", cell.wallW]] as const) {
-      if (!seg) continue;
-      const edge = `${at}:${side}`;
-      if (seg.type === "wall" || seg.type === "sluice") walls.push(edge);
-      else if (seg.type === "doorClosed") doors.push({ edge, open: false });
-      else if (seg.type === "doorOpen") doors.push({ edge, open: true });
-    }
-  }
-  const solid = Object.keys(layers.solidBlock).map((key) => toImageCell(key as CellKey, originCellX, originCellY));
-  return { walls, doors, solid };
-}
 
 function groupByPack(
   cells: Record<CellKey, { pack_id: string }>,
