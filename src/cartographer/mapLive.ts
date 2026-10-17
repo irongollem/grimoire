@@ -8,7 +8,7 @@ import type { MapLive, MapLiveGroup, MapLiveSprite, MotionOverlay } from "@/type
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { dressingCentre, dressingDrawOrder, type DressingCatalog } from "@/cartographer/dressing";
 import { dressingSway, objectSway, phaseAt } from "@/cartographer/sway";
-import { gatherLightSources } from "@/cartographer/drawMap";
+import { gatherLightSources } from "@/cartographer/drawLights";
 import { collectOcclusion, toImageCell } from "@/cartographer/mapOcclusion";
 import { cellKey } from "@/types/dungeonMap.types";
 

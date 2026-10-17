@@ -45,3 +45,11 @@ export function lightMask(
   }
   return { width, height, alpha };
 }
+
+/** The occluders of one map revision and the mask of each light computed against them. */
+export interface LightMaskCache {
+  occ: Occluders;
+  masks: Map<string, { mask: LightMask; x0: number; y0: number }>;
+  /** How many masks were computed (not served from `masks`); lets a test see a cache hit. */
+  computed: number;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { MakeCanvas } from "@/cartographer/drawMap";
+import type { MakeCanvas } from "@/cartographer/drawFrame";
 import { DM_VEIL, VEIL_RGB, paintLitVeil, paintPlayerVeil, veilAlpha } from "./darkness";
 
 /** A canvas factory whose image data is a plain array, so the painted pixels can be read back. */

@@ -8,7 +8,8 @@
 // dependencies: cells are drawn at 1:1 scale (BASE_TILE_SIZE px per cell).
 
 import { BASE_TILE_SIZE, type PackCategory } from "./packSchema";
-import { drawMapContent, offscreenMakeCanvas, type MapPass } from "./drawMap";
+import { drawMapContent, offscreenMakeCanvas } from "./drawMap";
+import type { MapPass } from "./drawFrame";
 import type { TilePackRuntime } from "./packLoader";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";

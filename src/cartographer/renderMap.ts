@@ -7,18 +7,10 @@
 // building the `MapRenderScene`.
 
 import type { PackCategory } from "@/cartographer/packSchema";
-import {
-  drawMapContent,
-  gatherLightSources,
-  offscreenMakeCanvas,
-  newLightMaskCache,
-  renderLightLayer,
-  type LightMaskCache,
-  renderShadowLayer,
-  type DrawMapInput,
-  type MakeCanvas,
-  type ShadowLayer,
-} from "@/cartographer/drawMap";
+import { drawMapContent, offscreenMakeCanvas, renderShadowLayer } from "@/cartographer/drawMap";
+import { gatherLightSources, newLightMaskCache, renderLightLayer } from "@/cartographer/drawLights";
+import type { DrawMapInput, MakeCanvas, ShadowLayer } from "@/cartographer/drawFrame";
+import type { LightMaskCache } from "@/cartographer/lightMask";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { paintLitVeil } from "@/lib/battlemap/darkness";
 import { AMBIENT, illuminationGrid } from "@/lib/battlemap/illumination";

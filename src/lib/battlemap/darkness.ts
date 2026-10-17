@@ -6,7 +6,7 @@
 // at each point, and `paintLitVeil` is the one function that paints it. A player's veil (`paintPlayerVeil`) is
 // built from what their tokens see instead, and is opaque where nothing is seen.
 
-import type { MakeCanvas } from "@/cartographer/drawMap";
+import type { MakeCanvas } from "@/cartographer/drawFrame";
 import { playerVeilAlpha, type Vision } from "@/lib/battlemap/vision";
 import type { DarknessLevel } from "@/types/dungeonMap.types";
 
