@@ -44,6 +44,13 @@ describe("computeBakedDimensions", () => {
     expect(computeBakedDimensions(map, none)).toEqual({ cols: 12, rows: 10, originCellX: -1, originCellY: 0 });
   });
 
+  it("counts a brushed cell that is too thinly covered to have floor", () => {
+    const map = emptyMap();
+    map.layers.area["9,2"] = { pack_id: "p", pack_version: 1, variant: 0, mask: "0000000000000001" };
+    // The only painted cell is (9,2): 1 x 1 plus 3 cells of padding each side.
+    expect(computeBakedDimensions(map, none)).toEqual({ cols: 7, rows: 7, originCellX: 6, originCellY: -1 });
+  });
+
   it("handles negative coordinates (infinite-canvas origin)", () => {
     const map = emptyMap();
     map.layers.floor["-2,-3"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };

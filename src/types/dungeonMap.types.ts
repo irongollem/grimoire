@@ -142,6 +142,19 @@ export function withLayerDefaults(raw: Partial<DungeonMapLayers> | null | undefi
   return { ...emptyLayers(), ...raw };
 }
 
+/**
+ * How many cells of a map have anything painted on them: floor, water, rock, an object or a brushed area. Each cell
+ * counts once, however many layers it has (a floor cell with a barrel on it is one painted cell), and a brushed cell
+ * counts even when it is covered less than half and so carries no floor of its own.
+ */
+export function paintedCellCount(layers: DungeonMapLayers): number {
+  const cells = new Set<string>();
+  for (const layer of [layers.floor, layers.terrain, layers.solidBlock, layers.object, layers.area]) {
+    for (const key of Object.keys(layer)) cells.add(key);
+  }
+  return cells.size;
+}
+
 export function cellKey(x: number, y: number): CellKey {
   return `${x},${y}`;
 }

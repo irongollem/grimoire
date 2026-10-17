@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { RouterLink, useRouter } from "vue-router";
 import { useDungeonMaps } from "@/composables/cartographer/useDungeonMaps";
-import type { DungeonMap } from "@/types/dungeonMap.types";
+import { paintedCellCount, type DungeonMap } from "@/types/dungeonMap.types";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 
@@ -44,10 +44,6 @@ const router = useRouter();
 const { data: cartographerMaps, isLoading: cartographerMapsLoading } = useDungeonMaps();
 
 function cellCount(m: DungeonMap): number {
-  return (
-    Object.keys(m.layers.floor ?? {}).length +
-    Object.keys(m.layers.solidBlock ?? {}).length +
-    Object.keys(m.layers.object ?? {}).length
-  );
+  return paintedCellCount(m.layers);
 }
 </script>

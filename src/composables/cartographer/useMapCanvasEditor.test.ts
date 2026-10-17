@@ -240,7 +240,7 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
     activeWallKind,
     activeWallDecal,
     activeTemplateShape: ref("circle"),
-    caveRadius: ref(2),
+    brushRadius: ref(1.5),
     selectedCell: ref(null),
     inspectorPanelRef: ref(null),
     structure: fakeStructure(),
@@ -496,6 +496,46 @@ describe("stroke painting", () => {
     expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
     expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
     expect(layers.value.floor["2,0" as CellKey]).toBeUndefined();
+    expect(editor.canUndo.value).toBe(false);
+  });
+});
+
+describe("round brush", () => {
+  it("paints discs along a drag, between the pointer samples, as ONE undo command", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "brush";
+    editor.onPointerDown(down(64, 64)); // (0.5, 0.5)
+    editor.onPointerMove(move(448, 64)); // (3.5, 0.5): a jump, the brush must fill the gap
+    editor.onPointerUp(up(448, 64));
+
+    for (const k of ["0,0", "1,0", "2,0", "3,0"] as CellKey[]) {
+      expect(layers.value.floor[k]?.floor).toBeDefined();
+    }
+    expect(layers.value.area["0,0" as CellKey]?.mask).toBe("full");
+    // A fractional edge: the disc reaches 1.5 cells either side of 0.5, so the row above is partial.
+    expect(layers.value.area["0,-1" as CellKey]).toBeDefined();
+
+    editor.undoEdit();
+    expect(Object.keys(layers.value.floor)).toHaveLength(0);
+    expect(Object.keys(layers.value.area)).toHaveLength(0);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("Alt erases what the brush painted", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "brush";
+    clickCell(editor, 64, 64);
+    expect(layers.value.floor["0,0" as CellKey]?.floor).toBeDefined();
+    editor.onPointerDown(down(64, 64, { altKey: true }));
+    editor.onPointerUp(up(64, 64, { altKey: true }));
+    expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
+  });
+
+  it("a stroke that changes nothing pushes no command", () => {
+    const { editor, activeTool } = makeHarness();
+    activeTool.value = "brush";
+    editor.onPointerDown(down(64, 64, { altKey: true }));
+    editor.onPointerUp(up(64, 64, { altKey: true }));
     expect(editor.canUndo.value).toBe(false);
   });
 });
@@ -1102,7 +1142,7 @@ describe("Alt inverts a painting tool", () => {
 // These two need a real mounted host to exercise that wiring.
 
 describe("altHeld", () => {
-  function mountForLifecycle(): ReturnType<typeof useMapCanvasEditor> {
+  function mountForLifecycle(tool: Tool = "floor", radius = ref(1.5)): ReturnType<typeof useMapCanvasEditor> {
     let captured!: ReturnType<typeof useMapCanvasEditor>;
     const runtime = fakeRuntime();
     const Host = defineComponent({
@@ -1123,7 +1163,7 @@ describe("altHeld", () => {
           dressingRotation: ref(0),
           selectedDressingId: ref<string | null>(null),
           cellGlyphs: computed(() => ({})),
-          activeTool: ref<Tool>("floor"),
+          activeTool: ref<Tool>(tool),
           tools: [{ id: "floor", shortcut: "f" }],
           viewMode: () => false,
           activeObjectCategory: ref<StampCategory>("objectChest"),
@@ -1131,7 +1171,7 @@ describe("altHeld", () => {
           activeWallKind: ref<WallKind>("wall"),
           activeWallDecal: ref(0),
           activeTemplateShape: ref("circle"),
-          caveRadius: ref(2),
+          brushRadius: radius,
           selectedCell: ref(null),
           inspectorPanelRef: ref(null),
           structure: fakeStructure(),
@@ -1153,6 +1193,22 @@ describe("altHeld", () => {
     expect(editor.altHeld.value).toBe(true);
     window.dispatchEvent(new KeyboardEvent("keyup", { key: "Alt" }));
     expect(editor.altHeld.value).toBe(false);
+  });
+
+  it("[ and ] resize the brush by a quarter cell, within 0.5 and 6", () => {
+    const radius = ref(1.5);
+    mountForLifecycle("brush", radius);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "]" }));
+    expect(radius.value).toBe(1.75);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "[" }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "[" }));
+    expect(radius.value).toBe(1.25);
+    radius.value = 0.5;
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "[" }));
+    expect(radius.value).toBe(0.5);
+    radius.value = 6;
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "]" }));
+    expect(radius.value).toBe(6);
   });
 
   it("clears on window blur, so a stuck Alt from alt-tabbing away doesn't linger", () => {

@@ -282,20 +282,23 @@
       <p class="text-caption-sm text-muted-foreground">Click center, drag to size. Walls auto-added.</p>
     </div>
 
-    <!-- Cave brush radius picker -->
-    <div v-if="activeTool === 'cave'">
-      <label class="block text-eyebrow text-muted-foreground mb-1">
-        Brush size
-      </label>
-      <SegmentedControl
-        :model-value="caveRadius"
-        :options="CAVE_RADIUS_OPTIONS"
-        size="xs"
-        block
-        class="mb-2"
-        @update:model-value="$emit('update:caveRadius', $event)"
+    <!-- Round brush size -->
+    <div v-if="activeTool === 'brush'">
+      <div class="flex items-center justify-between mb-1">
+        <label class="text-eyebrow text-muted-foreground" for="brush-size">Brush size</label>
+        <span class="text-caption text-muted-foreground tabular-nums">{{ brushRadius * 2 * 5 }} ft across</span>
+      </div>
+      <input
+        id="brush-size"
+        type="range"
+        :min="BRUSH_RADIUS_MIN"
+        :max="BRUSH_RADIUS_MAX"
+        :step="BRUSH_RADIUS_STEP"
+        :value="brushRadius"
+        class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary mb-2"
+        @input="(e) => $emit('update:brushRadius', parseFloat((e.target as HTMLInputElement).value))"
       />
-      <p class="text-caption-sm text-muted-foreground">Each stroke uses a different noise seed. Repaint to vary the organic shape.</p>
+      <p class="text-caption-sm text-muted-foreground">Drag to paint a round area. Alt erases. [ and ] resize.</p>
     </div>
   </aside>
 </template>
@@ -314,9 +317,9 @@ import type { AppInputHandle } from "@/components/common/controls/fieldVariants"
 import type { DarknessLevel, EdgeSegType } from "@/types/dungeonMap.types";
 import type { PackCategory, TilePackManifest } from "@/cartographer/packSchema";
 import { decalLabel, stampLabel, type StampCategory } from "@/cartographer/stampCategories";
+import { BRUSH_RADIUS_MAX, BRUSH_RADIUS_MIN, BRUSH_RADIUS_STEP } from "@/cartographer/keymap";
 import { WALL_KINDS, type WallKind } from "@/cartographer/wallKinds";
 
-const CAVE_RADIUS_OPTIONS = [3, 5, 7, 9].map((size) => ({ value: size, label: String(size) }));
 
 interface BundledPack {
   pack_id: string;
@@ -382,7 +385,7 @@ defineProps<{
   featureOptions: EntityOption[];
   activeTemplateShape: string;
   templateShapes: TemplateShape[];
-  caveRadius: number;
+  brushRadius: number;
 }>();
 
 defineEmits<{
@@ -404,7 +407,7 @@ defineEmits<{
   "update:linkedTrapId": [id: string];
   "update:linkedFeatureId": [id: string];
   "update:activeTemplateShape": [shape: string];
-  "update:caveRadius": [size: number];
+  "update:brushRadius": [radius: number];
 }>();
 
 // The rules' three levels of light. The line under the control says the same as the tooltip: a phone has no hover.

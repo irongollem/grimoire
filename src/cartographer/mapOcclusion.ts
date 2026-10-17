@@ -2,6 +2,7 @@
 // illumination preview and the glow baked into the picture (map cells, origin 0). In its own module so drawMap can use
 // it without importing mapLive, which imports drawMap.
 
+import { areaBlockingEdges } from "@/cartographer/area";
 import type { CellKey, DungeonMapLayers, FloorCell } from "@/types/dungeonMap.types";
 import type { MapLiveDoor } from "@/types/mapLive.types";
 
@@ -31,6 +32,11 @@ export function collectOcclusion(
       else if (seg.type === "doorClosed") doors.push({ edge, open: false });
       else if (seg.type === "doorOpen") doors.push({ edge, open: true });
     }
+  }
+  // A brushed area's edge is a wall to light and sight wherever it meets non-floor, curved or not.
+  for (const edge of areaBlockingEdges(layers)) {
+    const [cell, side] = edge.split(":");
+    walls.push(`${toImageCell(cell as CellKey, originCellX, originCellY)}:${side}`);
   }
   const solid = Object.keys(layers.solidBlock).map((key) => toImageCell(key as CellKey, originCellX, originCellY));
   return { walls, doors, solid };

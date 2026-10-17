@@ -7,6 +7,9 @@ import { clearLine, nudgedOrigins, type Occluders } from "@/lib/battlemap/occlus
 /** Mask samples per cell along each axis, the same density the illumination grid uses. */
 export const MASK_SAMPLES_PER_CELL = 4;
 
+/** Whether the point (x,y), in map cells, lies on painted ground: the glow lands only there. */
+export type GroundTest = (x: number, y: number) => boolean;
+
 export interface LightMask {
   width: number;
   height: number;
@@ -18,7 +21,8 @@ export interface LightMask {
  * The visibility mask of a light at (lx,ly) with a reach of `radius` cells over the cells [x0,x1) by [y0,y1)
  * (whole cells, in map cells). A sample counts when any of the light's nudged origins has a clear line to its centre
  * (a light on a wall fitting's edge shines from a hair off each face), and only inside the reach: the gradient is
- * nothing beyond it, so those samples are left at 0 and cost no line walk.
+ * nothing beyond it, so those samples are left at 0 and cost no line walk. A sample off painted ground (`onGround`) is
+ * left at 0 too, so the glow never fills the part of a cell outside a curved wall or beside empty space.
  */
 export function lightMask(
   occ: Occluders,
@@ -29,6 +33,7 @@ export function lightMask(
   y0: number,
   x1: number,
   y1: number,
+  onGround: GroundTest,
 ): LightMask {
   const width = (x1 - x0) * MASK_SAMPLES_PER_CELL;
   const height = (y1 - y0) * MASK_SAMPLES_PER_CELL;
@@ -40,6 +45,7 @@ export function lightMask(
     for (let i = 0; i < width; i++) {
       const sx = x0 + (i + 0.5) / MASK_SAMPLES_PER_CELL;
       if ((sx - lx) ** 2 + (sy - ly) ** 2 > reachSq) continue;
+      if (!onGround(sx, sy)) continue;
       if (origins.some(([ox, oy]) => clearLine(occ, ox, oy, sx, sy))) alpha[j * width + i] = 255;
     }
   }
@@ -49,6 +55,8 @@ export function lightMask(
 /** The occluders of one map revision and the mask of each light computed against them. */
 export interface LightMaskCache {
   occ: Occluders;
+  /** Whether a point lies on painted ground; belongs to the cache like the occluders, both per layers revision. */
+  onGround: GroundTest;
   masks: Map<string, { mask: LightMask; x0: number; y0: number }>;
   /** How many masks were computed (not served from `masks`); lets a test see a cache hit. */
   computed: number;

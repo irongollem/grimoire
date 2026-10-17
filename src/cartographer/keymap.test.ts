@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveKeyAction, type KeyEventLike, type KeyContext } from "./keymap";
+import { clampBrushRadius, resolveKeyAction, type KeyEventLike, type KeyContext } from "./keymap";
 
 const ev = (over: Partial<KeyEventLike>): KeyEventLike => ({
   key: "a", ctrlKey: false, metaKey: false, altKey: false, shiftKey: false,
@@ -15,7 +15,7 @@ const ctx = (activeTool = "floor"): KeyContext => ({
     { id: "stamp", shortcut: "s" },
     { id: "dressing", shortcut: "g" },
     { id: "eraser", shortcut: "e" },
-    { id: "cave", shortcut: "v", disabled: true },
+    { id: "brush", shortcut: "v", disabled: true },
   ],
 });
 
@@ -52,6 +52,18 @@ describe("resolveKeyAction", () => {
     expect(resolveKeyAction(ev({ key: "]" }), ctx("stamp"))).toEqual({ kind: "rotateStamp", delta: 1 });
     // With another tool active, q/e are free to fall through to tool shortcuts.
     expect(resolveKeyAction(ev({ key: "q" }), ctx("floor"))).toBeNull();
+  });
+
+  it("[ and ] shrink and grow the round brush by a quarter cell, and only for the brush", () => {
+    expect(resolveKeyAction(ev({ key: "[" }), ctx("brush"))).toEqual({ kind: "resizeBrush", delta: -0.25 });
+    expect(resolveKeyAction(ev({ key: "]" }), ctx("brush"))).toEqual({ kind: "resizeBrush", delta: 0.25 });
+    expect(resolveKeyAction(ev({ key: "]" }), ctx("floor"))).toBeNull();
+  });
+
+  it("clamps the brush radius to its range", () => {
+    expect(clampBrushRadius(0.1)).toBe(0.5);
+    expect(clampBrushRadius(9)).toBe(6);
+    expect(clampBrushRadius(2)).toBe(2);
   });
 
   it("selects a tool by its shortcut, but not a disabled one", () => {

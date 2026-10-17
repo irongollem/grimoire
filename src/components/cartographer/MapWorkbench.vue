@@ -227,7 +227,7 @@
           :feature-options="featureOptions"
           :active-template-shape="activeTemplateShape"
           :template-shapes="TEMPLATE_SHAPES"
-          :cave-radius="caveRadius"
+          :brush-radius="brushRadius"
           @update:name="name = $event"
           @update:campaign-id="campaignId = $event"
           @update:current-pack-id="currentPackId = $event"
@@ -246,7 +246,7 @@
           @update:linked-trap-id="linkedTrapId = $event"
           @update:linked-feature-id="linkedFeatureId = $event"
           @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
-          @update:cave-radius="caveRadius = $event"
+          @update:brush-radius="brushRadius = $event"
         />
         <CartographerStructurePanel
           :space-rows="structure.spaceRows.value"
@@ -552,7 +552,7 @@ const TOOLS: ToolDef[] = [
   { id: "space",     label: "Space",          icon: IconSplitCell,    shortcut: "p", group: "structure" },
   { id: "link",      label: "Link entity",    icon: IconEntityLink,   shortcut: "k", group: "structure" },
   { id: "template",  label: "Room template",  icon: IconRoomTemplate, shortcut: "m" },
-  { id: "cave",      label: "Cave brush",     icon: IconCave,         shortcut: "v" },
+  { id: "brush",     label: "Brush",          icon: IconCave,         shortcut: "v" },
   { id: "pan",       label: "Pan",            icon: IconHand,         displayBadge: "RMB", group: "view" },
 ];
 
@@ -585,8 +585,8 @@ const TEMPLATE_SHAPES: { id: TemplateShape; label: string; icon: string }[] = [
   { id: "hex",     label: "Hex",      icon: "⬢" },
 ];
 
-// M6 — Cave brush state
-const caveRadius = ref(5);
+// Round brush radius in cells (fractional)
+const brushRadius = ref(1.5);
 
 // M4 — Cell selection (annotate + link tools)
 const selectedCell = ref<[number, number] | null>(null);
@@ -775,14 +775,15 @@ const selectedDressingInfo = computed(() => {
   return { name: dressingCatalog.value.get(placement.prop_id)?.name ?? "Unknown prop", rotation: placement.rotation };
 });
 
-const cellsPainted = computed(() => Object.keys(layers.value.floor).length);
+// A brushed cell under half covered has an area entry but no floor, so count both.
+const cellsPainted = computed(() => new Set([...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]).size);
 const activeToolLabel = computed(() => TOOLS.find((t) => t.id === activeTool.value)?.label ?? activeTool.value);
 
 // Tools Alt inverts into an erase mirror — see useMapCanvasEditor.ts's
 // toolPointerDown/Move/Up. Select/Pan/Fill/Wrap/Annotate/Link/Eraser/Space
 // have nothing to invert, so they're deliberately absent here.
 const INVERTIBLE_TOOLS = new Set<Tool>([
-  "floor", "terrain", "cave", "solid", "wall", "stamp", "dressing", "door", "rect", "line", "template",
+  "floor", "terrain", "brush", "solid", "wall", "stamp", "dressing", "door", "rect", "line", "template",
 ]);
 
 /** The canvas pill's text: the Drawing tool (with " · erase" appended while
@@ -914,7 +915,7 @@ const {
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
-  activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape, caveRadius,
+  activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape, brushRadius,
   selectedCell, inspectorPanelRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],

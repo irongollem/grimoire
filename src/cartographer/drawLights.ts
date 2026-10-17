@@ -5,7 +5,8 @@
 import { MAX_LIGHT_RANGE, type TileLight } from "@/cartographer/packSchema";
 import { cellKey, type DungeonMapLayers, type ObjectCell } from "@/types/dungeonMap.types";
 import { lightReachCells, lightStops } from "@/cartographer/lights";
-import { lightMask, MASK_SAMPLES_PER_CELL, type LightMaskCache } from "@/cartographer/lightMask";
+import { lightMask, MASK_SAMPLES_PER_CELL, type GroundTest, type LightMaskCache } from "@/cartographer/lightMask";
+import { AREA_RES, decodeMask } from "@/cartographer/area";
 import { collectOcclusion } from "@/cartographer/mapOcclusion";
 import { occluders } from "@/lib/battlemap/occlusion";
 import { dressingCentre, type Ctx2D, type DressingCatalog } from "@/cartographer/dressing";
@@ -99,9 +100,34 @@ function lightGradient(ctx: Ctx2D, cx: number, cy: number, radius: number, light
   return gradient;
 }
 
+/**
+ * Where the glow may land: a cell with a floor tile, water or solid rock, or, for a cell with a brushed area entry,
+ * only the sub-cells its mask covers (judged by the mask alone, even if the cell also has floor).
+ */
+export function groundTest(layers: DungeonMapLayers): GroundTest {
+  const masks = new Map<string, Uint8Array>();
+  return (px, py) => {
+    const cx = Math.floor(px);
+    const cy = Math.floor(py);
+    const key = cellKey(cx, cy);
+    const area = layers.area[key];
+    if (area) {
+      let bits = masks.get(key);
+      if (!bits) {
+        bits = decodeMask(area.mask);
+        masks.set(key, bits);
+      }
+      const sx = Math.min(AREA_RES - 1, Math.floor((px - cx) * AREA_RES));
+      const sy = Math.min(AREA_RES - 1, Math.floor((py - cy) * AREA_RES));
+      return bits[sy * AREA_RES + sx] === 1;
+    }
+    return Boolean(layers.floor[key]?.floor) || key in layers.terrain || key in layers.solidBlock;
+  };
+}
+
 export function newLightMaskCache(layers: DungeonMapLayers): LightMaskCache {
   // Built once, in map cells (origin 0): the same lists the veil and vision read.
-  return { occ: occluders(collectOcclusion(layers, 0, 0)), masks: new Map(), computed: 0 };
+  return { occ: occluders(collectOcclusion(layers, 0, 0)), onGround: groundTest(layers), masks: new Map(), computed: 0 };
 }
 
 /**
@@ -111,7 +137,7 @@ export function newLightMaskCache(layers: DungeonMapLayers): LightMaskCache {
  * `destination-in`, scaled up with smoothing so the edge is soft rather than a staircase. Returns null where canvases
  * cannot be made (node tests, an old browser): `drawMapContent` then draws the gradients unmasked, the same way the
  * shadows degrade. Like the shadow layer it is a separate canvas so the editor can cache it; it covers exactly the
- * window, and a light that has nothing in the way skips the mask.
+ * window, and every light is masked to painted ground, so none skips it.
  */
 export function renderLightLayer(input: DrawMapInput): ShadowLayer | null {
   const { makeCanvas, tilePx, origin, bounds } = input;
@@ -145,13 +171,13 @@ export function renderLightLayer(input: DrawMapInput): ShadowLayer | null {
 
     out.ctx.save();
     out.ctx.globalCompositeOperation = "screen";
-    const glow = occ.index.empty ? null : makeCanvas(w, h);
+    const glow = makeCanvas(w, h);
     const maskCanvas = glow ? makeCanvas((fx1 - fx0) * MASK_SAMPLES_PER_CELL, (fy1 - fy0) * MASK_SAMPLES_PER_CELL) : null;
     if (glow && maskCanvas) {
       const cacheKey = `${x},${y},${reach}`;
       let held = cache.masks.get(cacheKey);
       if (!held) {
-        held = { mask: lightMask(occ, x, y, reach, fx0, fy0, fx1, fy1), x0: fx0, y0: fy0 };
+        held = { mask: lightMask(occ, x, y, reach, fx0, fy0, fx1, fy1, cache.onGround), x0: fx0, y0: fy0 };
         cache.masks.set(cacheKey, held);
         cache.computed++;
       }
@@ -166,7 +192,7 @@ export function renderLightLayer(input: DrawMapInput): ShadowLayer | null {
       glow.ctx.drawImage(maskCanvas.canvas, (fx0 - x0) * tilePx, (fy0 - y0) * tilePx, (fx1 - fx0) * tilePx, (fy1 - fy0) * tilePx);
       out.ctx.drawImage(glow.canvas, left, top, w, h);
     } else {
-      // Nothing to wall it off (or no spare canvas): the plain gradient over its square.
+      // No spare canvas: the plain gradient over its square.
       out.ctx.translate(left, top);
       out.ctx.fillStyle = lightGradient(out.ctx, cx, cy, radius, light);
       out.ctx.fillRect(0, 0, w, h);

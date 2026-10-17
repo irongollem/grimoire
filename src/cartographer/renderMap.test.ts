@@ -51,6 +51,24 @@ describe("renderMap — empty map", () => {
   });
 });
 
+describe("renderMap: brush cursor", () => {
+  it("draws a circle at the pointer while the brush is active, dashed when erasing", () => {
+    const { scene, rec } = baseScene({ activeTool: "brush", brushPreview: { x: 1.5, y: 2.5, radius: 1.5, erase: false } });
+    renderMap(scene);
+    expect(rec.calls).toContain("arc");
+
+    const erasing = baseScene({ activeTool: "brush", brushPreview: { x: 1.5, y: 2.5, radius: 1.5, erase: true } });
+    renderMap(erasing.scene);
+    expect(erasing.rec.calls).toContain("setLineDash");
+  });
+
+  it("draws none for another tool", () => {
+    const { scene, rec } = baseScene({ activeTool: "floor", brushPreview: { x: 1, y: 1, radius: 1, erase: false } });
+    renderMap(scene);
+    expect(rec.calls).not.toContain("arc");
+  });
+});
+
 describe("renderMap — viewport culling", () => {
   it("draws a floor cell inside bounds at x*tilePx - viewportOffset.x", () => {
     const layers = emptyLayers();
@@ -427,19 +445,30 @@ describe("renderMap: darkness veil", () => {
 
   /** A canvas factory with readable image data: what the veil painted, per sample. */
   function veilCanvas() {
-    const grids: { w: number; h: number; alpha: number[] }[] = [];
+    const all: { w: number; h: number; alpha: number[]; canvas: { veil?: boolean; mask?: boolean } }[] = [];
     const makeCanvas = (w: number, h: number) => {
       const { ctx } = makeCtx();
       const fake = ctx as unknown as Record<string, unknown>;
       fake.createImageData = (iw: number, ih: number) => ({ data: new Uint8ClampedArray(iw * ih * 4) });
-      const canvas: { veil?: boolean } = {};
+      const canvas: { veil?: boolean; mask?: boolean } = {};
+      const drawImage = fake.drawImage as (...a: unknown[]) => void;
+      // A canvas drawn into another canvas is a light's mask, not the veil: the veil is drawn onto the map itself.
+      fake.drawImage = (source: { mask?: boolean }, ...rest: unknown[]) => {
+        source.mask = true;
+        drawImage.call(ctx, source, ...rest);
+      };
       fake.putImageData = (img: { data: Uint8ClampedArray }) => {
         canvas.veil = true;
-        grids.push({ w, h, alpha: Array.from({ length: w * h }, (_, i) => img.data[i * 4 + 3]) });
+        all.push({ w, h, canvas, alpha: Array.from({ length: w * h }, (_, i) => img.data[i * 4 + 3]) });
       };
       return { canvas: canvas as unknown as CanvasImageSource, ctx };
     };
-    return { makeCanvas, grids };
+    return {
+      makeCanvas,
+      get grids() {
+        return all.filter((g) => !g.canvas.mask);
+      },
+    };
   }
   const veilDraws = (rec: Recorder) => rec.drawImages.filter((d) => (d.source as { veil?: boolean }).veil === true);
 

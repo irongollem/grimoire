@@ -124,7 +124,7 @@ import { IconAdd, IconNavCartographer } from "@/lib/icons";
 
 import { useDungeonMaps } from "@/composables/cartographer/useDungeonMaps";
 import { useCartographerUiStore } from "@/stores/ui/cartographer";
-import type { DungeonMap } from "@/types/dungeonMap.types";
+import { paintedCellCount, type DungeonMap } from "@/types/dungeonMap.types";
 
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
@@ -173,10 +173,6 @@ function cellLabel(m: DungeonMap): string {
 }
 
 function cellCount(m: DungeonMap): number {
-  return (
-    Object.keys(m.layers.floor ?? {}).length +
-    Object.keys(m.layers.solidBlock ?? {}).length +
-    Object.keys(m.layers.object ?? {}).length
-  );
+  return paintedCellCount(m.layers);
 }
 </script>

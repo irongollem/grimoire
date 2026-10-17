@@ -51,7 +51,7 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 | Wrap walls | `X` | One shot: walls every edge of the selected floor region that faces empty space. |
 | Annotate | `T` | Labels a cell with a short text note: also what names a Space (see below). |
 | Room template | `M` | Click a centre, drag to size. Three shapes: Circle, Octagon, Hex, fills floor and auto-wraps walls around the perimeter. |
-| Cave brush | `V` | Drag to paint organic floor blobs with a new noise pattern each stroke; four brush sizes. |
+| Brush | `V` | Drag to paint a round area of floor, not cell by cell. Hold Alt to erase; `[` and `]` shrink and grow the brush. |
 | Space | `P` | Click a floor region to select the room Grimoire has detected there: doesn't paint anything, drives the Structure panel below. |
 | Link entity | `K` | Click a cell, then pick a trap, feature, encounter, or note to attach to it from the side panel. |
 | Pan | (drag, badge **RMB**) | Middle-mouse or right-click drag pans from any tool. |

@@ -20,6 +20,10 @@ export interface DrawImageCall {
   w: number;
   h: number;
   alpha: number;
+  /** The source rectangle of the nine-argument form (a slice of a tile); absent for a whole-image draw. */
+  src?: { x: number; y: number; w: number; h: number };
+  /** The `clip()` calls made before this draw and not yet restored: how many clips were active. */
+  clips: number;
 }
 
 interface FakeCtx {
@@ -36,7 +40,8 @@ interface FakeCtx {
   font: string;
   fillRect(x: number, y: number, w: number, h: number): void;
   strokeRect(x: number, y: number, w: number, h: number): void;
-  drawImage(source: CanvasImageSource, x: number, y: number, w: number, h: number): void;
+  drawImage(source: CanvasImageSource, ...args: number[]): void;
+  clip(): void;
   beginPath(): void;
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
@@ -102,6 +107,10 @@ export interface Recorder {
   texts: string[];
   translates: [number, number][];
   rotates: number[];
+  /** Every moveTo/lineTo point, in call order. */
+  points: [number, number][];
+  /** Number of `clip()` calls. */
+  clipCount: number;
   roundRects: number;
   gradients: GradientCall[];
   radialGradients: RadialGradientCall[];
@@ -113,11 +122,12 @@ export interface Recorder {
 }
 
 export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
-  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [], translates: [], rotates: [], roundRects: 0, gradients: [], radialGradients: [], fillRectStyles: [], shadowDraws: [], putImages: [] };
+  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [], translates: [], rotates: [], points: [], clipCount: 0, roundRects: 0, gradients: [], radialGradients: [], fillRectStyles: [], shadowDraws: [], putImages: [] };
   let fillStyle: unknown = "";
   let strokeStyle = "";
   const noop = (): void => {};
-  const saved: { c: string; b: number; x: number; y: number; op: string }[] = [];
+  const saved: { c: string; b: number; x: number; y: number; op: string; clipDepth: number }[] = [];
+  let clipDepth = 0;
   const fake: FakeCtx = {
     imageSmoothingEnabled: true,
     globalAlpha: 1,
@@ -134,9 +144,14 @@ export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
     set strokeStyle(v: string) { strokeStyle = v; rec.strokeStyles.push(v); },
     fillRect: (x, y, w, h) => { rec.calls.push("fillRect"); rec.fillRects.push({ x, y, w, h }); rec.fillRectStyles.push(fillStyle); },
     strokeRect: () => rec.calls.push("strokeRect"),
-    drawImage: (source, x, y, w, h) => {
+    drawImage: (source, ...a) => {
       rec.calls.push("drawImage");
-      rec.drawImages.push({ source, x, y, w, h, alpha: fake.globalAlpha });
+      const sliced = a.length === 8;
+      const [x, y, w, h] = sliced ? a.slice(4) : a;
+      rec.drawImages.push({
+        source, x, y, w, h, alpha: fake.globalAlpha, clips: clipDepth,
+        ...(sliced ? { src: { x: a[0], y: a[1], w: a[2], h: a[3] } } : {}),
+      });
       if (fake.shadowColor) {
         rec.shadowDraws.push({ source, color: fake.shadowColor, blur: fake.shadowBlur, offsetX: fake.shadowOffsetX, offsetY: fake.shadowOffsetY });
       }
@@ -160,20 +175,21 @@ export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
       return { addColorStop: (offset, color) => { call.stops.push([offset, color]); }, call } as FakeGradient;
     },
     beginPath: () => rec.calls.push("beginPath"),
-    moveTo: () => rec.calls.push("moveTo"),
-    lineTo: () => rec.calls.push("lineTo"),
+    moveTo: (x, y) => { rec.calls.push("moveTo"); rec.points.push([x, y]); },
+    lineTo: (x, y) => { rec.calls.push("lineTo"); rec.points.push([x, y]); },
+    clip: () => { rec.calls.push("clip"); rec.clipCount++; clipDepth++; },
     stroke: () => rec.calls.push("stroke"),
     closePath: noop,
     fill: () => rec.calls.push("fill"),
     arc: () => rec.calls.push("arc"),
     save: () => {
       rec.calls.push("save");
-      saved.push({ c: fake.shadowColor, b: fake.shadowBlur, x: fake.shadowOffsetX, y: fake.shadowOffsetY, op: fake.globalCompositeOperation });
+      saved.push({ c: fake.shadowColor, b: fake.shadowBlur, x: fake.shadowOffsetX, y: fake.shadowOffsetY, op: fake.globalCompositeOperation, clipDepth });
     },
     restore: () => {
       rec.calls.push("restore");
       const top = saved.pop();
-      if (top) { fake.shadowColor = top.c; fake.shadowBlur = top.b; fake.shadowOffsetX = top.x; fake.shadowOffsetY = top.y; fake.globalCompositeOperation = top.op; }
+      if (top) { clipDepth = top.clipDepth; fake.shadowColor = top.c; fake.shadowBlur = top.b; fake.shadowOffsetX = top.x; fake.shadowOffsetY = top.y; fake.globalCompositeOperation = top.op; }
     },
     translate: (x, y) => { rec.translates.push([x, y]); },
     rotate: (angle) => { rec.rotates.push(angle); },

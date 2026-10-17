@@ -6,7 +6,7 @@
 // useCartographerStructureTools was pulled out of the pre-extraction
 // CartographerEditorView.vue for #868. MapWorkbench still owns tool
 // *selection* state (`activeTool`, the `TOOLS` palette, per-tool inspector
-// fields like `stampRotation`/`caveRadius`) and hands them in here as refs;
+// fields like `stampRotation`/`brushRadius`) and hands them in here as refs;
 // this composable owns what happens on the canvas once a tool is active.
 //
 // Every mutation function here writes through the same `layers`/`metadata`
@@ -17,7 +17,7 @@ import { computed, customRef, onBeforeUnmount, onMounted, ref, watch, type Compu
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import type { Tool } from "@/cartographer/tools";
 import { pinchOf, pinchViewport, zoomAtPoint, type Pinch, type CanvasViewport } from "@/cartographer/viewport";
-import { resolveKeyAction } from "@/cartographer/keymap";
+import { clampBrushRadius, resolveKeyAction } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DarknessLevel } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
 import type { StampCategory } from "@/cartographer/stampCategories";
@@ -34,7 +34,7 @@ import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill, boundaryEdges } from "@/cartographer/floodFill";
 import { CommandStack } from "@/cartographer/commandStack";
 import { cellsForTemplate } from "@/lib/map/gestures/template";
-import { caveBrushCells } from "@/lib/map/gestures/caveBrush";
+import { applyDisc } from "@/cartographer/area";
 import { cellsInRect, rectangleGesture } from "@/lib/map/gestures/rectangle";
 import { cellsInLine } from "@/lib/map/gestures/line";
 import { useCartographerStructureTools } from "@/composables/cartographer/useCartographerStructureTools";
@@ -91,7 +91,8 @@ export interface MapCanvasEditorOptions {
   activeWallKind: Ref<WallKind>;
   activeWallDecal: Ref<number>;
   activeTemplateShape: Ref<TemplateShape>;
-  caveRadius: Ref<number>;
+  /** Round brush radius in cells (fractional); `[` / `]` change it, the inspector shows it. */
+  brushRadius: Ref<number>;
   selectedCell: Ref<[number, number] | null>;
   inspectorPanelRef: Ref<{ annotationInputEl: AppInputHandle | null } | null>;
   /** The derived-structure composable (spaces/ways/zones/links) — this
@@ -127,7 +128,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
     dressing, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape,
-    caveRadius, selectedCell, inspectorPanelRef, structure, mapKey, getReferenceImage, extraRenderDeps,
+    brushRadius, selectedCell, inspectorPanelRef, structure, mapKey, getReferenceImage, extraRenderDeps,
     plan, activeLayer,
   } = opts;
 
@@ -186,8 +187,13 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // Snapshot of layers captured at stroke start — used to build the undo command.
   let strokeSnapshot: string | null = null; // JSON string for cheap comparison on mouseup
 
-  // Cave brush: seed increments each stroke for variety
-  let caveSeed = 0;
+  // Round brush: the last disc centre of the running stroke (fractional cells)
+  // and the floor variant the stroke paints with, fixed at its first cell so
+  // one stroke is one look.
+  let brushLast: [number, number] | null = null;
+  let brushVariant = 0;
+  /** Pointer in fractional cells, for the brush's cursor preview. */
+  const hoverPoint = ref<[number, number] | null>(null);
 
   function snapshotStr(): string {
     return JSON.stringify({ layers: layers.value, metadata: metadata.value });
@@ -379,7 +385,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // Compute bbox over every cell that contains anything.
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     let any = false;
-    for (const key of Object.keys(layers.value.floor)) {
+    for (const key of [...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]) {
       const [xs, ys] = key.split(",");
       const x = Number(xs);
       const y = Number(ys);
@@ -573,12 +579,29 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
   }
 
-  // Cave brush: paint an organic blob at (cx, cy) using value noise.
-  function paintCaveAt(cx: number, cy: number): void {
+  // Round brush: discs at most radius / 3 apart along the pointer path, so a
+  // fast drag leaves one smooth stroke instead of a string of dots. Positions
+  // are fractional cells; the mask resolution lives in area.ts.
+  function brushTo(x: number, y: number, erase: boolean): void {
     if (!packRuntime.value) return;
-    for (const key of caveBrushCells(cx, cy, caveRadius.value, caveSeed)) {
-      const [xs, ys] = (key as string).split(",");
-      paintCell(Number(xs), Number(ys));
+    const r = brushRadius.value;
+    const ref = { pack_id: currentPackId.value, pack_version: activePackVersion(), variant: brushVariant };
+    const mode = erase ? "erase" : "paint";
+    const from = brushLast;
+    const step = r / 3;
+    const dist = from ? Math.hypot(x - from[0], y - from[1]) : 0;
+    const n = from ? Math.max(1, Math.ceil(dist / step)) : 1;
+    let next = layers.value;
+    for (let i = 1; i <= n; i++) {
+      const t = from ? i / n : 1;
+      const px = from ? from[0] + (x - from[0]) * t : x;
+      const py = from ? from[1] + (y - from[1]) * t : y;
+      next = applyDisc(next, { x: px, y: py, r }, ref, mode);
+    }
+    brushLast = [x, y];
+    if (next !== layers.value) {
+      layers.value = next;
+      markDirty();
     }
   }
 
@@ -590,13 +613,6 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // `cellsInLine`/`cellsForTemplate`) so "the cells the shape covers" means
   // one thing everywhere — they deliberately skip the wall-wrap step their
   // paint counterparts do, since there's no wall to wrap when erasing floor.
-
-  function eraseCaveAt(cx: number, cy: number): void {
-    for (const key of caveBrushCells(cx, cy, caveRadius.value, caveSeed)) {
-      const [xs, ys] = (key as string).split(",");
-      eraseCell(Number(xs), Number(ys));
-    }
-  }
 
   function eraseRectCells(ax: number, ay: number, bx: number, by: number): void {
     for (const key of cellsInRect(ax, ay, bx, by)) {
@@ -695,6 +711,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       viewMode: viewMode(),
       hoveredEdge: hoveredEdge.value,
       hoverCell: hoverCell.value,
+      brushPreview: activeTool.value === "brush" && hoverPoint.value && !viewMode()
+        ? { x: hoverPoint.value[0], y: hoverPoint.value[1], radius: brushRadius.value, erase: altHeld.value }
+        : null,
       selectedCell: selectedCell.value,
       previewCells: previewCells.value,
       referenceImage: getReferenceImage(tilePx, viewportOffset.value),
@@ -741,7 +760,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     : [];
   watch(
     [
-      zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoveredEdge, activeTool,
+      zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoverPoint, brushRadius, altHeld, hoveredEdge, activeTool,
       previewCells, metadata, selectedCell, cellGlyphs,
       dressingTool.hover, dressingBrushId, dressingRotation, selectedDressingId, ...extraRenderDeps, ...planRenderDeps,
     ],
@@ -904,10 +923,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       return;
     }
 
-    // Cave brush: new seed per stroke so consecutive passes vary.
-    if (activeTool.value === "cave") {
-      caveSeed++;
-      if (ev.altKey) eraseCaveAt(cx, cy); else paintCaveAt(cx, cy);
+    if (activeTool.value === "brush") {
+      brushLast = null;
+      brushVariant = pickFloorVariant(cx, cy);
+      const [fx, fy] = fractionalCellAt(ev);
+      brushTo(fx, fy, ev.altKey);
       return;
     }
 
@@ -936,6 +956,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const local = getLocalPointer(ev);
     const [cx, cy] = viewportToCell(local.x, local.y);
     hoverCell.value = [cx, cy];
+    hoverPoint.value = activeTool.value === "brush" ? fractionalCellAt(ev) : null;
     dressingTool.setHover([cx, cy]);
     dressingTool.onPointerMove([cx, cy]);
 
@@ -991,8 +1012,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       } else if (tool === "template" && dragStartCell) {
         const r = Math.max(Math.abs(cx - dragStartCell[0]), Math.abs(cy - dragStartCell[1]));
         previewCells.value = new Set(cellsForTemplate(dragStartCell[0], dragStartCell[1], r, activeTemplateShape.value));
-      } else if (tool === "cave") {
-        if (ev.altKey) eraseCaveAt(cx, cy); else paintCaveAt(cx, cy);
+      } else if (tool === "brush") {
+        const [fx, fy] = fractionalCellAt(ev);
+        brushTo(fx, fy, ev.altKey);
       } else if (tool === "floor") { if (ev.altKey) eraseCell(cx, cy); else paintCell(cx, cy); }
       else if (tool === "terrain") { if (ev.altKey) eraseTerrainAt(cx, cy); else paintTerrainAt(cx, cy); }
       else if (tool === "solid") { if (ev.altKey) eraseSolidAt(cx, cy); else paintSolidAt(cx, cy); }
@@ -1275,6 +1297,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "rotateDressing": dressingTool.turn(action.delta); break;
       case "deleteDressing": dressingTool.deleteSelected(); break;
       case "disarmDressing": dressingTool.disarm(); break;
+      case "resizeBrush":
+        brushRadius.value = clampBrushRadius(brushRadius.value + action.delta);
+        break;
       case "selectTool": activeTool.value = action.tool; break;
     }
     ev.preventDefault();

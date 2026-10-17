@@ -62,6 +62,8 @@ export interface MapRenderScene {
   viewMode: boolean;
   hoveredEdge: CellEdge | null;
   hoverCell: [number, number] | null;
+  /** Round brush cursor, in fractional cells; radius in cells; dashed when erasing (Alt). Only set while the Brush is active. */
+  brushPreview?: { x: number; y: number; radius: number; erase: boolean } | null;
   selectedCell: [number, number] | null;
   previewCells: Set<CellKey>;
   /**
@@ -293,7 +295,7 @@ function cachedIllumination(
 /** The cell box around everything painted, or null for an empty map: the area the veil covers. */
 function paintedExtent(layers: DungeonMapLayers): { minX: number; minY: number; maxX: number; maxY: number } | null {
   let extent: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
-  for (const cells of [layers.floor, layers.terrain, layers.solidBlock, layers.object]) {
+  for (const cells of [layers.floor, layers.area, layers.terrain, layers.solidBlock, layers.object]) {
     for (const key of Object.keys(cells) as CellKey[]) {
       const [xs, ys] = key.split(",");
       const x = Number(xs);
@@ -330,6 +332,7 @@ export function renderMap(scene: MapRenderScene): void {
     viewMode,
     hoveredEdge,
     hoverCell,
+    brushPreview,
     selectedCell,
     previewCells,
     derivedSpaces,
@@ -561,13 +564,24 @@ export function renderMap(scene: MapRenderScene): void {
 
   if (!viewMode) {
     // Cell-hover highlight (only when the active tool targets cells)
-    if (hoverCell && (activeTool === "floor" || activeTool === "cave" || activeTool === "template" || (activeTool === "eraser" && !hoveredEdge))) {
+    if (hoverCell && (activeTool === "floor" || activeTool === "template" || (activeTool === "eraser" && !hoveredEdge))) {
       const [hx, hy] = hoverCell;
       const drawX = hx * tilePx - viewportOffset.x;
       const drawY = hy * tilePx - viewportOffset.y;
       ctx.strokeStyle = activeTool === "eraser" ? "rgba(220, 80, 80, 0.6)" : "rgba(255, 255, 255, 0.35)";
       ctx.lineWidth = 2;
       ctx.strokeRect(drawX, drawY, tilePx, tilePx);
+    }
+
+    if (brushPreview && activeTool === "brush") {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(brushPreview.x * tilePx - viewportOffset.x, brushPreview.y * tilePx - viewportOffset.y, brushPreview.radius * tilePx, 0, Math.PI * 2);
+      ctx.setLineDash(brushPreview.erase ? [6, 4] : []);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = brushPreview.erase ? "rgba(220, 80, 80, 0.85)" : "rgba(255, 255, 255, 0.7)";
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Edge-hover highlight (wall / door / edge-aware eraser tools)

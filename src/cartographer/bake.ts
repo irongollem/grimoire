@@ -86,6 +86,8 @@ function paintedExtent(map: DungeonMap, dressing: DressingCatalog): { minX: numb
   const layers = map.layers;
   const allKeys = [
     ...Object.keys(layers.floor),
+    // A brushed cell under half covered has no floor tile but is still drawn.
+    ...Object.keys(layers.area),
     ...Object.keys(layers.solidBlock),
     ...Object.keys(layers.object),
     ...Object.keys(layers.annotation),

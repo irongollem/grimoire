@@ -21,6 +21,7 @@ import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type ObjectCell } from "@/types/dungeonMap.types";
 import { dressingSway, objectSway } from "@/cartographer/sway";
 import { classifyJoint } from "@/cartographer/edges";
+import { paintAreaGround, paintAreaWalls } from "@/cartographer/drawArea";
 import { paintLights, renderLightLayer } from "@/cartographer/drawLights";
 import { frameOf, type DrawMapInput, type Frame, type MakeCanvas, type ShadowLayer, type Target } from "@/cartographer/drawFrame";
 import {
@@ -256,6 +257,8 @@ function paintGround(f: Frame, t: Target): void {
         }
         // A pack without water art leaves the floor showing rather than a hole.
       }
+      // A brushed cell is clipped to its curve with the others, in `paintAreaGround` below.
+      if (layers.area[key]) continue;
       const cell = layers.floor[key];
       if (!cell?.floor) continue;
       const r = runtime(cell.floor.pack_id);
@@ -264,6 +267,7 @@ function paintGround(f: Frame, t: Target): void {
       ctx.drawImage(tile.source, sx, sy, tilePx, tilePx);
     }
   }
+  paintAreaGround(f, t, variantAt);
 }
 
 function fadeFrom(ctx: Ctx2D, x0: number, y0: number, x1: number, y1: number, alpha: number): CanvasGradient {
@@ -625,6 +629,7 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
   const raised = silhouette((t) => {
     paintSolid(f, t);
     paintEdges(f, t);
+    paintAreaWalls(f, t);
     paintJoints(f, t);
   });
   const low = silhouette((t) => {
@@ -725,6 +730,7 @@ export function drawMapContent(input: DrawMapInput): void {
 
     if (pass === "all") paintSolid(f, t);
     paintEdges(f, t);
+    paintAreaWalls(f, t);
     paintJoints(f, t);
 
     afterDressing?.();

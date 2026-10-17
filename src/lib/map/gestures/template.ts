@@ -1,7 +1,7 @@
 // The template gesture (epic #884 S7a, decision 6): click a centre, drag a
 // radius, drop a circle/octagon/hex. Moved here from the Cartographer's
-// `geometry.ts` (the room-template half of it — see `caveBrush.ts` for the
-// noise half), which already served both systems: the Atlas's
+// `geometry.ts` (the room-template half of it; the noise half went when the round
+// brush replaced the cave brush), which already served both systems: the Atlas's
 // `lib/locations/polygon.ts` imported `cellsForTemplate` from here rather
 // than re-deriving the shapes, so this relocation is a rename, not a merge.
 //

@@ -19,6 +19,8 @@ export type KeyAction =
   | { kind: "deleteDressing" }
   /** Dressing tool: puts the armed prop down without leaving the tool. */
   | { kind: "disarmDressing" }
+  /** Round brush: radius change in cells (`[` shrinks, `]` grows). */
+  | { kind: "resizeBrush"; delta: number }
   | { kind: "selectTool"; tool: Tool };
 
 export interface KeyEventLike {
@@ -40,6 +42,14 @@ export interface KeyContext {
 
 // Delete and Backspace are the same key on the two keyboard families.
 const DRESSING_DELETE_KEYS = new Set(["delete", "backspace"]);
+
+export const BRUSH_RADIUS_MIN = 0.5;
+export const BRUSH_RADIUS_MAX = 6;
+export const BRUSH_RADIUS_STEP = 0.25;
+
+export function clampBrushRadius(radius: number): number {
+  return Math.min(BRUSH_RADIUS_MAX, Math.max(BRUSH_RADIUS_MIN, radius));
+}
 
 const STAMP_ROTATIONS: Record<string, number> = { q: 270, e: 90, "[": 359, "]": 1 };
 
@@ -71,6 +81,10 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
 
   if (ctx.activeTool === "stamp" && key in STAMP_ROTATIONS) {
     return { kind: "rotateStamp", delta: STAMP_ROTATIONS[key] };
+  }
+
+  if (ctx.activeTool === "brush" && (key === "[" || key === "]")) {
+    return { kind: "resizeBrush", delta: key === "[" ? -BRUSH_RADIUS_STEP : BRUSH_RADIUS_STEP };
   }
 
   // Same turn keys as the stamp, and likewise checked before the shortcut

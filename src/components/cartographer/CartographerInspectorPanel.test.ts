@@ -21,7 +21,7 @@ function mountPanel(over: Record<string, unknown> = {}) {
       selectedCellObjectCategory: null, selectedCellLinkedNames: [], annotationText: "",
       linkedNoteId: "", linkedEncounterId: "", linkedTrapId: "", linkedFeatureId: "",
       noteOptions: [], encounterOptions: [], trapOptions: [], featureOptions: [],
-      activeTemplateShape: "circle", templateShapes: [], caveRadius: 3,
+      activeTemplateShape: "circle", templateShapes: [], brushRadius: 1.5,
       ...over,
     },
     global: { stubs: { CampaignScopeField: true, CartographerDressingPanel: true, EntityCombobox: true } },

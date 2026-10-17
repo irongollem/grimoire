@@ -138,6 +138,8 @@ describe("lights behind walls", () => {
   const walled = (door?: "doorOpen" | "doorClosed") => {
     const layers = emptyLayers();
     layers.object[cellKey(1, 2)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
+    // Painted ground all round, so only the wall decides what the glow reaches.
+    for (let y = -8; y <= 10; y++) for (let x = -8; x <= 10; x++) layers.floor[cellKey(x, y)] = { floor: ref };
     for (let y = 0; y <= 5; y++) {
       layers.floor[cellKey(3, y)] = { floor: ref, wallW: { ...ref, type: y === 2 && door ? door : "wall" } };
     }
@@ -192,14 +194,20 @@ describe("lights behind walls", () => {
     expect(f.layers).toHaveLength(count);
   });
 
-  it("skips the mask for a map with nothing to wall light off", () => {
+  it("lays the glow only on painted ground, even with no wall in the way", () => {
     const f = makeLayerFactory();
     const layers = emptyLayers();
     layers.object[cellKey(1, 2)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
+    layers.floor[cellKey(1, 2)] = { floor: ref };
+    layers.floor[cellKey(2, 2)] = { floor: ref };
     const { input: i } = input(rt(), { layers, lights: true, makeCanvas: f.makeCanvas });
     drawMapContent(i);
-    expect(f.layers.flatMap((l) => l.rec.putImages)).toHaveLength(0);
-    expect(f.layers.flatMap((l) => l.rec.radialGradients)).toHaveLength(1);
+    const put = f.layers.flatMap((l) => l.rec.putImages);
+    expect(put).toHaveLength(1);
+    const at = (cx: number, cy: number): number => put[0].alpha[Math.floor((cy + 6) * 4) * put[0].width + Math.floor((cx + 7) * 4)];
+    expect(at(2.5, 2.5)).toBe(255);
+    expect(at(4.5, 2.5)).toBe(0);
+    expect(at(1.5, 0.5)).toBe(0);
   });
 
   it("still draws the glow, unmasked, when no canvas can be made", () => {
