@@ -5,7 +5,7 @@
   <!-- `pr-(--dock-right)`: the docked DM scratchpad's width while it is open,
        so the page lays out beside it (see base.css). -->
   <div class="flex h-dvh overflow-hidden bg-background pr-(--dock-right)" :style="chromeStyle">
-    <AppSidebar />
+    <AppSidebar v-if="!editorFocus" />
 
     <div class="flex-1 flex flex-col min-w-0">
       <!-- Account-frozen notice (chargeback/fraud or admin freeze) -->
@@ -13,7 +13,7 @@
 
       <!-- Suppressed on mobile full-screen takeover routes (NPC detail/edit),
            which render their own top app bar — avoids two stacked top bars. -->
-      <AppTopBar v-if="!fullscreenMobile" />
+      <AppTopBar v-if="!fullscreenMobile && !editorFocus" />
 
       <!-- Bottom padding reserves room for the docked DM bottom nav so
            page/list bottoms aren't hidden behind it; reset whenever the
@@ -25,7 +25,7 @@
       <main
         ref="mainEl"
         class="flex flex-1 min-h-0 flex-col overflow-y-auto sidenav:pb-0"
-        :class="fullscreenMobile ? '' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'"
+        :class="fullscreenMobile || editorFocus ? '' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'"
       >
         <div v-if="returnTo" class="border-b border-border bg-card px-3 py-2">
           <AppButton :to="returnTo" label="Back to quest beat" size="sm" variant="subtle" />
@@ -42,7 +42,7 @@
          windows alike, see the `barnav:`/`sidenav:` custom variants in
          src/assets/main.css. Hidden on full-screen takeover routes so it
          doesn't collide with the screen's own bottom action bar. -->
-    <DmBottomNav v-if="!fullscreenMobile" />
+    <DmBottomNav v-if="!fullscreenMobile && !editorFocus" />
 
     <CampaignChat />
 
@@ -97,6 +97,7 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onScopeDispose, useTemplateRef, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useRoute } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
@@ -118,6 +119,7 @@ import TermsGate from "@/components/account/TermsGate.vue";
 import { useAudioThemeTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
 import { usePartyAmbience } from "@/composables/campaign/usePartyAmbience";
 import { useAuthStore } from "@/stores/auth";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { isOverQuota, useQuota } from "@/composables/billing/useQuota";
@@ -167,6 +169,9 @@ useBackgroundIndexing(isDm);
 // Labels a [secret] block an NPC memory disclosed, in every viewer on screen (#1053).
 provideSecretDisclosures(() => isDm.value);
 const isMobile = useIsMobile();
+// An editor that owns the screen (the Cartographer while building) sets this; the
+// sidebar and both bars give way to its own slim bar so the map gets the room.
+const { editorFocus } = storeToRefs(useAppUiStore());
 const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscreenMobile);
 // A page that is always dark (meta.darkChrome, the Hall of the Fallen) takes the bars with it:
 // the theme's dark twin is set on the shell, so the top bar and bottom nav match the page, and

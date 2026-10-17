@@ -102,6 +102,33 @@ describe("SourcesPickerPanel", () => {
     expect(mocks.toastError).toHaveBeenCalledWith("Couldn't change the books. boom");
   });
 
+  describe("popover placement", () => {
+    it("opens on the page, outside the card that holds its trigger, and closes on a tap elsewhere", async () => {
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const w = mount(SourcesPickerPanel, {
+        attachTo: host,
+        props: { scope: "campaign", title: "Dressing Sources", description: "d", emptyMessage: "none", availableSources: SOURCES, isLoading: false },
+        slots: { trigger: `<template #trigger="{ toggle }"><button data-test="t" @click="toggle" /></template>` },
+        global: { stubs: { RouterLink: true, MobileSheet: true } },
+      });
+      await w.find("[data-test=t]").trigger("click");
+      await w.vm.$nextTick();
+      // A panel inside the card would be painted over by the next card's stacking context
+      // (the Dressing picker hid behind the Spaces panel); on the body nothing can cover it.
+      const panel = document.body.querySelector<HTMLElement>("[data-slip]");
+      expect(panel).not.toBeNull();
+      expect(host.contains(panel)).toBe(false);
+      expect(panel!.style.position).toBe("fixed");
+      expect(panel!.textContent).toContain("Dressing Sources");
+      document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      await w.vm.$nextTick();
+      expect(document.body.querySelector("[data-slip]")).toBeNull();
+      w.unmount();
+      host.remove();
+    });
+  });
+
   describe("more-to-explore cue", () => {
     function mountPopover(cueKey: string) {
       return mount(SourcesPickerPanel, {

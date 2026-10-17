@@ -1,64 +1,43 @@
 <template>
-  <PageHeader :title="map?.name ?? 'New Map'" :description="statusLine">
+  <!-- View: the page as it always was, a header over the map. -->
+  <PageHeader v-if="viewMode" :title="map?.name ?? 'New Map'" :description="statusLine">
     <template #actions>
-      <!-- View mode: export + navigation -->
-      <template v-if="viewMode">
-        <AppButton
-          variant="subtle"
-          fill="muted"
-          size="sm"
-          :disabled="baking"
-          tooltip="Download map as PNG"
-          :label="baking ? 'Baking…' : '↓ PNG'"
-          @click="onDownloadPng"
-        />
-        <AppButton
-          v-if="isAiEnabled"
-          variant="tinted"
-          tone="primary"
-          emphasis="outline"
-          size="sm"
-          :disabled="baking || styleGenerating"
-          tooltip="Re-render this map in an artistic style using AI"
-          :label="styleGenerating ? 'Styling…' : 'AI Style'"
-          @click="showStylePicker = true"
-        >
-          <template #icon>
-            <IconGenerate class="h-3.5 w-3.5" :class="{ 'animate-pulse': styleGenerating }" />
-          </template>
-        </AppButton>
-        <AppButton
-          variant="tinted"
-          tone="primary"
-          emphasis="outline"
-          size="sm"
-          :icon="IconUpload"
-          :disabled="mapPublish.review.value.publishing"
-          :label="mapPublish.review.value.publishing ? 'Publishing…' : 'Publish to Atlas'"
-          @click="mapPublish.open.value = true"
-        />
-        <ListActionButton label="Edit" @click="onEdit" />
-        <ListActionButton variant="primary" label="Done" @click="onDone" />
-      </template>
-      <!-- Edit mode -->
-      <template v-else>
-        <AppButton
-          v-if="!isNew"
-          variant="destructive"
-          size="sm"
-          :disabled="deleting"
-          :label="deleting ? 'Deleting…' : 'Delete'"
-          @click="onDelete"
-        />
-        <ListActionButton label="Cancel" @click="onCancel" />
-        <ListActionButton
-          variant="primary"
-          :icon="IconSave"
-          label="Save"
-          :disabled="saving"
-          @click="onSave"
-        />
-      </template>
+      <AppButton
+        variant="subtle"
+        fill="muted"
+        size="sm"
+        :disabled="baking"
+        tooltip="Download map as PNG"
+        :label="baking ? 'Baking…' : '↓ PNG'"
+        @click="onDownloadPng"
+      />
+      <AppButton
+        v-if="isAiEnabled"
+        variant="tinted"
+        tone="primary"
+        emphasis="outline"
+        size="sm"
+        :disabled="baking || styleGenerating"
+        tooltip="Re-render this map in an artistic style using AI"
+        :label="styleGenerating ? 'Styling…' : 'AI Style'"
+        @click="showStylePicker = true"
+      >
+        <template #icon>
+          <IconGenerate class="h-3.5 w-3.5" :class="{ 'animate-pulse': styleGenerating }" />
+        </template>
+      </AppButton>
+      <AppButton
+        variant="tinted"
+        tone="primary"
+        emphasis="outline"
+        size="sm"
+        :icon="IconUpload"
+        :disabled="mapPublish.review.value.publishing"
+        :label="mapPublish.review.value.publishing ? 'Publishing…' : 'Publish to Atlas'"
+        @click="mapPublish.open.value = true"
+      />
+      <ListActionButton label="Edit" @click="onEdit" />
+      <ListActionButton variant="primary" label="Done" @click="onDone" />
 
       <CartographerPublishModal
         v-model="mapPublish.open.value"
@@ -101,16 +80,70 @@
     <MapWorkbench
       ref="workbenchRef"
       :map="map ?? null"
-      :view-mode="viewMode"
+      :view-mode="true"
       @update:dirty="dirty = $event"
     />
   </PageHeader>
+
+  <!-- Edit: no page header. The app's sidebar and bars give way (`editorFocus`) and the
+       workbench fills the screen under one slim bar, the map's name and Delete / Cancel /
+       Save at its two ends: building a map wants the map, not the page around it. -->
+  <div v-else class="h-dvh p-2">
+    <MapWorkbench
+      ref="workbenchRef"
+      :map="map ?? null"
+      :view-mode="false"
+      :save-state="saveState"
+      @update:dirty="dirty = $event"
+    >
+      <template #bar-start="{ mapName, setName }">
+        <AppButton
+          to="/cartographer"
+          variant="ghost"
+          fill="muted"
+          size="icon-sm"
+          class="shrink-0"
+          :icon="IconChevronLeft"
+          aria-label="Back to maps"
+          tooltip="Back to maps"
+        />
+        <AppInput
+          :model-value="mapName"
+          tone="underline"
+          size="body"
+          class="w-24 shrink-0 sm:w-56"
+          aria-label="Map name"
+          placeholder="Untitled Map"
+          @update:model-value="setName"
+        />
+      </template>
+      <template #bar-end>
+        <AppButton
+          v-if="!isNew"
+          variant="destructive"
+          size="sm"
+          class="shrink-0"
+          :disabled="deleting"
+          :label="deleting ? 'Deleting…' : 'Delete'"
+          @click="onDelete"
+        />
+        <ListActionButton label="Cancel" @click="onCancel" />
+        <ListActionButton
+          variant="primary"
+          :icon="IconSave"
+          label="Save"
+          :disabled="saving"
+          @click="onSave"
+        />
+      </template>
+    </MapWorkbench>
+  </div>
 </template>
 
 <script setup lang="ts">
 // Thin route host for the Cartographer editor (epic #884 S6) — route params,
 // loading the `dungeon_maps` row, Save/Cancel/Delete, the Publish modal, the
-// AI style flow, and mounting `MapWorkbench`. All canvas/toolbox/inspector
+// AI style flow, and mounting `MapWorkbench`. All canvas/tool/options
 // behaviour lives in MapWorkbench now; this file owns only what needs the
 // route (`isNew`/`viewMode`, navigation, `useUnsavedGuard`) or a mutation
 // (create/update/delete).
@@ -121,14 +154,16 @@
 // snapshot through `workbenchRef`'s exposed getters only at the moments it
 // actually needs one: Save, Cancel, opening Publish/AI-Style, the PNG bake.
 // See MapWorkbench's own docblock for the full exposed surface.
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useRoute, useRouter } from "vue-router";
 
-import { IconSave, IconGenerate, IconUpload } from "@/lib/icons";
+import { IconChevronLeft, IconSave, IconGenerate, IconUpload } from "@/lib/icons";
 
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
 import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
@@ -166,6 +201,12 @@ const isNew = computed(() => !mapId.value);
 // `/cartographer/:id?edit=true` → edit mode
 // `/cartographer/new`           → always edit mode
 const viewMode = computed(() => !isNew.value && route.query.edit !== "true");
+
+// Editing takes the screen: the shell hides its sidebar and bars while this is set, and
+// gives them back the moment the map is left or put down.
+const appUi = useAppUiStore();
+watch(() => !viewMode.value, (editing) => { appUi.editorFocus = editing; }, { immediate: true });
+onBeforeUnmount(() => { appUi.editorFocus = false; });
 
 const { data: map } = useDungeonMap(mapId);
 const createMutation = useCreateDungeonMap();
@@ -248,6 +289,13 @@ const statusLine = computed(() => {
   const revSegment = map.value ? ` · rev ${map.value.rev}` : "";
   const unsavedSegment = dirty.value ? " · unsaved changes" : "";
   return `${packName} · ${cellsPainted} cells painted${revSegment}${unsavedSegment}`;
+});
+
+// The bar's own save state: the saved state says nothing, as the status line always did.
+const saveState = computed(() => {
+  if (saving.value) return "Saving…";
+  if (dirty.value) return "Unsaved changes";
+  return isNew.value ? "New map" : "";
 });
 
 // ── Save / cancel ──────────────────────────────────────────────────────────

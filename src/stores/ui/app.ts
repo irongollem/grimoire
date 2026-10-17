@@ -44,6 +44,12 @@ export const useAppUiStore = defineStore("ui:app", () => {
     if (!open) chatFocusMessageId.value = null;
   });
 
+  // An editor that wants the whole screen (the Cartographer while a map is being
+  // built): the shell hides its sidebar and bars while this is set. The editing host
+  // sets it on mount and clears it on unmount, so no route can leave the app chrome
+  // hidden behind it.
+  const editorFocus = ref(false);
+
   // DM "talk as" NPC — DM can speak/act as any NPC
   const dmTalkAsNpcId   = ref("");
   const dmTalkAsNpcName = ref<string | null>(null);
@@ -111,6 +117,7 @@ export const useAppUiStore = defineStore("ui:app", () => {
   }
 
   return {
+    editorFocus,
     chatOpen,
     chatHasUnread,
     openChat,

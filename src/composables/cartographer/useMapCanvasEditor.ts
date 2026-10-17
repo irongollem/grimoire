@@ -91,10 +91,10 @@ export interface MapCanvasEditorOptions {
   activeWallKind: Ref<WallKind>;
   activeWallDecal: Ref<number>;
   activeTemplateShape: Ref<TemplateShape>;
-  /** Round brush radius in cells (fractional); `[` / `]` change it, the inspector shows it. */
+  /** Round brush radius in cells (fractional); `[` / `]` change it, the tool options show it. */
   brushRadius: Ref<number>;
   selectedCell: Ref<[number, number] | null>;
-  inspectorPanelRef: Ref<{ annotationInputEl: AppInputHandle | null } | null>;
+  toolOptionsRef: Ref<{ annotationInputEl: AppInputHandle | null } | null>;
   /** The derived-structure composable (spaces/ways/zones/links) — this
    *  module builds the Structure tools' pointer dispatch around it itself,
    *  since that dispatch needs the same `snapshotStr`/`pushCommand` pair
@@ -128,7 +128,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
     dressing, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape,
-    brushRadius, selectedCell, inspectorPanelRef, structure, mapKey, getReferenceImage, extraRenderDeps,
+    brushRadius, selectedCell, toolOptionsRef, structure, mapKey, getReferenceImage, extraRenderDeps,
     plan, activeLayer,
   } = opts;
 
@@ -848,7 +848,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if ((activeTool.value === "link" || activeTool.value === "annotate") && ev.button !== 2) {
       selectedCell.value = [cx, cy];
       if (activeTool.value === "annotate") {
-        setTimeout(() => inspectorPanelRef.value?.annotationInputEl?.focus(), 0);
+        setTimeout(() => toolOptionsRef.value?.annotationInputEl?.focus(), 0);
       }
       return;
     }

@@ -5,20 +5,20 @@
 // with no `site`, the workbench must look and behave exactly like the
 // pre-extraction standalone editor.
 //
-// Mounted in view mode throughout: edit mode additionally mounts
-// CartographerInspectorPanel, whose CampaignScopeField reaches for a real
+// Mounted in view mode throughout where it can be: edit mode additionally mounts the
+// bar, whose settings popover holds a CampaignScopeField that reaches for a real
 // Pinia store + TanStack Query composable this file has no reason to stand
-// up for what is a prop-surface smoke test, not an inspector-panel test.
+// up for what is a prop-surface smoke test, not a bar test.
 //
 // Every data-fetching composable MapWorkbench itself touches (notes/
 // encounters/traps/features/published-sites/tile-packs/campaign store) is
 // mocked out — this test is about the prop surface, not about exercising
 // Supabase.
 import { mount, flushPromises, enableAutoUnmount } from "@vue/test-utils";
-import { computed, ref, shallowRef } from "vue";
+import { computed, h, ref, shallowRef } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MapWorkbench from "./MapWorkbench.vue";
-import CartographerInspectorPanel from "./CartographerInspectorPanel.vue";
+import CartographerBar from "./CartographerBar.vue";
 import { emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
 import type { MapStackSource } from "@/lib/locations/mapStack";
 import type { LibraryTilePack } from "@/cartographer/userPack.types";
@@ -145,6 +145,11 @@ vi.mock("@/composables/locations/useLocationDoors", () => ({
 vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocations: () => ({ data: ref([]) }) }));
 
+/** Whether the rail offers a tool by this name (its buttons carry it as the accessible name). */
+function tool(wrapper: ReturnType<typeof mount>, label: string): boolean {
+  return wrapper.find(`nav[aria-label="Map tools"] [aria-label="${label}"]`).exists();
+}
+
 const baseMap: DungeonMap = {
   id: "map-1",
   user_id: "user-1",
@@ -213,10 +218,9 @@ describe("MapWorkbench", () => {
     expect(wrapper.text()).toContain("Reference");
   });
 
-  // Edit mode additionally mounts CartographerInspectorPanel (CampaignScopeField's
-  // real Pinia/TanStack deps, same reason the file's own docblock gives for
-  // staying in view mode everywhere else) — stubbed out here since these two
-  // tests are only about the toolbox column above it, not the inspector.
+  // Edit mode additionally mounts the drawer's panels (real Pinia/TanStack deps, same
+  // reason the file's own docblock gives for staying in view mode everywhere else), stubbed
+  // out here since these tests are only about the rail and the bar.
   // SiteMapRegionList/SiteMapZoneList (#884 S11, the Plan's own Spaces/Zones
   // panels) are stubbed for the same reason: they reach for a domain UI store
   // (Pinia) and `useQuests`/`useQuestBeat`/`useQuestBeats` (TanStack Query),
@@ -224,7 +228,6 @@ describe("MapWorkbench", () => {
   const editModeStubs = {
     global: {
       stubs: {
-        CartographerInspectorPanel: true,
         CartographerStructurePanel: true,
         SiteMapRegionList: true,
         SiteMapZoneList: true,
@@ -235,12 +238,12 @@ describe("MapWorkbench", () => {
   it("shows no layer selector or Plan palette without a site, even in edit mode", () => {
     const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
     expect(wrapper.text()).not.toContain("Drawing");
-    expect(wrapper.text()).not.toContain("Claim");
+    expect(tool(wrapper, "Claim")).toBe(false);
   });
 
   it("offers the Water terrain tool in the Drawing palette", () => {
     const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
-    expect(wrapper.text()).toContain("Water");
+    expect(tool(wrapper, "Water")).toBe(true);
   });
 
   it("shows the layer selector with a site, in edit mode, and can switch layers by hand", async () => {
@@ -248,12 +251,12 @@ describe("MapWorkbench", () => {
     expect(wrapper.text()).toContain("Drawing");
     expect(wrapper.text()).toContain("Plan");
     // A site with nothing drawn yet opens on the Drawing's own tool palette…
-    expect(wrapper.text()).toContain("Floor brush");
+    expect(tool(wrapper, "Tiles")).toBe(true);
 
     const planButton = wrapper.findAll("button").find((b) => b.text() === "Plan");
     await planButton?.trigger("click");
     // …and switches to the Plan's four tools once selected by hand.
-    expect(wrapper.text()).toContain("Claim");
+    expect(tool(wrapper, "Claim")).toBe(true);
   });
 
   // #878 S2 — the DM who traced rooms could never find Pen/Shape because
@@ -262,8 +265,8 @@ describe("MapWorkbench", () => {
   describe("initial layer default (#878 S2)", () => {
     it("opens on Drawing without a site at all (the standalone /cartographer route)", () => {
       const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
-      expect(wrapper.text()).toContain("Floor brush");
-      expect(wrapper.text()).not.toContain("Claim");
+      expect(tool(wrapper, "Tiles")).toBe(true);
+      expect(tool(wrapper, "Claim")).toBe(false);
     });
 
     it("opens on Drawing for a site with no map imagery yet", () => {
@@ -271,8 +274,8 @@ describe("MapWorkbench", () => {
         props: { map: baseMap, viewMode: false, site: siteWithNoImagery },
         ...editModeStubs,
       });
-      expect(wrapper.text()).toContain("Floor brush");
-      expect(wrapper.text()).not.toContain("Claim");
+      expect(tool(wrapper, "Tiles")).toBe(true);
+      expect(tool(wrapper, "Claim")).toBe(false);
     });
 
     it("opens on Plan for a site whose imagery is a Picture", () => {
@@ -280,12 +283,9 @@ describe("MapWorkbench", () => {
         props: { map: baseMap, viewMode: false, site: siteWithPicture },
         ...editModeStubs,
       });
-      expect(wrapper.text()).toContain("Claim");
-      // "Floor brush" alone isn't a safe negative check — the status bar's
-      // "Brush: <label>" segment names the Drawing's OWN active tool
-      // regardless of which layer is showing. "Eraser" only ever appears in
-      // the Drawing tool palette itself.
-      expect(wrapper.text()).not.toContain("Eraser");
+      expect(tool(wrapper, "Claim")).toBe(true);
+      // "Eraser" only ever appears on the Drawing's own rail; the Plan's is "Erase".
+      expect(tool(wrapper, "Eraser")).toBe(false);
     });
 
     it("opens on Plan for a site whose imagery is a Drawing (no Picture)", () => {
@@ -293,8 +293,8 @@ describe("MapWorkbench", () => {
         props: { map: baseMap, viewMode: false, site: siteWithDrawing },
         ...editModeStubs,
       });
-      expect(wrapper.text()).toContain("Claim");
-      expect(wrapper.text()).not.toContain("Eraser");
+      expect(tool(wrapper, "Claim")).toBe(true);
+      expect(tool(wrapper, "Eraser")).toBe(false);
     });
 
     it("keeps the DM's own layer choice — a later prop update does not force it back", async () => {
@@ -303,17 +303,17 @@ describe("MapWorkbench", () => {
         ...editModeStubs,
       });
       // Starts on Plan (site has a Picture)…
-      expect(wrapper.text()).toContain("Claim");
+      expect(tool(wrapper, "Claim")).toBe(true);
 
       const drawingButton = wrapper.findAll("button").find((b) => b.text() === "Drawing");
       await drawingButton?.trigger("click");
-      expect(wrapper.text()).toContain("Floor brush");
+      expect(tool(wrapper, "Tiles")).toBe(true);
 
       // …a prop change that would re-run any watcher must not force Plan
       // back — the default is read once at setup, never re-applied.
       await wrapper.setProps({ map: { ...baseMap, name: "Renamed" } });
-      expect(wrapper.text()).toContain("Floor brush");
-      expect(wrapper.text()).not.toContain("Claim");
+      expect(tool(wrapper, "Tiles")).toBe(true);
+      expect(tool(wrapper, "Claim")).toBe(false);
     });
   });
 
@@ -328,8 +328,7 @@ describe("MapWorkbench", () => {
       const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
       await flushPromises();
 
-      const inspector = wrapper.findComponent(CartographerInspectorPanel);
-      const bundledPacks = inspector.props("bundledPacks");
+      const bundledPacks = wrapper.findComponent(CartographerBar).props("packs");
       expect(bundledPacks.map((p) => p.pack_id)).toEqual(["sunny-meadow"]);
     });
 
@@ -365,8 +364,7 @@ describe("MapWorkbench", () => {
 
       // Still listed even though its own runtime load rejects below — the
       // picker's contents come from the table, never from load success.
-      const inspector = wrapper.findComponent(CartographerInspectorPanel);
-      const bundledPacks = inspector.props("bundledPacks");
+      const bundledPacks = wrapper.findComponent(CartographerBar).props("packs");
       expect(bundledPacks.map((p) => p.pack_id)).toEqual(["stone-dungeon", "no-assets"]);
 
       const vm = wrapper.vm as unknown as { getRuntimes: () => Map<string, unknown> };
@@ -387,8 +385,7 @@ describe("MapWorkbench", () => {
       const vm = wrapper.vm as unknown as { getCurrentPackId: () => string };
       expect(vm.getCurrentPackId()).toBe("stone-dungeon");
 
-      const inspector = wrapper.findComponent(CartographerInspectorPanel);
-      inspector.vm.$emit("update:currentPackId", "icy-cave");
+      wrapper.findComponent(CartographerBar).vm.$emit("update:currentPackId", "icy-cave");
       await flushPromises();
       expect(vm.getCurrentPackId()).toBe("icy-cave");
 
@@ -423,7 +420,85 @@ describe("MapWorkbench", () => {
     expect(vm.getLayers()).toEqual(emptyLayers());
     expect(vm.isDirty()).toBe(false);
   });
-  it("keeps the map's light level: edited from the Light control, an unsaved change, restored by resetEdits", async () => {
+  describe("the slim bar, rail and slip (17 Oct 2026)", () => {
+    it("names the tools the new way, in the clusters Look, Floor, Walls, Things, Notes, Eraser", () => {
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const names = wrapper.findAll('nav[aria-label="Map tools"] button').map((b) => b.attributes("aria-label"));
+      expect(names).toEqual([
+        "Select", "Pan",
+        "Brush", "Tiles", "Rectangle", "Line", "Room", "Fill", "Water", "Rock",
+        "Wall", "Door", "Wrap",
+        "Object stamp", "Dressing",
+        "Label", "Link", "Space",
+        "Eraser",
+      ]);
+      for (const retired of ["Floor brush", "Solid block", "Annotate", "Link entity", "Room template", "Wrap walls"]) {
+        expect(names).not.toContain(retired);
+      }
+    });
+
+    it("titles the options slip with the active tool and follows the rail", async () => {
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const slip = () => wrapper.find("[data-slip]");
+      expect(slip().text()).toContain("Select");
+      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Rock"]').trigger("click");
+      expect(slip().text()).toContain("Rock");
+      expect(slip().text()).toContain("Paint thick, full-cell rock");
+    });
+
+    it("opens the Spaces drawer from the bar and closes it from the drawer's own button", async () => {
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      expect(wrapper.find("section[aria-label='Spaces on this map']").exists()).toBe(false);
+      const toggle = wrapper.findAll("header button").find((b) => b.text().startsWith("Spaces"));
+      await toggle?.trigger("click");
+      expect(wrapper.find("section[aria-label='Spaces on this map']").exists()).toBe(true);
+      await wrapper.find("[aria-label='Close Spaces on this map']").trigger("click");
+      expect(wrapper.find("section[aria-label='Spaces on this map']").exists()).toBe(false);
+    });
+
+    it("opens the Dressing drawer with its tool and puts it away with the next one", async () => {
+      const wrapper = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false },
+        global: { stubs: { ...editModeStubs.global.stubs, CartographerDressingPanel: true } },
+      });
+      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Dressing"]').trigger("click");
+      expect(wrapper.find("section[aria-label='Dressing']").exists()).toBe(true);
+      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Tiles"]').trigger("click");
+      expect(wrapper.find("section[aria-label='Dressing']").exists()).toBe(false);
+    });
+
+    it("shows no bar, rail or slip in view mode", () => {
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: true } });
+      expect(wrapper.findComponent(CartographerBar).exists()).toBe(false);
+      expect(wrapper.find('nav[aria-label="Map tools"]').exists()).toBe(false);
+      expect(wrapper.find("[data-slip]").exists()).toBe(false);
+    });
+
+    it("hands the host the name and a setter through bar-start, and a rename is an unsaved change", async () => {
+      const wrapper = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false },
+        slots: {
+          "bar-start": (slot: { mapName: string; setName: (v: string) => void }) =>
+            h("button", { class: "rename", onClick: () => slot.setName(`${slot.mapName}!`) }, slot.mapName),
+          "bar-end": () => h("span", { class: "host-end" }, "end"),
+        },
+        ...editModeStubs,
+      });
+      expect(wrapper.find(".host-end").exists()).toBe(true);
+      const vm = wrapper.vm as unknown as { getName: () => string; isDirty: () => boolean };
+      expect(vm.isDirty()).toBe(false);
+      await wrapper.find(".rename").trigger("click");
+      expect(vm.getName()).toBe("Test Dungeon!");
+      expect(vm.isDirty()).toBe(true);
+    });
+
+    it("shows the host's save state in the bar", () => {
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, saveState: "Saving…" }, ...editModeStubs });
+      expect(wrapper.find("header").text()).toContain("Saving…");
+    });
+  });
+
+  it("keeps the map's light level: edited from the bar's Light control, an unsaved change, restored by resetEdits", async () => {
     const wrapper = mount(MapWorkbench, {
       props: { map: { ...baseMap, darkness: "dim" }, viewMode: false },
       global: { stubs: { CampaignScopeField: true } },

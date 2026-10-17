@@ -25,49 +25,56 @@
       />
     </MobileSheet>
 
-    <div
-      v-show="open && !isMobile"
-      data-slip class="absolute right-0 top-full mt-1 z-50 w-80 rounded-md border border-border bg-popover shadow-lg"
-    >
-      <div class="p-3 border-b border-border">
-        <p class="text-label-lg font-semibold text-foreground">{{ title }}</p>
-        <p class="text-caption text-muted-foreground mt-0.5 italic">
-          {{ description }}
-        </p>
+    <!-- Teleported and fixed to the trigger: inside a card with its own stacking
+         context (the editor's inspectors) an absolute panel was painted over by the
+         next card. -->
+    <Teleport to="body">
+      <div
+        v-if="open && !isMobile"
+        ref="floatingRef"
+        :style="floatingStyle"
+        data-slip class="z-300 w-80 rounded-md border border-border bg-popover shadow-lg"
+      >
+        <div class="p-3 border-b border-border">
+          <p class="text-label-lg font-semibold text-foreground">{{ title }}</p>
+          <p class="text-caption text-muted-foreground mt-0.5 italic">
+            {{ description }}
+          </p>
+        </div>
+        <div v-if="isLoading" class="p-4 flex items-center justify-center">
+          <BannerLoader class="h-6" />
+        </div>
+        <div v-else-if="rows.length === 0" class="p-4">
+          <p class="text-caption text-muted-foreground italic">{{ emptyMessage }}</p>
+        </div>
+        <div v-else class="p-2 flex flex-col gap-0.5 max-h-72 overflow-y-auto">
+          <AppCheckbox
+            v-for="row in rows"
+            :key="row.source"
+            :model-value="row.locked || isEnabled(row.source)"
+            :disabled="row.locked"
+            :class="[
+              'gap-2.5 px-2 py-2 rounded hover:bg-accent transition-colors',
+              isMutating ? 'pointer-events-none opacity-60' : '',
+            ]"
+            label-layout="row"
+            @update:model-value="toggleSource(row)"
+          >
+            <span class="min-w-0 flex-1 truncate">{{ row.title }}</span>
+            <span v-if="row.locked" class="text-caption italic text-muted-foreground shrink-0">always on</span>
+            <span v-else-if="row.count !== null" class="text-label text-muted-foreground shrink-0">{{ row.count.toLocaleString() }}</span>
+          </AppCheckbox>
+        </div>
+        <div class="p-2 border-t border-border">
+          <RouterLink
+            to="/rules?tab=licenses"
+            class="block px-1 py-1 text-caption text-primary hover:underline"
+          >
+            Licenses &amp; attribution
+          </RouterLink>
+        </div>
       </div>
-      <div v-if="isLoading" class="p-4 flex items-center justify-center">
-        <BannerLoader class="h-6" />
-      </div>
-      <div v-else-if="rows.length === 0" class="p-4">
-        <p class="text-caption text-muted-foreground italic">{{ emptyMessage }}</p>
-      </div>
-      <div v-else class="p-2 flex flex-col gap-0.5 max-h-72 overflow-y-auto">
-        <AppCheckbox
-          v-for="row in rows"
-          :key="row.source"
-          :model-value="row.locked || isEnabled(row.source)"
-          :disabled="row.locked"
-          :class="[
-            'gap-2.5 px-2 py-2 rounded hover:bg-accent transition-colors',
-            isMutating ? 'pointer-events-none opacity-60' : '',
-          ]"
-          label-layout="row"
-          @update:model-value="toggleSource(row)"
-        >
-          <span class="min-w-0 flex-1 truncate">{{ row.title }}</span>
-          <span v-if="row.locked" class="text-caption italic text-muted-foreground shrink-0">always on</span>
-          <span v-else-if="row.count !== null" class="text-label text-muted-foreground shrink-0">{{ row.count.toLocaleString() }}</span>
-        </AppCheckbox>
-      </div>
-      <div class="p-2 border-t border-border">
-        <RouterLink
-          to="/rules?tab=licenses"
-          class="block px-1 py-1 text-caption text-primary hover:underline"
-        >
-          Licenses &amp; attribution
-        </RouterLink>
-      </div>
-    </div>
+    </Teleport>
   </div>
 
   <!-- ══ Sheet variant — inner list only; parent hosts it inside a MobileSheet ══ -->
@@ -112,7 +119,6 @@
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed, watch } from "vue";
 import { RouterLink } from "vue-router";
-import { onClickOutside } from "@vueuse/core";
 import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
@@ -121,6 +127,7 @@ import SourcesPickerPanel from "./SourcesPickerPanel.vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { useSourceCue } from "@/composables/library/useSourceCue";
 import { useIsMobile } from "@/composables/useBreakpoint";
+import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { useToast } from "@/composables/useToast";
 import {
   STANDALONE_LIBRARY_SLUGS,
@@ -167,9 +174,12 @@ const toast = useToast();
 const open = ref(false);
 const rootRef = ref<HTMLElement | null>(null);
 const isMobile = useIsMobile();
-// The sheet is teleported, so a tap inside it is "outside" the root; it owns
-// its own dismissal.
-onClickOutside(rootRef, () => { if (!isMobile.value) open.value = false; });
+// Both the panel and the phone sheet are teleported, so a tap inside either is
+// "outside" the root. The popover's own outside-click knows its panel; the sheet
+// owns its dismissal, so a phone is never closed from here.
+const { floatingRef, floatingStyle } = useAnchoredPopover(rootRef, open, () => {
+  if (!isMobile.value) open.value = false;
+});
 function toggle() { open.value = !open.value; }
 
 // Scope-specific, not entity-specific, so the panel owns this wiring directly

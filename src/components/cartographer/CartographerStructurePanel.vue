@@ -1,13 +1,13 @@
 <template>
-  <aside class="lg:w-56 shrink-0 bg-card border border-border rounded-lg p-3 space-y-4">
-    <!-- Spaces on this map -->
+  <div class="space-y-4">
+    <!-- Spaces on this map. The drawer around this names it; the count sits beside Re-detect. -->
     <div>
       <div class="flex items-center justify-between gap-2 mb-1">
-        <span class="text-eyebrow text-muted-foreground">Spaces on this map ({{ spaceRows.length }})</span>
+        <span class="text-eyebrow text-muted-foreground">{{ spaceRows.length }} detected</span>
         <AppButton variant="ghost" fill="muted" size="xs" label="Re-detect" @click="$emit('redetect')" />
       </div>
       <p class="text-caption-sm text-muted-foreground italic mb-2">
-        Detected by flood fill over the floor layer, cut at closed doors and solid blocks. A region here is a proposal until you publish. Nothing on this panel writes to the Atlas.
+        Detected by flood fill over the floor layer, cut at closed doors and rock. A region here is a proposal until you publish. Nothing on this panel writes to the Atlas.
       </p>
       <div v-if="spaceRows.length > 0" class="space-y-0.5">
         <AppButton
@@ -83,7 +83,7 @@
         One drawing may serve several places: a reused gatehouse is one map published twice. The place owns the rooms and the state; the map owns the picture.
       </p>
     </div>
-  </aside>
+  </div>
 </template>
 
 <script setup lang="ts">

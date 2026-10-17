@@ -551,7 +551,7 @@ A cell whose `pack_id` is no longer available (pack deleted, never loaded) rende
 
 ## Campaign scope (#789)
 
-`dungeon_maps` carries a nullable `campaign_id` with the dual-state semantics `monsters`, `traps` and `puzzles` already use since #597: **NULL means available in every campaign**, set means visible only when that campaign is active. The DM picks per map, via the shared `CampaignScopeField` in the inspector — the same control `TrapEditor` uses, not a second one. The list filters through `allowedCampaignScoped`, exactly as `useMonsters` and `useTraps` do.
+`dungeon_maps` carries a nullable `campaign_id` with the dual-state semantics `monsters`, `traps` and `puzzles` already use since #597: **NULL means available in every campaign**, set means visible only when that campaign is active. The DM picks per map, via the shared `CampaignScopeField` in the bar's settings popover: the same control `TrapEditor` uses, not a second one. The list filters through `allowedCampaignScoped`, exactly as `useMonsters` and `useTraps` do.
 
 **Existing maps were not backfilled and must stay null.** Every map drawn before this existed was drawn without the choice available, so assigning one would invent an intent its author never expressed.
 
@@ -567,7 +567,7 @@ Cover: `supabase/tests/dungeon_maps_campaign_scope.test.sql`, which is also the 
 
 ## Editor UX (`src/components/cartographer/MapWorkbench.vue` + `CartographerEditorView.vue`)
 
-**The editor is a component, not a route (epic [#884](https://github.com/irongollem/grimoire/issues/884), wave 2).** It was a ~1,490-line view, which meant the only way to draw was to leave wherever you were and come back — "moving back and forth is unnecessary extra steps". It now splits three ways: `MapWorkbench.vue` is the embeddable editor (toolbox, canvas, inspector, structure rail, pack loading, the site-reference ghost) and reads no route at all; `useMapCanvasEditor.ts` is its interaction and render engine (viewport, pointer, undo/redo, every per-tool paint operation, the render loop) — one cohesive canvas engine, deliberately not split further; and `CartographerEditorView.vue` is a thin host holding the route, the `dungeon_maps` row, Save/Cancel/Delete, the Publish modal and the AI-style flow. Behaviour at `/cartographer/:id` is unchanged.
+**The editor is a component, not a route (epic [#884](https://github.com/irongollem/grimoire/issues/884), wave 2).** It was a ~1,490-line view, which meant the only way to draw was to leave wherever you were and come back ("moving back and forth is unnecessary extra steps"). It now splits three ways: `MapWorkbench.vue` is the embeddable editor (bar, rail, canvas, options slip, drawer, pack loading, the site-reference ghost) and reads no route at all; `useMapCanvasEditor.ts` is its interaction and render engine (viewport, pointer, undo/redo, every per-tool paint operation, the render loop): one cohesive canvas engine, deliberately not split further; and `CartographerEditorView.vue` is a thin host holding the route, the `dungeon_maps` row, Save/Cancel/Delete, the Publish modal and the AI-style flow. Behaviour at `/cartographer/:id` is unchanged.
 
 The host pulls state through `defineExpose` getters rather than two-way binding, and the workbench emits only `update:dirty`: painting mutates `layers`/`metadata` on nearly every pointer move, so a continuous emit surface would deep-clone per frame. The host takes a snapshot at the moments it needs one — Save, Cancel, Publish, AI Style, the PNG bake — the same "closures called on demand" shape `useMapExport`/`useMapPublish` already use.
 
@@ -575,9 +575,9 @@ An optional `site` prop (a `MapStackSource`, see world-building.md's map stack) 
 
 **The tool runs in the Atlas too, and the Plan is one of its layers (epic #884, wave 4).** With a `site` prop the workbench shows a **Drawing / Plan** layer selector, and the Atlas's Build mode mounts it as the map area — so a DM shapes a site where they are standing instead of leaving for `/cartographer` and coming back. `?publishTo=` is gone with that round trip; the Layers panel's Review opens the publish plan in place.
 
-- **The Plan palette** (`CartographerPlanPalette.vue`, `usePlanPalette.ts`, `usePlanCanvasTools.ts`) writes `location_map_regions` and `location_doors` through the Atlas's own composables: **Space** and **Zone** trace with brush / pen / template, **Door** snaps to a cell edge and derives its endpoints from the regions either side, and **Claim** flood-fills a region of the *Drawing's* floor and makes it a traced space — the one gesture that pays for both layers living in one tool, because it stops the DM re-tracing by hand what they just drew.
+- **The Plan rail and options** (`CartographerPlanOptions.vue`, the rail built in `MapWorkbench.vue`, `usePlanPalette.ts`, `usePlanCanvasTools.ts`) writes `location_map_regions` and `location_doors` through the Atlas's own composables: **Space** and **Zone** trace with brush / pen / template, **Door** snaps to a cell edge and derives its endpoints from the regions either side, and **Claim** flood-fills a region of the *Drawing's* floor and makes it a traced space: the one gesture that pays for both layers living in one tool, because it stops the DM re-tracing by hand what they just drew.
 - **Build opens on the layer the DM came to use (issue #878, item 3).** A site whose stack already has a Drawing or a Picture (`hasAnyMapLayer`, `mapStack.ts`) starts `MapWorkbench` on Plan; a site with nothing drawn yet starts on Drawing, since there's no image to trace over. Read once at setup, not watched — once the DM switches layers by hand, that choice stands for the rest of the session. The standalone `/cartographer/:id` route (no `site` prop) always starts on Drawing. Before this, Build opened on Drawing unconditionally, which was half of why a DM who traced rooms could not find Pen or Shape at all (the other half was the switcher itself — next bullet).
-- **The "Trace with" switcher (Brush/Pen/Shape) is reachable at every width.** It used to be `hidden lg:block` — Pen and the Circle/Octagon/Hex template shapes were real and working, but below Tailwind's `lg` breakpoint (1024px) there was no control to reach them at all. The plan-tool buttons (Space/Zone/Door/Claim) and the Door/Claim hint text carry their own labels at every width too, not just at `lg` — each tool button is already full-width (`block`) below `lg`, so a label costs nothing there. The palette's own container wraps (`flex-wrap`) at narrow widths so these full-width blocks stack cleanly under the tool row instead of squeezing onto one cramped line.
+- **The "Trace with" switcher (Brush/Pen/Shape) is reachable at every width.** It used to be `hidden lg:block`: Pen and the Circle/Octagon/Hex template shapes were real and working, but below Tailwind's `lg` breakpoint (1024px) there was no control to reach them at all. The Door/Claim hint text is in the options slip at every width too, and the plan tools are the rail's icons (with tooltips and accessible names) at every width.
 - **A site with no drawing is fully editable**: the Plan is drawn on the tile grid, not on the Drawing's pixels, so `map: null` traces exactly as well. A scan or a blank grid is a first-class site.
 - **The Drawing autosaves** (`useSiteDrawingEditor.ts`) 1.5s after an edit, creating the `dungeon_maps` row and linking `source_map_id` on the first stroke. There is no Save button inside Build, because Build has no Save anywhere.
 - **Undo covers both layers** (`usePlanUndoStack.ts`): Drawing edits through the existing command stack, Plan edits as a session stack of inverse mutations, Ctrl+Z routed by the active layer. A tool where undo works on one layer and silently not the other is a trap, and that is the real cost of merging the two.
@@ -586,46 +586,56 @@ An optional `site` prop (a `MapStackSource`, see world-building.md's map stack) 
 - **The Cartographer's own zone layer is retired.** A zone is a Plan region with `region_role: 'zone'`, authored once. Gone with it: the Zone tool, `ZoneCell`/`layers.zone`, `deriveZones`, the zone rows of the publish plan and its render pass. Production carried one drawing and zero zone paint when this shipped, so nothing needed migrating.
 - **One gesture set** (`src/lib/map/gestures/`, decision 6): brush (the Atlas's direction-locked stroke), rectangle, line, fill, pen, template, round brush, eraser: each pure and tested, each with one implementation. Two paint systems for the same motions is what merging them fixed. Two deliberate exceptions are documented in the modules: the Cartographer's template fill is not routed through the Atlas's ring path (their painted cells differ by ~10% for a circle, and behaviour had to stay identical), and the stamp and eraser tools keep their own continuous paint because a stamp's rotation can change mid-stroke and the eraser mixes cell and edge targets.
 
-### Layout (unchanged)
+### Layout: the map is the table, the tools sit on its edge (17 Oct 2026)
+
+The maintainer's words: "When building a map, you want to maximise the amount of map shown at a time, as that's our focus; now things like the tileset, map name etc. take way too much visual screenspace." The old layout spent a 11rem toolbox column and two 14rem inspector columns on controls, and a page header over the lot. The canvas was 566 px wide at 1280x720; it is now 1206 px wide and 646 px tall (1366x826 at 1440x900, from 726x832).
 
 ```text
 +--------------------------------------------------------------+
-| PageHeader   [name input]              [Save] [Publish to Atlas]|
-+-----------+-------------------------------------+------------+
-|           |                                     |            |
-| Toolbox   |          Canvas (infinite)          |  Inspector |
-| (left)    |                                     |  (right)   |
-|           |                                     |            |
-+-----------+-------------------------------------+------------+
-|                Status bar (coords, brush, pack)              |
+| bar (3rem): back, name | Drawing/Plan | tile set | light |     |
+|   Spaces | settings | undo redo        save state, Delete Cancel Save |
++----+---------------------------------------------------------+
+| r  |  [options slip: tool name + its options]    [drawer]    |
+| a  |                                             Spaces /    |
+| i  |          Canvas (fills the rest)            Dressing /  |
+| l  |                                             Plan lists  |
++----+---------------------------------------------------------+
+|                status bar (cursor, zoom, cells)              |
 +--------------------------------------------------------------+
 ```
 
-### Toolbox (left rail)
+- **Focus while building.** Editing at `/cartographer/:id?edit=true` and `/cartographer/new` has no page header: `CartographerEditorView` sets `useAppUiStore().editorFocus` while it is editing (and clears it on unmount), `DefaultLayout` reads it and hides `AppSidebar`, `AppTopBar` and `DmBottomNav`, and the workbench fills `h-dvh`. View mode keeps the page header and the 60vh canvas. Atlas Build keeps the app chrome (the Atlas is the page there) and gives the workbench a `max(32rem, 100dvh - 10rem)` box.
+- **The bar** (`CartographerBar.vue`, 3rem). Host slots `bar-start` (scoped: `mapName`, `setName`) and `bar-end`; the workbench puts the **Drawing / Plan** switch after `bar-start` itself, because the layer is its state. Between them, what the workbench owns: the **tile set** (the set's name with a swatch of its floor, `CartographerPackSwatch.vue`; the menu lists the sets, with the "N slot(s) missing" note and "future strokes only" inside it), **Light** (Day / Dim / Dark), **Spaces N** (toggles the drawer), **settings** (a popover with the campaign scope, and the Reference toggle when a site's Picture can go underneath), undo and redo, and the host's `saveState` text. The standalone host fills `bar-start` with a back link and the map's name as a line field, `bar-end` with Delete / Cancel / Save; Atlas Build fills `bar-start` with its level picker and shows "Saving…", "Unsaved changes" or "Saved" (it autosaves, so no Save button, and its Done stays in the place pane). A rename marks the map dirty.
+- **The rail** (`CartographerToolRail.vue`) sits **beside** the canvas, not over it: 3rem is a small price for a map no tool ever covers, and it keeps the status bar clear. Icon-only `AppButton`s with an accessible name and a tooltip "Name (key)", the active tool marked, clusters separated by a rule. Below `lg` it lies down as a toolbar along the bottom and the slip spans the top. The Plan layer gets the same rail.
+- **The options slip** (`CartographerToolOptions.vue`, `CartographerPlanOptions.vue`, framed by `CartographerOptionsSlip.vue`, a `data-slip`) at the canvas's top left: the active tool's name (" · erase" while Alt is held over a tool that has an inverse; on the Plan, "Space · Pen") and its options inline: brush size, wall kind and decals, room shape, object category and rotation, the Label text, the Link pickers, Select's one-line cell summary (expandable), and for every other tool a one-line hint. It replaced the inspector and the tool pill; there is no inspector any more.
+- **The drawer** (`CartographerDrawer.vue`): one `data-slip` panel, 18rem wide, over the canvas's right edge, never shrinking the canvas; opens through `railTransition` in `src/lib/motion.ts` (still for reduced motion). Contents: **Spaces on this map** (`CartographerStructurePanel`), **Dressing** (opens with the Dressing tool, goes with it), and on the Plan the region and zone lists, which open with the layer. Below `lg` it is a `MobileSheet`.
+- **Popovers render at page level.** The Dressing sources picker (`SourcesPickerPanel`'s popover variant) was `absolute z-50` inside an inspector card, and Vellum gives a card `isolation: isolate`, so the next card painted over it. It, and the bar's menus (`CartographerPopover.vue`), now `Teleport` to the body with `position: fixed` through `useAnchoredPopover`, keeping `data-slip`.
 
-The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer/MapWorkbench.vue`; that array is the source of truth for which tools exist.
+### Toolbox (the rail)
 
-| Tool          | Hotkey | Layer       | Notes                                                  |
-| ------------- | ------ | ----------- | ------------------------------------------------------ |
-| Select        | Esc    | —           | The default tool on open. Click selects a cell for the inspector's read-only summary; drag pans, exactly like Pan — a DM's first tap never paints. Grouped in "View" beside Pan, not Draw. |
-| Floor brush   | `B`    | floor       | Paints floor cells with a random variant.              |
-| Eraser        | `E`    | active      | Removes from the active layer / edge.                  |
-| Wall          | `W`    | floor.edges | Edge-hover targeting; the Inspector picks Wall, Grate, Sluice or Decal ("Wall kinds and decals"). |
-| Door          | `D`    | floor.edges | Replaces wall on an edge; toggles open/closed.         |
-| Water         | `H`    | terrain     | Paints terrain (the pack's `terrainWater`) with the floor brush's shapes; see "Terrain and curbs". |
-| Solid block   | `S`    | solidBlock  | Full-cell thick walls (battlement, mountain rock).     |
-| Object stamp  | `O`    | object      | Picker for chests, statues, braziers, stairs, rubble, debris, named by the pack ("Stamps"). |
-| Dressing      | `G`    | dressing    | Places library props (#1062); see "Dressing tool" below. |
-| Rectangle     | `R`    | floor       | Drag to fill a rect with floor. Shift = wrap walls.    |
-| Line          | `L`    | floor       | Drag to draw a single-tile-wide line of floor.         |
-| Fill          | `F`    | floor       | Flood-fill contiguous floor cells.                     |
-| Wrap walls    | `X`    | floor.edges | One-shot: walls every floor-region edge facing void.   |
-| Annotate      | `T`    | annotation  | Text labels / icons.                                   |
-| Room template | `M`    | floor       | Stamps a whole room shape (circle, octagon, …).        |
-| Brush         | `V`    | floor       | Paints round brushed areas (`layers.area`), not cell by cell. |
-| Space         | `P`    | structure   | Structure group — see the next section.                |
-| Link entity   | `K`    | metadata    | Structure group. Attach a trap / encounter / feature / note to a cell. |
-| Pan           | RMB    | —           | Right-mouse drag; middle-mouse or space-drag also pans. |
+The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer/MapWorkbench.vue`; that array is the source of truth for which tools exist and for the rail's clusters. Tool ids did not change, only labels: "Floor brush" is **Tiles**, "Solid block" is **Rock**, "Annotate" is **Label**, "Link entity" is **Link**, "Room template" is **Room**, "Wrap walls" is **Wrap** ("We now have two tools we call brush").
+
+| Cluster | Tool          | Hotkey | Layer       | Notes                                                  |
+| ------- | ------------- | ------ | ----------- | ------------------------------------------------------ |
+| Look    | Select        | Esc    | none        | The default tool on open. Click selects a cell for the options slip's read-only summary; drag pans, exactly like Pan: a DM's first tap never paints. |
+| Look    | Pan           | RMB    | none        | Right-mouse drag; middle-mouse or space-drag also pans. |
+| Floor   | Brush         | `V`    | floor       | Paints round brushed areas (`layers.area`), not cell by cell. |
+| Floor   | Tiles         | `B`    | floor       | Paints floor cells with a random variant.              |
+| Floor   | Rectangle     | `R`    | floor       | Drag to fill a rect with floor. Shift = wrap walls.    |
+| Floor   | Line          | `L`    | floor       | Drag to draw a single-tile-wide line of floor.         |
+| Floor   | Room          | `M`    | floor       | Stamps a whole room shape (circle, octagon, hex).      |
+| Floor   | Fill          | `F`    | floor       | Flood-fill contiguous floor cells.                     |
+| Floor   | Water         | `H`    | terrain     | Paints terrain (the pack's `terrainWater`) with the floor brush's shapes; see "Terrain and curbs". |
+| Floor   | Rock          | `S`    | solidBlock  | Full-cell thick walls (battlement, mountain rock).     |
+| Walls   | Wall          | `W`    | floor.edges | Edge-hover targeting; the options slip picks Wall, Grate, Sluice or Decal ("Wall kinds and decals"). |
+| Walls   | Door          | `D`    | floor.edges | Replaces wall on an edge; toggles open/closed.         |
+| Walls   | Wrap          | `X`    | floor.edges | One-shot: walls every floor-region edge facing void.   |
+| Things  | Object stamp  | `O`    | object      | Picker for chests, statues, braziers, stairs, rubble, debris, named by the pack ("Stamps"). |
+| Things  | Dressing      | `G`    | dressing    | Places library props (#1062); see "Dressing tool" below. |
+| Notes   | Label         | `T`    | annotation  | Text labels; also what names a Space.                  |
+| Notes   | Link          | `K`    | metadata    | Attach a trap / encounter / feature / note to a cell.  |
+| Notes   | Space         | `P`    | structure   | See the next section.                                  |
+| Eraser  | Eraser        | `E`    | active      | Removes from the active layer / edge.                  |
 
 #### Dressing tool (#1062)
 
@@ -639,20 +649,20 @@ The pointer logic lives in `useDressingTool.ts`, wired from `useMapCanvasEditor.
 
 #### UX notes for edge-based tools
 
-- **Wall brush targeting**: when the cursor is within 25% of a cell edge, that edge highlights as a thick coloured strip. Click places a wall on it. Drag along multiple edges to lay a continuous run. `Shift`+click a cell = walls on all 4 of its edges.
+- **Wall targeting**: when the cursor is within 25% of a cell edge, that edge highlights as a thick coloured strip. Click places a wall on it. Drag along multiple edges to lay a continuous run. `Shift`+click a cell = walls on all 4 of its edges.
 - **Door tool**: hovers the same way as the wall brush. Click on a wall edge converts it to `doorClosed`. Click an existing door toggles `doorClosed` ↔ `doorOpen`, which swings the leaf (see Wall Rendering). Right-click removes the door, leaving the wall. The tool did not change with schema 4.
-- **Solid block vs. wall brush**: these are two different tools by design. The wall brush gives you a thin wall on an edge (a curtain, a partition, a worked-stone room boundary). The solid block tool gives you a thick wall in a cell (a sand-filled battlement, mountain rock, a 5 ft slab of masonry). The DM picks based on the dungeon's mass.
+- **Rock vs. Wall**: these are two different tools by design. Wall gives you a thin wall on an edge (a curtain, a partition, a worked-stone room boundary). Rock gives you a thick wall in a cell (a sand-filled battlement, mountain rock, a 5 ft slab of masonry). The DM picks based on the dungeon's mass.
 - **Rectangle + Shift**: Shift-dragging the rectangle tool fills the area with floor *and* runs `wrap walls` on the rectangle perimeter — the most common "make a room" gesture.
-- **Alt inverts a painting tool**: the same modifier idea the Plan's Door tool already used for Alt+click-to-delete (`usePlanCanvasTools.ts`). Holding Alt while a Drawing tool would paint erases what it paints instead, as one undoable stroke: floor → `eraseCell`, brush → `applyDiscs(..., "erase")`, solid → `eraseSolidAt`, stamp → `eraseObjectAt`, wall → `eraseWallAtCellEdge`, door → `removeDoorAtEdge` (same function RMB already used), rect/line/template → erase the cells the shape covers. Select/Pan/Fill/Wrap/Annotate/Link/Eraser/Space have no inverse and ignore Alt. RMB/middle/shift still pan exactly as before; Alt is a separate, additive modifier, never a pan trigger. The canvas pill appends " · erase" while Alt is held over an invertible tool; Alt state is tracked at the window level (`altHeld` in `useMapCanvasEditor.ts`) so the pill reacts even with the pointer sitting still, cleared on blur so alt-tabbing away never leaves it stuck.
+- **Alt inverts a painting tool**: the same modifier idea the Plan's Door tool already used for Alt+click-to-delete (`usePlanCanvasTools.ts`). Holding Alt while a Drawing tool would paint erases what it paints instead, as one undoable stroke: floor → `eraseCell`, brush → `applyDiscs(..., "erase")`, solid → `eraseSolidAt`, stamp → `eraseObjectAt`, wall → `eraseWallAtCellEdge`, door → `removeDoorAtEdge` (same function RMB already used), rect/line/template → erase the cells the shape covers. Select/Pan/Fill/Wrap/Label/Link/Eraser/Space have no inverse and ignore Alt. RMB/middle/shift still pan exactly as before; Alt is a separate, additive modifier, never a pan trigger. The options slip's title appends " · erase" while Alt is held over an invertible tool; Alt state is tracked at the window level (`altHeld` in `useMapCanvasEditor.ts`) so the slip reacts even with the pointer sitting still, cleared on blur so alt-tabbing away never leaves it stuck.
 
 ### Structure tool group (#868, narrowed to Space alone by #884)
 
-This tool doesn't paint pixels — it claims or annotates what the drawing **means**. `src/cartographer/tools.ts` tags it `group: "structure"` in the `Tool` union (Pan is tagged `group: "view"`; everything else defaults to `"draw"`) so `CartographerToolPalette.vue` renders it in its own cluster, separate from the paint tools above. A sibling Zone tool shipped alongside it in #868 and was retired by #884 (wave 4) — see "The Cartographer's own zone layer is retired" under Editor UX above; zoning is now authored directly as a Plan region in the Atlas, never derived from the Drawing.
+This tool doesn't paint pixels: it claims or annotates what the drawing **means**. `src/cartographer/tools.ts` tags it `group: "structure"` in the `Tool` union (the rail's clusters are `TOOLS`' `group` in `MapWorkbench.vue`) so `CartographerToolRail.vue` draws it in the Notes cluster beside Label and Link. A sibling Zone tool shipped alongside it in #868 and was retired by #884 (wave 4): see "The Cartographer's own zone layer is retired" under Editor UX above; zoning is now authored directly as a Plan region in the Atlas, never derived from the Drawing.
 
 | Tool         | Hotkey | Layer     | Behaviour                                                                 |
 | ------------ | ------ | --------- | -------------------------------------------------------------------------- |
-| Space        | `p`    | (derived) | Click a floor region to select the derived space under the cursor. Doesn't write anything — it drives the Structure panel's room-level inspector (name, ways out, linked entities). `s` was already taken by Solid block, so Space took `p` instead of the design frame's literal key. |
-| Link entity  | `k`    | `metadata`| Moved into the structure group in #868 (previously grouped with the paint tools) — same trap/feature/encounter/note pickers as before. |
+| Space        | `p`    | (derived) | Click a floor region to select the derived space under the cursor. Doesn't write anything: it drives the Spaces drawer's room-level inspector (name, ways out, linked entities). `s` was already taken by Rock, so Space took `p` instead of the design frame's literal key. |
+| Link         | `k`    | `metadata`| Moved into the structure group in #868 (previously grouped with the paint tools): same trap/feature/encounter/note pickers as before, now in the options slip. |
 
 Nothing the Structure tool touches is derived structure itself — the derivation (`deriveStructure`, below) recomputes live from `layers`/`metadata` on every change, so there is no separate structure document to keep in sync.
 
@@ -667,19 +677,18 @@ Nothing the Structure tool touches is derived structure itself — the derivatio
 
 **Cell signatures** (`cellSignature.ts`) give a space a stable identity across publishes: a 64-bit FNV-1a hash over the sorted, deduplicated cell-key list (`canonicalCells`), prefixed with the cell count. Deliberately not cryptographic — it only has to agree when two derivations cover the same cells and disagree when one cell moves, cheaply enough to recompute on every keystroke for the status bar.
 
-`useCartographerStructure.ts` is the reactive seam: it holds the live `structure` computed, the Structure panel's `spaceRows`/`selectedSpaceInspector` read models, and `changedSinceLastPublish` — a `structureDelta()` between the map's last-loaded/last-saved structure and the live one, driving the status bar's "**N regions changed since last publish**" caution (amber, right-aligned in the status bar, only shown once the map has been published at least once). `useCartographerStructureTools.ts` wires pointer input for the Space tool into that composable. `CartographerStructurePanel.vue` renders the rail: the space list (name/provenance/cell count, with a Re-detect button that just clears the selection — the derivation is already live, there's nothing stale to recompute), the selected space's inspector (ways-out summary, linked entities, a lazy-committing rename field), and a "Published to" list (which Atlas sites this map backs, each with its `rev` vs. `map_published_rev` gap — "N behind" — since one drawing can back several places, e.g. a reused gatehouse).
+`useCartographerStructure.ts` is the reactive seam: it holds the live `structure` computed, the Structure panel's `spaceRows`/`selectedSpaceInspector` read models, and `changedSinceLastPublish`: a `structureDelta()` between the map's last-loaded/last-saved structure and the live one, driving the status bar's "**N regions changed since last publish**" caution (amber, right-aligned in the status bar, only shown once the map has been published at least once). `useCartographerStructureTools.ts` wires pointer input for the Space tool into that composable. `CartographerStructurePanel.vue` renders the Spaces drawer: the space list (name/provenance/cell count, with a Re-detect button that just clears the selection: the derivation is already live, there's nothing stale to recompute), the selected space's inspector (ways-out summary, linked entities, a lazy-committing rename field), and a "Published to" list (which Atlas sites this map backs, each with its `rev` vs. `map_published_rev` gap: "N behind": since one drawing can back several places, e.g. a reused gatehouse).
 
 `dungeon_maps.rev` (migration `20260908215643_the_publish_remembers_what_it_wrote.sql`) is an integer counter bumped by the `dungeon_maps_bump_rev` trigger (`bump_dungeon_map_rev()`) whenever `layers` or `metadata` change — renaming or retagging a map leaves it alone. `locations.map_published_rev` records which `rev` a site's last publish carried; null means never published. The gap between them is what "N behind" and the status bar caution both read.
 
-### Inspector (right rail)
+### Tool options and the drawers (replacing the inspector)
 
-Contextual to the active tool:
+There is no inspector. What it held now lives in three places:
 
-- **Pack picker** (always visible): grid of loaded packs with thumbnails; clicking sets the brush's pack. Shows "Load more packs" button to pull from storage.
-- **Tool-specific options**: brush size (1, 3, 5 cells), rectangle fill mode (outline / filled), object rotation.
-- **Dressing panel** (#1062): the book icon for Dressing sources, a search over names and tags, the enabled books' props grouped by kind (furniture, containers, loot, remains, tavern and kitchen, workshop, arcane, religious, camp and travel, prison, outdoor) as tiles with their footprint, and, with a placed prop selected, its name, rotation and Delete. The rotation row is `RotationControl.vue`, shared with the object stamp.
-- **Cell inspector** (when a cell is selected): shows linked entities, edit/remove links.
-- **Select section**: with a cell selected, a read-only summary computed in `MapWorkbench.vue` and handed down as plain props (the same "MapWorkbench computes, the panel renders" shape as `annotationText`/`linkedNoteId`) — coordinates, floor (yes/no), solid block (yes/no), each present edge with its kind (wall/closed door/open door; N/W read straight off the cell, E/S off the neighbour's W/N per the NW-ownership rule), the object category if any, the annotation text if any, and linked note/encounter/trap/feature names. With nothing selected: "Click a cell to see what is in it. Drag to move the map."
+- **Map-wide, set once** (name, scope, light, tile set): the bar. See "Layout" above.
+- **The active tool's options**: the options slip. Brush size (`[` `]` resize), wall kind and decals, the object stamp's category and rotation, the Room shape, the Label text, the Link pickers, and a one-line hint for every tool with nothing to set.
+- **Lists that hold a picture's worth of detail**: the drawer. The Dressing panel (#1062): the book icon for Dressing sources, a search over names and tags, the enabled books' props grouped by kind as tiles with their footprint, and, with a placed prop selected, its name, rotation and Delete. The rotation row is `RotationControl.vue`, shared with the object stamp.
+- **Select section** (in the slip): with a cell selected, a read-only summary computed in `MapWorkbench.vue` and handed down as plain props (the same "MapWorkbench computes, the options render" shape as `annotationText`/`linkedNoteId`): one line ("Cell 4, 7: floor, 2 edges, 1 link"), and a Details toggle for coordinates, floor (yes/no), rock (yes/no), each present edge with its kind (wall/closed door/open door; N/W read straight off the cell, E/S off the neighbour's W/N per the NW-ownership rule), the object category if any, the label text if any, and linked note/encounter/trap/feature names. With nothing selected: "Click a cell to see what is in it. Drag to move the map."
 
 ### Canvas behaviour
 
@@ -745,7 +754,7 @@ Cell-based thick walls (`solidBlock` layer) **do** benefit from the classic 8-ne
 
 `layers.terrain` is a per-cell ground material (`TerrainCell`, a `PackRef` to the pack's `terrainWater`: water, sludge, lava, a stream). **A terrain cell draws its texture instead of the floor tile in that cell.** It is still open floor for everything else: the space flood fill, publish and the walls all key on floor cells, so painting terrain on a cell with no floor gives that cell a floor too (`paintTerrainAt` with `floorVariant`). Erasing terrain keeps the floor; erasing the cell takes its terrain with it, so water is never left over a floor that is gone.
 
-The **Water tool** (`H`) paints and erases terrain with the floor brush's shapes. Alt erases the water and keeps the floor. The Inspector's hint says the same.
+The **Water tool** (`H`) paints and erases terrain with the Tiles tool's shapes. Alt erases the water and keeps the floor. The options slip's hint says the same.
 
 **Curbs are drawn automatically**, never placed. `curbEdges` finds every edge between a terrain cell and a non-terrain floor cell that has no edge seg (a wall, grate or sluice already marks that edge) and draws `curbH` or `curbV` on the gridline exactly like a wall tile. A `curbPost` is drawn at a corner where a curb meets a wall or turns. The water under a curb is **sunk**: `paintSunkEdges` darkens the terrain along its banks, more along the top and left banks because the light is top-left (`SHADOW.sunkEdge`). A pack with no curb art still draws the sunk edge; a pack with no `terrainWater` draws no water.
 
@@ -766,12 +775,12 @@ The shadow layer is one offscreen canvas, transparent except for the shadows, bu
 
 ### Wall kinds and decals (#1065)
 
-The Wall tool (`W`) has a **kind** in the Inspector (`WALL_KINDS` in `wallKinds.ts`): **Wall**, **Grate**, **Sluice** and **Decal**.
+The Wall tool (`W`) has a **kind** in the options slip (`WALL_KINDS` in `wallKinds.ts`): **Wall**, **Grate**, **Sluice** and **Decal**.
 
 - Wall, Grate and Sluice paint an edge (`paintWallAtCellEdge` with a `PaintedWallKind`), reading their art from `wallKindCategory` (`wallSegmentH/V`, `edgeGrateH/V`, `edgeSluiceH/V`). A door is never overwritten. A plain wall only restyles a wall of another pack; a grate or sluice replaces a wall of any pack, or the other opening, but not a copy of itself from the same pack.
 - Decal does not create an edge. It lists the pack's `wallDecal` variants by their `labels` (or "Decal n" without one, `decalLabel`) and sets the chosen one on an existing wall edge (`setDecalAtEdge`). Alt removes it. On anything that is not a plain wall it does nothing. A pack with no decals says so.
 
-The Select section of the Inspector names a decorated wall "Wall (decal)", and a grate or sluice by its kind.
+The Select summary names a decorated wall "Wall (decal)", and a grate or sluice by its kind.
 
 ### Stamps (#1065)
 
@@ -782,7 +791,7 @@ The Select section of the Inspector names a decorated wall "Wall (decal)", and a
 The renderer maintains a dirty set of `(layer, key)` entries. Recompute fires on:
 
 - Edge wall paint / erase / door toggle / decal / terrain paint.
-- Solid block paint / erase.
+- Rock paint / erase.
 - A pack's runtime changing (a new version published and loaded): everything drawn with that pack.
 
 Floor and object layers do simple random-variant lookup keyed by `hash(map_id, x, y) % variantCount`, unless the manifest declares the category `continuous`, in which case the position picks the variant (see Schema); no recomputation needed.
@@ -825,7 +834,7 @@ A pack declares its motion in the `pack.json` sidecar: `motion: { terrainWater?:
 
 **Durable urls only.** A snapshot's sprite urls and a pack's motion urls are published into a row players read months later. Library packs and the Dressing library serve their art from public CDN urls that last; a DM's own pack serves its art through one-hour signed urls from a private bucket, which a snapshot cannot keep and players cannot read. So `loadUserPack` drops `motion` and `sway` from the manifest it loads: live motion comes from library packs and library Dressing only.
 
-**Darkness (#1073 story 3).** A map has one ambient light level, `dungeon_maps.darkness` (`DarknessLevel` in `src/types/dungeonMap.types.ts`: `daylight` is bright light everywhere, `dim` is dim light everywhere as at twilight, `dark` is darkness wherever no light reaches). The DM sets it in the editor's inspector under **Light** (a `SegmentedControl` between the campaign scope and the Tile Pack picker), in the standalone editor and in a site's Build state alike. It is workbench state like the name: `getDarkness()`, an unsaved change, restored by `resetEdits`, and written by both save paths. The editor previews it: `renderMap` lays the DM's veil over the painted area after the drawn content and before annotations, link dots and selection chrome, through `paintLitVeil` (`src/lib/battlemap/darkness.ts`), the same function the battle map uses. The veil is translucent (dim 0.3, dark 0.6) because the DM must still see the map; it shows what players cannot see. A saved change bumps `dungeon_maps.rev`, so a published site reads as stale until it is published again. The level reaches play only through Publish: `buildMapLive` copies it into `MapLive.darkness`, and the battle map draws its veil from the snapshot. On the battle map a player sees through their own token instead of this veil (`paintPlayerVeil`, see combat-encounters.md); the editor and the DM keep the translucent one.
+**Darkness (#1073 story 3).** A map has one ambient light level, `dungeon_maps.darkness` (`DarknessLevel` in `src/types/dungeonMap.types.ts`: `daylight` is bright light everywhere, `dim` is dim light everywhere as at twilight, `dark` is darkness wherever no light reaches). The DM sets it in the editor's bar under **Light** (a `SegmentedControl`, Day / Dim / Dark), in the standalone editor and in a site's Build state alike. It is workbench state like the name: `getDarkness()`, an unsaved change, restored by `resetEdits`, and written by both save paths. The editor previews it: `renderMap` lays the DM's veil over the painted area after the drawn content and before annotations, link dots and selection chrome, through `paintLitVeil` (`src/lib/battlemap/darkness.ts`), the same function the battle map uses. The veil is translucent (dim 0.3, dark 0.6) because the DM must still see the map; it shows what players cannot see. A saved change bumps `dungeon_maps.rev`, so a published site reads as stale until it is published again. The level reaches play only through Publish: `buildMapLive` copies it into `MapLive.darkness`, and the battle map draws its veil from the snapshot. On the battle map a player sees through their own token instead of this veil (`paintPlayerVeil`, see combat-encounters.md); the editor and the DM keep the translucent one.
 
 **Lights carve the veil (#1073 story 4).** The veil's strength follows the light level at each point (`src/lib/battlemap/illumination.ts`, pure), by the 5e rules, the same in 2014 and 2024: bright light clears the veil, a light's dim ring halves it, and beyond the ring the map's ambient level stands (daylight 1, dim 0.5, dark 0). Light does not add up: the brightest source at a point decides, so two overlapping dim rings are still dim, and a dim ambient map is never darker than dim. `illuminationGrid` samples that level at four points per cell over a window of cells (each source visits only the samples inside its own reach, so a 60 by 60 map with 30 lights takes a few milliseconds), each ring edge softened over a third of a cell with a smoothstep so there is no hard pixel edge, and `veilAlpha` turns a level into alpha (`DM_VEIL.dark * (1 - level)`, which is exactly `DM_VEIL.dim` for ambient dim). `paintLitVeil` writes the grid into a small image and draws it scaled with smoothing. The editor takes its sources from `gatherLightSources(layers, runtime, dressing, null)` over the painted extent and caches the grid like the shadow layer, against the edit revision, the dressing catalogue, the loaded packs and the level, so panning, zooming and hovering do not rebuild it. **Walls stop the light and the sight (#1073 story 6).** `src/lib/battlemap/occlusion.ts` (pure) decides what blocks: walls, closed doors, sluices (a solid gate) and solid rock (`layers.solidBlock`); open doors and grates (bars you can see through) do not. `clearLine` walks the cells a segment crosses and is false when it crosses a blocking edge or enters a solid cell other than its start; a segment through a grid corner is blocked if either way round the corner is, so light does not leak where two walls meet. A light reaches a sample only with a clear line from one of its `nudgedOrigins`: a light on a wall fitting's edge (a wall decal's light sits on its edge's midpoint) shines from a hair off each face, so it lights the room it hangs in and not the one behind. The snapshot carries `walls` (edge keys `"x,y:N"` / `"x,y:W"`, image cells, walls and sluices), `doors` (`{ edge, open }`, the drawn state for now, a separate list so play can override `open` later) and `solid` (cell keys), built by `collectOcclusion` in `mapLive.ts`; the editor's preview builds the same lists from the map's own layers (origin 0) inside its illumination cache. Players' sight follows the same rule (see combat-encounters.md). The glow baked into the picture follows the same rule (next paragraph).
 
@@ -923,7 +932,7 @@ Cells can link to first-class Grimoire entities through `DungeonMap.metadata[cel
 
 ### Link picker UX
 
-Toolbox → **Link entity** tool → click a cell → side panel shows all link slots → each slot has an EntityCombobox against the appropriate table → save commits to `map.metadata[cellKey]`.
+**Link** tool → click a cell → the options slip shows all link slots → each slot has an EntityCombobox against the appropriate table → save commits to `map.metadata[cellKey]`.
 
 ### Future VTT consumption
 
@@ -1008,7 +1017,7 @@ Adds organic and curved shapes beyond the rectilinear M1–M5 toolkit. Pack sche
 
 | Tool | Hotkey | Behaviour |
 | --- | --- | --- |
-| Room template | `m` | Click center, drag to size. Three shapes: **Circle**, **Octagon**, **Hex**. Fills floor + auto-wraps walls around the perimeter. |
+| Room | `m` | Click center, drag to size. Three shapes: **Circle**, **Octagon**, **Hex**. Fills floor + auto-wraps walls around the perimeter. |
 | Brush | `v` | Drag to paint a round brushed area (see Brushed areas). Replaced the noise-driven cave brush. |
 | Stamp rotation | Q/E + `[`/`]` | Existing 90° rotation, now joined by `[` / `]` for ±1° fine rotation. `PackRef.rotation` widened from a literal union to arbitrary degrees. |
 
@@ -1273,7 +1282,14 @@ Done = a DM can redraw a dungeon, publish again, and trust that hand-named rooms
 | [src/composables/cartographer/useCartographerStructure.ts](../../src/composables/cartographer/useCartographerStructure.ts) | Live structure, Structure-panel read models |
 | [src/composables/cartographer/useCartographerStructureTools.ts](../../src/composables/cartographer/useCartographerStructureTools.ts) | Pointer wiring for the Space tool |
 | [src/composables/locations/useSitePlacements.ts](../../src/composables/locations/useSitePlacements.ts) | Every trap/feature placement across a site's spaces, one query |
-| [src/components/cartographer/CartographerStructurePanel.vue](../../src/components/cartographer/CartographerStructurePanel.vue) | The Structure rail: space list, room inspector, Published-to list |
+| [src/components/cartographer/CartographerStructurePanel.vue](../../src/components/cartographer/CartographerStructurePanel.vue) | The Spaces drawer's content: space list, room inspector, Published-to list |
+| [src/components/cartographer/CartographerBar.vue](../../src/components/cartographer/CartographerBar.vue) | The 3rem bar: tile set, light, Spaces, settings, undo/redo, save state, host slots |
+| [src/components/cartographer/CartographerToolRail.vue](../../src/components/cartographer/CartographerToolRail.vue) | The icon rail, Drawing and Plan |
+| [src/components/cartographer/CartographerToolOptions.vue](../../src/components/cartographer/CartographerToolOptions.vue) | The active tool's options slip (the inspector's per-tool sections) |
+| [src/components/cartographer/CartographerPlanOptions.vue](../../src/components/cartographer/CartographerPlanOptions.vue) | The Plan layer's options slip |
+| [src/components/cartographer/CartographerOptionsSlip.vue](../../src/components/cartographer/CartographerOptionsSlip.vue) | The slip frame both options components share |
+| [src/components/cartographer/CartographerDrawer.vue](../../src/components/cartographer/CartographerDrawer.vue) | The right drawer (a `MobileSheet` below `lg`) |
+| [src/components/cartographer/CartographerPopover.vue](../../src/components/cartographer/CartographerPopover.vue) | The body-level popover the bar's menus use |
 | [src/components/cartographer/CartographerPublishModal.vue](../../src/components/cartographer/CartographerPublishModal.vue) | The Publish to Atlas review modal shell |
 | [src/components/cartographer/PublishPlanPreview.vue](../../src/components/cartographer/PublishPlanPreview.vue) | The plan rendered as a picture |
 | [src/components/cartographer/PublishPlanRows.vue](../../src/components/cartographer/PublishPlanRows.vue) | The plan rendered as rows, grouped by change kind |
@@ -1300,7 +1316,7 @@ A shared library of top-down props a DM places on any map, whatever pack it uses
 | [src/cartographer/paintOps.ts](../../src/cartographer/paintOps.ts) | `placeDressing` / `moveDressing` / `rotateDressing` / `removeDressing` |
 | [src/composables/cartographer/useLibraryDressing.ts](../../src/composables/cartographer/useLibraryDressing.ts) | The offered props (enabled books), every prop (resolution), and the live catalog |
 | [src/composables/cartographer/useDressingTool.ts](../../src/composables/cartographer/useDressingTool.ts) | Place, select, drag, turn, delete, erase, ghost |
-| [src/components/cartographer/CartographerDressingPanel.vue](../../src/components/cartographer/CartographerDressingPanel.vue) | The Inspector panel |
+| [src/components/cartographer/CartographerDressingPanel.vue](../../src/components/cartographer/CartographerDressingPanel.vue) | The Dressing drawer's content |
 | [src/components/cartographer/RotationControl.vue](../../src/components/cartographer/RotationControl.vue) | The rotate row, shared with the object stamp |
 
 The art is made outside the app and published with `scripts/generate-library-art.ts`, kind `dressing`: transparent WebP at 256 px per cell (a 2x1 table is 512x256), seen from directly above, no cast shadow past the footprint, neutral enough to sit on any pack. Publish refuses a picture whose size does not match its row's footprint, and makes no focal guess (a prop is never cropped). The bucket joined every registry: `buckets.ts`, `STORAGE_WRITE_POLICY`, `dev-buckets.data.ts`, `IMAGE_COLUMNS`, `IMAGE_REFERENCES`, `LIBRARY_TABLES`, `move-library-art-to-srd.ts` and the R2 checklist in `infra/README.md`.
@@ -1401,7 +1417,7 @@ This appendix tracks where the implementation actually lives so future agents do
 | [public/cartographer/stone-dungeon/v1/README.md](../../public/cartographer/stone-dungeon/v1/README.md) | Asset list + generation guidelines for the AI pipeline |
 | [src/composables/cartographer/useDungeonMaps.ts](../../src/composables/cartographer/useDungeonMaps.ts) | `useDungeonMaps`, `useDungeonMap`, `useCreate/Update/DeleteDungeonMap` |
 | [src/views/cartographer/CartographerListView.vue](../../src/views/cartographer/CartographerListView.vue) | `/cartographer` list view with filter state |
-| [src/views/cartographer/CartographerEditorView.vue](../../src/views/cartographer/CartographerEditorView.vue) | `/cartographer/new` + `/cartographer/:id` editor (canvas + toolbox + inspector) |
+| [src/views/cartographer/CartographerEditorView.vue](../../src/views/cartographer/CartographerEditorView.vue) | `/cartographer/new` + `/cartographer/:id` editor (bar + rail + canvas + options slip + drawer) |
 
 ### Files modified in M1
 
@@ -1421,7 +1437,7 @@ The bundled Stone Dungeon pack ships a complete manifest but **no actual WebP fi
 
 When real WebP assets land at `public/cartographer/stone-dungeon/v1/floor/0.webp` etc., they replace the placeholders automatically — **no code change required**.
 
-The editor displays a `Pack: stone-dungeon — N required slot(s) missing — using placeholders` warning in the inspector when the validator finds slots without art.
+The editor displays an "N slot(s) missing. Using placeholders." warning in the tile set menu when the validator finds slots without art.
 
 ### Migration apply
 
@@ -1445,11 +1461,11 @@ The migration file is in place but **not yet applied to the remote Supabase proj
 - [x] Wall brush (W) — edge-hover targeting, drag runs, direction-lock, NW ownership.
 - [x] Shift+click wall brush — wraps all 4 edges of the clicked cell.
 - [x] Door tool (D) — click edge: place doorClosed; click doorClosed → doorOpen; click doorOpen → doorClosed; RMB → revert to wall.
-- [x] Solid block tool (S) — paints `solidBlock` layer; flat-render in M2 (bitmask deferred to M3+).
+- [x] Rock tool (S, then called Solid block): paints `solidBlock` layer; flat-render in M2 (bitmask deferred to M3+).
 - [x] Rectangle tool (R) — drag fills rect with floor; Shift+drag also wraps perimeter walls.
 - [x] Line tool (L) — Bresenham floor line between two cells.
 - [x] Fill bucket (F) — floods from cursor through non-solidBlock cells planting floor (2 000-cell cap).
-- [x] Wrap walls (X) — floods the connected floor region and places walls on every boundary edge facing void.
+- [x] Wrap (X, then called Wrap walls): floods the connected floor region and places walls on every boundary edge facing void.
 - [x] Undo/redo — CommandStack (100-step cap); Ctrl+Z / Ctrl+Shift+Z; undo/redo buttons in status bar. Each stroke or one-shot action is one undo unit.
 - [x] Corner joints — programmatic filled-square fallback at H+V intersections; routes to `wallJoint` pack art when available (classifyJoint: L_NE/SE/SW/NW, T_N/E/S/W, CROSS).
 - [x] SolidBlock rendering — full-cell tile above floor, below edge walls.
@@ -1487,9 +1503,9 @@ A second bundled pack, `wood-interior`, ships alongside `stone-dungeon`. Real We
 - [x] 6 optional object categories added to pack schema: `objectChest`, `objectBarrel`, `objectTable`, `objectStatue`, `objectPillar`, `objectBrazier`.
 - [x] Procedural placeholder tiles for each object type (distinct recognisable shapes, transparent background).
 - [x] Object stamp tool (O) — click to place, RMB to erase; drag paints; eraser removes object layer first.
-- [x] Per-object rotation: Q/E keyboard shortcuts + inspector buttons (0°/90°/180°/270°). Stored as `PackRef.rotation`.
-- [x] Annotation tool (T) — click a cell to select it; inspector shows text input; label rendered on canvas centered in cell with drop-shadow.
-- [x] Entity link tool (K) — click a cell to select it; inspector shows Note + Encounter pickers (EntityCombobox); blue dot rendered on linked cells.
+- [x] Per-object rotation: Q/E keyboard shortcuts + rotation buttons in the options slip (0°/90°/180°/270°). Stored as `PackRef.rotation`.
+- [x] Label tool (T, then called Annotate): click a cell to select it; the options slip shows the text input; label rendered on canvas centered in cell with drop-shadow.
+- [x] Link tool (K, then called Link entity): click a cell to select it; the options slip shows Note + Encounter pickers (EntityCombobox); blue dot rendered on linked cells.
 - [x] `metadata` ref persists entity links separately from `layers`; included in undo/redo snapshot and save payload.
 - [x] Eraser priority: object → annotation (inline erase on keydown) → solidBlock → floor/edge.
 

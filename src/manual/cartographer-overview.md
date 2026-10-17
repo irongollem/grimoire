@@ -14,14 +14,16 @@ Find it two ways: **Compendium → Dungeon Craft**, the **Cartographer** tab (wo
 ## Getting started
 
 1. From the map list, click **New Map**.
-2. Pick a tile pack from the **Pack picker** on the right: only packs with complete art appear here; which ones that is can change as Grimoire's built-in packs get illustrated, or as you upload/generate your own (see [Cartographer: Tile Packs](#cartographer-tile-packs)). Incomplete slots draw as flat procedural placeholders rather than blocking you.
-3. Select the **Floor brush** and paint your rooms by clicking and dragging.
+2. Pick a tile set from the **tile set menu** in the bar along the top: only sets with complete art appear here; which ones that is can change as Grimoire's built-in packs get illustrated, or as you upload/generate your own (see [Cartographer: Tile Packs](#cartographer-tile-packs)). Incomplete slots draw as flat procedural placeholders rather than blocking you.
+3. Select the **Tiles** tool in the rail on the left and paint your rooms by clicking and dragging.
 4. Add walls with the **Wall** tool, and doors with the **Door** tool.
 5. Click **Save**.
 
 ## The canvas
 
 The canvas is infinite: there's no fixed map size, so there's no "how big should this be?" decision to make up front.
+
+While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the tile set, the light, the Spaces drawer, the map's settings, undo and redo, and Delete, Cancel and Save. The tools are an icon rail down the left edge (hover for the name and key). The active tool and its options float in a slip at the top left of the map, and the Spaces and Dressing panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
 
 | Action | Input |
 | --- | --- |
@@ -31,41 +33,41 @@ The canvas is infinite: there's no fixed map size, so there's no "how big should
 | Center map | `C` key |
 | Undo / Redo | `Ctrl Z` / `Ctrl Shift Z` |
 
-The status bar along the bottom shows your cursor's cell coordinates, zoom level, active tool, pack, and floor-cell count, plus Center/Undo/Redo buttons.
+The status bar along the bottom shows your cursor's cell coordinates, zoom level and floor-cell count, plus a Center button. Undo and Redo are in the bar at the top.
 
 ## Tools
 
 | Tool | Key | What it does |
 | --- | --- | --- |
-| Floor brush | `B` | Paints floor cells with a random variant from the active pack. |
+| Brush | `V` | Drag to paint a round area of floor, not cell by cell. Hold Alt to erase; `[` and `]` shrink and grow the brush. |
+| Tiles | `B` | Paints floor cells with a random variant from the active pack. |
 | Eraser | `E` | Removes floor, walls, and objects from a cell. |
-| Wall | `W` | Click a cell edge to place a wall; drag along multiple edges for a run. Shift+click a cell walls all 4 of its edges. The side panel picks what the tool places: **Wall**, **Grate**, **Sluice** or **Decal** (see Walls, grates and decals below). |
+| Wall | `W` | Click a cell edge to place a wall; drag along multiple edges for a run. Shift+click a cell walls all 4 of its edges. The tool's options, at the top left of the map, pick what it places: **Wall**, **Grate**, **Sluice** or **Decal** (see Walls, grates and decals below). |
 | Door | `D` | Click a wall edge to add a door; click an existing door to toggle open/closed (the door swings on its hinge); right-click removes it, leaving the wall. |
 | Water | `H` | Paints water (or whatever the pack's liquid is) over the floor; a cell with no floor gets one. Hold **Alt** to erase the water and keep the floor. |
-| Solid block | `S` | Fills a cell with a thick, full-cell wall mass (battlement stone, mountain rock), different from the thin edge-based Wall tool. |
+| Rock | `S` | Fills a cell with a thick, full-cell wall mass (battlement stone, mountain rock), different from the thin edge-based Wall tool. |
 | Object stamp | `O` | Stamps furniture, chests, statues, braziers, stairs up and down, rubble, and debris from the pack. Each stamp carries the pack's own name, so a forest pack offers an "Old tree" where a dungeon offers a pillar. Turn a stair with `Q` and `E` to choose which side you climb or descend from. |
 | Dressing | `G` | Places props from the library (tables, beds, coffins) at any angle, above the stamped objects. See Dressing below. |
 | Rectangle | `R` | Drag to fill a rectangle of floor. Hold **Shift** to also wrap walls around the perimeter: the fastest way to make a room. |
 | Line | `L` | Drag to draw a straight run of floor. |
 | Fill | `F` | Flood-fills a contiguous floor region. |
-| Wrap walls | `X` | One shot: walls every edge of the selected floor region that faces empty space. |
-| Annotate | `T` | Labels a cell with a short text note: also what names a Space (see below). |
-| Room template | `M` | Click a centre, drag to size. Three shapes: Circle, Octagon, Hex, fills floor and auto-wraps walls around the perimeter. |
-| Brush | `V` | Drag to paint a round area of floor, not cell by cell. Hold Alt to erase; `[` and `]` shrink and grow the brush. |
-| Space | `P` | Click a floor region to select the room Grimoire has detected there: doesn't paint anything, drives the Structure panel below. |
-| Link entity | `K` | Click a cell, then pick a trap, feature, encounter, or note to attach to it from the side panel. |
+| Wrap | `X` | One shot: walls every edge of the selected floor region that faces empty space. |
+| Label | `T` | Labels a cell with a short text note: also what names a Space (see below). |
+| Room | `M` | Click a centre, drag to size. Three shapes: Circle, Octagon, Hex, fills floor and auto-wraps walls around the perimeter. |
+| Space | `P` | Click a floor region to select the room Grimoire has detected there: doesn't paint anything, drives the Spaces drawer below. |
+| Link | `K` | Click a cell, then pick a trap, feature, encounter, or note to attach to it from the options at the top left. |
 | Pan | (drag, badge **RMB**) | Middle-mouse or right-click drag pans from any tool. |
 
-Space and Link entity are grouped as **Structure** tools in the palette, separate from the paint tools above: they claim or annotate what the drawing *means* rather than adding pixels.
+The rail groups the tools: **Look** (Select, Pan), **Floor** (Brush, Tiles, Rectangle, Line, Room, Fill, Water, Rock), **Walls** (Wall, Door, Wrap), **Things** (Object stamp, Dressing), **Notes** (Label, Link, Space) and the Eraser. Space and Link claim or annotate what the drawing *means* rather than adding pixels.
 
 ## Walls, grates and decals
 
-With the Wall tool active, the side panel offers four kinds:
+With the Wall tool active, the options slip offers four kinds:
 
 - **Wall** is the ordinary wall.
 - **Grate** is bars across an opening in a wall, such as a canal passing under it. Grimoire does not treat it as a way out of a room.
 - **Sluice** is a gate in a wall, for water leaving a room.
-- **Decal** dresses a wall that is already there: a pipe mouth, a rat hole, a carving. Choose the decal from the list (a pack names its own), then click a wall. Hold **Alt** and click to take it off again. If the pack has no decals, the panel says so.
+- **Decal** dresses a wall that is already there: a pipe mouth, a rat hole, a carving. Choose the decal from the list (a pack names its own), then click a wall. Hold **Alt** and click to take it off again. If the pack has no decals, the slip says so.
 
 Grates and sluices paint like walls and replace a wall underneath. They never replace a door.
 
@@ -83,7 +85,7 @@ Grimoire draws shadows for you, from a light at the top left: walls, rock, statu
 
 Dressing is a library of top-down props: long tables, beds, coffins, barrels. Unlike the Object stamp, a prop can be several cells big, sits above the objects, and turns to any angle.
 
-Open the Dressing tool (`G`), pick a prop in the side panel, and click the map to place it. A faint copy follows your cursor so you can see where it will land. After the click the prop stays selected: `Q` and `E` turn it a quarter turn, `[` and `]` nudge it one degree, and `Delete` removes it. The buttons under **Rotate** in the panel do the same. With no prop selected, those keys turn the next one you place.
+Open the Dressing tool (`G`), pick a prop in the Dressing drawer on the right, and click the map to place it. A faint copy follows your cursor so you can see where it will land. After the click the prop stays selected: `Q` and `E` turn it a quarter turn, `[` and `]` nudge it one degree, and `Delete` removes it. The buttons under **Rotate** in the drawer do the same. With no prop selected, those keys turn the next one you place.
 
 To move a prop, put it down first (click the picked prop again in the panel, or press `Esc`), then drag it on the map. Right-click, or hold **Alt** and click, removes the prop under the cursor, and the Eraser takes props before anything beneath them. Every placement, move, turn and removal is one step in Undo.
 
@@ -91,11 +93,11 @@ Props come in books, and every book is off until you switch it on. Click the **b
 
 ## Rooms are detected automatically
 
-You don't declare rooms: Grimoire finds them. As you paint, the **Structure** panel on the right lists every enclosed floor region ("space") it detects by flood-filling the floor layer, cut wherever a wall, closed door, or open door/arch sits. Click **Space** and then a room on the canvas (or a row in the panel) to select it and see:
+You don't declare rooms: Grimoire finds them. As you paint, the **Spaces** drawer (the Spaces button in the top bar) lists every enclosed floor region ("space") it detects by flood-filling the floor layer, cut wherever a wall, closed door, or open door/arch sits. Click **Space** and then a room on the canvas (or a row in the drawer) to select it and see:
 
-- Its detected name (taken from the first **Annotate** label on any of its cells, name a room by writing its name with the Annotate tool), with a field to rename it.
+- Its detected name (taken from the first **Label** on any of its cells; name a room by writing its name with the Label tool), with a field to rename it.
 - **Ways out**: the doors/arches Grimoire found connecting it to its neighbours.
-- Anything you've linked into it with the Link entity tool.
+- Anything you've linked into it with the Link tool.
 
 Nothing here writes to your Atlas until you publish. A **Re-detect** button just clears your current selection: detection itself is always live, recomputed on every stroke. Grimoire also tracks how many regions have changed since your last publish and shows it as a caution in the status bar once you've published at least once.
 

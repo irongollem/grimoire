@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-2">
     <div class="flex items-center justify-between gap-2">
-      <label class="block text-eyebrow text-muted-foreground">Dressing</label>
+      <label class="block text-eyebrow text-muted-foreground">Props</label>
       <!-- Library books (epic #1062): opt-in per campaign, as Dungeon Craft's are. -->
       <SourcesPickerPanel
         title="Dressing Sources"

@@ -1,263 +1,238 @@
 <template>
-  <div class="flex flex-col lg:flex-row gap-3 mt-2">
-    <!-- Toolbox. Held to the palettes' own width on desktop: the layer
-         explanation below is a sentence, and an unconstrained column grew to
-         fit it on one line, taking a third of the canvas's width with it. -->
-    <div v-if="!viewMode" class="flex flex-col gap-2 shrink-0 lg:w-44">
-      <!-- Layer selector (#884 S7b) — only with a site: standalone
-           /cartographer/:id has no Plan to switch to, so it never renders
-           there, and `activeLayer` stays "drawing" forever. -->
-      <SegmentedControl
-        v-if="site"
-        :model-value="activeLayer"
-        :options="LAYER_OPTIONS"
-        size="xs"
-        block
-        @update:model-value="activeLayer = $event"
-      />
-      <!-- What the selected layer is for, in a line: "Drawing" and "Plan" are
-           the site workbench's own words (#884) and mean nothing to someone
-           opening Build for the first time. The tooltips say the same on
-           desktop; a phone has no hover, so the line is always shown. -->
-      <p v-if="site" class="text-caption text-muted-foreground px-1">
-        {{ LAYER_OPTIONS.find((o) => o.value === activeLayer)?.description }}
-      </p>
-      <CartographerToolPalette
-        v-if="activeLayer === 'drawing'"
-        :tools="TOOLS"
-        :active-tool="activeTool"
-        @update:active-tool="activeTool = $event as Tool"
-      />
-      <CartographerPlanPalette
-        v-else
-        :plan-tool="plan.planTool.value"
-        :trace-tool="plan.traceTool.value"
-        :template-shape="plan.templateShape.value"
-        :zone-kind="plan.zoneKind.value"
-        :zone-label="plan.zoneLabel.value"
-        @update:plan-tool="plan.planTool.value = $event"
-        @update:trace-tool="plan.traceTool.value = $event"
-        @update:template-shape="plan.templateShape.value = $event"
-        @update:zone-kind="plan.zoneKind.value = $event"
-        @update:zone-label="plan.zoneLabel.value = $event"
-        @start-new="plan.planTool.value === 'zone' ? plan.startNewZone() : plan.startNewSpace()"
-      />
-    </div>
+  <div :class="viewMode ? 'flex flex-col lg:flex-row gap-3 mt-2' : 'flex h-full min-h-0 flex-col gap-2'">
+    <!-- Edit: a column of the 3rem bar and, under it, the rail and the canvas, filling whatever
+         height the host gives it. View: the canvas alone, as the page always showed it. -->
+    <CartographerBar
+      v-if="!viewMode"
+      :packs="selectablePacks"
+      :current-pack-id="currentPackId"
+      :loaded-pack-ids="loadedPackIds"
+      :pack-runtime="packRuntime"
+      :pack-name="packLabel"
+      :validation-missing="packRuntime?.validation.missing.length ?? 0"
+      :darkness="darkness"
+      :campaign-id="campaignId"
+      :space-count="activeLayer === 'plan' ? plan.regions.value.length : structure.spaceRows.value.length"
+      :spaces-open="drawer === spacesDrawerId"
+      :can-undo="canUndo"
+      :can-redo="canRedo"
+      :save-state="saveState"
+      :reference-available="!!referencePicture"
+      :show-reference="showPictureReference"
+      @update:current-pack-id="currentPackId = $event"
+      @update:darkness="setDarkness"
+      @update:campaign-id="campaignId = $event"
+      @update:show-reference="showPictureReference = $event"
+      @toggle-spaces="toggleSpaces"
+      @undo="undoEdit"
+      @redo="redoEdit"
+    >
+      <template #start><slot name="bar-start" :map-name="name" :set-name="setName" /></template>
+      <!-- Drawing / Plan — only with a site: standalone /cartographer/:id has no Plan to
+           switch to, so it never renders there and `activeLayer` stays "drawing" forever.
+           It lives here, not in the host, because the layer is workbench state. -->
+      <template v-if="site" #layer>
+        <SegmentedControl
+          :model-value="activeLayer"
+          :options="LAYER_OPTIONS"
+          size="xs"
+          class="shrink-0"
+          @update:model-value="activeLayer = $event"
+        />
+      </template>
+      <template #end><slot name="bar-end" /></template>
+    </CartographerBar>
 
-    <!-- Canvas. Pinned to the frame's edges rather than `h-full`: the frame's
-         height comes from `min-height` alone when the toolbox stacks above it
-         (phones), and a percentage height does not resolve against a
-         min-height, so the canvas fell back to its own attribute height and
-         drew a strip across the top of an otherwise white frame. -->
-    <div class="flex-1 min-w-0 relative bg-card border border-border rounded-lg overflow-hidden" style="min-height: 60vh">
-      <canvas
-        ref="canvasEl"
-        class="absolute inset-0 block h-full w-full touch-none"
-        :class="viewMode ? 'cursor-default' : 'cursor-crosshair'"
-        @pointerdown="onPointerDown"
-        @pointermove="onPointerMove"
-        @pointerup="onPointerUp"
-        @pointerleave="onPointerLeave"
-        @dblclick="onDoubleClick"
-        @wheel.prevent="onWheel"
-        @contextmenu.prevent
-      ></canvas>
+    <div :class="viewMode ? 'contents' : 'flex min-h-0 flex-1 flex-col-reverse gap-2 lg:flex-row'">
+      <CartographerToolRail
+        v-if="!viewMode"
+        :groups="activeLayer === 'drawing' ? RAIL_GROUPS : PLAN_RAIL_GROUPS"
+        :active-tool="activeLayer === 'drawing' ? activeTool : plan.planTool.value"
+        @update:active-tool="onRailTool"
+      />
 
-      <!-- Status bar -->
+      <!-- Canvas. Pinned to the frame's edges rather than `h-full`: the frame's height
+           comes from the flex row (or, in view mode, `min-height` alone), and a
+           percentage height does not resolve against a min-height, so the canvas fell
+           back to its own attribute height and drew a strip across the top of an
+           otherwise white frame. -->
       <div
-        class="absolute bottom-0 left-0 right-0 flex items-center gap-3 px-3 py-1 bg-card/95 border-t border-border text-caption-sm text-muted-foreground"
+        class="flex-1 min-w-0 relative bg-card border border-border rounded-lg overflow-hidden"
+        :class="viewMode ? '' : 'min-h-64'"
+        :style="viewMode ? 'min-height: 60vh' : undefined"
       >
-        <span>
-          Cursor: <strong class="text-foreground">{{ hoverCell?.[0] ?? "—" }}, {{ hoverCell?.[1] ?? "—" }}</strong>
-        </span>
-        <span>
-          Zoom: <strong class="text-foreground">{{ Math.round(zoom * 100) }}%</strong>
-        </span>
-        <span>
-          Brush: <strong class="text-foreground">{{ activeToolLabel }}</strong>
-        </span>
-        <AppButton
-          variant="ghost"
-          fill="muted"
-          size="icon-xs"
-          tooltip="Center map (C)"
-          aria-label="Center map"
-          :icon="IconCenter"
-          @click="centerMap"
-        />
-        <AppButton
-          variant="ghost"
-          fill="muted"
-          size="icon-xs"
-          :disabled="!canUndo"
-          tooltip="Undo (Ctrl+Z)"
-          aria-label="Undo"
-          :icon="IconUndo"
-          @click="undoEdit"
-        />
-        <AppButton
-          variant="ghost"
-          fill="muted"
-          size="icon-xs"
-          :disabled="!canRedo"
-          tooltip="Redo (Ctrl+Shift+Z)"
-          aria-label="Redo"
-          :icon="IconRedo"
-          @click="redoEdit"
-        />
-        <span>
-          Pack: <strong class="text-foreground">{{ packLabel }}</strong>
-          <span v-if="packLoadError" class="text-destructive"> ({{ packLoadError }})</span>
-        </span>
-        <span v-if="cellsPainted > 0">
-          Floor cells: <strong class="text-foreground">{{ cellsPainted }}</strong>
-        </span>
-        <span v-if="changedRegionsCaution" class="ml-auto text-ink-caution">{{ changedRegionsCaution }}</span>
-      </div>
+        <canvas
+          ref="canvasEl"
+          class="absolute inset-0 block h-full w-full touch-none"
+          :class="viewMode ? 'cursor-default' : 'cursor-crosshair'"
+          @pointerdown="onPointerDown"
+          @pointermove="onPointerMove"
+          @pointerup="onPointerUp"
+          @pointerleave="onPointerLeave"
+          @dblclick="onDoubleClick"
+          @wheel.prevent="onWheel"
+          @contextmenu.prevent
+        ></canvas>
 
-      <!-- The active tool by name, top left where the eye lands first; view
-           options (Reference) keep the top right. Below lg the palette is
-           icons only and the status bar's "Brush:" line is off-screen on a
-           phone, so this is the one place a DM can read which tool a tap
-           will use. The Space tool's instruction stacks under it. -->
-      <div v-if="!viewMode" class="absolute top-2 left-2 flex flex-col items-start gap-1.5">
-        <span class="px-2.5 py-0.5 rounded-full bg-card/95 border border-border text-caption font-semibold text-foreground">
-          {{ canvasToolLabel }}
-        </span>
+        <!-- Status bar -->
         <div
-          v-if="activeLayer === 'drawing' && activeTool === 'space'"
-          class="px-2 py-1 rounded-md bg-card/95 border border-border text-caption-sm text-muted-foreground"
+          class="absolute bottom-0 left-0 right-0 flex items-center gap-3 px-3 py-1 bg-card/95 border-t border-border text-caption-sm text-muted-foreground"
         >
-          Click a floor region to claim it
+          <span>
+            Cursor: <strong class="text-foreground">{{ hoverCell?.[0] ?? "—" }}, {{ hoverCell?.[1] ?? "—" }}</strong>
+          </span>
+          <span>
+            Zoom: <strong class="text-foreground">{{ Math.round(zoom * 100) }}%</strong>
+          </span>
+          <span v-if="viewMode">
+            Pack: <strong class="text-foreground">{{ packLabel }}</strong>
+            <span v-if="packLoadError" class="text-destructive"> ({{ packLoadError }})</span>
+          </span>
+          <span v-else-if="packLoadError" class="text-destructive">{{ packLoadError }}</span>
+          <span v-if="cellsPainted > 0">
+            Floor cells: <strong class="text-foreground">{{ cellsPainted }}</strong>
+          </span>
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            tooltip="Center map (C)"
+            aria-label="Center map"
+            :icon="IconCenter"
+            @click="centerMap"
+          />
+          <span v-if="changedRegionsCaution" class="ml-auto text-ink-caution">{{ changedRegionsCaution }}</span>
         </div>
-      </div>
 
-      <!-- Top right: the host's own canvas controls (a site's level picker),
-           then the Reference toggle (#884 S6), which shows only when embedded
-           with a site whose Picture can go underneath. Standalone
-           /cartographer/:id passes neither. -->
-      <div class="absolute top-2 right-2 flex items-center gap-2">
-        <slot name="canvas-top-right" />
-        <div v-if="referencePicture" class="px-2 py-1 rounded-md bg-card/95 border border-border">
+        <!-- The active tool and its options, top left where the eye lands first. On a phone
+             it spans the top and the rail lies along the bottom. -->
+        <template v-if="!viewMode">
+          <CartographerToolOptions
+            v-if="activeLayer === 'drawing'"
+            ref="toolOptionsRef"
+            :title="canvasToolLabel"
+            :active-tool="activeTool"
+            :active-object-category="activeObjectCategory"
+            :object-categories="STAMP_CATEGORIES"
+            :stamp-rotation="stampRotation"
+            :manifest="packRuntime?.manifest ?? null"
+            :active-wall-kind="activeWallKind"
+            :active-wall-decal="activeWallDecal"
+            :wall-decal-count="packRuntime?.variantCount('wallDecal') ?? 0"
+            :dressing-brush-id="dressingBrushId"
+            :selected-cell="selectedCell"
+            :selected-cell-floor="selectedCellFloor"
+            :selected-cell-solid="selectedCellSolid"
+            :selected-cell-edges="selectedCellEdges"
+            :selected-cell-object-category="selectedCellObjectCategory"
+            :selected-cell-linked-names="selectedCellLinkedNames"
+            :annotation-text="annotationText"
+            :linked-note-id="linkedNoteId"
+            :linked-encounter-id="linkedEncounterId"
+            :linked-trap-id="linkedTrapId"
+            :linked-feature-id="linkedFeatureId"
+            :note-options="noteOptions"
+            :encounter-options="encounterOptions"
+            :trap-options="trapOptions"
+            :feature-options="featureOptions"
+            :active-template-shape="activeTemplateShape"
+            :template-shapes="TEMPLATE_SHAPES"
+            :brush-radius="brushRadius"
+            @update:active-object-category="activeObjectCategory = $event"
+            @update:stamp-rotation="stampRotation = $event"
+            @update:active-wall-kind="activeWallKind = $event"
+            @update:active-wall-decal="activeWallDecal = $event"
+            @update:annotation-text="annotationText = $event"
+            @update:linked-note-id="linkedNoteId = $event"
+            @update:linked-encounter-id="linkedEncounterId = $event"
+            @update:linked-trap-id="linkedTrapId = $event"
+            @update:linked-feature-id="linkedFeatureId = $event"
+            @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
+            @update:brush-radius="brushRadius = $event"
+          />
+          <CartographerPlanOptions
+            v-else
+            v-model:trace-tool="plan.traceTool.value"
+            v-model:template-shape="plan.templateShape.value"
+            v-model:zone-kind="plan.zoneKind.value"
+            v-model:zone-label="plan.zoneLabel.value"
+            :title="canvasToolLabel"
+            :plan-tool="plan.planTool.value"
+            @start-new="plan.planTool.value === 'zone' ? plan.startNewZone() : plan.startNewSpace()"
+          />
+        </template>
+
+        <!-- View options (Reference) keep the top right in view mode; while editing they
+             are in the bar's settings. The host's own controls moved into the bar. -->
+        <div v-if="viewMode && referencePicture" class="absolute top-2 right-2 px-2 py-1 rounded-md bg-card/95 border border-border">
           <AppCheckbox v-model="showPictureReference" label="Reference" size="sm" />
         </div>
-      </div>
 
-      <!-- Overlay hint while the default pack loads -->
-      <div
-        v-if="awaitingDefaultPack"
-        class="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm"
-      >
-        <LoadingSpinner />
-      </div>
-      <!-- Genuinely empty library — the query has answered and there is
-           nothing published. Not a fallback to a hardcoded pack (rule 1):
-           a real, readable state instead. -->
-      <div
-        v-else-if="!hasPublishedPacks"
-        class="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm px-4 text-center"
-      >
-        <p class="text-caption text-muted-foreground">No tile packs are published yet.</p>
-      </div>
-    </div>
+        <!-- One drawer at a time, over the canvas's right edge: the Spaces on this map, the
+             Dressing props, or the Plan's own Spaces and Zones panels (#884 S11). The Plan
+             rail decides which GESTURE a click means; binding a traced shape to a room,
+             naming it, and deleting it stay panel actions, which is what these give it. -->
+        <CartographerDrawer v-if="!viewMode" :open="drawer !== null" :title="drawerTitle" @close="drawer = null">
+          <div v-if="drawer === 'plan' && site" class="flex flex-col gap-3">
+            <SiteMapRegionList
+              :location-id="site.id"
+              :spaces="spaces ?? []"
+              :regions="plan.regions.value"
+              :active-region-id="plan.activeRegionId.value"
+              :can-trace="true"
+              :building="true"
+              :door-tool-armed="plan.planTool.value === 'door'"
+              @update:active-region-id="(id) => setPlanActiveRegion(id, 'space')"
+              @update:door-tool-armed="(armed) => (plan.planTool.value = armed ? 'door' : 'space')"
+            />
+            <SiteMapZoneList
+              :location-id="site.id"
+              :regions="plan.regions.value"
+              :active-region-id="plan.activeRegionId.value"
+              :can-trace="true"
+              :building="true"
+              @update:active-region-id="(id) => setPlanActiveRegion(id, 'zone')"
+            />
+          </div>
+          <CartographerDressingPanel
+            v-else-if="drawer === 'dressing'"
+            :brush-id="dressingBrushId"
+            :brush-rotation="dressingRotation"
+            :selected="selectedDressingInfo"
+            @update:brush-id="dressingBrushId = $event"
+            @update:brush-rotation="dressingRotation = $event"
+            @rotate-selected="rotateSelectedDressing"
+            @delete-selected="deleteSelectedDressing"
+          />
+          <CartographerStructurePanel
+            v-else-if="drawer === 'spaces'"
+            :space-rows="structure.spaceRows.value"
+            :selected-space-inspector="structure.selectedSpaceInspector.value"
+            :published-sites="publishedSites ?? []"
+            :map-rev="map?.rev ?? 0"
+            @select-space="(key) => (structure.selectedSpaceKey.value = key)"
+            @rename-space="structureTools.onRenameSpace"
+            @redetect="structure.redetect"
+          />
+        </CartographerDrawer>
 
-    <!-- Inspector + Structure (Drawing), or the Plan's own Spaces/Zones
-         panels (#884 S11) — the Plan palette on the left decides which
-         GESTURE a click means; binding a traced shape to a room, naming it,
-         and deleting it stay panel actions, which is what these two give it
-         once a site is embedded. Standalone /cartographer/:id has no site
-         and so always takes the Drawing branch. -->
-    <div v-if="!viewMode" class="flex flex-col gap-3">
-      <template v-if="site && activeLayer === 'plan'">
-        <SiteMapRegionList
-          :location-id="site.id"
-          :spaces="spaces ?? []"
-          :regions="plan.regions.value"
-          :active-region-id="plan.activeRegionId.value"
-          :can-trace="true"
-          :building="true"
-          :door-tool-armed="plan.planTool.value === 'door'"
-          @update:active-region-id="(id) => setPlanActiveRegion(id, 'space')"
-          @update:door-tool-armed="(armed) => (plan.planTool.value = armed ? 'door' : 'space')"
-        />
-        <SiteMapZoneList
-          :location-id="site.id"
-          :regions="plan.regions.value"
-          :active-region-id="plan.activeRegionId.value"
-          :can-trace="true"
-          :building="true"
-          @update:active-region-id="(id) => setPlanActiveRegion(id, 'zone')"
-        />
-      </template>
-      <template v-else>
-        <CartographerInspectorPanel
-          ref="inspectorPanelRef"
-          :name="name"
-          :campaign-id="campaignId"
-          :current-pack-id="currentPackId"
-          :darkness="darkness"
-          :bundled-packs="selectablePacks"
-          :loaded-pack-ids="loadedPackIds"
-          :pack-validation-missing="packRuntime?.validation.missing.length ?? 0"
-          :active-tool="activeTool"
-          :active-object-category="activeObjectCategory"
-          :object-categories="STAMP_CATEGORIES"
-          :manifest="packRuntime?.manifest ?? null"
-          :active-wall-kind="activeWallKind"
-          :active-wall-decal="activeWallDecal"
-          :wall-decal-count="packRuntime?.variantCount('wallDecal') ?? 0"
-          :stamp-rotation="stampRotation"
-          :dressing-brush-id="dressingBrushId"
-          :dressing-rotation="dressingRotation"
-          :selected-dressing="selectedDressingInfo"
-          :selected-cell="selectedCell"
-          :selected-cell-floor="selectedCellFloor"
-          :selected-cell-solid="selectedCellSolid"
-          :selected-cell-edges="selectedCellEdges"
-          :selected-cell-object-category="selectedCellObjectCategory"
-          :selected-cell-linked-names="selectedCellLinkedNames"
-          :annotation-text="annotationText"
-          :linked-note-id="linkedNoteId"
-          :linked-encounter-id="linkedEncounterId"
-          :linked-trap-id="linkedTrapId"
-          :linked-feature-id="linkedFeatureId"
-          :note-options="noteOptions"
-          :encounter-options="encounterOptions"
-          :trap-options="trapOptions"
-          :feature-options="featureOptions"
-          :active-template-shape="activeTemplateShape"
-          :template-shapes="TEMPLATE_SHAPES"
-          :brush-radius="brushRadius"
-          @update:name="name = $event"
-          @update:campaign-id="campaignId = $event"
-          @update:current-pack-id="currentPackId = $event"
-          @update:darkness="setDarkness"
-          @update:active-object-category="activeObjectCategory = $event"
-          @update:active-wall-kind="activeWallKind = $event"
-          @update:active-wall-decal="activeWallDecal = $event"
-          @update:stamp-rotation="stampRotation = $event"
-          @update:dressing-brush-id="dressingBrushId = $event"
-          @update:dressing-rotation="dressingRotation = $event"
-          @rotate-selected-dressing="rotateSelectedDressing"
-          @delete-selected-dressing="deleteSelectedDressing"
-          @update:annotation-text="annotationText = $event"
-          @update:linked-note-id="linkedNoteId = $event"
-          @update:linked-encounter-id="linkedEncounterId = $event"
-          @update:linked-trap-id="linkedTrapId = $event"
-          @update:linked-feature-id="linkedFeatureId = $event"
-          @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
-          @update:brush-radius="brushRadius = $event"
-        />
-        <CartographerStructurePanel
-          :space-rows="structure.spaceRows.value"
-          :selected-space-inspector="structure.selectedSpaceInspector.value"
-          :published-sites="publishedSites ?? []"
-          :map-rev="map?.rev ?? 0"
-          @select-space="(key) => (structure.selectedSpaceKey.value = key)"
-          @rename-space="structureTools.onRenameSpace"
-          @redetect="structure.redetect"
-        />
-      </template>
+        <!-- Overlay hint while the default pack loads -->
+        <div
+          v-if="awaitingDefaultPack"
+          class="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm"
+        >
+          <LoadingSpinner />
+        </div>
+        <!-- Genuinely empty library — the query has answered and there is
+             nothing published. Not a fallback to a hardcoded pack (rule 1):
+             a real, readable state instead. -->
+        <div
+          v-else-if="!hasPublishedPacks"
+          class="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm px-4 text-center"
+        >
+          <p class="text-caption text-muted-foreground">No tile packs are published yet.</p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -266,8 +241,8 @@
 // The Cartographer's editing surface, extracted out of CartographerEditorView
 // (epic #884 S6) so it can be embedded both at `/cartographer/:id` and,
 // later, inside the Atlas's map area. This component owns the toolbox, the
-// canvas (via `useMapCanvasEditor`), the contextual inspector, the structure
-// rail, and tile-pack loading. It does NOT read `useRoute`/`useRouter` or any
+// canvas (via `useMapCanvasEditor`), the 3rem bar, the tool rail, the active tool's
+// options slip, the right drawer, and tile-pack loading. It does NOT read `useRoute`/`useRouter` or any
 // route query — the host decides routing, this only edits a map.
 //
 // ── Props ────────────────────────────────────────────────────────────────
@@ -275,8 +250,9 @@
 //               unsaved new map / while the host's query is still loading.
 //               Changing it re-initializes every editable field (same rule
 //               the pre-extraction view's `watch(loadedMap, ...)` followed).
-// `viewMode` — read-only display: pan/zoom only, no toolbox, no inspector,
+// `viewMode` — read-only display: pan/zoom only, no bar, no rail, no options,
 //               no painting. The host derives this from its own route query.
+// `saveState` — the host's save state text for the bar ("Saving…", "Unsaved changes").
 // `site`     — optional, `MapStackSource`-shaped (see
 //               `lib/locations/mapStack.ts`) plus the site's own `id`. When
 //               given, the site's Picture layer renders as a toggleable
@@ -290,6 +266,12 @@
 //               comment below for why that sharing is safe). Absent →
 //               identical to the pre-extraction standalone editor: no
 //               reference layer, no layer selector, no Plan palette.
+//
+// ── Slots ────────────────────────────────────────────────────────────────
+// `bar-start` (scoped: `mapName`, `setName`) and `bar-end` fill the two ends of the bar: the
+// standalone host puts a way back and the map's name in the first and Delete/Cancel/Save in the
+// second, Atlas Build its level picker in the first. The workbench itself puts the Drawing/Plan
+// switch after `bar-start`, because the layer is its own state.
 //
 // ── Emits ────────────────────────────────────────────────────────────────
 // `update:dirty` — fires whenever the unsaved-edit flag changes. The host
@@ -334,8 +316,6 @@ import {
   IconEraser,
   IconHand,
   IconCenter,
-  IconUndo,
-  IconRedo,
   IconWall,
   IconDoor,
   IconCube,
@@ -350,22 +330,27 @@ import {
   IconRoomTemplate,
   IconCave,
   IconSplitCell,
+  IconHighlight,
+  type AppIcon,
 } from "@/lib/icons";
 
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import CartographerToolPalette, { type ToolGroup } from "@/components/cartographer/CartographerToolPalette.vue";
-import CartographerPlanPalette from "@/components/cartographer/CartographerPlanPalette.vue";
-import CartographerInspectorPanel from "@/components/cartographer/CartographerInspectorPanel.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
+import CartographerBar from "@/components/cartographer/CartographerBar.vue";
+import CartographerDrawer from "@/components/cartographer/CartographerDrawer.vue";
+import CartographerDressingPanel from "@/components/cartographer/CartographerDressingPanel.vue";
+import CartographerToolRail, { type RailGroup } from "@/components/cartographer/CartographerToolRail.vue";
+import CartographerPlanOptions from "@/components/cartographer/CartographerPlanOptions.vue";
+import CartographerToolOptions from "@/components/cartographer/CartographerToolOptions.vue";
 import CartographerStructurePanel from "@/components/cartographer/CartographerStructurePanel.vue";
 import SiteMapRegionList from "@/components/locations/site/SiteMapRegionList.vue";
 import SiteMapZoneList from "@/components/locations/site/SiteMapZoneList.vue";
 import { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useMapCanvasEditor } from "@/composables/cartographer/useMapCanvasEditor";
-import { usePlanPalette, PLAN_TOOLS, TRACE_TOOL_OPTIONS } from "@/composables/cartographer/usePlanPalette";
+import { usePlanPalette, PLAN_TOOLS, TRACE_TOOL_OPTIONS, type PlanTool } from "@/composables/cartographer/usePlanPalette";
 import { usePublishedSites } from "@/composables/cartographer/usePublishedSites";
 
 import { useNotes } from "@/composables/notes/useNotes";
@@ -396,9 +381,11 @@ import { resolveCellGlyphs } from "@/cartographer/glyphs";
 import { buildMapStack, hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
 import type { BindableSpace, RegionRole } from "@/types/locationMapRegion.types";
 
-const { map, viewMode, site, spaces } = defineProps<{
+const { map, viewMode, site, spaces, saveState } = defineProps<{
   map: DungeonMap | null;
   viewMode: boolean;
+  /** The host's save state, shown in the bar: "Saving…", "Unsaved changes". Absent says nothing. */
+  saveState?: string;
   site?: MapStackSource & { id: string };
   /** The site's own bindable children (rooms, nested sites) — only
    *  meaningful with `site`, and only read by the Plan's Spaces panel
@@ -437,7 +424,7 @@ const name = ref("Untitled Map");
 // watch below overwrites this from the loaded map's own campaign_id.
 const campaignId = ref<string | null>(activeCampaignId.value);
 const layers = ref<DungeonMapLayers>(emptyLayers());
-// `useMapCanvasEditor`/`CartographerInspectorPanel` both type this as a plain
+// `useMapCanvasEditor` and the bar both type this as a plain
 // Empty until the library query answers. That emptiness is internal
 // bookkeeping only — "has a pack been chosen yet" — and nothing downstream
 // reads it as a pack id: `packRuntime` misses the map, and every branch that
@@ -454,7 +441,7 @@ const firstPublishedPackId = computed<string | null>(() => publishedPacks.value[
 const hasPublishedPacks = computed(() => publishedPacks.value.length > 0);
 // Resolves `currentPackId` once the library query answers, but only while
 // nothing else has claimed it yet (a stored `map.default_pack_id` applied by
-// `applyMapToState`, or the DM's own pick in the inspector) — so a later
+// `applyMapToState`, or the DM's own pick in the bar) — so a later
 // query refetch (e.g. an admin republishing) never clobbers a live choice.
 watch(firstPublishedPackId, (id) => {
   if (!currentPackId.value && id) currentPackId.value = id;
@@ -500,6 +487,13 @@ function markDirty(): void {
   editRevision.value++;
 }
 
+/** The map's name, edited in the host's bar. A rename is an unsaved change like a stroke. */
+function setName(next: string): void {
+  if (name.value === next) return;
+  name.value = next;
+  markDirty();
+}
+
 /** The Light control: a map-wide setting that, like a stroke, is an unsaved change (and re-arms the site's autosave). */
 function setDarkness(level: DarknessLevel): void {
   if (darkness.value === level) return;
@@ -510,51 +504,71 @@ function setDarkness(level: DarknessLevel): void {
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
 // Tools
+/** The rail's clusters, top to bottom: Look, Floor, Walls, Things, Notes, Eraser. */
+type RailGroupId = "look" | "floor" | "walls" | "things" | "notes" | "eraser";
 interface ToolDef {
   id: Tool;
   label: string;
   icon: Component;
   /** Single keyboard key that activates this tool (lowercase, plain key — no modifiers). */
   shortcut?: string;
-  /** Override for the visible kbd badge — used for non-keyboard hints like "RMB" on Pan. */
+  /** Override for the tooltip's key, used for non-keyboard hints like "RMB" on Pan. */
   displayBadge?: string;
   disabled?: boolean;
-  /** Defaults to "draw" in the palette. #868 adds "structure" (Space, Zone,
-   *  Link entity — moved out of Draw) and tags Pan as "view". */
-  group?: ToolGroup;
+  group: RailGroupId;
 }
-// The default tool on open — a DM's first tap must never paint. Put
-// first in the array (not just first in the "view" group's own list) so
-// "view" is the first-registered group and therefore the first one the
-// palette renders — Select reads most naturally as the very first thing a
-// DM sees, ahead of Draw and Structure. Grouped with Pan rather than given
-// its own top-of-Draw spot: both are "look, don't paint" tools that share
-// the exact same drag-to-pan behaviour, so putting them together in View
-// reads as one idea instead of two.
+// The default tool on open: a DM's first tap must never paint. Select sits first in the
+// Look group with Pan: both are "look, don't paint" tools that share the same
+// drag-to-pan behaviour. Ids are the stored, keyed names; only the labels were reworded
+// (the maintainer's pass of 17 Oct 2026: "Floor brush" and "Brush" were two brushes).
 const activeTool = ref<Tool>("select");
 const TOOLS: ToolDef[] = [
-  { id: "select",   label: "Select",        icon: IconSelect,       group: "view" },
-  { id: "floor",    label: "Floor brush",   icon: IconBrush,        shortcut: "b" },
-  { id: "terrain",  label: "Water",         icon: IconWater,        shortcut: "h" },
-  { id: "eraser",   label: "Eraser",        icon: IconEraser,       shortcut: "e" },
-  { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w" },
-  { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d" },
-  { id: "solid",    label: "Solid block",   icon: IconCube,         shortcut: "s" },
-  { id: "stamp",    label: "Object stamp",  icon: IconObjectStamp,  shortcut: "o" },
-  { id: "dressing", label: "Dressing",      icon: IconDressing,     shortcut: "g" },
-  { id: "rect",     label: "Rectangle",     icon: IconRect,         shortcut: "r" },
-  { id: "line",     label: "Line",          icon: IconDrawLine,     shortcut: "l" },
-  { id: "fill",     label: "Fill",          icon: IconFill,         shortcut: "f" },
-  { id: "wrap",     label: "Wrap walls",    icon: IconWrapWalls,    shortcut: "x" },
-  { id: "annotate",  label: "Annotate",       icon: IconAnnotate,     shortcut: "t" },
-  // Structure group (#868) — "s" is already Solid block's shortcut, so Space
-  // takes "p" instead of the frame's literal key; see the story report.
-  { id: "space",     label: "Space",          icon: IconSplitCell,    shortcut: "p", group: "structure" },
-  { id: "link",      label: "Link entity",    icon: IconEntityLink,   shortcut: "k", group: "structure" },
-  { id: "template",  label: "Room template",  icon: IconRoomTemplate, shortcut: "m" },
-  { id: "brush",     label: "Brush",          icon: IconCave,         shortcut: "v" },
-  { id: "pan",       label: "Pan",            icon: IconHand,         displayBadge: "RMB", group: "view" },
+  { id: "select",   label: "Select",        icon: IconSelect,       displayBadge: "Esc", group: "look" },
+  { id: "pan",      label: "Pan",           icon: IconHand,         displayBadge: "RMB", group: "look" },
+  { id: "brush",    label: "Brush",         icon: IconCave,         shortcut: "v", group: "floor" },
+  { id: "floor",    label: "Tiles",         icon: IconBrush,        shortcut: "b", group: "floor" },
+  { id: "rect",     label: "Rectangle",     icon: IconRect,         shortcut: "r", group: "floor" },
+  { id: "line",     label: "Line",          icon: IconDrawLine,     shortcut: "l", group: "floor" },
+  { id: "template", label: "Room",          icon: IconRoomTemplate, shortcut: "m", group: "floor" },
+  { id: "fill",     label: "Fill",          icon: IconFill,         shortcut: "f", group: "floor" },
+  { id: "terrain",  label: "Water",         icon: IconWater,        shortcut: "h", group: "floor" },
+  { id: "solid",    label: "Rock",          icon: IconCube,         shortcut: "s", group: "floor" },
+  { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w", group: "walls" },
+  { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d", group: "walls" },
+  { id: "wrap",     label: "Wrap",          icon: IconWrapWalls,    shortcut: "x", group: "walls" },
+  { id: "stamp",    label: "Object stamp",  icon: IconObjectStamp,  shortcut: "o", group: "things" },
+  { id: "dressing", label: "Dressing",      icon: IconDressing,     shortcut: "g", group: "things" },
+  { id: "annotate", label: "Label",         icon: IconAnnotate,     shortcut: "t", group: "notes" },
+  { id: "link",     label: "Link",          icon: IconEntityLink,   shortcut: "k", group: "notes" },
+  // "s" is already Rock's key, so Space takes "p" instead of the frame's literal key (#868).
+  { id: "space",    label: "Space",         icon: IconSplitCell,    shortcut: "p", group: "notes" },
+  { id: "eraser",   label: "Eraser",        icon: IconEraser,       shortcut: "e", group: "eraser" },
 ];
+const RAIL_GROUP_LABEL: Record<RailGroupId, string> = {
+  look: "Look", floor: "Floor", walls: "Walls", things: "Things", notes: "Notes", eraser: "Eraser",
+};
+// Grouped by the order of RAIL_GROUP_LABEL, so a tool never lands in a cluster the rail does not draw.
+const RAIL_GROUPS: RailGroup[] = (Object.keys(RAIL_GROUP_LABEL) as RailGroupId[]).map((id) => ({
+  id,
+  label: RAIL_GROUP_LABEL[id],
+  tools: TOOLS.filter((t) => t.group === id),
+}));
+
+// The Plan layer's tools get the same rail.
+const PLAN_TOOL_ICONS: Record<PlanTool, AppIcon> = {
+  space: IconSplitCell,
+  zone: IconHighlight,
+  door: IconDoor,
+  claim: IconFill,
+  erase: IconEraser,
+};
+const PLAN_RAIL_GROUPS: RailGroup[] = [
+  { id: "plan", label: "Plan", tools: PLAN_TOOLS.map((t) => ({ id: t.id, label: t.label, icon: PLAN_TOOL_ICONS[t.id] })) },
+];
+function onRailTool(id: string): void {
+  if (activeLayer.value === "drawing") activeTool.value = id as Tool;
+  else plan.planTool.value = id as PlanTool;
+}
 
 // M4 — Object stamp tool state
 const activeObjectCategory = ref<StampCategory>("objectChest");
@@ -591,15 +605,13 @@ const brushRadius = ref(1.5);
 // M4 — Cell selection (annotate + link tools)
 const selectedCell = ref<[number, number] | null>(null);
 /**
- * The annotation field lives inside CartographerInspectorPanel, which exposes it.
+ * The label field lives inside CartographerToolOptions, which exposes it.
  *
  * This used to be a local `ref<HTMLInputElement>` that was never bound to anything,
- * so `.focus()` below silently did nothing every time a cell was selected with the
- * annotate tool — the panel's own `ref="inspectorPanelRef"` was already on the
- * component but had no backing ref either. Reaching through the panel is what makes
- * the focus actually land.
+ * so `.focus()` silently did nothing every time a cell was selected with the label
+ * tool. Reaching through the options component is what makes the focus actually land.
  */
-const inspectorPanelRef = ref<{ annotationInputEl: AppInputHandle | null } | null>(null);
+const toolOptionsRef = ref<{ annotationInputEl: AppInputHandle | null } | null>(null);
 
 // M4 — Map metadata (entity links), lives alongside layers
 const metadata = ref<Record<CellKey, CellMetadata>>({});
@@ -651,7 +663,7 @@ const featureOptions = computed(() =>
 );
 const cellGlyphs = computed(() => resolveCellGlyphs(metadata.value, trapsById.value, featuresById.value));
 
-// Writable computeds for the inspector's link pickers
+// Writable computeds for the Link tool's pickers
 const linkedNoteId = computed({
   get: () => (selectedCell.value ? (metadata.value[cellKey(...selectedCell.value)]?.note_id ?? "") : ""),
   set: (id: string) => {
@@ -707,8 +719,8 @@ const annotationText = computed({
 });
 
 // ── Select tool ─────────────────────────────────────────────────
-// A read-only summary of the selected cell for the inspector's Select
-// section. Computed here, not in the panel: the panel is presentation-only
+// A read-only summary of the selected cell for the Select tool's options.
+// Computed here, not in the options: they are presentation-only
 // everywhere else in this file (annotationText/linkedNoteId etc. are the
 // same "MapWorkbench computes, the panel just renders" shape), and only
 // MapWorkbench holds `layers` plus the id->name option lists a link name
@@ -786,7 +798,7 @@ const INVERTIBLE_TOOLS = new Set<Tool>([
   "floor", "terrain", "brush", "solid", "wall", "stamp", "dressing", "door", "rect", "line", "template",
 ]);
 
-/** The canvas pill's text: the Drawing tool (with " · erase" appended while
+/** The options slip's title: the Drawing tool (with " · erase" appended while
  *  Alt is held over a tool that has an inverse), or on the Plan the tool
  *  and, for a Space or Zone, how it is being traced ("Space · Pen"). */
 const canvasToolLabel = computed(() => {
@@ -880,20 +892,32 @@ const plan = usePlanPalette(siteId);
 // all, so `site &&` short-circuits it to "drawing" unconditionally, same as
 // before.
 const activeLayer = ref<"drawing" | "plan">(site && hasAnyMapLayer(site) ? "plan" : "drawing");
-const LAYER_OPTIONS: { value: "drawing" | "plan"; label: string; tooltip: string; description: string }[] = [
-  {
-    value: "drawing",
-    label: "Drawing",
-    tooltip: "Paint the map itself",
-    description: "The map itself: paint floors, walls, doors and objects on the grid.",
-  },
-  {
-    value: "plan",
-    label: "Plan",
-    tooltip: "Mark the rooms",
-    description: "The rooms: outline each space and link it to its place, so the map knows which room is which.",
-  },
+// "Drawing" and "Plan" are the site workbench's own words (#884) and mean nothing to
+// someone opening Build for the first time, so each says what it is for in its tooltip.
+const LAYER_OPTIONS: SegmentedOption<"drawing" | "plan">[] = [
+  { value: "drawing", label: "Drawing", tooltip: "The map itself: paint floors, walls, doors and objects on the grid." },
+  { value: "plan", label: "Plan", tooltip: "The rooms: outline each space and link it to its place, so the map knows which room is which." },
 ];
+
+// ── The right drawer: one panel at a time over the canvas's edge. Plan opens on its own
+// lists (they are how a traced shape is bound to a room); Dressing opens with its tool,
+// because the props are picked there; Spaces is the DM's to open.
+type DrawerId = "spaces" | "dressing" | "plan";
+const drawer = ref<DrawerId | null>(activeLayer.value === "plan" ? "plan" : null);
+const spacesDrawerId = computed<DrawerId>(() => (activeLayer.value === "plan" ? "plan" : "spaces"));
+const DRAWER_TITLE: Record<DrawerId, string> = { spaces: "Spaces on this map", dressing: "Dressing", plan: "Spaces and zones" };
+const drawerTitle = computed(() => (drawer.value ? DRAWER_TITLE[drawer.value] : ""));
+function toggleSpaces(): void {
+  drawer.value = drawer.value === spacesDrawerId.value ? null : spacesDrawerId.value;
+}
+watch(activeLayer, (layer) => {
+  drawer.value = layer === "plan" ? "plan" : null;
+});
+watch(activeTool, (tool) => {
+  if (activeLayer.value !== "drawing") return;
+  if (tool === "dressing") drawer.value = "dressing";
+  else if (drawer.value === "dressing") drawer.value = null;
+});
 
 /** The Plan's own Spaces/Zones panels (#884 S11) set `activeRegionId` via
  *  their "Trace" buttons the same way the Atlas's region list always has —
@@ -916,7 +940,7 @@ const {
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, dressingBrushId, dressingRotation, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
   activeObjectCategory, stampRotation, activeWallKind, activeWallDecal, activeTemplateShape, brushRadius,
-  selectedCell, inspectorPanelRef, structure, mapKey: computed(() => map?.id || "new"),
+  selectedCell, toolOptionsRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
   plan, activeLayer,

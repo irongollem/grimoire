@@ -28,7 +28,8 @@
          levels column so the workbench gets the pane's full width (the
          levels ride on the canvas as `SiteLevelPicker` instead),
          same as Map mode already folds the Atlas tree. -->
-    <div v-if="building && isSite" class="relative min-w-0 flex-1">
+    <!-- Tall enough to be worth building on: the workbench fills this box. -->
+    <div v-if="building && isSite" class="relative min-w-0 h-[max(32rem,calc(100dvh-10rem))]">
       <!-- Keyed by place: the workbench reads its map once, so moving to
            another site while in Build (a level switch, a pin, the tree) kept
            the previous site's drawing on the canvas, and the first stroke
@@ -40,13 +41,13 @@
         :view-mode="false"
         :site="location"
         :spaces="siteSpaces"
+        :save-state="buildSaveState"
         @update:dirty="drawingEditor.onDirtyChange"
         @update:edit-revision="drawingEditor.onEditRevision"
       >
-        <!-- Build folds the levels column away, so the levels ride on the
-             canvas instead: without this a DM drawing one floor could not see
-             or reach the others. -->
-        <template #canvas-top-right>
+        <!-- Build folds the levels column away, so the levels ride in the workbench's bar
+             instead: without this a DM drawing one floor could not see or reach the others. -->
+        <template #bar-start>
           <SiteLevelPicker
             v-if="isSite"
             :levels="buildLevels"
@@ -386,6 +387,8 @@ function onOpenDrawing() {
 const locationForDrawing = computed(() => location);
 const drawingEditor = useSiteDrawingEditor(locationForDrawing, siteSourceMap);
 const drawingWorkbenchRef = drawingEditor.workbenchRef;
+// Build saves itself, so the bar says where that stands rather than offering a button.
+const buildSaveState = computed(() => (drawingEditor.saving.value ? "Saving…" : drawingEditor.dirty.value ? "Unsaved changes" : "Saved"));
 
 // ── Style with AI (#884 decision 1) — restyle the Drawing and have the
 // render bubble down to this site's own Picture. `site` is what makes this
