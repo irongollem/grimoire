@@ -24,7 +24,7 @@ import type { PackCategory } from "./packSchema";
 const PACK: PackRef = { pack_id: "p", pack_version: 1, variant: 0 };
 
 function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {} };
+  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {} };
 }
 
 function addFloor(layers: DungeonMapLayers, x: number, y: number): void {

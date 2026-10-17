@@ -457,6 +457,7 @@ export interface DungeonMap {
     object:      Record<CellKey, ObjectCell>
     annotation:  Record<CellKey, AnnotationCell>
     dressing:    Record<string, DressingPlacement>   // keyed by placement uuid (#1062)
+    area:        Record<CellKey, AreaCell>           // brushed areas, a coverage mask per cell
   }
   metadata: Record<CellKey, CellMetadata>      // entity links (see below)
   default_pack_id: string | null
@@ -489,6 +490,14 @@ export interface CellMetadata {
 **The map data keeps `doorClosed` and `doorOpen` (#1065).** That is the drawn state of a door edge and it already feeds publish (`DOOR_EDGE_KIND`); only how it is drawn changed, from two tiles to a doorway plus a swung leaf.
 
 **A layer added later reads as empty on older maps.** `dungeon_maps.layers` has no shape constraint and old rows were not backfilled when `dressing` arrived: a backfill writes `layers`, which bumps every map's `rev` and marks every published site "behind" for a change that draws nothing. Instead every read goes through `withLayerDefaults()` (`useDungeonMaps.ts`'s `readDungeonMap`, and `cloneLayers` in `MapWorkbench.vue`), and the column default carries every key for new maps. A prop's `prop_id` is a text reference inside a document, so `supabase/checks/content_integrity.sql` checks it against `library_dressing`.
+
+### Brushed areas (epic #1073, story 8)
+
+A round brush paints a shape instead of cells. `layers.area` is a `Record<CellKey, AreaCell>`: the cell's floor pack (a `PackRef`) plus a `mask`, 8 x 8 sub-cells per cell. `"full"` means all 64 are covered; otherwise it is 16 lowercase hex chars, a 64-bit number whose bit `i` is sub-cell `(i % 8, floor(i / 8))`, (0,0) the top-left. An empty mask is never stored. Older rows read `area` as empty through `withLayerDefaults()`.
+
+Why a fine mask rather than polygons: erasing is clearing bits, so there is no polygon boolean library to carry, and the outline is still a smooth curve because it is traced from the mask (marching squares) and rounded with two Chaikin passes. `areaOutline()` returns closed loops in cell units, covered side on the left, each segment flagged for whether it carries the wall texture: the stretch where a brush meets plain drawn floor is the drawn map's own wall and is not stroked.
+
+The grid stays underneath. A cell covered at least half (`FLOOR_COVERAGE`) also carries ordinary `floor`, so regions, fog, rules, publish and everything else reading `layers.floor` work unchanged; below half the floor tile is removed (walls kept). Painting over plain floor changes nothing; erasing plain floor turns it into an area cell with the disc cut out. `areaBlockingEdges()` lists the NW-owned edges between floor and non-floor where a brushed cell is involved, for light and sight. The pure geometry lives in `src/cartographer/area.ts`; rendering and the brush tool follow in later waves.
 
 ### Movement / sight blocking — derived, not stored
 

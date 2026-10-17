@@ -27,7 +27,7 @@ function emptyMap(): DungeonMap {
     campaign_id: null,
     name: "Test",
     description: null,
-    layers: { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {} },
+    layers: { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {} },
     metadata: {},
     default_pack_id: null,
     darkness: "daylight",

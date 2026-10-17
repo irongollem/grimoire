@@ -73,6 +73,19 @@ export interface DressingPlacement {
   z: number;
 }
 
+/**
+ * One cell of a brushed area (epic #1073, story 8): a fine coverage mask, 8 x 8
+ * sub-cells per cell, so a round brush can cover part of a cell and erasing is
+ * just clearing bits. `mask` is `"full"` when all 64 sub-cells are covered, else
+ * 16 lowercase hex chars holding a 64-bit number whose bit `i` is sub-cell
+ * `(i % 8, Math.floor(i / 8))`, sub-cell (0,0) being the cell's top-left. An
+ * empty mask is never stored (the entry is removed). The PackRef is the cell's
+ * floor pack; a cell covered at least half also carries ordinary `floor`.
+ */
+export interface AreaCell extends PackRef {
+  mask: string;
+}
+
 export interface DungeonMapLayers {
   floor: Record<CellKey, FloorCell>;
   solidBlock: Record<CellKey, SolidCell>;
@@ -82,6 +95,8 @@ export interface DungeonMapLayers {
   annotation: Record<CellKey, AnnotationCell>;
   /** Keyed by a placement uuid. */
   dressing: Record<string, DressingPlacement>;
+  /** Brushed areas, a coverage mask per cell (see `AreaCell`). */
+  area: Record<CellKey, AreaCell>;
 }
 
 /**
@@ -116,7 +131,7 @@ export type DungeonMapInsert = Omit<DungeonMap, "id" | "user_id" | "created_at" 
 export type DungeonMapUpdate = Partial<DungeonMapInsert>;
 
 export function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {} };
+  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {} };
 }
 
 /**
