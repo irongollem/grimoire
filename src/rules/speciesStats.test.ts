@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  darkvisionFeet,
   effectiveLanguages,
   effectiveSize,
   effectiveSpeed,
@@ -148,5 +149,44 @@ describe("setSpeedMode", () => {
 
   it("accepts a number as well as text", () => {
     expect(setSpeedMode({}, "swim", 25)).toEqual({ swim: 25 });
+  });
+});
+
+describe("darkvisionFeet", () => {
+  const trait = (name: string, description: string) => ({ name, description });
+  const tiptap = JSON.stringify({
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text: "You have Darkvision with a range of 60 feet." }] }],
+  });
+
+  it("reads the range from the 2014 phrasing", () => {
+    const species = {
+      subraces: null,
+      traits: [trait("Darkvision", "You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light.")],
+    };
+    expect(darkvisionFeet(species)).toBe(60);
+  });
+
+  it("reads the range from the 2024 phrasing and from a Tiptap document string", () => {
+    expect(darkvisionFeet({ subraces: null, traits: [trait("Darkvision", "You have Darkvision with a range of 120 feet.")] })).toBe(120);
+    expect(darkvisionFeet({ subraces: null, traits: [trait("Darkvision", tiptap)] })).toBe(60);
+  });
+
+  it("lets a subrace's darkvision replace its parent's", () => {
+    const species = {
+      traits: [trait("Darkvision", "within 60 feet")],
+      subraces: [
+        { name: "Drow", description: "", traits: [trait("Superior Darkvision", "Your darkvision has a radius of 120 feet.")] },
+        { name: "Plain", description: "", traits: [] },
+      ],
+    };
+    expect(darkvisionFeet(species, "Drow")).toBe(120);
+    expect(darkvisionFeet(species, "Plain")).toBe(60);
+    expect(darkvisionFeet(species, null)).toBe(60);
+  });
+
+  it("is zero without a darkvision trait", () => {
+    expect(darkvisionFeet({ subraces: null, traits: [trait("Lucky", "reroll a 1")] })).toBe(0);
+    expect(darkvisionFeet({ subraces: null, traits: null })).toBe(0);
   });
 });

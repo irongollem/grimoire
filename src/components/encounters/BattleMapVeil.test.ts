@@ -7,12 +7,17 @@ import type { MapLive } from "@/types/mapLive.types";
 
 const painted = vi.hoisted(() => ({
   calls: [] as { rect: { x: number; y: number; w: number; h: number }; grid: Float32Array; gw: number; gh: number }[],
+  player: [] as { seen: Float32Array; grey: Float32Array; gw: number; gh: number; images: number }[],
 }));
 vi.mock("@/lib/battlemap/darkness", async (orig) => ({
   ...(await orig<typeof import("@/lib/battlemap/darkness")>()),
   domMakeCanvas: () => () => null,
   paintLitVeil: (_ctx: unknown, rect: never, grid: Float32Array, gw: number, gh: number) => {
     painted.calls.push({ rect, grid, gw, gh });
+    return true;
+  },
+  paintPlayerVeil: (_ctx: unknown, _rect: never, vision: { seen: Float32Array; grey: Float32Array }, gw: number, gh: number, _mc: unknown, images: unknown[]) => {
+    painted.player.push({ ...vision, gw, gh, images: images.length });
     return true;
   },
 }));
@@ -24,6 +29,7 @@ const ctx = { clearRect: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi
 beforeEach(() => {
   vi.clearAllMocks();
   painted.calls.length = 0;
+  painted.player.length = 0;
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
 });
 
@@ -93,5 +99,46 @@ describe("BattleMapVeil", () => {
     const w = mount(BattleMapVeil, { props });
     await w.setProps({ hostW: 500, imageW: 400 });
     expect(painted.calls[painted.calls.length - 1].rect.w).toBe(400);
+  });
+
+  describe("for a player", () => {
+    const viewer = { x: 0.5, y: 0.5, darkvisionFeet: 10 };
+
+    it("paints what the viewers see instead of the DM's veil", () => {
+      mount(BattleMapVeil, { props: { ...props, viewers: [viewer] } });
+      expect(painted.calls).toHaveLength(0);
+      const { seen, grey, gw, gh } = painted.player[0];
+      expect([gw, gh]).toEqual([24, 16]);
+      // Darkness all around, 2 cells of darkvision: the viewer's own sample is dim and grey, far corner is blind.
+      expect(seen[2 * gw + 2]).toBe(0.5);
+      expect(grey[2 * gw + 2]).toBe(1);
+      expect(seen[seen.length - 1]).toBe(0);
+    });
+
+    it("sees nothing in the dark with no viewers or no darkvision", () => {
+      mount(BattleMapVeil, { props: { ...props, viewers: [] } });
+      mount(BattleMapVeil, { props: { ...props, viewers: [{ ...viewer, darkvisionFeet: 0 }] } });
+      for (const p of painted.player) expect(p.seen.every((v) => v === 0)).toBe(true);
+    });
+
+    it("does not rebuild the vision for an equal set of viewers or a pan", async () => {
+      const w = mount(BattleMapVeil, { props: { ...props, viewers: [viewer] } });
+      const first = painted.player[0].seen;
+      await w.setProps({ viewers: [{ ...viewer }] });
+      await w.setProps({ panX: 27, originX: 27 });
+      expect(painted.player[painted.player.length - 1].seen).toBe(first);
+    });
+
+    it("rebuilds the vision when a viewer moves", async () => {
+      const w = mount(BattleMapVeil, { props: { ...props, viewers: [viewer] } });
+      const first = painted.player[0].seen;
+      await w.setProps({ viewers: [{ ...viewer, x: 3.5 }] });
+      expect(painted.player[painted.player.length - 1].seen).not.toBe(first);
+    });
+
+    it("starts without the grey pictures: none has loaded", () => {
+      mount(BattleMapVeil, { props: { ...props, viewers: [viewer], groundUrl: "ground.webp" } });
+      expect(painted.player[0].images).toBe(0);
+    });
   });
 });

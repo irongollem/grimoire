@@ -1,4 +1,4 @@
-import type { SpeciesSize, SpeciesSpeed, SpeciesSubrace } from "@/types/species.types";
+import type { SpeciesSize, SpeciesSpeed, SpeciesSubrace, SpeciesTrait } from "@/types/species.types";
 
 /**
  * What a character of a species (and, optionally, one of its subraces) is:
@@ -111,4 +111,25 @@ export function setSpeedMode(
   const { [mode]: _removed, ...rest } = speed;
   if (raw === null || Number.isNaN(value) || value < 0) return rest;
   return { ...rest, [mode]: value };
+}
+
+/**
+ * How far a character of this species sees by darkvision, in feet (0 when it has none). A subrace's own darkvision
+ * trait replaces its parent's ("Superior Darkvision" 120 over 60). The range lives only in the trait's prose, which
+ * is often a stringified Tiptap document, so it is the first number before "feet", "foot" or "ft" in the text; JSON
+ * punctuation between the number and the unit does not get in the way of that match.
+ */
+export function darkvisionFeet(
+  species: Pick<SpeciesStatsSource, "subraces"> & { traits: SpeciesTrait[] | null },
+  subraceName?: string | null,
+): number {
+  const subraceTrait = findSubrace(species, subraceName)?.traits.find(isDarkvisionTrait);
+  const trait = subraceTrait ?? species.traits?.find(isDarkvisionTrait);
+  if (!trait) return 0;
+  const match = /(\d+)\s*(?:feet|foot|ft)\b/i.exec(trait.description);
+  return match ? Number(match[1]) : 0;
+}
+
+function isDarkvisionTrait(trait: SpeciesTrait): boolean {
+  return trait.name.toLowerCase().includes("darkvision");
 }

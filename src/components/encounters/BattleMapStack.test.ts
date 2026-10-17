@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { defineComponent, nextTick } from "vue";
+import type { Viewer } from "@/lib/battlemap/vision";
 import type { MapLive } from "@/types/mapLive.types";
 
 const motion = vi.hoisted(() => ({ reduced: false }));
@@ -21,7 +22,7 @@ const LiveLayerStub = defineComponent({
 const sprite = { url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } };
 const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 1, darkness: "daylight", groups: [], lights: [], sprites });
 
-function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null } = {}) {
+function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null; viewers?: Viewer[] | null } = {}) {
   return mount(BattleMapStack, {
     props: {
       hostW: 400,
@@ -88,6 +89,15 @@ describe("BattleMapStack standing image", () => {
     const w = mountStack({ live: { ...live([]), darkness: "dark" } });
     expect(w.findComponent(BattleMapVeil).exists()).toBe(true);
     expect(w.html().indexOf("veil")).toBeGreaterThan(w.html().indexOf("<svg"));
+  });
+
+  it("hands the veil the player's viewers and the pictures to show in grey", () => {
+    const viewers = [{ x: 2.5, y: 2.5, darkvisionFeet: 60 }];
+    const veil = mountStack({ live: { ...live([]), darkness: "dark" }, viewers }).findComponent(BattleMapVeil);
+    expect(veil.props("viewers")).toEqual(viewers);
+    expect(veil.props("groundUrl")).toBe("ground.webp");
+    expect(veil.props("standUrl")).toBe("stand.webp");
+    expect(mountStack({ live: { ...live([]), darkness: "dark" } }).findComponent(BattleMapVeil).props("viewers")).toBeNull();
   });
 
   it("mounts no veil in daylight or without a snapshot", () => {

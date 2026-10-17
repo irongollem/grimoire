@@ -72,6 +72,9 @@
     :origin-x="originX"
     :origin-y="originY"
     :live="live"
+    :viewers="viewers"
+    :ground-url="imageUrl"
+    :stand-url="standUrl"
   />
 </template>
 
@@ -88,10 +91,11 @@
 import { computed, shallowRef } from "vue";
 import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
 import BattleMapVeil from "@/components/encounters/BattleMapVeil.vue";
+import type { Viewer } from "@/lib/battlemap/vision";
 import { prefersReducedMotion } from "@/lib/motion";
 import type { MapLive } from "@/types/mapLive.types";
 
-const { standUrl, standLiveUrl, live } = defineProps<{
+const { standUrl, standLiveUrl, live, viewers = null } = defineProps<{
   hostW: number;
   hostH: number;
   imageUrl: string;
@@ -111,6 +115,8 @@ const { standUrl, standLiveUrl, live } = defineProps<{
   originX: number;
   originY: number;
   live: MapLive | null;
+  /** The player's sight: set, the veil shows what these viewers see; null, the DM's translucent veil. */
+  viewers?: Viewer[] | null;
 }>();
 
 const topAnimates = computed(
