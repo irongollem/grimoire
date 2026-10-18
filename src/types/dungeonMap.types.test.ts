@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyLayers, paintedCellCount } from "./dungeonMap.types";
+import { emptyLayers, paintedCellCount, withLayerDefaults } from "./dungeonMap.types";
 
 const ref = { pack_id: "p", pack_version: 1, variant: 0 };
 
@@ -21,5 +21,20 @@ describe("paintedCellCount", () => {
     const layers = emptyLayers();
     layers.area["4,4"] = { ...ref, mask: "0000000000000001" };
     expect(paintedCellCount(layers)).toBe(1);
+  });
+});
+
+describe("withLayerDefaults", () => {
+  it("fills the layers a map saved before they existed lacks", () => {
+    const layers = withLayerDefaults({ floor: { "1,1": "stone" } } as never);
+    expect(layers.area).toEqual({});
+    expect(layers.dressing).toEqual({});
+    expect(layers.floor).toEqual({ "1,1": "stone" });
+  });
+
+  it("reads a layer stored as null as empty, so counting it does not throw", () => {
+    const layers = withLayerDefaults({ area: null, terrain: null } as never);
+    expect(layers.area).toEqual({});
+    expect(paintedCellCount(layers)).toBe(0);
   });
 });
