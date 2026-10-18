@@ -19,9 +19,24 @@ import { computed, isRef, ref } from "vue";
 const QUERY_KEY = "dungeon_maps";
 
 /** Rows are cast, not typed by the client, so a map saved before a layer
- *  existed arrives without that key. Every read goes through here. */
+ *  existed arrives without that key. Every read goes through here.
+ *
+ *  The queries apply it in `select`, not in their queryFn: this list is
+ *  persisted to the device (queryPersistence, a `live` root), and a disk copy
+ *  is served without running the queryFn, so a copy written by a build that
+ *  normalized less (or not at all) would otherwise reach the screen raw. That
+ *  is how a map with no `area` layer crashed the Cartographer list's cell
+ *  count (Sentry DUNGEON-GRIMOIRE-P). */
 function readDungeonMap(row: DungeonMap): DungeonMap {
   return { ...row, layers: withLayerDefaults(row.layers) };
+}
+
+function readDungeonMaps(rows: DungeonMap[]): DungeonMap[] {
+  return rows.map(readDungeonMap);
+}
+
+function readMaybeDungeonMap(row: DungeonMap | null): DungeonMap | null {
+  return row ? readDungeonMap(row) : null;
 }
 
 async function fetchDungeonMaps(): Promise<DungeonMap[]> {
@@ -30,7 +45,7 @@ async function fetchDungeonMaps(): Promise<DungeonMap[]> {
     .select("*")
     .order("updated_at", { ascending: false });
   if (error) throw error;
-  return (data as DungeonMap[]).map(readDungeonMap);
+  return data as DungeonMap[];
 }
 
 async function fetchDungeonMap(id: string): Promise<DungeonMap | null> {
@@ -40,7 +55,7 @@ async function fetchDungeonMap(id: string): Promise<DungeonMap | null> {
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
-  return data ? readDungeonMap(data as DungeonMap) : null;
+  return (data as DungeonMap | null) ?? null;
 }
 
 async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string }): Promise<DungeonMap> {
@@ -89,7 +104,7 @@ async function deleteDungeonMap(id: string): Promise<void> {
  *  maps with `campaign_id === null` are available everywhere, plus whatever
  *  is scoped to the active campaign. */
 export function useDungeonMaps() {
-  const query = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchDungeonMaps });
+  const query = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchDungeonMaps, select: readDungeonMaps });
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   const data = computed(() => {
     const maps = query.data.value;
@@ -104,6 +119,7 @@ export function useDungeonMap(id: string | Ref<string>) {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, resolved.value] as const),
     queryFn: ({ queryKey: [, mapId] }) => fetchDungeonMap(mapId),
+    select: readMaybeDungeonMap,
     enabled: () => !!resolved.value,
   });
 }

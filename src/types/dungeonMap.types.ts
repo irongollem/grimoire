@@ -137,9 +137,14 @@ export function emptyLayers(): DungeonMapLayers {
 /**
  * A map saved before a layer existed reads that layer as empty; the DB
  * default carries every key for new rows, but older rows lack the newer ones.
+ * A layer that is present but not an object (jsonb `null`) reads as empty too:
+ * a spread would keep the `null`, and every reader calls `Object.keys` on it.
  */
 export function withLayerDefaults(raw: Partial<DungeonMapLayers> | null | undefined): DungeonMapLayers {
-  return { ...emptyLayers(), ...raw };
+  const present = Object.fromEntries(
+    Object.entries(raw ?? {}).filter(([, layer]) => typeof layer === "object" && layer !== null),
+  );
+  return { ...emptyLayers(), ...present };
 }
 
 /**
