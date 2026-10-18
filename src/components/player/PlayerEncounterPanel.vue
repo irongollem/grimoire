@@ -187,12 +187,12 @@
             >
               <IconScrollText class="h-3.5 w-3.5 text-ink-caution/60 shrink-0 mt-0.5" />
               <div class="min-w-0">
-                <p v-if="getEventMessage(event)" class="text-body text-foreground/90 italic leading-snug">
-                  {{ getEventMessage(event) }}
+                <p v-if="event.message" class="text-body text-foreground/90 italic leading-snug">
+                  {{ event.message }}
                 </p>
                 <p
                   class="text-eyebrow text-ink-caution/70"
-                  :class="getEventMessage(event) ? 'mt-1' : 'text-sm text-foreground'"
+                  :class="event.message ? 'mt-1' : 'text-sm text-foreground'"
                 >
                   {{ event.name }}
                 </p>
@@ -228,7 +228,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { IconClose, IconDice, IconEncounter, IconMap, IconScrollText } from '@/lib/icons';
-import { useEncounter } from "@/composables/encounters/useEncounters";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
@@ -238,7 +237,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/encounters/useEncounterLive";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { healthVisibilityOf } from "@/lib/healthVisibility";
-import type { RunCombatant, HealthVisibility, EncounterEvent, EventAction } from "@/types/encounter.types";
+import type { RunCombatant, HealthVisibility, FiredPlayerEvent } from "@/types/encounter.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import type { Companion } from "@/types/companion.types";
 import { usePlayerCombatPrefs } from "@/composables/player/usePlayerCombatPrefs";
@@ -264,9 +263,8 @@ const campaign = useCampaignStore();
 const auth = useAuthStore();
 
 // Battle map availability
-const battleEncounterIdRef = computed(() => liveState.value?.encounter_id ?? "");
-const { data: battleEncounter } = useEncounter(battleEncounterIdRef);
-const battleLocationIdRef = computed(() => battleEncounter.value?.location_id ?? "");
+// The battle location and the fired beats come from the player-safe projection: players cannot read the encounter row.
+const battleLocationIdRef = computed(() => liveState.value?.location_id ?? "");
 const { data: battleLocation } = usePlayerVisibleLocation(battleLocationIdRef);
 const canShowBattleMap = computed(
   () =>
@@ -277,19 +275,9 @@ const canShowBattleMap = computed(
     !!primaryImage(battleLocation.value)?.calibration,
 );
 // Player-visible pre-scripted events — shown as narrative beats in the combat panel
-const playerVisibleFiredEvents = computed<EncounterEvent[]>(() => {
-  const fired = new Set(liveState.value?.events_fired ?? []);
-  const encounterEvents = battleEncounter.value?.events ?? [];
-  return encounterEvents.filter((e) => e.is_player_visible && fired.has(e.id));
-});
-
-function getEventMessage(event: EncounterEvent): string | null {
-  const action = event.actions.find(
-    (a): a is Extract<EventAction, { type: "broadcast_message" }> =>
-      a.type === "broadcast_message",
-  );
-  return action?.message ?? null;
-}
+const playerVisibleFiredEvents = computed<FiredPlayerEvent[]>(() =>
+  liveState.value?.fired_player_events ? liveState.value.fired_player_events : [],
+);
 
 const { turnAudioEnabled } = usePlayerCombatPrefs();
 const { playTurnChime } = useTurnChime();

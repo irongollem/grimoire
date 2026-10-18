@@ -3,7 +3,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(21);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -17,8 +17,18 @@ values ('57000000-0000-4000-8000-000000000010', '57000000-0000-4000-8000-0000000
 insert into public.campaign_members (campaign_id, user_id, role, display_name)
 values ('57000000-0000-4000-8000-000000000010', '57000000-0000-4000-8000-000000000002', 'player', 'Player');
 
-insert into public.encounters (id, user_id, campaign_id, name)
-values ('57000000-0000-4000-8000-000000000020', '57000000-0000-4000-8000-000000000001', '57000000-0000-4000-8000-000000000010', 'Secret fight');
+insert into public.locations (id, user_id, campaign_id, name, location_type)
+values ('57000000-0000-4000-8000-000000000060', '57000000-0000-4000-8000-000000000001', '57000000-0000-4000-8000-000000000010', 'Battle cave', 'dungeon');
+
+insert into public.encounters (id, user_id, campaign_id, name, location_id, factions, events)
+values ('57000000-0000-4000-8000-000000000020', '57000000-0000-4000-8000-000000000001', '57000000-0000-4000-8000-000000000010', 'Secret fight',
+  '57000000-0000-4000-8000-000000000060',
+  '[{"id":"enemy","name":"Cult of the Hand","color":"#aa0000","hostile_to":["players"]}]'::jsonb,
+  '[
+    {"id":"beat-shown","name":"Rumble","is_player_visible":true,"fire_once":true,"trigger":{"type":"round_start","round":1},"actions":[{"type":"broadcast_message","message":"The cave shakes."}]},
+    {"id":"beat-secret","name":"Ambush","is_player_visible":false,"fire_once":true,"trigger":{"type":"round_start","round":1},"actions":[{"type":"broadcast_message","message":"Goblins in the rafters."}]},
+    {"id":"beat-later","name":"Collapse","is_player_visible":true,"fire_once":true,"trigger":{"type":"round_start","round":5},"actions":[{"type":"broadcast_message","message":"The roof falls."}]}
+  ]'::jsonb);
 
 insert into public.npcs (
   id, user_id, campaign_id, name, portrait_url, portrait_focal_point,
@@ -38,7 +48,7 @@ insert into public.npcs (
 
 insert into public.encounter_state (
   id, encounter_id, campaign_id, user_id, is_running, current_round,
-  active_combatant_index, combatants_live, started_at
+  active_combatant_index, combatants_live, started_at, events_fired
 ) values (
   '57000000-0000-4000-8000-000000000040',
   '57000000-0000-4000-8000-000000000020',
@@ -53,7 +63,8 @@ insert into public.encounter_state (
     {"instance_id":"npc-1","type":"monster","name":"Archmage Selene","faction_id":"enemy","initiative":15,"hp":50,"max_hp":50,"ac":"16","conditions":[],"curses":["DM secret"],"death_saves":{"successes":0,"failures":0},"dex_mod":2,"reveal_state":"revealed","portrait_url":"https://example.invalid/selene.webp","portrait_focal_point":{"x":20,"y":30},"npc_id":"57000000-0000-4000-8000-000000000030","def_id":"secret-def","legendary_action_cap":3,"reactionUsed":false,"action_uses":{"Arcane Burst":{"used":1,"recharge":{"min":5,"max":6}}},"concentration":{"spellId":null,"spellName":"Hold Person","castAtLevel":2,"startedRound":1,"appliedEffectIds":[]},"surprised":true,"token_url":"https://example.invalid/selene-token.webp","position":{"x":3,"y":3},"footprint":1},
     {"instance_id":"player-1","type":"player","name":"Hero","faction_id":"party","initiative":10,"hp":25,"max_hp":25,"ac":"17","conditions":[],"curses":[],"death_saves":{"successes":0,"failures":0},"dex_mod":1,"party_member_id":"57000000-0000-4000-8000-000000000050","reveal_state":"revealed","position":{"x":4,"y":4},"footprint":1}
   ]'::jsonb,
-  now()
+  now(),
+  '["beat-shown","beat-secret"]'::jsonb
 );
 
 set local role authenticated;
@@ -208,6 +219,24 @@ select is(
   '[{"id":"z1","x":4.5,"y":4.5,"radius":15}]'::jsonb,
   'players see where magical darkness lies'
 );
+
+-- Players read the battle location and the fired player-visible beats from the projection, never from encounters.
+select is(
+  (select location_id from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010')),
+  '57000000-0000-4000-8000-000000000060'::uuid,
+  'players learn which location the battle map is');
+select is(
+  (select fired_player_events from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010')),
+  '[{"id":"beat-shown","name":"Rumble","message":"The cave shakes."}]'::jsonb,
+  'players get only the player-visible beats that have fired, as their message');
+select is(
+  (select count(*)::integer from public.encounters where id = '57000000-0000-4000-8000-000000000020'),
+  0,
+  'and still cannot read the encounter row itself');
+select is(
+  (select faction_colors from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010')),
+  '[{"id":"enemy","color":"#aa0000"}]'::jsonb,
+  'players get each faction''s ring colour, not its name');
 
 select * from finish();
 rollback;

@@ -11,6 +11,9 @@ export interface FactionDef {
   hostile_to: string[]; // array of faction ids this faction will attack
 }
 
+/** What a token ring needs of a faction. */
+export type FactionColor = Pick<FactionDef, "id" | "color">;
+
 export const DEFAULT_FACTIONS: FactionDef[] = [
   { id: "players", name: "Players",  color: "#1C2A4A", hostile_to: ["enemy"] },
   { id: "enemy",   name: "Enemy",    color: "#6B1C1C", hostile_to: ["players", "ally"] },
@@ -147,6 +150,14 @@ export type EventAction =
    * encounter for them.
    */
   | { type: "environment_effect"; label: string; description: string };
+
+/** A fired, player-visible scripted beat as the player-safe projection carries it: no trigger, no other actions. */
+export interface FiredPlayerEvent {
+  id: string;
+  name: string | null;
+  /** The beat's broadcast message, or null when it broadcasts none. */
+  message: string | null;
+}
 
 export interface EncounterEvent {
   id: string;
@@ -417,6 +428,12 @@ export interface EncounterState {
   active_combatant_index: number;
   /** Present on the player-safe projection. Null when the active combatant is hidden. */
   active_combatant_instance_id?: string | null;
+  /** Present on the player-safe projection: the battle location, since players cannot read the encounter row. */
+  location_id?: string | null;
+  /** Present on the player-safe projection: the scripted beats marked player-visible that have fired. */
+  fired_player_events?: FiredPlayerEvent[];
+  /** Present on the player-safe projection: each faction's ring colour, without its name or hostilities. */
+  faction_colors?: FactionColor[];
   combatants_live: RunCombatant[];
   events_fired?: string[];
   /** VTT fog of war — semicolon-joined list of revealed "x,y" cell keys.

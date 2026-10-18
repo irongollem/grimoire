@@ -25,11 +25,7 @@ import { drawToken, type TokenEntity, type TokenFigure } from "@/lib/tokenRender
 import { dollFigureKey } from "@/lib/paperDoll/dollTokenFigure";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { cellToPixel, snapPixelToCell } from "@/lib/battlemap/tokenSnap";
-import {
-  DEFAULT_FACTIONS,
-  type FactionDef,
-  type RunCombatant,
-} from "@/types/encounter.types";
+import { DEFAULT_FACTIONS, type RunCombatant, type FactionColor } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { NpcListRow } from "@/types/npc.types";
 
@@ -56,7 +52,8 @@ const {
   originX: number;
   originY: number;
   combatants: RunCombatant[];
-  factions?: FactionDef[];
+  /** Only each faction's ring colour is read; a player's projection carries no more than that. */
+  factions?: readonly FactionColor[];
   monsters?: Monster[];
   npcs?: NpcListRow[];
   activeInstanceId?: string | null;

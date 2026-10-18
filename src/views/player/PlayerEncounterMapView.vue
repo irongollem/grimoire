@@ -3,7 +3,8 @@
     <!-- Top bar -->
     <div class="map-topbar">
       <RouterLink to="/play/encounter" class="back-link">← Back</RouterLink>
-      <span class="encounter-name">{{ encounter?.name ?? "Battle Map" }}</span>
+      <!-- Not the encounter's name: a DM's title can name the twist, and players read only the projection. -->
+      <span class="encounter-name">Battle map</span>
       <div class="topbar-right">
         <span class="hint">{{ Math.round(scale * 100) }}%</span>
         <button class="zoom-btn" title="Reset view" @click="resetView">Reset</button>
@@ -55,7 +56,7 @@
         :origin-y="gridOrigin.y"
         :combatants="liveCombatants"
         :figures="dollFigures"
-        :factions="encounter?.factions ?? []"
+        :factions="factionColors"
         :active-instance-id="activeInstanceId"
         :draggable-instance-ids="draggableSet"
         :hide-hidden="true"
@@ -88,7 +89,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useEncounter } from "@/composables/encounters/useEncounters";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
 import { liveState, updateOwnCombatantPosition } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
@@ -107,7 +107,7 @@ import { characterSenses } from "@/rules/characterSenses";
 import { primaryImage } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { useCampaignStore } from "@/stores/campaign";
-import type { RunCombatant } from "@/types/encounter.types";
+import type { RunCombatant, FactionColor } from "@/types/encounter.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import {
   gridLinePositions,
@@ -130,9 +130,12 @@ onMounted(() => {
   }
 });
 
-const encounterIdRef = computed(() => liveState.value?.encounter_id ?? "");
-const { data: encounter } = useEncounter(encounterIdRef);
-const locationIdRef = computed(() => encounter.value?.location_id ?? "");
+// The battle location and the token ring colours come from the player-safe projection: players cannot read the
+// encounter row itself.
+const locationIdRef = computed(() => liveState.value?.location_id ?? "");
+const factionColors = computed<readonly FactionColor[]>(() =>
+  liveState.value?.faction_colors ? liveState.value.faction_colors : [],
+);
 const { data: location } = usePlayerVisibleLocation(locationIdRef);
 
 // The image this battle view actually draws — the site's Drawing when it
@@ -169,7 +172,17 @@ watch(
 // hidden, regardless of reveal_state. This is the "monsters walk out of
 // sight" feature without LoS — just a cell membership check. Tokens with
 // no position render at the origin row (visible by default).
+// Every store this view reads is declared first: the computeds below run during setup (the token filter reads
+// `sight`, which reads the own member through `auth`), and a store declared further down would still be in its
+// temporal dead zone when they do.
+const auth = useAuthStore();
 const campaignStore = useCampaignStore();
+// Players may only drag their own combatant. The set is computed reactively
+// from the auth store's linkedPartyMemberId, matching the `p-{id}` format
+// the server expects.
+const ownInstanceId = computed(() =>
+  auth.linkedPartyMemberId ? `p-${auth.linkedPartyMemberId}` : null,
+);
 const showTokens = computed(
   () => campaignStore.activeCampaign?.battle_map_show_tokens ?? true,
 );
@@ -239,13 +252,6 @@ const activeInstanceId = computed(() => {
   return sortCombatantsByInitiative(list)[liveState.value?.active_combatant_index ?? 0]?.instance_id ?? null;
 });
 
-// Players may only drag their own combatant. The set is computed reactively
-// from the auth store's linkedPartyMemberId, matching the `p-{id}` format
-// the server expects.
-const auth = useAuthStore();
-const ownInstanceId = computed(() =>
-  auth.linkedPartyMemberId ? `p-${auth.linkedPartyMemberId}` : null,
-);
 const draggableSet = computed(() =>
   ownInstanceId.value ? new Set([ownInstanceId.value]) : new Set<string>(),
 );
@@ -280,8 +286,8 @@ const {
 
 const loadingState = computed(() => {
   if (!liveState.value) return "No live encounter right now.";
-  if (!encounter.value) return "Loading encounter…";
-  if (!encounter.value.location_id) return "This encounter has no battle map.";
+  if (!liveState.value) return "Loading encounter…";
+  if (!liveState.value.location_id) return "This encounter has no battle map.";
   if (!location.value) return "Loading location…";
   if (!image.value) return "The battle map has no image yet.";
   if (!location.value.is_battle_map) return "This isn't a battle map.";
