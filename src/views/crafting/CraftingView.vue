@@ -78,30 +78,56 @@
         :row-estimate="activeDiscipline ? ROW_PX : ROW_WITH_TAGS_PX"
       >
         <template #card="{ item: recipe }">
-          <EntityTextCard
+          <EntityGridCard
             :to="`/crafting/${recipe.id}`"
             :title="recipe.name"
-            :subtitle="recipeSubtitle(recipe)"
-            :fallback-icon="getDiscipline(recipe.discipline).icon"
-            :tags="recipeTags(recipe)"
+            :image-url="artFor(recipe)?.url ?? null"
+            :focal-point="artFor(recipe)?.focalPoint ?? null"
+            :placeholder="placeholderUrl('item')"
           >
-            <template #actions>
-              <AudienceRevealControl
-                :name="recipe.name"
-                :visible-to="recipe.player_visible_to"
-                @change="onVisibilityChange(recipe, $event)"
-              />
+            <template #image-footer>
+              <div class="flex items-end gap-1.5">
+                <component
+                  :is="getDiscipline(recipe.discipline).icon"
+                  class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
+                />
+                <span
+                  class="line-clamp-2 text-heading-xs font-bold leading-tight text-white transition-colors group-hover:text-primary/90"
+                >
+                  {{ recipe.name }}
+                </span>
+              </div>
+            </template>
+            <template #actions-end>
+              <div @click.prevent.stop>
+                <AudienceRevealControl
+                  :name="recipe.name"
+                  :visible-to="recipe.player_visible_to"
+                  form="overlay"
+                  @change="onVisibilityChange(recipe, $event)"
+                />
+              </div>
               <AppButton
                 variant="ghost"
-                tone="danger"
-                fill="muted"
                 size="icon-xs"
+                :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
                 :icon="IconDelete"
                 tooltip="Delete recipe"
+                aria-label="Delete recipe"
                 @click="remove(recipe)"
               />
             </template>
-          </EntityTextCard>
+            <template #body>
+              <p class="text-caption text-muted-foreground">{{ recipeSubtitle(recipe) }}</p>
+              <div v-if="recipeTags(recipe).length" class="mt-auto flex flex-wrap gap-1">
+                <span
+                  v-for="tag in recipeTags(recipe).slice(0, 4)"
+                  :key="tag"
+                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+                >{{ tag }}</span>
+              </div>
+            </template>
+          </EntityGridCard>
         </template>
         <!--
           The row is EntityListRow: the name on its own line (truncates), the
@@ -114,6 +140,7 @@
             :to="`/crafting/${recipe.id}`"
             :title="recipe.name"
             :subtitle="recipeSubtitle(recipe)"
+            :image-url="artFor(recipe)?.url ?? null"
             :fallback-icon="getDiscipline(recipe.discipline).icon"
             :tags="recipeTags(recipe)"
             :max-tags="3"
@@ -159,7 +186,10 @@ import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
-import EntityTextCard from "@/components/common/entity/EntityTextCard.vue";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { useRecipeArt } from "@/composables/crafting/useRecipeArt";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
@@ -186,6 +216,7 @@ const workshopTabOptions = computed(() => [
 ]);
 
 const { data: recipes, isLoading } = useCraftingRecipes();
+const { artFor } = useRecipeArt(() => recipes.value ?? []);
 const { mutateAsync: deleteRecipe } = useDeleteRecipe();
 const { mutateAsync: updateRecipe } = useUpdateRecipe();
 const { confirm } = useConfirm();
@@ -268,16 +299,17 @@ function recipeTags(recipe: CraftingRecipe): string[] {
 // needing proficiency or tools, so the shorter figure is the common case there.
 const ROW_PX = 82;
 const ROW_WITH_TAGS_PX = 98;
-// Grid card height before it is measured (px). EntityTextCard: 2 border + 32
-// padding (p-4) + the 40 emblem header (it outweighs the name 20 and the DC line
-// 17) = 74 bare, and 108 with a tag line under it (gap-2 8 + pt-1 4 + chip 22).
-// Same split as the rows: a discipline tab only tags PROF / TOOLS recipes.
-const GRID_ROW_PX = 74;
-const GRID_ROW_WITH_TAGS_PX = 108;
+// Grid card height before it is measured (px). EntityGridCard: 2 border + 144
+// artwork (h-36) + 24 body padding (p-3) + the DC line 17 = 187 bare, and 213
+// with a tag line under it (gap-1 4 + chip 22). The name rides the artwork, so
+// it adds nothing to the body. Same split as the rows: a discipline tab only
+// tags PROF / TOOLS recipes.
+const GRID_ROW_PX = 187;
+const GRID_ROW_WITH_TAGS_PX = 213;
 
 async function remove(recipe: CraftingRecipe) {
   const ok = await confirm(`Delete "${recipe.name}"? This cannot be undone.`, { title: "Delete Recipe" });
   if (!ok) return;
-  await deleteRecipe(recipe.id);
+  await deleteRecipe(recipe);
 }
 </script>

@@ -5,12 +5,15 @@
       :title="form.name"
       title-placeholder="Recipe name…"
       :exists="!isNew"
-      :can-save="!!form.name.trim() && outputs.length > 0"
+      :can-save="canSave"
       :saving="saving"
+      :error="saveError"
+      :autosave="autosaveBar"
       :visible-to="form.player_visible_to"
       @update:title="form.name = $event"
       @update:visible-to="form.player_visible_to = $event"
       @save="save"
+      @cancel="onDone"
     >
       <template #controls>
         <AppButton
@@ -43,7 +46,7 @@
       </template>
     </EntityEditorActionBar>
 
-    <DraftConflictNotice :fields="conflictLabels" :on-discard="discardEdits" />
+    <DraftConflictNotice :fields="conflictLabels" :on-discard="resetRecipe" />
 
     <!-- Core fields -->
     <div class="grid grid-cols-2 gap-4">
@@ -53,19 +56,14 @@
           class="block text-label-lg font-semibold text-muted-foreground mb-1"
           >DISCIPLINE</label
         >
-        <div class="relative">
-          <component
-            :is="activeDiscipline.icon"
-            class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
-          />
-          <select
-            v-model="form.discipline"
-            class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
+        <!-- AppSelect has no leading-icon slot, so the discipline icon sits beside it. -->
+        <div class="flex items-center gap-2">
+          <component :is="activeDiscipline.icon" class="h-4 w-4 shrink-0 text-muted-foreground" />
+          <AppSelect v-model="form.discipline" tone="filled" size="body" weight="normal" class="min-w-0 flex-1">
             <option v-for="d in CRAFTING_DISCIPLINES" :key="d.id" :value="d.id">
               {{ d.label }}
             </option>
-          </select>
+          </AppSelect>
         </div>
       </div>
 
@@ -115,13 +113,26 @@
       </div>
     </div>
 
+    <RecipePictureField
+      v-model="form.image_url"
+      v-model:focal-point="form.image_focal_point"
+      :fallback="fallbackArt"
+      :fallback-name="fallbackName"
+    />
+
     <!-- Description -->
     <div>
       <label
         class="block text-label-lg font-semibold text-muted-foreground mb-1"
         >DESCRIPTION</label
       >
+      <!--
+        RichTextEditor reads its content once, when it is created. The draft seeds
+        only after the child lists arrive, so mounted earlier it would show an empty
+        description, and typing into it would autosave over the real one.
+      -->
       <RichTextEditor
+        v-if="isNew || seeded"
         v-model="form.description"
         placeholder="How is this item crafted? Any special requirements or lore…"
         size="md"
@@ -228,7 +239,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, nextTick, watch } from "vue";
 import { IconAdd, IconDelete, IconLock, IconTool, IconWarning } from '@/lib/icons';
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
@@ -243,7 +254,11 @@ import {
   getDiscipline,
 } from "@/lib/crafting/disciplines";
 import { repeatsWorkspaceBonus } from "@/lib/crafting/workspaceModifier";
-import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
+import { useRecordDraft, cloneDraftValue, draftValueEqual } from "@/composables/useRecordDraft";
+import { useAutosave } from "@/composables/useAutosave";
+import { useConfirm } from "@/composables/useConfirm";
+import RecipePictureField from "@/components/crafting/RecipePictureField.vue";
+import type { RecipeArt } from "@/lib/crafting/recipeArt";
 import { useCraftingUiStore } from "@/stores/ui/crafting";
 import { markEdited } from "@/ai/provenance";
 import { useItemIndex } from "@/composables/items/useItemIndex";
@@ -262,18 +277,24 @@ import {
 import type {
   CraftingRecipe,
   CraftingDiscipline,
+  CraftingIngredient,
+  CraftingModifier,
+  CraftingOutput,
 } from "@/types/crafting.types";
 
 const props = defineProps<{
   recipe?: CraftingRecipe;
 }>();
 
-const emit = defineEmits<{ saved: [id: string] }>();
+// `saved` is the create path only: an existing recipe saves itself and `done`
+// is the way out.
+const emit = defineEmits<{ saved: [id: string]; done: [] }>();
 
 const isNew = computed(() => !props.recipe);
 const recipeId = computed(() => props.recipe?.id);
 
 const craftingUi = useCraftingUiStore();
+const { confirm } = useConfirm();
 
 const { data: allItems } = useItemIndex();
 
@@ -284,17 +305,26 @@ const { data: existingIngredients } = useRecipeIngredients(recipeIdStr);
 const { data: existingModifiers } = useRecipeModifiers(recipeIdStr);
 const { data: existingOutputs } = useRecipeOutputs(recipeIdStr);
 
-const { mutateAsync: createRecipe, isPending: isCreating } = useCreateRecipe();
-const { mutateAsync: updateRecipe, isPending: isUpdating } = useUpdateRecipe();
+const { mutateAsync: createRecipe } = useCreateRecipe();
+const { mutateAsync: updateRecipe } = useUpdateRecipe();
 const { mutateAsync: replaceIngredients } = useReplaceIngredients();
 const { mutateAsync: replaceModifiers } = useReplaceModifiers();
 const { mutateAsync: replaceOutputs } = useReplaceOutputs();
 
-const saving = computed(() => isCreating.value || isUpdating.value);
+// The create path's state. An existing recipe reports through the autosave status.
+const saving = ref(false);
+const saveError = ref("");
 
-// Form state. One draft for the recipe row and one for each child list (they
-// load as separate queries). Each takes fresh server data into what the user
-// has not touched, and the save writes only what changed (#946).
+type IngredientRow = { item_id: string | null; library_item_id: string | null; tags: string[] | null; quantity: number };
+type OutputRow = { item_id: string | null; library_item_id: string | null; quantity: number };
+type ModifierRow = { description: string; bonus: number };
+
+// One draft for the recipe row and its three child lists, so autosave watches a
+// single object. The lists load as separate queries; the draft seeds once all
+// are in. Each field takes fresh server data until the user touches it, and the
+// save writes only what changed (#946). Row order is the order on screen: the
+// replace helpers write `position` from the index, and the first output is the
+// recipe's picture.
 interface RecipeDraft {
   name: string;
   description: string;
@@ -305,89 +335,99 @@ interface RecipeDraft {
   requires_proficiency: boolean;
   requires_tools: boolean;
   player_visible_to: string[];
+  image_url: string | null;
+  image_focal_point: { x: number; y: number } | null;
+  ingredients: IngredientRow[];
+  modifiers: ModifierRow[];
+  outputs: OutputRow[];
 }
 
-type IngredientRow = { item_id: string | null; library_item_id: string | null; tags: string[] | null; quantity: number };
-type OutputRow = { item_id: string | null; library_item_id: string | null; quantity: number };
-type ModifierRow = { description: string; bonus: number };
-
-/** A child list as one draft field, so it merges and compares as a unit. */
-interface ListDraft<Row> {
-  rows: Row[];
+interface RecipeSource {
+  recipe: CraftingRecipe;
+  ingredients: CraftingIngredient[];
+  modifiers: CraftingModifier[];
+  outputs: CraftingOutput[];
 }
-interface ChildSource<Row> {
-  id: string;
-  rows: Row[];
+
+function toDraft(r: RecipeSource | null): RecipeDraft {
+  if (!r) {
+    return {
+      name: "",
+      description: "",
+      discipline: (craftingUi.workshopActiveTab !== "all" ? craftingUi.workshopActiveTab : "smithing") as CraftingDiscipline,
+      dc: 10,
+      crafting_time: 1,
+      crafting_time_unit: "days",
+      requires_proficiency: false,
+      requires_tools: false,
+      player_visible_to: [],
+      image_url: null,
+      image_focal_point: null,
+      ingredients: [],
+      modifiers: [],
+      outputs: [],
+    };
+  }
+  return {
+    name: r.recipe.name,
+    description: r.recipe.description,
+    discipline: r.recipe.discipline,
+    dc: r.recipe.dc,
+    crafting_time: r.recipe.crafting_time,
+    crafting_time_unit: r.recipe.crafting_time_unit,
+    requires_proficiency: r.recipe.requires_proficiency,
+    requires_tools: r.recipe.requires_tools,
+    player_visible_to: [...r.recipe.player_visible_to],
+    image_url: r.recipe.image_url,
+    image_focal_point: r.recipe.image_focal_point ? { ...r.recipe.image_focal_point } : null,
+    ingredients: r.ingredients.map((i) => ({ item_id: i.item_id, library_item_id: i.library_item_id, tags: i.tags ? [...i.tags] : null, quantity: i.quantity })),
+    modifiers: r.modifiers.map((m) => ({ description: m.description, bonus: m.bonus })),
+    outputs: r.outputs.map((o) => ({ item_id: o.item_id, library_item_id: o.library_item_id, quantity: o.quantity })),
+  };
+}
+
+function currentSource(): RecipeSource | null {
+  const recipe = props.recipe;
+  const ingredients = existingIngredients.value;
+  const modifiers = existingModifiers.value;
+  const outputs = existingOutputs.value;
+  if (!recipe || !ingredients || !modifiers || !outputs) return null;
+  return { recipe, ingredients, modifiers, outputs };
 }
 
 const {
   draft: form,
+  seeded,
   conflicts: recipeConflicts,
-  changes: recipeChanges,
-  commit: commitRecipe,
+  changes,
+  commit,
   reset: resetRecipe,
-} = useRecordDraft<CraftingRecipe, RecipeDraft>({
-  source: () => props.recipe,
-  identity: (row) => row.id,
-  toDraft: (r) =>
-    r
-      ? {
-          name: r.name,
-          description: r.description,
-          discipline: r.discipline,
-          dc: r.dc,
-          crafting_time: r.crafting_time,
-          crafting_time_unit: r.crafting_time_unit,
-          requires_proficiency: r.requires_proficiency,
-          requires_tools: r.requires_tools,
-          player_visible_to: [...r.player_visible_to],
-        }
-      : {
-          name: "",
-          description: "",
-          discipline: (craftingUi.workshopActiveTab !== "all" ? craftingUi.workshopActiveTab : "smithing") as CraftingDiscipline,
-          dc: 10,
-          crafting_time: 1,
-          crafting_time_unit: "days",
-          requires_proficiency: false,
-          requires_tools: false,
-          player_visible_to: [],
-        },
+} = useRecordDraft<RecipeSource, RecipeDraft>({
+  source: currentSource,
+  identity: (row) => row.recipe.id,
+  toDraft,
 });
 
-/** The recipe columns. Pure: also run over the server copy. */
-function buildRecipe(d: RecipeDraft): RecipeDraft {
-  return { ...d, player_visible_to: [...d.player_visible_to] };
+/** The recipe columns (no child lists). Pure: also run over the server copy. */
+function buildRecipe(d: RecipeDraft) {
+  return {
+    name: d.name,
+    description: d.description,
+    discipline: d.discipline,
+    dc: d.dc,
+    crafting_time: d.crafting_time,
+    crafting_time_unit: d.crafting_time_unit,
+    requires_proficiency: d.requires_proficiency,
+    requires_tools: d.requires_tools,
+    player_visible_to: [...d.player_visible_to],
+    image_url: d.image_url,
+    image_focal_point: d.image_focal_point,
+  };
 }
 
-function useChildList<Row, Server extends Row>(data: () => Server[] | undefined, pick: (server: Server) => Row) {
-  const handle = useRecordDraft<ChildSource<Server>, ListDraft<Row>>({
-    source: () => {
-      const rows = data();
-      return rows && recipeId.value ? { id: recipeId.value, rows } : null;
-    },
-    identity: (row) => row.id,
-    toDraft: (row) => ({ rows: (row?.rows ?? []).map(pick) }),
-  });
-  const rows = computed(() => handle.draft.rows);
-  return { ...handle, rows };
-}
-
-const ingredientList = useChildList(
-  () => existingIngredients.value,
-  (i): IngredientRow => ({ item_id: i.item_id, library_item_id: i.library_item_id, tags: i.tags ? [...i.tags] : null, quantity: i.quantity }),
-);
-const modifierList = useChildList(
-  () => existingModifiers.value,
-  (m): ModifierRow => ({ description: m.description, bonus: m.bonus }),
-);
-const outputList = useChildList(
-  () => existingOutputs.value,
-  (o): OutputRow => ({ item_id: o.item_id, library_item_id: o.library_item_id, quantity: o.quantity }),
-);
-const ingredients = ingredientList.rows;
-const modifiers = modifierList.rows;
-const outputs = outputList.rows;
+const ingredients = computed(() => form.ingredients);
+const modifiers = computed(() => form.modifiers);
+const outputs = computed(() => form.outputs);
 
 const CONFLICT_LABELS: Record<keyof RecipeDraft, string> = {
   name: "Name",
@@ -399,23 +439,16 @@ const CONFLICT_LABELS: Record<keyof RecipeDraft, string> = {
   requires_proficiency: "Requires proficiency",
   requires_tools: "Requires tools",
   player_visible_to: "Visible to",
+  image_url: "Picture",
+  image_focal_point: "Picture",
+  ingredients: "Ingredients",
+  modifiers: "Conditional modifiers",
+  outputs: "Outputs",
 };
 
-const conflictLabels = computed(() => [
-  ...new Set([
-    ...recipeConflicts.value.map((key) => CONFLICT_LABELS[key]),
-    ...(outputList.conflicts.value.length > 0 ? ["Outputs"] : []),
-    ...(ingredientList.conflicts.value.length > 0 ? ["Ingredients"] : []),
-    ...(modifierList.conflicts.value.length > 0 ? ["Conditional modifiers"] : []),
-  ]),
-]);
+const conflictLabels = computed(() => [...new Set(recipeConflicts.value.map((key) => CONFLICT_LABELS[key]))]);
 
-function discardEdits() {
-  resetRecipe();
-  ingredientList.reset();
-  modifierList.reset();
-  outputList.reset();
-}
+const canSave = computed(() => !!form.name.trim() && outputs.value.length > 0);
 
 const activeDiscipline = computed(() => getDiscipline(form.discipline));
 
@@ -508,49 +541,117 @@ function removeIngredient(idx: number) {
   ingredients.value.splice(idx, 1);
 }
 
-async function save() {
-  if (!form.name.trim() || outputs.value.length === 0) return;
+// The picture a recipe falls back to: the first output's art, resolved the same
+// way the list and the sheet do. Editor rows carry no `position`; their index is it.
+const primaryItem = computed(() => {
+  const first = outputs.value[0];
+  return first ? itemById(inventoryItemRef(first)) : undefined;
+});
+const fallbackArt = computed<RecipeArt | null>(() =>
+  primaryItem.value?.image_url
+    ? { url: primaryItem.value.image_url, focalPoint: primaryItem.value.image_focal_point ?? null }
+    : null,
+);
+const fallbackName = computed(() => primaryItem.value?.name ?? "the first output");
 
-  let id: string;
-  if (isNew.value) {
-    const created = await createRecipe(buildRecipe(form));
-    id = created.id;
-    await replaceIngredients({ recipeId: id, ingredients: cloneDraftValue(ingredients.value) });
-    await replaceModifiers({ recipeId: id, modifiers: cloneDraftValue(modifiers.value) });
-    await replaceOutputs({ recipeId: id, outputs: cloneDraftValue(outputs.value) });
-  } else {
-    id = recipeId.value!;
-    // Only what changed is written: a list or column the user never touched is
-    // left alone, so a stale form cannot revert it.
-    const recipeColumns = recipeChanges(buildRecipe);
-    const ingredientsChanged = ingredientList.changes((d) => ({ rows: d.rows })).rows;
-    const modifiersChanged = modifierList.changes((d) => ({ rows: d.rows })).rows;
-    const outputsChanged = outputList.changes((d) => ({ rows: d.rows })).rows;
-    // Material edit (#606): visibility alone is not a content change.
-    const contentChanged =
-      Object.keys(recipeColumns).some((key) => key !== "player_visible_to") || !!ingredientsChanged || !!modifiersChanged || !!outputsChanged;
-    const update =
-      contentChanged && props.recipe?.ai_provenance
-        ? { ...recipeColumns, ai_provenance: markEdited(props.recipe.ai_provenance) }
-        : recipeColumns;
-    if (Object.keys(update).length > 0) {
-      await updateRecipe({ id, update });
-      commitRecipe();
-    }
-    if (ingredientsChanged) {
-      await replaceIngredients({ recipeId: id, ingredients: cloneDraftValue(ingredients.value) });
-      ingredientList.commit();
-    }
-    if (modifiersChanged) {
-      await replaceModifiers({ recipeId: id, modifiers: cloneDraftValue(modifiers.value) });
-      modifierList.commit();
-    }
-    if (outputsChanged) {
-      await replaceOutputs({ recipeId: id, outputs: cloneDraftValue(outputs.value) });
-      outputList.commit();
+/** Writes what changed against the server copy. Existing recipes only. */
+async function saveExisting(snapshot: RecipeDraft) {
+  const recipe = props.recipe;
+  if (!recipe) return;
+  // Only what changed is written: a list or column the user never touched is
+  // left alone, so a stale form cannot revert it. Copied now, before any await,
+  // so edits made while the writes are in flight are not half-sent.
+  const recipeColumns = cloneDraftValue(changes(buildRecipe));
+  const ingredientsChanged = cloneDraftValue(changes((d) => ({ rows: d.ingredients })).rows);
+  const modifiersChanged = cloneDraftValue(changes((d) => ({ rows: d.modifiers })).rows);
+  const outputsChanged = cloneDraftValue(changes((d) => ({ rows: d.outputs })).rows);
+  // Material edit (#606): visibility alone is not a content change.
+  const contentChanged =
+    Object.keys(recipeColumns).some((key) => key !== "player_visible_to") || !!ingredientsChanged || !!modifiersChanged || !!outputsChanged;
+  const update =
+    contentChanged && recipe.ai_provenance
+      ? { ...recipeColumns, ai_provenance: markEdited(recipe.ai_provenance) }
+      : recipeColumns;
+  if (Object.keys(update).length > 0) await updateRecipe({ id: recipe.id, update });
+  if (ingredientsChanged) await replaceIngredients({ recipeId: recipe.id, ingredients: ingredientsChanged });
+  if (modifiersChanged) await replaceModifiers({ recipeId: recipe.id, modifiers: modifiersChanged });
+  if (outputsChanged) await replaceOutputs({ recipeId: recipe.id, outputs: outputsChanged });
+  // Edits made while the writes were in flight are not part of what was sent;
+  // they stay unsaved until the refetch confirms the write.
+  if (draftValueEqual(form, snapshot)) commit();
+}
+
+const autosave = props.recipe
+  ? useAutosave({
+      draft: form,
+      initial: () => toDraft(currentSource()),
+      equal: draftValueEqual,
+      save: saveExisting,
+      canSave: () => canSave.value,
+      errorMessage: "Failed to save",
+    })
+  : null;
+
+// The child lists arrive after the recipe, so the draft is seeded a moment after
+// mount. Without this the autosave baseline would still be the empty form and the
+// seeding itself would read as an edit.
+if (autosave) {
+  watch(seeded, (isSeeded) => {
+    if (isSeeded) autosave.reset();
+  });
+}
+
+const autosaveBar = computed(() =>
+  autosave
+    ? {
+        status: autosave.status.value,
+        error: autosave.saveError.value,
+        pausedLabel: "Autosave paused until the recipe has a name and an output",
+      }
+    : undefined,
+);
+
+/** Done: write pending edits, and refuse to drop any that could not be written. */
+async function onDone() {
+  if (autosave) {
+    // The draft watcher marks an edit dirty on the next flush; an edit made in the
+    // same tick as the click would otherwise not be saved here.
+    await nextTick();
+    await autosave.saveNow();
+    // Still dirty means nothing was written: autosave is paused (no name or no
+    // output), or the write failed. Leaving silently would drop those edits.
+    if (autosave.dirty.value) {
+      const reason = autosave.status.value === "paused"
+        ? "A recipe needs a name and an output before its edits can be saved."
+        : autosave.status.value === "error"
+          ? "The last save failed."
+          : "Your latest edits are not saved yet.";
+      const leave = await confirm(`${reason} Leave anyway and lose your unsaved edits?`, {
+        title: "Unsaved edits",
+        confirmLabel: "Leave",
+      });
+      if (!leave) return;
+      autosave.reset();
     }
   }
+  emit("done");
+}
 
-  emit("saved", id);
+/** Creating a recipe: the explicit first save. */
+async function save() {
+  if (!canSave.value || !isNew.value) return;
+  saving.value = true;
+  saveError.value = "";
+  try {
+    const created = await createRecipe(buildRecipe(form));
+    await replaceIngredients({ recipeId: created.id, ingredients: cloneDraftValue(ingredients.value) });
+    await replaceModifiers({ recipeId: created.id, modifiers: cloneDraftValue(modifiers.value) });
+    await replaceOutputs({ recipeId: created.id, outputs: cloneDraftValue(outputs.value) });
+    emit("saved", created.id);
+  } catch (e: unknown) {
+    saveError.value = e instanceof Error ? e.message : "Failed to save";
+  } finally {
+    saving.value = false;
+  }
 }
 </script>

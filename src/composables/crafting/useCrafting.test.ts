@@ -37,7 +37,7 @@ describe("buildStarterRecipeChildRows", () => {
   it("drops outputs whose item wasn't found/created in the vault or the library", () => {
     const defs = [recipe({ outputs: [{ name: "Torch", quantity: 3 }, { name: "Unknown Thing", quantity: 1 }] })];
     const { outputRows } = buildStarterRecipeChildRows(defs, ["recipe-a"], new Map([["Torch", "item-torch"]]));
-    expect(outputRows).toEqual([{ recipe_id: "recipe-a", item_id: "item-torch", library_item_id: null, quantity: 3 }]);
+    expect(outputRows).toEqual([{ recipe_id: "recipe-a", item_id: "item-torch", library_item_id: null, quantity: 3, position: 0 }]);
   });
 
   it("falls back to a shared library reference when the vault map has no match (#819)", () => {
@@ -51,7 +51,7 @@ describe("buildStarterRecipeChildRows", () => {
       new Map([["Leather Barding", "srd_grimoire_bundled_leather_barding"]]),
     );
     expect(outputRows).toEqual([
-      { recipe_id: "recipe-a", item_id: null, library_item_id: "srd_grimoire_bundled_leather_barding", quantity: 1 },
+      { recipe_id: "recipe-a", item_id: null, library_item_id: "srd_grimoire_bundled_leather_barding", quantity: 1, position: 0 },
     ]);
   });
 
@@ -63,15 +63,32 @@ describe("buildStarterRecipeChildRows", () => {
       new Map([["Torch", "item-torch"]]),
       new Map([["Torch", "srd_grimoire_bundled_torch"]]),
     );
-    expect(outputRows).toEqual([{ recipe_id: "recipe-a", item_id: "item-torch", library_item_id: null, quantity: 3 }]);
+    expect(outputRows).toEqual([{ recipe_id: "recipe-a", item_id: "item-torch", library_item_id: null, quantity: 3, position: 0 }]);
   });
 
   it("carries ingredient tags/quantity through untouched with item_id null", () => {
     const defs = [recipe({ ingredients: [{ tags: ["wood", "cloth"], quantity: 2 }] })];
     const { ingredientRows } = buildStarterRecipeChildRows(defs, ["recipe-a"], new Map());
     expect(ingredientRows).toEqual([
-      { recipe_id: "recipe-a", item_id: null, tags: ["wood", "cloth"], quantity: 2 },
+      { recipe_id: "recipe-a", item_id: null, tags: ["wood", "cloth"], quantity: 2, position: 0 },
     ]);
+  });
+
+  it("numbers each recipe's outputs and ingredients in list order, so the first is the primary", () => {
+    const defs = [
+      recipe({
+        ingredients: [{ tags: ["wood"], quantity: 1 }, { tags: ["string"], quantity: 2 }],
+        outputs: [{ name: "Unknown Thing", quantity: 1 }, { name: "Shortbow", quantity: 1 }, { name: "Arrow", quantity: 20 }],
+      }),
+    ];
+    const { ingredientRows, outputRows } = buildStarterRecipeChildRows(
+      defs,
+      ["recipe-a"],
+      new Map([["Shortbow", "item-bow"], ["Arrow", "item-arrow"]]),
+    );
+    expect(ingredientRows.map((r) => r.position)).toEqual([0, 1]);
+    // The dropped output does not leave a hole at 0.
+    expect(outputRows.map((r) => [r.item_id, r.position])).toEqual([["item-bow", 0], ["item-arrow", 1]]);
   });
 
   it("omits modifier rows when a recipe has none", () => {

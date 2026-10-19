@@ -52,7 +52,7 @@ import type { HomebrewDisposition } from "@/lib/campaign/campaignHomebrewDisposi
 /** Campaign-scoped tables the cascade empties, whatever the disposition. */
 export const CASCADED_TABLES = [
   "locations", "deities", "pantheons", "factions", "companions", "minis", "sounds", "image_generation_jobs",
-  "notice_board_pins",
+  "notice_board_pins", "crafting_recipes",
 ] as const;
 
 /**

@@ -251,6 +251,9 @@ async function createAll() {
       requires_proficiency: recipe.requires_proficiency,
       requires_tools: recipe.requires_tools,
       player_visible_to: [],
+      // No picture of its own: the card shows the output's art.
+      image_url: null,
+      image_focal_point: null,
       ai_provenance: recipe.ai_provenance ?? null,
     });
     recipeId = created.id;

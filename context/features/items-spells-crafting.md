@@ -466,7 +466,7 @@ Mutation errors from these RPCs surface via toasts (`useCharacterSpells` mutatio
 
 The Workshop is where the DM creates crafting recipes and controls which players can see them.
 
-**List view** — tabbed by crafting discipline. All recipes are shown in an "All" tab; individual discipline tabs filter the list. Mobile-responsive cards truncate the name and collapse discipline/proficiency/tools badges to icons only. The list is windowed through `VirtualGrid` (only the rows near the viewport are mounted) with `useScrollRestore` keyed `crafting-recipes`, so returning from `/crafting/:id` lands where you left off.
+**List view** — tabbed by crafting discipline. All recipes are shown in an "All" tab; individual discipline tabs filter the list. The grid is art-led (`EntityGridCard`, the discipline icon and name over the picture, reveal and delete as corner chips); the rows carry the picture as their thumbnail. The list is windowed through `VirtualGrid` (only the rows near the viewport are mounted) with `useScrollRestore` keyed `crafting-recipes`, so returning from `/crafting/:id` lands where you left off.
 
 **Crafting disciplines** — defined in `src/lib/crafting/disciplines.ts`. Each discipline has:
 
@@ -486,7 +486,11 @@ Not every discipline maps to an artisan's tool. Herbalism, Poisoncraft and Forge
 
 **Workshop outputs the SRD defines craft the SRD item (#957)** — `src/data/workshopLibraryEquivalents.ts` maps each Workshop output the SRD already has (Shortbow, Dagger, Handaxe, Javelin, Spear, Light Hammer, Trident, Leather Armor, Shield, Net, five potions) to that edition's `library_items` row, and the starter import resolves those names through it *before* the vault: a vault copy by that name is almost always an old clone of the thin bundled copy (a Shortbow with no range), which is what crafting must stop producing. The bundled datasets keep their own copy only for an edition the SRD does not cover, stamped with that edition (`ruleset`), so no campaign lists an item twice: Shield is 2014-only (2014 Open5e has no plain Shield), Net and the two healing potions 2024-only. Names cannot do this matching (2014's armour is "Leather", 2024's "Leather Armor"), hence ids. `workshopLibraryEquivalents.test.ts` holds the table and the datasets in step; migration `20261003103927` moved existing references and deleted the superseded rows. Other names still resolve vault first, then a library row of the campaign's edition (or edition-neutral).
 
-**Recipe editor** (`/crafting/:id`) — a focused form:
+**A recipe's picture is the DM's own, else the art of what it makes.** `crafting_recipes.image_url` / `image_focal_point` hold a custom picture (uploaded to `item-images`, since it shows the thing crafted). When it is null, every surface shows the **primary output's** art, and the item placeholder when that has none. One rule, `resolveRecipeArt` (`src/lib/crafting/recipeArt.ts`), resolved at render time rather than copied onto the recipe, so a recipe follows its item when the item's art changes. Only the primary output counts: "a shortbow and 20 arrows" is a shortbow recipe. The DM's surfaces resolve through `useRecipeArt` (batched outputs, the primary items read by id). A player may not read a DM's vault item, so the player cards resolve through `get_craftable_output_items`, which returns each item's picture beside its name (`20261019205718`); the `items` ring refreshes it.
+
+**Output and ingredient order is stored (`position`, `20261019205718`).** "The first output is the primary result" and "the first ingredient is PRIMARY" were true only by heap order until then: neither table had an order column. The replace helpers write the list index, every read is `order by position`, and the starter import numbers outputs after dropping the ones it could not resolve, so the first that resolved is the primary.
+
+**Recipe editor** (`/crafting/:id`) — a focused form. An existing recipe saves itself (`useAutosave` over one `useRecordDraft` holding the row and its three child lists, which seeds once all four have loaded; the description editor mounts only then, because `RichTextEditor` reads its content once). Done flushes and leaves edit mode; it asks before dropping edits that could not be saved. Creating keeps one explicit Save and returns to `/crafting`.
 
 - **Name** + proficiency toggle (lock icon: whether proficiency is required to attempt) + tools toggle (wrench icon: whether tools must be in inventory, or if lacking them only imposes disadvantage)
 - **Player visibility toggle** — sets which party members can see this recipe
@@ -494,11 +498,12 @@ Not every discipline maps to an artisan's tool. Herbalism, Poisoncraft and Forge
 - **Crafting DC** (integer 1–30)
 - **Crafting time** + unit (minutes, hours, days)
 - **Description** — rich text editor
-- **Outputs** — searchable item picker; at least one output is required to save. Each output has a quantity. The first output is the "primary" result.
+- **Picture** (`RecipePictureField`) — upload a custom picture with a focal point; without one it shows the primary output's art and says so.
+- **Outputs** — searchable item picker; at least one output is required to save. Each output has a quantity. The first output is the "primary" result, and its art is the recipe's picture unless the DM sets one.
 - **Ingredients** — searchable specific-item picker OR tag-based wildcards (e.g. `any "meat"` or `any ["glass", "container"]`). Each ingredient has a quantity. The first ingredient is the "PRIMARY" one (ruined on a critical fail). An ingredient is exactly one of an owned item (`item_id`), a library item (`library_item_id`) or a tag list; the `ingredient_item_or_tags` check holds that, and `supabase/tests/recipe_ingredient_references.test.sql` holds the check (it refused library items until `20261002112421`).
 - **Conditional modifiers** — DM-defined bonus conditions (e.g. "Full forge available" → +4). Workshop bonus and poor-ingredient penalty are provided automatically by the dialog and not listed here.
 
-**Read mode** (`RecipeSheet`) — clean layout showing DC, time, ingredient list, and output list.
+**Read mode** (`RecipeSheet`) — the recipe's picture (omitted when there is none), then DC, time, ingredient list, and output list.
 
 **AI recipe generator (#910).** `CraftingView.vue` has a **Generate** action (`ui.recipeGeneratorOpen`) opening `RecipeGeneratorPanel.vue` (state in `src/ai/useRecipeGeneration.ts`, validation in `src/lib/crafting/recipeAi.ts`). Optional constraints: discipline and a specific output item the DM picks. `generate-entity-text` with `generator: "recipe"`, ledger reason `recipe_generation`.
 
@@ -518,6 +523,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 
 **Recipe cards** — each card shows:
 
+- The recipe's picture as a banner (the item placeholder when there is none, so every card has the same top)
 - Name and discipline badge (when viewing "All")
 - DC and crafting time
 - Output item names (inline summary, e.g. "→ 2× Iron Ingot")
@@ -651,6 +657,8 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 | `requires_proficiency` | boolean            | hard-lock on proficiency            |
 | `requires_tools`       | boolean            | hard-lock on tools                  |
 | `player_visible_to`    | string[]           | party member ids                    |
+| `image_url`            | string             | DM's own picture; null = the primary output's art |
+| `image_focal_point`    | object             | {x, y} for FocalImage               |
 
 ### CraftingIngredient (related table)
 
@@ -660,6 +668,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 | `item_id`   | null for tag-based             |
 | `tags`      | string[] for wildcard matching |
 | `quantity`  |                                |
+| `position`  | list order; 0 = PRIMARY        |
 
 ### CraftingOutput (related table)
 
@@ -668,6 +677,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 | `recipe_id` | FK            |
 | `item_id`   | vault item FK |
 | `quantity`  |               |
+| `position`  | list order; 0 = primary, whose art the recipe shows |
 
 ### CraftingModifier (related table)
 
