@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import AiGeneratedBadge from "./AiGeneratedBadge.vue";
 import { useAiLabelPrefs } from "@/composables/ai/useAiLabelPrefs";
@@ -42,6 +43,9 @@ describe("AiGeneratedBadge with labels switched off", () => {
     const line = mountBadge({ variant: "line", provenance: { edited: false } });
     expect(chip.find("span").exists()).toBe(false);
     expect(line.find("p").exists()).toBe(false);
+    // useStorage writes through a watcher, which since Vue 3.5.44 runs on the
+    // next flush rather than before the setter returns: wait for it.
+    await nextTick();
     expect(localStorage.getItem("grimoire_show_ai_labels")).toBe("false");
 
     setShowAiLabels(true);

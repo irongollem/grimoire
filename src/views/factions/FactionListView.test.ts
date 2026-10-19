@@ -154,18 +154,22 @@ describe("FactionListView — bulk selection (#885)", () => {
   });
 
   it("select-all shown selects every filtered row, not only the mounted subset", async () => {
-    factionsData.value = Array.from({ length: 60 }, (_, i) => faction({ id: `faction-${i}`, name: `Faction ${i}` }));
+    factionsData.value = Array.from({ length: 200 }, (_, i) => faction({ id: `faction-${i}`, name: `Faction ${i}` }));
     const wrapper = mountView();
     await flushMicrotasks(); // VirtualGrid finds its scroller on mount, rows follow
-    // Only the rows near the viewport are mounted, well under the 60 total.
-    expect(wrapper.findAll(".stub-card").length).toBeGreaterThan(0);
-    expect(wrapper.findAll(".stub-card").length).toBeLessThan(60);
+    // Only the rows near the viewport are mounted, well under the 200 total.
+    // (60 was once enough; @tanstack/vue-virtual 3.13.46 fills the test
+    // viewport plus its overscan with all 60, so the list must be longer
+    // than a screenful for "only a subset mounts" to mean anything.)
+    const mounted = wrapper.findAll(".stub-card").length;
+    expect(mounted).toBeGreaterThan(0);
+    expect(mounted).toBeLessThan(200);
 
     await toggleSelecting(wrapper);
     const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
     await selectAllBtn!.trigger("click");
 
-    expect(wrapper.text()).toContain("60 selected");
+    expect(wrapper.text()).toContain("200 selected");
   });
 
   it("clicking a row while selecting toggles it into the selection rather than navigating", async () => {
