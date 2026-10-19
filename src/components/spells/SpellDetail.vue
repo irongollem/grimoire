@@ -244,7 +244,6 @@ import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRouter } from "vue-router";
-import { useIsMobile } from "@/composables/useBreakpoint";
 import SpellGenerateDialog from "@/ai/SpellGenerateDialog.vue";
 import SpellLevelAdvisorModal from "./SpellLevelAdvisorModal.vue";
 import SpellLevelAdvisorPanel from "./SpellLevelAdvisorPanel.vue";
@@ -293,7 +292,6 @@ import { parseDamageExpression, type DamageRoll } from "@/lib/dice/dice";
 
 const props = defineProps<{ spell: Spell | null; isShared?: boolean }>();
 const router = useRouter();
-const isMobile = useIsMobile();
 
 const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
@@ -663,10 +661,10 @@ async function save() {
         await update({ id: props.spell.id, update: changed });
         commit();
       }
-      // Desktop lands on the sheet over the spellbook (a child route of the
-      // list, so it is landing on the list); a phone has no modal, so it goes
-      // to the plain list.
-      router.push(isMobile.value ? "/spells" : `/spells/${props.spell.id}`);
+      // Back to the bare list, which is the confirmation that the save landed.
+      // Not `/spells/:id`: reopening the sheet you came from read as being sent
+      // back into the record rather than out of it.
+      router.push("/spells");
     } else {
       // Import provenance and scaling come only from an import; a hand-made spell
       // starts without them, and the builder stays pure over the draft.

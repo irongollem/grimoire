@@ -695,12 +695,10 @@ async function save() {
       sendNarrativeEvent(`You encounter ${announced}.`, savedNpcId ?? undefined).catch((e) => reportChatFailure(e, 'announce the encounter in the chat'))
     }
 
-    // Back to the list, which is the confirmation that the save landed. On
-    // tablet and up the NPC's own path *is* the list — the grid with this
-    // sheet open over it — so it doubles as a look at what was just saved.
-    // A phone has no such layer: `/npcs/:id` there is a full-screen takeover,
-    // which would be staying on the detail page, so it gets the plain list.
-    if (props.npc?.id) router.push(isMobile.value ? '/npcs' : `/npcs/${props.npc.id}`)
+    // Back to the bare list, which is the confirmation that the save landed.
+    // Not `/npcs/:id`: reopening the sheet you came from read as being sent
+    // back into the record rather than out of it.
+    if (props.npc?.id) router.push('/npcs')
   } catch (e: unknown) {
     if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     notify('Failed to save NPC. Please try again.')

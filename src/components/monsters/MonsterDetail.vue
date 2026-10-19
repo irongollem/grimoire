@@ -642,13 +642,10 @@ async function save() {
         await update({ id: props.monster.id, update: changed });
         commit();
       }
-      // Back to the list, which is the confirmation that the save landed. On
-      // tablet and up the monster's own path *is* the list — the bestiary with
-      // this stat block open over it — so it doubles as a look at what was just
-      // saved. A phone has no such layer: `/monsters/:id` there is a
-      // full-screen takeover, which would be staying on the detail page, so it
-      // gets the plain list. See the Sanctioned Exception in CLAUDE.md.
-      router.push(isMobile.value ? "/monsters" : `/monsters/${props.monster.id}`);
+      // Back to the bare list, which is the confirmation that the save landed.
+      // Not `/monsters/:id`: reopening the sheet you came from read as being
+      // sent back into the record rather than out of it.
+      router.push("/monsters");
     } else {
       const created = await create({ ...buildPayload(form), notes: null });
       router.push(`/monsters/${created.id}`);

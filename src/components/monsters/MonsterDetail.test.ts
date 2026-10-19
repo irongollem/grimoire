@@ -276,6 +276,6 @@ describe("MonsterDetail — saves only what changed (#946)", () => {
     const wrapper = mountDetail(monster());
     await saveFrom(wrapper);
     expect(updateMonster).not.toHaveBeenCalled();
-    expect(routerPush).toHaveBeenCalledWith("/monsters/monster-1");
+    expect(routerPush).toHaveBeenCalledWith("/monsters");
   });
 });

@@ -157,11 +157,11 @@ describe("SpellDetail navigation", () => {
     mockRouterReplace.mockClear();
   });
 
-  it("saving an existing spell lands on its sheet on desktop", async () => {
+  it("saving an existing spell lands on the list on desktop, not back on its sheet", async () => {
     const wrapper = mountDetail(existing);
     (wrapper.vm as unknown as Vm).name = "Fireball II";
     await (wrapper.vm as unknown as Vm).save();
-    expect(mockRouterPush).toHaveBeenCalledWith("/spells/sp1");
+    expect(mockRouterPush).toHaveBeenCalledWith("/spells");
   });
 
   it("saving an existing spell lands on the list on a phone", async () => {
