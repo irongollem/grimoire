@@ -223,10 +223,13 @@ const dirty = ref(false);
 
 const workbenchRef = ref<InstanceType<typeof MapWorkbench> | null>(null);
 
-/** These host-owned closures (useMapExport/useMapPublish/PNG bake) only ever
- *  run from a view-mode button, by which point MapWorkbench is certainly
- *  mounted — so a missing ref here is a real bug, not a timing edge case
- *  worth silently working around with an empty-state fallback. */
+/** For the host-owned closures that only ever run from a view-mode button
+ *  (useMapExport, the PNG bake, save): by then MapWorkbench is certainly
+ *  mounted, so a missing ref there is a real bug. useMapPublish is not one of
+ *  them: its computeds read their getters from setup on, which is before the
+ *  workbench mounts whenever the map is already cached, so its getters below
+ *  degrade to "nothing to publish" instead (DUNGEON-GRIMOIRE-Q/R/S/T), the way
+ *  AtlasSiteMapMode's do. */
 function requireWorkbench(): NonNullable<typeof workbenchRef.value> {
   const wb = workbenchRef.value;
   if (!wb) throw new Error("MapWorkbench is not mounted");
@@ -267,12 +270,15 @@ const {
 });
 
 const mapPublish = useMapPublish({
-  map: () => (map.value ? { ...map.value, layers: requireWorkbench().getLayers(), metadata: requireWorkbench().getMetadata() } : null),
-  runtimes: () => requireWorkbench().getRuntimes(),
-  dressing: () => requireWorkbench().getDressingCatalog(),
-  loadDressing: () => requireWorkbench().loadDressingCatalog(),
-  glyphs: () => requireWorkbench().getCellGlyphs(),
-  structure: () => requireWorkbench().getStructure(),
+  map: () => {
+    const wb = workbenchRef.value;
+    return wb && map.value ? { ...map.value, layers: wb.getLayers(), metadata: wb.getMetadata() } : null;
+  },
+  runtimes: () => workbenchRef.value?.getRuntimes() ?? new Map(),
+  dressing: () => workbenchRef.value?.getDressingCatalog() ?? new Map(),
+  loadDressing: () => workbenchRef.value?.loadDressingCatalog() ?? Promise.resolve(new Map()),
+  glyphs: () => workbenchRef.value?.getCellGlyphs() ?? {},
+  structure: () => workbenchRef.value?.getStructure() ?? { spaces: [], ways: [], stairs: [], links: [] },
 });
 
 // `workbenchRef` is null for the very first render (template refs populate
