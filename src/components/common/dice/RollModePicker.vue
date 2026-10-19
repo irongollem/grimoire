@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="state.visible"
-      class="fixed inset-0 z-60"
+      class="roll-mode-layer fixed inset-0 z-60"
       @click="dismiss"
       @contextmenu.prevent="dismiss"
     >
@@ -72,6 +72,12 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
 <style scoped>
 @reference "@/assets/main.css";
 
+/* The menu opens under a finger that is still pressing, and iOS turns that
+   same press into a text selection on whatever is now under it (#1078). */
+.roll-mode-layer {
+  @apply select-none;
+  -webkit-touch-callout: none;
+}
 .roll-mode-menu {
   @apply fixed w-42 rounded-lg border border-border bg-card shadow-2xl p-1 flex flex-col gap-0.5;
 }

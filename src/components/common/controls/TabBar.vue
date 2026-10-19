@@ -1,7 +1,11 @@
 <template>
+  <!-- A row that scrolls sideways (overflow-x-auto) must not scroll down too:
+       overflow-x turns overflow-y from visible into auto, and the tabs' -mb-px
+       underline then gives a 1px vertical scroll that fights a phone swipe
+       (#1077). A utility, so Vellum's unlayered overflow: visible still wins. -->
   <div
     ref="rootEl"
-    class="tab-bar flex items-center gap-0 border-b border-border"
+    class="tab-bar flex items-center gap-0 border-b border-border [&.overflow-x-auto]:overflow-y-hidden"
     role="tablist"
     :class="wrapperClass"
     :style="fadeStyle"

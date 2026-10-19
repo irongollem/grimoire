@@ -43,6 +43,17 @@ interface Listeners {
 
 const registry = new WeakMap<HTMLElement, Listeners>();
 
+/**
+ * A long-press on a trigger is the picker's gesture, so the OS's own long-press
+ * (select the text, open the callout) must not run alongside it (#1078).
+ */
+function claimLongPress(el: HTMLElement, enabled: boolean) {
+  const value = enabled ? "none" : "";
+  el.style.userSelect = value;
+  el.style.setProperty("-webkit-user-select", value);
+  el.style.setProperty("-webkit-touch-callout", value);
+}
+
 export const vRollMode: Directive<HTMLElement, RollModeBinding> = {
   mounted(el, binding: DirectiveBinding<RollModeBinding>) {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -113,6 +124,11 @@ export const vRollMode: Directive<HTMLElement, RollModeBinding> = {
     el.addEventListener("touchcancel", onTouchEnd);
 
     registry.set(el, { onClick, onContextMenu, onTouchStart, onTouchMove, onTouchEnd });
+    claimLongPress(el, pickerEnabled());
+  },
+
+  updated(el, binding: DirectiveBinding<RollModeBinding>) {
+    claimLongPress(el, resolveBinding(binding.value).enabled);
   },
 
   unmounted(el) {
