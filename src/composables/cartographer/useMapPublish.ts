@@ -225,7 +225,8 @@ export function useMapPublish(opts: {
   const { data: placementsData } = useSitePlacements(spaceIds);
 
   const inputs = computed<PublishInputs | null>(() => {
-    if (!targetSiteId.value) return null;
+    // No map yet (the host's editor may not have mounted) means no structure to read either.
+    if (!targetSiteId.value || !opts.map()) return null;
     return {
       siteId: targetSiteId.value,
       derived: opts.structure(),

@@ -340,3 +340,21 @@ describe("useMapPublish.publish", () => {
     expect(mocks.insertRegions).not.toHaveBeenCalled();
   });
 });
+
+describe("useMapPublish review before the editor mounts", () => {
+  it("asks for no structure while there is no map yet, and reviews nothing", () => {
+    // The Cartographer's header reads the review while the page renders, before the editor below it mounts, and its
+    // `map` answers null until then: the review must not reach for the editor's structure in that gap.
+    const structure = vi.fn(() => ({}) as unknown as DerivedStructure);
+    const publisher = useMapPublish({
+      map: () => null,
+      runtimes: () => new Map(), dressing: () => new Map(), loadDressing: async () => new Map(),
+      glyphs: () => ({}),
+      structure,
+    });
+    publisher.targetSiteId.value = "site-1";
+    expect(publisher.review.value.plan).toBeNull();
+    expect(publisher.review.value.bakedDims).toBeNull();
+    expect(structure).not.toHaveBeenCalled();
+  });
+});

@@ -269,6 +269,11 @@ const {
   glyphs: () => requireWorkbench().getCellGlyphs(),
 });
 
+// The publish review is read while the page renders (the header's Publish button and modal), and the header renders
+// before the workbench below it mounts: on opening a map, and on every switch between view and edit, which mount a
+// workbench of their own. So `map` answers "no map yet" until a workbench is there, and the review recomputes the
+// moment it is (`workbenchRef` is reactive). Its other getters degrade to empty the same way; export and save keep the
+// strict guard, since they only run from a button.
 const mapPublish = useMapPublish({
   map: () => {
     const wb = workbenchRef.value;
