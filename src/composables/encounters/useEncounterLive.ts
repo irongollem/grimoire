@@ -3,6 +3,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
 import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
+import type { MapLiveDoorState } from "@/types/mapLive.types";
 import type { EncounterState, MagicalDarknessZone, RunCombatant, RunningEncounterState } from "@/types/encounter.types";
 
 // ── Module-level singleton for running encounters ──────────────────────────────
@@ -157,6 +158,8 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
       fog_mask: null,
       // Likewise a new fight starts without the last one's spheres of darkness.
       magical_darkness: [],
+      // And every door starts as the map drew it: the DM's open and shut doors belong to the fight (#1073).
+      door_states: [],
     };
     const { data, error } = await supabase
       .from("encounter_state")
@@ -183,6 +186,7 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
     eventsFired: string[];
     fogMask?: string | null;
     magicalDarkness?: MagicalDarknessZone[];
+    doorStates?: MapLiveDoorState[];
   }
 
   function schedulePush(state: PushableState) {
@@ -218,6 +222,7 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
     };
     if (state.fogMask !== undefined) patch.fog_mask = state.fogMask;
     if (state.magicalDarkness !== undefined) patch.magical_darkness = state.magicalDarkness;
+    if (state.doorStates !== undefined) patch.door_states = state.doorStates;
     const { error } = await supabase
       .from("encounter_state")
       .update(patch)

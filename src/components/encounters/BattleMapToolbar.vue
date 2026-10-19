@@ -144,6 +144,21 @@
         />
       </div>
 
+      <!-- Doors (#1073): a click on a door opens or shuts it for the DM and every player; light and sight follow. -->
+      <div class="fog-toolbox">
+        <span class="fog-label">Doors</span>
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="xs"
+          :icon="IconDoor"
+          :active="tool === 'doors'"
+          :disabled="!hasDoors"
+          :tooltip="hasDoors ? 'Open or shut a door' : 'No doors on this map'"
+          @click="tool = tool === 'doors' ? 'pan' : 'doors'"
+        />
+      </div>
+
       <div class="topbar-right">
         <span class="hint">{{ scalePercent }}%</span>
         <AppButton
@@ -173,12 +188,13 @@ import {
   IconCircle,
   IconMoon,
   IconStop,
+  IconDoor,
   IconReset,
   IconNavAtlas,
   IconEncounter,
 } from "@/lib/icons";
 
-export type BattleMapTool = "pan" | "reveal" | "rehide" | "darkness";
+export type BattleMapTool = "pan" | "reveal" | "rehide" | "darkness" | "doors";
 /** Radii of a sphere of magical darkness in feet; 15 is the darkness spell. */
 export type DarknessRadius = 10 | 15 | 20 | 30;
 export type BattleMapBrushShape = "round" | "cell";
@@ -198,6 +214,8 @@ const props = defineProps<{
   tokenCount: number;
   calibrationFromPublish: boolean;
   scalePercent: number;
+  /** Whether the shown snapshot has any doors; the Doors tool is disabled without. */
+  hasDoors: boolean;
 }>();
 
 defineEmits<{

@@ -16,14 +16,20 @@
 // art because the standing image the stack shows with this layer leaves them out; `ready` tells the stack every
 // sprite image and that standing image have loaded, so it swaps only once nothing can go missing or blink. The props
 // are drawn from that moment on, never before: until the swap the full standing image still holds them.
-// With reduced motion, a hidden tab or nothing to animate it draws nothing and runs no loop: the baked picture
-// already shows the water.
+// The top layer also draws every door leaf that has art of its own, at the state the DM left the door in (the standing
+// image leaves those out), before the sprites: doors sit in the wall band and props stand in front of it.
+// With reduced motion, a hidden tab or nothing to animate, the ground layer draws nothing and runs no loop: the baked
+// picture already shows the water. The top layer then draws ONE still frame (sprites at rest, leaves) and redraws it
+// when the doors, the pan, the size or the snapshot change, because its standing image has already dropped them.
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { boostMask, groupsIn, hasMotion, lightBoost, lightsIn, overlayFrame, spritesIn, swayAngle, type Stratum } from "@/lib/battlemap/liveLayer";
+import { paintDoorLeaf, edgeAxis, edgeTileOrigin } from "@/cartographer/doorLeaf";
+import { effectiveDoors } from "@/lib/battlemap/doors";
+import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
+import { boostMask, type BoostMask, groupsIn, hasMotion, lightBoost, lightsIn, overlayFrame, spritesIn, swayAngle, type Stratum } from "@/lib/battlemap/liveLayer";
 import { lightReachCells, lightStops } from "@/cartographer/lights";
 import { DEFAULT_LIGHT_INTENSITY } from "@/cartographer/packSchema";
 import { prefersReducedMotion } from "@/lib/motion";
-import type { MapLive, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
+import type { MapLive, MapLiveDoor, MapLiveDoorState, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
 
 const {
   hostW,
@@ -35,6 +41,7 @@ const {
   stratum,
   standUrl = null,
   ground = null,
+  doorStates = NO_DOOR_STATES,
 } = defineProps<{
   hostW: number;
   hostH: number;
@@ -48,6 +55,8 @@ const {
   standUrl?: string | null;
   /** Ground only: the ground picture and its drawn box, whose painted part the light boost is kept to. */
   ground?: { url: string; x: number; y: number; w: number; h: number } | null;
+  /** The DM's door overrides (#1073): a door's leaf is drawn at its state in play, a flicker is masked by open doors. */
+  doorStates?: readonly MapLiveDoorState[];
 }>();
 
 const emit = defineEmits<{
@@ -89,8 +98,17 @@ function watchImage(url: string) {
 // standing image without them. Before (or when one never loads) the full standing image still shows every prop.
 let readyFor: MapLive | null = null;
 
+type LeafDoor = MapLiveDoor & { leaf: NonNullable<MapLiveDoor["leaf"]> };
+
+/** The top layer's doors that carry art of their own, at the state they have in play. */
+function leafDoors(): LeafDoor[] {
+  if (!live || stratum !== "top") return [];
+  return effectiveDoors(live.doors, doorStates).filter((d): d is LeafDoor => d.leaf !== null);
+}
+
 function readyUrls(): Set<string> {
   const urls = new Set(spritesIn(live, stratum).map((sp) => sp.url));
+  if (live && stratum === "top") for (const d of live.doors) if (d.leaf) urls.add(d.leaf.url);
   if (urls.size > 0 && standUrl) urls.add(standUrl);
   return urls;
 }
@@ -133,7 +151,19 @@ function paintOverlay(ctx: CanvasRenderingContext2D, overlay: MotionOverlay, t: 
   ctx.restore();
 }
 
-function paintSprite(ctx: CanvasRenderingContext2D, sprite: MapLiveSprite, t: number) {
+function paintLeaf(ctx: CanvasRenderingContext2D, door: LeafDoor) {
+  if (readyFor !== live) return;
+  const img = imageFor(door.leaf.url);
+  if (!img) return;
+  const [cell, side] = door.edge.split(":");
+  const [xs, ys] = cell.split(",");
+  const axis = edgeAxis(side === "N" ? "N" : "W");
+  const tile = edgeTileOrigin(axis, originX + Number(xs) * cellPx, originY + Number(ys) * cellPx, cellPx);
+  if (tile.x + cellPx * 2 < 0 || tile.y + cellPx * 2 < 0 || tile.x - cellPx > hostW || tile.y - cellPx > hostH) return;
+  paintDoorLeaf(ctx, img, axis, tile.x, tile.y, cellPx, door.leaf, door.open);
+}
+
+function paintSprite(ctx: CanvasRenderingContext2D, sprite: MapLiveSprite, t: number, still: boolean) {
   if (readyFor !== live) return;
   const img = imageFor(sprite.url);
   if (!img) return;
@@ -143,19 +173,20 @@ function paintSprite(ctx: CanvasRenderingContext2D, sprite: MapLiveSprite, t: nu
   if (cx + reach < 0 || cy + reach < 0 || cx - reach > hostW || cy - reach > hostH) return;
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(((sprite.rotation + swayAngle(sprite.sway, t)) * Math.PI) / 180);
+  ctx.rotate(((sprite.rotation + (still ? 0 : swayAngle(sprite.sway, t))) * Math.PI) / 180);
   ctx.drawImage(img, (-sprite.w * cellPx) / 2, (-sprite.h * cellPx) / 2, sprite.w * cellPx, sprite.h * cellPx);
   ctx.restore();
 }
 
 // One canvas per light's line-of-sight mask, and one scratch canvas the boost is composed in.
-const maskCanvases = new WeakMap<MapLiveLight, HTMLCanvasElement>();
+// Keyed on the mask itself, so a door the DM opens (a new mask for the same light) gets a canvas of its own.
+const maskCanvases = new WeakMap<BoostMask, HTMLCanvasElement>();
 let scratch: HTMLCanvasElement | null = null;
 
 function maskCanvasFor(light: MapLiveLight): { canvas: HTMLCanvasElement; x0: number; y0: number; x1: number; y1: number } | null {
   if (!live) return null;
-  const held = boostMask(live, light);
-  let canvas = maskCanvases.get(light);
+  const held = boostMask(live, light, doorStates);
+  let canvas = maskCanvases.get(held);
   if (!canvas) {
     canvas = document.createElement("canvas");
     canvas.width = held.mask.width;
@@ -165,7 +196,7 @@ function maskCanvasFor(light: MapLiveLight): { canvas: HTMLCanvasElement; x0: nu
     const image = mctx.createImageData(held.mask.width, held.mask.height);
     for (let k = 0; k < held.mask.alpha.length; k++) image.data[k * 4 + 3] = held.mask.alpha[k];
     mctx.putImageData(image, 0, 0);
-    maskCanvases.set(light, canvas);
+    maskCanvases.set(held, canvas);
   }
   return { canvas, x0: held.x0, y0: held.y0, x1: held.x1, y1: held.y1 };
 }
@@ -219,7 +250,7 @@ function paintLightBoost(ctx: CanvasRenderingContext2D, light: MapLiveLight, t: 
   ctx.restore();
 }
 
-function render(t: number) {
+function render(t: number, still = false) {
   const ctx = canvasEl.value?.getContext("2d");
   if (!ctx) return;
   ctx.clearRect(0, 0, hostW, hostH);
@@ -241,7 +272,8 @@ function render(t: number) {
     ctx.restore();
   }
   for (const light of lightsIn(live, stratum)) paintLightBoost(ctx, light, t);
-  for (const sprite of spritesIn(live, stratum)) paintSprite(ctx, sprite, t);
+  for (const door of leafDoors()) paintLeaf(ctx, door);
+  for (const sprite of spritesIn(live, stratum)) paintSprite(ctx, sprite, t, still);
 }
 
 function tick(now: number) {
@@ -253,6 +285,12 @@ function tick(now: number) {
 function hasDrawableMotion(): boolean {
   if (stratum === "top") return readyFor === live && hasMotion(live, stratum);
   return hasMotion(live, stratum);
+}
+
+// Whether the top layer has anything to hold on screen once ready: sprites, or leaves of doors. It draws them as one
+// still frame whenever it is not running a loop (reduced motion, a hidden tab, leaves with nothing to sway).
+function hasStill(): boolean {
+  return stratum === "top" && readyFor === live && cellPx > 0 && (spritesIn(live, stratum).length > 0 || leafDoors().length > 0);
 }
 
 function shouldRun(): boolean {
@@ -280,7 +318,8 @@ function sync() {
     }
   } else {
     stop();
-    clear();
+    if (hasStill()) render(0, true);
+    else clear();
   }
 }
 
@@ -294,7 +333,8 @@ onBeforeUnmount(() => {
   stop();
 });
 
-watch(() => [live, cellPx, stratum, standUrl], sync);
+// Post-flush: resizing the canvas (hostW/hostH, bound in the template) clears it, so the still frame is drawn after.
+watch(() => [live, cellPx, stratum, standUrl, doorStates, originX, originY, hostW, hostH], sync, { flush: "post" });
 </script>
 
 <style scoped>

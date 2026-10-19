@@ -20,6 +20,7 @@ import { DEFAULT_DOOR_LEAF, WALL_BAND_RATIO, isFlatCategory, type PackCategory }
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type ObjectCell } from "@/types/dungeonMap.types";
 import { dressingSway, objectSway } from "@/cartographer/sway";
+import { doorLeafArt, edgeTileOrigin, paintDoorLeaf } from "@/cartographer/doorLeaf";
 import { classifyJoint } from "@/cartographer/edges";
 import { paintAreaGround, paintAreaWalls } from "@/cartographer/drawArea";
 import { paintLights, renderLightLayer } from "@/cartographer/drawLights";
@@ -169,12 +170,7 @@ export function curbPosts(layers: DungeonMapLayers): CurbPost[] {
 
 /**
  * One edge seg: the band tile where walls draw today, a wall's decal over it,
- * and for a door the leaf over the doorway. The leaf tile is the closed leaf
- * exactly where it sits in a `doorwayH` opening, so closed is the tile
- * unrotated and open is the same tile turned on its hinge. Canvas rotation is
- * clockwise, which swings an N edge's leaf into the cell south of it. A W edge
- * is the same construction turned a quarter clockwise about the edge tile's
- * centre, as its art is.
+ * and for a door the leaf over the doorway (`paintDoorLeaf`).
  */
 function drawEdgeSeg(
   ctx: Ctx2D,
@@ -186,11 +182,10 @@ function drawEdgeSeg(
   drawX: number,
   drawY: number,
   tilePx: number,
+  omitLive: boolean,
 ): void {
   const halfTile = tilePx / 2;
-  // The band tile's top-left: shifted half a tile so its strip lands on the gridline.
-  const tileX = axis === "H" ? drawX : drawX - halfTile;
-  const tileY = axis === "H" ? drawY - halfTile : drawY;
+  const { x: tileX, y: tileY } = edgeTileOrigin(axis, drawX, drawY, tilePx);
   const category = EDGE_CATEGORY[axis][seg.type];
   // Only a wall's pieces continue along it; a doorway or grate is one fitting.
   const variant = seg.type === "wall" ? variantAt(r, category, cellX, cellY, seg.variant) : seg.variant;
@@ -210,32 +205,12 @@ function drawEdgeSeg(
     }
   }
   if (seg.type !== "doorClosed" && seg.type !== "doorOpen") return;
+  // The live battle map draws this leaf itself, at the state the DM sets in play (#1073).
+  if (omitLive && doorLeafArt(seg, r)) return;
 
-  const leaf = r.getTile("doorLeaf", seg.variant).source;
   // A pack that does not set `doorLeaf` swings on the schema default.
-  const { hingeX, hingeY, openDegrees } = r.manifest.doorLeaf ?? DEFAULT_DOOR_LEAF;
-  const open = seg.type === "doorOpen";
-  if (axis === "H" && !open) {
-    ctx.drawImage(leaf, tileX, tileY, tilePx, tilePx);
-    return;
-  }
-  ctx.save();
-  if (axis === "V") {
-    ctx.translate(tileX + halfTile, tileY + halfTile);
-    ctx.rotate(Math.PI / 2);
-    ctx.translate(-halfTile, -halfTile);
-  } else {
-    ctx.translate(tileX, tileY);
-  }
-  // Now at the (turned) leaf tile's top-left; hinge the swing at its pin.
-  if (open) {
-    ctx.translate(hingeX * tilePx, hingeY * tilePx);
-    ctx.rotate((openDegrees * Math.PI) / 180);
-    ctx.drawImage(leaf, -hingeX * tilePx, -hingeY * tilePx, tilePx, tilePx);
-  } else {
-    ctx.drawImage(leaf, 0, 0, tilePx, tilePx);
-  }
-  ctx.restore();
+  const hinge = r.manifest.doorLeaf ?? DEFAULT_DOOR_LEAF;
+  paintDoorLeaf(ctx, r.getTile("doorLeaf", seg.variant).source, axis, tileX, tileY, tilePx, hinge, seg.type === "doorOpen");
 }
 
 /** Floor and terrain. A terrain cell draws its water INSTEAD of the floor tile. */
@@ -345,11 +320,11 @@ function paintEdges(f: Frame, t: Target): void {
       const drawY = y * tilePx - t.oy;
       if (cell.wallN) {
         const r = runtime(cell.wallN.pack_id);
-        if (r) drawEdgeSeg(t.ctx, r, cell.wallN, "H", x, y, drawX, drawY, tilePx);
+        if (r) drawEdgeSeg(t.ctx, r, cell.wallN, "H", x, y, drawX, drawY, tilePx, f.omitLive);
       }
       if (cell.wallW) {
         const r = runtime(cell.wallW.pack_id);
-        if (r) drawEdgeSeg(t.ctx, r, cell.wallW, "V", x, y, drawX, drawY, tilePx);
+        if (r) drawEdgeSeg(t.ctx, r, cell.wallW, "V", x, y, drawX, drawY, tilePx, f.omitLive);
       }
     }
   }
@@ -493,7 +468,7 @@ function paintObjects(f: Frame, t: Target, cls: ObjectClass): void {
       if (!obj || objectClass(obj.category) !== cls) continue;
       const objRt = runtime(obj.pack_id);
       if (!objRt) continue;
-      if (f.omitSway && objectSway(obj, objRt)) continue;
+      if (f.omitLive && objectSway(obj, objRt)) continue;
       const drawX = x * tilePx - t.ox;
       const drawY = y * tilePx - t.oy;
       // A stair is directional: its art comes per side, already facing that way, so the
@@ -537,7 +512,7 @@ function paintDressing(f: Frame, t: Target, flat: boolean): void {
   for (const [, placement] of dressingDrawOrder(layers.dressing)) {
     const prop = dressing.get(placement.prop_id);
     if ((prop?.flat === true) !== flat) continue;
-    if (f.omitSway && dressingSway(prop)) continue;
+    if (f.omitLive && dressingSway(prop)) continue;
     const cb = dressingCellBounds(placement, dressing);
     if (cb.maxX < bounds.minX || cb.minX > bounds.maxX || cb.maxY < bounds.minY || cb.minY > bounds.maxY) continue;
     drawDressing(t.ctx, placement, prop, placement.x * tilePx - t.ox, placement.y * tilePx - t.oy, tilePx);
@@ -617,8 +592,9 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
   const height = Math.ceil((wide.maxY - wide.minY + 1) * tilePx);
   const out = makeCanvas(width, height);
   if (!out) return null;
-  // The shadow keeps what sways: the live layer draws the prop moving, its shadow stays on the floor.
-  const f: Frame = { ...frameOf(input, wide), omitSway: false };
+  // The shadow keeps what the live layer draws (a swaying prop, a door leaf): it draws them moving or at the
+  // DM's door state, their shadow stays on the floor.
+  const f: Frame = { ...frameOf(input, wide), omitLive: false };
 
   const silhouette = (paint: (t: Target) => void): CanvasImageSource | null => {
     const made = makeCanvas(width, height);

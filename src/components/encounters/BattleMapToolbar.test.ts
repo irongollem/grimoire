@@ -7,7 +7,7 @@ import BattleMapToolbar, { type BattleMapTool } from "./BattleMapToolbar.vue";
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
-function mountToolbar(tool: BattleMapTool) {
+function mountToolbar(tool: BattleMapTool, hasDoors = true) {
   return mount(BattleMapToolbar, {
     props: {
       title: "Cellar",
@@ -17,6 +17,7 @@ function mountToolbar(tool: BattleMapTool) {
       tokenCount: 0,
       calibrationFromPublish: false,
       scalePercent: 100,
+      hasDoors,
       tool,
       brushShape: "round",
       brushSize: 3,
@@ -48,5 +49,25 @@ describe("BattleMapToolbar darkness tool", () => {
   it("shows the fog brush options for the fog tools and not for darkness", () => {
     expect(mountToolbar("reveal").find('[aria-label="Brush shape"]').exists()).toBe(true);
     expect(mountToolbar("darkness").find('[aria-label="Brush shape"]').exists()).toBe(false);
+  });
+});
+
+describe("BattleMapToolbar doors tool", () => {
+  const doorsButton = (w: ReturnType<typeof mountToolbar>) => w.findAll("button").find((b) => b.attributes("aria-label")?.includes("door") || b.attributes("title")?.includes("door"));
+
+  it("is enabled when the map has doors and toggles the tool", async () => {
+    const w = mountToolbar("pan");
+    const button = doorsButton(w);
+    expect(button).toBeDefined();
+    expect(button!.attributes("disabled")).toBeUndefined();
+    await button!.trigger("click");
+    expect(w.emitted("update:tool")?.[0]).toEqual(["doors"]);
+  });
+
+  it("is disabled, and says why, on a map without doors", () => {
+    const w = mountToolbar("pan", false);
+    const button = w.findAll("button").find((b) => /no doors/i.test(`${b.attributes("aria-label")} ${b.attributes("title")}`));
+    expect(button).toBeDefined();
+    expect(button!.attributes("disabled")).toBeDefined();
   });
 });

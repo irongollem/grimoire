@@ -17,6 +17,11 @@ export interface TilePackRuntime {
   validation: ValidationResult;
   getTile(category: PackCategory, variant: number, side?: string): LoadedTileSource;
   variantCount(category: PackCategory, side?: string): number;
+  /**
+   * Whether the asset urls in `manifest` outlive this session. A library pack serves from public urls; a DM's own pack
+   * from one-hour signed urls, which a published snapshot cannot keep (#1073), so nothing live may be built from them.
+   */
+  lastingUrls: boolean;
 }
 
 const runtimeCache = new Map<string, TilePackRuntime>();
@@ -69,12 +74,12 @@ export function loadImage(url: string): Promise<HTMLImageElement | null> {
   });
 }
 
-export async function loadPack(manifestUrl: string): Promise<TilePackRuntime> {
+export async function loadPack(manifestUrl: string, opts: { lastingUrls?: boolean } = {}): Promise<TilePackRuntime> {
   const manifest = await fetchManifest(manifestUrl);
-  return buildRuntime(manifest, manifestUrl);
+  return buildRuntime(manifest, manifestUrl, opts.lastingUrls ?? true);
 }
 
-async function buildRuntime(manifest: TilePackManifest, manifestUrl: string): Promise<TilePackRuntime> {
+async function buildRuntime(manifest: TilePackManifest, manifestUrl: string, lastingUrls: boolean): Promise<TilePackRuntime> {
   const cacheKey = runtimeKey(manifest.pack_id, manifest.pack_version);
   const cached = runtimeCache.get(cacheKey);
   if (cached) return cached;
@@ -111,6 +116,7 @@ async function buildRuntime(manifest: TilePackManifest, manifestUrl: string): Pr
   const runtime: TilePackRuntime = {
     manifest,
     validation,
+    lastingUrls,
     getTile(category, variant, side) {
       const real = slotImages.get(slotKey(category, variant, side));
       if (real) return { source: real, isPlaceholder: false };

@@ -34,7 +34,7 @@ beforeEach(() => {
 });
 
 const snapshot = (over: Partial<MapLive> = {}): MapLive => ({
-  version: 1,
+  version: 2,
   darkness: "dark",
   groups: [],
   lights: [],

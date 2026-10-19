@@ -3,7 +3,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(24);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -218,6 +218,31 @@ select is(
   (select magical_darkness from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010')),
   '[{"id":"z1","x":4.5,"y":4.5,"radius":15}]'::jsonb,
   'players see where magical darkness lies'
+);
+
+-- Doors the DM opens or shuts during the fight reach players the same way, and the overrides' shape is held.
+reset role;
+update public.encounter_state
+set door_states = '[{"edge":"3,4:N","open":true}]'::jsonb
+where id = '57000000-0000-4000-8000-000000000040';
+select throws_ok(
+  $$update public.encounter_state set door_states = '[{"edge":"3,4:S","open":true}]'::jsonb where id = '57000000-0000-4000-8000-000000000040'$$,
+  '23514',
+  null,
+  'a door override names an N or W edge'
+);
+select throws_ok(
+  $$update public.encounter_state set door_states = '[{"edge":"3,4:N","open":"yes"}]'::jsonb where id = '57000000-0000-4000-8000-000000000040'$$,
+  '23514',
+  null,
+  'a door override is open or shut, nothing else'
+);
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '57000000-0000-4000-8000-000000000002', true);
+select is(
+  (select door_states from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010')),
+  '[{"edge":"3,4:N","open":true}]'::jsonb,
+  'players see which doors the DM has opened'
 );
 
 -- Players read the battle location and the fired player-visible beats from the projection, never from encounters.

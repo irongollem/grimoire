@@ -45,6 +45,7 @@
         :live="live"
         :viewers="viewers"
         :zones="zones"
+        :door-states="doorStates"
       />
 
       <BattleMapTokenLayer
@@ -99,7 +100,10 @@ import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
 import { AMBIENT, NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
-import { occludersOf } from "@/lib/battlemap/occlusion";
+import { sameDoorStates } from "@/lib/battlemap/doors";
+import { currentMapLive } from "@/lib/battlemap/liveLayer";
+import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
+import type { MapLiveDoorState } from "@/types/mapLive.types";
 import { seenCombatants, type LitScene, type Viewer } from "@/lib/battlemap/vision";
 import { useParty } from "@/composables/party/useParty";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
@@ -144,7 +148,7 @@ const { data: location } = usePlayerVisibleLocation(locationIdRef);
 const image = computed(() => primaryImage(location.value));
 // The snapshot is in the Drawing's image cells, so it only applies when the Drawing is what is on screen.
 const live = computed(() =>
-  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url ? location.value.map_live : null,
+  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url ? currentMapLive(location.value.map_live) : null,
 );
 
 // The standing half rides with the Drawing the same way; a hand-calibrated Picture has none.
@@ -213,6 +217,12 @@ const ownSenses = computed(() => {
 });
 // Spheres of magical darkness the DM placed (story 10), from the player-safe projection of the live row.
 const zones = computed<readonly DarknessZone[]>(() => (liveState.value ? liveState.value.magical_darkness : NO_ZONES));
+// Doors the DM opened or shut this fight, from the same projection. A re-read hands a fresh array of equal content;
+// the previous one is kept so the occluders memoised on its identity are not rebuilt.
+const doorStates = computed<readonly MapLiveDoorState[]>((prev) => {
+  const next = liveState.value ? liveState.value.door_states : NO_DOOR_STATES;
+  return prev && sameDoorStates(prev, next) ? prev : next;
+});
 // Only a dark or dim map, or one with a sphere of magical darkness, has sight to apply: in plain daylight everything is
 // seen, so there is no scene and no viewers.
 // Viewers are the own token's centre; a player with no token on the map sees only what is lit.
@@ -221,7 +231,7 @@ const sight = computed<{ scene: LitScene; viewers: Viewer[] } | null>(() => {
   const scene: LitScene = {
     ambient: AMBIENT[live.value.darkness],
     sources: live.value.lights,
-    occluders: occludersOf(live.value),
+    occluders: occludersOf(live.value, doorStates.value),
     zones: zones.value,
   };
   const own = liveState.value?.combatants_live?.find((c) => c.instance_id === ownInstanceId.value);

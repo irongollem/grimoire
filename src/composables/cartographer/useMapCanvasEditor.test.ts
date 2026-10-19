@@ -149,6 +149,7 @@ function fakeRuntime(overrides: Partial<Record<PackCategory, number>> = {}): Til
   return {
     manifest,
     validation: { valid: true, missing: [], extras: [], warnings: [] },
+    lastingUrls: true,
     getTile: vi.fn(),
     variantCount: (category) => overrides[category] ?? 6,
   };

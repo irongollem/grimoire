@@ -60,8 +60,15 @@ export interface MapLiveSprite {
   sway: SwayMotion & { phase: number };
 }
 
+/**
+ * The snapshot's shape. 2 since doors carry their leaf (`MapLiveDoor.leaf`) and the live standing bake leaves those
+ * leaves out; a version-1 snapshot's bakes still hold every leaf, so the battle map reads only the current version and
+ * a site published before it draws as a plain picture until it is published again.
+ */
+export const MAP_LIVE_VERSION = 2;
+
 export interface MapLive {
-  version: 1;
+  version: typeof MAP_LIVE_VERSION;
   /** The map's ambient light at publish time: the battle map's darkness veil reads it. */
   darkness: DarknessLevel;
   groups: MapLiveGroup[];
@@ -78,7 +85,26 @@ export interface MapLive {
   solid: string[];
 }
 
-export interface MapLiveDoor {
+/** A door's open or shut state on one edge: as drawn in the snapshot, or as the DM set it during a fight. */
+export interface MapLiveDoorState {
   edge: string;
   open: boolean;
+}
+
+/**
+ * How the live layer draws a door's leaf at either state: the leaf tile as the bake draws it (`drawEdgeSeg`), closed
+ * where it sits in the doorway and open turned `openDegrees` clockwise about the hinge pin (`hingeX`, `hingeY`, 0..1 of
+ * the tile). A standing bake made for the live view leaves out exactly the leaves that carry one of these, so a leaf
+ * is never drawn twice. Null when the leaf's art has no lasting url (a DM's own pack): the leaf then stays in the bake
+ * at its drawn state, and toggling that door changes light and sight but not the picture.
+ */
+export interface MapLiveDoorLeaf {
+  url: string;
+  hingeX: number;
+  hingeY: number;
+  openDegrees: number;
+}
+
+export interface MapLiveDoor extends MapLiveDoorState {
+  leaf: MapLiveDoorLeaf | null;
 }

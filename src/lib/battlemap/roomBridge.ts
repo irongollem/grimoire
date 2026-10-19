@@ -16,6 +16,7 @@
 import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration, Location } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
+import { currentMapLive } from "@/lib/battlemap/liveLayer";
 import type { MapLive } from "@/types/mapLive.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import { primaryImage } from "@/lib/locations/mapStack";
@@ -76,7 +77,7 @@ export interface BattleSurface {
 }
 
 function liveFor(loc: Location, imageUrl: string): MapLive | null {
-  return loc.map_layer_url !== null && loc.map_layer_url === imageUrl ? loc.map_live : null;
+  return loc.map_layer_url !== null && loc.map_layer_url === imageUrl ? currentMapLive(loc.map_live) : null;
 }
 
 function standFor(loc: Location, imageUrl: string): string | null {

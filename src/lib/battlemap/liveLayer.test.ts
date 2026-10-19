@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { boostMask, groupsIn, hasMotion, lightBoost, lightsIn, overlayFrame, spritesIn, swayAngle } from "./liveLayer";
+import { boostMask, currentMapLive, groupsIn, hasMotion, lightBoost, lightsIn, overlayFrame, spritesIn, swayAngle } from "./liveLayer";
 import type { MapLive, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
 
 const base: MotionOverlay = { url: "u", cells: 4, drift: [0.5, -0.25], alpha: 0.6 };
@@ -37,7 +37,7 @@ describe("overlayFrame", () => {
 });
 
 const live = (...kinds: ("water" | "outer")[]): MapLive => ({
-  version: 1, darkness: "daylight",
+  version: 2, darkness: "daylight",
   groups: kinds.map((kind) => ({ kind, cells: ["0,0"], overlays: [base] })),
   lights: [],
   sprites: [],
@@ -63,7 +63,7 @@ describe("groupsIn", () => {
 });
 
 describe("spritesIn and lightsIn", () => {
-  const snapshot: MapLive = { version: 1, darkness: "daylight", groups: [], lights: [fire, glow, steady], sprites: [sprite], walls: [], doors: [], solid: [] };
+  const snapshot: MapLive = { version: 2, darkness: "daylight", groups: [], lights: [fire, glow, steady], sprites: [sprite], walls: [], doors: [], solid: [] };
 
   it("puts every sprite in the top layer and none in the ground layer", () => {
     expect(spritesIn(snapshot, "top")).toEqual([sprite]);
@@ -81,20 +81,20 @@ describe("spritesIn and lightsIn", () => {
 describe("hasMotion", () => {
   it("needs at least one overlay, sprite or moving light", () => {
     expect(hasMotion(null, "ground")).toBe(false);
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [{ kind: "water", cells: [], overlays: [] }], lights: [], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
+    expect(hasMotion({ version: 2, darkness: "daylight", groups: [{ kind: "water", cells: [], overlays: [] }], lights: [], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
     expect(hasMotion(live("water"), "ground")).toBe(true);
   });
 
   it("runs the top layer for sprites only", () => {
     expect(hasMotion(live("water"), "top")).toBe(false);
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [], sprites: [sprite], walls: [], doors: [], solid: [] }, "top")).toBe(true);
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [], sprites: [sprite], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
+    expect(hasMotion({ version: 2, darkness: "daylight", groups: [], lights: [], sprites: [sprite], walls: [], doors: [], solid: [] }, "top")).toBe(true);
+    expect(hasMotion({ version: 2, darkness: "daylight", groups: [], lights: [], sprites: [sprite], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
   });
 
   it("runs the ground layer for a flickering or pulsing light, not a steady one", () => {
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [fire], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [glow], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
-    expect(hasMotion({ version: 1, darkness: "daylight", groups: [], lights: [steady], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
+    expect(hasMotion({ version: 2, darkness: "daylight", groups: [], lights: [fire], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
+    expect(hasMotion({ version: 2, darkness: "daylight", groups: [], lights: [glow], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
+    expect(hasMotion({ version: 2, darkness: "daylight", groups: [], lights: [steady], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
   });
 });
 
@@ -141,7 +141,7 @@ describe("lightBoost", () => {
 describe("boostMask", () => {
   // A 5 ft bright + 5 ft dim fire (two cells of reach) in cell (1,0), a wall on the left edge of cell (2,0).
   const fire: MapLiveLight = { x: 1.5, y: 0.5, color: "#ff8800", bright: 5, dim: 5, flicker: 0.3, phase: 0 };
-  const walled: MapLive = { version: 1, darkness: "dark", groups: [], lights: [fire], sprites: [], walls: ["2,0:W"], doors: [], solid: [] };
+  const walled: MapLive = { version: 2, darkness: "dark", groups: [], lights: [fire], sprites: [], walls: ["2,0:W"], doors: [], solid: [] };
   const sampleAt = (m: ReturnType<typeof boostMask>, x: number, y: number) => {
     const spc = m.mask.width / (m.x1 - m.x0);
     return m.mask.alpha[Math.floor((y - m.y0) * spc) * m.mask.width + Math.floor((x - m.x0) * spc)];
@@ -154,7 +154,28 @@ describe("boostMask", () => {
     expect(sampleAt(boostMask({ ...walled, walls: [] }, fire), 2.4, 0.5)).toBe(255);
   });
 
+  it("follows a door the DM opened", () => {
+    const door: MapLive = { ...walled, walls: [], doors: [{ edge: "2,0:W", open: false, leaf: null }] };
+    expect(sampleAt(boostMask(door, fire), 2.4, 0.5)).toBe(0);
+    expect(sampleAt(boostMask(door, fire, [{ edge: "2,0:W", open: true }]), 2.4, 0.5)).toBe(255);
+  });
+
   it("is computed once per light per snapshot", () => {
     expect(boostMask(walled, fire)).toBe(boostMask(walled, fire));
+  });
+});
+
+describe("currentMapLive", () => {
+  const live: MapLive = { version: 2, darkness: "daylight", groups: [], lights: [], sprites: [], walls: [], doors: [], solid: [] };
+
+  it("passes the current version and null through", () => {
+    expect(currentMapLive(live)).toBe(live);
+    expect(currentMapLive(null)).toBeNull();
+  });
+
+  it("ignores a version-1 snapshot, whose bakes still hold every door leaf", () => {
+    // The DB may hold a 1 the types no longer allow.
+    const old = JSON.parse(JSON.stringify({ ...live, version: 1 })) as MapLive;
+    expect(currentMapLive(old)).toBeNull();
   });
 });

@@ -153,6 +153,40 @@ describe("goLive", () => {
     }
   });
 
+  it("starts a fight with every door as drawn", async () => {
+    const { useEncounterLive } = await import("./useEncounterLive");
+    const { goLive } = useEncounterLive(() => "encounter-1");
+    await nextTick();
+
+    await goLive({ round: 1, activeIndex: 0, combatants: [] });
+
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ door_states: [] }), { onConflict: "encounter_id" });
+  });
+
+  it("writes door_states on a push only when the caller passes it", async () => {
+    vi.useFakeTimers();
+    try {
+      const { useEncounterLive } = await import("./useEncounterLive");
+      const { goLive, schedulePush } = useEncounterLive(() => "encounter-1");
+      await vi.advanceTimersByTimeAsync(0);
+      await goLive({ round: 1, activeIndex: 0, combatants: [] });
+      const base = { round: 1, activeIndex: 0, combatants: [], eventsFired: [] };
+      const doors = [{ edge: "3,2:N", open: true }];
+
+      update.mockClear();
+      schedulePush({ ...base, doorStates: doors });
+      await vi.advanceTimersByTimeAsync(400);
+      expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ door_states: doors }));
+
+      update.mockClear();
+      schedulePush(base);
+      await vi.advanceTimersByTimeAsync(400);
+      expect((update.mock.calls as unknown[][])[0]?.[0]).not.toHaveProperty("door_states");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   // The fight is filed under the session log's row, whether goLive found one
   // open or started an unnumbered one itself.
   it("files the fight under the session log row", async () => {

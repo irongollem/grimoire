@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { clearLine, NO_OCCLUDERS, nudgedOrigins, occluders } from "./occlusion";
+import type { MapLive } from "@/types/mapLive.types";
+import { clearLine, NO_DOOR_STATES, NO_OCCLUDERS, nudgedOrigins, occluders, occludersOf } from "./occlusion";
 
 const build = (o: Partial<Parameters<typeof occluders>[0]>) => occluders({ walls: [], doors: [], solid: [], ...o });
 
@@ -85,5 +86,38 @@ describe("nudgedOrigins", () => {
     // Both faces are lit from their own origin: the point on one side is reached by one origin only.
     expect(reach(3.5)).toEqual([true, false]);
     expect(reach(7.5)).toEqual([false, true]);
+  });
+});
+
+describe("occludersOf with door states", () => {
+  const live: MapLive = {
+    version: 2,
+    darkness: "daylight",
+    groups: [],
+    lights: [],
+    sprites: [],
+    walls: [],
+    doors: [
+      { edge: "5,0:W", open: false, leaf: null },
+      { edge: "5,3:W", open: true, leaf: null },
+    ],
+    solid: [],
+  };
+
+  it("lets a line through a closed door the DM opened", () => {
+    expect(clearLine(occludersOf(live), 2.5, 0.5, 8.5, 0.5)).toBe(false);
+    expect(clearLine(occludersOf(live, [{ edge: "5,0:W", open: true }]), 2.5, 0.5, 8.5, 0.5)).toBe(true);
+  });
+
+  it("blocks a line at an open door the DM shut", () => {
+    expect(clearLine(occludersOf(live), 2.5, 3.5, 8.5, 3.5)).toBe(true);
+    expect(clearLine(occludersOf(live, [{ edge: "5,3:W", open: false }]), 2.5, 3.5, 8.5, 3.5)).toBe(false);
+  });
+
+  it("returns the same object for the same snapshot and states", () => {
+    const states = [{ edge: "5,0:W", open: true }];
+    expect(occludersOf(live, states)).toBe(occludersOf(live, states));
+    expect(occludersOf(live)).toBe(occludersOf(live, NO_DOOR_STATES));
+    expect(occludersOf(live, states)).not.toBe(occludersOf(live));
   });
 });

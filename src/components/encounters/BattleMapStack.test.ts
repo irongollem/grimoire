@@ -14,15 +14,15 @@ import BattleMapStack from "./BattleMapStack.vue";
 import BattleMapVeil from "./BattleMapVeil.vue";
 
 const LiveLayerStub = defineComponent({
-  props: { stratum: { type: String, required: true } },
+  props: { stratum: { type: String, required: true }, doorStates: { type: Array, default: () => [] } },
   emits: ["ready"],
   template: `<div class="live-stub" :data-stratum="stratum" />`,
 });
 
 const sprite = { url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } };
-const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 1, darkness: "daylight", groups: [], lights: [], sprites, walls: [], doors: [], solid: [] });
+const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 2, darkness: "daylight", groups: [], lights: [], sprites, walls: [], doors: [], solid: [] });
 
-function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null; viewers?: Viewer[] | null; zones?: { x: number; y: number; radius: number }[] } = {}) {
+function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null; viewers?: Viewer[] | null; zones?: { x: number; y: number; radius: number }[]; doorStates?: { edge: string; open: boolean }[] } = {}) {
   return mount(BattleMapStack, {
     props: {
       hostW: 400,
@@ -73,11 +73,29 @@ describe("BattleMapStack standing image", () => {
     expect(standHref(w)).toBe("stand.webp");
   });
 
-  it("never mounts the top layer, and keeps the full image, under reduced motion", () => {
+  it("mounts the top layer and swaps once ready under reduced motion too, as it draws one still frame", async () => {
     motion.reduced = true;
     const w = mountStack();
-    expect(topLayer(w)).toBeUndefined();
-    expect(standHref(w)).toBe("stand.webp");
+    expect(topLayer(w)).toBeDefined();
+    topLayer(w)!.vm.$emit("ready");
+    await nextTick();
+    expect(standHref(w)).toBe("stand-live.webp");
+  });
+
+  it("swaps for a map with door leaves and no sprites, and hands the layer the door states", async () => {
+    const leaf = { url: "https://cdn/door.webp", hingeX: 0, hingeY: 0.5, openDegrees: 90 };
+    const doorLive: MapLive = { ...live([]), doors: [{ edge: "2,2:N", open: false, leaf }] };
+    const doorStates = [{ edge: "2,2:N", open: true }];
+    const w = mountStack({ live: doorLive, doorStates });
+    expect(topLayer(w)!.props("doorStates")).toEqual(doorStates);
+    topLayer(w)!.vm.$emit("ready");
+    await nextTick();
+    expect(standHref(w)).toBe("stand-live.webp");
+  });
+
+  it("keeps a leafless door baked in: no top layer for a door whose leaf has no url", () => {
+    const doorLive: MapLive = { ...live([]), doors: [{ edge: "2,2:N", open: false, leaf: null }] };
+    expect(topLayer(mountStack({ live: doorLive }))).toBeUndefined();
   });
 
   it("keeps the full image with no stand-live picture or no sprites", () => {
