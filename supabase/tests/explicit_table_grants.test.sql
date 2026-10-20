@@ -58,12 +58,17 @@ select is(
 -- table. Without the matching grant the policy is dead and every read fails,
 -- which is exactly what a forgotten grant looks like.
 select is(
-  (select coalesce(string_agg(distinct p.tablename, ', ' order by p.tablename), '')
-   from pg_policies p
-   where p.schemaname = 'public'
-     and p.cmd in ('SELECT', 'ALL')
-     and p.roles && array['authenticated', 'public']::name[]
-     and not has_table_privilege('authenticated', format('public.%I', p.tablename), 'SELECT')),
+  -- Read from pg_policy by oid, not pg_policies by name: the planner may run
+  -- the privilege check before the schema filter, and a name from another
+  -- schema then fails to resolve as public.<name>. polroles 0 is PUBLIC.
+  (select coalesce(string_agg(distinct c.relname, ', ' order by c.relname), '')
+   from pg_policy pol
+   join pg_class c on c.oid = pol.polrelid
+   join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and pol.polcmd in ('r', '*')
+     and (0 = any(pol.polroles) or 'authenticated'::regrole::oid = any(pol.polroles))
+     and not has_table_privilege('authenticated', c.oid, 'SELECT')),
   '',
   'every public table with a read policy for authenticated grants it SELECT'
 );
