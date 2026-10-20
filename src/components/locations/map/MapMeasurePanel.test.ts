@@ -25,6 +25,8 @@ vi.mock("@/stores/calendar", () => ({
       months: [{ num: 1, name: "One", days: 30 }],
       intercalaryDays: [],
       weekSize: 10,
+      moons: [],
+      seasons: [],
       isLeapYear: () => false,
       formatDate: () => "",
     },

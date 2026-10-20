@@ -13,6 +13,8 @@ const TENDAY: CalendarAdapter = {
   ],
   intercalaryDays: [{ name: "Founding Day", afterMonth: 1, description: "" }],
   weekSize: 10,
+  moons: [],
+  seasons: [],
   weekRowNames: ["First Tenday"],
   isLeapYear: () => false,
   formatDate: () => "",
@@ -24,6 +26,8 @@ const WEEKS: CalendarAdapter = {
   months: [{ num: 1, name: "Jan", days: 31 }],
   intercalaryDays: [],
   weekSize: 7,
+  moons: [],
+  seasons: [],
   weekRowNames: undefined,
   weekdayOffset: () => 5,
 };

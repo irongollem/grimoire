@@ -174,6 +174,13 @@ export function signedNum(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
 }
 
+/** "1st", "2nd", "3rd", "11th", "22nd", "113th": an English ordinal for a non-negative integer. */
+export function ordinal(n: number): string {
+  const rem100 = n % 100;
+  const suffix = rem100 >= 11 && rem100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+  return `${n}${suffix}`;
+}
+
 /**
  * Splits `items` into consecutive groups of at most `size`. Shared by every
  * caller that batches a Supabase `.in()`/insert/update to keep a request line

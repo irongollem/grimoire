@@ -87,6 +87,14 @@
       />
     </template>
 
+    <CalendarSkyLine
+      v-if="campaignStore.activeCampaignId"
+      :year="campaignStore.todayYear"
+      :month="campaignStore.todayMonth"
+      :day="campaignStore.todayDay"
+      class="mb-3"
+    />
+
     <!-- Month grid view -->
     <CalendarGrid v-if="view === 'month'" @edit-event="openEditModal" @create-event="openCreateModalForDay" />
 
@@ -114,6 +122,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import CalendarGrid from "@/components/calendar/CalendarGrid.vue";
+import CalendarSkyLine from "@/components/calendar/CalendarSkyLine.vue";
 import CalendarTimeline from "@/components/calendar/CalendarTimeline.vue";
 import EventModal from "@/components/calendar/EventModal.vue";
 import SettingBundleModal from "@/components/calendar/SettingBundleModal.vue";

@@ -184,6 +184,19 @@
       </div>
     </div>
 
+    <CalendarMoonsEditor
+      :model-value="def.moons ?? []"
+      :months="def.months"
+      :default-year="def.defaultYear"
+      @update:model-value="def.moons = $event"
+    />
+
+    <CalendarSeasonsEditor
+      :model-value="def.seasons ?? []"
+      :months="def.months"
+      @update:model-value="def.seasons = $event"
+    />
+
     <!-- Validation hint -->
     <p v-if="validationMessage" class="text-caption text-destructive">{{ validationMessage }}</p>
   </div>
@@ -196,6 +209,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import CalendarMoonsEditor from "@/components/calendar/CalendarMoonsEditor.vue";
+import CalendarSeasonsEditor from "@/components/calendar/CalendarSeasonsEditor.vue";
 import {
   listCalendarAdapters,
   getCalendarAdapter,
@@ -299,6 +314,8 @@ function onSeed(presetId: string) {
       isLeapOnly: d.isLeapOnly,
     })),
     leapYearRule: adapter.isLeapYear(4) ? "every4" : "none",
+    moons: structuredClone(adapter.moons),
+    seasons: structuredClone(adapter.seasons),
   };
   def.value = seeded;
 }
@@ -315,6 +332,13 @@ function removeMonth(i: number) {
   def.value.months.splice(i, 1);
   for (const d of def.value.intercalaryDays) {
     if (d.afterMonth > def.value.months.length) d.afterMonth = def.value.months.length;
+  }
+  const last = Math.max(1, def.value.months.length);
+  for (const moon of def.value.moons ?? []) {
+    if (moon.fullOn.month > last) moon.fullOn.month = last;
+  }
+  for (const season of def.value.seasons ?? []) {
+    if (season.startsOn.month > last) season.startsOn.month = last;
   }
 }
 
@@ -342,6 +366,9 @@ const validationMessage = computed(() => {
   if (def.value.months.length === 0) return "At least one month is required.";
   if (def.value.months.some((m) => !m.name.trim())) return "Every month needs a name.";
   if (def.value.months.some((m) => !m.days || m.days < 1)) return "Every month needs at least 1 day.";
+  if ((def.value.moons ?? []).some((m) => !m.name.trim())) return "Every moon needs a name.";
+  if ((def.value.moons ?? []).some((m) => !(m.cycleDays > 0))) return "Every moon needs a cycle longer than 0 days.";
+  if ((def.value.seasons ?? []).some((s) => !s.name.trim())) return "Every season needs a name.";
   return null;
 });
 

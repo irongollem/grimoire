@@ -37,6 +37,18 @@ const weeklyDef: SettingCalendarDef = {
 };
 
 describe("calendarDefToAdapter", () => {
+  it("reads absent moons and seasons as empty, and copies present ones", () => {
+    const bare = calendarDefToAdapter("custom", tendayDef);
+    expect(bare.moons).toEqual([]);
+    expect(bare.seasons).toEqual([]);
+    const moon = { name: "M", cycleDays: 10, fullOn: { year: 1, month: 1, day: 1 } };
+    const a = calendarDefToAdapter("custom", { ...tendayDef, moons: [moon] });
+    expect(a.moons).toEqual([moon]);
+    expect(a.moons[0]).not.toBe(moon);
+    expect(a.moons[0]!.fullOn).not.toBe(moon.fullOn);
+    expect(createDefaultCustomCalendarDef()).toMatchObject({ moons: [], seasons: [] });
+  });
+
   it("preserves the supplied id and surfaces calendar metadata", () => {
     const a = calendarDefToAdapter("custom", tendayDef);
     expect(a.id).toBe("custom");

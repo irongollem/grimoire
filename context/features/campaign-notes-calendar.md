@@ -707,10 +707,23 @@ interface CalendarAdapter {
   dayLabels?: string[]; // column headers (Gregorian only)
   weekRowNames?: string[]; // row labels (e.g. "First Tenday")
   weekdayOffset?: (year, monthNum) => number; // Gregorian offset
+  moons: CalendarMoon[]; // { name, cycleDays, fullOn: {year, month, day}, color? } (#1086)
+  seasons: CalendarSeason[]; // { name, startsOn: {month, day} } (#1086)
   isLeapYear: (year) => boolean;
   formatDate: (year, month, day, festivalDay) => string;
 }
 ```
+
+### Moons and seasons (#1086)
+
+Every calendar carries its world's sky: `moons` and `seasons` on `SettingCalendarDef` (optional there, because a custom calendar saved before #1086 has neither key) and required on `CalendarAdapter` (`calendarDefToAdapter` reads an absent list as empty).
+
+- **A moon is a cycle length plus one dated day it is full.** Every other phase is counted from that anchor in whole in-world days through `daysBetween`, so festivals and leap days elapse like any other day. The anchor is a dated day, never a festival, because a festival has no (month, day): where lore puts a full moon on a festival (Selûne on Midwinter 1372 DR, Celene during Growfest), the data anchors it on the eve and the calendar file says so. Where lore gives no anchor, the file says that the anchor is a convention.
+- **`src/lib/calendar/moons.ts`**: `moonsOn` for one date, `moonsForMonth` for a grid (one year-walk per moon, then +1 per day, because `daysBetween` from a 1372 anchor walks 120 years). A `MoonState` carries a `phase` (eight buckets) and a `peak`, `"full"` or `"new"` on the single day of each cycle nearest the exact moment. The test is half-open, so a fractional cycle still peaks once. The grid marks peaks only, and the sky line shows every moon's phase.
+- **A season starts on a (month, day) and lasts until the next one starts**, wrapping round the year end, so festivals belong to a season too. `src/lib/calendar/seasons.ts`: `seasonOn`, `seasonStartsInMonth`.
+- **Client-only, on purpose.** `private.calendar_shape` and `calendarShapeMirror.test.ts` mirror months, festivals and leap rules for the server's due-date stamping (#1016); no server path reads a moon. If a quest consequence ever needs "on the next full moon", the moon data joins the mirror then, not before.
+- **Where it shows**: the month view (season line under the title, a moon glyph on each peak day, the season's name on its first day, peaking moons on festival banners), `CalendarSkyLine` for the campaign's today on the calendar page and the player's Hearth date strip, and the custom-calendar editor (`CalendarMoonsEditor`, `CalendarSeasonsEditor`; seeding from a preset copies its sky).
+- Weather and character ages, the other half of #1086, need per-region data and a birth-date column and are not built yet.
 
 ### View Components
 

@@ -11,6 +11,12 @@
       <span class="dateline-month">{{ monthName ?? `Day ${today.day}` }}</span>
     </p>
     <p class="text-caption italic text-muted-foreground">{{ whereInYear }}</p>
+    <CalendarSkyLine
+      :year="today.year"
+      :month="today.month"
+      :day="today.day"
+      class="mt-1"
+    />
 
     <!-- The week (or tenday) as beads on a thread: the days gone inked, today
          gilt, the days ahead open, a day with something on it in the rubric. -->
@@ -43,6 +49,7 @@ import "./hearth-paper.css";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
+import CalendarSkyLine from "@/components/calendar/CalendarSkyLine.vue";
 import { usePlayerCalendarEventsRange } from "@/composables/calendar/useCalendarEvents";
 import { nextUpcomingEvents } from "@/lib/calendar/upcoming";
 import { weekContainingToday, type HearthWeekDay } from "@/lib/hearth/calendarWeek";

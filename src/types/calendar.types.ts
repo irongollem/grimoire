@@ -107,6 +107,36 @@ export interface IntercalaryDay {
   isLeapOnly?: boolean; // true for Shieldmeet
 }
 
+/**
+ * A moon in the sky of a calendar's world (#1086).
+ *
+ * The cycle is anchored on one dated day the moon is full, and every other
+ * phase is counted from there in whole in-world days (`daysBetween`, so
+ * intercalary days and leap days elapse like any other). The anchor is a
+ * dated day, never a festival, because a festival has a name rather than a
+ * (month, day): where a setting's lore puts a full moon *on* a festival, the
+ * data anchors it on the eve and says so.
+ */
+export interface CalendarMoon {
+  name: string;
+  /** Days from one full moon to the next. May be fractional (Selûne: 30.4375). */
+  cycleDays: number;
+  /** A day on which this moon is full. */
+  fullOn: { year: number; month: number; day: number };
+  /** A CSS colour for the moon's lit face. Omitted means the default moon tone. */
+  color?: string;
+}
+
+/**
+ * A season of a calendar's year (#1086). It begins on `startsOn` and lasts
+ * until the next season in the list begins, wrapping round the year end, so a
+ * calendar's seasons always cover every day, festivals included.
+ */
+export interface CalendarSeason {
+  name: string;
+  startsOn: { month: number; day: number };
+}
+
 export interface CalendarAdapter {
   id: string; // e.g. "faerun", "greyhawk"
   name: string; // display name, e.g. "Faerûn (Calendar of Harptos)"
@@ -139,6 +169,10 @@ export interface CalendarAdapter {
    * grid at all. A calendar-specific rule belongs to the calendar.
    */
   daysInMonth?: (year: number, monthNum: number) => number;
+  /** The world's moons; empty for a sky without one (Sigil). */
+  moons: CalendarMoon[];
+  /** The year's seasons in calendar order; empty when the calendar names none. */
+  seasons: CalendarSeason[];
   isLeapYear: (year: number) => boolean;
   formatDate: (
     year: number,

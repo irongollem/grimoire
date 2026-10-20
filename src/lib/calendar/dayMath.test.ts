@@ -23,6 +23,8 @@ const TEST: CalendarAdapter = {
     { name: "Leap Day", afterMonth: 2, description: "", isLeapOnly: true },
   ],
   weekSize: 10,
+  moons: [],
+  seasons: [],
   isLeapYear: (year) => year % 4 === 0,
   formatDate: () => "",
 };

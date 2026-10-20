@@ -26,5 +26,17 @@ export const GREYHAWK_CALENDAR: SettingCalendarDef = {
     { name: "Richfest",  afterMonth: 6,  description: "A midsummer celebration of prosperity, games, and revelry." },
     { name: "Brewfest",  afterMonth: 9,  description: "An autumn harvest festival of feasting, drinking, and thanksgiving." },
   ],
+  // Luna and Celene: Luna's anchor (11 Fireseek 591) is a convention. Lore puts Celene full during Growfest, which here
+  // is one intercalary day after month 3, so the anchor is the eve (3, 28). Seasons are a convention.
+  moons: [
+    { name: "Luna", cycleDays: 28, fullOn: { year: 591, month: 1, day: 11 }, color: "#e9e6dc" },
+    { name: "Celene", cycleDays: 91, fullOn: { year: 591, month: 3, day: 28 }, color: "#bfe3d6" },
+  ],
+  seasons: [
+    { name: "Spring", startsOn: { month: 3, day: 1 } },
+    { name: "Summer", startsOn: { month: 6, day: 1 } },
+    { name: "Autumn", startsOn: { month: 9, day: 1 } },
+    { name: "Winter", startsOn: { month: 12, day: 1 } },
+  ],
   leapYearRule: "none",
 };

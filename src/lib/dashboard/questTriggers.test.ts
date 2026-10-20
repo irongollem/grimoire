@@ -37,6 +37,8 @@ const TEST_ADAPTER: CalendarAdapter = {
   })),
   intercalaryDays: [{ name: "Midsummer", afterMonth: 6, description: "" }],
   weekSize: 10,
+  moons: [],
+  seasons: [],
   isLeapYear: () => false,
   formatDate: () => "",
 };

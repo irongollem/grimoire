@@ -1,5 +1,6 @@
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { AiProvenance } from "@/ai/provenance";
+import { ordinal } from "@/lib/utils";
 
 export const SPELL_SCHOOLS = [
   "abjuration",
@@ -317,9 +318,7 @@ export interface CharacterSpellEntry extends CharacterSpell {
 // Convenience helpers
 /** "Cantrip", "1st", "3rd", "9th": a slot already labelled "Level", and a card's badge. */
 export function spellLevelOrdinal(level: number): string {
-  if (level === 0) return "Cantrip";
-  const suffixes = ["", "st", "nd", "rd"];
-  return `${level}${level <= 3 ? suffixes[level] : "th"}`;
+  return level === 0 ? "Cantrip" : ordinal(level);
 }
 
 /** "Cantrip", "1st-Level", "3rd-Level": the level in running text. */

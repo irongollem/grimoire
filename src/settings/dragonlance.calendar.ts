@@ -21,5 +21,18 @@ export const DRAGONLANCE_CALENDAR: SettingCalendarDef = {
     { name: "Darkember",  alias: "Dark Ember",      days: 28 },
   ],
   intercalaryDays: [],
+  // All three moons are full together on 1 month 1 of 351 so they align (the Night of the Eye) every 504 days,
+  // the lcm of 36, 28 and 8 being 504. The shared anchor and the season dates are a convention.
+  moons: [
+    { name: "Solinari", cycleDays: 36, fullOn: { year: 351, month: 1, day: 1 }, color: "#ecedf3" },
+    { name: "Lunitari", cycleDays: 28, fullOn: { year: 351, month: 1, day: 1 }, color: "#c2412d" },
+    { name: "Nuitari", cycleDays: 8, fullOn: { year: 351, month: 1, day: 1 }, color: "#3a3550" },
+  ],
+  seasons: [
+    { name: "Spring", startsOn: { month: 3, day: 1 } },
+    { name: "Summer", startsOn: { month: 6, day: 1 } },
+    { name: "Autumn", startsOn: { month: 9, day: 1 } },
+    { name: "Winter", startsOn: { month: 12, day: 1 } },
+  ],
   leapYearRule: "none",
 };

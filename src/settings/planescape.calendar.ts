@@ -26,5 +26,8 @@ export const PLANESCAPE_CALENDAR: SettingCalendarDef = {
     { name: "Day of the Lady",   afterMonth: 9,  description: "A day of enforced quiet in Sigil. No faction meetings. No public violence. The Lady of Pain's dabus scrub the streets. No one asks why." },
     { name: "Convergence",       afterMonth: 12, description: "The year's end festival, when planar travellers across the multiverse gather debts, settle old scores, and begin new ventures." },
   ],
+  // Sigil has no sky, so no moons; the planes have no seasons.
+  moons: [],
+  seasons: [],
   leapYearRule: "none",
 };

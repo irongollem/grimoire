@@ -37,6 +37,17 @@ export const gregorianAdapter: CalendarAdapter = {
   defaultYear: new Date().getFullYear(),
   months: MONTHS,
   intercalaryDays: [],
+  // Northern-hemisphere seasons; the equinoxes and solstices drift a day between years, so these are the usual dates.
+  // The full moon of 21 January 2000 anchors the synodic month.
+  moons: [
+    { name: "Moon", cycleDays: 29.530588853, fullOn: { year: 2000, month: 1, day: 21 }, color: "#e8e8e8" },
+  ],
+  seasons: [
+    { name: "Spring", startsOn: { month: 3, day: 20 } },
+    { name: "Summer", startsOn: { month: 6, day: 21 } },
+    { name: "Autumn", startsOn: { month: 9, day: 22 } },
+    { name: "Winter", startsOn: { month: 12, day: 21 } },
+  ],
   weekSize: 7,
   dayLabels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
 
