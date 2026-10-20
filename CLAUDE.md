@@ -97,6 +97,14 @@ create policy "<table>_update" on <table> for update using ((select auth.uid()) 
 create policy "<table>_delete" on <table> for delete using ((select auth.uid()) = user_id);
 ```
 
+**Grants are explicit — a new table gets none by default.** Supabase stopped auto-granting new `public` tables to the Data API roles on 30 Oct 2026, and `20261020192508` revoked our own default so every environment matches production. Without a grant, RLS never even runs: the API answers "permission denied". Grant in the same migration that creates the table, only to the roles that reach it (`anon` only for tables meant to be public; leave `authenticated` out of a deny-all table read through a definer):
+
+```sql
+grant select, insert, update, delete on public.<table> to authenticated, service_role;
+```
+
+Views need the same. `supabase/tests/explicit_table_grants.test.sql` fails if a table with a read policy for `authenticated` lacks the grant, or `service_role` cannot read a relation.
+
 **One permissive policy per table and command.** Postgres evaluates every permissive policy that applies and ORs them, per row, so a second `select` policy doubles the cost of every read. To widen access (a DM read, an admin read, a player read), OR the new condition into the existing `<table>_<cmd>` policy; never add a sibling. A `for all` policy counts toward all four commands, so pairing one with a `for select` policy is the same overlap. `supabase/tests/permissive_policy_merge.test.sql` fails on any overlap in `public`. Write `(select auth.uid())`, not bare `auth.uid()`: the wrapped form is evaluated once per statement instead of once per row (the one deliberate exception, `campaign_tile_packs_select`, is explained in `20261006230038`). #999 merged 60 overlaps on 26 tables; to prove a policy rewrite changes nobody's access, run `scripts/db/rls-differential.ts`.
 
 Migration files live in `supabase/migrations/` with the Supabase CLI's own prefix, `YYYYMMDDHHMMSS_name.sql` (14-digit UTC timestamp to the second).
