@@ -634,6 +634,7 @@ async function confirmImport(): Promise<void> {
       decisions: buildDecisions(),
       parentQuestId: parentId ?? null,
       sourceTitle: normalizeSourceTitle(sourceTitleInput.value),
+      currentYear: campaign.todayYear,
     };
     const report = await runImportSweep(r, input, (p) => {
       progress.value = p;

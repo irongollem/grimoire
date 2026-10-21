@@ -170,6 +170,19 @@ describe("mapExtractedMonster", () => {
 // ── NPCs ─────────────────────────────────────────────────────────────────────
 
 describe("mapExtractedNpc", () => {
+  it("turns a plain stated age into a birth year, and never a birthday", () => {
+    const { row } = mapExtractedNpc({ name: "A", age: "45 years old" }, CAMPAIGN_ID, PROVENANCE, null, 1495);
+    expect(row.born_year).toBe(1450);
+    expect(row.age).toBe("45 years old");
+    expect(row.born_month ?? null).toBeNull();
+    expect(row.born_day ?? null).toBeNull();
+  });
+
+  it("leaves the birth year unset for a described age or an unknown year", () => {
+    expect(mapExtractedNpc({ name: "A", age: "ancient" }, CAMPAIGN_ID, PROVENANCE, null, 1495).row.born_year).toBeNull();
+    expect(mapExtractedNpc({ name: "A", age: "45" }, CAMPAIGN_ID, PROVENANCE).row.born_year).toBeNull();
+  });
+
   it("maps a full payload correctly", () => {
     const { row, links } = mapExtractedNpc(
       {

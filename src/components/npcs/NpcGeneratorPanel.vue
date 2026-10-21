@@ -60,6 +60,7 @@ import { getNpcTemplate } from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
+import { bornYearFromAge } from "@edge-shared/npcAge";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import GeneratorPanelFrame from "@/components/common/ai/GeneratorPanelFrame.vue";
@@ -210,6 +211,9 @@ async function generateAndCreate() {
     race: quickForm.race || result.race || null,
     alignment: quickForm.alignment || result.alignment || null,
     age: result.age || null,
+    // The generated age, when it is a plain number of years, becomes a birth
+    // year so the NPC ages with the calendar. Month and day stay unset.
+    born_year: bornYearFromAge(result.age, campaign.todayYear),
     occupation: result.occupation || null,
     appearance: result.appearance ? toTiptapJson(result.appearance) : null,
     personality: result.personality ? toTiptapJson(result.personality) : null,

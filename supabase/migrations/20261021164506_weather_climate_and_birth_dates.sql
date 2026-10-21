@@ -256,3 +256,18 @@ $function$;
 
 revoke execute on function public.get_player_visible_npcs(uuid, uuid[], uuid) from public, anon;
 grant execute on function public.get_player_visible_npcs(uuid, uuid[], uuid) to authenticated, service_role;
+
+-- ── NPC generation asks for a number where it knows one ─────────────────────
+--
+-- A generated NPC gets a birth year when its age is a plain number of years
+-- (supabase/functions/_shared/npcAge.ts, bornYearFromAge): a 70-year-old made
+-- on 1 Hammer 2972 was born in 2902. A word ("Elder") gives no year, so the
+-- model is asked for a number that fits the species' lifespan, and the word
+-- belongs in the appearance. replace() touches the line only if it still reads
+-- as seeded, so an admin's own edit of this prompt is kept.
+update public.ai_system_prompts
+   set content = replace(
+         content,
+         '"age": "Age as a string (e.g. ''45'', ''Young adult'', ''Elder'', ''Ancient'')",',
+         '"age": "Age in whole years as a string of digits (e.g. ''45''), fitting the species'' lifespan (an elder human ''70'', an elder elf ''600''); put words like ''elderly'' in the appearance instead",')
+ where generator_type = 'npc';

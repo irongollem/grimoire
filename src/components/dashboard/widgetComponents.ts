@@ -37,6 +37,7 @@ import SharedJournalWidget from "@/components/dashboard/widgets/SharedJournalWid
 import EncounterGapsWidget from "@/components/dashboard/widgets/EncounterGapsWidget.vue";
 import StoreRestockWidget from "@/components/dashboard/widgets/StoreRestockWidget.vue";
 import RecentMonstersWidget from "@/components/dashboard/widgets/RecentMonstersWidget.vue";
+import WeatherWidget from "@/components/dashboard/widgets/WeatherWidget.vue";
 import RuleTrackerCardSettings from "@/components/dashboard/settings/RuleTrackerCardSettings.vue";
 
 /**
@@ -82,6 +83,7 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "encounter-gaps": EncounterGapsWidget,
   "store-restock": StoreRestockWidget,
   "recent-monsters": RecentMonstersWidget,
+  weather: WeatherWidget,
 };
 
 /**

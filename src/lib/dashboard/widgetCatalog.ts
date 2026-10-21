@@ -72,7 +72,8 @@ export type DashboardWidgetId =
   | "store-restock"
   | "monster-pull"
   | "quest-consequences"
-  | "shared-journal";
+  | "shared-journal"
+  | "weather";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -424,6 +425,15 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     id: "upcoming-events",
     title: "Upcoming events",
     description: "What is coming up on the in-world calendar, with a countdown to deadlines.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "weather",
+    title: "Weather",
+    description: "Today's sky where the party is, with the moons and a five-day outlook.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,

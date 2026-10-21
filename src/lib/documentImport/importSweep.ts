@@ -115,6 +115,10 @@ export interface ImportSweepInput {
    * on file" rather than an invented value.
    */
   sourceTitle: string | null;
+  /** The campaign's current year. A created NPC whose extracted age is a plain
+   *  number of years gets `born_year = currentYear - age`, so it ages with the
+   *  calendar; omitted or null leaves the birth year unset. */
+  currentYear?: number | null;
 }
 
 export type ImportSweepPhase = "importing" | "linking";
@@ -401,6 +405,7 @@ export async function runImportSweep(
   }
   const campaignId = importRow.campaign_id;
   const { entitiesByKind, decisions, parentQuestId, sourceTitle } = input;
+  const currentYear = input.currentYear ?? null;
 
   const importedCounts: Partial<Record<ImportEntityKind, number>> = { ...importRow.imported_counts };
   const perKind: Partial<Record<ImportEntityKind, ImportKindOutcome>> = {};
@@ -464,7 +469,7 @@ export async function runImportSweep(
       result = locationsResult;
     } else {
       result = await runImportKind(
-        { kind, entities, decisions: kindDecisions, campaignId, provenance, sourceTitle },
+        { kind, entities, decisions: kindDecisions, campaignId, provenance, sourceTitle, currentYear },
         { insertRow: (row) => deps.insertRow(kind, row), generateMonster: deps.generateMonster },
       );
     }

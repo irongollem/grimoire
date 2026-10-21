@@ -1,4 +1,5 @@
 import type { CalendarAdapter } from "@/types/calendar.types";
+import { completedYears } from "@edge-shared/npcAge";
 import { ordinalWithinYear } from "./dayMath";
 
 /**
@@ -50,20 +51,18 @@ export function ageOn(
   today: { year: number; month: number; day: number },
 ): number | null {
   if (!isInt(born.year) || !isInt(today.year)) return null;
-  if (today.year < born.year) return null;
-  let years = today.year - born.year;
   if (born.month !== null && born.day !== null) {
     if (!isInt(born.month) || !isInt(born.day) || !isInt(today.month) || !isInt(today.day)) {
       return null;
     }
-    // Both ordinals in *today's* year, so a leap year's extra days shift
-    // neither side of the comparison.
+    // Both must be placeable in *today's* year of this calendar (a month the
+    // adapter lacks after a calendar switch is not), else fall back to text.
     const birthday = ordinalWithinYear(adapter, today.year, born.month, born.day, null);
     const now = ordinalWithinYear(adapter, today.year, today.month, today.day, null);
     if (birthday === undefined || now === undefined) return null;
-    if (now < birthday) years -= 1;
   }
-  return years < 0 ? null : years;
+  // The arithmetic is the shared rule the edge functions use too.
+  return completedYears(born, today);
 }
 
 /** "12 Ches 1448 DR", or "1448 DR" when only the year is known. */

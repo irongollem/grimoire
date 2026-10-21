@@ -24,6 +24,7 @@ import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { campaignToday, promptAge, type DatePoint } from "../_shared/npcAge.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 
 /**
@@ -69,6 +70,9 @@ interface NpcRow {
   race: string | null;
   alignment: string | null;
   age: string | null;
+  born_year: number | null;
+  born_month: number | null;
+  born_day: number | null;
   occupation: string | null;
   status: string;
   relationship: string;
@@ -97,7 +101,7 @@ interface NpcRow {
  * persona sound like a person, with an explicit instruction not to surface
  * anything from it that would expose the cover.
  */
-function buildNpcProfile(npc: NpcRow): string {
+function buildNpcProfile(npc: NpcRow, today: DatePoint | null): string {
   const disguised = !!npc.disguise_name && !npc.is_revealed;
   const lines: string[] = [];
 
@@ -114,7 +118,8 @@ function buildNpcProfile(npc: NpcRow): string {
 
   if (npc.race) lines.push(`Race: ${npc.race}`);
   if (npc.alignment) lines.push(`Alignment: ${npc.alignment}`);
-  if (npc.age) lines.push(`Age: ${npc.age}`);
+  const age = promptAge(npc, today);
+  if (age) lines.push(`Age: ${age}`);
   if (npc.occupation) lines.push(`Occupation: ${npc.occupation}`);
   lines.push(`Status: ${npc.status}`);
   lines.push(`Relationship toward the party: ${npc.relationship}`);
@@ -169,7 +174,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, current_year, current_month, current_day, openai_api_key, anthropic_api_key, gemini_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -185,7 +190,7 @@ serve(withCors(async (req: Request) => {
   // a member of campaign A pulling an NPC that belongs to campaign B.
   const { data: npcRow } = await admin
     .from("npcs")
-    .select("id, campaign_id, name, race, alignment, age, occupation, status, relationship, personality, backstory, notes, disguise_name, is_revealed")
+    .select("id, campaign_id, name, race, alignment, age, born_year, born_month, born_day, occupation, status, relationship, personality, backstory, notes, disguise_name, is_revealed")
     .eq("id", npc_id)
     .maybeSingle();
   if (!npcRow) return new Response("NPC not found", { status: 404 });
@@ -223,7 +228,7 @@ serve(withCors(async (req: Request) => {
   const systemContent = promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
   const memoryBlock = formatNpcMemories(await memoriesPending, npc);
   const userContent =
-    `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcProfile(npc)}` +
+    `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcProfile(npc, campaignToday(campaign))}` +
     (memoryBlock ? `\n\n${memoryBlock}` : "");
 
   // The platform decides the text model: a campaign on platform credits runs on
