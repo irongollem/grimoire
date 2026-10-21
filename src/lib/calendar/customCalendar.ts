@@ -35,5 +35,47 @@ export function customCalendarProblem(def: SettingCalendarDef): string | null {
     return !mo || !Number.isInteger(day) || day < 1 || day > mo.days;
   });
   if (badSeason) return `The start of ${badSeason.name.trim()} is not a day in this calendar.`;
+  // Two seasons on one day leave the first unreachable: the later in the list always wins.
+  const starts = new Set<string>();
+  for (const s of seasons) {
+    const key = `${s.startsOn.month}/${s.startsOn.day}`;
+    if (starts.has(key)) return `${s.name.trim()} starts on the same day as another season.`;
+    starts.add(key);
+  }
   return null;
+}
+
+/**
+ * The calendar with month `index` (0-based) taken out, every month reference
+ * renumbered to match. Removing month 2 of four makes the old month 3 the new
+ * month 2, so festivals, moon anchors and season starts that named it follow
+ * it there; one that named the removed month moves to the month before it (or
+ * to the new first month), its day clamped to that month's length. Leaving the
+ * numbers alone would silently re-point every later reference at the month
+ * after the one it meant.
+ */
+export function withoutMonth(def: SettingCalendarDef, index: number): SettingCalendarDef {
+  if (index < 0 || index >= def.months.length) return def;
+  const removed = index + 1;
+  const months = def.months.filter((_, i) => i !== index);
+  const remap = (m: number) => (m < removed ? m : m > removed ? m - 1 : Math.max(1, removed - 1));
+  const clampDay = (month: number, day: number) => Math.min(day, months[month - 1]?.days ?? day);
+
+  return {
+    ...def,
+    months,
+    intercalaryDays: def.intercalaryDays.map((d) => ({ ...d, afterMonth: Math.max(1, remap(d.afterMonth)) })),
+    moons: def.moons?.map((moon) => {
+      const anchor = moon.fullOn;
+      if ("festival" in anchor || !Number.isInteger(anchor.month)) return moon;
+      const month = remap(anchor.month);
+      return { ...moon, fullOn: { ...anchor, month, day: clampDay(month, anchor.day) } };
+    }),
+    seasons: def.seasons?.map((season) => {
+      const { month: m, day } = season.startsOn;
+      if (!Number.isInteger(m)) return season;
+      const month = remap(m);
+      return { ...season, startsOn: { month, day: clampDay(month, day) } };
+    }),
+  };
 }

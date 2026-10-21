@@ -64,8 +64,14 @@ import type { SettingMonthDef } from "@/settings/types";
 const seasons = defineModel<CalendarSeason[]>({ required: true });
 const { months } = defineProps<{ months: SettingMonthDef[] }>();
 
+/**
+ * A new season starts on the first day of the first month no season already
+ * starts on, so adding two never leaves one unreachable behind the other.
+ */
 function addSeason() {
-  seasons.value = [...seasons.value, { name: "Season", startsOn: { month: 1, day: 1 } }];
+  const taken = new Set(seasons.value.filter((s) => s.startsOn.day === 1).map((s) => s.startsOn.month));
+  const month = months.findIndex((_, i) => !taken.has(i + 1)) + 1 || 1;
+  seasons.value = [...seasons.value, { name: `Season ${seasons.value.length + 1}`, startsOn: { month, day: 1 } }];
 }
 
 function removeSeason(i: number) {

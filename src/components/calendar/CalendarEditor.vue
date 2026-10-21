@@ -217,7 +217,7 @@ import {
   getCalendarAdapter,
   createDefaultCustomCalendarDef,
 } from "@/settings/index";
-import { customCalendarProblem } from "@/lib/calendar/customCalendar";
+import { customCalendarProblem, withoutMonth } from "@/lib/calendar/customCalendar";
 import type { SettingCalendarDef, SettingMonthDef } from "@/settings/types";
 
 const def = defineModel<SettingCalendarDef>({ required: true });
@@ -331,26 +331,7 @@ function addMonth() {
 }
 
 function removeMonth(i: number) {
-  def.value.months.splice(i, 1);
-  for (const d of def.value.intercalaryDays) {
-    if (d.afterMonth > def.value.months.length) d.afterMonth = def.value.months.length;
-  }
-  const last = Math.max(1, def.value.months.length);
-  const lastDays = def.value.months[last - 1]?.days ?? 1;
-  for (const moon of def.value.moons ?? []) {
-    const anchor = moon.fullOn;
-    if ("festival" in anchor) continue;
-    if (anchor.month > last) anchor.month = last;
-    if (anchor.day > (def.value.months[anchor.month - 1]?.days ?? lastDays)) {
-      anchor.day = def.value.months[anchor.month - 1]?.days ?? lastDays;
-    }
-  }
-  for (const season of def.value.seasons ?? []) {
-    const start = season.startsOn;
-    if (start.month > last) start.month = last;
-    const len = def.value.months[start.month - 1]?.days ?? lastDays;
-    if (start.day > len) start.day = len;
-  }
+  def.value = withoutMonth(def.value, i);
 }
 
 function addIntercalary() {

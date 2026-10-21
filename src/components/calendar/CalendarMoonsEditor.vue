@@ -160,10 +160,19 @@ const anchorModels = computed(() =>
   ),
 );
 
+/** "Moon", then "Moon 2", "Moon 3": a fresh name, so two new moons are never mistaken for one. */
+function nextMoonName(): string {
+  const taken = new Set(moons.value.map((m) => m.name.trim()));
+  if (!taken.has("Moon")) return "Moon";
+  let n = 2;
+  while (taken.has(`Moon ${n}`)) n++;
+  return `Moon ${n}`;
+}
+
 function addMoon() {
   moons.value = [
     ...moons.value,
-    { name: "Moon", cycleDays: 28, fullOn: { year: defaultYear, month: 1, day: 1 } },
+    { name: nextMoonName(), cycleDays: 28, fullOn: { year: defaultYear, month: 1, day: 1 } },
   ];
 }
 
