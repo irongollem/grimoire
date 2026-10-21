@@ -108,21 +108,27 @@ export interface IntercalaryDay {
 }
 
 /**
+ * A day a moon is full: a dated day, or a festival (an intercalary day has a
+ * name rather than a month and day). Lore often puts a full moon on a
+ * festival (Selûne on Midwinter 1372 DR), so the anchor can say so directly.
+ */
+export type MoonAnchor =
+  | { year: number; month: number; day: number }
+  | { year: number; festival: string };
+
+/**
  * A moon in the sky of a calendar's world (#1086).
  *
- * The cycle is anchored on one dated day the moon is full, and every other
- * phase is counted from there in whole in-world days (`daysBetween`, so
- * intercalary days and leap days elapse like any other). The anchor is a
- * dated day, never a festival, because a festival has a name rather than a
- * (month, day): where a setting's lore puts a full moon *on* a festival, the
- * data anchors it on the eve and says so.
+ * The cycle is anchored on one day the moon is full, and every other phase is
+ * counted from there in whole in-world days (`daysBetween`, so intercalary
+ * days and leap days elapse like any other).
  */
 export interface CalendarMoon {
   name: string;
   /** Days from one full moon to the next. May be fractional (Selûne: 30.4375). */
   cycleDays: number;
   /** A day on which this moon is full. */
-  fullOn: { year: number; month: number; day: number };
+  fullOn: MoonAnchor;
   /** A CSS colour for the moon's lit face. Omitted means the default moon tone. */
   color?: string;
 }

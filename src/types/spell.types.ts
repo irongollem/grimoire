@@ -1,6 +1,6 @@
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { AiProvenance } from "@/ai/provenance";
-import { ordinal } from "@/lib/utils";
+import { ordinal } from "@/lib/ordinal";
 
 export const SPELL_SCHOOLS = [
   "abjuration",

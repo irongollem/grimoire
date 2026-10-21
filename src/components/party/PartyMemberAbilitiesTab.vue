@@ -161,7 +161,7 @@
       class="flex flex-col items-center gap-1"
     >
       <span class="text-label font-semibold text-muted-foreground">
-        {{ SLOT_LEVEL_LABELS[lvl - 1] }}
+        {{ ordinal(lvl) }}
       </span>
       <AppInput
         :model-value="spellSlotMaxes[lvl - 1]"
@@ -185,8 +185,7 @@ import type { AbilitiesFormSlice } from "./partyMemberForm.types";
 import type { SkillProficiencies } from "@/types/party.types";
 import type { AcBreakdown } from "@/rules/armorClass";
 import AcFormField from "./AcFormField.vue";
-
-const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
+import { ordinal } from "@/lib/ordinal";
 
 const ABILITY_STATS = [
   { key: "str" as const, label: "STR" },

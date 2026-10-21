@@ -1,4 +1,4 @@
-import type { CalendarAdapter, CalendarMoon } from "@/types/calendar.types";
+import type { CalendarAdapter, CalendarMoon, MoonAnchor } from "@/types/calendar.types";
 import { buildYearIndex, daysBetween, daysInMonth, ordinalWithinYear } from "./dayMath";
 
 /**
@@ -63,6 +63,26 @@ function usableCycle(moon: CalendarMoon): boolean {
   return Number.isFinite(moon.cycleDays) && moon.cycleDays > 0;
 }
 
+/**
+ * The anchor's 1-based ordinal within its own year, or undefined when it cannot
+ * be placed: a non-integer year, month or day (user data can hold null or ""),
+ * a month outside the calendar, a day outside its month (it would otherwise
+ * spill into the next one), or a festival the year does not have.
+ */
+export function moonAnchorOrdinal(adapter: CalendarAdapter, anchor: MoonAnchor): number | undefined {
+  if (typeof anchor !== "object" || anchor === null) return undefined;
+  if (!Number.isInteger(anchor.year)) return undefined;
+  if ("festival" in anchor) {
+    if (typeof anchor.festival !== "string" || anchor.festival === "") return undefined;
+    return ordinalWithinYear(adapter, anchor.year, null, null, anchor.festival);
+  }
+  const { year, month, day } = anchor;
+  if (!Number.isInteger(month) || !Number.isInteger(day)) return undefined;
+  if (month < 1 || month > adapter.months.length) return undefined;
+  if (day < 1 || day > daysInMonth(adapter, year, month)) return undefined;
+  return ordinalWithinYear(adapter, year, month, day, null);
+}
+
 /** Days from the moon's anchor to (year, ordinal), or undefined if the anchor can't be placed. */
 function offsetFromAnchor(
   adapter: CalendarAdapter,
@@ -70,20 +90,24 @@ function offsetFromAnchor(
   year: number,
   ordinal: number,
 ): number | undefined {
-  const { year: ay, month, day } = moon.fullOn;
-  const anchor = ordinalWithinYear(adapter, ay, month, day, null);
+  const anchor = moonAnchorOrdinal(adapter, moon.fullOn);
   if (anchor === undefined) return undefined;
-  return daysBetween(adapter, ay, anchor, year, ordinal);
+  return daysBetween(adapter, moon.fullOn.year, anchor, year, ordinal);
 }
 
 function stateAtOffset(moon: CalendarMoon, d: number): MoonState {
-  const age = frac(d / moon.cycleDays + 0.5);
-  const phase = MOON_PHASES[Math.round(age * 8) % 8] as MoonPhase;
-  // Half-open [-0.5, 0.5) so exactly one day per cycle peaks, even when the
-  // cycle is fractional and the exact moment falls between two days.
-  const offFull = (age - 0.5) * moon.cycleDays;
-  const offNew = (frac(age + 0.5) - 0.5) * moon.cycleDays;
+  const c = moon.cycleDays;
+  // Days since the last exact full moon, [0, c). Computed from the integer
+  // offset directly: with a dyadic cycle (30.4375) this is exact, so a moment
+  // exactly half a day from a whole day cannot round into zero or two peaks.
+  const rem = d - Math.floor(d / c) * c;
+  const age = frac(rem / c + 0.5);
+  // Half-open [-0.5, 0.5) so exactly one day per cycle peaks.
+  const offFull = rem < c / 2 ? rem : rem - c;
+  const offNew = rem - c / 2;
   const peak = offFull >= -0.5 && offFull < 0.5 ? "full" : offNew >= -0.5 && offNew < 0.5 ? "new" : null;
+  // The label on a peak day is the peak, whatever the 1/8 bucket says.
+  const phase = peak ?? (MOON_PHASES[Math.round(age * 8) % 8] as MoonPhase);
   return { moon, age, phase, peak };
 }
 

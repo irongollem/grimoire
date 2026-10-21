@@ -46,6 +46,10 @@ describe("calendarDefToAdapter", () => {
     expect(a.moons).toEqual([moon]);
     expect(a.moons[0]).not.toBe(moon);
     expect(a.moons[0]!.fullOn).not.toBe(moon.fullOn);
+    const fest = { name: "F", cycleDays: 10, fullOn: { year: 1, festival: "Midwinter" } };
+    const b = calendarDefToAdapter("custom", { ...tendayDef, moons: [fest] });
+    expect(b.moons[0]!.fullOn).toEqual(fest.fullOn);
+    expect(b.moons[0]!.fullOn).not.toBe(fest.fullOn);
     expect(createDefaultCustomCalendarDef()).toMatchObject({ moons: [], seasons: [] });
   });
 

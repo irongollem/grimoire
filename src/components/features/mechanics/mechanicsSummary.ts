@@ -14,7 +14,7 @@ import type {
   UsesAmount,
 } from "@/rules/features/mechanics.types";
 import { ABILITY_LABELS } from "@/types/card.types";
-import { ordinal } from "@/lib/utils";
+import { ordinal } from "@/lib/ordinal";
 import { ACTIVATION_LABELS } from "@/types/feature.types";
 
 /**

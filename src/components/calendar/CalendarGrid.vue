@@ -117,13 +117,12 @@
         <p class="text-body text-muted-foreground italic">
           {{ festival.description }}
         </p>
-        <CalendarSkyLine
-          :year="calendar.currentYear"
-          :month="null"
-          :day="null"
-          :festival-day="festival.name"
-          class="mt-1.5"
-        />
+        <p v-if="festivalPeaks(festival.name).length" class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
+          <span v-for="(m, mi) in festivalPeaks(festival.name)" :key="mi" class="inline-flex items-center gap-1">
+            <MoonPhaseIcon :age="m.age" :color="m.moon.color" class="h-3 w-3" />
+            {{ m.moon.name }}: {{ m.peak }} moon
+          </span>
+        </p>
         <!-- Festival events -->
         <div v-if="eventsForFestival(festival.name).length" class="mt-2 flex flex-wrap gap-1.5">
           <span
@@ -189,15 +188,15 @@ import { RouterLink } from "vue-router";
 import { IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
-import { moonsForMonth } from "@/lib/calendar/moons";
+import { moonsForMonth, moonsOn } from "@/lib/calendar/moons";
 import { seasonOn, seasonStartsInMonth } from "@/lib/calendar/seasons";
-import { ordinal } from "@/lib/utils";
+import { ordinal } from "@/lib/ordinal";
 import { useCalendarEvents } from "@/composables/calendar/useCalendarEvents";
 import { linkedEntityType, linkedEntityId, eventColor } from "@/types/calendar.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import CalendarDayCell from "@/components/calendar/CalendarDayCell.vue";
-import CalendarSkyLine from "@/components/calendar/CalendarSkyLine.vue";
+import MoonPhaseIcon from "@/components/calendar/MoonPhaseIcon.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
 
@@ -356,6 +355,11 @@ const seasonLine = computed(() => {
   ];
   return parts.join(" · ");
 });
+
+/** Moons that are full or new on this festival day; the banner shows only those. */
+function festivalPeaks(name: string) {
+  return moonsOn(calendar.adapter, calendar.currentYear, null, null, name).filter((m) => m.peak !== null);
+}
 
 function eventsForFestival(festivalName: string): CalendarEvent[] {
   return (events.value ?? []).filter((e) => e.festival_day === festivalName);

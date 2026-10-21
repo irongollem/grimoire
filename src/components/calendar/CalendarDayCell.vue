@@ -40,8 +40,8 @@
       />
       <span v-if="peaks.length" class="ml-auto flex items-center gap-0.5">
         <MoonPhaseIcon
-          v-for="m in peaks"
-          :key="m.moon.name"
+          v-for="(m, mi) in peaks"
+          :key="mi"
           :age="m.age"
           :color="m.moon.color"
           :label="`${m.moon.name}: ${MOON_PHASE_LABELS[m.phase].toLowerCase()}`"

@@ -47,6 +47,20 @@ describe("seasonOn", () => {
     expect(seasonOn(a, 1495, 1, 30, null)!.dayOfSeason).toBe(1);
   });
 
+  it("skips a start whose month or day is not an integer (bad JSON)", () => {
+    const bad = [
+      { name: "NullDay", startsOn: { month: 3, day: null as unknown as number } },
+      { name: "EmptyMonth", startsOn: { month: "" as unknown as number, day: 1 } },
+      { name: "Good", startsOn: { month: 6, day: 1 } },
+    ];
+    const a = { ...faerun, seasons: bad };
+    const got = seasonOn(a, 1495, 7, 1, null)!;
+    expect(got.season.name).toBe("Good");
+    expect(Number.isFinite(got.dayOfSeason)).toBe(true);
+    expect(seasonStartsInMonth(a, 1495, 3)).toEqual([]);
+    expect(seasonStartsInMonth(a, 1495, 6).map((x) => x.season.name)).toEqual(["Good"]);
+  });
+
   it("uses the real February length for a Gregorian start", () => {
     const a = { ...gregorianAdapter, seasons: [{ name: "X", startsOn: { month: 2, day: 29 } }] };
     expect(seasonOn(a, 2023, 2, 28, null)!.dayOfSeason).toBe(1); // clamped to 28 in a common year

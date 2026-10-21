@@ -187,6 +187,7 @@
     <CalendarMoonsEditor
       :model-value="def.moons ?? []"
       :months="def.months"
+      :intercalary-days="def.intercalaryDays"
       :default-year="def.defaultYear"
       @update:model-value="def.moons = $event"
     />
@@ -216,6 +217,7 @@ import {
   getCalendarAdapter,
   createDefaultCustomCalendarDef,
 } from "@/settings/index";
+import { customCalendarProblem } from "@/lib/calendar/customCalendar";
 import type { SettingCalendarDef, SettingMonthDef } from "@/settings/types";
 
 const def = defineModel<SettingCalendarDef>({ required: true });
@@ -334,11 +336,20 @@ function removeMonth(i: number) {
     if (d.afterMonth > def.value.months.length) d.afterMonth = def.value.months.length;
   }
   const last = Math.max(1, def.value.months.length);
+  const lastDays = def.value.months[last - 1]?.days ?? 1;
   for (const moon of def.value.moons ?? []) {
-    if (moon.fullOn.month > last) moon.fullOn.month = last;
+    const anchor = moon.fullOn;
+    if ("festival" in anchor) continue;
+    if (anchor.month > last) anchor.month = last;
+    if (anchor.day > (def.value.months[anchor.month - 1]?.days ?? lastDays)) {
+      anchor.day = def.value.months[anchor.month - 1]?.days ?? lastDays;
+    }
   }
   for (const season of def.value.seasons ?? []) {
-    if (season.startsOn.month > last) season.startsOn.month = last;
+    const start = season.startsOn;
+    if (start.month > last) start.month = last;
+    const len = def.value.months[start.month - 1]?.days ?? lastDays;
+    if (start.day > len) start.day = len;
   }
 }
 
@@ -351,7 +362,17 @@ function addIntercalary() {
 }
 
 function removeIntercalary(i: number) {
-  def.value.intercalaryDays.splice(i, 1);
+  const [removed] = def.value.intercalaryDays.splice(i, 1);
+  if (!removed) return;
+  // A festival anchor must never dangle: re-date it on the last day of the month it followed.
+  const afterMonth = Math.min(Math.max(1, removed.afterMonth), Math.max(1, def.value.months.length));
+  const len = def.value.months[afterMonth - 1]?.days ?? 1;
+  for (const moon of def.value.moons ?? []) {
+    const anchor = moon.fullOn;
+    if ("festival" in anchor && anchor.festival === removed.name) {
+      moon.fullOn = { year: anchor.year, month: afterMonth, day: len };
+    }
+  }
 }
 
 const totalDays = computed(() => {
@@ -360,17 +381,5 @@ const totalDays = computed(() => {
   return monthSum + nonLeapInter;
 });
 
-const validationMessage = computed(() => {
-  if (!def.value.name.trim()) return "Calendar name is required.";
-  if (!def.value.epochName.trim()) return "Epoch is required (e.g. \"AY\").";
-  if (def.value.months.length === 0) return "At least one month is required.";
-  if (def.value.months.some((m) => !m.name.trim())) return "Every month needs a name.";
-  if (def.value.months.some((m) => !m.days || m.days < 1)) return "Every month needs at least 1 day.";
-  if ((def.value.moons ?? []).some((m) => !m.name.trim())) return "Every moon needs a name.";
-  if ((def.value.moons ?? []).some((m) => !(m.cycleDays > 0))) return "Every moon needs a cycle longer than 0 days.";
-  if ((def.value.seasons ?? []).some((s) => !s.name.trim())) return "Every season needs a name.";
-  return null;
-});
-
-defineExpose({ validationMessage });
+const validationMessage = computed(() => customCalendarProblem(def.value));
 </script>

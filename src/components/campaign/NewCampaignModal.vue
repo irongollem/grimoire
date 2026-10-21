@@ -104,7 +104,7 @@
           type="submit"
           variant="primary"
           size="md"
-          :disabled="isSaving || !form.ruleset"
+          :disabled="isSaving || !form.ruleset || calendarProblem !== null"
           :label="isSaving ? 'Saving…' : 'Create Campaign'"
         />
       </div>
@@ -116,7 +116,7 @@
 
 <script setup lang="ts">
 import { DEFAULT_THEME_ID } from "@/lib/themes";
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { listCalendarAdapters, getCalendarAdapter, createDefaultCustomCalendarDef } from "@/settings/index";
 import { getSetting, listSettings } from "@/settings/index";
@@ -130,6 +130,7 @@ import AppModal from "@/components/common/overlays/AppModal.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
+import { customCalendarProblem } from "@/lib/calendar/customCalendar";
 import DemoCampaignOffer from "@/components/campaign/DemoCampaignOffer.vue";
 import type { Campaign } from "@/types/campaign.types";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -210,9 +211,14 @@ function onCalendarChange() {
   }
 }
 
+// The editor shows the problem; this keeps a calendar it flags from being saved.
+const calendarProblem = computed(() =>
+  form.value.calendar_id === "custom" && customCalendarDef.value ? customCalendarProblem(customCalendarDef.value) : null,
+);
+
 async function submit() {
   const ruleset = form.value.ruleset;
-  if (!ruleset) return;
+  if (!ruleset || calendarProblem.value !== null) return;
   try {
     const created = await createCampaign({
       name: form.value.name,

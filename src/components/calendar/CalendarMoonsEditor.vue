@@ -48,8 +48,9 @@
           />
         </div>
         <div class="grid grid-cols-12 gap-2 items-center">
-          <span class="col-span-3 text-label text-muted-foreground">FULL ON DAY</span>
+          <span class="col-span-3 text-label text-muted-foreground">FULL ON</span>
           <AppInput
+            v-if="!('festival' in m.fullOn)"
             v-model.number="m.fullOn.day"
             tone="card"
             size="body"
@@ -59,8 +60,15 @@
             class="col-span-2"
             aria-label="Full moon day"
           />
-          <AppSelect v-model.number="m.fullOn.month" size="body" block class="col-span-4 min-w-0" aria-label="Full moon month">
-            <option v-for="(mo, mi) in months" :key="mi" :value="mi + 1">{{ mi + 1 }}. {{ mo.name }}</option>
+          <AppSelect
+            v-model="anchorModels[i]!.value"
+            size="body"
+            block
+            :class="'festival' in m.fullOn ? 'col-span-6 min-w-0' : 'col-span-4 min-w-0'"
+            aria-label="Full moon month or festival"
+          >
+            <option v-for="(mo, mi) in months" :key="mi" :value="`m:${mi + 1}`">{{ mi + 1 }}. {{ mo.name }}</option>
+            <option v-for="f in intercalaryDays" :key="f.name" :value="`f:${f.name}`">✦ {{ f.name }}</option>
           </AppSelect>
           <AppInput
             v-model.number="m.fullOn.year"
@@ -109,8 +117,9 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import MoonPhaseIcon from "@/components/calendar/MoonPhaseIcon.vue";
+import { computed } from "vue";
 import type { CalendarMoon } from "@/types/calendar.types";
-import type { SettingMonthDef } from "@/settings/types";
+import type { SettingIntercalaryDef, SettingMonthDef } from "@/settings/types";
 
 /** A short palette of moon tones; the first choice (no colour) is the neutral default. */
 const MOON_SWATCHES = [
@@ -124,10 +133,32 @@ const MOON_SWATCHES = [
 ] as const;
 
 const moons = defineModel<CalendarMoon[]>({ required: true });
-const { months, defaultYear } = defineProps<{
+const { months, intercalaryDays, defaultYear } = defineProps<{
   months: SettingMonthDef[];
+  intercalaryDays: SettingIntercalaryDef[];
   defaultYear: number;
 }>();
+
+/**
+ * One writable computed per row: the select carries "m:<month>" or "f:<festival>".
+ * Choosing a festival drops the day; choosing a month keeps the day (default 1).
+ */
+const anchorModels = computed(() =>
+  moons.value.map((m) =>
+    computed<string>({
+      get: () => ("festival" in m.fullOn ? `f:${m.fullOn.festival}` : `m:${m.fullOn.month}`),
+      set: (v) => {
+        const year = m.fullOn.year;
+        if (v.startsWith("f:")) {
+          m.fullOn = { year, festival: v.slice(2) };
+        } else {
+          const day = "day" in m.fullOn ? m.fullOn.day : 1;
+          m.fullOn = { year, month: Number(v.slice(2)), day };
+        }
+      },
+    }),
+  ),
+);
 
 function addMoon() {
   moons.value = [

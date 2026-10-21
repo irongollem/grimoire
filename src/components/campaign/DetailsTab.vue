@@ -178,7 +178,7 @@
         type="submit"
         variant="primary"
         size="md"
-        :disabled="isSaving"
+        :disabled="isSaving || calendarProblem !== null"
         :label="isSaving ? 'Saving…' : 'Save Changes'"
       />
     </div>
@@ -204,6 +204,7 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
+import { customCalendarProblem } from "@/lib/calendar/customCalendar";
 import DemoCampaignPanel from "@/components/campaign/DemoCampaignPanel.vue";
 import { usePopulateLocations } from "@/composables/locations/useLocations";
 import { usePopulateFactions } from "@/composables/factions/useFactions";
@@ -291,8 +292,13 @@ function onCalendarChange() {
   }
 }
 
+// The editor shows the problem; this keeps a calendar it flags from being saved.
+const calendarProblem = computed(() =>
+  form.calendar_id === "custom" && form.custom_calendar ? customCalendarProblem(form.custom_calendar) : null,
+);
+
 async function submitForm() {
-  if (!campaign.value) return;
+  if (!campaign.value || calendarProblem.value !== null) return;
   const update = changes(campaignRow);
   if (Object.keys(update).length === 0) return;
   const updated = await updateCampaign({ id: campaign.value.id, update });

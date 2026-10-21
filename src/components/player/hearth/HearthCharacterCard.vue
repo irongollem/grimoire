@@ -96,7 +96,7 @@ import { useMemberVitals } from "@/composables/party/useMemberVitals";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { characterSummary } from "@/lib/partyMemberDisplay";
-import { ordinal } from "@/lib/utils";
+import { ordinal } from "@/lib/ordinal";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { getExhaustionLevel, isExhaustion } from "@/rules/conditions";
 import type { PartyMember } from "@/types/party.types";

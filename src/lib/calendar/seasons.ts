@@ -20,6 +20,7 @@ function placeStarts(adapter: CalendarAdapter, year: number): PlacedStart[] {
   const placed: PlacedStart[] = [];
   for (const season of adapter.seasons) {
     const { month, day } = season.startsOn;
+    if (!Number.isInteger(month) || !Number.isInteger(day)) continue;
     const base = monthStartOrdinal[month - 1];
     if (base === undefined) continue;
     const clamped = Math.max(1, Math.min(day, daysInMonth(adapter, year, month)));
@@ -60,7 +61,7 @@ export function seasonStartsInMonth(
   const length = daysInMonth(adapter, year, month);
   if (length <= 0) return [];
   return adapter.seasons
-    .filter((s) => s.startsOn.month === month)
+    .filter((s) => s.startsOn.month === month && Number.isInteger(s.startsOn.day))
     .map((season) => ({ day: Math.max(1, Math.min(season.startsOn.day, length)), season }))
     .sort((a, b) => a.day - b.day);
 }

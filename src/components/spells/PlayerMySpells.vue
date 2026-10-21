@@ -76,7 +76,7 @@
 
           <!-- Label -->
           <span class="text-label-lg font-bold text-foreground">
-            {{ group.level === 0 ? "Cantrips" : SLOT_LEVEL_LABELS[group.level - 1] + " Level" }}
+            {{ group.level === 0 ? "Cantrips" : ordinal(group.level) + " Level" }}
           </span>
 
           <!-- Spell count badge -->
@@ -380,8 +380,7 @@ import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
 import { useSpellReplacement } from "@/composables/party/useSpellReplacement";
 import { isInnateSorceryActive, metamagicLimit } from "@/rules/sorcererFeatures";
 import { isMetamagicEligible, TRANSMUTABLE_DAMAGE_TYPES } from "@/rules/metamagicPolicy";
-
-const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
+import { ordinal } from "@/lib/ordinal";
 
 const props = defineProps<{
   partyMemberId: string | null;
@@ -636,7 +635,7 @@ function castButtonTitle(entry: CharacterSpellEntry): string {
   const available = availableSlotsForSpell(entry.spell.level, props.spellSlots);
   if (available.length === 0) return "No suitable slots remaining";
   const lowest = available[0].level;
-  return `Cast: spend one ${SLOT_LEVEL_LABELS[lowest - 1]}-level slot`;
+  return `Cast: spend one ${ordinal(lowest)}-level slot`;
 }
 
 // ── Upcast picker ──────────────────────────────────────────────────────────────
@@ -788,7 +787,7 @@ async function castSpell(
     // Flavor text
     let text = `casts ${spell.name}`;
     if (isRitual) text += " as a ritual";
-    else if (extraLevels > 0) text += ` (upcast ${SLOT_LEVEL_LABELS[castLevel - 1]})`;
+    else if (extraLevels > 0) text += ` (upcast ${ordinal(castLevel)})`;
     if (metamagicNames.length) text += ` with ${metamagicNames.join(" and ")}`;
     const atk = attackBonusFor(entry);
     const dc  = saveDcFor(entry);

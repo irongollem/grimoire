@@ -5,8 +5,8 @@
   >
     <span v-if="season" class="italic">{{ season.season.name }} · day {{ season.dayOfSeason }}</span>
     <span
-      v-for="m in moons"
-      :key="m.moon.name"
+      v-for="(m, mi) in moons"
+      :key="mi"
       class="inline-flex items-center gap-1"
       :title="`${m.moon.name}, ${MOON_PHASE_LABELS[m.phase].toLowerCase()}`"
     >

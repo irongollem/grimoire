@@ -5,7 +5,7 @@ import { gregorianAdapter } from "@/settings/gregorian.calendar";
 import { calendarDefToAdapter } from "@/settings/types";
 import { listCalendarAdapters } from "@/settings";
 import { buildYearIndex, daysInMonth, ordinalWithinYear } from "./dayMath";
-import { MOON_PHASES, moonsForMonth, moonsOn, moonsOnOrdinal } from "./moons";
+import { MOON_PHASES, moonAnchorOrdinal, moonsForMonth, moonsOn, moonsOnOrdinal } from "./moons";
 
 const faerun = calendarDefToAdapter("faerun", FAERUN_CALENDAR);
 const dragonlance = calendarDefToAdapter("dragonlance", DRAGONLANCE_CALENDAR);
@@ -51,7 +51,7 @@ describe("moonsOn", () => {
     let full = 0;
     let fresh = 0;
     // Start at the anchor's year, month 2 (clear of the anchor itself) for 3 whole cycles.
-    const start = ordinalWithinYear(faerun, 1372, 1, 30, null)!;
+    const start = ordinalWithinYear(faerun, 1372, 1, 30, null)! + 1;
     for (let i = 0; i < span; i++) {
       // Within 1372 (a leap year, 366 days) the span fits well inside the year.
       const s = moonsOnOrdinal(faerun, 1372, start + i)[0]!;
@@ -106,15 +106,108 @@ describe("moonsForMonth", () => {
   });
 });
 
+describe("moonAnchorOrdinal", () => {
+  it("places dated and festival anchors", () => {
+    expect(moonAnchorOrdinal(faerun, { year: 1372, month: 1, day: 30 })).toBe(30);
+    expect(moonAnchorOrdinal(faerun, { year: 1372, festival: "Midwinter" })).toBe(31);
+  });
+
+  it("rejects values that cannot be placed", () => {
+    const bad = [
+      { year: 1372, month: 1, day: 31 }, // past a 30-day month
+      { year: 1372, month: 1, day: 0 },
+      { year: 1372, month: 0, day: 1 },
+      { year: 1372, month: 13, day: 1 },
+      { year: 1372, month: 1, day: 1.5 },
+      { year: 1372.5, month: 1, day: 1 },
+      { year: null, month: 1, day: 1 },
+      { year: 1372, month: null, day: 1 },
+      { year: 1372, month: 1, day: "" },
+      { year: 1495, festival: "Shieldmeet" }, // not a leap year
+      { year: 1372, festival: "" },
+      { year: 1372, festival: "Nope" },
+    ] as unknown as Parameters<typeof moonAnchorOrdinal>[1][];
+    for (const anchor of bad) expect(moonAnchorOrdinal(faerun, anchor), JSON.stringify(anchor)).toBeUndefined();
+  });
+
+  it("makes a moon with a bad anchor skip rather than shift", () => {
+    const a = { ...faerun, moons: [{ name: "X", cycleDays: 10, fullOn: { year: 1372, month: 1, day: 31 } }] };
+    expect(moonsOn(a, 1372, 1, 5, null)).toEqual([]);
+  });
+});
+
+describe("peaks", () => {
+  it("gives Selune exactly one full and one new peak per cycle over 50 cycles", () => {
+    const moon = faerun.moons[0]!;
+    const c = moon.cycleDays;
+    const anchor = moonAnchorOrdinal(faerun, moon.fullOn)!;
+    const days = Math.ceil(c * 50);
+    const full = new Map<number, number>();
+    const fresh = new Map<number, number>();
+    let fullTotal = 0;
+    let newTotal = 0;
+    for (let d = 0; d < days; d++) {
+      // Stay inside the anchor's year family by walking ordinals across years.
+      let year = 1372;
+      let ord = anchor + d;
+      for (;;) {
+        const len = buildYearIndex(faerun, year).totalDays;
+        if (ord <= len) break;
+        ord -= len;
+        year++;
+      }
+      const s = moonsOnOrdinal(faerun, year, ord)[0]!;
+      // Cycle window k covers days since full in [-c/2, c/2) around full k.
+      if (s.peak === "full") {
+        fullTotal++;
+        const k = Math.round(d / c);
+        full.set(k, (full.get(k) ?? 0) + 1);
+      }
+      if (s.peak === "new") {
+        newTotal++;
+        const k = Math.floor(d / c);
+        fresh.set(k, (fresh.get(k) ?? 0) + 1);
+      }
+    }
+    for (const n of full.values()) expect(n).toBe(1);
+    for (const n of fresh.values()) expect(n).toBe(1);
+    // days spans 50 cycles from a full: 51 fulls (k=0..50 counting the half-window at the end) at most, 50 news.
+    expect(newTotal).toBe(50);
+    expect(fullTotal).toBeGreaterThanOrEqual(50);
+    expect(fullTotal).toBeLessThanOrEqual(51);
+  });
+
+  it("is full on Midwinter 1372 itself", () => {
+    const [s] = moonsOn(faerun, 1372, null, null, "Midwinter");
+    expect(s!.peak).toBe("full");
+    expect(s!.phase).toBe("full");
+  });
+
+  it("labels a peak day with the peak, even on a short cycle", () => {
+    const a = { ...faerun, moons: [{ name: "Quick", cycleDays: 6.5, fullOn: { year: 1495, month: 1, day: 1 } }] };
+    let fulls = 0;
+    let news = 0;
+    for (let day = 1; day <= 30; day++) {
+      const s = moonsOn(a, 1495, 1, day, null)[0]!;
+      if (s.peak === "full") {
+        fulls++;
+        expect(s.phase).toBe("full");
+      }
+      if (s.peak === "new") {
+        news++;
+        expect(s.phase).toBe("new");
+      }
+    }
+    expect(fulls).toBeGreaterThan(0);
+    expect(news).toBeGreaterThan(0);
+  });
+});
+
 describe("built-in calendars", () => {
   it("every moon anchor is a placeable date", () => {
     for (const a of listCalendarAdapters()) {
       for (const m of a.moons) {
-        expect(
-          ordinalWithinYear(a, m.fullOn.year, m.fullOn.month, m.fullOn.day, null),
-          `${a.id}/${m.name}`,
-        ).toBeDefined();
-        expect(m.fullOn.day).toBeLessThanOrEqual(daysInMonth(a, m.fullOn.year, m.fullOn.month));
+        expect(moonAnchorOrdinal(a, m.fullOn), `${a.id}/${m.name}`).toBeDefined();
         expect(m.cycleDays).toBeGreaterThan(0);
       }
     }
