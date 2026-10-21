@@ -25,7 +25,7 @@
       :model-value="draft.fog"
       label="Fog"
       :disabled="!canFog"
-      :hint="canFog ? undefined : 'Fog needs a calm, mild or cold day without a downpour, in a temperate or cold climate.'"
+      :hint="canFog ? undefined : 'Fog needs a calm, dry or drizzly day that is cold, cool or mild, in a temperate or cold climate.'"
       @update:model-value="change('fog', $event)"
     />
 

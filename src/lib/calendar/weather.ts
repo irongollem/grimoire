@@ -1,4 +1,4 @@
-import type { CalendarAdapter, Climate, SeasonKind } from "@/types/calendar.types";
+import { CLIMATES, type CalendarAdapter, type Climate, type SeasonKind } from "@/types/calendar.types";
 import { daysBetween, ordinalWithinYear } from "./dayMath";
 import { seasonOn } from "./seasons";
 
@@ -410,6 +410,11 @@ export interface ClimatePlace {
  * campaign), which is what weather is seeded on so a city and its districts
  * share a sky. A cycle in the parent chain ends the walk at the campaign.
  */
+/** Whether a stored value is a climate this module can draw weather for. */
+export function isClimate(value: unknown): value is Climate {
+  return typeof value === "string" && (CLIMATES as readonly string[]).includes(value);
+}
+
 export function climateAt(
   places: ReadonlyMap<string, ClimatePlace>,
   locationId: string | null,
@@ -421,8 +426,11 @@ export function climateAt(
     seen.add(id);
     const place = places.get(id);
     if (!place) break;
-    if (place.climate) return { climate: place.climate, sourceId: place.id };
+    if (isClimate(place.climate)) return { climate: place.climate, sourceId: place.id };
     id = place.parent_id;
   }
-  return { climate: campaignClimate, sourceId: null };
+  // A campaign row restored from the persisted query cache can predate the
+  // climate column; the tables have no row for undefined, so fall back to the
+  // column's own default rather than throw while rendering the Hearth.
+  return { climate: isClimate(campaignClimate) ? campaignClimate : "temperate", sourceId: null };
 }

@@ -1,13 +1,12 @@
 <template>
   <div class="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)_minmax(0,0.8fr)] gap-2">
     <AppInput
-      :model-value="model.born_year"
+      v-model.number.lazy="year"
       type="number"
       :tone="tone"
       :size="size"
       placeholder="Year"
       aria-label="Birth year"
-      @update:model-value="setYear"
     />
     <AppSelect
       :model-value="model.born_month ?? 0"
@@ -82,6 +81,13 @@ function setMonth(value: number | null | undefined) {
   const max = Math.max(1, daysInMonth(adapter.value, year, value));
   model.value = { ...model.value, born_month: value, born_day: Math.min(max, model.value.born_day ?? 1) };
 }
+
+// Through `v-model.number`, so AppInput hands over a number: without the
+// modifier it emits the typed text, which setYear reads as no year at all.
+const year = computed<number | null>({
+  get: () => model.value.born_year,
+  set: setYear,
+});
 
 const day = computed<number | null>({
   get: () => model.value.born_day,

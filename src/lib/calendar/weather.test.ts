@@ -124,3 +124,10 @@ describe("climateAt", () => {
     expect(climateAt(places, "a", "arid")).toEqual({ climate: "arid", sourceId: null });
   });
 });
+
+describe("climateAt with stale data", () => {
+  it("falls back to temperate when the campaign row predates the climate column", () => {
+    const stale = undefined as unknown as Climate;
+    expect(climateAt(new Map(), null, stale)).toEqual({ climate: "temperate", sourceId: null });
+  });
+});

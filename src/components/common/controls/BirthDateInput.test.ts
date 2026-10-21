@@ -37,4 +37,16 @@ describe("BirthDateInput", () => {
     const emitted = w.emitted("update:modelValue")!;
     expect(emitted[emitted.length - 1]![0]).toEqual({ born_year: 1448, born_month: 1, born_day: 1 });
   });
+
+  it("keeps a typed year, and a typed day within the month", async () => {
+    const w = mountInput({ born_year: null, born_month: null, born_day: null });
+    await w.findAll("input")[0]!.setValue("1448");
+    let emitted = w.emitted("update:modelValue")!;
+    expect(emitted[emitted.length - 1]![0]).toEqual({ born_year: 1448, born_month: null, born_day: null });
+
+    const dated = mountInput({ born_year: 1448, born_month: 2, born_day: 1 });
+    await dated.findAll("input")[1]!.setValue("12");
+    emitted = dated.emitted("update:modelValue")!;
+    expect(emitted[emitted.length - 1]![0]).toEqual({ born_year: 1448, born_month: 2, born_day: 12 });
+  });
 });
