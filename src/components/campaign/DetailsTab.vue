@@ -66,6 +66,19 @@
       </div>
     </div>
 
+    <!-- Climate: the default for the weather; a place can override it. -->
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CLIMATE</label>
+        <AppSelect v-model="form.climate" tone="filled" weight="normal" size="body" block>
+          <option v-for="c in CLIMATES" :key="c" :value="c">{{ CLIMATE_LABELS[c] }}</option>
+        </AppSelect>
+      </div>
+      <p class="self-end pb-2 text-caption italic text-muted-foreground">
+        Sets the weather the calendar shows; any place in the Atlas can name its own.
+      </p>
+    </div>
+
     <!-- Custom calendar editor -->
     <div v-if="form.calendar_id === 'custom' && form.custom_calendar" class="max-w-3xl -mx-2 sm:mx-0">
       <CalendarEditor v-model="form.custom_calendar" />
@@ -204,6 +217,8 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
+import { CLIMATE_LABELS } from "@/lib/calendar/weather";
+import { CLIMATES } from "@/types/calendar.types";
 import { customCalendarProblem } from "@/lib/calendar/customCalendar";
 import DemoCampaignPanel from "@/components/campaign/DemoCampaignPanel.vue";
 import { usePopulateLocations } from "@/composables/locations/useLocations";
@@ -233,6 +248,7 @@ function buildForm(c: Campaign | null) {
     setting: c?.setting ?? "",
     calendar_id: c?.calendar_id ?? "faerun",
     current_year: c?.current_year ?? 1495,
+    climate: c?.climate ?? "temperate",
     theme: c?.theme ?? DEFAULT_THEME_ID,
     health_visibility: (c?.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
     immersive_rolls: c?.immersive_rolls ?? false,
@@ -254,6 +270,7 @@ const CONFLICT_LABELS: Record<keyof CampaignForm, string> = {
   setting: "World",
   calendar_id: "Calendar",
   current_year: "Current year",
+  climate: "Climate",
   theme: "Theme",
   health_visibility: "Health visibility",
   immersive_rolls: "Immersive Rolls",
@@ -269,6 +286,7 @@ function campaignRow(f: CampaignForm) {
     setting: f.setting || "Custom Setting",
     calendar_id: f.calendar_id,
     current_year: f.current_year,
+    climate: f.climate,
     theme: f.theme,
     health_visibility: f.health_visibility,
     immersive_rolls: f.immersive_rolls,

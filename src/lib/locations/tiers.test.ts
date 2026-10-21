@@ -24,6 +24,8 @@ function loc(name: string, location_type: LocationType): Location {
     parent_id: null,
     name,
     location_type,
+    climate: null,
+    terrain: null,
     description: null,
     notes: null,
     tags: [],

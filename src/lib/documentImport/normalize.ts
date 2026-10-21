@@ -51,6 +51,7 @@
  * candidate sets, exactly like `resolveLinks` but for an array field instead
  * of a scalar FK column.
  */
+import { bornYearFromAge } from "@edge-shared/npcAge";
 import type { AiProvenance } from "@/ai/provenance";
 import type { QuestObjectiveResult, QuestSpineRouteResult } from "@/ai/types";
 import type {
@@ -366,6 +367,9 @@ export function mapExtractedNpc(
   payload: ExtractedNpc,
   campaignId: string,
   provenance: AiProvenance,
+  _sourceTitle: string | null = null,
+  /** The campaign's current year; lets a plain stated age become a birth year. */
+  currentYear: number | null = null,
 ): MappedEntity<"npcs"> {
   const row: NpcInsert = {
     campaign_id: campaignId,
@@ -373,6 +377,8 @@ export function mapExtractedNpc(
     race: payload.race ?? null,
     alignment: payload.alignment ?? null, // NPC alignment is free text, no schema default
     age: payload.age ?? null,
+    // A plain "45 years" in the source becomes a birth year (never a birthday).
+    born_year: currentYear === null ? null : bornYearFromAge(payload.age, currentYear),
     occupation: payload.occupation ?? null,
     location_id: null, // resolved from links.npc_location_name in the sweep's linking phase, see file header
     appearance: capProse(payload.appearance),

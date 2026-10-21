@@ -85,6 +85,9 @@
           :race="form.race"
           :alignment="form.alignment"
           :age="form.age"
+          :born-year="form.born_year ?? null"
+          :born-month="form.born_month ?? null"
+          :born-day="form.born_day ?? null"
           :occupation="form.occupation"
           :location-id="form.location_id"
           :location-options="locationOptions"
@@ -93,6 +96,7 @@
           @update:race="form.race = $event"
           @update:alignment="form.alignment = $event"
           @update:age="form.age = $event"
+          @update:birth="Object.assign(form, $event)"
           @update:occupation="form.occupation = $event"
           @update:location-id="form.location_id = $event"
         />
@@ -495,6 +499,9 @@ function toNpcDraft(npc: Npc | null): NpcDraft {
     race: npc?.race ?? null,
     alignment: npc?.alignment ?? null,
     age: npc?.age ?? null,
+    born_year: npc?.born_year ?? null,
+    born_month: npc?.born_month ?? null,
+    born_day: npc?.born_day ?? null,
     occupation: npc?.occupation ?? null,
     location_id: npc?.location_id ?? null,
     appearance: cloneDraftValue(npc?.appearance ?? null),
@@ -533,7 +540,7 @@ const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
 })
 
 const CONFLICT_LABELS: Partial<Record<keyof NpcDraft, string>> = {
-  name: 'Name', race: 'Race', alignment: 'Alignment', age: 'Age', occupation: 'Occupation',
+  name: 'Name', race: 'Race', alignment: 'Alignment', age: 'Age', born_year: 'Birth date', born_month: 'Birth date', born_day: 'Birth date', occupation: 'Occupation',
   location_id: 'Location', appearance: 'Appearance', personality: 'Personality',
   backstory: 'Backstory', status: 'Status', relationship: 'Relationship',
   portrait_url: 'Portrait', cutout_url: 'Cutout', disguise_name: 'Alter ego name',
@@ -643,6 +650,9 @@ async function save() {
     form.race !== props.npc.race ||
     form.alignment !== props.npc.alignment ||
     form.age !== props.npc.age ||
+    form.born_year !== props.npc.born_year ||
+    form.born_month !== props.npc.born_month ||
+    form.born_day !== props.npc.born_day ||
     form.occupation !== props.npc.occupation ||
     form.status !== props.npc.status ||
     form.relationship !== props.npc.relationship ||

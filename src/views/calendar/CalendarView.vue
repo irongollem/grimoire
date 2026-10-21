@@ -92,6 +92,7 @@
       :year="campaignStore.todayYear"
       :month="campaignStore.todayMonth"
       :day="campaignStore.todayDay"
+      :weather="todayWeather?.weather"
       class="mb-3"
     />
 
@@ -121,6 +122,7 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { useTodayWeather } from "@/composables/calendar/useTodayWeather";
 import CalendarGrid from "@/components/calendar/CalendarGrid.vue";
 import CalendarSkyLine from "@/components/calendar/CalendarSkyLine.vue";
 import CalendarTimeline from "@/components/calendar/CalendarTimeline.vue";
@@ -136,6 +138,7 @@ const CALENDAR_VIEW_OPTIONS = [
 
 const calendar = useCalendarStore();
 const campaignStore = useCampaignStore();
+const todayWeather = useTodayWeather();
 const view = computed(() => calendar.view);
 
 const description = computed(() =>

@@ -16,7 +16,7 @@ import {
   Feather, FileDown, FileText, Flag, Flame, FlaskConical,
   Gamepad2, Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical, Grid3x3,
   Hammer, Hand, Handshake, Hash, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
-  Cloud,
+  Cloud, CloudDrizzle, CloudFog, CloudRain, CloudSnow, Snowflake,
   Keyboard, KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
   Shrink,
   Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
@@ -227,6 +227,12 @@ export { Droplets as IconWater }
 export { Leaf as IconNature }
 export { Wind as IconWind }
 export { Zap as IconLightning }
+export { Cloud as IconWeather }
+export { CloudDrizzle as IconWeatherDrizzle }
+export { CloudRain as IconWeatherRain }
+export { CloudSnow as IconWeatherSnow }
+export { CloudFog as IconWeatherFog }
+export { Snowflake as IconWeatherBlizzard }
 export { Sun as IconSun }
 export { Moon as IconMoon }
 export { Ghost as IconUndead }

@@ -152,6 +152,7 @@
  * DM reaches a later step the candidates are almost always already in.
  */
 import { computed, reactive, ref, useId, watch } from "vue";
+import { useCampaignStore } from "@/stores/campaign";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
@@ -178,6 +179,7 @@ import {
 } from "@/types/documentImport.types";
 import { IconExternalLink } from "@/lib/icons";
 
+const campaignStore = useCampaignStore();
 const { importRow } = defineProps<{ importRow: AiDocumentImport }>();
 const emit = defineEmits<{ finished: [] }>();
 
@@ -387,7 +389,7 @@ async function runSweep(): Promise<void> {
 
     sweepReport.value = await runImportSweep(
       importRow,
-      { entitiesByKind, decisions, parentQuestId: null, sourceTitle: normalizeSourceTitle(sourceTitleInput.value) },
+      { entitiesByKind, decisions, parentQuestId: null, sourceTitle: normalizeSourceTitle(sourceTitleInput.value), currentYear: campaignStore.todayYear },
       (p) => {
         sweepProgress.value = p;
       },

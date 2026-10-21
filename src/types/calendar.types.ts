@@ -141,7 +141,33 @@ export interface CalendarMoon {
 export interface CalendarSeason {
   name: string;
   startsOn: { month: number; day: number };
+  /** What the weather does in this season (#1086). Omitted reads as "spring":
+   *  middling, neither the year's warmest nor its coldest. */
+  kind?: SeasonKind;
 }
+
+/** The four temperate seasons, which is all the weather tables need to know
+ *  about a season whatever the calendar calls it (Athas's "High Sun" is a summer). */
+export type SeasonKind = "spring" | "summer" | "autumn" | "winter";
+export const SEASON_KINDS: readonly SeasonKind[] = ["spring", "summer", "autumn", "winter"];
+
+/**
+ * A place's climate for the weather (#1086): `campaigns.climate` is the
+ * default, `locations.climate` overrides it for a place and everything inside
+ * it. "underground" has no weather at all. Mirrors the check constraints in
+ * migration 20261021164506.
+ */
+export type Climate = "polar" | "cold" | "temperate" | "warm" | "tropical" | "arid" | "underground";
+export const CLIMATES: readonly Climate[] = ["polar", "cold", "temperate", "warm", "tropical", "arid", "underground"];
+
+/**
+ * The lie of the land at a place, which is what decides the dangers weather
+ * can bring (an avalanche needs mountains, a flood needs low ground). Null on
+ * a place inherits from its parent, then means no particular terrain. Mirrors
+ * the check constraint in migration 20261021164506.
+ */
+export type Terrain = "mountains" | "hills" | "forest" | "plains" | "coast" | "wetland" | "desert";
+export const TERRAINS: readonly Terrain[] = ["mountains", "hills", "forest", "plains", "coast", "wetland", "desert"];
 
 export interface CalendarAdapter {
   id: string; // e.g. "faerun", "greyhawk"

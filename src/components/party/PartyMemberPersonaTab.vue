@@ -43,14 +43,24 @@
       </div>
     </div>
 
+    <!-- Born: a date in the campaign's calendar; the sheet then shows the age it works out -->
+    <div class="block">
+      <span class="field-label">Born</span>
+      <BirthDateInput
+        :model-value="{ born_year: form.born_year, born_month: form.born_month, born_day: form.born_day }"
+        @update:model-value="patch($event)"
+      />
+      <p class="mt-1 text-label text-muted-foreground">A birth date replaces the age description on the sheet.</p>
+    </div>
+
     <!-- Age / Gender / Pronouns -->
     <div class="grid grid-cols-3 gap-2">
       <label class="block">
-        <span class="field-label">Age</span>
+        <span class="field-label">Age (description)</span>
         <input
           :value="form.age"
           class="field-input w-full"
-          placeholder="47, ancient…"
+          placeholder="ancient, young…"
           @input="patch({ age: ($event.target as HTMLInputElement).value })"
         />
       </label>
@@ -132,6 +142,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAllDeities } from "@/composables/deities/useDeities";
+import BirthDateInput from "@/components/common/controls/BirthDateInput.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import type { PersonaFormSlice } from "./partyMemberForm.types";

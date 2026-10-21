@@ -11,6 +11,9 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
     race: "Human",
     alignment: "Lawful Neutral",
     age: "47",
+    born_year: null,
+    born_month: null,
+    born_day: null,
     occupation: "Merchant",
     location_id: null,
     appearance: null,
@@ -78,6 +81,9 @@ describe("buildNpcVoiceProfile", () => {
       race: null,
       alignment: null,
       age: null,
+      born_year: null,
+      born_month: null,
+      born_day: null,
       occupation: null,
       personality: null,
       backstory: null,
@@ -116,5 +122,25 @@ describe("buildNpcVoiceProfile", () => {
 
     expect(profile).toContain(`Notes: ${"N".repeat(600)}`);
     expect(profile).not.toContain("N".repeat(601));
+  });
+
+  describe("age line", () => {
+    const today = { year: 1495, month: 6, day: 15 };
+
+    it("shows the computed age when a birth year is stored", () => {
+      const profile = buildNpcVoiceProfile(makeNpc({ age: "ancient", born_year: 1448 }), today);
+      expect(profile).toContain("Age: 47");
+      expect(profile).not.toContain("ancient");
+    });
+
+    it("counts an upcoming birthday as not yet lived", () => {
+      const npc = makeNpc({ born_year: 1448, born_month: 12, born_day: 1 });
+      expect(buildNpcVoiceProfile(npc, today)).toContain("Age: 46");
+    });
+
+    it("keeps the free text without a birth year or without today", () => {
+      expect(buildNpcVoiceProfile(makeNpc({ age: "47" }), today)).toContain("Age: 47");
+      expect(buildNpcVoiceProfile(makeNpc({ age: "elderly", born_year: 1448 }))).toContain("Age: elderly");
+    });
   });
 });

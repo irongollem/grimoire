@@ -6,6 +6,7 @@ import { buildCampaignContext, wrapUserInput } from "./utils";
 import { getTextProvider } from "./providers";
 import { fetchSystemPrompt } from "./systemPrompts";
 import { logUsage } from "@/composables/ai/useAiCredits";
+import { campaignToday } from "@edge-shared/npcAge";
 import { useCampaignStore } from "@/stores/campaign";
 import { buildNpcVoiceProfile } from "@/lib/npcs/buildNpcVoiceProfile";
 import { buildAiProvenance, type AiProvenance } from "./provenance";
@@ -126,7 +127,7 @@ export function useNpcVoiceCoach() {
     // formatted by the same shared code, so the two paths cannot disagree.
     const memoryBlock = formatNpcMemories(await loadPromptMemories(supabase, npc.id, campaignId), npc);
     const userContent =
-      `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcVoiceProfile(npc)}` +
+      `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcVoiceProfile(npc, campaignToday(campaign.activeCampaign))}` +
       (memoryBlock ? `\n\n${memoryBlock}` : "");
 
     const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);

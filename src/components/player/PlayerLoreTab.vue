@@ -33,10 +33,18 @@
         <span class="text-label-lg font-semibold text-muted-foreground uppercase">Identity</span>
       </div>
       <div v-if="isOwner" class="p-4 space-y-3">
+        <div>
+          <label class="field-label">Born</label>
+          <BirthDateInput
+            :model-value="{ born_year: form.born_year, born_month: form.born_month, born_day: form.born_day }"
+            @update:model-value="Object.assign(form, $event); scheduleAutoSave()"
+          />
+          <p class="mt-1 text-label text-muted-foreground">A birth date replaces the age description on the sheet.</p>
+        </div>
         <div class="grid grid-cols-3 gap-3">
           <div>
-            <label class="field-label">Age</label>
-            <AppInput v-model="form.age" tone="default" size="body" block placeholder="47…" @update:model-value="scheduleAutoSave" />
+            <label class="field-label">Age (description)</label>
+            <AppInput v-model="form.age" tone="default" size="body" block placeholder="ancient, young…" @update:model-value="scheduleAutoSave" />
           </div>
           <div>
             <label class="field-label">Gender</label>
@@ -60,7 +68,7 @@
       </div>
       <div v-else-if="hasIdentity" class="p-4 space-y-2.5">
         <div class="flex flex-wrap gap-1.5">
-          <span v-if="member.age"      class="px-2 py-0.5 rounded bg-muted border border-border text-label text-foreground">Age {{ member.age }}</span>
+          <span v-if="shownAge"        class="px-2 py-0.5 rounded bg-muted border border-border text-label text-foreground" :title="birthTitle ? `Born ${birthTitle}` : undefined">Age {{ shownAge }}</span>
           <span v-if="member.gender"   class="px-2 py-0.5 rounded bg-muted border border-border text-label text-foreground">{{ member.gender }}</span>
           <span v-if="member.pronouns" class="px-2 py-0.5 rounded bg-muted border border-border text-label text-foreground">{{ member.pronouns }}</span>
         </div>
@@ -284,6 +292,10 @@ import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import BirthDateInput from "@/components/common/controls/BirthDateInput.vue";
+import { displayAge, displayBirth } from "@/lib/calendar/age";
+import { useCalendarStore } from "@/stores/calendar";
+import { useCampaignStore } from "@/stores/campaign";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
@@ -322,6 +334,9 @@ function saveDescription(value: string) {
 // ── Editable lore form (owner only) ──────────────────────────────────────────
 interface LoreForm {
   age: string;
+  born_year: number | null;
+  born_month: number | null;
+  born_day: number | null;
   gender: string;
   pronouns: string;
   physical_description: string;
@@ -337,6 +352,9 @@ interface LoreForm {
 function loreToForm(m: PartyMember | null): LoreForm {
   return {
     age:                  m?.age                  ?? "",
+    born_year:            m?.born_year            ?? null,
+    born_month:           m?.born_month           ?? null,
+    born_day:             m?.born_day             ?? null,
     gender:               m?.gender               ?? "",
     pronouns:             m?.pronouns             ?? "",
     physical_description: m?.physical_description ?? "",
@@ -360,6 +378,9 @@ const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
 
 const CONFLICT_LABELS: Record<keyof LoreForm, string> = {
   age: "Age",
+  born_year: "Birth date",
+  born_month: "Birth date",
+  born_day: "Birth date",
   gender: "Gender",
   pronouns: "Pronouns",
   physical_description: "Physical description",
@@ -376,6 +397,9 @@ const conflictLabels = computed(() => [...new Set(conflicts.value.map((key) => C
 function loreRow(f: LoreForm) {
   return {
     age:                  f.age || null,
+    born_year:            f.born_year,
+    born_month:           f.born_month,
+    born_day:             f.born_day,
     gender:               f.gender || null,
     pronouns:             f.pronouns || null,
     physical_description: f.physical_description || null,
@@ -438,8 +462,16 @@ function hideDeityDropdown() {
 }
 
 // ── Computed visibility ───────────────────────────────────────────────────────
+const calendar = useCalendarStore();
+const campaignStore = useCampaignStore();
+const shownAge = computed(() =>
+  displayAge(calendar.adapter, member, {
+    year: campaignStore.todayYear, month: campaignStore.todayMonth, day: campaignStore.todayDay,
+  }),
+);
+const birthTitle = computed(() => displayBirth(calendar.adapter, member));
 const hasIdentity = computed(() =>
-  !!(member.age || member.gender || member.pronouns || member.physical_description),
+  !!(shownAge.value || member.gender || member.pronouns || member.physical_description),
 );
 const hasPersonality = computed(() =>
   !!(member.alignment || member.deity || member.personality_traits || member.ideals || member.bonds || member.flaws),

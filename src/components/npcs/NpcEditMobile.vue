@@ -97,6 +97,9 @@
           :race="form.race"
           :alignment="form.alignment"
           :age="form.age"
+          :born-year="form.born_year ?? null"
+          :born-month="form.born_month ?? null"
+          :born-day="form.born_day ?? null"
           :occupation="form.occupation"
           :location-id="form.location_id"
           :location-options="locationOptions"
@@ -105,6 +108,7 @@
           @update:race="form.race = $event"
           @update:alignment="form.alignment = $event"
           @update:age="form.age = $event"
+          @update:birth="Object.assign(form, $event)"
           @update:occupation="form.occupation = $event"
           @update:location-id="form.location_id = $event"
         />

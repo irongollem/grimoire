@@ -1,3 +1,4 @@
+import type { Climate, Terrain } from "@/types/calendar.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type { MapLive } from "@/types/mapLive.types";
 
@@ -173,6 +174,10 @@ export interface Location {
   parent_id: string | null;
   name: string;
   location_type: LocationType;
+  /** Null inherits the parent place's climate, then the campaign's (#1086). */
+  climate: Climate | null;
+  /** Null inherits the parent place's terrain, then means none in particular. */
+  terrain: Terrain | null;
   description: string | null; // Tiptap JSON
   notes: string | null;
   tags: string[];
@@ -319,6 +324,8 @@ export const LOCATION_SUMMARY_COLUMNS = [
   "parent_id",
   "name",
   "location_type",
+  "climate",
+  "terrain",
   "sort_order",
   "is_level",
   "image_url",
@@ -411,7 +418,13 @@ export type LocationInsert = Omit<
   | "map_scale"
   | "plan_size"
   | "is_level"
+  | "climate"
+  | "terrain"
 > & {
+  /** Omit to take the column default of null: the place inherits its parent's climate. */
+  climate?: Climate | null;
+  /** Omit to take the column default of null: the place inherits its parent's terrain. */
+  terrain?: Terrain | null;
   /** Omit to take the column default of null — no audio is requested. */
   audio_theme?: string | null;
   /** Omit to take the column default of null — the DM hasn't arranged this yet. */

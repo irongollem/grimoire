@@ -153,7 +153,13 @@ const NPC_DATA = obj({
   name: { type: "string" },
   race: NULLABLE_STRING,
   alignment: NULLABLE_STRING,
-  age: NULLABLE_STRING,
+  // A whole number of years ("45") when the page states or implies one, so the
+  // importer can turn it into a birth year; otherwise the page's own wording.
+  age: {
+    type: ["string", "null"],
+    description:
+      "A whole number of years (e.g. \"45\") when the character's age is stated; otherwise a short description from the page, or null.",
+  },
   occupation: NULLABLE_STRING,
   appearance: NULLABLE_STRING,
   personality: NULLABLE_STRING,

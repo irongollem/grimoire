@@ -138,10 +138,13 @@ lets the buttons wrap and keeps the page's own name (see the note in
 | Disguise Name | Text input            | The alter-ego name shown to players when concealed                  |
 | Species       | Text input            | Free-text, e.g. "Half-Elf", "Tiefling"                              |
 | Alignment     | Select                | 10 D&D alignments + Unaligned                                       |
-| Age           | Text input            | Can be descriptive ("Ancient") or numeric                           |
+| Age (description) | Text input        | What a date cannot say ("Ancient"); replaced on the sheet by a birth date |
+| Born          | `BirthDateInput`      | Year, then optional month and day in the campaign calendar (#1086)  |
 | Occupation    | Text input            |                                                                     |
 | Location      | EntityCombobox        | Hierarchical location tree                                          |
 | Factions      | `NpcFactionsSection`  | Shown only on existing NPCs; manages faction memberships with roles |
+
+**Birth dates and ages** (#1086): `npcs.born_year` / `born_month` / `born_day` (all nullable; a month always comes with a day, and a year with it) hold a birth date in the campaign's calendar. `src/lib/calendar/age.ts` derives whole years against the campaign's today (`ageOn`), so the age moves when the DM advances the date, and `displayAge` is the one rule every surface uses: a birth year the calendar can place wins over the free-text `age`, which stays for "ancient" and the like. The phone sheet and the detail modal show the computed age, with the full birth date in a tooltip. Age is DM-only in `get_player_visible_npcs` (returned as null), and the birth columns are not in the projection either, so players see neither.
 
 **NPC Connections** (`NpcRelationsSection`) is embedded between Identity and the tab bar. It shows the NPC's peer relationships, allows adding new ones (target NPC + relationship type + optional notes), and inline deletion. Each entry links to the other NPC's sheet.
 

@@ -122,12 +122,14 @@ export async function runImportKind<K extends ImportEntityKind>(
      *  create actually reads it (its own `source` column); see
      *  `mapEntity`'s own doc comment (importPlan.ts). */
     sourceTitle?: string | null;
+    /** The campaign's current year (NPC age → birth year); see `mapEntity`. */
+    currentYear?: number | null;
   },
   deps: RunImportKindDeps,
 ): Promise<RunImportKindResult> {
-  const { kind, entities, decisions, campaignId, provenance, sourceTitle = null } = params;
+  const { kind, entities, decisions, campaignId, provenance, sourceTitle = null, currentYear = null } = params;
 
-  const plan = buildImportPlan(kind, entities, decisions, campaignId, provenance, sourceTitle);
+  const plan = buildImportPlan(kind, entities, decisions, campaignId, provenance, sourceTitle, currentYear);
   const plannedByRef = new Map(plan.map((planned) => [planned.ref, planned] as const));
 
   // The ordered list of every attempt this run makes — a plain insert for

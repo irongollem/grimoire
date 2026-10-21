@@ -116,12 +116,15 @@ export function mapEntity<K extends ImportEntityKind>(
   campaignId: string,
   provenance: AiProvenance,
   sourceTitle: string | null = null,
+  /** The campaign's current year — only `npcs` reads it, turning a stated age
+   *  into a birth year. Null leaves `born_year` unset. */
+  currentYear: number | null = null,
 ): MappedEntity<K> {
   switch (kind) {
     case "monsters":
       return ENTITY_MAPPERS.monsters(data as ExtractedMonster, campaignId, provenance, sourceTitle) as MappedEntity<K>;
     case "npcs":
-      return ENTITY_MAPPERS.npcs(data as ExtractedNpc, campaignId, provenance) as MappedEntity<K>;
+      return ENTITY_MAPPERS.npcs(data as ExtractedNpc, campaignId, provenance, null, currentYear) as MappedEntity<K>;
     case "locations":
       return ENTITY_MAPPERS.locations(data as ExtractedLocation, campaignId, provenance) as MappedEntity<K>;
     case "items":
@@ -166,11 +169,13 @@ export function buildImportPlan<K extends ImportEntityKind>(
   /** The DM's chosen "Source book" for this sweep — see `mapEntity`'s own
    *  doc comment for which kinds actually read it. */
   sourceTitle: string | null = null,
+  /** See `mapEntity`'s `currentYear`. */
+  currentYear: number | null = null,
 ): PlannedInsert<K>[] {
   return entities
     .filter((entity) => decisions.get(entity.ref)?.action === "create")
     .map((entity) => {
-      const { row, links, linkLists, questSpine } = mapEntity(kind, entity.data, campaignId, provenance, sourceTitle);
+      const { row, links, linkLists, questSpine } = mapEntity(kind, entity.data, campaignId, provenance, sourceTitle, currentYear);
       return { ref: entity.ref, row, links, linkLists: linkLists ?? {}, questSpine };
     });
 }

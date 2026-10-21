@@ -1,11 +1,13 @@
 import { toPlainText } from "@/ai/utils";
+import { promptAge, type DatePoint } from "@edge-shared/npcAge";
 import type { Npc } from "@/types/npc.types";
 
 /**
  * Client-side (BYOK/local) mirror of `buildNpcProfile()` in
  * `supabase/functions/generate-npc-voice/index.ts` (#336). The local path has
  * no edge function to build the NPC context, so this reproduces its output
- * format here — same convention as `supabase/functions/_shared/ai-prompt.ts`
+ * format here (the age line comes from `@edge-shared/npcAge`, the same module
+ * the edge function imports, so there is one age rule) — same convention as `supabase/functions/_shared/ai-prompt.ts`
  * mirroring `src/ai/utils.ts`. Keep the two in step by hand.
  */
 
@@ -34,7 +36,7 @@ const NOTES_CHAR_LIMIT = 600;
  * persona sound like a person, with an explicit instruction not to surface
  * anything from it that would expose the cover.
  */
-export function buildNpcVoiceProfile(npc: Npc): string {
+export function buildNpcVoiceProfile(npc: Npc, today: DatePoint | null = null): string {
   const disguised = !!npc.disguise_name && !npc.is_revealed;
   const lines: string[] = [];
 
@@ -51,7 +53,8 @@ export function buildNpcVoiceProfile(npc: Npc): string {
 
   if (npc.race) lines.push(`Race: ${npc.race}`);
   if (npc.alignment) lines.push(`Alignment: ${npc.alignment}`);
-  if (npc.age) lines.push(`Age: ${npc.age}`);
+  const age = promptAge(npc, today);
+  if (age) lines.push(`Age: ${age}`);
   if (npc.occupation) lines.push(`Occupation: ${npc.occupation}`);
   lines.push(`Status: ${npc.status}`);
   lines.push(`Relationship toward the party: ${npc.relationship}`);

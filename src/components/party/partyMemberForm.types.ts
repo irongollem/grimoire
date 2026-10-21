@@ -53,6 +53,9 @@ export interface PersonaFormSlice {
   deity: string;
   deity_id: string | null;
   age: string;
+  born_year: number | null;
+  born_month: number | null;
+  born_day: number | null;
   gender: string;
   pronouns: string;
   physical_description: string;

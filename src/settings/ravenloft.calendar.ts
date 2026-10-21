@@ -37,10 +37,10 @@ export const RAVENLOFT_CALENDAR: SettingCalendarDef = {
     { name: "The Moon", cycleDays: 28, fullOn: { year: 735, month: 1, day: 15 }, color: "#e4dfd2" },
   ],
   seasons: [
-    { name: "Spring", startsOn: { month: 3, day: 1 } },
-    { name: "Summer", startsOn: { month: 6, day: 1 } },
-    { name: "Autumn", startsOn: { month: 9, day: 1 } },
-    { name: "Winter", startsOn: { month: 12, day: 1 } },
+    { name: "Spring", kind: "spring", startsOn: { month: 3, day: 1 } },
+    { name: "Summer", kind: "summer", startsOn: { month: 6, day: 1 } },
+    { name: "Autumn", kind: "autumn", startsOn: { month: 9, day: 1 } },
+    { name: "Winter", kind: "winter", startsOn: { month: 12, day: 1 } },
   ],
   leapYearRule: "none",
 };

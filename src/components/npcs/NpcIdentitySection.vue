@@ -43,13 +43,22 @@
         </select>
       </div>
       <div>
-        <label class="field-label">Age</label>
+        <label class="field-label">Age (description)</label>
         <input
           :value="age ?? ''"
-          placeholder="Young, 45, Ancient…"
+          placeholder="Young, Ancient…"
           class="field-input"
           @input="emit('update:age', ($event.target as HTMLInputElement).value || null)"
         />
+      </div>
+      <div>
+        <label class="field-label">Born</label>
+        <BirthDateInput
+          :model-value="{ born_year: bornYear, born_month: bornMonth, born_day: bornDay }"
+          tone="filled"
+          @update:model-value="emit('update:birth', $event)"
+        />
+        <p class="mt-1 text-label text-muted-foreground">A birth date replaces the age description on the sheet.</p>
       </div>
       <div>
         <label class="field-label">Occupation</label>
@@ -82,6 +91,7 @@
 </template>
 
 <script setup lang="ts">
+import BirthDateInput, { type BirthDateModel } from '@/components/common/controls/BirthDateInput.vue'
 import EntityCombobox from '@/components/common/controls/EntityCombobox.vue'
 import NpcFactionsSection from '@/components/factions/NpcFactionsSection.vue'
 import type { LocationSummary } from '@/types/location.types'
@@ -101,6 +111,9 @@ const {
   race = null,
   alignment = null,
   age = null,
+  bornYear = null,
+  bornMonth = null,
+  bornDay = null,
   occupation = null,
   locationId = null,
   locationOptions,
@@ -111,6 +124,9 @@ const {
   race?: string | null
   alignment?: string | null
   age?: string | null
+  bornYear?: number | null
+  bornMonth?: number | null
+  bornDay?: number | null
   occupation?: string | null
   locationId?: string | null
   locationOptions: LocationOption[]
@@ -122,6 +138,7 @@ const emit = defineEmits<{
   'update:race': [value: string | null]
   'update:alignment': [value: string | null]
   'update:age': [value: string | null]
+  'update:birth': [value: BirthDateModel]
   'update:occupation': [value: string | null]
   'update:locationId': [value: string | null]
 }>()

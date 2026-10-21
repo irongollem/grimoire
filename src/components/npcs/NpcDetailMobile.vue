@@ -53,7 +53,7 @@
     <template v-if="hasAnyQuickFact" #facts>
       <QuickFact label="Location" :value="locationName" class="bg-card" />
       <QuickFact label="Alignment" :value="npc.alignment" class="bg-card" />
-      <QuickFact label="Age" :value="npc.age" class="bg-card" />
+      <QuickFact label="Age" :value="shownAge" :title="birthTitle ? `Born ${birthTitle}` : undefined" class="bg-card" />
       <QuickFact label="Faction" :value="factionLine" class="bg-card" />
     </template>
 
@@ -208,6 +208,8 @@ import {
 } from "@/lib/npcDisplay";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCalendarStore } from "@/stores/calendar";
+import { displayAge, displayBirth } from "@/lib/calendar/age";
 import { NPC_RELATIONSHIP_LABELS, type Npc, type NpcListRow } from "@/types/npc.types";
 
 const { npc } = defineProps<{
@@ -251,8 +253,17 @@ const factionLine = computed(() => {
   return rows.map((r) => r.faction.name).join(", ");
 });
 
+// The birth date, when there is one, wins over the free-text age (#1086).
+const calendar = useCalendarStore();
+const shownAge = computed(() =>
+  displayAge(calendar.adapter, npc, {
+    year: campaignStore.todayYear, month: campaignStore.todayMonth, day: campaignStore.todayDay,
+  }),
+);
+const birthTitle = computed(() => displayBirth(calendar.adapter, npc));
+
 const hasAnyQuickFact = computed(
-  () => !!(locationName.value || npc.alignment || npc.age || factionLine.value),
+  () => !!(locationName.value || npc.alignment || shownAge.value || factionLine.value),
 );
 
 // ── Accordion state (Lore open by default) ──────────────────────────────────────

@@ -31,10 +31,10 @@ export const MYSTARA_CALENDAR: SettingCalendarDef = {
     { name: "Matera", cycleDays: 28, fullOn: { year: 1000, month: 1, day: 15 }, color: "#e6e4dc" },
   ],
   seasons: [
-    { name: "Spring", startsOn: { month: 3, day: 1 } },
-    { name: "Summer", startsOn: { month: 6, day: 1 } },
-    { name: "Autumn", startsOn: { month: 9, day: 1 } },
-    { name: "Winter", startsOn: { month: 12, day: 1 } },
+    { name: "Spring", kind: "spring", startsOn: { month: 3, day: 1 } },
+    { name: "Summer", kind: "summer", startsOn: { month: 6, day: 1 } },
+    { name: "Autumn", kind: "autumn", startsOn: { month: 9, day: 1 } },
+    { name: "Winter", kind: "winter", startsOn: { month: 12, day: 1 } },
   ],
   leapYearRule: "none",
 };

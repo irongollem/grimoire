@@ -1,3 +1,5 @@
+import type { Climate } from "@/types/calendar.types";
+import type { WeatherPin } from "@/lib/calendar/weather";
 import type { SettingCalendarDef } from "@/settings/types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
@@ -51,6 +53,10 @@ export interface Campaign {
   spotify_client_id: string | null;
   ical_token: string; // UUID; used as the shared secret for the iCal subscription URL
   current_location_id: string | null;
+  /** The weather's climate wherever no Atlas place names one (#1086). */
+  climate: Climate;
+  /** The DM's overrides of the generated weather, for every climate source (#1086). */
+  weather_pins: WeatherPin[];
   is_archived: boolean;
   /** True on the one campaign new users can load as the demo (#912). Set only by `publish_demo_version`. */
   demo_template: boolean;
@@ -92,6 +98,8 @@ export type CampaignInsert = Omit<
   | "current_month"
   | "current_day"
   | "current_location_id"
+  | "climate"
+  | "weather_pins"
   | "custom_calendar"
   | "ai_enabled"
   // Written only by the demo RPCs; a trigger discards client writes to them.
@@ -120,6 +128,8 @@ export type CampaignInsert = Omit<
   current_month?: number;
   current_day?: number;
   current_location_id?: string | null;
+  climate?: Climate;
+  weather_pins?: WeatherPin[];
   custom_calendar?: SettingCalendarDef | null;
 };
 export type CampaignUpdate = Partial<CampaignInsert> & {

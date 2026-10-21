@@ -164,6 +164,10 @@ export interface Npc {
   race: string | null;
   alignment: string | null;
   age: string | null;
+  /** Birth date on the campaign's calendar (#1086); the year alone gives an age. */
+  born_year: number | null;
+  born_month: number | null;
+  born_day: number | null;
   occupation: string | null;
   location_id: string | null;
   appearance: string | null;
@@ -209,7 +213,7 @@ export type NpcListRow = Omit<Npc, (typeof NPC_LIST_HEAVY_COLUMNS)[number]>;
 
 /** Every `npcs` column except the heavy ones; a typed list so a renamed column fails the build. */
 export const NPC_LIST_COLUMNS = [
-  "id", "user_id", "campaign_id", "name", "race", "alignment", "age", "occupation", "location_id",
+  "id", "user_id", "campaign_id", "name", "race", "alignment", "age", "born_year", "born_month", "born_day", "occupation", "location_id",
   "status", "relationship", "portrait_url", "portrait_focal_point", "cutout_url", "stat_block", "disguise_name",
   "disguise_portrait_url", "disguise_portrait_focal_point", "is_revealed", "tags", "linked_monster_id",
   "scriptorium_doc_id", "player_visible_to", "player_visible_fields", "ai_provenance", "unmasked_at",
@@ -234,7 +238,15 @@ export type PlayerNpc = Omit<Npc, "name"> & {
 export type NpcInsert = Omit<
   Npc,
   "id" | "user_id" | "created_at" | "updated_at" | "unmasked_at" | "location_id" | "linked_monster_id"
-> & { location_id?: string | null; linked_monster_id?: string | null };
+  | "born_year" | "born_month" | "born_day"
+> & {
+  location_id?: string | null;
+  linked_monster_id?: string | null;
+  /** Omit to take the column default of null: no birth date. */
+  born_year?: number | null;
+  born_month?: number | null;
+  born_day?: number | null;
+};
 export type NpcUpdate = Partial<NpcInsert>;
 
 // ── Per-PC relation notes ─────────────────────────────────────────────────────
