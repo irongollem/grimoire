@@ -4,7 +4,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(4);
+select plan(3);
 
 select is(
   (select count(*)::integer from information_schema.role_table_grants
@@ -40,14 +40,9 @@ select is(
   'a newly created table does not inherit TRUNCATE for the client roles'
 );
 
--- …and the revoke did not take the verbs RLS actually governs with it.
-select ok(
-  (select count(*)::integer from information_schema.role_table_grants
-    where table_schema = 'public' and table_name = 'truncate_default_probe'
-      and grantee = 'authenticated'
-      and privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')) = 4,
-  'while SELECT/INSERT/UPDATE/DELETE still arrive by default, for RLS to gate'
-);
+-- This probe used to also assert that SELECT/INSERT/UPDATE/DELETE still
+-- arrived by default. Since 20261020192508 nothing does: every grant on a new
+-- table is explicit, held by explicit_table_grants.test.sql.
 
 drop table public.truncate_default_probe;
 
