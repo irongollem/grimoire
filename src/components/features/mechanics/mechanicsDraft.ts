@@ -17,6 +17,7 @@ import type {
 } from "@/rules/features/mechanics.types";
 import { ACTIVATIONS } from "@/rules/features/mechanics.types";
 import { ACTIVATION_LABELS } from "@/types/feature.types";
+import { ordinal } from "@/lib/ordinal";
 
 /**
  * What a part of the mechanics editor starts as when the DM adds it, and how it
@@ -166,7 +167,7 @@ export const SPELL_LIST_CLASSES = ["Artificer", "Bard", "Cleric", "Druid", "Pala
 
 export const SPELL_LEVEL_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
   { value: 0, label: "Cantrips" },
-  ...["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"].map((label, i) => ({ value: i + 1, label })),
+  ...Array.from({ length: 9 }, (_, i) => ({ value: i + 1, label: ordinal(i + 1) })),
 ];
 
 /** The standard lists, then any other name already on the pick (a homebrew class), each once. */

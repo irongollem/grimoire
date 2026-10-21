@@ -32,5 +32,15 @@ export const RAVENLOFT_CALENDAR: SettingCalendarDef = {
       description: "The most dreaded night in Ravenloft: the dead rise from their graves and the Mists swallow entire villages. No one ventures out alone.",
     },
   ],
+  // Lore gives no moon cycle; a plain 28-day moon anchored on a convention date. Seasons are a convention.
+  moons: [
+    { name: "The Moon", cycleDays: 28, fullOn: { year: 735, month: 1, day: 15 }, color: "#e4dfd2" },
+  ],
+  seasons: [
+    { name: "Spring", startsOn: { month: 3, day: 1 } },
+    { name: "Summer", startsOn: { month: 6, day: 1 } },
+    { name: "Autumn", startsOn: { month: 9, day: 1 } },
+    { name: "Winter", startsOn: { month: 12, day: 1 } },
+  ],
   leapYearRule: "none",
 };

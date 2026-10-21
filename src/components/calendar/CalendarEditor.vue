@@ -184,6 +184,20 @@
       </div>
     </div>
 
+    <CalendarMoonsEditor
+      :model-value="def.moons ?? []"
+      :months="def.months"
+      :intercalary-days="def.intercalaryDays"
+      :default-year="def.defaultYear"
+      @update:model-value="def.moons = $event"
+    />
+
+    <CalendarSeasonsEditor
+      :model-value="def.seasons ?? []"
+      :months="def.months"
+      @update:model-value="def.seasons = $event"
+    />
+
     <!-- Validation hint -->
     <p v-if="validationMessage" class="text-caption text-destructive">{{ validationMessage }}</p>
   </div>
@@ -196,11 +210,14 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import CalendarMoonsEditor from "@/components/calendar/CalendarMoonsEditor.vue";
+import CalendarSeasonsEditor from "@/components/calendar/CalendarSeasonsEditor.vue";
 import {
   listCalendarAdapters,
   getCalendarAdapter,
   createDefaultCustomCalendarDef,
 } from "@/settings/index";
+import { customCalendarProblem, withoutMonth } from "@/lib/calendar/customCalendar";
 import type { SettingCalendarDef, SettingMonthDef } from "@/settings/types";
 
 const def = defineModel<SettingCalendarDef>({ required: true });
@@ -299,6 +316,8 @@ function onSeed(presetId: string) {
       isLeapOnly: d.isLeapOnly,
     })),
     leapYearRule: adapter.isLeapYear(4) ? "every4" : "none",
+    moons: structuredClone(adapter.moons),
+    seasons: structuredClone(adapter.seasons),
   };
   def.value = seeded;
 }
@@ -312,10 +331,7 @@ function addMonth() {
 }
 
 function removeMonth(i: number) {
-  def.value.months.splice(i, 1);
-  for (const d of def.value.intercalaryDays) {
-    if (d.afterMonth > def.value.months.length) d.afterMonth = def.value.months.length;
-  }
+  def.value = withoutMonth(def.value, i);
 }
 
 function addIntercalary() {
@@ -327,7 +343,17 @@ function addIntercalary() {
 }
 
 function removeIntercalary(i: number) {
-  def.value.intercalaryDays.splice(i, 1);
+  const [removed] = def.value.intercalaryDays.splice(i, 1);
+  if (!removed) return;
+  // A festival anchor must never dangle: re-date it on the last day of the month it followed.
+  const afterMonth = Math.min(Math.max(1, removed.afterMonth), Math.max(1, def.value.months.length));
+  const len = def.value.months[afterMonth - 1]?.days ?? 1;
+  for (const moon of def.value.moons ?? []) {
+    const anchor = moon.fullOn;
+    if ("festival" in anchor && anchor.festival === removed.name) {
+      moon.fullOn = { year: anchor.year, month: afterMonth, day: len };
+    }
+  }
 }
 
 const totalDays = computed(() => {
@@ -336,14 +362,5 @@ const totalDays = computed(() => {
   return monthSum + nonLeapInter;
 });
 
-const validationMessage = computed(() => {
-  if (!def.value.name.trim()) return "Calendar name is required.";
-  if (!def.value.epochName.trim()) return "Epoch is required (e.g. \"AY\").";
-  if (def.value.months.length === 0) return "At least one month is required.";
-  if (def.value.months.some((m) => !m.name.trim())) return "Every month needs a name.";
-  if (def.value.months.some((m) => !m.days || m.days < 1)) return "Every month needs at least 1 day.";
-  return null;
-});
-
-defineExpose({ validationMessage });
+const validationMessage = computed(() => customCalendarProblem(def.value));
 </script>

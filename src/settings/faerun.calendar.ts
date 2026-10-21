@@ -28,5 +28,16 @@ export const FAERUN_CALENDAR: SettingCalendarDef = {
     { name: "Highharvestide",   afterMonth: 9,  description: "An autumn harvest festival of feasting and thanks." },
     { name: "Feast of the Moon",afterMonth: 11, description: "A solemn festival to honour the dead and remember those who have passed." },
   ],
+  // Selune: lore puts a full moon on Midwinter 1372 DR, anchored on the festival itself.
+  // Seasons are the Harptos equinoxes and solstices (Ches 19, Kythorn 20, Eleint 21, Nightal 20).
+  moons: [
+    { name: "Selûne", cycleDays: 30.4375, fullOn: { year: 1372, festival: "Midwinter" }, color: "#dfe3ec" },
+  ],
+  seasons: [
+    { name: "Spring", startsOn: { month: 3, day: 19 } },
+    { name: "Summer", startsOn: { month: 6, day: 20 } },
+    { name: "Autumn", startsOn: { month: 9, day: 21 } },
+    { name: "Winter", startsOn: { month: 12, day: 20 } },
+  ],
   leapYearRule: "every4",
 };

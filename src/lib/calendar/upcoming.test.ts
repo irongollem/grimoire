@@ -25,6 +25,8 @@ const TEST_ADAPTER: CalendarAdapter = {
     { name: "Leap Day", afterMonth: 2, description: "Only in a leap year", isLeapOnly: true },
   ],
   weekSize: 10,
+  moons: [],
+  seasons: [],
   isLeapYear: (year) => year % 4 === 0, // 2000 and 2004 are leap; 2001-2003 are not
   formatDate: (year, month, day, festivalDay) =>
     festivalDay ? `${festivalDay} ${year}` : `${month}/${day}/${year}`,

@@ -126,7 +126,7 @@
       </div>
       <div class="grid grid-cols-3 gap-2">
         <label v-for="lvl in 9" :key="lvl" class="flex flex-col items-center gap-1">
-          <span class="text-label font-semibold text-muted-foreground">{{ SLOT_LEVEL_LABELS[lvl - 1] }}</span>
+          <span class="text-label font-semibold text-muted-foreground">{{ ordinal(lvl) }}</span>
           <AppInput v-model.number="spellSlotMaxes[lvl - 1]" type="number" min="0" max="9" tone="filled" size="body" align="center" class="px-1" />
         </label>
       </div>
@@ -185,7 +185,8 @@ import { useArmorClass } from "@/composables/party/useArmorClass";
 import AcFormField from "@/components/party/AcFormField.vue";
 import type { PartyMember } from "@/types/party.types";
 import { darkvisionFeet } from "@/rules/speciesStats";
-import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/rules/characterCreation";
+import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS } from "@/rules/characterCreation";
+import { ordinal } from "@/lib/ordinal";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";

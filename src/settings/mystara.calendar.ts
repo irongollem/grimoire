@@ -26,5 +26,15 @@ export const MYSTARA_CALENDAR: SettingCalendarDef = {
     { name: "Harvest Festival",     afterMonth: 9,  description: "A four-day harvest celebration observed throughout the Known World. Trade caravans converge on market cities." },
     { name: "Kaldmont Festival",    afterMonth: 12, description: "The midwinter feast and gift-giving tradition that closes the Thyatian year. Nobles open their halls to the poor; temples offer free meals." },
   ],
+  // Matera's anchor is a convention; seasons are a convention.
+  moons: [
+    { name: "Matera", cycleDays: 28, fullOn: { year: 1000, month: 1, day: 15 }, color: "#e6e4dc" },
+  ],
+  seasons: [
+    { name: "Spring", startsOn: { month: 3, day: 1 } },
+    { name: "Summer", startsOn: { month: 6, day: 1 } },
+    { name: "Autumn", startsOn: { month: 9, day: 1 } },
+    { name: "Winter", startsOn: { month: 12, day: 1 } },
+  ],
   leapYearRule: "none",
 };

@@ -47,6 +47,7 @@ import { computed } from "vue";
 import { slotPool, spellSlotKey, type SpellSlotPool } from "@/rules/spellSlots";
 import { usedAfterPipTap } from "@/rules/spellSlotPips";
 import type { SpellSlotEntry } from "@/types/party.types";
+import { ordinal } from "@/lib/ordinal";
 
 const { spellSlots, disabled = false } = defineProps<{
   spellSlots: SpellSlotEntry[];
@@ -55,7 +56,6 @@ const { spellSlots, disabled = false } = defineProps<{
 
 const emit = defineEmits<{ "set-used": [slot: SpellSlotEntry, used: number] }>();
 
-const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 const POOL_ORDER: readonly SpellSlotPool[] = ["spellcasting", "pact", "feature", "temporary"];
 const POOL_NAME: Record<SpellSlotPool, string> = {
   spellcasting: "",
@@ -65,7 +65,7 @@ const POOL_NAME: Record<SpellSlotPool, string> = {
 };
 
 function labelFor(slot: SpellSlotEntry): string {
-  const level = ORDINALS[slot.level - 1] ?? `Level ${slot.level}`;
+  const level = ordinal(slot.level);
   const pool = slotPool(slot);
   return pool === "spellcasting" ? `${level} level` : `${POOL_NAME[pool]} ${level}`;
 }

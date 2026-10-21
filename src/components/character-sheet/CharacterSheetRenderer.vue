@@ -225,7 +225,7 @@
           <div class="cs-section-body">
             <div class="cs-slot-grid">
               <div v-for="slot in member.spell_slots" :key="slot.level" class="cs-slot-entry">
-                <div class="cs-slot-level">{{ ORDINALS[slot.level - 1] }}</div>
+                <div class="cs-slot-level">{{ ordinal(slot.level) }}</div>
                 <div class="cs-slot-pips">
                   <span
                     v-for="i in slot.max"
@@ -307,6 +307,7 @@ import type { PartyInventoryItem } from "@/types/inventory.types";
 import { formatHitDicePool, sheetCastingAbility, sheetHitDice, type SheetClassInput } from "@/rules/sheetClassData";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { SheetPageSize, SheetTheme } from "@/components/character-sheet/illustrated/sheetTypes";
+import { ordinal } from "@/lib/ordinal";
 
 // `ac` is passed in (not derived here) because this component is also
 // mounted via a bare createApp for PDF export, where query composables
@@ -342,8 +343,6 @@ const COINS = [
   { key: "sp" as keyof PartyMember, label: "SP" },
   { key: "cp" as keyof PartyMember, label: "CP" },
 ] as const;
-
-const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
 // ── Data resolution ────────────────────────────────────────────────────────────
 

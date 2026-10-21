@@ -81,7 +81,7 @@
         <div class="flex flex-wrap gap-1.5">
           <span v-for="(max, idx) in spellSlotMaxes" v-show="max > 0" :key="idx"
             class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary">
-            {{ SLOT_LEVEL_LABELS[idx] }}: {{ max }}
+            {{ ordinal(idx + 1) }}: {{ max }}
           </span>
         </div>
       </div>
@@ -163,7 +163,8 @@ import { computed } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import LevelUpChoices from "@/components/features/LevelUpChoices.vue";
-import { ABILITY_STATS, SLOT_LEVEL_LABELS, type AbilityKey } from "@/rules/characterCreation";
+import { ABILITY_STATS, type AbilityKey } from "@/rules/characterCreation";
+import { ordinal } from "@/lib/ordinal";
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();

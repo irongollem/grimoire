@@ -25,7 +25,7 @@
           @click="selectedKey = spellSlotKey(slot)"
         >
           <div class="flex flex-col items-center">
-            <span>{{ SLOT_LEVEL_LABELS[slot.level - 1] }}</span>
+            <span>{{ ordinal(slot.level) }}</span>
             <span class="text-caption-sm font-normal opacity-70">{{ poolLabel(slot) }}</span>
             <span class="text-caption-sm font-normal opacity-70">{{ slot.max - slot.used }} of {{ slot.max }} left</span>
             <span v-if="scaledDiceLabel(slot.level)" class="text-caption-sm font-normal mt-0.5 opacity-80">
@@ -60,8 +60,7 @@ import { scaleExpression } from "@/lib/dice/dice";
 import { spellSlotKey, slotPool } from "@/rules/spellSlots";
 import type { CharacterSpellEntry } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
-
-const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
+import { ordinal } from "@/lib/ordinal";
 
 const { entry, spellSlots, isCasting = false } = defineProps<{
   entry: CharacterSpellEntry | null;

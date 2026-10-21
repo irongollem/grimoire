@@ -25,5 +25,8 @@ export const SPELLJAMMER_CALENDAR: SettingCalendarDef = {
     { name: "Great Market",            afterMonth: 6,  description: "The annual festival on the Rock of Bral. Ships from dozens of crystal spheres gather to trade, race spelljammers, and seek new crew." },
     { name: "Night of Shooting Stars", afterMonth: 9,  description: "A single night when an unusual number of meteors streak across every crystal sphere. Navigators use it to verify star charts." },
   ],
+  // Wildspace has no single sky or seasons; a campaign sets its own on a custom calendar.
+  moons: [],
+  seasons: [],
   leapYearRule: "none",
 };

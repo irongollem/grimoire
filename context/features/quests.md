@@ -1043,7 +1043,9 @@ on the log.
   definition too malformed to read) is stored as null and never fires.
 - **A calendar switch restamps what is waiting** (`campaigns_calendar_restamps_due_consequences`,
   which sorts before the firing trigger) and fires anything now due, since the
-  client always read the wait on the current calendar.
+  client always read the wait on the current calendar. It fires only when
+  `private.calendar_shape` changes (`20261021163240`), so editing a custom
+  calendar's moons or seasons (#1086), which no due date reads, restamps nothing.
 - **An action that cannot be performed aborts the date change with it**, as it
   aborts a beat advance. Nothing is left half-applied behind a date that moved on.
 - **No client watches for it any more.** `useDueConsequences` (the DM shell's

@@ -25,5 +25,15 @@ export const DARKSUN_CALENDAR: SettingCalendarDef = {
     { name: "Day of Rest",                 afterMonth: 8,  description: "The sole intercalary day all city-states observe. Even slave labour halts. Defilers and preservers alike feel the draw of the dying land on this day." },
     { name: "Storm's Crown",               afterMonth: 11, description: "The peak of Wind & Fire season; violent dust storms sweep the Tablelands. Caravans shelter and psions meditate on the Way amidst the howling dark." },
   ],
+  // Ral and Guthay share a convention anchor (both full on 1 month 1 of 190). Three seasons from the month aliases.
+  moons: [
+    { name: "Ral", cycleDays: 33, fullOn: { year: 190, month: 1, day: 1 }, color: "#8fbf6a" },
+    { name: "Guthay", cycleDays: 125, fullOn: { year: 190, month: 1, day: 1 }, color: "#e2b64c" },
+  ],
+  seasons: [
+    { name: "High Sun", startsOn: { month: 1, day: 1 } },
+    { name: "Low Sun", startsOn: { month: 5, day: 1 } },
+    { name: "Wind & Fire", startsOn: { month: 9, day: 1 } },
+  ],
   leapYearRule: "none",
 };

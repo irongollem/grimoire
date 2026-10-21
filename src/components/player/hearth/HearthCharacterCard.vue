@@ -96,6 +96,7 @@ import { useMemberVitals } from "@/composables/party/useMemberVitals";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { characterSummary } from "@/lib/partyMemberDisplay";
+import { ordinal } from "@/lib/ordinal";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { getExhaustionLevel, isExhaustion } from "@/rules/conditions";
 import type { PartyMember } from "@/types/party.types";
@@ -131,18 +132,17 @@ const otherConditions = computed(() =>
   member.conditions.filter((c) => !isExhaustion(c)),
 );
 
-const ORDINALS = ["", "1st", "2nd", "3rd"];
 const slotGroups = computed(() =>
   member.spell_slots
     .filter((s) => s.max > 0)
     .map((s, i) => {
-      const ordinal = ORDINALS[s.level] || `${s.level}th`;
+      const levelOrdinal = ordinal(s.level);
       return {
         key: `${s.level}-${s.pool ?? "spellcasting"}-${i}`,
-        ordinal,
+        ordinal: levelOrdinal,
         max: s.max,
         used: Math.min(s.used, s.max),
-        label: `${ordinal} level slots, ${s.max - Math.min(s.used, s.max)} of ${s.max} left`,
+        label: `${levelOrdinal} level slots, ${s.max - Math.min(s.used, s.max)} of ${s.max} left`,
       };
     }),
 );

@@ -21,8 +21,6 @@ export type CharacterFormState = Omit<PartyMemberInsert, "sort_order" | "portrai
   subclass: string;
 };
 
-export const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
-
 export const EDIT_TABS = [
   { id: "identity", label: "Identity" },
   { id: "stats",    label: "Stats" },

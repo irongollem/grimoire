@@ -13,6 +13,8 @@ const ADAPTER: CalendarAdapter = {
   ],
   intercalaryDays: [],
   weekSize: 10,
+  moons: [],
+  seasons: [],
   isLeapYear: () => false,
   formatDate: () => "",
 };

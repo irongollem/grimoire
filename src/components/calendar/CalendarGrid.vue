@@ -40,6 +40,7 @@
             {{ calendar.adapter.epochName }}
           </p>
         </div>
+        <p v-if="seasonLine" class="text-caption text-muted-foreground mt-0.5">{{ seasonLine }}</p>
       </div>
 
       <div class="flex items-center gap-1 shrink-0">
@@ -84,44 +85,17 @@
           {{ weekRowLabel(rowIdx) }}
         </p>
         <div :class="gridColsClass" :style="gridColsStyle" class="cal-week grid gap-1">
-          <div
+          <CalendarDayCell
             v-for="(day, colIdx) in row"
             :key="colIdx"
-            class="cal-day relative rounded-md border min-h-14 p-1.5 flex flex-col transition-colors"
-            :class="[
-              day !== null && !readOnly
-                ? 'border-border bg-card hover:border-primary/50 cursor-pointer'
-                : day !== null
-                  ? 'border-border bg-card'
-                  : 'border-transparent bg-transparent',
-              day !== null && hasEvents(day) ? 'has-events ring-1 ring-primary/40' : '',
-              day !== null && day === todayDayInView ? 'is-today ring-2 ring-primary bg-primary/5' : '',
-              day === null && 'is-blank',
-            ]"
-            @click="!readOnly && day !== null && emit('create-event', day)"
-          >
-            <span
-              v-if="day !== null"
-              class="text-label-lg font-semibold leading-none"
-              :class="day === todayDayInView ? 'text-primary' : 'text-muted-foreground'"
-            >
-              {{ day }}
-            </span>
-            <span
-              v-if="day === todayDayInView"
-              class="absolute top-0.5 right-1 text-eyebrow font-bold text-primary uppercase leading-none"
-            >today</span>
-            <!-- Event dots -->
-            <div v-if="day !== null" class="flex flex-wrap gap-0.5 mt-auto pt-1">
-              <span
-                v-for="event in eventsForDay(day)"
-                :key="event.id"
-                :title="event.title"
-                :style="{ backgroundColor: eventColor(event) }"
-                class="w-1.5 h-1.5 rounded-full"
-              />
-            </div>
-          </div>
+            :day="day"
+            :is-today="day !== null && day === todayDayInView"
+            :read-only="readOnly"
+            :events="day !== null ? eventsForDay(day) : []"
+            :peaks="day !== null ? peaksForDay(day) : []"
+            :season-start="day !== null ? (seasonStartByDay.get(day) ?? null) : null"
+            @create="emit('create-event', day as number)"
+          />
         </div>
       </div>
 
@@ -142,6 +116,12 @@
         </div>
         <p class="text-body text-muted-foreground italic">
           {{ festival.description }}
+        </p>
+        <p v-if="festivalPeaks(festival.name).length" class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
+          <span v-for="(m, mi) in festivalPeaks(festival.name)" :key="mi" class="inline-flex items-center gap-1">
+            <MoonPhaseIcon :age="m.age" :color="m.moon.color" class="h-3 w-3" />
+            {{ m.moon.name }}: {{ m.peak }} moon
+          </span>
         </p>
         <!-- Festival events -->
         <div v-if="eventsForFestival(festival.name).length" class="mt-2 flex flex-wrap gap-1.5">
@@ -208,10 +188,15 @@ import { RouterLink } from "vue-router";
 import { IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
+import { moonsForMonth, moonsOn } from "@/lib/calendar/moons";
+import { seasonOn, seasonStartsInMonth } from "@/lib/calendar/seasons";
+import { ordinal } from "@/lib/ordinal";
 import { useCalendarEvents } from "@/composables/calendar/useCalendarEvents";
 import { linkedEntityType, linkedEntityId, eventColor } from "@/types/calendar.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import CalendarDayCell from "@/components/calendar/CalendarDayCell.vue";
+import MoonPhaseIcon from "@/components/calendar/MoonPhaseIcon.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
 
@@ -341,8 +326,39 @@ function eventsForDay(day: number): CalendarEvent[] {
   return (events.value ?? []).filter((e) => dayIsInEvent(e, calendar.currentMonth, day));
 }
 
-function hasEvents(day: number): boolean {
-  return eventsForDay(day).length > 0;
+// Moons and seasons (#1086). One pass per month view; a cell reads from it.
+const monthMoons = computed(() =>
+  calendar.adapter.moons.length
+    ? moonsForMonth(calendar.adapter, calendar.currentYear, calendar.currentMonth)
+    : [],
+);
+function peaksForDay(day: number) {
+  return (monthMoons.value[day - 1] ?? []).filter((m) => m.peak !== null);
+}
+
+const seasonStarts = computed(() =>
+  calendar.adapter.seasons.length
+    ? seasonStartsInMonth(calendar.adapter, calendar.currentYear, calendar.currentMonth)
+    : [],
+);
+const seasonStartByDay = computed(
+  () => new Map(seasonStarts.value.map((s) => [s.day, s.season.name])),
+);
+
+/** "Winter", or "Winter · Spring from the 19th" when a season turns mid-month. */
+const seasonLine = computed(() => {
+  const first = seasonOn(calendar.adapter, calendar.currentYear, calendar.currentMonth, 1, null);
+  const turns = seasonStarts.value.filter((s) => s.day > 1);
+  const parts = [
+    ...(first ? [first.season.name] : []),
+    ...turns.map((s) => `${s.season.name} from the ${ordinal(s.day)}`),
+  ];
+  return parts.join(" · ");
+});
+
+/** Moons that are full or new on this festival day; the banner shows only those. */
+function festivalPeaks(name: string) {
+  return moonsOn(calendar.adapter, calendar.currentYear, null, null, name).filter((m) => m.peak !== null);
 }
 
 function eventsForFestival(festivalName: string): CalendarEvent[] {

@@ -5,7 +5,13 @@
  * formatDate, weekdayOffset) are derived by calendarDefToAdapter().
  */
 
-import type { CalendarAdapter, CalendarMonth, IntercalaryDay } from "@/types/calendar.types";
+import type {
+  CalendarAdapter,
+  CalendarMonth,
+  CalendarMoon,
+  CalendarSeason,
+  IntercalaryDay,
+} from "@/types/calendar.types";
 import type { LocationType } from "@/types/location.types";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 
@@ -50,6 +56,10 @@ export interface SettingCalendarDef {
   months: SettingMonthDef[];
   intercalaryDays: SettingIntercalaryDef[];
   leapYearRule: LeapYearRule;
+  /** Optional because a custom calendar saved before #1086 has neither key;
+   *  `calendarDefToAdapter` reads an absent list as empty. */
+  moons?: CalendarMoon[];
+  seasons?: CalendarSeason[];
 }
 
 // ── Atlas locations ─────────────────────────────────────────────────────────
@@ -221,6 +231,8 @@ export function calendarDefToAdapter(id: string, c: SettingCalendarDef): Calenda
     weekdayOffset,
     isLeapYear,
     formatDate,
+    moons: (c.moons ?? []).map((m) => ({ ...m, fullOn: { ...m.fullOn } })),
+    seasons: (c.seasons ?? []).map((s) => ({ ...s, startsOn: { ...s.startsOn } })),
   };
 }
 
@@ -239,5 +251,7 @@ export function createDefaultCustomCalendarDef(): SettingCalendarDef {
     })),
     intercalaryDays: [],
     leapYearRule: "none",
+    moons: [],
+    seasons: [],
   };
 }

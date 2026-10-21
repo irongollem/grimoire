@@ -14,6 +14,7 @@ import type {
   UsesAmount,
 } from "@/rules/features/mechanics.types";
 import { ABILITY_LABELS } from "@/types/card.types";
+import { ordinal } from "@/lib/ordinal";
 import { ACTIVATION_LABELS } from "@/types/feature.types";
 
 /**
@@ -82,12 +83,6 @@ function describeRider(rider: DamageRider): string {
 function joinNames(names: readonly string[]): string {
   if (names.length <= 1) return names.join("");
   return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
-}
-
-function ordinal(n: number): string {
-  const suffixes: Record<number, string> = { 1: "st", 2: "nd", 3: "rd" };
-  const tail = n >= 11 && n <= 13 ? "th" : Object.hasOwn(suffixes, n % 10) ? suffixes[n % 10] : "th";
-  return `${n}${tail}`;
 }
 
 /** "cantrips from the Wizard list"; the count wording ("2 each time") is the caller's. */
