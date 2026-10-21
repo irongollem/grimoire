@@ -25,6 +25,7 @@ function place(over: Partial<Location> = {}): Location {
     id: "level-1", user_id: "u", campaign_id: "c", parent_id: "site-1", name: "First Floor",
     location_type: "building", description: null, notes: null, tags: [],
     climate: null,
+    terrain: null,
     image_url: null, map_url: null, map_pins: [], is_map_shared: false,
     player_visible_to: [], player_summary: null, is_description_shared: false,
     is_npcs_shared: false, is_inventory_shared: false, npc_owner_id: null,

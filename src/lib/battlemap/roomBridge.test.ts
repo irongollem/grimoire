@@ -32,6 +32,7 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     name: "Test Location",
     location_type: "room",
     climate: null,
+    terrain: null,
     description: null,
     notes: null,
     tags: [],
@@ -138,6 +139,7 @@ describe("resolveBattleSurface", () => {
       id: "loc-1",
       location_type: "dungeon",
       climate: null,
+      terrain: null,
       map_url: "https://example.test/map.webp",
       grid_calibration: calibration,
     });
@@ -159,6 +161,7 @@ describe("resolveBattleSurface", () => {
       const location = makeLocation({
         location_type: "dungeon",
         climate: null,
+        terrain: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_stand_url: "https://example.test/stand.webp",
         map_layer_calibration: makeCalibration(),
@@ -174,6 +177,7 @@ describe("resolveBattleSurface", () => {
         id: "site-1",
         location_type: "dungeon",
         climate: null,
+        terrain: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_stand_url: "https://example.test/stand.webp",
         map_layer_calibration: makeCalibration(),
@@ -186,6 +190,7 @@ describe("resolveBattleSurface", () => {
       const drawing = makeLocation({
         location_type: "dungeon",
         climate: null,
+        terrain: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_stand_url: "https://example.test/stand.webp",
         map_layer_stand_live_url: "https://example.test/stand-live.webp",
@@ -197,6 +202,7 @@ describe("resolveBattleSurface", () => {
       const picture = makeLocation({
         location_type: "dungeon",
         climate: null,
+        terrain: null,
         map_url: "https://example.test/picture.webp",
         grid_calibration: makeCalibration(),
         map_layer_stand_live_url: "https://example.test/stand-live.webp",
@@ -208,6 +214,7 @@ describe("resolveBattleSurface", () => {
       const picture = makeLocation({
         location_type: "dungeon",
         climate: null,
+        terrain: null,
         map_url: "https://example.test/picture.webp",
         grid_calibration: makeCalibration(),
         map_layer_stand_url: "https://example.test/stand.webp",
@@ -216,6 +223,7 @@ describe("resolveBattleSurface", () => {
       const old = makeLocation({
         location_type: "dungeon",
         climate: null,
+        terrain: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_calibration: makeCalibration(),
       });
@@ -238,6 +246,7 @@ describe("resolveBattleSurface", () => {
       const location = makeLocation({
         location_type: "dungeon",
         climate: null,
+        terrain: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_calibration: makeCalibration(),
         map_live: live,
@@ -251,6 +260,7 @@ describe("resolveBattleSurface", () => {
         id: "site-1",
         location_type: "dungeon",
         climate: null,
+        terrain: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_calibration: makeCalibration(),
         map_live: live,
@@ -263,6 +273,7 @@ describe("resolveBattleSurface", () => {
       const location = makeLocation({
         location_type: "dungeon",
         climate: null,
+        terrain: null,
         map_url: "https://example.test/picture.webp",
         grid_calibration: makeCalibration(),
         map_live: live,
@@ -277,6 +288,7 @@ describe("resolveBattleSurface", () => {
       id: "loc-1",
       location_type: "dungeon",
       climate: null,
+      terrain: null,
       map_url: "https://example.test/picture.webp",
       grid_calibration: makeCalibration({ cells_per_image_width: 10 }),
       map_layer_url: "https://example.test/drawing.webp",
@@ -293,6 +305,7 @@ describe("resolveBattleSurface", () => {
       id: "loc-1",
       location_type: "dungeon",
       climate: null,
+      terrain: null,
       map_layer_url: "https://example.test/drawing.webp",
       map_layer_calibration: calibration,
     });
@@ -309,6 +322,7 @@ describe("resolveBattleSurface", () => {
       id: "site-1",
       location_type: "dungeon",
       climate: null,
+      terrain: null,
       map_url: "https://example.test/site.webp",
       grid_calibration: calibration,
     });
@@ -341,6 +355,7 @@ describe("resolveBattleSurface", () => {
       id: "site-1",
       location_type: "dungeon",
       climate: null,
+      terrain: null,
       map_url: "https://example.test/site.webp",
       grid_calibration: calibration,
     });

@@ -12,6 +12,7 @@ function location(over: Partial<Location> = {}): Location {
     name: "Nave of Ash",
     location_type: "room",
     climate: null,
+    terrain: null,
     description: null,
     notes: null,
     tags: [],

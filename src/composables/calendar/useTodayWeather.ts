@@ -1,10 +1,11 @@
 import { computed, type ComputedRef } from "vue";
 import { useAllLocations, useSharedLocations } from "@/composables/locations/useLocations";
 import { weatherForecast, type ForecastDay } from "@/lib/calendar/forecast";
-import { climateAt, weatherOn, type ClimatePlace, type Weather } from "@/lib/calendar/weather";
+import { hazardsOn, terrainAt, type Hazard, type TerrainPlace } from "@/lib/calendar/weatherHazards";
+import { climateAt, weatherOn, type ClimatePlace, type Weather, type WeatherPin } from "@/lib/calendar/weather";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
-import type { Climate } from "@/types/calendar.types";
+import type { Climate, Terrain } from "@/types/calendar.types";
 
 export interface TodayWeather {
   weather: Weather;
@@ -21,6 +22,10 @@ export interface WeatherSource {
   placeName: string | null;
   /** What the weather is seeded on, so today and the forecast cannot disagree. */
   seed: string;
+  /** The terrain at the party's place (its own or an ancestor's); null when none is named. */
+  terrain: Terrain | null;
+  /** The DM's pins for this climate source only, which is all `weatherOn` should see. */
+  pins: WeatherPin[];
 }
 
 /**
@@ -38,9 +43,9 @@ export function useWeatherSource(options: { player?: boolean } = {}): ComputedRe
   const places = options.player ? useSharedLocations() : useAllLocations();
 
   const index = computed(() => {
-    const map = new Map<string, ClimatePlace & { name: string }>();
+    const map = new Map<string, ClimatePlace & TerrainPlace & { name: string }>();
     for (const p of places.data.value ?? []) {
-      map.set(p.id, { id: p.id, parent_id: p.parent_id, climate: p.climate, name: p.name });
+      map.set(p.id, { id: p.id, parent_id: p.parent_id, climate: p.climate, terrain: p.terrain ?? null, name: p.name });
     }
     return map;
   });
@@ -54,6 +59,8 @@ export function useWeatherSource(options: { player?: boolean } = {}): ComputedRe
       sourceId,
       placeName: sourceId === null ? null : (index.value.get(sourceId)?.name ?? null),
       seed: `${active.id}:${sourceId ?? "campaign"}`,
+      terrain: terrainAt(index.value, active.current_location_id ?? null),
+      pins: (active.weather_pins ?? []).filter((pin) => pin.source === sourceId),
     };
   });
 }
@@ -71,7 +78,7 @@ export function useTodayWeather(options: { player?: boolean } = {}): ComputedRef
   return computed(() => {
     const s = source.value;
     if (!s) return null;
-    const weather = weatherOn(calendar.adapter, s.climate, s.seed, campaign.todayYear, campaign.todayMonth, campaign.todayDay, null);
+    const weather = weatherOn(calendar.adapter, s.climate, s.seed, campaign.todayYear, campaign.todayMonth, campaign.todayDay, null, s.pins);
     return weather ? { weather, climate: s.climate, sourceId: s.sourceId } : null;
   });
 }
@@ -86,6 +93,24 @@ export function useWeatherForecast(days = 5, options: { player?: boolean } = {})
     const s = source.value;
     if (!s) return [];
     const from = { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay };
-    return weatherForecast(calendar.adapter, s.climate, s.seed, from, days);
+    return weatherForecast(calendar.adapter, s.climate, s.seed, from, days, s.pins);
+  });
+}
+
+/**
+ * What today's weather and the days before it make dangerous where the party
+ * is (an avalanche on a mountain, a flood on low ground). Empty with no
+ * terrain, underground, or nothing to warn of. Computed locally like the rest.
+ */
+export function useWeatherHazards(options: { player?: boolean } = {}): ComputedRef<Hazard[]> {
+  const campaign = useCampaignStore();
+  const calendar = useCalendarStore();
+  const source = useWeatherSource(options);
+
+  return computed(() => {
+    const s = source.value;
+    if (!s) return [];
+    const today = { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay };
+    return hazardsOn(calendar.adapter, s.climate, s.terrain, s.seed, s.pins, today);
   });
 }

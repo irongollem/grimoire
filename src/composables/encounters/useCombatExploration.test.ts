@@ -12,6 +12,7 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     name: "Test Location",
     location_type: "room",
     climate: null,
+    terrain: null,
     description: null,
     notes: null,
     tags: [],

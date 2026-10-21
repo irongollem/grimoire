@@ -21,6 +21,7 @@ function place(over: Partial<Location> = {}): Location {
     name: "place",
     location_type: "region",
     climate: null,
+    terrain: null,
     description: null,
     notes: null,
     tags: [],

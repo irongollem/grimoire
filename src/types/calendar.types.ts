@@ -160,6 +160,15 @@ export const SEASON_KINDS: readonly SeasonKind[] = ["spring", "summer", "autumn"
 export type Climate = "polar" | "cold" | "temperate" | "warm" | "tropical" | "arid" | "underground";
 export const CLIMATES: readonly Climate[] = ["polar", "cold", "temperate", "warm", "tropical", "arid", "underground"];
 
+/**
+ * The lie of the land at a place, which is what decides the dangers weather
+ * can bring (an avalanche needs mountains, a flood needs low ground). Null on
+ * a place inherits from its parent, then means no particular terrain. Mirrors
+ * the check constraint in migration 20261021164506.
+ */
+export type Terrain = "mountains" | "hills" | "forest" | "plains" | "coast" | "wetland" | "desert";
+export const TERRAINS: readonly Terrain[] = ["mountains", "hills", "forest", "plains", "coast", "wetland", "desert"];
+
 export interface CalendarAdapter {
   id: string; // e.g. "faerun", "greyhawk"
   name: string; // display name, e.g. "Faerûn (Calendar of Harptos)"

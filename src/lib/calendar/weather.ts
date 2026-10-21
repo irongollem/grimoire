@@ -4,9 +4,9 @@ import { seasonOn } from "./seasons";
 
 /**
  * Weather for one in-world day (#1086). Flavour, not simulation: the same
- * campaign, place-climate and date always give the same sky (no Math.random,
- * no Date), so the DM and every player read the same forecast and it never
- * changes on a refresh. It drifts rather than flickers: three independent
+ * campaign, place-climate, pins and date always give the same sky (no
+ * Math.random, no Date), so the DM and every player read the same forecast and
+ * it never changes on a refresh. It drifts rather than flickers: three independent
  * channels (warmth, wetness, wind) are value noise over the absolute day
  * number, interpolated between knots a few days apart, so a storm builds, sits
  * for a day or three and clears.
@@ -135,6 +135,11 @@ const KNOT_SPACING = { temperature: 4, wetness: 3, wind: 3, fog: 2 } as const;
 const MAX_TEMPERATURE_INDEX = TEMPERATURES.length - 1;
 const COLD_INDEX = 1;
 const WARM_INDEX = 4;
+const POLAR_MAX_INDEX = 2;
+/** How far the warmth channel swings the base temperature, in steps. */
+const WARMTH_SWING = 3;
+
+export type WeatherClimate = Exclude<Climate, "underground">;
 
 function windFrom(n: number): Wind {
   if (n < 0.4) return "calm";
@@ -143,11 +148,229 @@ function windFrom(n: number): Wind {
   return "gale";
 }
 
+const isStrongWind = (w: Wind) => w === "strong" || w === "gale";
+const heavyThreshold = (climate: WeatherClimate, kind: SeasonKind) =>
+  climate === "tropical" && kind === "summer" ? 0.35 : 0.7;
+
+// ---- Channels: the raw numbers a day's weather is read from ---------------
+
+/**
+ * The four raw values a day's weather is read from. Natural ones are in [0, 1);
+ * a DM's pin may push warmth and wetness outside that, which is how a blizzard
+ * can be set in a tropical valley and then thaw back to the pattern.
+ */
+export interface WeatherChannels {
+  warmth: number;
+  wetness: number;
+  wind: number;
+  fog: number;
+}
+
+/** The natural channels for one seed on one absolute day. */
+export function channelsOn(seed: string, absoluteDay: number): WeatherChannels {
+  return {
+    warmth: noise(hashString(`${seed}|temperature`), absoluteDay, KNOT_SPACING.temperature),
+    wetness: noise(hashString(`${seed}|wetness`), absoluteDay, KNOT_SPACING.wetness),
+    wind: noise(hashString(`${seed}|wind`), absoluteDay, KNOT_SPACING.wind),
+    fog: noise(hashString(`${seed}|fog`), absoluteDay, KNOT_SPACING.fog),
+  };
+}
+
+/** Fog needs a still, damp-ish day in a climate with mist to give. */
+export function fogPossible(climate: Climate, w: Omit<Weather, "fog">): boolean {
+  const t = TEMPERATURES.indexOf(w.temperature);
+  return (
+    (climate === "temperate" || climate === "cold") &&
+    w.wind === "calm" &&
+    (w.precipitation === "none" || w.precipitation === "drizzle") &&
+    (t === COLD_INDEX || t === 2 || t === 3)
+  );
+}
+
+/** Weather from channels, for a climate and the season kind of the day. */
+export function weatherFromChannels(climate: WeatherClimate, kind: SeasonKind, ch: WeatherChannels): Weather {
+  let tempIndex = Math.round(BASE_TEMPERATURE[climate][kind] + (ch.warmth - 0.5) * WARMTH_SWING);
+  tempIndex = Math.max(0, Math.min(MAX_TEMPERATURE_INDEX, tempIndex));
+  // Polar air never gets warmer than cool, whatever the noise says.
+  if (climate === "polar") tempIndex = Math.min(tempIndex, POLAR_MAX_INDEX);
+
+  const wind = windFrom(ch.wind);
+  const threshold = 1 - WET_SHARE[climate][kind];
+  const excess = ch.wetness > threshold ? (ch.wetness - threshold) / (1 - threshold) : 0;
+
+  let precipitation: Precipitation = "none";
+  if (excess > 0) {
+    const level = excess < 0.3 ? 0 : excess < heavyThreshold(climate, kind) ? 1 : 2;
+    if (tempIndex <= COLD_INDEX) {
+      precipitation = level === 2 && isStrongWind(wind) ? "blizzard" : "snow";
+    } else {
+      precipitation = (["drizzle", "rain", "downpour"] as const)[level];
+    }
+  } else if (climate === "arid" && isStrongWind(wind) && tempIndex >= WARM_INDEX && ch.wetness > 0.35) {
+    // Hot dry wind lifts the sand.
+    precipitation = "dust";
+  }
+
+  const partial = { temperature: TEMPERATURES[tempIndex], precipitation, wind };
+  const fog = fogPossible(climate, partial) && ch.fog > 0.8;
+  return { ...partial, fog };
+}
+
+// ---- What a DM can ask for -------------------------------------------------
+
+/** The temperatures a climate can show: polar air never gets warmer than cool. */
+export function allowedTemperatures(climate: Climate): readonly Temperature[] {
+  return climate === "polar" ? TEMPERATURES.slice(0, POLAR_MAX_INDEX + 1) : TEMPERATURES;
+}
+
+/**
+ * The precipitation that can fall at a temperature: snow only at freezing or
+ * cold, rain only above that, and dust only in an arid climate when it is
+ * warm. (Blizzard and dust also need a strong wind; `coerceWeather` supplies it.)
+ */
+export function allowedPrecipitation(climate: Climate, temperature: Temperature): readonly Precipitation[] {
+  const t = TEMPERATURES.indexOf(temperature);
+  if (t <= COLD_INDEX) return ["none", "snow", "blizzard"];
+  const wet: Precipitation[] = ["none", "drizzle", "rain", "downpour"];
+  return climate === "arid" && t >= WARM_INDEX ? [...wet, "dust"] : wet;
+}
+
+/**
+ * The nearest weather the climate can actually produce: temperature capped,
+ * precipitation reset to dry when it does not fit the temperature, a blizzard
+ * or dust storm given the strong wind it needs, fog dropped where it cannot
+ * form. A weather that is already reachable comes back unchanged.
+ */
+export function coerceWeather(climate: Climate, w: Weather): Weather {
+  const temps = allowedTemperatures(climate);
+  const temperature = temps.includes(w.temperature) ? w.temperature : temps[temps.length - 1];
+  const precipitation = allowedPrecipitation(climate, temperature).includes(w.precipitation) ? w.precipitation : "none";
+  let wind = w.wind;
+  if ((precipitation === "blizzard" || precipitation === "dust") && !isStrongWind(wind)) wind = "strong";
+  const base = { temperature, precipitation, wind };
+  return { ...base, fog: w.fog && fogPossible(climate, base) };
+}
+
+/**
+ * The inverse of `weatherFromChannels`: channels that read back as exactly
+ * this weather (after `coerceWeather`), each at the middle of its band so a
+ * small drift does not tip it into the next one. Warmth is not limited to
+ * [0, 1], so any temperature the climate allows can be asked for.
+ */
+export function channelsFor(climate: WeatherClimate, kind: SeasonKind, weather: Weather): WeatherChannels {
+  const w = coerceWeather(climate, weather);
+  const warmth = (TEMPERATURES.indexOf(w.temperature) - BASE_TEMPERATURE[climate][kind]) / WARMTH_SWING + 0.5;
+  const wind = { calm: 0.2, breeze: 0.575, strong: 0.835, gale: 0.96 }[w.wind];
+
+  const threshold = 1 - WET_SHARE[climate][kind];
+  const heavy = heavyThreshold(climate, kind);
+  const wetAt = (excess: number) => threshold + excess * (1 - threshold);
+  const wetness = {
+    none: Math.min(threshold * 0.5, 0.3),
+    dust: 0.5,
+    drizzle: wetAt(0.15),
+    rain: wetAt((0.3 + heavy) / 2),
+    snow: wetAt((0.3 + heavy) / 2),
+    downpour: wetAt((heavy + 1) / 2),
+    blizzard: wetAt((heavy + 1) / 2),
+  }[w.precipitation];
+
+  return { warmth, wetness, wind, fog: w.fog ? 0.9 : 0.1 };
+}
+
+// ---- DM pins ---------------------------------------------------------------
+
+/**
+ * A DM's override of the sky on one dated day (#1086). `source` is the climate
+ * source id (`climateAt`'s `sourceId`; null for the campaign), so a pin only
+ * bends the sky of the place it was made for.
+ *
+ * - `set`: that day is exactly `weather`; the days after ease back to the
+ *   pattern, so what follows reads as a consequence of what the DM set.
+ * - `reroll`: from that day the sky is drawn from a fresh seed (`salt`, the
+ *   only randomness, chosen when the DM clicks and stored here), eased in over
+ *   the first day so the change is not a jump.
+ */
+export type WeatherPin = { source: string | null; year: number; month: number; day: number } & (
+  | { kind: "set"; weather: Weather }
+  | { kind: "reroll"; salt: string }
+);
+
+/** Share of the way back to the pattern after `days` days since a `set` pin. */
+const SET_EASE = [0, 0.35, 0.65, 0.9] as const;
+export const PIN_EASE_DAYS = SET_EASE.length;
+const easeBack = (days: number) => (days >= SET_EASE.length ? 1 : SET_EASE[days]);
+/** How much of a reroll's new sky shows on the pin day itself. */
+const REROLL_FIRST_DAY = 0.5;
+
+function lerpChannels(a: WeatherChannels, b: WeatherChannels, t: number): WeatherChannels {
+  return {
+    warmth: a.warmth + (b.warmth - a.warmth) * t,
+    wetness: a.wetness + (b.wetness - a.wetness) * t,
+    wind: a.wind + (b.wind - a.wind) * t,
+    fog: a.fog + (b.fog - a.fog) * t,
+  };
+}
+
+function absoluteDayOf(
+  adapter: CalendarAdapter,
+  year: number,
+  month: number | null,
+  day: number | null,
+  festivalDay: string | null,
+): number | undefined {
+  const ordinal = ordinalWithinYear(adapter, year, month, day, festivalDay);
+  return ordinal === undefined ? undefined : daysBetween(adapter, 1, 1, year, ordinal);
+}
+
+interface PlacedPin {
+  pin: WeatherPin;
+  abs: number;
+  kind: SeasonKind;
+}
+
+/** Pins the calendar can place, oldest first (stable, so a later write wins a tie). */
+function placePins(adapter: CalendarAdapter, pins: readonly WeatherPin[]): PlacedPin[] {
+  const placed: PlacedPin[] = [];
+  for (const pin of pins) {
+    const abs = absoluteDayOf(adapter, pin.year, pin.month, pin.day, null);
+    if (abs === undefined) continue;
+    placed.push({ pin, abs, kind: seasonOn(adapter, pin.year, pin.month, pin.day, null)?.season.kind ?? "spring" });
+  }
+  return placed.sort((a, b) => a.abs - b.abs);
+}
+
+/** The last of the first `count` pins that is on or before the day, or -1. */
+function governingPin(pins: readonly PlacedPin[], count: number, abs: number): number {
+  for (let i = count - 1; i >= 0; i--) if (pins[i].abs <= abs) return i;
+  return -1;
+}
+
+/**
+ * Channels for a day under the first `count` pins. A pin shapes the day by
+ * easing from (or to) what the day would have been under the pins before it,
+ * so a later pin replaces an earlier one's influence from its own day on.
+ */
+function channelsUnder(climate: WeatherClimate, seed: string, pins: readonly PlacedPin[], count: number, abs: number): WeatherChannels {
+  const i = governingPin(pins, count, abs);
+  if (i < 0) return channelsOn(seed, abs);
+  const { pin, abs: pinAbs, kind } = pins[i];
+  const before = channelsUnder(climate, seed, pins, i, abs);
+  const days = abs - pinAbs;
+  if (pin.kind === "set") {
+    return lerpChannels(channelsFor(climate, kind, pin.weather), before, easeBack(days));
+  }
+  const fresh = channelsOn(`${seed}:${pin.salt}`, abs);
+  return days === 0 ? lerpChannels(before, fresh, REROLL_FIRST_DAY) : fresh;
+}
+
 /**
  * The weather on a day, or null when there is none to report: an underground
  * climate, or a date the calendar cannot place. `seed` names whose weather it
  * is (campaign id plus climate source), so two places under one climate share
- * a sky and two campaigns do not.
+ * a sky and two campaigns do not. `pins` are the DM's overrides for this seed's
+ * source only (the caller filters); the most recent pin on or before the date
+ * governs, and none leaves the natural sky untouched.
  */
 export function weatherOn(
   adapter: CalendarAdapter,
@@ -157,52 +380,20 @@ export function weatherOn(
   month: number | null,
   day: number | null,
   festivalDay: string | null,
+  pins: readonly WeatherPin[] = [],
 ): Weather | null {
   if (climate === "underground") return null;
-  const ordinal = ordinalWithinYear(adapter, year, month, day, festivalDay);
-  if (ordinal === undefined) return null;
-  const absoluteDay = daysBetween(adapter, 1, 1, year, ordinal);
+  const abs = absoluteDayOf(adapter, year, month, day, festivalDay);
+  if (abs === undefined) return null;
   const kind: SeasonKind = seasonOn(adapter, year, month, day, festivalDay)?.season.kind ?? "spring";
 
-  const tempChannel = hashString(`${seed}|temperature`);
-  const wetChannel = hashString(`${seed}|wetness`);
-  const windChannel = hashString(`${seed}|wind`);
-  const fogChannel = hashString(`${seed}|fog`);
-
-  const swing = (noise(tempChannel, absoluteDay, KNOT_SPACING.temperature) - 0.5) * 3;
-  let tempIndex = Math.round(BASE_TEMPERATURE[climate][kind] + swing);
-  tempIndex = Math.max(0, Math.min(MAX_TEMPERATURE_INDEX, tempIndex));
-  // Polar air never gets warmer than cool, whatever the noise says.
-  if (climate === "polar") tempIndex = Math.min(tempIndex, 2);
-
-  const wind = windFrom(noise(windChannel, absoluteDay, KNOT_SPACING.wind));
-  const wetness = noise(wetChannel, absoluteDay, KNOT_SPACING.wetness);
-  const threshold = 1 - WET_SHARE[climate][kind];
-  const excess = wetness > threshold ? (wetness - threshold) / (1 - threshold) : 0;
-
-  let precipitation: Precipitation = "none";
-  if (excess > 0) {
-    const heavy = climate === "tropical" && kind === "summer" ? 0.35 : 0.7;
-    const level = excess < 0.3 ? 0 : excess < heavy ? 1 : 2;
-    if (tempIndex <= COLD_INDEX) {
-      precipitation = level === 2 && (wind === "strong" || wind === "gale") ? "blizzard" : "snow";
-    } else {
-      precipitation = (["drizzle", "rain", "downpour"] as const)[level];
-    }
-  } else if (climate === "arid" && (wind === "strong" || wind === "gale") && tempIndex >= WARM_INDEX && wetness > 0.35) {
-    // Hot dry wind lifts the sand.
-    precipitation = "dust";
+  const placed = placePins(adapter, pins);
+  const top = governingPin(placed, placed.length, abs);
+  const governing = top < 0 ? null : placed[top];
+  if (governing && governing.pin.kind === "set" && governing.abs === abs) {
+    return coerceWeather(climate, governing.pin.weather);
   }
-
-  // Fog: a still, damp-ish day in a climate with mist to give.
-  const foggy =
-    (climate === "temperate" || climate === "cold") &&
-    wind === "calm" &&
-    (precipitation === "none" || precipitation === "drizzle") &&
-    (tempIndex === 2 || tempIndex === 3 || tempIndex === COLD_INDEX) &&
-    noise(fogChannel, absoluteDay, KNOT_SPACING.fog) > 0.8;
-
-  return { temperature: TEMPERATURES[tempIndex], precipitation, wind, fog: foggy };
+  return weatherFromChannels(climate, kind, channelsUnder(climate, seed, placed, placed.length, abs));
 }
 
 // ---- Where the climate comes from ---------------------------------------

@@ -252,6 +252,7 @@ describe("buildMarkdownVault — Locations", () => {
       name: "Shadowdale",
       location_type: "region",
       climate: null,
+      terrain: null,
       description: null,
       notes: null,
       tags: [],

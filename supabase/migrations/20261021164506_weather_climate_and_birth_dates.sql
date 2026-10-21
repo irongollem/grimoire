@@ -18,6 +18,27 @@ alter table public.locations
     constraint locations_climate_check
       check (climate in ('polar', 'cold', 'temperate', 'warm', 'tropical', 'arid', 'underground'));
 
+-- Terrain decides which weather hazards a place can have (#1086): an avalanche
+-- needs slopes, a wildfire needs something to burn. Null inherits from the
+-- parent place, then reads as no particular terrain (no terrain hazards).
+alter table public.locations
+  add column terrain text
+    constraint locations_terrain_check
+      check (terrain in ('mountains', 'hills', 'forest', 'plains', 'coast', 'wetland', 'desert'));
+
+comment on column public.locations.terrain is
+  'This place''s terrain for weather hazards (#1086); null inherits from the parent place.';
+
+-- The DM's hand on the weather (#1086): each pin either sets a day's weather
+-- outright or rerolls the pattern from that day, for one climate source (a
+-- place id, or null for the campaign's own climate). The days after a pin ease
+-- back to the generated pattern (src/lib/calendar/weather.ts). On the campaign
+-- row because the weather is computed on every client from that row, and the
+-- row already rings the campaign channel when it changes.
+alter table public.campaigns
+  add column weather_pins jsonb not null default '[]'::jsonb
+    constraint campaigns_weather_pins_is_array check (jsonb_typeof(weather_pins) = 'array');
+
 comment on column public.campaigns.climate is
   'The weather a place has when neither it nor any place above it in the Atlas names a climate (#1086).';
 comment on column public.locations.climate is
@@ -57,8 +78,9 @@ alter table public.party_members
 -- too few columns"): the player portal's Atlas and NPCs, at once. The same
 -- trap 20260925002215 describes. Each body below is the latest definition
 -- (20261016222453 and 20261005220516) with the new columns appended in table
--- order. A place's climate is structure, like its parent, and players need it
--- for the weather they are standing in; a birth date is DM-only, as age is.
+-- order. A place's climate and terrain are structure, like its parent, and
+-- players need them for the weather they are standing in; a birth date is
+-- DM-only, as age is.
 
 create or replace function public.get_player_visible_locations(p_campaign_id uuid default null::uuid, p_location_id uuid default null::uuid)
  returns setof locations
@@ -112,7 +134,8 @@ as $function$
     case when l.is_map_shared then l.map_live else null::jsonb end,           -- map_live (#1073): the live layer's snapshot, likewise
     case when l.is_map_shared then l.map_layer_stand_url else null::text end,      -- map_layer_stand_url (#1073): the Drawing's standing layer
     case when l.is_map_shared then l.map_layer_stand_live_url else null::text end, -- map_layer_stand_live_url (#1073): the same, less what sways
-    l.climate                                                                 -- climate (#1086): the weather a player sees comes from it
+    l.climate,                                                                -- climate (#1086): the weather a player sees comes from it
+    l.terrain                                                                 -- terrain (#1086): which weather hazards apply there
   from locations l
   where l.campaign_id is not null
     and (p_campaign_id is null or l.campaign_id = p_campaign_id)

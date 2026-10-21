@@ -173,6 +173,27 @@
           </AppSelect>
         </div>
 
+        <!-- Terrain: blank inherits like the climate. It decides which weather hazards apply. -->
+        <div class="flex items-center gap-2">
+          <span
+            class="text-label-lg font-semibold text-muted-foreground shrink-0 w-16 flex items-center gap-1"
+          >
+            <IconMap class="h-3.5 w-3.5" />Terrain
+          </span>
+          <AppSelect
+            :model-value="terrain ?? ''"
+            tone="card"
+            size="body"
+            block
+            class="flex-1 min-w-0"
+            aria-label="Terrain"
+            @update:model-value="terrain = $event === '' ? null : ($event as Terrain)"
+          >
+            <option value="">{{ inheritedTerrainLabel }}</option>
+            <option v-for="t in TERRAINS" :key="t" :value="t">{{ TERRAIN_LABELS[t] }}</option>
+          </AppSelect>
+        </div>
+
         <!-- Scope -->
         <CampaignScopeField v-model="campaignId" />
 
@@ -255,9 +276,10 @@ import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
-import { IconTag, IconClock, IconWind, IconWeather } from '@/lib/icons';
+import { IconTag, IconClock, IconWind, IconWeather, IconMap } from '@/lib/icons';
 import { CLIMATE_LABELS, climateAt } from "@/lib/calendar/weather";
-import { CLIMATES, type Climate } from "@/types/calendar.types";
+import { TERRAIN_LABELS, terrainFrom } from "@/lib/calendar/weatherHazards";
+import { CLIMATES, TERRAINS, type Climate, type Terrain } from "@/types/calendar.types";
 import EntityEditorActionBar from "@/components/common/entity/EntityEditorActionBar.vue";
 import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
@@ -360,6 +382,7 @@ interface PlaceDraft {
   eraEnd: number | null;
   audioTheme: string | null;
   climate: Climate | null;
+  terrain: Terrain | null;
   selectedParentId: string | null;
   imageUrl: string | null;
   npcOwnerId: string;
@@ -393,6 +416,7 @@ function placeToDraft(loc: Location | null): PlaceDraft {
     eraEnd: loc?.era_end ?? null,
     audioTheme: loc?.audio_theme ?? null,
     climate: loc?.climate ?? null,
+    terrain: loc?.terrain ?? null,
     selectedParentId: loc?.parent_id ?? props.parentId ?? null,
     imageUrl: loc?.image_url ?? null,
     npcOwnerId: loc?.npc_owner_id ?? "",
@@ -419,6 +443,7 @@ const CONFLICT_LABELS: Record<keyof PlaceDraft, string> = {
   eraEnd: "Era",
   audioTheme: "Ambient",
   climate: "Climate",
+  terrain: "Terrain",
   selectedParentId: "Parent",
   imageUrl: "Image",
   npcOwnerId: "Proprietor",
@@ -436,6 +461,7 @@ const {
   eraEnd,
   audioTheme,
   climate,
+  terrain,
   selectedParentId,
   imageUrl,
   npcOwnerId,
@@ -454,6 +480,14 @@ const inheritedClimateLabel = computed(() => {
   );
   const from = sourceId ? (places.get(sourceId)?.name ?? "parent place") : "campaign";
   return `As ${from} (${CLIMATE_LABELS[inherited]})`;
+});
+
+// What a blank terrain resolves to: the nearest place above this one naming one.
+const inheritedTerrainLabel = computed(() => {
+  const places = new Map((allLocations.value ?? []).map((l) => [l.id, l]));
+  const found = terrainFrom(places, selectedParentId.value);
+  if (!found) return "No particular terrain";
+  return `As ${places.get(found.sourceId)?.name ?? "parent place"} (${TERRAIN_LABELS[found.terrain]})`;
 });
 
 // Full ancestor chain for breadcrumb (root → … → direct parent).
@@ -573,6 +607,7 @@ function recordFields(d: PlaceDraft) {
     audio_theme:
       d.audioTheme === null || d.audioTheme.trim() === "" ? null : d.audioTheme.trim(),
     climate: d.climate,
+    terrain: d.terrain,
     parent_id: d.selectedParentId,
     image_url: d.imageUrl,
     player_summary: d.playerSummary || null,

@@ -26,6 +26,7 @@ function site(overrides: Partial<Location> = {}): Location {
     name: "Moon Temple",
     location_type: "dungeon",
     climate: null,
+    terrain: null,
     description: null,
     notes: null,
     tags: [],
