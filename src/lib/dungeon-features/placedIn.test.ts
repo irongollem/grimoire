@@ -11,6 +11,7 @@ function location(over: Partial<Location> = {}): Location {
     parent_id: null,
     name: "Nave of Ash",
     location_type: "room",
+    climate: null,
     description: null,
     notes: null,
     tags: [],

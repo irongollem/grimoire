@@ -35,6 +35,9 @@
  * having within reach of the artwork, and the sheet itself.
  */
 import { computed } from "vue";
+import { displayAge } from "@/lib/calendar/age";
+import { useCalendarStore } from "@/stores/calendar";
+import { useCampaignStore } from "@/stores/campaign";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityDetailModal from "@/components/common/overlays/EntityDetailModal.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
@@ -56,10 +59,16 @@ const { npc, preview, isLoading, failed } = useNpcOpening(computed(() => id));
 // coerced. A DM looking at their own NPC always has one.
 const displayName = computed(() => (preview.value ? getNpcDisplayName(preview.value) ?? "???" : "NPC"));
 
+const calendar = useCalendarStore();
+const campaignStore = useCampaignStore();
+
 /** What this NPC is, in one line — the header's job now the sheet has dropped it. */
 const subtitle = computed(() => {
   if (!preview.value) return undefined;
-  const { race, occupation, alignment, age } = preview.value;
+  const { race, occupation, alignment } = preview.value;
+  const age = displayAge(calendar.adapter, preview.value, {
+    year: campaignStore.todayYear, month: campaignStore.todayMonth, day: campaignStore.todayDay,
+  });
   return [race, occupation, alignment, age ? `Age ${age}` : null].filter(Boolean).join(" · ");
 });
 </script>

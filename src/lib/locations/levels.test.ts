@@ -16,6 +16,7 @@ function loc(
     parent_id,
     name: id,
     location_type,
+    climate: null,
     description: null,
     notes: null,
     tags: [],

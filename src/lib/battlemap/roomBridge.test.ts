@@ -31,6 +31,7 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     parent_id: null,
     name: "Test Location",
     location_type: "room",
+    climate: null,
     description: null,
     notes: null,
     tags: [],
@@ -136,6 +137,7 @@ describe("resolveBattleSurface", () => {
     const location = makeLocation({
       id: "loc-1",
       location_type: "dungeon",
+      climate: null,
       map_url: "https://example.test/map.webp",
       grid_calibration: calibration,
     });
@@ -156,6 +158,7 @@ describe("resolveBattleSurface", () => {
     it("carries the standing url when the surface is the Drawing", () => {
       const location = makeLocation({
         location_type: "dungeon",
+        climate: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_stand_url: "https://example.test/stand.webp",
         map_layer_calibration: makeCalibration(),
@@ -170,6 +173,7 @@ describe("resolveBattleSurface", () => {
       const site = makeLocation({
         id: "site-1",
         location_type: "dungeon",
+        climate: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_stand_url: "https://example.test/stand.webp",
         map_layer_calibration: makeCalibration(),
@@ -181,6 +185,7 @@ describe("resolveBattleSurface", () => {
     it("carries the stand-live url under the same rule as the standing url", () => {
       const drawing = makeLocation({
         location_type: "dungeon",
+        climate: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_stand_url: "https://example.test/stand.webp",
         map_layer_stand_live_url: "https://example.test/stand-live.webp",
@@ -191,6 +196,7 @@ describe("resolveBattleSurface", () => {
       );
       const picture = makeLocation({
         location_type: "dungeon",
+        climate: null,
         map_url: "https://example.test/picture.webp",
         grid_calibration: makeCalibration(),
         map_layer_stand_live_url: "https://example.test/stand-live.webp",
@@ -201,6 +207,7 @@ describe("resolveBattleSurface", () => {
     it("is null for a Picture, and for a drawing published before the split", () => {
       const picture = makeLocation({
         location_type: "dungeon",
+        climate: null,
         map_url: "https://example.test/picture.webp",
         grid_calibration: makeCalibration(),
         map_layer_stand_url: "https://example.test/stand.webp",
@@ -208,6 +215,7 @@ describe("resolveBattleSurface", () => {
       expect(resolveBattleSurface({ encounterLocation: picture, parent: null, regions: [] })?.standUrl).toBeNull();
       const old = makeLocation({
         location_type: "dungeon",
+        climate: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_calibration: makeCalibration(),
       });
@@ -229,6 +237,7 @@ describe("resolveBattleSurface", () => {
     it("carries the snapshot when the surface is the Drawing", () => {
       const location = makeLocation({
         location_type: "dungeon",
+        climate: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_calibration: makeCalibration(),
         map_live: live,
@@ -241,6 +250,7 @@ describe("resolveBattleSurface", () => {
       const site = makeLocation({
         id: "site-1",
         location_type: "dungeon",
+        climate: null,
         map_layer_url: "https://example.test/drawing.webp",
         map_layer_calibration: makeCalibration(),
         map_live: live,
@@ -252,6 +262,7 @@ describe("resolveBattleSurface", () => {
     it("is null when the surface is a Picture, even if a snapshot exists", () => {
       const location = makeLocation({
         location_type: "dungeon",
+        climate: null,
         map_url: "https://example.test/picture.webp",
         grid_calibration: makeCalibration(),
         map_live: live,
@@ -265,6 +276,7 @@ describe("resolveBattleSurface", () => {
     const location = makeLocation({
       id: "loc-1",
       location_type: "dungeon",
+      climate: null,
       map_url: "https://example.test/picture.webp",
       grid_calibration: makeCalibration({ cells_per_image_width: 10 }),
       map_layer_url: "https://example.test/drawing.webp",
@@ -280,6 +292,7 @@ describe("resolveBattleSurface", () => {
     const location = makeLocation({
       id: "loc-1",
       location_type: "dungeon",
+      climate: null,
       map_layer_url: "https://example.test/drawing.webp",
       map_layer_calibration: calibration,
     });
@@ -295,6 +308,7 @@ describe("resolveBattleSurface", () => {
     const site = makeLocation({
       id: "site-1",
       location_type: "dungeon",
+      climate: null,
       map_url: "https://example.test/site.webp",
       grid_calibration: calibration,
     });
@@ -326,6 +340,7 @@ describe("resolveBattleSurface", () => {
     const site = makeLocation({
       id: "site-1",
       location_type: "dungeon",
+      climate: null,
       map_url: "https://example.test/site.webp",
       grid_calibration: calibration,
     });

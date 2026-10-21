@@ -20,6 +20,7 @@ function place(over: Partial<Location> = {}): Location {
     parent_id: null,
     name: "place",
     location_type: "region",
+    climate: null,
     description: null,
     notes: null,
     tags: [],

@@ -15,6 +15,7 @@
       :year="today.year"
       :month="today.month"
       :day="today.day"
+      :weather="todayWeather?.weather"
       class="mt-1"
     />
 
@@ -50,6 +51,7 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import CalendarSkyLine from "@/components/calendar/CalendarSkyLine.vue";
+import { useTodayWeather } from "@/composables/calendar/useTodayWeather";
 import { usePlayerCalendarEventsRange } from "@/composables/calendar/useCalendarEvents";
 import { nextUpcomingEvents } from "@/lib/calendar/upcoming";
 import { weekContainingToday, type HearthWeekDay } from "@/lib/hearth/calendarWeek";
@@ -69,6 +71,7 @@ import { useCampaignStore } from "@/stores/campaign";
  */
 const campaign = useCampaignStore();
 const calendar = useCalendarStore();
+const todayWeather = useTodayWeather({ player: true });
 
 const today = computed(() => ({
   year: campaign.todayYear,

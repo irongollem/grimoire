@@ -7,6 +7,10 @@
         <p class="text-eyebrow text-muted-foreground uppercase">Game Day</p>
         <template v-if="!editingDate">
           <p class="text-heading-sm font-semibold text-foreground">{{ todayFormatted }}</p>
+          <p v-if="todayWeather" class="flex items-center gap-1.5 text-caption text-muted-foreground">
+            <IconWeather class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            {{ describeWeather(todayWeather.weather) }}
+          </p>
           <div class="flex items-center gap-1.5">
             <AppButton
               variant="subtle"
@@ -95,6 +99,9 @@
 import { computed, reactive, ref } from "vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useSetCampaignToday, useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
+import { useTodayWeather } from "@/composables/calendar/useTodayWeather";
+import { describeWeather } from "@/lib/calendar/weather";
+import { IconWeather } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -109,6 +116,7 @@ import DashboardWidget from "../DashboardWidget.vue";
 const campaign = useCampaignStore();
 const calendarStore = useCalendarStore();
 const { data: locations } = useAllLocations();
+const todayWeather = useTodayWeather();
 const setToday = useSetCampaignToday();
 const setLocation = useSetCampaignLocation();
 

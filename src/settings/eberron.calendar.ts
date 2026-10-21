@@ -39,10 +39,10 @@ export const EBERRON_CALENDAR: SettingCalendarDef = {
     { name: "Vult", cycleDays: 105, fullOn: { year: 998, month: 1, day: 1 }, color: "#b0aca4" },
   ],
   seasons: [
-    { name: "Spring", startsOn: { month: 3, day: 1 } },
-    { name: "Summer", startsOn: { month: 6, day: 1 } },
-    { name: "Autumn", startsOn: { month: 9, day: 1 } },
-    { name: "Winter", startsOn: { month: 12, day: 1 } },
+    { name: "Spring", kind: "spring", startsOn: { month: 3, day: 1 } },
+    { name: "Summer", kind: "summer", startsOn: { month: 6, day: 1 } },
+    { name: "Autumn", kind: "autumn", startsOn: { month: 9, day: 1 } },
+    { name: "Winter", kind: "winter", startsOn: { month: 12, day: 1 } },
   ],
   leapYearRule: "none",
 };

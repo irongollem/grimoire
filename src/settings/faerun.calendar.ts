@@ -34,10 +34,10 @@ export const FAERUN_CALENDAR: SettingCalendarDef = {
     { name: "Selûne", cycleDays: 30.4375, fullOn: { year: 1372, festival: "Midwinter" }, color: "#dfe3ec" },
   ],
   seasons: [
-    { name: "Spring", startsOn: { month: 3, day: 19 } },
-    { name: "Summer", startsOn: { month: 6, day: 20 } },
-    { name: "Autumn", startsOn: { month: 9, day: 21 } },
-    { name: "Winter", startsOn: { month: 12, day: 20 } },
+    { name: "Spring", kind: "spring", startsOn: { month: 3, day: 19 } },
+    { name: "Summer", kind: "summer", startsOn: { month: 6, day: 20 } },
+    { name: "Autumn", kind: "autumn", startsOn: { month: 9, day: 21 } },
+    { name: "Winter", kind: "winter", startsOn: { month: 12, day: 20 } },
   ],
   leapYearRule: "every4",
 };

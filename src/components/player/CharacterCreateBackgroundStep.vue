@@ -145,10 +145,19 @@
             </ul>
           </div>
         </div>
+        <div class="block">
+          <span class="field-label">Born</span>
+          <BirthDateInput
+            :model-value="{ born_year: f.born_year ?? null, born_month: f.born_month ?? null, born_day: f.born_day ?? null }"
+            tone="filled"
+            @update:model-value="Object.assign(f, $event)"
+          />
+          <p class="mt-1 text-label text-muted-foreground">A birth date replaces the age description on the sheet.</p>
+        </div>
         <div class="grid grid-cols-3 gap-2">
           <label class="block">
-            <span class="field-label">Age</span>
-            <AppInput v-model="f.age" tone="filled" size="body" placeholder="47, ancient…" />
+            <span class="field-label">Age (description)</span>
+            <AppInput v-model="f.age" tone="filled" size="body" placeholder="ancient, young…" />
           </label>
           <label class="block">
             <span class="field-label">Gender</span>
@@ -216,6 +225,7 @@ import { ref, computed } from "vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { backgroundSourceKey } from "@/composables/rules/useBackgrounds";
 import type { Background } from "@/types/background.types";
+import BirthDateInput from "@/components/common/controls/BirthDateInput.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";

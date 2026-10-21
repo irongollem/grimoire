@@ -227,6 +227,7 @@ export { Droplets as IconWater }
 export { Leaf as IconNature }
 export { Wind as IconWind }
 export { Zap as IconLightning }
+export { Cloud as IconWeather }
 export { Sun as IconSun }
 export { Moon as IconMoon }
 export { Ghost as IconUndead }

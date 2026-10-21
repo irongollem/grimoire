@@ -33,10 +33,10 @@ export const GREYHAWK_CALENDAR: SettingCalendarDef = {
     { name: "Celene", cycleDays: 91, fullOn: { year: 591, festival: "Growfest" }, color: "#bfe3d6" },
   ],
   seasons: [
-    { name: "Spring", startsOn: { month: 3, day: 1 } },
-    { name: "Summer", startsOn: { month: 6, day: 1 } },
-    { name: "Autumn", startsOn: { month: 9, day: 1 } },
-    { name: "Winter", startsOn: { month: 12, day: 1 } },
+    { name: "Spring", kind: "spring", startsOn: { month: 3, day: 1 } },
+    { name: "Summer", kind: "summer", startsOn: { month: 6, day: 1 } },
+    { name: "Autumn", kind: "autumn", startsOn: { month: 9, day: 1 } },
+    { name: "Winter", kind: "winter", startsOn: { month: 12, day: 1 } },
   ],
   leapYearRule: "none",
 };

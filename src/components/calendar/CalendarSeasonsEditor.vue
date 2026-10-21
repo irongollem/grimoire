@@ -45,6 +45,17 @@
           class="col-span-1"
           @click="removeSeason(i)"
         />
+        <span class="col-span-4 text-label text-muted-foreground">WEATHER LIKE</span>
+        <AppSelect
+          :model-value="s.kind ?? 'spring'"
+          size="body"
+          block
+          class="col-span-8 min-w-0"
+          aria-label="Weather like"
+          @update:model-value="s.kind = $event as SeasonKind"
+        >
+          <option v-for="k in SEASON_KINDS" :key="k" :value="k">{{ SEASON_KIND_LABELS[k] }}</option>
+        </AppSelect>
       </div>
       <p v-if="seasons.length === 0" class="text-caption text-muted-foreground italic">
         No seasons defined.
@@ -58,11 +69,24 @@ import { IconDelete } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import type { CalendarSeason } from "@/types/calendar.types";
+import { SEASON_KINDS, type CalendarSeason, type SeasonKind } from "@/types/calendar.types";
 import type { SettingMonthDef } from "@/settings/types";
 
 const seasons = defineModel<CalendarSeason[]>({ required: true });
 const { months } = defineProps<{ months: SettingMonthDef[] }>();
+
+const SEASON_KIND_LABELS: Record<SeasonKind, string> = {
+  spring: "Spring (mild, wet)",
+  summer: "Summer (warmest)",
+  autumn: "Autumn (cooling)",
+  winter: "Winter (coldest)",
+};
+
+/** A new season's weather follows its name when it names one of the four, else "spring". */
+function kindFromName(name: string): SeasonKind {
+  const n = name.toLowerCase();
+  return SEASON_KINDS.find((k) => n.includes(k)) ?? (n.includes("fall") ? "autumn" : "spring");
+}
 
 /**
  * A new season starts on the first day of the first month no season already
@@ -71,7 +95,8 @@ const { months } = defineProps<{ months: SettingMonthDef[] }>();
 function addSeason() {
   const taken = new Set(seasons.value.filter((s) => s.startsOn.day === 1).map((s) => s.startsOn.month));
   const month = months.findIndex((_, i) => !taken.has(i + 1)) + 1 || 1;
-  seasons.value = [...seasons.value, { name: `Season ${seasons.value.length + 1}`, startsOn: { month, day: 1 } }];
+  const name = `Season ${seasons.value.length + 1}`;
+  seasons.value = [...seasons.value, { name, kind: kindFromName(name), startsOn: { month, day: 1 } }];
 }
 
 function removeSeason(i: number) {

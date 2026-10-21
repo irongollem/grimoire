@@ -152,6 +152,27 @@
           </div>
         </div>
 
+        <!-- Climate: blank inherits from the nearest place above that names one, then the campaign. -->
+        <div class="flex items-center gap-2">
+          <span
+            class="text-label-lg font-semibold text-muted-foreground shrink-0 w-16 flex items-center gap-1"
+          >
+            <IconWeather class="h-3.5 w-3.5" />Climate
+          </span>
+          <AppSelect
+            :model-value="climate ?? ''"
+            tone="card"
+            size="body"
+            block
+            class="flex-1 min-w-0"
+            aria-label="Climate"
+            @update:model-value="climate = $event === '' ? null : ($event as Climate)"
+          >
+            <option value="">{{ inheritedClimateLabel }}</option>
+            <option v-for="c in CLIMATES" :key="c" :value="c">{{ CLIMATE_LABELS[c] }}</option>
+          </AppSelect>
+        </div>
+
         <!-- Scope -->
         <CampaignScopeField v-model="campaignId" />
 
@@ -234,7 +255,9 @@ import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
-import { IconTag, IconClock, IconWind } from '@/lib/icons';
+import { IconTag, IconClock, IconWind, IconWeather } from '@/lib/icons';
+import { CLIMATE_LABELS, climateAt } from "@/lib/calendar/weather";
+import { CLIMATES, type Climate } from "@/types/calendar.types";
 import EntityEditorActionBar from "@/components/common/entity/EntityEditorActionBar.vue";
 import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
@@ -336,6 +359,7 @@ interface PlaceDraft {
   eraStart: number | null;
   eraEnd: number | null;
   audioTheme: string | null;
+  climate: Climate | null;
   selectedParentId: string | null;
   imageUrl: string | null;
   npcOwnerId: string;
@@ -356,7 +380,7 @@ interface PlaceDraft {
 // the DM opts into it via CampaignScopeField, instead of silently hiding it
 // (see fetchLocations/fetchAllLocations). No active campaign is a genuine
 // "nothing to scope to yet" case.
-const { activeCampaignId } = storeToRefs(useCampaignStore());
+const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
 
 function placeToDraft(loc: Location | null): PlaceDraft {
   return {
@@ -368,6 +392,7 @@ function placeToDraft(loc: Location | null): PlaceDraft {
     eraStart: loc?.era_start ?? null,
     eraEnd: loc?.era_end ?? null,
     audioTheme: loc?.audio_theme ?? null,
+    climate: loc?.climate ?? null,
     selectedParentId: loc?.parent_id ?? props.parentId ?? null,
     imageUrl: loc?.image_url ?? null,
     npcOwnerId: loc?.npc_owner_id ?? "",
@@ -393,6 +418,7 @@ const CONFLICT_LABELS: Record<keyof PlaceDraft, string> = {
   eraStart: "Era",
   eraEnd: "Era",
   audioTheme: "Ambient",
+  climate: "Climate",
   selectedParentId: "Parent",
   imageUrl: "Image",
   npcOwnerId: "Proprietor",
@@ -409,12 +435,26 @@ const {
   eraStart,
   eraEnd,
   audioTheme,
+  climate,
   selectedParentId,
   imageUrl,
   npcOwnerId,
   relatedLocationIds,
   campaignId,
 } = toRefs(draft);
+
+// What a blank climate resolves to: the nearest place above this one that names
+// a climate, else the campaign's. Never this place's own, which is blank here.
+const inheritedClimateLabel = computed(() => {
+  const places = new Map((allLocations.value ?? []).map((l) => [l.id, l]));
+  const { climate: inherited, sourceId } = climateAt(
+    places,
+    selectedParentId.value,
+    activeCampaign.value?.climate ?? "temperate",
+  );
+  const from = sourceId ? (places.get(sourceId)?.name ?? "parent place") : "campaign";
+  return `As ${from} (${CLIMATE_LABELS[inherited]})`;
+});
 
 // Full ancestor chain for breadcrumb (root → … → direct parent).
 // Loop extracted into a helper to keep `computed` single-return — oxlint's
@@ -532,6 +572,7 @@ function recordFields(d: PlaceDraft) {
     // Blank means "ask for nothing", which the column should say as null.
     audio_theme:
       d.audioTheme === null || d.audioTheme.trim() === "" ? null : d.audioTheme.trim(),
+    climate: d.climate,
     parent_id: d.selectedParentId,
     image_url: d.imageUrl,
     player_summary: d.playerSummary || null,

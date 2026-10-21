@@ -184,6 +184,10 @@ export interface PartyMember {
   deity_id?: string | null;
   // Identity extras (optional — wizard collects these on the Identity step)
   age?: string | null;
+  /** Birth date on the campaign's calendar (#1086); the year alone gives an age. */
+  born_year?: number | null;
+  born_month?: number | null;
+  born_day?: number | null;
   gender?: string | null;
   pronouns?: string | null;
   height?: string | null;

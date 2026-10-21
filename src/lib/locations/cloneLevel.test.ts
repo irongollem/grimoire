@@ -12,6 +12,7 @@ function loc(over: Partial<Location> = {}): Location {
     parent_id: null,
     name: "place",
     location_type: "dungeon",
+    climate: null,
     description: null,
     notes: null,
     tags: [],

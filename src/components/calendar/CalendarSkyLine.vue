@@ -1,9 +1,13 @@
 <template>
   <p
-    v-if="season || moons.length"
+    v-if="season || moons.length || weather"
     class="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground"
   >
     <span v-if="season" class="italic">{{ season.season.name }} · day {{ season.dayOfSeason }}</span>
+    <span v-if="weather" class="inline-flex items-center gap-1">
+      <IconWeather class="h-3 w-3" aria-hidden="true" />
+      {{ describeWeather(weather) }}
+    </span>
     <span
       v-for="(m, mi) in moons"
       :key="mi"
@@ -20,21 +24,25 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import MoonPhaseIcon from "@/components/calendar/MoonPhaseIcon.vue";
+import { IconWeather } from "@/lib/icons";
+import { describeWeather, type Weather } from "@/lib/calendar/weather";
 import { MOON_PHASE_LABELS, moonsOn } from "@/lib/calendar/moons";
 import { seasonOn } from "@/lib/calendar/seasons";
 import { useCalendarStore } from "@/stores/calendar";
 
 /**
- * The sky on one day (#1086): the season and each moon's phase, quiet enough to
+ * The sky on one day (#1086): the season, the weather (today only) and each moon's phase, quiet enough to
  * sit under a date. Renders nothing for a calendar with neither. Moons are
  * spelled out only when there are few of them; Eberron's twelve are a row of
  * icons, each titled with its name and phase.
  */
-const { year, month, day, festivalDay = null } = defineProps<{
+const { year, month, day, festivalDay = null, weather = null } = defineProps<{
   year: number;
   month: number | null;
   day: number | null;
   festivalDay?: string | null;
+  /** Today's weather, for the campaign's today only; omitted on any other date. */
+  weather?: Weather | null;
 }>();
 
 const calendar = useCalendarStore();

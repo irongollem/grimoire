@@ -30,10 +30,12 @@ export const DARKSUN_CALENDAR: SettingCalendarDef = {
     { name: "Ral", cycleDays: 33, fullOn: { year: 190, month: 1, day: 1 }, color: "#8fbf6a" },
     { name: "Guthay", cycleDays: 125, fullOn: { year: 190, month: 1, day: 1 }, color: "#e2b64c" },
   ],
+  // `kind` is how the weather behaves, not the name: High Sun is the scorching peak (summer), Low Sun the easing
+  // back (autumn), and Wind & Fire the mildest, storm-ridden stretch, which the arid table reads best as winter.
   seasons: [
-    { name: "High Sun", startsOn: { month: 1, day: 1 } },
-    { name: "Low Sun", startsOn: { month: 5, day: 1 } },
-    { name: "Wind & Fire", startsOn: { month: 9, day: 1 } },
+    { name: "High Sun", kind: "summer", startsOn: { month: 1, day: 1 } },
+    { name: "Low Sun", kind: "autumn", startsOn: { month: 5, day: 1 } },
+    { name: "Wind & Fire", kind: "winter", startsOn: { month: 9, day: 1 } },
   ],
   leapYearRule: "none",
 };
