@@ -80,6 +80,11 @@ describe("normalizeRecipeAi", () => {
     });
     expect(r?.modifiers).toEqual([{ description: "Done under moonlight", bonus: 2 }]);
   });
+
+  it("keeps a modifier that names another discipline's workspace", () => {
+    const dried = { description: "Ingredients dried in a drying room", bonus: 1 };
+    expect(normalizeRecipeAi({ ...goodRaw, modifiers: [dried] })?.modifiers).toEqual([dried]);
+  });
 });
 
 describe("normalizeTags", () => {
