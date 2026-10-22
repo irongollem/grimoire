@@ -154,7 +154,8 @@ jobs:
       - name: Replay every migration into a fresh database
         env:
           SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
-        run: supabase start
+        # ghcr.io rate-limits too; this retries only that (22 Oct 2026).
+        run: scripts/supabase-start-retry.sh
       - name: Database tests (pgTAP — RLS, RPCs, triggers)
         run: supabase test db
       # Asks a real PostgREST to resolve every embed the app ships. Nothing else
@@ -228,7 +229,7 @@ jobs:
       - name: Start the local stack
         env:
           SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io # see the database job
-        run: supabase start
+        run: scripts/supabase-start-retry.sh
       - name: Create the synthetic fixture
         run: npm run perf:fixture
       # The empty token is required, not decoration: without it the build
