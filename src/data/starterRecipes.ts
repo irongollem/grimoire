@@ -12,6 +12,10 @@ export interface StarterRecipeDef {
   /** All ingredients are tag-based so any tagged item qualifies */
   ingredients: { tags: string[]; quantity: number }[];
   outputs: { name: string; quantity: number }[];
+  /** Recipe-specific situational bonuses only. The workspace is never one of
+   *  them: the attempt dialog already offers the discipline's own workspace
+   *  checkbox (`workspaceBonus` in `lib/crafting/disciplines.ts`), so a forge
+   *  or lab listed here lets a player take that bonus twice (#1081). */
   modifiers?: { description: string; bonus: number }[];
 }
 
@@ -120,7 +124,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["ore"], quantity: 2 }],
     outputs: [{ name: "Iron Ingot", quantity: 1 }],
-    modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
   },
   {
     name: "Smelt Silver Ingot",
@@ -134,7 +137,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["silver"], quantity: 2 }],
     outputs: [{ name: "Silver Ingot", quantity: 1 }],
-    modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
   },
   {
     name: "Brew Antitoxin",
@@ -251,7 +253,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["metal"], quantity: 2 },
     ],
     outputs: [{ name: "Hunting Trap", quantity: 1 }],
-    modifiers: [{ description: "Full forge available", bonus: 2 }],
   },
 
   // ── Weaving ──────────────────────────────────────────────────────────────────
@@ -339,7 +340,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["brimstone"], quantity: 1 },
     ],
     outputs: [{ name: "Alchemist's Fire (flask)", quantity: 1 }],
-    modifiers: [{ description: "Proper alchemical laboratory available", bonus: 2 }],
   },
 
   // ── Additional Smithing ──────────────────────────────────────────────────────
@@ -357,7 +357,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["ingot"], quantity: 2 },
     ],
     outputs: [{ name: "Pot, Iron", quantity: 1 }],
-    modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
   },
 
   // ── Additional Leathercraft ──────────────────────────────────────────────────
@@ -408,7 +407,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "agate"], quantity: 1 }],
     outputs: [{ name: "Cut Agate", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cut Moss Agate",
@@ -421,7 +419,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "moss agate"], quantity: 1 }],
     outputs: [{ name: "Cut Moss Agate", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cut Bloodstone",
@@ -434,7 +431,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "bloodstone"], quantity: 1 }],
     outputs: [{ name: "Cut Bloodstone", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cut Onyx",
@@ -447,7 +443,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "onyx"], quantity: 1 }],
     outputs: [{ name: "Cut Onyx", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cut Amethyst",
@@ -460,7 +455,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "amethyst"], quantity: 1 }],
     outputs: [{ name: "Cut Amethyst", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cut Topaz",
@@ -473,7 +467,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "topaz"], quantity: 1 }],
     outputs: [{ name: "Cut Topaz", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cut Emerald",
@@ -486,7 +479,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "emerald"], quantity: 1 }],
     outputs: [{ name: "Cut Emerald", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cut Blue Sapphire",
@@ -499,7 +491,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "sapphire", "blue"], quantity: 1 }],
     outputs: [{ name: "Blue Sapphire", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cut Black Sapphire",
@@ -512,7 +503,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "sapphire", "black"], quantity: 1 }],
     outputs: [{ name: "Black Sapphire", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cut Ruby",
@@ -525,7 +515,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "ruby"], quantity: 1 }],
     outputs: [{ name: "Cut Ruby", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cut Diamond",
@@ -538,7 +527,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gem", "rough", "diamond"], quantity: 1 }],
     outputs: [{ name: "Cut Diamond", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
   {
     name: "Cast Signet Ring",
@@ -554,7 +542,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["silver"], quantity: 1 },
     ],
     outputs: [{ name: "Signet Ring", quantity: 1 }],
-    modifiers: [{ description: "Proper jeweler's bench with fine tools", bonus: 2 }],
   },
 
   // ── Additional Cooking ───────────────────────────────────────────────────────
@@ -590,7 +577,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["ingot"], quantity: 1 },
     ],
     outputs: [{ name: "Spikes, Iron (10)", quantity: 2 }],
-    modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
   },
   {
     name: "Forge Oil Lamp",
@@ -607,7 +593,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["cloth"], quantity: 1 },
     ],
     outputs: [{ name: "Lamp", quantity: 1 }],
-    modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
   },
 
   // ── Additional Tinkering ──────────────────────────────────────────────────────
@@ -756,7 +741,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["stone"], quantity: 4 }],
     outputs: [{ name: "Flagstone (10 sq ft)", quantity: 1 }],
-    modifiers: [{ description: "Quarry or stoneyard available", bonus: 3 }],
   },
   {
     name: "Carve Runestone",
@@ -786,7 +770,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["clay"], quantity: 2 },
     ],
     outputs: [{ name: "Camp Oven", quantity: 1 }],
-    modifiers: [{ description: "Quarry or stoneyard available", bonus: 3 }],
   },
   {
     name: "Shape Grindstone",
@@ -803,7 +786,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["metal"], quantity: 1 },
     ],
     outputs: [{ name: "Grindstone", quantity: 1 }],
-    modifiers: [{ description: "Quarry or stoneyard available", bonus: 3 }],
   },
   {
     name: "Lay Dry-Stone Wall Section",
@@ -846,7 +828,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["metal"], quantity: 1 },
     ],
     outputs: [{ name: "Millstone", quantity: 1 }],
-    modifiers: [{ description: "Quarry or stoneyard available", bonus: 3 }],
   },
   {
     name: "Construct Forge Hearth",
@@ -863,7 +844,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["clay"], quantity: 4 },
     ],
     outputs: [{ name: "Forge Hearth", quantity: 1 }],
-    modifiers: [{ description: "Quarry or stoneyard available", bonus: 3 }],
   },
 
   // ── Smelt Gold Ingot ─────────────────────────────────────────────────────────
@@ -879,7 +859,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gold", "ore"], quantity: 2 }],
     outputs: [{ name: "Gold Ingot", quantity: 1 }],
-    modifiers: [{ description: "Full forge with bellows available", bonus: 3 }],
   },
 
   // ── Potion of Healing ────────────────────────────────────────────────────────
@@ -1037,7 +1016,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "iron", "ingot"], quantity: 1 }],
     outputs: [{ name: "Iron Arrowheads", quantity: 20 }],
-    modifiers: [{ description: "Full forge available", bonus: 3 }],
   },
   {
     name: "Forge Caltrops",
@@ -1050,7 +1028,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "scrap"], quantity: 1 }],
     outputs: [{ name: "Caltrops (bag of 20)", quantity: 1 }],
-    modifiers: [{ description: "Full forge available", bonus: 3 }],
   },
   {
     name: "Cast Manacles",
@@ -1063,7 +1040,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "iron", "ingot"], quantity: 2 }],
     outputs: [{ name: "Manacles", quantity: 1 }],
-    modifiers: [{ description: "Full forge available", bonus: 3 }],
   },
   {
     name: "Forge Iron Padlock",
@@ -1076,7 +1052,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "iron", "ingot"], quantity: 1 }],
     outputs: [{ name: "Padlock", quantity: 1 }],
-    modifiers: [{ description: "Full forge available", bonus: 3 }],
   },
   {
     name: "Forge Grappling Hook",
@@ -1089,7 +1064,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "iron", "ingot"], quantity: 1 }],
     outputs: [{ name: "Grappling Hook", quantity: 1 }],
-    modifiers: [{ description: "Full forge available", bonus: 3 }],
   },
   {
     name: "Forge Crowbar",
@@ -1102,7 +1076,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "iron", "ingot"], quantity: 1 }],
     outputs: [{ name: "Crowbar", quantity: 1 }],
-    modifiers: [{ description: "Full forge available", bonus: 3 }],
   },
   {
     name: "Forge Iron Shield",
@@ -1115,7 +1088,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "iron", "ingot"], quantity: 2 }],
     outputs: [{ name: "Shield", quantity: 1 }],
-    modifiers: [{ description: "Full forge available", bonus: 3 }],
   },
   {
     name: "Forge Iron Horseshoes",
@@ -1128,7 +1100,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "iron", "ingot"], quantity: 1 }],
     outputs: [{ name: "Horseshoes (set of 4)", quantity: 1 }],
-    modifiers: [{ description: "Full forge available", bonus: 3 }],
   },
   {
     name: "Forge Dagger",
@@ -1144,7 +1115,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["wood"], quantity: 1 },
     ],
     outputs: [{ name: "Dagger", quantity: 1 }],
-    modifiers: [{ description: "Full forge available", bonus: 3 }],
   },
   {
     name: "Forge Handaxe",
@@ -1160,7 +1130,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["wood", "material"], quantity: 1 },
     ],
     outputs: [{ name: "Handaxe", quantity: 1 }],
-    modifiers: [{ description: "Full forge available", bonus: 3 }],
   },
 
   // ── Leathercraft ──────────────────────────────────────────────────────────
@@ -1175,7 +1144,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["leather", "material"], quantity: 1 }],
     outputs: [{ name: "Waterskin", quantity: 2 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Quiver",
@@ -1188,7 +1156,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["leather", "material"], quantity: 1 }],
     outputs: [{ name: "Quiver", quantity: 2 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Scabbard",
@@ -1201,7 +1168,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["leather", "material"], quantity: 1 }],
     outputs: [{ name: "Scabbard", quantity: 2 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Scroll Case",
@@ -1214,7 +1180,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["leather", "material"], quantity: 1 }],
     outputs: [{ name: "Scroll Case", quantity: 2 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Saddlebag",
@@ -1227,7 +1192,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["leather", "material"], quantity: 2 }],
     outputs: [{ name: "Saddlebag", quantity: 1 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Coin Purse",
@@ -1240,7 +1204,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["leather", "material"], quantity: 1 }],
     outputs: [{ name: "Coin Purse", quantity: 3 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Stitch Leather Armour",
@@ -1253,7 +1216,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["leather", "material"], quantity: 4 }],
     outputs: [{ name: "Leather Armor", quantity: 1 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Riding Saddle",
@@ -1269,7 +1231,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["metal", "scrap"], quantity: 1 },
     ],
     outputs: [{ name: "Riding Saddle", quantity: 1 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Military Saddle",
@@ -1285,7 +1246,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["metal", "scrap"], quantity: 2 },
     ],
     outputs: [{ name: "Military Saddle", quantity: 1 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Pack Saddle",
@@ -1301,7 +1261,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["metal", "scrap"], quantity: 1 },
     ],
     outputs: [{ name: "Pack Saddle", quantity: 1 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Exotic Saddle",
@@ -1318,7 +1277,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["fiber"], quantity: 1 },
     ],
     outputs: [{ name: "Exotic Saddle", quantity: 1 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Bridle and Bit",
@@ -1334,7 +1292,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["metal", "scrap"], quantity: 1 },
     ],
     outputs: [{ name: "Bridle and Bit", quantity: 2 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Leather Barding",
@@ -1350,7 +1307,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["metal", "scrap"], quantity: 2 },
     ],
     outputs: [{ name: "Leather Barding", quantity: 1 }],
-    modifiers: [{ description: "Equipped leatherworking workshop available", bonus: 2 }],
   },
 
   // ── Herbalism ─────────────────────────────────────────────────────────────
@@ -1368,7 +1324,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Fever Remedy (vial)", quantity: 2 }],
-    modifiers: [{ description: "Herb garden or drying room available", bonus: 2 }],
   },
   {
     name: "Craft Poultice",
@@ -1381,7 +1336,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["herb", "healing"], quantity: 2 }],
     outputs: [{ name: "Poultice", quantity: 3 }],
-    modifiers: [{ description: "Herb garden or drying room available", bonus: 2 }],
   },
   {
     name: "Brew Restorative Broth",
@@ -1398,7 +1352,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Restorative Broth", quantity: 2 }],
-    modifiers: [{ description: "Herb garden or drying room available", bonus: 2 }],
   },
   {
     name: "Distil Healing Salve",
@@ -1414,7 +1367,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["oil"], quantity: 1 },
     ],
     outputs: [{ name: "Healing Salve (pot)", quantity: 1 }],
-    modifiers: [{ description: "Herb garden or drying room available", bonus: 2 }],
   },
   {
     name: "Prepare Sleep Draught",
@@ -1430,7 +1382,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Sleep Draught (vial)", quantity: 1 }],
-    modifiers: [{ description: "Herb garden or drying room available", bonus: 2 }],
   },
   {
     name: "Brew Potion of Greater Healing",
@@ -1446,7 +1397,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Potion of Greater Healing", quantity: 1 }],
-    modifiers: [{ description: "Herb garden or drying room available", bonus: 2 }],
   },
 
   // ── Brewing ───────────────────────────────────────────────────────────────
@@ -1464,7 +1414,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Cider (bottle)", quantity: 3 }],
-    modifiers: [{ description: "Brewing facility or equipped tavern available", bonus: 2 }],
   },
   {
     name: "Brew Wine",
@@ -1480,7 +1429,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["sweetener", "honey"], quantity: 1 },
     ],
     outputs: [{ name: "Wine (bottle)", quantity: 3 }],
-    modifiers: [{ description: "Brewing facility or equipped tavern available", bonus: 2 }],
   },
   {
     name: "Brew Dark Stout",
@@ -1497,7 +1445,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["sweetener", "honey"], quantity: 1 },
     ],
     outputs: [{ name: "Stout (mug)", quantity: 4 }],
-    modifiers: [{ description: "Brewing facility or equipped tavern available", bonus: 2 }],
   },
   {
     name: "Distil Spirits",
@@ -1513,7 +1460,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Spirits (flask)", quantity: 1 }],
-    modifiers: [{ description: "Brewing facility or equipped tavern available", bonus: 2 }],
   },
   {
     name: "Ferment Vinegar",
@@ -1526,7 +1472,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["drink", "alcohol", "ale"], quantity: 1 }],
     outputs: [{ name: "Vinegar (flask)", quantity: 2 }],
-    modifiers: [{ description: "Brewing facility or equipped tavern available", bonus: 2 }],
   },
   {
     name: "Brew Kvass",
@@ -1559,7 +1504,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["solvent"], quantity: 1 },
     ],
     outputs: [{ name: "Paralytic Poison (vial)", quantity: 1 }],
-    modifiers: [{ description: "Equipped poisoner's laboratory available", bonus: 2 }],
   },
   {
     name: "Prepare Drow Poison",
@@ -1575,7 +1519,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["herb", "poison"], quantity: 1 },
     ],
     outputs: [{ name: "Drow Poison (vial)", quantity: 1 }],
-    modifiers: [{ description: "Equipped poisoner's laboratory available", bonus: 2 }],
   },
   {
     name: "Brew Midnight Tears",
@@ -1591,7 +1534,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["solvent"], quantity: 1 },
     ],
     outputs: [{ name: "Midnight Tears (vial)", quantity: 1 }],
-    modifiers: [{ description: "Equipped poisoner's laboratory available", bonus: 2 }],
   },
   {
     name: "Concentrate Serpent Venom",
@@ -1604,7 +1546,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["venom", "raw"], quantity: 1 }],
     outputs: [{ name: "Serpent Venom (vial)", quantity: 1 }],
-    modifiers: [{ description: "Equipped poisoner's laboratory available", bonus: 2 }],
   },
   {
     name: "Brew Pale Tincture",
@@ -1620,7 +1561,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Pale Tincture (vial)", quantity: 1 }],
-    modifiers: [{ description: "Equipped poisoner's laboratory available", bonus: 2 }],
   },
   {
     name: "Craft Blade Coat",
@@ -1636,7 +1576,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["herb", "poison"], quantity: 1 },
     ],
     outputs: [{ name: "Blade Coat (vial)", quantity: 2 }],
-    modifiers: [{ description: "Equipped poisoner's laboratory available", bonus: 2 }],
   },
 
   // ── Tinkering ─────────────────────────────────────────────────────────────
@@ -1651,7 +1590,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "scrap"], quantity: 1 }],
     outputs: [{ name: "Ball Bearings (bag of 1,000)", quantity: 1 }],
-    modifiers: [{ description: "Fully equipped workshop available", bonus: 2 }],
   },
   {
     name: "Assemble Hourglass",
@@ -1668,7 +1606,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["sand"], quantity: 1 },
     ],
     outputs: [{ name: "Hourglass", quantity: 1 }],
-    modifiers: [{ description: "Fully equipped workshop available", bonus: 2 }],
   },
   {
     name: "Craft Hooded Lantern",
@@ -1681,7 +1618,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "iron", "ingot"], quantity: 1 }],
     outputs: [{ name: "Lantern, Hooded", quantity: 1 }],
-    modifiers: [{ description: "Fully equipped workshop available", bonus: 2 }],
   },
   {
     name: "Assemble Pin-Tumbler Lock",
@@ -1694,7 +1630,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["metal", "iron", "ingot"], quantity: 1 }],
     outputs: [{ name: "Lock", quantity: 1 }],
-    modifiers: [{ description: "Fully equipped workshop available", bonus: 2 }],
   },
   {
     name: "Craft Spyglass",
@@ -1710,7 +1645,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["metal", "iron", "ingot"], quantity: 1 },
     ],
     outputs: [{ name: "Spyglass", quantity: 1 }],
-    modifiers: [{ description: "Fully equipped workshop available", bonus: 2 }],
   },
   {
     name: "Craft Magnifying Glass",
@@ -1723,7 +1657,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["stone", "mineral"], quantity: 2 }],
     outputs: [{ name: "Magnifying Glass", quantity: 1 }],
-    modifiers: [{ description: "Fully equipped workshop available", bonus: 2 }],
   },
   {
     name: "Assemble Signal Whistle",
@@ -1736,7 +1669,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["bone"], quantity: 1 }],
     outputs: [{ name: "Signal Whistle", quantity: 3 }],
-    modifiers: [{ description: "Fully equipped workshop available", bonus: 2 }],
   },
   {
     name: "Build Clockwork Box",
@@ -1752,7 +1684,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["wood", "material"], quantity: 1 },
     ],
     outputs: [{ name: "Music Box", quantity: 1 }],
-    modifiers: [{ description: "Fully equipped workshop available", bonus: 2 }],
   },
 
   // ── Weaving ───────────────────────────────────────────────────────────────
@@ -1767,7 +1698,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["wool", "fiber"], quantity: 2 }],
     outputs: [{ name: "Clothes, Traveler's", quantity: 1 }],
-    modifiers: [{ description: "Equipped loom or tailoring room available", bonus: 2 }],
   },
   {
     name: "Sew Fine Clothes",
@@ -1780,7 +1710,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["silk", "fiber"], quantity: 2 }],
     outputs: [{ name: "Clothes, Fine", quantity: 1 }],
-    modifiers: [{ description: "Equipped loom or tailoring room available", bonus: 2 }],
   },
   {
     name: "Weave Fishing Net",
@@ -1808,7 +1737,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["fiber"], quantity: 1 },
     ],
     outputs: [{ name: "Tent, Two-Person", quantity: 1 }],
-    modifiers: [{ description: "Equipped loom or tailoring room available", bonus: 2 }],
   },
   {
     name: "Sew Winter Cloak",
@@ -1824,7 +1752,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["fur", "large"], quantity: 1 },
     ],
     outputs: [{ name: "Winter Cloak", quantity: 1 }],
-    modifiers: [{ description: "Equipped loom or tailoring room available", bonus: 2 }],
   },
   {
     name: "Braid Silk Rope",
@@ -1837,7 +1764,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["silk", "fiber"], quantity: 3 }],
     outputs: [{ name: "Rope, Silk (50 feet)", quantity: 1 }],
-    modifiers: [{ description: "Equipped loom or tailoring room available", bonus: 2 }],
   },
   {
     name: "Craft Disguise Kit",
@@ -1853,7 +1779,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["dye"], quantity: 1 },
     ],
     outputs: [{ name: "Disguise Kit", quantity: 1 }],
-    modifiers: [{ description: "Equipped loom or tailoring room available", bonus: 2 }],
   },
 
   // ── Scribing ──────────────────────────────────────────────────────────────
@@ -1871,7 +1796,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["parchment"], quantity: 5 },
     ],
     outputs: [{ name: "Journal", quantity: 2 }],
-    modifiers: [{ description: "Scriptorium or proper writing desk available", bonus: 2 }],
   },
   {
     name: "Copy an Arcane Scroll",
@@ -1887,7 +1811,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["ink"], quantity: 1 },
     ],
     outputs: [{ name: "Arcane Scroll", quantity: 1 }],
-    modifiers: [{ description: "Scriptorium or proper writing desk available", bonus: 2 }],
   },
   {
     name: "Draft a Wanted Poster",
@@ -1903,7 +1826,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["ink"], quantity: 1 },
     ],
     outputs: [{ name: "Wanted Poster", quantity: 3 }],
-    modifiers: [{ description: "Scriptorium or proper writing desk available", bonus: 2 }],
   },
   {
     name: "Write a Letter of Introduction",
@@ -1920,7 +1842,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["wax"], quantity: 1 },
     ],
     outputs: [{ name: "Letter of Introduction", quantity: 2 }],
-    modifiers: [{ description: "Scriptorium or proper writing desk available", bonus: 2 }],
   },
   {
     name: "Inscribe a Codex Page",
@@ -1936,7 +1857,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["ink"], quantity: 1 },
     ],
     outputs: [{ name: "Codex Page", quantity: 1 }],
-    modifiers: [{ description: "Scriptorium or proper writing desk available", bonus: 2 }],
   },
   {
     name: "Prepare Invisible Ink",
@@ -1952,7 +1872,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Invisible Ink (vial)", quantity: 2 }],
-    modifiers: [{ description: "Scriptorium or proper writing desk available", bonus: 2 }],
   },
 
   // ── Forgery ───────────────────────────────────────────────────────────────
@@ -1967,7 +1886,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["wax"], quantity: 2 }],
     outputs: [{ name: "Forged Signet Impression", quantity: 1 }],
-    modifiers: [{ description: "Private workroom with good light available", bonus: 2 }],
   },
   {
     name: "Produce a Forged Document",
@@ -1984,7 +1902,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["wax"], quantity: 1 },
     ],
     outputs: [{ name: "Forged Document", quantity: 1 }],
-    modifiers: [{ description: "Private workroom with good light available", bonus: 2 }],
   },
   {
     name: "Draft Papers of Safe-Conduct",
@@ -2001,7 +1918,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["wax"], quantity: 1 },
     ],
     outputs: [{ name: "Forged Papers of Safe-Conduct", quantity: 1 }],
-    modifiers: [{ description: "Private workroom with good light available", bonus: 2 }],
   },
   {
     name: "Counterfeit a Letter of Credit",
@@ -2018,7 +1934,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["gold"], quantity: 1 },
     ],
     outputs: [{ name: "Forged Letter of Credit", quantity: 1 }],
-    modifiers: [{ description: "Private workroom with good light available", bonus: 2 }],
   },
   {
     name: "Forge an Official Writ",
@@ -2035,7 +1950,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["wax"], quantity: 1 },
     ],
     outputs: [{ name: "Forged Writ", quantity: 1 }],
-    modifiers: [{ description: "Private workroom with good light available", bonus: 2 }],
   },
 
   // ── Alchemy ───────────────────────────────────────────────────────────────
@@ -2053,7 +1967,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["solvent"], quantity: 1 },
     ],
     outputs: [{ name: "Acid (vial)", quantity: 1 }],
-    modifiers: [{ description: "Proper alchemist's lab available", bonus: 2 }],
   },
   {
     name: "Craft Smoke Bomb",
@@ -2071,7 +1984,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["clay"], quantity: 1 },
     ],
     outputs: [{ name: "Smoke Bomb", quantity: 2 }],
-    modifiers: [{ description: "Proper alchemist's lab available", bonus: 2 }],
   },
   {
     name: "Brew Thunderstone",
@@ -2087,7 +1999,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["saltpetre"], quantity: 1 },
     ],
     outputs: [{ name: "Thunderstone", quantity: 2 }],
-    modifiers: [{ description: "Proper alchemist's lab available", bonus: 2 }],
   },
   {
     name: "Craft Flash Powder",
@@ -2103,7 +2014,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["metal", "scrap"], quantity: 1 },
     ],
     outputs: [{ name: "Flash Powder (packet)", quantity: 3 }],
-    modifiers: [{ description: "Proper alchemist's lab available", bonus: 2 }],
   },
   {
     name: "Brew Tanglefoot Bag",
@@ -2119,7 +2029,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["cloth"], quantity: 1 },
     ],
     outputs: [{ name: "Tanglefoot Bag", quantity: 1 }],
-    modifiers: [{ description: "Proper alchemist's lab available", bonus: 2 }],
   },
   {
     name: "Brew Potion of Climbing",
@@ -2136,7 +2045,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Potion of Climbing", quantity: 1 }],
-    modifiers: [{ description: "Proper alchemist's lab available", bonus: 2 }],
   },
   {
     name: "Brew Potion of Water Breathing",
@@ -2153,7 +2061,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["water"], quantity: 1 },
     ],
     outputs: [{ name: "Potion of Water Breathing", quantity: 1 }],
-    modifiers: [{ description: "Proper alchemist's lab available", bonus: 2 }],
   },
   {
     name: "Brew Potion of Invisibility",
@@ -2170,7 +2077,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["solvent"], quantity: 1 },
     ],
     outputs: [{ name: "Potion of Invisibility", quantity: 1 }],
-    modifiers: [{ description: "Proper alchemist's lab available", bonus: 2 }],
   },
   {
     name: "Craft Luminescent Powder",
@@ -2183,7 +2089,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["mineral", "phosphorescent"], quantity: 1 }],
     outputs: [{ name: "Glowing Powder (packet)", quantity: 3 }],
-    modifiers: [{ description: "Proper alchemist's lab available", bonus: 2 }],
   },
   {
     name: "Brew Oil of Slipperiness",
@@ -2199,7 +2104,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["oil"], quantity: 1 },
     ],
     outputs: [{ name: "Oil of Slipperiness (flask)", quantity: 1 }],
-    modifiers: [{ description: "Proper alchemist's lab available", bonus: 2 }],
   },
 
   // ── Woodcraft ─────────────────────────────────────────────────────────────
@@ -2217,7 +2121,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["feather"], quantity: 1 },
     ],
     outputs: [{ name: "Arrows (20)", quantity: 1 }],
-    modifiers: [{ description: "Woodworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Wooden Shield",
@@ -2230,7 +2133,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["wood", "material"], quantity: 2 }],
     outputs: [{ name: "Shield", quantity: 1 }],
-    modifiers: [{ description: "Woodworking workshop available", bonus: 2 }],
   },
   {
     name: "Build Wooden Ladder",
@@ -2255,7 +2157,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["bone"], quantity: 1 }],
     outputs: [{ name: "Dice Set", quantity: 1 }],
-    modifiers: [{ description: "Woodworking workshop available", bonus: 2 }],
   },
   {
     name: "Whittle Flute",
@@ -2268,7 +2169,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["wood"], quantity: 1 }],
     outputs: [{ name: "Flute", quantity: 1 }],
-    modifiers: [{ description: "Woodworking workshop available", bonus: 2 }],
   },
   {
     name: "Build Deadfall Trap",
@@ -2327,7 +2227,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["feather"], quantity: 1 },
     ],
     outputs: [{ name: "Crossbow Bolts (20)", quantity: 1 }],
-    modifiers: [{ description: "Woodworking workshop available", bonus: 2 }],
   },
   {
     name: "Craft Shortbow",
@@ -2343,7 +2242,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["fiber"], quantity: 1 },
     ],
     outputs: [{ name: "Shortbow", quantity: 1 }],
-    modifiers: [{ description: "Woodworking workshop available", bonus: 2 }],
   },
 
   // ── Jewelcrafting ─────────────────────────────────────────────────────────
@@ -2358,7 +2256,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["gold", "ingot"], quantity: 1 }],
     outputs: [{ name: "Gold Ring", quantity: 1 }],
-    modifiers: [{ description: "Jeweler's workshop available", bonus: 2 }],
   },
   {
     name: "Craft a Brooch",
@@ -2371,7 +2268,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["silver", "ingot"], quantity: 1 }],
     outputs: [{ name: "Brooch", quantity: 1 }],
-    modifiers: [{ description: "Jeweler's workshop available", bonus: 2 }],
   },
   {
     name: "Set Gemstone Pendant",
@@ -2387,7 +2283,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["silver", "ingot"], quantity: 1 },
     ],
     outputs: [{ name: "Gemstone Pendant", quantity: 1 }],
-    modifiers: [{ description: "Jeweler's workshop available", bonus: 2 }],
   },
   {
     name: "Craft Earrings",
@@ -2400,7 +2295,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["silver", "ingot"], quantity: 1 }],
     outputs: [{ name: "Earrings (pair)", quantity: 1 }],
-    modifiers: [{ description: "Jeweler's workshop available", bonus: 2 }],
   },
   {
     name: "Craft Amulet",
@@ -2413,7 +2307,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
     requires_tools: true,
     ingredients: [{ tags: ["silver", "ingot"], quantity: 1 }],
     outputs: [{ name: "Amulet", quantity: 1 }],
-    modifiers: [{ description: "Jeweler's workshop available", bonus: 2 }],
   },
 
   // ── Painting ──────────────────────────────────────────────────────────────
@@ -2431,7 +2324,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["oil"], quantity: 1 },
     ],
     outputs: [{ name: "Camouflage Paint (pot)", quantity: 2 }],
-    modifiers: [{ description: "Proper studio or scriptorium available", bonus: 2 }],
   },
   {
     name: "Apply Warpaint",
@@ -2447,7 +2339,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["oil"], quantity: 1 },
     ],
     outputs: [{ name: "Warpaint (pot)", quantity: 3 }],
-    modifiers: [{ description: "Proper studio or scriptorium available", bonus: 2 }],
   },
   {
     name: "Paint Heraldic Device",
@@ -2463,7 +2354,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["dye"], quantity: 2 },
     ],
     outputs: [{ name: "Heraldic Device", quantity: 1 }],
-    modifiers: [{ description: "Proper studio or scriptorium available", bonus: 2 }],
   },
   {
     name: "Paint a Portrait",
@@ -2479,7 +2369,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["dye"], quantity: 2 },
     ],
     outputs: [{ name: "Portrait", quantity: 1 }],
-    modifiers: [{ description: "Proper studio or scriptorium available", bonus: 2 }],
   },
   {
     name: "Illuminate a Manuscript Page",
@@ -2496,7 +2385,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["dye"], quantity: 1 },
     ],
     outputs: [{ name: "Illuminated Page", quantity: 1 }],
-    modifiers: [{ description: "Proper studio or scriptorium available", bonus: 2 }],
   },
   {
     name: "Mix Disguise Pigments",
@@ -2512,7 +2400,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["oil"], quantity: 1 },
     ],
     outputs: [{ name: "Disguise Pigment (pot)", quantity: 2 }],
-    modifiers: [{ description: "Proper studio or scriptorium available", bonus: 2 }],
   },
   {
     name: "Varnish a Wooden Item",
@@ -2528,7 +2415,6 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["oil"], quantity: 1 },
     ],
     outputs: [{ name: "Protective Varnish (flask)", quantity: 1 }],
-    modifiers: [{ description: "Proper studio or scriptorium available", bonus: 2 }],
   },
   {
     name: "Paint a Battle Map",
@@ -2545,6 +2431,5 @@ export const STARTER_RECIPES: StarterRecipeDef[] = [
       { tags: ["dye"], quantity: 1 },
     ],
     outputs: [{ name: "Battle Map", quantity: 1 }],
-    modifiers: [{ description: "Proper studio or scriptorium available", bonus: 2 }],
   },
 ];
