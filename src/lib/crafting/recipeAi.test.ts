@@ -69,6 +69,17 @@ describe("normalizeRecipeAi", () => {
     });
     expect(m?.modifiers).toHaveLength(2);
   });
+
+  it("drops a modifier that repeats the discipline's workspace bonus (#1091)", () => {
+    const r = normalizeRecipeAi({
+      ...goodRaw,
+      modifiers: [
+        { description: "Proper alchemist's lab available", bonus: 2 },
+        { description: "Done under moonlight", bonus: 2 },
+      ],
+    });
+    expect(r?.modifiers).toEqual([{ description: "Done under moonlight", bonus: 2 }]);
+  });
 });
 
 describe("normalizeTags", () => {
