@@ -28,11 +28,16 @@
       />
     </template>
 
-    <!-- Kept alive along the trail, so Back returns to the tab the DM left (usually Relations). -->
-    <KeepAlive :max="6">
+    <!-- Kept alive along the trail, so Back returns to the tab the DM left (usually Relations). No cap: an
+         evicted sheet would lose its tab, and the cache lives only as long as this modal. -->
+    <KeepAlive>
       <NpcSheet v-if="preview && !failed" :key="shownId" :npc="preview" :full="npc" />
     </KeepAlive>
-    <p v-if="!preview || failed" class="py-16 text-center text-body text-muted-foreground italic">
+    <!-- A trail step skips the modal's spinner, so an NPC still being read says so rather than "not found". -->
+    <div v-if="!preview && !failed && isLoading" class="flex justify-center py-16" role="status" aria-label="Loading">
+      <BannerLoader class="h-6" />
+    </div>
+    <p v-else-if="!preview || failed" class="py-16 text-center text-body text-muted-foreground italic">
       {{ failed ? "This NPC could not be loaded." : "This NPC could not be found." }}
     </p>
   </EntityDetailModal>
@@ -52,6 +57,7 @@ import { displayAge } from "@/lib/calendar/age";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import BannerLoader from "@/components/brand/BannerLoader.vue";
 import EntityDetailModal from "@/components/common/overlays/EntityDetailModal.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import NpcSheet from "@/components/npcs/NpcSheet.vue";
