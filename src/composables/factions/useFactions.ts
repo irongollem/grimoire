@@ -196,19 +196,19 @@ export interface FactionNpcWithNpc extends FactionNpc {
   >;
 }
 
-export function useFactionNpcs(factionId: string) {
+export function useFactionNpcs(factionId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: ["faction-npcs", factionId],
-    queryFn: async () => {
+    queryKey: computed(() => ["faction-npcs", toValue(factionId)] as const),
+    queryFn: async ({ queryKey: [, id] }) => {
       const { data, error } = await supabase
         .from("faction_npcs")
         .select("*, npc:npcs(id, name, occupation, race, status, portrait_url, portrait_focal_point)")
-        .eq("faction_id", factionId)
+        .eq("faction_id", id)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as FactionNpcWithNpc[];
     },
-    enabled: !!factionId,
+    enabled: computed(() => !!toValue(factionId)),
   });
 }
 
@@ -763,19 +763,19 @@ export interface FactionPartyMemberWithMember extends FactionPartyMember {
   party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url" | "portrait_focal_point" | "ruleset" | "campaign_id">;
 }
 
-export function useFactionPartyMembers(factionId: string) {
+export function useFactionPartyMembers(factionId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: ["faction-party-members", factionId],
-    queryFn: async () => {
+    queryKey: computed(() => ["faction-party-members", toValue(factionId)] as const),
+    queryFn: async ({ queryKey: [, id] }) => {
       const { data, error } = await supabase
         .from("faction_party_members")
         .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url, portrait_focal_point, ruleset, campaign_id)")
-        .eq("faction_id", factionId)
+        .eq("faction_id", id)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as FactionPartyMemberWithMember[];
     },
-    enabled: !!factionId,
+    enabled: computed(() => !!toValue(factionId)),
   });
 }
 

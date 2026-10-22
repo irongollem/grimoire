@@ -39,6 +39,8 @@
         <div v-else class="h-3 w-2/3 animate-pulse rounded bg-muted/40" />
       </div>
     </div>
+    <!-- Only kin the player knows of; nothing at all when there are none (#1083). -->
+    <FamilyBlock :person="personKey('npc', npc.id)" player title="Kin you know of" framed />
     <PlayerNpcMemories :npc-id="npc.id" />
     <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Your observations about this character…" />
   </div>
@@ -47,6 +49,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
+import FamilyBlock from "@/components/kinship/FamilyBlock.vue";
+import { personKey } from "@/lib/kinship/keys";
 import PlayerNpcMemories from "@/components/player/people/PlayerNpcMemories.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { formatMetDate } from "@/components/player/people/peopleParty";

@@ -84,7 +84,10 @@
         class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
         @click.self="close"
       >
-        <div class="bg-card rounded-xl border border-border w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div
+          class="bg-card rounded-xl border border-border w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+          :class="houseEntry && detailTab === 'lineage' ? 'max-w-4xl' : 'max-w-lg'"
+        >
           <!-- Header -->
           <div class="flex items-center gap-3 p-4 border-b border-border shrink-0">
             <div class="h-14 w-14 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
@@ -111,7 +114,13 @@
             />
           </div>
 
-          <div class="p-4 overflow-y-auto space-y-4">
+          <TabBar v-if="houseEntry" v-model="detailTab" :tabs="DETAIL_TABS" class="px-4" />
+
+          <div v-if="houseEntry && detailTab === 'lineage'" class="p-4 overflow-y-auto">
+            <HousePlayerLineage :faction="selected" :members="houseEntry.members" />
+          </div>
+
+          <div v-else class="p-4 overflow-y-auto space-y-4">
             <!-- Description -->
             <div v-if="selected.description">
               <p class="text-label-lg font-semibold text-muted-foreground mb-2">ABOUT</p>
@@ -190,6 +199,10 @@ import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
+import HousePlayerLineage from "@/components/factions/HousePlayerLineage.vue";
+import { usePlayerVisibleKin, usePreviewMemberId } from "@/composables/kinship/usePlayerKin";
+import { useCampaignStore } from "@/stores/campaign";
 
 const auth = useAuthStore();
 const appUi = useAppUiStore();
@@ -270,7 +283,23 @@ const factionKey = (faction: { id: string }) => faction.id;
 // unmeasured row above the viewport.
 const FACTION_ROW_PX = 82;
 
+// A House the party has discovered also shows its Lineage, from the people on their ledger.
+const DETAIL_TABS = [
+  { id: "about", label: "About" },
+  { id: "lineage", label: "Lineage" },
+];
+const detailTab = ref<"about" | "lineage">("about");
+// Only the houses are needed here: the lineage tab builds its own graph when it opens.
+const campaign = useCampaignStore();
+const kin = usePlayerVisibleKin(() => campaign.activeCampaignId, usePreviewMemberId());
+const houseEntry = computed(() =>
+  selected.value?.faction_type === "House"
+    ? ((kin.data.value?.houses ?? []).find((h) => h.faction_id === selected.value?.id) ?? null)
+    : null,
+);
+
 function open(faction: Faction) {
+  detailTab.value = "about";
   selected.value = faction;
 }
 

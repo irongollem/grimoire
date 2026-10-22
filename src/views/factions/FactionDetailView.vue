@@ -6,12 +6,15 @@
 
     <template v-else>
       <div class="flex flex-col gap-6">
+        <TabBar v-if="isHouse" v-model="tab" :tabs="HOUSE_TABS" />
+
         <!-- Core fields: editor form when creating or `?edit=true`, otherwise
              the read-only sheet. Matches the sheet + editor + ?edit=true
              convention shared by NPC / Monster / Item / Spell / Location /
              Quest (#168). -->
+        <HouseLineage v-if="showLineage && faction" :key="faction.id" :faction="faction" />
         <FactionEditor
-          v-if="isNew || isEditing"
+          v-else-if="isNew || isEditing"
           :key="faction?.id ?? 'new'"
           :faction="faction ?? null"
           :is-new="isNew"
@@ -22,12 +25,13 @@
           :faction="faction"
         />
 
+
         <!-- Sub-sections (only on existing factions) — these are
              self-managing CRUD panels that are equally useful in both
              modes, so rendering them once below the sheet/editor avoids
              duplicating code and keeps them available without a full
              edit-mode flip. -->
-        <template v-if="!isNew && faction">
+        <template v-if="!isNew && faction && !showLineage">
           <div class="border-t border-border pt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
             <FactionMembersSection :faction-id="faction.id" />
             <FactionPartyMembersSection :faction-id="faction.id" />
@@ -53,7 +57,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useFaction } from "@/composables/factions/useFactions";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
@@ -65,13 +69,31 @@ import FactionLocationsSection from "@/components/factions/FactionLocationsSecti
 import FactionItemsSection from "@/components/factions/FactionItemsSection.vue";
 import FactionRelationsSection from "@/components/factions/FactionRelationsSection.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
+import HouseLineage from "@/components/factions/HouseLineage.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 
 const route     = useRoute();
+const router    = useRouter();
 const isNew     = computed(() => route.name === "faction-new");
 const isEditing = computed(() => route.query.edit === "true");
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 
 const { data: faction, isLoading: factionLoading } = useFaction(id);
+
+// A House gets a Lineage tab beside the page it always had; the tab lives in the URL so a link can open it.
+const HOUSE_TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "lineage", label: "Lineage" },
+];
+const isHouse = computed(() => !isNew.value && !isEditing.value && faction.value?.faction_type === "House");
+const tab = computed({
+  get: () => (route.query.tab === "lineage" ? "lineage" : "overview"),
+  set: (t: string) => {
+    const { tab: _tab, focus: _focus, ...rest } = route.query;
+    void router.replace({ query: t === "lineage" ? { ...rest, tab: "lineage" } : rest });
+  },
+});
+const showLineage = computed(() => isHouse.value && tab.value === "lineage");
 const loading = computed(() => !isNew.value && factionLoading.value);
 </script>

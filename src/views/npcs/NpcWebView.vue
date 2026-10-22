@@ -16,6 +16,8 @@
       @clear="npcsUi.resetNpcWebFilters()"
     />
 
+    <SortFamilyLinksNotice class="mx-4 mt-2" />
+
     <!-- Graph area (fills remaining space; panel overlays it so the graph never resizes) -->
     <div class="flex-1 relative bg-muted/10 overflow-hidden">
       <div v-if="isLoading" class="absolute inset-0 flex items-center justify-center">
@@ -275,6 +277,7 @@ import { npcRelationshipVar } from "@/lib/npcDisplay";
 import { VNetworkGraph, type EventHandlers, type Layers, type Layouts } from "v-network-graph";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import SortFamilyLinksNotice from "@/components/kinship/SortFamilyLinksNotice.vue";
 import NpcWebTopBar from "@/components/npcs/NpcWebTopBar.vue";
 import NpcWebLinkForm from "@/components/npcs/NpcWebLinkForm.vue";
 import NpcWebNpcPanel from "@/components/npcs/NpcWebNpcPanel.vue";
@@ -285,6 +288,7 @@ import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDeleteNpcRelation } from "@/composables/factions/useNpcRelations";
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
+import { useKinLinks } from "@/composables/kinship/useKinLinks";
 import { useNpcWebGraph, resolveVar } from "@/composables/npcs/useNpcWebGraph";
 import { useAllFactionNpcs, useAllFactionPartyMembers } from "@/composables/factions/useFactions";
 import { factionBadgesByNode, membershipCaption, pipOffsets, type FactionPip } from "@/lib/npcWeb/factions";
@@ -319,6 +323,7 @@ const { data: allNpcs, isLoading: npcsLoading } = useNpcs();
 const { data: partyMembers, isLoading: partyLoading } = useParty();
 const { data: npcRelations, isLoading: relLoading } = useAllNpcRelations();
 const { data: pcNotes, isLoading: pcNotesLoading } = useAllNpcPcNotes();
+const { data: kinLinks } = useKinLinks();
 // Membership badges are additive — the graph draws without them, so they are
 // deliberately NOT part of `isLoading`. Blocking the whole web on a faction
 // query would make the common case (no factions yet) slower for nothing.
@@ -369,6 +374,7 @@ const { graphNodes, graphEdges, graphConfigs, nodeCount } = useNpcWebGraph({
   partyMembers: () => partyMembers.value,
   relations: () => npcRelations.value,
   pcNotes: () => pcNotes.value,
+  kinLinks: () => kinLinks.value,
   pinnedKeys: () => pinnedKeys.value,
   getDescendantIds,
   focusedKeys: () => focusedKeys.value,
@@ -951,6 +957,8 @@ const eventHandlers: EventHandlers = {
     const keyA = parts[0];
     const keyB = parts[1];
     if (!keyA || !keyB) return;
+    // A kin-only line between two PCs has no bond form to open.
+    if (keyA.startsWith("pc:") && keyB.startsWith("pc:")) return;
 
     clearSelection();
     linkFromKey.value = keyA;

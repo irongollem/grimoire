@@ -3,6 +3,10 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import type { NpcStatus, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 
+/** The web's edge-type filter: one bond type, or "kin" for the family links (#1083). */
+export const NPC_WEB_KIN_FILTER = "kin";
+export type NpcWebTypeFilter = NpcRelationshipType | typeof NPC_WEB_KIN_FILTER | "";
+
 export const useNpcsUiStore = defineStore("ui:npcs", () => {
   // NPC UI state
   const npcsFilterStatus = ref<NpcStatus | "all">("all");
@@ -30,7 +34,7 @@ export const useNpcsUiStore = defineStore("ui:npcs", () => {
   const npcWebSearch = ref("");
   const npcWebShowPcs = ref(true);
   const npcWebFilterLocation = ref("");
-  const npcWebFilterType = ref<NpcRelationshipType | "">("");
+  const npcWebFilterType = ref<NpcWebTypeFilter>("");
   /**
    * The faction whose members are drawn inside a boundary, with everyone else
    * dimmed. Lives here rather than in the view for the usual reason — opening an

@@ -221,6 +221,13 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Factions" },
   },
   {
+    // The player's own family tree, and the kin of people they know (#1083), drawn from get_player_visible_kin.
+    path: "/play/family/:key",
+    name: "play-family-tree",
+    component: () => import("@/views/family/FamilyTreeView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Family" },
+  },
+  {
     path: "/play/puzzles",
     redirect: { path: "/play/journal", query: { tab: "puzzles" } },
   },
@@ -433,6 +440,20 @@ export const routes: RouteRecordRaw[] = [
     name: "npc-web",
     component: () => import("@/views/npcs/NpcWebView.vue"),
     meta: { requiresAuth: true, title: "Relationship Web" },
+  },
+  {
+    // The one-off review of links from before family trees (#1083): which way each old "Family" link goes.
+    path: "/npcs/family-links",
+    name: "npc-family-links",
+    component: () => import("@/views/npcs/SortFamilyLinksView.vue"),
+    meta: { requiresAuth: true, title: "Sort Out Family Links" },
+  },
+  {
+    // A family tree centred on one person (#1083); :key is a person key, npc:<uuid> or pc:<uuid>.
+    path: "/family/:key",
+    name: "family-tree",
+    component: () => import("@/views/family/FamilyTreeView.vue"),
+    meta: { requiresAuth: true, title: "Family Tree" },
   },
   {
     path: "/npcs/sets",

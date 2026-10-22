@@ -96,6 +96,7 @@
       </ListFilterBar>
     </template>
 
+    <SortFamilyLinksNotice class="mb-4" />
     <NpcList
       ref="npcListRef"
       :search="search"
@@ -192,6 +193,7 @@
          (Prep mode), so this view no longer has its own bottom New bar.
          The shell's <main> already reserves space for the docked bar. -->
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-1">
+      <SortFamilyLinksNotice class="mb-3" />
       <NpcList
         ref="npcListRef"
         :search="search"
@@ -358,6 +360,7 @@ import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import NpcRelationshipFilter from "@/components/npcs/NpcRelationshipFilter.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
+import SortFamilyLinksNotice from "@/components/kinship/SortFamilyLinksNotice.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useParty } from "@/composables/party/useParty";

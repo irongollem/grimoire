@@ -5,7 +5,9 @@ import { ForceLayout } from "v-network-graph/lib/force-layout";
 import { factionClusteringForce } from "@/lib/npcWeb/factionClustering";
 import { dimNonMembers } from "@/lib/npcWeb/focus";
 import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
-import { useNpcsUiStore } from "@/stores/ui/npcs";
+import { kinWebEdges, webPairKey } from "@/lib/kinship/webEdge";
+import { NPC_WEB_KIN_FILTER, useNpcsUiStore } from "@/stores/ui/npcs";
+import type { KinLink } from "@/types/kinship.types";
 import { NPC_RELATIONSHIP_INVERSE, NPC_RELATIONSHIP_TYPE_VAR } from "@/types/npc.types";
 import type { NpcListRow, NpcPcNote, NpcRelation, NpcRelationshipType } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
@@ -37,6 +39,8 @@ export interface NpcWebGraphInput {
   partyMembers: () => PartyMember[] | undefined;
   relations: () => NpcRelation[] | undefined;
   pcNotes: () => NpcWebPcNote[] | undefined;
+  /** Family links (#1083); a pair that is also a bond is drawn as the kin line. */
+  kinLinks: () => KinLink[] | undefined;
   /** Nodes that must render regardless of the search box — see above. */
   pinnedKeys: () => ReadonlySet<string>;
   /**
@@ -75,6 +79,9 @@ export interface NpcWebEdge {
   target: string;
   edgeColor: string;
   dashed: boolean;
+  /** Kin lines only: a parent line points at the child, and every kin line carries its word. */
+  arrow?: boolean;
+  label?: string;
 }
 
 /**
@@ -188,18 +195,32 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
     const edgeColor = (color: string, a: string, b: string) =>
       dimming && !(focused.has(a) && focused.has(b)) ? dim(color) : color;
 
+    // Family first: it is the stronger fact, so a pair that is also a bond keeps
+    // the kin line (the bond loops below skip a key that is already taken).
+    const typeFilter = npcsUi.npcWebFilterType;
+    if (typeFilter === "" || typeFilter === NPC_WEB_KIN_FILTER) {
+      for (const kin of kinWebEdges(input.kinLinks() ?? [])) {
+        if (!graphNodes.value[kin.source] || !graphNodes.value[kin.target]) continue;
+        edges[kin.key] = {
+          source: kin.source,
+          target: kin.target,
+          edgeColor: edgeColor(resolveVar(`var(${kin.colorVar})`, "#6b7280"), kin.source, kin.target),
+          dashed: kin.dashed,
+          arrow: kin.arrow,
+          label: kin.label,
+        };
+      }
+    }
+    if (typeFilter === NPC_WEB_KIN_FILTER) return edges;
+
     for (const rel of input.relations() ?? []) {
       const rawType = rel.relationship_type as NpcRelationshipType;
-      if (
-        npcsUi.npcWebFilterType &&
-        rawType !== npcsUi.npcWebFilterType &&
-        NPC_RELATIONSHIP_INVERSE[rawType] !== npcsUi.npcWebFilterType
-      ) {
+      if (typeFilter && rawType !== typeFilter && NPC_RELATIONSHIP_INVERSE[rawType] !== typeFilter) {
         continue;
       }
       const a = `npc:${rel.npc_id}`;
       const b = `npc:${rel.related_npc_id}`;
-      const key = a < b ? `${a}--${b}` : `${b}--${a}`;
+      const key = webPairKey(a, b);
       if (!edges[key]) {
         edges[key] = {
           source: a,
@@ -212,7 +233,7 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
 
     if (npcsUi.npcWebShowPcs) {
       for (const note of input.pcNotes() ?? []) {
-        if (npcsUi.npcWebFilterType && note.relationship_type !== npcsUi.npcWebFilterType) continue;
+        if (typeFilter && note.relationship_type !== typeFilter) continue;
         const npcKey = `npc:${note.npc_id}`;
         const pcKey = `pc:${note.party_member_id}`;
         const key = `${npcKey}--${pcKey}`;
@@ -309,7 +330,12 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       },
       marker: {
         source: { type: "none" },
-        target: { type: "none" },
+        // Only a parent line points: from the parent to the child.
+        target: { type: ([e]) => ((e as unknown as { arrow?: boolean }).arrow ? "arrow" : "none") },
+      },
+      label: {
+        fontSize: 10,
+        color: () => cssValue("--muted-foreground", "#6b7280"),
       },
     },
   });

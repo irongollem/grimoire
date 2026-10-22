@@ -19,6 +19,7 @@
           <span class="text-eyebrow font-semibold text-muted-foreground">Type</span>
           <p class="text-body text-foreground">{{ faction.faction_type }}</p>
         </div>
+        <HouseSheetFacts v-if="faction.faction_type === 'House'" :faction="faction" class="mt-2" />
         <div class="mt-2">
           <span class="text-eyebrow font-semibold text-muted-foreground">Party standing</span>
           <p class="mt-1">
@@ -86,6 +87,7 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import HouseSheetFacts from "@/components/factions/HouseSheetFacts.vue";
 import FactionDeitiesSection from "@/components/factions/FactionDeitiesSection.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
