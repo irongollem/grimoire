@@ -24,8 +24,6 @@ export const NPC_RELATIONSHIP_LABELS: Record<NpcRelationship, string> = {
 export type NpcRelationshipType = SuggestedRelationshipType;
 
 export const NPC_RELATIONSHIP_TYPE_LABELS: Record<NpcRelationshipType, string> = {
-  family:        "Family",
-  sibling:       "Sibling",
   chosen_family: "Chosen family",
   friend:        "Friend",
   ally:          "Ally",
@@ -44,8 +42,6 @@ export const NPC_RELATIONSHIP_TYPE_LABELS: Record<NpcRelationshipType, string> =
 // When displaying a relationship from the *other* NPC's perspective, use the inverse type.
 // Symmetric types map to themselves.
 export const NPC_RELATIONSHIP_INVERSE: Record<NpcRelationshipType, NpcRelationshipType> = {
-  family:        "family",
-  sibling:       "sibling",          // symmetric
   chosen_family: "chosen_family",    // symmetric
   friend:        "friend",
   ally:          "ally",
@@ -62,8 +58,6 @@ export const NPC_RELATIONSHIP_INVERSE: Record<NpcRelationshipType, NpcRelationsh
 };
 
 export const NPC_RELATIONSHIP_TYPE_BG: Record<NpcRelationshipType, string> = {
-  family:           "bg-relation-family",
-  sibling:          "bg-relation-sibling",
   chosen_family:    "bg-relation-chosen-family",
   friend:           "bg-relation-friend",
   ally:             "bg-relation-ally",
@@ -81,8 +75,6 @@ export const NPC_RELATIONSHIP_TYPE_BG: Record<NpcRelationshipType, string> = {
 
 /** Text-colour classes for the same ramp. */
 export const NPC_RELATIONSHIP_TYPE_TEXT: Record<NpcRelationshipType, string> = {
-  family:           "text-relation-family",
-  sibling:          "text-relation-sibling",
   chosen_family:    "text-relation-chosen-family",
   friend:           "text-relation-friend",
   ally:             "text-relation-ally",
@@ -102,8 +94,6 @@ export const NPC_RELATIONSHIP_TYPE_TEXT: Record<NpcRelationshipType, string> = {
  *  a utility class cannot reach. Tint with `color-mix`, never by appending a
  *  hex alpha: that only ever worked on a hex literal. */
 export const NPC_RELATIONSHIP_TYPE_VAR: Record<NpcRelationshipType, string> = {
-  family:           "var(--relation-family)",
-  sibling:          "var(--relation-sibling)",
   chosen_family:    "var(--relation-chosen-family)",
   friend:           "var(--relation-friend)",
   ally:             "var(--relation-ally)",

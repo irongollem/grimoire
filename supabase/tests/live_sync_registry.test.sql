@@ -83,7 +83,9 @@ insert into live_sync_doorbell (name) values
   ('spell_change_windows'), ('npc_relationships'), ('campaign_invites'),
   ('player_favourites'),
   ('npc_memories'),
-  ('character_caretakers');
+  ('character_caretakers'),
+  -- Family trees (#1083).
+  ('kin_links');
 
 -- Campaign tables deliberately on no route, each with the reason. Grimoire
 -- runs live games, so a table a member's screen reads is live by default; the
