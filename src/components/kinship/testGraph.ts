@@ -3,10 +3,17 @@ import { buildKinGraph, type KinEdgeInput } from "@/lib/kinship/graph";
 import type { KinGraphSource, KinPersonView } from "@/composables/kinship/useKinGraph";
 import type { KinKind, KinLink, PersonKey } from "@/types/kinship.types";
 import { endColumns } from "@/lib/kinship/keys";
+import { getCalendarAdapter } from "@/settings/index";
+import type { KinClock } from "@/components/kinship/kinLifeMeta";
 
 /** Kin graph sources for the kinship and house component tests (test-only). */
 export const k = (id: string): PersonKey => `npc:${id}`;
 export const key = k;
+
+/** A campaign clock on the default calendar, for tests that show ages. */
+export function testClock(year = 1495): KinClock {
+  return { adapter: getCalendarAdapter("faerun"), today: { year, month: 1, day: 1 } };
+}
 
 export function person(id: string, name: string, bornYear: number | null, extra: Partial<KinPersonView> = {}): KinPersonView {
   return { key: k(id), name, bornYear, dead: false, isPc: false, portraitUrl: null, subtitle: null, to: `/npcs/${id}`, ...extra };

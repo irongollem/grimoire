@@ -57,7 +57,8 @@ describe("FamilyTree", () => {
     mobile.value = false;
     const w = mountTree();
     const boxes = w.findAllComponents({ name: "KinCard" }).map((c) => {
-      const style = (c.element as HTMLElement).style;
+      // The wrapper places the card (the torn edge owns the card's own position).
+      const style = (c.element.parentElement as HTMLElement).style;
       return { left: parseFloat(style.left), width: parseFloat(style.width), top: parseFloat(style.top) };
     });
     const rows = new Map<number, typeof boxes>();

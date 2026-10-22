@@ -5,7 +5,7 @@ import type { PlacedCard } from "@/lib/kinship/layout";
  * between neighbours, so one card unit is one card width: the gap survives the
  * mapping as `GAP * CARD_REM`, never zero.
  */
-export const CARD_REM = 9.5;
+export const CARD_REM = 12;
 export const CARD_H_REM = 3.5;
 export const ROW_PITCH_REM = 8;
 export const TOP_REM = 0.5;

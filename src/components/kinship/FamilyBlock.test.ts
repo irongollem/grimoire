@@ -20,6 +20,11 @@ vi.mock("@/composables/kinship/useKinLinks", () => ({
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ todayYear: 1495, isAiEnabled: false }) }));
+vi.mock("@/composables/kinship/useKinClock", async () => {
+  const { computed } = await import("vue");
+  const { testClock } = await import("./testGraph");
+  return { useKinClock: () => computed(() => testClock()) };
+});
 
 const people = [
   person("old", "Old Bren", 1428, { dead: true }),

@@ -14,13 +14,13 @@
 
     <template v-else>
       <header class="flex items-center gap-3">
-        <span class="grid size-14 shrink-0 place-items-center overflow-hidden bg-muted font-cinzel text-title text-muted-foreground" aria-hidden="true">
+        <span class="grid size-14 shrink-0 place-items-center overflow-hidden bg-muted text-title text-muted-foreground" aria-hidden="true">
           <img v-if="person.portraitUrl" :src="person.portraitUrl" alt="" class="size-full object-cover" />
           <template v-else>{{ person.name.trim().charAt(0).toUpperCase() }}</template>
         </span>
         <div class="min-w-0 flex-1">
-          <p class="text-label uppercase tracking-wider text-muted-foreground">Family of</p>
-          <h1 class="truncate font-cinzel text-title font-bold text-foreground">{{ person.name }}</h1>
+          <p class="text-label uppercase text-muted-foreground">Family of</p>
+          <h1 class="truncate text-title font-bold text-foreground">{{ person.name }}</h1>
         </div>
         <AppButton v-if="person.to" variant="subtle" size="sm" :to="person.to" :icon="IconChevronLeft" :label="`Back to ${person.name}`" collapse-label-on-mobile />
       </header>

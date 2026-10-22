@@ -16,6 +16,9 @@
         {{ opt.label }}
       </AppButton>
     </div>
+    <p v-if="refused" class="text-caption italic text-destructive md:col-span-3" role="alert">
+      That would make someone their own ancestor.
+    </p>
   </div>
 </template>
 
@@ -25,7 +28,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import { NO_REASON, choicesFor, type SortRow } from "@/lib/kinship/sortChoices";
 import type { SortChoice } from "@/lib/kinship/sortSuggestions";
 
-const { row, chosen } = defineProps<{ row: SortRow; chosen: SortChoice | null }>();
+const { row, chosen, refused = false } = defineProps<{ row: SortRow; chosen: SortChoice | null; refused?: boolean }>();
 const emit = defineEmits<{ choose: [choice: SortChoice] }>();
 
 // The PC mark from the frame: a small gilt tag after the name.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildFamilyGroups, lifeMeta, surnameOf } from "@/components/kinship/familyRows";
 import { buildKinGraph } from "@/lib/kinship/graph";
-import { edge, k, person } from "@/components/kinship/testGraph";
+import { edge, k, person, testClock } from "@/components/kinship/testGraph";
 
 const people = [
   person("old", "Old Bren Thane", 1428, { dead: true }),
@@ -31,11 +31,11 @@ const graph = buildKinGraph(people, edges);
 const map = new Map(people.map((p) => [p.key, p]));
 
 describe("buildFamilyGroups", () => {
-  const groups = buildFamilyGroups(graph, map, k("me"), 1495, new Map([["9", "cousin"]]));
+  const groups = buildFamilyGroups(graph, map, k("me"), testClock(), new Map([["9", "cousin"]]));
 
   it("orders the groups and drops the empty ones", () => {
     expect(groups.map((g) => g.id)).toEqual(["parents", "spouses", "siblings", "children", "relatives"]);
-    expect(buildFamilyGroups(graph, map, k("kid"), 1495).map((g) => g.id)).toEqual(["parents"]);
+    expect(buildFamilyGroups(graph, map, k("kid"), testClock()).map((g) => g.id)).toEqual(["parents"]);
   });
 
   it("marks adoptive and parent role on parents, oldest first", () => {
@@ -62,17 +62,17 @@ describe("buildFamilyGroups", () => {
 
   it("labels a relative with the link note", () => {
     expect(groups[4].rows[0].meta).toEqual(["cousin"]);
-    expect(buildFamilyGroups(graph, map, k("me"), 1495)[4].rows[0].meta).toEqual(["relative"]);
+    expect(buildFamilyGroups(graph, map, k("me"), testClock())[4].rows[0].meta).toEqual(["relative"]);
   });
 });
 
 describe("lifeMeta", () => {
   it("gives birth year and age to the living, birth year and 'dead' to the dead", () => {
-    expect(lifeMeta({ key: k("a"), name: "A", bornYear: 1459, dead: false, isPc: false }, 1495)).toEqual(["born 1459", "36"]);
-    expect(lifeMeta({ key: k("a"), name: "A", bornYear: 1428, dead: true, isPc: false }, 1495)).toEqual(["born 1428", "dead"]);
+    expect(lifeMeta({ key: k("a"), name: "A", bornYear: 1459, dead: false, isPc: false }, testClock())).toEqual(["born 1459", "36"]);
+    expect(lifeMeta({ key: k("a"), name: "A", bornYear: 1428, dead: true, isPc: false }, testClock())).toEqual(["born 1428", "dead"]);
   });
   it("says nothing for an unknown birth year", () => {
-    expect(lifeMeta({ key: k("a"), name: "A", bornYear: null, dead: false, isPc: false }, 1495)).toEqual([]);
+    expect(lifeMeta({ key: k("a"), name: "A", bornYear: null, dead: false, isPc: false }, testClock())).toEqual([]);
   });
 });
 

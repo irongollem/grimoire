@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-4 pb-4">
     <section v-for="r in rows" :key="r.index" class="flex flex-col gap-1.5" :class="r.hasFocus ? 'kin-focus-row -mx-4 px-4 py-2' : ''">
-      <h3 class="text-label uppercase tracking-wider" :class="r.hasFocus ? 'text-destructive' : 'text-muted-foreground'">{{ r.label }}</h3>
+      <h3 class="text-label uppercase" :class="r.hasFocus ? 'text-destructive' : 'text-muted-foreground'">{{ r.label }}</h3>
       <div class="flex snap-x snap-proximity gap-2 overflow-x-auto pb-1" role="list">
         <template v-for="c in r.cards" :key="c.id">
           <div v-if="c.foldOf !== null" role="listitem" class="shrink-0 snap-start">
@@ -62,17 +62,20 @@ const rows = computed(() => {
     const view = c.person !== null ? (people.get(c.person) ?? null) : null;
     byRow.set(c.row, [...(byRow.get(c.row) ?? []), { ...c, view }]);
   }
-  const focusRow = layout.cards.find((c) => c.person !== null && c.person === focus)?.row ?? 0;
-  return [...byRow.entries()].map(([index, cards]) => {
+  const focusCard = focus ? layout.cards.find((c) => c.person === focus) : undefined;
+  const focusRow = focusCard?.row ?? 0;
+  // Without a centred person there is nothing to be a parent of: count generations from the top.
+  return [...byRow.entries()].map(([index, cards], position) => {
     const name = focus ? (people.get(focus)?.name ?? "") : "";
     const rel = index - focusRow;
-    const base =
-      rel === 0 ? `${name ? `${name}'s` : "This"} generation` : rel === -1 ? "Parents" : rel === -2 ? "Grandparents" : rel < 0 ? "Ancestors" : rel === 1 ? "Children" : "Descendants";
+    const base = !focusCard
+      ? `Generation ${position + 1}`
+      : rel === 0 ? `${name ? `${name}'s` : "This"} generation` : rel === -1 ? "Parents" : rel === -2 ? "Grandparents" : rel < 0 ? "Ancestors" : rel === 1 ? "Children" : "Descendants";
     const year = layout.rowBornYear[index] ?? null;
     return {
       index,
       cards,
-      hasFocus: index === focusRow && focus !== null,
+      hasFocus: focusCard !== undefined && index === focusRow,
       label: year !== null ? `${base}, c. ${year}` : base,
     };
   });

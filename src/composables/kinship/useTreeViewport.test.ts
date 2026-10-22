@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useTreeViewport } from "./useTreeViewport";
 
 describe("useTreeViewport", () => {
@@ -29,5 +29,31 @@ describe("useTreeViewport", () => {
     v.fit(0, 0, 100, 100);
     expect(v.scale.value).toBe(1);
     expect(v.x.value).toBe(0);
+  });
+
+  describe("wheel", () => {
+    function wheel(v: ReturnType<typeof useTreeViewport>, init: Partial<WheelEvent>) {
+      const preventDefault = vi.fn();
+      const e = { clientX: 0, clientY: 0, deltaX: 0, deltaY: -100, currentTarget: document.createElement("div"), preventDefault, ...init };
+      v.onWheel(e as unknown as WheelEvent);
+      return preventDefault;
+    }
+
+    it("leaves a plain wheel to the page", () => {
+      const v = useTreeViewport();
+      const e = wheel(v, {});
+      expect(e).not.toHaveBeenCalled();
+      expect(v.scale.value).toBe(1);
+      expect(v.y.value).toBe(0);
+    });
+
+    it("zooms on ctrl or cmd + wheel and stops the page zooming too", () => {
+      const v = useTreeViewport();
+      const e = wheel(v, { ctrlKey: true });
+      expect(e).toHaveBeenCalled();
+      expect(v.scale.value).toBeGreaterThan(1);
+      const m = wheel(v, { metaKey: true });
+      expect(m).toHaveBeenCalled();
+    });
   });
 });

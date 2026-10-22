@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { reactive, ref } from "vue";
+import { computed, reactive, ref, toValue } from "vue";
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import HouseLineage from "./HouseLineage.vue";
@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   setLine: vi.fn(),
   npcs: [] as unknown[],
+  byFaction: null as null | Record<string, unknown[]>,
   pcs: [] as unknown[],
   toastSuccess: vi.fn(),
 }));
@@ -24,7 +25,10 @@ vi.mock("vue-router", async (orig) => ({
 vi.mock("@/composables/useBreakpoint", () => ({ useIsMobile: () => ref(false), useIsTouch: () => ref(false) }));
 vi.mock("@/composables/kinship/useKinGraph", () => ({ useDmKinGraph: () => makeSource() }));
 vi.mock("@/composables/factions/useFactions", () => ({
-  useFactionNpcs: () => ({ data: ref(mocks.npcs), isLoading: ref(false) }),
+  useFactionNpcs: (id: unknown) => ({
+    data: computed(() => (mocks.byFaction ? (mocks.byFaction[toValue(id as string)] ?? []) : mocks.npcs)),
+    isLoading: ref(false),
+  }),
   useFactionPartyMembers: () => ({ data: ref(mocks.pcs), isLoading: ref(false) }),
   useUpdateFaction: () => ({ mutateAsync: vi.fn() }),
 }));
@@ -59,6 +63,7 @@ describe("HouseLineage", () => {
     mocks.setLine.mockReset().mockResolvedValue(undefined);
     mocks.npcs = [npc("aldous", "Active", null, "Head of house"), npc("bren"), npc("brenna", "Active", 1), npc("tomas", "Active", 2)];
     mocks.pcs = [];
+    mocks.byFaction = null;
   });
 
   it("says so when the house has no members", () => {
@@ -114,5 +119,18 @@ describe("HouseLineage", () => {
     await w.findAll("button").find((b) => b.text() === "Cancel")?.trigger("click");
     expect(mocks.setLine).not.toHaveBeenCalled();
     expect(w.text()).toContain("Line of succession");
+  });
+
+  it("follows the faction id: new members show and Done writes the new house", async () => {
+    mocks.byFaction = { h1: [npc("aldous"), npc("brenna", "Active", 1)], h2: [npc("odile"), npc("corin", "Active", 1)] };
+    const w = mountIt();
+    expect(names(w)).toContain("Brenna");
+    await w.setProps({ faction: { ...house(), id: "h2", name: "House Vane" } });
+    expect(names(w)).toContain("Corin");
+    expect(names(w)).not.toContain("Brenna");
+    await w.findAll("button").find((b) => b.text() === "Line of succession")?.trigger("click");
+    await w.findAll("button").find((b) => b.text() === "Done")?.trigger("click");
+    await flushPromises();
+    expect(mocks.setLine).toHaveBeenCalledWith({ factionId: "h2", line: [key("corin")] });
   });
 });

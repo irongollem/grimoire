@@ -28,7 +28,7 @@
       <span
         v-for="label in axisLabels"
         :key="label.row"
-        class="absolute left-0 text-label uppercase tracking-wider text-muted-foreground"
+        class="absolute left-0 text-label uppercase text-muted-foreground"
         :style="{ top: `${rowTop(label.row) + 0.75}rem` }"
       >born c. {{ label.year }}</span>
       <template v-for="slot in slots" :key="slot.card.id">
@@ -41,17 +41,18 @@
           :label="countLabel(slot.card.foldCount)"
           @click="emit('unfold', slot.card.foldOf)"
         />
-        <KinCard
-          v-else-if="slot.view"
-          class="absolute"
-          :style="boxStyle(slot.card)"
-          :person="slot.view"
-          :focus="slot.view.key === focus"
-          :married-in="marriedIn?.has(slot.view.key)"
-          :rank="succession?.get(slot.view.key) ?? null"
-          :dimmed="dimmed?.has(slot.view.key)"
-          @click="emit('select', slot.view.key)"
-        />
+        <!-- The card's torn edge sets its own position, so the box that places it is a wrapper. -->
+        <div v-else-if="slot.view" class="absolute flex" :style="boxStyle(slot.card)">
+          <KinCard
+            class="w-full"
+            :person="slot.view"
+            :focus="slot.view.key === focus"
+            :married-in="marriedIn?.has(slot.view.key)"
+            :rank="succession?.get(slot.view.key) ?? null"
+            :dimmed="dimmed?.has(slot.view.key)"
+            @click="emit('select', slot.view.key)"
+          />
+        </div>
       </template>
     </div>
     <div class="absolute right-2 top-2 flex gap-1" data-slip>

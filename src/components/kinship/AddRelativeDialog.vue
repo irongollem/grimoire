@@ -19,6 +19,9 @@
 
       <div v-if="otherName" class="space-y-2">
         <AppCheckbox v-if="spouse && relation === 'parent'" v-model="alsoSpouse" :label="`Also ${spouse.name}’s child`" />
+        <p v-if="secondRefusal && spouse" class="text-caption italic text-muted-foreground" data-testid="second-parent-refusal">
+          {{ spouse.name }} will not be added as a parent: {{ secondRefusal }}.
+        </p>
         <div v-if="isParentLink">
           <span class="field-label">Which parent is {{ relation === "parent" ? subjectName : otherName }}?</span>
           <SegmentedControl v-model="role" :options="ROLE_OPTIONS" size="sm" aria-label="Parent role" />
@@ -71,14 +74,16 @@ import {
   checkRelation,
   draftKinFor,
   flipRelation,
+  parentRefusal,
   updateFor,
 } from "@/components/kinship/addRelative";
 import { lifeMeta, type RowPerson } from "@/components/kinship/familyRows";
+import { useKinClock } from "@/composables/kinship/useKinClock";
 import { useCreateKinLink, useUpdateKinLink } from "@/composables/kinship/useKinLinks";
 import { useDmKinGraph } from "@/composables/kinship/useKinGraph";
 import { useCreateNpc } from "@/composables/npcs/useNpcs";
 import { useToast } from "@/composables/useToast";
-import { linkBetween, spousesOf } from "@/lib/kinship/graph";
+import { spousesOf } from "@/lib/kinship/graph";
 import { kinInsertFor, personKey } from "@/lib/kinship/keys";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { IconAddUser } from "@/lib/icons";
@@ -100,6 +105,7 @@ const emit = defineEmits<{ close: []; added: [link: KinLink] }>();
 
 const source = useDmKinGraph();
 const campaign = useCampaignStore();
+const clock = useKinClock();
 const router = useRouter();
 const toast = useToast();
 const createLink = useCreateKinLink();
@@ -160,7 +166,7 @@ const whoOptions = computed<WhoOption[]>(() =>
     .map((p) => ({
       key: p.key,
       name: p.name,
-      meta: [...lifeMeta(p, campaign.todayYear), ...(p.isPc ? ["PC"] : [])].join(" · ") || "no birth date",
+      meta: [...lifeMeta(p, clock.value), ...(p.isPc ? ["PC"] : [])].join(" · ") || "no birth date",
     })),
 );
 
@@ -178,6 +184,13 @@ const shownVerdict = computed(() => {
   if (!v || v.kind === "ok") return null;
   if (v.kind === "dates" && datesAcknowledged.value) return null;
   return v;
+});
+// The second parent link meets the same checks as the first before it is written.
+const secondRefusal = computed(() => {
+  const second = spouse.value;
+  const target = other.value;
+  if (!second || !target || relation.value !== "parent" || !alsoSpouse.value) return null;
+  return parentRefusal(checkRelation(source.graph.value, second.key, "parent", target), second.name, otherName.value);
 });
 const sharedNames = computed(() => {
   const v = verdict.value;
@@ -258,8 +271,16 @@ async function save() {
     } else {
       link = await createLink.mutateAsync(row);
       const second = spouse.value;
-      if (relation.value === "parent" && alsoSpouse.value && second && !linkBetween(source.graph.value, second.key, target)) {
-        await createLink.mutateAsync(kinInsertFor(second.key, "parent", target, { adoptive: adoptive.value }));
+      if (relation.value === "parent" && alsoSpouse.value && second && secondRefusal.value === null) {
+        try {
+          await createLink.mutateAsync(kinInsertFor(second.key, "parent", target, { adoptive: adoptive.value }));
+        } catch {
+          // The first link is saved: say so, rather than a failure that hides it.
+          toast.error(`Added ${otherName.value} as ${subjectName.value}’s ${OTHER_NOUNS[relation.value]}. Could not add ${second.name} as the second parent.`);
+          emit("added", link);
+          emit("close");
+          return;
+        }
       }
     }
     toast.success(`Added ${otherName.value} as ${subjectName.value}’s ${OTHER_NOUNS[relation.value]}.`);

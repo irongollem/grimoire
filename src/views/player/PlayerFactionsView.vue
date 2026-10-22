@@ -201,7 +201,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import HousePlayerLineage from "@/components/factions/HousePlayerLineage.vue";
-import { usePlayerKinGraph } from "@/composables/kinship/useKinGraph";
+import { usePlayerVisibleKin, usePreviewMemberId } from "@/composables/kinship/usePlayerKin";
+import { useCampaignStore } from "@/stores/campaign";
 
 const auth = useAuthStore();
 const appUi = useAppUiStore();
@@ -288,9 +289,13 @@ const DETAIL_TABS = [
   { id: "lineage", label: "Lineage" },
 ];
 const detailTab = ref<"about" | "lineage">("about");
-const { houses } = usePlayerKinGraph();
+// Only the houses are needed here: the lineage tab builds its own graph when it opens.
+const campaign = useCampaignStore();
+const kin = usePlayerVisibleKin(() => campaign.activeCampaignId, usePreviewMemberId());
 const houseEntry = computed(() =>
-  selected.value?.faction_type === "House" ? (houses.value.find((h) => h.faction_id === selected.value?.id) ?? null) : null,
+  selected.value?.faction_type === "House"
+    ? ((kin.data.value?.houses ?? []).find((h) => h.faction_id === selected.value?.id) ?? null)
+    : null,
 );
 
 function open(faction: Faction) {

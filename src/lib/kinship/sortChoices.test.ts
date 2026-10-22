@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildSortRows, choicesFor, sortPatch, type SortRow } from "./sortChoices";
+import { buildKinGraph } from "./graph";
+import { buildSortRows, choicesFor, planSort, sortPatch, type SortRow } from "./sortChoices";
+import type { SortChoice } from "./sortSuggestions";
 import type { KinPerson } from "./graph";
 import type { KinLink, PersonKey } from "@/types/kinship.types";
 
@@ -82,5 +84,35 @@ describe("sortPatch", () => {
     const choice = { relation: "relative" as const, parentRole: null, label: "aunt" };
     expect(sortPatch(row(), choice).note).toBe("aunt");
     expect(sortPatch(row({ link: link({ note: "his aunt" }) }), choice).note).toBe("his aunt");
+  });
+});
+
+describe("planSort", () => {
+  const a = person("a", "Ann", null);
+  const b = person("b", "Bo", null);
+  const c = person("c", "Cy", null);
+  const mk = (id: string, from: KinPerson, to: KinPerson): SortRow => ({
+    link: link({ id }),
+    from,
+    to,
+    suggestion: null,
+  });
+  // "child": `from` is the parent of `to`.
+  const asParent: SortChoice = { relation: "child", parentRole: null, label: null };
+
+  it("refuses the choice that closes a loop through earlier choices in the same run", () => {
+    const rows = [mk("1", a, b), mk("2", b, c), mk("3", c, a)];
+    const graph = buildKinGraph([a, b, c], []);
+    const plan = planSort(graph, rows, new Map(rows.map((r) => [r.link.id, asParent])));
+    expect(plan.entries.map((e) => e.row.link.id)).toEqual(["1", "2"]);
+    expect([...plan.refused]).toEqual(["3"]);
+  });
+
+  it("saves everything when nothing loops, and ignores unchosen rows", () => {
+    const rows = [mk("1", a, b), mk("2", b, c)];
+    const graph = buildKinGraph([a, b, c], []);
+    const plan = planSort(graph, rows, new Map([["1", asParent]]));
+    expect(plan.entries).toHaveLength(1);
+    expect(plan.refused.size).toBe(0);
   });
 });

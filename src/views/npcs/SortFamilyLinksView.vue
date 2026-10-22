@@ -41,17 +41,18 @@
         :key="row.link.id"
         :row="row"
         :chosen="chosen.get(row.link.id) ?? null"
-        @choose="chosen.set(row.link.id, $event)"
+        :refused="refused.has(row.link.id)"
+        @choose="choose(row.link.id, $event)"
       />
 
       <div class="flex flex-wrap items-center gap-3 border-t border-border pt-3">
         <span class="min-w-0 flex-1 text-caption italic text-muted-foreground">
-          {{ chosen.size }} of {{ rows.length }} chosen · anything left stays a plain relative, which you can change on
+          {{ chosenCount }} of {{ rows.length }} chosen · anything left stays a plain relative, which you can change on
           either sheet
         </span>
         <AppButton variant="ghost" :disabled="saving" @click="leaveRest">Leave the rest as relatives</AppButton>
-        <AppButton variant="primary" :disabled="chosen.size === 0" :loading="saving" @click="saveChosen">
-          Save {{ chosen.size }}
+        <AppButton variant="primary" :disabled="chosenCount === 0" :loading="saving" @click="saveChosen">
+          Save {{ chosenCount }}
         </AppButton>
       </div>
     </section>
@@ -75,7 +76,7 @@ import { useDmKinGraph } from "@/composables/kinship/useKinGraph";
 import { useUpdateKinLink } from "@/composables/kinship/useKinLinks";
 import { useToast } from "@/composables/useToast";
 import { linkEnds } from "@/lib/kinship/keys";
-import { buildSortRows, sortPatch } from "@/lib/kinship/sortChoices";
+import { buildSortRows, planSort } from "@/lib/kinship/sortChoices";
 import type { SortChoice } from "@/lib/kinship/sortSuggestions";
 
 const source = useDmKinGraph();
@@ -85,17 +86,28 @@ const saving = ref(false);
 
 const rows = computed(() => buildSortRows(source.links.value, linkEnds, source.people.value));
 const chosen = reactive(new Map<string, SortChoice>());
+// A row can vanish through a live refetch: only choices on rows still here count.
+const chosenCount = computed(() => rows.value.filter((r) => chosen.has(r.link.id)).length);
 const suggestedCount = computed(() => rows.value.filter((r) => r.suggestion).length);
+const refused = ref(new Set<string>());
 
-function acceptAll() {
-  for (const row of rows.value) if (row.suggestion) chosen.set(row.link.id, row.suggestion.choice);
+function choose(id: string, choice: SortChoice) {
+  chosen.set(id, choice);
+  refused.value.delete(id);
 }
 
-async function settle(entries: { id: string; patch: ReturnType<typeof sortPatch> }[], message: string) {
+function acceptAll() {
+  for (const row of rows.value) if (row.suggestion) choose(row.link.id, row.suggestion.choice);
+}
+
+async function settle(entries: { id: string; patch: Parameters<typeof update.mutateAsync>[0]["patch"] }[], message: string) {
   saving.value = true;
   try {
-    for (const { id, patch } of entries) await update.mutateAsync({ id, patch });
-    for (const { id } of entries) chosen.delete(id);
+    // Each row leaves `chosen` as it saves, so a failure mid-run keeps only the unsaved choices.
+    for (const { id, patch } of entries) {
+      await update.mutateAsync({ id, patch });
+      chosen.delete(id);
+    }
     toast.success(message);
   } catch (e) {
     toast.error(toast.fromError(e, "Could not save those links."));
@@ -105,10 +117,9 @@ async function settle(entries: { id: string; patch: ReturnType<typeof sortPatch>
 }
 
 function saveChosen() {
-  const entries = rows.value.flatMap((row) => {
-    const choice = chosen.get(row.link.id);
-    return choice ? [{ id: row.link.id, patch: sortPatch(row, choice) }] : [];
-  });
+  const plan = planSort(source.graph.value, rows.value, chosen);
+  refused.value = plan.refused;
+  const entries = plan.entries.map(({ row, patch }) => ({ id: row.link.id, patch }));
   return settle(entries, `Sorted ${entries.length} family ${entries.length === 1 ? "link" : "links"}.`);
 }
 

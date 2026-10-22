@@ -2,9 +2,8 @@ import { computed, type ComputedRef } from "vue";
 import { useNpcs, useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { useKinLinks } from "@/composables/kinship/useKinLinks";
-import { usePlayerVisibleKin } from "@/composables/kinship/usePlayerKin";
+import { usePlayerVisibleKin, usePreviewMemberId } from "@/composables/kinship/usePlayerKin";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAppUiStore } from "@/stores/ui/app";
 import { buildKinGraph, type KinEdgeInput, type KinGraph, type KinPerson } from "@/lib/kinship/graph";
 import { linkEnds, personKey } from "@/lib/kinship/keys";
 import type { KinLink, PersonKey, PlayerVisibleKin } from "@/types/kinship.types";
@@ -88,10 +87,9 @@ export function useDmKinGraph(): KinGraphSource {
  */
 export function usePlayerKinGraph(): KinGraphSource {
   const campaign = useCampaignStore();
-  const appUi = useAppUiStore();
   const npcs = useSharedNpcs();
   const party = useParty();
-  const previewMemberId = computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
+  const previewMemberId = usePreviewMemberId();
   const kin = usePlayerVisibleKin(() => campaign.activeCampaignId, previewMemberId);
 
   const people = computed(() => {

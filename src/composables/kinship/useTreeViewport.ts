@@ -16,8 +16,8 @@ function onControl(target: EventTarget | null): boolean {
 }
 
 /**
- * Pan and zoom for a canvas: drag the background, ctrl/cmd + wheel or pinch to zoom,
- * plain wheel to pan. The transform is `translate(x, y) scale(s)` on one stage, so
+ * Pan and zoom for a canvas: drag the background, ctrl/cmd + wheel or pinch to zoom.
+ * A plain wheel is left alone so the page scrolls. The transform is `translate(x, y) scale(s)` on one stage, so
  * the same numbers drive buttons, wheel, touch and "Fit".
  */
 export function useTreeViewport(opts: TreeViewportOptions = {}) {
@@ -96,16 +96,13 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
     if (pointers.size === 0) dragging.value = false;
   }
 
+  // A plain wheel belongs to the page, which keeps scrolling over the tree; only ctrl/cmd + wheel zooms.
   function onWheel(e: WheelEvent): void {
+    if (!(e.ctrlKey || e.metaKey)) return;
     e.preventDefault();
-    if (e.ctrlKey || e.metaKey) {
-      if (!(e.currentTarget instanceof Element)) return;
-      const p = localPoint(e, e.currentTarget);
-      zoomBy(Math.exp(-e.deltaY * 0.01), p.x, p.y);
-    } else {
-      x.value -= e.deltaX;
-      y.value -= e.deltaY;
-    }
+    if (!(e.currentTarget instanceof Element)) return;
+    const p = localPoint(e, e.currentTarget);
+    zoomBy(Math.exp(-e.deltaY * 0.01), p.x, p.y);
   }
 
   const stageStyle = computed(() => ({

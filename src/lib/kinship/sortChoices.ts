@@ -1,5 +1,6 @@
+import { wouldCycle } from "@/lib/kinship/checks";
+import { buildKinGraph, type KinEdgeInput, type KinGraph, type KinPerson } from "@/lib/kinship/graph";
 import { endColumns } from "@/lib/kinship/keys";
-import type { KinPerson } from "@/lib/kinship/graph";
 import { suggestSort, type SortChoice } from "@/lib/kinship/sortSuggestions";
 import type { KinLink, KinLinkUpdate, PersonKey } from "@/types/kinship.types";
 
@@ -78,4 +79,40 @@ export function sortPatch(row: SortRow, choice: SortChoice): KinLinkUpdate {
     default:
       return { ...base, kind: choice.relation, parent_role: null };
   }
+}
+
+export interface SortPlan {
+  /** In row order, what to write. */
+  entries: { row: SortRow; patch: KinLinkUpdate }[];
+  /** Link ids whose parent choice would loop an ancestry through the choices applied before it. */
+  refused: Set<string>;
+}
+
+/**
+ * Settle the chosen rows in order, checking each parent choice against the graph
+ * as it will stand once the earlier ones are saved: A-B, B-C and C-A each look
+ * fine alone, and together they make everyone their own ancestor.
+ */
+export function planSort(graph: KinGraph, rows: readonly SortRow[], chosen: ReadonlyMap<string, SortChoice>): SortPlan {
+  const people = [...graph.people.values()];
+  let links: KinEdgeInput[] = graph.links;
+  const entries: SortPlan["entries"] = [];
+  const refused = new Set<string>();
+  for (const row of rows) {
+    const choice = chosen.get(row.link.id);
+    if (!choice) continue;
+    const patch = sortPatch(row, choice);
+    if (choice.relation === "parent" || choice.relation === "child") {
+      const parent = choice.relation === "parent" ? row.to.key : row.from.key;
+      const child = choice.relation === "parent" ? row.from.key : row.to.key;
+      const without = links.filter((l) => l.id !== row.link.id);
+      if (wouldCycle(buildKinGraph(people, without), parent, child)) {
+        refused.add(row.link.id);
+        continue;
+      }
+      links = [...without, { id: row.link.id, from: parent, to: child, kind: "parent", parent_role: choice.parentRole, adoptive: false }];
+    }
+    entries.push({ row, patch });
+  }
+  return { entries, refused };
 }

@@ -93,6 +93,22 @@ export function checkRelation(graph: KinGraph, subject: PersonKey, relation: Kin
   return { kind: "ok" };
 }
 
+/** Why a second-parent link is refused, in a clause for "<name> will not be added as a parent: <reason>". Null when it is fine. */
+export function parentRefusal(v: Verdict, parentName: string, childName: string): string | null {
+  switch (v.kind) {
+    case "ok":
+      return null;
+    case "cycle":
+      return "that would make someone their own ancestor";
+    case "existing":
+      return `${parentName} is already linked to ${childName}`;
+    case "implied-sibling":
+      return "they are already siblings";
+    case "dates":
+      return `${parentName} was born ${yearsAfter(v.parentBorn, v.childBorn)} ${childName}`;
+  }
+}
+
 /** "31 years after", "the same year as": the years in words for the date warning. */
 export function yearsAfter(parentBorn: number, childBorn: number): string {
   const gap = parentBorn - childBorn;

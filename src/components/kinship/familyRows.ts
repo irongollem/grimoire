@@ -1,4 +1,4 @@
-import { completedYears } from "@edge-shared/npcAge";
+import { kinLifeMeta, type KinClock } from "@/components/kinship/kinLifeMeta";
 import { familyOf, type KinEdgeInput, type KinGraph, type KinPerson } from "@/lib/kinship/graph";
 import type { PersonKey } from "@/types/kinship.types";
 
@@ -28,17 +28,8 @@ export interface FamilyGroup {
 }
 
 /** "1428 – 1491" would need a death year the model does not hold, so the dead read "born 1428 · dead". */
-export function lifeMeta(person: KinPerson, todayYear: number): string[] {
-  const out: string[] = [];
-  if (person.bornYear !== null) {
-    out.push(`born ${person.bornYear}`);
-    if (!person.dead) {
-      const age = completedYears({ year: person.bornYear, month: null, day: null }, { year: todayYear, month: 1, day: 1 });
-      if (age !== null && age >= 0) out.push(String(age));
-    }
-  }
-  if (person.dead) out.push("dead");
-  return out;
+export function lifeMeta(person: KinPerson, clock: KinClock): string[] {
+  return person.dead ? [...kinLifeMeta(person, clock), "dead"] : kinLifeMeta(person, clock);
 }
 
 /** The last word of a name, or the whole name when it has one word. */
@@ -54,7 +45,7 @@ export function buildFamilyGroups(
   graph: KinGraph,
   people: PeopleMap,
   person: PersonKey,
-  todayYear: number,
+  clock: KinClock,
   /** Link notes by link id (the DM's rows only); a relative's note is what they are ("cousin"). */
   notes: ReadonlyMap<string, string> = new Map(),
 ): FamilyGroup[] {
@@ -63,7 +54,7 @@ export function buildFamilyGroups(
   function row(key: PersonKey, link: KinEdgeInput | null, extra: string[] = [], withDoor = false): FamilyRow | null {
     const p = people.get(key);
     if (!p) return null;
-    const meta = lifeMeta(p, todayYear);
+    const meta = lifeMeta(p, clock);
     if (p.isPc) meta.push("PC");
     meta.push(...extra);
     let door: string | null = null;

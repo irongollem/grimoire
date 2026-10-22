@@ -40,9 +40,8 @@
  * struck name, a PC wears a gilt ring, the centred person an oxblood one.
  */
 import { computed } from "vue";
-import { displayAge } from "@/lib/calendar/age";
-import { useCalendarStore } from "@/stores/calendar";
-import { useCampaignStore } from "@/stores/campaign";
+import { kinLifeMeta } from "@/components/kinship/kinLifeMeta";
+import { useKinClock } from "@/composables/kinship/useKinClock";
 import type { KinPersonView } from "@/composables/kinship/useKinGraph";
 
 const { person, focus = false, marriedIn = false, rank = null, dimmed = false, compact = false } = defineProps<{
@@ -54,24 +53,14 @@ const { person, focus = false, marriedIn = false, rank = null, dimmed = false, c
   compact?: boolean;
 }>();
 
-const calendar = useCalendarStore();
-const campaign = useCampaignStore();
+const clock = useKinClock();
 
 const dead = computed(() => person.dead);
 const initial = computed(() => person.name.trim().charAt(0).toUpperCase() || "?");
 
 // Only a birth year is stored, so the dead show it without an end year. A source with no
 // birth years (a player's) falls back to the subtitle rather than showing nothing.
-const life = computed(() => {
-  if (person.bornYear === null) return person.subtitle;
-  if (person.dead) return `born ${person.bornYear}`;
-  const age = displayAge(
-    calendar.adapter,
-    { born_year: person.bornYear },
-    { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay },
-  );
-  return age ? `born ${person.bornYear} · ${age}` : `born ${person.bornYear}`;
-});
+const life = computed(() => (person.bornYear === null ? person.subtitle : kinLifeMeta(person, clock.value).join(" · ")));
 const meta = computed(() => [life.value, marriedIn ? "married in" : null].filter(Boolean).join(" · "));
 const ariaLabel = computed(() => [person.name, person.dead ? "dead" : null, meta.value || null].filter(Boolean).join(", "));
 </script>

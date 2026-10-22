@@ -8,12 +8,15 @@ const mocks = vi.hoisted(() => ({
   created: [] as Record<string, unknown>[],
   updated: [] as { id: string; patch: Record<string, unknown> }[],
   push: vi.fn(),
+  failAt: 0,
+  toastError: vi.fn(),
 }));
 
 vi.mock("@/composables/kinship/useKinGraph", () => ({ useDmKinGraph: () => mocks.dm }));
 vi.mock("@/composables/kinship/useKinLinks", () => ({
   useCreateKinLink: () => ({
     mutateAsync: async (row: Record<string, unknown>) => {
+      if (mocks.failAt && mocks.created.length + 1 === mocks.failAt) throw new Error("boom");
       mocks.created.push(row);
       return { id: `new-${mocks.created.length}`, ...row };
     },
@@ -26,8 +29,16 @@ vi.mock("@/composables/kinship/useKinLinks", () => ({
   }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useCreateNpc: () => ({ mutateAsync: vi.fn() }) }));
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({ success: vi.fn(), error: mocks.toastError, fromError: String }),
+}));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ todayYear: 1495, isAiEnabled: true }) }));
+vi.mock("@/composables/kinship/useKinClock", async () => {
+  const { computed } = await import("vue");
+  const { testClock } = await import("./testGraph");
+  return { useKinClock: () => computed(() => testClock()) };
+});
 
 const people = [
   person("old", "Old Bren", 1428),
@@ -75,6 +86,8 @@ beforeEach(() => {
   mocks.created.length = 0;
   mocks.updated.length = 0;
   mocks.push.mockReset();
+  mocks.failAt = 0;
+  mocks.toastError.mockReset();
   document.body.innerHTML = "";
 });
 
@@ -185,5 +198,34 @@ describe("AddRelativeDialog", () => {
     await flushPromises();
     expect(mocks.push).toHaveBeenCalledWith({ path: "/npcs", query: { kin: "child", of: "npc:me", also: "npc:hub" } });
     expect(w.emitted("close")).toHaveLength(1);
+  });
+
+  it("reports a partial save when the second parent link fails", async () => {
+    mocks.failAt = 2;
+    const w = mountDialog();
+    await setRelation("Parent of");
+    await pick("pip", "Pip");
+    await save("Add child");
+    expect(mocks.created).toHaveLength(1);
+    expect(mocks.toastError).toHaveBeenCalledWith("Added Pip as Brenna’s child. Could not add Corwin as the second parent.");
+    expect(w.emitted("added")).toHaveLength(1);
+    expect(w.emitted("close")).toHaveLength(1);
+  });
+
+  it("runs the checks on the second parent and says why it is skipped", async () => {
+    // Corwin (1456) as parent of Old Bren (1428) is a date problem; Brenna (1459) is no better, so Swap is not in play.
+    const w = mountDialog();
+    await setRelation("Parent of");
+    await pick("old", "Old Bren");
+    buttonWith("Keep it anyway")!.click();
+    await flushPromises();
+    expect(body().querySelector("[data-testid=second-parent-refusal]")!.textContent).toContain(
+      "Corwin will not be added as a parent: Corwin was born 28 years after Old Bren",
+    );
+    expect(body().querySelector("input[type=checkbox]")).not.toBeNull();
+    await save("Add child");
+    expect(mocks.created).toHaveLength(1);
+    expect(mocks.created[0]).toMatchObject({ from_npc_id: "me", to_npc_id: "old" });
+    expect(w.emitted("added")).toHaveLength(1);
   });
 });

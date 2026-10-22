@@ -5,9 +5,9 @@
         <img v-if="faction.emblem_url" :src="faction.emblem_url" alt="" class="size-full object-cover" />
         <IconShield v-else class="size-7" />
       </span>
+      <!-- The page header above already carries the house's name. -->
       <div class="min-w-0 flex-1">
-        <p class="text-label uppercase tracking-wider text-muted-foreground">Factions · House</p>
-        <h2 class="truncate font-cinzel text-title font-bold uppercase text-foreground">{{ faction.name }}</h2>
+        <p class="text-label uppercase text-muted-foreground">Factions · House</p>
         <p v-if="head" class="text-body italic text-muted-foreground">head: {{ head }}</p>
       </div>
     </header>
@@ -100,8 +100,8 @@ const router = useRouter();
 const ui = useFamilyUiStore();
 const toast = useToast();
 const source = useDmKinGraph();
-const npcRows = useFactionNpcs(faction.id);
-const pcRows = useFactionPartyMembers(faction.id);
+const npcRows = useFactionNpcs(() => faction.id);
+const pcRows = useFactionPartyMembers(() => faction.id);
 const setSuccession = useSetHouseSuccession();
 
 const rows = computed(() => memberRows(npcRows.data.value ?? [], pcRows.data.value ?? []));

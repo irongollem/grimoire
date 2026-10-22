@@ -2,6 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { PLAYER_KIN_KEY } from "@/lib/campaignLiveSync/registry";
+import { useAppUiStore } from "@/stores/ui/app";
 import type { PlayerVisibleKin } from "@/types/kinship.types";
 
 export { PLAYER_KIN_KEY };
@@ -28,4 +29,10 @@ export function usePlayerVisibleKin(
     },
     enabled: computed(() => !!toValue(campaignId)),
   });
+}
+
+/** The party member a DM is previewing as, or null for a real player: the extra key the player kin read is scoped by. */
+export function usePreviewMemberId() {
+  const appUi = useAppUiStore();
+  return computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
 }

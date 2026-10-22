@@ -12,7 +12,7 @@
              the read-only sheet. Matches the sheet + editor + ?edit=true
              convention shared by NPC / Monster / Item / Spell / Location /
              Quest (#168). -->
-        <HouseLineage v-if="showLineage && faction" :faction="faction" />
+        <HouseLineage v-if="showLineage && faction" :key="faction.id" :faction="faction" />
         <FactionEditor
           v-else-if="isNew || isEditing"
           :key="faction?.id ?? 'new'"

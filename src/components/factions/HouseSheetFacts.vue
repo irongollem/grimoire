@@ -37,8 +37,8 @@ const HOUSE_DESCENT_WORDS: Record<HouseDescent, string> = {
 };
 
 const source = useDmKinGraph();
-const npcs = useFactionNpcs(faction.id);
-const pcs = useFactionPartyMembers(faction.id);
+const npcs = useFactionNpcs(() => faction.id);
+const pcs = useFactionPartyMembers(() => faction.id);
 
 // The dead keep their rank on the row but do not inherit.
 const heirView = computed(() => {
