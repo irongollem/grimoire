@@ -62,6 +62,26 @@ describe("STARTER_RECIPES", () => {
     expect(unknown).toEqual([]);
   });
 
+  it("never repeats the discipline's workspace bonus as a recipe modifier (#1081)", () => {
+    // The attempt dialog offers each discipline's workspace as its own checkbox
+    // and then lists the recipe's modifiers beside it, so a forge, lab or
+    // workshop modifier here is the same bonus twice: 119 starters carried one
+    // ("Full forge available" +3 beside the dialog's own +3). Matched on the
+    // label itself and on workspace nouns, since most copies were reworded.
+    // Only bonuses count: a penalty that names a place ("Serving a full tavern
+    // −2") is a situation, not the workspace.
+    const workspaceWords =
+      /\b(forge|smithy|workshop|lab|laboratory|apothecary|bench|studio|scriptorium|stoneyard|mason's yard|quarry|loom|tailoring room|kitchen|herb garden|drying room|workroom|brewery|brewing facility|tavern|writing desk)\b/i;
+    const labels = new Map(CRAFTING_DISCIPLINES.map((discipline) => [discipline.id, discipline.workspaceLabel.toLowerCase()]));
+    const repeated = STARTER_RECIPES.flatMap((recipe) =>
+      (recipe.modifiers ?? [])
+        .filter((m) => m.bonus > 0)
+        .filter((m) => m.description.toLowerCase() === labels.get(recipe.discipline) || workspaceWords.test(m.description))
+        .map((m) => `${recipe.name} → ${m.description}`),
+    );
+    expect(repeated).toEqual([]);
+  });
+
   it("resolves 'Craft Leather Barding' → 'Leather Barding' via the shared library even with an empty vault map (#819)", () => {
     // #819: a grimoire-bundled output is always present as a library_items row,
     // but there was once no column for a recipe output to reference one, so it
