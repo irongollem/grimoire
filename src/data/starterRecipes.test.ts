@@ -4,6 +4,7 @@ import { GEAR } from "./gear";
 import { PROVISIONS } from "./provisions";
 import { AMMUNITION } from "./ammunition";
 import { CRAFTING_DISCIPLINES } from "@/lib/crafting/disciplines";
+import { repeatsWorkspaceBonus } from "@/lib/crafting/workspaceModifier";
 import { buildStarterRecipeChildRows } from "@/composables/crafting/useCrafting";
 import { WORKSHOP_LIBRARY_EQUIVALENTS } from "./workshopLibraryEquivalents";
 import { RULESET_KEYS } from "@/types/ruleset.types";
@@ -63,20 +64,13 @@ describe("STARTER_RECIPES", () => {
   });
 
   it("never repeats the discipline's workspace bonus as a recipe modifier (#1081)", () => {
-    // The attempt dialog offers each discipline's workspace as its own checkbox
-    // and then lists the recipe's modifiers beside it, so a forge, lab or
-    // workshop modifier here is the same bonus twice: 119 starters carried one
-    // ("Full forge available" +3 beside the dialog's own +3). Matched on the
-    // label itself and on workspace nouns, since most copies were reworded.
-    // Only bonuses count: a penalty that names a place ("Serving a full tavern
-    // −2") is a situation, not the workspace.
-    const workspaceWords =
-      /\b(forge|smithy|workshop|lab|laboratory|apothecary|bench|studio|scriptorium|stoneyard|mason's yard|quarry|loom|tailoring room|kitchen|herb garden|drying room|workroom|brewery|brewing facility|tavern|writing desk)\b/i;
-    const labels = new Map(CRAFTING_DISCIPLINES.map((discipline) => [discipline.id, discipline.workspaceLabel.toLowerCase()]));
+    // The attempt dialog offers each discipline's workspace as its own checkbox,
+    // so a forge, lab or workshop modifier here is the same bonus twice: 119
+    // starters carried one ("Full forge available" +3 beside the dialog's own
+    // +3). The matcher is shared with the recipe editor's warning (#1091).
     const repeated = STARTER_RECIPES.flatMap((recipe) =>
       (recipe.modifiers ?? [])
-        .filter((m) => m.bonus > 0)
-        .filter((m) => m.description.toLowerCase() === labels.get(recipe.discipline) || workspaceWords.test(m.description))
+        .filter((m) => repeatsWorkspaceBonus(recipe.discipline, m))
         .map((m) => `${recipe.name} → ${m.description}`),
     );
     expect(repeated).toEqual([]);

@@ -1,6 +1,7 @@
 import type { AiProvenance } from "@/ai/provenance";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import { CRAFTING_DISCIPLINES } from "@/lib/crafting/disciplines";
+import { repeatsWorkspaceBonus } from "@/lib/crafting/workspaceModifier";
 import {
   ITEM_RARITIES,
   ITEM_TYPES,
@@ -121,15 +122,19 @@ export function normalizeRecipeAi(
     .filter((i) => i.tags.length > 0)
     .slice(0, RECIPE_MAX_INGREDIENTS);
 
+  const discipline = oneOf(raw.discipline, DISCIPLINE_IDS, defaultDiscipline);
+
+  // A modifier that repeats the discipline's workspace bonus would let a player
+  // take it twice beside the attempt dialog's own checkbox (#1091).
   const modifiers = (Array.isArray(raw.modifiers) ? raw.modifiers : [])
     .filter(isRecord)
     .map((m) => ({ description: text(m.description, 200), bonus: integer(m.bonus, -10, 10, 2) }))
-    .filter((m) => m.description.length > 0)
+    .filter((m) => m.description.length > 0 && !repeatsWorkspaceBonus(discipline, m))
     .slice(0, RECIPE_MAX_MODIFIERS);
 
   return {
     name,
-    discipline: oneOf(raw.discipline, DISCIPLINE_IDS, defaultDiscipline),
+    discipline,
     description: text(raw.description, 4000),
     dc: integer(raw.dc, RECIPE_DC_MIN, RECIPE_DC_MAX, 12),
     crafting_time: integer(raw.crafting_time, 1, MAX_CRAFTING_TIME, 1),

@@ -170,35 +170,48 @@
         <div
           v-for="(mod, idx) in modifiers"
           :key="idx"
-          class="flex items-center gap-2"
+          class="flex flex-col gap-1"
         >
-          <AppInput
-            v-model="mod.description"
-            placeholder="e.g. Full forge available"
-            tone="filled"
-            size="body"
-            :block="false"
-            class="flex-1"
-          />
-          <span class="text-label-lg text-muted-foreground">+</span>
-          <AppInput
-            v-model.number="mod.bonus"
-            type="number"
-            min="1"
-            max="20"
-            tone="filled"
-            size="body-xs"
-            align="center"
-            :block="false"
-            class="w-14"
-          />
-          <AppButton
-            variant="ghost"
-            tone="danger"
-            size="icon-xs"
-            :icon="IconDelete"
-            @click="modifiers.splice(idx, 1)"
-          />
+          <div class="flex items-center gap-2">
+            <AppInput
+              v-model="mod.description"
+              placeholder="e.g. Assisted by a master crafter"
+              tone="filled"
+              size="body"
+              :block="false"
+              class="flex-1"
+            />
+            <span class="text-label-lg text-muted-foreground">+</span>
+            <AppInput
+              v-model.number="mod.bonus"
+              type="number"
+              min="1"
+              max="20"
+              tone="filled"
+              size="body-xs"
+              align="center"
+              :block="false"
+              class="w-14"
+            />
+            <AppButton
+              variant="ghost"
+              tone="danger"
+              size="icon-xs"
+              :icon="IconDelete"
+              @click="modifiers.splice(idx, 1)"
+            />
+          </div>
+          <p
+            v-if="repeatsWorkspaceBonus(form.discipline, mod)"
+            class="flex items-start gap-1.5 text-caption text-ink-caution"
+          >
+            <IconWarning class="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>
+              This reads like the workspace bonus, which every attempt already
+              offers as “{{ activeDiscipline.workspaceLabel }}”
+              +{{ activeDiscipline.workspaceBonus }}. A player could take both.
+            </span>
+          </p>
         </div>
 
         <AppButton
@@ -216,7 +229,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconDelete, IconLock, IconTool } from '@/lib/icons';
+import { IconAdd, IconDelete, IconLock, IconTool, IconWarning } from '@/lib/icons';
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import EntityEditorActionBar from "@/components/common/entity/EntityEditorActionBar.vue";
@@ -229,6 +242,7 @@ import {
   CRAFTING_DISCIPLINES,
   getDiscipline,
 } from "@/lib/crafting/disciplines";
+import { repeatsWorkspaceBonus } from "@/lib/crafting/workspaceModifier";
 import { useRecordDraft, cloneDraftValue } from "@/composables/useRecordDraft";
 import { useCraftingUiStore } from "@/stores/ui/crafting";
 import { markEdited } from "@/ai/provenance";
