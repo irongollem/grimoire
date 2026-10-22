@@ -68,11 +68,14 @@ describe("STARTER_RECIPES", () => {
     // workshop modifier here is the same bonus twice: 119 starters carried one
     // ("Full forge available" +3 beside the dialog's own +3). Matched on the
     // label itself and on workspace nouns, since most copies were reworded.
+    // Only bonuses count: a penalty that names a place ("Serving a full tavern
+    // −2") is a situation, not the workspace.
     const workspaceWords =
-      /\b(forge|workshop|lab|laboratory|bench|studio|scriptorium|stoneyard|quarry|loom|tailoring room|kitchen|herb garden|drying room|workroom|brewing facility|tavern|writing desk)\b/i;
+      /\b(forge|smithy|workshop|lab|laboratory|apothecary|bench|studio|scriptorium|stoneyard|mason's yard|quarry|loom|tailoring room|kitchen|herb garden|drying room|workroom|brewery|brewing facility|tavern|writing desk)\b/i;
     const labels = new Map(CRAFTING_DISCIPLINES.map((discipline) => [discipline.id, discipline.workspaceLabel.toLowerCase()]));
     const repeated = STARTER_RECIPES.flatMap((recipe) =>
       (recipe.modifiers ?? [])
+        .filter((m) => m.bonus > 0)
         .filter((m) => m.description.toLowerCase() === labels.get(recipe.discipline) || workspaceWords.test(m.description))
         .map((m) => `${recipe.name} → ${m.description}`),
     );

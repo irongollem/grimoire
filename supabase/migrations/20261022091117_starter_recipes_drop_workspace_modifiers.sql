@@ -8,8 +8,10 @@
 -- its (discipline, text, bonus) is exactly one of the 18 starter duplicates, so
 -- a DM who reworded a modifier or changed its bonus keeps it. Production dry run
 -- on 22 Oct 2026: 353 rows on 353 recipes, 3 campaigns, 2 owners, out of 377
--- modifier rows in total. Nine more rows mention a workspace noun and stay: they
--- are DM-written and mostly genuine ("Acids available", a notebook on the bench).
+-- modifier rows in total, and every one of the 353 sits on a recipe whose name
+-- is a starter's, so no recipe a DM invented loses a row. Nine more rows
+-- mention a workspace noun and stay: they are DM-written and mostly genuine
+-- ("Acids available", a notebook on the bench).
 
 delete from public.crafting_recipe_modifiers m
 using public.crafting_recipes r
