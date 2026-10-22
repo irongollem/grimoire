@@ -8,11 +8,26 @@ const mocks = vi.hoisted(() => ({
   // Queue of { data, error } responses, one consumed per chunk request in order.
   // Defaults to "every id in the chunk moved" when the queue runs dry.
   responses: [] as ({ data: { id: string }[] | null; error: Error | null } | undefined)[],
+  // kin_links rows the move finds for an NPC end, and what it deleted.
+  kinRows: [] as { id: string; from_npc_id: string | null; to_npc_id: string | null }[],
+  kinDeleted: [] as string[],
 }));
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: (table: string) => ({
+      select: (_cols: string) => ({
+        in: (col: string, ids: string[]) =>
+          Promise.resolve({ data: mocks.kinRows.filter((r) => ids.includes(r[col as "from_npc_id" | "to_npc_id"] as string)), error: null }),
+      }),
+      delete: () => ({
+        in: (_col: string, ids: string[]) => ({
+          select: () => {
+            mocks.kinDeleted.push(...ids);
+            return Promise.resolve({ data: ids.map((id) => ({ id })), error: null });
+          },
+        }),
+      }),
       update: (payload: Record<string, unknown>) => ({
         in: (_col: string, ids: string[]) => ({
           select: (_col2: string) => {
@@ -48,6 +63,8 @@ describe("useBulkCampaignScope", () => {
   beforeEach(() => {
     mocks.calls = [];
     mocks.responses = [];
+    mocks.kinRows = [];
+    mocks.kinDeleted = [];
   });
 
   it("chunks a 450-id call into three requests of 200/200/50 and sums moved", async () => {
@@ -139,6 +156,31 @@ describe("useBulkCampaignScope", () => {
     // rather than two calls (one per column).
     const relCalls = mocks.calls.filter((c) => c.table === "npc_relationships");
     expect(relCalls).toHaveLength(1);
+    unmount();
+  });
+
+  it("re-stamps a kin link whose two NPCs both moved, and deletes one that would span two campaigns", async () => {
+    mocks.kinRows = [
+      { id: "both", from_npc_id: "npc-1", to_npc_id: "npc-2" },
+      { id: "left-behind", from_npc_id: "npc-1", to_npc_id: "npc-9" },
+      { id: "to-pc", from_npc_id: "npc-2", to_npc_id: null },
+    ];
+    const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
+    await result.mutateAsync({ table: "npcs", ids: ["npc-1", "npc-2"], campaignId: "camp-2" });
+
+    expect(mocks.kinDeleted.sort()).toEqual(["left-behind", "to-pc"]);
+    const kinUpdates = mocks.calls.filter((c) => c.table === "kin_links");
+    expect(kinUpdates).toEqual([{ table: "kin_links", update: { campaign_id: "camp-2" }, ids: ["both"] }]);
+    unmount();
+  });
+
+  it("deletes every kin link of an NPC moved to the general scope, which holds none", async () => {
+    mocks.kinRows = [{ id: "both", from_npc_id: "npc-1", to_npc_id: "npc-2" }];
+    const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
+    await result.mutateAsync({ table: "npcs", ids: ["npc-1", "npc-2"], campaignId: null });
+
+    expect(mocks.kinDeleted).toEqual(["both"]);
+    expect(mocks.calls.some((c) => c.table === "kin_links")).toBe(false);
     unmount();
   });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  splitLegacyKin,
   sortByHierarchy,
   buildIdMapFromArrays,
   remapKeep,
@@ -147,5 +148,37 @@ describe("freshId", () => {
   it("mints a fresh UUID when the id is absent", () => {
     const minted = freshId("missing", new Map());
     expect(minted).toMatch(UUID_RE);
+  });
+});
+
+describe("splitLegacyKin (#1083)", () => {
+  it("turns family and sibling bonds into kin, keeps other bonds, and softens PC notes to contact", () => {
+    const out = splitLegacyKin(
+      [],
+      [
+        { id: "1", npc_id: "a", related_npc_id: "b", relationship_type: "family", notes: "cousins" },
+        { id: "2", npc_id: "b", related_npc_id: "c", relationship_type: "sibling" },
+        { id: "3", npc_id: "a", related_npc_id: "c", relationship_type: "ally" },
+      ],
+      [{ id: "n", npc_id: "a", party_member_id: "p", relationship_type: "family" }],
+    );
+    expect(out.bonds.map((b) => b.id)).toEqual(["3"]);
+    expect(out.pcNotes[0].relationship_type).toBe("contact");
+    expect(out.kin.map((k) => [k.kind, k.needs_sorting, k.from_npc_id])).toEqual([
+      ["relative", true, "a"],
+      ["sibling", false, "b"],
+      ["relative", true, "a"],
+    ]);
+    expect(out.kin[2].to_party_member_id).toBe("p");
+  });
+
+  it("keeps an existing link for a pair, whichever way round the old bond was written", () => {
+    const out = splitLegacyKin(
+      [{ id: "k", from_npc_id: "b", to_npc_id: "a", kind: "parent" }],
+      [{ id: "1", npc_id: "a", related_npc_id: "b", relationship_type: "family" }],
+      [],
+    );
+    expect(out.kin).toHaveLength(1);
+    expect(out.kin[0].id).toBe("k");
   });
 });

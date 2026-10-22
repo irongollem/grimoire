@@ -70,7 +70,7 @@ describe("live sync registries", () => {
       "class_features", "class_option_texts", "companions", "crafting_recipes", "custom_classes", "custom_subclasses",
       "deities", "discovered_monsters", "dm_note_touches", "downtime_deck_backs", "downtime_draws", "downtime_grants",
       "downtime_outcomes", "dungeon_features", "dungeon_maps", "encounter_state", "encounters", "entity_mentions",
-      "entity_notes", "faction_deities", "factions", "factions_player", "handout_reveals", "item_entries", "items",
+      "entity_notes", "faction_deities", "factions", "factions_player", "handout_reveals", "item_entries", "items", "kin_links",
       "location_reveals", "locations", "locations_player", "loot_placements", "loot_tables", "memorial_mourners",
       "minis", "monsters", "notes", "notes_player", "npc_favors", "npc_inventory", "npc_memories", "npc_pc_notes", "npc_relationships",
       "npc_reveals", "npc_sets", "npcs", "npcs_player", "pantheons", "party_inventory", "party_member_tracker_state",

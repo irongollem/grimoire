@@ -17,6 +17,7 @@ import {
   buildIdMapFromArrays,
   remapKeep as rLib,
   remapOrNull as rCamp,
+  splitLegacyKin,
   freshId,
   type IdMap,
 } from "@/lib/campaign/campaignSerialization";
@@ -70,6 +71,8 @@ export interface GrimoireBundle {
   // Campaign-scoped
   npcs?: Row[];
   npc_relationships?: Row[];
+  /** Family links between the bundled NPCs (#1083). A bundle carries no party members' kin: a PC stays in its campaign. */
+  kin_links?: Row[];
   locations?: Row[];
   store_items?: Row[];
   factions?: Row[];
@@ -241,6 +244,20 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
       bundle.npcs = npcs.map(stripCampaignRow);
       entityCounts.npcs = npcs.length;
       bundle.npc_relationships = (await qByIds("npc_relationships", "npc_id", ids)).map(stripCampaignRow);
+      // Only links with both ends in the selection travel: the other end would have no row to point at.
+      const inSelection = new Set(ids);
+      const kin = [
+        ...(await qByIds("kin_links", "from_npc_id", ids)),
+        ...(await qByIds("kin_links", "to_npc_id", ids)),
+      ];
+      const seen = new Set<string>();
+      bundle.kin_links = kin
+        .filter((l) => {
+          if (seen.has(l.id as string)) return false;
+          seen.add(l.id as string);
+          return inSelection.has(l.from_npc_id as string) && inSelection.has(l.to_npc_id as string);
+        })
+        .map(stripCampaignRow);
     })(),
 
     selection.has("locations") && (async () => {
@@ -481,7 +498,7 @@ async function downloadBundle(bundle: GrimoireBundle): Promise<void> {
 
 export function buildIdMap(bundle: GrimoireBundle): IdMap {
   return buildIdMapFromArrays([
-    bundle.npcs, bundle.npc_relationships,
+    bundle.npcs, bundle.npc_relationships, bundle.kin_links,
     bundle.locations, bundle.store_items,
     bundle.factions, bundle.faction_npcs, bundle.faction_locations,
     bundle.faction_items, bundle.faction_relations,
@@ -801,8 +818,20 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
       player_visible_to: [],
       linked_monster_id: rLib(npc.linked_monster_id, idMap),
     })));
-    if (bundle.npc_relationships?.length) {
-      await batchInsert("npc_relationships", bundle.npc_relationships.map((rel) => ({
+    // A bundle from before family trees keeps kin as `family` / `sibling` bonds, which the bond table refuses.
+    const legacy = splitLegacyKin(bundle.kin_links ?? [], bundle.npc_relationships ?? [], []);
+    const kinRows = legacy.kin
+      .map((link) => ({
+        ...link,
+        id: idMap.get(link.id as string) ?? (link.id as string),
+        campaign_id: campaignId,
+        user_id: userId,
+        from_npc_id: rCamp(link.from_npc_id, idMap),
+        to_npc_id: rCamp(link.to_npc_id, idMap),
+      }))
+      .filter((link) => link.from_npc_id !== null && link.to_npc_id !== null);
+    if (legacy.bonds.length) {
+      await batchInsert("npc_relationships", legacy.bonds.map((rel) => ({
         ...rel,
         id: idMap.get(rel.id as string) ?? crypto.randomUUID(),
         campaign_id: campaignId,
@@ -811,6 +840,7 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
         related_npc_id: rCamp(rel.related_npc_id, idMap),
       })));
     }
+    if (kinRows.length) await batchInsert("kin_links", kinRows);
   }
 
   if (includeTypes.has("factions") && bundle.factions?.length) {

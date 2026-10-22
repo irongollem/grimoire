@@ -24,7 +24,7 @@ import { JOIN_TABLES_REQUIRING_CAMPAIGN, type CopyJoinTable } from "@/lib/campai
  *
  * Two entity tables — `npcs` and `factions` — have campaign-scoped join-table
  * children whose own `campaign_id` does not follow the parent row for free:
- * `npc_relationships`, `npc_inventory` (both owned by `npc_id`) and
+ * `kin_links` (see `moveKinLinks`), `npc_relationships`, `npc_inventory` (both owned by `npc_id`) and
  * `faction_deities` (owned by `faction_id`). `CHILD_TABLES` below names them;
  * `moveChildRows` re-stamps each one's `campaign_id` after every entity chunk
  * has landed. The other four join tables `copyToCampaign.ts` knows about
@@ -152,6 +152,42 @@ export function bulkScopeAllowsGeneral(table: BulkScopeTable): boolean {
   return !children.some((child) => child.table in JOIN_TABLES_REQUIRING_CAMPAIGN);
 }
 
+/**
+ * Family links (#1083) join two people of one campaign, so they cannot follow one NPC alone: a link whose
+ * two NPC ends both moved is re-stamped, and every other link of a moved NPC (the other end stayed, or is a
+ * PC, who stays) would now span two campaigns, which the database refuses, so it is deleted. That is the
+ * same trade `bulkScopeAllowsGeneral` makes for inventory: a family belongs to one campaign.
+ */
+async function moveKinLinks(ownerIds: readonly string[], campaignId: string | null): Promise<void> {
+  const moved = new Set(ownerIds);
+  const links = new Map<string, { id: string; from: string | null; to: string | null }>();
+  for (const column of ["from_npc_id", "to_npc_id"] as const) {
+    for (const chunk of chunkArray(ownerIds, CHUNK_SIZE)) {
+      const { data, error } = await supabase
+        .from("kin_links")
+        .select("id, from_npc_id, to_npc_id")
+        .in(column, [...chunk]);
+      if (error) throw error;
+      for (const row of data) links.set(row.id, { id: row.id, from: row.from_npc_id, to: row.to_npc_id });
+    }
+  }
+  const keep: string[] = [];
+  const drop: string[] = [];
+  for (const link of links.values()) {
+    const together = link.from !== null && link.to !== null && moved.has(link.from) && moved.has(link.to);
+    (together && campaignId !== null ? keep : drop).push(link.id);
+  }
+  // Delete first: a stray cross-campaign link must be gone before the survivors are re-stamped.
+  for (const chunk of chunkArray(drop, CHUNK_SIZE)) {
+    const { error } = await supabase.from("kin_links").delete().in("id", [...chunk]).select("id");
+    if (error) throw error;
+  }
+  for (const chunk of chunkArray(keep, CHUNK_SIZE)) {
+    const { error } = await supabase.from("kin_links").update({ campaign_id: campaignId }).in("id", [...chunk]).select("id");
+    if (error) throw error;
+  }
+}
+
 /** Re-stamps `campaignId` on every campaign-scoped join table `table`'s moved
  *  rows own, chunked the same way the entity update above is. A no-op for the
  *  eight tables with no entry in `CHILD_TABLES`. */
@@ -162,6 +198,7 @@ async function moveChildRows(
 ): Promise<void> {
   const children = CHILD_TABLES[table];
   if (!children || !ownerIds.length) return;
+  if (table === "npcs") await moveKinLinks(ownerIds, campaignId);
   for (const child of children) {
     for (const chunk of chunkArray(ownerIds, CHUNK_SIZE)) {
       const { error } = await supabase

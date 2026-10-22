@@ -307,3 +307,58 @@ describe("executeImport NPC memories (#1019)", () => {
     expect(inserted.some((i) => i.table === "npc_memories")).toBe(false);
   });
 });
+
+describe("executeImport kin links (#1083)", () => {
+  beforeEach(() => {
+    inserted.length = 0;
+  });
+
+  it("remaps both ends of a kin link onto the restored NPCs and party members", async () => {
+    const backup = backupWith({
+      party_members: [member],
+      npcs: [{ id: "npc-1", name: "Bram" }, { id: "npc-2", name: "Wren" }],
+      kin_links: [
+        { id: "k-1", user_id: "x", campaign_id: "old-camp", from_npc_id: "npc-1", from_party_member_id: null, to_npc_id: "npc-2", to_party_member_id: null, kind: "parent" },
+        { id: "k-2", user_id: "x", campaign_id: "old-camp", from_npc_id: "npc-1", from_party_member_id: null, to_npc_id: null, to_party_member_id: "pm-1", kind: "parent" },
+      ],
+    });
+    await executeImport(backup, "Restored");
+    const tables = inserted.map((i) => i.table);
+    expect(tables.indexOf("npcs")).toBeLessThan(tables.indexOf("kin_links"));
+    expect(tables.indexOf("party_members")).toBeLessThan(tables.indexOf("kin_links"));
+    const [npc1, npc2] = inserted.find((i) => i.table === "npcs")!.rows;
+    const pm = inserted.find((i) => i.table === "party_members")!.rows[0];
+    const [a, b] = inserted.find((i) => i.table === "kin_links")!.rows;
+    expect(a).toMatchObject({ from_npc_id: npc1.id, to_npc_id: npc2.id, user_id: "restorer" });
+    expect(a.id).not.toBe("k-1");
+    expect(b).toMatchObject({ from_npc_id: npc1.id, to_party_member_id: pm.id });
+  });
+
+  it("restores a backup from before family trees: family and sibling bonds become kin, not refused bonds", async () => {
+    const backup = backupWith({
+      npcs: [{ id: "npc-1", name: "Bram" }, { id: "npc-2", name: "Wren" }, { id: "npc-3", name: "Ida" }],
+      npc_relationships: [
+        { id: "r-1", npc_id: "npc-1", related_npc_id: "npc-2", relationship_type: "family", notes: "cousins" },
+        { id: "r-2", npc_id: "npc-2", related_npc_id: "npc-3", relationship_type: "sibling", notes: null },
+        { id: "r-3", npc_id: "npc-1", related_npc_id: "npc-3", relationship_type: "ally", notes: null },
+      ],
+    });
+    await executeImport(backup, "Restored");
+    const bonds = inserted.find((i) => i.table === "npc_relationships")!.rows;
+    expect(bonds.map((r) => r.relationship_type)).toEqual(["ally"]);
+    const kin = inserted.find((i) => i.table === "kin_links")!.rows;
+    expect(kin.map((k) => [k.kind, k.needs_sorting, k.note])).toEqual([
+      ["relative", true, "cousins"],
+      ["sibling", false, ""],
+    ]);
+  });
+
+  it("restores a backup that predates family trees without writing any kin", async () => {
+    const base: Record<string, unknown> = { version: "2", file_type: "backup", campaign: { id: "old-camp", name: "Old" } };
+    const old = new Proxy(base, {
+      get: (t, k) => (k === "kin_links" ? undefined : k in t ? t[k as string] : []),
+    }) as unknown as GrimoireBackup;
+    await executeImport(old, "Restored");
+    expect(inserted.some((i) => i.table === "kin_links")).toBe(false);
+  });
+});

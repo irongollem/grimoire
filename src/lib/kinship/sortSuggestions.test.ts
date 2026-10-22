@@ -1,0 +1,65 @@
+import { describe, expect, it } from "vitest";
+import type { KinPerson } from "@/lib/kinship/graph";
+import { suggestSort } from "@/lib/kinship/sortSuggestions";
+
+const p = (name: string, bornYear: number | null): KinPerson => ({
+  key: `npc:${name}`,
+  name,
+  bornYear,
+  dead: false,
+  isPc: false,
+});
+const odile = p("Odile Thane", 1033);
+const garrick = p("Garrick Vane", 1030);
+
+describe("suggestSort from the note", () => {
+  const choice = (note: string) => suggestSort(odile, garrick, note)?.choice;
+  it("reads parents with their role", () => {
+    expect(choice("her father")).toEqual({ relation: "parent", parentRole: "father", label: null });
+    expect(choice("Mum")).toMatchObject({ relation: "parent", parentRole: "mother" });
+    expect(choice("a parent")).toMatchObject({ relation: "parent", parentRole: null });
+  });
+  it("reads children, spouses and former spouses", () => {
+    expect(choice("her son")).toMatchObject({ relation: "child" });
+    expect(choice("her first husband")).toMatchObject({ relation: "former_spouse" });
+    expect(choice("the widow")).toMatchObject({ relation: "former_spouse" });
+    expect(choice("her husband")).toMatchObject({ relation: "spouse" });
+    expect(choice("married in spring")).toMatchObject({ relation: "spouse" });
+  });
+  it("reads siblings and keeps the word of a distant relative", () => {
+    expect(choice("twin")).toMatchObject({ relation: "sibling" });
+    expect(choice("Her uncle")).toEqual({ relation: "relative", parentRole: null, label: "uncle" });
+  });
+  it("matches whole words only", () => {
+    expect(choice("grandchild of a neighbour")).toMatchObject({ relation: "relative", label: "grandchild" });
+    expect(choice("sonorous voice")).toBeUndefined();
+  });
+  it("quotes the note, trimmed to 60 characters", () => {
+    const note = `her father ${"x".repeat(80)}`;
+    const reason = suggestSort(odile, garrick, note)?.reason ?? "";
+    expect(reason).toBe(`note: “${note.slice(0, 60)}”`);
+  });
+});
+
+describe("suggestSort from birth years", () => {
+  it("makes the older one the parent when far apart", () => {
+    const old = p("Aldous Thane", 1000);
+    expect(suggestSort(odile, old, "")).toEqual({
+      choice: { relation: "parent", parentRole: null, label: null },
+      reason: "born 1033 and 1000: 33 years apart",
+    });
+    expect(suggestSort(old, odile, "")?.choice.relation).toBe("child");
+  });
+  it("suggests siblings for a small gap and a shared family name", () => {
+    const tomas = p("Tomas Thane", 1038);
+    expect(suggestSort(odile, tomas, "")).toMatchObject({
+      choice: { relation: "sibling" },
+      reason: "born 5 years apart, same family name",
+    });
+  });
+  it("gives up otherwise", () => {
+    expect(suggestSort(odile, garrick, "")).toBeNull();
+    expect(suggestSort(odile, p("Nobody", null), "")).toBeNull();
+    expect(suggestSort(odile, p("Ilse Thane", 1045), "")).toBeNull();
+  });
+});

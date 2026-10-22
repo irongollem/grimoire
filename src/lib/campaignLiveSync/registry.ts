@@ -20,6 +20,9 @@ export const CHARACTER_CARETAKERS_KEY = "character-caretakers";
 export const WHILE_AWAY_KEY = "while-away";
 /** Every [secret] block in the campaign, for the NPC memory picker (#1053); any entity that can hold one rings it. */
 export const CAMPAIGN_SECRETS_KEY = "campaign-secrets";
+/** Root of the kin link queries (#1083), and of the players' kin projection that the same ring refreshes. */
+export const KIN_LINKS_KEY = "kin_links";
+export const PLAYER_KIN_KEY = "player-kin";
 export const BEATS_KEY = "quest_beats";
 export const THREADS_KEY = "quest_threads";
 /** A quest's progress clocks (#1011). */
@@ -268,6 +271,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // fails on any campaign table that is neither ringing nor exempt.
   ["spell_change_windows", ["spellChangeWindows"]],
   ["npc_relationships", ["npc_relationships"]],
+  // Family trees (#1083). Players cannot read the table; the ring tells them to re-read their kin projection.
+  ["kin_links", [KIN_LINKS_KEY, PLAYER_KIN_KEY]],
   ["campaign_invites", ["campaign-invites"]],
   // One user's own favourites, for their other devices.
   ["player_favourites", ["player_favourites"]],

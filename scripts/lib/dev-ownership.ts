@@ -80,6 +80,25 @@ export interface PruneReport {
 }
 
 /**
+ * Tables whose nullable references come in "exactly one of" groups (a CHECK says so). Emptying the last
+ * column of a group would leave a row the database refuses, so such a row is pruned instead of detached.
+ * kin_links (#1083): each end of a link is an NPC or a party member, and a player-owned party member is
+ * never pulled.
+ */
+const ONE_OF_GROUPS: Record<string, string[][]> = {
+  kin_links: [
+    ["from_npc_id", "from_party_member_id"],
+    ["to_npc_id", "to_party_member_id"],
+  ],
+};
+
+function emptiesAGroup(table: string, row: Rows[number], column: string): boolean {
+  return (ONE_OF_GROUPS[table] ?? []).some(
+    (group) => group.includes(column) && group.every((c) => c === column || row[c] === null || row[c] === undefined),
+  );
+}
+
+/**
  * Drops every row whose foreign key points at a row that is not in the set, and
  * repeats until nothing changes, because dropping a parent strands its
  * children. Mutates `tables` (arrays replaced in place).
@@ -124,7 +143,7 @@ export function pruneForeignRows(tables: Record<string, Rows>, rules: FkRule[]):
           survivors.push(row);
           continue;
         }
-        if (rule.nullable) {
+        if (rule.nullable && !emptiesAGroup(rule.table, row, rule.column)) {
           row[rule.column] = null;
           bump(detached, `${rule.table}.${rule.column}`);
           survivors.push(row);

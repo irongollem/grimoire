@@ -12,9 +12,7 @@
  */
 
 export const NPC_RELATIONSHIP_TYPES = [
-  // Familial
-  "family",
-  "sibling",
+  // A bond, not kin: parents, spouses and siblings are kin_links (#1083)
   "chosen_family",
   // Affinitive
   "friend",

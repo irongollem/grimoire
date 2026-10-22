@@ -105,3 +105,51 @@ export function remapOrNull(id: unknown, map: IdMap): string | null {
 export function freshId(id: unknown, map: IdMap): string {
   return map.get(id as string) ?? crypto.randomUUID();
 }
+
+const LEGACY_KIN_TYPES = new Set(["family", "sibling"]);
+
+/**
+ * Splits bond rows from a file written before family trees (#1083) into bonds and kin. `family` and
+ * `sibling` were bond types then; the bond tables now refuse them, so such a row is restored as a kin link
+ * (`family` as an unsorted `relative`, as the migration did) and its NPC-to-PC note stays as a `contact`.
+ * A pair that already has a link keeps that one: one link per pair. New kin rows carry a fresh id.
+ */
+export function splitLegacyKin(
+  kinLinks: readonly Row[],
+  relationships: readonly Row[],
+  pcNotes: readonly Row[],
+): { bonds: Row[]; pcNotes: Row[]; kin: Row[] } {
+  const kin = [...kinLinks];
+  const pairKey = (a: unknown, b: unknown): string => [a, b].sort().join("|");
+  const taken = new Set(
+    kin.map((l) => pairKey(l.from_npc_id ?? l.from_party_member_id, l.to_npc_id ?? l.to_party_member_id)),
+  );
+  const add = (row: Row, type: unknown): void => {
+    const key = pairKey(row.from_npc_id ?? row.from_party_member_id, row.to_npc_id ?? row.to_party_member_id);
+    if (taken.has(key)) return;
+    taken.add(key);
+    kin.push({ ...row, id: crypto.randomUUID(), kind: type === "sibling" ? "sibling" : "relative", needs_sorting: type === "family" });
+  };
+  const bonds: Row[] = [];
+  for (const rel of relationships) {
+    if (!LEGACY_KIN_TYPES.has(rel.relationship_type)) {
+      bonds.push(rel);
+      continue;
+    }
+    add(
+      {
+        from_npc_id: rel.npc_id,
+        to_npc_id: rel.related_npc_id,
+        note: rel.notes ?? "",
+        ai_provenance: rel.ai_provenance ?? null,
+      },
+      rel.relationship_type,
+    );
+  }
+  const notes = pcNotes.map((note) => {
+    if (!LEGACY_KIN_TYPES.has(note.relationship_type)) return note;
+    add({ from_npc_id: note.npc_id, to_party_member_id: note.party_member_id, note: "" }, note.relationship_type);
+    return { ...note, relationship_type: "contact" };
+  });
+  return { bonds, pcNotes: notes, kin };
+}
