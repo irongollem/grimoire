@@ -62,6 +62,14 @@
         />
       </div>
 
+      <!-- Descent: how a House reckons its own (#1083) -->
+      <div v-if="form.faction_type === 'House'" class="space-y-1.5">
+        <label for="faction-descent" class="text-eyebrow font-semibold text-muted-foreground">Descent</label>
+        <AppSelect id="faction-descent" v-model="descentStr" size="body" block>
+          <option v-for="o in DESCENT_OPTIONS" :key="o.id" :value="o.id">{{ o.name }}</option>
+        </AppSelect>
+      </div>
+
       <!-- Alignment -->
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Alignment</label>
@@ -188,6 +196,7 @@ import {
   useDeleteFaction,
 } from "@/composables/factions/useFactions";
 import { FACTION_TYPES, FACTION_ALIGNMENTS, type Faction } from "@/types/faction.types";
+import type { HouseDescent } from "@/types/kinship.types";
 import type { NpcRelationship } from "@/types/npc.types";
 import RelationshipWheel from "@/components/common/entity/RelationshipWheel.vue";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
@@ -197,6 +206,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import TagInput from "@/components/common/controls/TagInput.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
@@ -218,9 +228,25 @@ const { confirm } = useConfirm();
 const FACTION_TYPE_OPTIONS = FACTION_TYPES.map((t) => ({ id: t, name: t }));
 const FACTION_ALIGNMENT_OPTIONS = FACTION_ALIGNMENTS.map((a) => ({ id: a, name: a }));
 
+const DESCENT_OPTIONS: { id: HouseDescent; name: string }[] = [
+  { id: "either", name: "Through either parent" },
+  { id: "father", name: "Through the father" },
+  { id: "mother", name: "Through the mother" },
+  { id: "oath", name: "By oath or choice" },
+];
+
+// Only a House has a descent; a pick of type is the one place it is set or cleared.
 const factionTypeStr = computed({
   get: () => form.value.faction_type ?? "",
-  set: (v) => { form.value.faction_type = v || null; },
+  set: (v) => {
+    form.value.faction_type = v || null;
+    if (v !== "House") form.value.descent = null;
+    else form.value.descent ??= "either";
+  },
+});
+const descentStr = computed({
+  get: () => form.value.descent ?? "either",
+  set: (v: HouseDescent) => { form.value.descent = v; },
 });
 const alignmentStr = computed({
   get: () => form.value.alignment ?? "",
@@ -262,6 +288,7 @@ const form = ref({
   description: null as string | null,
   emblem_url: "" as string,
   alignment: null as string | null,
+  descent: null as HouseDescent | null,
   party_standing: "unknown" as NpcRelationship,
   player_visible_to: [] as string[],
   ai_provenance: null as AiProvenance | null,
@@ -276,6 +303,7 @@ watch(
     form.value.description = f.description;
     form.value.emblem_url = f.emblem_url ?? "";
     form.value.alignment = f.alignment;
+    form.value.descent = f.descent;
     form.value.party_standing = f.party_standing;
     form.value.player_visible_to = f.player_visible_to ?? [];
     form.value.ai_provenance = f.ai_provenance ?? null;
@@ -304,6 +332,7 @@ async function handleSave() {
       description: form.value.description,
       emblem_url: form.value.emblem_url || null,
       alignment: form.value.alignment,
+      descent: form.value.faction_type === "House" ? (form.value.descent ?? "either") : null,
       party_standing: form.value.party_standing,
       player_visible_to: form.value.player_visible_to,
       tags: tags.value,

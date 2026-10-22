@@ -11,6 +11,9 @@
     the DM edits in place.
   -->
   <div class="space-y-4">
+    <!-- Kin first (#1083): parents, spouse, siblings and children, above the bonds that are not blood. -->
+    <FamilyBlock :person="personKey('npc', npcId)" />
+
     <NpcRelationsSection :npc-id="npcId" />
 
     <section class="w-full">
@@ -26,6 +29,8 @@
 </template>
 
 <script setup lang="ts">
+import FamilyBlock from "@/components/kinship/FamilyBlock.vue";
+import { personKey } from "@/lib/kinship/keys";
 import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
 import NpcFactionsSection from "@/components/factions/NpcFactionsSection.vue";
 import NpcFavorsSection from "@/components/npcs/NpcFavorsSection.vue";

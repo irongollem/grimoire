@@ -139,6 +139,15 @@
         :member="member"
         :can-manage="canManage"
       />
+
+      <!-- Kin (#1083). The DM's party page passes a memberId and edits; the player portal
+           (and the DM previewing it) reads only what the player may know. -->
+      <FamilyBlock
+        :person="personKey('pc', member.id)"
+        :player="!props.memberId"
+        :title="props.memberId ? 'Family' : 'Your family'"
+        framed
+      />
     </template>
 
     <RollToast :result="lastRoll" />
@@ -183,6 +192,8 @@ import CharacterCaretakingNotice from "@/components/player/caretaking/CharacterC
 import HandOverDialog from "@/components/party/HandOverDialog.vue";
 import { useCaretaking } from "@/composables/party/useCaretaking";
 import type { OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
+import FamilyBlock from "@/components/kinship/FamilyBlock.vue";
+import { personKey } from "@/lib/kinship/keys";
 import PlayerSkillsTab from "@/components/player/PlayerSkillsTab.vue";
 import { useSpecies } from "@/composables/rules/useSpecies";
 import OverflowMenu from "@/components/common/overlays/OverflowMenu.vue";

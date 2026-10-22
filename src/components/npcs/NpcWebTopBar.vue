@@ -60,6 +60,7 @@
 
         <ListFilterSelect v-model="typeModel" aria-label="Relationship type filter">
           <option value="">All Relationships</option>
+          <option :value="NPC_WEB_KIN_FILTER">Family</option>
           <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
         </ListFilterSelect>
 
@@ -87,7 +88,7 @@
         grammar the faction focus uses — the swatch you chose is the one thing
         still lit.
       -->
-      <div class="flex items-center gap-1 pl-2 border-l border-border">
+      <div class="flex flex-wrap items-center gap-1 pl-2 border-l border-border">
         <button
           v-for="item in legendItems"
           :key="item.value"
@@ -107,6 +108,19 @@
           <span class="inline-block w-5 border-t-2 border-dashed border-muted-foreground/70" />
           PC link
         </span>
+        <!-- Kin lines, drawn from kin_links; the Family filter shows only these. -->
+        <span
+          v-for="kin in KIN_WEB_LEGEND"
+          :key="kin.kind"
+          class="flex items-center gap-1.5 pl-1.5 text-label text-muted-foreground"
+        >
+          <span
+            class="inline-block w-5 border-t-2"
+            :class="kin.dashed ? 'border-dashed' : 'border-solid'"
+            :style="{ borderColor: `var(${kin.colorVar})` }"
+          />
+          {{ kin.label }}
+        </span>
       </div>
     </div>
   </div>
@@ -122,6 +136,8 @@ import EntityCombobox from '@/components/common/controls/EntityCombobox.vue';
 import ListFilterSelect from '@/components/common/list/ListFilterSelect.vue';
 import ListSearchInput from '@/components/common/list/ListSearchInput.vue';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
+import { NPC_WEB_KIN_FILTER, type NpcWebTypeFilter } from '@/stores/ui/npcs';
+import { KIN_WEB_LEGEND } from '@/lib/kinship/webEdge';
 import type { NpcRelationship, NpcRelationshipType } from '@/types/npc.types';
 
 interface LocationOption {
@@ -145,7 +161,7 @@ const {
   searchQuery: string;
   showPcs: boolean;
   locationFilter: string;
-  typeFilter: NpcRelationshipType | '';
+  typeFilter: NpcWebTypeFilter;
   focusFaction: string;
   relationshipFilter: NpcRelationship | '';
   locationOptions: LocationOption[];
@@ -160,7 +176,7 @@ const emit = defineEmits<{
   'update:searchQuery': [value: string];
   'update:showPcs': [value: boolean];
   'update:locationFilter': [value: string];
-  'update:typeFilter': [value: NpcRelationshipType | ''];
+  'update:typeFilter': [value: NpcWebTypeFilter];
   'update:focusFaction': [value: string];
   'update:relationshipFilter': [value: NpcRelationship | ''];
   clear: [];
@@ -174,6 +190,6 @@ const searchModel = computed({
 });
 const typeModel = computed({
   get: () => typeFilter as string,
-  set: (v) => emit('update:typeFilter', v as NpcRelationshipType | ''),
+  set: (v) => emit('update:typeFilter', v as NpcWebTypeFilter),
 });
 </script>

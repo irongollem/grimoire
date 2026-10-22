@@ -165,3 +165,34 @@ describe("FactionEditor — copy to campaign (#885)", () => {
     expect(wrapper.findAllComponents({ name: "PaywallModal" })).toHaveLength(1);
   });
 });
+
+describe("FactionEditor — descent (#1083)", () => {
+  const pick = (w: ReturnType<typeof mountEditor>, type: string) =>
+    w.findAllComponents({ name: "EntityCombobox" })[0]?.vm.$emit("update:modelValue", type);
+
+  it("shows Descent only for a House", async () => {
+    const w = mountEditor(faction({ faction_type: "Guild" }));
+    expect(w.find("#faction-descent").exists()).toBe(false);
+    pick(w, "House");
+    await w.vm.$nextTick();
+    expect(w.find("#faction-descent").exists()).toBe(true);
+    expect((w.find("#faction-descent").element as HTMLSelectElement).value).toBe("either");
+  });
+
+  it("clears the descent when the type moves away from House, and saves it for a House", async () => {
+    const w = mountEditor(faction({ faction_type: "House", descent: "mother" }));
+    expect((w.find("#faction-descent").element as HTMLSelectElement).value).toBe("mother");
+    await w.find("#faction-descent").setValue("oath");
+    await findButton(w, "Save")!.trigger("click");
+    expect(updateFaction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ descent: "oath" }) }),
+    );
+    pick(w, "Guild");
+    await w.vm.$nextTick();
+    expect(w.find("#faction-descent").exists()).toBe(false);
+    await findButton(w, "Save")!.trigger("click");
+    expect(updateFaction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ descent: null }) }),
+    );
+  });
+});
