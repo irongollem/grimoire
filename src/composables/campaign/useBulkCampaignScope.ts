@@ -158,7 +158,7 @@ export function bulkScopeAllowsGeneral(table: BulkScopeTable): boolean {
  * PC, who stays) would now span two campaigns, which the database refuses, so it is deleted. That is the
  * same trade `bulkScopeAllowsGeneral` makes for inventory: a family belongs to one campaign.
  */
-async function moveKinLinks(ownerIds: readonly string[], campaignId: string | null): Promise<void> {
+async function moveKinLinks(ownerIds: readonly string[], campaignId: string | null): Promise<number> {
   const moved = new Set(ownerIds);
   const links = new Map<string, { id: string; from: string | null; to: string | null }>();
   for (const column of ["from_npc_id", "to_npc_id"] as const) {
@@ -186,6 +186,7 @@ async function moveKinLinks(ownerIds: readonly string[], campaignId: string | nu
     const { error } = await supabase.from("kin_links").update({ campaign_id: campaignId }).in("id", [...chunk]).select("id");
     if (error) throw error;
   }
+  return drop.length;
 }
 
 /** Re-stamps `campaignId` on every campaign-scoped join table `table`'s moved
@@ -195,10 +196,11 @@ async function moveChildRows(
   table: BulkScopeTable,
   ownerIds: readonly string[],
   campaignId: string | null,
-): Promise<void> {
+): Promise<number> {
   const children = CHILD_TABLES[table];
-  if (!children || !ownerIds.length) return;
-  if (table === "npcs") await moveKinLinks(ownerIds, campaignId);
+  if (!children || !ownerIds.length) return 0;
+  // The family links removed (see moveKinLinks), so the move can say so rather than lose them quietly.
+  const familyLinksRemoved = table === "npcs" ? await moveKinLinks(ownerIds, campaignId) : 0;
   for (const child of children) {
     for (const chunk of chunkArray(ownerIds, CHUNK_SIZE)) {
       const { error } = await supabase
@@ -209,9 +211,16 @@ async function moveChildRows(
       if (error) throw error;
     }
   }
+  return familyLinksRemoved;
 }
 
-async function bulkUpdateCampaignScope({ table, ids, campaignId }: BulkScopeInput): Promise<{ moved: number }> {
+export interface BulkScopeResult {
+  moved: number;
+  /** Family links (#1083) of a moved NPC to someone who stayed behind: a family belongs to one campaign. */
+  familyLinksRemoved: number;
+}
+
+async function bulkUpdateCampaignScope({ table, ids, campaignId }: BulkScopeInput): Promise<BulkScopeResult> {
   // Ids Postgres actually reported back as updated — not necessarily every id
   // requested, since RLS silently drops any id that is not the caller's own
   // (see the module docstring). Children are moved for exactly this set, so a
@@ -234,8 +243,9 @@ async function bulkUpdateCampaignScope({ table, ids, campaignId }: BulkScopeInpu
     movedIds.push(...(data ?? []).map((row) => row.id as string));
   }
 
+  let familyLinksRemoved = 0;
   try {
-    await moveChildRows(table, movedIds, campaignId);
+    familyLinksRemoved = await moveChildRows(table, movedIds, campaignId);
   } catch (error) {
     // Every entity row already moved by this point (the loop above only
     // exits without throwing once every chunk has landed) — see "Children
@@ -245,11 +255,11 @@ async function bulkUpdateCampaignScope({ table, ids, campaignId }: BulkScopeInpu
     throw error;
   }
 
-  return { moved: movedIds.length };
+  return { moved: movedIds.length, familyLinksRemoved };
 }
 
 export function useBulkCampaignScope(): UseMutationReturnType<
-  { moved: number },
+  BulkScopeResult,
   Error,
   BulkScopeInput,
   unknown

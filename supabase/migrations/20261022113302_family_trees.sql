@@ -85,19 +85,30 @@ create policy "kin_links_delete" on public.kin_links for delete using (private.i
 grant select, insert, update, delete on public.kin_links to authenticated, service_role;
 
 -- ── 2. Old family links move across ────────────────────────────────────────────
--- Between NPCs. A pair already holding a link keeps the first (the unique index drops the rest).
+-- Between NPCs. Old rows could hold a pair twice, once each way, each with its own note; they become one link that
+-- keeps every note (the sorting review reads them), written the way the earliest row was.
+with old as (
+  select r.*, least(r.npc_id, r.related_npc_id) as a, greatest(r.npc_id, r.related_npc_id) as b
+    from public.npc_relationships r
+   where r.relationship_type in ('family', 'sibling') and r.campaign_id is not null
+),
+pairs as (
+  select o.campaign_id, o.a, o.b,
+         (array_agg(o.id order by o.created_at, o.id))[1] as first_id,
+         bool_and(o.relationship_type = 'sibling') as all_sibling,
+         coalesce(string_agg(nullif(btrim(o.notes), ''), ' / ' order by o.created_at), '') as notes
+    from old o
+   group by o.campaign_id, o.a, o.b
+)
 insert into public.kin_links (user_id, campaign_id, from_npc_id, to_npc_id, kind, note, needs_sorting, ai_provenance, created_at)
-select r.user_id, r.campaign_id, r.npc_id, r.related_npc_id,
-       case when r.relationship_type = 'sibling' then 'sibling' else 'relative' end,
-       coalesce(r.notes, ''),
-       r.relationship_type = 'family',
-       r.ai_provenance,
-       r.created_at
-  from public.npc_relationships r
- where r.relationship_type in ('family', 'sibling')
-   and r.campaign_id is not null
- order by r.created_at
-on conflict do nothing;
+select o.user_id, o.campaign_id, o.npc_id, o.related_npc_id,
+       case when p.all_sibling then 'sibling' else 'relative' end,
+       p.notes,
+       not p.all_sibling,
+       o.ai_provenance,
+       o.created_at
+  from pairs p
+  join old o on o.id = p.first_id;
 
 delete from public.npc_relationships
  where relationship_type in ('family', 'sibling') and campaign_id is not null;
@@ -264,6 +275,9 @@ as $function$
 $function$;
 
 -- ── 4. What a player may see of a family ─────────────────────────────────────────
+-- A House the player knows shows them its people: the maintainer's call for the Lineage tab (#1083), and wider than
+-- faction_npcs_select, which shows membership only to a member's own player. It names only people the player already
+-- knows, and never one expelled or defected: those are the DM's to reveal.
 -- The links between two people the caller can see: an NPC whose name the projection shows (and whose disguise has
 -- fallen, if it had one: a kin line from a disguise would name who is behind it), or a character in the party. No
 -- note, which is the DM's. Plus, for each House the caller knows, which of those people belong to it, so the player's
@@ -310,8 +324,16 @@ begin
        where f.campaign_id = p_campaign_id
          and f.faction_type = 'House'
          and (private.faction_is_visible_to_caller(f.id)
-              or (v_dm and (array_length(f.player_visible_to, 1) is not null
-                            or exists (select 1 from public.faction_party_members fpm where fpm.faction_id = f.id))))
+              -- The DM previews exactly the houses get_player_visible_factions would show that member.
+              or (v_dm and case
+                    when p_preview_member_id is not null then
+                      p_preview_member_id = any (f.player_visible_to)
+                      or exists (select 1 from public.faction_party_members fpm
+                                  where fpm.faction_id = f.id and fpm.party_member_id = p_preview_member_id)
+                    else
+                      array_length(f.player_visible_to, 1) is not null
+                      or exists (select 1 from public.faction_party_members fpm where fpm.faction_id = f.id)
+                  end))
     )
     select jsonb_build_object(
       'links', coalesce((
@@ -325,9 +347,11 @@ begin
                  'faction_id', h.id,
                  'members', coalesce((
                    select jsonb_agg(m.key order by m.key)
-                     from (select 'npc:' || fn.npc_id::text as key from public.faction_npcs fn where fn.faction_id = h.id
+                     from (select 'npc:' || fn.npc_id::text as key from public.faction_npcs fn
+                            where fn.faction_id = h.id and fn.status not in ('Expelled', 'Defected')
                            union
-                           select 'pc:' || fp.party_member_id::text from public.faction_party_members fp where fp.faction_id = h.id) m
+                           select 'pc:' || fp.party_member_id::text from public.faction_party_members fp
+                            where fp.faction_id = h.id and fp.status not in ('Expelled', 'Defected')) m
                     where m.key in (select key from seen)), '[]'::jsonb)))
           from houses h), '[]'::jsonb)
     )
@@ -336,3 +360,121 @@ end;
 $$;
 revoke execute on function public.get_player_visible_kin(uuid, uuid) from public, anon;
 grant execute on function public.get_player_visible_kin(uuid, uuid) to authenticated, service_role;
+
+-- ── 5. Who keeps a family when its author leaves ────────────────────────────────
+-- kin_links.user_id cascades on account delete, so a campaign handed to a new owner (or left by a co-DM) must re-home
+-- the rows that author wrote, as it does every other authored table; otherwise deleting the old account deletes the
+-- tree. notice_boards and notice_board_pins (20261015234112) were never added either, and had the same hole. The
+-- body is 20261013231042's with those three lines added.
+create or replace function private.move_campaign_content(
+  p_campaign_id uuid, p_from uuid, p_to uuid, p_scoped_homebrew boolean, p_player_rows boolean)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_prev_move  text := current_setting('grimoire.content_move', true);
+  v_prev_quota text := current_setting('grimoire.bypass_quota', true);
+begin
+  -- The author guard (private.guard_content_author) lets this through, and
+  -- re-stamped rows are not new rows to count against anyone's quota.
+  perform set_config('grimoire.content_move', 'on', true);
+  perform set_config('grimoire.bypass_quota', 'on', true);
+
+  update public.calendar_events       set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.class_features        set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.crafting_recipes      set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.custom_classes        set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.custom_subclasses     set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.deities               set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.encounter_state       set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.encounters            set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.faction_deities       set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.factions              set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.items                 set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.kin_links             set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.notice_board_pins     set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.notice_boards         set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.locations             set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.loot_tables           set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.notes                 set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.npc_inventory         set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.npc_pc_notes          set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.npc_relationships     set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.npc_sets              set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.npcs                  set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.pantheons             set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.puzzle_rooms          set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.quests                set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.roll_tables           set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.rules                 set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.scriptorium_documents set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.session_proposals     set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.soundboard_broadcast  set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.soundboard_pages      set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.soundboard_playlists  set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.sounds                set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.species               set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.spells                set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  update public.campaign_sessions     set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+
+  -- What a member writes as a player (their own character, its inventory and
+  -- companions, journal entries on items, class option texts). A seat that
+  -- rotates has written these before it took the chair, so handing the chair
+  -- back leaves them where they are; a transfer and a deleted account move
+  -- them, the first because the outgoing owner wrote them as DM, the second
+  -- because otherwise they cascade away.
+  if p_player_rows then
+    update public.class_option_texts set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.companions         set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.party_inventory    set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.party_members      set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.item_entries       set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  end if;
+
+  -- Rows that carry an author but no campaign_id, scoped by their parent.
+  update public.faction_items f set user_id = p_to
+   where f.user_id = p_from
+     and exists (select 1 from public.factions x where x.id = f.faction_id and x.campaign_id = p_campaign_id);
+  update public.faction_locations f set user_id = p_to
+   where f.user_id = p_from
+     and exists (select 1 from public.factions x where x.id = f.faction_id and x.campaign_id = p_campaign_id);
+  update public.faction_npcs f set user_id = p_to
+   where f.user_id = p_from
+     and exists (select 1 from public.factions x where x.id = f.faction_id and x.campaign_id = p_campaign_id);
+  update public.faction_party_members f set user_id = p_to
+   where f.user_id = p_from
+     and exists (select 1 from public.factions x where x.id = f.faction_id and x.campaign_id = p_campaign_id);
+  update public.faction_relations f set user_id = p_to
+   where f.user_id = p_from
+     and exists (select 1 from public.factions x where x.id = f.faction_id and x.campaign_id = p_campaign_id);
+  update public.store_items si set user_id = p_to
+   where si.user_id = p_from
+     and exists (select 1 from public.locations l where l.id = si.location_id and l.campaign_id = p_campaign_id);
+  update public.location_doors d set user_id = p_to
+   where d.user_id = p_from
+     and exists (select 1 from public.locations l where l.id = d.from_location_id and l.campaign_id = p_campaign_id);
+  update public.location_map_regions r set user_id = p_to
+   where r.user_id = p_from
+     and exists (select 1 from public.locations l where l.id = r.site_location_id and l.campaign_id = p_campaign_id);
+  update public.location_placements lp set user_id = p_to
+   where lp.user_id = p_from
+     and exists (select 1 from public.locations l where l.id = lp.location_id and l.campaign_id = p_campaign_id);
+  update public.location_state_events e set user_id = p_to
+   where e.user_id = p_from
+     and exists (select 1 from public.locations l where l.id = e.location_id and l.campaign_id = p_campaign_id);
+
+  if p_scoped_homebrew then
+    update public.monsters         set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.traps            set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.dungeon_maps     set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+    update public.dungeon_features set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  end if;
+
+  perform set_config('grimoire.content_move', coalesce(v_prev_move, ''), true);
+  perform set_config('grimoire.bypass_quota', coalesce(v_prev_quota, ''), true);
+end;
+$$;
+
+revoke execute on function private.move_campaign_content(uuid, uuid, uuid, boolean, boolean) from public, anon, authenticated;

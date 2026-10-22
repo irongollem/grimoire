@@ -62,4 +62,11 @@ describe("suggestSort from birth years", () => {
     expect(suggestSort(odile, p("Nobody", null), "")).toBeNull();
     expect(suggestSort(odile, p("Ilse Thane", 1045), "")).toBeNull();
   });
+  it("reads in-laws and step-kin as relatives, never as parents or siblings", () => {
+    const a = { key: "npc:a", name: "A", bornYear: null, dead: false, isPc: false } as const;
+    const b = { key: "npc:b", name: "B", bornYear: null, dead: false, isPc: false } as const;
+    expect(suggestSort(a, b, "his father-in-law")?.choice).toEqual({ relation: "relative", parentRole: null, label: "father-in-law" });
+    expect(suggestSort(a, b, "her step-mother")?.choice).toEqual({ relation: "relative", parentRole: null, label: "step-mother" });
+    expect(suggestSort(a, b, "brother in law")?.choice.relation).toBe("relative");
+  });
 });

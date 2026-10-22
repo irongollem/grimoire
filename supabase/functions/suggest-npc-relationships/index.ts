@@ -554,6 +554,14 @@ serve(withCors(async (req: Request) => {
     }
 
     await releaseCredits(admin, reservation.ids);
+    // Nothing the DM can accept is not a generation they pay for: show why, charge nothing (as an empty result
+    // never was).
+    if (suggestions.length === 0) {
+      return new Response(
+        JSON.stringify({ suggestions, setAside, grounded: retrievedNpcs.length + retrievedFactions.length > 0, ai_provenance: null }),
+        { headers: { "Content-Type": "application/json" } },
+      );
+    }
     await recordGeneration(admin, user.id, LEDGER_REASON, text.isByok, cost, {
       model: textResult.usage.model, provider: textResult.usage.provider,
       input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,

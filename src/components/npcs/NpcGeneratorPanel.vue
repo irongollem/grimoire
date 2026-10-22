@@ -358,7 +358,10 @@ async function applyPostCreate(npcId: string) {
     if (quickForm.related_pc_id) others.push(personKey("pc", quickForm.related_pc_id));
     else if (quickForm.related_npc_id) others.push(personKey("npc", quickForm.related_npc_id));
     if (quickForm.related_npc_kin === "child" && quickForm.second_parent) others.push(quickForm.second_parent);
-    for (const other of others) {
+    // The second parent can end up naming the associate (the DM picks it, then changes the associate), and a
+    // pair holds one link: write each person once.
+    const self = personKey("npc", npcId);
+    for (const other of new Set(others.filter((o) => o !== self))) {
       await createKinLink(kinInsertFor(subject, quickForm.related_npc_kin, other));
     }
   } else if (quickForm.related_npc_id) {

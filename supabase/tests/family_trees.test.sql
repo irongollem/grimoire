@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(25);
 
 -- family_trees (20261022113302, #1083): kin is its own record with a direction; players see it only through
 -- get_player_visible_kin, between two people they can see; a House's line of succession is set in one write by
@@ -145,6 +145,17 @@ select is((select descent from public.get_player_visible_factions('10830000-0000
 select throws_ok($$ select public.set_house_succession('10830000-0000-4000-8000-000000000040', array[]::text[]) $$,
   '42501', 'Not authorized', 'a player cannot set the line of succession');
 
+select set_config('request.jwt.claim.sub', '10830000-0000-4000-8000-000000000001', true);
+select is(jsonb_array_length(public.get_player_visible_kin('10830000-0000-4000-8000-000000000010',
+            '10830000-0000-4000-8000-0000000000ff') -> 'houses'), 0,
+  'the DM previewing a member sees only the houses that member can see');
+update public.faction_npcs set status = 'Expelled'
+ where faction_id = '10830000-0000-4000-8000-000000000040' and npc_id = '10830000-0000-4000-8000-000000000030';
+select set_config('request.jwt.claim.sub', '10830000-0000-4000-8000-000000000002', true);
+select is(public.get_player_visible_kin('10830000-0000-4000-8000-000000000010') -> 'houses' -> 0 -> 'members',
+  '["npc:10830000-0000-4000-8000-000000000031", "pc:10830000-0000-4000-8000-000000000020"]'::jsonb,
+  'an expelled member is the DM''s to reveal, not the projection''s');
+
 -- ── Who may not ─────────────────────────────────────────────────────────────────
 
 select set_config('request.jwt.claim.sub', '10830000-0000-4000-8000-000000000004', true);
@@ -152,6 +163,14 @@ select throws_ok($$ select public.get_player_visible_kin('10830000-0000-4000-800
   '42501', 'Not authorized', 'someone outside the campaign cannot read its families');
 select throws_ok($$ select public.set_house_succession('10830000-0000-4000-8000-000000000040', array[]::text[]) $$,
   '42501', 'Not authorized', 'another DM cannot set this house''s line');
+
+-- ── The family stays with the campaign ──────────────────────────────────────────
+reset role;
+select private.move_campaign_content('10830000-0000-4000-8000-000000000010',
+  '10830000-0000-4000-8000-000000000001', '10830000-0000-4000-8000-000000000004', false, false);
+select is((select count(*)::int from public.kin_links
+            where campaign_id = '10830000-0000-4000-8000-000000000010' and user_id = '10830000-0000-4000-8000-000000000004'),
+  4, 'handing the campaign on re-homes the family its author drew');
 
 select * from finish();
 rollback;

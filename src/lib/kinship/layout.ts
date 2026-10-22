@@ -1,4 +1,4 @@
-import { childrenOf, type KinGraph, parentsOf, spousesOf } from "@/lib/kinship/graph";
+import { childrenOf, comparePeople, type KinGraph, parentsOf, spousesOf } from "@/lib/kinship/graph";
 import type { PersonKey } from "@/types/kinship.types";
 
 export interface LayoutInput {
@@ -92,18 +92,7 @@ export function layoutTree(input: LayoutInput): TreeLayout {
   if (people.length === 0) return empty;
 
   const person = (k: PersonKey) => graph.people.get(k);
-  const cmp = (a: PersonKey, b: PersonKey): number => {
-    const pa = person(a);
-    const pb = person(b);
-    const ya = pa?.bornYear ?? null;
-    const yb = pb?.bornYear ?? null;
-    if (ya !== yb) {
-      if (ya === null) return 1;
-      if (yb === null) return -1;
-      return ya - yb;
-    }
-    return (pa?.name ?? "").localeCompare(pb?.name ?? "") || (a < b ? -1 : a > b ? 1 : 0);
-  };
+  const cmp = (a: PersonKey, b: PersonKey): number => comparePeople(graph, a, b);
   const sorted = [...people].sort(cmp);
 
   // 1. Rows: breadth first from the anchor; a child is one row below its parent, a spouse on the same row.

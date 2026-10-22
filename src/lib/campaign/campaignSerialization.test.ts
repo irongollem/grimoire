@@ -152,6 +152,29 @@ describe("freshId", () => {
 });
 
 describe("splitLegacyKin (#1083)", () => {
+  it("keeps both notes when an old file holds a pair once each way", () => {
+    const out = splitLegacyKin(
+      [],
+      [
+        { id: "1", npc_id: "a", related_npc_id: "b", relationship_type: "sibling", notes: "cousin" },
+        { id: "2", npc_id: "b", related_npc_id: "a", relationship_type: "family", notes: "her late husband's nephew" },
+      ],
+      [],
+    );
+    expect(out.kin).toHaveLength(1);
+    expect(out.kin[0]).toMatchObject({ note: "cousin / her late husband's nephew", kind: "relative", needs_sorting: true });
+  });
+
+  it("turns a bond type the tables no longer accept into a contact", () => {
+    const out = splitLegacyKin(
+      [],
+      [{ id: "1", npc_id: "a", related_npc_id: "b", relationship_type: "bestie" }],
+      [{ id: "n", npc_id: "a", party_member_id: "p", relationship_type: "nemesis" }],
+    );
+    expect(out.bonds[0].relationship_type).toBe("contact");
+    expect(out.pcNotes[0].relationship_type).toBe("contact");
+  });
+
   it("turns family and sibling bonds into kin, keeps other bonds, and softens PC notes to contact", () => {
     const out = splitLegacyKin(
       [],

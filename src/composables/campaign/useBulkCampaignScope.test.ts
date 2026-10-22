@@ -166,8 +166,9 @@ describe("useBulkCampaignScope", () => {
       { id: "to-pc", from_npc_id: "npc-2", to_npc_id: null },
     ];
     const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
-    await result.mutateAsync({ table: "npcs", ids: ["npc-1", "npc-2"], campaignId: "camp-2" });
+    const outcome = await result.mutateAsync({ table: "npcs", ids: ["npc-1", "npc-2"], campaignId: "camp-2" });
 
+    expect(outcome.familyLinksRemoved).toBe(2);
     expect(mocks.kinDeleted.sort()).toEqual(["left-behind", "to-pc"]);
     const kinUpdates = mocks.calls.filter((c) => c.table === "kin_links");
     expect(kinUpdates).toEqual([{ table: "kin_links", update: { campaign_id: "camp-2" }, ids: ["both"] }]);

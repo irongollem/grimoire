@@ -31,6 +31,9 @@ function noteChoice(note: string): SortChoice | null {
     parentRole,
     label: null,
   });
+  // In-laws and step-kin are family by marriage, not blood: "father-in-law" must not make a parent.
+  const byMarriage = /\b(step[- ]?[a-z]+|[a-z]+[- ]in[- ]law)\b/i.exec(note);
+  if (byMarriage?.[1]) return { relation: "relative", parentRole: null, label: byMarriage[1].toLowerCase() };
   if (has(note, ["father", "dad"])) return choice("parent", "father");
   if (has(note, ["mother", "mum", "mom"])) return choice("parent", "mother");
   if (has(note, ["parent"])) return choice("parent");

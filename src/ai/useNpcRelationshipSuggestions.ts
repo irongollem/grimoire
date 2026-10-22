@@ -14,7 +14,8 @@ export interface NpcRelationshipSuggestionsResponse {
   /** Kin claims the server refused to offer, with the reason. */
   setAside?: SetAsideKin[];
   grounded: boolean;
-  ai_provenance: AiProvenance;
+  /** Null when every suggestion was set aside: nothing was charged and nothing can be accepted. */
+  ai_provenance: AiProvenance | null;
 }
 
 /** A suggestion whose target name has been mapped back to a real record. */

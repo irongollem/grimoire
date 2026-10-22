@@ -40,6 +40,15 @@ describe("useMoveToCampaignFlow", () => {
     isPending = { value: false };
   });
 
+  it("says how many family links stayed behind (#1083)", async () => {
+    mutateAsync.mockResolvedValue({ moved: 1, familyLinksRemoved: 2 });
+    const { flow } = makeFlow({ campaignName: () => "Curse of Strahd" });
+    await flow.move("campaign-1");
+    expect(toastSuccess).toHaveBeenCalledWith(
+      "Moved 1 item to Curse of Strahd. 2 family links to people who stayed behind were removed.",
+    );
+  });
+
   it("prunes the current selectable ids before moving", async () => {
     mutateAsync.mockResolvedValue({ moved: 2 });
     const { flow, pruneTo, selectable } = makeFlow();

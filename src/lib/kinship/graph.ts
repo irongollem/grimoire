@@ -136,18 +136,26 @@ export function relationTo(link: KinEdgeInput, viewer: PersonKey): KinRelation {
   return link.kind;
 }
 
+/**
+ * The one family order: birth year (unknown last), then name, then key. The
+ * Family block and the tree both sort by it, so they never disagree.
+ */
+export function comparePeople(g: KinGraph, a: PersonKey, b: PersonKey): number {
+  const pa = g.people.get(a);
+  const pb = g.people.get(b);
+  const ya = pa?.bornYear ?? null;
+  const yb = pb?.bornYear ?? null;
+  if (ya !== yb) {
+    if (ya === null) return 1;
+    if (yb === null) return -1;
+    return ya - yb;
+  }
+  return (pa?.name ?? "").localeCompare(pb?.name ?? "") || (a < b ? -1 : a > b ? 1 : 0);
+}
+
 function cmpPeople(g: KinGraph) {
   return (a: { key: PersonKey }, b: { key: PersonKey }): number => {
-    const pa = g.people.get(a.key);
-    const pb = g.people.get(b.key);
-    const ya = pa?.bornYear ?? null;
-    const yb = pb?.bornYear ?? null;
-    if (ya !== yb) {
-      if (ya === null) return 1;
-      if (yb === null) return -1;
-      return ya - yb;
-    }
-    return (pa?.name ?? "").localeCompare(pb?.name ?? "") || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+    return comparePeople(g, a.key, b.key);
   };
 }
 
