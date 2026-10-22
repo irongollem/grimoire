@@ -151,10 +151,9 @@ jobs:
       # does and for the same reason: the default registries cap anonymous
       # pulls per source IP, GitHub's runners share their IPs, and run
       # 38655054325 (15 Oct 2026) failed here on "toomanyrequests".
+      # ghcr.io rate-limits too: the script retries only that, alternating
+      # with the CLI's default registry (22 Oct 2026). It sets the registry.
       - name: Replay every migration into a fresh database
-        env:
-          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
-        # ghcr.io rate-limits too; this retries only that (22 Oct 2026).
         run: scripts/supabase-start-retry.sh
       - name: Database tests (pgTAP — RLS, RPCs, triggers)
         run: supabase test db
@@ -227,9 +226,7 @@ jobs:
       # Replays every migration. The data the journeys load is not from a seed
       # (the real-data dump is not in the repo): the next step creates it.
       - name: Start the local stack
-        env:
-          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io # see the database job
-        run: scripts/supabase-start-retry.sh
+        run: scripts/supabase-start-retry.sh # see the database job
       - name: Create the synthetic fixture
         run: npm run perf:fixture
       # The empty token is required, not decoration: without it the build
