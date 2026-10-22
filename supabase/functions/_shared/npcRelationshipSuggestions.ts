@@ -12,9 +12,7 @@
  */
 
 export const NPC_RELATIONSHIP_TYPES = [
-  // Familial
-  "family",
-  "sibling",
+  // A bond, not kin: parents, spouses and siblings are kin_links (#1083)
   "chosen_family",
   // Affinitive
   "friend",
@@ -38,6 +36,7 @@ export type SuggestedRelationshipType = (typeof NPC_RELATIONSHIP_TYPES)[number];
 export const MAX_NOTES_CHARS = 300;
 export const MAX_ROLE_CHARS = 60;
 export const MAX_SUGGESTIONS = 6;
+export const MAX_SET_ASIDE = 6;
 
 export interface NpcSuggestion {
   kind: "npc";
@@ -53,7 +52,39 @@ export interface FactionSuggestion {
   notes: string;
 }
 
-export type RelationshipSuggestion = NpcSuggestion | FactionSuggestion;
+/**
+ * What the TARGET is to the source NPC, the same convention as the bonds
+ * ("parent": the target is the source's parent). Mirrors `KIN_RELATIONS` in
+ * src/types/kinship.types.ts, which edge code cannot import;
+ * src/types/kinshipEnumMirror.test.ts holds the two equal.
+ */
+export const SUGGESTED_KIN_RELATIONS = ["parent", "child", "spouse", "former_spouse", "sibling", "relative"] as const;
+export type SuggestedKinRelation = (typeof SUGGESTED_KIN_RELATIONS)[number];
+
+export interface KinSuggestion {
+  kind: "kin";
+  target_name: string;
+  target_type: "npc" | "pc";
+  relation: SuggestedKinRelation;
+  /** Which parent the target is, only when relation is "parent". */
+  parent_role: "father" | "mother" | null;
+  /** The evidence, in the model's words. */
+  notes: string;
+}
+
+export type RelationshipSuggestion = NpcSuggestion | FactionSuggestion | KinSuggestion;
+
+/** A kin claim the app refused to offer, with the reason in plain words. */
+export interface SetAsideKin {
+  target_name: string;
+  relation: SuggestedKinRelation;
+  reason: string;
+}
+
+export interface SanitizedSuggestions {
+  suggestions: RelationshipSuggestion[];
+  setAside: SetAsideKin[];
+}
 
 export interface SuggestionContext {
   /** Candidate NPC names the model was shown. */
@@ -65,6 +96,16 @@ export interface SuggestionContext {
   /** Factions the source already belongs to. */
   existingFactionNames?: string[];
   sourceName: string;
+  /** Campaign PCs the model was shown as kin candidates. */
+  pcNames?: string[];
+  /** People a kin link already joins to the source, by kind. */
+  existingKinNpcNames?: string[];
+  existingKinPcNames?: string[];
+  sourceBornYear?: number | null;
+  /** Birth years by `npc:<lower-case name>` / `pc:<lower-case name>`. */
+  bornYears?: Record<string, number>;
+  /** People who are already the source's siblings through shared parents, key -> the shared parent's name. */
+  impliedSiblings?: Record<string, string>;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -81,6 +122,24 @@ function isRelationshipType(v: unknown): v is SuggestedRelationshipType {
   return typeof v === "string" && (NPC_RELATIONSHIP_TYPES as readonly string[]).includes(v);
 }
 
+function isKinRelation(v: unknown): v is SuggestedKinRelation {
+  return typeof v === "string" && (SUGGESTED_KIN_RELATIONS as readonly string[]).includes(v);
+}
+
+const SMALL_NUMBERS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+
+function yearsPhrase(n: number): string {
+  const word = n < SMALL_NUMBERS.length ? SMALL_NUMBERS[n] : String(n);
+  return `${word} ${n === 1 ? "year" : "years"}`;
+}
+
+/** Null when the birth years allow it; else why a parent cannot be that child's parent. */
+function parentChildReason(parent: { name: string; born?: number }, child: { name: string; born?: number }): string | null {
+  if (parent.born === undefined || child.born === undefined || parent.born < child.born) return null;
+  if (parent.born === child.born) return `${parent.name} and ${child.name} were born in the same year`;
+  return `${parent.name} was born ${yearsPhrase(parent.born - child.born)} after ${child.name}`;
+}
+
 /** Canonical casing of a candidate, keyed by lower-case name. */
 function lookup(names: string[]): Map<string, string> {
   const m = new Map<string, string>();
@@ -94,30 +153,78 @@ function lookup(names: string[]): Map<string, string> {
 /**
  * Accepts the parsed model response (`{ suggestions: [...] }` or a bare array)
  * and returns only suggestions that name a real candidate. `target_name` comes
- * back in the candidate's own casing.
+ * back in the candidate's own casing. A kin claim the birth years or the
+ * existing family contradict comes back in `setAside` with its reason.
  */
-export function sanitizeSuggestions(raw: unknown, ctx: SuggestionContext): RelationshipSuggestion[] {
+export function sanitizeSuggestions(raw: unknown, ctx: SuggestionContext): SanitizedSuggestions {
   const list: unknown = isRecord(raw) ? raw.suggestions : raw;
-  if (!Array.isArray(list)) return [];
+  const out: RelationshipSuggestion[] = [];
+  const setAside: SetAsideKin[] = [];
+  if (!Array.isArray(list)) return { suggestions: out, setAside };
 
   const npcs = lookup(ctx.npcNames);
+  const pcs = lookup(ctx.pcNames ?? []);
   const factions = lookup(ctx.factionNames);
-  const existingNpcs = new Set(ctx.existingNpcNames.map((n) => n.trim().toLowerCase()));
-  const existingFactions = new Set((ctx.existingFactionNames ?? []).map((n) => n.trim().toLowerCase()));
+  const lower = (names: string[] | undefined) => new Set((names ?? []).map((n) => n.trim().toLowerCase()));
+  const existingNpcs = lower(ctx.existingNpcNames);
+  const existingFactions = lower(ctx.existingFactionNames);
+  const kinNpcs = lower(ctx.existingKinNpcNames);
+  const kinPcs = lower(ctx.existingKinPcNames);
   const source = ctx.sourceName.trim().toLowerCase();
 
   const seen = new Set<string>();
-  const out: RelationshipSuggestion[] = [];
 
   for (const item of list) {
     if (!isRecord(item)) continue;
     if (typeof item.target_name !== "string") continue;
     const key = item.target_name.trim().toLowerCase();
-    if (!key || key === source) continue;
+    if (!key) continue;
 
     const notes = clean(item.notes, MAX_NOTES_CHARS);
 
-    if (item.kind === "npc") {
+    if (item.kind === "kin") {
+      if (!isKinRelation(item.relation)) continue;
+      // The declared type is a hint: a name found only in the other list still resolves.
+      let type: "npc" | "pc" = item.target_type === "pc" ? "pc" : "npc";
+      let canonical = (type === "pc" ? pcs : npcs).get(key);
+      if (!canonical) {
+        type = type === "pc" ? "npc" : "pc";
+        canonical = (type === "pc" ? pcs : npcs).get(key);
+      }
+      if (!canonical) continue;
+      if (type === "npc" && key === source) continue;
+      if ((type === "pc" ? kinPcs : kinNpcs).has(key)) continue;
+      const dedupe = `kin:${type}:${key}`;
+      if (seen.has(dedupe)) continue;
+      seen.add(dedupe);
+
+      const relation = item.relation;
+      const personKey = `${type}:${key}`;
+      const targetBorn = ctx.bornYears?.[personKey];
+      const sourceBorn = ctx.sourceBornYear ?? undefined;
+      let reason: string | null = null;
+      if (relation === "parent") {
+        reason = parentChildReason({ name: canonical, born: targetBorn }, { name: ctx.sourceName, born: sourceBorn });
+      } else if (relation === "child") {
+        reason = parentChildReason({ name: ctx.sourceName, born: sourceBorn }, { name: canonical, born: targetBorn });
+      } else if (relation === "sibling") {
+        const through = ctx.impliedSiblings?.[personKey];
+        if (through) reason = `already siblings through ${through}`;
+      }
+      if (reason) {
+        if (setAside.length < MAX_SET_ASIDE) setAside.push({ target_name: canonical, relation, reason });
+        continue;
+      }
+      out.push({
+        kind: "kin",
+        target_name: canonical,
+        target_type: type,
+        relation,
+        parent_role: relation === "parent" && (item.parent_role === "father" || item.parent_role === "mother") ? item.parent_role : null,
+        notes,
+      });
+    } else if (item.kind === "npc") {
+      if (key === source) continue;
       const canonical = npcs.get(key);
       if (!canonical || existingNpcs.has(key)) continue;
       if (!isRelationshipType(item.relationship_type)) continue;
@@ -126,6 +233,7 @@ export function sanitizeSuggestions(raw: unknown, ctx: SuggestionContext): Relat
       seen.add(dedupe);
       out.push({ kind: "npc", target_name: canonical, relationship_type: item.relationship_type, notes });
     } else if (item.kind === "faction") {
+      if (key === source) continue;
       const canonical = factions.get(key);
       if (!canonical || existingFactions.has(key)) continue;
       const dedupe = `faction:${key}`;
@@ -135,5 +243,5 @@ export function sanitizeSuggestions(raw: unknown, ctx: SuggestionContext): Relat
     }
     if (out.length >= MAX_SUGGESTIONS) break;
   }
-  return out;
+  return { suggestions: out, setAside };
 }

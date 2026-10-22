@@ -567,6 +567,7 @@ export function buildCopyPlan(
  */
 export type CopyJoinTable =
   | "npc_relationships"
+  | "kin_links"
   | "npc_inventory"
   | "faction_npcs"
   | "faction_locations"
@@ -600,6 +601,8 @@ export type CopyJoinTable =
  * production, not inferred from the migrations.
  */
 export const JOIN_TABLES_REQUIRING_CAMPAIGN: Readonly<Partial<Record<CopyJoinTable, string>>> = {
+  // Family trees (#1083): a link is campaign_id NOT NULL, unlike a bond.
+  kin_links: "from_npc_id",
   npc_inventory: "npc_id",
   faction_deities: "faction_id",
 };
@@ -619,6 +622,9 @@ export const JOIN_TABLES_FOR_ENTITY: Record<"npcs" | "factions", { table: CopyJo
   {
     npcs: [
       { table: "npc_relationships", matchColumns: ["npc_id", "related_npc_id"] },
+      // Kin carries NPC-to-NPC links only: this path copies no party members, so a link with a PC end is
+      // reported as left out (a PC's family stays in the campaign the PC belongs to).
+      { table: "kin_links", matchColumns: ["from_npc_id", "to_npc_id"] },
       { table: "npc_inventory", matchColumns: ["npc_id"] },
       { table: "faction_npcs", matchColumns: ["npc_id"] },
     ],
@@ -654,6 +660,10 @@ export function joinRowReferencedIds(table: CopyJoinTable, row: Record<string, u
     case "npc_relationships":
       add("npcs", row.npc_id);
       add("npcs", row.related_npc_id);
+      return out;
+    case "kin_links":
+      add("npcs", row.from_npc_id);
+      add("npcs", row.to_npc_id);
       return out;
     case "npc_inventory":
       add("npcs", row.npc_id);
@@ -712,6 +722,12 @@ interface JoinRowResult {
   }[];
 }
 
+/** "Brenna and Wren" for a kin link, falling back to "a player character" for a PC end (not looked up here). */
+function kinLinkName(row: Record<string, unknown>, referenced: ReadonlyMap<string, ReferencedRow>): string {
+  const end = (npcId: unknown): string => (isNonEmptyString(npcId) ? referenceName(npcId, referenced) : "a player character");
+  return `${end(row.from_npc_id)} and ${end(row.to_npc_id)}`;
+}
+
 /**
  * The row-level drop `buildJoinRowPayload` returns for a `JOIN_TABLES_REQUIRING_CAMPAIGN`
  * table meeting a general-scope target ("All campaigns", `targetCampaignId`
@@ -723,10 +739,24 @@ interface JoinRowResult {
  * `23502` Postgres would have raised.
  */
 function generalScopeDrop(
-  table: "npc_inventory" | "faction_deities",
+  table: "kin_links" | "npc_inventory" | "faction_deities",
   row: Record<string, unknown>,
   referenced: ReadonlyMap<string, ReferencedRow>,
 ): JoinRowResult {
+  if (table === "kin_links") {
+    return {
+      payload: null,
+      dropped: [
+        {
+          label: "Family links",
+          name: kinLinkName(row, referenced),
+          entryNoun: { singular: "family link", plural: "family links" },
+          removedEntries: true,
+          reason: "needs-campaign",
+        },
+      ],
+    };
+  }
   if (table === "npc_inventory") {
     // An inventory entry carries its own free-text name (see the module
     // docstring's "npc_inventory is the one join table..." paragraph) —
@@ -788,7 +818,7 @@ function buildJoinRowPayload(
   // this reach Postgres would leave the already-committed entity copies
   // behind a raw not-null-violation on the join insert.
   if (targetCampaignId === null && JOIN_TABLES_REQUIRING_CAMPAIGN[table] !== undefined) {
-    return generalScopeDrop(table as "npc_inventory" | "faction_deities", row, referenced);
+    return generalScopeDrop(table as "kin_links" | "npc_inventory" | "faction_deities", row, referenced);
   }
 
   const payload: Record<string, unknown> = { ...row };
@@ -847,6 +877,27 @@ function buildJoinRowPayload(
       payload.campaign_id = targetCampaignId;
       payload.npc_id = resolved.npc_id;
       payload.related_npc_id = resolved.related_npc_id;
+      return { payload, dropped };
+    }
+    case "kin_links": {
+      // A PC end has no copy on this path (party members are not copied), so the link cannot follow.
+      if (!isNonEmptyString(row.from_npc_id) || !isNonEmptyString(row.to_npc_id)) {
+        dropped.push({
+          label: "Family links",
+          name: kinLinkName(row, referenced),
+          entryNoun: { singular: "family link", plural: "family links" },
+          removedEntries: true,
+        });
+        return { payload: null, dropped };
+      }
+      const resolved = dropRow(["from_npc_id", "to_npc_id"], "Family links", {
+        singular: "family link",
+        plural: "family links",
+      });
+      if (!resolved) return { payload: null, dropped };
+      payload.campaign_id = targetCampaignId;
+      payload.from_npc_id = resolved.from_npc_id;
+      payload.to_npc_id = resolved.to_npc_id;
       return { payload, dropped };
     }
     case "npc_inventory": {

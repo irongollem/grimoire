@@ -138,7 +138,7 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
          select id, row_number() over (order by name) rn
            from public.npcs where campaign_id = ${campaign}
        ), m(a, b, type) as (
-         values (1, 2, 'sibling'), (1, 3, 'rival'), (2, 4, 'mentor'),
+         values (1, 2, 'chosen_family'), (1, 3, 'rival'), (2, 4, 'mentor'),
                 (4, 5, 'apprentice'), (3, 6, 'enemy'), (5, 6, 'ally'),
                 (6, 7, 'contact'), (7, 8, 'former_ally'), (2, 8, 'lover')
        )
@@ -146,6 +146,36 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
          (user_id, campaign_id, npc_id, related_npc_id, relationship_type)
        select ${owner}, ${campaign}, a.id, b.id, m.type
          from m join n a on a.rn = m.a join n b on b.rn = m.b;`,
+    ),
+
+    /**
+     * A small family for the Lineage tab and the family tree (#1083): a married couple, two children,
+     * one child married, and a PC who is also their child. Kin is not a bond, so it lives in kin_links
+     * (a `sibling` bond row is refused now). Paired by row number like the bonds above.
+     */
+    "family tree": seed(
+      "kin_links",
+      `with n as (
+         select id, row_number() over (order by name) rn
+           from public.npcs where campaign_id = ${campaign}
+       ), p as (
+         select id, row_number() over (order by sort_order) rn
+           from public.party_members where campaign_id = ${campaign}
+       ), npc_m(a, b, kind, role) as (
+         values (1, 2, 'spouse', null), (1, 3, 'parent', 'father'), (2, 3, 'parent', 'mother'),
+                (1, 7, 'parent', 'father'), (2, 7, 'parent', 'mother'), (3, 5, 'spouse', null)
+       ), ins_npc as (
+         insert into public.kin_links
+           (user_id, campaign_id, from_npc_id, to_npc_id, kind, parent_role)
+         select ${owner}, ${campaign}, a.id, b.id, m.kind, m.role
+           from npc_m m join n a on a.rn = m.a join n b on b.rn = m.b
+         returning 1
+       )
+       insert into public.kin_links
+         (user_id, campaign_id, from_npc_id, to_party_member_id, kind, parent_role)
+       select ${owner}, ${campaign}, n.id, p.id, 'parent', m.role
+         from (values (1, 1, 'father'), (2, 1, 'mother')) as m(nrn, prn, role)
+         join n on n.rn = m.nrn join p on p.rn = m.prn;`,
     ),
 
     /** The dashed half of the web — what the party has to do with any of them. */

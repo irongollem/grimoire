@@ -1,5 +1,6 @@
 import type { AiProvenance } from "@/ai/provenance";
 import type { NpcRelationship } from "@/types/npc.types";
+import type { HouseDescent } from "@/types/kinship.types";
 
 export const FACTION_TYPES = [
   "Guild",
@@ -12,6 +13,8 @@ export const FACTION_TYPES = [
   "Cult",
   "Order",
   "Tribe",
+  // A noble or ruling family (#1083): a crest, a seat, a lineage and a line of succession.
+  "House",
   "Other",
 ] as const;
 
@@ -31,6 +34,7 @@ export const FACTION_ALIGNMENTS = [
 
 export const NPC_FACTION_ROLES = [
   "Leader",
+  "Head of house",
   "Officer",
   "Enforcer",
   "Member",
@@ -101,6 +105,10 @@ export interface Faction {
    * rule sets it. Players see it, as they see an NPC's relationship.
    */
   party_standing: NpcRelationship;
+  /** A House's descent rule (#1083); null on every other type. */
+  descent: HouseDescent | null;
+  /** A House's succession custom in the DM's words: shown on the house page and read by the AI, never enforced. */
+  succession_note: string;
   created_at: string;
   updated_at: string;
 }
@@ -117,8 +125,13 @@ export interface Faction {
  * belongs to (the document importer, which stamps every imported row with the
  * campaign it was imported into) needs the field present.
  */
-export type FactionInsert = Omit<Faction, "id" | "user_id" | "created_at" | "updated_at" | "party_standing"> & {
+export type FactionInsert = Omit<
+  Faction,
+  "id" | "user_id" | "created_at" | "updated_at" | "party_standing" | "descent" | "succession_note"
+> & {
   party_standing?: NpcRelationship;
+  descent?: HouseDescent | null;
+  succession_note?: string;
 };
 
 export interface FactionNpc {
@@ -128,6 +141,8 @@ export interface FactionNpc {
   role: string | null;
   status: string;
   user_id: string;
+  /** Place in a House's line of succession (#1083): 1 is the heir; null is not in the line. */
+  succession_rank: number | null;
 }
 
 export interface FactionDeity {
@@ -165,6 +180,8 @@ export interface FactionPartyMember {
   role: string | null;
   status: string;
   user_id: string;
+  /** Place in a House's line of succession (#1083): 1 is the heir; null is not in the line. */
+  succession_rank: number | null;
   created_at: string;
   updated_at: string;
 }

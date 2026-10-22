@@ -12,6 +12,8 @@
 // nulls out FKs to entities that did not travel in the subset). Merging those
 // would obscure two distinct flows. Only the primitives below are shared.
 
+import { NPC_RELATIONSHIP_TYPES } from "@edge-shared/npcRelationshipSuggestions";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 export type IdMap = Map<string, string>;
@@ -104,4 +106,69 @@ export function remapOrNull(id: unknown, map: IdMap): string | null {
  */
 export function freshId(id: unknown, map: IdMap): string {
   return map.get(id as string) ?? crypto.randomUUID();
+}
+
+const LEGACY_KIN_TYPES = new Set(["family", "sibling"]);
+
+/**
+ * Splits bond rows from a file written before family trees (#1083) into bonds and kin. `family` and
+ * `sibling` were bond types then; the bond tables now refuse them, so such a row is restored as a kin link
+ * (`family` as an unsorted `relative`, as the migration did) and its NPC-to-PC note stays as a `contact`.
+ * A pair that already has a link keeps that one: one link per pair. New kin rows carry a fresh id.
+ */
+export function splitLegacyKin(
+  kinLinks: readonly Row[],
+  relationships: readonly Row[],
+  pcNotes: readonly Row[],
+): { bonds: Row[]; pcNotes: Row[]; kin: Row[] } {
+  const kin = [...kinLinks];
+  const pairKey = (a: unknown, b: unknown): string => [a, b].sort().join("|");
+  const taken = new Set(
+    kin.map((l) => pairKey(l.from_npc_id ?? l.from_party_member_id, l.to_npc_id ?? l.to_party_member_id)),
+  );
+  // Old files could hold a pair twice, once each way: one link keeps both notes, as the migration does.
+  const fromLegacy = new Map<string, Row>();
+  const add = (row: Row, type: unknown): void => {
+    const key = pairKey(row.from_npc_id ?? row.from_party_member_id, row.to_npc_id ?? row.to_party_member_id);
+    const earlier = fromLegacy.get(key);
+    if (earlier) {
+      const note = typeof row.note === "string" ? row.note.trim() : "";
+      if (note) earlier.note = earlier.note ? `${earlier.note} / ${note}` : note;
+      if (type === "family") {
+        earlier.kind = "relative";
+        earlier.needs_sorting = true;
+      }
+      return;
+    }
+    if (taken.has(key)) return;
+    taken.add(key);
+    const link: Row = { ...row, id: crypto.randomUUID(), kind: type === "sibling" ? "sibling" : "relative", needs_sorting: type === "family" };
+    fromLegacy.set(key, link);
+    kin.push(link);
+  };
+  // The bond tables refuse any type outside today's list (20261022113302); the migration made such a row a contact.
+  const bondType = (type: unknown): unknown =>
+    (NPC_RELATIONSHIP_TYPES as readonly unknown[]).includes(type) ? type : "contact";
+  const bonds: Row[] = [];
+  for (const rel of relationships) {
+    if (!LEGACY_KIN_TYPES.has(rel.relationship_type)) {
+      bonds.push({ ...rel, relationship_type: bondType(rel.relationship_type) });
+      continue;
+    }
+    add(
+      {
+        from_npc_id: rel.npc_id,
+        to_npc_id: rel.related_npc_id,
+        note: rel.notes ?? "",
+        ai_provenance: rel.ai_provenance ?? null,
+      },
+      rel.relationship_type,
+    );
+  }
+  const notes = pcNotes.map((note) => {
+    if (!LEGACY_KIN_TYPES.has(note.relationship_type)) return { ...note, relationship_type: bondType(note.relationship_type) };
+    add({ from_npc_id: note.npc_id, to_party_member_id: note.party_member_id, note: "" }, note.relationship_type);
+    return { ...note, relationship_type: "contact" };
+  });
+  return { bonds, pcNotes: notes, kin };
 }

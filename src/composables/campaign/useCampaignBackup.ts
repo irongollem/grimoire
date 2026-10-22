@@ -7,6 +7,7 @@ import {
   sortByHierarchy,
   buildIdMapFromArrays,
   remapKeep as r,
+  splitLegacyKin,
   remapKeepArr as rArr,
   remapOrNull,
   type IdMap,
@@ -89,6 +90,8 @@ export interface GrimoireBackup {
   /** What an NPC and the party have told each other (#1019). Absent from a
    *  backup taken before the ledger existed. */
   npc_memories?: Row[];
+  /** Who is whose parent, spouse or sibling (#1083). Absent from a backup taken before family trees. */
+  kin_links?: Row[];
   _meta: {
     entity_counts: Record<string, number>;
     app_version: string;
@@ -204,6 +207,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     entityNotes,
     scriptoriumDocuments,
     npcMemories,
+    kinLinks,
   ] = await Promise.all([
     supabase.from("campaigns").select("*").eq("id", campaignId).single().then(({ data, error }) => {
       if (error) throw error;
@@ -237,6 +241,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByCampaign("entity_notes", campaignId),
     qByCampaign("scriptorium_documents", campaignId),
     qByCampaign("npc_memories", campaignId),
+    qByCampaign("kin_links", campaignId),
   ]);
 
   // Phase 2: child entities keyed by parent IDs (parallel)
@@ -311,6 +316,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     campaign_sessions: campaignSessions.length,
     scriptorium_documents: scriptoriumDocuments.length,
     npc_memories: npcMemories.length,
+    kin_links: kinLinks.length,
     calendar_events: calendarEvents.length,
     npcs: npcs.length,
     factions: factions.length,
@@ -380,6 +386,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     entity_notes: entityNotes,
     scriptorium_documents: scriptoriumDocuments,
     npc_memories: npcMemories,
+    kin_links: kinLinks,
     _meta: { entity_counts: entityCounts, app_version: "1.0.0" },
   };
 }
@@ -449,6 +456,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.chronicler_images,
     backup.scriptorium_documents ?? [],
     backup.npc_memories ?? [],
+    backup.kin_links ?? [],
   ];
 
   return buildIdMapFromArrays(entityArrays);
@@ -833,9 +841,12 @@ export async function executeImport(
     );
 
     // 20. NPC relations and cross-links
+    // A backup from before family trees keeps kin in the bond tables as `family` / `sibling`, which the
+    // bond tables now refuse: those rows are restored as kin links instead (see splitLegacyKin).
+    const legacy = splitLegacyKin(backup.kin_links ?? [], backup.npc_relationships, backup.npc_pc_notes);
     await batchInsert(
       "npc_relationships",
-      backup.npc_relationships.map((rel) => ({
+      legacy.bonds.map((rel) => ({
         ...rel,
         id: r(rel.id, idMap),
         campaign_id: newCampaignId,
@@ -846,7 +857,7 @@ export async function executeImport(
     );
     await batchInsert(
       "npc_pc_notes",
-      backup.npc_pc_notes.map((note) => ({
+      legacy.pcNotes.map((note) => ({
         ...note,
         id: r(note.id, idMap),
         campaign_id: newCampaignId,
@@ -854,6 +865,20 @@ export async function executeImport(
         npc_id: r(note.npc_id, idMap),
         party_member_id: r(note.party_member_id, idMap),
         notes: rMention(note.notes, idMap),
+      })),
+    );
+    // Family trees (#1083): after the NPCs and the party members both ends point at.
+    await batchInsert(
+      "kin_links",
+      legacy.kin.map((link) => ({
+        ...link,
+        id: r(link.id, idMap),
+        campaign_id: newCampaignId,
+        user_id: userId,
+        from_npc_id: r(link.from_npc_id, idMap),
+        from_party_member_id: r(link.from_party_member_id, idMap),
+        to_npc_id: r(link.to_npc_id, idMap),
+        to_party_member_id: r(link.to_party_member_id, idMap),
       })),
     );
     // NPC memories (#1019): after the NPCs, the party and the session log they

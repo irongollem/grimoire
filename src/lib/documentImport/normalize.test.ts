@@ -169,6 +169,15 @@ describe("mapExtractedMonster", () => {
 
 // ── NPCs ─────────────────────────────────────────────────────────────────────
 
+describe("mapExtractedNpc kin", () => {
+  it("carries the named family through as a link, and leaves none out when the page has none", () => {
+    const kin = [{ name: "Baron Vargas Vallakovich", relation: "parent" as const }];
+    expect(mapExtractedNpc({ name: "Izek", kin }, CAMPAIGN_ID, PROVENANCE).links.kin).toEqual(kin);
+    expect("kin" in mapExtractedNpc({ name: "Izek", kin: [] }, CAMPAIGN_ID, PROVENANCE).links).toBe(false);
+    expect("kin" in mapExtractedNpc({ name: "Izek" }, CAMPAIGN_ID, PROVENANCE).links).toBe(false);
+  });
+});
+
 describe("mapExtractedNpc", () => {
   it("turns a plain stated age into a birth year, and never a birthday", () => {
     const { row } = mapExtractedNpc({ name: "A", age: "45 years old" }, CAMPAIGN_ID, PROVENANCE, null, 1495);

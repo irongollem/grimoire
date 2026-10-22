@@ -49,6 +49,7 @@ function fakeDeps(overrides: Partial<ImportSweepDeps> = {}): ImportSweepDeps {
     insertLootPlacements: vi.fn(async () => {}),
     insertQuestRefs: vi.fn(async () => {}),
     updateQuestParent: vi.fn(async () => {}),
+    insertKinLinks: vi.fn(async () => {}),
     persistImportedCounts: vi.fn(async () => {}),
     markComplete: vi.fn(async () => {}),
     ...overrides,
@@ -915,5 +916,61 @@ describe("runImportSweep", () => {
       expect(deps.applyLinkResolutions).toHaveBeenCalledTimes(1);
       expect(rowsOf(deps.applyLinkResolutions)).toHaveLength(3);
     });
+  });
+
+  it("links the family a page names, from either end, as one parent link per pair", async () => {
+    const insertKinLinks = vi.fn(async () => {});
+    const deps = fakeDeps({ insertKinLinks });
+    const report = await runImportSweep(
+      IMPORT_ROW,
+      {
+        entitiesByKind: {
+          npcs: [
+            usable("baron", { name: "Baron Vargas", kin: [{ name: "Izek", relation: "child" }, { name: "Nobody Known", relation: "spouse" }] }),
+            usable("izek", { name: "Izek", kin: [{ name: "Baron Vargas", relation: "parent" }, { name: "Izek", relation: "sibling" }] }),
+          ],
+        },
+        decisions: new Map([["npcs", new Map([["baron", CREATE], ["izek", CREATE]])]]),
+        parentQuestId: null,
+        sourceTitle: null,
+      },
+      deps,
+    );
+
+    // npcs-1 is the Baron, npcs-2 is Izek: the Baron is Izek's parent, written once.
+    expect(rowsOf(insertKinLinks)).toEqual([
+      expect.objectContaining({
+        campaign_id: CAMPAIGN_ID,
+        kind: "parent",
+        from_npc_id: "npcs-1",
+        to_npc_id: "npcs-2",
+        ai_provenance: IMPORT_ROW.ai_provenance,
+      }),
+    ]);
+    expect(report.unresolvedKin).toBe(1);
+    expect(report.unresolvedLinks).toEqual([]);
+  });
+
+  it("counts a refused kin pair instead of failing the import", async () => {
+    const insertKinLinks = vi.fn(async () => {
+      throw new Error("duplicate key value violates unique constraint");
+    });
+    const report = await runImportSweep(
+      IMPORT_ROW,
+      {
+        entitiesByKind: {
+          npcs: [
+            usable("a", { name: "Aldo", kin: [{ name: "Brin", relation: "spouse" }] }),
+            usable("b", { name: "Brin" }),
+          ],
+        },
+        decisions: new Map([["npcs", new Map([["a", CREATE], ["b", CREATE]])]]),
+        parentQuestId: null,
+        sourceTitle: null,
+      },
+      fakeDeps({ insertKinLinks }),
+    );
+    expect(report.unresolvedKin).toBe(1);
+    expect(report.perKind.npcs?.imported).toBe(2);
   });
 });

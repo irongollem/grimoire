@@ -337,7 +337,8 @@
 
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
+import { useRoute } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import {
@@ -376,6 +377,16 @@ const IconFilter = IconSettings;
 type LocationOption = { id: string; name: string; depth: number };
 
 const npcsUi = useNpcsUiStore();
+
+// /npcs?kin=...&of=... is the "Add relative" link: open the generator, which reads and clears the query itself.
+const route = useRoute();
+watch(
+  () => route.query.kin,
+  (kin) => {
+    if (typeof kin === "string") npcsUi.npcGeneratorOpen = true;
+  },
+  { immediate: true },
+);
 const campaign = useCampaignStore();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("npcs", "/npcs/new");

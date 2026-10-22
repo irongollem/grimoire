@@ -238,6 +238,11 @@ function buildDeps(
 
     // One request; see `insertQuestRefs` (useQuests.ts).
     insertQuestRefs,
+    // Family the page names (#1083). Rows carry campaign_id; user_id is the column default.
+    insertKinLinks: async (links) => {
+      const { error } = await supabase.from("kin_links").insert(links);
+      if (error) throw error;
+    },
 
     updateQuestParent: async (questId, parentQuestId) => {
       const { error } = await supabase.from("quests").update({ parent_quest_id: parentQuestId }).eq("id", questId);

@@ -439,6 +439,7 @@ async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaig
  *  eight-table `BULK_SCOPE_QUERY_KEY` invalidation already makes. */
 const JOIN_TABLE_QUERY_KEYS: Record<CopyJoinTable, string[]> = {
   npc_relationships: ["npc_relationships"],
+  kin_links: ["kin_links"],
   npc_inventory: ["npc-inventory"],
   faction_npcs: ["faction-npcs", "npc-factions"],
   faction_locations: ["faction-locations"],

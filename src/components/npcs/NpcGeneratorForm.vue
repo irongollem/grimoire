@@ -143,7 +143,12 @@
       <label class="block text-caption text-muted-foreground mb-1"
         >Known associate</label
       >
+      <div v-if="relatedPc" class="flex items-center justify-between gap-2 text-body text-foreground">
+        <span>{{ relatedPc.name }} <span class="font-fell text-muted-foreground">(character)</span></span>
+        <AppButton variant="subtle" size="sm" label="Clear" @click="patchMany({ related_pc_id: null, related_npc_kin: null, second_parent: null })" />
+      </div>
       <EntityCombobox
+        v-else
         :model-value="quickForm.related_npc_id ?? ''"
         :options="npcs ?? []"
         placeholder="None"
@@ -151,19 +156,39 @@
       />
     </div>
 
-    <div v-if="quickForm.related_npc_id">
+    <div v-if="quickForm.related_npc_id || relatedPc">
       <label class="block text-caption text-muted-foreground mb-1"
-        >Relationship type</label
+        >Relationship</label
       >
-      <AppSelect v-model="relatedNpcRelationshipModel" tone="muted" size="body" weight="normal" block>
-        <option
-          v-for="[type, label] in Object.entries(NPC_RELATIONSHIP_TYPE_LABELS)"
-          :key="type"
-          :value="type"
-        >
-          {{ label }}
-        </option>
+      <AppSelect v-model="relationModel" tone="muted" size="body" weight="normal" block>
+        <optgroup label="Family">
+          <option v-for="kin in GENERATOR_KIN_RELATIONS" :key="kin" :value="`kin:${kin}`">
+            {{ GENERATOR_KIN_LABELS[kin] }}
+          </option>
+        </optgroup>
+        <optgroup v-if="!relatedPc" label="Bond">
+          <option
+            v-for="[type, label] in Object.entries(NPC_RELATIONSHIP_TYPE_LABELS)"
+            :key="type"
+            :value="`bond:${type}`"
+          >
+            {{ label }}
+          </option>
+        </optgroup>
       </AppSelect>
+    </div>
+
+    <div v-if="quickForm.related_npc_kin === 'child'">
+      <label class="block text-caption text-muted-foreground mb-1"
+        >and of
+        <span class="font-fell font-normal normal-case text-muted-foreground">(optional second parent)</span></label
+      >
+      <EntityCombobox
+        :model-value="quickForm.second_parent ?? ''"
+        :options="secondParentOptions"
+        placeholder="None"
+        @update:model-value="onSecondParent($event)"
+      />
     </div>
   </div>
 
@@ -230,7 +255,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { IconGenerate } from "@/lib/icons";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
@@ -246,6 +271,17 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
+import { useParty } from "@/composables/party/useParty";
+import { useKinLinks } from "@/composables/kinship/useKinLinks";
+import { personKey } from "@/lib/kinship/keys";
+import {
+  GENERATOR_KIN_LABELS,
+  GENERATOR_KIN_RELATIONS,
+  isGeneratorKin,
+  onlySpouseOf,
+  type GeneratorKinRelation,
+} from "@/lib/npcGenerator/kinPrompt";
+import type { PersonKey } from "@/types/kinship.types";
 import type { Location } from "@/types/location.types";
 
 type LocationOption = Location & { depth: number };
@@ -261,6 +297,12 @@ export interface QuickForm {
   faction_role: string;
   related_npc_id: string | null;
   related_npc_relationship: NpcRelationshipType;
+  /** What the new NPC is to the associate when the tie is family. Exclusive with a bond. */
+  related_npc_kin: GeneratorKinRelation | null;
+  /** A character as the associate (arrives by link; the combobox lists NPCs). */
+  related_pc_id: string | null;
+  /** The other parent when the new NPC is a child. */
+  second_parent: PersonKey | null;
 }
 
 const {
@@ -325,9 +367,68 @@ const templateIdModel = computed<QuickForm["templateId"]>({
   get: () => quickForm.templateId,
   set: (value) => patchForm("templateId", value),
 });
-const relatedNpcRelationshipModel = computed<NpcRelationshipType>({
-  get: () => quickForm.related_npc_relationship,
-  set: (value) => patchForm("related_npc_relationship", value),
+// One select holds the family group and the bond group; the form keeps them in two fields.
+const relationModel = computed<string>({
+  get: () =>
+    quickForm.related_npc_kin
+      ? `kin:${quickForm.related_npc_kin}`
+      : `bond:${quickForm.related_npc_relationship}`,
+  set: (value) => {
+    const [group, rest] = value.split(":");
+    if (group === "kin" && isGeneratorKin(rest)) {
+      if (rest !== "child") resetSecondParent();
+      patchMany(rest === "child" ? { related_npc_kin: rest } : { related_npc_kin: rest, second_parent: null });
+    } else {
+      resetSecondParent();
+      patchMany({ related_npc_kin: null, related_npc_relationship: rest as NpcRelationshipType, second_parent: null });
+    }
+  },
+});
+
+function patchMany(patch: Partial<QuickForm>) {
+  emit("update:quickForm", { ...quickForm, ...patch });
+}
+
+const { data: party } = useParty();
+const { data: kinLinks } = useKinLinks();
+const relatedPc = computed(() =>
+  quickForm.related_pc_id ? (party.value ?? []).find((p) => p.id === quickForm.related_pc_id) ?? null : null,
+);
+
+const associateKey = computed<PersonKey | null>(() =>
+  quickForm.related_pc_id
+    ? personKey("pc", quickForm.related_pc_id)
+    : quickForm.related_npc_id
+      ? personKey("npc", quickForm.related_npc_id)
+      : null,
+);
+
+const secondParentOptions = computed(() =>
+  [
+    ...(npcs.value ?? []).filter((n) => personKey("npc", n.id) !== associateKey.value).map((n) => ({ id: personKey("npc", n.id), name: n.name })),
+    ...(party.value ?? []).filter((p) => personKey("pc", p.id) !== associateKey.value).map((p) => ({ id: personKey("pc", p.id), name: `${p.name} (character)` })),
+  ],
+);
+
+// The associate's one current spouse is the likely other parent. It follows the
+// associate until the DM picks or clears the field themselves.
+let secondParentTouched = false;
+let autoSecondParent: PersonKey | null = null;
+function resetSecondParent() {
+  secondParentTouched = false;
+  autoSecondParent = null;
+}
+function onSecondParent(value: string) {
+  secondParentTouched = true;
+  patchForm("second_parent", value ? (value as PersonKey) : null);
+}
+watch([associateKey, () => quickForm.related_npc_kin, kinLinks], () => {
+  if (quickForm.related_npc_kin !== "child" || !associateKey.value) return;
+  const suggested = onlySpouseOf(kinLinks.value ?? [], associateKey.value);
+  const followsAuto = quickForm.second_parent === autoSecondParent;
+  if (secondParentTouched || !followsAuto || suggested === quickForm.second_parent) return;
+  autoSecondParent = suggested;
+  patchForm("second_parent", suggested);
 });
 // ToggleSwitch requires a v-model; generateImage is a prop paired with a
 // single update:generateImage emit, so bridge it the same way as the fields

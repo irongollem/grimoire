@@ -48,6 +48,24 @@ const rule = (over: Partial<FkRule> & Pick<FkRule, "table" | "column" | "refTabl
 });
 
 describe("pruneForeignRows", () => {
+  it("prunes a kin link whose only end on one side was not kept, rather than emptying it", () => {
+    const tables: Record<string, Rows> = {
+      npcs: [{ id: "n1" }, { id: "n2" }],
+      party_members: [],
+      kin_links: [
+        { id: "k1", from_npc_id: "n1", from_party_member_id: null, to_npc_id: "n2", to_party_member_id: null },
+        { id: "k2", from_npc_id: "n1", from_party_member_id: null, to_npc_id: null, to_party_member_id: "pc-player" },
+      ],
+    };
+    const rules = [
+      rule({ table: "kin_links", column: "to_party_member_id", refTable: "party_members", nullable: true }),
+    ];
+    const report = pruneForeignRows(tables, rules);
+    expect(tables.kin_links.map((r) => r.id)).toEqual(["k1"]);
+    expect(report.pruned).toEqual({ kin_links: 1 });
+    expect(report.detached).toEqual({});
+  });
+
   it("drops a row that points at a row that was not kept", () => {
     const tables: Record<string, Rows> = {
       party_members: [{ id: "pc1" }],

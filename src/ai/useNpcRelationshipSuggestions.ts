@@ -2,7 +2,7 @@ import { computed, ref } from "vue";
 import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import type { RelationshipSuggestion } from "@edge-shared/npcRelationshipSuggestions.ts";
+import type { RelationshipSuggestion, SetAsideKin } from "@edge-shared/npcRelationshipSuggestions.ts";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { isAnyAiGenerating } from "./aiGeneratorRegistry";
 import type { AiProvenance } from "./provenance";
@@ -11,14 +11,19 @@ import { useCampaignStore } from "@/stores/campaign";
 
 export interface NpcRelationshipSuggestionsResponse {
   suggestions: RelationshipSuggestion[];
+  /** Kin claims the server refused to offer, with the reason. */
+  setAside?: SetAsideKin[];
   grounded: boolean;
-  ai_provenance: AiProvenance;
+  /** Null when every suggestion was set aside: nothing was charged and nothing can be accepted. */
+  ai_provenance: AiProvenance | null;
 }
 
 /** A suggestion whose target name has been mapped back to a real record. */
 export type ResolvedSuggestion =
   | (Extract<RelationshipSuggestion, { kind: "npc" }> & { target_id: string })
-  | (Extract<RelationshipSuggestion, { kind: "faction" }> & { target_id: string });
+  | (Extract<RelationshipSuggestion, { kind: "faction" }> & { target_id: string })
+  /** `target_id` is an NPC id, or a party member id when `target_type` is "pc". */
+  | (Extract<RelationshipSuggestion, { kind: "kin" }> & { target_id: string });
 
 /**
  * Maps the server's name-based suggestions to ids, case-insensitively, and
@@ -29,13 +34,16 @@ export function resolveSuggestionTargets(
   suggestions: RelationshipSuggestion[],
   npcs: { id: string; name: string }[],
   factions: { id: string; name: string }[],
+  pcs: { id: string; name: string }[] = [],
 ): ResolvedSuggestion[] {
+  const pcIds = new Map(pcs.map((p) => [p.name.trim().toLowerCase(), p.id]));
   const npcIds = new Map(npcs.map((n) => [n.name.trim().toLowerCase(), n.id]));
   const factionIds = new Map(factions.map((f) => [f.name.trim().toLowerCase(), f.id]));
   const out: ResolvedSuggestion[] = [];
   for (const s of suggestions) {
     const key = s.target_name.trim().toLowerCase();
-    const id = (s.kind === "npc" ? npcIds : factionIds).get(key);
+    const ids = s.kind === "faction" ? factionIds : s.kind === "kin" && s.target_type === "pc" ? pcIds : npcIds;
+    const id = ids.get(key);
     if (id) out.push({ ...s, target_id: id });
   }
   return out;
@@ -47,6 +55,7 @@ const _state = createAiGenerationState();
 /** What one NPC's Suggest run produced. Keyed by the NPC it was generated for. */
 interface NpcSuggestionResult {
   suggestions: ResolvedSuggestion[];
+  setAside: SetAsideKin[];
   provenance: AiProvenance | null;
 }
 const _results = ref<Record<string, NpcSuggestionResult>>({});
@@ -83,6 +92,7 @@ export function useNpcRelationshipSuggestions() {
     lookups: {
       npcs: { id: string; name: string }[];
       factions: { id: string; name: string }[];
+      pcs?: { id: string; name: string }[];
     },
   ): Promise<boolean> {
     if (isAnyAiGenerating.value) return false;
@@ -113,15 +123,16 @@ export function useNpcRelationshipSuggestions() {
       if (data?.error) throw new Error(data.error);
 
       const result = data as NpcRelationshipSuggestionsResponse;
-      const resolved = resolveSuggestionTargets(result.suggestions, lookups.npcs, lookups.factions);
-      if (resolved.length === 0) {
+      const resolved = resolveSuggestionTargets(result.suggestions, lookups.npcs, lookups.factions, lookups.pcs);
+      const setAside = result.setAside ?? [];
+      if (resolved.length === 0 && setAside.length === 0) {
         throw new Error("No usable suggestions. Try again.");
       }
       // Stored under the NPC it was asked for, so a reply that lands after the
       // DM has moved to another NPC stays attached to its own.
       _results.value = {
         ..._results.value,
-        [npcId]: { suggestions: resolved, provenance: result.ai_provenance },
+        [npcId]: { suggestions: resolved, setAside, provenance: result.ai_provenance },
       };
       return true;
     } catch (e) {
@@ -142,6 +153,7 @@ export function useNpcRelationshipSuggestions() {
   function forNpc(npcId: () => string) {
     const mine = () => _results.value[npcId()];
     const suggestions = computed(() => mine()?.suggestions ?? []);
+    const setAside = computed(() => mine()?.setAside ?? []);
     const provenance = computed(() => mine()?.provenance ?? null);
     const isGenerating = computed(() => _generatingFor.value === npcId());
     const error = computed(() => (_errorFor.value === npcId() ? _state.error.value : null));
@@ -164,7 +176,7 @@ export function useNpcRelationshipSuggestions() {
       if (_errorFor.value === npcId()) _state.error.value = null;
     }
 
-    return { suggestions, provenance, isGenerating, error, dismiss, dismissAll };
+    return { suggestions, setAside, provenance, isGenerating, error, dismiss, dismissAll };
   }
 
   return {

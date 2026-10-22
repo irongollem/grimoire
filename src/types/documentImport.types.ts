@@ -38,6 +38,8 @@
  * a rules statement, and truncating "Hit: 7 (1d8 + 3) piercing damage" to fit
  * a prose budget would corrupt the one thing the import exists to get right.
  */
+
+import type { KinRelation } from "@/types/kinship.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type { MonsterStatBlock } from "@/types/monster.types";
 import type { ProseStatBlockFields } from "@/rules/statBlock/structureStatBlock";
@@ -138,6 +140,12 @@ export interface ExtractedMonster {
   stat_block?: ExtractedStatBlock;
 }
 
+/** A family tie the page states for an NPC. `relation` is what the NAMED person is to this NPC. */
+export interface ExtractedNpcKin {
+  name: string;
+  relation: KinRelation;
+}
+
 export interface ExtractedNpc {
   name: string;
   race?: string;
@@ -160,6 +168,12 @@ export interface ExtractedNpc {
    * resolved this field.
    */
   location_name?: string;
+  /**
+   * Family the page names, resolved by name in the sweep's linking phase and
+   * written as `kin_links` (#1083). On "the Baron's son, Izek", Izek's entry is
+   * `{ name: "Baron Vargas Vallakovich", relation: "parent" }`.
+   */
+  kin?: ExtractedNpcKin[];
 }
 
 export interface ExtractedLocation {

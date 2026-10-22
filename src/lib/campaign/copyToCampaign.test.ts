@@ -702,6 +702,61 @@ describe("buildCopySetPlan", () => {
     expect(rel![0].user_id).toBe(USER_ID);
   });
 
+  it("kin_links between two copied NPCs are rewritten to minted ids and keep their details", () => {
+    const entities = [npcRow("npc-a", "Aldric"), npcRow("npc-b", "Brenna")];
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "kin_links",
+        row: {
+          id: "kin-1",
+          user_id: "someone-else",
+          campaign_id: OTHER_CAMPAIGN,
+          from_npc_id: "npc-a",
+          from_party_member_id: null,
+          to_npc_id: "npc-b",
+          to_party_member_id: null,
+          kind: "parent",
+          parent_role: "father",
+          adoptive: false,
+        },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, new Map());
+    expect(plan.dropped).toEqual([]);
+    const [kin] = plan.linkPayloads.kin_links!;
+    expect(kin.from_npc_id).toBe(plan.idMap.get("npc-a"));
+    expect(kin.to_npc_id).toBe(plan.idMap.get("npc-b"));
+    expect(kin.campaign_id).toBe(TARGET_CAMPAIGN);
+    expect(kin.parent_role).toBe("father");
+    expect(kin.id).toBeUndefined();
+    expect(kin.user_id).toBe(USER_ID);
+  });
+
+  it("a kin link to a player character is left out and named: party members are not copied", () => {
+    const entities = [npcRow("npc-a", "Aldric")];
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "kin_links",
+        row: { id: "kin-1", from_npc_id: "npc-a", from_party_member_id: null, to_npc_id: null, to_party_member_id: "pc-1", kind: "parent" },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, new Map());
+    expect(plan.linkPayloads.kin_links).toBeUndefined();
+    expect(plan.dropped).toHaveLength(1);
+    expect(plan.dropped[0].label).toBe("Family links");
+    expect(plan.dropped[0].removedEntries).toBe(true);
+  });
+
+  it("kin_links cannot go to the general scope: the link is campaign-bound", () => {
+    const entities = [npcRow("npc-a", "Aldric"), npcRow("npc-b", "Brenna")];
+    const joinRows: CopySetJoinRow[] = [
+      { table: "kin_links", row: { id: "kin-1", from_npc_id: "npc-a", to_npc_id: "npc-b", kind: "spouse" } },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, null, USER_ID, new Map());
+    expect(plan.linkPayloads.kin_links).toBeUndefined();
+    expect(plan.dropped.map((d) => d.label)).toContain("Family links");
+  });
+
   it("an NPC relationship to an NPC outside the batch follows the visibility rule", () => {
     const entities = [npcRow("npc-a", "Aldric")];
     const referenced = refMap([{ id: "npc-outside", name: "Cedric", campaignId: TARGET_CAMPAIGN }]);

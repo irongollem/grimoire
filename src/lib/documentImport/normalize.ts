@@ -62,6 +62,7 @@ import type {
   ExtractedMonster,
   ExtractedStatBlock,
   ExtractedNpc,
+  ExtractedNpcKin,
   ExtractedPayloadMap,
   ExtractedQuest,
   ExtractedQuestBeat,
@@ -134,6 +135,17 @@ export interface EntityLinks {
 }
 
 /**
+ * NPC → family the page names. Rides in `links` at runtime like every other raw
+ * name, but is deliberately not an `EntityLinks` field: those are the scalar
+ * names `LINK_TARGETS` (importPlan.ts) resolves one-to-one, and a kin entry
+ * writes `kin_links`, which a column or a join row cannot describe. The
+ * sweep's own kin pass (`importSweepKin.ts`) reads it.
+ */
+export interface EntityKinLinks {
+  kin?: ExtractedNpcKin[];
+}
+
+/**
  * A raw-name field that resolves to more than one row, unlike every field in
  * `EntityLinks` above (one name, one FK). Kept as its own small type rather
  * than widening `EntityLinks` to `string | string[]` per field, since every
@@ -180,7 +192,7 @@ export interface QuestSpinePayload {
 
 export interface MappedEntity<K extends ImportEntityKind = ImportEntityKind> {
   row: ImportRowMap[K];
-  links: EntityLinks;
+  links: EntityLinks & EntityKinLinks;
   /** Only ever populated for factions (`location_names`) today — see
    *  `EntityLinkLists`'s own doc comment for why this isn't folded into `links`. */
   linkLists?: EntityLinkLists;
@@ -405,7 +417,14 @@ export function mapExtractedNpc(
     player_visible_fields: [], // schema default '{}'
     ai_provenance: provenance,
   };
-  return { row, links: { faction_name: payload.faction_name, npc_location_name: payload.location_name } };
+  return {
+    row,
+    links: {
+      faction_name: payload.faction_name,
+      npc_location_name: payload.location_name,
+      ...(payload.kin && payload.kin.length > 0 ? { kin: payload.kin } : {}),
+    },
+  };
 }
 
 // ── Locations ────────────────────────────────────────────────────────────────
