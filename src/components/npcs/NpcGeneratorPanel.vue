@@ -46,8 +46,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
-import { useRouter } from "vue-router";
+import { ref, reactive, computed, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { IconGenerate } from "@/lib/icons";
 import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { useCreateNpc } from "@/composables/npcs/useNpcs";
@@ -59,6 +59,11 @@ import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { getNpcTemplate } from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
+import { useParty } from "@/composables/party/useParty";
+import { useCreateKinLink } from "@/composables/kinship/useKinLinks";
+import { kinInsertFor, parsePersonKey, personKey } from "@/lib/kinship/keys";
+import { isGeneratorKin, kinPromptLine, parseKinQueryKey, type PromptPerson } from "@/lib/npcGenerator/kinPrompt";
+import type { PersonKey } from "@/types/kinship.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { bornYearFromAge } from "@edge-shared/npcAge";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
@@ -92,6 +97,7 @@ function randomName(): string {
 
 const npcsUi = useNpcsUiStore();
 const router = useRouter();
+const route = useRoute();
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc();
 const { logImageGeneration } = useImageGenerationLog();
 const campaign = useCampaignStore();
@@ -112,6 +118,8 @@ const { data: factions } = useAllFactions(panelOpen);
 const { mutateAsync: addFactionNpc } = useAddFactionNpc();
 const { data: npcs } = useNpcs(panelOpen);
 const { mutateAsync: createNpcRelation } = useCreateNpcRelation();
+const { mutateAsync: createKinLink } = useCreateKinLink();
+const { data: party } = useParty(panelOpen);
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
@@ -156,6 +164,21 @@ function handleClose() {
   npcsUi.npcGeneratorOpen = false;
 }
 
+/** The family tie's other ends: the associate, then the second parent, as the prompt names them. */
+function kinPromptPeople(): PromptPerson[] {
+  const people: PromptPerson[] = [];
+  const keys: PersonKey[] = [];
+  if (quickForm.related_pc_id) keys.push(personKey("pc", quickForm.related_pc_id));
+  else if (quickForm.related_npc_id) keys.push(personKey("npc", quickForm.related_npc_id));
+  if (quickForm.related_npc_kin === "child" && quickForm.second_parent) keys.push(quickForm.second_parent);
+  for (const key of keys) {
+    const { type, id } = parsePersonKey(key);
+    const row = type === "npc" ? npcs.value?.find((n) => n.id === id) : party.value?.find((p) => p.id === id);
+    if (row) people.push({ name: row.name, bornYear: row.born_year ?? null });
+  }
+  return people;
+}
+
 function buildAiPrompt(): string {
   const lines = [concept.value.trim()];
   const constraints: string[] = [];
@@ -177,7 +200,10 @@ function buildAiPrompt(): string {
       constraints.push(`Faction: ${faction.name}${typeLabel}, Role: ${quickForm.faction_role}`);
     }
   }
-  if (quickForm.related_npc_id) {
+  const kinPeople = kinPromptPeople();
+  if (quickForm.related_npc_kin && kinPeople.length > 0) {
+    constraints.push(kinPromptLine(quickForm.related_npc_kin, kinPeople, campaign.todayYear));
+  } else if (quickForm.related_npc_id) {
     const npc = npcs.value?.find((n) => n.id === quickForm.related_npc_id);
     if (npc) {
       const relLabel = NPC_RELATIONSHIP_TYPE_LABELS[quickForm.related_npc_relationship];
@@ -283,7 +309,35 @@ const quickForm = reactive<QuickForm>({
   faction_role: "Member",
   related_npc_id: null,
   related_npc_relationship: "contact" as NpcRelationshipType,
+  related_npc_kin: null,
+  related_pc_id: null,
+  second_parent: null,
 });
+
+// "Add relative" opens the generator with the family tie already filled in:
+// /npcs?kin=<child|parent|spouse|sibling>&of=<npc:id|pc:id>&also=<npc:id|pc:id>
+// (`kin` is what the new NPC is to `of`; `also` is the second parent of a child).
+// The query is consumed once, so reopening the panel later starts blank.
+watch(
+  () => route.query.kin,
+  (kin) => {
+    if (!isGeneratorKin(kin)) return;
+    const of = parseKinQueryKey(route.query.of);
+    if (!of) return;
+    const also = kin === "child" ? parseKinQueryKey(route.query.also) : null;
+    const { type, id } = parsePersonKey(of);
+    Object.assign(quickForm, {
+      related_npc_id: type === "npc" ? id : null,
+      related_pc_id: type === "pc" ? id : null,
+      related_npc_kin: kin,
+      second_parent: also,
+    });
+    npcsUi.npcGeneratorOpen = true;
+    const { kin: _k, of: _o, also: _a, ...rest } = route.query;
+    void router.replace({ query: rest });
+  },
+  { immediate: true },
+);
 
 function onUpdateQuickForm(value: QuickForm) {
   Object.assign(quickForm, value);
@@ -297,7 +351,17 @@ async function applyPostCreate(npcId: string) {
       role: quickForm.faction_role,
     });
   }
-  if (quickForm.related_npc_id) {
+  if (quickForm.related_npc_kin) {
+    // The new NPC is the subject: "Wren is the child of Brenna" writes the parent link Brenna to Wren.
+    const subject = personKey("npc", npcId);
+    const others: PersonKey[] = [];
+    if (quickForm.related_pc_id) others.push(personKey("pc", quickForm.related_pc_id));
+    else if (quickForm.related_npc_id) others.push(personKey("npc", quickForm.related_npc_id));
+    if (quickForm.related_npc_kin === "child" && quickForm.second_parent) others.push(quickForm.second_parent);
+    for (const other of others) {
+      await createKinLink(kinInsertFor(subject, quickForm.related_npc_kin, other));
+    }
+  } else if (quickForm.related_npc_id) {
     await createNpcRelation({
       npc_id: npcId,
       related_npc_id: quickForm.related_npc_id,

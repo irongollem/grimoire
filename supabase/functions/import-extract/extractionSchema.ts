@@ -23,6 +23,8 @@
  * exactly the case the old per-kind resolution could never have handled.
  */
 
+import { SUGGESTED_KIN_RELATIONS } from "../_shared/npcRelationshipSuggestions.ts";
+
 // ── Extraction JSON Schema ───────────────────────────────────────────────────
 //
 // Built from the contract in src/types/documentImport.types.ts (read, not
@@ -170,6 +172,17 @@ const NPC_DATA = obj({
   // the sweep's linking phase (documentImport.types.ts's own comment on this
   // field explains why: `locations` extracts *after* `npcs`).
   location_name: NULLABLE_STRING,
+  // Family the page states, as what the NAMED person is to this NPC; resolved
+  // by name in the sweep's linking phase into kin_links (#1083).
+  kin: {
+    type: ["array", "null"],
+    description:
+      "Family members of this NPC that the page names, each with what that person is to this NPC. For \"the Baron's son, Izek\", Izek's entry is { name: the Baron, relation: \"parent\" }. Only ties the page states; null if none.",
+    items: obj({
+      name: { type: "string" },
+      relation: { type: "string", enum: [...SUGGESTED_KIN_RELATIONS] },
+    }),
+  },
 });
 
 const LOCATION_DATA = obj({

@@ -35,6 +35,7 @@ import {
 import { toPlainText } from "../_shared/ai-prompt.ts";
 import { truncateAtWordBoundary } from "../_shared/embedTextUtil.ts";
 import { sanitizeSuggestions } from "../_shared/npcRelationshipSuggestions.ts";
+import { campaignToday, promptAge } from "../_shared/npcAge.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
@@ -86,9 +87,38 @@ interface SourceNpc {
   personality: string | null;
   backstory: string | null;
   appearance: string | null;
+  age: string | null;
+  born_year: number | null;
+  born_month: number | null;
+  born_day: number | null;
 }
 
 interface NamedRow { id: string; name: string; occupation?: string | null; faction_type?: string | null }
+interface PersonRow { id: string; name: string; born_year: number | null }
+interface KinRow {
+  from_npc_id: string | null;
+  from_party_member_id: string | null;
+  to_npc_id: string | null;
+  to_party_member_id: string | null;
+  kind: string;
+  parent_role: string | null;
+  adoptive: boolean;
+}
+
+/** The inverse of a bond, to read a tie from the other end. Mirrors NPC_RELATIONSHIP_INVERSE (src/types/npc.types.ts). */
+const BOND_INVERSE: Record<string, string> = { mentor: "apprentice", apprentice: "mentor", subordinate: "superior", superior: "subordinate" };
+
+const MAX_PCS = 30;
+
+/** What `other` is to the source, read from the source's end of a stored kin link. */
+function kinWord(link: KinRow, sourceIsFrom: boolean): string {
+  if (link.kind === "parent") {
+    if (sourceIsFrom) return link.adoptive ? "adoptive child" : "child";
+    const role = link.parent_role ?? "parent";
+    return link.adoptive ? `adoptive ${role}` : role;
+  }
+  return link.kind === "former_spouse" ? "former spouse" : link.kind;
+}
 
 serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
@@ -127,7 +157,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, ruleset, current_year, current_month, current_day, openai_api_key, anthropic_api_key, gemini_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -152,7 +182,7 @@ serve(withCors(async (req: Request) => {
   // The source NPC, scoped to the campaign the caller was just authorised for.
   const { data: sourceRow } = await admin
     .from("npcs")
-    .select("id, name, occupation, race, personality, backstory, appearance")
+    .select("id, name, occupation, race, personality, backstory, appearance, age, born_year, born_month, born_day")
     .eq("id", npc_id)
     .eq("campaign_id", campaign_id)
     .maybeSingle();
@@ -215,7 +245,7 @@ serve(withCors(async (req: Request) => {
   // Everything below can throw; a thrown error must not strand the hold.
   try {
     // ── What the NPC already has ─────────────────────────────────────────────
-    const [relsRes, memberRes, npcsRes, factionsRes] = await Promise.all([
+    const [relsRes, memberRes, npcsRes, factionsRes, kinRes, pcsRes] = await Promise.all([
       admin.from("npc_relationships")
         .select("npc_id, related_npc_id, relationship_type")
         .eq("campaign_id", campaign_id)
@@ -234,7 +264,18 @@ serve(withCors(async (req: Request) => {
         .eq("campaign_id", campaign_id)
         .order("updated_at", { ascending: false })
         .limit(MAX_DIRECT_FACTIONS * 2),
+      // The whole campaign's kin: the source's own links, and its parents' other children for implied siblings.
+      admin.from("kin_links")
+        .select("from_npc_id, from_party_member_id, to_npc_id, to_party_member_id, kind, parent_role, adoptive")
+        .eq("campaign_id", campaign_id),
+      // A PC's name and birth year only; nothing else of theirs reaches the prompt.
+      admin.from("party_members")
+        .select("id, name, born_year")
+        .eq("campaign_id", campaign_id)
+        .limit(MAX_PCS),
     ]);
+    if (kinRes.error) throw new Error(kinRes.error.message);
+    if (pcsRes.error) throw new Error(pcsRes.error.message);
     if (relsRes.error) throw new Error(relsRes.error.message);
     if (memberRes.error) throw new Error(memberRes.error.message);
     if (npcsRes.error) throw new Error(npcsRes.error.message);
@@ -246,11 +287,65 @@ serve(withCors(async (req: Request) => {
     const factionNameById = new Map(campaignFactions.map((f) => [f.id, f.name]));
 
     const existingTies = (relsRes.data ?? []).map((r) => {
-      const otherId = r.npc_id === npc_id ? r.related_npc_id : r.npc_id;
-      return { otherId, name: npcNameById.get(otherId) ?? null, type: r.relationship_type as string };
+      const sourceIsFrom = r.npc_id === npc_id;
+      const otherId = sourceIsFrom ? r.related_npc_id : r.npc_id;
+      const raw = r.relationship_type as string;
+      // Read from the source's end: the row's type is what related_npc_id is to npc_id.
+      const type = sourceIsFrom ? raw : (BOND_INVERSE[raw] ?? raw);
+      return { otherId, name: npcNameById.get(otherId) ?? null, type };
     });
-    const relatedIds = new Set(existingTies.map((t) => t.otherId));
     const existingNpcNames = existingTies.flatMap((t) => (t.name ? [t.name] : []));
+
+    // ── Kin the source already has, and what the shared parents imply ──────
+    const kinRows = (kinRes.data ?? []) as KinRow[];
+    const pcs = (pcsRes.data ?? []) as PersonRow[];
+    const pcNameById = new Map(pcs.map((p) => [p.id, p.name]));
+    const endKey = (npcId: string | null, pcId: string | null) => (npcId ? `npc:${npcId}` : `pc:${pcId}`);
+    const sourceKey = `npc:${npc_id}`;
+    const ownKin: { other: string; word: string }[] = [];
+    const sourceParents = new Set<string>();
+    for (const l of kinRows) {
+      const from = endKey(l.from_npc_id, l.from_party_member_id);
+      const to = endKey(l.to_npc_id, l.to_party_member_id);
+      if (from !== sourceKey && to !== sourceKey) continue;
+      const sourceIsFrom = from === sourceKey;
+      ownKin.push({ other: sourceIsFrom ? to : from, word: kinWord(l, sourceIsFrom) });
+      if (l.kind === "parent" && !sourceIsFrom) sourceParents.add(from);
+    }
+    // A shared parent makes two people siblings without a sibling link.
+    const siblingThrough = new Map<string, string>();
+    for (const l of kinRows) {
+      const parent = endKey(l.from_npc_id, l.from_party_member_id);
+      if (l.kind !== "parent" || !sourceParents.has(parent)) continue;
+      const child = endKey(l.to_npc_id, l.to_party_member_id);
+      if (child !== sourceKey) siblingThrough.set(child, parent);
+    }
+    // Names for everyone the kin touches, beyond the capped candidate list.
+    const kinNpcIds = new Set<string>();
+    for (const k of [...ownKin.map((o) => o.other), ...siblingThrough.keys(), ...siblingThrough.values()]) {
+      if (k.startsWith("npc:")) kinNpcIds.add(k.slice(4));
+    }
+    const kinNpcRows = new Map<string, PersonRow>();
+    if (kinNpcIds.size > 0) {
+      const { data, error } = await admin.from("npcs").select("id, name, born_year")
+        .eq("campaign_id", campaign_id).in("id", [...kinNpcIds]);
+      if (error) throw new Error(error.message);
+      for (const r of (data ?? []) as PersonRow[]) kinNpcRows.set(r.id, r);
+    }
+    const personName = (k: string): string | null =>
+      k.startsWith("npc:") ? (kinNpcRows.get(k.slice(4))?.name ?? null) : (pcNameById.get(k.slice(3)) ?? null);
+    const existingKinNpcNames: string[] = [];
+    const existingKinPcNames: string[] = [];
+    for (const o of ownKin) {
+      const n = personName(o.other);
+      if (n) (o.other.startsWith("npc:") ? existingKinNpcNames : existingKinPcNames).push(n);
+    }
+    const impliedSiblings: Record<string, string> = {};
+    for (const [child, parent] of siblingThrough) {
+      const childName = personName(child);
+      const parentName = personName(parent);
+      if (childName && parentName) impliedSiblings[`${child.startsWith("npc:") ? "npc" : "pc"}:${childName.trim().toLowerCase()}`] = parentName;
+    }
 
     const memberFactionIds = new Set((memberRes.data ?? []).map((m) => m.faction_id as string));
     const existingFactionNames = [...memberFactionIds].flatMap((id) => {
@@ -297,8 +392,7 @@ serve(withCors(async (req: Request) => {
       console.warn(`NPC relationship retrieval unavailable for campaign ${campaign_id}, using direct candidates only: ${why}`);
     }
 
-    const sourceKey = source.name.trim().toLowerCase();
-    const existingNpcKeys = new Set(existingNpcNames.map((n) => n.toLowerCase()));
+    const sourceNameKey = source.name.trim().toLowerCase();
     const existingFactionKeys = new Set(existingFactionNames.map((n) => n.toLowerCase()));
 
     function merge(
@@ -311,7 +405,7 @@ serve(withCors(async (req: Request) => {
       const out: CandidateEntity[] = [];
       for (const c of [...retrieved, ...direct]) {
         const k = c.name.trim().toLowerCase();
-        if (!k || k === sourceKey || excluded.has(k) || seen.has(k)) continue;
+        if (!k || k === sourceNameKey || excluded.has(k) || seen.has(k)) continue;
         seen.add(k);
         out.push(c);
         if (out.length >= cap) break;
@@ -321,8 +415,9 @@ serve(withCors(async (req: Request) => {
 
     const npcCandidates = merge(
       retrievedNpcs,
-      campaignNpcs.filter((n) => !relatedIds.has(n.id)).map((n) => ({ name: n.name, descriptor: n.occupation ?? null })),
-      existingNpcKeys,
+      // Bonded NPCs stay candidates: the same person can also be kin. Sanitising drops a repeated bond.
+      campaignNpcs.map((n) => ({ name: n.name, descriptor: n.occupation ?? null })),
+      new Set<string>(),
       MAX_DIRECT_NPCS + retrievedNpcs.length,
     );
     const factionCandidates = merge(
@@ -332,38 +427,75 @@ serve(withCors(async (req: Request) => {
       MAX_DIRECT_FACTIONS,
     );
 
-    if (npcCandidates.length === 0 && factionCandidates.length === 0) {
+    if (npcCandidates.length === 0 && factionCandidates.length === 0 && pcs.length === 0) {
       await releaseCredits(admin, reservation.ids);
       return new Response(
-        JSON.stringify({ error: "There are no other NPCs or factions in this campaign to connect to yet." }),
+        JSON.stringify({ error: "There are no other NPCs, characters or factions in this campaign to connect to yet." }),
         { status: 422, headers: { "Content-Type": "application/json" } },
       );
     }
 
+    // ── Birth years: the source, the candidates, the PCs ─────────────────────
+    const today = campaignToday(campaign);
+    const bornYears: Record<string, number> = {};
+    if (npcCandidates.length > 0) {
+      const { data, error } = await admin.from("npcs").select("name, born_year")
+        .eq("campaign_id", campaign_id).in("name", npcCandidates.map((c) => c.name));
+      if (error) throw new Error(error.message);
+      for (const r of (data ?? []) as { name: string; born_year: number | null }[]) {
+        if (r.born_year !== null) bornYears[`npc:${r.name.trim().toLowerCase()}`] = r.born_year;
+      }
+    }
+    for (const p of pcs) {
+      if (p.born_year !== null) bornYears[`pc:${p.name.trim().toLowerCase()}`] = p.born_year;
+    }
+
     // ── Prompt ────────────────────────────────────────────────────────────────
+    const age = promptAge(source, today);
     const sourceLines = [
       `Name: ${source.name}`,
       source.race ? `Race: ${source.race}` : "",
       source.occupation ? `Occupation: ${source.occupation}` : "",
+      source.born_year !== null ? `Born: ${source.born_year}` : "",
+      age ? `Age now: ${age}` : "",
+      today ? `Current year: ${today.year}` : "",
       plain(source.personality) ? `Personality: ${plain(source.personality)}` : "",
       plain(source.backstory) ? `Backstory: ${plain(source.backstory)}` : "",
       plain(source.appearance) ? `Appearance: ${plain(source.appearance)}` : "",
     ].filter(Boolean);
 
+    // Each tie reads from the source outwards: "Tilda Fenn - their mentor".
     const tieLines = existingTies
       .filter((t) => t.name)
-      .map((t) => `${t.name} (${t.type})`);
+      .map((t) => `${t.name} - their ${t.type.replace(/_/g, " ")}`);
+    const kinLines = ownKin.flatMap((o) => {
+      const n = personName(o.other);
+      return n ? [`${n} - their ${o.word}`] : [];
+    });
+
+    const bornSuffix = (type: "npc" | "pc", name: string) => {
+      const y = bornYears[`${type}:${name.trim().toLowerCase()}`];
+      return y === undefined ? "" : `born ${y}`;
+    };
 
     const steer = prompt.trim() ? `${wrapUserInput(prompt.trim())}\n\n` : "";
     const userContent =
       `${steer}The NPC to connect:\n---BEGIN NPC---\n${sourceLines.join("\n")}\n---END NPC---` +
-      (tieLines.length > 0 ? `\n\nTies this NPC already has (do not repeat them):\n${tieLines.join("\n")}` : "") +
+      (tieLines.length > 0 ? `\n\nBonds this NPC already has (do not repeat them):\n${tieLines.join("\n")}` : "") +
+      (kinLines.length > 0 ? `\n\nFamily this NPC already has (do not repeat them):\n${kinLines.join("\n")}` : "") +
       (existingFactionNames.length > 0 ? `\n\nFactions this NPC already belongs to (do not repeat them):\n${existingFactionNames.join("\n")}` : "") +
       "\n\nCandidates. Every target_name must be copied exactly from one of these lines " +
-      "(npc|name|occupation or faction|name|type); the app resolves them back to real records by name.\n" +
+      "(npc|name|occupation|born year, pc|name|born year or faction|name|type); the app resolves them back to real records by name.\n" +
       "---BEGIN CANDIDATES---\n" +
       [
-        ...npcCandidates.map((c) => `npc|${c.name}|${c.descriptor ?? ""}`),
+        ...npcCandidates.map((c) => {
+          const born = bornSuffix("npc", c.name);
+          return `npc|${c.name}|${c.descriptor ?? ""}${born ? `|${born}` : ""}`;
+        }),
+        ...pcs.map((p) => {
+          const born = bornSuffix("pc", p.name);
+          return `pc|${p.name}${born ? `|${born}` : ""}`;
+        }),
         ...factionCandidates.map((c) => `faction|${c.name}|${c.descriptor ?? ""}`),
       ].join("\n") +
       "\n---END CANDIDATES---";
@@ -399,14 +531,21 @@ serve(withCors(async (req: Request) => {
       );
     }
 
-    const suggestions = sanitizeSuggestions(parsed, {
+    const { suggestions, setAside } = sanitizeSuggestions(parsed, {
       sourceName: source.name,
       npcNames: npcCandidates.map((c) => c.name),
       factionNames: factionCandidates.map((c) => c.name),
       existingNpcNames,
       existingFactionNames,
+      pcNames: pcs.map((p) => p.name),
+      existingKinNpcNames,
+      existingKinPcNames,
+      sourceBornYear: source.born_year,
+      bornYears,
+      impliedSiblings,
     });
-    if (suggestions.length === 0) {
+    // A set-aside claim is still worth showing: it tells the DM why nothing was offered.
+    if (suggestions.length === 0 && setAside.length === 0) {
       await releaseCredits(admin, reservation.ids);
       return new Response(
         JSON.stringify({ error: "No usable suggestions. Try again." }),
@@ -431,6 +570,7 @@ serve(withCors(async (req: Request) => {
     return new Response(
       JSON.stringify({
         suggestions,
+        setAside,
         grounded: retrievedNpcs.length + retrievedFactions.length > 0,
         ai_provenance,
       }),

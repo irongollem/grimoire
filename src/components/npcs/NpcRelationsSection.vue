@@ -66,8 +66,10 @@
     </div>
     <p v-if="suggestError" class="text-caption text-destructive mb-3">{{ suggestError }}</p>
     <NpcRelationSuggestions
-      v-if="suggestions.length > 0"
+      v-if="suggestions.length > 0 || setAside.length > 0"
       :suggestions="suggestions"
+      :set-aside="setAside"
+      :source-name="npcById[npcId]?.name ?? 'this NPC'"
       :pending="isAccepting"
       @accept="acceptSuggestion"
       @dismiss="dismiss"
@@ -195,6 +197,9 @@ import {
 } from "@/composables/factions/useNpcRelations";
 import { useAddFactionNpc, useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useParty } from "@/composables/party/useParty";
+import { useCreateKinLink } from "@/composables/kinship/useKinLinks";
+import { kinInsertFor, personKey } from "@/lib/kinship/keys";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
@@ -220,6 +225,8 @@ const { data: allNpcs } = useNpcs();
 const { mutateAsync: createRelation, isPending: isSaving } =
   useCreateNpcRelation();
 const { mutateAsync: deleteRelation } = useDeleteNpcRelation();
+const { mutateAsync: createKinLink } = useCreateKinLink();
+const { data: party } = useParty();
 
 const relations = computed(() => relationsRaw.value ?? []);
 
@@ -303,6 +310,7 @@ const {
   isGenerating: isSuggesting,
   error: suggestError,
   suggestions,
+  setAside,
   provenance,
   dismiss,
   dismissAll,
@@ -324,6 +332,7 @@ async function runSuggest() {
   const ok = await suggest(props.npcId, steer.value, {
     npcs: otherNpcs.value,
     factions: allFactions.value ?? [],
+    pcs: party.value ?? [],
   });
   if (ok) {
     showSteer.value = false;
@@ -334,7 +343,17 @@ async function runSuggest() {
 async function acceptSuggestion(s: ResolvedSuggestion) {
   isAccepting.value = true;
   try {
-    if (s.kind === "npc") {
+    if (s.kind === "kin") {
+      // The relation is what the target is to this NPC, so the target is the subject of the link.
+      await createKinLink(
+        kinInsertFor(
+          personKey(s.target_type, s.target_id),
+          s.relation,
+          personKey("npc", props.npcId),
+          { parent_role: s.parent_role, note: s.notes, ai_provenance: provenance.value },
+        ),
+      );
+    } else if (s.kind === "npc") {
       await createRelation({
         npc_id: props.npcId,
         related_npc_id: s.target_id,

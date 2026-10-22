@@ -29,6 +29,20 @@ describe("resolveSuggestionTargets", () => {
     );
     expect(out.map((s) => s.target_id)).toEqual(["n1", "f1"]);
   });
+
+  it("resolves a kin target against NPCs, or party members for a PC", () => {
+    const out = resolveSuggestionTargets(
+      [
+        { kind: "kin", target_name: "Tilda Fenn", target_type: "npc", relation: "parent", parent_role: "mother", notes: "" },
+        { kind: "kin", target_name: "Tamsin", target_type: "pc", relation: "sibling", parent_role: null, notes: "" },
+        { kind: "kin", target_name: "Tamsin", target_type: "npc", relation: "sibling", parent_role: null, notes: "" },
+      ],
+      npcs,
+      factions,
+      [{ id: "p1", name: "Tamsin" }],
+    );
+    expect(out.map((s) => s.target_id)).toEqual(["n1", "p1"]);
+  });
 });
 
 describe("useNpcRelationshipSuggestions per-NPC binding", () => {
@@ -90,6 +104,17 @@ describe("useNpcRelationshipSuggestions per-NPC binding", () => {
     const a = forNpc(() => "A");
     a.dismiss(a.suggestions.value[0]);
     expect(a.suggestions.value).toEqual([]);
+  });
+
+  it("passes the set-aside claims through and accepts a reply of only those", async () => {
+    const setAside = [{ target_name: "Pip", relation: "parent", reason: "Pip was born five years after Wren" }];
+    invoke.mockResolvedValue({ data: { suggestions: [], setAside, grounded: true, ai_provenance: { generated: true } }, error: null });
+    const { suggest, forNpc } = useNpcRelationshipSuggestions();
+    expect(await suggest("A", "", lookups)).toBe(true);
+    expect(forNpc(() => "A").setAside.value).toEqual(setAside);
+    expect(forNpc(() => "B").setAside.value).toEqual([]);
+    forNpc(() => "A").dismissAll();
+    expect(forNpc(() => "A").setAside.value).toEqual([]);
   });
 
   it("scopes an error to the NPC that asked", async () => {

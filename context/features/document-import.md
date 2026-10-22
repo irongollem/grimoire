@@ -589,6 +589,8 @@ reported in `unresolvedLinks` with the database's reason, never swallowed.
 | `item_names` | `ExtractedLocation` | a `loot_placements` row (`location_id` home, `kind: "item"`) — same shape, a room's OWN loot; see "A room's own loot lives in the room" below |
 | `parent_name` | `ExtractedLocation` | `locations.parent_id` — **not** through this table. Resolved AT INSERT by `runLocationsImportKind`, not this linking phase — see the section below. |
 
+**Family (#1083).** `ExtractedNpc.kin` is a list of `{ name, relation }` where `relation` is what the NAMED person is to this NPC ("the Baron's son, Izek" puts `{ Baron, parent }` on Izek). It rides in `links.kin` but is not a `LINK_TARGETS` field, because it writes `kin_links`, not a column or a join row: `importSweepKin.ts` (`planNpcKin`) resolves each name against the sweep-wide NPC lookup, makes the named person the subject of `kinInsertFor`, and keeps one link per pair (a page states a tie from both ends). Names that match nobody are skipped silently and counted in `ImportSweepReport.unresolvedKin`, with any pair the database refuses; the NPC itself always lands. The review card shows the entries as "Baron Vargas (parent)".
+
 The two new scalar fields (`npc_location_name` internally, to avoid colliding
 with quest's own `location_name` in `LINK_TARGETS` — same reason
 `encounter_location_name` exists; `owner_npc_name`) and the one new list field

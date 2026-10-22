@@ -59,6 +59,8 @@ import type { UsableEntity } from "./sanitizeEntities";
 import type { EntityMatchSource, ImportDecision } from "./entityMatching";
 import { getEntityKindEntry } from "./entityKinds";
 import { normalizeEntityName } from "./entityName";
+import { planNpcKin, type KinWrite } from "./importSweepKin";
+import { writeBatchIsolatingFailures } from "@/lib/batchWrite";
 import {
   buildSiteRoomIndex,
   findByNameSourced,
@@ -146,6 +148,8 @@ export interface ImportSweepReport {
    * genuinely reference something outside what this sweep imported.
    */
   unresolvedLinks: string[];
+  /** Family the page named that could not be linked: an unknown name, or a pair the database refused. Counted, not listed. */
+  unresolvedKin: number;
 }
 
 export interface BeatAttachmentWrite {
@@ -233,6 +237,8 @@ export interface ImportSweepDeps {
    *  an error for the caller to absorb. Still best-effort as a whole. */
   insertQuestRefs: (refs: readonly QuestRefWrite[]) => Promise<void>;
   updateQuestParent: (questId: string, parentQuestId: string) => Promise<void>;
+  /** Family the page named, as `kin_links` rows. One request; the sweep retries row by row only if it is refused. */
+  insertKinLinks: (links: KinWrite[]) => Promise<void>;
   /** Persists the *complete*, accumulated `imported_counts` so far — called
    *  after every kind that had anything to import, so a crash mid-sweep
    *  resumes from the last kind that finished rather than from scratch. */
@@ -625,6 +631,13 @@ export async function runImportSweep(
     }
   }
 
+  // Family the page names ("the Baron's son"): resolved against the same
+  // sweep-wide NPC lookup as every other name, written as kin_links.
+  const plannedKin = planNpcKin(linkedRowsByKind.npcs ?? [], plainLookups.npcs ?? [], campaignId, provenance);
+  let unresolvedKin = plannedKin.unresolved;
+  const { refused: refusedKin } = await writeBatchIsolatingFailures(plannedKin.writes, (batch) => deps.insertKinLinks(batch));
+  unresolvedKin += refusedKin.length; // best-effort: a refused pair (often one already linked) costs only itself
+
   await resolveEncounters(encounterContexts, lookups, deps, unresolvedLinks, addSweepRef);
 
   // Which resolved location ids are a site (has rooms) or a room of one, per
@@ -728,6 +741,6 @@ export async function runImportSweep(
 
   onProgress?.({ phase: "linking", kind: null, done: totalSteps, total: totalSteps });
 
-  return { perKind, createdQuestId, unresolvedLinks };
+  return { perKind, createdQuestId, unresolvedLinks, unresolvedKin };
 }
 

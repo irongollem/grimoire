@@ -152,7 +152,7 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   locations: ["locations", CAMPAIGN_SECRETS_KEY],
   items: ["items", CAMPAIGN_SECRETS_KEY],
   puzzle_rooms: ["puzzle_rooms", CAMPAIGN_SECRETS_KEY],
-  npcs: ["npcs", PLAYER_NPCS_KEY],
+  npcs: ["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY],
   // The DM's editor and the players' view read the same two tables; a player
   // taking a pin also rings it, which is how the DM watches a notice come down.
   notice_boards: [NOTICE_BOARDS_KEY, PLAYER_NOTICE_BOARDS_KEY],
@@ -208,7 +208,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["character_caretakers", [CHARACTER_CARETAKERS_KEY, WHILE_AWAY_KEY]],
   ["player_npc_ratings", ["player_npc_ratings"]],
   ["npc_favors", ["npc_favors"]],
-  ["faction_party_members", ["faction-party-members", "party-member-factions", "player-faction-party-members", PLAYER_FACTIONS_KEY]],
+  ["faction_party_members", ["faction-party-members", "party-member-factions", "player-faction-party-members", PLAYER_FACTIONS_KEY, PLAYER_KIN_KEY]],
   ["party_member_tracker_state", ["tracker_state"]],
   // A pinned form widens get_player_visible_monsters (Wild Shape candidates).
   ["pinned_forms", ["pinned-forms", "monsters"]],
@@ -252,7 +252,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["faction_deities", ["faction-deities", "deity-factions"]],
   ["faction_locations", ["faction-locations"]],
   ["faction_items", ["faction-items"]],
-  ["faction_npcs", ["faction-npcs", "player-faction-npcs", "npc-factions"]],
+  ["faction_npcs", ["faction-npcs", "player-faction-npcs", "npc-factions", PLAYER_KIN_KEY]],
   ["faction_relations", ["faction-relations"]],
   // A place's map: the DM's site views, and the players' site state.
   ["location_doors", ["location-doors", "site-doors", "player-visible-site-state"]],
@@ -286,7 +286,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // cannot read `npcs` rows, so this tells them to re-read their projection.
   // It refreshes the DM's `npcs` root as well: a co-DM's or a second device's
   // edit rings it and must reach this tab.
-  ["npcs_player", ["npcs", PLAYER_NPCS_KEY]],
+  // PLAYER_KIN_KEY: a player sees a kin link only between people they can see (#1083), so a reveal changes it.
+  ["npcs_player", ["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY]],
   // Same shape for notes and factions (secret blocks, #932): players can no
   // longer select either table, because a raw row would carry the DM-only
   // passages. They read `get_player_visible_notes` / `_factions`, which strip
@@ -294,7 +295,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // both the DM root and the players' projection root for its table, so any
   // device or a player's write reaches every tab.
   ["notes_player", ["notes", PLAYER_NOTES_KEY]],
-  ["factions_player", ["factions", PLAYER_FACTIONS_KEY]],
+  ["factions_player", ["factions", PLAYER_FACTIONS_KEY, PLAYER_KIN_KEY]],
   // Places, quests, beats and objectives are read by players through
   // projections and owner-only policies, so the ring tells them to re-read. The
   // player projections of these four live under the same query roots as the
@@ -303,7 +304,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // player root exists to add.
   // Sharing a place can share its linked NPCs, so the People projection
   // (PLAYER_NPCS_KEY) re-reads too; that is deliberate, not a stray key.
-  ["locations_player", ["locations", PLAYER_NPCS_KEY]],
+  ["locations_player", ["locations", PLAYER_NPCS_KEY, PLAYER_KIN_KEY]],
   ["quests_player", ["quests"]],
   ["quest_beats_player", [BEATS_KEY]],
   ["quest_objectives_player", [OBJECTIVES_KEY]],

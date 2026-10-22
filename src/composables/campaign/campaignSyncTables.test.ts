@@ -15,6 +15,7 @@ import {
   PLAYER_FACTIONS_KEY,
   PLAYER_NOTES_KEY,
   PLAYER_NPCS_KEY,
+  PLAYER_KIN_KEY,
   THREADS_KEY,
 } from "@/lib/campaignLiveSync/registry";
 
@@ -159,8 +160,8 @@ describe("live sync registries", () => {
   it("refreshes the DM root and the player projection root from every projection signal", () => {
     // A co-DM's or a second device's edit rings `<table>_player`; this tab must
     // refresh its own `npcs` root as well as the players' projection.
-    expect(SIGNAL_KEYS.get("npcs_player")).toEqual(["npcs", PLAYER_NPCS_KEY]);
-    expect(SIGNAL_KEYS.get("npcs")).toEqual(["npcs", PLAYER_NPCS_KEY]);
+    expect(SIGNAL_KEYS.get("npcs_player")).toEqual(["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY]);
+    expect(SIGNAL_KEYS.get("npcs")).toEqual(["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY]);
     expect(SIGNAL_KEYS.get("factions")).toEqual(["factions", PLAYER_FACTIONS_KEY, CAMPAIGN_SECRETS_KEY]);
     expect(SIGNAL_KEYS.get("notes")).toEqual(["notes", PLAYER_NOTES_KEY, CAMPAIGN_SECRETS_KEY]);
     for (const signal of ["locations", "items", "puzzle_rooms"]) {
@@ -172,7 +173,7 @@ describe("live sync registries", () => {
     // Players' places, quests, beats and objectives live under the same roots
     // as the DM's reads, so the one root serves both. Places also refresh the
     // People projection: sharing a place can share its linked NPCs.
-    expect(SIGNAL_KEYS.get("locations_player")).toEqual(["locations", PLAYER_NPCS_KEY]);
+    expect(SIGNAL_KEYS.get("locations_player")).toEqual(["locations", PLAYER_NPCS_KEY, PLAYER_KIN_KEY]);
     expect(SIGNAL_KEYS.get("quests_player")).toEqual(["quests"]);
     expect(SIGNAL_KEYS.get("quest_beats_player")).toEqual([BEATS_KEY]);
     expect(SIGNAL_KEYS.get("quest_objectives_player")).toEqual(["quest_objectives"]);

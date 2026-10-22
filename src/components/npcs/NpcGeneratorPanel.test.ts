@@ -9,6 +9,14 @@ const mocks = vi.hoisted(() => ({
   createNpc: vi.fn(),
   generate: vi.fn(),
   push: vi.fn(),
+  createKin: vi.fn(),
+}));
+
+// The NPC and character rows the family prompt reads, and the URL the panel is opened from.
+const fixtures = vi.hoisted(() => ({
+  npcs: [] as { id: string; name: string; born_year: number | null }[],
+  pcs: [] as { id: string; name: string; born_year: number | null }[],
+  query: {} as Record<string, string>,
 }));
 
 // The campaign's AI toggle, mutable per test (#thisspec: "AI for every plan
@@ -25,19 +33,26 @@ const affordableState = vi.hoisted(() => ({ value: true }));
 
 vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: vi.fn() }),
+  useRoute: () => ({ query: fixtures.query }),
+}));
+vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref(fixtures.pcs) }) }));
+vi.mock("@/composables/kinship/useKinLinks", () => ({
+  useKinLinks: () => ({ data: ref([]) }),
+  useCreateKinLink: () => ({ mutateAsync: mocks.createKin }),
 }));
 vi.mock("@/stores/ui/npcs", () => ({ useNpcsUiStore: () => ({ npcGeneratorOpen: true }) }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
     activeCampaignId: "campaign-1",
+    todayYear: 1495,
     activeCampaign: { text_provider: "openai", image_provider: "openai" },
   }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useCreateNpc: () => ({ mutateAsync: mocks.createNpc, isPending: ref(false) }),
-  useNpcs: () => ({ data: ref([]) }),
+  useNpcs: () => ({ data: ref(fixtures.npcs) }),
 }));
 vi.mock("@/composables/ai/useImageGenerationLog", () => ({
   useImageGenerationLog: () => ({ logImageGeneration: vi.fn() }),
@@ -191,5 +206,46 @@ describe("NpcGeneratorPanel — credit gate (short balance, under quota)", () =>
 
     expect(mocks.generate).not.toHaveBeenCalled();
     expect(useOutOfCredits().needed.value).not.toBeNull();
+  });
+});
+
+describe("NpcGeneratorPanel — family tie from the Add relative link", () => {
+  const brenna = "00000000-0000-4000-8000-000000000001";
+  const corwin = "00000000-0000-4000-8000-000000000002";
+
+  beforeEach(() => {
+    mocks.createNpc.mockReset();
+    mocks.generate.mockReset();
+    mocks.createKin.mockReset();
+    campaignState.isAiEnabled = true;
+    canCreateNpc.value = true;
+    affordableState.value = true;
+    fixtures.npcs = [
+      { id: brenna, name: "Brenna Ashe", born_year: 1459 },
+      { id: corwin, name: "Corwin Ashe", born_year: 1456 },
+    ];
+    fixtures.pcs = [];
+    fixtures.query = { kin: "child", of: `npc:${brenna}`, also: `npc:${corwin}` };
+  });
+
+  it("states the tie plainly with ages, then writes a parent link from each parent", async () => {
+    mocks.generate.mockResolvedValue({
+      name: "Wren", race: "Human", alignment: "", age: "20", occupation: "", appearance: "", personality: "",
+      backstory: "", notes: "", status: "alive", relationship: "unknown", tags: [],
+    });
+    mocks.createNpc.mockResolvedValue({ id: "wren" });
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A young scribe.");
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await vi.waitFor(() => expect(mocks.createKin).toHaveBeenCalledTimes(2));
+
+    const prompt = mocks.generate.mock.calls[0][0] as string;
+    expect(prompt).toContain(
+      "The new NPC is the child of Brenna Ashe (born 1459, 36 now) and Corwin Ashe (born 1456, 39 now). The current year is 1495. Give an age that fits.",
+    );
+    expect(mocks.createKin.mock.calls.map(([row]) => [row.kind, row.from_npc_id, row.to_npc_id])).toEqual([
+      ["parent", brenna, "wren"],
+      ["parent", corwin, "wren"],
+    ]);
   });
 });

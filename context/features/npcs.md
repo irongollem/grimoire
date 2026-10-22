@@ -184,7 +184,9 @@ _Candidates come from two places on purpose._ Semantic retrieval (`retrieveCampa
 
 _Validation_ (`_shared/npcRelationshipSuggestions.ts`, shared with the client so the relationship enum has one source, `NPC_RELATIONSHIP_TYPES`): `sanitizeSuggestions` drops names that are not candidates, ties that already exist, types outside the enum and duplicates, caps at six, and bounds notes (300) and role (60). The client then maps names back to ids (`resolveSuggestionTargets`) and drops any that stopped resolving while the request was in flight.
 
-_Accepting_ creates the `npc_relationships` row (or faction membership with a role) with the response's `ai_provenance`. The composable is deliberately not registered with `registerAiGenerator`: it produces no entity to navigate to, so the floating badge would have nothing to offer. It still respects `isAnyAiGenerating`.
+_Kin (#1083)._ Family is not a bond, so the suggester proposes it as a third variant, `kind: "kin"`, with `relation` (what the target is to this NPC: parent, child, spouse, former spouse, sibling, relative), an optional `parent_role` and the evidence in `notes`. The campaign's PCs are kin candidates too (`pc|name|born`, name and birth year only, nothing else of a character reaches the prompt). The function reads the source's birth year, the candidates' birth years and `kin_links`, and serialises existing bonds and kin from the source's side ("Corwin Ashe - their father"). `sanitizeSuggestions` returns `{ suggestions, setAside }`: it drops a pair a kin link already joins, and sets aside, with a reason in plain words, a parent claim whose birth years contradict it ("Pip was born five years after Wren") and a sibling the shared parents already imply ("already siblings through Brenna"). The panel shows set-aside claims as one muted line each. Bonded NPCs stay candidates, since the same person can also be kin.
+
+_Accepting_ a bond creates the `npc_relationships` row (or faction membership with a role) with the response's `ai_provenance`; accepting kin writes a `kin_links` row through `kinInsertFor`, with the target as the subject. The composable is deliberately not registered with `registerAiGenerator`: it produces no entity to navigate to, so the floating badge would have nothing to offer. It still respects `isAnyAiGenerating`.
 
 #### Combat Tab
 
@@ -358,7 +360,7 @@ A full-viewport force-directed graph rendered with `v-network-graph` (VNetworkGr
 
 ### Edges
 
-- **NPC–NPC**: solid line, coloured by the relationship type from the full 15-type taxonomy (`NPC_RELATIONSHIP_TYPE_LABELS`): family, sibling, chosen_family, friend, ally, rival, enemy, mentor, apprentice, lover, subordinate, superior, contact, former_ally, former_enemy. Each type has its own `--relation-*` token. `sibling` and `chosen_family` are deliberately distinct from `family` — see the enum comments — and were the two this list had been missing.
+- **NPC–NPC**: solid line, coloured by the relationship type from the 13-type bond taxonomy (`NPC_RELATIONSHIP_TYPE_LABELS`; family and sibling are `kin_links` since #1083): chosen_family, friend, ally, rival, enemy, mentor, apprentice, lover, subordinate, superior, contact, former_ally, former_enemy. Each type has its own `--relation-*` token. `chosen_family` stays a bond: it is chosen, not kin.
 - **NPC–PC**: dashed line, coloured by the note's relationship type.
 
 Only one edge is drawn per pair regardless of directionality (the inverse type is computed on read).
@@ -480,7 +482,7 @@ Fills a minimal NPC with:
 - Faction (any campaign faction) + Role in faction
 - Location (location tree combobox)
 - Stat block template (grouped by category from `NPC_TEMPLATE_CATEGORIES`)
-- Known associate (any existing NPC) + relationship type to them
+- Known associate (any existing NPC) + relationship to them: a bond, or a family tie (Child of, Parent of, Spouse of, Sibling of; a child may name a second parent, defaulting to the associate's only current spouse). A family tie is told to the model as one directional sentence with birth years and ages, and written as `kin_links` after creation. `/npcs?kin=<child|parent|spouse|sibling>&of=<npc:id|pc:id>&also=<npc:id|pc:id>` opens the panel with the tie filled in (`kin` is what the new NPC is to `of`; `also` is the second parent); the panel clears the query once read.
 
 After creation, faction membership and the associate relationship are added automatically.
 

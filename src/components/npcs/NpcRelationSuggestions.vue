@@ -11,7 +11,7 @@
     </p>
     <div
       v-for="s in suggestions"
-      :key="`${s.kind}:${s.target_id}`"
+      :key="`${s.kind}:${s.kind === 'kin' ? s.target_type : ''}:${s.target_id}`"
       class="flex items-start gap-3 p-2.5 rounded-lg border border-border bg-card"
     >
       <span
@@ -28,6 +28,9 @@
           {{ s.target_name }}
           <span v-if="s.kind === 'faction'" class="font-fell font-normal text-muted-foreground">
             (faction)
+          </span>
+          <span v-else-if="s.kind === 'kin' && s.target_type === 'pc'" class="font-fell font-normal text-muted-foreground">
+            (character)
           </span>
         </div>
         <p
@@ -56,6 +59,13 @@
         />
       </div>
     </div>
+    <p
+      v-for="a in setAside"
+      :key="`aside:${a.target_name}:${a.relation}`"
+      class="text-caption text-muted-foreground italic"
+    >
+      Set aside: "{{ a.target_name }} is {{ sourceName }}'s {{ KIN_LABELS[a.relation].toLowerCase() }}". {{ capitalised(a.reason) }}.
+    </p>
   </div>
 </template>
 
@@ -64,8 +74,29 @@ import { IconCheck } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { NPC_RELATIONSHIP_TYPE_LABELS, NPC_RELATIONSHIP_TYPE_VAR } from "@/types/npc.types";
 import type { ResolvedSuggestion } from "@/ai/useNpcRelationshipSuggestions";
+import type { SetAsideKin, SuggestedKinRelation } from "@edge-shared/npcRelationshipSuggestions.ts";
 
-defineProps<{ suggestions: ResolvedSuggestion[]; pending: boolean }>();
+// What the target is to this NPC, as the badge reads it.
+const KIN_LABELS: Record<SuggestedKinRelation, string> = {
+  parent: "Parent",
+  child: "Child",
+  spouse: "Spouse",
+  former_spouse: "Former spouse",
+  sibling: "Sibling",
+  relative: "Relative",
+};
+
+function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+defineProps<{
+  suggestions: ResolvedSuggestion[];
+  /** Kin claims the server refused, shown as one muted line each. */
+  setAside: SetAsideKin[];
+  sourceName: string;
+  pending: boolean;
+}>();
 const emit = defineEmits<{
   accept: [suggestion: ResolvedSuggestion];
   dismiss: [suggestion: ResolvedSuggestion];
@@ -79,6 +110,7 @@ function badge(s: ResolvedSuggestion): { label: string; color: string } {
       color: NPC_RELATIONSHIP_TYPE_VAR[s.relationship_type],
     };
   }
+  if (s.kind === "kin") return { label: KIN_LABELS[s.relation], color: "var(--primary)" };
   return { label: s.role || "Member", color: "var(--muted-foreground)" };
 }
 </script>

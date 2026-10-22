@@ -211,11 +211,12 @@ function summarize(value: unknown): string {
   if (Array.isArray(value)) {
     if (value.length === 0) return "None";
     const names = value
-      .map((item) =>
-        item && typeof item === "object" && typeof (item as Record<string, unknown>).name === "string"
-          ? ((item as Record<string, unknown>).name as string)
-          : null,
-      )
+      .map((item) => {
+        if (!item || typeof item !== "object" || typeof (item as Record<string, unknown>).name !== "string") return null;
+        const { name, relation } = item as { name: string; relation?: unknown };
+        // An NPC's family: "Baron Vargas (parent)" reads as what he is to this NPC.
+        return typeof relation === "string" ? `${name} (${relation.replace(/_/g, " ")})` : name;
+      })
       .filter((n): n is string => n !== null);
     return names.length ? `${value.length} · ${names.join(", ")}` : `${value.length} entries`;
   }
