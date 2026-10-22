@@ -70,6 +70,9 @@
     <!-- App-wide shortcuts: the sound palette and the shortcut cheat sheet -->
     <GlobalHotkeys />
 
+    <!-- Another NPC's sheet on top of the one being read, from a name in its family or connections -->
+    <NpcPeekHost />
+
     <!-- Shown when the account has more active campaigns than its limit allows,
          e.g. after a downgrade, or when a young player's inherited limits lapse -->
     <DowngradeCampaignPickerModal
@@ -110,6 +113,7 @@ import AiGenerationBadge from "@/components/common/ai/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
 import DmScratchpad from "@/components/notes/DmScratchpad.vue";
 import GlobalHotkeys from "@/components/layout/GlobalHotkeys.vue";
+import NpcPeekHost from "@/components/npcs/NpcPeekHost.vue";
 import DowngradeCampaignPickerModal from "@/components/billing/DowngradeCampaignPickerModal.vue";
 import SuspensionBanner from "@/components/billing/SuspensionBanner.vue";
 import AiUseNoticeGate from "@/components/campaign/AiUseNoticeGate.vue";

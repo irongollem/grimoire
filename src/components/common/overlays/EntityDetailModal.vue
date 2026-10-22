@@ -10,6 +10,8 @@
   >
     <!-- Header — name, what it is, whatever the entity wants to offer, close. -->
     <header class="flex shrink-0 items-start gap-3 border-b border-border px-5 py-4">
+      <!-- A back control when the modal has moved on from what it first showed (NpcDetailModal's trail). -->
+      <slot name="leading" />
       <div class="min-w-0 flex-1">
         <h2 :id="headingId" class="truncate text-heading font-bold text-foreground">
           {{ title }}

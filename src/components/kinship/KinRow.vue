@@ -9,8 +9,16 @@
       <template v-else>{{ initial }}</template>
     </span>
     <span class="flex min-w-0 flex-1 flex-col">
+      <button
+        v-if="peekable"
+        type="button"
+        class="truncate text-left text-body font-bold hover:text-primary"
+        :class="row.person.dead ? 'text-muted-foreground line-through decoration-1' : 'text-foreground'"
+        @click="peek(parsePersonKey(row.key).id)"
+      >{{ row.person.name }}</button>
       <component
         :is="row.person.to ? RouterLink : 'span'"
+        v-else
         v-bind="row.person.to ? { to: row.person.to } : {}"
         class="truncate text-body font-bold"
         :class="[row.person.dead ? 'text-muted-foreground line-through decoration-1' : 'text-foreground', row.person.to && 'hover:text-primary']"
@@ -41,12 +49,18 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import { IconChevronRight } from "@/lib/icons";
+import { parsePersonKey } from "@/lib/kinship/keys";
+import { useOpenNpc } from "@/composables/npcs/useNpcPeek";
 import type { FamilyRow } from "@/components/kinship/familyRows";
 
 const { row, player = false } = defineProps<{ row: FamilyRow; player?: boolean }>();
 const emit = defineEmits<{ remove: [row: FamilyRow] }>();
 
 const MENU: OverflowMenuEntry[] = [{ key: "remove", label: "Remove link", danger: true }];
+
+const peek = useOpenNpc();
+// The DM opens an NPC relative's sheet in place (in the NPC modal, with a way back); a PC still opens its page.
+const peekable = computed(() => !player && row.key.startsWith("npc:"));
 
 const initial = computed(() => row.person.name.trim().charAt(0).toUpperCase() || "?");
 // The door re-centres the tree on the spouse: their own family, not ours.
