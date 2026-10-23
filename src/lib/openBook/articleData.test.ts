@@ -4,15 +4,18 @@ import { getCalendarAdapter } from "@/settings";
 import {
   festivalsOf,
   formatCalendarDate,
+  countLabel,
   formatPlayedOn,
   humanize,
   markedDays,
   monthGrid,
   monthRange,
   placePlate,
+  pluralize,
   readPins,
   romanNumeral,
   sessionRubric,
+  splitLeadImage,
   standingOf,
   statusLabel,
   stepMonth,
@@ -169,5 +172,52 @@ describe("calendar", () => {
   it("finds a year's festival events", () => {
     expect(festivalsOf([event({ festival_day: "Midwinter", month: null, day: null })], 1492)).toHaveLength(1);
     expect(festivalsOf([event({})], 1492)).toHaveLength(0);
+  });
+});
+
+describe("splitLeadImage", () => {
+  const para = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+  const img = (src: string, alt?: string) => ({ type: "image", attrs: { src, alt } });
+  const doc = (...content: unknown[]) => JSON.stringify({ type: "doc", content });
+
+  it("takes the first image out and returns it as the lead", () => {
+    const out = splitLeadImage(doc(para("a"), img("https://x.test/1.png", "Climb"), img("https://x.test/2.png"), para("b")));
+    expect(out.leadImage).toEqual({ src: "https://x.test/1.png", alt: "Climb" });
+    expect(out.docWithoutIt).toEqual({
+      type: "doc",
+      content: [para("a"), img("https://x.test/2.png"), para("b")],
+    });
+  });
+
+  it("finds an image inside a paragraph and drops the paragraph it emptied", () => {
+    const out = splitLeadImage(doc({ type: "paragraph", content: [img("/a.png")] }, para("b")));
+    expect(out.leadImage?.src).toBe("/a.png");
+    expect(out.docWithoutIt).toEqual({ type: "doc", content: [para("b")] });
+  });
+
+  it("leaves a report with no image alone", () => {
+    const out = splitLeadImage(doc(para("a")));
+    expect(out.leadImage).toBeNull();
+    expect(out.docWithoutIt).toEqual({ type: "doc", content: [para("a")] });
+  });
+
+  it("ignores an image whose source is not a web address", () => {
+    expect(splitLeadImage(doc(img("javascript:alert(1)"))).leadImage).toBeNull();
+  });
+
+  it("handles no content", () => {
+    expect(splitLeadImage(null)).toEqual({ leadImage: null, docWithoutIt: null });
+  });
+});
+
+describe("countLabel", () => {
+  it("agrees the noun with the count", () => {
+    expect(countLabel(1, "tale")).toBe("1 tale");
+    expect(countLabel(0, "tale")).toBe("0 tales");
+    expect(countLabel(4, "tale")).toBe("4 tales");
+    expect(countLabel(1, "person", "people")).toBe("1 person");
+    expect(countLabel(2, "person", "people")).toBe("2 people");
+    expect(pluralize(1, "faction")).toBe("faction");
+    expect(pluralize(3, "faction")).toBe("factions");
   });
 });

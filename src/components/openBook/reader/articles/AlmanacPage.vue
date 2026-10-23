@@ -74,6 +74,9 @@ const passed = computed(() => {
     .reverse();
 });
 
+/** "23 Ches, Year 1492 DR" sets on two lines, the day and month over the year. */
+const lines = (text: string | null) => (text ? text.split(", ") : []);
+
 function target(entryId: string) {
   const raw = route.params.slug;
   return { name: "open-book-entry", params: { slug: Array.isArray(raw) ? raw[0] : raw, chapter: "chronicle", entryId } };
@@ -123,10 +126,12 @@ function target(entryId: string) {
       <p v-if="passed.length === 0" class="book-note">Nothing has been written yet.</p>
       <div v-for="{ entry, when } in passed" :key="entry.id" class="book-entry">
         <div class="book-entry-when">
-          <span class="book-rubric">{{ when ?? entry.subtitle }}</span>
+          <span class="book-rubric"><span v-for="line in lines(when ?? entry.subtitle)" :key="line">{{ line }}</span></span>
+        </div>
+        <div class="book-entry-what">
+          <h3><RouterLink :to="target(entry.id)">{{ entry.title }}</RouterLink></h3>
           <span v-if="when && entry.subtitle" class="book-eyebrow">{{ entry.subtitle }}</span>
         </div>
-        <h3><RouterLink :to="target(entry.id)">{{ entry.title }}</RouterLink></h3>
       </div>
     </div>
   </section>

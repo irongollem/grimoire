@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** A faction or house: its emblem, its facts, and the description laid out in two columns. */
+/** A faction or house: its emblem, its facts, and the description. */
 import { computed } from "vue";
 import type { BookModel } from "@/lib/openBook/bookModel";
 import type { OpenBookFaction } from "@/types/openBook.types";
@@ -11,7 +11,10 @@ import ArticlePlate from "./ArticlePlate.vue";
 const { model, faction } = defineProps<{ model: BookModel; faction: OpenBookFaction }>();
 
 const kind = computed(() => (faction.faction_type ? humanize(faction.faction_type) : null));
-const standing = computed(() => (faction.party_standing ? humanize(faction.party_standing) : null));
+// A standing nobody has set (null, or the app's own "unknown") says nothing, so the row is left out.
+const standing = computed(() =>
+  faction.party_standing && faction.party_standing !== "unknown" ? humanize(faction.party_standing) : null,
+);
 const hasFacts = computed(() => kind.value || faction.alignment || faction.descent || standing.value);
 </script>
 
@@ -28,7 +31,7 @@ const hasFacts = computed(() => kind.value || faction.alignment || faction.desce
       <ArticleAttr v-if="faction.descent" label="Descent">{{ faction.descent }}</ArticleAttr>
       <ArticleAttr v-if="standing" label="To the party">{{ standing }}</ArticleAttr>
     </div>
-    <div v-if="faction.description" class="book-prose book-dropcap book-cols">
+    <div v-if="faction.description" class="book-prose book-dropcap">
       <BookRichText :content="faction.description" :model="model" />
     </div>
   </article>

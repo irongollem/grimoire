@@ -19,7 +19,7 @@ import BookSlip from "./BookSlip.vue";
 import BookThumbs from "./BookThumbs.vue";
 import BookTurn from "./BookTurn.vue";
 import ReaderPage from "./ReaderPage.vue";
-import { leatherGrain, leatherStyle } from "./leather";
+import { leatherGrain, leatherStyle } from "@/lib/openBook/leather";
 import { READER_KEY } from "./readerContext";
 import "./book.css";
 
@@ -45,6 +45,7 @@ provide(READER_KEY, {
   releaseLabel,
   pagesOf: reader.pagesOf,
   isMeasured: reader.isMeasured,
+  hasFront: reader.hasFront,
   folioStartOf: reader.folioStartOf,
   reportPages: reader.reportPages,
   revealPage: reader.revealPage,

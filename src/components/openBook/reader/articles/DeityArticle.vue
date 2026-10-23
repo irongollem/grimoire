@@ -25,7 +25,6 @@ const hasFacts = computed(
         :src="deity.portrait_url"
         :alt="`Portrait of ${deity.name}`"
         shape="portrait"
-        :focal-point="deity.portrait_focal_point"
       />
     </div>
     <header>

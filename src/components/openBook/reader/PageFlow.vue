@@ -48,6 +48,7 @@ const flowStyle = computed(() => {
     columnGap: `${gap.value}px`,
     transform: `translate3d(${-columnOffset(k, width, gap.value)}px, 0, 0)`,
     "--ob-page-h": `${height}px`,
+    "--ob-page-w": `${width}px`,
     visibility: width > 0 ? ("visible" as const) : ("hidden" as const),
   };
 });

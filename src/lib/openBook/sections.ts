@@ -116,6 +116,19 @@ export function chapterOpener(sections: readonly BookSection[], chapter: OpenBoo
   return sections.find((s) => s.chapter === chapter) ?? null;
 }
 
+/**
+ * Whether a section opens with the chapter's title page on its first verso. Only a chapter's opener does: the
+ * almanac for the Chronicle, the first entry of every other chapter, and the index. Every other entry starts
+ * straight on its own pages.
+ */
+export function hasFrontispiece(sections: readonly BookSection[], key: string): boolean {
+  const section = sections.find((s) => s.key === key);
+  if (!section) return true;
+  if (section.kind === "contents") return false;
+  if (!section.chapter) return true;
+  return chapterOpener(sections, section.chapter)?.key === key;
+}
+
 /** Characters of stored text an entry will print, as a stand-in for its length before it has been laid out. */
 function storedLength(value: string | null | undefined): number {
   // Stored rich text is Tiptap JSON: roughly half of it is markup, not words.

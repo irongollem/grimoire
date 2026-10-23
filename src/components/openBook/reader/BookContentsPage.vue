@@ -6,6 +6,7 @@
  */
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
+import { pluralize } from "@/lib/openBook/articleData";
 import type { Ribbon } from "@/lib/openBook/ribbons";
 import { INDEX_KEY, chapterOpener, sectionLocation, type BookSection } from "@/lib/openBook/sections";
 import type { BookModel } from "@/lib/openBook/bookModel";
@@ -57,11 +58,11 @@ const ribbonLinks = computed(() =>
       still ahead.
     </p>
     <div class="ob-stats">
-      <span v-if="stats.places"><b>{{ stats.places }}</b>places</span>
-      <span v-if="stats.folk"><b>{{ stats.folk }}</b>people</span>
-      <span v-if="stats.factions"><b>{{ stats.factions }}</b>factions</span>
-      <span v-if="stats.lore"><b>{{ stats.lore }}</b>tales</span>
-      <span v-if="stats.sessions"><b>{{ stats.sessions }}</b>sessions</span>
+      <span v-if="stats.places"><b>{{ stats.places }}</b>{{ pluralize(stats.places, "place") }}</span>
+      <span v-if="stats.folk"><b>{{ stats.folk }}</b>{{ pluralize(stats.folk, "person", "people") }}</span>
+      <span v-if="stats.factions"><b>{{ stats.factions }}</b>{{ pluralize(stats.factions, "faction") }}</span>
+      <span v-if="stats.lore"><b>{{ stats.lore }}</b>{{ pluralize(stats.lore, "tale") }}</span>
+      <span v-if="stats.sessions"><b>{{ stats.sessions }}</b>{{ pluralize(stats.sessions, "session") }}</span>
     </div>
   </div>
 

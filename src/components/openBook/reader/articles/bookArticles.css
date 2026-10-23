@@ -47,12 +47,26 @@
 .book-plate-frame { background: var(--bk-card); padding: 0.625rem; box-shadow: 0 1px 1.5px rgb(43 32 25 / 0.18), 0 0 0 1px var(--bk-border); }
 .book-plate-inner { position: relative; box-shadow: inset 0 0 0 1px var(--bk-input); overflow: hidden; background: #ece3cf; }
 .book-plate-inner > img { display: block; width: 100%; height: auto; }
-.book-plate-portrait .book-plate-inner { aspect-ratio: 4 / 5; }
+.book-plate-portrait .book-plate-inner { max-width: 100%; }
 .book-plate-square .book-plate-frame { display: inline-block; padding: 0.5rem; }
 .book-plate-square .book-plate-inner { width: 9rem; height: 9rem; display: flex; align-items: center; justify-content: center; }
 .book-plate-square .book-plate-inner > img { width: 100%; height: 100%; object-fit: contain; }
 .book-plate-centered { text-align: center; }
 .book-plate-narrow { max-width: 13rem; }
+/* The picture that opens an entry sits alone on its first page, whole: sized to the page, never cropped or split.
+   The flow publishes the page's content box as --ob-page-w / --ob-page-h. */
+.book-article > .book-plate:first-child,
+.book-article > .book-plates-row:first-child:has(.book-plate) { break-after: column; }
+.book-plates-row:not(:has(.book-plate)) { display: none; }
+.book-article > .book-plate:first-child { display: flex; align-items: center; justify-content: center; height: calc(var(--ob-page-h) - 0.25rem); max-width: none; margin: 0; text-align: center; }
+.book-article > .book-plate:first-child .book-plate-frame { display: block; max-width: 100%; max-height: 100%; }
+.book-article > .book-plate:first-child .book-plate-inner,
+.book-article > .book-plates-row:first-child .book-plate-inner { width: fit-content; max-width: 100%; height: auto; aspect-ratio: auto; margin: 0 auto; }
+.book-article > .book-plate:first-child .book-plate-inner > img,
+.book-article > .book-plates-row:first-child .book-plate-inner > img { width: auto; height: auto; max-width: calc(var(--ob-page-w) - 2.75rem); max-height: calc(var(--ob-page-h) - 2.75rem); object-fit: contain; }
+.book-article > .book-plates-row:first-child:has(.book-plate) { height: calc(var(--ob-page-h) - 0.25rem); align-content: center; justify-content: center; align-items: center; margin: 0; }
+.book-article > .book-plates-row:first-child .book-plate { margin: 0; max-width: none; }
+.book-article > .book-plates-row:first-child:has(> .book-plate + .book-plate) .book-plate-inner > img { max-width: calc(var(--ob-page-w) / 2 - 2.5rem); }
 .book-caption { font-style: italic; font-size: 0.875rem; color: var(--bk-muted); text-align: center; margin: 0.5rem 0 0; }
 .book-pin { position: absolute; width: 0.75rem; height: 0.75rem; margin: -0.375rem 0 0 -0.375rem; background: var(--bk-live); transform: rotate(45deg); box-shadow: 0 0 0 2px var(--bk-card); }
 .book-pin-plain { background: var(--bk-fg); }
@@ -105,14 +119,12 @@
 .book-prose blockquote p:last-child { margin-bottom: 0; }
 .book-lore .book-prose blockquote { background: var(--bk-soft); box-shadow: inset 0 0 0 1px var(--bk-input); text-align: center; font-family: var(--bk-display); font-style: normal; font-weight: 600; font-size: 0.875rem; letter-spacing: 0.12em; line-height: 1.7; color: var(--bk-hand); }
 .book-lore .book-prose blockquote p { text-align: center; }
+.book-dropcap .ProseMirror > p:first-child { display: flow-root; }
+.book-dropcap .ProseMirror > p:first-child + p { text-indent: 0; }
 .book-dropcap .ProseMirror > p:first-child::first-letter { font-family: var(--bk-display); font-weight: 700; float: left; font-size: 3.9em; line-height: 0.82; padding: 0.32rem 0.5rem 0 0; color: var(--bk-live); }
-.book-cols .ProseMirror { column-count: 2; column-gap: 1.75rem; column-rule: 1px solid var(--bk-border); }
-.book-cols .ProseMirror > p + p { text-indent: 1em; }
 
-/* A session report: each second-level heading opens a numbered scene */
-.book-session .ProseMirror { counter-reset: book-scene; }
-.book-session .book-prose h2 { counter-increment: book-scene; display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0 0.5rem; font-size: 1rem; letter-spacing: 0.06em; }
-.book-session .book-prose h2::before { content: counter(book-scene, upper-roman) " ·"; flex: none; }
+/* A session report: each second-level heading opens a scene, set off by a rule */
+.book-session .book-prose h2 { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0 0.5rem; font-size: 1rem; letter-spacing: 0.06em; }
 .book-session .book-prose h2::after { content: ""; flex: 1 1 0; height: 1px; width: auto; margin: 0; background: var(--bk-border); opacity: 1; }
 .book-session-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
 
@@ -124,17 +136,32 @@
 .book-step:disabled { color: var(--bk-border); cursor: default; }
 .book-cal { display: grid; border-top: 1px solid var(--bk-input); border-left: 1px solid var(--bk-border); }
 .book-cal-wk { font-family: var(--bk-sans); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; color: var(--bk-muted); text-align: center; padding: 0.3rem 0; text-transform: uppercase; }
-.book-cal-d { min-height: 3.25rem; border-right: 1px solid var(--bk-border); border-bottom: 1px solid var(--bk-border); padding: 0.25rem 0.3rem; box-sizing: border-box; font-family: var(--bk-display); font-weight: 600; font-size: 0.75rem; color: var(--bk-muted); display: flex; flex-direction: column; gap: 0.125rem; text-decoration: none; }
+.book-cal-d { min-height: 2.875rem; border-right: 1px solid var(--bk-border); border-bottom: 1px solid var(--bk-border); padding: 0.25rem 0.3rem; box-sizing: border-box; font-family: var(--bk-display); font-weight: 600; font-size: 0.75rem; color: var(--bk-muted); display: flex; flex-direction: column; gap: 0.125rem; text-decoration: none; }
 .book-cal-d.is-red { color: var(--bk-live); font-weight: 700; }
 .book-cal-d.is-today { box-shadow: inset 0 0 0 1px var(--bk-gold), inset 0 0 0 3px var(--bk-card), inset 0 0 0 4px var(--bk-gold); }
 .book-cal-ev { font-family: Alegreya, serif; font-weight: 400; font-size: 0.6875rem; line-height: 1.15; color: var(--bk-live); }
 .book-note { margin: 1rem 0 0; font-size: 0.9375rem; color: var(--bk-muted); font-style: italic; }
-.book-timeline h2 { margin: 0 0 0.5rem; font-family: var(--bk-display); font-weight: 700; font-size: 2rem; }
-.book-entry { display: grid; grid-template-columns: 6rem 1fr; gap: 1.25rem; padding: 0.875rem 0; border-bottom: 1px dotted var(--bk-border); break-inside: avoid; }
-.book-entry-when { display: flex; flex-direction: column; gap: 0.125rem; }
+.book-timeline h2 { margin: 0 0 0.25rem; font-family: var(--bk-display); font-weight: 700; font-size: 2rem; }
+.book-entry { display: grid; grid-template-columns: 8.5rem 1fr; gap: 1rem; padding: 0.5rem 0; border-bottom: 1px dotted var(--bk-border); break-inside: avoid; }
+.book-entry-when { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.book-entry-when .book-rubric { font-size: 0.8125rem; line-height: 1.3; letter-spacing: 0.04em; }
+.book-entry-when .book-rubric > span { white-space: nowrap; }
+.book-entry-when .book-rubric > span { display: block; }
+.book-entry-what { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.125rem 0.75rem; }
 .book-entry h3 { margin: 0; font-size: 1.1875rem; font-weight: 700; }
 .book-entry h3 a { color: inherit; text-decoration: none; }
 
 /* Index */
 .book-index h2 { margin: 0 0 0.5rem; font-family: var(--bk-display); font-weight: 700; font-size: 2rem; }
 .book-index-letter { margin: 1rem 0 0.25rem; font-family: var(--bk-display); font-weight: 700; color: var(--bk-live); font-size: 1.25rem; break-after: avoid; }
+
+/* Read-aloud box: the app's descriptive block, set as the design's boxed italic */
+.book-prose .sc-descriptive { position: relative; margin: 0.75rem 0 0.875rem; padding: 0.875rem 1.125rem; background: rgb(250 246 238 / 0.75); box-shadow: inset 0 0 0 1px var(--bk-border), inset 0 0 0 4px var(--bk-card), inset 0 0 0 5px var(--bk-border); font-style: italic; font-size: 1rem; line-height: 1.55; break-inside: avoid; }
+.book-prose .sc-descriptive::before { content: "Read aloud"; display: block; margin-bottom: 0.25rem; font-family: var(--bk-sans); font-style: normal; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--bk-muted); }
+.book-prose .sc-descriptive p { text-indent: 0; text-align: left; margin-bottom: 0.375rem; }
+.book-prose .sc-descriptive > :last-child { margin-bottom: 0; }
+/* A session's lead plate sits under the title, within the flow, and never splits */
+.book-plate-lead { margin: 0.875rem 0 0.75rem; text-align: center; }
+.book-plate-lead .book-plate-frame { display: inline-block; max-width: 100%; }
+.book-plate-lead .book-plate-inner { width: fit-content; max-width: 100%; }
+.book-plate-lead .book-plate-inner > img { width: auto; height: auto; max-width: 100%; max-height: calc(var(--ob-page-h) - 6rem); object-fit: contain; }

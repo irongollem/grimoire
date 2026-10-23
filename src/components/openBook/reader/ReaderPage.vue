@@ -33,8 +33,9 @@ const chapterMeta = computed(() => (section.value?.chapter ? CHAPTER_META[sectio
 // has to be on screen to be measured, and the reader corrects the unit once it knows.
 const slots = computed(() => {
   const known = ctx.pagesOf(sectionKey);
-  const wanted = ctx.mode.value === "single" ? unit + 1 : unit * 2 + 1;
-  return unitSlots(unit, ctx.isMeasured(sectionKey) ? known : Math.max(known, wanted), ctx.mode.value);
+  const front = ctx.hasFront(sectionKey);
+  const wanted = ctx.mode.value === "single" ? unit + 1 : unit * 2 + (front ? 1 : 2);
+  return unitSlots(unit, ctx.isMeasured(sectionKey) ? known : Math.max(known, wanted), ctx.mode.value, front);
 });
 const slot = computed<PageSlot>(() => (side === "verso" ? (slots.value.verso ?? { kind: "blank" }) : slots.value.recto));
 /** The recto copy of a spread carries the text for assistive technology; a lone verso must do it itself. */
@@ -59,7 +60,8 @@ const folio = computed(() => {
 const runLeft = computed(() => {
   if (isContents.value) return side === "verso" ? ctx.model.value.snapshot.book.title : "Contents";
   if (side === "verso") return chapterMeta.value ? `${chapterMeta.value.numeral} · ${chapterMeta.value.title}` : (section.value?.title ?? "");
-  return section.value?.entry?.subtitle ?? "";
+  // The recto names the chapter; the entry's own title is on the right and its kind is the eyebrow under it.
+  return chapterMeta.value?.title ?? "";
 });
 const runRight = computed(() => {
   if (isContents.value) return side === "verso" ? "Foreword" : `Release ${release.number}`;

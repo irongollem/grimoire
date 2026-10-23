@@ -5,8 +5,9 @@
  * window onto that same flow, shifted left by `k * pitch`. This module turns "how wide is the flow" into "how many
  * pages", and "which unit is the reader on" into "which pages are on screen".
  *
- * A *unit* is what one turn moves by: a spread (verso + recto) on a wide screen, a single page on a phone. The first
- * page of an article is always a recto, so a spread layout puts a frontispiece on the verso of unit 0.
+ * A *unit* is what one turn moves by: a spread (verso + recto) on a wide screen, a single page on a phone. A section
+ * that opens a chapter has a frontispiece (the chapter title page) on the verso of unit 0 and its article starts on
+ * the recto; every other section starts on the verso, so its first spread shows its first two pages.
  */
 
 /** Wide screens show two pages, phones one. */
@@ -51,9 +52,10 @@ export function pageOfOffset(offsetLeft: number, width: number, gap: number, pag
 }
 
 /** How many turns an article of `pageCount` pages takes to read. */
-export function unitCount(pageCount: number, mode: ReadingMode): number {
+export function unitCount(pageCount: number, mode: ReadingMode, front: boolean): number {
   const pages = Math.max(1, Math.floor(pageCount));
-  return mode === "single" ? pages : Math.ceil((pages + 1) / 2);
+  if (mode === "single") return pages;
+  return Math.ceil((pages + (front ? 1 : 0)) / 2);
 }
 
 export function clampUnit(unit: number, count: number): number {
@@ -61,25 +63,30 @@ export function clampUnit(unit: number, count: number): number {
   return Math.min(Math.max(0, Math.floor(unit)), Math.max(0, count - 1));
 }
 
-function slotAt(virtualPage: number, pageCount: number): PageSlot {
-  if (virtualPage === 0) return { kind: "front" };
-  return virtualPage - 1 < pageCount ? { kind: "page", k: virtualPage - 1 } : { kind: "blank" };
+function slotAt(virtualPage: number, pageCount: number, front: boolean): PageSlot {
+  if (front && virtualPage === 0) return { kind: "front" };
+  const k = front ? virtualPage - 1 : virtualPage;
+  return k < pageCount ? { kind: "page", k } : { kind: "blank" };
 }
 
-/** The pages on screen at `unit`. Spread: virtual pages 2u and 2u+1, where virtual page 0 is the frontispiece. */
-export function unitSlots(unit: number, pageCount: number, mode: ReadingMode): UnitSlots {
+/**
+ * The pages on screen at `unit`. Spread: virtual pages 2u and 2u+1; with a frontispiece virtual page 0 is that
+ * title page and the article starts on virtual page 1.
+ */
+export function unitSlots(unit: number, pageCount: number, mode: ReadingMode, front: boolean): UnitSlots {
   const pages = Math.max(1, Math.floor(pageCount));
   const u = Math.max(0, Math.floor(unit));
   if (mode === "single") {
     return { verso: null, recto: u < pages ? { kind: "page", k: u } : { kind: "blank" } };
   }
-  return { verso: slotAt(2 * u, pages), recto: slotAt(2 * u + 1, pages) };
+  return { verso: slotAt(2 * u, pages, front), recto: slotAt(2 * u + 1, pages, front) };
 }
 
 /** The unit that shows page `k` of an article. */
-export function unitOfPage(k: number, mode: ReadingMode): number {
+export function unitOfPage(k: number, mode: ReadingMode, front: boolean): number {
   const page = Math.max(0, Math.floor(k));
-  return mode === "single" ? page : Math.floor((page + 1) / 2);
+  if (mode === "single") return page;
+  return Math.floor((page + (front ? 1 : 0)) / 2);
 }
 
 /** `?s=` in a URL: a number, or `end` for the last unit of an article whose length is not known yet. */

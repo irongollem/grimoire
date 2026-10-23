@@ -9,7 +9,7 @@
 import { computed } from "vue";
 import { RouterLink, type RouteLocationRaw } from "vue-router";
 import type { OpenBookSnapshot } from "@/types/openBook.types";
-import { leatherGrain, leatherStyle } from "./leather";
+import { leatherGrain, leatherStyle } from "@/lib/openBook/leather";
 
 export interface CoverTab {
   id: string;
@@ -87,7 +87,7 @@ const HANG_COLOURS = ["#8a1e22", "#b8862a", "#2e5a4f"];
       :key="tab.id"
       :to="tab.to"
       :class="['ob-cover-tab', `ob-tab-${tab.id}`]"
-      :style="{ top: `${5.5 + i * 4.625}rem` }"
+      :style="{ '--tab-i': i, '--tab-n': tabs.length }"
       :aria-label="`Open the book at ${tab.label}`"
     >
       {{ tab.label }}

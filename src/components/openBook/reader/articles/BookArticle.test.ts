@@ -74,7 +74,7 @@ describe("BookArticle", () => {
     expect(w.text()).toContain("Lawful neutral");
     expect(w.text()).toContain("Noble house");
     expect(w.text()).toContain("Wary");
-    expect(w.find(".book-cols").exists()).toBe(true);
+    expect(w.find(".book-cols").exists()).toBe(false);
   });
 
   it("lays out a pantheon and its deity", async () => {

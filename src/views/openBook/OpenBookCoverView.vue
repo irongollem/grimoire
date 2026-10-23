@@ -15,6 +15,7 @@ import "@/components/openBook/reader/book.css";
 import { usePublicOpenBook } from "@/composables/openBook/usePublicOpenBook";
 import { IconList, IconSearch } from "@/lib/icons";
 import { MARKETING_URL } from "@/lib/marketing";
+import { pluralize } from "@/lib/openBook/articleData";
 import { buildBookModel } from "@/lib/openBook/bookModel";
 import { readRibbons, keepKnown } from "@/lib/openBook/ribbons";
 import { chapterOpener, sectionLocation, sectionsOf } from "@/lib/openBook/sections";
@@ -98,9 +99,9 @@ onBeforeUnmount(() => {
           <span class="ob-cover-eyebrow">A world kept in Dungeon Grimoire</span>
           <blockquote v-if="found.snapshot.book.subtitle">{{ found.snapshot.book.subtitle }}</blockquote>
           <div v-if="stats" class="ob-cover-stats">
-            <span v-if="stats.places"><b>{{ stats.places }}</b> places</span>
-            <span v-if="stats.folk"><b>{{ stats.folk }}</b> people</span>
-            <span><b>{{ pages }}</b> pages</span>
+            <span v-if="stats.places"><b>{{ stats.places }}</b> {{ pluralize(stats.places, "place") }}</span>
+            <span v-if="stats.folk"><b>{{ stats.folk }}</b> {{ pluralize(stats.folk, "person", "people") }}</span>
+            <span><b>{{ pages }}</b> {{ pluralize(pages, "page") }}</span>
           </div>
         </div>
 
@@ -108,7 +109,7 @@ onBeforeUnmount(() => {
 
         <div class="ob-cover-act">
           <AppButton variant="primary" size="lg" :to="{ name: 'open-book-contents', params: { slug } }" label="Open the book" />
-          <p>Or pull a tab on the edge to open straight at a chapter.</p>
+          <p class="ob-cover-hint">Or pull a tab on the edge to open straight at a chapter.</p>
           <div v-if="ribbonLinks.length > 0" class="ob-cover-ribbons">
             <span v-for="r in ribbonLinks" :key="r.key">
               Your ribbon: <RouterLink :to="r.to">{{ r.title }}</RouterLink>

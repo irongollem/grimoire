@@ -202,26 +202,30 @@
 .ob-cover-ribbons a { color: var(--ob-desk-fg); }
 .ob-cover-ribbons a:hover { color: #d4a646; }
 
-.ob-cover { position: relative; flex: none; width: min(35rem, calc(100vw - 7rem)); aspect-ratio: 7 / 9; margin-right: 3rem; border-radius: 3px 8px 8px 3px; box-shadow: 0 30px 70px rgb(0 0 0 / 0.6), inset 0 0 70px rgb(0 0 0 / 0.5), inset 0 0 0 1px rgb(255 255 255 / 0.06), inset -6px 0 12px rgb(0 0 0 / 0.3); container-type: inline-size; }
+/* The cover is sized from the viewport's height as well as its width, so the desk bar, the whole cover, its button and the colophon fit without scrolling. */
+.ob-cover { position: relative; flex: none; width: min(35rem, calc(100vw - 7rem), max(15rem, calc((100dvh - 14rem) * 7 / 9))); aspect-ratio: 7 / 9; margin-right: 3rem; border-radius: 3px 8px 8px 3px; box-shadow: 0 30px 70px rgb(0 0 0 / 0.6), inset 0 0 70px rgb(0 0 0 / 0.5), inset 0 0 0 1px rgb(255 255 255 / 0.06), inset -6px 0 12px rgb(0 0 0 / 0.3); container-type: inline-size; }
 .ob-spine { position: absolute; inset: 0 auto 0 0; width: 7%; border-radius: 3px 0 0 3px; background: rgb(0 0 0 / 0.32); box-shadow: inset -2px 0 3px rgb(0 0 0 / 0.45), 1px 0 0 rgb(255 255 255 / 0.05); z-index: 3; }
 .ob-band { position: absolute; left: 0; width: 100%; height: 0.4375rem; background: rgb(0 0 0 / 0.35); box-shadow: 0 1px 0 rgb(255 255 255 / 0.08); }
 .ob-edge { position: absolute; right: -0.5625rem; top: 0.625rem; bottom: 0.625rem; width: 0.5625rem; background: repeating-linear-gradient(to bottom, #eee5d3 0, #eee5d3 2px, #d6c9b0 2px, #d6c9b0 3px); border-radius: 0 2px 2px 0; }
 .ob-tool { position: absolute; inset: 4.75% 5.4% 4.75% 11.8%; border: 1px solid #b8862a; box-shadow: inset 0 0 0 7px transparent, inset 0 0 0 8px #b8862a; z-index: 2; }
 .ob-fleuron { position: absolute; width: 0.5625rem; height: 0.5625rem; background: #c9962e; transform: rotate(45deg); }
 .ob-gilt { color: #d9ad52; text-shadow: 0 1px 0 rgb(0 0 0 / 0.55), 0 -1px 0 rgb(255 230 170 / 0.18); }
-.ob-cover-text { position: absolute; inset: 4.75% 5.4% 4.75% 11.8%; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.75rem; text-align: center; padding: 0 1rem; }
-.ob-cover-text .vol { font-family: var(--ob-sans); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.3em; }
-.ob-cover-title { margin: 0; font-family: var(--ob-display); font-weight: 700; letter-spacing: 0.08em; line-height: 1.1; text-transform: uppercase; font-size: clamp(1.5rem, 9.5cqw, 3.25rem); overflow-wrap: anywhere; }
-.ob-cover-sub { font-style: italic; font-size: 1.0625rem; max-width: 17rem; line-height: 1.45; margin: 0; }
+/* Everything on the cover is set in the cover's own width (cqw), with an inset that clears the gilt frame at every size. */
+.ob-cover-text { position: absolute; inset: 4.75% 5.4% 4.75% 11.8%; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5cqw; text-align: center; padding: 9cqw 7cqw; }
+.ob-cover-text .vol { font-family: var(--ob-sans); font-size: clamp(0.625rem, 2.2cqw, 0.75rem); font-weight: 700; letter-spacing: 0.3em; }
+.ob-cover-text svg { width: 24cqw; height: 24cqw; flex: none; }
+.ob-cover-title { margin: 0; font-family: var(--ob-display); font-weight: 700; letter-spacing: 0.08em; line-height: 1.1; text-transform: uppercase; font-size: clamp(1.25rem, 9.5cqw, 3.25rem); overflow-wrap: anywhere; }
+.ob-cover-sub { font-style: italic; font-size: clamp(0.8125rem, 3.2cqw, 1.0625rem); max-width: 17rem; line-height: 1.45; margin: 0; }
 .ob-cover-art { position: absolute; inset: 0 0 0 7%; overflow: hidden; border-radius: 0 8px 8px 0; }
 .ob-cover-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ob-label { position: relative; padding: 1.25rem 1.75rem 1.125rem; text-align: center; box-shadow: 0 4px 10px rgb(0 0 0 / 0.55), inset 0 0 0 1px #b8862a, inset 0 0 0 6px transparent, inset 0 0 0 7px #b8862a, inset 0 0 30px rgb(0 0 0 / 0.45); }
-.ob-cover-label-pos { position: absolute; top: 7.8%; left: 14.6%; right: 7.8%; z-index: 2; display: flex; justify-content: center; }
-.ob-cover-foot { position: absolute; left: 14.6%; right: 7.8%; bottom: 7.5%; z-index: 2; text-align: center; font-style: italic; font-size: 1.0625rem; line-height: 1.45; color: #e6d6b0; text-shadow: 0 1px 3px rgb(0 0 0 / 0.8); }
+.ob-cover-label-pos { position: absolute; top: 9%; left: 16%; right: 9%; z-index: 2; display: flex; justify-content: center; }
+.ob-cover-foot { position: absolute; left: 16%; right: 9%; bottom: 9%; z-index: 2; text-align: center; font-style: italic; font-size: clamp(0.8125rem, 3.2cqw, 1.0625rem); line-height: 1.45; color: #e6d6b0; text-shadow: 0 1px 3px rgb(0 0 0 / 0.8); }
 .ob-plate-frame { padding: 0.375rem; background: #b8862a; box-shadow: 0 3px 8px rgb(0 0 0 / 0.5), inset 0 0 0 1px #7a5a14; width: min(19rem, 80%); }
-.ob-plate-frame > div { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.4); overflow: hidden; height: 15.5rem; }
+.ob-plate-frame > div { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.4); overflow: hidden; height: 32cqw; }
 .ob-plate-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.ob-cover-tab { position: absolute; right: -3.1rem; display: flex; align-items: center; justify-content: center; width: 2.625rem; height: 4.125rem; border-radius: 0 5px 5px 0; writing-mode: vertical-rl; color: #faf6ee; font-family: var(--ob-sans); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; box-shadow: 2px 2px 4px rgb(0 0 0 / 0.35); z-index: 4; transition: right 0.18s ease, width 0.18s ease; }
+/* The tabs share the cover's height: each is at most 4.125rem and shrinks, with the label, when six no longer fit. */
+.ob-cover-tab { position: absolute; right: -3.1rem; top: calc(7% + var(--tab-i) * (86% / var(--tab-n))); display: flex; align-items: center; justify-content: center; width: 2.625rem; height: min(4.125rem, calc(86% / var(--tab-n) - 0.375rem)); border-radius: 0 5px 5px 0; writing-mode: vertical-rl; color: #faf6ee; font-family: var(--ob-sans); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; box-shadow: 2px 2px 4px rgb(0 0 0 / 0.35); z-index: 4; transition: right 0.18s ease, width 0.18s ease; }
 .ob-cover-tab:hover, .ob-cover-tab:focus-visible { right: -3.5rem; width: 3rem; color: #faf6ee; }
 .ob-cover-hang { position: absolute; bottom: -5rem; width: 1.25rem; height: 6.875rem; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%); z-index: 4; }
 
@@ -246,6 +250,13 @@
 .ob-ptab { flex: 1 1 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 0.55rem; height: 2.875rem; border-radius: 4px 4px 0 0; color: #faf6ee; font-family: var(--ob-sans); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .ob-ptab:hover, .ob-ptab:focus-visible { color: #faf6ee; }
 .ob-ptab[aria-current="true"] { height: 3.5rem; box-shadow: 0 -2px 4px rgb(0 0 0 / 0.35); }
+
+/* A phone's cover is too short for six thumb tabs; the reader has its own tab bar and "Open the book" starts at the contents. */
+@media (max-width: 40rem) {
+  .ob-cover { width: calc(100vw - 6rem); margin-right: 0; }
+  .ob-cover-tab, .ob-cover-hint { display: none; }
+  .ob-cover-act { width: 100%; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .ob-lift, .ob-thumb, .ob-cover-tab { transition: none; }

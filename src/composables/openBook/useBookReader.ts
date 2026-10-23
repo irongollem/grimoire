@@ -15,6 +15,7 @@ import { isMarked, keepKnown, readRibbons, toggleRibbon, writeRibbons, type Ribb
 import {
   CONTENTS_KEY,
   estimateSectionPages,
+  hasFrontispiece,
   resolveSection,
   sectionLocation,
   sectionsOf,
@@ -63,9 +64,10 @@ export function useBookReader(book: Ref<PublicOpenBook>) {
   }
   const isMeasured = (key: string) => measured.value[key] !== undefined;
   const pagesOf = (key: string) => measured.value[key] ?? estimates.value.get(key) ?? 1;
+  const hasFront = (key: string) => hasFrontispiece(sections.value, key);
   function unitsOf(key: string): number {
     if (key === CONTENTS_KEY) return mode.value === "single" ? 2 : 1;
-    return unitCount(pagesOf(key), mode.value);
+    return unitCount(pagesOf(key), mode.value, hasFront(key));
   }
 
   // Folios continue across the book. Sections nobody has opened yet are estimated, so a folio ahead of the reader
@@ -145,7 +147,7 @@ export function useBookReader(book: Ref<PublicOpenBook>) {
 
   function revealPage(key: string, page: number) {
     if (key !== section.value?.key) return;
-    const at = unitOfPage(page, mode.value);
+    const at = unitOfPage(page, mode.value, hasFront(key));
     if (at === unit.value) return;
     const loc = locationAt(key, at);
     if (loc) void router.push(loc);
@@ -186,6 +188,7 @@ export function useBookReader(book: Ref<PublicOpenBook>) {
     settled,
     pagesOf,
     isMeasured,
+    hasFront,
     unitsOf,
     folioStartOf,
     reportPages,

@@ -9,6 +9,7 @@ import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { CalendarAdapter } from "@/types/calendar.types";
 import { getCalendarAdapter } from "@/settings";
 import type { SettingCalendarDef } from "@/settings/types";
+import { parseStoredContent } from "@/lib/tiptap/viewerRender";
 import { daysInMonth } from "@/lib/calendar/dayMath";
 import type { BookEntryRef } from "@/lib/openBook/bookModel";
 import type {
@@ -192,6 +193,16 @@ function isCalendarDef(value: unknown): value is SettingCalendarDef {
   return Array.isArray(rec.months) && Array.isArray(rec.intercalaryDays) && typeof rec.name === "string";
 }
 
+/** The noun agreed with a count: "tale" for 1, "tales" otherwise. Irregular plurals are passed in. */
+export function pluralize(n: number, one: string, many: string = `${one}s`): string {
+  return n === 1 ? one : many;
+}
+
+/** "1 tale", "4 tales". */
+export function countLabel(n: number, one: string, many?: string): string {
+  return `${n} ${pluralize(n, one, many)}`;
+}
+
 /** The campaign's calendar as the app builds it, or null when the snapshot names none. */
 export function calendarAdapterFor(calendar: OpenBookSnapshot["calendar"]): CalendarAdapter | null {
   if (calendar.calendar_id === null) return isCalendarDef(calendar.custom_calendar) ? getCalendarAdapter("custom", calendar.custom_calendar) : null;
@@ -318,4 +329,60 @@ function ordinal(n: number): string {
   const tens = n % 100;
   if (tens >= 11 && tens <= 13) return `${n}th`;
   return `${n}${["th", "st", "nd", "rd"][n % 10 > 3 ? 0 : n % 10]}`;
+}
+
+// ── A session's lead picture ────────────────────────────────────────────────
+
+export interface LeadImage {
+  src: string;
+  alt: string | null;
+}
+
+export interface SplitLead {
+  leadImage: LeadImage | null;
+  /** The stored document with the lead picture taken out, or what was stored when it holds none. */
+  docWithoutIt: unknown;
+}
+
+type Json = Record<string, unknown>;
+
+function isJson(value: unknown): value is Json {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function usableSrc(value: unknown): value is string {
+  return typeof value === "string" && /^(https?:\/\/|\/(?!\/))/i.test(value.trim());
+}
+
+/** Depth-first: the first usable image of a node list, with the list rebuilt without it (and without a parent it emptied). */
+function takeFirstImage(nodes: unknown[]): { image: LeadImage; rest: unknown[] } | null {
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    if (!isJson(node)) continue;
+    const attrs = isJson(node.attrs) ? node.attrs : {};
+    if (node.type === "image" && usableSrc(attrs.src)) {
+      const alt = typeof attrs.alt === "string" && attrs.alt.trim() !== "" ? attrs.alt : null;
+      return { image: { src: attrs.src, alt }, rest: [...nodes.slice(0, i), ...nodes.slice(i + 1)] };
+    }
+    if (Array.isArray(node.content)) {
+      const inner = takeFirstImage(node.content);
+      if (inner) {
+        const next = inner.rest.length === 0 && node.type !== "doc" ? [] : [{ ...node, content: inner.rest }];
+        return { image: inner.image, rest: [...nodes.slice(0, i), ...next, ...nodes.slice(i + 1)] };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * A session report's first picture is its lead plate, shown big under the title. This pulls it out of the stored
+ * content so it is not printed twice; a report with no usable image comes back as it was.
+ */
+export function splitLeadImage(content: object | string | null | undefined): SplitLead {
+  const doc = parseStoredContent(content);
+  if (!isJson(doc) || !Array.isArray(doc.content)) return { leadImage: null, docWithoutIt: doc };
+  const found = takeFirstImage(doc.content);
+  if (!found) return { leadImage: null, docWithoutIt: doc };
+  return { leadImage: found.image, docWithoutIt: { ...doc, content: found.rest } };
 }

@@ -25,6 +25,8 @@ export interface ReaderContext {
   /** Pages a section has: measured once it has been laid out, estimated before. */
   pagesOf(key: string): number;
   isMeasured(key: string): boolean;
+  /** Whether a section opens with its chapter's title page; only a chapter's first section does. */
+  hasFront(key: string): boolean;
   /** The folio of a section's first page. */
   folioStartOf(key: string): number;
   reportPages(key: string, count: number, layout: string): void;

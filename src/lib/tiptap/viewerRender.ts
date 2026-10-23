@@ -441,6 +441,9 @@ function renderNode(node: JsonNode): VNodeChild | null {
       return renderCell("td", node);
     case "columns":
       return h("div", { "data-type": "columns" }, renderBlocks(node.content));
+    case "descriptiveBlock":
+      // The read-aloud callout: the same div, data-type and class the extension's renderHTML writes.
+      return h("div", { "data-type": "descriptiveBlock", class: "sc-descriptive" }, renderBlocks(node.content));
     case "aiGenerated":
       return h(
         "div",

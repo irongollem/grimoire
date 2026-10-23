@@ -10,7 +10,7 @@ import { RouterLink, useRoute } from "vue-router";
 import { renderStoredDoc } from "@/lib/tiptap/viewerRender";
 import type { BookModel } from "@/lib/openBook/bookModel";
 
-const { content, model } = defineProps<{ content: string | null; model: BookModel }>();
+const { content, model } = defineProps<{ content: unknown; model: BookModel }>();
 
 const route = useRoute();
 

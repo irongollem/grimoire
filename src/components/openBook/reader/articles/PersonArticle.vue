@@ -32,7 +32,6 @@ const hasFacts = computed(
       :src="person.portrait_url"
       :alt="`Portrait of ${person.name}`"
       shape="portrait"
-      :focal-point="person.portrait_focal_point"
     />
     <header>
       <span v-if="person.occupation" class="book-eyebrow">{{ person.occupation }}</span>

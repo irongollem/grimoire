@@ -47,37 +47,37 @@ describe("columns", () => {
 
 describe("units", () => {
   it("counts spreads with a frontispiece on the first verso", () => {
-    expect(unitCount(1, "spread")).toBe(1);
-    expect(unitCount(2, "spread")).toBe(2);
-    expect(unitCount(3, "spread")).toBe(2);
-    expect(unitCount(4, "spread")).toBe(3);
+    expect(unitCount(1, "spread", true)).toBe(1);
+    expect(unitCount(2, "spread", true)).toBe(2);
+    expect(unitCount(3, "spread", true)).toBe(2);
+    expect(unitCount(4, "spread", true)).toBe(3);
   });
 
   it("counts a page per unit on a phone", () => {
-    expect(unitCount(4, "single")).toBe(4);
-    expect(unitCount(0, "single")).toBe(1);
+    expect(unitCount(4, "single", true)).toBe(4);
+    expect(unitCount(0, "single", true)).toBe(1);
   });
 
   it("puts the first page on a recto", () => {
-    expect(unitSlots(0, 3, "spread")).toEqual({ verso: { kind: "front" }, recto: { kind: "page", k: 0 } });
-    expect(unitSlots(1, 3, "spread")).toEqual({ verso: { kind: "page", k: 1 }, recto: { kind: "page", k: 2 } });
+    expect(unitSlots(0, 3, "spread", true)).toEqual({ verso: { kind: "front" }, recto: { kind: "page", k: 0 } });
+    expect(unitSlots(1, 3, "spread", true)).toEqual({ verso: { kind: "page", k: 1 }, recto: { kind: "page", k: 2 } });
   });
 
   it("leaves the recto blank when the last page falls on a verso", () => {
-    expect(unitSlots(1, 2, "spread")).toEqual({ verso: { kind: "page", k: 1 }, recto: { kind: "blank" } });
+    expect(unitSlots(1, 2, "spread", true)).toEqual({ verso: { kind: "page", k: 1 }, recto: { kind: "blank" } });
   });
 
   it("shows one page in single mode", () => {
-    expect(unitSlots(2, 4, "single")).toEqual({ verso: null, recto: { kind: "page", k: 2 } });
-    expect(unitSlots(9, 4, "single").recto).toEqual({ kind: "blank" });
+    expect(unitSlots(2, 4, "single", true)).toEqual({ verso: null, recto: { kind: "page", k: 2 } });
+    expect(unitSlots(9, 4, "single", true).recto).toEqual({ kind: "blank" });
   });
 
   it("finds the unit of a page", () => {
-    expect(unitOfPage(0, "spread")).toBe(0);
-    expect(unitOfPage(1, "spread")).toBe(1);
-    expect(unitOfPage(2, "spread")).toBe(1);
-    expect(unitOfPage(3, "spread")).toBe(2);
-    expect(unitOfPage(3, "single")).toBe(3);
+    expect(unitOfPage(0, "spread", true)).toBe(0);
+    expect(unitOfPage(1, "spread", true)).toBe(1);
+    expect(unitOfPage(2, "spread", true)).toBe(1);
+    expect(unitOfPage(3, "spread", true)).toBe(2);
+    expect(unitOfPage(3, "single", true)).toBe(3);
   });
 
   it("clamps into range", () => {
@@ -123,5 +123,26 @@ describe("folios", () => {
     expect(toRoman(9)).toBe("ix");
     expect(toRoman(2024)).toBe("mmxxiv");
     expect(toRoman(0)).toBe("0");
+  });
+});
+
+describe("a section without a frontispiece", () => {
+  it("starts on the verso: the first spread is the first two pages", () => {
+    expect(unitSlots(0, 3, "spread", false)).toEqual({ verso: { kind: "page", k: 0 }, recto: { kind: "page", k: 1 } });
+    expect(unitSlots(1, 3, "spread", false)).toEqual({ verso: { kind: "page", k: 2 }, recto: { kind: "blank" } });
+  });
+  it("counts spreads without the title page", () => {
+    expect(unitCount(1, "spread", false)).toBe(1);
+    expect(unitCount(2, "spread", false)).toBe(1);
+    expect(unitCount(3, "spread", false)).toBe(2);
+  });
+  it("finds the spread of a page", () => {
+    expect(unitOfPage(0, "spread", false)).toBe(0);
+    expect(unitOfPage(1, "spread", false)).toBe(0);
+    expect(unitOfPage(2, "spread", false)).toBe(1);
+  });
+  it("changes nothing on a phone", () => {
+    expect(unitSlots(2, 4, "single", false)).toEqual({ verso: null, recto: { kind: "page", k: 2 } });
+    expect(unitCount(4, "single", false)).toBe(4);
   });
 });

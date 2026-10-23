@@ -34,6 +34,7 @@ import Typography from "@tiptap/extension-typography";
 import { Columns } from "./Columns";
 import { AiGenerated } from "./AiGenerated";
 import { SecretBlock } from "./secretBlock";
+import { DescriptiveBlock } from "./descriptiveBlock";
 import { CalendarEventRef } from "./CalendarEventRef";
 import { createEntityMentionExtension } from "./EntityMention";
 import { IllustrationSuggestion } from "./IllustrationSuggestion";
@@ -112,6 +113,7 @@ function viewerExtensions(): Extensions {
     PendingImage,
     AiGenerated,
     SecretBlock,
+    DescriptiveBlock,
   ];
 }
 
@@ -328,6 +330,10 @@ const FIXTURES: Record<string, JSONContent> = {
     { type: "aiGenerated", attrs: { model: "gpt-x" }, content: [p(t("model text"))] },
     { type: "aiGenerated", content: [p(t("unknown model"))] },
   ),
+  "read-aloud box holding paragraphs and a list": doc({
+    type: "descriptiveBlock",
+    content: [p(t("The door groans open.")), { type: "bulletList", content: [{ type: "listItem", content: [p(t("cold air"))] }] }],
+  }),
   "secret block, nested and holding a list": doc({
     type: "secretBlock",
     content: [p(t("the vizier is the lich")), { type: "bulletList", content: [{ type: "listItem", content: [p(t("clue"))] }] }],
