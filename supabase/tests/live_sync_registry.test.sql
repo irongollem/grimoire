@@ -85,7 +85,9 @@ insert into live_sync_doorbell (name) values
   ('npc_memories'),
   ('character_caretakers'),
   -- Family trees (#1083).
-  ('kin_links');
+  ('kin_links'),
+  -- Open Book (#1085): the owner's settings, releases and choices, read by the owner only.
+  ('open_books'), ('open_book_releases'), ('open_book_entries');
 
 -- Campaign tables deliberately on no route, each with the reason. Grimoire
 -- runs live games, so a table a member's screen reads is live by default; the
