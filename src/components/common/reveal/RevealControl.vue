@@ -25,7 +25,7 @@
   <div ref="containerRef" class="relative flex w-fit">
     <AppButton
       v-bind="buttonProps"
-      :icon="state === 'private' ? IconHide : IconReveal"
+      :icon="triggerIcon"
       :title="title"
       :aria-expanded="open"
       aria-haspopup="dialog"
@@ -62,6 +62,8 @@
           :party="party"
           :adapter="adapter"
           :state="state"
+          :book="bookProps"
+          @toggle-book="book.toggle()"
           @close="open = false"
         >
           <template v-if="$slots.identity" #identity>
@@ -78,6 +80,8 @@
         :party="party"
         :adapter="adapter"
         :state="state"
+        :book="bookProps"
+        @toggle-book="book.toggle()"
         @close="open = false"
       >
         <template v-if="$slots.identity" #identity>
@@ -95,13 +99,14 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION, ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariants";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import RevealBody from "@/components/common/reveal/RevealBody.vue";
+import { useBookReveal, type BookEntryRef } from "@/composables/openBook/useBookReveal";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useParty } from "@/composables/party/useParty";
-import { IconHide, IconReveal } from "@/lib/icons";
+import { IconHide, IconOpenBook, IconReveal } from "@/lib/icons";
 import { revealLabel, revealState } from "@/lib/reveal";
 import type { RevealAdapter, RevealForm } from "@/lib/reveal";
 
-const { adapter, entityName, form = "button" } = defineProps<{
+const { adapter, entityName, form = "button", bookEntry } = defineProps<{
   /** Bridges whichever storage model this entity uses. See `lib/reveal`. */
   adapter: RevealAdapter;
   /** Used in the control's title and the sheet's heading. */
@@ -139,6 +144,14 @@ const { adapter, entityName, form = "button" } = defineProps<{
    * wrapping.
    */
   form?: RevealForm;
+  /**
+   * The entry this control is about, when its kind can go in the Open Book
+   * (#1085). Without it the popover has no book section and the trigger never
+   * shows the fourth state; quests, recipes, handouts, monsters, puzzles and
+   * embeds simply do not pass it. The section also stays out of sight unless
+   * the viewer owns the campaign and it has a book (see `useBookReveal`).
+   */
+  bookEntry?: BookEntryRef;
 }>();
 
 const { data: partyData } = useParty();
@@ -147,7 +160,21 @@ const partyIds = computed(() => party.value.map((m) => m.id));
 
 const state = computed(() => revealState(partyIds.value, adapter.isMemberVisible));
 const sharedCount = computed(() => partyIds.value.filter(adapter.isMemberVisible).length);
-const label = computed(() => revealLabel(state.value, sharedCount.value));
+
+const book = useBookReveal(() => bookEntry, adapter);
+/** Only the settled answer reaches the trigger: "in the book" needs a book, an owner and a fully shared entry. */
+const inBook = computed(() => book.inBook.value);
+const bookProps = computed(() => ({
+  available: book.available.value,
+  eligible: book.eligible.value,
+  inBook: book.inBook.value,
+  missingMemberName: book.missingMemberName.value,
+}));
+const triggerIcon = computed(() => {
+  if (inBook.value) return IconOpenBook;
+  return state.value === "private" ? IconHide : IconReveal;
+});
+const label = computed(() => revealLabel(state.value, sharedCount.value, inBook.value));
 
 const title = computed(() =>
   entityName ? `Reveal ${entityName} to players` : "Reveal to players",
@@ -208,11 +235,18 @@ const buttonProps = computed(() => {
   // something you can press, which is the exact failure this control was
   // written to end. Quiet is not the same as invisible, and a bordered box is
   // what the rest of the app uses to say "this is a control".
-  const stateful = {
-    variant: state.value === "private" ? "subtle" : "tinted",
-    tone: state.value === "private" ? undefined : "primary",
-    emphasis: state.value === "everyone" ? "strong" : "soft",
-  } as const;
+  //
+  // "In the book" is the fourth state and the loudest: `live` is the solid
+  // oxblood fill (vellum.css repaints it), the one place a reveal control is
+  // not a tinted outline. Nothing else about the box changes, so the control
+  // still reads as the same control with one more thing true of it.
+  const stateful = inBook.value
+    ? ({ variant: "live", tone: undefined, emphasis: "strong" } as const)
+    : ({
+        variant: state.value === "private" ? "subtle" : "tinted",
+        tone: state.value === "private" ? undefined : "primary",
+        emphasis: state.value === "everyone" ? "strong" : "soft",
+      } as const);
 
   if (form === "inline") {
     return { ...stateful, size: "icon-xs", class: ICON_TOUCH_TARGET, ariaLabel: title.value } as const;

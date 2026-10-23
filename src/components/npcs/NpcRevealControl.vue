@@ -11,7 +11,7 @@
 
     This owns all three behaviours, so every NPC surface gets the same one.
   -->
-  <RevealControl :adapter="adapter" :entity-name="npc.name" :form="form">
+  <RevealControl :adapter="adapter" :entity-name="npc.name" :form="form" :book-entry="{ type: 'npc', id: npc.id }">
     <template v-if="hasDisguise" #identity>
       <NpcAlterEgoControl :revealed="isRevealed" @change="setRevealed" />
     </template>

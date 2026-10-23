@@ -95,6 +95,7 @@
         <AudienceRevealControl
           :name="form.name"
           :visible-to="form.player_visible_to"
+          :book-entry="faction ? { type: 'faction', id: faction.id } : undefined"
           @change="form.player_visible_to = $event"
         />
       </div>

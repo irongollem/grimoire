@@ -127,6 +127,7 @@
               <AudienceRevealControl
                 :name="deity.name"
                 :visible-to="deity.player_visible_to"
+                :book-entry="{ type: 'deity', id: deity.id }"
                 form="overlay"
                 @change="(next) => revealDeity(deity.id, next)"
               />
@@ -168,6 +169,7 @@
               <AudienceRevealControl
                 :name="deity.name"
                 :visible-to="deity.player_visible_to"
+                :book-entry="{ type: 'deity', id: deity.id }"
                 @change="(next) => revealDeity(deity.id, next)"
               />
             </template>

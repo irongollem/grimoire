@@ -6,6 +6,12 @@ import NpcList from "./NpcList.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { Npc } from "@/types/npc.types";
 
+// The Open Book pair in the bulk bar reads the book through TanStack Query; these tests mount without a client.
+vi.mock("@/composables/openBook/useBulkOpenBook", () => ({
+  useBulkOpenBook: () => ({ available: ref(false), busy: ref(false), add: vi.fn(), remove: vi.fn() }),
+}));
+
+
 function npc(overrides: Partial<Npc> = {}): Npc {
   return {
     id: `n-${Math.random().toString(36).slice(2)}`,

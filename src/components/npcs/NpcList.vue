@@ -13,7 +13,15 @@
       @stop="bulk.stop"
       @move="moveSelection"
       @copy="openCopyDialog"
-    />
+    >
+      <BulkOpenBookActions
+        entity-type="npc"
+        noun="NPC"
+        :selected-ids="[...bulk.selectedIds.value]"
+        :visible-to-of="npcVisibleTo"
+        :busy="bulkMoving"
+      />
+    </BulkScopeBar>
 
     <ListSkeleton
       v-if="isLoading"
@@ -187,6 +195,7 @@ import type { NpcListRow } from "@/types/npc.types";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import { storeToRefs } from "pinia";
+import BulkOpenBookActions from "@/components/common/list/BulkOpenBookActions.vue";
 import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
@@ -389,6 +398,10 @@ const { moving: bulkMoving, move: moveSelection } = useMoveToCampaignFlow({
   stop: bulk.stop,
   campaignName: () => activeCampaign.value?.name ?? null,
 });
+
+function npcVisibleTo(id: string): readonly string[] | undefined {
+  return npcs.value?.find((n) => n.id === id)?.player_visible_to;
+}
 
 function toggleSelectMode() {
   if (bulk.selecting.value) bulk.stop();

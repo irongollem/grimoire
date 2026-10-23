@@ -10,6 +10,7 @@
       <AudienceRevealControl
         :name="note.title"
         :visible-to="note.player_visible_to"
+        :book-entry="{ type: 'note', id: note.id }"
         @change="reveal"
       />
       <button

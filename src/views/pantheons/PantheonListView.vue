@@ -68,6 +68,7 @@
                 <AudienceRevealControl
                   :name="pantheon.name"
                   :visible-to="pantheon.player_visible_to"
+                  :book-entry="{ type: 'pantheon', id: pantheon.id }"
                   form="overlay"
                   @change="(next) => revealPantheon(pantheon.id, next)"
                 />
@@ -99,6 +100,7 @@
               <AudienceRevealControl
                 :name="pantheon.name"
                 :visible-to="pantheon.player_visible_to"
+                :book-entry="{ type: 'pantheon', id: pantheon.id }"
                 form="inline"
                 @change="(next) => revealPantheon(pantheon.id, next)"
               />

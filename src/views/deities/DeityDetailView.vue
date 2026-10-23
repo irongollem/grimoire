@@ -25,6 +25,7 @@
         v-if="!isEditing && deity?.id"
         :name="deity.name"
         :visible-to="deity.player_visible_to"
+        :book-entry="{ type: 'deity', id: deity.id }"
         @change="revealDeity($event)"
       />
 

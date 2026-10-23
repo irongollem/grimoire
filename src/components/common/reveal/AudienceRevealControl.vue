@@ -21,7 +21,7 @@
     commit changes the DM has not agreed to yet — and would fight the form's
     dirty tracking.
   -->
-  <RevealControl :adapter="adapter" :entity-name="name" :form="form">
+  <RevealControl :adapter="adapter" :entity-name="name" :form="form" :book-entry="bookEntry">
     <template v-if="$slots.identity" #identity>
       <slot name="identity" />
     </template>
@@ -35,15 +35,18 @@
 import { ref, watch } from "vue";
 import RevealControl from "@/components/common/reveal/RevealControl.vue";
 import { useParty } from "@/composables/party/useParty";
+import type { BookEntryRef } from "@/composables/openBook/useBookReveal";
 import { arrayRevealAdapter } from "@/lib/reveal";
 import type { RevealForm } from "@/lib/reveal";
 
-const { visibleTo, form = "button" } = defineProps<{
+const { visibleTo, form = "button", bookEntry } = defineProps<{
   /** Party member ids currently revealed to. */
   visibleTo: string[];
   /** Names the entity in the control's title and the sheet's heading. */
   name?: string;
   form?: RevealForm;
+  /** Pass for kinds that can go in the Open Book (notes, factions, deities, pantheons); see `RevealControl`. */
+  bookEntry?: BookEntryRef;
 }>();
 
 const emit = defineEmits<{ change: [string[]] }>();

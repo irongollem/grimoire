@@ -22,6 +22,7 @@
         v-if="!isEditing && pantheon?.id"
         :name="pantheon.name"
         :visible-to="pantheon.player_visible_to"
+        :book-entry="{ type: 'pantheon', id: pantheon.id }"
         @change="revealPantheon($event)"
       />
 

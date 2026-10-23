@@ -53,6 +53,7 @@
         <AudienceRevealControl
           :name="form.name"
           :visible-to="form.player_visible_to"
+          :book-entry="pantheon ? { type: 'pantheon', id: pantheon.id } : undefined"
           @change="form.player_visible_to = $event"
         />
       </div>
