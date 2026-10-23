@@ -13,9 +13,9 @@ describe("cellsInRect", () => {
 });
 
 describe("rectangleGesture", () => {
-  it("carries the variant flag through unused", () => {
-    expect(rectangleGesture(0, 0, 0, 0, true).variant).toBe(true);
-    expect(rectangleGesture(0, 0, 0, 0, false).variant).toBe(false);
+  it("carries the walls option through unused", () => {
+    expect(rectangleGesture(0, 0, 0, 0, true).withWalls).toBe(true);
+    expect(rectangleGesture(0, 0, 0, 0, false).withWalls).toBe(false);
   });
 
   it("cells match cellsInRect", () => {

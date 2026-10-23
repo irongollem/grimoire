@@ -89,7 +89,7 @@ Since 14 Oct 2026 the library packs are painted outside the app, by an image age
 
 **The art is a sprite sheet cut afterwards (#1065).** A set is painted as a few sheets (one seamless floor, a structure sheet, scatter and glyphs) so it reads as one place, then cut into the 128×128 tiles. The manifest fields no tile can carry come from an optional `pack.json` beside the tiles (`SIDECAR_FILE`, parsed by `parsePackSidecar` in `scripts/lib/tile-pack-publish.ts`): `continuous` (category to period, a positive integer), `labels` (category to non-empty names) and `doorLeaf` (`hingeX` and `hingeY` from 0 to 1, `openDegrees` from 1 to 180). Every problem in the file is reported, not just the first, and nothing invalid is applied. The sidecar is the only source of these fields: `buildManifest` never inherits them from the older published version, for the same reason it never inherits slots. Without a `pack.json` the pack has none of them.
 
-`wallRoundJoint` is left out of these packs (`--exclude wallRoundJoint`) until #1063: the renderer puts a round joint's carve on the outside of a room's corner, so on a rectangular room each corner draws as a square block of wall. Without the category, maps fall back to the plain `wallJoint` squares, which draw correctly.
+Rounded wall joints (`wallRoundJoint`) no longer exist: #1063 removed the category, its art slots and the renderer path. A rounded room now comes from the vector Brush, and Shift+click brush lines give a rectangular room corners rounded at the brush radius.
 
 ### Editing a library pack (#900)
 
@@ -172,7 +172,6 @@ The schema is at **version 4**. Three kinds of category exist: `random` (interch
 | `wallSegmentH` | required | 2 to 6 variants |
 | `wallSegmentV` | required | 2 to 6 variants (rotation-derived from H) |
 | `wallJoint` | optional | directional: L_NE, L_SE, L_SW, L_NW, T_N, T_E, T_S, T_W, CROSS |
-| `wallRoundJoint` | optional | directional: L_NE, L_SE, L_SW, L_NW |
 | `doorwayH` | required | 1 to 3 variants: the opening and its frame, in the wall band |
 | `doorwayV` | required | 1 to 3 variants (rotation-derived from `doorwayH`) |
 | `doorLeaf` | required | 1 to 3 variants: the door alone, never squashed |
@@ -256,7 +255,7 @@ tile-packs/stone-dungeon/v1/doorLeaf/0.webp
 tile-packs/stone-dungeon/v1/solidBlock/0.webp
 ```
 
-Directional categories (`wallJoint`, `wallRoundJoint`, `stairsUp`, `stairsDown`) keep the `<side>/` subfolder; random categories store variants directly under the category folder.
+Directional categories (`wallJoint`, `stairsUp`, `stairsDown`) keep the `<side>/` subfolder; random categories store variants directly under the category folder.
 
 The starter Stone pack mirrors this under `public/cartographer/stone-dungeon/v1/`.
 
@@ -313,7 +312,7 @@ An import may record provider, model, quality, provider request id, duration, to
 - a procedurally assembled sample map;
 - a machine-readable validation report.
 
-The checked vertical slice is `celestial-observatory/v1`: all schema-required slots (20 at schema 1 to 3, 19 since the door tiles became a doorway and a leaf) plus directional rounded-corner, staircase, and cross-junction proofs. It demonstrates a non-standard theme with real interactively generated artwork; optional prop categories remain intentionally ungenerated.
+The checked vertical slice is `celestial-observatory/v1`: all schema-required slots (20 at schema 1 to 3, 19 since the door tiles became a doorway and a leaf) plus directional staircase and cross-junction proofs. It demonstrates a non-standard theme with real interactively generated artwork; optional prop categories remain intentionally ungenerated.
 
 This tooling is maintainer-only. It does not implement #384's customer UI, uploads/storage, RLS, campaign sharing, PRO gates, credit reservations, cancellation/refunds, or direct Images API execution.
 
@@ -323,7 +322,7 @@ The #772 vertical slice supports a qualified **yes**: a user can eventually choo
 
 The experiment established a useful boundary:
 
-- Code can guarantee schema coverage, slot identity, paths, dimensions, WebP encoding, alpha masks, doorway openings, rounded-corner silhouettes, stable variation selection, retry isolation, and reproducible QA.
+- Code can guarantee schema coverage, slot identity, paths, dimensions, WebP encoding, alpha masks, doorway openings, stable variation selection, retry isolation, and reproducible QA.
 - Image generation can produce a coherent non-standard visual family and genuinely distinct variants when every job shares an approved art bible and representative visual references.
 - Image generation does not reliably guarantee exact geometry, transparency, seamlessness, orientation, or absence of white/checkerboard residue. Those failures occurred even with explicit prompts and templates; deterministic normalization and QA caught or repaired them.
 - Global quality cannot be judged slot-by-slot. Contact sheets, tiled fields, seams, and assembled-map previews are necessary to expose repetition and cross-category drift.
@@ -339,9 +338,10 @@ A production implementation in #384 should therefore be a durable staged job, no
 7. publish only after hard validation passes, while presenting the result as review-ready and allowing individual user replacement/regeneration.
 
 Use `gpt-image-2` low for every normal production candidate. A bounded
-`gpt-image-1-mini` low-quality experiment found the cheaper model promising for
+`gpt-image-1-mini` low-quality experiment (run when rounded joints still existed;
+#1063 removed them) found the cheaper model promising for
 a full-cell floor after 128×128 reduction, but unreliable for open-door alpha
-and rounded-junction coverage even with geometry and style references. At the
+and rounded-corner coverage even with geometry and style references. At the
 time of the experiment, a matched two-prompt comparison put Image 2 at roughly
 30% above mini after estimated text input. Image 2 produced a usable normalized
 open door where mini collapsed to black and improved rounded-mask IoU from
@@ -352,8 +352,8 @@ not drafts awaiting an automatic medium/high upgrade.
 Retry failed slots at low quality within the bounded attempt policy. Medium or
 high quality is a manual escape hatch for a persistent artistic failure, not a
 routine pipeline stage. This avoids paying twice for every successful tile and
-keeps one predictable baseline across simple floors, transparent doors, rounded
-corners, stairs, and other complex slots. Keep the routing policy out of the
+keeps one predictable baseline across simple floors, transparent doors,
+stairs, and other complex slots. Keep the routing policy out of the
 tile-pack schema and record provider/model/quality on each attempt.
 
 The generation plan in this ticket is the provider-neutral input to that flow. #384 must add durable queues, provider request ids, cancellation, storage/RLS, credit reservation/finalization/refunds, progress UI, and recovery for interrupted jobs. It should not promise "perfected" output: the defensible product promise is a **complete, validated, coherently generated tileset with bounded automated refinement and user-controlled final review**.
@@ -617,17 +617,17 @@ The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer
 
 | Cluster | Tool          | Hotkey | Layer       | Notes                                                  |
 | ------- | ------------- | ------ | ----------- | ------------------------------------------------------ |
-| Look    | Select        | Esc    | none        | The default tool on open. Click selects a cell for the options slip's read-only summary; drag pans, exactly like Pan: a DM's first tap never paints. |
-| Look    | Pan           | RMB    | none        | Right-mouse drag; middle-mouse or space-drag also pans. |
-| Floor   | Brush         | `V`    | floor       | Paints round brushed areas (`layers.area`), not cell by cell. |
-| Floor   | Tiles         | `B`    | floor       | Paints floor cells with a random variant.              |
-| Floor   | Rectangle     | `R`    | floor       | Drag to fill a rect with floor. Shift = wrap walls.    |
-| Floor   | Line          | `L`    | floor       | Drag to draw a single-tile-wide line of floor.         |
+| Look    | Select        | `V` (Esc returns to it) | none | The default tool on open. Click selects a cell for the options slip's read-only summary; drag pans, exactly like Pan: a DM's first tap never paints. |
+| Look    | Pan           | `H`    | none        | Drag to move the map. Space+drag or the middle button pans with any tool, on either layer; Shift never pans. |
+| Floor   | Brush         | `B`    | floor       | Paints round brushed areas (`layers.area`), not cell by cell. Shift+click draws a straight stroke from where the last one ended; Shift+drag snaps to 45°. |
+| Floor   | Tiles         | `I`    | floor       | Paints floor cells with a random variant. Shift+click draws a straight run from the last painted cell; Shift+drag snaps to 45°. |
+| Floor   | Rectangle     | `R`    | floor       | Drag to fill a rect with floor. Shift = square. The options slip has a Walls toggle (on by default) that wraps the perimeter in walls. |
+| Floor   | Line          | `L`    | floor       | Drag to draw a single-tile-wide line of floor. Shift = 45° steps. |
 | Floor   | Room          | `M`    | floor       | Stamps a whole room shape (circle, octagon, hex).      |
 | Floor   | Fill          | `F`    | floor       | Flood-fill contiguous floor cells.                     |
-| Floor   | Water         | `H`    | terrain     | Paints terrain (the pack's `terrainWater`) with the floor brush's shapes; see "Terrain and curbs". |
-| Floor   | Rock          | `S`    | solidBlock  | Full-cell thick walls (battlement, mountain rock).     |
-| Walls   | Wall          | `W`    | floor.edges | Edge-hover targeting; the options slip picks Wall, Grate, Sluice or Decal ("Wall kinds and decals"). |
+| Floor   | Water         | `A`    | terrain     | Paints terrain (the pack's `terrainWater`) with the floor brush's shapes; see "Terrain and curbs". Shift behaves as on Tiles. |
+| Floor   | Rock          | `S`    | solidBlock  | Full-cell thick walls (battlement, mountain rock). Shift behaves as on Tiles. |
+| Walls   | Wall          | `W`    | floor.edges | Edge-hover targeting; the options slip picks Wall, Grate, Sluice or Decal ("Wall kinds and decals"). Shift+click runs a straight wall from the last one; Shift+drag stays on one grid line. |
 | Walls   | Door          | `D`    | floor.edges | Replaces wall on an edge; toggles open/closed.         |
 | Walls   | Wrap          | `X`    | floor.edges | One-shot: walls every floor-region edge facing void.   |
 | Things  | Place         | `O` or `G` | object, dressing | One tool for the set's objects (chests, statues, braziers, stairs, rubble, debris) and the Dressing books' props (#1062); see "Place tool" below. |
@@ -658,11 +658,12 @@ The prop gestures live in `useDressingTool.ts`, wired from `useMapCanvasEditor.t
 
 #### UX notes for edge-based tools
 
-- **Wall targeting**: when the cursor is within 25% of a cell edge, that edge highlights as a thick coloured strip. Click places a wall on it. Drag along multiple edges to lay a continuous run. `Shift`+click a cell = walls on all 4 of its edges.
+- **Wall targeting**: when the cursor is within 25% of a cell edge, that edge highlights as a thick coloured strip. Click places a wall on it. Drag along multiple edges to lay a continuous run; a drag locks to one direction. `Shift`+click runs a straight wall from the last wall point to the grid vertex nearest the pointer, along whichever axis is longer, as one undo step; `Shift` while dragging also keeps the stroke on the row or column it began on. To wall in a whole room use Wrap (`X`) or the Rectangle's Walls toggle.
 - **Door tool**: hovers the same way as the wall brush. Click on a wall edge converts it to `doorClosed`. Click an existing door toggles `doorClosed` ↔ `doorOpen`, which swings the leaf (see Wall Rendering). Right-click removes the door, leaving the wall. The tool did not change with schema 4.
 - **Rock vs. Wall**: these are two different tools by design. Wall gives you a thin wall on an edge (a curtain, a partition, a worked-stone room boundary). Rock gives you a thick wall in a cell (a sand-filled battlement, mountain rock, a 5 ft slab of masonry). The DM picks based on the dungeon's mass.
-- **Rectangle + Shift**: Shift-dragging the rectangle tool fills the area with floor *and* runs `wrap walls` on the rectangle perimeter — the most common "make a room" gesture.
-- **Alt inverts a painting tool**: the same modifier idea the Plan's Door tool already used for Alt+click-to-delete (`usePlanCanvasTools.ts`). Holding Alt while a Drawing tool would paint erases what it paints instead, as one undoable stroke: floor → `eraseCell`, brush → `applyDiscs(..., "erase")`, solid → `eraseSolidAt`, Place → `eraseObjectAt`, wall → `eraseWallAtCellEdge`, door → `removeDoorAtEdge` (same function RMB already used), rect/line/template → erase the cells the shape covers. Select/Pan/Fill/Wrap/Label/Link/Eraser/Space have no inverse and ignore Alt. RMB/middle/shift still pan exactly as before; Alt is a separate, additive modifier, never a pan trigger. The options slip's title appends " · erase" while Alt is held over an invertible tool; Alt state is tracked at the window level (`altHeld` in `useMapCanvasEditor.ts`) so the slip reacts even with the pointer sitting still, cleared on blur so alt-tabbing away never leaves it stuck.
+- **Rectangle**: fills the area with floor *and*, with the options slip's Walls toggle on (the default, state `rectWalls` in `MapWorkbench.vue`), wraps the perimeter in walls — the most common "make a room" gesture. Shift makes the drag a square (`squareCorner`).
+- **Shift draws straight** (#1096): the draw modifier, as in Photoshop and Figma. It lives in `useStraightStrokes.ts`, which remembers where each family of tool last ended: the Brush (fractional cells), the cell painters Tiles, Water and Rock (whole cells) and the Wall (a grid vertex). Shift+click joins to that point, so clicking a room's corners in turn draws its walls; Shift while dragging snaps to 45° (`snapToAngle`, `snapCellToAngle`) from where the stroke began, or from the joined point. The remembered point is forgotten when the tool changes, when a map is loaded, and on Escape; undo and redo keep it. Alt still inverts each of them, so Alt+Shift erases a straight cut. The Line tool snaps its end to 45° the same way.
+- **Alt inverts a painting tool**: the same modifier idea the Plan's Door tool already used for Alt+click-to-delete (`usePlanCanvasTools.ts`). Holding Alt while a Drawing tool would paint erases what it paints instead, as one undoable stroke: floor → `eraseCell`, brush → `applyDiscs(..., "erase")`, solid → `eraseSolidAt`, Place → `eraseObjectAt`, wall → `eraseWallAtCellEdge`, door → `removeDoorAtEdge` (same function RMB already used), rect/line/template → erase the cells the shape covers. Select/Pan/Fill/Wrap/Label/Link/Eraser/Space have no inverse and ignore Alt. Alt is a separate, additive modifier, never a pan trigger (see "Canvas behaviour" for what pans). The options slip's title appends " · erase" while Alt is held over an invertible tool; Alt state is tracked at the window level (`altHeld` in `useMapCanvasEditor.ts`) so the slip reacts even with the pointer sitting still, cleared on blur so alt-tabbing away never leaves it stuck.
 
 ### Structure tool group (#868, narrowed to Space alone by #884)
 
@@ -701,8 +702,9 @@ There is no inspector. What it held now lives in three places:
 
 ### Canvas behaviour
 
-- **Pan**: middle-mouse drag, or hold space + drag, or two-finger pan on trackpad.
-- **Zoom**: mouse wheel; 25% to 400%.
+- **Pan**: Space+drag or the middle button pans with any tool (Space acts as a temporary Hand); the Hand tool (`H`) and Select drag pan; the right button pans where the tool does not use it itself; two fingers pan on a touch screen. Shift never pans, on the Drawing or the Plan.
+- **Scroll and zoom**: the plain wheel or a two-finger trackpad swipe scrolls the canvas; Shift+wheel scrolls sideways. Ctrl/Cmd+wheel, Alt+wheel and a trackpad pinch zoom at the cursor, in proportion to the wheel delta so a pinch stays smooth; 25% to 400%. Keys: Ctrl/Cmd `+` and `-` zoom, Ctrl/Cmd+`0` fits the map, Ctrl/Cmd+`1` shows 100% (Photoshop); Shift+`1` fits and Shift+`0` shows 100% (Figma); `C` centres. The wheel decisions are `src/cartographer/navigation.ts`, the key decisions `keymap.ts`, and `useCanvasNavigation.ts` applies them.
+- **Canvas controls follow Photoshop and Figma** (#1096), and where the two differ both are accepted. That is why Select is `V`, the Hand `H`, the Brush `B`, and Shift draws rather than pans. The Atlas region pen and the battle map keep their own controls.
 - **Grid**: drawn procedurally per frame; only lines crossing the viewport are drawn (~50 lines max).
 - **Hover preview**: shows the tile that would be placed if clicked (semi-transparent).
 - **Stroke** = mousedown → drag → mouseup; recorded as a single undo unit.
@@ -973,7 +975,7 @@ Done = paint floor, save, reload, see the same floor.
 
 ### M2 — Walls and primary tools ✅ shipped
 
-- Edge-based wall brush (hover-edge targeting, drag-along-edges, Shift+click for full-cell wrap).
+- Edge-based wall brush (hover-edge targeting, drag-along-edges; the original Shift+click full-cell wrap was dropped by #1096 in favour of straight wall runs, with Wrap covering rooms).
 - Door tool (closed/open toggle on edges).
 - Solid block tool (`solidBlock` layer; flat textured cells in M2, edge-detection bitmask deferred to M3+).
 - Eraser, rectangle tool, line tool, fill bucket.
@@ -1020,25 +1022,19 @@ Done = maps leave the app; Atlas locations carry maps that round-trip.
 
 > **Source:** GitHub issue #383
 
-Adds organic and curved shapes beyond the rectilinear M1–M5 toolkit. Pack schema bumped to **v2** with an optional `wallRoundJoint` category; rounded corners are auto-detected at L-corners and fall back to the standard `wallJoint` when round variants aren't present.
+Adds organic and curved shapes beyond the rectilinear M1–M5 toolkit. Pack schema bumped to **v2**. The optional `wallRoundJoint` category it added was removed again by #1063 (see "Schema v2" below).
 
 #### Tools (as built)
 
 | Tool | Hotkey | Behaviour |
 | --- | --- | --- |
 | Room | `m` | Click center, drag to size. Three shapes: **Circle**, **Octagon**, **Hex**. Fills floor + auto-wraps walls around the perimeter. |
-| Brush | `v` | Drag to paint a round brushed area (see Brushed areas). Replaced the noise-driven cave brush. |
+| Brush | `b` | Drag to paint a round brushed area (see Brushed areas). Replaced the noise-driven cave brush. |
 | Stamp rotation | Q/E + `[`/`]` | Existing 90° rotation, now joined by `[` / `]` for ±1° fine rotation. `PackRef.rotation` widened from a literal union to arbitrary degrees. |
 
-#### Schema v2 — `wallRoundJoint`
+#### Schema v2
 
-Added to `TILE_PACK_SCHEMA.categories` as an **optional directional** category with sides `['L_NE', 'L_SE', 'L_SW', 'L_NW']`. When a pack ships these tiles:
-
-1. The renderer detects L-corners via the existing `classifyJoint()` function.
-2. If the pack has a `wallRoundJoint` variant for that L-corner side, the tile is drawn at full `tilePx × tilePx` size centered on the grid intersection.
-3. Otherwise the renderer falls through to the standard `wallJoint` (or procedural square) path.
-
-The placeholder tile renders a quarter-circle arc carved into the wall mass, producing a recognisable smooth corner even before real WebP art lands.
+Schema v2 added the optional directional `wallRoundJoint` category (quarter-circle corner tiles at L-corners). It never produced a good rounded room: the carve lands on the outside of a corner, so a rectangular room drew each corner as a square block. #1063 removed the category, its slots, its placeholder and its renderer path. Rounded rooms come from the vector Brush, and Shift+click brush lines (#1096) give a rectangular room corners rounded at the brush radius.
 
 #### Geometry — `src/cartographer/geometry.ts`
 
@@ -1053,12 +1049,11 @@ Pure functions, fully unit-tested:
 
 - `src/cartographer/geometry.ts`: a pure-functions module (room shapes; the noise cave brush it once held was replaced by the round Brush).
 - `src/cartographer/geometry.test.ts` — 13 unit tests.
-- `src/cartographer/packSchema.ts` — `TILE_PACK_SCHEMA.version` bumped to 2; `wallRoundJoint` category added.
-- `src/cartographer/placeholderTile.ts` — rounded-corner placeholder renderer (`wallRoundJoint` branch + palette default).
+- `src/cartographer/packSchema.ts` — `TILE_PACK_SCHEMA.version` bumped to 2.
 - `src/types/dungeonMap.types.ts` — `PackRef.rotation` widened from `0 | 90 | 180 | 270` to `number`.
 - `src/lib/icons.ts` — `IconRoomTemplate` (Hexagon) + `IconCave` (Cloud).
-- `public/cartographer/stone-dungeon/v1/manifest.json` — `schema_version` bumped to 2; `wallRoundJoint` slots declared (use placeholder art until WebP lands).
-- `src/views/cartographer/CartographerEditorView.vue` — two new tools wired into TOOLS, pointer handlers, inspector panels; round-corner rendering branch in `render()`; fine-rotation `[` / `]` hotkeys.
+- `public/cartographer/stone-dungeon/v1/manifest.json` — `schema_version` bumped to 2.
+- `src/views/cartographer/CartographerEditorView.vue` — two new tools wired into TOOLS, pointer handlers, inspector panels; fine-rotation `[` / `]` hotkeys.
 
 ### Schema v4: a set builds a whole map ([#1065](https://github.com/irongollem/grimoire/issues/1065))
 
@@ -1119,8 +1114,8 @@ one on a location is the room itself, which has no cell to mark.
 
 #### Open items
 
-- Real bundled WebP art for `wallRoundJoint` on Stone Dungeon and other packs — existing bundled manifests still fall back to the placeholder. M7 now provides the production generation and QA loop; regenerating the fundamental bundled catalogue is a separate content-production pass after the customer workflow is proven.
-- Other bundled packs still ship `schema_version: 1` and lack `wallRoundJoint` slots; corners on those packs render as before (sharp wallJoint). Their door slots are the removed schema 3 names, so they draw placeholder doors until repainted at schema 4 (#891).
+- Real bundled WebP art for the remaining placeholder slots on Stone Dungeon and other packs. M7 now provides the production generation and QA loop; regenerating the fundamental bundled catalogue is a separate content-production pass after the customer workflow is proven.
+- Other bundled packs still ship `schema_version: 1`. Their door slots are the removed schema 3 names, so they draw placeholder doors until repainted at schema 4 (#891).
 
 ### M7 — Community / custom packs (PRO) — ✅ shipped
 
@@ -1151,7 +1146,7 @@ The old M7 assumptions—32 hard-coded outputs, prompts that ask the model for f
 2. generate `floor:0`, `wallSegmentH:0`, and `solidBlock:0` as production candidates and pause for visual approval;
 3. after approval, fan out the remaining jobs one at a time, reusing accepted proof images as style references;
 4. call `gpt-image-2` at low quality and 1024×1024, requesting transparent output for footprint-constrained slots;
-5. deterministically strip boundary-connected white, impose edge/door/rounded-corner alpha geometry, resize, and encode an exact 128×128 WebP in the browser;
+5. deterministically strip boundary-connected white, impose edge/door alpha geometry, resize, and encode an exact 128×128 WebP in the browser;
 6. retain raw and normalized assets in private Storage, update attempt provenance, and re-run `validatePack()` before marking the pack ready;
 7. load ready packs into the ordinary Cartographer picker through signed URLs.
 
@@ -1468,10 +1463,10 @@ The migration file is in place but **not yet applied to the remote Supabase proj
 ### M2 acceptance status
 
 - [x] Wall brush (W) — edge-hover targeting, drag runs, direction-lock, NW ownership.
-- [x] Shift+click wall brush — wraps all 4 edges of the clicked cell.
+- [x] Shift+click wall brush — runs a straight wall from the last wall point (#1096; it first wrapped all 4 edges of the clicked cell).
 - [x] Door tool (D) — click edge: place doorClosed; click doorClosed → doorOpen; click doorOpen → doorClosed; RMB → revert to wall.
 - [x] Rock tool (S, then called Solid block): paints `solidBlock` layer; flat-render in M2 (bitmask deferred to M3+).
-- [x] Rectangle tool (R) — drag fills rect with floor; Shift+drag also wraps perimeter walls.
+- [x] Rectangle tool (R) — drag fills rect with floor and, with the Walls toggle on (the default), wraps the perimeter walls; Shift+drag makes a square.
 - [x] Line tool (L) — Bresenham floor line between two cells.
 - [x] Fill bucket (F) — floods from cursor through non-solidBlock cells planting floor (2 000-cell cap).
 - [x] Wrap (X, then called Wrap walls): floods the connected floor region and places walls on every boundary edge facing void.

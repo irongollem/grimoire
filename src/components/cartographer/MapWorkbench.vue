@@ -142,6 +142,7 @@
             :active-template-shape="activeTemplateShape"
             :template-shapes="TEMPLATE_SHAPES"
             :brush-radius="brushRadius"
+            :rect-walls="rectWalls"
             @update:place-rotation="placeRotation = $event"
             @rotate-selected="rotateSelectedDressing"
             @delete-selected="deleteSelectedDressing"
@@ -155,6 +156,7 @@
             @update:linked-feature-id="linkedFeatureId = $event"
             @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
             @update:brush-radius="brushRadius = $event"
+            @update:rect-walls="rectWalls = $event"
           />
           <CartographerPlanOptions
             v-else
@@ -610,6 +612,8 @@ const TEMPLATE_SHAPES: { id: TemplateShape; label: string; icon: string }[] = [
 
 // Round brush radius in cells (fractional)
 const brushRadius = ref(1.5);
+// Whether the Rectangle tool also wraps its perimeter in walls (on by default)
+const rectWalls = ref(true);
 
 // M4 — Cell selection (annotate + link tools)
 const selectedCell = ref<[number, number] | null>(null);
@@ -961,7 +965,7 @@ const {
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
-  placeRotation, activeWallKind, activeWallDecal, activeTemplateShape, brushRadius,
+  placeRotation, activeWallKind, activeWallDecal, activeTemplateShape, brushRadius, rectWalls,
   selectedCell, toolOptionsRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
