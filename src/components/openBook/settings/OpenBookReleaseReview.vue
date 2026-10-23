@@ -2,8 +2,8 @@
   <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_24rem]">
     <div class="flex flex-col gap-6">
       <div>
-        <span class="text-label-lg uppercase tracking-wider text-muted-foreground">Open Book · {{ book.title }}</span>
-        <h2 class="mt-1 font-cinzel text-heading-lg">Release {{ nextNumber }}</h2>
+        <span class="text-label-lg uppercase text-muted-foreground">Open Book · {{ book.title }}</span>
+        <h2 class="mt-1 text-heading-lg">Release {{ nextNumber }}</h2>
         <p class="mt-1.5 text-body text-muted-foreground">{{ sinceLine }}</p>
       </div>
 

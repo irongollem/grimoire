@@ -5,7 +5,7 @@
       <div class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-transparent" aria-hidden="true" />
       <div class="absolute inset-y-0 left-4 flex w-[13.5rem] flex-col justify-center gap-1.5">
         <span class="text-caption font-bold tracking-widest text-primary">AN OPEN BOOK</span>
-        <span class="font-cinzel text-heading-sm tracking-wider text-primary">{{ title.toUpperCase() }}</span>
+        <span class="text-heading-sm tracking-wider text-primary">{{ title.toUpperCase() }}</span>
         <span v-if="subtitle" class="text-label-lg italic text-white/80">{{ subtitle }}</span>
         <span v-if="summary" class="text-caption text-white/60">{{ summary }}</span>
       </div>

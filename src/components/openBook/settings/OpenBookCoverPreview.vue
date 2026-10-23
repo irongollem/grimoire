@@ -16,7 +16,7 @@
         class="absolute left-6 right-3 top-[1.125rem] border border-primary/70 px-1 py-2 text-center shadow-md"
         :style="{ backgroundColor: LEATHERS[leather].color }"
       >
-        <span class="block font-cinzel text-label tracking-widest text-primary">{{ title.toUpperCase() }}</span>
+        <span class="block text-label text-primary">{{ title.toUpperCase() }}</span>
       </div>
     </div>
   </div>

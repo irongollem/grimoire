@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-6">
     <div>
-      <h2 class="font-cinzel text-heading-lg">Open Book</h2>
+      <h2 class="text-heading-lg">Open Book</h2>
       <p class="mt-2 max-w-2xl text-body text-muted-foreground">
         Bind what your table has found into a book anyone can read, at an address you choose. Nothing is open until
         you release it, and you can close the book at any moment.
