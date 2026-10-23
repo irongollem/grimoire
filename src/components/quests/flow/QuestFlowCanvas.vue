@@ -222,10 +222,17 @@ function onZoomKey(event: KeyboardEvent) {
   const to = resolveZoomKey(event);
   if (!to) return;
   event.preventDefault();
-  if (to === "in") void flow.zoomIn();
-  else if (to === "out") void flow.zoomOut();
-  else if (to === "fit") void fitGraph();
-  else void flow.zoomTo(1);
+  if (to === "fit") {
+    void fitGraph();
+    return;
+  }
+  // A key zoom is the DM taking the camera, like a gesture: a late runtime answer must not re-centre over it, and
+  // VueFlow reports viewport-change-end only for gestures, so the new viewport is published here.
+  awaitingCurrent = false;
+  const duration = transitionMs();
+  if (to === "in") void settleViewport(flow.zoomIn({ duration }), duration);
+  else if (to === "out") void settleViewport(flow.zoomOut({ duration }), duration);
+  else void settleViewport(flow.zoomTo(1, { duration }), duration);
 }
 onMounted(() => window.addEventListener("keydown", onZoomKey));
 onBeforeUnmount(() => window.removeEventListener("keydown", onZoomKey));

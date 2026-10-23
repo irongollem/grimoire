@@ -156,8 +156,14 @@ function templateSvg(job: GenerationJob): string {
   </svg>`;
 }
 
+/** Job ids the current schema still has. A plan keeps jobs for retired slots (a pack's history), but they are never redrawn or imported. */
+function currentJobIds(): Set<string> {
+  return new Set(enumerateSchemaSlots(true).map(slotId));
+}
+
 async function writeJobFiles(root: string, plan: GenerationPlan): Promise<void> {
-  await Promise.all(plan.jobs.flatMap((job) => [
+  const current = currentJobIds();
+  await Promise.all(plan.jobs.filter((job) => current.has(job.id)).flatMap((job) => [
     sharp(Buffer.from(templateSvg(job))).png().toFile(path.join(root, job.paths.template)),
     writeFile(path.join(root, job.paths.prompt), `${job.prompt.final_prompt}\n`, "utf8"),
   ]));
@@ -330,6 +336,9 @@ export async function importJob(input: {
 }): Promise<WorkspaceState> {
   const state = await loadWorkspace(input.workspaceRoot);
   const job = findJob(state.plan, input.jobId);
+  // A retired slot (e.g. the rounded wall joints, #1063) would otherwise take the generic path and write a manifest
+  // entry for a category the schema no longer has.
+  if (!currentJobIds().has(job.id)) throw new Error(`${input.jobId}: this slot is no longer part of the pack schema`);
   const source = path.resolve(input.source);
   const metadata = await sharp(source).metadata();
   if (!metadata.width || !metadata.height || metadata.width < BASE_TILE_SIZE || metadata.height < BASE_TILE_SIZE) {

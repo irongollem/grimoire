@@ -222,7 +222,7 @@ describe("QuestFlowCanvas canvas controls", () => {
     await new Promise((resolve) => setTimeout(resolve));
     expect(mocks.zoomIn).toHaveBeenCalled();
     expect(mocks.zoomOut).toHaveBeenCalled();
-    expect(mocks.zoomTo).toHaveBeenCalledWith(1);
+    expect(mocks.zoomTo).toHaveBeenCalledWith(1, expect.objectContaining({ duration: expect.any(Number) }));
     expect(mocks.fitView).toHaveBeenCalled();
     wrapper.unmount();
   });

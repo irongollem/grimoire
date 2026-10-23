@@ -107,7 +107,7 @@ when it does not line up exactly.** That selects the grid-bound categories and
 nothing else — floor and solidBlock (gaps unless full-bleed), wall segments
 (the band must land on the gridline at a matching thickness), doors (must align
 to that band; the leaf must fit the opening), joints (bulge at every corner unless exactly band-thick), stairs
-(must span the cell). Grid-bound categories only, 26 geometries. Everything else is a
+(must span the cell). Grid-bound categories only, 22 geometries. Everything else is a
 centred stamp with a margin, free to be whatever the model makes of it.
 
 The rule cuts along a different axis from "is this shape important". A hazard

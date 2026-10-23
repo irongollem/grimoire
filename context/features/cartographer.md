@@ -338,8 +338,8 @@ A production implementation in #384 should therefore be a durable staged job, no
 7. publish only after hard validation passes, while presenting the result as review-ready and allowing individual user replacement/regeneration.
 
 Use `gpt-image-2` low for every normal production candidate. A bounded
-`gpt-image-1-mini` low-quality experiment (run when rounded joints still existed;
-#1063 removed them) found the cheaper model promising for
+`gpt-image-1-mini` low-quality experiment (run when rounded joints still existed,
+since removed by #1063) found the cheaper model promising for
 a full-cell floor after 128×128 reduction, but unreliable for open-door alpha
 and rounded-corner coverage even with geometry and style references. At the
 time of the experiment, a matched two-prompt comparison put Image 2 at roughly
@@ -703,7 +703,7 @@ There is no inspector. What it held now lives in three places:
 ### Canvas behaviour
 
 - **Pan**: Space+drag or the middle button pans with any tool (Space acts as a temporary Hand); the Hand tool (`H`) and Select drag pan; the right button pans where the tool does not use it itself; two fingers pan on a touch screen. Shift never pans, on the Drawing or the Plan.
-- **Scroll and zoom**: the plain wheel or a two-finger trackpad swipe scrolls the canvas; Shift+wheel scrolls sideways. Ctrl/Cmd+wheel, Alt+wheel and a trackpad pinch zoom at the cursor, in proportion to the wheel delta so a pinch stays smooth; 25% to 400%. Keys: Ctrl/Cmd `+` and `-` zoom, Ctrl/Cmd+`0` fits the map, Ctrl/Cmd+`1` shows 100% (Photoshop); Shift+`1` fits and Shift+`0` shows 100% (Figma); `C` centres. The wheel decisions are `src/cartographer/navigation.ts`, the key decisions `keymap.ts`, and `useCanvasNavigation.ts` applies them.
+- **Scroll and zoom**: the plain wheel or a two-finger trackpad swipe scrolls the canvas; Shift+wheel scrolls sideways. Ctrl/Cmd+wheel, Alt+wheel and a trackpad pinch zoom at the cursor, in proportion to the wheel delta so a pinch stays smooth; 25% to 400%. Keys: Ctrl/Cmd `+` and `-` zoom, Ctrl/Cmd+`0` fits the map, Ctrl/Cmd+`1` shows 100% (Photoshop); Shift+`1` fits and Shift+`0` shows 100% (Figma); `C` centres. The wheel decision is `src/lib/canvasControls/wheel.ts` and the zoom-key decision `src/lib/canvasControls/zoomKeys.ts` (shared with the other design canvases), the Cartographer's own keys are `src/cartographer/keymap.ts`, and `src/composables/cartographer/useCanvasNavigation.ts` applies them.
 - **Canvas controls follow Photoshop and Figma** (#1096), and where the two differ both are accepted. That is why Select is `V`, the Hand `H`, the Brush `B`, and Shift draws rather than pans. The Atlas region pen and the battle map keep their own controls.
 - **Grid**: drawn procedurally per frame; only lines crossing the viewport are drawn (~50 lines max).
 - **Hover preview**: shows the tile that would be placed if clicked (semi-transparent).
