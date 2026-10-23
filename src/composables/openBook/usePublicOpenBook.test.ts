@@ -30,3 +30,19 @@ describe("fetchPublicOpenBook", () => {
     await expect(fetchPublicOpenBook("a", URL_BASE, f)).rejects.toThrow("500");
   });
 });
+
+describe("fetchOpenBookPreview", () => {
+  it("reads the draft as the next release, and gives way when refused", async () => {
+    const { fetchOpenBookPreview } = await import("./usePublicOpenBook");
+    const { supabase } = await import("@/lib/supabase");
+    const stats = { places: 1 };
+    vi.spyOn(supabase, "rpc").mockResolvedValueOnce({ data: { v: 1, stats }, error: null } as never);
+    vi.spyOn(supabase, "from").mockReturnValueOnce({
+      select: () => ({ eq: () => ({ order: () => ({ limit: async () => ({ data: [{ number: 3 }], error: null }) }) }) }),
+    } as never);
+    const result = await fetchOpenBookPreview("salt", "c1");
+    expect(result).toMatchObject({ status: "found", book: { indexable: false, release: { number: 4, pdf_url: null } } });
+    vi.spyOn(supabase, "rpc").mockResolvedValueOnce({ data: null, error: { code: "42501" } } as never);
+    expect(await fetchOpenBookPreview("salt", "c1")).toBeNull();
+  });
+});

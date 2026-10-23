@@ -10,6 +10,7 @@ import BannerLoader from "@/components/brand/BannerLoader.vue";
 import BrandLogo from "@/components/brand/BrandLogo.vue";
 import BookClosed from "@/components/openBook/reader/BookClosed.vue";
 import BookCover, { type CoverTab } from "@/components/openBook/reader/BookCover.vue";
+import BookPreviewBanner from "@/components/openBook/reader/BookPreviewBanner.vue";
 import BookSlip from "@/components/openBook/reader/BookSlip.vue";
 import "@/components/openBook/reader/book.css";
 import { usePublicOpenBook } from "@/composables/openBook/usePublicOpenBook";
@@ -17,6 +18,7 @@ import { IconList, IconSearch } from "@/lib/icons";
 import { MARKETING_URL } from "@/lib/marketing";
 import { pluralize } from "@/lib/openBook/articleData";
 import { buildBookModel } from "@/lib/openBook/bookModel";
+import { previewFor } from "@/lib/openBook/preview";
 import { readRibbons, keepKnown } from "@/lib/openBook/ribbons";
 import { chapterOpener, sectionLocation, sectionsOf } from "@/lib/openBook/sections";
 
@@ -26,6 +28,7 @@ const slug = computed(() => {
   return Array.isArray(raw) ? (raw[0] ?? "") : raw;
 });
 const query = usePublicOpenBook(slug);
+const previewing = computed(() => previewFor(slug.value) !== null);
 
 const found = computed(() => (query.data.value?.status === "found" ? query.data.value.book : null));
 const model = computed(() => (found.value ? buildBookModel(found.value.snapshot) : null));
@@ -73,6 +76,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <BookPreviewBanner v-if="previewing" />
   <div class="ob-root">
     <div v-if="query.isPending.value" class="ob-quiet" role="status">
       <BannerLoader class="h-12" />

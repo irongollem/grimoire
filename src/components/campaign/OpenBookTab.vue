@@ -11,6 +11,12 @@
     <ListSkeleton v-if="isPending" variant="text" />
     <p v-else-if="error" role="alert" class="text-body text-destructive">Could not load the Open Book settings.</p>
     <template v-else-if="campaignId">
+      <div v-if="book && !reviewing" class="flex max-w-2xl flex-wrap items-center gap-3">
+        <AppButton variant="outline" :icon="IconReveal" label="Preview the book" @click="preview(book.slug)" />
+        <p class="text-caption text-muted-foreground">
+          Read your book as visitors will, before anything is released. Previewing is free; releasing needs Pro.
+        </p>
+      </div>
       <div v-if="!book" class="flex max-w-xl flex-col items-start gap-3 rounded-md border border-border bg-card p-5">
         <p class="text-body">This campaign has no Open Book yet. Setting it up creates the settings; nothing goes public.</p>
         <p v-if="setupError" role="alert" class="text-caption text-destructive">{{ setupError }}</p>
@@ -43,14 +49,17 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useOpenBook, useSaveOpenBook } from "@/composables/openBook/useOpenBook";
 import { useToast } from "@/composables/useToast";
+import { startPreview } from "@/lib/openBook/preview";
 import { classifyOpenBookError } from "@/lib/openBook/errors";
 import { slugifyOpenBookTitle } from "@/lib/openBook/slug";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { IconReveal } from "@/lib/icons";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import OpenBookReleaseReview from "@/components/openBook/settings/OpenBookReleaseReview.vue";
 import OpenBookSettingsForm from "@/components/openBook/settings/OpenBookSettingsForm.vue";
@@ -63,6 +72,14 @@ const toast = useToast();
 const { data: book, isPending, error } = useOpenBook(campaignId);
 const save = useSaveOpenBook();
 const reviewing = ref(false);
+const router = useRouter();
+
+/** The real reader at /w/<slug>, reading the draft for this owner. */
+function preview(slug: string) {
+  if (!campaignId.value) return;
+  startPreview(slug, campaignId.value);
+  void router.push({ name: "open-book", params: { slug } });
+}
 const setupError = ref("");
 
 /** The one explicit save: there is no row to autosave into until it exists. */

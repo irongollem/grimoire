@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
@@ -19,6 +19,7 @@ vi.mock("@/composables/useBreakpoint", async () => {
   return { ...actual, useBelow: () => ref(false) };
 });
 
+import { endPreview, startPreview } from "@/lib/openBook/preview";
 import OpenBookCoverView from "./OpenBookCoverView.vue";
 import OpenBookReaderView from "./OpenBookReaderView.vue";
 
@@ -37,10 +38,17 @@ const book: PublicOpenBook = {
   },
 };
 
+// Every mount stays alive until the test ends, so a later preview marker cannot light up an earlier test's view.
+const mounted: { unmount: () => void }[] = [];
+afterEach(() => {
+  mounted.splice(0).forEach((w) => w.unmount());
+});
+
 async function mountView(component: typeof OpenBookCoverView, path: string) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
+      { path: "/campaign/settings", name: "campaign-settings", component: stub },
       { path: "/w/:slug", name: "open-book", component: stub },
       { path: "/w/:slug/contents", name: "open-book-contents", component: stub },
       { path: "/w/:slug/index", name: "open-book-index", component: stub },
@@ -50,11 +58,14 @@ async function mountView(component: typeof OpenBookCoverView, path: string) {
   });
   await router.push(path);
   const wrapper = mount(component, { global: { plugins: [router] } });
+  mounted.push(wrapper);
   await flushPromises();
   return wrapper;
 }
 
 beforeEach(() => {
+  endPreview();
+  document.head.querySelectorAll("meta[name=robots]").forEach((m) => m.remove());
   localStorage.clear();
   state.pending = false;
   state.data = { status: "found", book } satisfies PublicOpenBookResult;
@@ -102,5 +113,37 @@ describe("the reader view", () => {
     const w = await mountView(OpenBookReaderView, "/w/salt/contents");
     expect(w.find(".ob-book").exists()).toBe(true);
     expect(w.text()).toContain("Contents");
+  });
+});
+
+describe("the owner's preview", () => {
+  it("shows the banner on both views, only for the previewed slug", async () => {
+    startPreview("salt", "c1");
+    const cover = await mountView(OpenBookCoverView, "/w/salt");
+    expect(cover.find(".ob-preview-bar").exists()).toBe(true);
+    expect(document.head.querySelector("meta[name='robots']")?.getAttribute("content")).toContain("noindex");
+    cover.unmount();
+    expect(document.head.querySelector("meta[name='robots']")).toBeNull();
+    const reader = await mountView(OpenBookReaderView, "/w/salt/contents");
+    expect(reader.find(".ob-preview-bar").exists()).toBe(true);
+    reader.unmount();
+    const other = await mountView(OpenBookCoverView, "/w/other");
+    expect(other.find(".ob-preview-bar").exists()).toBe(false);
+  });
+
+  it("ends from the banner", async () => {
+    startPreview("salt", "c1");
+    const w = await mountView(OpenBookCoverView, "/w/salt");
+    await w.findAll(".ob-preview-bar button")[1]!.trigger("click");
+    expect(w.find(".ob-preview-bar").exists()).toBe(false);
+  });
+
+  it("goes back to the settings tab", async () => {
+    startPreview("salt", "c1");
+    const w = await mountView(OpenBookCoverView, "/w/salt");
+    // The bare test router has no outlet, so the cover would linger and fail to resolve its links: stop at the call.
+    const push = vi.spyOn(w.vm.$router, "push").mockResolvedValue(undefined);
+    await w.findAll(".ob-preview-bar button")[0]!.trigger("click");
+    expect(push).toHaveBeenCalledWith({ name: "campaign-settings", query: { tab: "openbook" } });
   });
 });

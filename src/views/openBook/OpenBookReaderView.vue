@@ -7,9 +7,11 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import BookClosed from "@/components/openBook/reader/BookClosed.vue";
+import BookPreviewBanner from "@/components/openBook/reader/BookPreviewBanner.vue";
 import BookReader from "@/components/openBook/reader/BookReader.vue";
 import "@/components/openBook/reader/book.css";
 import { usePublicOpenBook } from "@/composables/openBook/usePublicOpenBook";
+import { previewFor } from "@/lib/openBook/preview";
 
 const route = useRoute();
 const slug = computed(() => {
@@ -17,11 +19,15 @@ const slug = computed(() => {
   return Array.isArray(raw) ? (raw[0] ?? "") : raw;
 });
 const query = usePublicOpenBook(slug);
+const previewing = computed(() => previewFor(slug.value) !== null);
 const found = computed(() => (query.data.value?.status === "found" ? query.data.value.book : null));
 </script>
 
 <template>
-  <BookReader v-if="found" :book="found" />
+  <template v-if="found">
+    <BookPreviewBanner v-if="previewing" />
+    <BookReader :book="found" />
+  </template>
   <div v-else class="ob-root">
     <div v-if="query.isPending.value" class="ob-quiet" role="status">
       <BannerLoader class="h-12" />
