@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { clampBrushRadius, resolveKeyAction, type KeyEventLike, type KeyContext } from "./keymap";
 
 const ev = (over: Partial<KeyEventLike>): KeyEventLike => ({
-  key: "a", ctrlKey: false, metaKey: false, altKey: false, shiftKey: false,
+  key: "a", code: "KeyA", ctrlKey: false, metaKey: false, altKey: false, shiftKey: false,
   targetIsTextEntry: false, ...over,
 });
 
@@ -38,6 +38,48 @@ describe("resolveKeyAction", () => {
     expect(resolveKeyAction(ev({ key: "f", ctrlKey: true }), ctx())).toBeNull();
     expect(resolveKeyAction(ev({ key: "f", metaKey: true }), ctx())).toBeNull();
     expect(resolveKeyAction(ev({ key: "f", altKey: true }), ctx())).toBeNull();
+  });
+
+  describe("zoom shortcuts", () => {
+    it("Ctrl/Cmd with + or = zooms in, including the numpad", () => {
+      expect(resolveKeyAction(ev({ key: "+", code: "Equal", ctrlKey: true, shiftKey: true }), ctx())).toEqual({ kind: "zoom", to: "in" });
+      expect(resolveKeyAction(ev({ key: "=", code: "Equal", metaKey: true }), ctx())).toEqual({ kind: "zoom", to: "in" });
+      expect(resolveKeyAction(ev({ key: "+", code: "NumpadAdd", ctrlKey: true }), ctx())).toEqual({ kind: "zoom", to: "in" });
+    });
+
+    it("Ctrl/Cmd with - zooms out, including the numpad", () => {
+      expect(resolveKeyAction(ev({ key: "-", code: "Minus", ctrlKey: true }), ctx())).toEqual({ kind: "zoom", to: "out" });
+      expect(resolveKeyAction(ev({ key: "-", code: "NumpadSubtract", metaKey: true }), ctx())).toEqual({ kind: "zoom", to: "out" });
+    });
+
+    it("Ctrl/Cmd+0 fits and Ctrl/Cmd+1 goes to 100%", () => {
+      expect(resolveKeyAction(ev({ key: "0", code: "Digit0", ctrlKey: true }), ctx())).toEqual({ kind: "zoom", to: "fit" });
+      expect(resolveKeyAction(ev({ key: "0", code: "Numpad0", metaKey: true }), ctx())).toEqual({ kind: "zoom", to: "fit" });
+      expect(resolveKeyAction(ev({ key: "1", code: "Digit1", ctrlKey: true }), ctx())).toEqual({ kind: "zoom", to: "actual" });
+      expect(resolveKeyAction(ev({ key: "1", code: "Numpad1", metaKey: true }), ctx())).toEqual({ kind: "zoom", to: "actual" });
+    });
+
+    it("Shift+1 fits and Shift+0 goes to 100%, read from the physical key", () => {
+      expect(resolveKeyAction(ev({ key: "!", code: "Digit1", shiftKey: true }), ctx())).toEqual({ kind: "zoom", to: "fit" });
+      expect(resolveKeyAction(ev({ key: ")", code: "Digit0", shiftKey: true }), ctx())).toEqual({ kind: "zoom", to: "actual" });
+      expect(resolveKeyAction(ev({ key: "1", code: "Numpad1", shiftKey: true }), ctx())).toEqual({ kind: "zoom", to: "fit" });
+    });
+
+    it("plain digits and Alt combos are not zoom shortcuts", () => {
+      expect(resolveKeyAction(ev({ key: "1", code: "Digit1" }), ctx())).toBeNull();
+      expect(resolveKeyAction(ev({ key: "0", code: "Digit0", ctrlKey: true, altKey: true }), ctx())).toBeNull();
+    });
+
+    it("leaves zoom keys alone while typing in a field", () => {
+      expect(resolveKeyAction(ev({ key: "0", code: "Digit0", ctrlKey: true, targetIsTextEntry: true }), ctx())).toBeNull();
+      expect(resolveKeyAction(ev({ key: "!", code: "Digit1", shiftKey: true, targetIsTextEntry: true }), ctx())).toBeNull();
+    });
+
+    it("keeps undo and redo, and plain C still centres", () => {
+      expect(resolveKeyAction(ev({ key: "Z", code: "KeyZ", ctrlKey: true, shiftKey: true }), ctx())).toEqual({ kind: "redo" });
+      expect(resolveKeyAction(ev({ key: "z", code: "KeyZ", ctrlKey: true }), ctx())).toEqual({ kind: "undo" });
+      expect(resolveKeyAction(ev({ key: "c", code: "KeyC" }), ctx())).toEqual({ kind: "center" });
+    });
   });
 
   it("centres on C", () => {

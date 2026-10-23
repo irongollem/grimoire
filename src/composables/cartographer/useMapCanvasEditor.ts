@@ -1299,6 +1299,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const action = resolveKeyAction(
       {
         key: ev.key,
+        code: ev.code,
         ctrlKey: ev.ctrlKey,
         metaKey: ev.metaKey,
         altKey: ev.altKey,
