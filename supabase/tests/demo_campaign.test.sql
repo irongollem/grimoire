@@ -414,7 +414,7 @@ select is(
   'the status reports the copy as current'
 );
 
--- The Open Book comes along closed (20261023205204).
+-- The Open Book comes along closed (20261023230211).
 select is(
   (select row(b.title, b.leather, b.is_open, b.live_release_id, b.indexable, b.slug like 'demo-%')::text
      from public.open_books b join public.campaigns c on c.id = b.campaign_id

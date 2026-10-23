@@ -58,7 +58,7 @@ It is catalogue-driven, because production has 82 campaign-scoped tables and a h
    - It resets `ai_enabled` and the provider choice. AI Act consent belongs to the owner, so the new owner is asked.
    - AI provenance on the content itself is copied verbatim.
    - Embeddings are copied, so the demo is searchable by the AI tools from the start.
-7. **The Open Book** (#1085, `20261023205204`). The catalogue marks `open_books` and `open_book_entries` uncopied, because a generic copy would duplicate the unique slug and an open book whose release did not come along. A step of its own writes the template's book settings under a fresh `demo-<12 hex>` address, closed, unreleased and unindexed, plus the author's per-entry choices remapped through the id map. Releases never travel. A Free newcomer can preview the book, and only the new owner can release it (Pro).
+7. **The Open Book** (#1085, `20261023230211`). The catalogue marks `open_books` and `open_book_entries` uncopied, because a generic copy would duplicate the unique slug and an open book whose release did not come along. A step of its own writes the template's book settings under a fresh `demo-<12 hex>` address, closed, unreleased and unindexed, plus the author's per-entry choices remapped through the id map. Releases never travel. A Free newcomer can preview the book, and only the new owner can release it (Pro).
 
 ## Authoring the template — rules that bite
 

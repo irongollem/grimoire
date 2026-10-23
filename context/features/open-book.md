@@ -15,9 +15,9 @@ A campaign released as a public, read-only book at `/w/<slug>` (#1085). The DM d
 
 | Area | Where |
 | --- | --- |
-| Schema, snapshot, RPCs | `supabase/migrations/20261023190317_open_book.sql`; tests `supabase/tests/open_book.test.sql` |
-| Demo copy carries the book | `20261023205204_demo_copy_carries_open_book.sql` (see `demo-campaign.md`) |
-| PDF storage rules | `20261023213440_open_book_pdf_storage_policies.sql`; bucket `open-book-pdfs` in `storage-policy.ts` and `buckets.ts` |
+| Schema, snapshot, RPCs | `supabase/migrations/20261023230210_open_book.sql`; tests `supabase/tests/open_book.test.sql` |
+| Demo copy carries the book | `20261023230211_demo_copy_carries_open_book.sql` (see `demo-campaign.md`) |
+| PDF storage rules | `20261023230212_open_book_pdf_storage_policies.sql`; bucket `open-book-pdfs` in `storage-policy.ts` and `buckets.ts` |
 | Public read | `supabase/functions/open-book/` (`?part=meta` for titles and cards) |
 | Share pages and cards | `api/open-book-page.ts` (meta tags, rewrite of `/w/*` in `vercel.json`), `api/open-book-card.ts` + `_openBookCard*.ts` (satori + sharp, 1200×630 JPEG) |
 | Types | `src/types/openBook.types.ts` |

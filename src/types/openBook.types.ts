@@ -1,7 +1,7 @@
 /**
  * The Open Book (#1085): a campaign released as a public, read-only book.
  *
- * The snapshot types mirror `private.open_book_snapshot` (migration 20261023190317) field for field. That
+ * The snapshot types mirror `private.open_book_snapshot` (migration 20261023230210) field for field. That
  * function decides what a visitor may read; nothing on the client widens it. Rich-text fields arrive as the
  * stored string (Tiptap JSON, or plain text on old rows) with secret blocks already removed server-side.
  */

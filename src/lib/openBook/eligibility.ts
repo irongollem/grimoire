@@ -1,7 +1,7 @@
 /**
  * Whether an entry may be in the Open Book, restated from SQL so the Settings tab can show the same answer the
  * release will give. The database is the authority: these mirror `private.open_book_whole_party` and
- * `private.open_book_takes` (migration 20261023190317) and must change with them.
+ * `private.open_book_takes` (migration 20261023230210) and must change with them.
  */
 
 /** True when `visibleTo` holds every party member and the party is not empty. */

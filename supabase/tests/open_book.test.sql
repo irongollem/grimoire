@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(38);
 
--- open_book (20261023190317, #1085): the owner releases a frozen snapshot of what the whole party can read.
+-- open_book (20261023230210, #1085): the owner releases a frozen snapshot of what the whole party can read.
 -- Proven here: only the owner reaches the book, its releases and its two functions; a release needs Pro; anon
 -- reads nothing; and the snapshot shows the world exactly what the table sees and nothing more: no entry shared
 -- with only part of the party, no field the DM keeps back, no true name behind a disguise, no secret block, no
