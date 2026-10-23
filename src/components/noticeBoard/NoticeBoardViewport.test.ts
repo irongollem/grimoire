@@ -171,16 +171,21 @@ describe("NoticeBoardViewport canvas controls", () => {
     key("keydown", { key: "0", code: "Digit0", ctrlKey: true });
     await w.vm.$nextTick();
     expect(panStyle(w)).toContain(`width: ${fitWidth}px`);
+    // 100% is the board's natural 1600px, held at the "whole board fits" floor, which is wider on this screen.
     key("keydown", { key: "1", code: "Digit1", ctrlKey: true });
     await w.vm.$nextTick();
-    expect(panStyle(w)).toContain("width: 1600px");
+    expect(panStyle(w)).toContain(`width: ${Math.max(1600, fitWidth)}px`);
     w.unmount();
   });
 
   it("zooms about the cursor on Alt+wheel", async () => {
     size(1920, 1080);
     const w = await mountBoard();
-    await w.get("[data-viewport]").trigger("wheel", { deltaY: -100, altKey: true });
+    // Built by hand: test-utils' trigger cannot set a modifier on a WheelEvent.
+    w.get("[data-viewport]").element.dispatchEvent(
+      new WheelEvent("wheel", { deltaY: -100, altKey: true, bubbles: true, cancelable: true }),
+    );
+    await w.vm.$nextTick();
     expect(panStyle(w)).not.toContain(`width: ${1600 * (1080 / ((1600 * 2) / 3))}px`);
     w.unmount();
   });

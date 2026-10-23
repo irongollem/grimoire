@@ -32,6 +32,7 @@
         v-else
         ref="graphRef"
         v-model:layouts="layouts"
+        v-model:zoom-level="zoomLevel"
         :class="spaceHeld && '!cursor-grab'"
         @wheel.prevent="onWheel"
         @pointerdown="cameraTakenByUser = true"
@@ -275,7 +276,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { useDebounceFn } from "@vueuse/core";
 import { useRouter } from "vue-router";
 import { IconNetwork } from '@/lib/icons';
@@ -609,8 +610,25 @@ const framed = ref(false);
 
 // Photoshop/Figma controls: wheel pans, Ctrl/Cmd/Alt+wheel zooms, middle-drag and Space pan, zoom keys.
 // Shift stays what it was here, the key that links two nodes.
+// The graph's zoom is a v-model rather than a method, so the camera reads and writes it here, and a write
+// resolves on the next tick, once the graph has drawn it.
+const zoomLevel = ref(1);
 const { spaceHeld, onWheel, onMouseDownCapture, onPointerDown, onPointerMove, onPointerUp } = useNpcWebCamera({
-  graph: () => graphRef.value,
+  graph: () => {
+    const g = graphRef.value;
+    if (!g) return null;
+    return {
+      panBy: (amount) => g.panBy(amount),
+      zoomIn: () => g.zoomIn(),
+      zoomOut: () => g.zoomOut(),
+      fitToContents: () => g.fitToContents(),
+      getZoomLevel: () => zoomLevel.value,
+      setZoomLevel: (level) => {
+        zoomLevel.value = level;
+        return nextTick();
+      },
+    };
+  },
   onTaken: () => { cameraTakenByUser.value = true; },
   setNodesDraggable: (on) => { if (graphConfigs.node) graphConfigs.node.draggable = on; },
 });

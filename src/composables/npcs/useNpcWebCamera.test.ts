@@ -11,7 +11,7 @@ function fakeGraph(zoom = 1): CameraGraph & { level: number } {
     zoomOut: vi.fn(),
     fitToContents: vi.fn(),
     getZoomLevel: () => g.level,
-    setZoomLevel: vi.fn((n: number) => {
+    setZoomLevel: vi.fn(async (n: number) => {
       g.level = n;
     }),
   };
@@ -40,29 +40,31 @@ function wheel(over: Partial<WheelEvent>): WheelEvent {
 }
 
 describe("useNpcWebCamera", () => {
-  it("pans on a plain wheel, content moving the way a scroll does", () => {
+  it("pans on a plain wheel, content moving the way a scroll does", async () => {
     const g = fakeGraph();
     const { camera, onTaken } = setup(g);
-    camera.onWheel(wheel({ deltaY: 40, deltaX: 10 }));
+    await camera.onWheel(wheel({ deltaY: 40, deltaX: 10 }));
     expect(g.panBy).toHaveBeenCalledWith({ x: -10, y: -40 });
     expect(g.setZoomLevel).not.toHaveBeenCalled();
     expect(onTaken).toHaveBeenCalled();
   });
 
-  it("zooms on ctrl, cmd or alt + wheel", () => {
+  it("zooms on ctrl, cmd or alt + wheel", async () => {
     for (const key of ["ctrlKey", "metaKey", "altKey"] as const) {
       const g = fakeGraph();
-      setup(g).camera.onWheel(wheel({ deltaY: -100, [key]: true }));
+      await setup(g).camera.onWheel(wheel({ deltaY: -100, [key]: true }));
       expect(g.level).toBeGreaterThan(1);
     }
   });
 
-  it("keeps the point under the cursor fixed by panning back from the centre anchor", () => {
+  it("keeps the point under the cursor fixed by panning back from the centre anchor", async () => {
     const g = fakeGraph();
-    setup(g).camera.onWheel(wheel({ deltaY: -100, ctrlKey: true, clientX: 200, clientY: 50 }));
+    await setup(g).camera.onWheel(wheel({ deltaY: -100, ctrlKey: true, clientX: 200, clientY: 50 }));
     const k = g.level;
     // Cursor is 100px right of centre and level with it.
-    expect(g.panBy).toHaveBeenCalledWith({ x: 100 * (1 - k), y: 0 });
+    const pan = vi.mocked(g.panBy).mock.calls[0]?.[0];
+    expect(pan?.x).toBeCloseTo(100 * (1 - k), 10);
+    expect(pan?.y).toBeCloseTo(0, 10);
   });
 
   it("pans on a middle press and not on a left one", () => {

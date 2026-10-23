@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, afterEach } from "vitest";
 import { isTextEntry, targetKeepsSpace } from "./keyTargets";
 
@@ -37,15 +38,17 @@ describe("targetKeepsSpace", () => {
   it("keeps Space for a control a keyboard user tabbed to", () => {
     const button = mount<HTMLButtonElement>("<button>Tool</button>");
     const original = button.matches.bind(button);
-    button.matches = (sel: string) => (sel === ":focus-visible" ? true : original(sel));
+    Object.defineProperty(button, "matches", { value: (sel: string) => (sel === ":focus-visible" ? true : original(sel)) });
     expect(targetKeepsSpace(button)).toBe(true);
   });
 
   it("does not throw where :focus-visible is unknown", () => {
     const button = mount<HTMLButtonElement>("<button>Tool</button>");
-    button.matches = () => {
-      throw new SyntaxError("unknown pseudo-class");
-    };
+    Object.defineProperty(button, "matches", {
+      value: () => {
+        throw new SyntaxError("unknown pseudo-class");
+      },
+    });
     expect(targetKeepsSpace(button)).toBe(false);
   });
 });

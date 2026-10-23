@@ -17,7 +17,8 @@ export interface CameraGraph {
   zoomOut(): void;
   fitToContents(): void;
   getZoomLevel(): number;
-  setZoomLevel(level: number): void;
+  /** Resolves once the graph has drawn the new zoom, so a pan that follows is applied after it. */
+  setZoomLevel(level: number): Promise<void>;
 }
 
 export interface NpcWebCameraOptions {
@@ -46,7 +47,7 @@ export function useNpcWebCamera(opts: NpcWebCameraOptions) {
     if (to === "in") g.zoomIn();
     else if (to === "out") g.zoomOut();
     else if (to === "fit") g.fitToContents();
-    else g.setZoomLevel(1);
+    else void g.setZoomLevel(1);
   }
 
   /**
@@ -54,7 +55,7 @@ export function useNpcWebCamera(opts: NpcWebCameraOptions) {
    * cursor: the library's setZoomLevel zooms about the centre of the view, so
    * the difference between those two anchors is panned back in afterwards.
    */
-  function onWheel(ev: WheelEvent): void {
+  async function onWheel(ev: WheelEvent): Promise<void> {
     const g = opts.graph();
     if (!g) return;
     opts.onTaken();
@@ -64,11 +65,13 @@ export function useNpcWebCamera(opts: NpcWebCameraOptions) {
       g.panBy({ x: -intent.dx, y: -intent.dy });
       return;
     }
+    // Read the element before awaiting: currentTarget is cleared once the event has finished dispatching.
+    const el = ev.currentTarget instanceof Element ? ev.currentTarget : null;
     const before = g.getZoomLevel();
-    g.setZoomLevel(before * intent.factor);
+    await g.setZoomLevel(before * intent.factor);
     const k = g.getZoomLevel() / before;
-    if (!(ev.currentTarget instanceof Element) || k === 1) return;
-    const r = ev.currentTarget.getBoundingClientRect();
+    if (!el || k === 1) return;
+    const r = el.getBoundingClientRect();
     const dx = ev.clientX - r.left - r.width / 2;
     const dy = ev.clientY - r.top - r.height / 2;
     g.panBy({ x: dx * (1 - k), y: dy * (1 - k) });
