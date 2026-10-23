@@ -161,15 +161,25 @@
 .ob-lift[data-dir="prev"] { left: 0; background: linear-gradient(45deg, var(--ob-desk) 0, var(--ob-desk) 47%, #d4c6aa 50%, #ece2cd 63%, #f7f1e5 74%, rgb(247 241 229 / 0) 75%); filter: drop-shadow(3px -3px 4px rgb(43 32 25 / 0.3)); }
 .ob-lift:hover, .ob-lift:focus-visible { width: 6rem; height: 6rem; }
 
-/* The leaf that turns */
-.ob-leaf { position: absolute; top: 0; left: 50%; width: 50%; height: 100%; transform-style: preserve-3d; transform-origin: left center; z-index: 6; }
+/* The leaf that turns: layers clipped and moved per frame by BookTurn's curl; nothing here is laid out each frame */
+.ob-leaf { position: absolute; top: 0; left: 50%; width: 50%; height: 100%; z-index: 6; pointer-events: none; }
 .ob-pages[data-mode="single"] ~ .ob-leaf, .ob-leaf[data-mode="single"] { left: 0; width: 100%; }
-.ob-leaf-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.ob-leaf-face[data-face="back"] { transform: rotateY(180deg); }
-.ob-leaf-face > .ob-page { height: 100%; }
-.ob-shade { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 7; }
-.ob-leaf-face[data-face="front"] .ob-shade { background: linear-gradient(to left, rgb(43 32 25 / 0.42), rgb(43 32 25 / 0.12) 45%, rgb(43 32 25 / 0) 75%); }
-.ob-leaf-face[data-face="back"] .ob-shade { background: linear-gradient(to right, rgb(43 32 25 / 0.42), rgb(43 32 25 / 0.12) 45%, rgb(43 32 25 / 0) 75%); }
+/* The dog-ears sit this turn out: the curl is the corner lifting */
+.ob-pages:has(> .ob-leaf) .ob-lift { opacity: 0; transition: none; }
+.ob-leaf-layer { position: absolute; inset: 0; will-change: clip-path; }
+.ob-leaf-layer[data-layer="cast"] { z-index: 1; }
+.ob-leaf-layer[data-layer="front"] { z-index: 2; }
+.ob-leaf-layer[data-layer="back"] { z-index: 3; }
+.ob-leaf-layer[data-layer="front"] > .ob-page { height: 100%; }
+.ob-leaf-backpage { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.ob-leaf-backpage > .ob-page { height: 100%; }
+.ob-curl-strip { position: absolute; left: 0; top: 0; transform-origin: 0 0; opacity: 0; pointer-events: none; will-change: transform, opacity; }
+/* Flat side of the fold: the page darkens as it bends away */
+.ob-curl-strip[data-strip="front"] { background: linear-gradient(to right, rgb(43 32 25 / 0), rgb(43 32 25 / 0.1) 60%, rgb(43 32 25 / 0.34)); }
+/* Folded side: dark at the crease, a lit shoulder just beyond it where the paper rolls toward the light */
+.ob-curl-strip[data-strip="back"] { background: linear-gradient(to right, rgb(255 250 238 / 0), rgb(255 250 238 / 0.32) 55%, rgb(43 32 25 / 0.1) 82%, rgb(43 32 25 / 0.36)); }
+/* On the page beneath: the shadow of the lifted paper */
+.ob-curl-strip[data-strip="cast"] { background: linear-gradient(to right, rgb(43 32 25 / 0.4), rgb(43 32 25 / 0.14) 40%, rgb(43 32 25 / 0)); }
 
 /* Torn slip: search and contents */
 .ob-dialog { padding: 0; border: 0; background: transparent; color: var(--ob-fg); max-width: none; max-height: none; width: 100%; height: 100%; }

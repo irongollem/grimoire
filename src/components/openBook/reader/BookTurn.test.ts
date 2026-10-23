@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { h, nextTick } from "vue";
 import BookTurn from "./BookTurn.vue";
@@ -61,28 +61,39 @@ describe("BookTurn", () => {
 
 describe("BookTurn with animation available", () => {
   const originalAnimate = Object.getOwnPropertyDescriptor(Element.prototype, "animate");
+  let queue: ((now: number) => void)[] = [];
+  let clock = 0;
+  const cancelled = vi.fn();
+
+  beforeEach(() => {
+    queue = [];
+    clock = 0;
+    cancelled.mockClear();
+    // canAnimate only asks whether Web Animations exist; the curl itself runs on requestAnimationFrame.
+    Object.defineProperty(Element.prototype, "animate", { configurable: true, value: () => ({ cancel: vi.fn(), finished: Promise.resolve() }) });
+    vi.stubGlobal("requestAnimationFrame", (cb: (now: number) => void) => {
+      queue.push(cb);
+      return queue.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+      cancelled(id);
+      queue[id - 1] = () => undefined;
+    });
+  });
   afterEach(() => {
+    vi.unstubAllGlobals();
     if (originalAnimate) Object.defineProperty(Element.prototype, "animate", originalAnimate);
     else Reflect.deleteProperty(Element.prototype, "animate");
   });
 
-  function stubAnimate() {
-    const finishers: (() => void)[] = [];
-    const cancel = vi.fn();
-    Object.defineProperty(Element.prototype, "animate", {
-      configurable: true,
-      value: () => ({
-        cancel,
-        finished: new Promise<void>((resolve) => {
-          finishers.push(resolve);
-        }),
-      }),
-    });
-    return { finishers, cancel };
+  /** Run the next queued frame `ms` after the last one. */
+  function tick(ms: number) {
+    const cb = queue.shift();
+    clock += ms;
+    cb?.(clock);
   }
 
   it("carries the old recto and the new verso on a leaf, then lets go", async () => {
-    const { finishers } = stubAnimate();
     const w = mountTurn(at("a", 0, 1));
     await w.setProps({ target: at("a", 1, 2) });
     await nextTick();
@@ -93,7 +104,15 @@ describe("BookTurn with animation available", () => {
     expect(leafFaces).toEqual(["recto=a:0", "verso=a:1"]);
     expect(w.emitted("done")).toBeUndefined();
 
-    for (const finish of finishers) finish();
+    tick(1);
+    tick(450);
+    await flushPromises();
+    expect(w.findAll(".ob-leaf")).toHaveLength(1);
+    // Mid-turn the face is cut by the fold and the back is carried over it.
+    expect((w.find('[data-layer="front"]').element as HTMLElement).style.clipPath).toContain("polygon");
+    expect((w.find(".ob-leaf-backpage").element as HTMLElement).style.transform).toContain("matrix(");
+
+    tick(500);
     await flushPromises();
     expect(w.findAll(".ob-leaf")).toHaveLength(0);
     expect(faces(w)).toEqual(["verso=a:1", "recto=a:1"]);
@@ -101,7 +120,6 @@ describe("BookTurn with animation available", () => {
   });
 
   it("turns back by carrying the new recto and the old verso", async () => {
-    stubAnimate();
     const w = mountTurn(at("a", 1, 2));
     await w.setProps({ target: at("a", 0, 1) });
     await nextTick();
@@ -109,19 +127,51 @@ describe("BookTurn with animation available", () => {
     expect(base).toEqual(["verso=a:0", "recto=a:1"]);
     const leafFaces = w.findAll(".ob-leaf .face").map((f) => `${f.attributes("data-side")}=${f.attributes("data-target")}`);
     expect(leafFaces).toEqual(["recto=a:0", "verso=a:1"]);
+    tick(1);
+    tick(1000);
+    await flushPromises();
+    expect(w.emitted("done")).toHaveLength(1);
   });
 
-  it("is not cut short by a cancelled turn reporting itself settled", async () => {
-    const { finishers } = stubAnimate();
+  it("finishes the old turn and starts a new leaf when interrupted, saying done once at the end", async () => {
     const w = mountTurn(at("a", 0, 1));
     await w.setProps({ target: at("a", 1, 2) });
     await nextTick();
+    tick(1);
+    tick(200);
     await w.setProps({ target: at("a", 2, 3) });
     await nextTick();
-    // The first turn's animations were cancelled; the browser reports them settled. The new leaf must survive that.
-    finishers[0]?.();
-    await flushPromises();
+    expect(cancelled).toHaveBeenCalled();
+    // The first turn's pending frame must not finish the new leaf.
+    tick(100);
     expect(w.findAll(".ob-leaf")).toHaveLength(1);
     expect(w.emitted("done")).toBeUndefined();
+    const leafFaces = w.findAll(".ob-leaf .face").map((f) => `${f.attributes("data-side")}=${f.attributes("data-target")}`);
+    expect(leafFaces).toEqual(["recto=a:1", "verso=a:2"]);
+    for (let i = 0; i < 12; i += 1) tick(100);
+    await flushPromises();
+    expect(w.findAll(".ob-leaf")).toHaveLength(0);
+    expect(w.emitted("done")).toHaveLength(1);
+  });
+
+  it("stops its frames when unmounted mid-turn", async () => {
+    const w = mountTurn(at("a", 0, 1));
+    await w.setProps({ target: at("a", 1, 2) });
+    await nextTick();
+    tick(1);
+    w.unmount();
+    expect(cancelled).toHaveBeenCalled();
+    tick(2000);
+  });
+
+  it("cross-fades under reduced motion and says done once", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("reduce"), media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    const w = mountTurn(at("a", 0, 1));
+    await w.setProps({ target: at("a", 1, 2) });
+    await flushPromises();
+    expect(w.findAll(".ob-leaf")).toHaveLength(0);
+    expect(faces(w)).toEqual(["verso=a:1", "recto=a:1"]);
+    expect(queue).toHaveLength(0);
+    expect(w.emitted("done")).toHaveLength(1);
   });
 });
