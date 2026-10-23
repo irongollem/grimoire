@@ -39,6 +39,40 @@ export const routes: RouteRecordRaw[] = [
     meta: { layout: "auth" },
   },
 
+  // ── The Open Book (#1085): a released campaign, read as a book by anyone. Public: no sign-in, no campaign,
+  //    and the router guard lets a signed-in visitor through untouched (`meta.public`). Contents, index, chapter
+  //    and entry share one component on purpose, so turning from one to the next keeps the book mounted.
+  {
+    path: "/w/:slug",
+    name: "open-book",
+    component: () => import("@/views/openBook/OpenBookCoverView.vue"),
+    meta: { layout: "public", public: true, darkChrome: true, title: "Open Book" },
+  },
+  {
+    path: "/w/:slug/contents",
+    name: "open-book-contents",
+    component: () => import("@/views/openBook/OpenBookReaderView.vue"),
+    meta: { layout: "public", public: true, darkChrome: true, title: "Contents" },
+  },
+  {
+    path: "/w/:slug/index",
+    name: "open-book-index",
+    component: () => import("@/views/openBook/OpenBookReaderView.vue"),
+    meta: { layout: "public", public: true, darkChrome: true, title: "Index" },
+  },
+  {
+    path: "/w/:slug/:chapter",
+    name: "open-book-chapter",
+    component: () => import("@/views/openBook/OpenBookReaderView.vue"),
+    meta: { layout: "public", public: true, darkChrome: true, title: "Open Book" },
+  },
+  {
+    path: "/w/:slug/:chapter/:entryId",
+    name: "open-book-entry",
+    component: () => import("@/views/openBook/OpenBookReaderView.vue"),
+    meta: { layout: "public", public: true, darkChrome: true, title: "Open Book" },
+  },
+
   // ── Invite join (auth layout, accessible before login) ────────────────
   {
     path: "/join/:token",

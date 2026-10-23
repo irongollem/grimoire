@@ -93,6 +93,7 @@ const TEST_ROUTES: RouteRecordRaw[] = [
   { path: "/login", name: "login", component: Stub, meta: { layout: "auth", requiresGuest: true } },
   { path: "/welcome", name: "welcome", component: Stub, meta: { layout: "auth", requiresAuth: true } },
   { path: "/reset-password", name: "reset-password", component: Stub, meta: { layout: "auth" } },
+  { path: "/w/:slug", name: "open-book", component: Stub, meta: { layout: "public", public: true } },
 ];
 
 function makeRouter(memberships: { campaign_id: string; role: "dm" | "player" }[] | Error) {
@@ -449,5 +450,23 @@ describe("the password reset link", () => {
     await router.push("/npcs");
 
     expect(router.currentRoute.value.name).toBe("welcome");
+  });
+});
+
+describe("a public page (the Open Book, #1085)", () => {
+  it("is never redirected for a visitor who is signed out", async () => {
+    const { router } = makeRouter([]);
+    await router.push("/w/salt");
+    expect(router.currentRoute.value.name).toBe("open-book");
+  });
+
+  it("is never redirected for a signed-in account with no mode, a DM or a player", async () => {
+    for (const mode of ["", "dm", "player"] as const) {
+      const { router } = makeRouter([{ campaign_id: "c1", role: mode === "player" ? "player" : "dm" }]);
+      await signedInDm("c1");
+      useAppUiStore().userMode = mode;
+      await router.push("/w/salt");
+      expect(router.currentRoute.value.name).toBe("open-book");
+    }
   });
 });

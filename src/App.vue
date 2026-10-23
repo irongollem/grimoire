@@ -262,10 +262,12 @@ const route = useRoute();
 const AuthLayout = defineAsyncComponent(layoutLoaders.auth);
 const PlayerLayout = defineAsyncComponent(layoutLoaders.player);
 const DefaultLayout = defineAsyncComponent(layoutLoaders.default);
+const PublicLayout = defineAsyncComponent(layoutLoaders.public);
 
 const layout = computed(() => {
   if (route.meta.layout === "auth") return AuthLayout;
   if (route.meta.layout === "player") return PlayerLayout;
+  if (route.meta.layout === "public") return PublicLayout;
   return DefaultLayout;
 });
 </script>
