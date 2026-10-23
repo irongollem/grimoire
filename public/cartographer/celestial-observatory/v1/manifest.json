@@ -122,32 +122,6 @@
         "byteSize": 6220
       }
     ],
-    "wallRoundJoint": [
-      {
-        "side": "L_NE",
-        "variant": 0,
-        "url": "wallRoundJoint/L_NE/0.webp",
-        "byteSize": 17484
-      },
-      {
-        "side": "L_NW",
-        "variant": 0,
-        "url": "wallRoundJoint/L_NW/0.webp",
-        "byteSize": 14040
-      },
-      {
-        "side": "L_SE",
-        "variant": 0,
-        "url": "wallRoundJoint/L_SE/0.webp",
-        "byteSize": 16158
-      },
-      {
-        "side": "L_SW",
-        "variant": 0,
-        "url": "wallRoundJoint/L_SW/0.webp",
-        "byteSize": 15848
-      }
-    ],
     "stairsUp": [
       {
         "side": "E",

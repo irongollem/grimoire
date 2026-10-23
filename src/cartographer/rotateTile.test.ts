@@ -26,19 +26,6 @@ describe("rotation table", () => {
     }
   });
 
-  /**
-   * The carve corner walks bottom-left → top-left → top-right → bottom-right,
-   * which is what `clearRoundedInterior` maps L_NE → L_SE → L_SW → L_NW onto.
-   * Getting this order wrong puts a corner's curve on the wrong side, and it
-   * only shows on a map where two walls meet.
-   */
-  it("walks the rounded corners in clearRoundedInterior's order", () => {
-    expect(rotationFor("wallRoundJoint:L_NE:0")).toBeNull();
-    expect(rotationFor("wallRoundJoint:L_SE:0")?.degrees).toBe(90);
-    expect(rotationFor("wallRoundJoint:L_SW:0")?.degrees).toBe(180);
-    expect(rotationFor("wallRoundJoint:L_NW:0")?.degrees).toBe(270);
-  });
-
   it("derives no slot twice and no source from a derived slot", () => {
     const sources = new Set(Object.values(ROTATION_DERIVED).map((s) => s.from));
     for (const source of sources) expect(rotationFor(source)).toBeNull();

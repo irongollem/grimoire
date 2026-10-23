@@ -34,9 +34,7 @@ export const TILE_PACK_SCHEMA = {
     wallSegmentH:   { kind: "random",      min: 2,  max: 6  },
     wallSegmentV:   { kind: "random",      min: 2,  max: 6  },
     wallJoint:      { kind: "directional", sides: ["L_NE","L_SE","L_SW","L_NW","T_N","T_E","T_S","T_W","CROSS"], optional: true },
-    // Schema v2: rounded corner art for L-corners. When a pack ships these,
-    // the renderer uses them at right-angle corners instead of wallJoint.
-    wallRoundJoint: { kind: "directional", sides: ["L_NE","L_SE","L_SW","L_NW"], optional: true },
+    // Rounded corners were dropped in #1063; the vector brush draws rounded rooms.
     // Schema v4 (#1065) replaced the four door categories: a door is a doorway
     // (the opening and its frame, in the wall band) plus a separate leaf the
     // renderer turns on its hinge. doorwayV is rotation-derived from doorwayH.

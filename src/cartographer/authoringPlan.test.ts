@@ -140,22 +140,6 @@ it("encodes runtime wall geometry independently of visual style", () => {
   });
 });
 
-it("encodes rounded joint orientation in mechanics and prompt", () => {
-  const plan = createGenerationPlan({
-    manifest: manifest(),
-    artBible: bible,
-    selectedSlotIds: ["wallRoundJoint:L_NE:0"],
-  });
-
-  expect(plan.jobs[0]!.mechanics).toMatchObject({
-    footprint: "rounded-junction",
-    alpha: "transparent-outside-footprint",
-    tileable_edges: ["N", "E"],
-  });
-  expect(plan.jobs[0]!.prompt.category_request).toContain("L_NE");
-  expect(plan.jobs[0]!.prompt.category_request).toContain("N and E");
-});
-
 // wallJoint is full-cell and opaque, and the renderer draws it as a small square
 // on the grid intersection. Asking for arms reaching the declared edges put that
 // request in the same prompt as "fill the complete square canvas".
@@ -254,11 +238,6 @@ describe("rotation-derived slots", () => {
   it("collapses all four stair directions onto the north original", () => {
     const ids = plan(["stairsUp:N:0", "stairsUp:E:0", "stairsUp:S:0", "stairsUp:W:0"]).jobs.map((j) => j.id);
     expect(ids).toEqual(["stairsUp:N:0"]);
-  });
-
-  it("collapses the four rounded corners onto L_NE", () => {
-    const ids = plan(["wallRoundJoint:L_SE:0", "wallRoundJoint:L_SW:0", "wallRoundJoint:L_NW:0"]).jobs.map((j) => j.id);
-    expect(ids).toEqual(["wallRoundJoint:L_NE:0"]);
   });
 
   it("never lists a derived slot as its own source", () => {

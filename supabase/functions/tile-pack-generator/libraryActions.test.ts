@@ -146,9 +146,9 @@ describe("validateLibraryPackPatch", () => {
 
 describe("baseReferenceCandidates", () => {
   it("tries the side-specific file before the category-wide one", () => {
-    expect(baseReferenceCandidates({ category: "wallRoundJoint", side: "L_NE" })).toEqual([
-      "_base/v1/wallRoundJoint-L_NE.webp",
-      "_base/v1/wallRoundJoint.webp",
+    expect(baseReferenceCandidates({ category: "stairsUp", side: "N" })).toEqual([
+      "_base/v1/stairsUp-N.webp",
+      "_base/v1/stairsUp.webp",
     ]);
   });
 
@@ -188,7 +188,6 @@ describe("baseReferenceCandidates", () => {
       { category: "edgeGrateH" }, { category: "edgeGrateV" },
       { category: "edgeSluiceH" }, { category: "edgeSluiceV" },
       { category: "wallJoint", side: "CROSS" },
-      { category: "wallRoundJoint", side: "L_SW" },
       { category: "stairsUp", side: "E" }, { category: "stairsDown", side: "W" },
     ];
     for (const slot of grid) {

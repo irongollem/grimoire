@@ -216,7 +216,7 @@ export function makeRuntime(
   packId: string,
   opts: {
     variantCount?: number;
-    /** Per-category override of `variantCount` (e.g. real wallRoundJoint art). */
+    /** Per-category override of `variantCount` (e.g. real wallJoint art). */
     categoryCounts?: Partial<Record<PackCategory, number>>;
     /** Categories whose tiles report `isPlaceholder`. */
     placeholders?: PackCategory[];

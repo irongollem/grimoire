@@ -192,22 +192,6 @@ describe("drawMapContent", () => {
     return layers;
   };
 
-  it("draws a rounded corner only when the pack has real art for it", () => {
-    const real = input(makeRuntime(PACK, { categoryCounts: { wallRoundJoint: 1 } }), { layers: lCorner() });
-    drawMapContent(real.input);
-    expect(real.rec.drawImages.some((d) => sourceOf(d).category === "wallRoundJoint")).toBe(true);
-
-    const fake = input(makeRuntime(PACK, { categoryCounts: { wallRoundJoint: 1 }, placeholders: ["wallRoundJoint"] }), {
-      layers: lCorner(),
-    });
-    drawMapContent(fake.input);
-    expect(fake.rec.drawImages.some((d) => sourceOf(d).category === "wallRoundJoint")).toBe(false);
-
-    const none = input(makeRuntime(PACK), { layers: lCorner() });
-    drawMapContent(none.input);
-    expect(none.rec.drawImages.some((d) => sourceOf(d).category === "wallRoundJoint")).toBe(false);
-  });
-
   it("paints the joint fallback square in the pack palette", () => {
     const rt = makeRuntime(PACK, { placeholders: ["wallJoint"], palette: { wallJoint: [1, 2, 3] } });
     const { input: i, rec } = input(rt, { layers: lCorner() });

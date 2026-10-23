@@ -41,7 +41,6 @@ describe("squashesOntoBand", () => {
   it("leaves non-edge footprints alone", () => {
     expect(squashesOntoBand("floor", "full-cell")).toBe(false);
     expect(squashesOntoBand("rubble", "centered-overlay")).toBe(false);
-    expect(squashesOntoBand("wallRoundJoint", "rounded-junction")).toBe(false);
   });
 });
 
