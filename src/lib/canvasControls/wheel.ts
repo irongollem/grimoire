@@ -31,12 +31,13 @@ export interface WheelEventLike {
 const LINE_PX = 16;
 const PAGE_PX = 800;
 
-/** A mouse notch (100 px) is about a 10% zoom step. */
-const ZOOM_PER_PX = Math.log(1.1) / 100;
-
-/** One event never zooms more than 2x either way, so a huge or fast-flung delta cannot jump the map. */
-const MIN_EVENT_FACTOR = 0.5;
-const MAX_EVENT_FACTOR = 2;
+// A trackpad pinch sends many small deltas (a pixel or a few each), a mouse
+// notch one big one (~100 px). Zooming by e^(-0.01 * delta) gives a pinch the
+// responsive feel Figma has, but would make one notch a 2.7x jump. So a single
+// event's delta is capped at the size of a 10% step: a pinch keeps its full
+// sensitivity, and a notch (or a fast fling) zooms exactly 10%.
+const ZOOM_PER_PX = 0.01;
+const MAX_ZOOM_DELTA_PX = Math.log(1.1) / ZOOM_PER_PX;
 
 function toPixels(delta: number, deltaMode: number): number {
   if (deltaMode === 1) return delta * LINE_PX;
@@ -51,8 +52,8 @@ export function resolveWheel(ev: WheelEventLike): WheelIntent {
   if (ev.ctrlKey || ev.metaKey || ev.altKey) {
     // Scrolling up (negative deltaY) zooms in, proportional to the delta so a
     // pinch's tiny steps stay smooth.
-    const factor = Math.exp(-dy * ZOOM_PER_PX);
-    return { kind: "zoom", factor: Math.min(MAX_EVENT_FACTOR, Math.max(MIN_EVENT_FACTOR, factor)) };
+    const capped = Math.max(-MAX_ZOOM_DELTA_PX, Math.min(MAX_ZOOM_DELTA_PX, dy));
+    return { kind: "zoom", factor: Math.exp(-capped * ZOOM_PER_PX) };
   }
 
   // A mouse sends only deltaY for Shift+wheel and expects it to scroll
