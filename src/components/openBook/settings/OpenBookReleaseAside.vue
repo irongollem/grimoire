@@ -41,6 +41,7 @@
         :cover-image-url="book.cover_image_url"
         :leather="book.leather"
         :stats="stats"
+        :sessions="sessions"
       />
     </div>
 
@@ -65,7 +66,7 @@ import { computed, ref } from "vue";
 import { usePutBackRelease, useSetOpenBookOpen } from "@/composables/openBook/useOpenBook";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import type { OpenBook, OpenBookRelease, OpenBookStats } from "@/types/openBook.types";
+import type { OpenBook, OpenBookRelease, OpenBookSession, OpenBookStats } from "@/types/openBook.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import OpenBookReleaseHistory from "./OpenBookReleaseHistory.vue";
 import OpenBookShareCard from "./OpenBookShareCard.vue";
@@ -75,6 +76,7 @@ const { book, campaignId } = defineProps<{
   campaignId: string;
   releases: OpenBookRelease[];
   stats: OpenBookStats | null;
+  sessions: OpenBookSession[];
 }>();
 
 const host = window.location.host;

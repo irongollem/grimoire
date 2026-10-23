@@ -48,7 +48,7 @@
               :aria-pressed="draft.leather === id"
               class="size-11 rounded-sm"
               :class="draft.leather === id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'ring-1 ring-border'"
-              :style="{ backgroundColor: LEATHERS[id].color }"
+              :style="leatherBackground(id, '6rem')"
               @click="draft.leather = id"
             />
           </div>
@@ -144,7 +144,7 @@ import OpenBookEntryPicker from "./OpenBookEntryPicker.vue";
 import OpenBookFormStep from "./OpenBookFormStep.vue";
 import OpenBookNeverPrinted from "./OpenBookNeverPrinted.vue";
 import OpenBookToggleRow from "./OpenBookToggleRow.vue";
-import { LEATHERS } from "./leather";
+import { LEATHERS, leatherBackground } from "@/lib/openBook/leather";
 import { bookToDraft, draftCanSave, draftsEqual } from "./openBookDraft";
 
 const { book, campaignId } = defineProps<{ book: OpenBook; campaignId: string; isPro: boolean }>();

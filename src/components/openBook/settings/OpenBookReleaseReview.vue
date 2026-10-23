@@ -53,7 +53,7 @@
       </div>
     </div>
 
-    <OpenBookReleaseAside :book="book" :campaign-id="campaignId" :releases="releaseList" :stats="preview?.stats ?? null" />
+    <OpenBookReleaseAside :book="book" :campaign-id="campaignId" :releases="releaseList" :stats="preview?.stats ?? null" :sessions="preview?.sessions ?? []" />
   </div>
 </template>
 
