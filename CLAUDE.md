@@ -435,7 +435,7 @@ A DM can replace a canonical SRD image with their own — that override lives in
 | Static data tables with no logic                      | `src/data/`          |
 | A lone utility used by three or more features         | `src/lib/` root      |
 
-Existing folders: `lib/audio/` (+ `audio/providers/`), `lib/battlemap/`, `lib/campaignLiveSync/`, `lib/dice/`, `lib/downtime/`, `lib/illuminate/`, `lib/library/` (Open5e import + shared-content identity), `lib/scriptorium/`, `lib/tiptap/`. Top-level `src/cartographer/` is the tile-pack **authoring** tool and is separate from `lib/battlemap/`, which is the live **encounter runner** — do not merge them.
+Existing folders: `lib/audio/` (+ `audio/providers/`), `lib/battlemap/`, `lib/campaignLiveSync/`, `lib/canvasControls/` (the Photoshop/Figma wheel, zoom-key and Space rules every design canvas shares), `lib/dice/`, `lib/downtime/`, `lib/illuminate/`, `lib/library/` (Open5e import + shared-content identity), `lib/scriptorium/`, `lib/tiptap/`. Top-level `src/cartographer/` is the tile-pack **authoring** tool and is separate from `lib/battlemap/`, which is the live **encounter runner** — do not merge them.
 
 **Consumer count decides root vs folder only for single modules.** `dice/` has a folder despite `dice.ts` having 45+ consumers, because `dice` + `roller` + `diceAudio` wire into each other and form a subsystem with its own boundary — same as `tiptap/`. `supabase`, `storage` and `utils` stay in root because each is one module with no internal structure that everything happens to call. Popularity is not the test; internal cohesion is.
 
