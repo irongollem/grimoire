@@ -7,6 +7,9 @@ import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 const mocks = vi.hoisted(() => ({
   viewport: { value: { x: -40, y: -20, zoom: 1.4 } },
   fitView: vi.fn(),
+  zoomIn: vi.fn(),
+  zoomOut: vi.fn(),
+  zoomTo: vi.fn(),
   setCenter: vi.fn(),
   project: vi.fn(),
   onNodesInitialized: vi.fn(),
@@ -189,5 +192,60 @@ describe("QuestFlowCanvas drag", () => {
       [{ type: "move", beatId: "beat-a", x: 10, y: 20 }],
       [{ type: "move", beatId: "beat-b", x: 30, y: 40 }],
     ]);
+  });
+});
+
+describe("QuestFlowCanvas canvas controls", () => {
+  beforeEach(() => {
+    mocks.fitView.mockReset().mockResolvedValue(true);
+    mocks.zoomIn.mockReset();
+    mocks.zoomOut.mockReset();
+    mocks.zoomTo.mockReset();
+  });
+
+  it("pans on the wheel and the left or middle button, and never zooms on the plain wheel", () => {
+    const attrs = mountCanvas().findComponent({ name: "VueFlow" }).vm.$attrs;
+    expect(attrs["pan-on-scroll"]).toBe(true);
+    expect(attrs["zoom-on-scroll"]).toBe(false);
+    expect(attrs["pan-on-drag"]).toEqual([0, 1]);
+  });
+
+  // Earlier tests leave their canvases mounted, so every call is asserted as "at least once" rather than counted.
+  it("maps the zoom keys to the flow while the pointer is over the graph", async () => {
+    const wrapper = mountCanvas();
+    await wrapper.find(".quest-flow-canvas").trigger("pointerenter");
+    const press = (init: KeyboardEventInit) => window.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, ...init }));
+    press({ key: "=", code: "Equal", ctrlKey: true });
+    press({ key: "-", code: "Minus", ctrlKey: true });
+    press({ key: "1", code: "Digit1", ctrlKey: true });
+    press({ key: "!", code: "Digit1", shiftKey: true });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(mocks.zoomIn).toHaveBeenCalled();
+    expect(mocks.zoomOut).toHaveBeenCalled();
+    expect(mocks.zoomTo).toHaveBeenCalledWith(1);
+    expect(mocks.fitView).toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("leaves the zoom keys to the browser when the pointer is elsewhere on the page", async () => {
+    const wrapper = mountCanvas();
+    await wrapper.find(".quest-flow-canvas").trigger("pointerleave");
+    const key = new KeyboardEvent("keydown", { key: "0", code: "Digit0", ctrlKey: true, cancelable: true });
+    window.dispatchEvent(key);
+    expect(key.defaultPrevented).toBe(false);
+  });
+
+  it("lets Space through to the flow's own hand", () => {
+    mountCanvas();
+    const space = new KeyboardEvent("keydown", { key: " ", code: "Space", cancelable: true });
+    window.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(false);
+  });
+
+  it("stops listening when it goes away", () => {
+    const remove = vi.spyOn(window, "removeEventListener");
+    mountCanvas().unmount();
+    expect(remove).toHaveBeenCalledWith("keydown", expect.any(Function));
+    remove.mockRestore();
   });
 });

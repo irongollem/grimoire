@@ -2,10 +2,14 @@
   <div
     ref="rootEl"
     class="nb-viewport relative h-full min-h-80 w-full overflow-hidden"
-    :class="{ 'is-panning': panning }"
+    :class="{ 'is-panning': panning, 'is-hand': spaceHeld }"
     :style="{ touchAction: overflowX || overflowY ? 'none' : 'pan-y' }"
     data-viewport
+    @pointerdown.capture="onPointerDownCapture"
     @pointerdown="onPointerDown"
+    @mousedown="onMouseDown"
+    @pointerenter="hovered = true"
+    @pointerleave="hovered = false"
     @pointermove="onPointerMove"
     @pointerup="onPointerEnd"
     @pointercancel="onPointerEnd"
@@ -59,6 +63,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconMaximize, IconZoomIn, IconZoomOut } from "@/lib/icons";
+import { useCanvasHand } from "@/composables/useCanvasHand";
+import { resolveWheel } from "@/lib/canvasControls/wheel";
 import {
   BOARD_H,
   BOARD_W,
@@ -163,19 +169,40 @@ function localPoint(event: { clientX: number; clientY: number }): PanOffset {
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
 
+// A board sits inside a page, so the plain wheel pans only while the board overflows and otherwise lets the page scroll.
 function onWheel(event: WheelEvent) {
-  if (event.ctrlKey || event.metaKey) {
-    // Pinch on a trackpad arrives as ctrl+wheel.
+  const intent = resolveWheel(event);
+  if (intent.kind === "zoom") {
+    // Ctrl, Cmd or Alt+wheel, and a trackpad pinch (which arrives as ctrl+wheel), zoom about the cursor.
     event.preventDefault();
-    setScale(scale.value * Math.exp(-event.deltaY * 0.01), localPoint(event));
+    setScale(scale.value * intent.factor, localPoint(event));
     return;
   }
   if (!overflowX.value && !overflowY.value) return;
   event.preventDefault();
-  const dx = event.shiftKey && event.deltaX === 0 ? event.deltaY : event.deltaX;
-  const dy = event.shiftKey ? 0 : event.deltaY;
-  pan.value = { x: offset.value.x - dx, y: offset.value.y - dy };
+  pan.value = { x: offset.value.x - intent.dx, y: offset.value.y - intent.dy };
 }
+
+// ── Keys: Space is a hand, and the zoom shortcuts ────────────────────────────
+
+// The keys are window-wide, so they act only while the reader is on this board (pointer over it or focus inside it);
+// otherwise Space would stop scrolling the page and Ctrl+- would stop zooming the browser for anything else on it.
+const hovered = ref(false);
+function onBoard(): boolean {
+  return hovered.value || (rootEl.value?.contains(document.activeElement) ?? false);
+}
+
+function zoomTo(to: "in" | "out" | "fit" | "actual") {
+  if (to === "in") zoomBy(1.25);
+  else if (to === "out") zoomBy(0.8);
+  else if (to === "fit") fit();
+  // The board is drawn at BOARD_W px at a scale of 1, which is its natural size, so that is 100%; setScale holds it
+  // inside "whole board fits" to 2.5x.
+  else setScale(1, { x: vw.value / 2, y: vh.value / 2 });
+}
+
+const hand = useCanvasHand({ onZoom: zoomTo, active: onBoard });
+const { spaceHeld } = hand;
 
 // ── Drag to pan, two fingers to zoom ─────────────────────────────────────────
 
@@ -195,6 +222,23 @@ function distance(): number {
 function midpoint(): PanOffset {
   const [a, b] = [...pointers.values()];
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+/**
+ * A pin being arranged stops its own pointerdown from reaching the pan below, so a pan that must win over it (middle
+ * button, or Space held) starts here in the capture phase and the pin never sees the press. Checked here rather than
+ * passed down to every pin, which keeps the pin ignorant of the hand tool.
+ */
+function onPointerDownCapture(event: PointerEvent) {
+  if (!hand.isForcedPan(event)) return;
+  if (!(event.target instanceof Element) || !event.target.closest("[data-pin]")) return;
+  onPointerDown(event);
+  event.stopPropagation();
+}
+
+// The browser's middle-press autoscroll would take the drag over.
+function onMouseDown(event: MouseEvent) {
+  if (event.button === 1) event.preventDefault();
 }
 
 function onPointerDown(event: PointerEvent) {
@@ -274,7 +318,12 @@ function onFocusIn(event: FocusEvent) {
   background: transparent;
   cursor: grab;
 }
-.nb-viewport.is-panning {
+.nb-viewport.is-hand,
+.nb-viewport.is-hand :deep(.nb-hit) {
+  cursor: grab;
+}
+.nb-viewport.is-panning,
+.nb-viewport.is-panning :deep(.nb-hit) {
   cursor: grabbing;
 }
 </style>
