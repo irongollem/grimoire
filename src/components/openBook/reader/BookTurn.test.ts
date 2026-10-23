@@ -274,6 +274,10 @@ describe("BookTurn dragging a corner", () => {
   it("leaves a plain press to the dog-ear", async () => {
     const onClick = vi.fn();
     const w = mountDrag(onClick);
+    // Vue drops an event no newer than its listener (same millisecond as the mount), so let the mount settle
+    // before clicking, as any real click does.
+    await flushPromises();
+    await new Promise((resolve) => setTimeout(resolve, 2));
     const btn = w.get(".ob-lift").element;
     btn.dispatchEvent(pointer("pointerdown", 880));
     window.dispatchEvent(pointer("pointerup", 880));
