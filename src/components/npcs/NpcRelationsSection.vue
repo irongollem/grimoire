@@ -65,6 +65,14 @@
       </div>
     </div>
     <p v-if="suggestError" class="text-caption text-destructive mb-3">{{ suggestError }}</p>
+    <!-- A run reads the campaign and asks the model, which takes a while: say so where the answers will land. -->
+    <div v-if="isSuggesting" class="mb-4 space-y-2" role="status" aria-live="polite">
+      <p class="flex items-center gap-2 text-caption italic text-muted-foreground">
+        <BannerLoader class="h-4" />
+        Reading your campaign for connections. This takes a little while.
+      </p>
+      <ListSkeleton variant="text" :count="3" />
+    </div>
     <NpcRelationSuggestions
       v-if="suggestions.length > 0 || setAside.length > 0"
       :suggestions="suggestions"
@@ -153,12 +161,14 @@
 
         <!-- NPC name + notes -->
         <div class="flex-1 min-w-0">
-          <RouterLink
-            :to="`/npcs/${otherNpcId(rel)}`"
-            class="text-heading-sm font-semibold text-foreground hover:text-primary transition-colors"
+          <!-- Opens the connection in the NPC modal (with a back arrow) rather than leaving this NPC. -->
+          <button
+            type="button"
+            class="text-left text-heading-sm font-semibold text-foreground hover:text-primary transition-colors"
+            @click="peek(otherNpcId(rel))"
           >
             {{ otherNpcName(rel) }}
-          </RouterLink>
+          </button>
           <p
             v-if="rel.notes"
             class="text-caption text-muted-foreground mt-0.5 wrap-break-word whitespace-normal"
@@ -197,6 +207,9 @@ import {
 } from "@/composables/factions/useNpcRelations";
 import { useAddFactionNpc, useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useOpenNpc } from "@/composables/npcs/useNpcPeek";
+import BannerLoader from "@/components/brand/BannerLoader.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import { useParty } from "@/composables/party/useParty";
 import { useCreateKinLink } from "@/composables/kinship/useKinLinks";
 import { kinInsertFor, personKey } from "@/lib/kinship/keys";
@@ -220,6 +233,7 @@ import type { NpcRelationshipType, NpcRelation } from "@/types/npc.types";
 
 const props = defineProps<{ npcId: string }>();
 
+const peek = useOpenNpc();
 const { data: relationsRaw } = useNpcRelations(props.npcId);
 const { data: allNpcs } = useNpcs();
 const { mutateAsync: createRelation, isPending: isSaving } =
