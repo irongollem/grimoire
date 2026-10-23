@@ -4,7 +4,7 @@ import { useCanvasNavigation } from "./useCanvasNavigation";
 import type { CellBounds } from "@/cartographer/viewport";
 import { BASE_TILE_SIZE } from "@/cartographer/packSchema";
 
-function makeNav(bounds: CellBounds | null = null) {
+function makeNav(bounds: CellBounds | null = null, active?: () => boolean) {
   const canvas = {
     getBoundingClientRect: () => ({ left: 10, top: 20, width: 800, height: 600 }) as DOMRect,
   } as unknown as HTMLCanvasElement;
@@ -16,6 +16,7 @@ function makeNav(bounds: CellBounds | null = null) {
     viewportOffset,
     getBounds: () => bounds,
     devicePixelDims: () => ({ w: 800, h: 600, dpr: 1 }),
+    active,
   });
   return { nav, zoom, viewportOffset };
 }
@@ -61,6 +62,21 @@ describe("isPanStart", () => {
 });
 
 describe("Space", () => {
+  it("is left alone while the host says the canvas is not in use, and let go of regardless", () => {
+    let inUse = false;
+    const { nav } = makeNav(null, () => inUse);
+    const ignored = key();
+    expect(nav.onKeyDown(ignored)).toBe(false);
+    expect(nav.spaceHeld.value).toBe(false);
+    expect(ignored.defaultPrevented).toBe(false);
+
+    inUse = true;
+    expect(nav.onKeyDown(key())).toBe(true);
+    inUse = false;
+    nav.onKeyUp(up());
+    expect(nav.spaceHeld.value).toBe(false);
+  });
+
   it("is held between keydown and keyup, and keeps the page from scrolling", () => {
     const { nav } = makeNav();
     const down = key();

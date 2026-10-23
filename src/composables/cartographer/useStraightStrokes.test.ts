@@ -66,6 +66,36 @@ describe("brush", () => {
     expect(straight.brushTarget([7, 3], true)[1]).toBeCloseTo(2);
   });
 
+  it("keeps the ray it first chose when the pointer wobbles across a 22.5 degree boundary", () => {
+    const { straight } = make();
+    straight.brushPress([0, 0], false);
+    const first = straight.brushTarget([5, 1], true); // 11 degrees: the flat ray
+    expect(first[0]).toBeCloseTo(5);
+    expect(first[1]).toBeCloseTo(0);
+    const wobble = straight.brushTarget([5, 3], true); // 31 degrees would have been the diagonal
+    expect(wobble[0]).toBeCloseTo(5);
+    expect(wobble[1]).toBeCloseTo(0);
+  });
+
+  it("never runs backwards past the start of a locked ray", () => {
+    const { straight } = make();
+    straight.brushPress([0, 0], false);
+    straight.brushTarget([4, 0], true);
+    const back = straight.brushTarget([-3, 1], true);
+    expect(back[0]).toBeCloseTo(0);
+    expect(back[1]).toBeCloseTo(0);
+  });
+
+  it("lets go of the ray with Shift and picks a new one from the pointer on the next press", () => {
+    const { straight } = make();
+    straight.brushPress([0, 0], false);
+    straight.brushTarget([4, 0], true);
+    expect(straight.brushTarget([4, 3], false)).toEqual([4, 3]);
+    const next = straight.brushTarget([4, 8], true); // straight down from where it was let go
+    expect(next[0]).toBeCloseTo(4);
+    expect(next[1]).toBeCloseTo(8);
+  });
+
   it("is forgotten when the tool changes", () => {
     const { straight, activeTool } = make();
     straight.brushEnded([3, 1]);
@@ -124,6 +154,29 @@ describe("cell painters", () => {
     straight.cellPress([0, 0], false);
     straight.cellDrag([2, 0], true);
     expect(straight.cellDrag([4, 1], true)).toEqual([[2, 0], [3, 0], [4, 0]]);
+  });
+
+  it("keeps the ray it first chose when the pointer wobbles across a 22.5 degree boundary", () => {
+    const { straight } = make("floor");
+    straight.cellPress([0, 0], false);
+    expect(straight.cellDrag([5, 1], true)).toEqual([[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0]]);
+    // (6, 4) alone would snap to the diagonal; the locked ray keeps going along the row.
+    expect(straight.cellDrag([6, 4], true)).toEqual([[5, 0], [6, 0]]);
+  });
+
+  it("does not run backwards past the start of a locked ray", () => {
+    const { straight } = make("floor");
+    straight.cellPress([0, 0], false);
+    straight.cellDrag([3, 0], true);
+    expect(straight.cellDrag([-2, 1], true)).toEqual([[3, 0], [2, 0], [1, 0], [0, 0]]);
+  });
+
+  it("lets go of the ray with Shift and picks a new one from the pointer on the next press", () => {
+    const { straight } = make("floor");
+    straight.cellPress([0, 0], false);
+    straight.cellDrag([3, 0], true);
+    expect(straight.cellDrag([3, 2], false)).toEqual([[3, 2]]);
+    expect(straight.cellDrag([3, 6], true)).toEqual([[3, 2], [3, 3], [3, 4], [3, 5], [3, 6]]);
   });
 
   it("is forgotten when the tool changes", () => {

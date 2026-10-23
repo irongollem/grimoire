@@ -122,6 +122,11 @@ export interface MapCanvasEditorOptions {
    *  `plan`) — see `handleActiveLayerPointerDown` below for the split. */
   plan?: ReturnType<typeof usePlanPalette>;
   activeLayer?: Ref<"drawing" | "plan">;
+  /** Whether Space and the zoom keys are this canvas's to take. The editor listens on the
+   *  window, and the workbench also sits inside whole pages (the Atlas) whose other
+   *  controls need Space and the browser's own zoom, so the host answers true only while
+   *  the pointer is over the map or focus is inside it. Omitted: always. */
+  keysActive?: () => boolean;
 }
 
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
@@ -133,7 +138,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
     dressing, placeItem, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, placeRotation, activeWallKind, activeWallDecal, activeTemplateShape,
     brushRadius, rectWalls, selectedCell, toolOptionsRef, structure, mapKey, getReferenceImage, extraRenderDeps,
-    plan, activeLayer,
+    plan, activeLayer, keysActive,
   } = opts;
 
   /** Every edit funnels through here instead of writing `dirty.value = true`
@@ -404,7 +409,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   // Wheel, zoom keys and the Space hand.
   const navigation = useCanvasNavigation({
-    canvasEl, zoom, viewportOffset, getBounds: paintedBounds, devicePixelDims,
+    canvasEl, zoom, viewportOffset, getBounds: paintedBounds, devicePixelDims, active: keysActive,
   });
 
   // Centre the viewport on the painted area (or on the origin if the map is empty).
@@ -478,17 +483,15 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   }
 
   // Shift+click with the wall tool: a straight run from the last wall point,
-  // painted through the same per-kind path a plain click uses, as one undo step.
-  // The stroke tracker is left inactive so neither its direction lock nor its
-  // dedup set applies to a run.
+  // painted through the same per-kind path a plain click uses. The caller owns
+  // the undo step, so a click and a drag that follows it are one. The stroke
+  // tracker is replaced afterwards so neither its direction lock nor its dedup
+  // set carries a run's edges into the drag.
   function paintWallRun(edges: CellEdge[], erase: boolean): void {
-    const before = snapshotStr();
-    strokeState = paintOps.createStrokeState();
     for (const edge of edges) {
       if (erase) eraseWallKindAtCellEdge(edge); else paintWallKindAtCellEdge(edge);
     }
-    const after = snapshotStr();
-    if (before !== after) pushCommand(before, after);
+    strokeState = paintOps.createStrokeState();
   }
 
   // A wall stroke's edge under the pointer; remembered so Shift can keep the
@@ -921,7 +924,16 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (activeTool.value === "wall" && ev.shiftKey && ev.button === 0) {
       const run = straight.runFromAnchor(fractionalCellAt(ev), true);
       if (run) {
+        // The run opens an ordinary wall stroke, so holding the button and dragging
+        // carries on along the same line, and the run and the drag are one undo step.
+        isPainting.value = true;
+        canvasEl.value?.setPointerCapture(ev.pointerId);
+        strokeState = paintOps.createStrokeState();
+        straight.beginStroke();
+        strokeSnapshot = snapshotStr();
         paintWallRun(run, ev.altKey);
+        const last = run.at(-1);
+        if (last) straight.noteWallEdge(last);
         return;
       }
     }
@@ -1337,7 +1349,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "undo": undoEdit(); break;
       case "redo": redoEdit(); break;
       case "center": centerMap(); break;
-      case "zoom": navigation.zoomTo(action.to); break;
+      case "zoom":
+        // The browser's own zoom keys keep working anywhere but over the map.
+        if (keysActive && !keysActive()) return;
+        navigation.zoomTo(action.to);
+        break;
       case "rotatePlace": dressingTool.turn(action.delta); break;
       case "deleteDressing": dressingTool.deleteSelected(); break;
       case "disarmPlace": placeItem.value = null; break;

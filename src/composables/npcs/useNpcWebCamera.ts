@@ -27,6 +27,13 @@ export interface NpcWebCameraOptions {
   onTaken: () => void;
   /** Space turns node dragging off so a left drag over a node pans instead. */
   setNodesDraggable: (on: boolean) => void;
+  /**
+   * Whether Space and the zoom keys are the graph's to take. They are read on
+   * the window, so without this the web would swallow Space and the browser's
+   * zoom keys from the rest of the page; the view answers true while the
+   * pointer is over the graph or focus is inside it. Omitted: always.
+   */
+  keysActive?: () => boolean;
 }
 
 interface Pt {
@@ -35,7 +42,7 @@ interface Pt {
 }
 
 export function useNpcWebCamera(opts: NpcWebCameraOptions) {
-  const hand = useCanvasHand({ onZoom: zoomTo });
+  const hand = useCanvasHand({ onZoom: zoomTo, active: opts.keysActive });
 
   watch(hand.spaceHeld, (held) => opts.setNodesDraggable(!held));
   onBeforeUnmount(() => opts.setNodesDraggable(true));

@@ -36,16 +36,23 @@ export interface CanvasNavigationOptions {
   getBounds: () => CellBounds | null;
   /** The canvas's CSS size and the pixel ratio the offset is stored in. */
   devicePixelDims: () => { w: number; h: number; dpr: number };
+  /**
+   * Whether Space may be taken right now. The editor listens on the window, so
+   * without this a canvas sharing a page with other things would swallow Space
+   * from every one of them; the host answers true while the pointer is over the
+   * canvas or focus is inside it. Releasing Space is never gated.
+   */
+  active?: () => boolean;
 }
 
 type WheelInput = WheelEventLike & Pick<WheelEvent, "clientX" | "clientY">;
 
 export function useCanvasNavigation(opts: CanvasNavigationOptions) {
-  const { canvasEl, zoom, viewportOffset, getBounds, devicePixelDims } = opts;
+  const { canvasEl, zoom, viewportOffset, getBounds, devicePixelDims, active } = opts;
 
   // Space and the forced pans are shared with the other canvases. This editor
   // forwards its own window events, so Space is decided before its tool keys.
-  const hand = useCanvasHand({ listen: false });
+  const hand = useCanvasHand({ listen: false, active });
   const { spaceHeld, isForcedPan } = hand;
 
   function current(): CanvasViewport {

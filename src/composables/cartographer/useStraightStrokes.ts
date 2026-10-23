@@ -7,7 +7,10 @@
 //   - the cell painters (Tiles, Water, Rock), in whole cells;
 //   - the Wall, in grid vertices.
 // Holding Shift while dragging snaps the stroke to 45 degree steps (cells and
-// brush) or keeps it on the line it started on (wall).
+// brush) or keeps it on the line it started on (wall). The 45 degree ray is
+// chosen once, as soon as the pointer has left the stroke's start, and then
+// kept until Shift is let go: re-picking it on every move would paint a wedge
+// whenever the pointer crossed a 22.5 degree boundary.
 //
 // This module only decides *where* to paint. The editor keeps doing the
 // painting, so every kind, variant and undo rule stays in one place.
@@ -45,6 +48,10 @@ export function constrainShapeEnd(tool: Tool, start: readonly [number, number], 
   return end;
 }
 
+// How far the pointer must be from the stroke's start before the ray is
+// chosen: nearer than this the angle is noise.
+const RAY_LOCK_DISTANCE = 0.5;
+
 function cellLine(from: Point, to: Point): Cell[] {
   return cellsInLine(from[0], from[1], to[0], to[1]).map(parseCellKey);
 }
@@ -63,6 +70,12 @@ export function useStraightStrokes(opts: { activeTool: Ref<Tool>; mapKey: Readon
   let cellPrev: Point | null = null;
   let wallOrigin: CellEdge | null = null;
   let wallLast: CellEdge | null = null;
+
+  // The ray a Shift drag is locked to: a unit vector for the brush, a step
+  // direction for the cell painters. Null until chosen, and again once Shift
+  // is let go, so pressing it again picks a fresh ray from where the pointer is.
+  let brushRay: Point | null = null;
+  let cellRay: Cell | null = null;
 
   function forget(): void {
     brushEnd = null;
@@ -86,6 +99,8 @@ export function useStraightStrokes(opts: { activeTool: Ref<Tool>; mapKey: Readon
     cellPrev = null;
     wallOrigin = null;
     wallLast = null;
+    brushRay = null;
+    cellRay = null;
   }
 
   // ── Round brush ────────────────────────────────────────────────────────
@@ -103,9 +118,29 @@ export function useStraightStrokes(opts: { activeTool: Ref<Tool>; mapKey: Readon
     return [press];
   }
 
-  /** The pointer while dragging: Shift snaps it to 45 degree steps from where the stroke began. */
+  /**
+   * The pointer while dragging. With Shift it is held on one 45 degree ray from
+   * where the stroke began (or, after Shift was let go and pressed again, from
+   * where the pointer was then); the ray is chosen once and the pointer is
+   * projected onto it, never back past the start.
+   */
   function brushTarget(pointer: Point, shift: boolean): Point {
-    return shift && brushStart ? snapToAngle(brushStart, pointer) : pointer;
+    if (!shift) {
+      // Free painting: the next Shift press anchors where the pointer is now.
+      brushRay = null;
+      brushStart = pointer;
+      return pointer;
+    }
+    if (!brushStart) return pointer;
+    const [sx, sy] = brushStart;
+    if (!brushRay) {
+      if (Math.hypot(pointer[0] - sx, pointer[1] - sy) < RAY_LOCK_DISTANCE) return brushStart;
+      const snapped = snapToAngle(brushStart, pointer);
+      const length = Math.hypot(snapped[0] - sx, snapped[1] - sy);
+      brushRay = [(snapped[0] - sx) / length, (snapped[1] - sy) / length];
+    }
+    const along = Math.max(0, (pointer[0] - sx) * brushRay[0] + (pointer[1] - sy) * brushRay[1]);
+    return [sx + along * brushRay[0], sy + along * brushRay[1]];
   }
 
   function brushEnded(last: Point | null): void {
@@ -125,18 +160,31 @@ export function useStraightStrokes(opts: { activeTool: Ref<Tool>; mapKey: Readon
   }
 
   /**
-   * The cells a drag step paints. With Shift the target snaps to 45 degree
-   * steps from the stroke's start and the whole line to it is painted, so a
-   * fast drag leaves no gaps; without it, just the cell under the pointer.
+   * The cells a drag step paints. With Shift the target is held on one 45
+   * degree ray from the stroke's start (chosen once, then followed as far as
+   * the pointer goes along it) and the whole line to it is painted, so a fast
+   * drag leaves no gaps; without it, just the cell under the pointer.
    */
   function cellDrag(cell: Cell, shift: boolean): Cell[] {
     const from = cellPrev ?? cell;
     if (!shift) {
+      // Free painting: the next Shift press anchors where the pointer is now.
+      cellRay = null;
+      cellStart = cell;
       cellPrev = cell;
       return [cell];
     }
     const start = cellStart ?? cell;
-    const target = snapCellToAngle(start[0], start[1], cell[0], cell[1]);
+    if (!cellRay && (cell[0] !== start[0] || cell[1] !== start[1])) {
+      const snapped = snapCellToAngle(start[0], start[1], cell[0], cell[1]);
+      cellRay = [Math.sign(snapped[0] - start[0]), Math.sign(snapped[1] - start[1])];
+    }
+    let target: Cell = [start[0], start[1]];
+    if (cellRay) {
+      const [rx, ry] = cellRay;
+      const steps = Math.max(0, Math.round(((cell[0] - start[0]) * rx + (cell[1] - start[1]) * ry) / (rx * rx + ry * ry)));
+      target = [start[0] + steps * rx, start[1] + steps * ry];
+    }
     cellPrev = target;
     return cellLine(from, target);
   }

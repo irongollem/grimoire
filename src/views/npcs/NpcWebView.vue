@@ -19,7 +19,12 @@
     <SortFamilyLinksNotice class="mx-4 mt-2" />
 
     <!-- Graph area (fills remaining space; panel overlays it so the graph never resizes) -->
-    <div class="flex-1 relative bg-muted/10 overflow-hidden">
+    <div
+      ref="graphAreaEl"
+      class="flex-1 relative bg-muted/10 overflow-hidden"
+      @pointerenter="pointerOverGraph = true"
+      @pointerleave="pointerOverGraph = false"
+    >
       <div v-if="isLoading" class="absolute inset-0 flex items-center justify-center">
         <LoadingSpinner />
       </div>
@@ -613,6 +618,11 @@ const framed = ref(false);
 // The graph's zoom is a v-model rather than a method, so the camera reads and writes it here, and a write
 // resolves on the next tick, once the graph has drawn it.
 const zoomLevel = ref(1);
+
+// Space and the zoom keys are read on the window, so they are the graph's only while the pointer is
+// over it or focus is inside it; elsewhere on the page they keep their own meaning.
+const graphAreaEl = ref<HTMLElement | null>(null);
+const pointerOverGraph = ref(false);
 const { spaceHeld, onWheel, onMouseDownCapture, onPointerDown, onPointerMove, onPointerUp } = useNpcWebCamera({
   graph: () => {
     const g = graphRef.value;
@@ -631,6 +641,7 @@ const { spaceHeld, onWheel, onMouseDownCapture, onPointerDown, onPointerMove, on
   },
   onTaken: () => { cameraTakenByUser.value = true; },
   setNodesDraggable: (on) => { if (graphConfigs.node) graphConfigs.node.draggable = on; },
+  keysActive: () => pointerOverGraph.value || (graphAreaEl.value?.contains(document.activeElement) ?? false),
 });
 
 const frameWhenSettled = useDebounceFn(() => {

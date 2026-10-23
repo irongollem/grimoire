@@ -18,14 +18,14 @@ function fakeGraph(zoom = 1): CameraGraph & { level: number } {
   return g;
 }
 
-function setup(graph: CameraGraph | null) {
+function setup(graph: CameraGraph | null, keysActive?: () => boolean) {
   const onTaken = vi.fn();
   const setNodesDraggable = vi.fn();
   let camera!: ReturnType<typeof useNpcWebCamera>;
   const wrapper = mount(
     defineComponent({
       setup() {
-        camera = useNpcWebCamera({ graph: () => graph, onTaken, setNodesDraggable });
+        camera = useNpcWebCamera({ graph: () => graph, onTaken, setNodesDraggable, keysActive });
         return () => h("div");
       },
     }),
@@ -106,6 +106,25 @@ describe("useNpcWebCamera", () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "1", code: "Digit1", ctrlKey: true }));
     expect(g.setZoomLevel).toHaveBeenCalledWith(1);
     expect(onTaken).toHaveBeenCalledTimes(4);
+  });
+
+  it("leaves Space and the zoom keys to the page while the graph is not in use", () => {
+    const g = fakeGraph();
+    let inUse = false;
+    const { camera, onTaken } = setup(g, () => inUse);
+    const space = new KeyboardEvent("keydown", { code: "Space", key: " ", cancelable: true });
+    window.dispatchEvent(space);
+    expect(camera.spaceHeld.value).toBe(false);
+    expect(space.defaultPrevented).toBe(false);
+    const zoom = new KeyboardEvent("keydown", { key: "=", code: "Equal", ctrlKey: true, cancelable: true });
+    window.dispatchEvent(zoom);
+    expect(g.zoomIn).not.toHaveBeenCalled();
+    expect(zoom.defaultPrevented).toBe(false);
+    expect(onTaken).not.toHaveBeenCalled();
+
+    inUse = true;
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "=", code: "Equal", ctrlKey: true }));
+    expect(g.zoomIn).toHaveBeenCalledTimes(1);
   });
 
   it("does nothing before the graph exists", () => {

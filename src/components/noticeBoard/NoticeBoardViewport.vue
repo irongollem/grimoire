@@ -6,6 +6,7 @@
     :style="{ touchAction: overflowX || overflowY ? 'none' : 'pan-y' }"
     data-viewport
     @pointerdown.capture="onPointerDownCapture"
+    @click.capture="onClickCapture"
     @pointerdown="onPointerDown"
     @mousedown="onMouseDown"
     @pointerenter="hovered = true"
@@ -213,6 +214,8 @@ let drag: { from: PanOffset; pan: PanOffset } | null = null;
 let pinch: { dist: number; scale: number } | null = null;
 /** A pan that ends over a pin must not read as a tap on it. */
 let moved = false;
+/** Set while a hand press that landed on a pin is down, so the click that ends it does not open the pin. */
+let swallowClick = false;
 
 function distance(): number {
   const [a, b] = [...pointers.values()];
@@ -230,10 +233,21 @@ function midpoint(): PanOffset {
  * passed down to every pin, which keeps the pin ignorant of the hand tool.
  */
 function onPointerDownCapture(event: PointerEvent) {
+  // Any new press starts clean, so a flag whose click never came (released off the board) cannot eat a later tap.
+  swallowClick = false;
   if (!hand.isForcedPan(event)) return;
   if (!(event.target instanceof Element) || !event.target.closest("[data-pin]")) return;
+  // A Space-tap that never moved still ends in a click on the pin, which must not open it: the press was the hand's.
+  swallowClick = event.button === 0;
   onPointerDown(event);
   event.stopPropagation();
+}
+
+/** Capture-phase click handler: drops the click that ends a hand press on a pin. */
+function onClickCapture(event: MouseEvent) {
+  if (!swallowClick) return;
+  event.stopPropagation();
+  event.preventDefault();
 }
 
 // The browser's middle-press autoscroll would take the drag over.
@@ -276,6 +290,8 @@ function onPointerMove(event: PointerEvent) {
 }
 
 function onPointerEnd(event: PointerEvent) {
+  // The click that follows the press fires right after pointerup; clear the flag once it has passed.
+  if (swallowClick) setTimeout(() => (swallowClick = false), 0);
   pointers.delete(event.pointerId);
   if (pointers.size < 2) pinch = null;
   if (pointers.size === 0) {

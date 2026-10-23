@@ -1,5 +1,5 @@
 <template>
-  <div :class="viewMode ? 'flex flex-col lg:flex-row gap-3 mt-2' : 'flex h-full min-h-0 flex-col gap-2'">
+  <div ref="rootEl" :class="viewMode ? 'flex flex-col lg:flex-row gap-3 mt-2' : 'flex h-full min-h-0 flex-col gap-2'">
     <!-- Edit: a column of the 3rem bar and, under it, the rail and the canvas, filling whatever
          height the host gives it. View: the canvas alone, as the page always showed it. -->
     <CartographerBar
@@ -60,12 +60,15 @@
         class="flex-1 min-w-0 relative bg-card border border-border rounded-lg overflow-hidden"
         :class="viewMode ? '' : 'min-h-64'"
         :style="viewMode ? 'min-height: 60vh' : undefined"
+        @pointerenter="pointerOverMap = true"
+        @pointerleave="pointerOverMap = false"
       >
         <canvas
           ref="canvasEl"
           class="absolute inset-0 block h-full w-full touch-none"
           :class="canvasCursor"
           @pointerdown="onPointerDown"
+          @mousedown="onMouseDown"
           @pointermove="onPointerMove"
           @pointerup="onPointerUp"
           @pointerleave="onPointerLeave"
@@ -508,6 +511,20 @@ function setDarkness(level: DarknessLevel): void {
 }
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
+const rootEl = ref<HTMLElement | null>(null);
+
+// Space and the zoom keys are the map's only while the pointer is over it or focus is
+// inside the workbench. The editor listens on the window, and this component also sits
+// inside whole pages (the Atlas) whose other controls need those keys.
+const pointerOverMap = ref(false);
+function keysActive(): boolean {
+  return pointerOverMap.value || (rootEl.value?.contains(document.activeElement) ?? false);
+}
+
+// The browser's middle-press autoscroll would take the pan drag over.
+function onMouseDown(ev: MouseEvent): void {
+  if (ev.button === 1) ev.preventDefault();
+}
 
 // Tools
 /** The rail's clusters, top to bottom: Look, Floor, Walls, Things, Notes, Eraser. */
@@ -969,7 +986,7 @@ const {
   selectedCell, toolOptionsRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
-  plan, activeLayer,
+  plan, activeLayer, keysActive,
 });
 
 // The hand shows while Space is held or the Pan tool is armed on the Drawing, and closes

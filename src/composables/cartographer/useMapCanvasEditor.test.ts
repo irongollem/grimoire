@@ -1254,7 +1254,11 @@ describe("Alt inverts a painting tool", () => {
 // These two need a real mounted host to exercise that wiring.
 
 describe("altHeld", () => {
-  function mountForLifecycle(tool: Tool = "floor", radius = ref(1.5)): ReturnType<typeof useMapCanvasEditor> {
+  function mountForLifecycle(
+    tool: Tool = "floor",
+    radius = ref(1.5),
+    keysActive?: () => boolean,
+  ): ReturnType<typeof useMapCanvasEditor> {
     let captured!: ReturnType<typeof useMapCanvasEditor>;
     const runtime = fakeRuntime();
     const Host = defineComponent({
@@ -1289,6 +1293,7 @@ describe("altHeld", () => {
           mapKey: computed(() => "map-test"),
           getReferenceImage: () => null,
           extraRenderDeps: [],
+          keysActive,
         });
         return () => h("div");
       },
@@ -1363,6 +1368,32 @@ describe("altHeld", () => {
     editor.zoom.value = 3;
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "0", code: "Digit0", ctrlKey: true }));
     expect(editor.zoom.value).toBe(1);
+  });
+
+  it("Space and the zoom keys are left to the page while the pointer and focus are elsewhere", () => {
+    let overMap = false;
+    const editor = mountForLifecycle("floor", ref(1.5), () => overMap);
+    const space = new KeyboardEvent("keydown", { key: " ", code: "Space", cancelable: true });
+    window.dispatchEvent(space);
+    expect(editor.spaceHeld.value).toBe(false);
+    expect(space.defaultPrevented).toBe(false);
+
+    editor.zoom.value = 3;
+    const zoomKey = new KeyboardEvent("keydown", { key: "0", code: "Digit0", ctrlKey: true, cancelable: true });
+    window.dispatchEvent(zoomKey);
+    expect(editor.zoom.value).toBe(3);
+    expect(zoomKey.defaultPrevented).toBe(false);
+
+    overMap = true;
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space" }));
+    expect(editor.spaceHeld.value).toBe(true);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "0", code: "Digit0", ctrlKey: true }));
+    expect(editor.zoom.value).toBe(1);
+
+    // Letting go is never gated, so leaving the map with Space down cannot stick the hand.
+    overMap = false;
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space" }));
+    expect(editor.spaceHeld.value).toBe(false);
   });
 
   it("Ctrl+= and Ctrl+- step the zoom in and out", () => {
@@ -1734,6 +1765,27 @@ describe("Shift draws straight", () => {
       for (const k of ["0,0", "1,0", "2,0", "3,0"] as CellKey[]) {
         expect(layers.value.floor[k]?.wallN).toBeUndefined();
       }
+    });
+
+    it("Shift+drag after a wall carries on along the run's line, and run and drag undo together", () => {
+      const { editor, layers, activeTool } = makeHarness();
+      activeTool.value = "wall";
+      hoverTopEdge(editor);
+      clickCell(editor, 64, 10); // N edge of (0,0); the run starts at vertex (1, 0)
+      editor.onPointerDown(down(300, 5, shift)); // nearest vertex (2, 0): one edge, then the drag begins
+      expect(layers.value.floor["1,0" as CellKey]?.wallN).toBeDefined();
+      editor.onPointerMove(move(330, 5, shift)); // N edge of (2, 0)
+      editor.onPointerMove(move(330, 138, shift)); // a parallel row: off the line, so nothing
+      editor.onPointerMove(move(450, 5, shift)); // N edge of (3, 0)
+      editor.onPointerUp(up(450, 5, shift));
+      for (const k of ["0,0", "1,0", "2,0", "3,0"] as CellKey[]) {
+        expect(layers.value.floor[k]?.wallN).toBeDefined();
+      }
+      expect(layers.value.floor["2,1" as CellKey]).toBeUndefined();
+      editor.undoEdit();
+      expect(layers.value.floor["0,0" as CellKey]?.wallN).toBeDefined();
+      expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
+      expect(layers.value.floor["3,0" as CellKey]).toBeUndefined();
     });
 
     it("Shift while dragging stays on the row the stroke began on", () => {

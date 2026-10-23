@@ -151,6 +151,27 @@ describe("NoticeBoardViewport canvas controls", () => {
     w.unmount();
   });
 
+  it("a Space-tap on a pin, with no movement, does not open it", async () => {
+    size(390, 700);
+    const w = await mountBoard();
+    const root = w.get("[data-viewport]");
+    await root.trigger("pointerenter");
+    key("keydown", { key: " ", code: "Space" });
+    const pin = w.get("[data-pin] .nb-hit").element;
+    pin.dispatchEvent(ev("pointerdown", { clientX: 300, button: 0 }));
+    pin.dispatchEvent(ev("pointerup", { clientX: 300, button: 0 }));
+    pin.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(w.emitted("select")).toBeUndefined();
+
+    // Once the hand is down again, the next tap is an ordinary one.
+    key("keyup", { key: " ", code: "Space" });
+    pin.dispatchEvent(ev("pointerdown", { clientX: 300, button: 0 }));
+    pin.dispatchEvent(ev("pointerup", { clientX: 300, button: 0 }));
+    pin.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(w.emitted("select")).toHaveLength(1);
+    w.unmount();
+  });
+
   it("leaves Space to the page when the pointer is not on the board", async () => {
     size(390, 700);
     const w = await mountBoard();
