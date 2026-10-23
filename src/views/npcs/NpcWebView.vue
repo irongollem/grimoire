@@ -32,8 +32,14 @@
         v-else
         ref="graphRef"
         v-model:layouts="layouts"
-        @wheel="cameraTakenByUser = true"
+        :class="spaceHeld && '!cursor-grab'"
+        @wheel.prevent="onWheel"
         @pointerdown="cameraTakenByUser = true"
+        @mousedown.capture="onMouseDownCapture"
+        @pointerdown.capture="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
         :nodes="graphNodes"
         :edges="graphEdges"
         :configs="graphConfigs"
@@ -290,6 +296,7 @@ import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDele
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
 import { useKinLinks } from "@/composables/kinship/useKinLinks";
 import { useNpcWebGraph, resolveVar } from "@/composables/npcs/useNpcWebGraph";
+import { useNpcWebCamera } from "@/composables/npcs/useNpcWebCamera";
 import { useAllFactionNpcs, useAllFactionPartyMembers } from "@/composables/factions/useFactions";
 import { factionBadgesByNode, membershipCaption, pipOffsets, type FactionPip } from "@/lib/npcWeb/factions";
 import { clusterByProximity, convexHull, hullPath, padOutward, type Point } from "@/lib/npcWeb/hull";
@@ -599,6 +606,14 @@ const layouts = ref<Layouts>({ nodes: {} });
 const graphRef = ref<InstanceType<typeof VNetworkGraph> | null>(null);
 const cameraTakenByUser = ref(false);
 const framed = ref(false);
+
+// Photoshop/Figma controls: wheel pans, Ctrl/Cmd/Alt+wheel zooms, middle-drag and Space pan, zoom keys.
+// Shift stays what it was here, the key that links two nodes.
+const { spaceHeld, onWheel, onMouseDownCapture, onPointerDown, onPointerMove, onPointerUp } = useNpcWebCamera({
+  graph: () => graphRef.value,
+  onTaken: () => { cameraTakenByUser.value = true; },
+  setNodesDraggable: (on) => { if (graphConfigs.node) graphConfigs.node.draggable = on; },
+});
 
 const frameWhenSettled = useDebounceFn(() => {
   if (framed.value || cameraTakenByUser.value) return;

@@ -16,7 +16,10 @@
     role="group"
     aria-label="Family tree"
     class="relative h-full min-h-[28rem] touch-none select-none overflow-hidden"
-    :class="viewport.dragging.value ? 'cursor-grabbing' : 'cursor-grab'"
+    :class="[viewport.dragging.value ? 'cursor-grabbing' : 'cursor-grab', hand.spaceHeld.value && (viewport.dragging.value ? '[&_*]:!cursor-grabbing' : '[&_*]:!cursor-grab')]"
+    @pointerenter="hovered = true"
+    @pointerleave="hovered = false"
+    @click.capture="viewport.onClickCapture"
     @pointerdown="viewport.onPointerDown"
     @pointermove="viewport.onPointerMove"
     @pointerup="viewport.onPointerUp"
@@ -73,6 +76,8 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import KinCard from "@/components/kinship/KinCard.vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
+import { useCanvasHand } from "@/composables/useCanvasHand";
+import type { ZoomTarget } from "@/lib/canvasControls/zoomKeys";
 import { useTreeViewport } from "@/composables/kinship/useTreeViewport";
 import type { KinGraphSource } from "@/composables/kinship/useKinGraph";
 import { layoutTree, type PlacedCard } from "@/lib/kinship/layout";
@@ -108,8 +113,13 @@ const { source, members, folds, anchor, focus = null, marriedIn, succession, dim
 const emit = defineEmits<{ select: [key: PersonKey]; unfold: [parent: PersonKey] }>();
 
 const isMobile = useIsMobile();
-const viewport = useTreeViewport();
 const canvas = ref<HTMLElement | null>(null);
+
+// A page can hold more than one tree (a lineage per house), and each would answer
+// Space and the zoom keys on the window. Only the tree under the pointer does.
+const hovered = ref(false);
+const hand = useCanvasHand({ onZoom: zoomTo, active: () => hovered.value });
+const viewport = useTreeViewport({ forcePan: (ev) => hand.isForcedPan(ev) });
 
 const layout = computed(() => layoutTree({ graph: source.graph.value, members, folds, anchor }));
 const ordered = computed(() => inReadingOrder(layout.value.cards));
@@ -148,6 +158,16 @@ function fit(): void {
 function zoom(factor: number): void {
   const el = canvas.value;
   viewport.zoomBy(factor, (el?.clientWidth ?? 0) / 2, (el?.clientHeight ?? 0) / 2);
+}
+
+function zoomTo(to: ZoomTarget): void {
+  if (to === "in") zoom(1.2);
+  else if (to === "out") zoom(1 / 1.2);
+  else if (to === "fit") fit();
+  else {
+    const el = canvas.value;
+    viewport.zoomBy(1 / viewport.scale.value, (el?.clientWidth ?? 0) / 2, (el?.clientHeight ?? 0) / 2);
+  }
 }
 
 // Fit when the tree first draws and when it is re-centred; an unfold keeps the viewer's view.

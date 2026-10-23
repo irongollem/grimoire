@@ -101,4 +101,22 @@ describe("FamilyTree", () => {
     expect(w.emitted("select")).toHaveLength(1);
     mobile.value = false;
   });
+
+  it("takes Space only while the pointer is over the tree, and shows the hand", async () => {
+    mobile.value = false;
+    const w = mountTree();
+    const root = w.get("[role=group]");
+    const space = () => new KeyboardEvent("keydown", { key: " ", code: "Space", cancelable: true });
+    const away = space();
+    window.dispatchEvent(away);
+    expect(away.defaultPrevented).toBe(false);
+    await root.trigger("pointerenter");
+    const over = space();
+    window.dispatchEvent(over);
+    await w.vm.$nextTick();
+    expect(over.defaultPrevented).toBe(true);
+    expect(root.classes()).toContain("[&_*]:!cursor-grab");
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space" }));
+    w.unmount();
+  });
 });
