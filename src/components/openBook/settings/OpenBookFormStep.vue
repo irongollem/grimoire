@@ -1,7 +1,7 @@
 <template>
   <section class="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-4">
     <span
-      class="flex size-9 items-center justify-center border border-primary font-cinzel font-bold text-primary"
+      class="flex size-9 items-center justify-center border border-primary text-heading-sm font-bold text-primary"
       aria-hidden="true"
     >
       {{ n }}

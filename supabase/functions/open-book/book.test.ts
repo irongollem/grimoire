@@ -128,8 +128,11 @@ describe("firstImageSrc", () => {
       ["http://cdn.example/a.pdf", null],
       ["https://cdn.example/a.pdf", "https://cdn.example/a.pdf"],
     ] as const) {
-      expect(buildFull(book, { ...release, pdf_url: url }).release.pdf_url).toBe(expected);
+      expect(buildFull({ ...book, allow_pdf: true }, { ...release, pdf_url: url }).release.pdf_url).toBe(expected);
     }
+  });
+  it("withholds the PDF link when the DM does not offer the PDF", () => {
+    expect(buildFull({ ...book, allow_pdf: false }, { ...release, pdf_url: "https://cdn.example/a.pdf" }).release.pdf_url).toBeNull();
   });
 
   it("finds the first https picture in document order, at any depth", () => {

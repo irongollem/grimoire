@@ -122,6 +122,40 @@ create policy "open_book_entries_update" on public.open_book_entries for update
 create policy "open_book_entries_delete" on public.open_book_entries for delete using (private.is_campaign_owner(campaign_id));
 grant select, insert, update, delete on public.open_book_entries to authenticated, service_role;
 
+-- Opening a book (or pointing it at another release) is publishing, and publishing needs Pro, as release_open_book
+-- says. The table policies let the owner write is_open and live_release_id directly (closing a book, putting back an
+-- older release), so the rule is held here too: otherwise a lapsed-Pro or child owner could reopen a book the
+-- database calls open while the Edge Function refuses it. is_user_pro is false for a child account. Closing is free.
+create function private.guard_open_book_publish()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_owner uuid;
+begin
+  if not new.is_open then
+    return new;
+  end if;
+  if tg_op = 'UPDATE' and old.is_open and new.live_release_id is not distinct from old.live_release_id then
+    return new;
+  end if;
+  select c.user_id into v_owner from public.campaigns c where c.id = new.campaign_id;
+  if not coalesce(public.is_user_pro(v_owner), false) then
+    raise exception 'open_book_requires_pro' using errcode = 'P0001',
+      hint = 'Opening an Open Book is part of Pro.';
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function private.guard_open_book_publish() from public, anon, authenticated;
+
+create trigger open_books_guard_publish
+  before insert or update on public.open_books
+  for each row execute procedure private.guard_open_book_publish();
+
 -- ── 3. Live sync and the demo copy ──────────────────────────────────────────────
 
 create trigger open_books_signal_insert after insert on public.open_books
@@ -230,10 +264,13 @@ begin
   exception when others then
     return '{}'::uuid[];
   end;
+  -- Lax, so a mention node without attrs or an id (an import, an older shape) is skipped rather than failing the
+  -- whole snapshot, which would stop the DM previewing or releasing anything.
   return coalesce((
     select array_agg(distinct (x #>> '{}')::uuid)
-      from jsonb_path_query(v_doc, 'strict $.** ? (@.type == "entityMention").attrs.id') x
-     where (x #>> '{}') ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      from jsonb_path_query(v_doc, 'lax $.** ? (@.type == "entityMention").attrs.id') x
+     where jsonb_typeof(x) = 'string'
+       and (x #>> '{}') ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
   ), '{}'::uuid[]);
 end;
 $$;
@@ -633,30 +670,36 @@ grant execute on function public.release_open_book(uuid, text) to authenticated,
 
 -- ── 7. A release keeps its pictures ─────────────────────────────────────────────
 -- A release is frozen, so the files it shows must outlive the rows that first held them. deleteUnreferenced
--- (src/lib/storage/deleteUnreferenced.ts, #917) asks this before removing a file. It must see releases a co-DM
--- cannot read, so it is a definer, scoped to the campaigns the caller runs; it answers yes or no about one URL.
-create function public.open_book_image_in_use(p_url text)
-returns boolean
+-- (src/lib/storage/deleteUnreferenced.ts, #917) asks this before removing files. It must see releases a co-DM
+-- cannot read, so it is a definer, scoped to the campaigns the caller runs. It takes a batch and answers with the
+-- URLs still in use, reading each release once per call: a campaign delete checks hundreds of files (#918).
+-- A URL counts only as a whole JSON string: quoted in a column ("…"), or escaped-quoted inside stored rich text
+-- (\"…\"). A bare substring match would keep a file alive because a longer URL starts with it.
+create function public.open_book_images_in_use(p_urls text[])
+returns text[]
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select coalesce(
-    (select auth.uid()) is not null
-    and nullif(btrim(p_url), '') is not null
-    and (
-      exists (
-        select 1 from public.open_book_releases r
-         where private.is_campaign_dm(r.campaign_id)
-           and position(p_url in r.snapshot::text) > 0)
-      or exists (
-        select 1 from public.open_books b
-         where private.is_campaign_dm(b.campaign_id)
-           and b.cover_image_url = p_url)
-    ),
-    false);
+  with candidates as (
+    select distinct u from unnest(coalesce(p_urls, '{}'::text[])) as u
+     where nullif(btrim(u), '') is not null
+  ),
+  releases as materialized (
+    select r.snapshot::text as s from public.open_book_releases r
+     where (select auth.uid()) is not null and private.is_campaign_dm(r.campaign_id)
+  )
+  select coalesce(array_agg(c.u), '{}'::text[])
+    from candidates c
+   where (select auth.uid()) is not null
+     and (exists (select 1 from releases r
+                   where position('"' || c.u || '"' in r.s) > 0
+                      or position('\"' || c.u || '\"' in r.s) > 0)
+          or exists (select 1 from public.open_books b
+                      where private.is_campaign_dm(b.campaign_id)
+                        and b.cover_image_url = c.u));
 $$;
 
-revoke execute on function public.open_book_image_in_use(text) from public, anon;
-grant execute on function public.open_book_image_in_use(text) to authenticated, service_role;
+revoke execute on function public.open_book_images_in_use(text[]) from public, anon;
+grant execute on function public.open_book_images_in_use(text[]) to authenticated, service_role;

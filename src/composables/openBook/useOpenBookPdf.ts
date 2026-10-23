@@ -13,6 +13,7 @@ import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { downloadBlob } from "@/lib/downloadBlob";
 import { uploadToBucket } from "@/lib/storage/upload";
+import { deleteByPublicUrl } from "@/lib/storage/remove";
 import { bookPdfFilename, bookPdfPath } from "@/lib/openBook/pdf/bookDocument";
 import type { OpenBook, OpenBookRelease } from "@/types/openBook.types";
 import { fetchReleaseSnapshot, releaseSnapshotKey, useSetReleasePdf } from "./useOpenBookReleases";
@@ -72,7 +73,13 @@ export function useOpenBookPdf(campaignId: () => string) {
         contentType: "application/pdf",
       });
       if (!url) throw new Error("The PDF could not be stored. Please try again.");
-      await setPdf.mutateAsync({ campaignId: cid, releaseId: release.id, pdfUrl: url, previousUrl: release.pdf_url });
+      try {
+        await setPdf.mutateAsync({ campaignId: cid, releaseId: release.id, pdfUrl: url, previousUrl: release.pdf_url });
+      } catch (e) {
+        // Nothing points at the new file now (the release may have been deleted meanwhile): remove it, best effort.
+        await deleteByPublicUrl(url).catch(() => undefined);
+        throw e;
+      }
 
       downloadBlob(pdf, bookPdfFilename(snapshot.book.title, release.number));
       return true;

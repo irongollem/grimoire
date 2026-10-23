@@ -91,7 +91,7 @@ insert into definer_registry (name, kind, reason) values
   -- Open Book (#1085): owner only; proof in open_book.test.sql.
   ('preview_open_book', 'refuses', null),
   ('release_open_book', 'refuses', null),
-  ('open_book_image_in_use', 'self', 'answers only for releases of campaigns the caller runs'),
+  ('open_book_images_in_use', 'self', 'answers only for releases of campaigns the caller runs'),
   ('get_player_visible_items', 'self', 'items in campaigns the caller is a member of, keyed on auth.uid()'),
   ('get_player_visible_locations', 'refuses', null),
   ('get_player_visible_mini', 'refuses', null),

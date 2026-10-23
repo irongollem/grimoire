@@ -22,9 +22,9 @@ function setCount(table: string, column: string, value: string, count: number): 
 
 const releaseUrls = new Set<string>();
 let releaseError = false;
-const rpc = vi.fn(async (_fn: string, args: { p_url: string }) => {
+const rpc = vi.fn(async (_fn: string, args: { p_urls: string[] }) => {
   if (releaseError) return { data: null, error: new Error("rpc failed") };
-  return { data: releaseUrls.has(args.p_url), error: null };
+  return { data: args.p_urls.filter((u) => releaseUrls.has(u)), error: null };
 });
 
 const inCall = vi.fn();
@@ -39,7 +39,7 @@ const from = vi.fn((table: string) => ({
 }));
 
 vi.mock("@/lib/supabase", () => ({
-  supabase: { from: (table: string) => from(table), rpc: (fn: string, args: { p_url: string }) => rpc(fn, args) },
+  supabase: { from: (table: string) => from(table), rpc: (fn: string, args: { p_urls: string[] }) => rpc(fn, args) },
 }));
 
 beforeEach(() => {
@@ -211,7 +211,7 @@ describe("deleteUnreferencedByPublicUrl", () => {
 
     await deleteUnreferencedByPublicUrl({ urls: [url] });
 
-    expect(rpc).toHaveBeenCalledWith("open_book_image_in_use", { p_url: url });
+    expect(rpc).toHaveBeenCalledWith("open_book_images_in_use", { p_urls: [url] });
     expect(deleteByPublicUrl).not.toHaveBeenCalled();
   });
 

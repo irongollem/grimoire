@@ -113,8 +113,9 @@ export function buildFull(book: BookRow, release: ReleaseRow): PublicOpenBookBod
       number: release.number,
       note: release.note,
       created_at: release.created_at,
-      // A column check already holds it to https; this keeps a script URL off a visitor's page whatever the row says.
-      pdf_url: release.pdf_url !== null && /^https:\/\//i.test(release.pdf_url) ? release.pdf_url : null,
+      // Only when the DM offers the PDF; a column check already holds it to https, this keeps a script URL off a
+      // visitor's page whatever the row says.
+      pdf_url: book.allow_pdf && release.pdf_url !== null && /^https:\/\//i.test(release.pdf_url) ? release.pdf_url : null,
       stats: release.stats,
     },
     snapshot: release.snapshot,

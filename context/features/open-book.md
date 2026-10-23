@@ -46,4 +46,4 @@ Each release row has "Export PDF". The articles are drawn by the reader's own co
 - **Anything new a visitor can read must go through the snapshot**, with the whole-party predicate and secret-block removal. Never widen the Edge Function to read live tables.
 - **A new entity type in the book** needs: a snapshot section, an `open_book_entries.entity_type` value, a forget trigger, an article component, and a redaction test.
 - **The reader is a public route** (`meta.public`, `layout: "public"`). It must work signed out; `lens.test.ts` lists it as unfenced.
-- **Images in a released book stay referenced.** `open_book_image_in_use` keeps `deleteUnreferenced` from removing a file a live snapshot still shows.
+- **Images in a released book stay referenced.** `open_book_images_in_use` keeps `deleteUnreferenced` from removing a file any release still shows (one call per batch, whole-URL matches only).

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(38);
 
 -- open_book (20261023190317, #1085): the owner releases a frozen snapshot of what the whole party can read.
 -- Proven here: only the owner reaches the book, its releases and its two functions; a release needs Pro; anon
@@ -60,6 +60,12 @@ insert into public.locations (id, user_id, campaign_id, name, player_visible_to)
 insert into public.locations (id, user_id, campaign_id, parent_id, name, player_visible_to) values
   ('10850000-0000-4000-8000-000000000042', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010',
    '10850000-0000-4000-8000-000000000041', 'The Cellar',
+   array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
+
+-- A lore note whose mention has no attrs (an import's shape): it must not stop the book from being built.
+insert into public.notes (id, user_id, campaign_id, title, category, content, player_visible_to) values
+  ('10850000-0000-4000-8000-000000000071', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'Odd shape', 'lore',
+   '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"entityMention"},{"type":"entityMention","attrs":{"id":7}}]}]}',
    array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
 
 -- A lore note that mentions the disguised man by id, as the editor stores a mention.
@@ -156,6 +162,9 @@ select is(
   'The Grey Pilgrim',
   'a mention of a disguised person resolves to the cover the table knows');
 select ok(
+  (select count(*) = 2 from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'lore')),
+  'a mention with no id is skipped, not an error that stops the preview');
+select ok(
   public.preview_open_book('10850000-0000-4000-8000-000000000010')::text !~ '(OB-SECRET-BACKSTORY|OB-True-Name|OB-SECRET-BLOCK|OB-DM-LOCATION-NOTE|OB-DEITY-SECRET|OB-HIDDEN-EVENT|OB-Only-Ada-Knows|OB-Taken-Out|OB-Taken-Place)',
   'nothing the table cannot read appears anywhere in the snapshot');
 select is(
@@ -217,18 +226,35 @@ select is(
 -- ── A release keeps its pictures ────────────────────────────────────────────────
 
 reset role;
-update public.open_book_releases set snapshot = snapshot || '{"probe":"https://cdn.example.invalid/npc-portraits/x/kept.webp"}'::jsonb
+update public.open_book_releases
+   set snapshot = snapshot || '{"probe":"https://cdn.example.invalid/npc-portraits/x/kept.webp","probe2":"https://cdn.example.invalid/npc-portraits/x/long.webp-thumb"}'::jsonb
  where number = 1;
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claim.sub', '10850000-0000-4000-8000-000000000002', true);
-select ok(public.open_book_image_in_use('https://cdn.example.invalid/npc-portraits/x/kept.webp'),
-  'a co-DM is told a released picture is still in use, though they cannot read the release');
-select ok(not public.open_book_image_in_use('https://cdn.example.invalid/npc-portraits/x/other.webp'),
-  'and is told a picture no release shows is free');
+select is(public.open_book_images_in_use(array['https://cdn.example.invalid/npc-portraits/x/kept.webp',
+                                               'https://cdn.example.invalid/npc-portraits/x/other.webp']),
+  array['https://cdn.example.invalid/npc-portraits/x/kept.webp'],
+  'a co-DM is told which pictures a release still shows, though they cannot read the release');
+select is(public.open_book_images_in_use(array['https://cdn.example.invalid/npc-portraits/x/long.webp']),
+  '{}'::text[],
+  'a URL that only begins a longer one in a release is free');
 select set_config('request.jwt.claim.sub', '10850000-0000-4000-8000-000000000005', true);
-select ok(not public.open_book_image_in_use('https://cdn.example.invalid/npc-portraits/x/kept.webp'),
+select is(public.open_book_images_in_use(array['https://cdn.example.invalid/npc-portraits/x/kept.webp']),
+  '{}'::text[],
   'a stranger learns nothing about another campaign''s releases');
+
+-- ── Opening a book is Pro, however it is written ────────────────────────────────
+
+reset role;
+update public.user_subscriptions set status = 'canceled' where user_id = '10850000-0000-4000-8000-000000000001';
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10850000-0000-4000-8000-000000000001', true);
+select lives_ok($$ update public.open_books set is_open = false where campaign_id = '10850000-0000-4000-8000-000000000010' $$,
+  'an owner whose Pro lapsed can still close the book');
+select throws_ok($$ update public.open_books set is_open = true where campaign_id = '10850000-0000-4000-8000-000000000010' $$,
+  'P0001', 'open_book_requires_pro', 'but cannot reopen it by writing the row');
 
 -- ── anon reads nothing ──────────────────────────────────────────────────────────
 

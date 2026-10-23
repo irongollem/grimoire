@@ -4,7 +4,7 @@
     <p v-if="releases.length === 0" class="mt-2 text-caption text-muted-foreground">Nothing released yet.</p>
     <div v-for="release in releases" :key="release.id" class="border-b border-border py-2">
       <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-3 text-label-lg">
-        <span class="font-cinzel">{{ release.number }}</span>
+        <span class="text-heading-xs">{{ release.number }}</span>
         <span class="min-w-0 truncate">{{ formatReleaseDate(release.created_at) }} · {{ release.note ?? "No note" }}</span>
         <span v-if="release.id === liveId" class="font-semibold text-tone-success">Live</span>
         <AppButton

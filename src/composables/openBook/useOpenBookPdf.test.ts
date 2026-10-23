@@ -12,9 +12,11 @@ const mocks = vi.hoisted(() => ({
   fetchSnapshot: vi.fn(),
   setPdf: vi.fn(),
   build: vi.fn(),
+  remove: vi.fn(),
 }));
 vi.mock("@/lib/supabase", () => ({ supabase: { functions: { invoke: mocks.invoke } }, getCurrentUser: () => mocks.user }));
 vi.mock("@/lib/storage/upload", () => ({ uploadToBucket: mocks.upload }));
+vi.mock("@/lib/storage/remove", () => ({ deleteByPublicUrl: mocks.remove }));
 vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: mocks.download }));
 vi.mock("@/lib/openBook/pdf/buildBookPdfHtml", () => ({ buildBookPdfHtml: mocks.build }));
 vi.mock("./useOpenBookReleases", () => ({
@@ -43,7 +45,8 @@ function run() {
 
 describe("useOpenBookPdf", () => {
   beforeEach(() => {
-    for (const mock of [mocks.invoke, mocks.upload, mocks.download, mocks.fetchSnapshot, mocks.setPdf, mocks.build]) mock.mockReset();
+    for (const mock of [mocks.invoke, mocks.upload, mocks.download, mocks.fetchSnapshot, mocks.setPdf, mocks.build, mocks.remove]) mock.mockReset();
+    mocks.remove.mockResolvedValue(undefined);
     mocks.user = { id: "u-1" };
     mocks.fetchSnapshot.mockResolvedValue(snapshot);
     mocks.build.mockResolvedValue({ html: "<!doctype html>", pageCount: 3 });
@@ -110,6 +113,15 @@ describe("useOpenBookPdf", () => {
     expect(await pdf.exportRelease({ slug: "s" }, release)).toBe(false);
     expect(pdf.error.value).toMatch(/could not be stored/);
     expect(mocks.setPdf).not.toHaveBeenCalled();
+  });
+
+  it("removes the new file when the release cannot record it", async () => {
+    mocks.setPdf.mockRejectedValue(new Error("That release is no longer in the book."));
+    const pdf = run();
+    expect(await pdf.exportRelease({ slug: "s" }, release)).toBe(false);
+    expect(mocks.remove).toHaveBeenCalledWith("https://cdn/open-book-pdfs/u-1/c-1/r-1-new.pdf");
+    expect(pdf.error.value).toMatch(/no longer in the book/);
+    expect(mocks.download).not.toHaveBeenCalled();
   });
 
   it("explains a file the bucket refuses, such as one over 50 MB", async () => {

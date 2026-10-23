@@ -70,6 +70,12 @@ describe("parseBookPath", () => {
     expect(parseBookPath("the-saltreach/atlas")).toEqual({ slug: "the-saltreach", chapter: "atlas", entryId: null });
     expect(parseBookPath("the-saltreach/folk/abc-123/")).toEqual({ slug: "the-saltreach", chapter: "folk", entryId: "abc-123" });
   });
+  it("lowercases the slug and holds it to the table's own rule", () => {
+    expect(parseBookPath("The-Saltreach")?.slug).toBe("the-saltreach");
+    expect(parseBookPath("a".repeat(48))?.slug).toBe("a".repeat(48));
+    expect(parseBookPath("a".repeat(49))).toBeNull();
+    expect(parseBookPath("ends-")).toBeNull();
+  });
   it("refuses empty, too deep, odd or badly encoded paths", () => {
     expect(parseBookPath("")).toBeNull();
     expect(parseBookPath(null)).toBeNull();
@@ -205,6 +211,7 @@ describe("renderBookPage", () => {
     const res = await renderBookPage(req("nope"), "https://proj.supabase.co", upstream({ error: "not_found" }, 404));
     const html = await res.text();
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=30");
     expect(html).toContain("<title>Dungeon Grimoire</title>");
     expect(html).toContain('name="robots" content="noindex"');
     expect(html).not.toContain("canonical");

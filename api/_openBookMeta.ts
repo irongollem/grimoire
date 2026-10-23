@@ -16,8 +16,8 @@ type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 /** Well under the platform's function limit, so a stalled upstream falls through to the plain page. */
 const UPSTREAM_TIMEOUT_MS = 4_000;
 
-/** A book slug as the `open_books` table mints it; anything else never reaches the network. */
-const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,79}$/i;
+/** A book slug as the `open_books` table checks it (lowercased first); anything else never reaches the network. */
+const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 export interface BookPath {
@@ -42,7 +42,9 @@ export function parseBookPath(raw: string | null | undefined): BookPath | null {
       }
     });
   if (parts.length === 0 || parts.length > 3 || parts.some((p) => p === null)) return null;
-  const [slug, chapter, entryId] = parts as string[];
+  const [rawSlug, chapter, entryId] = parts as string[];
+  // Slugs are lowercase in the table; /w/MyBook names the same book, and the canonical URL says so.
+  const slug = rawSlug.toLowerCase();
   if (!SLUG_RE.test(slug)) return null;
   if (chapter !== undefined && !ID_RE.test(chapter)) return null;
   if (entryId !== undefined && !ID_RE.test(entryId)) return null;
@@ -222,6 +224,15 @@ const PAGE_HEADERS = {
 } as const;
 
 /**
+ * The plain page (an unknown or closed book, or a failure) is cached only briefly: a link shared just before a
+ * first release must not keep its generic, noindex head at the edge for long after the book opens.
+ */
+const FALLBACK_HEADERS = {
+  "Content-Type": "text/html; charset=utf-8",
+  "Cache-Control": "public, s-maxage=30",
+} as const;
+
+/**
  * The page for GET /w/<path>. Fails open: whatever goes wrong after index.html is in hand, the visitor gets
  * that file untouched (and noindex), which is what every route got before this existed.
  */
@@ -242,13 +253,15 @@ export async function renderBookPage(req: Request, supabaseUrl: string | undefin
     });
   }
 
-  const respond = (html: string) => new Response(req.method === "HEAD" ? null : html, { status: 200, headers: PAGE_HEADERS });
+  const respond = (html: string, headers: Record<string, string> = PAGE_HEADERS) =>
+    new Response(req.method === "HEAD" ? null : html, { status: 200, headers });
+  const fallback = () => respond(addHeadExtras(indexHtml, null, "noindex"), FALLBACK_HEADERS);
   const path = parseBookPath(url.searchParams.get("path"));
-  if (!path) return respond(addHeadExtras(indexHtml, null, "noindex"));
+  if (!path) return fallback();
 
   try {
     const meta = await fetchBookMeta(path.slug, supabaseUrl, fetchImpl);
-    if (!meta) return respond(addHeadExtras(indexHtml, null, "noindex"));
+    if (!meta) return fallback();
     const card = chooseCard(path, meta);
     return respond(
       applyTags(indexHtml, {
@@ -261,6 +274,6 @@ export async function renderBookPage(req: Request, supabaseUrl: string | undefin
       }),
     );
   } catch {
-    return respond(addHeadExtras(indexHtml, null, "noindex"));
+    return fallback();
   }
 }
