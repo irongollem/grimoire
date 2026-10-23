@@ -3,6 +3,7 @@ import {
   firstImageSrc,
   type BookRow,
   buildBody,
+  buildFull,
   canServe,
   isNotModified,
   makeEtag,
@@ -121,6 +122,16 @@ describe("etag", () => {
 });
 
 describe("firstImageSrc", () => {
+  it("drops a PDF link that is not https", () => {
+    for (const [url, expected] of [
+      ["javascript:alert(1)", null],
+      ["http://cdn.example/a.pdf", null],
+      ["https://cdn.example/a.pdf", "https://cdn.example/a.pdf"],
+    ] as const) {
+      expect(buildFull(book, { ...release, pdf_url: url }).release.pdf_url).toBe(expected);
+    }
+  });
+
   it("finds the first https picture in document order, at any depth", () => {
     const doc = JSON.stringify({
       type: "doc",

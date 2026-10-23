@@ -22,7 +22,8 @@ create table public.open_book_releases (
   note text check (char_length(note) <= 280),
   snapshot jsonb not null,
   stats jsonb not null default '{}'::jsonb,
-  pdf_url text,
+  -- Rendered as a link to anonymous visitors: https (or a local stack's loopback), never a script URL (#1085 audit).
+  pdf_url text check (pdf_url ~* '^(https://|http://(127\.0\.0\.1|localhost)(:[0-9]+)?/)[^[:space:]]+$'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (campaign_id, number),
@@ -43,7 +44,7 @@ create table public.open_books (
   title text not null check (char_length(btrim(title)) between 1 and 120),
   subtitle text check (char_length(subtitle) <= 240),
   cover_art text not null default 'tooled' check (cover_art in ('tooled', 'plate', 'full')),
-  cover_image_url text,
+  cover_image_url text check (cover_image_url ~* '^(https://|http://(127\.0\.0\.1|localhost)(:[0-9]+)?/)[^[:space:]]+$'),
   leather text not null default 'oxblood' check (leather in ('oxblood', 'sea', 'night', 'walnut', 'ash')),
   chapters text[] not null default array['atlas', 'folk', 'factions', 'pantheon', 'lore', 'chronicle']
     check (chapters <@ array['atlas', 'folk', 'factions', 'pantheon', 'lore', 'chronicle']),
@@ -209,6 +210,35 @@ $$;
 
 revoke execute on function private.open_book_whole_party(uuid[], uuid[]) from public, anon, authenticated;
 revoke execute on function private.open_book_takes(uuid, text, uuid, boolean, boolean) from public, anon, authenticated;
+
+-- The ids a stored rich-text document mentions (entityMention nodes). Plain text and unparsable values mention
+-- nothing. Used to decide which names the book may carry.
+create function private.open_book_mentions(p_value text)
+returns uuid[]
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  v_doc jsonb;
+begin
+  if p_value is null or p_value !~ '^\s*{' then
+    return '{}'::uuid[];
+  end if;
+  begin
+    v_doc := p_value::jsonb;
+  exception when others then
+    return '{}'::uuid[];
+  end;
+  return coalesce((
+    select array_agg(distinct (x #>> '{}')::uuid)
+      from jsonb_path_query(v_doc, 'strict $.** ? (@.type == "entityMention").attrs.id') x
+     where (x #>> '{}') ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+  ), '{}'::uuid[]);
+end;
+$$;
+
+revoke execute on function private.open_book_mentions(text) from public, anon, authenticated;
 
 -- The whole book as one value. Not callable by any client role: preview_open_book and release_open_book reach it
 -- after checking the caller owns the campaign. Returns NULL for a campaign with no book.
@@ -445,12 +475,20 @@ begin
   -- name for every id its own pages cite, when the whole table can already read that name: the party's
   -- characters, people under their cover, places and factions. Only cited ids: an entry the DM took out keeps
   -- its name out of the book unless released text names it. A mention of anything else stays unnamed.
-  select coalesce(array_agg(distinct m[1]::uuid), '{}'::uuid[])
+  -- Cited means an entityMention in the released text, nothing else: a place's parent_id, a pin or a file name
+  -- also hold ids, and reading those would name a place the DM took out (#1085 audit).
+  select coalesce(array_agg(distinct c.id), '{}'::uuid[])
     into v_cited
-    from regexp_matches(
-           concat_ws(' ', v_places::text, v_factions::text, v_pantheons::text, v_deities::text,
-                     v_lore::text, v_sessions::text, v_events::text),
-           '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', 'g') m;
+    from (
+      select jsonb_path_query(v_places, '$[*].description') #>> '{}' as doc
+      union all select jsonb_path_query(v_factions, '$[*].description') #>> '{}'
+      union all select jsonb_path_query(v_pantheons, '$[*].description') #>> '{}'
+      union all select jsonb_path_query(v_deities, '$[*].description') #>> '{}'
+      union all select jsonb_path_query(v_lore, '$[*].content') #>> '{}'
+      union all select jsonb_path_query(v_sessions, '$[*].content') #>> '{}'
+      union all select jsonb_path_query(v_events, '$[*].description') #>> '{}'
+    ) t
+    cross join lateral unnest(private.open_book_mentions(t.doc)) as c(id);
 
   select coalesce(jsonb_object_agg(x.id::text, x.name), '{}'::jsonb)
     into v_names

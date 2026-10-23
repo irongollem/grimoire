@@ -258,7 +258,7 @@
 .ob-root[data-mode="single"] .ob-lift { width: 2.75rem; height: 2.75rem; }
 .ob-phonebar { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.75rem; background-color: var(--ob-bg); background-image: url("/assets/vellum/paper.webp"); background-size: 39rem 39rem; color: var(--ob-fg); border-bottom: 1px solid var(--ob-border); }
 .ob-phonebar .ob-where { font-family: var(--ob-sans); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ob-muted); }
-.ob-tabbar { display: flex; gap: 3px; align-items: flex-end; padding: 0 0.5rem; height: 3.5rem; background: var(--ob-desk); flex: none; }
+.ob-tabbar { display: flex; gap: 0.1875rem; align-items: flex-end; padding: 0 0.5rem; height: 3.5rem; background: var(--ob-desk); flex: none; }
 .ob-ptab { flex: 1 1 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 0.55rem; height: 2.875rem; border-radius: 4px 4px 0 0; color: #faf6ee; font-family: var(--ob-sans); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .ob-ptab:hover, .ob-ptab:focus-visible { color: #faf6ee; }
 .ob-ptab[aria-current="true"] { height: 3.5rem; box-shadow: 0 -2px 4px rgb(0 0 0 / 0.35); }

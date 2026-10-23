@@ -47,17 +47,40 @@ async function logoUri(file: string): Promise<string> {
 const MAX_COVER_BYTES = 6_000_000;
 const COVER_MIMES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
-/** An https image of the DM's choosing, as a data URI. Null on anything off (the card falls back to leather). */
-export async function remoteImageUri(raw: string | null, fetchImpl: typeof fetch = fetch): Promise<string | null> {
+/**
+ * Hosts a card may fetch a picture from: the app's own asset CDN and Supabase origin, where every upload lands.
+ * The URL is user content, and a hostname check alone cannot stop a public name that resolves to an internal
+ * address, so anything else is not fetched at all and the card falls back to leather (#1085 audit).
+ */
+export function imageHosts(env: Record<string, string | undefined> = process.env): string[] {
+  const hosts: string[] = [];
+  for (const raw of [env.ASSET_CDN_URL ?? env.VITE_ASSET_CDN_URL, env.SUPABASE_URL ?? env.VITE_SUPABASE_URL]) {
+    if (!raw) continue;
+    try {
+      const url = new URL(raw);
+      if (url.protocol === "https:") hosts.push(url.hostname.toLowerCase());
+    } catch {
+      // A malformed setting allows nothing.
+    }
+  }
+  return hosts;
+}
+
+/** An https image on one of our own hosts, as a data URI. Null on anything off (the card falls back to leather). */
+export async function remoteImageUri(
+  raw: string | null,
+  fetchImpl: typeof fetch = fetch,
+  allowedHosts: readonly string[] = imageHosts(),
+): Promise<string | null> {
   if (!raw) return null;
   try {
     const url = new URL(raw);
-    // The URL is user content. https only, and no bare IPs or local names, so the function cannot be pointed
-    // at an internal address.
-    if (url.protocol !== "https:" || /^[\d.]+$|^\[|^localhost$|\.(local|internal)$/i.test(url.hostname)) return null;
+    if (url.protocol !== "https:" || !allowedHosts.includes(url.hostname.toLowerCase())) return null;
     const res = await fetchImpl(url, { redirect: "error", signal: AbortSignal.timeout(4_000) });
     const mime = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
     if (!res.ok || !COVER_MIMES.has(mime)) return null;
+    // Refuse an announced oversize body before reading it.
+    if (Number(res.headers.get("content-length") ?? "0") > MAX_COVER_BYTES) return null;
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.length === 0 || buf.length > MAX_COVER_BYTES) return null;
     return await toJpegUri(buf);

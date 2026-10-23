@@ -52,10 +52,10 @@ const HANG_COLOURS = ["#8a1e22", "#b8862a", "#2e5a4f"];
 
     <template v-else>
       <div class="ob-tool" aria-hidden="true">
-        <span class="ob-fleuron" style="left: -5px; top: -5px" />
-        <span class="ob-fleuron" style="right: -5px; top: -5px" />
-        <span class="ob-fleuron" style="left: -5px; bottom: -5px" />
-        <span class="ob-fleuron" style="right: -5px; bottom: -5px" />
+        <span class="ob-fleuron" style="left: -0.3125rem; top: -0.3125rem" />
+        <span class="ob-fleuron" style="right: -0.3125rem; top: -0.3125rem" />
+        <span class="ob-fleuron" style="left: -0.3125rem; bottom: -0.3125rem" />
+        <span class="ob-fleuron" style="right: -0.3125rem; bottom: -0.3125rem" />
       </div>
       <div class="ob-cover-text">
         <span v-if="art === 'tooled'" class="ob-gilt vol">VOLUME I</span>

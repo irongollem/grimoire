@@ -2,7 +2,7 @@
   <section class="flex flex-col gap-5" aria-label="Choose what goes in">
     <header class="flex items-end justify-between gap-3">
       <div>
-        <span class="text-eyebrow text-muted-foreground">Open Book · {{ book?.title ?? "" }}</span>
+        <span class="text-eyebrow text-muted-foreground">Open Book<template v-if="book"> · {{ book.title }}</template></span>
         <h2 class="text-display">Choose what goes in</h2>
       </div>
       <AppButton variant="ghost" size="sm" label="Done" @click="emit('close')" />

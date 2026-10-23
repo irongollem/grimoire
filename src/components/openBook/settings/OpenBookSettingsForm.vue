@@ -39,6 +39,7 @@
         </div>
         <div class="flex flex-wrap items-center gap-4">
           <span class="w-[4.5rem] text-label-lg text-muted-foreground">Leather</span>
+          <!-- A swatch whose texture is the state, like the app's colour pips (see appButtonVariants.ts): no AppButton variant draws a fill. -->
           <div class="flex gap-3" role="group" aria-label="Leather">
             <button
               v-for="id in OPEN_BOOK_LEATHERS"

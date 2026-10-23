@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(35);
 
 -- open_book (20261023190317, #1085): the owner releases a frozen snapshot of what the whole party can read.
 -- Proven here: only the owner reaches the book, its releases and its two functions; a release needs Pro; anon
@@ -52,6 +52,16 @@ insert into public.locations (id, user_id, campaign_id, name, description, notes
    'OB-DM-LOCATION-NOTE', true,
    array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
 
+-- A place the DM will take out, and a room inside it that stays in: the room's parent_id names the place's id,
+-- which must not bring the place's name into the book.
+insert into public.locations (id, user_id, campaign_id, name, player_visible_to) values
+  ('10850000-0000-4000-8000-000000000041', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'OB-Taken-Place',
+   array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
+insert into public.locations (id, user_id, campaign_id, parent_id, name, player_visible_to) values
+  ('10850000-0000-4000-8000-000000000042', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010',
+   '10850000-0000-4000-8000-000000000041', 'The Cellar',
+   array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
+
 -- A lore note that mentions the disguised man by id, as the editor stores a mention.
 insert into public.notes (id, user_id, campaign_id, title, category, content, player_visible_to) values
   ('10850000-0000-4000-8000-000000000070', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'The pilgrim', 'lore',
@@ -79,16 +89,21 @@ $$, '42501', null, 'a player cannot set up the campaign''s book');
 
 select set_config('request.jwt.claim.sub', '10850000-0000-4000-8000-000000000001', true);
 select lives_ok($$
-  insert into public.open_books (campaign_id, slug, title) values ('10850000-0000-4000-8000-000000000010', 'saltreach', 'The Saltreach')
+  insert into public.open_books (campaign_id, slug, title) values ('10850000-0000-4000-8000-000000000010', 'ob-test-saltreach', 'The Saltreach')
 $$, 'the owner sets up the book');
 select lives_ok($$
   insert into public.open_book_entries (campaign_id, entity_type, entity_id, included)
-  values ('10850000-0000-4000-8000-000000000010', 'npc', '10850000-0000-4000-8000-000000000033', false)
-$$, 'the owner takes an entry out');
+  values ('10850000-0000-4000-8000-000000000010', 'npc', '10850000-0000-4000-8000-000000000033', false),
+         ('10850000-0000-4000-8000-000000000010', 'location', '10850000-0000-4000-8000-000000000041', false)
+$$, 'the owner takes entries out');
 
 select set_config('request.jwt.claim.sub', '10850000-0000-4000-8000-000000000002', true);
 select is_empty($$ select 1 from public.open_books $$, 'a co-DM does not see the book: publishing is the owner''s');
 select is_empty($$ select 1 from public.open_book_entries $$, 'nor its entries');
+select throws_ok($$
+  insert into public.open_book_entries (campaign_id, entity_type, entity_id, included)
+  values ('10850000-0000-4000-8000-000000000010', 'npc', '10850000-0000-4000-8000-000000000030', false)
+$$, '42501', null, 'and cannot choose what goes in');
 
 -- ── preview_open_book and release_open_book refuse everyone but the owner ───────
 
@@ -129,7 +144,8 @@ select is(
   'Human',
   'a field the DM shares is in (race)');
 select ok(
-  (select p->>'description' like '%OB public words%' from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'places') p),
+  (select p->>'description' like '%OB public words%' from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'places') p
+    where p->>'name' = 'Hollowmere'),
   'a shared place description is in');
 select set_eq(
   $$ select e->>'title' from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'events') e $$,
@@ -140,8 +156,12 @@ select is(
   'The Grey Pilgrim',
   'a mention of a disguised person resolves to the cover the table knows');
 select ok(
-  public.preview_open_book('10850000-0000-4000-8000-000000000010')::text !~ '(OB-SECRET-BACKSTORY|OB-True-Name|OB-SECRET-BLOCK|OB-DM-LOCATION-NOTE|OB-DEITY-SECRET|OB-HIDDEN-EVENT|OB-Only-Ada-Knows|OB-Taken-Out)',
+  public.preview_open_book('10850000-0000-4000-8000-000000000010')::text !~ '(OB-SECRET-BACKSTORY|OB-True-Name|OB-SECRET-BLOCK|OB-DM-LOCATION-NOTE|OB-DEITY-SECRET|OB-HIDDEN-EVENT|OB-Only-Ada-Knows|OB-Taken-Out|OB-Taken-Place)',
   'nothing the table cannot read appears anywhere in the snapshot');
+select is(
+  public.preview_open_book('10850000-0000-4000-8000-000000000010')->'names'->'10850000-0000-4000-8000-000000000041',
+  null,
+  'a place taken out stays unnamed though a room inside it points at it');
 
 -- With include_shared off, only what the DM puts in, and never something the party cannot all read.
 select lives_ok($$
@@ -179,6 +199,8 @@ select is(
 
 select lives_ok($$ delete from public.open_book_releases where number = 2 $$, 'deleting the live release is a no-op, not an error');
 select is((select count(*)::int from public.open_book_releases), 2, 'the live release survives an attempt to delete it');
+select throws_ok($$ update public.open_book_releases set pdf_url = 'javascript:alert(1)' where number = 1 $$,
+  '23514', null, 'a release''s PDF link must be an https address: visitors click it');
 
 select set_config('request.jwt.claim.sub', '10850000-0000-4000-8000-000000000003', true);
 select is_empty($$ select 1 from public.open_book_releases $$, 'a player reads no release');
