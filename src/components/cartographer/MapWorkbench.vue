@@ -64,7 +64,7 @@
         <canvas
           ref="canvasEl"
           class="absolute inset-0 block h-full w-full touch-none"
-          :class="viewMode ? 'cursor-default' : 'cursor-crosshair'"
+          :class="canvasCursor"
           @pointerdown="onPointerDown"
           @pointermove="onPointerMove"
           @pointerup="onPointerUp"
@@ -518,8 +518,6 @@ interface ToolDef {
   shortcut?: string;
   /** Further keys that pick the tool (Place answers to G, the key Dressing used). */
   aliases?: readonly string[];
-  /** Override for the tooltip's key, used for non-keyboard hints like "RMB" on Pan. */
-  displayBadge?: string;
   disabled?: boolean;
   group: RailGroupId;
 }
@@ -529,15 +527,16 @@ interface ToolDef {
 // (the maintainer's pass of 17 Oct 2026: "Floor brush" and "Brush" were two brushes).
 const activeTool = ref<Tool>("select");
 const TOOLS: ToolDef[] = [
-  { id: "select",   label: "Select",        icon: IconSelect,       displayBadge: "Esc", group: "look" },
-  { id: "pan",      label: "Pan",           icon: IconHand,         displayBadge: "RMB", group: "look" },
-  { id: "brush",    label: "Brush",         icon: IconCave,         shortcut: "v", group: "floor" },
-  { id: "floor",    label: "Tiles",         icon: IconBrush,        shortcut: "b", group: "floor" },
+  // Letters follow Photoshop and Figma: V select, B brush, H hand. Escape still returns to Select.
+  { id: "select",   label: "Select",        icon: IconSelect,       shortcut: "v", group: "look" },
+  { id: "pan",      label: "Pan",           icon: IconHand,         shortcut: "h", group: "look" },
+  { id: "brush",    label: "Brush",         icon: IconCave,         shortcut: "b", group: "floor" },
+  { id: "floor",    label: "Tiles",         icon: IconBrush,        shortcut: "i", group: "floor" },
   { id: "rect",     label: "Rectangle",     icon: IconRect,         shortcut: "r", group: "floor" },
   { id: "line",     label: "Line",          icon: IconDrawLine,     shortcut: "l", group: "floor" },
   { id: "template", label: "Room",          icon: IconRoomTemplate, shortcut: "m", group: "floor" },
   { id: "fill",     label: "Fill",          icon: IconFill,         shortcut: "f", group: "floor" },
-  { id: "terrain",  label: "Water",         icon: IconWater,        shortcut: "h", group: "floor" },
+  { id: "terrain",  label: "Water",         icon: IconWater,        shortcut: "a", group: "floor" },
   { id: "solid",    label: "Rock",          icon: IconCube,         shortcut: "s", group: "floor" },
   { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w", group: "walls" },
   { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d", group: "walls" },
@@ -956,7 +955,7 @@ function setPlanActiveRegion(id: string | null, role: RegionRole): void {
 // ── Canvas engine (#884 S6) — viewport, pointer/paint dispatch, undo/redo,
 // variant picking, the render loop. See useMapCanvasEditor.ts.
 const {
-  zoom, hoverCell, altHeld, canUndo, canRedo, undoEdit, redoEdit, centerMap,
+  zoom, hoverCell, altHeld, spaceHeld, isPanning, canUndo, canRedo, undoEdit, redoEdit, centerMap,
   onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onDoubleClick, onWheel, structureTools,
   rotateSelectedDressing, deleteSelectedDressing,
 } = useMapCanvasEditor({
@@ -967,6 +966,15 @@ const {
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
   plan, activeLayer,
+});
+
+// The hand shows while Space is held or the Pan tool is armed on the Drawing, and closes
+// into a fist for the drag itself. View mode has no tools, so it keeps the plain arrow.
+const canvasCursor = computed(() => {
+  if (isPanning.value) return "cursor-grabbing";
+  if (viewMode) return "cursor-default";
+  if (spaceHeld.value || (activeLayer.value === "drawing" && activeTool.value === "pan")) return "cursor-grab";
+  return "cursor-crosshair";
 });
 
 // ── Pack load ───────────────────────────────────────────────────────────────

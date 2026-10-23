@@ -17,7 +17,7 @@ import { computed, customRef, onBeforeUnmount, onMounted, ref, watch, type Compu
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { StampCategory } from "@/cartographer/stampCategories";
-import { pinchOf, pinchViewport, zoomAtPoint, type Pinch, type CanvasViewport } from "@/cartographer/viewport";
+import { boundsOfCells, pinchOf, pinchViewport, type Pinch, type CanvasViewport, type CellBounds } from "@/cartographer/viewport";
 import { clampBrushRadius, resolveKeyAction } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DarknessLevel } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
@@ -41,6 +41,7 @@ import { useCartographerStructureTools } from "@/composables/cartographer/useCar
 import type { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
+import { useCanvasNavigation } from "@/composables/cartographer/useCanvasNavigation";
 import type { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 import {
   drawPlanDoorHover,
@@ -122,6 +123,8 @@ export interface MapCanvasEditorOptions {
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
 // to "snap" to wall placement. 0.25 = within the outer 25% of the cell.
 const EDGE_HOVER_THRESHOLD = 0.25;
+/** Elements that act on Space themselves when focused from the keyboard; the Space hand leaves them alone. */
+const SPACE_CONTROLS = "button, a[href], select, summary, [role=button], [role=checkbox], [role=switch], [role=tab], [role=radio], [role=menuitem], [role=option]";
 
 export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
@@ -157,9 +160,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // Holds the local pointer position from pointerdown; toolPointerMove
   // promotes it to an ordinary pan once the pointer travels past the slop,
   // and toolPointerUp treats it as a plain click (select the cell) if it
-  // never did. RMB/middle/shift already pan unconditionally before this
-  // tool is ever consulted (the isPanTrigger check in toolPointerDown), so
-  // this only ever arms for a genuine left-button press.
+  // never did. RMB/middle/Space already pan unconditionally before this
+  // tool is ever consulted (the pan checks in toolPointerDown), so this only
+  // ever arms for a genuine left-button press made without Space held.
   const SELECT_DRAG_SLOP_PX = 4;
   let pendingSelectStart: { x: number; y: number } | null = null;
 
@@ -389,34 +392,27 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     return BASE_TILE_SIZE * zoom.value * (window.devicePixelRatio || 1);
   }
 
+  /** Inclusive bounds of every cell that holds floor or an area; null for an empty map. */
+  function paintedBounds(): CellBounds | null {
+    return boundsOfCells([...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]);
+  }
+
+  // Wheel, zoom keys and the Space hand.
+  const navigation = useCanvasNavigation({
+    canvasEl, zoom, viewportOffset, getBounds: paintedBounds, devicePixelDims,
+  });
+
   // Centre the viewport on the painted area (or on the origin if the map is empty).
   function centerMap(): void {
     const canvas = canvasEl.value;
     if (!canvas) return;
     const tilePx = tilePixelSize();
-
-    // Compute bbox over every cell that contains anything.
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    let any = false;
-    for (const key of [...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]) {
-      const [xs, ys] = key.split(",");
-      const x = Number(xs);
-      const y = Number(ys);
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
-      any = true;
-    }
+    const bounds = paintedBounds();
 
     // No painted cells → just center on the origin tile.
-    const cx = any ? (minX + maxX + 1) / 2 : 0.5;
-    const cy = any ? (minY + maxY + 1) / 2 : 0.5;
-
-    viewportOffset.value = {
-      x: cx * tilePx - canvas.width / 2,
-      y: cy * tilePx - canvas.height / 2,
-    };
+    const cx = bounds ? (bounds.minX + bounds.maxX + 1) / 2 : 0.5;
+    const cy = bounds ? (bounds.minY + bounds.maxY + 1) / 2 : 0.5;
+    viewportOffset.value = { x: cx * tilePx - canvas.width / 2, y: cy * tilePx - canvas.height / 2 };
   }
 
   // ── Solid block tool ────────────────────────────────────────────────────
@@ -809,6 +805,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
   }
 
+  function startPan(ev: PointerEvent): void {
+    isPanning.value = true;
+    canvasEl.value?.setPointerCapture(ev.pointerId);
+  }
+
   function toolPointerDown(ev: PointerEvent): void {
     const local = getLocalPointer(ev);
     lastPointer = local;
@@ -819,9 +820,15 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       return;
     }
 
+    // Middle button, or left with Space held: pans with any tool on either layer.
+    if (navigation.isForcedPan(ev)) {
+      startPan(ev);
+      return;
+    }
+
     // Plan layer (#884 S7b): every gesture routes to `planTools` instead of
-    // the Drawing tools below — EXCEPT a genuine pan trigger (RMB/middle/
-    // shift), which `planTools.onPointerDown` reports by returning false.
+    // the Drawing tools below — EXCEPT a right-button pan, which
+    // `planTools.onPointerDown` reports by returning false.
     // Panning is handled directly here rather than by falling through into
     // the Drawing-specific branches below: those key off `activeTool` (the
     // Drawing's OWN tool selection, untouched while a DM works the Plan) and
@@ -829,15 +836,13 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // happens to still be pointed at "wall" or "door" from earlier.
     if (isPlanLayerActive()) {
       if (planTools!.onPointerDown(ev)) return;
-      isPanning.value = true;
-      canvasEl.value?.setPointerCapture(ev.pointerId);
+      startPan(ev);
       return;
     }
 
     const [cx, cy] = viewportToCell(local.x, local.y);
 
-    // Dressing: place, pick up, move and remove props. It leaves a middle
-    // button or Shift press unhandled so those still pan.
+    // Dressing: place, pick up, move and remove props.
     if (activeTool.value === "place" && placeErases(ev)) {
       // Right button or Alt: a prop under the pointer goes first (it draws above objects), else the object.
       if (ev.button === 2) ev.preventDefault();
@@ -852,7 +857,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
     if (activeTool.value === "place" && !armedObject()
       && dressingTool.onPointerDown({
-        cell: [cx, cy], frac: fractionalCellAt(ev), button: ev.button, altKey: ev.altKey, shiftKey: ev.shiftKey,
+        cell: [cx, cy], frac: fractionalCellAt(ev), button: ev.button, altKey: ev.altKey,
       })) {
       if (ev.button === 2) ev.preventDefault();
       if (dressingTool.isHolding()) canvasEl.value?.setPointerCapture(ev.pointerId);
@@ -895,18 +900,16 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       return;
     }
 
-    // RMB / middle / shift → pan (shift already consumed above for wall tool).
-    const isPanTrigger = ev.button === 1 || ev.button === 2 || ev.shiftKey;
-    if (activeTool.value === "pan" || isPanTrigger) {
-      isPanning.value = true;
-      canvasEl.value?.setPointerCapture(ev.pointerId);
+    // The Pan tool, or an RMB the tools above did not claim, pans.
+    if (navigation.isPanStart(ev, activeTool.value)) {
+      startPan(ev);
       return;
     }
 
     // Select tool: a plain left click selects the cell; a drag pans,
     // exactly like Pan — so a DM's first tap after opening the editor never
     // paints, and one finger still moves the map on a phone. RMB/middle/
-    // shift already panned above regardless of tool, so only a genuine
+    // Space already panned above regardless of tool, so only a genuine
     // left-button press reaches this ambiguous "click or drag?" state; see
     // toolPointerMove/toolPointerUp for how it resolves.
     if (activeTool.value === "select") {
@@ -1271,19 +1274,6 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (isPlanLayerActive()) planTools!.onDoubleClick(ev);
   }
 
-  function onWheel(ev: WheelEvent): void {
-    const rect = canvasEl.value!.getBoundingClientRect();
-    const { dpr } = devicePixelDims();
-    const next = zoomAtPoint(
-      { zoom: zoom.value, offset: viewportOffset.value },
-      { x: ev.clientX - rect.left, y: ev.clientY - rect.top },
-      dpr,
-      ev.deltaY,
-    );
-    viewportOffset.value = next.offset;
-    zoom.value = next.zoom;
-  }
-
   // ── Lifecycle ───────────────────────────────────────────────────────────
 
   function onResize(): void {
@@ -1296,6 +1286,15 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   function onKeyDown(ev: KeyboardEvent): void {
     if (ev.key === "Alt") altHeld.value = true;
     const target = ev.target as HTMLElement | null;
+    const targetIsTextEntry = !!target
+      && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+    // A control a keyboard user has tabbed to (a rail button, a checkbox)
+    // answers Space itself, so the hand leaves it alone. One merely clicked
+    // with the mouse keeps focus without `:focus-visible`, and there Space
+    // pans: picking a tool on the rail and then Space-dragging must just work.
+    const control = target?.closest?.(SPACE_CONTROLS);
+    const targetUsesSpace = targetIsTextEntry || (!!control && control.matches(":focus-visible"));
+    if (navigation.onKeyDown(ev, targetUsesSpace)) return;
     const action = resolveKeyAction(
       {
         key: ev.key,
@@ -1304,8 +1303,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         metaKey: ev.metaKey,
         altKey: ev.altKey,
         shiftKey: ev.shiftKey,
-        targetIsTextEntry: !!target
-          && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable),
+        targetIsTextEntry,
       },
       { activeTool: activeTool.value, tools, placeArmed: placeItem.value !== null },
     );
@@ -1315,6 +1313,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "undo": undoEdit(); break;
       case "redo": redoEdit(); break;
       case "center": centerMap(); break;
+      case "zoom": navigation.zoomTo(action.to); break;
       case "rotatePlace": dressingTool.turn(action.delta); break;
       case "deleteDressing": dressingTool.deleteSelected(); break;
       case "disarmPlace": placeItem.value = null; break;
@@ -1328,6 +1327,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   function onKeyUp(ev: KeyboardEvent): void {
     if (ev.key === "Alt") altHeld.value = false;
+    navigation.onKeyUp(ev);
   }
 
   // Alt-tabbing away, or any other focus loss, ends the physical key-down
@@ -1336,6 +1336,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // stuck shift key in any other app; blur is the standard fix.
   function onWindowBlur(): void {
     altHeld.value = false;
+    navigation.onBlur();
   }
 
   onMounted(() => {
@@ -1372,6 +1373,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
      *  " · erase" to the canvas pill while this is true and the active tool
      *  has an erase mirror. */
     altHeld,
+    /** Space is held, so a left press pans — MapWorkbench shows the hand cursor. */
+    spaceHeld: navigation.spaceHeld,
+    /** A pan drag is under way (the grabbing cursor). */
+    isPanning,
     canUndo: exposedCanUndo,
     canRedo: exposedCanRedo,
     undoEdit,
@@ -1388,7 +1393,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       hoverPoint.value = null;
     },
     onDoubleClick,
-    onWheel,
+    onWheel: navigation.onWheel,
     structureTools,
     /** Turns the selected Dressing prop (one undo step) and the brush with it. */
     rotateSelectedDressing: dressingTool.rotateSelected,

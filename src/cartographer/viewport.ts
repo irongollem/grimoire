@@ -1,32 +1,14 @@
-// Viewport maths for the cartographer canvas — zoom limits and cursor-anchored
-// zooming. Pure: no Vue refs, no DOM. The view reads the cursor position off
+// Viewport maths for the cartographer canvas — zoom limits, cursor-anchored
+// zooming, panning and fitting. Pure: no Vue refs, no DOM. The view reads the cursor position off
 // the event and hands plain numbers in.
 
 /** 5%–400%: small enough to scan an 80×80 dungeon at a glance, large enough to paint tile-by-tile. */
 export const MIN_ZOOM = 0.05;
 export const MAX_ZOOM = 4;
 
-const STEP = 1.1;
-
 export interface CanvasViewport {
   zoom: number;
   offset: { x: number; y: number };
-}
-
-/** One wheel notch. Negative deltaY (scroll up) zooms in. */
-export function zoomStep(current: number, deltaY: number): number {
-  const factor = deltaY < 0 ? STEP : 1 / STEP;
-  return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, current * factor));
-}
-
-/**
- * Zoom while keeping the world point under the cursor stationary.
- *
- * `cursor` is in CSS pixels relative to the canvas's top-left; `dpr` converts
- * that to the device-pixel space the offset is stored in.
- */
-export function zoomAtPoint(vp: CanvasViewport, cursor: { x: number; y: number }, dpr: number, deltaY: number): CanvasViewport {
-  return zoomByFactor(vp, cursor, dpr, deltaY < 0 ? STEP : 1 / STEP);
 }
 
 /**
@@ -64,6 +46,20 @@ export interface CellBounds {
   minY: number;
   maxX: number;
   maxY: number;
+}
+
+/** The inclusive bounds of a set of "x,y" cell keys; null when there are none. */
+export function boundsOfCells(keys: Iterable<string>): CellBounds | null {
+  let bounds: CellBounds | null = null;
+  for (const key of keys) {
+    const [xs, ys] = key.split(",");
+    const x = Number(xs);
+    const y = Number(ys);
+    bounds = bounds
+      ? { minX: Math.min(bounds.minX, x), minY: Math.min(bounds.minY, y), maxX: Math.max(bounds.maxX, x), maxY: Math.max(bounds.maxY, y) }
+      : { minX: x, minY: y, maxX: x, maxY: y };
+  }
+  return bounds;
 }
 
 /**

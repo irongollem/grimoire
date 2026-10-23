@@ -295,7 +295,7 @@ const detailsOpen = ref(false);
 /** Tools with nothing to set: what a click does, in a line. */
 const HINTS: Record<Tool, string> = {
   select: "",
-  pan: "Drag to move the map.",
+  pan: "Drag to move the map. Space+drag or the middle button pans with any tool.",
   floor: "Drag to paint floor. Alt erases.",
   terrain: "Paint water over the floor; a cell with no floor gets one. Alt erases the water and keeps the floor.",
   eraser: "Drag to take out floor, walls and objects.",

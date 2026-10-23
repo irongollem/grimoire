@@ -24,9 +24,10 @@
 // in the Atlas at all: it reads the Drawing's floor layer via `floodFill`
 // and writes straight to the Plan.
 //
-// Panning stays universal: RMB, the middle button, and shift+click are never
-// claimed here, so `useMapCanvasEditor.ts`'s existing pan logic keeps running
-// underneath the Plan exactly as it does under the Drawing. `onPointerDown`
+// Panning stays universal: RMB and the middle button are never claimed here
+// (and Space+drag is settled by the editor before this is asked), so
+// `useMapCanvasEditor.ts`'s existing pan logic keeps running underneath the
+// Plan exactly as it does under the Drawing. `onPointerDown`
 // returns whether it claimed the event for exactly this reason — the caller
 // falls through to its own pan-trigger check when it didn't.
 
@@ -191,22 +192,22 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
   }
 
   // ── Dispatch ─────────────────────────────────────────────────────────────
-  // Pan (RMB / middle / shift) is never claimed — the caller's own pan logic
+  // Pan (RMB / middle) is never claimed — the caller's own pan logic
   // runs when this returns false, exactly the boundary
   // `useMapCanvasEditor.ts`'s Drawing tools already draw around their own
   // pan-trigger check.
 
   function isPanGesture(ev: PointerEvent): boolean {
-    return ev.button === 1 || ev.button === 2 || ev.shiftKey;
+    return ev.button === 1 || ev.button === 2;
   }
 
   function onPointerDown(ev: PointerEvent): boolean {
     const tool = plan.planTool.value;
 
     if (tool === "door") {
-      // alt+click still deletes even though alt+shift would otherwise read
-      // as a pan trigger — alt is the door tool's own modifier, shift is the
-      // pan one, and a DM is never holding both for the same gesture.
+      // alt+click still deletes even when the press was a right or middle
+      // one, which would otherwise read as a pan — alt is the door tool's
+      // own modifier.
       if (isPanGesture(ev) && !ev.altKey) return false;
       const edgeKey = edgeAt(ev.clientX, ev.clientY);
       // Still claimed even with nothing to target: the Door tool being active

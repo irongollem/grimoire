@@ -51,7 +51,6 @@ export interface DressingPointer {
   frac: [number, number];
   button: number;
   altKey: boolean;
-  shiftKey: boolean;
 }
 
 interface PlaceState {
@@ -120,12 +119,12 @@ export function useDressingTool(opts: DressingToolOptions) {
 
   /**
    * The Place tool's press for a prop. Returns whether it consumed the event: a middle
-   * button or Shift press is left to the editor's pan, everything else
-   * (including a right-click that hits nothing) is the tool's, so a right-click
-   * never also drags the map.
+   * button press is left to the editor's pan, everything else (including a
+   * right-click that hits nothing) is the tool's, so a right-click never also
+   * drags the map.
    */
   function onPointerDown(p: DressingPointer): boolean {
-    if (p.button === 1 || (p.shiftKey && p.button === 0)) return false;
+    if (p.button === 1) return false;
     // A press whose release never arrived is finished as if it had.
     onPointerUp();
 

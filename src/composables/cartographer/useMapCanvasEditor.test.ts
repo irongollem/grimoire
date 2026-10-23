@@ -1,5 +1,5 @@
 // Glue tests for the Cartographer's canvas engine. The pure pieces it wires
-// together — CommandStack, pickVariant/hash32, zoomAtPoint, detectHoveredEdge,
+// together — CommandStack, pickVariant/hash32, zoomByFactor, detectHoveredEdge,
 // the paintOps functions — all have their own colocated tests already
 // (commandStack.test.ts, tileVariants.test.ts, viewport.test.ts,
 // edgeHover.test.ts, paintOps.test.ts). This file is about the wiring itself:
@@ -819,18 +819,86 @@ describe("centerMap", () => {
 // ── onWheel ──────────────────────────────────────────────────────────────
 
 describe("onWheel", () => {
-  it("zooms in on a negative deltaY and keeps the cursor's world point stationary", () => {
+  // happy-dom's WheelEvent drops the modifier fields of its init dict, so the
+  // event is a plain object carrying just what the handler reads.
+  function wheel(over: Partial<Record<"deltaX" | "deltaY" | "ctrlKey" | "shiftKey", number | boolean>>): WheelEvent {
+    return {
+      clientX: 100, clientY: 100, deltaX: 0, deltaY: 0, deltaMode: 0,
+      ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...over,
+    } as unknown as WheelEvent;
+  }
+
+  it("a plain wheel scrolls the map and leaves the zoom alone", () => {
     const { editor } = makeHarness();
-    const before = { zoom: editor.zoom.value, offset: { ...editor.viewportOffset.value } };
-    editor.onWheel(new WheelEvent("wheel", { clientX: 100, clientY: 100, deltaY: -100 }));
-    expect(editor.zoom.value).toBeGreaterThan(before.zoom);
+    editor.onWheel(wheel({ deltaY: 100 }));
+    expect(editor.zoom.value).toBe(1);
+    expect(editor.viewportOffset.value).toEqual({ x: 0, y: 100 });
   });
 
-  it("zooms out on a positive deltaY", () => {
+  it("Ctrl+wheel up zooms in, keeping the cursor's world point stationary", () => {
     const { editor } = makeHarness();
-    const before = editor.zoom.value;
-    editor.onWheel(new WheelEvent("wheel", { clientX: 100, clientY: 100, deltaY: 100 }));
-    expect(editor.zoom.value).toBeLessThan(before);
+    editor.onWheel(wheel({ deltaY: -100, ctrlKey: true }));
+    expect(editor.zoom.value).toBeGreaterThan(1);
+    // The world point under the cursor (100, 100) at zoom 1 is (100, 100); it must still be.
+    expect((editor.viewportOffset.value.x + 100) / editor.zoom.value).toBeCloseTo(100, 6);
+    expect((editor.viewportOffset.value.y + 100) / editor.zoom.value).toBeCloseTo(100, 6);
+  });
+
+  it("Ctrl+wheel down zooms out", () => {
+    const { editor } = makeHarness();
+    editor.onWheel(wheel({ deltaY: 100, ctrlKey: true }));
+    expect(editor.zoom.value).toBeLessThan(1);
+  });
+});
+
+// ── Panning triggers ─────────────────────────────────────────────────────
+// Middle, Space and the Pan tool pan; Shift does not, because it is the draw
+// modifier now.
+
+describe("what starts a pan", () => {
+  it("a Shift+drag with a painting tool paints instead of panning", () => {
+    const { editor, layers } = makeHarness();
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10, { shiftKey: true }));
+    editor.onPointerMove(move(60, 10, { shiftKey: true }));
+    editor.onPointerUp(up(60, 10, { shiftKey: true }));
+    expect(editor.viewportOffset.value).toEqual(before);
+    expect(layers.value.floor["0,0" as CellKey]).toBeDefined();
+  });
+
+  it("a Shift+click with Select armed selects the cell rather than panning", () => {
+    const selectedCell = ref<[number, number] | null>(null);
+    const { editor } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
+    editor.onPointerDown(down(10, 10, { shiftKey: true }));
+    editor.onPointerUp(up(10, 10, { shiftKey: true }));
+    expect(selectedCell.value).toEqual([0, 0]);
+  });
+
+  it("the middle button pans with any tool, painting nothing", () => {
+    const { editor, layers } = makeHarness();
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10, { button: 1 }));
+    editor.onPointerMove(move(60, 10, { button: 1 }));
+    editor.onPointerUp(up(60, 10, { button: 1 }));
+    expect(editor.viewportOffset.value).not.toEqual(before);
+    expect(Object.keys(layers.value.floor)).toHaveLength(0);
+  });
+
+  it("the middle button pans even over the Link tool, which selects cells on a left click", () => {
+    const selectedCell = ref<[number, number] | null>(null);
+    const { editor } = makeHarness({ activeTool: ref<Tool>("link"), selectedCell });
+    editor.onPointerDown(down(10, 10, { button: 1 }));
+    editor.onPointerUp(up(10, 10, { button: 1 }));
+    expect(selectedCell.value).toBeNull();
+  });
+
+  it("the Pan tool pans on a plain left drag", () => {
+    const { editor } = makeHarness({ activeTool: ref<Tool>("pan") });
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10));
+    editor.onPointerMove(move(60, 10));
+    editor.onPointerUp(up(60, 10));
+    expect(editor.viewportOffset.value).not.toEqual(before);
   });
 });
 
@@ -1258,6 +1326,49 @@ describe("altHeld", () => {
     expect(editor.altHeld.value).toBe(true);
     window.dispatchEvent(new Event("blur"));
     expect(editor.altHeld.value).toBe(false);
+  });
+
+  it("Space turns a left drag into a pan with the armed tool, and releasing it ends that", () => {
+    const editor = mountForLifecycle();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space" }));
+    expect(editor.spaceHeld.value).toBe(true);
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10));
+    expect(editor.isPanning.value).toBe(true);
+    editor.onPointerMove(move(60, 10));
+    editor.onPointerUp(up(60, 10));
+    expect(editor.viewportOffset.value).not.toEqual(before);
+
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space" }));
+    expect(editor.spaceHeld.value).toBe(false);
+    editor.onPointerDown(down(10, 10));
+    expect(editor.isPanning.value).toBe(false);
+    editor.onPointerUp(up(10, 10));
+  });
+
+  it("window blur lets go of Space", () => {
+    const editor = mountForLifecycle();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space" }));
+    window.dispatchEvent(new Event("blur"));
+    expect(editor.spaceHeld.value).toBe(false);
+  });
+
+  it("Ctrl+1 shows 100% and Ctrl+0 fits an empty map at 100% too", () => {
+    const editor = mountForLifecycle();
+    editor.zoom.value = 2;
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "1", code: "Digit1", ctrlKey: true }));
+    expect(editor.zoom.value).toBe(1);
+    editor.zoom.value = 3;
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "0", code: "Digit0", ctrlKey: true }));
+    expect(editor.zoom.value).toBe(1);
+  });
+
+  it("Ctrl+= and Ctrl+- step the zoom in and out", () => {
+    const editor = mountForLifecycle();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "=", code: "Equal", ctrlKey: true }));
+    expect(editor.zoom.value).toBeCloseTo(1.25, 6);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "-", code: "Minus", ctrlKey: true }));
+    expect(editor.zoom.value).toBeCloseTo(1, 6);
   });
 });
 
