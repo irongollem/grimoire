@@ -30,6 +30,10 @@ export interface CraftingRecipe {
   requires_proficiency: boolean;
   requires_tools: boolean;
   player_visible_to: string[];
+  /** The DM's own picture. Null shows the primary output's art instead
+   *  (`resolveRecipeArt`, src/lib/crafting/recipeArt.ts). */
+  image_url: string | null;
+  image_focal_point: { x: number; y: number } | null;
   /** Set when the recipe came from the generator; flipped by markEdited on a material edit. */
   ai_provenance?: AiProvenance | null;
   created_at: string;
@@ -50,9 +54,12 @@ export interface CraftingOutput {
   item_id: string | null; // the owner's own items row (uuid)
   library_item_id: string | null; // shared library content (text id) — #819
   quantity: number;
+  /** List order; 0 is the primary result, whose art a recipe shows by default.
+   *  Written by the replace helpers from the list index, never by a caller. */
+  position: number;
 }
 
-export type CraftingOutputInsert = Omit<CraftingOutput, "id">;
+export type CraftingOutputInsert = Omit<CraftingOutput, "id" | "position">;
 
 export interface CraftingIngredient {
   id: string;
@@ -65,9 +72,12 @@ export interface CraftingIngredient {
   /** Tag-based ingredient: any item whose tags include ALL values in this array. */
   tags: string[] | null;
   quantity: number;
+  /** List order; 0 is the PRIMARY ingredient, ruined on a critical fail.
+   *  Written by the replace helpers from the list index, never by a caller. */
+  position: number;
 }
 
-export type CraftingIngredientInsert = Omit<CraftingIngredient, "id">;
+export type CraftingIngredientInsert = Omit<CraftingIngredient, "id" | "position">;
 
 export interface CraftingModifier {
   id: string;

@@ -93,7 +93,7 @@ describe("STARTER_RECIPES", () => {
     );
 
     expect(outputRows).toEqual([
-      { recipe_id: "recipe-a", item_id: null, library_item_id: "srd_grimoire_bundled_leather_barding", quantity: 1 },
+      { recipe_id: "recipe-a", item_id: null, library_item_id: "srd_grimoire_bundled_leather_barding", quantity: 1, position: 0 },
     ]);
   });
 });

@@ -102,7 +102,7 @@ export async function loadUserPack(pack: UserTilePack): Promise<TilePackRuntime>
     slots[index]!.url = signed.signedUrl;
   });
   const manifestUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/json" }));
-  try { return await loadPack(manifestUrl); } finally { URL.revokeObjectURL(manifestUrl); }
+  try { return await loadPack(manifestUrl, { lastingUrls: false }); } finally { URL.revokeObjectURL(manifestUrl); }
 }
 
 export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true) {

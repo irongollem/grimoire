@@ -151,7 +151,7 @@ describe("drawMapContent", () => {
     });
   });
 
-  describe("omitSway", () => {
+  describe("omitLive", () => {
     const SWAY = { amount: 4, speed: 1 };
     const swayLayers = (): ReturnType<typeof emptyLayers> => {
       const layers = emptyLayers();
@@ -169,12 +169,12 @@ describe("drawMapContent", () => {
         sway: { objectPillar: [SWAY, null] },
         assets: { objectPillar: [{ variant: 0, url: "https://cdn/tree.webp" }, { variant: 1, url: "https://cdn/stump.webp" }] },
       });
-    const count = (omitSway: boolean): number => {
+    const count = (omitLive: boolean): number => {
       const { input: i, rec } = input(runtime(), {
         layers: swayLayers(),
         dressing: new Map([["palm", palm], ["rock", rock]]),
         pass: "standing",
-        omitSway,
+        omitLive,
       });
       drawMapContent(i);
       return rec.drawImages.length;
@@ -183,6 +183,34 @@ describe("drawMapContent", () => {
     it("leaves out exactly the objects and Dressing that sway", () => {
       expect(count(false)).toBe(4);
       expect(count(true)).toBe(2);
+    });
+  });
+
+  describe("omitLive and door leaves", () => {
+    const door = (variant: number) => {
+      const layers = emptyLayers();
+      layers.floor[cellKey(1, 1)] = { wallN: { ...ref, variant, type: "doorClosed" } };
+      return layers;
+    };
+    const rt = () => makeRuntime(PACK, { assets: { doorLeaf: [{ variant: 0, url: "https://cdn/leaf-0.webp" }] } });
+    const cats = (rec: Recorder): (string | undefined)[] => rec.drawImages.map((d) => sourceOf(d)?.category);
+
+    it("keeps the leaf unless asked to leave out what the live layer draws", () => {
+      const { input: i, rec } = input(rt(), { layers: door(0) });
+      drawMapContent(i);
+      expect(cats(rec)).toEqual(["doorwayH", "doorLeaf"]);
+    });
+
+    it("skips a leaf that has art of its own and draws the doorway band", () => {
+      const { input: i, rec } = input(rt(), { layers: door(0), omitLive: true });
+      drawMapContent(i);
+      expect(cats(rec)).toEqual(["doorwayH"]);
+    });
+
+    it("keeps a leaf whose variant has no art, since the live layer could not reproduce it", () => {
+      const { input: i, rec } = input(rt(), { layers: door(1), omitLive: true });
+      drawMapContent(i);
+      expect(cats(rec)).toEqual(["doorwayH", "doorLeaf"]);
     });
   });
 

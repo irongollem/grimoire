@@ -5,7 +5,8 @@
 // Edges are named as the Cartographer stores them, NW-owned: `"x,y:N"` is the top edge of cell (x,y), `"x,y:W"` its
 // left edge. Pure and DOM-free; the same test serves the editor's preview and the live battle map.
 
-import type { MapLive } from "@/types/mapLive.types";
+import { effectiveDoors } from "@/lib/battlemap/doors";
+import type { MapLive, MapLiveDoorState } from "@/types/mapLive.types";
 
 export interface Occluders {
   /** Blocking edges, `"x,y:N"` or `"x,y:W"`. */
@@ -61,13 +62,24 @@ export function occluders(input: OccluderInput): Occluders {
 /** Nothing blocks. */
 export const NO_OCCLUDERS: Occluders = occluders({ walls: [], doors: [], solid: [] });
 
-const bySnapshot = new WeakMap<MapLive, Occluders>();
-/** A snapshot's occluders, built once per snapshot object (doors at their drawn state). */
-export function occludersOf(live: MapLive): Occluders {
-  let built = bySnapshot.get(live);
+/** No door overrides: every door at its drawn state. Shared, so callers with none do not defeat the memo. */
+export const NO_DOOR_STATES: readonly MapLiveDoorState[] = Object.freeze([]);
+
+const bySnapshot = new WeakMap<MapLive, WeakMap<readonly MapLiveDoorState[], Occluders>>();
+/**
+ * A snapshot's occluders with the DM's door overrides laid over the drawn doors (#1073), built once per snapshot
+ * object and override array. Keyed on the array's identity, so a caller must hand the same array while nothing changed.
+ */
+export function occludersOf(live: MapLive, doorStates: readonly MapLiveDoorState[] = NO_DOOR_STATES): Occluders {
+  let perStates = bySnapshot.get(live);
+  if (!perStates) {
+    perStates = new WeakMap();
+    bySnapshot.set(live, perStates);
+  }
+  let built = perStates.get(doorStates);
   if (!built) {
-    built = occluders({ walls: live.walls, doors: live.doors, solid: live.solid });
-    bySnapshot.set(live, built);
+    built = occluders({ walls: live.walls, doors: effectiveDoors(live.doors, doorStates), solid: live.solid });
+    perStates.set(doorStates, built);
   }
   return built;
 }

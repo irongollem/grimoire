@@ -266,6 +266,14 @@ const profBonus = computed(() => props.member.proficiency_bonus);
 // Only apply proficiency bonus if the player has tool proficiency
 const effectiveProfBonus = computed(() => props.hasProficiency ? profBonus.value : 0);
 
+// Equipped or container rows are never consumed, so crafting can't unequip a
+// weapon or dissolve a container. The "Have" count must use the same rule as
+// consumption: counting an equipped sword towards "Any metal" let an attempt
+// through that then consumed less than the recipe needs.
+function eligible(inv: PartyInventoryItem): boolean {
+  return !inv.is_ruined && !inv.is_equipped && !inv.is_container;
+}
+
 // Match each required ingredient to inventory items
 const ingredientSlots = computed(() =>
   props.requiredIngredients.map((req) => {
@@ -276,16 +284,16 @@ const ingredientSlots = computed(() =>
     if (ref) {
       itemName = resolveItemName(ref) ?? "Unknown item";
       available = props.inventory
-        .filter((inv) => inventoryItemRef(inv) === ref && !inv.is_ruined)
+        .filter((inv) => inventoryItemRef(inv) === ref && eligible(inv))
         .reduce((sum, inv) => sum + inv.quantity, 0);
     } else {
-      // Tag-based: any non-ruined inventory item whose vault item has ALL required tags
+      // Tag-based: any eligible inventory item whose vault item has ALL required tags
       itemName = req.tags!.length === 1
         ? `Any "${req.tags![0]}"`
         : `Any [${req.tags!.join(" + ")}]`;
       available = props.inventory
         .filter((inv) => {
-          if (inv.is_ruined) return false;
+          if (!eligible(inv)) return false;
           const def = props.allItems.find((i) => i.id === inventoryItemRef(inv));
           return req.tags!.every((t) => def?.tags?.includes(t) ?? false);
         })
@@ -332,9 +340,8 @@ const modifierBonuses = computed(() => {
 });
 
 // Resolve how much of which inventory rows to consume. Each ingredient row is
-// consumed by the recipe's required quantity (not the whole stack), and equipped
-// or container rows are never eligible — so crafting can't wipe a 20-stack to use
-// 2, nor unequip a weapon or dissolve a container.
+// consumed by the recipe's required quantity (not the whole stack), so crafting
+// can't wipe a 20-stack to use 2; `eligible` above decides which rows qualify.
 function resolveIngredientConsumption(): {
   consumption: { id: string; qty: number }[];
   primaryId: string;
@@ -345,9 +352,6 @@ function resolveIngredientConsumption(): {
   const consumption: { id: string; qty: number }[] = [];
   let primaryId = "";
   let primaryItem: PartyInventoryItem | null = null;
-
-  const eligible = (inv: PartyInventoryItem) =>
-    !inv.is_ruined && !inv.is_equipped && !inv.is_container;
 
   for (const req of props.requiredIngredients) {
     let remaining = req.quantity;

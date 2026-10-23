@@ -21,6 +21,17 @@
       />
     </div>
 
+    <!-- The recipe's own picture, else the art of what it makes. Omitted when neither exists. -->
+    <div v-if="art" class="relative h-48 overflow-hidden rounded-lg border border-border bg-muted">
+      <FocalImage
+        :src="art.url"
+        :alt="recipe.name"
+        format="landscape"
+        :focal-point="art.focalPoint"
+        ai-badge="right"
+      />
+    </div>
+
     <!-- Core stats row -->
     <div class="rounded-lg border border-border bg-card p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
       <!-- Discipline -->
@@ -128,6 +139,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { getDiscipline } from "@/lib/crafting/disciplines";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import { resolveRecipeArt } from "@/lib/crafting/recipeArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import type { CraftingRecipe } from "@/types/crafting.types";
 
@@ -154,6 +167,8 @@ const { find: findStoredItem } = useStoredItemRefs(
   () => [...(outputs.value ?? []), ...(ingredients.value ?? [])].map(inventoryItemRef),
 );
 
+const art = computed(() => resolveRecipeArt(props.recipe, outputs.value ?? [], findStoredItem));
+
 function itemById(id: string | null) {
   return id ? findStoredItem(id) : undefined;
 }
@@ -164,7 +179,7 @@ async function handleDelete() {
     confirmLabel: "Delete",
   });
   if (!ok) return;
-  await deleteMut.mutateAsync(props.recipe.id);
+  await deleteMut.mutateAsync(props.recipe);
   router.push("/crafting");
 }
 </script>

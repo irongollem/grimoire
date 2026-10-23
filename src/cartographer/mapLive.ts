@@ -1,14 +1,16 @@
 // The live snapshot a publish writes beside the Drawing (epic #1073). Pure: the map, the pack runtimes and the
 // dressing catalogue in, a JSON-able `MapLive` out. Players cannot read `dungeon_maps`, so whatever the battle map's
 // live layer needs (water cells and their motion now, lights and vision later) is captured here, in the Drawing's
-// own image-cell space (cell (0,0) = the image's top-left cell, the space the fog mask and tokens use).
+// own image-cell space (cell (0,0) = the image's top-left cell, the space the fog mask and tokens use). Doors carry
+// their leaf art and hinge too, so the battle map can draw each at the state the DM sets in play.
 
-import type { DungeonMap, CellKey } from "@/types/dungeonMap.types";
-import type { MapLive, MapLiveGroup, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
+import type { DungeonMap, CellKey, FloorCell } from "@/types/dungeonMap.types";
+import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoor, type MapLiveDoorLeaf, type MapLiveDoorState, type MapLiveGroup, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { dressingCentre, dressingDrawOrder, type DressingCatalog } from "@/cartographer/dressing";
 import { dressingSway, objectSway, phaseAt } from "@/cartographer/sway";
 import { gatherLightSources } from "@/cartographer/drawLights";
+import { doorLeafArt } from "@/cartographer/doorLeaf";
 import { collectOcclusion, toImageCell } from "@/cartographer/mapOcclusion";
 import { cellKey } from "@/types/dungeonMap.types";
 
@@ -66,19 +68,43 @@ export function buildMapLive(
     }),
   );
 
+  const { doors: doorStates, ...occlusion } = collectOcclusion(map.layers, originCellX, originCellY);
   return {
-    version: 1,
+    version: MAP_LIVE_VERSION,
     darkness: map.darkness,
     groups,
     lights,
     sprites: gatherSprites(map, runtimes, dressing, originCellX, originCellY),
-    ...collectOcclusion(map.layers, originCellX, originCellY),
+    ...occlusion,
+    doors: gatherDoors(map, doorStates, runtimes, originCellX, originCellY),
   };
 }
 
 /**
+ * Each door's state with its leaf art, matched to its seg by edge key (the same keys `collectOcclusion` writes). The
+ * leaf is chosen by the predicate the bake uses to leave it out (`doorLeafArt`), so a standing bake made with
+ * `omitLive` plus these leaves shows every door exactly once.
+ */
+function gatherDoors(
+  map: DungeonMap,
+  states: MapLiveDoorState[],
+  runtimes: Map<string, TilePackRuntime>,
+  originCellX: number,
+  originCellY: number,
+): MapLiveDoor[] {
+  const leaves = new Map<string, MapLiveDoorLeaf | null>();
+  for (const [key, cell] of Object.entries(map.layers.floor) as [CellKey, FloorCell][]) {
+    const at = toImageCell(key, originCellX, originCellY);
+    for (const [side, seg] of [["N", cell.wallN], ["W", cell.wallW]] as const) {
+      if (seg) leaves.set(`${at}:${side}`, doorLeafArt(seg, runtimes.get(seg.pack_id) ?? null));
+    }
+  }
+  return states.map((state) => ({ ...state, leaf: leaves.get(state.edge) ?? null }));
+}
+
+/**
  * The things that sway, as sprites. Chosen by the same predicate the bake uses to leave them out (`objectSway`,
- * `dressingSway`), so a standing bake made with `omitSway` plus these sprites shows every prop exactly once.
+ * `dressingSway`), so a standing bake made with `omitLive` plus these sprites shows every prop exactly once.
  * Standing objects in row-major order (the order the bake paints them), then Dressing by z.
  */
 function gatherSprites(

@@ -37,15 +37,17 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidate }) }));
 vi.mock("@/cartographer/bake", () => ({
-  bakeMap: async (_m: unknown, _r: unknown, _d: unknown, options: { pass?: string; omitSway?: boolean }) => {
+  bakeMap: async (_m: unknown, _r: unknown, _d: unknown, options: { pass?: string; omitLive?: boolean }) => {
     mocks.passes.push(options.pass);
-    mocks.omits.push(options.omitSway);
+    mocks.omits.push(options.omitLive);
     return new Blob();
   },
   computeBakedDimensions: () => ({ cols: 4, rows: 4, originCellX: 0, originCellY: 0 }),
 }));
-const SNAPSHOT = { version: 1, darkness: "daylight", groups: [], lights: [], sprites: [], walls: [], doors: [], solid: [] };
+const SNAPSHOT = { version: 2, darkness: "daylight", groups: [], lights: [], sprites: [], walls: [], doors: [], solid: [] };
 const SWAYING = { ...SNAPSHOT, sprites: [{ url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } }] };
+const LEAF = { url: "https://cdn/leaf.webp", hingeX: 0.25, hingeY: 0.5, openDegrees: 80 };
+const DOORS = { ...SNAPSHOT, doors: [{ edge: "1,1:N", open: false, leaf: LEAF }, { edge: "2,1:W", open: true, leaf: null }] };
 vi.mock("@/cartographer/mapLive", () => ({ buildMapLive: () => mocks.snapshot }));
 vi.mock("@/lib/storage", () => ({
   deleteByPublicUrl: mocks.deleteNow,
@@ -194,6 +196,18 @@ describe("useMapPublish.publish", () => {
       mapLayerStandUrl: "https://cdn/stand.webp",
       mapLayerStandLiveUrl: "https://cdn/stand-live.webp",
     });
+  });
+
+  it("bakes the third image for a snapshot with only a door leaf, and not for doors with no art", async () => {
+    mocks.snapshot = { ...DOORS, doors: [{ edge: "2,1:W", open: true, leaf: null }] };
+    await setup().publish();
+    expect(mocks.passes).toEqual(["ground", "standing"]);
+    mocks.passes.length = 0;
+    mocks.omits.length = 0;
+    mocks.snapshot = DOORS;
+    await setup().publish();
+    expect(mocks.passes).toEqual(["ground", "standing", "standing"]);
+    expect(mocks.omits).toEqual([undefined, undefined, true]);
   });
 
   it("removes the images the publish replaced once the site points at the new ones, unless still referenced", async () => {

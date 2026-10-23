@@ -13,6 +13,7 @@
     :origin-x="originX"
     :origin-y="originY"
     :live="live"
+    :door-states="doorStates"
     :ground="groundBox"
   />
 
@@ -49,7 +50,7 @@
   </svg>
 
   <BattleMapLiveLayer
-    v-if="topAnimates && cellPx > 0"
+    v-if="topDraws && cellPx > 0"
     stratum="top"
     :host-w="hostW"
     :host-h="hostH"
@@ -57,6 +58,7 @@
     :origin-x="originX"
     :origin-y="originY"
     :live="live"
+    :door-states="doorStates"
     :stand-url="standLiveUrl"
     @ready="readyLive = live"
   />
@@ -74,6 +76,7 @@
     :origin-x="originX"
     :origin-y="originY"
     :live="live"
+    :door-states="doorStates"
     :viewers="viewers"
     :zones="zones"
     :ground-url="imageUrl"
@@ -87,21 +90,21 @@
 // grid is cut between two images of the same Drawing. Room focus, tokens and fog stay with the view and draw above.
 // `standUrl` is null when the shown image is not the Drawing or the drawing predates the split.
 //
-// What sways is drawn by the top live layer, so while that layer animates the standing image is `standLiveUrl`, the
-// same picture without those props. The swap waits for the layer's `ready` (every sprite and `standLiveUrl` itself
-// decoded, so the walls never blink out while the new picture loads), and the layer draws the props from then on
-// only, so they never show twice. Until then, and
-// for a reduced-motion user, or when a sprite fails to load, every prop stays in the full `standUrl` and nothing
-// is ever missing.
+// What sways, and every door leaf that has art of its own, is drawn by the top live layer, so while that layer draws
+// the standing image is `standLiveUrl`, the same picture without those props and leaves. The swap waits for the
+// layer's `ready` (every sprite, leaf and `standLiveUrl` itself decoded, so the walls never blink out while the new
+// picture loads), and the layer draws them from then on only, so they never show twice. Until then, or when an image
+// fails to load, everything stays in the full `standUrl` and nothing is ever missing. A reduced-motion user gets the
+// same swap: the layer draws one still frame instead of a loop, which a door the DM opens still needs (#1073).
 import { computed, shallowRef } from "vue";
 import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
 import BattleMapVeil from "@/components/encounters/BattleMapVeil.vue";
 import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
+import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
 import type { Viewer } from "@/lib/battlemap/vision";
-import { prefersReducedMotion } from "@/lib/motion";
-import type { MapLive } from "@/types/mapLive.types";
+import type { MapLive, MapLiveDoorState } from "@/types/mapLive.types";
 
-const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, viewers = null, zones = NO_ZONES } = defineProps<{
+const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, viewers = null, zones = NO_ZONES, doorStates = NO_DOOR_STATES } = defineProps<{
   hostW: number;
   hostH: number;
   imageUrl: string;
@@ -125,10 +128,12 @@ const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, view
   viewers?: Viewer[] | null;
   /** Magical darkness: counts as a dark map for mounting the veil, even on a daylight one. */
   zones?: readonly DarknessZone[];
+  /** Doors the DM has opened or shut over their drawn state: light, sight and the drawn leaf follow (#1073). */
+  doorStates?: readonly MapLiveDoorState[];
 }>();
 
-const topAnimates = computed(
-  () => live !== null && standLiveUrl !== null && live.sprites.length > 0 && !prefersReducedMotion(),
+const topDraws = computed(
+  () => live !== null && standLiveUrl !== null && (live.sprites.length > 0 || live.doors.some((d) => d.leaf !== null)),
 );
 // Ready is remembered per snapshot: a new one has sprites of its own to load before its standing image can drop them.
 // A shallow ref, because it is compared by identity: `ref` would wrap the snapshot in a reactive proxy that never
@@ -136,7 +141,7 @@ const topAnimates = computed(
 const readyLive = shallowRef<MapLive | null>(null);
 // The ground picture's box, so the ground layer keeps a light's flicker to its painted part.
 const groundBox = computed(() => ({ url: imageUrl, x: panX, y: panY, w: imageW, h: imageH }));
-const shownStandUrl = computed(() => (topAnimates.value && readyLive.value === live ? standLiveUrl : standUrl));
+const shownStandUrl = computed(() => (topDraws.value && readyLive.value === live ? standLiveUrl : standUrl));
 </script>
 
 <style scoped>

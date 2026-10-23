@@ -73,7 +73,7 @@ describe("buildMapLive", () => {
       4,
     );
     expect(live.lights).toEqual([{ x: 2.5, y: 1.5, color: "#ff8030", bright: 20, dim: 20, intensity: 0.6, phase: phaseAt(2.5, 1.5) }]);
-    expect(live.version).toBe(1);
+    expect(live.version).toBe(2);
   });
 
   it("carries a light's flicker or pulse, and only when set", () => {
@@ -138,6 +138,30 @@ describe("buildMapLive", () => {
     expect(buildMapLive(mapWith(emptyLayers()), new Map(), NO_DRESSING, 0, 0).sprites).toEqual([]);
   });
 
+  it("gives each door the leaf art its pack can serve, and null where the bake must keep the leaf", () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(1, 1)] = { wallN: { ...ref("lib"), type: "doorClosed" }, wallW: { ...ref("mine"), type: "doorOpen" } };
+    layers.floor[cellKey(2, 1)] = { wallN: { ...ref("lib"), variant: 1, type: "doorClosed" } };
+    const assets = { doorLeaf: [{ variant: 0, url: "https://cdn/leaf-0.webp" }] };
+    const hinge = { hingeX: 0.5, hingeY: 0.25, openDegrees: 60 };
+    const live = buildMapLive(
+      mapWith(layers),
+      runtimes([
+        ["lib", makeRuntime("lib", { assets, doorLeaf: hinge })],
+        ["mine", makeRuntime("mine", { assets, lastingUrls: false })],
+      ]),
+      NO_DRESSING,
+      0,
+      0,
+    );
+    expect(live.version).toBe(2);
+    expect(live.doors).toEqual([
+      { edge: "1,1:N", open: false, leaf: { url: "https://cdn/leaf-0.webp", ...hinge } },
+      { edge: "1,1:W", open: true, leaf: null },
+      { edge: "2,1:N", open: false, leaf: null },
+    ]);
+  });
+
   it("is JSON-safe", () => {
     const live = buildMapLive(mapWith(emptyLayers()), new Map(), NO_DRESSING, 0, 0);
     expect(JSON.parse(JSON.stringify(live))).toEqual(live);
@@ -153,8 +177,8 @@ describe("buildMapLive", () => {
     const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 1, 2);
     expect(live.walls.sort()).toEqual(["2,2:N", "4,2:N"]);
     expect(live.doors).toEqual([
-      { edge: "2,2:W", open: false },
-      { edge: "3,2:N", open: true },
+      { edge: "2,2:W", open: false, leaf: null },
+      { edge: "3,2:N", open: true, leaf: null },
     ]);
     expect(live.solid).toEqual(["8,7"]);
   });

@@ -32,6 +32,7 @@ function state(partial: Partial<EncounterState> & { combatants_live: RunCombatan
     active_combatant_index: 0,
     events_fired: [],
     magical_darkness: [],
+    door_states: [],
     started_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...partial,

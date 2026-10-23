@@ -4,6 +4,7 @@ import type { TilePackManifest } from "@/cartographer/packSchema";
 const mocks = vi.hoisted(() => ({
   signed: [] as string[][],
   loaded: [] as TilePackManifest[],
+  opts: [] as unknown[],
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -20,7 +21,8 @@ vi.mock("@/lib/supabase", () => ({
 }));
 vi.mock("@/cartographer/packLoader", async (importActual) => ({
   ...(await importActual<typeof import("@/cartographer/packLoader")>()),
-  loadPack: async (url: string) => {
+  loadPack: async (url: string, opts?: unknown) => {
+    mocks.opts.push(opts);
     mocks.loaded.push(JSON.parse(await (await fetch(url)).text()) as TilePackManifest);
     return {};
   },
@@ -32,6 +34,7 @@ describe("loadUserPack", () => {
   beforeEach(() => {
     mocks.signed.length = 0;
     mocks.loaded.length = 0;
+    mocks.opts.length = 0;
     vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: (blob: Blob) => blob, revokeObjectURL: () => undefined }));
     vi.stubGlobal("fetch", async (blob: Blob) => ({ text: () => blob.text() }));
   });
@@ -48,5 +51,11 @@ describe("loadUserPack", () => {
     expect(mocks.loaded[0]).not.toHaveProperty("motion");
     expect(mocks.loaded[0]).not.toHaveProperty("sway");
     expect(mocks.loaded[0]!.assets.floor![0]!.url).toBe("https://signed/u1/mine/v2/tiles/floor-0.webp");
+  });
+
+  it("marks the runtime as holding urls that do not last", async () => {
+    const manifest = { pack_id: "mine", assets: {} } as unknown as TilePackManifest;
+    await loadUserPack({ user_id: "u1", pack_id: "mine", pack_version: 2, manifest } as never);
+    expect(mocks.opts).toEqual([{ lastingUrls: false }]);
   });
 });

@@ -64,7 +64,7 @@
         <AppButton
           variant="primary"
           size="sm"
-          :disabled="!review.plan || review.publishing || changeCount === 0"
+          :disabled="!review.plan || review.publishing"
           :label="review.publishing ? 'Publishing…' : `Publish ${changeCount} change${changeCount === 1 ? '' : 's'}`"
           @click="$emit('publish')"
         />
@@ -160,6 +160,9 @@ const writeParts = computed<WritePart[]>(() => {
   const doorWrites = s.newDoors + s.doorUpdates;
   if (doorWrites > 0) parts.push({ count: doorWrites, label: `door${doorWrites === 1 ? "" : "s"}` });
   if (s.reanchored > 0) parts.push({ count: s.reanchored, label: `placement${s.reanchored === 1 ? "" : "s"} re-anchored` });
+  // Every publish bakes the picture and its live snapshot, so a re-publish that changes only those (a new light
+  // level, a site brought up to the current snapshot, #1073) is still a change and must not leave the button dead.
+  parts.push({ count: 1, label: "image" });
   return parts;
 });
 
@@ -168,7 +171,6 @@ const changeCount = computed(() => writeParts.value.reduce((total, part) => tota
 const footerWritesText = computed(() => {
   if (!review.plan) return "";
   const parts = writeParts.value.map((part) => `${part.count} ${part.label}`);
-  parts.push("1 image");
   return `Writes ${parts.join(", ")}.`;
 });
 </script>

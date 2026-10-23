@@ -74,11 +74,12 @@ export interface DrawMapInput {
    */
   pass?: MapPass;
   /**
-   * Leave out the standing objects and Dressing that sway in the live battle map (`objectSway`, `dressingSway`), so
-   * the live layer can draw them moving without a still copy under it. The shadow layer keeps them: their shadow
-   * stays on the floor. Default false.
+   * Leave out what the live battle map draws itself (#1073): the standing objects and Dressing that sway
+   * (`objectSway`, `dressingSway`) and each door's leaf where `doorLeafArt` finds one, so the live layer can draw
+   * them moving or at the DM's door state without a still copy under them. The shadow layer keeps them all: their
+   * shadow stays on the floor. Default false.
    */
-  omitSway?: boolean;
+  omitLive?: boolean;
 }
 
 export type MapPass = "all" | "ground" | "standing";
@@ -93,8 +94,8 @@ export interface Frame {
   glyphPackId: string | null;
   dressing: DressingCatalog;
   makeCanvas: MakeCanvas | undefined;
-  /** Leave out what the live layer draws swaying (#1073); see `omitSway` on the input. */
-  omitSway: boolean;
+  /** Leave out what the live layer draws itself (#1073); see `omitLive` on the input. */
+  omitLive: boolean;
 }
 
 export interface Target {
@@ -114,5 +115,5 @@ export const frameOf = (input: DrawMapInput, bounds: DrawMapInput["bounds"]): Fr
   glyphPackId: input.glyphPackId,
   dressing: input.dressing,
   makeCanvas: input.makeCanvas,
-  omitSway: input.omitSway ?? false,
+  omitLive: input.omitLive ?? false,
 });

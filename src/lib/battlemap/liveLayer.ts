@@ -2,10 +2,21 @@
 // in, the tile size, tiling offset and alpha out. The component owns the canvas and the animation loop; nothing
 // here touches the DOM, so it can be tested with plain numbers.
 
-import type { MapLive, MapLiveGroup, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
+import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoorState, type MapLiveGroup, type MapLiveLight, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
 import { lightReachCells } from "@/cartographer/lights";
 import { lightMask, type LightMask } from "@/cartographer/lightMask";
-import { occludersOf } from "@/lib/battlemap/occlusion";
+import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
+
+/**
+ * The snapshot a reader may use: only the current version. A version-1 snapshot's standing bakes hold every door leaf,
+ * which the live layer would draw a second time, so a site published before the doors went live reads as a plain
+ * picture until it is published again (#1073). The DB may still hold 1, hence the comparison through `number`.
+ */
+export function currentMapLive(raw: MapLive | null): MapLive | null {
+  if (raw === null) return null;
+  const version: number = raw.version;
+  return version === MAP_LIVE_VERSION ? raw : null;
+}
 
 export interface OverlayFrame {
   /** Drawn size of one repeat, in px. */
@@ -104,29 +115,35 @@ export interface BoostMask {
   y1: number;
 }
 
-const boostMasks = new WeakMap<MapLive, Map<MapLiveLight, BoostMask>>();
+const boostMasks = new WeakMap<MapLive, WeakMap<readonly MapLiveDoorState[], Map<MapLiveLight, BoostMask>>>();
 
 /**
  * The part of a moving light's reach it has a clear line to, so its flicker stops at the walls, doors and rock the
  * baked glow already stops at (`renderLightLayer`, the same `lightMask`). The reach does not change as the light
- * flickers, so one mask per light per snapshot does. The snapshot holds no floor, so the mask does not know painted
- * ground: the component takes that from the ground picture's own transparency.
+ * flickers, so one mask per light per snapshot and set of door states does (a door the DM opens lets the flicker
+ * through). The snapshot holds no floor, so the mask does not know painted ground: the component takes that from the
+ * ground picture's own transparency.
  */
-export function boostMask(live: MapLive, light: MapLiveLight): BoostMask {
+export function boostMask(live: MapLive, light: MapLiveLight, doorStates: readonly MapLiveDoorState[] = NO_DOOR_STATES): BoostMask {
   let perLive = boostMasks.get(live);
   if (!perLive) {
-    perLive = new Map();
+    perLive = new WeakMap();
     boostMasks.set(live, perLive);
   }
-  let held = perLive.get(light);
+  let perStates = perLive.get(doorStates);
+  if (!perStates) {
+    perStates = new Map();
+    perLive.set(doorStates, perStates);
+  }
+  let held = perStates.get(light);
   if (!held) {
     const reach = lightReachCells(light);
     const x0 = Math.floor(light.x - reach);
     const y0 = Math.floor(light.y - reach);
     const x1 = Math.ceil(light.x + reach);
     const y1 = Math.ceil(light.y + reach);
-    held = { mask: lightMask(occludersOf(live), light.x, light.y, reach, x0, y0, x1, y1, () => true), x0, y0, x1, y1 };
-    perLive.set(light, held);
+    held = { mask: lightMask(occludersOf(live, doorStates), light.x, light.y, reach, x0, y0, x1, y1, () => true), x0, y0, x1, y1 };
+    perStates.set(light, held);
   }
   return held;
 }

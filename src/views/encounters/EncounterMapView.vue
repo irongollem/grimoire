@@ -17,6 +17,7 @@
       :token-count="store.combatants.length"
       :calibration-from-publish="calibrationFromPublish"
       :scale-percent="Math.round(scale * 100)"
+      :has-doors="surface?.live ? surface.live.doors.length > 0 : false"
       @reset-fog="resetFog"
       @reset-view="resetView"
     />
@@ -56,6 +57,7 @@
         :origin-y="gridOrigin.y"
         :live="surface.live"
         :zones="darknessZones"
+        :door-states="doorStates"
       />
 
       <!-- Room focus layer: dims the plan outside the encounter's room and
@@ -168,6 +170,8 @@ import {
   type FogCellKey,
 } from "@/lib/battlemap/fogMask";
 import { zoneIdAt } from "@/lib/battlemap/darkness";
+import { doorEdgeAt, effectiveDoors, sameDoorStates, toggleDoor } from "@/lib/battlemap/doors";
+import type { MapLiveDoorState } from "@/types/mapLive.types";
 import type { MagicalDarknessZone } from "@/types/encounter.types";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
@@ -255,6 +259,18 @@ watch(
   { immediate: true },
 );
 
+// A pointer position in the fractional image cells the fog, tokens, darkness and doors share; null before the map
+// has a size.
+function imageCellAt(clientX: number, clientY: number): { x: number; y: number } | null {
+  const host = canvasHost.value;
+  if (!host || cellPx.value <= 0) return null;
+  const rect = host.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left - gridOrigin.value.x) / cellPx.value,
+    y: (clientY - rect.top - gridOrigin.value.y) / cellPx.value,
+  };
+}
+
 // ── Magical darkness ──────────────────────────────────────────────────────
 // Spheres the DM places with the Darkness tool. Mirrored locally like the fog so a click lands at once; the veil (which
 // also draws each sphere's edge as a dashed ring, DM view only) and the players' projection follow the pushed state.
@@ -283,17 +299,51 @@ function pushDarkness() {
 // A click inside a sphere removes the topmost one there; a click elsewhere places a new one centred on the click, in
 // the fractional image cells the fog and tokens use. There is no drag.
 function placeDarknessAt(clientX: number, clientY: number) {
-  const host = canvasHost.value;
-  if (!host || cellPx.value <= 0) return;
-  const rect = host.getBoundingClientRect();
-  const x = (clientX - rect.left - gridOrigin.value.x) / cellPx.value;
-  const y = (clientY - rect.top - gridOrigin.value.y) / cellPx.value;
+  const at = imageCellAt(clientX, clientY);
+  if (!at) return;
+  const { x, y } = at;
   const hit = zoneIdAt(darknessZones.value, x, y);
   darknessZones.value =
     hit === null
       ? [...darknessZones.value, { id: crypto.randomUUID(), x, y, radius: darknessRadius.value }]
       : darknessZones.value.filter((z) => z.id !== hit);
   pushDarkness();
+}
+
+// ── Doors ─────────────────────────────────────────────────────────────────
+// The DM's open and shut doors over the drawn ones (#1073), kept on the fight. Mirrored locally like the darkness so a
+// click lands at once; light, sight and the leaf follow the pushed state for the DM and every player.
+const doorStates = ref<MapLiveDoorState[]>([]);
+
+watch(
+  () => liveState.value?.door_states,
+  (states) => {
+    // A re-read hands a fresh array of equal content; keeping ours spares the light grids rebuilt on its identity.
+    if (states && !sameDoorStates(doorStates.value, states)) doorStates.value = states;
+  },
+  { immediate: true },
+);
+
+function pushDoors() {
+  if (!isLive.value) return;
+  schedulePush({
+    round: store.round,
+    activeIndex: store.activeIndex,
+    combatants: store.combatants,
+    eventsFired: store.eventsFired,
+    doorStates: doorStates.value,
+  });
+}
+
+// A click on a door's edge flips it; a click anywhere else does nothing. Fractional image cells, as for the darkness.
+function toggleDoorAt(clientX: number, clientY: number) {
+  const drawn = surface.value?.live?.doors;
+  const at = imageCellAt(clientX, clientY);
+  if (!drawn || !at) return;
+  const edge = doorEdgeAt(effectiveDoors(drawn, doorStates.value), at.x, at.y);
+  if (edge === null) return;
+  doorStates.value = toggleDoor(drawn, doorStates.value, edge);
+  pushDoors();
 }
 
 // Entering combat seeds the party into the room they already occupy, and
@@ -462,6 +512,10 @@ function onPointerDown(e: PointerEvent) {
   if (!imageReady.value) return;
   if (tool.value === "darkness") {
     placeDarknessAt(e.clientX, e.clientY);
+    return;
+  }
+  if (tool.value === "doors") {
+    toggleDoorAt(e.clientX, e.clientY);
     return;
   }
   if (tool.value !== "pan") {

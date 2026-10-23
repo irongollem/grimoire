@@ -74,6 +74,17 @@
         <div
           class="rounded-lg border border-border bg-card flex flex-col overflow-hidden"
         >
+          <!-- Every card has the same banner, so a row's height varies only with its text. -->
+          <div class="h-28 shrink-0 overflow-hidden bg-muted">
+            <FocalImage
+              :src="artFor(recipe)?.url ?? null"
+              :alt="recipe.name"
+              format="landscape"
+              :focal-point="artFor(recipe)?.focalPoint ?? null"
+              :placeholder="placeholderUrl('item')"
+            />
+          </div>
+
           <!-- Card header -->
           <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-start justify-between gap-2">
             <div class="flex-1 min-w-0">
@@ -203,6 +214,9 @@ import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines"
 import type { DisciplineConfig } from "@/lib/crafting/disciplines";
 import { canonicalToolName, hasToolProficiency } from "@/rules/toolProficiency";
 import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs, useCraftableOutputItems } from "@/composables/crafting/useCrafting";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { resolveRecipeArt, type RecipeArt } from "@/lib/crafting/recipeArt";
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { inventoryItemRef } from "@/lib/itemRef";
@@ -220,7 +234,7 @@ const appUi = useAppUiStore();
 const craftingUi = useCraftingUiStore();
 const { data: recipes } = usePlayerCraftingRecipes();
 const { data: projection } = usePlayerItemProjection();
-const { map: recipeItemNames } = useCraftableOutputItems();
+const { map: recipeItemNames, items: craftableItems } = useCraftableOutputItems();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
 
@@ -296,7 +310,7 @@ const recipeKey = (recipe: CraftingRecipe) => recipe.id;
 // phone on 8 Oct 2026 over the dev:campaigns fixture. It decides where a
 // restored scroll lands, since coming back from a detail re-renders every
 // unmeasured row above the viewport.
-const RECIPE_ROW_PX = 295;
+const RECIPE_ROW_PX = 295 + 112; // + the h-28 banner (7rem)
 
 const allRecipeIds = computed(() => (recipes.value ?? []).map((r) => r.id));
 const ingredientsMap = useAllRecipeIngredients(allRecipeIds);
@@ -335,6 +349,13 @@ function itemName(ref: string | null): string {
     // library-referenced ref already resolved above via allItems.
     ?? recipeItemNames.value.get(ref)
     ?? "Unknown item";
+}
+
+// A library output resolves through the player's visible items; a DM vault output
+// through the craftable-item projection, since a player may not read the vault row.
+function artFor(recipe: CraftingRecipe): RecipeArt | null {
+  return resolveRecipeArt(recipe, outputsFor(recipe.id), (ref) =>
+    allItems.value.find((i) => i.id === ref) ?? craftableItems.value.get(ref));
 }
 
 function ingredientLabel(ing: CraftingIngredient): string {

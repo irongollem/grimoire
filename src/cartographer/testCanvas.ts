@@ -229,6 +229,8 @@ export function makeRuntime(
     sway?: TilePackManifest["sway"];
     /** Manifest asset slots (their urls), for what reads a slot rather than a drawn tile. */
     assets?: TilePackManifest["assets"];
+    /** Default true, like a library pack. */
+    lastingUrls?: boolean;
   } = {},
 ): TilePackRuntime {
   const manifest: TilePackManifest = {
@@ -251,6 +253,7 @@ export function makeRuntime(
   return {
     manifest,
     validation,
+    lastingUrls: opts.lastingUrls ?? true,
     getTile: (category, variant, side) => ({
       source: { pack: packId, category, variant, side } satisfies TileSentinel as unknown as CanvasImageSource,
       isPlaceholder: opts.placeholders?.includes(category) ?? false,

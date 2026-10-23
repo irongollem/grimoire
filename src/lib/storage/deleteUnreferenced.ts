@@ -72,6 +72,7 @@ export const IMAGE_REFERENCES = [
   ["puzzle_rooms", ["image_url"]],
   ["dungeon_features", ["image_url"]],
   ["notice_board_pins", ["image_url"]],
+  ["crafting_recipes", ["image_url"]],
   ["factions", ["emblem_url"]],
   ["deities", ["portrait_url", "symbol_image_url"]],
   ["pantheons", ["emblem_url"]],

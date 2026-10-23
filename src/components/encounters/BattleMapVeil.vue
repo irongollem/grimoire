@@ -23,9 +23,9 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { domMakeCanvas, paintLitVeil, paintPlayerVeil, paintZoneRings, type GreyImage } from "@/lib/battlemap/darkness";
 import { AMBIENT, illuminationGrid, NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
-import { occludersOf } from "@/lib/battlemap/occlusion";
+import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
 import { visionGrid, type Viewer } from "@/lib/battlemap/vision";
-import type { MapLive } from "@/types/mapLive.types";
+import type { MapLive, MapLiveDoorState } from "@/types/mapLive.types";
 
 /** Light levels sampled per cell along each axis: enough for the soft edges to be smooth at any zoom. */
 const SAMPLES_PER_CELL = 4;
@@ -43,6 +43,7 @@ const {
   live,
   viewers = null,
   zones = NO_ZONES,
+  doorStates = NO_DOOR_STATES,
   groundUrl = null,
   standUrl = null,
 } = defineProps<{
@@ -62,6 +63,8 @@ const {
   viewers?: Viewer[] | null;
   /** Magical darkness: nothing in it is lit, and the DM sees each sphere's edge as a dashed ring. */
   zones?: readonly DarknessZone[];
+  /** Doors the DM opened or shut over their drawn state (#1073): an open door lets light and sight through. */
+  doorStates?: readonly MapLiveDoorState[];
   /** The stack's pictures, drawn in grey where darkvision sees only shades of grey. */
   groundUrl?: string | null;
   standUrl?: string | null;
@@ -77,8 +80,9 @@ const firstRow = computed(() => (cellPx > 0 ? Math.floor((panY - originY) / cell
 const cols = computed(() => (cellPx > 0 ? Math.ceil((panX + imageW - originX) / cellPx) - firstCol.value : 0));
 const rows = computed(() => (cellPx > 0 ? Math.ceil((panY + imageH - originY) / cellPx) - firstRow.value : 0));
 
-// Walls, closed doors and solid rock stop light and sight; built once per snapshot.
-const occluders = computed(() => occludersOf(live));
+// Walls, closed doors (at the state the DM left them in) and solid rock stop light and sight; built once per snapshot
+// and set of door states.
+const occluders = computed(() => occludersOf(live, doorStates));
 
 // The zones arrive as a fresh array on every re-read of the encounter state; an equal set keeps the previous one.
 const sameZones = (a: readonly DarknessZone[], b: readonly DarknessZone[]) =>

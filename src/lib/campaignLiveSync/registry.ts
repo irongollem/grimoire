@@ -154,7 +154,8 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   notes: ["notes", PLAYER_NOTES_KEY, CAMPAIGN_SECRETS_KEY],
   factions: ["factions", PLAYER_FACTIONS_KEY, CAMPAIGN_SECRETS_KEY],
   locations: ["locations", CAMPAIGN_SECRETS_KEY],
-  items: ["items", CAMPAIGN_SECRETS_KEY],
+  // A recipe card names and pictures its items through get_craftable_output_items.
+  items: ["items", CAMPAIGN_SECRETS_KEY, "craftable-output-items"],
   puzzle_rooms: ["puzzle_rooms", CAMPAIGN_SECRETS_KEY],
   npcs: ["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY],
   // The DM's editor and the players' view read the same two tables; a player

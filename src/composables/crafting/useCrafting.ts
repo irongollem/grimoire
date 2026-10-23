@@ -21,6 +21,7 @@ import type { StarterRecipeDef } from "@/data/starterRecipes";
 import { WORKSHOP_LIBRARY_EQUIVALENTS } from "@/data/workshopLibraryEquivalents";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
+import { deleteUnreferencedByPublicUrl } from "@/lib/storage/deleteUnreferenced";
 
 const RECIPES_KEY    = "crafting-recipes";
 const INGREDIENTS_KEY = "crafting-ingredients";
@@ -53,7 +54,8 @@ async function fetchIngredients(recipeId: string): Promise<CraftingIngredient[]>
   const { data, error } = await supabase
     .from("crafting_recipe_ingredients")
     .select("*")
-    .eq("recipe_id", recipeId);
+    .eq("recipe_id", recipeId)
+    .order("position");
   if (error) throw error;
   return data as CraftingIngredient[];
 }
@@ -71,19 +73,29 @@ async function fetchOutputs(recipeId: string): Promise<CraftingOutput[]> {
   const { data, error } = await supabase
     .from("crafting_recipe_outputs")
     .select("*")
-    .eq("recipe_id", recipeId);
+    .eq("recipe_id", recipeId)
+    .order("position");
   if (error) throw error;
   return data as CraftingOutput[];
 }
 
-// Names of items a recipe produces or consumes, for recipes the caller can access. A player
-// shared a recipe can't read its output item under RLS, so the recipe card fell
-// back to "Unknown item" and a craft inserted an empty-name row — this projection
-// exposes just id+name (not secret; the shared recipe advertises its output).
-async function fetchCraftableOutputItems(campaignId: string): Promise<{ id: string; name: string }[]> {
+/** A vault item a visible recipe makes or takes, as `get_craftable_output_items` projects it. */
+export interface CraftableItem {
+  id: string;
+  name: string;
+  image_url: string | null;
+  image_focal_point: { x: number; y: number } | null;
+}
+
+// Name and picture of items a recipe produces or consumes, for recipes the caller can
+// access. A player shared a recipe can't read its output item under RLS, so the recipe
+// card fell back to "Unknown item" and a craft inserted an empty-name row — this
+// projection exposes just id, name and picture (not secret; the shared recipe
+// advertises its output, and its card shows the output's art).
+async function fetchCraftableOutputItems(campaignId: string): Promise<CraftableItem[]> {
   const { data, error } = await supabase.rpc("get_craftable_output_items", { p_campaign_id: campaignId });
   if (error) throw error;
-  return (data ?? []) as { id: string; name: string }[];
+  return (data ?? []) as CraftableItem[];
 }
 
 // ── Mutation helpers ─────────────────────────────────────────────────────────
@@ -110,9 +122,11 @@ async function updateRecipe(id: string, update: CraftingRecipeUpdate): Promise<C
   return data as CraftingRecipe;
 }
 
-async function deleteRecipe(id: string): Promise<void> {
-  const { error } = await supabase.from("crafting_recipes").delete().eq("id", id);
+async function deleteRecipe(recipe: Pick<CraftingRecipe, "id" | "image_url">): Promise<void> {
+  const { error } = await supabase.from("crafting_recipes").delete().eq("id", recipe.id);
   if (error) throw error;
+  // A campaign copy or backup restore can share the file, so only an unused one goes.
+  await deleteUnreferencedByPublicUrl({ urls: [recipe.image_url] });
 }
 
 // Replace all ingredients for a recipe
@@ -128,7 +142,7 @@ async function replaceIngredients(
   if (ingredients.length === 0) return;
   const { error } = await supabase
     .from("crafting_recipe_ingredients")
-    .insert(ingredients.map((i) => ({ ...i, recipe_id: recipeId })));
+    .insert(ingredients.map((i, position) => ({ ...i, recipe_id: recipeId, position })));
   if (error) throw error;
 }
 
@@ -145,7 +159,7 @@ async function replaceOutputs(
   if (outputs.length === 0) return;
   const { error } = await supabase
     .from("crafting_recipe_outputs")
-    .insert(outputs.map((o) => ({ ...o, recipe_id: recipeId })));
+    .insert(outputs.map((o, position) => ({ ...o, recipe_id: recipeId, position })));
   if (error) throw error;
 }
 
@@ -210,7 +224,9 @@ export function useCraftableOutputItems() {
     for (const row of query.data.value ?? []) m.set(row.id, row.name);
     return m;
   });
-  return { map, isLoading: query.isLoading };
+  /** The same rows by id, picture included, for a recipe card's fallback art. */
+  const items = computed(() => new Map((query.data.value ?? []).map((row) => [row.id, row])));
+  return { map, items, isLoading: query.isLoading };
 }
 
 export function useCraftingRecipe(id: MaybeRefOrGetter<string>) {
@@ -254,7 +270,8 @@ export function useAllRecipeIngredients(recipeIds: MaybeRefOrGetter<string[]>) {
       const { data, error } = await supabase
         .from("crafting_recipe_ingredients")
         .select("*")
-        .in("recipe_id", ids);
+        .in("recipe_id", ids)
+        .order("position");
       if (error) throw error;
       return data as CraftingIngredient[];
     },
@@ -279,7 +296,8 @@ export function useAllRecipeOutputs(recipeIds: MaybeRefOrGetter<string[]>) {
       const { data, error } = await supabase
         .from("crafting_recipe_outputs")
         .select("*")
-        .in("recipe_id", ids);
+        .in("recipe_id", ids)
+        .order("position");
       if (error) throw error;
       return data as CraftingOutput[];
     },
@@ -378,8 +396,7 @@ export function useReplaceIngredients() {
       recipeId: string;
       ingredients: Omit<CraftingIngredientInsert, "recipe_id">[];
     }) => replaceIngredients(recipeId, ingredients),
-    onSuccess: (_data, { recipeId }) =>
-      queryClient.invalidateQueries({ queryKey: [INGREDIENTS_KEY, recipeId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [INGREDIENTS_KEY] }),
   });
 }
 
@@ -393,8 +410,9 @@ export function useReplaceOutputs() {
       recipeId: string;
       outputs: Omit<CraftingOutputInsert, "recipe_id">[];
     }) => replaceOutputs(recipeId, outputs),
-    onSuccess: (_data, { recipeId }) =>
-      queryClient.invalidateQueries({ queryKey: [OUTPUTS_KEY, recipeId] }),
+    // The root, not just this recipe: the list's batched read (a recipe card's
+    // art follows its first output) lives under it too.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [OUTPUTS_KEY] }),
   });
 }
 
@@ -408,8 +426,7 @@ export function useReplaceModifiers() {
       recipeId: string;
       modifiers: Omit<CraftingModifierInsert, "recipe_id">[];
     }) => replaceModifiers(recipeId, modifiers),
-    onSuccess: (_data, { recipeId }) =>
-      queryClient.invalidateQueries({ queryKey: [MODIFIERS_KEY, recipeId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [MODIFIERS_KEY] }),
   });
 }
 
@@ -547,7 +564,7 @@ export function useAttemptCraft() {
 
 /** A starter-recipe output row, resolved against exactly one of the vault or
  *  the shared library — see {@link buildStarterRecipeChildRows}. */
-type OutputRow = { recipe_id: string; item_id: string | null; library_item_id: string | null; quantity: number };
+type OutputRow = { recipe_id: string; item_id: string | null; library_item_id: string | null; quantity: number; position: number };
 
 /**
  * Correlates each starter-recipe definition with its freshly-inserted recipe
@@ -571,23 +588,26 @@ export function buildStarterRecipeChildRows(
    *  before. Optional/defaulted so existing callers are unaffected. */
   libraryItemIdByName: Map<string, string> = new Map(),
 ): {
-  ingredientRows: { recipe_id: string; item_id: null; tags: string[]; quantity: number }[];
+  ingredientRows: { recipe_id: string; item_id: null; tags: string[]; quantity: number; position: number }[];
   outputRows: OutputRow[];
   modifierRows: { recipe_id: string; description: string; bonus: number }[];
 } {
   const ingredientRows = defs.flatMap((def, i) =>
-    def.ingredients.map((ing) => ({
-      recipe_id: recipeIds[i], item_id: null, tags: ing.tags, quantity: ing.quantity,
+    def.ingredients.map((ing, position) => ({
+      recipe_id: recipeIds[i], item_id: null, tags: ing.tags, quantity: ing.quantity, position,
     })),
   );
   const outputRows = defs.flatMap((def, i) =>
-    def.outputs.flatMap((o): OutputRow[] => {
-      const vaultId = outputItemIdByName.get(o.name);
-      if (vaultId) return [{ recipe_id: recipeIds[i], item_id: vaultId, library_item_id: null, quantity: o.quantity }];
-      const libraryId = libraryItemIdByName.get(o.name);
-      if (libraryId) return [{ recipe_id: recipeIds[i], item_id: null, library_item_id: libraryId, quantity: o.quantity }];
-      return [];
-    }),
+    def.outputs
+      .flatMap((o): Omit<OutputRow, "position">[] => {
+        const vaultId = outputItemIdByName.get(o.name);
+        if (vaultId) return [{ recipe_id: recipeIds[i], item_id: vaultId, library_item_id: null, quantity: o.quantity }];
+        const libraryId = libraryItemIdByName.get(o.name);
+        if (libraryId) return [{ recipe_id: recipeIds[i], item_id: null, library_item_id: libraryId, quantity: o.quantity }];
+        return [];
+      })
+      // Numbered after the drop, so the first output that resolved is the primary.
+      .map((row, position) => ({ ...row, position })),
   );
   const modifierRows = defs.flatMap((def, i) =>
     (def.modifiers ?? []).map((m) => ({ recipe_id: recipeIds[i], description: m.description, bonus: m.bonus })),
@@ -603,7 +623,7 @@ export function buildStarterRecipeChildRows(
  * thenables, not full Promise objects.
  */
 export interface RecipeChildWriters {
-  insertIngredients: (rows: { recipe_id: string; item_id: null; tags: string[]; quantity: number }[]) => PromiseLike<{ error: unknown }>;
+  insertIngredients: (rows: { recipe_id: string; item_id: null; tags: string[]; quantity: number; position: number }[]) => PromiseLike<{ error: unknown }>;
   insertOutputs: (rows: OutputRow[]) => PromiseLike<{ error: unknown }>;
   insertModifiers: (rows: { recipe_id: string; description: string; bonus: number }[]) => PromiseLike<{ error: unknown }>;
   deleteRecipes: (ids: string[]) => PromiseLike<unknown>;

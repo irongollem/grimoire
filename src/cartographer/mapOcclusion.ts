@@ -4,7 +4,7 @@
 
 import { areaBlockingEdges } from "@/cartographer/area";
 import type { CellKey, DungeonMapLayers, FloorCell } from "@/types/dungeonMap.types";
-import type { MapLiveDoor } from "@/types/mapLive.types";
+import type { MapLiveDoorState } from "@/types/mapLive.types";
 
 export function toImageCell(key: CellKey, originCellX: number, originCellY: number): string {
   const [xs, ys] = key.split(",");
@@ -20,9 +20,9 @@ export function collectOcclusion(
   layers: DungeonMapLayers,
   originCellX: number,
   originCellY: number,
-): { walls: string[]; doors: MapLiveDoor[]; solid: string[] } {
+): { walls: string[]; doors: MapLiveDoorState[]; solid: string[] } {
   const walls: string[] = [];
-  const doors: MapLiveDoor[] = [];
+  const doors: MapLiveDoorState[] = [];
   for (const [key, cell] of Object.entries(layers.floor) as [CellKey, FloorCell][]) {
     const at = toImageCell(key, originCellX, originCellY);
     for (const [side, seg] of [["N", cell.wallN], ["W", cell.wallW]] as const) {
