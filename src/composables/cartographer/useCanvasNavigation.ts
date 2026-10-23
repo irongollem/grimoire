@@ -5,17 +5,18 @@
 // plain wheel and a two-finger swipe scroll the map, Ctrl/Cmd/Alt+wheel and a
 // trackpad pinch zoom at the cursor, Space turns any tool into a hand, the
 // middle button always pans, and Shift never does because it now belongs to
-// drawing. The maths lives in `@/cartographer/viewport` and `navigation`; this
+// drawing. The maths lives in `@/cartographer/viewport` and `@/lib/canvasControls`; this
 // module only reads the DOM and writes the two viewport refs the editor owns.
 //
 // It was pulled out of `useMapCanvasEditor.ts`, which is already far past the
 // size where adding to it is reasonable.
 
-import { ref, type Ref } from "vue";
+import type { Ref } from "vue";
 import type { Tool } from "@/cartographer/tools";
-import type { KeyAction } from "@/cartographer/keymap";
 import { BASE_TILE_SIZE } from "@/cartographer/packSchema";
-import { resolveWheel, type WheelEventLike } from "@/cartographer/navigation";
+import { useCanvasHand } from "@/composables/useCanvasHand";
+import { resolveWheel, type WheelEventLike } from "@/lib/canvasControls/wheel";
+import type { ZoomTarget } from "@/lib/canvasControls/zoomKeys";
 import {
   actualSizeViewport,
   fitViewport,
@@ -25,8 +26,6 @@ import {
   type CanvasViewport,
   type CellBounds,
 } from "@/cartographer/viewport";
-
-export type ZoomTarget = Extract<KeyAction, { kind: "zoom" }>["to"];
 
 export interface CanvasNavigationOptions {
   canvasEl: Ref<HTMLCanvasElement | null>;
@@ -40,18 +39,14 @@ export interface CanvasNavigationOptions {
 }
 
 type WheelInput = WheelEventLike & Pick<WheelEvent, "clientX" | "clientY">;
-type SpaceKeyInput = Pick<KeyboardEvent, "key" | "code">;
-type SpaceDownInput = SpaceKeyInput & Pick<KeyboardEvent, "ctrlKey" | "metaKey" | "altKey" | "preventDefault">;
-
-function isSpace(ev: SpaceKeyInput): boolean {
-  return ev.code === "Space" || ev.key === " ";
-}
 
 export function useCanvasNavigation(opts: CanvasNavigationOptions) {
   const { canvasEl, zoom, viewportOffset, getBounds, devicePixelDims } = opts;
 
-  /** Space is down: a left press pans with whatever tool is armed. */
-  const spaceHeld = ref(false);
+  // Space and the forced pans are shared with the other canvases. This editor
+  // forwards its own window events, so Space is decided before its tool keys.
+  const hand = useCanvasHand({ listen: false });
+  const { spaceHeld, isForcedPan } = hand;
 
   function current(): CanvasViewport {
     return { zoom: zoom.value, offset: viewportOffset.value };
@@ -60,14 +55,6 @@ export function useCanvasNavigation(opts: CanvasNavigationOptions) {
   function apply(next: CanvasViewport): void {
     zoom.value = next.zoom;
     viewportOffset.value = next.offset;
-  }
-
-  /**
-   * A press that pans whatever the tool: the middle button, or the left button
-   * while Space is held. The editor asks this before any tool sees the press.
-   */
-  function isForcedPan(ev: Pick<PointerEvent, "button">): boolean {
-    return ev.button === 1 || (ev.button === 0 && spaceHeld.value);
   }
 
   /**
@@ -111,29 +98,14 @@ export function useCanvasNavigation(opts: CanvasNavigationOptions) {
     }
   }
 
-  /**
-   * Space down. Returns whether the key was taken: it is held back from the
-   * page, which would scroll. It is never taken while the focus needs Space
-   * itself (typing, or a focused button or checkbox, which Space activates for
-   * keyboard users) or with a modifier, which belongs to the OS. Auto-repeat
-   * takes it again harmlessly.
-   */
-  function onKeyDown(ev: SpaceDownInput, targetUsesSpace: boolean): boolean {
-    if (!isSpace(ev) || targetUsesSpace || ev.ctrlKey || ev.metaKey || ev.altKey) return false;
-    spaceHeld.value = true;
-    ev.preventDefault();
-    return true;
-  }
-
-  function onKeyUp(ev: SpaceKeyInput): void {
-    if (isSpace(ev)) spaceHeld.value = false;
-  }
-
-  // Losing focus (alt-tab, a dialog) ends the key-down without a keyup ever
-  // reaching the window, which would leave every press panning.
-  function onBlur(): void {
-    spaceHeld.value = false;
-  }
-
-  return { spaceHeld, isForcedPan, isPanStart, onWheel, zoomTo, onKeyDown, onKeyUp, onBlur };
+  return {
+    spaceHeld,
+    isForcedPan,
+    isPanStart,
+    onWheel,
+    zoomTo,
+    onKeyDown: hand.handleKeyDown,
+    onKeyUp: hand.handleKeyUp,
+    onBlur: hand.handleBlur,
+  };
 }

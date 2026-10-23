@@ -1,4 +1,6 @@
-// What a wheel event means on the cartographer canvas, as a pure decision.
+// What a wheel event means on a design canvas, as a pure decision. Shared by
+// every canvas that follows the Photoshop/Figma controls (the Cartographer,
+// the quest story flow, the notice board, the NPC web, the family tree).
 //
 // The convention is the one Photoshop and Figma share: the plain wheel and a
 // two-finger trackpad swipe PAN, and zoom needs a modifier (Ctrl, Cmd or Alt).

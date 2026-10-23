@@ -462,17 +462,17 @@ to the root — which is precisely the 225-file flat bucket this replaced. `useQ
 belongs in `quests/` because it is *about* quests, however many features read it.
 Popularity is not the test here either; it is just a different non-test.
 
-The 27 modules that stay at the root are the ones with genuinely no domain:
+The 28 modules that stay at the root are the ones with genuinely no domain:
 `useConfirm`, `useToast`, `useBreakpoint`, `useHotkeys`,
 `useServerInfiniteScroll` (its server-paged sibling: the sentinel under the catalogue lists),
 `useScrollRestore`, `useLazyMount`, `useDetailModal`, `useAnchoredPopover`,
 `useModeSwitch`, `useTheme`, `useGlobalSearch`, `useScreenShake`, `useLocalePrefs`,
 `useBulkSelection`, `useGridColumns` (column counts for `VirtualGrid`, mirroring a CSS grid's breakpoints or auto-fill),
 `useListLayout` (a list's rows-or-grid choice, persisted per list, behind `ListLayoutToggle` and `EntityCollection`),
-`useUnsavedGuard`, `useAutosave`, `useRecordDraft` (an editor's draft merged against the server copy, #946),
+`useUnsavedGuard`, `useAutosave`, `useCanvasHand` (Space-as-hand and the zoom keys for a design canvas, with `lib/canvasControls/`), `useRecordDraft` (an editor's draft merged against the server copy, #946),
 `usePrefetchOnIntent` (the `v-prefetch` directive: a link's route chunk and first read on hover, #999), the PWA trio (`useAppUpdate`, `usePwaInstall`,
 `usePullToRefresh`) and the image trio (`useImageUpload`, `usePendingImageResolver`,
-`useArtTabs`). Adding a 28th is a claim that the thing has no domain — check that
+`useArtTabs`). Adding a 29th is a claim that the thing has no domain — check that
 claim before you make it. (This list read 19 until 27 Sep 2026 while the folder held
 21: count the folder when you add one, not the list. On 3 Oct 2026 it held 24 against
 this list's 23, because `useAnnouncements` had been left at the root; it is about

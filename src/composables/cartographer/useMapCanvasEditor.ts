@@ -42,6 +42,7 @@ import { useCartographerStructureTools } from "@/composables/cartographer/useCar
 import type { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
+import { isTextEntry } from "@/lib/canvasControls/keyTargets";
 import { useCanvasNavigation } from "@/composables/cartographer/useCanvasNavigation";
 import type { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 import {
@@ -126,8 +127,6 @@ export interface MapCanvasEditorOptions {
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
 // to "snap" to wall placement. 0.25 = within the outer 25% of the cell.
 const EDGE_HOVER_THRESHOLD = 0.25;
-/** Elements that act on Space themselves when focused from the keyboard; the Space hand leaves them alone. */
-const SPACE_CONTROLS = "button, a[href], select, summary, [role=button], [role=checkbox], [role=switch], [role=tab], [role=radio], [role=menuitem], [role=option]";
 
 export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
@@ -1318,16 +1317,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   function onKeyDown(ev: KeyboardEvent): void {
     if (ev.key === "Alt") altHeld.value = true;
     if (ev.key === "Escape") straight.forget();
-    const target = ev.target as HTMLElement | null;
-    const targetIsTextEntry = !!target
-      && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
-    // A control a keyboard user has tabbed to (a rail button, a checkbox)
-    // answers Space itself, so the hand leaves it alone. One merely clicked
-    // with the mouse keeps focus without `:focus-visible`, and there Space
-    // pans: picking a tool on the rail and then Space-dragging must just work.
-    const control = target?.closest?.(SPACE_CONTROLS);
-    const targetUsesSpace = targetIsTextEntry || (!!control && control.matches(":focus-visible"));
-    if (navigation.onKeyDown(ev, targetUsesSpace)) return;
+    const targetIsTextEntry = isTextEntry(ev.target);
+    if (navigation.onKeyDown(ev)) return;
     const action = resolveKeyAction(
       {
         key: ev.key,

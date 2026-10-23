@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { ref } from "vue";
 import { useCanvasNavigation } from "./useCanvasNavigation";
 import type { CellBounds } from "@/cartographer/viewport";
@@ -27,8 +27,14 @@ function wheel(over: Partial<{ deltaX: number; deltaY: number; ctrlKey: boolean;
   };
 }
 
-function key(over: Partial<{ key: string; code: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {}) {
-  return { key: " ", code: "Space", ctrlKey: false, metaKey: false, altKey: false, preventDefault: vi.fn(), ...over };
+function key(over: KeyboardEventInit = {}, target?: HTMLElement) {
+  const ev = new KeyboardEvent("keydown", { key: " ", code: "Space", cancelable: true, ...over });
+  if (target) Object.defineProperty(ev, "target", { value: target });
+  return ev;
+}
+
+function up(over: KeyboardEventInit = {}) {
+  return new KeyboardEvent("keyup", { key: " ", code: "Space", ...over });
 }
 
 describe("isPanStart", () => {
@@ -48,7 +54,7 @@ describe("isPanStart", () => {
     const { nav } = makeNav();
     expect(nav.isPanStart({ button: 0 }, "floor")).toBe(false);
     expect(nav.isPanStart({ button: 0 }, "pan")).toBe(true);
-    nav.onKeyDown(key(), false);
+    nav.onKeyDown(key());
     expect(nav.isPanStart({ button: 0 }, "floor")).toBe(true);
     expect(nav.isForcedPan({ button: 0 })).toBe(true);
   });
@@ -58,48 +64,48 @@ describe("Space", () => {
   it("is held between keydown and keyup, and keeps the page from scrolling", () => {
     const { nav } = makeNav();
     const down = key();
-    expect(nav.onKeyDown(down, false)).toBe(true);
+    expect(nav.onKeyDown(down)).toBe(true);
     expect(nav.spaceHeld.value).toBe(true);
-    expect(down.preventDefault).toHaveBeenCalled();
-    nav.onKeyUp({ key: " ", code: "Space" });
+    expect(down.defaultPrevented).toBe(true);
+    nav.onKeyUp(up());
     expect(nav.spaceHeld.value).toBe(false);
   });
 
   it("is also recognised by the physical key alone", () => {
     const { nav } = makeNav();
-    nav.onKeyDown(key({ key: "Unidentified", code: "Space" }), false);
+    nav.onKeyDown(key({ key: "Unidentified", code: "Space" }));
     expect(nav.spaceHeld.value).toBe(true);
   });
 
   it("stays held through auto-repeat", () => {
     const { nav } = makeNav();
-    nav.onKeyDown(key(), false);
-    nav.onKeyDown(key(), false);
+    nav.onKeyDown(key());
+    nav.onKeyDown(key());
     expect(nav.spaceHeld.value).toBe(true);
   });
 
   it("is left alone while typing and when a modifier is down", () => {
     const { nav } = makeNav();
-    const typing = key();
-    expect(nav.onKeyDown(typing, true)).toBe(false);
-    expect(typing.preventDefault).not.toHaveBeenCalled();
-    expect(nav.onKeyDown(key({ ctrlKey: true }), false)).toBe(false);
-    expect(nav.onKeyDown(key({ metaKey: true }), false)).toBe(false);
-    expect(nav.onKeyDown(key({ altKey: true }), false)).toBe(false);
+    const typing = key({}, document.createElement("input"));
+    expect(nav.onKeyDown(typing)).toBe(false);
+    expect(typing.defaultPrevented).toBe(false);
+    expect(nav.onKeyDown(key({ ctrlKey: true }))).toBe(false);
+    expect(nav.onKeyDown(key({ metaKey: true }))).toBe(false);
+    expect(nav.onKeyDown(key({ altKey: true }))).toBe(false);
     expect(nav.spaceHeld.value).toBe(false);
   });
 
   it("ignores other keys", () => {
     const { nav } = makeNav();
-    expect(nav.onKeyDown(key({ key: "f", code: "KeyF" }), false)).toBe(false);
-    nav.onKeyDown(key(), false);
-    nav.onKeyUp({ key: "f", code: "KeyF" });
+    expect(nav.onKeyDown(key({ key: "f", code: "KeyF" }))).toBe(false);
+    nav.onKeyDown(key());
+    nav.onKeyUp(up({ key: "f", code: "KeyF" }));
     expect(nav.spaceHeld.value).toBe(true);
   });
 
   it("lets go when the window loses focus", () => {
     const { nav } = makeNav();
-    nav.onKeyDown(key(), false);
+    nav.onKeyDown(key());
     nav.onBlur();
     expect(nav.spaceHeld.value).toBe(false);
   });

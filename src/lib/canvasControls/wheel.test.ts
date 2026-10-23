@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveWheel, type WheelEventLike } from "./navigation";
+import { resolveWheel, type WheelEventLike } from "./wheel";
 
 const wheel = (over: Partial<WheelEventLike>): WheelEventLike => ({
   deltaX: 0, deltaY: 0, deltaMode: 0,

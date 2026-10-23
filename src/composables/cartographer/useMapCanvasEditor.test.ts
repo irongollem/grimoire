@@ -1282,6 +1282,7 @@ describe("altHeld", () => {
           activeWallDecal: ref(0),
           activeTemplateShape: ref("circle"),
           brushRadius: radius,
+          rectWalls: ref(true),
           selectedCell: ref(null),
           toolOptionsRef: ref(null),
           structure: fakeStructure(),
