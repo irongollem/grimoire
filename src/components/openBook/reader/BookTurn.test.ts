@@ -175,3 +175,111 @@ describe("BookTurn with animation available", () => {
     expect(w.emitted("done")).toHaveLength(1);
   });
 });
+
+describe("BookTurn dragging a corner", () => {
+  const originalAnimate = Object.getOwnPropertyDescriptor(Element.prototype, "animate");
+  const originalRect = Element.prototype.getBoundingClientRect;
+  let queue: ((now: number) => void)[] = [];
+  let clock = 0;
+
+  beforeEach(() => {
+    queue = [];
+    clock = 0;
+    Object.defineProperty(Element.prototype, "animate", { configurable: true, value: () => ({ cancel: vi.fn(), finished: Promise.resolve() }) });
+    Element.prototype.getBoundingClientRect = () => new DOMRect(500, 0, 400, 600);
+    vi.stubGlobal("requestAnimationFrame", (cb: (now: number) => void) => {
+      queue.push(cb);
+      return queue.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+      queue[id - 1] = () => undefined;
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Element.prototype.getBoundingClientRect = originalRect;
+    if (originalAnimate) Object.defineProperty(Element.prototype, "animate", originalAnimate);
+    else Reflect.deleteProperty(Element.prototype, "animate");
+  });
+
+  function run(ms: number) {
+    for (let i = 0; i < 40 && queue.length > 0; i += 1) {
+      const cb = queue.shift();
+      clock += ms;
+      cb?.(clock);
+    }
+  }
+
+  function mountDrag(onClick: () => void) {
+    return mount(BookTurn, {
+      attachTo: document.body,
+      props: { target: at("a", 0, 1), mode: "spread" as const, next: at("a", 1, 2), prev: null },
+      slots: {
+        page: ({ target: t, side }: { target: PageTarget; side: string }) => h("div", { class: "face", "data-side": side, "data-target": `${t.key}:${t.unit}` }),
+        default: () => h("button", { class: "ob-lift", "data-dir": "next", onClick }),
+      },
+    });
+  }
+
+  const pointer = (type: string, x: number) => {
+    const e = new MouseEvent(type, { clientX: x, clientY: 580, bubbles: true, button: 0 });
+    Object.defineProperty(e, "pointerId", { value: 1 });
+    return e;
+  };
+
+  it("lays the curl under the pointer, then springs back when let go before halfway", async () => {
+    const onClick = vi.fn();
+    const w = mountDrag(onClick);
+    const btn = w.get(".ob-lift").element;
+    btn.dispatchEvent(pointer("pointerdown", 880));
+    window.dispatchEvent(pointer("pointermove", 860));
+    await nextTick();
+    await nextTick();
+    expect(w.findAll(".ob-leaf")).toHaveLength(1);
+    window.dispatchEvent(pointer("pointermove", 800));
+    expect((w.find('[data-layer="front"]').element as HTMLElement).style.clipPath).toContain("polygon");
+    window.dispatchEvent(pointer("pointerup", 800));
+    run(100);
+    await flushPromises();
+    expect(onClick).not.toHaveBeenCalled();
+    expect(w.findAll(".ob-leaf")).toHaveLength(0);
+    expect(w.emitted("done")).toBeUndefined();
+    w.unmount();
+  });
+
+  it("clicks the dog-ear once on a release past halfway and finishes with the reader's target", async () => {
+    const onClick = vi.fn();
+    const w = mountDrag(onClick);
+    w.get(".ob-lift").element.dispatchEvent(pointer("pointerdown", 880));
+    window.dispatchEvent(pointer("pointermove", 850));
+    await nextTick();
+    await nextTick();
+    window.dispatchEvent(pointer("pointermove", 470));
+    window.dispatchEvent(pointer("pointerup", 470));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    // The browser's own click after the release must not turn again.
+    w.get(".ob-lift").element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    await w.setProps({ target: at("a", 1, 2) });
+    await nextTick();
+    // The reader's target arrived mid-curl: no second leaf, no restart.
+    expect(w.findAll(".ob-leaf")).toHaveLength(1);
+    run(100);
+    await flushPromises();
+    expect(w.findAll(".ob-leaf")).toHaveLength(0);
+    expect(w.emitted("done")).toHaveLength(1);
+    w.unmount();
+  });
+
+  it("leaves a plain press to the dog-ear", async () => {
+    const onClick = vi.fn();
+    const w = mountDrag(onClick);
+    const btn = w.get(".ob-lift").element;
+    btn.dispatchEvent(pointer("pointerdown", 880));
+    window.dispatchEvent(pointer("pointerup", 880));
+    btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(w.findAll(".ob-leaf")).toHaveLength(0);
+    w.unmount();
+  });
+});

@@ -20,7 +20,7 @@ import BookThumbs from "./BookThumbs.vue";
 import BookTurn from "./BookTurn.vue";
 import ReaderPage from "./ReaderPage.vue";
 import { leatherGrain, leatherStyle } from "@/lib/openBook/leather";
-import { READER_KEY } from "./readerContext";
+import { READER_KEY, type PageTarget } from "./readerContext";
 import "./book.css";
 
 const { book } = defineProps<{ book: PublicOpenBook }>();
@@ -49,6 +49,23 @@ provide(READER_KEY, {
   folioStartOf: reader.folioStartOf,
   reportPages: reader.reportPages,
   revealPage: reader.revealPage,
+});
+
+// The pages a drag of either corner would reach, so the curl can show them while the hand is still on the paper.
+const nextTarget = computed<PageTarget | null>(() => {
+  const t = target.value;
+  const s = section.value;
+  if (!t || !s || !reader.nextLocation.value) return null;
+  if (reader.unit.value + 1 < reader.unitsOf(s.key)) return { key: t.key, unit: t.unit + 1, order: t.order + 1 };
+  const following = sections.value[reader.sectionIndex.value + 1];
+  return following ? { key: following.key, unit: 0, order: t.order + 1 } : null;
+});
+const prevTarget = computed<PageTarget | null>(() => {
+  const t = target.value;
+  if (!t || !reader.prevLocation.value) return null;
+  if (t.unit > 0) return { key: t.key, unit: t.unit - 1, order: t.order - 1 };
+  const before = sections.value[reader.sectionIndex.value - 1];
+  return before ? { key: before.key, unit: reader.unitsOf(before.key) - 1, order: t.order - 1 } : null;
 });
 
 const crumbs = computed(() => (section.value ? crumbsOf(model.value, sections.value, slug.value, section.value) : []));
@@ -181,7 +198,7 @@ const pdfUrl = computed(() => (book.allow_pdf ? book.release.pdf_url : null));
     <main class="ob-stage" @pointerdown="onPointerDown" @pointerup="onPointerUp" @pointercancel="swipe = null">
       <div v-if="target" class="ob-book">
         <div v-if="mode === 'spread'" class="ob-binding ob-leather" :data-grain="grain" :style="style" aria-hidden="true" />
-        <BookTurn :target="target" :mode="mode" :instant="reader.instant.value" @done="reader.settled">
+        <BookTurn :target="target" :mode="mode" :instant="reader.instant.value" :next="nextTarget" :prev="prevTarget" @done="reader.settled">
           <template #page="{ target: t, side, live }">
             <ReaderPage :section-key="t.key" :unit="t.unit" :side="side" :release="book.release" :live="live" />
           </template>

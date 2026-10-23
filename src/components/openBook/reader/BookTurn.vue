@@ -11,7 +11,13 @@
  * eased progress and writes only clip-path and transform, so nothing is laid out per frame. A phone curls its single
  * page off to the left edge the same way. A turn back plays the same curl in reverse.
  *
- * Under prefers-reduced-motion, or where the Web Animations API is missing, the new spread cross-fades in instead.
+ * The corner can also be dragged. Pressing a dog-ear and moving lays the curl under the pointer: the folded paper's
+ * outer edge follows it, so progress is how far the pointer has crossed the leaf. Letting go past halfway clicks the
+ * dog-ear itself, so the reader's own turn runs unchanged, and the curl glides on from where the hand left it;
+ * letting go short of halfway springs it back. `next` and `prev` are the pages a drag would reach.
+ *
+ * Under prefers-reduced-motion, or where the Web Animations API is missing, the new spread cross-fades in instead
+ * and there is no drag: a click still turns.
  */
 import { nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import type { ReadingMode } from "@/lib/openBook/pagination";
@@ -19,9 +25,13 @@ import { curlFrame, easeTurn, matrixCss, polygonCss, type CurlFrame } from "@/li
 import { canAnimate, prefersReducedMotion, whenSettled } from "@/lib/motion";
 import type { PageTarget } from "./readerContext";
 
-const { target, mode, instant = false } = defineProps<{
+const { target, mode, instant = false, next = null, prev = null } = defineProps<{
   target: PageTarget;
   mode: ReadingMode;
+  /** The page a forward drag of the corner would turn to; none when the book ends. */
+  next?: PageTarget | null;
+  /** The page a backward drag would turn to. */
+  prev?: PageTarget | null;
   /** Show the new target at once, with no turn: the reader correcting an address, not the visitor turning. */
   instant?: boolean;
 }>();
@@ -37,6 +47,8 @@ defineSlots<{
 /** The duration of a curl. Slower than a panel hop because the fold has to be seen to travel. */
 const TURN_MS = 900;
 const FADE_MS = 260;
+/** How far a press must travel before it is a drag and not a click. */
+const DRAG_SLOP = 8;
 /** How far the crease and cast shadow reach, as a fraction of the page width. */
 const CREASE_REACH = 0.16;
 const CAST_REACH = 0.22;
@@ -59,6 +71,25 @@ const backClip = useTemplateRef<HTMLElement>("backClip");
 const backPage = useTemplateRef<HTMLElement>("backPage");
 const backCrease = useTemplateRef<HTMLElement>("backCrease");
 
+/** A corner being dragged. `committed` once the release was past halfway and the reader has been told to turn. */
+interface Drag {
+  dir: "next" | "prev";
+  to: PageTarget;
+  btn: HTMLElement;
+  pointerId: number;
+  startX: number;
+  box: Box | null;
+  left: number;
+  p: number;
+  committed: boolean;
+  /** The glide ended before the reader's target caught up; the next target change finishes it. */
+  waiting: boolean;
+}
+let drag: Drag | null = null;
+const dragging = ref(false);
+let swallowClick = false;
+let programmaticClick = false;
+let giveUp = 0;
 let frame = 0;
 /** A stale frame or a cancelled fade must not finish the book; only the newest turn may. */
 let turnId = 0;
@@ -74,6 +105,9 @@ function stopFrames() {
 
 function settle() {
   stopFrames();
+  clearTimeout(giveUp);
+  drag = null;
+  dragging.value = false;
   leaf.value = null;
   shown.value = target;
   emit("done");
@@ -112,6 +146,16 @@ function size(el: HTMLElement | null, w: number, h: number) {
   el.style.height = `${h}px`;
 }
 
+/** The one layout read of a turn: measure the leaf and size the layers that need pixels. */
+function prepare(el: HTMLElement): Box {
+  const rect = el.getBoundingClientRect();
+  const box: Box = { w: rect.width, h: rect.height, span: Math.max(rect.width, rect.height) * 3 };
+  size(backPage.value, box.w, box.h);
+  for (const s of [frontCrease.value, backCrease.value]) size(s, box.w * CREASE_REACH, box.span);
+  size(cast.value, box.w * CAST_REACH, box.span);
+  return box;
+}
+
 async function turn(from: PageTarget, to: PageTarget) {
   const dir = to.order > from.order ? "next" : "prev";
   if (!root.value || !canAnimate(root.value)) {
@@ -128,13 +172,7 @@ async function turn(from: PageTarget, to: PageTarget) {
     settle();
     return;
   }
-  // The one layout read of the turn.
-  const rect = el.getBoundingClientRect();
-  const box: Box = { w: rect.width, h: rect.height, span: Math.max(rect.width, rect.height) * 3 };
-  size(backPage.value, box.w, box.h);
-  for (const s of [frontCrease.value, backCrease.value]) size(s, box.w * CREASE_REACH, box.span);
-  size(cast.value, box.w * CAST_REACH, box.span);
-
+  const box = prepare(el);
   let t0 = 0;
   const step = (now: number) => {
     if (id !== turnId) return;
@@ -147,6 +185,139 @@ async function turn(from: PageTarget, to: PageTarget) {
   };
   paint(dir === "next" ? 0 : 1, box);
   frame = requestAnimationFrame(step);
+}
+
+/** Run the curl from one progress to another, then call `end`. */
+function glide(p0: number, p1: number, box: Box, end: () => void) {
+  const id = turnId;
+  const ms = Math.max(160, TURN_MS * Math.abs(p1 - p0) * 0.8);
+  let t0 = 0;
+  const step = (now: number) => {
+    if (id !== turnId) return;
+    if (!t0) t0 = now;
+    const u = Math.min(1, (now - t0) / ms);
+    paint(p0 + (p1 - p0) * (1 - (1 - u) ** 2), box);
+    if (u >= 1) end();
+    else frame = requestAnimationFrame(step);
+  };
+  frame = requestAnimationFrame(step);
+}
+
+/** Where the fold stands when the folded paper's outer edge (or, on a phone, the fold) is under the pointer. */
+function dragProgress(d: Drag, x: number): number {
+  const w = d.box?.w ?? 0;
+  if (w <= 0) return d.dir === "next" ? 0 : 1;
+  // A lone page folds off the screen's edge, so there the fold itself, not the paper's tip, is under the finger.
+  const across = mode === "single" ? (x - d.left) / w : (x - d.left + w) / (2 * w);
+  return Math.min(1, Math.max(0, 1 - across));
+}
+
+function detach() {
+  window.removeEventListener("pointermove", onDragMove);
+  window.removeEventListener("pointerup", onDragEnd);
+  window.removeEventListener("pointercancel", onDragEnd);
+}
+
+async function beginDrag(d: Drag, x: number) {
+  const id = turnId;
+  leaf.value = { dir: d.dir, from: shown.value, to: d.to };
+  dragging.value = true;
+  await nextTick();
+  const el = leafEl.value;
+  if (id !== turnId || drag !== d || !el) return;
+  const rect = el.getBoundingClientRect();
+  d.left = rect.left;
+  d.box = prepare(el);
+  d.p = dragProgress(d, x);
+  paint(d.p, d.box);
+}
+
+function onDragDown(event: PointerEvent) {
+  if (drag || leaf.value || event.button > 0 || !(event.target instanceof Element)) return;
+  const btn = event.target.closest<HTMLElement>(".ob-lift");
+  const el = root.value;
+  if (!btn || !el || !el.contains(btn) || !canAnimate(el) || prefersReducedMotion()) return;
+  const dir = btn.dataset.dir === "prev" ? "prev" : "next";
+  const to = dir === "next" ? next : prev;
+  if (!to) return;
+  // A finger that starts on the corner is a drag of the page, not a swipe of the book.
+  if (event.pointerType === "touch") event.stopPropagation();
+  drag = { dir, to, btn, pointerId: event.pointerId, startX: event.clientX, box: null, left: 0, p: dir === "next" ? 0 : 1, committed: false, waiting: false };
+  window.addEventListener("pointermove", onDragMove);
+  window.addEventListener("pointerup", onDragEnd);
+  window.addEventListener("pointercancel", onDragEnd);
+}
+
+function onDragMove(event: PointerEvent) {
+  const d = drag;
+  if (!d || event.pointerId !== d.pointerId) return;
+  if (!dragging.value) {
+    if (Math.abs(event.clientX - d.startX) < DRAG_SLOP) return;
+    void beginDrag(d, event.clientX);
+    return;
+  }
+  if (!d.box) return;
+  d.p = dragProgress(d, event.clientX);
+  paint(d.p, d.box);
+}
+
+function onDragEnd(event: PointerEvent) {
+  const d = drag;
+  if (!d || event.pointerId !== d.pointerId) return;
+  detach();
+  if (!dragging.value) {
+    // Never moved: a plain click, which the dog-ear handles itself.
+    drag = null;
+    return;
+  }
+  // The click that follows a drag's release would turn a second time.
+  swallowClick = true;
+  setTimeout(() => {
+    swallowClick = false;
+  }, 40);
+  const box = d.box;
+  const complete = event.type === "pointerup" && (d.dir === "next" ? d.p > 0.5 : d.p < 0.5);
+  if (!box) {
+    turnId += 1;
+    settleDragOff();
+    return;
+  }
+  if (!complete) {
+    glide(d.p, d.dir === "next" ? 0 : 1, box, () => {
+      settleDragOff();
+    });
+    return;
+  }
+  d.committed = true;
+  programmaticClick = true;
+  d.btn.click();
+  programmaticClick = false;
+  glide(d.p, d.dir === "next" ? 1 : 0, box, () => {
+    if (sameTarget(target, d.to)) {
+      settle();
+      return;
+    }
+    // Hold the folded page until the reader's target arrives, but not for ever if the turn was refused.
+    d.waiting = true;
+    giveUp = window.setTimeout(settleDragOff, 800);
+  });
+}
+
+/** Put a dragged leaf back down without a turn having happened. */
+function settleDragOff() {
+  stopFrames();
+  clearTimeout(giveUp);
+  drag = null;
+  dragging.value = false;
+  leaf.value = null;
+}
+
+function onClickCapture(event: MouseEvent) {
+  if (!swallowClick || programmaticClick) return;
+  if (event.target instanceof Element && event.target.closest(".ob-lift")) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
 }
 
 /** The cross-fade for a reader who asked for less motion. */
@@ -164,7 +335,11 @@ watch(
   () => target,
   (to) => {
     // The reader recomputes its target whenever a page count changes, so an unchanged target arrives often.
-    if (leaf.value && sameTarget(to, leaf.value.to)) return;
+    if (leaf.value && sameTarget(to, leaf.value.to)) {
+      // The reader answered a committed drag: the curl is already on its way, and lands here if it has landed.
+      if (drag?.waiting) settle();
+      return;
+    }
     turnId += 1;
     if (sameTarget(to, shown.value) && !leaf.value) {
       shown.value = to;
@@ -173,9 +348,13 @@ watch(
     if (leaf.value) {
       // A turn arrived mid-turn: finish the old one at once and start from where it was heading.
       stopFrames();
-      shown.value = leaf.value.to;
+      if (!drag || drag.committed) shown.value = leaf.value.to;
       leaf.value = null;
     }
+    detach();
+    clearTimeout(giveUp);
+    drag = null;
+    dragging.value = false;
     const from = shown.value;
     if (instant) {
       shown.value = to;
@@ -194,11 +373,20 @@ watch(
 onBeforeUnmount(() => {
   turnId += 1;
   stopFrames();
+  detach();
+  clearTimeout(giveUp);
 });
 </script>
 
 <template>
-  <div ref="root" class="ob-pages" :data-mode="mode">
+  <div
+    ref="root"
+    class="ob-pages"
+    :data-mode="mode"
+    :data-drag="dragging ? '' : undefined"
+    @pointerdown.capture="onDragDown"
+    @click.capture="onClickCapture"
+  >
     <!-- Idle: the open spread. During a turn the base shows the two pages the leaf is not carrying. -->
     <template v-if="mode === 'spread'">
       <slot

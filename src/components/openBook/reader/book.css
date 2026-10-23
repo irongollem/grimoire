@@ -159,6 +159,8 @@
 .ob-lift { position: absolute; bottom: 0; width: 3.25rem; height: 3.25rem; padding: 0; border: 0; cursor: pointer; z-index: 5; transition: width 0.25s ease, height 0.25s ease; }
 .ob-lift[data-dir="next"] { right: 0; background: linear-gradient(315deg, var(--ob-desk) 0, var(--ob-desk) 47%, #d4c6aa 50%, #ece2cd 63%, #f7f1e5 74%, rgb(247 241 229 / 0) 75%); filter: drop-shadow(-3px -3px 4px rgb(43 32 25 / 0.3)); }
 .ob-lift[data-dir="prev"] { left: 0; background: linear-gradient(45deg, var(--ob-desk) 0, var(--ob-desk) 47%, #d4c6aa 50%, #ece2cd 63%, #f7f1e5 74%, rgb(247 241 229 / 0) 75%); filter: drop-shadow(3px -3px 4px rgb(43 32 25 / 0.3)); }
+.ob-lift { touch-action: none; }
+.ob-pages[data-drag] { user-select: none; cursor: grabbing; }
 .ob-lift:hover, .ob-lift:focus-visible { width: 6rem; height: 6rem; }
 
 /* The leaf that turns: layers clipped and moved per frame by BookTurn's curl; nothing here is laid out each frame */
