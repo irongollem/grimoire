@@ -1,0 +1,140 @@
+/*
+ * The open book's article layouts (#1085), ported from the design's book.css: long-form rules in rem on the Vellum
+ * palette. Every class carries the `book-` prefix because the app's own `.card`, `.chip`, `.ref` and `.tbl` mean
+ * other things. Articles flow as plain blocks: the reader paginates them with CSS columns, so nothing here
+ * positions out of flow, and each plate, table row and list item refuses to split.
+ */
+.book-article,
+.book-almanac,
+.book-index {
+  --bk-fg: #2b2019;
+  --bk-muted: #5f5347;
+  --bk-border: #cfc3ad;
+  --bk-input: #8a7d6c;
+  --bk-card: #faf6ee;
+  --bk-soft: #e7dfd0;
+  --bk-accent: #efe2c2;
+  --bk-live: #6e1f1a;
+  --bk-gold: #7a5a14;
+  --bk-gilt: #c9962e;
+  --bk-hand: #4a3628;
+  --bk-display: Cinzel, Georgia, serif;
+  --bk-sans: "Source Sans 3", sans-serif;
+  color: var(--bk-fg);
+  font-family: Alegreya, Georgia, serif;
+}
+
+/* Type roles */
+.book-eyebrow { font-family: var(--bk-sans); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--bk-muted); }
+.book-rubric { font-family: var(--bk-display); font-weight: 700; letter-spacing: 0.06em; color: var(--bk-live); }
+.book-title { margin: 0.125rem 0 0; font-family: var(--bk-display); font-weight: 700; letter-spacing: 0.03em; font-size: 2.25rem; line-height: 1.1; }
+.book-title-sm { font-size: 1.75rem; }
+.book-lede { margin: 0.875rem 0 0.25rem; font-size: 1.125rem; line-height: 1.45; font-style: italic; color: var(--bk-muted); }
+.book-head { display: flex; align-items: center; gap: 0.875rem; }
+.book-head-text { display: flex; flex-direction: column; }
+.book-compass { width: 2.125rem; height: 2.125rem; flex-shrink: 0; color: var(--bk-live); }
+.book-former { margin: 0.375rem 0 0; font-style: italic; color: var(--bk-muted); }
+
+/* Links to other pages */
+.book-article a,
+.book-index a { color: var(--bk-live); }
+.book-xref { color: var(--bk-live); text-decoration: none; border-bottom: 1px dotted var(--bk-live); font-variant: small-caps; letter-spacing: 0.02em; }
+.book-name { font-variant: small-caps; letter-spacing: 0.02em; }
+.book-name-unknown { color: var(--bk-muted); font-style: italic; }
+
+/* Plates: an image tipped onto the page */
+.book-plate { position: relative; margin: 0 0 0.75rem; break-inside: avoid; }
+.book-plate-frame { background: var(--bk-card); padding: 0.625rem; box-shadow: 0 1px 1.5px rgb(43 32 25 / 0.18), 0 0 0 1px var(--bk-border); }
+.book-plate-inner { position: relative; box-shadow: inset 0 0 0 1px var(--bk-input); overflow: hidden; background: #ece3cf; }
+.book-plate-inner > img { display: block; width: 100%; height: auto; }
+.book-plate-portrait .book-plate-inner { aspect-ratio: 4 / 5; }
+.book-plate-square .book-plate-frame { display: inline-block; padding: 0.5rem; }
+.book-plate-square .book-plate-inner { width: 9rem; height: 9rem; display: flex; align-items: center; justify-content: center; }
+.book-plate-square .book-plate-inner > img { width: 100%; height: 100%; object-fit: contain; }
+.book-plate-centered { text-align: center; }
+.book-plate-narrow { max-width: 13rem; }
+.book-caption { font-style: italic; font-size: 0.875rem; color: var(--bk-muted); text-align: center; margin: 0.5rem 0 0; }
+.book-pin { position: absolute; width: 0.75rem; height: 0.75rem; margin: -0.375rem 0 0 -0.375rem; background: var(--bk-live); transform: rotate(45deg); box-shadow: 0 0 0 2px var(--bk-card); }
+.book-pin-plain { background: var(--bk-fg); }
+
+/* Attribute rows, reference lists, chips */
+.book-attrs { margin: 0.75rem 0; }
+.book-attr { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.75rem; padding: 0.375rem 0; border-bottom: 1px dotted var(--bk-border); font-size: 1rem; align-items: baseline; break-inside: avoid; }
+.book-standing { display: inline-flex; align-items: center; gap: 0.5rem; }
+.book-diamond { width: 0.5rem; height: 0.5rem; transform: rotate(45deg); flex-shrink: 0; display: inline-block; }
+.book-refs { margin: 0.75rem 0; }
+.book-refs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 0.75rem 0; }
+.book-refs-grid > .book-refs { margin: 0; }
+.book-ref { display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; padding: 0.3125rem 0; border-bottom: 1px dotted var(--bk-border); text-decoration: none; color: var(--bk-fg); font-size: 1rem; break-inside: avoid; }
+.book-article a.book-ref { color: var(--bk-fg); }
+.book-ref:hover,
+.book-article a.book-ref:hover { color: var(--bk-live); }
+.book-ref-note { font-family: var(--bk-sans); font-size: 0.75rem; color: var(--bk-muted); align-self: center; }
+.book-domains { display: flex; flex-wrap: wrap; gap: 0.375rem; margin: 0.5rem 0; }
+.book-dom { display: inline-flex; align-items: center; height: 1.625rem; padding: 0 0.625rem; font-family: var(--bk-sans); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #6b4e12; box-shadow: inset 0 0 0 1px var(--bk-gilt); }
+.book-plates-row { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
+
+/* Long-form text: what a Tiptap document becomes on a page */
+.book-prose { font-size: 1.0313rem; line-height: 1.58; }
+.book-prose p { margin: 0 0 0.625rem; text-align: justify; hyphens: auto; }
+.book-prose p + p { text-indent: 1.25em; }
+.book-prose h1,
+.book-prose h2,
+.book-prose h3,
+.book-prose h4 { font-family: var(--bk-display); font-weight: 700; font-size: 1rem; letter-spacing: 0.06em; color: var(--bk-live); margin: 1.125rem 0 0.375rem; break-after: avoid; }
+.book-prose h1::after,
+.book-prose h3::after { content: ""; display: block; width: 2.5rem; height: 1px; background: var(--bk-live); margin-top: 0.3rem; opacity: 0.6; }
+.book-prose ul,
+.book-prose ol { margin: 0 0 0.625rem; padding-left: 1.5rem; }
+.book-prose li { margin: 0.125rem 0; }
+.book-prose li > p { text-indent: 0; margin-bottom: 0.25rem; }
+.book-prose a { color: var(--bk-live); }
+.book-prose hr { border: 0; border-top: 1px solid var(--bk-border); margin: 1rem 0; }
+.book-prose sup { font-family: var(--bk-sans); font-size: 0.6875rem; font-weight: 700; color: var(--bk-live); line-height: 0; }
+.book-prose pre { white-space: pre-wrap; background: var(--bk-soft); padding: 0.5rem 0.75rem; font-size: 0.875rem; }
+.book-prose img { display: block; max-width: 100%; height: auto; margin: 0.75rem auto; padding: 0.375rem; background: var(--bk-card); box-shadow: 0 1px 1.5px rgb(43 32 25 / 0.18), 0 0 0 1px var(--bk-border); break-inside: avoid; }
+.book-prose table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; margin: 0.5rem 0 0.75rem; }
+.book-prose th { text-align: left; font-family: var(--bk-sans); font-size: 0.75rem; font-weight: 700; color: var(--bk-muted); border-bottom: 1px solid var(--bk-input); padding: 0.25rem 0.5rem 0.25rem 0; }
+.book-prose td { border-bottom: 1px dotted var(--bk-border); padding: 0.3rem 0.5rem 0.3rem 0; vertical-align: top; }
+.book-prose td > p,
+.book-prose th > p { margin: 0; text-indent: 0; text-align: left; }
+.book-prose tr { break-inside: avoid; }
+.book-prose tr:nth-child(even) td { background: rgb(231 223 208 / 0.45); }
+.book-prose blockquote { position: relative; margin: 0.75rem 0 0.875rem; padding: 0.875rem 1.125rem; background: rgb(250 246 238 / 0.75); box-shadow: inset 0 0 0 1px var(--bk-border), inset 0 0 0 4px var(--bk-card), inset 0 0 0 5px var(--bk-border); font-style: italic; font-size: 1rem; line-height: 1.55; break-inside: avoid; }
+.book-prose blockquote p { text-indent: 0; text-align: left; margin-bottom: 0.375rem; }
+.book-prose blockquote p:last-child { margin-bottom: 0; }
+.book-lore .book-prose blockquote { background: var(--bk-soft); box-shadow: inset 0 0 0 1px var(--bk-input); text-align: center; font-family: var(--bk-display); font-style: normal; font-weight: 600; font-size: 0.875rem; letter-spacing: 0.12em; line-height: 1.7; color: var(--bk-hand); }
+.book-lore .book-prose blockquote p { text-align: center; }
+.book-dropcap .ProseMirror > p:first-child::first-letter { font-family: var(--bk-display); font-weight: 700; float: left; font-size: 3.9em; line-height: 0.82; padding: 0.32rem 0.5rem 0 0; color: var(--bk-live); }
+.book-cols .ProseMirror { column-count: 2; column-gap: 1.75rem; column-rule: 1px solid var(--bk-border); }
+.book-cols .ProseMirror > p + p { text-indent: 1em; }
+
+/* A session report: each second-level heading opens a numbered scene */
+.book-session .ProseMirror { counter-reset: book-scene; }
+.book-session .book-prose h2 { counter-increment: book-scene; display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0 0.5rem; font-size: 1rem; letter-spacing: 0.06em; }
+.book-session .book-prose h2::before { content: counter(book-scene, upper-roman) " ·"; flex: none; }
+.book-session .book-prose h2::after { content: ""; flex: 1 1 0; height: 1px; width: auto; margin: 0; background: var(--bk-border); opacity: 1; }
+.book-session-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+
+/* Almanac */
+.book-almanac-nav { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; margin-bottom: 0.875rem; }
+.book-almanac-month { margin: 0; font-family: var(--bk-display); font-weight: 700; font-size: 1.5rem; text-align: center; }
+.book-almanac-month small { display: block; font-family: Alegreya, serif; font-style: italic; font-weight: 400; font-size: 0.9375rem; color: var(--bk-muted); letter-spacing: 0; }
+.book-step { font-family: var(--bk-sans); font-size: 0.875rem; font-weight: 600; background: transparent; border: 0; padding: 0.25rem 0; color: var(--bk-live); cursor: pointer; }
+.book-step:disabled { color: var(--bk-border); cursor: default; }
+.book-cal { display: grid; border-top: 1px solid var(--bk-input); border-left: 1px solid var(--bk-border); }
+.book-cal-wk { font-family: var(--bk-sans); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; color: var(--bk-muted); text-align: center; padding: 0.3rem 0; text-transform: uppercase; }
+.book-cal-d { min-height: 3.25rem; border-right: 1px solid var(--bk-border); border-bottom: 1px solid var(--bk-border); padding: 0.25rem 0.3rem; box-sizing: border-box; font-family: var(--bk-display); font-weight: 600; font-size: 0.75rem; color: var(--bk-muted); display: flex; flex-direction: column; gap: 0.125rem; text-decoration: none; }
+.book-cal-d.is-red { color: var(--bk-live); font-weight: 700; }
+.book-cal-d.is-today { box-shadow: inset 0 0 0 1px var(--bk-gold), inset 0 0 0 3px var(--bk-card), inset 0 0 0 4px var(--bk-gold); }
+.book-cal-ev { font-family: Alegreya, serif; font-weight: 400; font-size: 0.6875rem; line-height: 1.15; color: var(--bk-live); }
+.book-note { margin: 1rem 0 0; font-size: 0.9375rem; color: var(--bk-muted); font-style: italic; }
+.book-timeline h2 { margin: 0 0 0.5rem; font-family: var(--bk-display); font-weight: 700; font-size: 2rem; }
+.book-entry { display: grid; grid-template-columns: 6rem 1fr; gap: 1.25rem; padding: 0.875rem 0; border-bottom: 1px dotted var(--bk-border); break-inside: avoid; }
+.book-entry-when { display: flex; flex-direction: column; gap: 0.125rem; }
+.book-entry h3 { margin: 0; font-size: 1.1875rem; font-weight: 700; }
+.book-entry h3 a { color: inherit; text-decoration: none; }
+
+/* Index */
+.book-index h2 { margin: 0 0 0.5rem; font-family: var(--bk-display); font-weight: 700; font-size: 2rem; }
+.book-index-letter { margin: 1rem 0 0.25rem; font-family: var(--bk-display); font-weight: 700; color: var(--bk-live); font-size: 1.25rem; break-after: avoid; }
