@@ -74,6 +74,11 @@ import {
 import { quote, sql } from "./lib/dev-db.ts";
 import { readLocalStack, remoteRows, assertRemoteUrl, type StackStatus } from "./lib/dev-stack.ts";
 
+const OPEN_BOOK_TABLES = [
+  { table: "open_books", tier: 1, parentColumn: null, parentTable: null, deferColumns: [], orderBy: "campaign_id" },
+  { table: "open_book_entries", tier: 1, parentColumn: null, parentTable: null, deferColumns: [], orderBy: "entity_id" },
+] satisfies ReturnType<typeof readCatalogue>;
+
 /** The fixture `dev-auth.ts` owns. Restated because that file is a script, not a module. */
 const DEV_PASSWORD = "grimoire-local-dev";
 
@@ -83,10 +88,17 @@ async function pullTemplate(remote: URL, key: string, dbUrl: string) {
   if (extra.length) throw new Error("Production reports more than one demo template; refusing to guess.");
   const templateId = String(campaign.id);
 
-  const catalogue = readCatalogue(dbUrl);
+  // The Open Book's settings and entry choices too (#1085). The catalogue marks them uncopied because
+  // copy_demo_template carries them by hand (step 8), so the template needs them locally for that step to run.
+  const catalogue = [...readCatalogue(dbUrl), ...OPEN_BOOK_TABLES];
   const columns = readLocalColumns(dbUrl, ["campaigns", ...catalogue.map((t) => t.table)]);
   // The template is the maintainer's published demo, public by design: no ownership filter.
   const { tables } = await pullCampaignTables(remote, key, catalogue, columns, templateId, null);
+  // Releases stay in production, so the local book is closed: an open book must point at a release.
+  for (const t of tables) {
+    if (t.table !== "open_books") continue;
+    for (const row of t.rows) Object.assign(row, { is_open: false, live_release_id: null });
+  }
   return { campaign, campaignColumns: columns.get("campaigns") ?? [], tables };
 }
 
