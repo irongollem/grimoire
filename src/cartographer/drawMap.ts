@@ -3,8 +3,8 @@
 // hazard/feature glyphs.
 //
 // The live editor (renderMap.ts) and the offline bake (bake.ts) used to each
-// carry their own copy of this, and the copies drifted: the bake never drew
-// rounded corners and painted its joint fallback in a hard-coded colour. Every
+// carry their own copy of this, and the copies drifted: the bake painted its
+// joint fallback in a hard-coded colour. Every
 // later change to what a map looks like (terrain, swinging doors, continuous
 // variants, shadows) is made here, once.
 //
@@ -361,18 +361,6 @@ function paintJoints(f: Frame, t: Target): void {
         layers.floor[cellKey(jx, jy - 1)]?.wallW?.pack_id ??
         defaultPackId;
       const jointRt = jointPackId ? runtime(jointPackId) : null;
-
-      // M6 schema v2: wallRoundJoint — drawn at full tile size centered on the corner.
-      // Only honoured when the pack ships REAL art for it — procedural placeholders
-      // fall through to the standard wallJoint handling so rectangular rooms don't
-      // unexpectedly grow rounded corners before real round-corner art exists.
-      if (side?.startsWith("L_") && jointRt && jointRt.variantCount("wallRoundJoint", side) > 0) {
-        const roundTile = jointRt.getTile("wallRoundJoint", 0, side);
-        if (!roundTile.isPlaceholder) {
-          ctx.drawImage(roundTile.source, cornerX - tilePx / 2, cornerY - tilePx / 2, tilePx, tilePx);
-          continue;
-        }
-      }
 
       // Prefer directional tile, fall back to generic (no side), then procedural square.
       const directional = side && jointRt && jointRt.variantCount("wallJoint", side) > 0

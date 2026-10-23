@@ -1,5 +1,5 @@
 // Glue tests for the Cartographer's canvas engine. The pure pieces it wires
-// together — CommandStack, pickVariant/hash32, zoomAtPoint, detectHoveredEdge,
+// together — CommandStack, pickVariant/hash32, zoomByFactor, detectHoveredEdge,
 // the paintOps functions — all have their own colocated tests already
 // (commandStack.test.ts, tileVariants.test.ts, viewport.test.ts,
 // edgeHover.test.ts, paintOps.test.ts). This file is about the wiring itself:
@@ -16,7 +16,7 @@
 // file doesn't need that because renderMap itself is swapped out.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { computed, defineComponent, h, nextTick, ref, type ComputedRef, type Ref } from "vue";
-import { mount } from "@vue/test-utils";
+import { enableAutoUnmount, mount } from "@vue/test-utils";
 import { useMapCanvasEditor, type MapCanvasEditorOptions } from "./useMapCanvasEditor";
 import {
   emptyLayers,
@@ -235,6 +235,7 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
     activeWallDecal,
     activeTemplateShape: ref("circle"),
     brushRadius: ref(1.5),
+    rectWalls: ref(true),
     selectedCell: ref(null),
     toolOptionsRef: ref(null),
     structure: fakeStructure(),
@@ -820,18 +821,86 @@ describe("centerMap", () => {
 // ── onWheel ──────────────────────────────────────────────────────────────
 
 describe("onWheel", () => {
-  it("zooms in on a negative deltaY and keeps the cursor's world point stationary", () => {
+  // happy-dom's WheelEvent drops the modifier fields of its init dict, so the
+  // event is a plain object carrying just what the handler reads.
+  function wheel(over: Partial<Record<"deltaX" | "deltaY" | "ctrlKey" | "shiftKey", number | boolean>>): WheelEvent {
+    return {
+      clientX: 100, clientY: 100, deltaX: 0, deltaY: 0, deltaMode: 0,
+      ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...over,
+    } as unknown as WheelEvent;
+  }
+
+  it("a plain wheel scrolls the map and leaves the zoom alone", () => {
     const { editor } = makeHarness();
-    const before = { zoom: editor.zoom.value, offset: { ...editor.viewportOffset.value } };
-    editor.onWheel(new WheelEvent("wheel", { clientX: 100, clientY: 100, deltaY: -100 }));
-    expect(editor.zoom.value).toBeGreaterThan(before.zoom);
+    editor.onWheel(wheel({ deltaY: 100 }));
+    expect(editor.zoom.value).toBe(1);
+    expect(editor.viewportOffset.value).toEqual({ x: 0, y: 100 });
   });
 
-  it("zooms out on a positive deltaY", () => {
+  it("Ctrl+wheel up zooms in, keeping the cursor's world point stationary", () => {
     const { editor } = makeHarness();
-    const before = editor.zoom.value;
-    editor.onWheel(new WheelEvent("wheel", { clientX: 100, clientY: 100, deltaY: 100 }));
-    expect(editor.zoom.value).toBeLessThan(before);
+    editor.onWheel(wheel({ deltaY: -100, ctrlKey: true }));
+    expect(editor.zoom.value).toBeGreaterThan(1);
+    // The world point under the cursor (100, 100) at zoom 1 is (100, 100); it must still be.
+    expect((editor.viewportOffset.value.x + 100) / editor.zoom.value).toBeCloseTo(100, 6);
+    expect((editor.viewportOffset.value.y + 100) / editor.zoom.value).toBeCloseTo(100, 6);
+  });
+
+  it("Ctrl+wheel down zooms out", () => {
+    const { editor } = makeHarness();
+    editor.onWheel(wheel({ deltaY: 100, ctrlKey: true }));
+    expect(editor.zoom.value).toBeLessThan(1);
+  });
+});
+
+// ── Panning triggers ─────────────────────────────────────────────────────
+// Middle, Space and the Pan tool pan; Shift does not, because it is the draw
+// modifier now.
+
+describe("what starts a pan", () => {
+  it("a Shift+drag with a painting tool paints instead of panning", () => {
+    const { editor, layers } = makeHarness();
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10, { shiftKey: true }));
+    editor.onPointerMove(move(60, 10, { shiftKey: true }));
+    editor.onPointerUp(up(60, 10, { shiftKey: true }));
+    expect(editor.viewportOffset.value).toEqual(before);
+    expect(layers.value.floor["0,0" as CellKey]).toBeDefined();
+  });
+
+  it("a Shift+click with Select armed selects the cell rather than panning", () => {
+    const selectedCell = ref<[number, number] | null>(null);
+    const { editor } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
+    editor.onPointerDown(down(10, 10, { shiftKey: true }));
+    editor.onPointerUp(up(10, 10, { shiftKey: true }));
+    expect(selectedCell.value).toEqual([0, 0]);
+  });
+
+  it("the middle button pans with any tool, painting nothing", () => {
+    const { editor, layers } = makeHarness();
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10, { button: 1 }));
+    editor.onPointerMove(move(60, 10, { button: 1 }));
+    editor.onPointerUp(up(60, 10, { button: 1 }));
+    expect(editor.viewportOffset.value).not.toEqual(before);
+    expect(Object.keys(layers.value.floor)).toHaveLength(0);
+  });
+
+  it("the middle button pans even over the Link tool, which selects cells on a left click", () => {
+    const selectedCell = ref<[number, number] | null>(null);
+    const { editor } = makeHarness({ activeTool: ref<Tool>("link"), selectedCell });
+    editor.onPointerDown(down(10, 10, { button: 1 }));
+    editor.onPointerUp(up(10, 10, { button: 1 }));
+    expect(selectedCell.value).toBeNull();
+  });
+
+  it("the Pan tool pans on a plain left drag", () => {
+    const { editor } = makeHarness({ activeTool: ref<Tool>("pan") });
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10));
+    editor.onPointerMove(move(60, 10));
+    editor.onPointerUp(up(60, 10));
+    expect(editor.viewportOffset.value).not.toEqual(before);
   });
 });
 
@@ -1185,8 +1254,15 @@ describe("Alt inverts a painting tool", () => {
 // all (Vue silently drops it outside a component, with only a dev warning).
 // These two need a real mounted host to exercise that wiring.
 
+// Mounted editors listen on the window; one left from an earlier test would take another's keys.
+enableAutoUnmount(afterEach);
+
 describe("altHeld", () => {
-  function mountForLifecycle(tool: Tool = "floor", radius = ref(1.5)): ReturnType<typeof useMapCanvasEditor> {
+  function mountForLifecycle(
+    tool: Tool = "floor",
+    radius = ref(1.5),
+    keysActive?: () => boolean,
+  ): ReturnType<typeof useMapCanvasEditor> {
     let captured!: ReturnType<typeof useMapCanvasEditor>;
     const runtime = fakeRuntime();
     const Host = defineComponent({
@@ -1214,12 +1290,14 @@ describe("altHeld", () => {
           activeWallDecal: ref(0),
           activeTemplateShape: ref("circle"),
           brushRadius: radius,
+          rectWalls: ref(true),
           selectedCell: ref(null),
           toolOptionsRef: ref(null),
           structure: fakeStructure(),
           mapKey: computed(() => "map-test"),
           getReferenceImage: () => null,
           extraRenderDeps: [],
+          keysActive,
         });
         return () => h("div");
       },
@@ -1259,6 +1337,75 @@ describe("altHeld", () => {
     expect(editor.altHeld.value).toBe(true);
     window.dispatchEvent(new Event("blur"));
     expect(editor.altHeld.value).toBe(false);
+  });
+
+  it("Space turns a left drag into a pan with the armed tool, and releasing it ends that", () => {
+    const editor = mountForLifecycle();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space" }));
+    expect(editor.spaceHeld.value).toBe(true);
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10));
+    expect(editor.isPanning.value).toBe(true);
+    editor.onPointerMove(move(60, 10));
+    editor.onPointerUp(up(60, 10));
+    expect(editor.viewportOffset.value).not.toEqual(before);
+
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space" }));
+    expect(editor.spaceHeld.value).toBe(false);
+    editor.onPointerDown(down(10, 10));
+    expect(editor.isPanning.value).toBe(false);
+    editor.onPointerUp(up(10, 10));
+  });
+
+  it("window blur lets go of Space", () => {
+    const editor = mountForLifecycle();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space" }));
+    window.dispatchEvent(new Event("blur"));
+    expect(editor.spaceHeld.value).toBe(false);
+  });
+
+  it("Ctrl+1 shows 100% and Ctrl+0 fits an empty map at 100% too", () => {
+    const editor = mountForLifecycle();
+    editor.zoom.value = 2;
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "1", code: "Digit1", ctrlKey: true }));
+    expect(editor.zoom.value).toBe(1);
+    editor.zoom.value = 3;
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "0", code: "Digit0", ctrlKey: true }));
+    expect(editor.zoom.value).toBe(1);
+  });
+
+  it("Space and the zoom keys are left to the page while the pointer and focus are elsewhere", () => {
+    let overMap = false;
+    const editor = mountForLifecycle("floor", ref(1.5), () => overMap);
+    const space = new KeyboardEvent("keydown", { key: " ", code: "Space", cancelable: true });
+    window.dispatchEvent(space);
+    expect(editor.spaceHeld.value).toBe(false);
+    expect(space.defaultPrevented).toBe(false);
+
+    editor.zoom.value = 3;
+    const zoomKey = new KeyboardEvent("keydown", { key: "0", code: "Digit0", ctrlKey: true, cancelable: true });
+    window.dispatchEvent(zoomKey);
+    expect(editor.zoom.value).toBe(3);
+    expect(zoomKey.defaultPrevented).toBe(false);
+
+    overMap = true;
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space" }));
+    expect(editor.spaceHeld.value).toBe(true);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "0", code: "Digit0", ctrlKey: true }));
+    expect(editor.zoom.value).toBe(1);
+
+    // Letting go is never gated, so leaving the map with Space down cannot stick the hand.
+    overMap = false;
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space" }));
+    expect(editor.spaceHeld.value).toBe(false);
+  });
+
+  it("Ctrl+= and Ctrl+- step the zoom in and out", () => {
+    const editor = mountForLifecycle();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "=", code: "Equal", ctrlKey: true }));
+    expect(editor.zoom.value).toBeCloseTo(1.25, 6);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "-", code: "Minus", ctrlKey: true }));
+    expect(editor.zoom.value).toBeCloseTo(1, 6);
   });
 });
 
@@ -1462,5 +1609,253 @@ describe("place tool: keys", () => {
     press("Escape");
     expect(placeItem.value).toBeNull();
     expect(activeTool.value).toBe("place");
+  });
+});
+
+// ── Shift draws (#1096) ──────────────────────────────────────────────────
+// Shift+click joins to where the last stroke ended; Shift while dragging locks
+// to 45 degrees (cells and brush) or to a grid line (wall); Shift makes a
+// rectangle square and snaps a line. Cells are 128px at zoom 1.
+
+describe("Shift draws straight", () => {
+  const cellPx = (n: number): number => n * BASE_TILE_SIZE + 10;
+  const shift = { shiftKey: true };
+
+  describe("brush", () => {
+    it("Shift+click joins from the end of the last stroke, painting the stretch between", () => {
+      const { editor, layers, activeTool } = makeHarness({ brushRadius: ref(0.5) });
+      activeTool.value = "brush";
+      clickCell(editor, 64, 64); // ends at (0.5, 0.5)
+      editor.onPointerDown(down(448, 64, shift)); // (3.5, 0.5)
+      editor.onPointerUp(up(448, 64, shift));
+      for (const k of ["0,0", "1,0", "2,0", "3,0"] as CellKey[]) {
+        expect(layers.value.floor[k]?.floor).toBeDefined();
+      }
+      editor.undoEdit();
+      expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
+      expect(layers.value.floor["0,0" as CellKey]?.floor).toBeDefined();
+    });
+
+    it("a plain click does not join", () => {
+      const { editor, layers, activeTool } = makeHarness({ brushRadius: ref(0.5) });
+      activeTool.value = "brush";
+      clickCell(editor, 64, 64);
+      clickCell(editor, 448, 64);
+      expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
+    });
+
+    it("forgets the end point when the tool changes", () => {
+      const { editor, layers, activeTool } = makeHarness({ brushRadius: ref(0.5) });
+      activeTool.value = "brush";
+      clickCell(editor, 64, 64);
+      activeTool.value = "floor";
+      activeTool.value = "brush";
+      editor.onPointerDown(down(448, 64, shift));
+      editor.onPointerUp(up(448, 64, shift));
+      expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
+    });
+
+    it("Shift while dragging snaps the stroke to 45 degrees", () => {
+      const { editor, layers, activeTool } = makeHarness({ brushRadius: ref(0.4) });
+      activeTool.value = "brush";
+      editor.onPointerDown(down(64, 64));
+      editor.onPointerMove(move(448, 164, shift)); // a cell below the row it started on
+      editor.onPointerUp(up(448, 164, shift));
+      expect(layers.value.floor["3,0" as CellKey]?.floor).toBeDefined();
+      expect(layers.value.floor["3,1" as CellKey]).toBeUndefined();
+    });
+
+    it("Alt+Shift erases a straight cut", () => {
+      const { editor, layers, activeTool } = makeHarness({ brushRadius: ref(0.5) });
+      activeTool.value = "brush";
+      editor.onPointerDown(down(64, 64));
+      editor.onPointerMove(move(448, 64));
+      editor.onPointerUp(up(448, 64));
+      editor.onPointerDown(down(64, 64, { altKey: true }));
+      editor.onPointerUp(up(64, 64, { altKey: true }));
+      editor.onPointerDown(down(448, 64, { altKey: true, shiftKey: true }));
+      editor.onPointerUp(up(448, 64, { altKey: true, shiftKey: true }));
+      expect(layers.value.floor["2,0" as CellKey]).toBeUndefined();
+    });
+  });
+
+  describe("cell painters", () => {
+    it("Shift+click paints a straight line from the last painted cell, as one undo step", () => {
+      const { editor, layers } = makeHarness();
+      clickCell(editor, cellPx(0), cellPx(0));
+      editor.onPointerDown(down(cellPx(3), cellPx(2), shift));
+      editor.onPointerUp(up(cellPx(3), cellPx(2), shift));
+      expect(Object.keys(layers.value.floor)).toHaveLength(4);
+      expect(layers.value.floor["3,2" as CellKey]).toBeDefined();
+      editor.undoEdit();
+      expect(Object.keys(layers.value.floor)).toEqual(["0,0"]);
+    });
+
+    it("Shift while dragging snaps to 45 degrees and fills every cell on the way", () => {
+      const { editor, layers } = makeHarness();
+      editor.onPointerDown(down(cellPx(0), cellPx(0)));
+      editor.onPointerMove(move(cellPx(4), cellPx(1), shift));
+      editor.onPointerUp(up(cellPx(4), cellPx(1), shift));
+      for (const k of ["0,0", "1,0", "2,0", "3,0", "4,0"] as CellKey[]) {
+        expect(layers.value.floor[k]).toBeDefined();
+      }
+      expect(layers.value.floor["4,1" as CellKey]).toBeUndefined();
+    });
+
+    it("Alt+Shift erases the same line", () => {
+      const { editor, layers } = makeHarness();
+      editor.onPointerDown(down(cellPx(0), cellPx(0)));
+      for (const n of [1, 2, 3]) editor.onPointerMove(move(cellPx(n), cellPx(0)));
+      editor.onPointerUp(up(cellPx(3), cellPx(0)));
+      editor.onPointerDown(down(cellPx(0), cellPx(0), { altKey: true }));
+      editor.onPointerUp(up(cellPx(0), cellPx(0), { altKey: true }));
+      editor.onPointerDown(down(cellPx(3), cellPx(0), { altKey: true, shiftKey: true }));
+      editor.onPointerUp(up(cellPx(3), cellPx(0), { altKey: true, shiftKey: true }));
+      expect(Object.keys(layers.value.floor)).toEqual([]);
+    });
+
+    it("Shift+click with no earlier stroke paints just the clicked cell", () => {
+      const { editor, layers } = makeHarness();
+      editor.onPointerDown(down(cellPx(3), cellPx(2), shift));
+      editor.onPointerUp(up(cellPx(3), cellPx(2), shift));
+      expect(Object.keys(layers.value.floor)).toEqual(["3,2"]);
+    });
+  });
+
+  describe("wall", () => {
+    function hoverTopEdge(editor: Harness["editor"]): void {
+      editor.onPointerMove(move(64, 10)); // the N edge of (0,0)
+    }
+
+    it("Shift+click with no earlier wall paints one edge, never the cell's four", () => {
+      const { editor, layers, activeTool } = makeHarness();
+      activeTool.value = "wall";
+      hoverTopEdge(editor);
+      editor.onPointerDown(down(64, 10, shift));
+      editor.onPointerUp(up(64, 10, shift));
+      const cell = layers.value.floor["0,0" as CellKey];
+      expect(cell?.wallN).toBeDefined();
+      expect(cell?.wallW).toBeUndefined();
+      expect(layers.value.floor["0,1" as CellKey]).toBeUndefined();
+      expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
+    });
+
+    it("Shift+click runs a straight wall from the last one, as one undo step", () => {
+      const { editor, layers, activeTool } = makeHarness();
+      activeTool.value = "wall";
+      hoverTopEdge(editor);
+      clickCell(editor, 64, 10); // N edge of (0,0); the run starts at its east end, vertex (1, 0)
+      editor.onPointerDown(down(500, 5, shift)); // nearest vertex (4, 0)
+      editor.onPointerUp(up(500, 5, shift));
+      for (const k of ["0,0", "1,0", "2,0", "3,0"] as CellKey[]) {
+        expect(layers.value.floor[k]?.wallN).toBeDefined();
+      }
+      expect(layers.value.floor["4,0" as CellKey]).toBeUndefined();
+      editor.undoEdit();
+      expect(layers.value.floor["0,0" as CellKey]?.wallN).toBeDefined();
+      expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
+    });
+
+    it("Alt+Shift erases the run", () => {
+      const { editor, layers, activeTool } = makeHarness();
+      activeTool.value = "wall";
+      hoverTopEdge(editor);
+      clickCell(editor, 64, 10);
+      editor.onPointerDown(down(500, 5, shift));
+      editor.onPointerUp(up(500, 5, shift));
+      // The run ended at vertex (4, 0); Alt+Shift back to (0, 0) takes all four edges out.
+      editor.onPointerDown(down(5, 5, { altKey: true, shiftKey: true }));
+      editor.onPointerUp(up(5, 5, { altKey: true, shiftKey: true }));
+      for (const k of ["0,0", "1,0", "2,0", "3,0"] as CellKey[]) {
+        expect(layers.value.floor[k]?.wallN).toBeUndefined();
+      }
+    });
+
+    it("Shift+drag after a wall carries on along the run's line, and run and drag undo together", () => {
+      const { editor, layers, activeTool } = makeHarness();
+      activeTool.value = "wall";
+      hoverTopEdge(editor);
+      clickCell(editor, 64, 10); // N edge of (0,0); the run starts at vertex (1, 0)
+      editor.onPointerDown(down(300, 5, shift)); // nearest vertex (2, 0): one edge, then the drag begins
+      expect(layers.value.floor["1,0" as CellKey]?.wallN).toBeDefined();
+      editor.onPointerMove(move(330, 5, shift)); // N edge of (2, 0)
+      editor.onPointerMove(move(330, 138, shift)); // a parallel row: off the line, so nothing
+      editor.onPointerMove(move(450, 5, shift)); // N edge of (3, 0)
+      editor.onPointerUp(up(450, 5, shift));
+      for (const k of ["0,0", "1,0", "2,0", "3,0"] as CellKey[]) {
+        expect(layers.value.floor[k]?.wallN).toBeDefined();
+      }
+      expect(layers.value.floor["2,1" as CellKey]).toBeUndefined();
+      editor.undoEdit();
+      expect(layers.value.floor["0,0" as CellKey]?.wallN).toBeDefined();
+      expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
+      expect(layers.value.floor["3,0" as CellKey]).toBeUndefined();
+    });
+
+    it("Shift while dragging stays on the row the stroke began on", () => {
+      const { editor, layers, activeTool } = makeHarness();
+      activeTool.value = "wall";
+      hoverTopEdge(editor);
+      editor.onPointerDown(down(64, 10, shift));
+      editor.onPointerMove(move(200, 138, shift)); // the N edge of (1, 1): a parallel line
+      editor.onPointerMove(move(200, 10, shift)); // the N edge of (1, 0)
+      editor.onPointerUp(up(200, 10, shift));
+      expect(layers.value.floor["1,1" as CellKey]).toBeUndefined();
+      expect(layers.value.floor["1,0" as CellKey]?.wallN).toBeDefined();
+    });
+  });
+
+  describe("rectangle", () => {
+    it("Shift makes it a square", () => {
+      const { editor, layers, activeTool } = makeHarness();
+      activeTool.value = "rect";
+      editor.onPointerDown(down(cellPx(0), cellPx(0)));
+      editor.onPointerMove(move(cellPx(3), cellPx(1), shift));
+      editor.onPointerUp(up(cellPx(3), cellPx(1), shift));
+      expect(layers.value.floor["3,3" as CellKey]?.floor).toBeDefined();
+      expect(layers.value.floor["0,3" as CellKey]?.floor).toBeDefined();
+    });
+
+    it("wraps its walls by default", () => {
+      const { editor, layers, activeTool } = makeHarness();
+      activeTool.value = "rect";
+      editor.onPointerDown(down(cellPx(0), cellPx(0)));
+      editor.onPointerUp(up(cellPx(1), cellPx(0)));
+      expect(layers.value.floor["0,0" as CellKey]?.wallN).toBeDefined();
+      expect(layers.value.floor["0,0" as CellKey]?.wallW).toBeDefined();
+    });
+
+    it("leaves the walls off when the Walls option is off, Shift or not", () => {
+      const { editor, layers, activeTool } = makeHarness({ rectWalls: ref(false) });
+      activeTool.value = "rect";
+      editor.onPointerDown(down(cellPx(0), cellPx(0)));
+      editor.onPointerUp(up(cellPx(1), cellPx(0), shift));
+      expect(layers.value.floor["1,1" as CellKey]?.floor).toBeDefined();
+      for (const cell of Object.values(layers.value.floor)) {
+        expect(cell.wallN).toBeUndefined();
+        expect(cell.wallW).toBeUndefined();
+      }
+    });
+  });
+
+  describe("line", () => {
+    it("Shift snaps the end to 45 degrees", () => {
+      const { editor, layers, activeTool } = makeHarness();
+      activeTool.value = "line";
+      editor.onPointerDown(down(cellPx(0), cellPx(0)));
+      editor.onPointerUp(up(cellPx(4), cellPx(1), shift));
+      expect(layers.value.floor["4,0" as CellKey]).toBeDefined();
+      expect(layers.value.floor["4,1" as CellKey]).toBeUndefined();
+    });
+
+    it("Alt+Shift erases the snapped line", () => {
+      const { editor, layers, activeTool } = makeHarness();
+      activeTool.value = "line";
+      editor.onPointerDown(down(cellPx(0), cellPx(0)));
+      editor.onPointerUp(up(cellPx(4), cellPx(0)));
+      editor.onPointerDown(down(cellPx(0), cellPx(0), { altKey: true }));
+      editor.onPointerUp(up(cellPx(4), cellPx(1), { altKey: true, shiftKey: true }));
+      expect(Object.keys(layers.value.floor)).toEqual([]);
+    });
   });
 });

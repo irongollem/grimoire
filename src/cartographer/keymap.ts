@@ -6,11 +6,14 @@
 // branch that fell through.
 
 import type { Tool } from "@/cartographer/tools";
+import { resolveZoomKey, type ZoomTarget } from "@/lib/canvasControls/zoomKeys";
 
 export type KeyAction =
   | { kind: "undo" }
   | { kind: "redo" }
   | { kind: "center" }
+  /** Zoom shortcut: one step in or out, fit the whole map, or 100%. */
+  | { kind: "zoom"; to: ZoomTarget }
   /** Place tool: degrees to add before taking mod 360. Q/E are 90° steps, [/] are 1° trims. */
   | { kind: "rotatePlace"; delta: number }
   /** Place tool: removes the selected prop (a no-op when none is). */
@@ -23,6 +26,8 @@ export type KeyAction =
 
 export interface KeyEventLike {
   key: string;
+  /** The physical key (`KeyboardEvent.code`), for shortcuts whose `key` changes with Shift or layout. */
+  code: string;
   ctrlKey: boolean;
   metaKey: boolean;
   altKey: boolean;
@@ -58,6 +63,9 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && ev.key.toLowerCase() === "z") {
     return ev.shiftKey ? { kind: "redo" } : { kind: "undo" };
   }
+
+  const zoom = resolveZoomKey(ev);
+  if (zoom) return { kind: "zoom", to: zoom };
 
   // Leave all other OS shortcuts alone.
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return null;

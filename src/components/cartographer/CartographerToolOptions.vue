@@ -73,6 +73,7 @@
         <span v-else class="text-caption-sm text-muted-foreground italic">This pack has no wall decals.</span>
         <span class="text-caption-sm text-muted-foreground">Click a wall to dress it. Alt removes the decal.</span>
       </template>
+      <span v-else class="text-caption-sm text-muted-foreground">Shift+click runs a straight wall from the last one.</span>
     </template>
 
     <!-- Place: what is armed, how it is turned, and the way back to the catalogue. -->
@@ -186,6 +187,18 @@
       />
       <span class="text-caption text-muted-foreground tabular-nums">{{ brushRadius * 2 * 5 }} ft across</span>
       <span class="text-caption-sm text-muted-foreground">[ and ] resize.</span>
+      <span class="text-caption-sm text-muted-foreground">Shift+click draws a straight line from where the last stroke ended.</span>
+    </template>
+
+    <!-- Rectangle: whether it walls itself in. -->
+    <template v-else-if="activeTool === 'rect'">
+      <AppCheckbox
+        :model-value="rectWalls"
+        label="Walls"
+        size="sm"
+        @update:model-value="$emit('update:rectWalls', $event)"
+      />
+      <span class="text-caption-sm text-muted-foreground">{{ HINTS.rect }}</span>
     </template>
 
     <!-- Everything else has nothing to set: one line says what a click does. -->
@@ -199,6 +212,7 @@
 // MapWorkbench holds the state and computes the selected-cell summary.
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
@@ -272,6 +286,8 @@ const props = defineProps<{
   activeTemplateShape: string;
   templateShapes: TemplateShape[];
   brushRadius: number;
+  /** Rectangle: also wrap the perimeter in walls. */
+  rectWalls: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -288,6 +304,7 @@ const emit = defineEmits<{
   "update:linkedFeatureId": [id: string];
   "update:activeTemplateShape": [shape: string];
   "update:brushRadius": [radius: number];
+  "update:rectWalls": [on: boolean];
 }>();
 
 const detailsOpen = ref(false);
@@ -295,16 +312,16 @@ const detailsOpen = ref(false);
 /** Tools with nothing to set: what a click does, in a line. */
 const HINTS: Record<Tool, string> = {
   select: "",
-  pan: "Drag to move the map.",
-  floor: "Drag to paint floor. Alt erases.",
-  terrain: "Paint water over the floor; a cell with no floor gets one. Alt erases the water and keeps the floor.",
+  pan: "Drag to move the map. Space+drag or the middle button pans with any tool.",
+  floor: "Drag to paint floor. Shift+click draws a straight line from the last cell. Alt erases.",
+  terrain: "Paint water over the floor; a cell with no floor gets one. Shift+click draws a straight line from the last cell. Alt erases the water and keeps the floor.",
   eraser: "Drag to take out floor, walls and objects.",
   wall: "",
   door: "Click a wall edge to add a door; click a door to open or close it. Right-click removes it.",
-  solid: "Paint thick, full-cell rock. Alt erases.",
+  solid: "Paint thick, full-cell rock. Shift+click draws a straight line from the last cell. Alt erases.",
   place: "",
-  rect: "Drag a rectangle of floor. Shift adds perimeter walls. Alt erases.",
-  line: "Drag a straight run of floor. Alt erases.",
+  rect: "Drag a rectangle of floor. Shift makes it square. Alt erases.",
+  line: "Drag a straight run of floor. Shift snaps to 45°. Alt erases.",
   fill: "Click to flood-fill a floor region.",
   wrap: "Click a floor region to wall every edge that faces empty space.",
   annotate: "",

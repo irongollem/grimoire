@@ -41,8 +41,6 @@ export interface RailTool {
   icon: Component;
   /** Single key that activates the tool (lowercase, no modifiers). */
   shortcut?: string;
-  /** Override for the tooltip's key, for hints that are not keyboard keys ("RMB" on Pan). */
-  displayBadge?: string;
   disabled?: boolean;
 }
 
@@ -62,7 +60,7 @@ defineEmits<{
 }>();
 
 function toolTitle(t: RailTool): string {
-  const key = t.displayBadge ?? t.shortcut?.toUpperCase();
+  const key = t.shortcut?.toUpperCase();
   return key ? `${t.label} (${key})` : t.label;
 }
 </script>

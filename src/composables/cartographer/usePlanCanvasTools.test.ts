@@ -148,3 +148,17 @@ describe("usePlanCanvasTools Erase tool", () => {
     expect(eraseCells).not.toHaveBeenCalled();
   });
 });
+
+describe("usePlanCanvasTools pan boundary", () => {
+  it("leaves the middle and right buttons to the editor's pan", () => {
+    const { tools } = makeHarness();
+    expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 0, clientY: 0, button: 1 }))).toBe(false);
+    expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 0, clientY: 0, button: 2 }))).toBe(false);
+  });
+
+  it("claims a Shift press like any other, since Shift no longer pans", () => {
+    const { tools } = makeHarness();
+    expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 0, clientY: 0, shiftKey: true }))).toBe(true);
+    tools.abandonGesture();
+  });
+});

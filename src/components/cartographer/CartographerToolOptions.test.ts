@@ -19,7 +19,7 @@ function mountOptions(over: Record<string, unknown> = {}) {
       selectedCellObjectCategory: null, selectedCellLinkedNames: [], annotationText: "",
       linkedNoteId: "", linkedEncounterId: "", linkedTrapId: "", linkedFeatureId: "",
       noteOptions: [], encounterOptions: [], trapOptions: [], featureOptions: [],
-      activeTemplateShape: "circle", templateShapes: [], brushRadius: 1.5,
+      activeTemplateShape: "circle", templateShapes: [], brushRadius: 1.5, rectWalls: true,
       ...over,
     },
     global: { stubs: { EntityCombobox: true } },
@@ -42,6 +42,29 @@ describe("slip chrome", () => {
   it("says in a line what a tool with nothing to set does", () => {
     const wrapper = mountOptions({ title: "Tiles", activeTool: "floor" });
     expect(wrapper.text()).toContain("Drag to paint floor");
+  });
+});
+
+describe("rectangle walls option", () => {
+  it("shows the Walls toggle on, and emits the new value when it is flipped", async () => {
+    const wrapper = mountOptions({ title: "Rectangle", activeTool: "rect" });
+    const box = wrapper.find("input[type=checkbox]");
+    expect((box.element as HTMLInputElement).checked).toBe(true);
+    expect(wrapper.text()).toContain("Walls");
+    expect(wrapper.text()).toContain("Shift makes it square");
+    await box.setValue(false);
+    expect(wrapper.emitted("update:rectWalls")?.[0]).toEqual([false]);
+  });
+});
+
+describe("Shift captions", () => {
+  it.each([
+    ["wall", "Shift+click runs a straight wall"],
+    ["brush", "Shift+click draws a straight line"],
+    ["line", "Shift snaps to 45°"],
+    ["terrain", "Shift+click draws a straight line"],
+  ])("%s says what Shift does", (activeTool, text) => {
+    expect(mountOptions({ activeTool }).text()).toContain(text);
   });
 });
 

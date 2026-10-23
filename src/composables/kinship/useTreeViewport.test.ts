@@ -31,6 +31,42 @@ describe("useTreeViewport", () => {
     expect(v.x.value).toBe(0);
   });
 
+  describe("forced pan", () => {
+    function down(v: ReturnType<typeof useTreeViewport>, button: number, target: EventTarget) {
+      const preventDefault = vi.fn();
+      v.onPointerDown({ button, pointerId: 1, clientX: 0, clientY: 0, target, currentTarget: document.createElement("div"), preventDefault } as unknown as PointerEvent);
+      return preventDefault;
+    }
+
+    it("does not start a drag on a button without a forced pan", () => {
+      const v = useTreeViewport({ forcePan: () => false });
+      down(v, 0, document.createElement("button"));
+      expect(v.dragging.value).toBe(false);
+    });
+
+    it("pans over a button when the press is forced, and holds off autoscroll", () => {
+      const v = useTreeViewport({ forcePan: (e) => e.button === 1 });
+      const prevented = down(v, 1, document.createElement("button"));
+      expect(v.dragging.value).toBe(true);
+      expect(prevented).toHaveBeenCalled();
+    });
+
+    it("drops the click that ends a Space-drag", () => {
+      vi.useFakeTimers();
+      const v = useTreeViewport({ forcePan: () => true });
+      down(v, 0, document.createElement("button"));
+      v.onPointerUp({ pointerId: 1 } as PointerEvent);
+      const stop = vi.fn();
+      v.onClickCapture({ stopPropagation: stop, preventDefault: vi.fn() } as unknown as MouseEvent);
+      expect(stop).toHaveBeenCalled();
+      vi.runAllTimers();
+      const later = vi.fn();
+      v.onClickCapture({ stopPropagation: later, preventDefault: vi.fn() } as unknown as MouseEvent);
+      expect(later).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+  });
+
   describe("wheel", () => {
     function wheel(v: ReturnType<typeof useTreeViewport>, init: Partial<WheelEvent>) {
       const preventDefault = vi.fn();
@@ -54,6 +90,8 @@ describe("useTreeViewport", () => {
       expect(v.scale.value).toBeGreaterThan(1);
       const m = wheel(v, { metaKey: true });
       expect(m).toHaveBeenCalled();
+      const a = wheel(v, { altKey: true });
+      expect(a).toHaveBeenCalled();
     });
   });
 });

@@ -69,19 +69,6 @@ function alphaBounds(data: Uint8ClampedArray, width: number, height: number) {
   return maxX < minX ? null : { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
 }
 
-function clearRoundedInterior(ctx: CanvasRenderingContext2D, side: string | undefined): void {
-  const corner = side === "L_NE" ? [0, BASE_TILE_SIZE]
-    : side === "L_SE" ? [0, 0]
-      : side === "L_SW" ? [BASE_TILE_SIZE, 0]
-        : [BASE_TILE_SIZE, BASE_TILE_SIZE];
-  ctx.save();
-  ctx.globalCompositeOperation = "destination-out";
-  ctx.beginPath();
-  ctx.arc(corner[0]!, corner[1]!, Math.round(BASE_TILE_SIZE * 0.65), 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
 /**
  * Whether a tile's art is cropped and redrawn *into* the wall band.
  *
@@ -193,8 +180,5 @@ export async function normalizeGeneratedTile(input: {
   // The opening now comes from the reference (#904), which carries a
   // transparent crossing that an edit preserves. A tile that comes back with
   // the crossing filled in is a retry, not something to mutilate into shape.
-  if (input.mechanics.footprint === "rounded-junction") {
-    clearRoundedInterior(ctx, input.slot.side);
-  }
   return encodeWebp(output, 0.9);
 }

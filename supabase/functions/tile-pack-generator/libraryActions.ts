@@ -175,8 +175,7 @@ export const TILE_BASE_PREFIX = "_base/v1";
 /**
  * Candidate object names for a slot's base reference, most specific first.
  *
- * Directional categories mostly need a file per side — `wallRoundJoint`'s
- * quarter-circle is carved from a different corner each time, `stairsUp-N`
+ * Directional categories mostly need a file per side — `stairsUp-N`
  * and `stairsUp-E` are different rotations. `wallJoint` is the exception that
  * makes the fallback necessary: the renderer scales it to a band-sized square
  * at the grid intersection, so an L, a T and a cross are one shape and one

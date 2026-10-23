@@ -19,7 +19,12 @@
     <SortFamilyLinksNotice class="mx-4 mt-2" />
 
     <!-- Graph area (fills remaining space; panel overlays it so the graph never resizes) -->
-    <div class="flex-1 relative bg-muted/10 overflow-hidden">
+    <div
+      ref="graphAreaEl"
+      class="flex-1 relative bg-muted/10 overflow-hidden"
+      @pointerenter="pointerOverGraph = true"
+      @pointerleave="pointerOverGraph = false"
+    >
       <div v-if="isLoading" class="absolute inset-0 flex items-center justify-center">
         <LoadingSpinner />
       </div>
@@ -32,8 +37,15 @@
         v-else
         ref="graphRef"
         v-model:layouts="layouts"
-        @wheel="cameraTakenByUser = true"
+        v-model:zoom-level="zoomLevel"
+        :class="spaceHeld && '!cursor-grab'"
+        @wheel.prevent="onWheel"
         @pointerdown="cameraTakenByUser = true"
+        @mousedown.capture="onMouseDownCapture"
+        @pointerdown.capture="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
         :nodes="graphNodes"
         :edges="graphEdges"
         :configs="graphConfigs"
@@ -269,7 +281,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { useDebounceFn } from "@vueuse/core";
 import { useRouter } from "vue-router";
 import { IconNetwork } from '@/lib/icons';
@@ -290,6 +302,7 @@ import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDele
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
 import { useKinLinks } from "@/composables/kinship/useKinLinks";
 import { useNpcWebGraph, resolveVar } from "@/composables/npcs/useNpcWebGraph";
+import { useNpcWebCamera } from "@/composables/npcs/useNpcWebCamera";
 import { useAllFactionNpcs, useAllFactionPartyMembers } from "@/composables/factions/useFactions";
 import { factionBadgesByNode, membershipCaption, pipOffsets, type FactionPip } from "@/lib/npcWeb/factions";
 import { clusterByProximity, convexHull, hullPath, padOutward, type Point } from "@/lib/npcWeb/hull";
@@ -599,6 +612,37 @@ const layouts = ref<Layouts>({ nodes: {} });
 const graphRef = ref<InstanceType<typeof VNetworkGraph> | null>(null);
 const cameraTakenByUser = ref(false);
 const framed = ref(false);
+
+// Photoshop/Figma controls: wheel pans, Ctrl/Cmd/Alt+wheel zooms, middle-drag and Space pan, zoom keys.
+// Shift stays what it was here, the key that links two nodes.
+// The graph's zoom is a v-model rather than a method, so the camera reads and writes it here, and a write
+// resolves on the next tick, once the graph has drawn it.
+const zoomLevel = ref(1);
+
+// Space and the zoom keys are read on the window, so they are the graph's only while the pointer is
+// over it or focus is inside it; elsewhere on the page they keep their own meaning.
+const graphAreaEl = ref<HTMLElement | null>(null);
+const pointerOverGraph = ref(false);
+const { spaceHeld, onWheel, onMouseDownCapture, onPointerDown, onPointerMove, onPointerUp } = useNpcWebCamera({
+  graph: () => {
+    const g = graphRef.value;
+    if (!g) return null;
+    return {
+      panBy: (amount) => g.panBy(amount),
+      zoomIn: () => g.zoomIn(),
+      zoomOut: () => g.zoomOut(),
+      fitToContents: () => g.fitToContents(),
+      getZoomLevel: () => zoomLevel.value,
+      setZoomLevel: (level) => {
+        zoomLevel.value = level;
+        return nextTick();
+      },
+    };
+  },
+  onTaken: () => { cameraTakenByUser.value = true; },
+  setNodesDraggable: (on) => { if (graphConfigs.node) graphConfigs.node.draggable = on; },
+  keysActive: () => pointerOverGraph.value || (graphAreaEl.value?.contains(document.activeElement) ?? false),
+});
 
 const frameWhenSettled = useDebounceFn(() => {
   if (framed.value || cameraTakenByUser.value) return;

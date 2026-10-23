@@ -114,3 +114,101 @@ describe("NoticeBoardViewport", () => {
     w.unmount();
   });
 });
+
+describe("NoticeBoardViewport canvas controls", () => {
+  const ev = (type: string, init: PointerEventInit) => new PointerEvent(type, { pointerId: 3, clientY: 300, bubbles: true, ...init });
+  const key = (type: string, init: KeyboardEventInit) => window.dispatchEvent(new KeyboardEvent(type, { cancelable: true, ...init }));
+
+  it("pans with the middle button, including over a pin that is being arranged", async () => {
+    size(390, 700);
+    const w = await mountBoard({ editable: true });
+    const pin = w.get("[data-pin] .nb-hit").element;
+    pin.dispatchEvent(ev("pointerdown", { clientX: 300, button: 1 }));
+    pin.dispatchEvent(ev("pointermove", { clientX: 200, button: 1 }));
+    pin.dispatchEvent(ev("pointerup", { clientX: 200, button: 1 }));
+    await w.vm.$nextTick();
+    expect(panStyle(w)).toContain("translate(-100px,");
+    w.unmount();
+  });
+
+  it("pans with Space held, even when the press lands on a pin, and the pin does not move", async () => {
+    size(390, 700);
+    const w = await mountBoard({ editable: true });
+    const root = w.get("[data-viewport]");
+    await root.trigger("pointerenter");
+    key("keydown", { key: " ", code: "Space" });
+    await w.vm.$nextTick();
+    expect(root.classes()).toContain("is-hand");
+    const pin = w.get("[data-pin] .nb-hit").element;
+    pin.dispatchEvent(ev("pointerdown", { clientX: 300, button: 0 }));
+    pin.dispatchEvent(ev("pointermove", { clientX: 200, button: 0 }));
+    pin.dispatchEvent(ev("pointerup", { clientX: 200, button: 0 }));
+    key("keyup", { key: " ", code: "Space" });
+    await w.vm.$nextTick();
+    expect(panStyle(w)).toContain("translate(-100px,");
+    expect(w.emitted("move")).toBeUndefined();
+    expect(root.classes()).not.toContain("is-hand");
+    w.unmount();
+  });
+
+  it("a Space-tap on a pin, with no movement, does not open it", async () => {
+    size(390, 700);
+    const w = await mountBoard();
+    const root = w.get("[data-viewport]");
+    await root.trigger("pointerenter");
+    key("keydown", { key: " ", code: "Space" });
+    const pin = w.get("[data-pin] .nb-hit").element;
+    pin.dispatchEvent(ev("pointerdown", { clientX: 300, button: 0 }));
+    pin.dispatchEvent(ev("pointerup", { clientX: 300, button: 0 }));
+    pin.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(w.emitted("select")).toBeUndefined();
+
+    // Once the hand is down again, the next tap is an ordinary one.
+    key("keyup", { key: " ", code: "Space" });
+    pin.dispatchEvent(ev("pointerdown", { clientX: 300, button: 0 }));
+    pin.dispatchEvent(ev("pointerup", { clientX: 300, button: 0 }));
+    pin.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(w.emitted("select")).toHaveLength(1);
+    w.unmount();
+  });
+
+  it("leaves Space to the page when the pointer is not on the board", async () => {
+    size(390, 700);
+    const w = await mountBoard();
+    const space = new KeyboardEvent("keydown", { key: " ", code: "Space", cancelable: true });
+    window.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(false);
+    w.unmount();
+  });
+
+  it("zooms with Ctrl+plus and minus, and Ctrl+0 fits", async () => {
+    size(1920, 1080);
+    const w = await mountBoard();
+    await w.get("[data-viewport]").trigger("pointerenter");
+    const fitWidth = 1600 * (1080 / ((1600 * 2) / 3));
+    key("keydown", { key: "=", code: "Equal", ctrlKey: true });
+    await w.vm.$nextTick();
+    expect(panStyle(w)).toContain(`width: ${fitWidth * 1.25}px`);
+    key("keydown", { key: "0", code: "Digit0", ctrlKey: true });
+    await w.vm.$nextTick();
+    expect(panStyle(w)).toContain(`width: ${fitWidth}px`);
+    // 100% is the board's natural 1600px, held at the "whole board fits" floor, which is wider on this screen.
+    key("keydown", { key: "1", code: "Digit1", ctrlKey: true });
+    await w.vm.$nextTick();
+    expect(panStyle(w)).toContain(`width: ${Math.max(1600, fitWidth)}px`);
+    w.unmount();
+  });
+
+  it("zooms about the cursor on Alt+wheel", async () => {
+    size(1920, 1080);
+    const w = await mountBoard();
+    // Built by hand: test-utils' trigger cannot set a modifier on a WheelEvent.
+    w.get("[data-viewport]").element.dispatchEvent(
+      new WheelEvent("wheel", { deltaY: -100, altKey: true, bubbles: true, cancelable: true }),
+    );
+    await w.vm.$nextTick();
+    expect(panStyle(w)).not.toContain(`width: ${1600 * (1080 / ((1600 * 2) / 3))}px`);
+    w.unmount();
+  });
+});
+

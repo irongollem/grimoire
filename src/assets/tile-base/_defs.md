@@ -60,7 +60,7 @@ committed — so the SVG cannot silently disagree with what the generator sees.
 
 ## Progress
 
-**The set is complete at 26 files.** One geometry per `(category, side)` for every
+**The set is complete at 22 files.** One geometry per `(category, side)` for every
 category that is grid-bound — variants share a shape, so `floor:0` and
 `floor:7` need one reference between them. Authored once, for every pack ever
 generated.
@@ -70,7 +70,7 @@ generated.
 | structural — floor, solidBlock, wallSegment H/V | 4 | yes |
 | doorways — doorwayH/V, doorLeaf | 3 | yes |
 | edges — curbH/V, edgeGrateH/V, edgeSluiceH/V | 6 | yes |
-| joints — wallJoint, wallRoundJoint x4 | 5 | yes |
+| joints — wallJoint | 1 | yes |
 | stairs — up/down x4 sides | 8 | yes |
 | scatter — rubble, debris | — | **not in the set** (see below) |
 | objects — chest, barrel, table, statue, pillar, brazier | — | **not in the set** (see below) |
@@ -84,9 +84,8 @@ optional category a pack may ship nothing for.
 band-sized square at the grid intersection, full-bleed, so an L, a T and a
 cross are the same shape — `side` tells the generator which walls to match
 materially, not what to draw. Reference lookup should fall back from
-`category:side` to `category`. `wallRoundJoint` is the opposite case: its
-quarter-circle is carved from a different corner per side, so it genuinely
-needs four.
+`category:side` to `category`. (Rounded corners were dropped in #1063; the
+vector brush draws rounded rooms.)
 
 ## Validating a tile
 
@@ -108,7 +107,7 @@ when it does not line up exactly.** That selects the grid-bound categories and
 nothing else — floor and solidBlock (gaps unless full-bleed), wall segments
 (the band must land on the gridline at a matching thickness), doors (must align
 to that band; the leaf must fit the opening), joints (bulge at every corner unless exactly band-thick), stairs
-(must span the cell). Grid-bound categories only, 26 geometries. Everything else is a
+(must span the cell). Grid-bound categories only, 22 geometries. Everything else is a
 centred stamp with a margin, free to be whatever the model makes of it.
 
 The rule cuts along a different axis from "is this shape important". A hazard

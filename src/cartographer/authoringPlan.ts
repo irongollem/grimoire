@@ -19,7 +19,6 @@ export type SlotFootprint =
   | "full-cell"
   | "centered-horizontal-edge"
   | "centered-vertical-edge"
-  | "rounded-junction"
   | "centered-overlay";
 
 export interface PackArtBible {
@@ -195,18 +194,13 @@ export const ROTATION_DERIVED: Readonly<Record<string, { readonly from: string; 
   "edgeSluiceV:0": { from: "edgeSluiceH:0", degrees: 90 },
   "edgeSluiceV:1": { from: "edgeSluiceH:1", degrees: 90 },
   "edgeSluiceV:2": { from: "edgeSluiceH:2", degrees: 90 },
-  // Stairs and round joints rotate about the cell centre from their N / L_NE
-  // original. The joint order follows `clearRoundedInterior`'s carve corners:
-  // bottom-left turns to top-left, then top-right, then bottom-right.
+  // Stairs rotate about the cell centre from their N original.
   "stairsUp:E:0": { from: "stairsUp:N:0", degrees: 90 },
   "stairsUp:S:0": { from: "stairsUp:N:0", degrees: 180 },
   "stairsUp:W:0": { from: "stairsUp:N:0", degrees: 270 },
   "stairsDown:E:0": { from: "stairsDown:N:0", degrees: 90 },
   "stairsDown:S:0": { from: "stairsDown:N:0", degrees: 180 },
   "stairsDown:W:0": { from: "stairsDown:N:0", degrees: 270 },
-  "wallRoundJoint:L_SE:0": { from: "wallRoundJoint:L_NE:0", degrees: 90 },
-  "wallRoundJoint:L_SW:0": { from: "wallRoundJoint:L_NE:0", degrees: 180 },
-  "wallRoundJoint:L_NW:0": { from: "wallRoundJoint:L_NE:0", degrees: 270 },
 };
 
 /** The rotation that produces this slot, or null if it must be generated. */
@@ -265,15 +259,14 @@ export function slotMechanics(slot: SlotIdentity): SlotMechanics {
   if (slot.category === "doorLeaf") footprint = "centered-horizontal-edge";
   else if (slot.category.endsWith("H") && EDGE_CATEGORIES.has(slot.category)) footprint = "centered-horizontal-edge";
   else if (slot.category.endsWith("V") && EDGE_CATEGORIES.has(slot.category)) footprint = "centered-vertical-edge";
-  else if (slot.category === "wallRoundJoint") footprint = "rounded-junction";
   else if (OVERLAY_CATEGORIES.has(slot.category)) footprint = "centered-overlay";
 
-  const alpha = EDGE_CATEGORIES.has(slot.category) || slot.category === "doorLeaf" || slot.category === "wallRoundJoint" || OVERLAY_CATEGORIES.has(slot.category)
+  const alpha = EDGE_CATEGORIES.has(slot.category) || slot.category === "doorLeaf" || OVERLAY_CATEGORIES.has(slot.category)
     ? "transparent-outside-footprint"
     : "opaque";
   const tileableEdges = slot.category === "doorLeaf"
     ? ([] as const) // a leaf spans only the opening; it joins nothing
-    : slot.category === "wallJoint" || slot.category === "wallRoundJoint"
+    : slot.category === "wallJoint"
     ? jointEdges(slot.side)
     : slot.category === "floor" || slot.category === "solidBlock" || slot.category === "terrainWater"
     ? (["N", "E", "S", "W"] as const)
@@ -383,8 +376,6 @@ function categoryRequest(slot: SlotIdentity, mechanics: SlotMechanics): string {
     case "stairsUp":
     case "stairsDown":
       return `A top-down ${slot.category === "stairsUp" ? "ascending" : "descending"} stair tile oriented toward ${slot.side}.`;
-    case "wallRoundJoint":
-      return `A broad, smooth 90-degree wall corner for the exact ${slot.side} connection: wall mass reaches the ${jointEdges(slot.side).join(" and ")} canvas edges, with the opposite interior quadrant carved into one clean quarter-circle.`;
     case "wallJoint":
       // Full-cell and opaque per slotMechanics, and the renderer draws a joint as
       // one small square on the intersection — so the request must ask for a
@@ -499,8 +490,6 @@ function mechanicalConstraints(mechanics: SlotMechanics, slot: SlotIdentity): st
     constraints.push("structure runs top-to-bottom in a narrow band through the exact horizontal centre and terminates cleanly at both end edges");
   } else if (mechanics.footprint === "full-cell") {
     constraints.push("fill the complete square canvas and tile continuously on every declared tileable edge");
-  } else if (mechanics.footprint === "rounded-junction") {
-    constraints.push("fill the connected wall mass to every declared canvas edge and preserve one clean transparent quarter-circle on the room-interior side");
   }
   if (mechanics.alpha === "transparent-outside-footprint") constraints.push("genuinely transparent background outside the required footprint");
   else constraints.push("fully opaque output");
@@ -623,8 +612,7 @@ export function createGenerationPlan(input: CreatePlanInput): GenerationPlan {
     // A rotation-derived slot never becomes a job. Asking for `wallSegmentV:0`
     // plans `wallSegmentH:0` instead and the vertical is produced by turning
     // the result — so it is identical by construction, and a pack costs one
-    // render rather than two for every wall, door, stair direction and rounded
-    // corner. Deduplication happens naturally: selecting both H and V adds the
+    // render rather than two for every wall, door and stair direction. Deduplication happens naturally: selecting both H and V adds the
     // source once, because `included` already holds it.
     const rotation = rotationFor(id);
     const generatedId = rotation ? rotation.from : id;

@@ -18,8 +18,7 @@
     "stairsUp":     [95, 85, 70],
     "stairsDown":   [70, 62, 52],
     "rubble":           [90, 80, 65],
-    "debris":           [90, 80, 65],
-    "wallRoundJoint":   [30, 28, 26]
+    "debris":           [90, 80, 65]
   },
   "assets": {
     "floor": [
@@ -92,12 +91,6 @@
       { "variant": 1, "url": "debris/1.webp" },
       { "variant": 2, "url": "debris/2.webp" },
       { "variant": 3, "url": "debris/3.webp" }
-    ],
-    "wallRoundJoint": [
-      { "side": "L_NE", "variant": 0, "url": "wallRoundJoint/L_NE_0.webp" },
-      { "side": "L_SE", "variant": 0, "url": "wallRoundJoint/L_SE_0.webp" },
-      { "side": "L_SW", "variant": 0, "url": "wallRoundJoint/L_SW_0.webp" },
-      { "side": "L_NW", "variant": 0, "url": "wallRoundJoint/L_NW_0.webp" }
     ]
   }
 }

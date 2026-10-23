@@ -22,7 +22,7 @@
  *
  * Usage:
  *   npm run tile-pack:publish -- --pack black-rock --dir ~/art/tiles/out/black-rock            (dry run)
- *   npm run tile-pack:publish -- --pack black-rock --dir … --exclude wallRoundJoint --write --yes-production
+ *   npm run tile-pack:publish -- --pack black-rock --dir … --exclude stairsUp --write --yes-production
  *   flags: --version <n> (default: the pack's latest), --description <text>, --provider/--model/--generated-at,
  *          --exclude <category>[,…], --publish
  */

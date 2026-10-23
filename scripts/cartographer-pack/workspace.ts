@@ -77,16 +77,6 @@ function escapeXml(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
-function interiorCorner(side: string | undefined, size: number): { x: number; y: number } {
-  switch (side) {
-    case "L_NE": return { x: 0, y: size };
-    case "L_SE": return { x: 0, y: 0 };
-    case "L_SW": return { x: size, y: 0 };
-    case "L_NW": return { x: size, y: size };
-    default: throw new Error(`Unsupported rounded-junction side: ${side ?? "missing"}`);
-  }
-}
-
 function stairRotation(side: string | undefined): number {
   switch (side) {
     case "N": return 0;
@@ -147,9 +137,6 @@ function templateSvg(job: GenerationJob): string {
         return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#586577"/>`;
       })
       .join("");
-  } else if (job.mechanics.footprint === "rounded-junction") {
-    const corner = interiorCorner(job.slot.side, size);
-    footprint = `<rect width="${size}" height="${size}" fill="#586577"/><circle cx="${corner.x}" cy="${corner.y}" r="${Math.round(size * 0.65)}" fill="#fff"/>`;
   } else if (job.mechanics.footprint === "centered-overlay") {
     footprint = `<circle cx="512" cy="512" r="330" fill="#586577"/>`;
   }
@@ -169,8 +156,14 @@ function templateSvg(job: GenerationJob): string {
   </svg>`;
 }
 
+/** Job ids the current schema still has. A plan keeps jobs for retired slots (a pack's history), but they are never redrawn or imported. */
+function currentJobIds(): Set<string> {
+  return new Set(enumerateSchemaSlots(true).map(slotId));
+}
+
 async function writeJobFiles(root: string, plan: GenerationPlan): Promise<void> {
-  await Promise.all(plan.jobs.flatMap((job) => [
+  const current = currentJobIds();
+  await Promise.all(plan.jobs.filter((job) => current.has(job.id)).flatMap((job) => [
     sharp(Buffer.from(templateSvg(job))).png().toFile(path.join(root, job.paths.template)),
     writeFile(path.join(root, job.paths.prompt), `${job.prompt.final_prompt}\n`, "utf8"),
   ]));
@@ -288,7 +281,6 @@ async function normalizeTransparent(source: string, destination: string, job: Ge
   const metadata = await sharp(source).metadata();
   const horizontal = job.mechanics.footprint === "centered-horizontal-edge";
   const vertical = job.mechanics.footprint === "centered-vertical-edge";
-  const roundedJunction = job.mechanics.footprint === "rounded-junction";
   const band = WALL_BAND_PX;
   let artwork: Buffer;
   // Mirrors the app's normaliser: a doorway, grate and sluice squash onto the
@@ -309,8 +301,8 @@ async function normalizeTransparent(source: string, destination: string, job: Ge
         : { left: Math.floor((BASE_TILE_SIZE - band) / 2), top: 0, width: band, height: BASE_TILE_SIZE })
       .png()
       .toBuffer();
-  } else if (roundedJunction || horizontal || vertical) {
-    // Rounded junctions and the un-squashed edge slots (leaf, curb) fill the cell.
+  } else if (horizontal || vertical) {
+    // The un-squashed edge slots (leaf, curb) fill the cell.
     artwork = await sharp(source)
       .resize(BASE_TILE_SIZE, BASE_TILE_SIZE, { fit: "cover", position: "centre" })
       .png()
@@ -327,13 +319,6 @@ async function normalizeTransparent(source: string, destination: string, job: Ge
   const left = Math.round((BASE_TILE_SIZE - (artMeta.width ?? BASE_TILE_SIZE)) / 2);
   const top = Math.round((BASE_TILE_SIZE - (artMeta.height ?? BASE_TILE_SIZE)) / 2);
   const composites: OverlayOptions[] = [{ input: artwork, left, top }];
-  if (roundedJunction) {
-    const corner = interiorCorner(job.slot.side, BASE_TILE_SIZE);
-    const clearingMask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${BASE_TILE_SIZE}" height="${BASE_TILE_SIZE}">
-      <circle cx="${corner.x}" cy="${corner.y}" r="${Math.round(BASE_TILE_SIZE * 0.65)}" fill="#fff"/>
-    </svg>`);
-    composites.push({ input: clearingMask, blend: "dest-out" });
-  }
   await sharp({ create: { width: BASE_TILE_SIZE, height: BASE_TILE_SIZE, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
     .composite(composites)
     .webp({ lossless: true, effort: 6 })
@@ -351,6 +336,9 @@ export async function importJob(input: {
 }): Promise<WorkspaceState> {
   const state = await loadWorkspace(input.workspaceRoot);
   const job = findJob(state.plan, input.jobId);
+  // A retired slot (e.g. the rounded wall joints, #1063) would otherwise take the generic path and write a manifest
+  // entry for a category the schema no longer has.
+  if (!currentJobIds().has(job.id)) throw new Error(`${input.jobId}: this slot is no longer part of the pack schema`);
   const source = path.resolve(input.source);
   const metadata = await sharp(source).metadata();
   if (!metadata.width || !metadata.height || metadata.width < BASE_TILE_SIZE || metadata.height < BASE_TILE_SIZE) {

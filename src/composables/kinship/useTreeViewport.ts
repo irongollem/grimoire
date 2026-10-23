@@ -1,8 +1,14 @@
 import { computed, ref } from "vue";
+import { resolveWheel } from "@/lib/canvasControls/wheel";
 
 export interface TreeViewportOptions {
   minScale?: number;
   maxScale?: number;
+  /**
+   * A press that pans wherever it lands, even over a card or button: the middle
+   * button, or the left one while Space is held (see useCanvasHand.isForcedPan).
+   */
+  forcePan?: (ev: { button: number }) => boolean;
 }
 
 interface Pt {
@@ -16,8 +22,8 @@ function onControl(target: EventTarget | null): boolean {
 }
 
 /**
- * Pan and zoom for a canvas: drag the background, ctrl/cmd + wheel or pinch to zoom.
- * A plain wheel is left alone so the page scrolls. The transform is `translate(x, y) scale(s)` on one stage, so
+ * Pan and zoom for a canvas: drag the background, ctrl/cmd/alt + wheel or pinch to zoom.
+ * A plain wheel is left alone so the page scrolls (the tree sits inside a scrolling page). The transform is `translate(x, y) scale(s)` on one stage, so
  * the same numbers drive buttons, wheel, touch and "Fit".
  */
 export function useTreeViewport(opts: TreeViewportOptions = {}) {
@@ -28,6 +34,8 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
   const scale = ref(1);
   const dragging = ref(false);
 
+  // Set while a forced (Space or middle) press is down, so the click that ends it does not select the card underneath.
+  let swallowClick = false;
   const pointers = new Map<number, Pt>();
   let pinchDistance = 0;
 
@@ -57,7 +65,13 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
   }
 
   function onPointerDown(e: PointerEvent): void {
-    if (onControl(e.target)) return;
+    const forced = opts.forcePan?.(e) ?? false;
+    if (!forced && onControl(e.target)) return;
+    if (forced) {
+      // A middle press would start the browser's autoscroll, and a Space-drag over a card must not become its click.
+      e.preventDefault();
+      swallowClick = e.button === 0;
+    }
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     dragging.value = true;
     (e.currentTarget as Element | null)?.setPointerCapture?.(e.pointerId);
@@ -94,15 +108,25 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
     pointers.delete(e.pointerId);
     pinchDistance = 0;
     if (pointers.size === 0) dragging.value = false;
+    // The click that follows a Space-drag fires right after pointerup; clear the flag once it has passed.
+    if (swallowClick) setTimeout(() => (swallowClick = false), 0);
   }
 
-  // A plain wheel belongs to the page, which keeps scrolling over the tree; only ctrl/cmd + wheel zooms.
+  /** Capture-phase click handler: drops the click that ends a Space-drag. */
+  function onClickCapture(e: MouseEvent): void {
+    if (!swallowClick) return;
+    e.stopPropagation();
+    e.preventDefault();
+  }
+
+  // A plain wheel belongs to the page, which keeps scrolling over the tree; only ctrl/cmd/alt + wheel and a pinch zoom.
   function onWheel(e: WheelEvent): void {
-    if (!(e.ctrlKey || e.metaKey)) return;
+    const intent = resolveWheel(e);
+    if (intent.kind !== "zoom") return;
     e.preventDefault();
     if (!(e.currentTarget instanceof Element)) return;
     const p = localPoint(e, e.currentTarget);
-    zoomBy(Math.exp(-e.deltaY * 0.01), p.x, p.y);
+    zoomBy(intent.factor, p.x, p.y);
   }
 
   const stageStyle = computed(() => ({
@@ -110,5 +134,5 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
     transformOrigin: "0 0",
   }));
 
-  return { x, y, scale, dragging, stageStyle, zoomBy, fit, onPointerDown, onPointerMove, onPointerUp, onWheel };
+  return { x, y, scale, dragging, stageStyle, zoomBy, fit, onPointerDown, onPointerMove, onPointerUp, onClickCapture, onWheel };
 }

@@ -1,5 +1,5 @@
 <template>
-  <div :class="viewMode ? 'flex flex-col lg:flex-row gap-3 mt-2' : 'flex h-full min-h-0 flex-col gap-2'">
+  <div ref="rootEl" :class="viewMode ? 'flex flex-col lg:flex-row gap-3 mt-2' : 'flex h-full min-h-0 flex-col gap-2'">
     <!-- Edit: a column of the 3rem bar and, under it, the rail and the canvas, filling whatever
          height the host gives it. View: the canvas alone, as the page always showed it. -->
     <CartographerBar
@@ -60,12 +60,15 @@
         class="flex-1 min-w-0 relative bg-card border border-border rounded-lg overflow-hidden"
         :class="viewMode ? '' : 'min-h-64'"
         :style="viewMode ? 'min-height: 60vh' : undefined"
+        @pointerenter="pointerOverMap = true"
+        @pointerleave="pointerOverMap = false"
       >
         <canvas
           ref="canvasEl"
           class="absolute inset-0 block h-full w-full touch-none"
-          :class="viewMode ? 'cursor-default' : 'cursor-crosshair'"
+          :class="canvasCursor"
           @pointerdown="onPointerDown"
+          @mousedown="onMouseDown"
           @pointermove="onPointerMove"
           @pointerup="onPointerUp"
           @pointerleave="onPointerLeave"
@@ -142,6 +145,7 @@
             :active-template-shape="activeTemplateShape"
             :template-shapes="TEMPLATE_SHAPES"
             :brush-radius="brushRadius"
+            :rect-walls="rectWalls"
             @update:place-rotation="placeRotation = $event"
             @rotate-selected="rotateSelectedDressing"
             @delete-selected="deleteSelectedDressing"
@@ -155,6 +159,7 @@
             @update:linked-feature-id="linkedFeatureId = $event"
             @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
             @update:brush-radius="brushRadius = $event"
+            @update:rect-walls="rectWalls = $event"
           />
           <CartographerPlanOptions
             v-else
@@ -506,6 +511,20 @@ function setDarkness(level: DarknessLevel): void {
 }
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
+const rootEl = ref<HTMLElement | null>(null);
+
+// Space and the zoom keys are the map's only while the pointer is over it or focus is
+// inside the workbench. The editor listens on the window, and this component also sits
+// inside whole pages (the Atlas) whose other controls need those keys.
+const pointerOverMap = ref(false);
+function keysActive(): boolean {
+  return pointerOverMap.value || (rootEl.value?.contains(document.activeElement) ?? false);
+}
+
+// The browser's middle-press autoscroll would take the pan drag over.
+function onMouseDown(ev: MouseEvent): void {
+  if (ev.button === 1) ev.preventDefault();
+}
 
 // Tools
 /** The rail's clusters, top to bottom: Look, Floor, Walls, Things, Notes, Eraser. */
@@ -518,8 +537,6 @@ interface ToolDef {
   shortcut?: string;
   /** Further keys that pick the tool (Place answers to G, the key Dressing used). */
   aliases?: readonly string[];
-  /** Override for the tooltip's key, used for non-keyboard hints like "RMB" on Pan. */
-  displayBadge?: string;
   disabled?: boolean;
   group: RailGroupId;
 }
@@ -529,15 +546,16 @@ interface ToolDef {
 // (the maintainer's pass of 17 Oct 2026: "Floor brush" and "Brush" were two brushes).
 const activeTool = ref<Tool>("select");
 const TOOLS: ToolDef[] = [
-  { id: "select",   label: "Select",        icon: IconSelect,       displayBadge: "Esc", group: "look" },
-  { id: "pan",      label: "Pan",           icon: IconHand,         displayBadge: "RMB", group: "look" },
-  { id: "brush",    label: "Brush",         icon: IconCave,         shortcut: "v", group: "floor" },
-  { id: "floor",    label: "Tiles",         icon: IconBrush,        shortcut: "b", group: "floor" },
+  // Letters follow Photoshop and Figma: V select, B brush, H hand. Escape still returns to Select.
+  { id: "select",   label: "Select",        icon: IconSelect,       shortcut: "v", group: "look" },
+  { id: "pan",      label: "Pan",           icon: IconHand,         shortcut: "h", group: "look" },
+  { id: "brush",    label: "Brush",         icon: IconCave,         shortcut: "b", group: "floor" },
+  { id: "floor",    label: "Tiles",         icon: IconBrush,        shortcut: "i", group: "floor" },
   { id: "rect",     label: "Rectangle",     icon: IconRect,         shortcut: "r", group: "floor" },
   { id: "line",     label: "Line",          icon: IconDrawLine,     shortcut: "l", group: "floor" },
   { id: "template", label: "Room",          icon: IconRoomTemplate, shortcut: "m", group: "floor" },
   { id: "fill",     label: "Fill",          icon: IconFill,         shortcut: "f", group: "floor" },
-  { id: "terrain",  label: "Water",         icon: IconWater,        shortcut: "h", group: "floor" },
+  { id: "terrain",  label: "Water",         icon: IconWater,        shortcut: "a", group: "floor" },
   { id: "solid",    label: "Rock",          icon: IconCube,         shortcut: "s", group: "floor" },
   { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w", group: "walls" },
   { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d", group: "walls" },
@@ -611,6 +629,8 @@ const TEMPLATE_SHAPES: { id: TemplateShape; label: string; icon: string }[] = [
 
 // Round brush radius in cells (fractional)
 const brushRadius = ref(1.5);
+// Whether the Rectangle tool also wraps its perimeter in walls (on by default)
+const rectWalls = ref(true);
 
 // M4 — Cell selection (annotate + link tools)
 const selectedCell = ref<[number, number] | null>(null);
@@ -956,17 +976,26 @@ function setPlanActiveRegion(id: string | null, role: RegionRole): void {
 // ── Canvas engine (#884 S6) — viewport, pointer/paint dispatch, undo/redo,
 // variant picking, the render loop. See useMapCanvasEditor.ts.
 const {
-  zoom, hoverCell, altHeld, canUndo, canRedo, undoEdit, redoEdit, centerMap,
+  zoom, hoverCell, altHeld, spaceHeld, isPanning, canUndo, canRedo, undoEdit, redoEdit, centerMap,
   onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onDoubleClick, onWheel, structureTools,
   rotateSelectedDressing, deleteSelectedDressing,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
-  placeRotation, activeWallKind, activeWallDecal, activeTemplateShape, brushRadius,
+  placeRotation, activeWallKind, activeWallDecal, activeTemplateShape, brushRadius, rectWalls,
   selectedCell, toolOptionsRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
-  plan, activeLayer,
+  plan, activeLayer, keysActive,
+});
+
+// The hand shows while Space is held or the Pan tool is armed on the Drawing, and closes
+// into a fist for the drag itself. View mode has no tools, so it keeps the plain arrow.
+const canvasCursor = computed(() => {
+  if (isPanning.value) return "cursor-grabbing";
+  if (viewMode) return "cursor-default";
+  if (spaceHeld.value || (activeLayer.value === "drawing" && activeTool.value === "pan")) return "cursor-grab";
+  return "cursor-crosshair";
 });
 
 // ── Pack load ───────────────────────────────────────────────────────────────

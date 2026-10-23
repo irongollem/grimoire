@@ -221,6 +221,38 @@ describe("MapWorkbench", () => {
     expect(wrapper.text()).toContain("Reference");
   });
 
+  it("keeps the browser's middle-press autoscroll off the canvas, and only for the middle button", () => {
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: true } });
+    const canvas = wrapper.find("canvas").element;
+    const middle = new MouseEvent("mousedown", { button: 1, bubbles: true, cancelable: true });
+    canvas.dispatchEvent(middle);
+    expect(middle.defaultPrevented).toBe(true);
+    const left = new MouseEvent("mousedown", { button: 0, bubbles: true, cancelable: true });
+    canvas.dispatchEvent(left);
+    expect(left.defaultPrevented).toBe(false);
+  });
+
+  it("takes Space only while the pointer is over the map", () => {
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: true } });
+    const area = wrapper.find("canvas").element.parentElement as HTMLElement;
+    const space = (): KeyboardEvent => new KeyboardEvent("keydown", { key: " ", code: "Space", cancelable: true });
+
+    const away = space();
+    window.dispatchEvent(away);
+    expect(away.defaultPrevented).toBe(false);
+
+    area.dispatchEvent(new Event("pointerenter"));
+    const over = space();
+    window.dispatchEvent(over);
+    expect(over.defaultPrevented).toBe(true);
+
+    area.dispatchEvent(new Event("pointerleave"));
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space" }));
+    const left = space();
+    window.dispatchEvent(left);
+    expect(left.defaultPrevented).toBe(false);
+  });
+
   // Edit mode additionally mounts the drawer's panels (real Pinia/TanStack deps, same
   // reason the file's own docblock gives for staying in view mode everywhere else), stubbed
   // out here since these tests are only about the rail and the bar.

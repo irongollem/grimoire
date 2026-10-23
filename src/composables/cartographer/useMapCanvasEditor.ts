@@ -17,7 +17,7 @@ import { computed, customRef, onBeforeUnmount, onMounted, ref, watch, type Compu
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { StampCategory } from "@/cartographer/stampCategories";
-import { pinchOf, pinchViewport, zoomAtPoint, type Pinch, type CanvasViewport } from "@/cartographer/viewport";
+import { boundsOfCells, pinchOf, pinchViewport, type Pinch, type CanvasViewport, type CellBounds } from "@/cartographer/viewport";
 import { clampBrushRadius, resolveKeyAction } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DarknessLevel } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
@@ -37,10 +37,13 @@ import { cellsForTemplate } from "@/lib/map/gestures/template";
 import { applyDiscs, type Disc } from "@/cartographer/area";
 import { cellsInRect, rectangleGesture } from "@/lib/map/gestures/rectangle";
 import { cellsInLine } from "@/lib/map/gestures/line";
+import { constrainShapeEnd, isCellPainter, useStraightStrokes, type CellPainter } from "@/composables/cartographer/useStraightStrokes";
 import { useCartographerStructureTools } from "@/composables/cartographer/useCartographerStructureTools";
 import type { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
+import { isTextEntry } from "@/lib/canvasControls/keyTargets";
+import { useCanvasNavigation } from "@/composables/cartographer/useCanvasNavigation";
 import type { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 import {
   drawPlanDoorHover,
@@ -92,6 +95,8 @@ export interface MapCanvasEditorOptions {
   activeTemplateShape: Ref<TemplateShape>;
   /** Round brush radius in cells (fractional); `[` / `]` change it, the tool options show it. */
   brushRadius: Ref<number>;
+  /** Rectangle: whether the perimeter is also wrapped in walls (the tool's "Walls" option). */
+  rectWalls: Ref<boolean>;
   selectedCell: Ref<[number, number] | null>;
   toolOptionsRef: Ref<{ annotationInputEl: AppInputHandle | null } | null>;
   /** The derived-structure composable (spaces/ways/zones/links) — this
@@ -117,6 +122,11 @@ export interface MapCanvasEditorOptions {
    *  `plan`) — see `handleActiveLayerPointerDown` below for the split. */
   plan?: ReturnType<typeof usePlanPalette>;
   activeLayer?: Ref<"drawing" | "plan">;
+  /** Whether Space and the zoom keys are this canvas's to take. The editor listens on the
+   *  window, and the workbench also sits inside whole pages (the Atlas) whose other
+   *  controls need Space and the browser's own zoom, so the host answers true only while
+   *  the pointer is over the map or focus is inside it. Omitted: always. */
+  keysActive?: () => boolean;
 }
 
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
@@ -127,8 +137,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
     dressing, placeItem, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, placeRotation, activeWallKind, activeWallDecal, activeTemplateShape,
-    brushRadius, selectedCell, toolOptionsRef, structure, mapKey, getReferenceImage, extraRenderDeps,
-    plan, activeLayer,
+    brushRadius, rectWalls, selectedCell, toolOptionsRef, structure, mapKey, getReferenceImage, extraRenderDeps,
+    plan, activeLayer, keysActive,
   } = opts;
 
   /** Every edit funnels through here instead of writing `dirty.value = true`
@@ -157,9 +167,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // Holds the local pointer position from pointerdown; toolPointerMove
   // promotes it to an ordinary pan once the pointer travels past the slop,
   // and toolPointerUp treats it as a plain click (select the cell) if it
-  // never did. RMB/middle/shift already pan unconditionally before this
-  // tool is ever consulted (the isPanTrigger check in toolPointerDown), so
-  // this only ever arms for a genuine left-button press.
+  // never did. RMB/middle/Space already pan unconditionally before this
+  // tool is ever consulted (the pan checks in toolPointerDown), so this only
+  // ever arms for a genuine left-button press made without Space held.
   const SELECT_DRAG_SLOP_PX = 4;
   let pendingSelectStart: { x: number; y: number } | null = null;
 
@@ -197,6 +207,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   function snapshotStr(): string {
     return JSON.stringify({ layers: layers.value, metadata: metadata.value });
   }
+
+  // Shift+click joins a stroke to where the last one ended (#1096).
+  const straight = useStraightStrokes({ activeTool, mapKey });
 
   function pushCommand(beforeStr: string, afterStr: string): void {
     cmdStack.apply({
@@ -389,34 +402,27 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     return BASE_TILE_SIZE * zoom.value * (window.devicePixelRatio || 1);
   }
 
+  /** Inclusive bounds of every cell that holds floor or an area; null for an empty map. */
+  function paintedBounds(): CellBounds | null {
+    return boundsOfCells([...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]);
+  }
+
+  // Wheel, zoom keys and the Space hand.
+  const navigation = useCanvasNavigation({
+    canvasEl, zoom, viewportOffset, getBounds: paintedBounds, devicePixelDims, active: keysActive,
+  });
+
   // Centre the viewport on the painted area (or on the origin if the map is empty).
   function centerMap(): void {
     const canvas = canvasEl.value;
     if (!canvas) return;
     const tilePx = tilePixelSize();
-
-    // Compute bbox over every cell that contains anything.
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    let any = false;
-    for (const key of [...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]) {
-      const [xs, ys] = key.split(",");
-      const x = Number(xs);
-      const y = Number(ys);
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
-      any = true;
-    }
+    const bounds = paintedBounds();
 
     // No painted cells → just center on the origin tile.
-    const cx = any ? (minX + maxX + 1) / 2 : 0.5;
-    const cy = any ? (minY + maxY + 1) / 2 : 0.5;
-
-    viewportOffset.value = {
-      x: cx * tilePx - canvas.width / 2,
-      y: cy * tilePx - canvas.height / 2,
-    };
+    const cx = bounds ? (bounds.minX + bounds.maxX + 1) / 2 : 0.5;
+    const cy = bounds ? (bounds.minY + bounds.maxY + 1) / 2 : 0.5;
+    viewportOffset.value = { x: cx * tilePx - canvas.width / 2, y: cy * tilePx - canvas.height / 2 };
   }
 
   // ── Solid block tool ────────────────────────────────────────────────────
@@ -476,16 +482,27 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     eraseWallAtCellEdge(edge);
   }
 
-  // Plain wall, for shift+click lines: the stroke tracker and kind do not apply.
-  function paintWallAtCellEdge(edge: CellEdge): void {
-    const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-    const variant = pickWallVariant(canon.x, canon.y, canon.side);
-    strokeState.active = isPainting.value;
-    if (paintOps.paintWallAtCellEdge(paintContext(), edge, strokeState, variant)) markDirty();
+  // Shift+click with the wall tool: a straight run from the last wall point,
+  // painted through the same per-kind path a plain click uses. The caller owns
+  // the undo step, so a click and a drag that follows it are one. The stroke
+  // tracker is replaced afterwards so neither its direction lock nor its dedup
+  // set carries a run's edges into the drag.
+  function paintWallRun(edges: CellEdge[], erase: boolean): void {
+    for (const edge of edges) {
+      if (erase) eraseWallKindAtCellEdge(edge); else paintWallKindAtCellEdge(edge);
+    }
+    strokeState = paintOps.createStrokeState();
   }
 
-  // Writes a wall edge directly, skipping stroke tracking. Used by wrap-walls,
-  // rectangle perimeter, and shift+click — operations that aren't "strokes".
+  // A wall stroke's edge under the pointer; remembered so Shift can keep the
+  // stroke on its line and the next Shift+click can run on from its end.
+  function wallStrokeAt(edge: CellEdge, erase: boolean): void {
+    straight.noteWallEdge(edge);
+    if (erase) eraseWallKindAtCellEdge(edge); else paintWallKindAtCellEdge(edge);
+  }
+
+  // Writes a wall edge directly, skipping stroke tracking. Used by wrap-walls
+  // and the rectangle perimeter — operations that aren't "strokes".
   function setWallEdgeIfEmpty(edge: CellEdge): void {
     const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
     const variant = pickWallVariant(canon.x, canon.y, canon.side);
@@ -560,9 +577,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
   }
 
-  // Rectangle fill: paint all cells in the bounding rect; the shift-variant
-  // flag (`rectangleGesture`'s `variant`) means "also wrap walls" on this
-  // layer — a layer with no walls would simply leave it unused.
+  // Rectangle fill: paint all cells in the bounding rect; `withWalls` (the
+  // tool's Walls option) also wraps its perimeter — a layer with no walls would
+  // simply leave it unused.
   function applyRect(ax: number, ay: number, bx: number, by: number, withWalls: boolean): void {
     if (!packRuntime.value) return;
     const stroke = rectangleGesture(ax, ay, bx, by, withWalls);
@@ -570,7 +587,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       const [x, y] = parseCellKey(key);
       paintCell(x, y);
     }
-    if (stroke.variant) {
+    if (stroke.withWalls) {
       const region = new Set<CellKey>(stroke.cells);
       for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
     }
@@ -596,6 +613,16 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     }
     const region = new Set(keys);
     for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
+  }
+
+  // Cell painters (Tiles, Water, Rock): paint or erase each cell in turn.
+  function paintCellsWith(tool: CellPainter, cells: ReadonlyArray<readonly [number, number]>, erase: boolean): void {
+    for (const [x, y] of cells) {
+      if (tool === "floor") { if (erase) eraseCell(x, y); else paintCell(x, y); }
+      else if (tool === "terrain") { if (erase) eraseTerrainAt(x, y); else paintTerrainAt(x, y); }
+      else if (erase) eraseSolidAt(x, y);
+      else paintSolidAt(x, y);
+    }
   }
 
   // Round brush: discs at most radius / 3 apart along the pointer path, so a
@@ -809,6 +836,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
   }
 
+  function startPan(ev: PointerEvent): void {
+    isPanning.value = true;
+    canvasEl.value?.setPointerCapture(ev.pointerId);
+  }
+
   function toolPointerDown(ev: PointerEvent): void {
     const local = getLocalPointer(ev);
     lastPointer = local;
@@ -819,9 +851,15 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       return;
     }
 
+    // Middle button, or left with Space held: pans with any tool on either layer.
+    if (navigation.isForcedPan(ev)) {
+      startPan(ev);
+      return;
+    }
+
     // Plan layer (#884 S7b): every gesture routes to `planTools` instead of
-    // the Drawing tools below — EXCEPT a genuine pan trigger (RMB/middle/
-    // shift), which `planTools.onPointerDown` reports by returning false.
+    // the Drawing tools below — EXCEPT a right-button pan, which
+    // `planTools.onPointerDown` reports by returning false.
     // Panning is handled directly here rather than by falling through into
     // the Drawing-specific branches below: those key off `activeTool` (the
     // Drawing's OWN tool selection, untouched while a DM works the Plan) and
@@ -829,15 +867,13 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // happens to still be pointed at "wall" or "door" from earlier.
     if (isPlanLayerActive()) {
       if (planTools!.onPointerDown(ev)) return;
-      isPanning.value = true;
-      canvasEl.value?.setPointerCapture(ev.pointerId);
+      startPan(ev);
       return;
     }
 
     const [cx, cy] = viewportToCell(local.x, local.y);
 
-    // Dressing: place, pick up, move and remove props. It leaves a middle
-    // button or Shift press unhandled so those still pan.
+    // Dressing: place, pick up, move and remove props.
     if (activeTool.value === "place" && placeErases(ev)) {
       // Right button or Alt: a prop under the pointer goes first (it draws above objects), else the object.
       if (ev.button === 2) ev.preventDefault();
@@ -852,7 +888,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
     if (activeTool.value === "place" && !armedObject()
       && dressingTool.onPointerDown({
-        cell: [cx, cy], frac: fractionalCellAt(ev), button: ev.button, altKey: ev.altKey, shiftKey: ev.shiftKey,
+        cell: [cx, cy], frac: fractionalCellAt(ev), button: ev.button, altKey: ev.altKey,
       })) {
       if (ev.button === 2) ev.preventDefault();
       if (dressingTool.isHolding()) canvasEl.value?.setPointerCapture(ev.pointerId);
@@ -884,29 +920,34 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       return;
     }
 
-    // Shift+click with the wall brush: wrap all 4 edges of the clicked cell.
+    // Shift+click with the wall tool: a straight wall from the last wall point.
     if (activeTool.value === "wall" && ev.shiftKey && ev.button === 0) {
-      const before = snapshotStr();
-      strokeState = paintOps.createStrokeState();
-      for (const side of ["N", "E", "S", "W"] as const)
-        paintWallAtCellEdge({ x: cx, y: cy, side });
-      const after = snapshotStr();
-      if (before !== after) pushCommand(before, after);
-      return;
+      const run = straight.runFromAnchor(fractionalCellAt(ev), true);
+      if (run) {
+        // The run opens an ordinary wall stroke, so holding the button and dragging
+        // carries on along the same line, and the run and the drag are one undo step.
+        isPainting.value = true;
+        canvasEl.value?.setPointerCapture(ev.pointerId);
+        strokeState = paintOps.createStrokeState();
+        straight.beginStroke();
+        strokeSnapshot = snapshotStr();
+        paintWallRun(run, ev.altKey);
+        const last = run.at(-1);
+        if (last) straight.noteWallEdge(last);
+        return;
+      }
     }
 
-    // RMB / middle / shift → pan (shift already consumed above for wall tool).
-    const isPanTrigger = ev.button === 1 || ev.button === 2 || ev.shiftKey;
-    if (activeTool.value === "pan" || isPanTrigger) {
-      isPanning.value = true;
-      canvasEl.value?.setPointerCapture(ev.pointerId);
+    // The Pan tool, or an RMB the tools above did not claim, pans.
+    if (navigation.isPanStart(ev, activeTool.value)) {
+      startPan(ev);
       return;
     }
 
     // Select tool: a plain left click selects the cell; a drag pans,
     // exactly like Pan — so a DM's first tap after opening the editor never
     // paints, and one finger still moves the map on a phone. RMB/middle/
-    // shift already panned above regardless of tool, so only a genuine
+    // Space already panned above regardless of tool, so only a genuine
     // left-button press reaches this ambiguous "click or drag?" state; see
     // toolPointerMove/toolPointerUp for how it resolves.
     if (activeTool.value === "select") {
@@ -935,6 +976,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     isPainting.value = true;
     canvasEl.value?.setPointerCapture(ev.pointerId);
     strokeState = paintOps.createStrokeState();
+    straight.beginStroke();
     strokeSnapshot = snapshotStr();
 
     // Rect / line / template tools: record drag start; first cell is the preview seed.
@@ -947,14 +989,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (activeTool.value === "brush") {
       brushLast = null;
       brushVariant = pickFloorVariant(cx, cy);
-      const [fx, fy] = fractionalCellAt(ev);
-      brushTo(fx, fy, ev.altKey);
+      for (const [px, py] of straight.brushPress(fractionalCellAt(ev), ev.shiftKey)) brushTo(px, py, ev.altKey);
       return;
     }
 
-    if (activeTool.value === "floor") { if (ev.altKey) eraseCell(cx, cy); else paintCell(cx, cy); }
-    else if (activeTool.value === "terrain") { if (ev.altKey) eraseTerrainAt(cx, cy); else paintTerrainAt(cx, cy); }
-    else if (activeTool.value === "solid") { if (ev.altKey) eraseSolidAt(cx, cy); else paintSolidAt(cx, cy); }
+    if (isCellPainter(activeTool.value)) paintCellsWith(activeTool.value, straight.cellPress([cx, cy], ev.shiftKey), ev.altKey);
     else if (activeTool.value === "place" && armedObject()) { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
     else if (activeTool.value === "eraser") {
       if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
@@ -967,7 +1006,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       else if (layers.value.terrain[cellKey(cx, cy)]) eraseTerrainAt(cx, cy);
       else eraseCell(cx, cy);
     } else if (activeTool.value === "wall" && hoveredEdge.value) {
-      if (ev.altKey) eraseWallKindAtCellEdge(hoveredEdge.value); else paintWallKindAtCellEdge(hoveredEdge.value);
+      wallStrokeAt(hoveredEdge.value, ev.altKey);
     } else if (activeTool.value === "door" && hoveredEdge.value) {
       if (ev.altKey) removeDoorAtEdge(hoveredEdge.value); else paintDoorAtEdge(hoveredEdge.value);
     }
@@ -1012,6 +1051,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       if (edge && isPainting.value && strokeState.direction !== null && paintOps.edgeDirection(edge.side) !== strokeState.direction) {
         edge = null;
       }
+      // Shift also pins a wall stroke to the grid line it began on.
+      if (edge && tool === "wall" && isPainting.value && straight.wallEdgeOffLine(edge, ev.shiftKey)) edge = null;
       hoveredEdge.value = edge;
     } else {
       hoveredEdge.value = null;
@@ -1026,19 +1067,18 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         y: viewportOffset.value.y - dy * dpr,
       };
     } else if (isPainting.value) {
-      if (tool === "rect" && dragStartCell) {
-        previewCells.value = new Set(cellsInRect(dragStartCell[0], dragStartCell[1], cx, cy));
-      } else if (tool === "line" && dragStartCell) {
-        previewCells.value = new Set(cellsInLine(dragStartCell[0], dragStartCell[1], cx, cy));
+      if ((tool === "rect" || tool === "line") && dragStartCell) {
+        const [ex, ey] = constrainShapeEnd(tool, dragStartCell, [cx, cy], ev.shiftKey);
+        previewCells.value = new Set(tool === "rect"
+          ? cellsInRect(dragStartCell[0], dragStartCell[1], ex, ey)
+          : cellsInLine(dragStartCell[0], dragStartCell[1], ex, ey));
       } else if (tool === "template" && dragStartCell) {
         const r = Math.max(Math.abs(cx - dragStartCell[0]), Math.abs(cy - dragStartCell[1]));
         previewCells.value = new Set(cellsForTemplate(dragStartCell[0], dragStartCell[1], r, activeTemplateShape.value));
       } else if (tool === "brush") {
-        const [fx, fy] = fractionalCellAt(ev);
+        const [fx, fy] = straight.brushTarget(fractionalCellAt(ev), ev.shiftKey);
         brushTo(fx, fy, ev.altKey);
-      } else if (tool === "floor") { if (ev.altKey) eraseCell(cx, cy); else paintCell(cx, cy); }
-      else if (tool === "terrain") { if (ev.altKey) eraseTerrainAt(cx, cy); else paintTerrainAt(cx, cy); }
-      else if (tool === "solid") { if (ev.altKey) eraseSolidAt(cx, cy); else paintSolidAt(cx, cy); }
+      } else if (isCellPainter(tool)) paintCellsWith(tool, straight.cellDrag([cx, cy], ev.shiftKey), ev.altKey);
       else if (tool === "place" && armedObject()) { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
       else if (tool === "eraser") {
         if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
@@ -1051,7 +1091,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         else if (layers.value.terrain[cellKey(cx, cy)]) eraseTerrainAt(cx, cy);
         else eraseCell(cx, cy);
       } else if (tool === "wall" && hoveredEdge.value) {
-        if (ev.altKey) eraseWallKindAtCellEdge(hoveredEdge.value); else paintWallKindAtCellEdge(hoveredEdge.value);
+        wallStrokeAt(hoveredEdge.value, ev.altKey);
       } else if (tool === "door" && hoveredEdge.value) {
         if (ev.altKey) removeDoorAtEdge(hoveredEdge.value); else paintDoorAtEdge(hoveredEdge.value);
       }
@@ -1082,14 +1122,15 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         const local = getLocalPointer(ev);
         const [cx, cy] = viewportToCell(local.x, local.y);
         const [ax, ay] = dragStartCell;
+        const [ex, ey] = constrainShapeEnd(tool, dragStartCell, [cx, cy], ev.shiftKey);
         const before = strokeSnapshot ?? snapshotStr();
         if (ev.altKey) {
-          if (tool === "rect") eraseRectCells(ax, ay, cx, cy);
-          else if (tool === "line") eraseLineCells(ax, ay, cx, cy);
+          if (tool === "rect") eraseRectCells(ax, ay, ex, ey);
+          else if (tool === "line") eraseLineCells(ax, ay, ex, ey);
           else eraseTemplateCells(ax, ay, cx, cy);
         } else {
-          if (tool === "rect") applyRect(ax, ay, cx, cy, ev.shiftKey);
-          else if (tool === "line") applyLine(ax, ay, cx, cy);
+          if (tool === "rect") applyRect(ax, ay, ex, ey, rectWalls.value);
+          else if (tool === "line") applyLine(ax, ay, ex, ey);
           else applyTemplate(ax, ay, cx, cy);
         }
         const after = snapshotStr();
@@ -1101,6 +1142,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         const after = snapshotStr();
         if (strokeSnapshot !== after) pushCommand(strokeSnapshot, after);
       }
+
+      // Where this stroke ended is where the next Shift+click joins on.
+      if (tool === "brush") straight.brushEnded(brushLast);
+      else if (isCellPainter(tool)) straight.cellEnded();
+      else if (tool === "wall") straight.wallEnded(fractionalCellAt(ev));
 
       strokeSnapshot = null;
       isPainting.value = false;
@@ -1271,19 +1317,6 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (isPlanLayerActive()) planTools!.onDoubleClick(ev);
   }
 
-  function onWheel(ev: WheelEvent): void {
-    const rect = canvasEl.value!.getBoundingClientRect();
-    const { dpr } = devicePixelDims();
-    const next = zoomAtPoint(
-      { zoom: zoom.value, offset: viewportOffset.value },
-      { x: ev.clientX - rect.left, y: ev.clientY - rect.top },
-      dpr,
-      ev.deltaY,
-    );
-    viewportOffset.value = next.offset;
-    zoom.value = next.zoom;
-  }
-
   // ── Lifecycle ───────────────────────────────────────────────────────────
 
   function onResize(): void {
@@ -1295,16 +1328,18 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // same lifecycle, one less pair of add/removeEventListener calls.
   function onKeyDown(ev: KeyboardEvent): void {
     if (ev.key === "Alt") altHeld.value = true;
-    const target = ev.target as HTMLElement | null;
+    if (ev.key === "Escape") straight.forget();
+    const targetIsTextEntry = isTextEntry(ev.target);
+    if (navigation.onKeyDown(ev)) return;
     const action = resolveKeyAction(
       {
         key: ev.key,
+        code: ev.code,
         ctrlKey: ev.ctrlKey,
         metaKey: ev.metaKey,
         altKey: ev.altKey,
         shiftKey: ev.shiftKey,
-        targetIsTextEntry: !!target
-          && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable),
+        targetIsTextEntry,
       },
       { activeTool: activeTool.value, tools, placeArmed: placeItem.value !== null },
     );
@@ -1314,6 +1349,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "undo": undoEdit(); break;
       case "redo": redoEdit(); break;
       case "center": centerMap(); break;
+      case "zoom":
+        // The browser's own zoom keys keep working anywhere but over the map.
+        if (keysActive && !keysActive()) return;
+        navigation.zoomTo(action.to);
+        break;
       case "rotatePlace": dressingTool.turn(action.delta); break;
       case "deleteDressing": dressingTool.deleteSelected(); break;
       case "disarmPlace": placeItem.value = null; break;
@@ -1327,6 +1367,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   function onKeyUp(ev: KeyboardEvent): void {
     if (ev.key === "Alt") altHeld.value = false;
+    navigation.onKeyUp(ev);
   }
 
   // Alt-tabbing away, or any other focus loss, ends the physical key-down
@@ -1335,6 +1376,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // stuck shift key in any other app; blur is the standard fix.
   function onWindowBlur(): void {
     altHeld.value = false;
+    navigation.onBlur();
   }
 
   onMounted(() => {
@@ -1371,6 +1413,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
      *  " · erase" to the canvas pill while this is true and the active tool
      *  has an erase mirror. */
     altHeld,
+    /** Space is held, so a left press pans — MapWorkbench shows the hand cursor. */
+    spaceHeld: navigation.spaceHeld,
+    /** A pan drag is under way (the grabbing cursor). */
+    isPanning,
     canUndo: exposedCanUndo,
     canRedo: exposedCanRedo,
     undoEdit,
@@ -1387,7 +1433,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       hoverPoint.value = null;
     },
     onDoubleClick,
-    onWheel,
+    onWheel: navigation.onWheel,
     structureTools,
     /** Turns the selected Dressing prop (one undo step) and the brush with it. */
     rotateSelectedDressing: dressingTool.rotateSelected,

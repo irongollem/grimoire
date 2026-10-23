@@ -1,6 +1,12 @@
 <template>
   <div class="quest-flow-shell">
-    <div ref="canvasEl" class="quest-flow-canvas" aria-label="Quest beat graph editor">
+    <div
+      ref="canvasEl"
+      class="quest-flow-canvas"
+      aria-label="Quest beat graph editor"
+      @pointerenter="pointerOnGraph = true"
+      @pointerleave="pointerOnGraph = false"
+    >
       <QuestFlowSwimlanes :lanes="swimlanes" :viewport="flow.viewport.value" />
       <VueFlow
         :id="graphId"
@@ -9,6 +15,9 @@
         :min-zoom="QUEST_FLOW_MIN_ZOOM"
         :max-zoom="2.5"
         :nodes-draggable="true"
+        :pan-on-scroll="true"
+        :zoom-on-scroll="false"
+        :pan-on-drag="[0, 1]"
         :nodes-connectable="editable"
         :default-viewport="initialViewport ?? undefined"
         @node-click="onNodeClick"
@@ -66,6 +75,8 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { isTextEntry } from "@/lib/canvasControls/keyTargets";
+import { resolveZoomKey } from "@/lib/canvasControls/zoomKeys";
 import { useVueFlow, VueFlow, type ViewportTransform } from "@vue-flow/core";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
@@ -197,6 +208,34 @@ function onViewportGesture(viewport: ViewportTransform) {
   awaitingCurrent = false;
   emit("viewport-change", viewport);
 }
+
+// Zoom shortcuts only. Space-to-pan is VueFlow's own (its pan-activation key), so useCanvasHand, which would also
+// claim Space, is not used here; a plain keydown listener cannot fight it. Plain wheel pans and Ctrl/Cmd+wheel or a
+// pinch zooms (pan-on-scroll), left or middle drag on the empty pane pans.
+// The graph shares its page with the inspector and the rest of the quest, so the keys act only while the pointer is
+// over the graph or focus is inside it; anywhere else Ctrl/Cmd + - 0 stay the browser's own zoom.
+const pointerOnGraph = ref(false);
+function onZoomKey(event: KeyboardEvent) {
+  if (isTextEntry(event.target)) return;
+  const focusInside = !!canvasEl.value && canvasEl.value.contains(document.activeElement);
+  if (!pointerOnGraph.value && !focusInside) return;
+  const to = resolveZoomKey(event);
+  if (!to) return;
+  event.preventDefault();
+  if (to === "fit") {
+    void fitGraph();
+    return;
+  }
+  // A key zoom is the DM taking the camera, like a gesture: a late runtime answer must not re-centre over it, and
+  // VueFlow reports viewport-change-end only for gestures, so the new viewport is published here.
+  awaitingCurrent = false;
+  const duration = transitionMs();
+  if (to === "in") void settleViewport(flow.zoomIn({ duration }), duration);
+  else if (to === "out") void settleViewport(flow.zoomOut({ duration }), duration);
+  else void settleViewport(flow.zoomTo(1, { duration }), duration);
+}
+onMounted(() => window.addEventListener("keydown", onZoomKey));
+onBeforeUnmount(() => window.removeEventListener("keydown", onZoomKey));
 
 // VueFlow's own fit-view-on-init could only fit, so it is replaced by this:
 // once every node has measured, open the canvas the way `openView` decides.

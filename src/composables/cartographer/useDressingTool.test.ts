@@ -27,7 +27,7 @@ function setup(active = true) {
 }
 
 function pointer(x: number, y: number, over: Partial<DressingPointer> = {}): DressingPointer {
-  return { cell: [Math.floor(x), Math.floor(y)], frac: [x, y], button: 0, altKey: false, shiftKey: false, ...over };
+  return { cell: [Math.floor(x), Math.floor(y)], frac: [x, y], button: 0, altKey: false, ...over };
 }
 
 describe("useDressingTool", () => {
@@ -59,10 +59,9 @@ describe("useDressingTool", () => {
     expect(markDirty).not.toHaveBeenCalled();
   });
 
-  it("leaves a middle-button or Shift press to the editor's pan", () => {
+  it("leaves a middle-button press to the editor's pan", () => {
     const { tool, layers } = setup();
     expect(tool.onPointerDown(pointer(1, 1, { button: 1 }))).toBe(false);
-    expect(tool.onPointerDown(pointer(1, 1, { shiftKey: true }))).toBe(false);
     expect(layers.value.dressing).toEqual({});
   });
 

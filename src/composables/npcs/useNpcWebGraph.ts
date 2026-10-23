@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, reactive } from "vue";
 import { defineConfigs } from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
 
@@ -253,8 +253,10 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
 
   const nodeCount = computed(() => Object.keys(graphNodes.value).length);
 
-  const graphConfigs = defineConfigs({
+  const graphConfigs = reactive(defineConfigs({
     view: {
+      // The wheel is routed through useNpcWebCamera: a plain wheel pans, Ctrl/Cmd/Alt+wheel zooms.
+      mouseWheelZoomEnabled: false,
       autoPanAndZoomOnLoad: "fit-content",
       layoutHandler: new ForceLayout({
         positionFixedByDrag: true,
@@ -283,6 +285,8 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       }),
     },
     node: {
+      // Switched off while Space is held so a left drag over a node pans (useNpcWebCamera).
+      draggable: true,
       normal: {
         color: (n) => (n as { nodeColor: string }).nodeColor,
         radius: (n) => (n as { nodeSize: number }).nodeSize,
@@ -338,7 +342,7 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
         color: () => cssValue("--muted-foreground", "#6b7280"),
       },
     },
-  });
+  }));
 
   return { graphNodes, graphEdges, graphConfigs, nodeCount };
 }
