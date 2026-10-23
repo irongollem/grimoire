@@ -16,7 +16,7 @@
 // file doesn't need that because renderMap itself is swapped out.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { computed, defineComponent, h, nextTick, ref, type ComputedRef, type Ref } from "vue";
-import { mount } from "@vue/test-utils";
+import { enableAutoUnmount, mount } from "@vue/test-utils";
 import { useMapCanvasEditor, type MapCanvasEditorOptions } from "./useMapCanvasEditor";
 import {
   emptyLayers,
@@ -1252,6 +1252,9 @@ describe("Alt inverts a painting tool", () => {
 // makeHarness does everywhere else in this file, never runs onMounted at
 // all (Vue silently drops it outside a component, with only a dev warning).
 // These two need a real mounted host to exercise that wiring.
+
+// Mounted editors listen on the window; one left from an earlier test would take another's keys.
+enableAutoUnmount(afterEach);
 
 describe("altHeld", () => {
   function mountForLifecycle(

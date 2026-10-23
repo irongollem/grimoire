@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h } from "vue";
-import { mount } from "@vue/test-utils";
+import { enableAutoUnmount, mount } from "@vue/test-utils";
 import { useNpcWebCamera, type CameraGraph } from "./useNpcWebCamera";
+
+// Each camera listens on the window; an earlier test's camera left mounted would take its keys.
+enableAutoUnmount(afterEach);
 
 function fakeGraph(zoom = 1): CameraGraph & { level: number } {
   const g = {
