@@ -75,6 +75,9 @@ const FIFTY_MB  = 50 * 1024 * 1024;
 
 const IMAGE_MIMES = ["image/webp", "image/jpeg"] as const;
 
+// An Open Book release as a PDF (#1085) — see the matching entry in STORAGE_WRITE_POLICY.
+const PDF_MIMES = ["application/pdf"] as const;
+
 // Tiles plus the manifest describing them — see the matching entry in
 // STORAGE_WRITE_POLICY.
 const TILE_PACK_MIMES = ["image/webp", "application/json"] as const;
@@ -264,6 +267,16 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: false, // Displayed as thumbnails via CSS; no FocalImage variants needed
+    cdn: true,
+  },
+  openBookPdfs: {
+    id: "open-book-pdfs",
+    maxBytes: FIFTY_MB,
+    mimeTypes: PDF_MIMES,
+    // Public: the book is public, and a reader's "Download PDF" is a plain link.
+    // Objects are immutable (a re-export gets a new uuid), so the CDN can keep them.
+    public: true,
+    generateVariants: false, // A document, not a picture
     cdn: true,
   },
   libraryTilePacks: {

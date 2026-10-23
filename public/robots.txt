@@ -3,6 +3,15 @@
 # dungeongrimoire.com) hosts the indexable pages + sitemap.
 User-agent: *
 Disallow: /
+# ...except the Open Book (#1085). A DM can publish a campaign as a public,
+# read-only book at /w/<slug>, and some will want it found by title. Allowing
+# the path does not index every book: api/open-book-page.ts serves each page
+# with `<meta name="robots" content="noindex">` unless the book's owner ticked
+# "indexable", and a crawler only sees that tag if robots.txt lets it fetch the
+# page. Blocking /w/ would make the owner's choice impossible to honour.
+# (The card images under /api/open-book-card are fetched for unfurling and
+# stay disallowed for search by the rule above.)
+Allow: /w/
 
 # Link unfurlers are exempted deliberately. They are not search crawlers and
 # none of them feed a search index, so the rule above still keeps the app out

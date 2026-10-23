@@ -13,7 +13,15 @@
       @stop="bulk.stop"
       @move="moveSelection"
       @copy="openCopyDialog"
-    />
+    >
+      <BulkOpenBookActions
+        entity-type="npc"
+        noun="NPC"
+        :selected-ids="[...bulk.selectedIds.value]"
+        :is-eligible="npcBookEligible"
+        :busy="bulkMoving"
+      />
+    </BulkScopeBar>
 
     <ListSkeleton
       v-if="isLoading"
@@ -187,9 +195,11 @@ import type { NpcListRow } from "@/types/npc.types";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import { storeToRefs } from "pinia";
+import BulkOpenBookActions from "@/components/common/list/BulkOpenBookActions.vue";
 import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
+import { useNpcBookRule } from "@/composables/openBook/useNpcBookRule";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
@@ -389,6 +399,13 @@ const { moving: bulkMoving, move: moveSelection } = useMoveToCampaignFlow({
   stop: bulk.stop,
   campaignName: () => activeCampaign.value?.name ?? null,
 });
+
+// The book's NPC rule (shared name, and the party directly or through a sharing place), not just the audience.
+const { blockFor } = useNpcBookRule();
+function npcBookEligible(id: string): boolean {
+  const npc = npcs.value?.find((n) => n.id === id);
+  return npc !== undefined && blockFor(npc) === null;
+}
 
 function toggleSelectMode() {
   if (bulk.selecting.value) bulk.stop();

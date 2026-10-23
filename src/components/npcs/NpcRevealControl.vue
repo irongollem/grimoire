@@ -11,7 +11,7 @@
 
     This owns all three behaviours, so every NPC surface gets the same one.
   -->
-  <RevealControl :adapter="adapter" :entity-name="npc.name" :form="form">
+  <RevealControl :adapter="adapter" :entity-name="npc.name" :form="form" :book-entry="{ type: 'npc', id: npc.id }" :book-rule="bookRule">
     <template v-if="hasDisguise" #identity>
       <NpcAlterEgoControl :revealed="isRevealed" @change="setRevealed" />
     </template>
@@ -29,9 +29,11 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import RevealControl from "@/components/common/reveal/RevealControl.vue";
 import RevealedFieldsPanel from "@/components/common/reveal/RevealedFieldsPanel.vue";
 import NpcAlterEgoControl from "@/components/npcs/NpcAlterEgoControl.vue";
+import { npcBlockedCaption, useNpcBookRule } from "@/composables/openBook/useNpcBookRule";
 import { useNpcReveal } from "@/composables/npcs/useNpcReveal";
 import { NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
 import type { RevealForm } from "@/lib/reveal";
@@ -43,4 +45,18 @@ const { npc, form = "button" } = defineProps<{
 }>();
 
 const { fields, isRevealed, hasDisguise, adapter, setFields, setRevealed } = useNpcReveal(() => npc);
+
+// The book's NPC rule, read off the live state so an edit not yet saved is reflected (see `npcBookBlock`).
+const { partyIds, blockFor } = useNpcBookRule();
+const bookRule = computed(() => {
+  const block = blockFor({
+    player_visible_to: partyIds.value.filter(adapter.isMemberVisible),
+    player_visible_fields: fields.value,
+    location_id: npc.location_id,
+  });
+  return {
+    eligible: block === null,
+    blockedCaption: npcBlockedCaption(block),
+  };
+});
 </script>

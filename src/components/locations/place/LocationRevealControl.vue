@@ -12,6 +12,7 @@
     :adapter="adapter"
     :entity-name="location.name"
     :form="form"
+    :book-entry="{ type: 'location', id: location.id }"
   >
     <template #what>
       <p class="mb-2 text-eyebrow font-semibold text-muted-foreground">

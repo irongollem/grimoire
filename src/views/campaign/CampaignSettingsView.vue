@@ -81,6 +81,9 @@
         <div v-else-if="activeTab === 'bundle'" class="max-w-lg">
           <WorldBundleTab />
         </div>
+        <div v-else-if="activeTab === 'openbook'" class="max-w-6xl">
+          <OpenBookTab />
+        </div>
         <div v-else-if="activeTab === 'import'" class="max-w-3xl">
           <DocumentImportTab />
         </div>
@@ -125,6 +128,7 @@ const AiConnectionTab = lazyPanel(() => import("@/components/campaign/AiConnecti
 const SpotifyTab = lazyPanel(() => import("@/components/campaign/SpotifyTab.vue"));
 const BackupTab = lazyPanel(() => import("@/components/campaign/BackupTab.vue"));
 const WorldBundleTab = lazyPanel(() => import("@/components/campaign/WorldBundleTab.vue"));
+const OpenBookTab = lazyPanel(() => import("@/components/campaign/OpenBookTab.vue"));
 const DocumentImportTab = lazyPanel(() => import("@/components/campaign/DocumentImportTab.vue"));
 
 type SettingsTab =
@@ -139,12 +143,13 @@ type SettingsTab =
   | "spotify"
   | "backup"
   | "bundle"
+  | "openbook"
   | "import"
   | "danger";
 
 const VALID_TABS = new Set<SettingsTab>([
   "details", "members", "scheduling", "rules", "classes", "species",
-  "ai", "connections", "spotify", "backup", "bundle", "import", "danger",
+  "ai", "connections", "spotify", "backup", "bundle", "openbook", "import", "danger",
 ]);
 
 const ALL_TABS: { id: SettingsTab; label: string }[] = [
@@ -159,6 +164,7 @@ const ALL_TABS: { id: SettingsTab; label: string }[] = [
   { id: "spotify", label: "Spotify" },
   { id: "backup", label: "Backup" },
   { id: "bundle", label: "World Bundle" },
+  { id: "openbook", label: "Open Book" },
   { id: "import", label: "Import Document" },
   { id: "danger", label: "Danger Zone" },
 ];
@@ -176,7 +182,7 @@ const waitingCount = computed(() => pendingReviews.data.value?.length ?? 0);
 // ownership, deletion) or act on them. A co-DM (#590) does not see them; the
 // database refuses the writes regardless. AI Connections is per-user (the
 // signed-in account's own OAuth grants) so every DM keeps it.
-const OWNER_ONLY_TABS = new Set<SettingsTab>(["ai", "danger"]);
+const OWNER_ONLY_TABS = new Set<SettingsTab>(["ai", "openbook", "danger"]);
 
 const tabs = computed(() => {
   // Import Document stays visible with AI off: a wiki export is read without

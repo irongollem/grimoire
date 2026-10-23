@@ -42,6 +42,8 @@
         :disabled="busy || count === 0"
         @click="emit('copy')"
       />
+      <!-- Extra bulk actions a list owns itself, e.g. the Open Book pair (#1085). -->
+      <slot />
       <AppButton variant="ghost" size="sm" label="Done" @click="emit('stop')" />
     </div>
   </div>

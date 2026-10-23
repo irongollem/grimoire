@@ -55,7 +55,7 @@ const ALL_ROUTES = flatten(routes);
  * This is the "DM routes carry it" assertion, and it is written as the
  * complement on purpose. Asserting that today's DM routes are fenced passes
  * forever while saying nothing about the route added next week; asserting that
- * *these thirteen and no others* are unfenced fails the moment a campaign
+ * *exactly these and no others* are unfenced fails the moment a campaign
  * surface slips out of the fence, and makes adding one a decision someone has
  * to write down here.
  *
@@ -74,6 +74,12 @@ const UNFENCED = [
   "welcome",
   "oauth-consent",
   "spotify-callback",
+  // The Open Book (#1085): public pages that read the same for everyone and belong to no campaign.
+  "open-book",
+  "open-book-contents",
+  "open-book-index",
+  "open-book-chapter",
+  "open-book-entry",
   "admin",
   "sheet-calibration",
   "component-catalogue",

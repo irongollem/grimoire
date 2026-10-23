@@ -23,6 +23,10 @@ export const CAMPAIGN_SECRETS_KEY = "campaign-secrets";
 /** Root of the kin link queries (#1083), and of the players' kin projection that the same ring refreshes. */
 export const KIN_LINKS_KEY = "kin_links";
 export const PLAYER_KIN_KEY = "player-kin";
+/** The Open Book (#1085): the owner's settings, its releases and the per-entry choices. */
+export const OPEN_BOOK_KEY = "open-book";
+export const OPEN_BOOK_RELEASES_KEY = "open-book-releases";
+export const OPEN_BOOK_ENTRIES_KEY = "open-book-entries";
 export const BEATS_KEY = "quest_beats";
 export const THREADS_KEY = "quest_threads";
 /** A quest's progress clocks (#1011). */
@@ -274,6 +278,10 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["npc_relationships", ["npc_relationships"]],
   // Family trees (#1083). Players cannot read the table; the ring tells them to re-read their kin projection.
   ["kin_links", [KIN_LINKS_KEY, PLAYER_KIN_KEY]],
+  // Open Book (#1085). Owner-only tables; a release also changes the book row (its live release).
+  ["open_books", [OPEN_BOOK_KEY]],
+  ["open_book_releases", [OPEN_BOOK_RELEASES_KEY, OPEN_BOOK_KEY]],
+  ["open_book_entries", [OPEN_BOOK_ENTRIES_KEY]],
   ["campaign_invites", ["campaign-invites"]],
   // One user's own favourites, for their other devices.
   ["player_favourites", ["player_favourites"]],

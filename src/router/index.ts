@@ -38,6 +38,14 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
       return { name: "login", query: { redirect: to.fullPath } };
     }
 
+    // A public page (the Open Book, #1085) belongs to no lens, no campaign and no mode: it reads the same for a
+    // visitor, a DM and a player, and none of the redirects below may move any of them off it. Auth is still
+    // initialised above because the app shell waits on it, but nothing here depends on who is looking.
+    if (to.meta.public === true) {
+      void preloadLayout(to);
+      return;
+    }
+
     // #729: routing is fenced by the persisted DM/Player *lens*, not by the
     // active campaign's membership role — which hat you wear is chosen, not
     // inherited from whichever campaign happened to load. Accounts that

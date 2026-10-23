@@ -52,9 +52,13 @@ export function revealState(
 
 /**
  * Button text. Names the audience rather than the mechanism — a DM is deciding
- * who is looking at something, not operating a visibility system.
+ * who is looking at something, not operating a visibility system. An entry in
+ * the Open Book (#1085) is the widest audience there is, so it outranks the
+ * party states; it is a flag beside them rather than a fourth `PartyRevealState`
+ * because the book is not part of the party and only some controls can know it.
  */
-export function revealLabel(state: PartyRevealState, sharedCount: number): string {
+export function revealLabel(state: PartyRevealState, sharedCount: number, inBook = false): string {
+  if (inBook) return "In the book";
   if (state === "everyone") return "Whole party";
   if (state === "partial") return `${sharedCount} player${sharedCount === 1 ? "" : "s"}`;
   return "Hidden";

@@ -15,7 +15,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(68);
+select plan(72);
 
 -- ── Structure ───────────────────────────────────────────────────────────────
 
@@ -276,6 +276,21 @@ insert into public.character_spells (party_member_id, spell_id, source_type, sou
   ('91200000-0000-4000-8000-000000000080', '91200000-0000-4000-8000-000000000081', 'class',
    '91200000-0000-4000-8000-000000000082');
 
+-- The template's Open Book (#1085): open, released, with two per-entry choices and one about a row the template
+-- does not hold. The copy must carry the settings and the choices, never the release or the address.
+update public.npcs set player_visible_to = array['91200000-0000-4000-8000-000000000080']::uuid[], player_visible_fields = array['name']
+ where id = '91200000-0000-4000-8000-000000000030';
+insert into public.open_book_releases (id, campaign_id, created_by, number, snapshot) values
+  ('91200000-0000-4000-8000-0000000000b1', '91200000-0000-4000-8000-000000000010',
+   '91200000-0000-4000-8000-000000000001', 1, '{}'::jsonb);
+insert into public.open_books (campaign_id, slug, title, leather, is_open, live_release_id) values
+  ('91200000-0000-4000-8000-000000000010', 'sugarwell-demo-test', 'The Sugarwell Book', 'sea', true,
+   '91200000-0000-4000-8000-0000000000b1');
+insert into public.open_book_entries (campaign_id, entity_type, entity_id, included) values
+  ('91200000-0000-4000-8000-000000000010', 'npc', '91200000-0000-4000-8000-000000000030', true),
+  ('91200000-0000-4000-8000-000000000010', 'note', '91200000-0000-4000-8000-000000000050', false),
+  ('91200000-0000-4000-8000-000000000010', 'npc', '91200000-0000-4000-8000-0000000000b9', false);
+
 update public.campaigns set current_location_id = '91200000-0000-4000-8000-000000000020', ai_enabled = true
  where id = '91200000-0000-4000-8000-000000000010';
 
@@ -397,6 +412,41 @@ select is(
   public.get_demo_status() ->> 'loaded_version',
   public.get_demo_status() ->> 'version',
   'the status reports the copy as current'
+);
+
+-- The Open Book comes along closed (20261023230211).
+select is(
+  (select row(b.title, b.leather, b.is_open, b.live_release_id, b.indexable, b.slug like 'demo-%')::text
+     from public.open_books b join public.campaigns c on c.id = b.campaign_id
+    where c.user_id = '91200000-0000-4000-8000-000000000002' and c.demo_source is not null),
+  row('The Sugarwell Book', 'sea', false, null::uuid, false, true)::text,
+  'the demo copy carries the book''s settings, closed, unreleased and unindexed under an address of its own'
+);
+
+select is(
+  (select count(*)::int from public.open_book_releases r join public.campaigns c on c.id = r.campaign_id
+    where c.user_id = '91200000-0000-4000-8000-000000000002'),
+  0,
+  'and none of the author''s releases'
+);
+
+select set_eq(
+  $$ select e.entity_type, e.included, coalesce(n.name, t.title)
+       from public.open_book_entries e
+       join public.campaigns c on c.id = e.campaign_id
+       left join public.npcs n on n.id = e.entity_id
+       left join public.notes t on t.id = e.entity_id
+      where c.user_id = '91200000-0000-4000-8000-000000000002' $$,
+  $$ values ('npc', true, 'Fondant'), ('note', false, 'Sugarwell at a glance') $$,
+  'the author''s entry choices point at the copy''s own rows, and a choice about a row it lacks is dropped'
+);
+
+select is(
+  (select jsonb_array_length(public.preview_open_book(c.id) -> 'folk')
+     from public.campaigns c
+    where c.user_id = '91200000-0000-4000-8000-000000000002' and c.demo_source is not null),
+  1,
+  'a Free newcomer can preview the demo''s book, with the pre-made party''s view carried over'
 );
 
 reset role;

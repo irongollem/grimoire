@@ -72,6 +72,9 @@ const FIFTY_MB = 50 * 1024 * 1024;
 
 const IMAGE_MIMES = ["image/webp", "image/jpeg"] as const;
 
+// An Open Book release exported for readers to download (#1085).
+const PDF_MIMES = ["application/pdf"] as const;
+
 const MINI_MODEL_MIMES = [
   "model/gltf-binary",
   "model/stl",
@@ -133,6 +136,15 @@ export const STORAGE_WRITE_POLICY: readonly BucketWritePolicy[] = [
     // referenced by many DMs' `sounds` rows (with `storage_path: null`), so one
     // DM's delete must never reach them — the same invariant `srd/` gives art.
     adminPrefixes: ["library"],
+  },
+  {
+    id: "open-book-pdfs",
+    maxBytes: FIFTY_MB,
+    mimeTypes: PDF_MIMES,
+    // Owner prefix only: a PDF is one DM's export of their own release, and there
+    // is no shared content to carve an admin prefix out for.
+    adminPrefixes: [],
+    clientWrites: true,
   },
   {
     id: "library-tile-packs",

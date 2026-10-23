@@ -376,7 +376,7 @@ describe("terrain", () => {
     const { input: i, rec } = input(rt, { layers });
     drawMapContent(i);
     // cell (1,1): top, left, bottom open; right shares water. Four sides minus one.
-    const own = rec.gradients.filter((g) => g.x0 >= 128 && g.x0 <= 256 && g.y0 >= 128 && g.y0 <= 256 && g.x0 < 256);
+    const own = rec.gradients.filter((g) => g.x0 >= 128 && g.y0 >= 128 && g.y0 <= 256 && g.x0 < 256);
     expect(own).toHaveLength(3);
     const top = own.find((g) => g.y0 === 128 && g.y1 > g.y0);
     expect(top?.stops[0][1]).toContain("0.65");

@@ -64,6 +64,7 @@ export { Settings2 as IconSettings }
 export { SlidersHorizontal as IconMixer }   // fader bank — the soundboard mixer drawer
 export { Settings as IconSettingsAlt }
 export { Sparkles as IconGenerate }    // AI generation — standardized across all generators
+export { BookOpen as IconOpenBook }    // the Open Book: a campaign released as a public book
 export { BookOpen as IconPopulate }    // populate-from-settings action — standardized
 export { Wand2 as IconWand }           // magic wand (spells, decorative)
 export { RefreshCw as IconRefresh }

@@ -45,6 +45,12 @@ enabled = false
 [functions.ical-feed]
 verify_jwt = false
 
+# Public reader for a released Open Book (#1085), at /w/<slug> via the Vercel relay. Visitors are anonymous, so
+# there is no JWT to check. The function serves only an open book's released snapshot, never a table row, and
+# answers 404 for everything else (unknown, closed, child-owned, non-Pro owner, lookup error).
+[functions.open-book]
+verify_jwt = false
+
 # API key vault encrypt/decrypt endpoint — holds the master VAULT_KEY. Called by
 # the browser via the client SDK, which forwards the user's access token in the
 # Authorization header, so the gateway JWT check works. The function ALSO does

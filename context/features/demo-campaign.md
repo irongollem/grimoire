@@ -58,6 +58,7 @@ It is catalogue-driven, because production has 82 campaign-scoped tables and a h
    - It resets `ai_enabled` and the provider choice. AI Act consent belongs to the owner, so the new owner is asked.
    - AI provenance on the content itself is copied verbatim.
    - Embeddings are copied, so the demo is searchable by the AI tools from the start.
+7. **The Open Book** (#1085, `20261023230211`). The catalogue marks `open_books` and `open_book_entries` uncopied, because a generic copy would duplicate the unique slug and an open book whose release did not come along. A step of its own writes the template's book settings under a fresh `demo-<12 hex>` address, closed, unreleased and unindexed, plus the author's per-entry choices remapped through the id map. Releases never travel. A Free newcomer can preview the book, and only the new owner can release it (Pro).
 
 ## Authoring the template — rules that bite
 
@@ -67,6 +68,7 @@ It is catalogue-driven, because production has 82 campaign-scoped tables and a h
 - **Upload art and audio normally.** It stays in the author's storage folder and every copy points at it: public on the CDN, and undeletable by users, because storage RLS only lets a user remove objects under their own id. **So never delete a template image or sound that copies may still use.** Republishing does not clean old files up either.
 - **A large edit goes in as one transaction.** The template is live data: a new load copies whatever is there at that moment. An edit made by script should be a single transaction with fixed row ids, tried first on the local template (`npm run dev:demo` pulls it with the same ids), so the same file can then run against production and no load ever sees half of it. `enforce_quota` on `notes` and `puzzle_rooms` reads `auth.uid()`, so a script running as `postgres` sets `grimoire.bypass_quota` for its transaction.
 - **A copy does not keep the order of rows that have no order column.** Recipe ingredients are the case that matters: the first one is the PRIMARY ingredient, and which one is first in a copy is not the one that was first in the template. Write recipes where either reading is fine.
+- **Set up the template's Open Book in its Settings tab, and don't bother releasing it.** The cover, leather, chapters and per-entry choices travel with every copy; releases never do. The book shows what the template's pre-made party can see, so share entries with every pre-made.
 - **Publish after editing.** Once the demo is offered, new loads copy the template as it is *now*, so half-finished edits reach new users immediately. For a large rework, switch the offer off in Admin → Content first. Publish bumps the version and lets existing copies offer a reset.
 
 ## What the gates cannot see here

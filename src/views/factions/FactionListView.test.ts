@@ -6,6 +6,12 @@ import FactionListView from "./FactionListView.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { Faction } from "@/types/faction.types";
 
+// The Open Book pair in the bulk bar reads the book through TanStack Query; these tests mount without a client.
+vi.mock("@/composables/openBook/useBulkOpenBook", () => ({
+  useBulkOpenBook: () => ({ available: ref(false), busy: ref(false), add: vi.fn(), remove: vi.fn() }),
+}));
+
+
 function faction(overrides: Partial<Faction> = {}): Faction {
   return {
     id: `f-${Math.random().toString(36).slice(2)}`,

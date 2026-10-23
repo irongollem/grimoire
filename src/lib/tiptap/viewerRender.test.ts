@@ -17,7 +17,7 @@
  * separately — that is the documented exception to byte parity.
  */
 import { describe, expect, it, vi } from "vitest";
-import { defineComponent } from "vue";
+import { defineComponent, h } from "vue";
 import { mount } from "@vue/test-utils";
 import { Editor, generateHTML, type Extensions, type JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -34,6 +34,7 @@ import Typography from "@tiptap/extension-typography";
 import { Columns } from "./Columns";
 import { AiGenerated } from "./AiGenerated";
 import { SecretBlock } from "./secretBlock";
+import { DescriptiveBlock } from "./descriptiveBlock";
 import { CalendarEventRef } from "./CalendarEventRef";
 import { createEntityMentionExtension } from "./EntityMention";
 import { IllustrationSuggestion } from "./IllustrationSuggestion";
@@ -112,6 +113,7 @@ function viewerExtensions(): Extensions {
     PendingImage,
     AiGenerated,
     SecretBlock,
+    DescriptiveBlock,
   ];
 }
 
@@ -328,6 +330,10 @@ const FIXTURES: Record<string, JSONContent> = {
     { type: "aiGenerated", attrs: { model: "gpt-x" }, content: [p(t("model text"))] },
     { type: "aiGenerated", content: [p(t("unknown model"))] },
   ),
+  "read-aloud box holding paragraphs and a list": doc({
+    type: "descriptiveBlock",
+    content: [p(t("The door groans open.")), { type: "bulletList", content: [{ type: "listItem", content: [p(t("cold air"))] }] }],
+  }),
   "secret block, nested and holding a list": doc({
     type: "secretBlock",
     content: [p(t("the vizier is the lich")), { type: "bulletList", content: [{ type: "listItem", content: [p(t("clue"))] }] }],
@@ -449,6 +455,60 @@ describe("viewerRender — node views render the chips with the right props", ()
     const chips = wrapper.findAllComponents(PendingImageCard);
     expect(chips[0].props()).toEqual({ status: "pending", prompt: "a dragon", startedAt: 5, editable: false });
     expect(chips[1].props()).toEqual({ status: "failed", prompt: "x", startedAt: null, editable: false });
+  });
+});
+
+describe("viewerRender — chip overrides", () => {
+  const html = (content: JSONContent, chips: Parameters<typeof renderStoredDoc>[1]) =>
+    mount(defineComponent({ render: () => renderStoredDoc(content, chips) })).html();
+
+  it("replaces a mention with the hook's output and passes its attrs", () => {
+    const entityMention = vi.fn((a: { id: string; entityType: string }) => h("b", `${a.entityType}:${a.id}`));
+    const out = html(doc(p({ type: "entityMention", attrs: { id: "n1", entityType: "npc" } })), { chips: { entityMention } });
+    expect(out).toContain("<b>npc:n1</b>");
+    expect(entityMention).toHaveBeenCalledWith({ id: "n1", entityType: "npc" });
+  });
+
+  it("does not call the mention hook for a mention with no target", () => {
+    const entityMention = vi.fn(() => "x");
+    html(doc(p({ type: "entityMention", attrs: { id: null, entityType: "npc" } })), { chips: { entityMention } });
+    expect(entityMention).not.toHaveBeenCalled();
+  });
+
+  it("replaces a calendar ref", () => {
+    const calendarEventRef = vi.fn((a: { eventId: string | null; label: string }) => h("i", a.label));
+    const out = html(doc(p({ type: "calendarEventRef", attrs: { eventId: "e", label: "Feast" } })), {
+      chips: { calendarEventRef },
+    });
+    expect(out).toContain("<i>Feast</i>");
+    expect(calendarEventRef).toHaveBeenCalledWith({ eventId: "e", label: "Feast" });
+  });
+
+  it("replaces an illustration suggestion and a pending image, and null draws nothing", () => {
+    const content = doc(
+      p(t("a")),
+      { type: "illustrationSuggestion", attrs: { prompt: "tower" } },
+      { type: "pendingImage", attrs: { jobId: "j", prompt: "dragon" } },
+    );
+    const out = html(content, {
+      chips: { illustrationSuggestion: () => h("u", "ill"), pendingImage: () => null },
+    });
+    expect(out).toContain("<u>ill</u>");
+    expect(out).not.toContain("dragon");
+    expect(out).not.toContain("pendingImage");
+  });
+
+  it("replaces a secret block whole, children included", () => {
+    const content = doc({ type: "secretBlock", attrs: { secretId: "s" }, content: [p(t("hidden"))] });
+    expect(html(content, { chips: { secretBlock: () => null } })).not.toContain("hidden");
+    expect(html(content, { chips: { secretBlock: () => h("em", "veiled") } })).toContain("<em>veiled</em>");
+  });
+
+  it("leaves the default render alone once the call is over", () => {
+    const content = doc(p({ type: "entityMention", attrs: { id: "n1", entityType: "npc" } }));
+    html(content, { chips: { entityMention: () => "custom" } });
+    const wrapper = mount(defineComponent({ render: () => renderStoredDoc(content) }));
+    expect(wrapper.findComponent(EntityMentionChip).exists()).toBe(true);
   });
 });
 

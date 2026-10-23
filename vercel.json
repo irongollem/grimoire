@@ -12,5 +12,13 @@
       ]
     }
   ],
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+  "functions": {
+    "api/open-book-card.ts": {
+      "includeFiles": "{node_modules/@fontsource/cinzel/files/cinzel-latin-700-normal.woff,node_modules/@fontsource/alegreya/files/alegreya-latin-{400-italic,700-normal}.woff,public/assets/open-book/*.webp,public/brand/logo-dark.webp}"
+    }
+  },
+  "rewrites": [
+    { "source": "/w/:path*", "destination": "/api/open-book-page?path=:path*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
 }

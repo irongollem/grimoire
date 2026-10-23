@@ -16,6 +16,7 @@ describe("layoutNameFor", () => {
   it("maps the auth and player metas to their own shells", () => {
     expect(layoutNameFor(meta({ layout: "auth" }))).toBe("auth");
     expect(layoutNameFor(meta({ layout: "player" }))).toBe("player");
+    expect(layoutNameFor(meta({ layout: "public" }))).toBe("public");
   });
 
   it("falls back to the DM shell for an absent or unknown layout", () => {
@@ -25,7 +26,7 @@ describe("layoutNameFor", () => {
   });
 
   it("exposes a loader for every name it can return", () => {
-    for (const name of ["auth", "player", "default"] as const) {
+    for (const name of ["auth", "player", "default", "public"] as const) {
       expect(typeof layoutLoaders[name]).toBe("function");
     }
   });

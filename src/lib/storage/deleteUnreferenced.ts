@@ -26,6 +26,14 @@
  * see, which is exactly the right scope for that question — this is about one
  * account's own rows sharing a file, not a cross-account concern.
  *
+ * An Open Book release (#1085) counts as a reference too. A release is a frozen
+ * jsonb snapshot of a campaign that the public reads, and it holds image URLs
+ * (portraits, maps, emblems, Tiptap image nodes) that no column above mirrors.
+ * Delete the file and a public page 404s, for readers who cannot see the DM's
+ * rows at all. A co-DM cannot read releases through RLS, so the question goes to
+ * `open_book_images_in_use`, an RPC that answers for every campaign the caller
+ * DMs instead of a column read, one call per chunk of URLs.
+ *
  * Call this AFTER the owning row has been deleted, so that row no longer
  * counts as a reference to its own file.
  */
@@ -132,6 +140,14 @@ async function referencedUrls(urls: readonly string[]): Promise<Set<string>> {
         const value = row[column];
         if (typeof value === "string") found.add(value);
       }
+    }
+    // Releases: one RPC for the chunk's candidates not already known to be in use.
+    const open = chunk.filter((url) => !found.has(url));
+    if (open.length) {
+      const { data, error } = await supabase.rpc("open_book_images_in_use", { p_urls: open });
+      // Same fail-safe as the column reads: an error throws, never reads as unused.
+      if (error) throw error;
+      for (const url of (data ?? []) as string[]) found.add(url);
     }
   }
   return found;

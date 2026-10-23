@@ -349,6 +349,23 @@ function chip(component: Component, props: Record<string, unknown>): VNode {
  */
 let activeSecretLabels: ReadonlyMap<string, string> | undefined;
 
+/**
+ * Replacements for the node kinds that normally render a component or a
+ * DM-only frame. A page with no campaign behind it (the public Open Book) cannot
+ * mount the default chips, which read the DB and campaign stores, so it supplies
+ * its own. A hook replaces that node's render outright; returning null draws nothing.
+ */
+export interface ViewerChipOverrides {
+  entityMention?(attrs: { id: string; entityType: string }): VNodeChild;
+  calendarEventRef?(attrs: { eventId: string | null; label: string }): VNodeChild;
+  illustrationSuggestion?(): VNodeChild;
+  pendingImage?(): VNodeChild;
+  /** Replaces the whole block, children included. */
+  secretBlock?(): VNodeChild;
+}
+
+let activeChips: ViewerChipOverrides | undefined;
+
 function secretBlockProps(a: Record<string, unknown>): Record<string, string> {
   const props: Record<string, string> = { "data-type": "secretBlock" };
   const id = text(a.secretId);
@@ -424,6 +441,9 @@ function renderNode(node: JsonNode): VNodeChild | null {
       return renderCell("td", node);
     case "columns":
       return h("div", { "data-type": "columns" }, renderBlocks(node.content));
+    case "descriptiveBlock":
+      // The read-aloud callout: the same div, data-type and class the extension's renderHTML writes.
+      return h("div", { "data-type": "descriptiveBlock", class: "sc-descriptive" }, renderBlocks(node.content));
     case "aiGenerated":
       return h(
         "div",
@@ -431,26 +451,34 @@ function renderNode(node: JsonNode): VNodeChild | null {
         renderBlocks(node.content),
       );
     case "secretBlock":
+      if (activeChips?.secretBlock) return activeChips.secretBlock() ?? null;
       // Only a DM ever receives this node (the server strips it from every
       // player projection), so rendering it is safe; the frame and label that
       // set it apart come from `secret-block.css`.
       return h("div", secretBlockProps(a), renderBlocks(node.content));
-    case "calendarEventRef":
+    case "calendarEventRef": {
+      const eventId = text(a.eventId) ?? null;
+      const label = text(a.label) ?? "";
+      if (activeChips?.calendarEventRef) return activeChips.calendarEventRef({ eventId, label }) ?? null;
       return chip(CalendarEventRefChip, {
-        eventId: text(a.eventId) ?? null,
-        label: text(a.label) ?? "",
+        eventId,
+        label,
         editable: false,
       });
+    }
     case "entityMention": {
       const entityType = text(a.entityType);
       const id = text(a.id);
       // A mention with no target has nothing to resolve or link to.
       if (!entityType || !id) return null;
+      if (activeChips?.entityMention) return activeChips.entityMention({ id, entityType }) ?? null;
       return chip(EntityMentionChip, { entityType: entityType as EntityType, id, editable: false });
     }
     case "illustrationSuggestion":
+      if (activeChips?.illustrationSuggestion) return activeChips.illustrationSuggestion() ?? null;
       return chip(IllustrationSuggestionChip, { prompt: text(a.prompt) ?? "", editable: false });
     case "pendingImage":
+      if (activeChips?.pendingImage) return activeChips.pendingImage() ?? null;
       return chip(PendingImageCard, {
         status: text(a.status) ?? "pending",
         prompt: text(a.prompt) ?? "",
@@ -496,13 +524,15 @@ function emptyLine(): VNode {
  */
 export function renderStoredDoc(
   content: unknown,
-  options: { secretLabels?: ReadonlyMap<string, string> } = {},
+  options: { secretLabels?: ReadonlyMap<string, string>; chips?: ViewerChipOverrides } = {},
 ): VNode {
   activeSecretLabels = options.secretLabels;
+  activeChips = options.chips;
   try {
     return renderStoredDocInner(content);
   } finally {
     activeSecretLabels = undefined;
+    activeChips = undefined;
   }
 }
 

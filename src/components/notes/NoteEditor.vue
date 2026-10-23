@@ -41,6 +41,7 @@
       <AudienceRevealControl
         :name="draft.title"
         :visible-to="draft.playerVisibleTo"
+        :book-entry="note ? { type: 'note', id: note.id } : undefined"
         @change="draft.playerVisibleTo = $event"
       />
 

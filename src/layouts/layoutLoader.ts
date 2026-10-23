@@ -1,7 +1,7 @@
 import type { RouteLocationNormalized } from "vue-router";
 
 /**
- * Lazy loaders for the three shells, plus the preload hook the router uses.
+ * Lazy loaders for the four shells, plus the preload hook the router uses.
  *
  * App.vue used to import all three statically, so every DM shipped the whole
  * player portal and every player shipped the DM sidebar and chat. Splitting
@@ -24,6 +24,7 @@ const loaders = {
   auth: () => import("@/layouts/AuthLayout.vue"),
   player: () => import("@/layouts/PlayerLayout.vue"),
   default: () => import("@/layouts/DefaultLayout.vue"),
+  public: () => import("@/layouts/PublicLayout.vue"),
 } as const;
 
 export type LayoutName = keyof typeof loaders;
@@ -34,6 +35,7 @@ export const layoutLoaders = loaders;
 export function layoutNameFor(meta: RouteLocationNormalized["meta"]): LayoutName {
   if (meta.layout === "auth") return "auth";
   if (meta.layout === "player") return "player";
+  if (meta.layout === "public") return "public";
   return "default";
 }
 

@@ -84,6 +84,7 @@
           v-if="npc?.id"
           :name="npcDetail.form.name"
           :visible-to="npcDetail.form.player_visible_to"
+          :book-entry="{ type: 'npc', id: npc.id }"
           @change="npcDetail.form.player_visible_to = $event"
         >
           <template

@@ -60,6 +60,35 @@
     </p>
 
     <!--
+      "Beyond the table" (#1085) — the Open Book. Only for the campaign's owner
+      and only once it has a book, so `book.available` is false for co-DMs,
+      players and every kind of entry that cannot be bookable. It is between
+      "who" and "what" because it is a wider "who": the switch is live only
+      once the whole party can see the entry, and the caption says whom to add
+      when it cannot.
+    -->
+    <div v-if="book?.available" class="border-t border-border px-3 py-3">
+      <p class="mb-2 text-label font-semibold text-muted-foreground">
+        AND BEYOND THE TABLE
+      </p>
+      <div class="flex items-center justify-between gap-3 px-2">
+        <span class="flex items-center gap-2 text-label-lg">
+          <IconOpenBook class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          In the Open Book
+        </span>
+        <ToggleSwitch
+          aria-label="In the Open Book"
+          :model-value="book.inBook"
+          :disabled="!book.eligible"
+          @update:model-value="emit('toggleBook')"
+        />
+      </div>
+      <p class="mt-1.5 px-2 text-caption text-muted-foreground">
+        {{ book.eligible ? "From the next release" : book.blockedCaption }}
+      </p>
+    </div>
+
+    <!--
       "What" — the per-entity half. An NPC's fields, a monster's stat block, a
       location's description / NPCs / inventory. Disabled-looking while nothing
       is shared, because deciding how much of a hidden thing to show is a
@@ -87,8 +116,9 @@
 
 <script setup lang="ts">
 import AppButton from "@/components/common/controls/AppButton.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import RevealOption from "@/components/common/reveal/RevealOption.vue";
-import { IconParty } from "@/lib/icons";
+import { IconOpenBook, IconParty } from "@/lib/icons";
 import type { RevealAdapter, PartyRevealState } from "@/lib/reveal";
 import type { PartyMember } from "@/types/party.types";
 
@@ -96,9 +126,16 @@ const { adapter } = defineProps<{
   party: PartyMember[];
   adapter: RevealAdapter;
   state: PartyRevealState;
+  /** The Open Book section; absent or `available: false` leaves the popover as it was. */
+  book?: {
+    available: boolean;
+    eligible: boolean;
+    inBook: boolean;
+    blockedCaption: string;
+  };
 }>();
 
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; toggleBook: [] }>();
 
 function hideAll() {
   adapter.unshare();

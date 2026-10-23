@@ -72,7 +72,15 @@
       @stop="stopSelecting"
       @move="handleMove"
       @copy="handleCopyOpen"
-    />
+    >
+      <BulkOpenBookActions
+        entity-type="faction"
+        noun="faction"
+        :selected-ids="[...selectedIds]"
+        :is-eligible="factionBookEligible"
+        :busy="isMovingScope"
+      />
+    </BulkScopeBar>
     <!--
       Windowed and position-restoring like the NPC and monster grids. No mobile
       card swap, though, and that is deliberate rather than unfinished:
@@ -109,6 +117,7 @@
                 <AudienceRevealControl
                   :name="faction.name"
                   :visible-to="faction.player_visible_to"
+                  :book-entry="{ type: 'faction', id: faction.id }"
                   form="overlay"
                   @change="(next) => revealFaction(faction.id, next)"
                 />
@@ -151,6 +160,7 @@
               <AudienceRevealControl
                 :name="faction.name"
                 :visible-to="faction.player_visible_to"
+                :book-entry="{ type: 'faction', id: faction.id }"
                 form="inline"
                 @change="(next) => revealFaction(faction.id, next)"
               />
@@ -196,6 +206,8 @@ import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import { wholeParty } from "@/lib/openBook/eligibility";
+import BulkOpenBookActions from "@/components/common/list/BulkOpenBookActions.vue";
 import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
@@ -295,6 +307,7 @@ async function handlePopulate() {
 const {
   selecting,
   count: selectedCount,
+  selectedIds,
   isSelected,
   toggle: toggleRowSelection,
   selectAll,
@@ -302,6 +315,10 @@ const {
   stop: stopSelecting,
   pruneTo,
 } = useBulkSelection();
+
+function factionBookEligible(id: string, partyIds: readonly string[]): boolean {
+  return wholeParty(factions.value?.find((f) => f.id === id)?.player_visible_to, partyIds);
+}
 
 function toggleSelecting() {
   if (selecting.value) stopSelecting();
