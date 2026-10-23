@@ -59,7 +59,7 @@ function meta(over: Partial<PublicOpenBookMeta> = {}): PublicOpenBookMeta {
       },
       calendar: { calendar_id: null, custom_calendar: null, current: { year: null, month: null, day: null } },
     },
-    sessions: [{ id: "n1", title: "The Lamp Goes Out", number: 14 }],
+    sessions: [{ id: "n1", title: "The Lamp Goes Out", number: 14, image: null }],
     ...over,
   } as PublicOpenBookMeta;
 }

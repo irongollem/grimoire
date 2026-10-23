@@ -76,7 +76,31 @@ export interface PublicOpenBookBody {
 
 export interface PublicOpenBookMetaBody extends Omit<PublicOpenBookBody, "snapshot"> {
   snapshot: { v: unknown; book: unknown; calendar: unknown };
-  sessions: { id: string; title: string; number: number | null }[];
+  sessions: { id: string; title: string; number: number | null; image: string | null }[];
+}
+
+/**
+ * The first picture in a session report's stored content (Tiptap JSON as a string), for its share card. Only an
+ * https source; anything unparsable or pictureless gives null.
+ */
+export function firstImageSrc(content: unknown): string | null {
+  if (typeof content !== "string" || content === "") return null;
+  let doc: unknown;
+  try {
+    doc = JSON.parse(content);
+  } catch {
+    return null;
+  }
+  const stack: unknown[] = [doc];
+  while (stack.length > 0) {
+    const node = stack.shift() as { type?: unknown; attrs?: { src?: unknown }; content?: unknown } | null;
+    if (!node || typeof node !== "object") continue;
+    if (node.type === "image" && typeof node.attrs?.src === "string" && node.attrs.src.startsWith("https://")) {
+      return node.attrs.src;
+    }
+    if (Array.isArray(node.content)) stack.unshift(...node.content);
+  }
+  return null;
 }
 
 /** Only these columns ever leave: no campaign id, owner id or release id. */
@@ -101,12 +125,13 @@ export function toMeta(full: PublicOpenBookBody): PublicOpenBookMetaBody {
   const snap = (full.snapshot ?? {}) as Record<string, unknown>;
   const rawSessions = Array.isArray(snap.sessions) ? snap.sessions : [];
   const sessions = rawSessions.map((s) => {
-    const row = (s ?? {}) as { id?: unknown; title?: unknown; session?: { number?: unknown } | null };
+    const row = (s ?? {}) as { id?: unknown; title?: unknown; content?: unknown; session?: { number?: unknown } | null };
     const n = row.session?.number;
     return {
       id: String(row.id ?? ""),
       title: typeof row.title === "string" ? row.title : "",
       number: typeof n === "number" ? n : null,
+      image: firstImageSrc(row.content),
     };
   });
   return {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  firstImageSrc,
   type BookRow,
   buildBody,
   canServe,
@@ -89,8 +90,8 @@ describe("buildBody / toMeta", () => {
     const meta = buildBody(book, release, "meta") as ReturnType<typeof toMeta>;
     expect(meta.snapshot).toEqual({ v: 1, book: { title: "T" }, calendar: { calendar_id: null } });
     expect(meta.sessions).toEqual([
-      { id: "s1", title: "Arrival", number: 1 },
-      { id: "s2", title: "Loose note", number: null },
+      { id: "s1", title: "Arrival", number: 1, image: null },
+      { id: "s2", title: "Loose note", number: null, image: null },
     ]);
     expect(meta.release.number).toBe(3);
   });
@@ -116,5 +117,24 @@ describe("etag", () => {
     expect(isNotModified("*", e)).toBe(true);
     expect(isNotModified('"other"', e)).toBe(false);
     expect(isNotModified(null, e)).toBe(false);
+  });
+});
+
+describe("firstImageSrc", () => {
+  it("finds the first https picture in document order, at any depth", () => {
+    const doc = JSON.stringify({
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "x" }] },
+        { type: "aiGenerated", content: [{ type: "image", attrs: { src: "https://cdn.example/a.webp" } }] },
+        { type: "image", attrs: { src: "https://cdn.example/b.webp" } },
+      ],
+    });
+    expect(firstImageSrc(doc)).toBe("https://cdn.example/a.webp");
+  });
+  it("ignores non-https sources, plain text and empty content", () => {
+    expect(firstImageSrc(JSON.stringify({ type: "doc", content: [{ type: "image", attrs: { src: "data:image/png;base64,AA" } }] }))).toBeNull();
+    expect(firstImageSrc("just prose")).toBeNull();
+    expect(firstImageSrc(null)).toBeNull();
   });
 });

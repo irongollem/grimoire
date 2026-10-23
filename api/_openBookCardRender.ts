@@ -66,11 +66,13 @@ export async function remoteImageUri(raw: string | null, fetchImpl: typeof fetch
   }
 }
 
-export async function loadAssets(meta: PublicOpenBookMeta, fetchImpl: typeof fetch = fetch): Promise<CardAssets> {
+/** A session's card is drawn over its own first picture when it has one, else over the book's cover. */
+export async function loadAssets(meta: PublicOpenBookMeta, sessionId: string | null = null, fetchImpl: typeof fetch = fetch): Promise<CardAssets> {
   const oxblood = meta.snapshot.book.leather === "oxblood";
+  const sessionImage = sessionId ? (meta.sessions.find((s) => s.id === sessionId)?.image ?? null) : null;
   const [leather, cover, logo] = await Promise.all([
     toJpegUri(root("public/assets/open-book", oxblood ? "leather-oxblood.webp" : "leather.webp")),
-    remoteImageUri(meta.snapshot.book.cover_image_url, fetchImpl),
+    remoteImageUri(sessionImage ?? meta.snapshot.book.cover_image_url, fetchImpl),
     logoUri(root("public/brand/logo-dark.webp")).catch(() => null),
   ]);
   return { leather, cover, logo };

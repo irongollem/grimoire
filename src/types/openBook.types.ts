@@ -262,5 +262,6 @@ export interface PublicOpenBook {
 /** `?part=meta` of the `open-book` function: the cover and calendar plus a session index, for titles and share cards. */
 export interface PublicOpenBookMeta extends Omit<PublicOpenBook, "snapshot"> {
   snapshot: Pick<OpenBookSnapshot, "v" | "book" | "calendar">;
-  sessions: { id: string; title: string; number: number | null }[];
+  /** `image`: the session report's first picture (https only), for its share card. */
+  sessions: { id: string; title: string; number: number | null; image: string | null }[];
 }

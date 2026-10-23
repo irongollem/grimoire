@@ -18,7 +18,7 @@ export async function GET(req: Request): Promise<Response> {
   try {
     const meta = await fetchBookMeta(slug, supabaseUrl());
     if (!meta) return fallback();
-    const assets = await loadAssets(meta);
+    const assets = await loadAssets(meta, params.get("session"));
     // The page puts the release number in `v`, so a new release is a new URL and the day-long cache is safe.
     const png = await renderCard(meta, params.get("session"), assets);
     return new Response(new Uint8Array(png), {
