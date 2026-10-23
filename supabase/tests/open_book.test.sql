@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(31);
 
 -- open_book (20261023190317, #1085): the owner releases a frozen snapshot of what the whole party can read.
 -- Proven here: only the owner reaches the book, its releases and its two functions; a release needs Pro; anon
@@ -181,6 +181,22 @@ select is(
   (select count(*)::int from public.open_book_entries where entity_id = '10850000-0000-4000-8000-000000000031'),
   0,
   'deleting an NPC forgets its Open Book choice');
+
+-- ── A release keeps its pictures ────────────────────────────────────────────────
+
+reset role;
+update public.open_book_releases set snapshot = snapshot || '{"probe":"https://cdn.example.invalid/npc-portraits/x/kept.webp"}'::jsonb
+ where number = 1;
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10850000-0000-4000-8000-000000000002', true);
+select ok(public.open_book_image_in_use('https://cdn.example.invalid/npc-portraits/x/kept.webp'),
+  'a co-DM is told a released picture is still in use, though they cannot read the release');
+select ok(not public.open_book_image_in_use('https://cdn.example.invalid/npc-portraits/x/other.webp'),
+  'and is told a picture no release shows is free');
+select set_config('request.jwt.claim.sub', '10850000-0000-4000-8000-000000000005', true);
+select ok(not public.open_book_image_in_use('https://cdn.example.invalid/npc-portraits/x/kept.webp'),
+  'a stranger learns nothing about another campaign''s releases');
 
 -- ── anon reads nothing ──────────────────────────────────────────────────────────
 

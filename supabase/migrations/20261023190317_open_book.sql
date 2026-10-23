@@ -550,3 +550,33 @@ $$;
 
 revoke execute on function public.release_open_book(uuid, text) from public, anon;
 grant execute on function public.release_open_book(uuid, text) to authenticated, service_role;
+
+-- ── 7. A release keeps its pictures ─────────────────────────────────────────────
+-- A release is frozen, so the files it shows must outlive the rows that first held them. deleteUnreferenced
+-- (src/lib/storage/deleteUnreferenced.ts, #917) asks this before removing a file. It must see releases a co-DM
+-- cannot read, so it is a definer, scoped to the campaigns the caller runs; it answers yes or no about one URL.
+create function public.open_book_image_in_use(p_url text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (select auth.uid()) is not null
+    and nullif(btrim(p_url), '') is not null
+    and (
+      exists (
+        select 1 from public.open_book_releases r
+         where private.is_campaign_dm(r.campaign_id)
+           and position(p_url in r.snapshot::text) > 0)
+      or exists (
+        select 1 from public.open_books b
+         where private.is_campaign_dm(b.campaign_id)
+           and b.cover_image_url = p_url)
+    ),
+    false);
+$$;
+
+revoke execute on function public.open_book_image_in_use(text) from public, anon;
+grant execute on function public.open_book_image_in_use(text) to authenticated, service_role;
