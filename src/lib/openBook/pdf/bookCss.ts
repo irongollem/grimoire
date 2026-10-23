@@ -101,10 +101,10 @@ const BOOK_CSS = `
 .pb-spine span { position: absolute; left: 0; width: 100%; height: 0.4375rem; background: rgb(0 0 0 / 0.35); box-shadow: 0 1px 0 rgb(255 255 255 / 0.08); }
 .pb-tool { position: absolute; inset: 4.75% 5.4% 4.75% 11.8%; border: 1px solid #b8862a; box-shadow: inset 0 0 0 7px transparent, inset 0 0 0 8px #b8862a; }
 .pb-tool i { position: absolute; width: 0.5625rem; height: 0.5625rem; background: #c9962e; transform: rotate(45deg); }
-.pb-tool i:nth-child(1) { left: -5px; top: -5px; }
-.pb-tool i:nth-child(2) { right: -5px; top: -5px; }
-.pb-tool i:nth-child(3) { left: -5px; bottom: -5px; }
-.pb-tool i:nth-child(4) { right: -5px; bottom: -5px; }
+.pb-tool i:nth-child(1) { left: -0.3125rem; top: -0.3125rem; }
+.pb-tool i:nth-child(2) { right: -0.3125rem; top: -0.3125rem; }
+.pb-tool i:nth-child(3) { left: -0.3125rem; bottom: -0.3125rem; }
+.pb-tool i:nth-child(4) { right: -0.3125rem; bottom: -0.3125rem; }
 .pb-cover-text { position: absolute; inset: 4.75% 5.4% 4.75% 11.8%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem; text-align: center; padding: 2.5rem 1.75rem; }
 .pb-vol, .pb-cover-title, .pb-cover-sub { color: #d9ad52; text-shadow: 0 1px 0 rgb(0 0 0 / 0.55); }
 .pb-vol { font-family: ${SANS}; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.3em; }
