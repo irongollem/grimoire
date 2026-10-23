@@ -234,6 +234,11 @@ export interface OpenBookSnapshot {
   lore: OpenBookLore[];
   sessions: OpenBookSession[];
   events: OpenBookEvent[];
+  /**
+   * Names for the ids the book's own text cites (entityMention stores no label), limited to names the whole
+   * table can read: characters, people under their cover, places, factions. An id missing here stays unnamed.
+   */
+  names: Record<string, string>;
 }
 
 /** What `preview_open_book` returns: the snapshot plus its counts. */
@@ -252,4 +257,10 @@ export interface PublicOpenBook {
     stats: OpenBookStats;
   };
   snapshot: OpenBookSnapshot;
+}
+
+/** `?part=meta` of the `open-book` function: the cover and calendar plus a session index, for titles and share cards. */
+export interface PublicOpenBookMeta extends Omit<PublicOpenBook, "snapshot"> {
+  snapshot: Pick<OpenBookSnapshot, "v" | "book" | "calendar">;
+  sessions: { id: string; title: string; number: number | null }[];
 }

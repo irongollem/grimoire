@@ -231,6 +231,8 @@ declare
   v_lore jsonb := '[]'::jsonb;
   v_sessions jsonb := '[]'::jsonb;
   v_events jsonb := '[]'::jsonb;
+  v_names jsonb := '{}'::jsonb;
+  v_cited uuid[];
 begin
   select * into v_book from public.open_books where campaign_id = p_campaign_id;
   if not found then
@@ -439,6 +441,45 @@ begin
        and (e.player_visible or e.event_type = 'session');
   end if;
 
+  -- Rich text mentions people and places by id only (entityMention stores no label), so the book carries a
+  -- name for every id its own pages cite, when the whole table can already read that name: the party's
+  -- characters, people under their cover, places and factions. Only cited ids: an entry the DM took out keeps
+  -- its name out of the book unless released text names it. A mention of anything else stays unnamed.
+  select coalesce(array_agg(distinct m[1]::uuid), '{}'::uuid[])
+    into v_cited
+    from regexp_matches(
+           concat_ws(' ', v_places::text, v_factions::text, v_pantheons::text, v_deities::text,
+                     v_lore::text, v_sessions::text, v_events::text),
+           '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', 'g') m;
+
+  select coalesce(jsonb_object_agg(x.id::text, x.name), '{}'::jsonb)
+    into v_names
+    from (
+      select pm.id, pm.name from public.party_members pm where pm.campaign_id = p_campaign_id
+      union all
+      select n.id,
+             case when (n.disguise_name is not null or n.disguise_portrait_url is not null) and not n.is_revealed
+                       and n.disguise_name is not null
+                  then n.disguise_name else n.name end
+        from public.npcs n
+       where n.campaign_id = p_campaign_id
+         and 'name' = any (n.player_visible_fields)
+         and (private.open_book_whole_party(n.player_visible_to, v_party)
+              or exists (
+                select 1 from public.locations l
+                 where l.id = n.location_id
+                   and l.is_npcs_shared
+                   and private.open_book_whole_party(l.player_visible_to, v_party)))
+      union all
+      select l.id, l.name from public.locations l
+       where l.campaign_id = p_campaign_id and private.open_book_whole_party(l.player_visible_to, v_party)
+      union all
+      select f.id, f.name from public.factions f
+       where f.campaign_id = p_campaign_id and private.open_book_whole_party(f.player_visible_to, v_party)
+    ) x
+   where x.name is not null
+     and x.id = any (v_cited);
+
   return jsonb_build_object(
     'v', 1,
     'book', jsonb_build_object(
@@ -461,6 +502,7 @@ begin
     'lore', v_lore,
     'sessions', v_sessions,
     'events', v_events,
+    'names', v_names,
     'stats', jsonb_build_object(
       'places', jsonb_array_length(v_places),
       'folk', jsonb_array_length(v_folk),

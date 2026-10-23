@@ -20,6 +20,13 @@ function setCount(table: string, column: string, value: string, count: number): 
   if (count > 0) refs.add(rowKey(table, column, value));
 }
 
+const releaseUrls = new Set<string>();
+let releaseError = false;
+const rpc = vi.fn(async (_fn: string, args: { p_url: string }) => {
+  if (releaseError) return { data: null, error: new Error("rpc failed") };
+  return { data: releaseUrls.has(args.p_url), error: null };
+});
+
 const inCall = vi.fn();
 const from = vi.fn((table: string) => ({
   select: vi.fn((column: string) => ({
@@ -32,7 +39,7 @@ const from = vi.fn((table: string) => ({
 }));
 
 vi.mock("@/lib/supabase", () => ({
-  supabase: { from: (table: string) => from(table) },
+  supabase: { from: (table: string) => from(table), rpc: (fn: string, args: { p_url: string }) => rpc(fn, args) },
 }));
 
 beforeEach(() => {
@@ -41,6 +48,9 @@ beforeEach(() => {
   inCall.mockClear();
   refs.clear();
   failing.clear();
+  releaseUrls.clear();
+  releaseError = false;
+  rpc.mockClear();
 });
 
 describe("deleteUnreferencedByPublicUrl", () => {
@@ -192,5 +202,34 @@ describe("deleteUnreferencedByPublicUrl", () => {
     await deleteUnreferencedByPublicUrl({ urls: [card, group] });
 
     expect(deleteByPublicUrl).not.toHaveBeenCalled();
+  });
+
+  it("keeps a file an Open Book release still holds (#1085)", async () => {
+    const { deleteUnreferencedByPublicUrl } = await import("./deleteUnreferenced");
+    const url = "https://cdn.example.com/npc-portraits/u1/published.webp";
+    releaseUrls.add(url);
+
+    await deleteUnreferencedByPublicUrl({ urls: [url] });
+
+    expect(rpc).toHaveBeenCalledWith("open_book_image_in_use", { p_url: url });
+    expect(deleteByPublicUrl).not.toHaveBeenCalled();
+  });
+
+  it("keeps every file, and throws, when the release check errors (#1085)", async () => {
+    const { deleteUnreferencedByPublicUrl } = await import("./deleteUnreferenced");
+    releaseError = true;
+
+    await expect(deleteUnreferencedByPublicUrl({ urls: ["https://cdn.example.com/npc-portraits/u1/a.webp"] })).rejects.toThrow();
+    expect(deleteByPublicUrl).not.toHaveBeenCalled();
+  });
+
+  it("deletes a file no release holds (#1085)", async () => {
+    const { deleteUnreferencedByPublicUrl } = await import("./deleteUnreferenced");
+    const url = "https://cdn.example.com/npc-portraits/u1/free.webp";
+
+    await deleteUnreferencedByPublicUrl({ urls: [url] });
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(deleteByPublicUrl).toHaveBeenCalledWith(url);
   });
 });

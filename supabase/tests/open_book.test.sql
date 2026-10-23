@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(32);
 
 -- open_book (20261023190317, #1085): the owner releases a frozen snapshot of what the whole party can read.
 -- Proven here: only the owner reaches the book, its releases and its two functions; a release needs Pro; anon
@@ -50,6 +50,12 @@ insert into public.locations (id, user_id, campaign_id, name, description, notes
   ('10850000-0000-4000-8000-000000000040', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'Hollowmere',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"OB public words"}]},{"type":"secretBlock","content":[{"type":"paragraph","content":[{"type":"text","text":"OB-SECRET-BLOCK"}]}]}]}',
    'OB-DM-LOCATION-NOTE', true,
+   array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
+
+-- A lore note that mentions the disguised man by id, as the editor stores a mention.
+insert into public.notes (id, user_id, campaign_id, title, category, content, player_visible_to) values
+  ('10850000-0000-4000-8000-000000000070', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'The pilgrim', 'lore',
+   '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"entityMention","attrs":{"id":"10850000-0000-4000-8000-000000000032","entityType":"npc"}},{"type":"text","text":" walked in at dusk."}]}]}',
    array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
 
 insert into public.deities (id, user_id, campaign_id, name, description, player_visible_to) values
@@ -129,6 +135,10 @@ select set_eq(
   $$ select e->>'title' from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'events') e $$,
   $$ values ('Feast of Orla') $$,
   'the calendar shows only what players see');
+select is(
+  public.preview_open_book('10850000-0000-4000-8000-000000000010')->'names'->>'10850000-0000-4000-8000-000000000032',
+  'The Grey Pilgrim',
+  'a mention of a disguised person resolves to the cover the table knows');
 select ok(
   public.preview_open_book('10850000-0000-4000-8000-000000000010')::text !~ '(OB-SECRET-BACKSTORY|OB-True-Name|OB-SECRET-BLOCK|OB-DM-LOCATION-NOTE|OB-DEITY-SECRET|OB-HIDDEN-EVENT|OB-Only-Ada-Knows|OB-Taken-Out)',
   'nothing the table cannot read appears anywhere in the snapshot');
