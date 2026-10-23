@@ -71,7 +71,7 @@
         <OpenBookToggleRow
           v-model="draft.allow_pdf"
           label="Let readers download a PDF"
-          hint="Each release is also set as a printable book, with the same pages."
+          :hint="pdfHint"
         />
         <OpenBookToggleRow
           v-model="draft.indexable"
@@ -126,7 +126,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { useAutosave } from "@/composables/useAutosave";
 import { useSaveOpenBook } from "@/composables/openBook/useOpenBook";
-import { useOpenBookPreview } from "@/composables/openBook/useOpenBookReleases";
+import { useOpenBookPreview, useOpenBookReleases } from "@/composables/openBook/useOpenBookReleases";
 import { classifyOpenBookError } from "@/lib/openBook/errors";
 import { isValidOpenBookSlug } from "@/lib/openBook/slug";
 import { IconExternalLink } from "@/lib/icons";
@@ -174,6 +174,15 @@ watch(() => draft.slug, () => {
 
 // Counts beside the chapters come from what a release made now would hold.
 const { data: preview } = useOpenBookPreview(() => campaignId, true);
+
+// A reader's download is the live release's PDF, which the owner exports from the release list.
+const { data: releases } = useOpenBookReleases(() => campaignId);
+const pdfHint = computed(() => {
+  const live = (releases.value ?? []).find((r) => r.id === book.live_release_id);
+  return draft.allow_pdf && live && live.pdf_url === null
+    ? "Export the PDF for readers to download it: it is under Releases, in Review and release."
+    : "Each release is also set as a printable book, with the same pages.";
+});
 
 const { mutateAsync: saveBook } = useSaveOpenBook();
 

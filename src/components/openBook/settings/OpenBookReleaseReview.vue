@@ -47,9 +47,7 @@
           :loading="release.isPending.value"
           @click="onRelease"
         />
-        <AppButton variant="outline" label="Export PDF" disabled title="Coming with page layouts" />
         <AppButton variant="ghost" label="Not yet" @click="emit('done')" />
-        <span class="text-caption text-muted-foreground">Export PDF: coming with page layouts.</span>
       </div>
     </div>
 

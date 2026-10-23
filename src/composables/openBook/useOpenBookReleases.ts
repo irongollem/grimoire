@@ -2,6 +2,8 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { OPEN_BOOK_KEY, OPEN_BOOK_RELEASES_KEY } from "@/lib/campaignLiveSync/registry";
+import { deleteByPublicUrl } from "@/lib/storage/remove";
+import { reportHandledError } from "@/lib/observability/sentry";
 import type { OpenBookPreview, OpenBookRelease, OpenBookSnapshot } from "@/types/openBook.types";
 
 /** Every column but `snapshot`, which is the bulk of a row and is read only when one release is opened. */
@@ -59,6 +61,19 @@ export function useReleaseOpenBook() {
   });
 }
 
+/**
+ * Removes a PDF object once nothing points at it. Best effort: the row it belonged to is already changed or gone,
+ * so a failure here leaves an unreferenced file, which is worth a report and not worth failing the action for.
+ */
+async function removePdfObject(url: string | null): Promise<void> {
+  if (!url) return;
+  try {
+    await deleteByPublicUrl(url);
+  } catch (err) {
+    reportHandledError(err, "openBook:removePdf", { url });
+  }
+}
+
 /** Deletes a release. The live one is refused silently by RLS, so the row is read back to say so. */
 export function useDeleteRelease() {
   const queryClient = useQueryClient();
@@ -69,9 +84,11 @@ export function useDeleteRelease() {
         .delete()
         .eq("campaign_id", campaignId)
         .eq("id", releaseId)
-        .select("id");
+        .select("id, pdf_url");
       if (error) throw error;
       if (data.length === 0) throw new Error("The live release cannot be deleted; put another back first.");
+      // The release's PDF goes with it, once the row is certainly gone.
+      await removePdfObject(data[0].pdf_url);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [OPEN_BOOK_RELEASES_KEY] }),
   });
@@ -100,6 +117,38 @@ export function useUpdateReleaseNote() {
   });
 }
 
+/**
+ * Records the PDF exported for a release (`pdf_url` is one of the two columns the owner may update). The file it
+ * replaces is removed after the row points at the new one, so a reader never follows a link to a deleted file.
+ */
+export function useSetReleasePdf() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      releaseId,
+      pdfUrl,
+      previousUrl,
+    }: {
+      campaignId: string;
+      releaseId: string;
+      pdfUrl: string;
+      previousUrl: string | null;
+    }) => {
+      const { data, error } = await supabase
+        .from("open_book_releases")
+        .update({ pdf_url: pdfUrl })
+        .eq("campaign_id", campaignId)
+        .eq("id", releaseId)
+        .select("id");
+      if (error) throw error;
+      if (data.length === 0) throw new Error("That release is no longer in the book.");
+      if (previousUrl && previousUrl !== pdfUrl) await removePdfObject(previousUrl);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [OPEN_BOOK_RELEASES_KEY] }),
+  });
+}
+
 /** What a release made now would hold. Not live: it is read when the panel opens and again on request. */
 export function useOpenBookPreview(
   campaignId: MaybeRefOrGetter<string | null | undefined>,
@@ -120,6 +169,18 @@ export function useOpenBookPreview(
   });
 }
 
+/** One release's frozen book, read from its row. */
+export async function fetchReleaseSnapshot(campaignId: string, releaseId: string): Promise<OpenBookSnapshot> {
+  const { data, error } = await supabase
+    .from("open_book_releases")
+    .select("snapshot")
+    .eq("campaign_id", campaignId)
+    .eq("id", releaseId)
+    .single();
+  if (error) throw error;
+  return (data as unknown as { snapshot: OpenBookSnapshot }).snapshot;
+}
+
 /** One release's frozen book, for the diff against the next. Immutable, so it is never refetched on its own. */
 export function useReleaseSnapshot(
   releaseId: MaybeRefOrGetter<string | null | undefined>,
@@ -132,14 +193,7 @@ export function useReleaseSnapshot(
     queryKey: computed(() => releaseSnapshotKey(id.value)),
     queryFn: async (): Promise<OpenBookSnapshot> => {
       if (id.value === null || cid.value === null) throw new Error("useReleaseSnapshot fetched without a release");
-      const { data, error } = await supabase
-        .from("open_book_releases")
-        .select("snapshot")
-        .eq("campaign_id", cid.value)
-        .eq("id", id.value)
-        .single();
-      if (error) throw error;
-      return (data as unknown as { snapshot: OpenBookSnapshot }).snapshot;
+      return fetchReleaseSnapshot(cid.value, id.value);
     },
     enabled: computed(() => id.value !== null && cid.value !== null && toValue(enabled)),
     staleTime: Infinity,

@@ -30,7 +30,11 @@
       :releases="releases"
       :live-id="book.live_release_id"
       :busy="putBack.isPending.value"
+      :exporting-id="pdf.releaseId.value"
+      :phase-label="phaseLabel"
+      :pdf-error="pdf.error.value"
       @put-back="onPutBack"
+      @export-pdf="onExportPdf"
     />
 
     <div class="flex flex-col gap-2">
@@ -64,6 +68,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { usePutBackRelease, useSetOpenBookOpen } from "@/composables/openBook/useOpenBook";
+import { PDF_PHASE_LABEL, useOpenBookPdf } from "@/composables/openBook/useOpenBookPdf";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import type { OpenBook, OpenBookRelease, OpenBookSession, OpenBookStats } from "@/types/openBook.types";
@@ -84,7 +89,10 @@ const { confirm } = useConfirm();
 const toast = useToast();
 const setOpen = useSetOpenBookOpen();
 const putBack = usePutBackRelease();
+const pdf = useOpenBookPdf(() => campaignId);
 const error = ref("");
+
+const phaseLabel = computed(() => (pdf.phase.value ? PDF_PHASE_LABEL[pdf.phase.value] : ""));
 
 const statusLabel = computed(() => {
   if (book.is_open) return "Open to the world";
@@ -106,6 +114,11 @@ async function onClose() {
     confirmLabel: "Close the book",
   });
   if (ok) await onSetOpen(false);
+}
+
+async function onExportPdf(release: OpenBookRelease) {
+  const ok = await pdf.exportRelease(book, release);
+  if (ok) toast.success(`The PDF of Release ${release.number} is ready.`);
 }
 
 async function onPutBack(releaseId: string) {
