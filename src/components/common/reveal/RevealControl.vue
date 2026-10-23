@@ -99,14 +99,14 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION, ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariants";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import RevealBody from "@/components/common/reveal/RevealBody.vue";
-import { useBookReveal, type BookEntryRef } from "@/composables/openBook/useBookReveal";
+import { useBookReveal, type BookEntryRef, type BookRule } from "@/composables/openBook/useBookReveal";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useParty } from "@/composables/party/useParty";
 import { IconHide, IconOpenBook, IconReveal } from "@/lib/icons";
 import { revealLabel, revealState } from "@/lib/reveal";
 import type { RevealAdapter, RevealForm } from "@/lib/reveal";
 
-const { adapter, entityName, form = "button", bookEntry } = defineProps<{
+const { adapter, entityName, form = "button", bookEntry, bookRule } = defineProps<{
   /** Bridges whichever storage model this entity uses. See `lib/reveal`. */
   adapter: RevealAdapter;
   /** Used in the control's title and the sheet's heading. */
@@ -152,6 +152,8 @@ const { adapter, entityName, form = "button", bookEntry } = defineProps<{
    * the viewer owns the campaign and it has a book (see `useBookReveal`).
    */
   bookEntry?: BookEntryRef;
+  /** For a kind whose book rule is stricter or looser than "the whole party sees it" (NPCs); see `useBookReveal`. */
+  bookRule?: BookRule;
 }>();
 
 const { data: partyData } = useParty();
@@ -161,14 +163,14 @@ const partyIds = computed(() => party.value.map((m) => m.id));
 const state = computed(() => revealState(partyIds.value, adapter.isMemberVisible));
 const sharedCount = computed(() => partyIds.value.filter(adapter.isMemberVisible).length);
 
-const book = useBookReveal(() => bookEntry, adapter);
+const book = useBookReveal(() => bookEntry, adapter, () => bookRule);
 /** Only the settled answer reaches the trigger: "in the book" needs a book, an owner and a fully shared entry. */
 const inBook = computed(() => book.inBook.value);
 const bookProps = computed(() => ({
   available: book.available.value,
   eligible: book.eligible.value,
   inBook: book.inBook.value,
-  missingMemberName: book.missingMemberName.value,
+  blockedCaption: book.blockedCaption.value,
 }));
 const triggerIcon = computed(() => {
   if (inBook.value) return IconOpenBook;

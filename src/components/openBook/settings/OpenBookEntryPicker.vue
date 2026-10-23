@@ -124,10 +124,13 @@ const partyIds = computed(() => (party.value ?? []).map((member) => member.id));
 
 /** Places of this campaign only: the Atlas list also carries general places that no book snapshot holds. */
 const places = computed(() => {
-  const shown = new Map((visibility.value ?? []).map((v) => [v.id, v.player_visible_to]));
-  return (locations.value ?? [])
-    .filter((l) => shown.has(l.id))
-    .map((l) => ({ id: l.id, parent_id: l.parent_id, name: l.name, player_visible_to: shown.get(l.id) ?? [] }));
+  const shown = new Map((visibility.value ?? []).map((v) => [v.id, v]));
+  return (locations.value ?? []).flatMap((l) => {
+    const seen = shown.get(l.id);
+    return seen
+      ? [{ id: l.id, parent_id: l.parent_id, name: l.name, player_visible_to: seen.player_visible_to, is_npcs_shared: seen.is_npcs_shared }]
+      : [];
+  });
 });
 
 const rows = computed<PickerRow[]>(() =>
@@ -239,11 +242,14 @@ async function shareAndAdd() {
     toast.error(toast.fromError(e, "The entries could not be shared."));
     return;
   }
-  // Everything picked can be seen by the whole party now, so all of it may go in.
+  // Everything picked can be seen by the whole party now. An NPC whose name is hidden still cannot go in.
+  const goesIn = picked.filter((row) => !row.nameHidden);
+  const kept = picked.length - goesIn.length;
   await put(
-    picked.map((row) => ({ ...row, eligible: true })),
+    goesIn,
     true,
-    `Shared ${pluralizeCount(picked.length, "entry", "entries")} with the party and added them to the book.`,
+    `Shared ${pluralizeCount(picked.length, "entry", "entries")} with the party and added ${pluralizeCount(goesIn.length, "entry", "entries")} to the book.` +
+      (kept > 0 ? ` ${pluralizeCount(kept, "NPC", "NPCs")} stay out until their name is shared.` : ""),
   );
 }
 </script>

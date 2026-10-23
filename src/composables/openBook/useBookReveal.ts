@@ -19,6 +19,13 @@ export interface BookEntryRef {
   id: string;
 }
 
+/** An entry kind's own answer to "can it go in the book", when it differs from "the whole party sees it". */
+export interface BookRule {
+  eligible: boolean;
+  /** The caption while blocked; null falls back to the whole-party caption. */
+  blockedCaption: string | null;
+}
+
 /** The first party member who cannot yet see the entry, or null when the whole party can (or there is no party). */
 export function firstMissingMember(
   party: readonly Pick<PartyMember, "id" | "name">[],
@@ -48,9 +55,14 @@ export function bookWrite(wantInBook: boolean, includeShared: boolean): "clear" 
  *
  * Present only for the campaign owner (RLS returns the book row to nobody else, so co-DMs and players never get a
  * section) and only once the campaign has a book. `eligible` follows the adapter, so an editor bound to an unsaved
- * draft shows what saving will mean; the database re-derives eligibility at release time either way.
+ * draft shows what saving will mean; the database re-derives eligibility at release time either way. Kinds whose
+ * rule is not "the whole party sees it" (NPCs also need a shared name, and can ride a place) pass their own `rule`.
  */
-export function useBookReveal(entry: MaybeRefOrGetter<BookEntryRef | undefined>, adapter: RevealAdapter) {
+export function useBookReveal(
+  entry: MaybeRefOrGetter<BookEntryRef | undefined>,
+  adapter: RevealAdapter,
+  rule?: MaybeRefOrGetter<BookRule | undefined>,
+) {
   const campaign = useCampaignStore();
   const toast = useToast();
   const { data: partyData } = useParty();
@@ -67,7 +79,12 @@ export function useBookReveal(entry: MaybeRefOrGetter<BookEntryRef | undefined>,
   const party = computed(() => partyData.value ?? []);
   const available = computed(() => toValue(entry) !== undefined && book.value != null);
   const missingMemberName = computed(() => firstMissingMember(party.value, adapter.isMemberVisible));
-  const eligible = computed(() => party.value.length > 0 && missingMemberName.value === null);
+  const eligible = computed(
+    () => toValue(rule)?.eligible ?? (party.value.length > 0 && missingMemberName.value === null),
+  );
+  const blockedCaption = computed(
+    () => toValue(rule)?.blockedCaption ?? bookBlockedCaption(missingMemberName.value),
+  );
   const choice = computed(() => {
     const ref = toValue(entry);
     return ref === undefined
@@ -94,5 +111,5 @@ export function useBookReveal(entry: MaybeRefOrGetter<BookEntryRef | undefined>,
     }
   }
 
-  return { available, eligible, inBook, missingMemberName, toggle };
+  return { available, eligible, inBook, blockedCaption, toggle };
 }

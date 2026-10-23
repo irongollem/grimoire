@@ -84,7 +84,7 @@
         />
       </div>
       <p class="mt-1.5 px-2 text-caption text-muted-foreground">
-        {{ book.eligible ? "From the next release" : bookBlockedCaption(book.missingMemberName) }}
+        {{ book.eligible ? "From the next release" : book.blockedCaption }}
       </p>
     </div>
 
@@ -118,7 +118,6 @@
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import RevealOption from "@/components/common/reveal/RevealOption.vue";
-import { bookBlockedCaption } from "@/composables/openBook/useBookReveal";
 import { IconOpenBook, IconParty } from "@/lib/icons";
 import type { RevealAdapter, PartyRevealState } from "@/lib/reveal";
 import type { PartyMember } from "@/types/party.types";
@@ -132,7 +131,7 @@ const { adapter } = defineProps<{
     available: boolean;
     eligible: boolean;
     inBook: boolean;
-    missingMemberName: string | null;
+    blockedCaption: string;
   };
 }>();
 

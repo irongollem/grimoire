@@ -12,12 +12,13 @@ export const SHARE_CHUNK = 100;
 export interface PlaceVisibility {
   id: string;
   player_visible_to: string[];
+  is_npcs_shared: boolean;
 }
 
 /**
- * Who each place of the campaign is shown to. The Atlas's slim list (`useAllLocations`) leaves
- * `player_visible_to` out, and the picker cannot tell a shared place from a private one without it, so this reads
- * just that column. It sits under the `locations` root, so the doorbell's `locations` ring refreshes it with the rest.
+ * Who each place of the campaign is shown to, and whether it shares its residents. The Atlas's slim list
+ * (`useAllLocations`) leaves both out, and the book's rules (a place, or an NPC living in one) need them, so this
+ * reads just those columns. It sits under the `locations` root, so the doorbell's `locations` ring refreshes it with the rest.
  */
 export function useLocationVisibility(campaignId: MaybeRefOrGetter<string | null | undefined>) {
   const id = computed(() => toValue(campaignId) ?? null);
@@ -27,7 +28,7 @@ export function useLocationVisibility(campaignId: MaybeRefOrGetter<string | null
       if (id.value === null) throw new Error("useLocationVisibility fetched without a campaign");
       const { data, error } = await supabase
         .from("locations")
-        .select("id, player_visible_to")
+        .select("id, player_visible_to, is_npcs_shared")
         .eq("campaign_id", id.value);
       if (error) throw error;
       return data as PlaceVisibility[];

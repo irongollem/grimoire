@@ -20,14 +20,14 @@ const empty: PickerSources = { locations: [], npcs: [], factions: [], pantheons:
 
 const sources: PickerSources = {
   locations: [
-    { id: "l-coast", parent_id: null, name: "Sunken Coast", player_visible_to: ["a", "b"] },
-    { id: "l-vault", parent_id: "l-coast", name: "Drowned Vault", player_visible_to: [] },
-    { id: "l-bell", parent_id: "l-coast", name: "Bell Tower", player_visible_to: ["a"] },
-    { id: "l-far", parent_id: null, name: "Far Reach", player_visible_to: ["a", "b"] },
+    { id: "l-coast", parent_id: null, name: "Sunken Coast", player_visible_to: ["a", "b"], is_npcs_shared: false },
+    { id: "l-vault", parent_id: "l-coast", name: "Drowned Vault", player_visible_to: [], is_npcs_shared: false },
+    { id: "l-bell", parent_id: "l-coast", name: "Bell Tower", player_visible_to: ["a"], is_npcs_shared: false },
+    { id: "l-far", parent_id: null, name: "Far Reach", player_visible_to: ["a", "b"], is_npcs_shared: false },
   ],
   npcs: [
-    { id: "n-orla", name: "Orla", location_id: "l-bell", player_visible_to: ["a", "b"] },
-    { id: "n-nobody", name: "Nobody", location_id: null, player_visible_to: null },
+    { id: "n-orla", name: "Orla", location_id: "l-bell", player_visible_to: ["a", "b"], player_visible_fields: ["name"] },
+    { id: "n-nobody", name: "Nobody", location_id: null, player_visible_to: null, player_visible_fields: [] },
   ],
   factions: [{ id: "f1", name: "Tide Guild", player_visible_to: ["a", "b"] }],
   pantheons: [{ id: "p1", name: "Drowned Choir", player_visible_to: ["a", "b"] }],
@@ -58,9 +58,9 @@ describe("buildPickerRows", () => {
       {
         ...empty,
         locations: [
-          { id: "x", parent_id: "gone", name: "X", player_visible_to: [] },
-          { id: "c1", parent_id: "c2", name: "C1", player_visible_to: [] },
-          { id: "c2", parent_id: "c1", name: "C2", player_visible_to: [] },
+          { id: "x", parent_id: "gone", name: "X", player_visible_to: [], is_npcs_shared: false },
+          { id: "c1", parent_id: "c2", name: "C1", player_visible_to: [], is_npcs_shared: false },
+          { id: "c2", parent_id: "c1", name: "C2", player_visible_to: [], is_npcs_shared: false },
         ],
       },
       [],
@@ -84,6 +84,33 @@ describe("buildPickerRows", () => {
     expect(byId(list, "l-coast")).toMatchObject({ audience: "party", eligible: true });
     expect(byId(list, "l-bell")).toMatchObject({ audience: "some", eligible: false });
     expect(byId(list, "n-nobody")).toMatchObject({ audience: "me", eligible: false, visibleTo: [] });
+  });
+
+  it("holds NPCs to the database rule: a shared name, and the party directly or through a sharing place", () => {
+    const list = buildPickerRows(
+      {
+        ...empty,
+        locations: [
+          { id: "inn", parent_id: null, name: "Inn", player_visible_to: ["a", "b"], is_npcs_shared: true },
+          { id: "cellar", parent_id: null, name: "Cellar", player_visible_to: ["a", "b"], is_npcs_shared: false },
+        ],
+        npcs: [
+          { id: "n-direct", name: "Direct", location_id: null, player_visible_to: ["a", "b"], player_visible_fields: ["name"] },
+          { id: "n-nameless", name: "Nameless", location_id: null, player_visible_to: ["a", "b"], player_visible_fields: ["portrait"] },
+          { id: "n-resident", name: "Resident", location_id: "inn", player_visible_to: [], player_visible_fields: ["name"] },
+          { id: "n-cellar", name: "Cellared", location_id: "cellar", player_visible_to: [], player_visible_fields: ["name"] },
+          { id: "n-resident-nameless", name: "Shy", location_id: "inn", player_visible_to: [], player_visible_fields: [] },
+        ],
+      },
+      [],
+      { includeShared: true },
+      PARTY,
+    );
+    expect(byId(list, "n-direct")).toMatchObject({ eligible: true, inBook: true, nameHidden: false });
+    expect(byId(list, "n-nameless")).toMatchObject({ eligible: false, inBook: false, nameHidden: true, audience: "party" });
+    expect(byId(list, "n-resident")).toMatchObject({ eligible: true, inBook: true, audience: "party" });
+    expect(byId(list, "n-cellar")).toMatchObject({ eligible: false, nameHidden: false, audience: "me" });
+    expect(byId(list, "n-resident-nameless")).toMatchObject({ eligible: false, nameHidden: true });
   });
 
   it("is in the book by default only when eligible and the default includes it", () => {

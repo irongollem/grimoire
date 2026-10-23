@@ -32,6 +32,6 @@ const audienceLabel = computed(() =>
   row.audience === "party" ? "Whole party" : row.audience === "some" ? pluralizeCount(row.visibleTo.length, "player") : "Only you",
 );
 const audienceTone = computed(() => (row.audience === "party" ? "text-primary" : "text-muted-foreground"));
-const bookLabel = computed(() => (row.inBook ? "In the book" : row.eligible ? "Not in the book" : "Needs the party"));
+const bookLabel = computed(() => (row.inBook ? "In the book" : row.eligible ? "Not in the book" : row.nameHidden ? "Needs a name" : "Needs the party"));
 const bookTone = computed(() => (row.inBook ? "text-primary" : "text-muted-foreground"));
 </script>

@@ -3,7 +3,7 @@
     <span class="grow text-label-lg" aria-live="polite">
       {{ summary.selected }} selected
       <span v-if="summary.notShared > 0" class="font-normal text-muted-foreground">
-        · {{ summary.notShared }} {{ summary.notShared === 1 ? "is" : "are" }} not shared with the whole party yet
+        · {{ summary.notShared }} {{ summary.notShared === 1 ? "is" : "are" }} not ready for the book yet
       </span>
     </span>
     <AppButton variant="ghost" size="sm" label="Take out of the book" :disabled="disabled" @click="emit('take-out')" />

@@ -4,41 +4,41 @@ import { useToast } from "@/composables/useToast";
 import { useOpenBook } from "@/composables/openBook/useOpenBook";
 import { bookWrite } from "@/composables/openBook/useBookReveal";
 import { useClearOpenBookEntries, useSetOpenBookEntries } from "@/composables/openBook/useOpenBookEntries";
-import { wholeParty } from "@/lib/openBook/eligibility";
 import { useCampaignStore } from "@/stores/campaign";
 import type { OpenBookEntityType } from "@/types/openBook.types";
 
-/** Splits a selection into the ids that are shared with the whole party and the ones that are not. */
-export function splitByWholeParty(
+/** Splits a selection into the ids the book can take (by the kind's own rule) and the ones it cannot. */
+export function splitByEligibility(
   ids: readonly string[],
-  visibleToOf: (id: string) => readonly string[] | null | undefined,
+  isEligible: (id: string, partyIds: readonly string[]) => boolean,
   partyIds: readonly string[],
 ): { eligible: string[]; skipped: string[] } {
   const eligible: string[] = [];
   const skipped: string[] = [];
-  for (const id of ids) (wholeParty(visibleToOf(id), partyIds) ? eligible : skipped).push(id);
+  for (const id of ids) (isEligible(id, partyIds) ? eligible : skipped).push(id);
   return { eligible, skipped };
 }
 
 /** The toast line after "Add to Open Book". */
 export function addToBookMessage(added: number, skipped: number, noun: string): string {
   const plural = (n: number) => `${n} ${noun}${n === 1 ? "" : "s"}`;
-  if (added === 0) return `Nothing added: ${plural(skipped)} not shared with the whole party yet.`;
+  if (added === 0) return `Nothing added: ${plural(skipped)} not ready for the book yet.`;
   const base = `Added ${plural(added)} to the Open Book.`;
-  return skipped === 0 ? base : `${base} Skipped ${skipped} not shared with the whole party.`;
+  return skipped === 0 ? base : `${base} Skipped ${skipped} not ready for the book.`;
 }
 
 /**
  * "Add to Open Book" / "Take out of Open Book" for a list's bulk bar (#1085). Owner-only and only once the campaign
- * has a book, like the reveal control's section. Adding skips entries the whole party cannot see, because the
- * database would leave them out of the release anyway, and says how many it skipped.
+ * has a book, like the reveal control's section. Adding skips entries the book cannot take (the kind's own rule,
+ * as the database applies it at release), and says how many it skipped.
  */
 export function useBulkOpenBook(options: {
   entityType: OpenBookEntityType;
   /** Singular noun for toasts ("NPC", "faction"). */
   noun: string;
   selectedIds: MaybeRefOrGetter<readonly string[]>;
-  visibleToOf: (id: string) => readonly string[] | null | undefined;
+  /** Whether the book can take this entry now; `partyIds` is the campaign's party. */
+  isEligible: (id: string, partyIds: readonly string[]) => boolean;
 }) {
   const campaign = useCampaignStore();
   const toast = useToast();
@@ -72,7 +72,7 @@ export function useBulkOpenBook(options: {
   function add() {
     return run(async () => {
       const partyIds = (partyData.value ?? []).map((m) => m.id);
-      const { eligible, skipped } = splitByWholeParty(toValue(options.selectedIds), options.visibleToOf, partyIds);
+      const { eligible, skipped } = splitByEligibility(toValue(options.selectedIds), options.isEligible, partyIds);
       await write(eligible, true);
       const message = addToBookMessage(eligible.length, skipped.length, options.noun);
       if (eligible.length === 0) toast.info(message);

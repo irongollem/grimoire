@@ -5,7 +5,7 @@
       size="sm"
       :icon="IconOpenBook"
       label="Add to Open Book"
-      tooltip="Puts the selected entries in the next release. Entries not shared with the whole party are skipped"
+      tooltip="Puts the selected entries in the next release. Entries the book cannot take yet are skipped"
       :disabled="busy || book.busy.value || count === 0"
       @click="book.add()"
     />
@@ -30,11 +30,12 @@ import { useBulkOpenBook } from "@/composables/openBook/useBulkOpenBook";
 import { IconOpenBook } from "@/lib/icons";
 import type { OpenBookEntityType } from "@/types/openBook.types";
 
-const { entityType, noun, selectedIds, visibleToOf, busy = false } = defineProps<{
+const { entityType, noun, selectedIds, isEligible, busy = false } = defineProps<{
   entityType: OpenBookEntityType;
   noun: string;
   selectedIds: readonly string[];
-  visibleToOf: (id: string) => readonly string[] | null | undefined;
+  /** Whether the book can take this entry now, by the rule for its kind. */
+  isEligible: (id: string, partyIds: readonly string[]) => boolean;
   /** The bar's own busy state (a move in flight). */
   busy?: boolean;
 }>();
@@ -44,6 +45,6 @@ const book = useBulkOpenBook({
   entityType,
   noun,
   selectedIds: () => selectedIds,
-  visibleToOf: (id) => visibleToOf(id),
+  isEligible: (id, partyIds) => isEligible(id, partyIds),
 });
 </script>

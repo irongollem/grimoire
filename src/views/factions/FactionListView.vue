@@ -77,7 +77,7 @@
         entity-type="faction"
         noun="faction"
         :selected-ids="[...selectedIds]"
-        :visible-to-of="factionVisibleTo"
+        :is-eligible="factionBookEligible"
         :busy="isMovingScope"
       />
     </BulkScopeBar>
@@ -206,6 +206,7 @@ import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import { wholeParty } from "@/lib/openBook/eligibility";
 import BulkOpenBookActions from "@/components/common/list/BulkOpenBookActions.vue";
 import BulkScopeBar from "@/components/common/list/BulkScopeBar.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
@@ -315,8 +316,8 @@ const {
   pruneTo,
 } = useBulkSelection();
 
-function factionVisibleTo(id: string): readonly string[] | undefined {
-  return factions.value?.find((f) => f.id === id)?.player_visible_to;
+function factionBookEligible(id: string, partyIds: readonly string[]): boolean {
+  return wholeParty(factions.value?.find((f) => f.id === id)?.player_visible_to, partyIds);
 }
 
 function toggleSelecting() {

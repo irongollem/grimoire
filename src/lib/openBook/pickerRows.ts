@@ -7,7 +7,7 @@
  * see it. `open_book_entries` only ever holds exceptions to the book's default, so putting an entry in clears its
  * row when the default already includes it, and writes `included: true` only when it does not (and the reverse).
  */
-import { isInBook, wholeParty } from "@/lib/openBook/eligibility";
+import { isInBook, npcBookBlock, npcSharingPlaceIds, wholeParty } from "@/lib/openBook/eligibility";
 import type { OpenBookChapter, OpenBookEntityType, OpenBookEntry } from "@/types/openBook.types";
 
 export interface PickerPlace {
@@ -15,12 +15,15 @@ export interface PickerPlace {
   parent_id: string | null;
   name: string;
   player_visible_to: readonly string[] | null;
+  /** The place lets the party see its residents, which can put them in the book without being told directly. */
+  is_npcs_shared: boolean;
 }
 export interface PickerNpc {
   id: string;
   name: string;
   location_id: string | null;
   player_visible_to: readonly string[] | null;
+  player_visible_fields: readonly string[];
 }
 export interface PickerNamed {
   id: string;
@@ -64,8 +67,10 @@ export interface PickerRow {
   placeId: string | null;
   visibleTo: readonly string[];
   audience: PickerAudience;
-  /** The whole party can see it, so it may go in the book. */
+  /** It may go in the book: the whole party can see it (an NPC also needs a shared name; see `npcBookBlock`). */
   eligible: boolean;
+  /** An NPC whose name is not shared: sharing with the party alone would not make them eligible. */
+  nameHidden: boolean;
   /** The DM's own choice for this entry, absent when it follows the book's default. */
   choice: boolean | undefined;
   inBook: boolean;
@@ -127,6 +132,7 @@ export function buildPickerRows(
   book: PickerBook,
   partyIds: readonly string[],
 ): PickerRow[] {
+  const sharingPlaces = npcSharingPlaceIds(sources.locations, partyIds);
   const choices = new Map(entries.map((e) => [rowKey(e.entity_type, e.entity_id), e.included]));
 
   const make = (
@@ -135,10 +141,11 @@ export function buildPickerRows(
     chapter: OpenBookChapter,
     name: string,
     visible: readonly string[] | null,
-    extra: { detail?: string | null; depth?: number; placeId?: string | null } = {},
+    extra: { detail?: string | null; depth?: number; placeId?: string | null; npc?: PickerNpc } = {},
   ): PickerRow => {
     const visibleTo = visible ?? [];
-    const eligible = wholeParty(visibleTo, partyIds);
+    const block = extra.npc ? npcBookBlock(extra.npc, partyIds, sharingPlaces) : null;
+    const eligible = extra.npc ? block === null : wholeParty(visibleTo, partyIds);
     const key = rowKey(type, id);
     const choice = choices.get(key);
     return {
@@ -151,8 +158,10 @@ export function buildPickerRows(
       depth: extra.depth ?? 0,
       placeId: extra.placeId ?? null,
       visibleTo,
-      audience: audienceOf(visibleTo, partyIds),
+      // An NPC seen through the place they live in reads as the whole party's, as at the table.
+      audience: extra.npc && eligible ? "party" : audienceOf(visibleTo, partyIds),
       eligible,
+      nameHidden: block === "name",
       choice,
       inBook: isInBook(eligible, choice, book.includeShared),
     };
@@ -166,7 +175,7 @@ export function buildPickerRows(
       make("location", place.id, "atlas", place.name, place.player_visible_to, { depth, placeId: place.id }),
     ),
     ...byName(sources.npcs).map((n) =>
-      make("npc", n.id, "folk", n.name, n.player_visible_to, { placeId: n.location_id }),
+      make("npc", n.id, "folk", n.name, n.player_visible_to, { placeId: n.location_id, npc: n }),
     ),
     ...byName(sources.factions).map((f) => make("faction", f.id, "factions", f.name, f.player_visible_to)),
     ...byName(sources.pantheons).map((p) => make("pantheon", p.id, "pantheon", p.name, p.player_visible_to)),
@@ -281,7 +290,7 @@ export interface SelectionSummary {
   canGoIn: number;
 }
 
-/** The bottom bar's numbers: "N selected · M are not shared with the whole party yet", "Add the K that can go in". */
+/** The bottom bar's numbers: "N selected · M are not ready for the book yet", "Add the K that can go in". */
 export function summariseSelection(rows: readonly PickerRow[], selected: ReadonlySet<string>): SelectionSummary {
   let count = 0;
   let notShared = 0;

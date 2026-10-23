@@ -10,6 +10,9 @@ import type { Npc } from "@/types/npc.types";
 vi.mock("@/composables/openBook/useBulkOpenBook", () => ({
   useBulkOpenBook: () => ({ available: ref(false), busy: ref(false), add: vi.fn(), remove: vi.fn() }),
 }));
+vi.mock("@/composables/openBook/useNpcBookRule", () => ({
+  useNpcBookRule: () => ({ partyIds: ref([]), sharedPlaceIds: ref(new Set<string>()), blockFor: () => "party" }),
+}));
 
 
 function npc(overrides: Partial<Npc> = {}): Npc {
