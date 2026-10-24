@@ -98,6 +98,7 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
+import { useDungeonFeaturesUiStore } from "@/stores/ui/dungeonFeatures";
 import { sessionTabs, type NavItem } from "@/lib/nav";
 import { useAbove } from "@/composables/useBreakpoint";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
@@ -110,6 +111,7 @@ const router = useRouter();
 const auth = useAuthStore();
 const appUi = useAppUiStore();
 const soundboardUi = useSoundboardUiStore();
+const dungeonFeaturesUi = useDungeonFeaturesUiStore();
 
 const isDm = computed(() => auth.currentRole === "dm");
 
@@ -200,6 +202,19 @@ const CREATE_ACTIONS: Record<string, CreateAction> = {
   "/deities": { to: "/deities/new", label: "New Deity" },
   // Adding a sound is a dialog, not a route, so the FAB signals the view.
   "/soundboard": { act: () => { soundboardUi.soundboardCreateSignal++; }, label: "Create" },
+  // Placeholder: the tab in the query picks the real action below.
+  "/dungeon-craft": { to: "/dungeon-features/new", label: "New Feature" },
+};
+
+// Dungeon Craft holds seven lists behind `?tab=`; the "+" creates in the one showing.
+const DUNGEON_CRAFT_CREATE: Record<string, CreateAction> = {
+  features: { to: "/dungeon-features/new", label: "New Feature" },
+  traps: { to: "/traps/new", label: "New Trap" },
+  puzzles: { to: "/puzzles/new", label: "New Puzzle" },
+  "roll-tables": { act: () => { dungeonFeaturesUi.rollTableCreateSignal++; }, label: "New Roll Table" },
+  "loot-tables": { to: "/loot-tables/new", label: "New Loot Table" },
+  "notice-boards": { to: "/notice-boards/new", label: "New Notice Board" },
+  cartographer: { to: "/cartographer/new", label: "New Map" },
 };
 
 const currentCreate = computed<CreateAction | null>(() => {
@@ -208,6 +223,10 @@ const currentCreate = computed<CreateAction | null>(() => {
   );
   if (!prefix) return null;
   const action = CREATE_ACTIONS[prefix];
+  if (prefix === "/dungeon-craft") {
+    const tab = typeof route.query.tab === "string" ? route.query.tab : "features";
+    return DUNGEON_CRAFT_CREATE[tab] ?? action;
+  }
   // The soundboard's create depends on which peer is showing.
   if (prefix === "/soundboard") {
     const label =

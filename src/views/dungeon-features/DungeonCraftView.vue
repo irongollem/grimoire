@@ -29,6 +29,10 @@
         </template>
       </SourcesPickerPanel>
 
+      <!-- Each tab's "New …" is hidden wherever the bottom bar shows: there its
+           "+" creates in the tab that is showing (DmBottomNav), and a second
+           create button in the header would only crowd the row. -->
+
       <!-- Features tab actions -->
       <template v-if="activeTab === 'features'">
         <ListActionButton
@@ -39,6 +43,7 @@
         />
         <ListActionButton
           variant="primary"
+          class="barnav:hidden"
           :icon="IconAdd"
           label="New Feature"
           mobile-label="Feature"
@@ -56,6 +61,7 @@
         />
         <ListActionButton
           variant="primary"
+          class="barnav:hidden"
           :icon="IconAdd"
           label="New Trap"
           mobile-label="Trap"
@@ -74,10 +80,11 @@
           />
           <ListActionButton
             variant="primary"
+            class="barnav:hidden"
             :icon="IconAdd"
             label="New Roll Table"
             mobile-label="Roll Table"
-            @click="rollTablesTabRef?.closeInlineRollTable(); rollTablesTabRef && (rollTablesTabRef.inlineNewRollTable = true)"
+            @click="newRollTable"
           />
         </template>
         <AppButton
@@ -99,6 +106,7 @@
         />
         <ListActionButton
           variant="primary"
+          class="barnav:hidden"
           :icon="IconAdd"
           label="New Loot Table"
           mobile-label="Loot Table"
@@ -110,6 +118,7 @@
       <template v-else-if="activeTab === 'notice-boards'">
         <ListActionButton
           variant="primary"
+          class="barnav:hidden"
           :icon="IconAdd"
           label="New Notice Board"
           mobile-label="Board"
@@ -121,6 +130,7 @@
       <template v-else-if="activeTab === 'cartographer'">
         <ListActionButton
           variant="primary"
+          class="barnav:hidden"
           :icon="IconAdd"
           label="New Map"
           mobile-label="Map"
@@ -138,6 +148,7 @@
         />
         <ListActionButton
           variant="primary"
+          class="barnav:hidden"
           :icon="IconAdd"
           label="New Puzzle"
           mobile-label="Puzzle"
@@ -150,7 +161,7 @@
     </template>
 
     <!-- Tab bar -->
-    <TabBar :model-value="activeTab" :tabs="TABS" wrapper-class="mb-5" @update:model-value="setActiveTab" />
+    <TabBar :model-value="activeTab" :tabs="TABS" wrapper-class="mb-5 overflow-x-auto" @update:model-value="setActiveTab" />
 
     <!-- Tab content -->
     <DungeonCraftFeaturesTab v-if="activeTab === 'features'" />
@@ -164,13 +175,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
 
 
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
+import { useDungeonFeaturesUiStore } from "@/stores/ui/dungeonFeatures";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
@@ -194,6 +206,7 @@ const route  = useRoute();
 const router = useRouter();
 const generatorsUi = useGeneratorUiStore();
 const puzzlesUi = usePuzzlesUiStore();
+const dungeonFeaturesUi = useDungeonFeaturesUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
@@ -256,6 +269,14 @@ const manualPage = computed(() => MANUAL_PAGE_BY_TAB[activeTab.value]);
 
 // Template ref for roll-tables tab (exposes inline-detail state for header actions)
 const rollTablesTabRef = ref<InstanceType<typeof DungeonCraftRollTablesTab> | null>(null);
+
+function newRollTable() {
+  rollTablesTabRef.value?.closeInlineRollTable();
+  if (rollTablesTabRef.value) rollTablesTabRef.value.inlineNewRollTable = true;
+}
+
+// The phone bottom-nav "+" on the Roll Tables tab.
+watch(() => dungeonFeaturesUi.rollTableCreateSignal, newRollTable);
 
 function setActiveTab(tab: Tab) {
   activeTab.value = tab;
