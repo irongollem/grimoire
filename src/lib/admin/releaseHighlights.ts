@@ -34,4 +34,6 @@ export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlight[] = [
   { releasedAt: "2026-10-08", line: "Quest clocks and deadlines, and search across a whole campaign by meaning" },
   { releasedAt: "2026-10-10", line: "The combat runner rolls monster attacks and saves, and tracks how long conditions last" },
   { releasedAt: "2026-10-12", line: "NPCs remember what they and the party told each other" },
+  { releasedAt: "2026-10-24", line: "Share your campaign as a public book anyone can read online" },
+  { releasedAt: "2026-10-24", line: "Battle maps come alive: moving water, flickering fires, and light and darkness by the rules" },
 ];
