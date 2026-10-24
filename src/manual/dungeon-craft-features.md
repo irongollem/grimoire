@@ -75,9 +75,11 @@ Dungeon Features are reference cards, not live-synced entities: they're for your
 
 Dungeon Features have no player-facing view of their own: players never see a feature's card, DCs, or contents directly. What they experience is whatever you reveal at the table when they find it, or what the linked door/glyph shows on a published site map if you've made that room visible.
 
-## Populate Examples
+## Ready-made features from the library
 
-Click **Populate Examples** to seed a library of curated feature templates: classic dungeon secrets, trap-triggered features, magical wards, and more. Use them directly or modify them for your setting.
+Dungeon Craft has a library of ready-made traps, features, puzzles and roll tables: classic dungeon secrets, trap-triggered features, magical wards, and more. It is off until you turn it on: click the **book icon** in the Dungeon Craft header and enable the books you want for this campaign. Their entries then appear in the lists and pickers beside your own.
+
+A library trap or feature is read-only and can be placed as it is. Click **Customize** to make your own copy you can edit for your setting. A library puzzle or roll table is copied into your campaign with **Use in campaign**.
 
 ## Related
 
