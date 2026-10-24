@@ -6,33 +6,35 @@
     </p>
     <ul v-else class="flex flex-wrap gap-2">
       <li v-for="e in entries" :key="e.row.id">
-        <!-- A raw button: a pack tile is a picture with a name, not a control recipe. -->
-        <button
+        <AppButton
           :ref="(el) => setRef(e.row.id, el)"
-          type="button"
-          class="flex w-40 items-center gap-2 rounded-lg border border-border bg-card p-2 text-left text-foreground hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50"
+          variant="outline"
+          surface="card"
+          size="body"
+          class="w-40 justify-start p-2 text-left font-normal"
           :disabled="full"
-          :aria-label="`${e.name}, ${e.row.quantity} held. Lay it on the bench.`"
+          :aria-label="`${e.name}, ${e.left} to lay out. Lay one on the bench.`"
           @click="emit('lay', e.row.id)"
         >
           <WorkbenchThumb :sprite="e.sprite" look="plain" />
           <span class="min-w-0 flex-1">
             <span class="block truncate text-label-lg font-semibold">{{ e.name }}</span>
-            <span class="block text-caption text-muted-foreground">&times;{{ e.row.quantity }}</span>
+            <span class="block text-caption text-muted-foreground">&times;{{ e.left }}</span>
           </span>
-        </button>
+        </AppButton>
       </li>
     </ul>
   </section>
 </template>
 
 <script setup lang="ts">
+import AppButton from "@/components/common/controls/AppButton.vue";
 import WorkbenchThumb from "@/components/crafting/workbench/WorkbenchThumb.vue";
-import type { ExperimentEntry } from "@/lib/crafting/experiment";
+import type { ExperimentPackEntry } from "@/lib/crafting/experiment";
 
 const { entries, full, emptyText } = defineProps<{
-  /** Every eligible row not already on the bench. */
-  entries: readonly ExperimentEntry[];
+  /** Every eligible row with units not yet in a dish. */
+  entries: readonly ExperimentPackEntry[];
   /** The bench holds as many as it can. */
   full: boolean;
   emptyText: string;
@@ -40,9 +42,11 @@ const { entries, full, emptyText } = defineProps<{
 
 const emit = defineEmits<{ lay: [rowId: string] }>();
 
-const tiles = new Map<string, HTMLButtonElement>();
+// AppButton's ref is its component instance; the real <button> is its `$el`.
+const tiles = new Map<string, HTMLElement>();
 function setRef(id: string, el: unknown) {
-  if (el instanceof HTMLButtonElement) tiles.set(id, el);
+  const node = el && typeof el === "object" && "$el" in el ? (el as { $el: unknown }).$el : null;
+  if (node instanceof HTMLElement) tiles.set(id, node);
   else tiles.delete(id);
 }
 

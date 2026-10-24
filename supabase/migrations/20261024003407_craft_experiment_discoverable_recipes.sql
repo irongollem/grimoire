@@ -10,10 +10,17 @@
 -- The rules (the maintainer's, 24 Oct 2026):
 --   * Only recipes the DM marked discoverable can be found. Off by default: a recipe stays
 --     secret unless the DM says otherwise.
---   * The set must be EXACT: every ingredient covered by one laid-out item, and every laid-out
---     item used. Emptying a whole pack onto the bench therefore finds nothing.
+--   * The set must be EXACT: every ingredient covered by its own dish, and every dish used.
+--     Emptying a whole pack onto the bench therefore finds nothing.
+--   * A dish holds one row, and one stack may fill several dishes, at most one per unit it holds.
+--     The craft itself lets one stack fill several ingredients (planConsumption), so a recipe
+--     asking for "Iron Ingot" and "Any [metal]" is found by laying the one stack of ingots twice;
+--     matching distinct rows instead made such a recipe undiscoverable (review, 24 Oct 2026).
 --   * Only the caller's own character's items or the party stash count, and only spendable ones
---     (never ruined, equipped or a container), the same rule a craft spends by.
+--     (never ruined, equipped, a container or an empty stack), the same rule a craft spends by.
+--   * Only the character's own player experiments. A caretaker minding the character (#1059) is
+--     refused, as the downtime and level-up paths refuse one: a reveal is permanent, and it is
+--     the owner's to make.
 --   * Discovery needs no roll and spends nothing; amounts are the recipe's business when it is
 --     attempted. A failed experiment costs only time, which is stated, not tracked.
 --   * A near miss (one ingredient short, or one item too many, against a discoverable recipe
@@ -27,9 +34,9 @@ alter table public.crafting_recipes
 comment on column public.crafting_recipes.discoverable is
   'When true, a player who has not been shown this recipe can find it on the experiment bench by laying out exactly its ingredients (craft_experiment, #1103). Off by default.';
 
--- Maximum matching between a recipe's ingredients and the laid-out rows (at most eight), as a
--- bitmask dynamic programme: p_masks[i] is the set of rows ingredient i could take; the result
--- is the most ingredients that can each get a different row. At most 256 states per step, all
+-- Maximum matching between a recipe's ingredients and the dishes (at most eight), as a bitmask
+-- dynamic programme: p_masks[i] is the set of dishes ingredient i could take; the result is the
+-- most ingredients that can each get a different dish. At most 256 states per step, all
 -- integer arithmetic, so a recipe costs microseconds however broad its tags. Pure; in `private`
 -- so PostgREST does not publish it.
 create function private.craft_max_matching(p_masks int[], p_rows int)
@@ -84,17 +91,19 @@ declare
   v_uid uuid := (select auth.uid());
   v_campaign uuid;
   v_rows int;
+  v_distinct int;
   v_hide_hints boolean;
   v_result jsonb;
 begin
-  -- Identity from auth.uid() only: the caller must be the player seated as this character.
+  -- Identity from auth.uid() only: the caller must be the player seated as this character, and
+  -- its owner rather than a caretaker minding it (private.plays_for_another, #1059).
   select pm.campaign_id into v_campaign from party_members pm where pm.id = p_party_member_id;
   if v_uid is null or v_campaign is null or not exists (
     select 1 from campaign_members cm
     where cm.user_id = v_uid
       and cm.campaign_id = v_campaign
       and cm.party_member_id = p_party_member_id
-  ) then
+  ) or private.plays_for_another(p_party_member_id) then
     raise exception 'Not authorized' using errcode = '42501';
   end if;
 
@@ -106,19 +115,25 @@ begin
     raise exception 'Lay out between one and eight items' using errcode = '22023';
   end if;
 
-  v_rows := (select count(distinct x) from unnest(p_row_ids) as x);
+  -- One element per dish; a row id repeats when its stack fills several.
+  v_rows := cardinality(p_row_ids);
+  v_distinct := (select count(distinct x) from unnest(p_row_ids) as x);
 
   -- Every laid-out row must be this character's or the party stash's, in this campaign, and
-  -- spendable. Anything else is refused outright rather than silently dropped, so the answer
-  -- can never depend on a row the caller does not hold.
-  if v_rows <> (
-    select count(*) from party_inventory pi
-    where pi.id = any(p_row_ids)
-      and pi.campaign_id = v_campaign
+  -- spendable, and fill no more dishes than it holds units (so never an empty stack). Anything
+  -- else is refused outright rather than silently dropped, so the answer can never depend on a
+  -- row the caller does not hold. Its own code, apart from the caller's 42501, so the bench can
+  -- say which of the two went wrong.
+  if v_distinct <> (
+    select count(*)
+    from (select x as id, count(*)::int as dishes from unnest(p_row_ids) as x group by x) d
+    join party_inventory pi on pi.id = d.id
+    where pi.campaign_id = v_campaign
       and (pi.carried_by = p_party_member_id or pi.carried_by is null)
       and not pi.is_ruined and not pi.is_equipped and not pi.is_container
+      and pi.quantity >= d.dishes
   ) then
-    raise exception 'Not authorized' using errcode = '42501';
+    raise exception 'Those items cannot be laid out' using errcode = 'CX001';
   end if;
 
   -- No row means the rule's default, which is on (defaultEnabled in the client registry).
@@ -130,14 +145,14 @@ begin
 
   with
   placed as (
-    -- A row is one item kind; its tags come from whichever catalogue it references. `idx` is
-    -- its bit (0-7) in the masks below.
-    select pi.id, pi.item_id, pi.library_item_id, coalesce(i.tags, li.tags) as tags,
-           (row_number() over (order by pi.id) - 1)::int as idx
-    from party_inventory pi
+    -- One row per dish, so a stack laid twice is two dishes. Its tags come from whichever
+    -- catalogue the row references. `idx` is the dish's bit (0-7) in the masks below.
+    select pi.item_id, pi.library_item_id, coalesce(i.tags, li.tags) as tags,
+           (d.ord - 1)::int as idx
+    from unnest(p_row_ids) with ordinality as d(id, ord)
+    join party_inventory pi on pi.id = d.id
     left join items i on i.id = pi.item_id
     left join library_items li on li.id = pi.library_item_id
-    where pi.id = any(p_row_ids)
   ),
   sized as (
     -- Only recipes within one ingredient of the laid-out count can match or be a near miss.
@@ -153,8 +168,8 @@ begin
     having count(g.id) between greatest(v_rows - 1, 1) and v_rows + 1
   ),
   fits as (
-    -- Per ingredient, the bitmask of laid-out rows that could fill it: the same item, or a row
-    -- carrying all its tags. 0 means nothing laid out fits it.
+    -- Per ingredient, the bitmask of dishes that could fill it: the same item, or a row carrying
+    -- all its tags. 0 means nothing laid out fits it.
     select g.recipe_id, g.position, g.id,
            coalesce(bit_or(1 << p.idx), 0) as mask
     from crafting_recipe_ingredients g
@@ -208,7 +223,7 @@ end;
 $$;
 
 comment on function public.craft_experiment(uuid, text, uuid[]) is
-  'The experiment bench (#1103): reveals a discoverable recipe to the caller''s character when the laid-out rows are exactly its ingredients. Answers {result: match, recipe_id, name} | {result: near, hint: missing|extra} | {result: none}. Refuses a caller who does not play the character, or a row they do not hold.';
+  'The experiment bench (#1103): reveals a discoverable recipe to the caller''s character when the dishes (p_row_ids, one element per dish; a stack may fill several, one per unit) are exactly its ingredients. Answers {result: match, recipe_id, name} | {result: near, hint: missing|extra} | {result: none}. Refuses (42501) a caller who is not the character''s seated owner, and (CX001) a row they do not hold or cannot spend.';
 
 revoke execute on function public.craft_experiment(uuid, text, uuid[]) from public, anon;
 grant execute on function public.craft_experiment(uuid, text, uuid[]) to authenticated, service_role;

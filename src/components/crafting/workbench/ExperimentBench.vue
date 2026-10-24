@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -90,7 +90,7 @@ import type { PlayerCrafting } from "@/composables/crafting/usePlayerCrafting";
 import { useAbove } from "@/composables/useBreakpoint";
 import { useAppUiStore } from "@/stores/ui/app";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines";
-import { EXPERIMENT_MAX_ITEMS, experimentEntries, experimentPack } from "@/lib/crafting/experiment";
+import { EXPERIMENT_MAX_ITEMS, experimentEntries, experimentPack, experimentPackEntries, standingLayout } from "@/lib/crafting/experiment";
 import { benchArtFor } from "@/lib/crafting/workbench/art";
 import { IconChevronLeft } from "@/lib/icons";
 import type { CraftingDiscipline } from "@/types/crafting.types";
@@ -114,31 +114,33 @@ const pack = ref<InstanceType<typeof ExperimentPack> | null>(null);
 const discipline = computed(() => getDiscipline(disciplineId));
 const art = computed(() => benchArtFor(disciplineId));
 
+// One row id per dish; a stack laid twice fills two dishes, up to the units it holds.
 const laidOut = ref<string[]>([]);
 const eligible = computed(() => experimentPack(crafting.myInventory.value));
+// A live ring can take a laid-out row away (equipped, spent, handed on) or shrink its stack. The
+// layout follows, so a dish never holds what the pack no longer has, the cap counts what shows,
+// and a row that comes back does not reappear on the bench by itself.
+watch(eligible, (pack) => {
+  const standing = standingLayout(laidOut.value, pack);
+  if (standing.length !== laidOut.value.length) laidOut.value = standing;
+});
 const entries = computed(() => experimentEntries(laidOut.value, eligible.value, crafting.allItems.value));
-const packEntries = computed(() =>
-  experimentEntries(
-    eligible.value.filter((r) => !laidOut.value.includes(r.id)).map((r) => r.id),
-    eligible.value,
-    crafting.allItems.value,
-  ),
-);
+const packEntries = computed(() => experimentPackEntries(laidOut.value, eligible.value, crafting.allItems.value));
 // One empty dish to fill, until the bench is full.
 const dishCount = computed(() => entries.value.length + (entries.value.length < EXPERIMENT_MAX_ITEMS ? 1 : 0));
 
 function lay(rowId: string) {
-  if (laidOut.value.length >= EXPERIMENT_MAX_ITEMS || laidOut.value.includes(rowId)) return;
-  laidOut.value = [...laidOut.value, rowId];
+  laidOut.value = standingLayout([...laidOut.value, rowId], eligible.value);
 }
 
 function onPress(index: number) {
-  const entry = entries.value[index];
-  if (entry) laidOut.value = laidOut.value.filter((id) => id !== entry.row.id);
+  if (entries.value[index]) laidOut.value = laidOut.value.filter((_, i) => i !== index);
   else pack.value?.focusFirst();
 }
 
-const { result, experimenting, experimentError, chatNotice, experiment, dismiss } = useCraftExperiment(() => member);
+const { result, experimenting, experimentError, chatNotice, experiment, clearError, dismiss } = useCraftExperiment(() => member);
+// A refusal describes the layout it was given; once the bench changes it no longer applies.
+watch(laidOut, clearError);
 const appUi = useAppUiStore();
 const previewing = computed(() => appUi.dmPreviewMode);
 

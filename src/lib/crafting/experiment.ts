@@ -52,6 +52,32 @@ export function experimentPack(rows: readonly PartyInventoryItem[]): PartyInvent
   return rows.filter((r) => ineligibility(r) === null && r.quantity > 0 && inventoryItemRef(r) !== null);
 }
 
+function entryFor(row: PartyInventoryItem, allItems: readonly Item[]): ExperimentEntry {
+  const ref = inventoryItemRef(row);
+  const item = ref ? (allItems.find((i) => i.id === ref) ?? null) : null;
+  return { row, name: rowDisplayName(row, allItems), sprite: spriteForItem(item) };
+}
+
+/**
+ * The laid-out row ids that still stand against the pack: a row that has left it drops out, a
+ * stack fills no more dishes than it holds units, and the bench holds at most
+ * EXPERIMENT_MAX_ITEMS. One stack may fill several dishes, the way a craft lets one stack fill
+ * several ingredients; `craft_experiment` refuses anything this would drop.
+ */
+export function standingLayout(ids: readonly string[], pack: readonly PartyInventoryItem[]): string[] {
+  const used = new Map<string, number>();
+  const out: string[] = [];
+  for (const id of ids) {
+    if (out.length >= EXPERIMENT_MAX_ITEMS) break;
+    const row = pack.find((r) => r.id === id);
+    const n = used.get(id) ?? 0;
+    if (!row || n >= row.quantity) continue;
+    used.set(id, n + 1);
+    out.push(id);
+  }
+  return out;
+}
+
 /** The entries for the laid-out row ids, in the order laid out; a row that has left the pack drops out. */
 export function experimentEntries(
   ids: readonly string[],
@@ -60,9 +86,23 @@ export function experimentEntries(
 ): ExperimentEntry[] {
   return ids.flatMap((id) => {
     const row = pack.find((r) => r.id === id);
-    if (!row) return [];
-    const ref = inventoryItemRef(row);
-    const item = ref ? (allItems.find((i) => i.id === ref) ?? null) : null;
-    return [{ row, name: rowDisplayName(row, allItems), sprite: spriteForItem(item) }];
+    return row ? [entryFor(row, allItems)] : [];
+  });
+}
+
+/** A pack row beside the bench, with how many of it are not yet in a dish. */
+export interface ExperimentPackEntry extends ExperimentEntry {
+  left: number;
+}
+
+/** The pack beside the bench: every row with units left after the dishes, in pack order. */
+export function experimentPackEntries(
+  ids: readonly string[],
+  pack: readonly PartyInventoryItem[],
+  allItems: readonly Item[],
+): ExperimentPackEntry[] {
+  return pack.flatMap((row) => {
+    const left = row.quantity - ids.filter((id) => id === row.id).length;
+    return left > 0 ? [{ ...entryFor(row, allItems), left }] : [];
   });
 }
