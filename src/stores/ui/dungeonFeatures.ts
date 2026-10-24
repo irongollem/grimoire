@@ -37,7 +37,12 @@ export const useDungeonFeaturesUiStore = defineStore("ui:dungeonFeatures", () =>
     dungeonFeaturesFilterType.value = "";
   }
 
+  // Bumped by the phone bottom-nav "+" on the Roll Tables tab. A new roll table
+  // opens inline in the tab rather than on a route, so the FAB cannot navigate.
+  const rollTableCreateSignal = ref(0);
+
   return {
+    rollTableCreateSignal,
     lootTablesSearch,
     lootTablesTierFilter,
     lootTablesHasActiveFilters,
