@@ -34,7 +34,7 @@ import {
 } from "../_shared/campaignEntityRetrieval.ts";
 import { toPlainText } from "../_shared/ai-prompt.ts";
 import { truncateAtWordBoundary } from "../_shared/embedTextUtil.ts";
-import { sanitizeSuggestions } from "../_shared/npcRelationshipSuggestions.ts";
+import { HEAD_ROLES, sanitizeSuggestions } from "../_shared/npcRelationshipSuggestions.ts";
 import { campaignToday, promptAge } from "../_shared/npcAge.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
@@ -93,10 +93,13 @@ interface SourceNpc {
   born_day: number | null;
   status: string;
   died_year: number | null;
+  location_id: string | null;
 }
 
 interface NamedRow { id: string; name: string; occupation?: string | null; faction_type?: string | null }
 interface PersonRow { id: string; name: string; born_year: number | null }
+interface MembershipRow { npc_id: string; faction_id: string; role: string | null; status: string }
+
 interface KinRow {
   from_npc_id: string | null;
   from_party_member_id: string | null;
@@ -184,7 +187,7 @@ serve(withCors(async (req: Request) => {
   // The source NPC, scoped to the campaign the caller was just authorised for.
   const { data: sourceRow } = await admin
     .from("npcs")
-    .select("id, name, occupation, race, personality, backstory, appearance, age, born_year, born_month, born_day, status, died_year")
+    .select("id, name, occupation, race, personality, backstory, appearance, age, born_year, born_month, born_day, status, died_year, location_id")
     .eq("id", npc_id)
     .eq("campaign_id", campaign_id)
     .maybeSingle();
@@ -287,6 +290,24 @@ serve(withCors(async (req: Request) => {
     const campaignFactions = (factionsRes.data ?? []) as NamedRow[];
     const npcNameById = new Map(campaignNpcs.map((n) => [n.id, n.name]));
     const factionNameById = new Map(campaignFactions.map((f) => [f.id, f.name]));
+
+    // Name every tie and membership by id. The candidate reads above hold only the most recently edited NPCs and
+    // factions, so a tie to an older one went unnamed, was never excluded, and the model offered it again.
+    const tiedNpcIds = [...new Set((relsRes.data ?? []).map((r) => (r.npc_id === npc_id ? r.related_npc_id : r.npc_id) as string))]
+      .filter((id) => !npcNameById.has(id));
+    const memberIds = [...new Set((memberRes.data ?? []).map((m) => m.faction_id as string))].filter((id) => !factionNameById.has(id));
+    const [tiedNpcs, memberFactions] = await Promise.all([
+      tiedNpcIds.length > 0
+        ? admin.from("npcs").select("id, name").eq("campaign_id", campaign_id).in("id", tiedNpcIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+      memberIds.length > 0
+        ? admin.from("factions").select("id, name").eq("campaign_id", campaign_id).in("id", memberIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+    ]);
+    if (tiedNpcs.error) throw new Error(tiedNpcs.error.message);
+    if (memberFactions.error) throw new Error(memberFactions.error.message);
+    for (const n of tiedNpcs.data ?? []) npcNameById.set(n.id, n.name);
+    for (const f of memberFactions.data ?? []) factionNameById.set(f.id, f.name);
 
     const existingTies = (relsRes.data ?? []).map((r) => {
       const sourceIsFrom = r.npc_id === npc_id;
@@ -441,16 +462,98 @@ serve(withCors(async (req: Request) => {
     const today = campaignToday(campaign);
     const bornYears: Record<string, number> = {};
     const diedYears: Record<string, number> = {};
+    /** Where each candidate NPC is, by lower-case name; the id is resolved to a place name below. */
+    const candidateLocationIds = new Map<string, string>();
+    const candidateNpcIds = new Map<string, string>();
     if (npcCandidates.length > 0) {
-      const { data, error } = await admin.from("npcs").select("name, status, born_year, died_year")
+      const { data, error } = await admin.from("npcs").select("id, name, status, born_year, died_year, location_id")
         .eq("campaign_id", campaign_id).in("name", npcCandidates.map((c) => c.name));
       if (error) throw new Error(error.message);
-      for (const r of (data ?? []) as { name: string; status: string; born_year: number | null; died_year: number | null }[]) {
-        if (r.born_year !== null) bornYears[`npc:${r.name.trim().toLowerCase()}`] = r.born_year;
+      for (const r of (data ?? []) as { id: string; name: string; status: string; born_year: number | null; died_year: number | null; location_id: string | null }[]) {
+        const k = r.name.trim().toLowerCase();
+        candidateNpcIds.set(r.id, k);
+        if (r.location_id) candidateLocationIds.set(k, r.location_id);
+        if (r.born_year !== null) bornYears[`npc:${k}`] = r.born_year;
         // Status decides who is dead; a date left on a living NPC is ignored, as everywhere else.
-        if (r.status === "dead" && r.died_year !== null) diedYears[`npc:${r.name.trim().toLowerCase()}`] = r.died_year;
+        if (r.status === "dead" && r.died_year !== null) diedYears[`npc:${k}`] = r.died_year;
       }
     }
+
+    // ── Where people are, and the offices they hold ──────────────────────────
+    // Without these the model offered a town's speaker the leadership of another town, and suggested
+    // ties between faction-mates as though they had never met.
+    const factionCandidateIds = new Map<string, string>();
+    if (factionCandidates.length > 0) {
+      const { data, error } = await admin.from("factions").select("id, name")
+        .eq("campaign_id", campaign_id).in("name", factionCandidates.map((c) => c.name));
+      if (error) throw new Error(error.message);
+      for (const r of (data ?? []) as { id: string; name: string }[]) factionCandidateIds.set(r.id, r.name);
+    }
+    const [peopleMemberships, factionHeads] = await Promise.all([
+      admin.from("faction_npcs").select("npc_id, faction_id, role, status")
+        .in("npc_id", [npc_id, ...candidateNpcIds.keys()]),
+      factionCandidateIds.size > 0
+        ? admin.from("faction_npcs").select("npc_id, faction_id, role, status")
+          .in("faction_id", [...factionCandidateIds.keys()]).in("role", [...HEAD_ROLES]).eq("status", "Active")
+        : Promise.resolve({ data: [] as MembershipRow[], error: null }),
+    ]);
+    if (peopleMemberships.error) throw new Error(peopleMemberships.error.message);
+    if (factionHeads.error) throw new Error(factionHeads.error.message);
+    const memberships = (peopleMemberships.data ?? []) as MembershipRow[];
+    const heads = (factionHeads.data ?? []) as MembershipRow[];
+
+    // Names for every faction, place and head these mention, beyond the capped candidate lists.
+    const missingFactionIds = [...new Set(memberships.map((m) => m.faction_id))].filter((id) => !factionNameById.has(id));
+    const locationIds = [...new Set([source.location_id, ...candidateLocationIds.values()].filter((id): id is string => !!id))];
+    const headIds = [...new Set(heads.map((h) => h.npc_id))].filter((id) => !npcNameById.has(id) && id !== npc_id);
+    const [moreFactions, places, headNpcs] = await Promise.all([
+      missingFactionIds.length > 0
+        ? admin.from("factions").select("id, name").eq("campaign_id", campaign_id).in("id", missingFactionIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+      locationIds.length > 0
+        ? admin.from("locations").select("id, name").eq("campaign_id", campaign_id).in("id", locationIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+      headIds.length > 0
+        ? admin.from("npcs").select("id, name").eq("campaign_id", campaign_id).in("id", headIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+    ]);
+    if (moreFactions.error) throw new Error(moreFactions.error.message);
+    if (places.error) throw new Error(places.error.message);
+    if (headNpcs.error) throw new Error(headNpcs.error.message);
+    for (const f of moreFactions.data ?? []) factionNameById.set(f.id, f.name);
+    const placeNameById = new Map((places.data ?? []).map((l) => [l.id, l.name]));
+    const headNameById = new Map([...npcNameById, ...(headNpcs.data ?? []).map((n) => [n.id, n.name] as const)]);
+    headNameById.set(npc_id, source.name);
+
+    /** "The Iron Concord (Leader)", with a membership that is not Active saying so. */
+    const membershipPhrase = (m: MembershipRow): string | null => {
+      const faction = factionNameById.get(m.faction_id);
+      if (!faction) return null;
+      const role = m.role?.trim() || "Member";
+      return m.status && m.status !== "Active" ? `${faction} (${role}, ${m.status.toLowerCase()})` : `${faction} (${role})`;
+    };
+    const membershipsOf = (id: string): string[] =>
+      memberships.filter((m) => m.npc_id === id).flatMap((m) => membershipPhrase(m) ?? []);
+    const npcContext = new Map<string, string>();
+    for (const [id, k] of candidateNpcIds) {
+      const place = placeNameById.get(candidateLocationIds.get(k) ?? "");
+      const parts = [place ? `in ${place}` : "", ...membershipsOf(id)].filter(Boolean);
+      if (parts.length > 0) npcContext.set(k, parts.join("; "));
+    }
+    const headsByFaction = new Map<string, string[]>();
+    for (const h of heads) {
+      const name = headNameById.get(h.npc_id);
+      if (!name) continue;
+      headsByFaction.set(h.faction_id, [...(headsByFaction.get(h.faction_id) ?? []), `${h.role} ${name}`]);
+    }
+    const factionHeadsByName = new Map(
+      [...headsByFaction].flatMap(([id, list]) => {
+        const n = factionCandidateIds.get(id);
+        return n ? [[n.trim().toLowerCase(), list.join(", ")] as const] : [];
+      }),
+    );
+    const sourcePlace = placeNameById.get(source.location_id ?? "");
+    const sourceMemberships = membershipsOf(npc_id);
     for (const p of pcs) {
       if (p.born_year !== null) bornYears[`pc:${p.name.trim().toLowerCase()}`] = p.born_year;
     }
@@ -461,6 +564,8 @@ serve(withCors(async (req: Request) => {
       `Name: ${source.name}`,
       source.race ? `Race: ${source.race}` : "",
       source.occupation ? `Occupation: ${source.occupation}` : "",
+      sourcePlace ? `Lives in: ${sourcePlace}` : "",
+      sourceMemberships.length > 0 ? `Factions: ${sourceMemberships.join("; ")}` : "",
       source.born_year !== null ? `Born: ${source.born_year}` : "",
       source.status === "dead" && source.died_year !== null ? `Died: ${source.died_year}` : "",
       age ? `Age now: ${age}` : "",
@@ -493,18 +598,23 @@ serve(withCors(async (req: Request) => {
       (kinLines.length > 0 ? `\n\nFamily this NPC already has (do not repeat them):\n${kinLines.join("\n")}` : "") +
       (existingFactionNames.length > 0 ? `\n\nFactions this NPC already belongs to (do not repeat them):\n${existingFactionNames.join("\n")}` : "") +
       "\n\nCandidates. Every target_name must be copied exactly from one of these lines " +
-      "(npc|name|occupation|born year, pc|name|born year or faction|name|type); the app resolves them back to real records by name.\n" +
+      "(npc|name|occupation|born year|where they are and their factions, pc|name|born year or faction|name|type|who heads it); " +
+      "the app resolves them back to real records by name.\n" +
       "---BEGIN CANDIDATES---\n" +
       [
         ...npcCandidates.map((c) => {
           const born = bornSuffix("npc", c.name);
-          return `npc|${c.name}|${c.descriptor ?? ""}${born ? `|${born}` : ""}`;
+          const ctx = npcContext.get(c.name.trim().toLowerCase());
+          return `npc|${c.name}|${c.descriptor ?? ""}|${born}${ctx ? `|${ctx}` : ""}`.replace(/\|+$/, "");
         }),
         ...pcs.map((p) => {
           const born = bornSuffix("pc", p.name);
           return `pc|${p.name}${born ? `|${born}` : ""}`;
         }),
-        ...factionCandidates.map((c) => `faction|${c.name}|${c.descriptor ?? ""}`),
+        ...factionCandidates.map((c) => {
+          const head = factionHeadsByName.get(c.name.trim().toLowerCase());
+          return `faction|${c.name}|${c.descriptor ?? ""}${head ? `|headed by ${head}` : ""}`;
+        }),
       ].join("\n") +
       "\n---END CANDIDATES---";
 
@@ -517,7 +627,7 @@ serve(withCors(async (req: Request) => {
         model: textModel,
         system: systemContent,
         user: userContent,
-        maxTokens: 1200,
+        maxTokens: 3000,
       });
     } catch (e) {
       await releaseCredits(admin, reservation.ids);
@@ -545,6 +655,7 @@ serve(withCors(async (req: Request) => {
       factionNames: factionCandidates.map((c) => c.name),
       existingNpcNames,
       existingFactionNames,
+      headedFactionNames: [...factionHeadsByName.keys()],
       pcNames: pcs.map((p) => p.name),
       existingKinNpcNames,
       existingKinPcNames,

@@ -34,8 +34,7 @@ export const NPC_RELATIONSHIP_TYPES = [
 export type SuggestedRelationshipType = (typeof NPC_RELATIONSHIP_TYPES)[number];
 
 export const MAX_NOTES_CHARS = 300;
-export const MAX_ROLE_CHARS = 60;
-export const MAX_SUGGESTIONS = 6;
+export const MAX_SUGGESTIONS = 12;
 export const MAX_SET_ASIDE = 6;
 
 export interface NpcSuggestion {
@@ -45,10 +44,43 @@ export interface NpcSuggestion {
   notes: string;
 }
 
+/**
+ * The roles a faction membership can hold. Mirrors `NPC_FACTION_ROLES` in
+ * src/types/faction.types.ts, which edge code cannot import;
+ * src/types/factionRoleMirror.test.ts holds the two equal. The membership's role
+ * picker offers only these, so a role outside the list would be saved and then
+ * show blank.
+ */
+export const SUGGESTED_FACTION_ROLES = [
+  "Leader",
+  "Head of house",
+  "Officer",
+  "Enforcer",
+  "Member",
+  "Initiate",
+  "Envoy",
+  "Patron",
+  "Associate",
+  "Supplier",
+  "Sympathiser",
+  "Supplicant",
+  "Agent",
+  "Informant",
+  "Secret member",
+  "Infiltrator",
+  "Unwitting pawn",
+  "Adversary",
+  "Unknown",
+] as const;
+export type SuggestedFactionRole = (typeof SUGGESTED_FACTION_ROLES)[number];
+
+/** The roles that head a faction: a faction already headed is not offered a second head. */
+export const HEAD_ROLES: readonly SuggestedFactionRole[] = ["Leader", "Head of house"];
+
 export interface FactionSuggestion {
   kind: "faction";
   target_name: string;
-  role: string;
+  role: SuggestedFactionRole;
   notes: string;
 }
 
@@ -95,6 +127,8 @@ export interface SuggestionContext {
   existingNpcNames: string[];
   /** Factions the source already belongs to. */
   existingFactionNames?: string[];
+  /** Factions that already have a Leader or Head of house. */
+  headedFactionNames?: string[];
   sourceName: string;
   /** Campaign PCs the model was shown as kin candidates. */
   pcNames?: string[];
@@ -120,6 +154,12 @@ function clean(v: unknown, max: number): string {
 
 function isRelationshipType(v: unknown): v is SuggestedRelationshipType {
   return typeof v === "string" && (NPC_RELATIONSHIP_TYPES as readonly string[]).includes(v);
+}
+
+/** The listed role, matched without regard to case; anything else is the loosest tie, Associate. */
+function factionRole(v: unknown): SuggestedFactionRole {
+  const wanted = typeof v === "string" ? v.trim().toLowerCase() : "";
+  return SUGGESTED_FACTION_ROLES.find((r) => r.toLowerCase() === wanted) ?? "Associate";
 }
 
 function isKinRelation(v: unknown): v is SuggestedKinRelation {
@@ -168,6 +208,7 @@ export function sanitizeSuggestions(raw: unknown, ctx: SuggestionContext): Sanit
   const lower = (names: string[] | undefined) => new Set((names ?? []).map((n) => n.trim().toLowerCase()));
   const existingNpcs = lower(ctx.existingNpcNames);
   const existingFactions = lower(ctx.existingFactionNames);
+  const headedFactions = lower(ctx.headedFactionNames);
   const kinNpcs = lower(ctx.existingKinNpcNames);
   const kinPcs = lower(ctx.existingKinPcNames);
   const source = ctx.sourceName.trim().toLowerCase();
@@ -236,10 +277,12 @@ export function sanitizeSuggestions(raw: unknown, ctx: SuggestionContext): Sanit
       if (key === source) continue;
       const canonical = factions.get(key);
       if (!canonical || existingFactions.has(key)) continue;
+      const role = factionRole(item.role);
+      if (HEAD_ROLES.includes(role) && headedFactions.has(key)) continue;
       const dedupe = `faction:${key}`;
       if (seen.has(dedupe)) continue;
       seen.add(dedupe);
-      out.push({ kind: "faction", target_name: canonical, role: clean(item.role, MAX_ROLE_CHARS), notes });
+      out.push({ kind: "faction", target_name: canonical, role, notes });
     }
     if (out.length >= MAX_SUGGESTIONS) break;
   }

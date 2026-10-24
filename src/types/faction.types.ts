@@ -39,9 +39,20 @@ export const NPC_FACTION_ROLES = [
   "Enforcer",
   "Member",
   "Initiate",
+  "Envoy",
+  "Patron",
   "Associate",
+  "Supplier",
+  "Sympathiser",
+  "Supplicant",
   "Agent",
   "Informant",
+  // Hidden ties (the AI relationship suggester reaches for these): known to one side only, or to neither.
+  "Secret member",
+  "Infiltrator",
+  "Unwitting pawn",
+  // Not a member at all: someone the faction counts as an open enemy.
+  "Adversary",
   "Unknown",
 ] as const;
 

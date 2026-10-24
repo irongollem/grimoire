@@ -34,6 +34,33 @@ describe("sanitizeSuggestions", () => {
     ]);
   });
 
+  it("holds a faction role to the membership picker's roles", () => {
+    const out = sanitize(
+      {
+        suggestions: [
+          { kind: "faction", target_name: "The Iron Concord", role: "secret MEMBER", notes: "" },
+          { kind: "faction", target_name: "Dock Wardens", role: "Envoy and Omen-Reader", notes: "" },
+        ],
+      },
+      { ...ctx, existingFactionNames: [] },
+    );
+    expect(out.map((s) => s.kind === "faction" && s.role)).toEqual(["Secret member", "Associate"]);
+  });
+
+  it("offers no second head to a faction that already has one", () => {
+    const out = sanitize(
+      {
+        suggestions: [
+          { kind: "faction", target_name: "The Iron Concord", role: "Leader", notes: "" },
+          { kind: "faction", target_name: "Dock Wardens", role: "Head of house", notes: "" },
+          { kind: "faction", target_name: "Dock Wardens", role: "Officer", notes: "" },
+        ],
+      },
+      { ...ctx, existingFactionNames: [], headedFactionNames: ["the iron concord", "Dock Wardens"] },
+    );
+    expect(out).toEqual([{ kind: "faction", target_name: "Dock Wardens", role: "Officer", notes: "" }]);
+  });
+
   it("drops unknown names, self, already-related and duplicates", () => {
     const out = sanitize(
       {

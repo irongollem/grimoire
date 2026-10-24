@@ -148,11 +148,25 @@
         :key="rel.id"
         :name="otherNpcName(rel)"
         :image="npcById[otherNpcId(rel)]?.portrait_url ?? null"
-        :tags="[{ label: typeLabel(rel), color: typeColor(rel) }]"
         :notes="rel.notes"
         opens
         @open="peek(otherNpcId(rel))"
       >
+        <!-- The type is read from this NPC's side and can be changed in place, like a faction role. -->
+        <template #tags>
+          <AppSelect
+            :model-value="effectiveType(rel)"
+            tone="bare"
+            size="caption"
+            weight="normal"
+            class="cursor-pointer"
+            :style="{ color: typeColor(rel) }"
+            :aria-label="`What ${otherNpcName(rel)} is to this NPC`"
+            @update:model-value="changeType(rel, $event as NpcRelationshipType)"
+          >
+            <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
+          </AppSelect>
+        </template>
         <template #actions>
           <OverflowMenu
             variant="ghost"
@@ -182,6 +196,7 @@ import {
   useNpcRelations,
   useCreateNpcRelation,
   useDeleteNpcRelation,
+  useUpdateNpcRelation,
 } from "@/composables/factions/useNpcRelations";
 import { useAddFactionNpc, useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -218,6 +233,7 @@ const { data: allNpcs } = useNpcs();
 const { mutateAsync: createRelation, isPending: isSaving } =
   useCreateNpcRelation();
 const { mutateAsync: deleteRelation } = useDeleteNpcRelation();
+const { mutateAsync: updateRelation } = useUpdateNpcRelation();
 const { mutateAsync: createKinLink } = useCreateKinLink();
 const { data: party } = useParty();
 
@@ -246,11 +262,6 @@ function effectiveType(rel: NpcRelation): NpcRelationshipType {
   return rel.npc_id === props.npcId
     ? raw
     : (NPC_RELATIONSHIP_INVERSE[raw] ?? raw);
-}
-function typeLabel(rel: NpcRelation): string {
-  return (
-    NPC_RELATIONSHIP_TYPE_LABELS[effectiveType(rel)] ?? rel.relationship_type
-  );
 }
 function typeColor(rel: NpcRelation): string {
   return NPC_RELATIONSHIP_TYPE_VAR[effectiveType(rel)] ?? "var(--muted-foreground)";
@@ -285,6 +296,17 @@ async function addRelation() {
     notes: newNotes.value.trim() || null,
   });
   cancelAdd();
+}
+
+/** Stores the type from the row's own side: a row written by the other NPC keeps the inverse. */
+async function changeType(rel: NpcRelation, type: NpcRelationshipType) {
+  if (type === effectiveType(rel)) return;
+  const stored = rel.npc_id === props.npcId ? type : NPC_RELATIONSHIP_INVERSE[type];
+  try {
+    await updateRelation({ id: rel.id, update: { relationship_type: stored } });
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : "Could not change that connection.");
+  }
 }
 
 async function removeRelation(id: string) {

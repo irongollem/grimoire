@@ -21,8 +21,8 @@ describe("resolveSuggestionTargets", () => {
       [
         { kind: "npc", target_name: "tilda fenn", relationship_type: "ally", notes: "" },
         { kind: "npc", target_name: "Gone", relationship_type: "ally", notes: "" },
-        { kind: "faction", target_name: "The Iron Concord", role: "Spy", notes: "" },
-        { kind: "faction", target_name: "Tilda Fenn", role: "Spy", notes: "" },
+        { kind: "faction", target_name: "The Iron Concord", role: "Agent", notes: "" },
+        { kind: "faction", target_name: "Tilda Fenn", role: "Agent", notes: "" },
       ],
       npcs,
       factions,
