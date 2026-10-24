@@ -4,7 +4,7 @@
       <p class="text-eyebrow text-muted-foreground">
         Ingredient {{ slot.index + 1 }} of {{ total }}<template v-if="slot.index === 0"> · primary</template>
       </p>
-      <h3 :id="titleId" class="font-cinzel text-heading-sm font-bold text-foreground">{{ slot.name }}</h3>
+      <h3 :id="titleId" class="text-heading-sm font-bold text-foreground">{{ slot.name }}</h3>
       <p class="text-caption text-muted-foreground">Need {{ slot.needed }}</p>
     </div>
 

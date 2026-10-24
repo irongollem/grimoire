@@ -1,5 +1,5 @@
 <template>
-  <div v-if="loading || !ingredientsReady" class="flex justify-center py-16">
+  <div v-if="loading || !recipeDetailsReady" class="flex justify-center py-16">
     <LoadingSpinner />
   </div>
 
@@ -23,12 +23,11 @@
     </template>
   </EmptyState>
 
-  <WorkbenchPlay v-else :recipe="recipe" :member="member" />
+  <WorkbenchPlay v-else :recipe="recipe" :member="member" :crafting="crafting" />
 </template>
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { useRecipeIngredients } from "@/composables/crafting/useCrafting";
 import { usePlayerCrafting } from "@/composables/crafting/usePlayerCrafting";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
@@ -39,11 +38,12 @@ import WorkbenchPlay from "@/components/crafting/workbench/WorkbenchPlay.vue";
 const route = useRoute();
 const recipeId = computed(() => String(route.params.recipeId));
 
-const { recipes, member, loading } = usePlayerCrafting({ recipeIds: () => [recipeId.value] });
-
-// The batch reads give no loading state, and a recipe with no ingredients is legal, so the
-// bench waits on the single read: an empty slot list before it lands would be an open door.
-const { isSuccess: ingredientsReady } = useRecipeIngredients(recipeId);
+// A recipe with no ingredients is legal, so the bench waits for the recipe's ingredient, output and
+// modifier reads to land: an empty slot list before then would be an open door. These are the same
+// queries the bench reads, so once they have landed here they are already in its cache.
+// One instance for the route: the bench receives it rather than building its own.
+const crafting = usePlayerCrafting({ recipeIds: () => [recipeId.value] });
+const { recipes, member, loading, recipeDetailsReady } = crafting;
 
 const recipe = computed(() => (recipes.value ?? []).find((r) => r.id === recipeId.value) ?? null);
 </script>

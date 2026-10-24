@@ -15,7 +15,7 @@ import type { CraftingRecipe } from "@/types/crafting.types";
  */
 export function useRecipeArt(recipes: MaybeRefOrGetter<readonly CraftingRecipe[]>) {
   const ids = computed(() => toValue(recipes).map((r) => r.id));
-  const outputsByRecipe = useAllRecipeOutputs(ids);
+  const { map: outputsByRecipe } = useAllRecipeOutputs(ids);
 
   const { find } = useStoredItemRefs(() =>
     toValue(recipes)

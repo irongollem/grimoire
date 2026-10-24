@@ -59,7 +59,8 @@ export function craftChatMessage(i: CraftMessageInput): string {
   return msg;
 }
 
-const signed = (n: number) => (n >= 0 ? `+ ${n}` : `- ${Math.abs(n)}`);
+/** "+ 3" / "- 1": a modifier as it reads after a die. */
+export const signed = (n: number) => (n >= 0 ? `+ ${n}` : `- ${Math.abs(n)}`);
 
 /** The roll's whole modifier: ability, proficiency only when held, and every ticked bonus. */
 export function craftBonus(

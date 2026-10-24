@@ -1,4 +1,4 @@
-import { computed, toValue, type MaybeRefOrGetter } from "vue";
+import { computed, toValue, type MaybeRefOrGetter, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -261,7 +261,16 @@ export function useRecipeModifiers(recipeId: MaybeRefOrGetter<string>) {
   });
 }
 
-/** Batch variants — single query per table using .in(), returns ComputedRef<Map<recipeId, data[]>> */
+function batchReady(recipeIds: MaybeRefOrGetter<string[]>, isSuccess: Ref<boolean>) {
+  return computed(() => toValue(recipeIds).length === 0 || isSuccess.value);
+}
+
+/**
+ * Batch variants — single query per table using .in(). Each returns `map`
+ * (recipeId → rows) and `ready`, true once the read has landed (or there is
+ * nothing to read): an empty map before then is not "no rows", and a surface
+ * that spends ingredients must not act on it.
+ */
 export function useAllRecipeIngredients(recipeIds: MaybeRefOrGetter<string[]>) {
   const result = useQuery({
     queryKey: computed(() => [INGREDIENTS_KEY, "batch", [...toValue(recipeIds)].sort()] as const),
@@ -277,7 +286,7 @@ export function useAllRecipeIngredients(recipeIds: MaybeRefOrGetter<string[]>) {
     },
     enabled: () => toValue(recipeIds).length > 0,
   });
-  return computed(() => {
+  const map = computed(() => {
     const map = new Map<string, CraftingIngredient[]>();
     for (const ing of result.data.value ?? []) {
       const list = map.get(ing.recipe_id) ?? [];
@@ -286,6 +295,7 @@ export function useAllRecipeIngredients(recipeIds: MaybeRefOrGetter<string[]>) {
     }
     return map;
   });
+  return { map, ready: batchReady(recipeIds, result.isSuccess) };
 }
 
 export function useAllRecipeOutputs(recipeIds: MaybeRefOrGetter<string[]>) {
@@ -303,7 +313,7 @@ export function useAllRecipeOutputs(recipeIds: MaybeRefOrGetter<string[]>) {
     },
     enabled: () => toValue(recipeIds).length > 0,
   });
-  return computed(() => {
+  const map = computed(() => {
     const map = new Map<string, CraftingOutput[]>();
     for (const out of result.data.value ?? []) {
       const list = map.get(out.recipe_id) ?? [];
@@ -312,6 +322,7 @@ export function useAllRecipeOutputs(recipeIds: MaybeRefOrGetter<string[]>) {
     }
     return map;
   });
+  return { map, ready: batchReady(recipeIds, result.isSuccess) };
 }
 
 export function useAllRecipeModifiers(recipeIds: MaybeRefOrGetter<string[]>) {
@@ -322,13 +333,15 @@ export function useAllRecipeModifiers(recipeIds: MaybeRefOrGetter<string[]>) {
       const { data, error } = await supabase
         .from("crafting_recipe_modifiers")
         .select("*")
-        .in("recipe_id", ids);
+        .in("recipe_id", ids)
+        // A ticked modifier is held by its index, so a refetch must not reorder the list.
+        .order("id");
       if (error) throw error;
       return data as CraftingModifier[];
     },
     enabled: () => toValue(recipeIds).length > 0,
   });
-  return computed(() => {
+  const map = computed(() => {
     const map = new Map<string, CraftingModifier[]>();
     for (const mod of result.data.value ?? []) {
       const list = map.get(mod.recipe_id) ?? [];
@@ -337,6 +350,7 @@ export function useAllRecipeModifiers(recipeIds: MaybeRefOrGetter<string[]>) {
     }
     return map;
   });
+  return { map, ready: batchReady(recipeIds, result.isSuccess) };
 }
 
 // ── Mutation composables ─────────────────────────────────────────────────────
@@ -455,8 +469,6 @@ export function useAttemptCraft() {
       ingredientConsumption: { id: string; qty: number }[];
       /** What a critical failure consumes: only the primary ingredient (slot 0). */
       primaryConsumption: { id: string; qty: number }[];
-      /** primary ingredient's inventory id — ruined on critical fail */
-      primaryIngredientInventoryId: string;
       /** primary ingredient's carried_by (for re-adding as ruined). Carries both
        *  reference columns: the ruined row must point at whichever the original
        *  used, and a library reference in item_id is the 22P02 of #815. */
@@ -569,9 +581,10 @@ export function useAttemptCraft() {
 
       return { roll, roll2, total, diff, outcome, hasDisadvantage: !hasTools };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["party-inventory"] });
-    },
+    // Returned, so the mutation resolves only once the inventory has been re-read: the bench
+    // offers Try again straight after a critical failure, and an attempt planned against the
+    // pre-craft rows would spend a stack that is already gone.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["party-inventory"] }),
     // No onError toast here: useCraftAttempt already surfaces failures inline
     // via attemptError. A toast would be redundant double-feedback.
   });

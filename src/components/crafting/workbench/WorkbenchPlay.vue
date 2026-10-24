@@ -3,7 +3,7 @@
     <header class="flex items-center gap-3">
       <AppButton :to="{ name: 'play-crafting' }" variant="ghost" size="icon-sm" :icon="IconChevronLeft" aria-label="Back to the Workshop" />
       <div class="min-w-0">
-        <h1 class="truncate font-cinzel text-heading-sm font-bold text-foreground">{{ recipe.name }}</h1>
+        <h1 class="truncate text-heading-sm font-bold text-foreground">{{ recipe.name }}</h1>
         <p class="text-caption text-muted-foreground">{{ discipline.label }} · {{ art.bench.label }}</p>
       </div>
     </header>
@@ -109,7 +109,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useCraftAttempt } from "@/composables/crafting/useCraftAttempt";
-import { usePlayerCrafting } from "@/composables/crafting/usePlayerCrafting";
+import type { PlayerCrafting } from "@/composables/crafting/usePlayerCrafting";
 import { useAbove } from "@/composables/useBreakpoint";
 import { useScreenShake } from "@/composables/useScreenShake";
 import WorkbenchLedger from "@/components/crafting/workbench/WorkbenchLedger.vue";
@@ -121,7 +121,7 @@ import WorkbenchSlotPicker from "@/components/crafting/workbench/WorkbenchSlotPi
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { craftBonus, rolledLine } from "@/lib/crafting/craftMessage";
 import { getDiscipline } from "@/lib/crafting/disciplines";
-import { planConsumption, type IngredientSlot } from "@/lib/crafting/ingredients";
+import { planConsumption, rowDisplayName, type IngredientSlot } from "@/lib/crafting/ingredients";
 import { benchArtFor } from "@/lib/crafting/workbench/art";
 import { exitForSlot, firstUsed, lostMaterials, slotSprite, slotState } from "@/lib/crafting/workbench/slotMaterial";
 import { IconChevronLeft } from "@/lib/icons";
@@ -133,10 +133,14 @@ import type { PartyMember } from "@/types/party.types";
  * The bench itself: scene (desktop) or dish rows (phone) beside the ledger. Mounted only
  * once the recipe and the character exist, so the attempt composable gets real inputs.
  */
-const { recipe, member } = defineProps<{ recipe: CraftingRecipe; member: PartyMember }>();
+const { recipe, member, crafting } = defineProps<{
+  recipe: CraftingRecipe;
+  member: PartyMember;
+  /** The view's own `usePlayerCrafting`, handed down so the bench does not build a second copy. */
+  crafting: PlayerCrafting;
+}>();
 
-const { allItems, modifiersFor, outputsFor, artFor, hasProficiency, hasTools, slotsFor, recipeItemNames } =
-  usePlayerCrafting({ recipeIds: () => [recipe.id] });
+const { allItems, modifiersFor, outputsFor, artFor, hasProficiency, hasTools, slotsFor, recipeItemNames } = crafting;
 
 const wide = useAbove("lg");
 const discipline = computed(() => getDiscipline(recipe.discipline));
@@ -201,7 +205,8 @@ const lost = computed(() => (outcome.value ? lostMaterials(shownSlots.value, att
 // Both read the frozen slots: the live ones no longer hold what was spent.
 const wreckageName = computed(() => {
   const primary = outcome.value ? planConsumption(shownSlots.value, attempt.preferred.value).primary : null;
-  return primary ? primary.name : null;
+  // Named as the ruined row is named, so the modal and the inventory agree.
+  return primary ? rowDisplayName(primary, allItems.value) : null;
 });
 const rolledText = computed(() => {
   const res = attempt.result.value;

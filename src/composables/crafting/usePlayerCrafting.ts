@@ -46,9 +46,13 @@ export function usePlayerCrafting(options: { recipeIds?: MaybeRefOrGetter<string
   );
 
   const recipeIds = computed(() => toValue(options.recipeIds) ?? (recipes.value ?? []).map((r) => r.id));
-  const ingredientsMap = useAllRecipeIngredients(recipeIds);
-  const outputsMap = useAllRecipeOutputs(recipeIds);
-  const modifiersMap = useAllRecipeModifiers(recipeIds);
+  const { map: ingredientsMap, ready: ingredientsReady } = useAllRecipeIngredients(recipeIds);
+  const { map: outputsMap, ready: outputsReady } = useAllRecipeOutputs(recipeIds);
+  const { map: modifiersMap, ready: modifiersReady } = useAllRecipeModifiers(recipeIds);
+  // What a recipe asks for and makes has landed. Before then an empty slot list reads as "no
+  // ingredients" and an empty output list as "makes nothing": a bench that acted on either would
+  // craft for free, or spend the ingredients and make nothing.
+  const recipeDetailsReady = computed(() => ingredientsReady.value && outputsReady.value && modifiersReady.value);
 
   // Carried rows, ingredients and outputs resolve in the player projection, plus
   // library ids read by id (#961, #972).
@@ -126,6 +130,7 @@ export function usePlayerCrafting(options: { recipeIds?: MaybeRefOrGetter<string
     recipeItemNames,
     craftableItems,
     loading,
+    recipeDetailsReady,
     ingredientsFor,
     modifiersFor,
     outputsFor,
@@ -136,3 +141,5 @@ export function usePlayerCrafting(options: { recipeIds?: MaybeRefOrGetter<string
     slotsFor,
   };
 }
+
+export type PlayerCrafting = ReturnType<typeof usePlayerCrafting>;

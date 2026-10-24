@@ -61,25 +61,26 @@
         :icon="IconDiceRoll"
         label="Attempt craft"
         :loading="attempting"
-        :disabled="!canAttempt || !!lockLine"
+        :disabled="!canAttempt"
         @click="emit('attempt')"
       />
       <p class="text-caption text-muted-foreground">A success spends every ingredient. A failure costs only the time; a critical failure ruins the primary ingredient.</p>
     </template>
 
     <div v-else class="flex flex-col gap-2">
-      <h2 class="flex items-center gap-2 font-cinzel text-heading-sm font-bold" :class="tone">
+      <h2 class="flex items-center gap-2 text-heading-sm font-bold" :class="tone">
         <component :is="outcomeIcon" class="h-5 w-5 shrink-0" aria-hidden="true" />{{ title }}
       </h2>
       <p class="text-body text-foreground">{{ rolledText }}</p>
       <p class="text-caption text-muted-foreground">{{ detail }}</p>
-      <p class="text-caption text-muted-foreground">Posted to the campaign chat.</p>
+      <!-- The post is sent after the roll lands, and can fail on its own; chatNotice then says so. -->
+      <p v-if="!attempting && !chatNotice" class="text-caption text-muted-foreground">Posted to the campaign chat.</p>
       <template v-if="result.outcome === 'success'">
         <AppButton variant="primary" size="md" block label="Done" :to="{ name: 'play-crafting' }" />
       </template>
       <template v-else>
         <p v-if="!canAttempt" class="text-caption text-destructive">You no longer have what this recipe needs.</p>
-        <AppButton variant="primary" size="md" block label="Try again" :disabled="!canAttempt || !!lockLine" @click="emit('retry')" />
+        <AppButton variant="primary" size="md" block label="Try again" :disabled="!canAttempt" @click="emit('retry')" />
         <AppButton variant="ghost" size="md" block label="Done" :to="{ name: 'play-crafting' }" />
       </template>
     </div>
@@ -101,7 +102,7 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import { POOR_INGREDIENTS_PENALTY } from "@/composables/crafting/useCraftAttempt";
 import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconWarning } from "@/lib/icons";
 import type { DisciplineConfig } from "@/lib/crafting/disciplines";
-import { craftBonus, outcomeDetail, rolledLine } from "@/lib/crafting/craftMessage";
+import { craftBonus, outcomeDetail, rolledLine, signed } from "@/lib/crafting/craftMessage";
 import type { IngredientSlot } from "@/lib/crafting/ingredients";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { RecipeArt } from "@/lib/crafting/recipeArt";
@@ -137,7 +138,6 @@ const workspaceEnabled = defineModel<boolean>("workspace", { required: true });
 const poorIngredientsEnabled = defineModel<boolean>("poor", { required: true });
 
 const done = computed(() => result !== null);
-const signed = (n: number) => (n >= 0 ? `+ ${n}` : `- ${Math.abs(n)}`);
 const ability = computed(() => discipline.ability.toUpperCase());
 const totalBonus = computed(() => craftBonus(abilityMod, profBonus, hasProficiency, modifierBonuses));
 

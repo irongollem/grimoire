@@ -3,7 +3,7 @@ import { useAttemptCraft } from "@/composables/crafting/useCrafting";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { getDiscipline } from "@/lib/crafting/disciplines";
 import { craftChatMessage, outputDisplayNames } from "@/lib/crafting/craftMessage";
-import { planConsumption, resolveItemName, type IngredientSlot } from "@/lib/crafting/ingredients";
+import { planConsumption, resolveItemName, rowDisplayName, type IngredientSlot } from "@/lib/crafting/ingredients";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { reportHandledError } from "@/lib/observability/sentry";
 import type {
@@ -65,7 +65,8 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
 
   const modifierBonuses = computed(() => {
     const mods = toValue(inputs.modifiers);
-    const bonuses = [...selectedModifiers.value].map((idx) => mods[idx].bonus);
+    // A ticked index can outlive its modifier when the DM edits the recipe mid-session.
+    const bonuses = [...selectedModifiers.value].flatMap((idx) => (mods[idx] ? [mods[idx].bonus] : []));
     if (workspaceEnabled.value) bonuses.push(toValue(inputs.workspaceBonus));
     if (poorIngredientsEnabled.value) bonuses.push(POOR_INGREDIENTS_PENALTY);
     return bonuses;
@@ -73,8 +74,17 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
 
   const plan = computed(() => planConsumption(toValue(inputs.slots), preferred.value));
 
+  /** The recipe's own gates: it may demand tool proficiency, or the tools in the pack. */
+  const locked = computed(() => {
+    const recipe = toValue(inputs.recipe);
+    return (
+      (recipe.requires_proficiency && !toValue(inputs.hasProficiency)) ||
+      (recipe.requires_tools && !toValue(inputs.hasTools))
+    );
+  });
+
   const canAttempt = computed(
-    () => toValue(inputs.slots).every((s) => s.met) && !plan.value.short && !attempting.value,
+    () => !locked.value && toValue(inputs.slots).every((s) => s.met) && !plan.value.short && !attempting.value,
   );
 
   function nameOf(ref: string): string | undefined {
@@ -96,7 +106,6 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
     const outputs = toValue(inputs.outputs);
     const member = toValue(inputs.member);
     const allItems = toValue(inputs.allItems);
-    const primaryItemDef = allItems.find((i) => i.id === (primary ? inventoryItemRef(primary) : null));
 
     try {
       // A ref whose name cannot be resolved is left OUT of the map rather than
@@ -116,7 +125,6 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
         outputItemNames: resolvedOutputNames,
         ingredientConsumption: consumption,
         primaryConsumption,
-        primaryIngredientInventoryId: primary ? primary.id : "",
         // Null when the recipe consumes nothing: there is no item to ruin.
         primaryInventoryItem: primary
           ? {
@@ -124,7 +132,7 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
               // library reference instead of losing it.
               item_id: primary.item_id,
               library_item_id: primary.library_item_id,
-              name: primary.name || primaryItemDef?.name || "Item",
+              name: rowDisplayName(primary, allItems),
               carried_by: primary.carried_by,
               campaign_id: primary.campaign_id,
             }
@@ -189,6 +197,7 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
     modifierBonuses,
     outputNames,
     plan,
+    locked,
     canAttempt,
     toggleModifier,
     attempt,

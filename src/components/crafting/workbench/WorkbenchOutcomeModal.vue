@@ -7,7 +7,7 @@
     <div class="flex flex-col items-center gap-4 overflow-y-auto p-6 text-center">
       <template v-if="outcome === 'success'">
         <p class="text-eyebrow text-muted-foreground">{{ discipline.label }}</p>
-        <h2 :id="titleId" class="font-cinzel text-heading-lg font-bold text-primary">{{ discipline.doneVerb }}!</h2>
+        <h2 :id="titleId" class="text-display font-bold text-primary">{{ discipline.doneVerb }}!</h2>
         <div class="wo-frame h-36 w-48 overflow-hidden rounded-lg border-2 bg-muted">
           <FocalImage :src="recipeArt?.url ?? null" :alt="recipeName" format="landscape" :focal-point="recipeArt?.focalPoint ?? null" :placeholder="placeholderUrl('item')" />
         </div>
@@ -18,7 +18,7 @@
         <p class="text-eyebrow text-muted-foreground">{{ discipline.label }}</p>
         <h2
           :id="titleId"
-          class="flex items-center gap-2 font-cinzel text-heading-lg font-bold"
+          class="flex items-center gap-2 text-title font-bold"
           :class="outcome === 'ruin' ? 'text-destructive' : 'text-foreground'"
         >
           <IconCloseCircle v-if="outcome === 'ruin'" class="h-6 w-6 shrink-0" aria-hidden="true" />

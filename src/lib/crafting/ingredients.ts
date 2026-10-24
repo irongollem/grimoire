@@ -54,6 +54,12 @@ export function resolveItemName(
   return allItems.find((i) => i.id === ref)?.name ?? itemNameMap?.get(ref);
 }
 
+/** An inventory row's name, falling back to its catalogue item's; "Item" is label text, not data. */
+export function rowDisplayName(inv: PartyInventoryItem, allItems: readonly Item[]): string {
+  const ref = inventoryItemRef(inv);
+  return inv.name || (ref ? allItems.find((i) => i.id === ref)?.name : undefined) || "Item";
+}
+
 function tagLabel(tags: readonly string[]): string {
   return tags.length === 1 ? `Any "${tags[0]}"` : `Any [${tags.join(" + ")}]`;
 }
