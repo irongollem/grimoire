@@ -34,19 +34,29 @@
       </div>
 
       <!-- Discipline description (only when a specific discipline is selected) -->
-      <p v-if="activeDiscipline" class="text-body text-muted-foreground italic mb-5">
-        {{ activeDiscipline.description }}
-        <span class="not-italic ml-1">
-          Uses <span class="font-semibold text-foreground">{{ activeDiscipline.ability.toUpperCase() }}</span>
-          ({{ abilityModFor(activeDiscipline) >= 0 ? "+" : "" }}{{ abilityModFor(activeDiscipline) }})
-          <template v-if="hasProficiency(activeDiscipline.tools)">
-            + Proficiency (+{{ member.proficiency_bonus }}).
-          </template>
-          <template v-else>
-            · <span class="text-gold-400">no proficiency bonus</span>.
-          </template>
-        </span>
-      </p>
+      <div v-if="activeDiscipline" class="mb-5 flex flex-wrap items-start gap-3">
+        <AppButton
+          variant="subtle"
+          size="sm"
+          class="order-last"
+          :icon="IconSearch"
+          label="Experiment"
+          :to="{ name: 'play-crafting-experiment', params: { discipline: activeDiscipline.id } }"
+        />
+        <p class="min-w-0 flex-1 basis-80 text-body text-muted-foreground italic">
+          {{ activeDiscipline.description }}
+          <span class="not-italic ml-1">
+            Uses <span class="font-semibold text-foreground">{{ activeDiscipline.ability.toUpperCase() }}</span>
+            ({{ abilityModFor(activeDiscipline) >= 0 ? "+" : "" }}{{ abilityModFor(activeDiscipline) }})
+            <template v-if="hasProficiency(activeDiscipline.tools)">
+              + Proficiency (+{{ member.proficiency_bonus }}).
+            </template>
+            <template v-else>
+              · <span class="text-gold-400">no proficiency bonus</span>.
+            </template>
+          </span>
+        </p>
+      </div>
 
       <!-- Recipes -->
       <div v-if="disciplineRecipes.length === 0" class="rounded-lg border border-border border-dashed px-6 py-10 text-center">
@@ -185,7 +195,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
-import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView } from '@/lib/icons';
+import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView, IconSearch } from '@/lib/icons';
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines";

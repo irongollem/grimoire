@@ -842,6 +842,7 @@ export function useImportStarterRecipes() {
           crafting_time_unit: def.crafting_time_unit,
           requires_proficiency: def.requires_proficiency,
           requires_tools: def.requires_tools,
+          discoverable: false,
           player_visible_to: [],
         })))
         .select("id, name");

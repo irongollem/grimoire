@@ -290,6 +290,7 @@ function recipeTags(recipe: CraftingRecipe): string[] {
   if (!activeDiscipline.value) tags.push(getDiscipline(recipe.discipline).label);
   if (recipe.requires_proficiency) tags.push("PROF");
   if (recipe.requires_tools) tags.push("TOOLS");
+  if (recipe.discoverable) tags.push("DISCOVERABLE");
   return tags;
 }
 

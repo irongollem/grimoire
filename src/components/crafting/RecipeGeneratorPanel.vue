@@ -250,6 +250,7 @@ async function createAll() {
       crafting_time_unit: recipe.crafting_time_unit,
       requires_proficiency: recipe.requires_proficiency,
       requires_tools: recipe.requires_tools,
+      discoverable: false,
       player_visible_to: [],
       // No picture of its own: the card shows the output's art.
       image_url: null,

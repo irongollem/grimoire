@@ -77,6 +77,16 @@ Click **Import Starter Recipes** to seed your campaign with about 165 pre-built 
 
 Starter recipes are all hidden from players on import: reveal them individually or use **Reveal All**.
 
+## Experimenting
+
+A player can also find a recipe they were never shown. On a discipline's tab in the Workshop they open **Experiment**: an empty bench where they lay items from their own pack (or the party stash) into dishes, up to eight, and press **Experiment**.
+
+- **Only recipes you mark discoverable can be found.** In the recipe editor, use the search toggle in the action bar. A recipe stays secret unless you turn it on.
+- **The set must be exact.** Every ingredient covered, and nothing extra, so emptying a pack onto the bench finds nothing. Equipped, ruined and container items are never offered.
+- **A match** adds the recipe to that character's recipes, posts a line in the chat so you see it, and offers "Attempt it now". Finding it needs no roll; the craft attempt that follows is the test.
+- **No match** costs an hour that is stated, not tracked. Nothing is ever used up by experimenting.
+- **Near-miss hints.** When a set is one ingredient short of a discoverable recipe, or has one item too many, the player is told they are close, never what is missing. Switch this off with the **Near-miss hints** rule in Campaign Settings, under Rules.
+
 ## Item vault integration
 
 Importing items in the **Vault** seeds provisions including crafting ingredients and outputs: rough gems, ore, herbs, and other crafting materials. Importing items before importing recipes isn't required, but it means players will already have something to pick up and spend.

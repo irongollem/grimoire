@@ -66,6 +66,10 @@
       </div>
     </div>
 
+    <p v-if="recipe.discoverable" class="-mt-2">
+      <span class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">Discoverable</span>
+    </p>
+
     <!-- Description -->
     <div v-if="recipe.description" class="rounded-lg border border-border bg-card p-4">
       <span class="text-label font-semibold text-muted-foreground block mb-2">DESCRIPTION</span>

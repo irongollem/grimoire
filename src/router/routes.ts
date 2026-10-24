@@ -229,6 +229,13 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Workshop" },
   },
   // fullscreenMobile: the workbench draws its own phone header (back link, recipe name).
+  // Declared before :recipeId so "experiment" is never read as a recipe id.
+  {
+    path: "/play/crafting/experiment/:discipline",
+    name: "play-crafting-experiment",
+    component: () => import("@/views/player/PlayerExperimentView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Experiment", fullscreenMobile: true },
+  },
   {
     path: "/play/crafting/:recipeId",
     name: "play-crafting-workbench",

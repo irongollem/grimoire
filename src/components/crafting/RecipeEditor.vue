@@ -43,6 +43,19 @@
           "
           @click="form.requires_tools = !form.requires_tools"
         />
+
+        <AppButton
+          variant="subtle"
+          size="icon-sm"
+          :active="form.discoverable"
+          :icon="IconSearch"
+          :tooltip="
+            form.discoverable
+              ? 'Discoverable: a player can find it by experimenting, click to keep it secret'
+              : 'Secret: only the players you share it with know it, click to make it discoverable'
+          "
+          @click="form.discoverable = !form.discoverable"
+        />
       </template>
     </EntityEditorActionBar>
 
@@ -240,7 +253,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from "vue";
-import { IconAdd, IconDelete, IconLock, IconTool, IconWarning } from '@/lib/icons';
+import { IconAdd, IconDelete, IconLock, IconSearch, IconTool, IconWarning } from '@/lib/icons';
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import EntityEditorActionBar from "@/components/common/entity/EntityEditorActionBar.vue";
@@ -334,6 +347,7 @@ interface RecipeDraft {
   crafting_time_unit: "minutes" | "hours" | "days";
   requires_proficiency: boolean;
   requires_tools: boolean;
+  discoverable: boolean;
   player_visible_to: string[];
   image_url: string | null;
   image_focal_point: { x: number; y: number } | null;
@@ -360,6 +374,7 @@ function toDraft(r: RecipeSource | null): RecipeDraft {
       crafting_time_unit: "days",
       requires_proficiency: false,
       requires_tools: false,
+      discoverable: false,
       player_visible_to: [],
       image_url: null,
       image_focal_point: null,
@@ -377,6 +392,7 @@ function toDraft(r: RecipeSource | null): RecipeDraft {
     crafting_time_unit: r.recipe.crafting_time_unit,
     requires_proficiency: r.recipe.requires_proficiency,
     requires_tools: r.recipe.requires_tools,
+    discoverable: r.recipe.discoverable,
     player_visible_to: [...r.recipe.player_visible_to],
     image_url: r.recipe.image_url,
     image_focal_point: r.recipe.image_focal_point ? { ...r.recipe.image_focal_point } : null,
@@ -419,6 +435,7 @@ function buildRecipe(d: RecipeDraft) {
     crafting_time_unit: d.crafting_time_unit,
     requires_proficiency: d.requires_proficiency,
     requires_tools: d.requires_tools,
+    discoverable: d.discoverable,
     player_visible_to: [...d.player_visible_to],
     image_url: d.image_url,
     image_focal_point: d.image_focal_point,
@@ -438,6 +455,7 @@ const CONFLICT_LABELS: Record<keyof RecipeDraft, string> = {
   crafting_time_unit: "Crafting time",
   requires_proficiency: "Requires proficiency",
   requires_tools: "Requires tools",
+  discoverable: "Discoverable",
   player_visible_to: "Visible to",
   image_url: "Picture",
   image_focal_point: "Picture",

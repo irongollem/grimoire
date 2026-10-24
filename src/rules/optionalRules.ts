@@ -116,6 +116,20 @@ registerOptionalRule({
   defaultEnabled: true,
 });
 
+// ── Near-miss hints (experiment bench, #1103) ─────────────────────────────────
+// Read server-side by craft_experiment from campaign_rules; no row means on.
+registerOptionalRule({
+  key: "crafting_near_miss_hints",
+  name: "Near-miss hints",
+  summary:
+    "When a player's experiment is one ingredient away from a discoverable recipe, tell them they are close (never what is missing).",
+  description:
+    "On the experiment bench a player lays out materials and tries them. When the set is **one ingredient short of, or one item over,** a recipe you marked *discoverable*, they are told \"You're close\" and whether something is missing or something doesn't belong.\n\n" +
+    "The hint never names the ingredient or the recipe. Turn the rule off and a wrong guess only ever answers \"Nothing comes of it\".",
+  dmOnly: true,
+  defaultEnabled: true,
+});
+
 // ── The Interlude (downtime activities) ───────────────────────────────────────
 registerOptionalRule({
   key: "downtime",

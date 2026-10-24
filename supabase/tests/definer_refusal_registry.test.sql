@@ -63,6 +63,7 @@ insert into definer_registry (name, kind, reason) values
   ('convert_party_member_copy', 'refuses', null),
   ('convert_party_member_ruleset', 'refuses', null),
   ('convert_sorcery_points', 'refuses', null),
+  ('craft_experiment', 'refuses', null),
   ('decide_campaign_join_request', 'refuses', null),
   ('delete_campaign_with_homebrew', 'refuses', null),
   ('delete_character_spells', 'refuses', null),

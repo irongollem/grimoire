@@ -29,6 +29,8 @@ export interface CraftingRecipe {
   crafting_time_unit: "minutes" | "hours" | "days";
   requires_proficiency: boolean;
   requires_tools: boolean;
+  /** A player can find this recipe by experimenting (craft_experiment, #1103). Off keeps it secret. */
+  discoverable: boolean;
   player_visible_to: string[];
   /** The DM's own picture. Null shows the primary output's art instead
    *  (`resolveRecipeArt`, src/lib/crafting/recipeArt.ts). */
