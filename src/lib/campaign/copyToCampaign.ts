@@ -282,10 +282,10 @@ export function referencedIds(table: BulkScopeTable, row: Record<string, unknown
       return out;
     }
     case "factions":
-      // Factions have no reference columns at all — every relationship a
-      // faction holds lives in a join table (npc/faction membership, faction
+      // A House's seat is the one reference column; every other relationship
+      // a faction holds lives in a join table (npc/faction membership, faction
       // relations), which `joinRowReferencedIds` covers instead.
-      return {};
+      return isNonEmptyString(row.seat_location_id) ? { locations: [row.seat_location_id] } : {};
   }
 }
 
@@ -534,8 +534,10 @@ export function buildCopyPlan(
       break;
     }
     case "factions":
-      // No reference columns at all — an NPC/faction/location/item/deity
-      // membership lives in a join table, not here. See `buildJoinRowPayload`.
+      // The seat names a place, kept only when the target campaign can see it
+      // (the same-campaign trigger would refuse it otherwise). Memberships live
+      // in join tables, not here. See `buildJoinRowPayload`.
+      clearScalarRef(payload, "seat_location_id", targetCampaignId, referenced, "Seat", dropped);
       // player_visible_to is still cleared, though, for the same categorical
       // reason as npcs and puzzle_rooms above: it names the SOURCE campaign's
       // party members. Factions have no is_shared/is_revealed sibling to

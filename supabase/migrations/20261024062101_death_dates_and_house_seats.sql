@@ -7,7 +7,7 @@
 --
 -- get_player_visible_npcs and get_player_visible_factions return setof their table positionally, so each gains the
 -- new columns at the end: the death date is the DM's (as the birth date is), and the seat reaches a player only when
--- they can already see that place (the get_player_visible_locations rule, and its DM-preview twin).
+-- they can already see that place (the get_player_visible_locations rule; a DM previewing a member sees that member's).
 
 alter table public.npcs
   add column died_year integer,
@@ -183,18 +183,23 @@ as $function$
     f.descent,                           -- #1083: how the house reckons its own
     ''::text,                            -- succession_note (#1083): the DM's
     case                                 -- seat_location_id: only a seat the player can already see
+      -- A DM previewing one member sees that member's seats only (not their own linked character's);
+      -- previewing nobody, a seat shared with any member. Anyone else: a place shared with their own character.
       when exists (
         select 1 from locations l
          where l.id = f.seat_location_id
-           and (
-             exists (
+           and case
+             when private.is_campaign_dm(l.campaign_id) and p_preview_member_id is not null then
+               p_preview_member_id = any (l.player_visible_to)
+             when private.is_campaign_dm(l.campaign_id) then
+               array_length(l.player_visible_to, 1) is not null
+             else exists (
                select 1 from campaign_members cm
                 where cm.user_id = (select auth.uid())
                   and cm.campaign_id = l.campaign_id
                   and cm.party_member_id = any (l.player_visible_to)
              )
-             or (p_preview_member_id is not null and private.is_campaign_dm(l.campaign_id) and p_preview_member_id = any (l.player_visible_to))
-           )
+           end
       ) then f.seat_location_id
       else null::uuid
     end

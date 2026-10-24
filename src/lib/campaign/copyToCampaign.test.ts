@@ -505,8 +505,9 @@ describe("referencedIds — npcs and factions", () => {
     );
   });
 
-  it("factions: no reference columns at all", () => {
+  it("factions: only a House's seat, when it has one", () => {
     expect(referencedIds("factions", { name: "The Iron Circle" })).toEqual({});
+    expect(referencedIds("factions", { name: "House Thane", seat_location_id: "loc-1" })).toEqual({ locations: ["loc-1"] });
   });
 });
 
@@ -563,6 +564,18 @@ describe("buildCopyPlan — npcs and factions (single row, no batch)", () => {
     // an audience — it travels with the copy untouched.
     expect(payload.player_visible_fields).toEqual(["portrait", "name"]);
     expect(dropped).toEqual([]);
+  });
+
+  it("a House keeps a seat the target campaign can see and drops one it cannot", () => {
+    const kept = buildCopyPlan("factions", { id: "f1", seat_location_id: "loc-1" }, TARGET_CAMPAIGN, USER_ID, LOOKUPS);
+    expect(kept.payload.seat_location_id).toBe("loc-1");
+    expect(kept.dropped).toEqual([]);
+    const far = refMap([{ id: "loc-far", name: "Far tower", campaignId: OTHER_CAMPAIGN }]);
+    const lost = buildCopyPlan("factions", { id: "f1", seat_location_id: "loc-far" }, TARGET_CAMPAIGN, USER_ID, far);
+    expect(lost.payload.seat_location_id).toBeNull();
+    expect(lost.dropped).toEqual([
+      { label: "Seat", names: ["Far tower"], removedEntries: false, entryNoun: { singular: "seat", plural: "seats" } },
+    ]);
   });
 
   it("a faction copy arrives visible to nobody", () => {

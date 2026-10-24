@@ -91,6 +91,7 @@ interface SourceNpc {
   born_year: number | null;
   born_month: number | null;
   born_day: number | null;
+  status: string;
   died_year: number | null;
 }
 
@@ -183,7 +184,7 @@ serve(withCors(async (req: Request) => {
   // The source NPC, scoped to the campaign the caller was just authorised for.
   const { data: sourceRow } = await admin
     .from("npcs")
-    .select("id, name, occupation, race, personality, backstory, appearance, age, born_year, born_month, born_day, died_year")
+    .select("id, name, occupation, race, personality, backstory, appearance, age, born_year, born_month, born_day, status, died_year")
     .eq("id", npc_id)
     .eq("campaign_id", campaign_id)
     .maybeSingle();
@@ -441,12 +442,13 @@ serve(withCors(async (req: Request) => {
     const bornYears: Record<string, number> = {};
     const diedYears: Record<string, number> = {};
     if (npcCandidates.length > 0) {
-      const { data, error } = await admin.from("npcs").select("name, born_year, died_year")
+      const { data, error } = await admin.from("npcs").select("name, status, born_year, died_year")
         .eq("campaign_id", campaign_id).in("name", npcCandidates.map((c) => c.name));
       if (error) throw new Error(error.message);
-      for (const r of (data ?? []) as { name: string; born_year: number | null; died_year: number | null }[]) {
+      for (const r of (data ?? []) as { name: string; status: string; born_year: number | null; died_year: number | null }[]) {
         if (r.born_year !== null) bornYears[`npc:${r.name.trim().toLowerCase()}`] = r.born_year;
-        if (r.died_year !== null) diedYears[`npc:${r.name.trim().toLowerCase()}`] = r.died_year;
+        // Status decides who is dead; a date left on a living NPC is ignored, as everywhere else.
+        if (r.status === "dead" && r.died_year !== null) diedYears[`npc:${r.name.trim().toLowerCase()}`] = r.died_year;
       }
     }
     for (const p of pcs) {
@@ -460,7 +462,7 @@ serve(withCors(async (req: Request) => {
       source.race ? `Race: ${source.race}` : "",
       source.occupation ? `Occupation: ${source.occupation}` : "",
       source.born_year !== null ? `Born: ${source.born_year}` : "",
-      source.died_year !== null ? `Died: ${source.died_year}` : "",
+      source.status === "dead" && source.died_year !== null ? `Died: ${source.died_year}` : "",
       age ? `Age now: ${age}` : "",
       today ? `Current year: ${today.year}` : "",
       plain(source.personality) ? `Personality: ${plain(source.personality)}` : "",
