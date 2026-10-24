@@ -53,12 +53,23 @@
       </div>
       <div>
         <label class="field-label">Born</label>
-        <BirthDateInput
-          :model-value="{ born_year: bornYear, born_month: bornMonth, born_day: bornDay }"
+        <CalendarDateInput
+          label="Birth"
+          :model-value="{ year: bornYear, month: bornMonth, day: bornDay }"
           tone="filled"
-          @update:model-value="emit('update:birth', $event)"
+          @update:model-value="emit('update:birth', { born_year: $event.year, born_month: $event.month, born_day: $event.day })"
         />
         <p class="mt-1 text-label text-muted-foreground">A birth date replaces the age description on the sheet.</p>
+      </div>
+      <!-- Only a dead NPC shows a death date; toggling status away keeps what was typed. -->
+      <div v-if="dead">
+        <label class="field-label">Died</label>
+        <CalendarDateInput
+          label="Death"
+          :model-value="{ year: diedYear, month: diedMonth, day: diedDay }"
+          tone="filled"
+          @update:model-value="emit('update:death', { died_year: $event.year, died_month: $event.month, died_day: $event.day })"
+        />
       </div>
       <div>
         <label class="field-label">Occupation</label>
@@ -91,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import BirthDateInput, { type BirthDateModel } from '@/components/common/controls/BirthDateInput.vue'
+import CalendarDateInput from '@/components/common/controls/CalendarDateInput.vue'
 import EntityCombobox from '@/components/common/controls/EntityCombobox.vue'
 import NpcFactionsSection from '@/components/factions/NpcFactionsSection.vue'
 import type { LocationSummary } from '@/types/location.types'
@@ -114,6 +125,10 @@ const {
   bornYear = null,
   bornMonth = null,
   bornDay = null,
+  dead = false,
+  diedYear = null,
+  diedMonth = null,
+  diedDay = null,
   occupation = null,
   locationId = null,
   locationOptions,
@@ -127,6 +142,11 @@ const {
   bornYear?: number | null
   bornMonth?: number | null
   bornDay?: number | null
+  /** Status is dead: the death date shows. */
+  dead?: boolean
+  diedYear?: number | null
+  diedMonth?: number | null
+  diedDay?: number | null
   occupation?: string | null
   locationId?: string | null
   locationOptions: LocationOption[]
@@ -138,7 +158,8 @@ const emit = defineEmits<{
   'update:race': [value: string | null]
   'update:alignment': [value: string | null]
   'update:age': [value: string | null]
-  'update:birth': [value: BirthDateModel]
+  'update:birth': [value: { born_year: number | null; born_month: number | null; born_day: number | null }]
+  'update:death': [value: { died_year: number | null; died_month: number | null; died_day: number | null }]
   'update:occupation': [value: string | null]
   'update:locationId': [value: string | null]
 }>()

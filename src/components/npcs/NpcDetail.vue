@@ -88,6 +88,10 @@
           :born-year="form.born_year ?? null"
           :born-month="form.born_month ?? null"
           :born-day="form.born_day ?? null"
+          :dead="form.status === 'dead'"
+          :died-year="form.died_year ?? null"
+          :died-month="form.died_month ?? null"
+          :died-day="form.died_day ?? null"
           :occupation="form.occupation"
           :location-id="form.location_id"
           :location-options="locationOptions"
@@ -97,6 +101,7 @@
           @update:alignment="form.alignment = $event"
           @update:age="form.age = $event"
           @update:birth="Object.assign(form, $event)"
+          @update:death="Object.assign(form, $event)"
           @update:occupation="form.occupation = $event"
           @update:location-id="form.location_id = $event"
         />
@@ -502,6 +507,9 @@ function toNpcDraft(npc: Npc | null): NpcDraft {
     born_year: npc?.born_year ?? null,
     born_month: npc?.born_month ?? null,
     born_day: npc?.born_day ?? null,
+    died_year: npc?.died_year ?? null,
+    died_month: npc?.died_month ?? null,
+    died_day: npc?.died_day ?? null,
     occupation: npc?.occupation ?? null,
     location_id: npc?.location_id ?? null,
     appearance: cloneDraftValue(npc?.appearance ?? null),
@@ -540,7 +548,7 @@ const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
 })
 
 const CONFLICT_LABELS: Partial<Record<keyof NpcDraft, string>> = {
-  name: 'Name', race: 'Race', alignment: 'Alignment', age: 'Age', born_year: 'Birth date', born_month: 'Birth date', born_day: 'Birth date', occupation: 'Occupation',
+  name: 'Name', race: 'Race', alignment: 'Alignment', age: 'Age', born_year: 'Birth date', born_month: 'Birth date', born_day: 'Birth date', died_year: 'Death date', died_month: 'Death date', died_day: 'Death date', occupation: 'Occupation',
   location_id: 'Location', appearance: 'Appearance', personality: 'Personality',
   backstory: 'Backstory', status: 'Status', relationship: 'Relationship',
   portrait_url: 'Portrait', cutout_url: 'Cutout', disguise_name: 'Alter ego name',
@@ -653,6 +661,9 @@ async function save() {
     form.born_year !== props.npc.born_year ||
     form.born_month !== props.npc.born_month ||
     form.born_day !== props.npc.born_day ||
+    form.died_year !== props.npc.died_year ||
+    form.died_month !== props.npc.died_month ||
+    form.died_day !== props.npc.died_day ||
     form.occupation !== props.npc.occupation ||
     form.status !== props.npc.status ||
     form.relationship !== props.npc.relationship ||

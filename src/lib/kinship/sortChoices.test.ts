@@ -9,6 +9,7 @@ const person = (id: string, name: string, bornYear: number | null, isPc = false)
   key: `${isPc ? "pc" : "npc"}:${id}` as PersonKey,
   name,
   bornYear,
+  diedYear: null,
   dead: false,
   isPc,
 });

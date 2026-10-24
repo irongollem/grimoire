@@ -53,7 +53,7 @@
  * having within reach of the artwork, and the sheet itself.
  */
 import { computed, ref, watch } from "vue";
-import { displayAge } from "@/lib/calendar/age";
+import { displayAge, displayDeath, isDeadRow } from "@/lib/calendar/age";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -108,6 +108,13 @@ const subtitle = computed(() => {
   const age = displayAge(calendar.adapter, preview.value, {
     year: campaignStore.todayYear, month: campaignStore.todayMonth, day: campaignStore.todayDay,
   });
-  return [race, occupation, alignment, age ? `Age ${age}` : null].filter(Boolean).join(" · ");
+  // A dead NPC reads "Died 12 Ches 1491, aged 63": one phrase, not "Died aged 63 · Died ...".
+  const died = displayDeath(calendar.adapter, preview.value);
+  const life = !isDeadRow(preview.value)
+    ? (age ? `Age ${age}` : null)
+    : died || age
+      ? [died ? `Died ${died}` : "Died", age ? `aged ${age}` : null].filter(Boolean).join(", ")
+      : null;
+  return [race, occupation, alignment, life].filter(Boolean).join(" · ");
 });
 </script>

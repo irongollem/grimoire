@@ -9,7 +9,7 @@ const born: Record<string, number> = {
   brenna: 1055, tomas: 1058, ilse: 1061, corwin: 1054, wren: 1080, pip: 1083, t1: 1085, t2: 1087, t3: 1090,
 };
 const thanePeople: KinPerson[] = Object.entries(born).map(([n, y]) => ({
-  key: k(n), name: n, bornYear: y, dead: false, isPc: n === "ilse",
+  key: k(n), name: n, bornYear: y, diedYear: null, dead: false, isPc: n === "ilse",
 }));
 let seq = 0;
 const l = (from: string, to: string, kind: KinKind, role: ParentRole | null = null, adoptive = false): KinEdgeInput => ({

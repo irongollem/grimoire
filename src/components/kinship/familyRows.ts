@@ -27,9 +27,10 @@ export interface FamilyGroup {
   rows: FamilyRow[];
 }
 
-/** "1428 – 1491" would need a death year the model does not hold, so the dead read "born 1428 · dead". */
+/** A dead person with a death year reads "1428 – 1491" (the years say it); without one, "born 1428 · dead". */
 export function lifeMeta(person: KinPerson, clock: KinClock): string[] {
-  return person.dead ? [...kinLifeMeta(person, clock), "dead"] : kinLifeMeta(person, clock);
+  const meta = kinLifeMeta(person, clock);
+  return person.dead && person.diedYear === null ? [...meta, "dead"] : meta;
 }
 
 /** The last word of a name, or the whole name when it has one word. */

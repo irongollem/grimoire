@@ -34,8 +34,9 @@
         <AppButton v-if="!player" size="sm" :icon="IconAddUser" label="Add relative" @click="adding = true" />
       </div>
 
-      <div class="torn min-h-0 flex-1 p-2 md:p-4">
+      <div class="torn flex min-h-[28rem] flex-1 flex-col p-2 md:p-4">
         <FamilyTree
+          class="flex-1"
           :source="source"
           :members="visible.members"
           :folds="visible.folds"
@@ -53,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-/** A family tree centred on one person (frames 04 and 07b). DM and player share it; only the source differs. */
+/** A family tree centred on one person (frame 04). DM and player share it; only the source differs. */
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";

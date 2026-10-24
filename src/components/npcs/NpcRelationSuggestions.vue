@@ -1,5 +1,5 @@
 <template>
-  <div class="border border-border rounded-lg p-3 mb-4 bg-muted/30 space-y-2">
+  <div class="border border-border rounded-lg p-3 mb-4 bg-muted/30 flex flex-col gap-2">
     <div class="flex items-center justify-between">
       <div class="text-label-lg font-semibold text-muted-foreground">
         Suggested connections
@@ -9,56 +9,37 @@
     <p class="text-caption text-muted-foreground">
       Nothing is saved until you accept a suggestion.
     </p>
-    <div
+    <!-- The same slip as the saved connections; Accept and Dismiss sit under the reason so a phone keeps its width for it. -->
+    <ConnectionSlip
       v-for="s in suggestions"
       :key="`${s.kind}:${s.kind === 'kin' ? s.target_type : ''}:${s.target_id}`"
-      class="flex items-start gap-3 p-2.5 rounded-lg border border-border bg-card"
+      :name="s.target_name"
+      :image="thumbnail(s)"
+      :image-format="s.kind === 'faction' ? 'token' : 'portrait'"
+      :tags="tagsOf(s)"
+      :notes="s.notes"
     >
-      <span
-        class="shrink-0 mt-0.5 px-2 py-0.5 rounded text-label font-bold"
-        :style="{
-          backgroundColor: `color-mix(in oklab, ${badge(s).color} 13%, transparent)`,
-          color: badge(s).color,
-        }"
-      >
-        {{ badge(s).label }}
-      </span>
-      <div class="flex-1 min-w-0">
-        <div class="text-heading-sm font-semibold text-foreground">
-          {{ s.target_name }}
-          <span v-if="s.kind === 'faction'" class="font-fell font-normal text-muted-foreground">
-            (faction)
-          </span>
-          <span v-else-if="s.kind === 'kin' && s.target_type === 'pc'" class="font-fell font-normal text-muted-foreground">
-            (character)
-          </span>
+      <template #footer>
+        <div class="flex justify-end gap-1">
+          <AppButton
+            variant="primary"
+            size="sm"
+            :icon="IconCheck"
+            icon-size="xs"
+            label="Accept"
+            :disabled="pending"
+            @click="emit('accept', s)"
+          />
+          <AppButton
+            variant="subtle"
+            size="sm"
+            label="Dismiss"
+            :disabled="pending"
+            @click="emit('dismiss', s)"
+          />
         </div>
-        <p
-          v-if="s.notes"
-          class="text-caption text-muted-foreground mt-0.5 wrap-break-word whitespace-normal"
-        >
-          {{ s.notes }}
-        </p>
-      </div>
-      <div class="shrink-0 flex gap-1">
-        <AppButton
-          variant="primary"
-          size="sm"
-          :icon="IconCheck"
-          icon-size="xs"
-          label="Accept"
-          :disabled="pending"
-          @click="emit('accept', s)"
-        />
-        <AppButton
-          variant="subtle"
-          size="sm"
-          label="Dismiss"
-          :disabled="pending"
-          @click="emit('dismiss', s)"
-        />
-      </div>
-    </div>
+      </template>
+    </ConnectionSlip>
     <p
       v-for="a in setAside"
       :key="`aside:${a.target_name}:${a.relation}`"
@@ -71,7 +52,12 @@
 
 <script setup lang="ts">
 import { IconCheck } from "@/lib/icons";
+import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import ConnectionSlip, { type ConnectionTag } from "@/components/common/entity/ConnectionSlip.vue";
+import { useAllFactions } from "@/composables/factions/useFactions";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useParty } from "@/composables/party/useParty";
 import { NPC_RELATIONSHIP_TYPE_LABELS, NPC_RELATIONSHIP_TYPE_VAR } from "@/types/npc.types";
 import type { ResolvedSuggestion } from "@/ai/useNpcRelationshipSuggestions";
 import type { SetAsideKin, SuggestedKinRelation } from "@edge-shared/npcRelationshipSuggestions.ts";
@@ -102,6 +88,27 @@ const emit = defineEmits<{
   dismiss: [suggestion: ResolvedSuggestion];
   dismissAll: [];
 }>();
+
+const { data: npcs } = useNpcs();
+const { data: party } = useParty();
+const { data: factions } = useAllFactions();
+const npcPortraits = computed(() => new Map((npcs.value ?? []).map((n) => [n.id, n.portrait_url])));
+const pcPortraits = computed(() => new Map((party.value ?? []).map((p) => [p.id, p.portrait_url])));
+const emblems = computed(() => new Map((factions.value ?? []).map((f) => [f.id, f.emblem_url])));
+
+/** The target's picture: an NPC or PC portrait, or a faction's emblem. */
+function thumbnail(s: ResolvedSuggestion): string | null {
+  if (s.kind === "faction") return emblems.value.get(s.target_id) ?? null;
+  if (s.kind === "kin" && s.target_type === "pc") return pcPortraits.value.get(s.target_id) ?? null;
+  return npcPortraits.value.get(s.target_id) ?? null;
+}
+
+function tagsOf(s: ResolvedSuggestion): ConnectionTag[] {
+  const tags: ConnectionTag[] = [badge(s)];
+  if (s.kind === "faction") tags.push({ label: "faction" });
+  else if (s.kind === "kin" && s.target_type === "pc") tags.push({ label: "character" });
+  return tags;
+}
 
 function badge(s: ResolvedSuggestion): { label: string; color: string } {
   if (s.kind === "npc") {

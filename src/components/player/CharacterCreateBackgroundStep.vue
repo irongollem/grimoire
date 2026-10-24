@@ -147,10 +147,11 @@
         </div>
         <div class="block">
           <span class="field-label">Born</span>
-          <BirthDateInput
-            :model-value="{ born_year: f.born_year ?? null, born_month: f.born_month ?? null, born_day: f.born_day ?? null }"
+          <CalendarDateInput
+            label="Birth"
+            :model-value="{ year: f.born_year ?? null, month: f.born_month ?? null, day: f.born_day ?? null }"
             tone="filled"
-            @update:model-value="Object.assign(f, $event)"
+            @update:model-value="Object.assign(f, { born_year: $event.year, born_month: $event.month, born_day: $event.day })"
           />
           <p class="mt-1 text-label text-muted-foreground">A birth date replaces the age description on the sheet.</p>
         </div>
@@ -225,7 +226,7 @@ import { ref, computed } from "vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { backgroundSourceKey } from "@/composables/rules/useBackgrounds";
 import type { Background } from "@/types/background.types";
-import BirthDateInput from "@/components/common/controls/BirthDateInput.vue";
+import CalendarDateInput from "@/components/common/controls/CalendarDateInput.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";

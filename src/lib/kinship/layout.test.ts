@@ -10,7 +10,7 @@ const born: Record<string, number> = {
   brenna: 1055, tomas: 1058, ilse: 1061, corwin: 1054, wren: 1080, pip: 1083, t1: 1085, t2: 1087, t3: 1090,
 };
 const thanePeople: KinPerson[] = Object.entries(born).map(([n, y]) => ({
-  key: k(n), name: n, bornYear: y, dead: false, isPc: n === "ilse",
+  key: k(n), name: n, bornYear: y, diedYear: null, dead: false, isPc: n === "ilse",
 }));
 let seq = 0;
 const l = (from: string, to: string, kind: KinKind, role: ParentRole | null = null, adoptive = false): KinEdgeInput => ({
@@ -146,10 +146,10 @@ describe("layoutTree edge cases", () => {
   });
 
   it("widens for thirty siblings without overlap", () => {
-    const people: KinPerson[] = [{ key: "npc:mum", name: "mum", bornYear: 1000, dead: false, isPc: false }];
+    const people: KinPerson[] = [{ key: "npc:mum", name: "mum", bornYear: 1000, diedYear: null, dead: false, isPc: false }];
     const links: KinEdgeInput[] = [];
     for (let i = 0; i < 30; i++) {
-      people.push({ key: `npc:c${i}`, name: `c${i}`, bornYear: 1030 + (i % 7), dead: false, isPc: false });
+      people.push({ key: `npc:c${i}`, name: `c${i}`, bornYear: 1030 + (i % 7), diedYear: null, dead: false, isPc: false });
       links.push({ id: `p${i}`, from: "npc:mum", to: `npc:c${i}`, kind: "parent", parent_role: null, adoptive: false });
     }
     const layout = layoutTree({ graph: buildKinGraph(people, links), members: new Set(people.map((p) => p.key)), folds: new Map() });
@@ -160,7 +160,7 @@ describe("layoutTree edge cases", () => {
   });
 
   it("terminates on parent loops and spouse cycles", () => {
-    const ps: KinPerson[] = ["a", "b", "c"].map((n) => ({ key: `npc:${n}`, name: n, bornYear: null, dead: false, isPc: false }));
+    const ps: KinPerson[] = ["a", "b", "c"].map((n) => ({ key: `npc:${n}`, name: n, bornYear: null, diedYear: null, dead: false, isPc: false }));
     const e = (id: string, from: string, to: string, kind: KinKind): KinEdgeInput => ({ id, from: `npc:${from}`, to: `npc:${to}`, kind, parent_role: null, adoptive: false });
     const g = buildKinGraph(ps, [e("1", "a", "b", "parent"), e("2", "b", "c", "parent"), e("3", "c", "a", "parent"), e("4", "a", "c", "spouse"), e("5", "b", "a", "spouse")]);
     const layout = layoutTree({ graph: g, members: new Set(ps.map((p) => p.key)), folds: new Map() });
@@ -185,7 +185,7 @@ describe("layoutTree property: cards never overlap", () => {
       const count = 2 + pick(40);
       const people: KinPerson[] = [];
       for (let i = 0; i < count; i++) {
-        people.push({ key: `npc:p${i}`, name: `p${pick(9)}`, bornYear: rand() < 0.2 ? null : 1000 + pick(120), dead: false, isPc: false });
+        people.push({ key: `npc:p${i}`, name: `p${pick(9)}`, bornYear: rand() < 0.2 ? null : 1000 + pick(120), diedYear: null, dead: false, isPc: false });
       }
       const links: KinEdgeInput[] = [];
       const kinds: KinKind[] = ["parent", "parent", "parent", "spouse", "former_spouse", "sibling", "relative"];

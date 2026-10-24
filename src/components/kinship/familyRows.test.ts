@@ -68,11 +68,11 @@ describe("buildFamilyGroups", () => {
 
 describe("lifeMeta", () => {
   it("gives birth year and age to the living, birth year and 'dead' to the dead", () => {
-    expect(lifeMeta({ key: k("a"), name: "A", bornYear: 1459, dead: false, isPc: false }, testClock())).toEqual(["born 1459", "36"]);
-    expect(lifeMeta({ key: k("a"), name: "A", bornYear: 1428, dead: true, isPc: false }, testClock())).toEqual(["born 1428", "dead"]);
+    expect(lifeMeta({ key: k("a"), name: "A", bornYear: 1459, diedYear: null, dead: false, isPc: false }, testClock())).toEqual(["born 1459", "36"]);
+    expect(lifeMeta({ key: k("a"), name: "A", bornYear: 1428, diedYear: null, dead: true, isPc: false }, testClock())).toEqual(["born 1428", "dead"]);
   });
   it("says nothing for an unknown birth year", () => {
-    expect(lifeMeta({ key: k("a"), name: "A", bornYear: null, dead: false, isPc: false }, testClock())).toEqual([]);
+    expect(lifeMeta({ key: k("a"), name: "A", bornYear: null, diedYear: null, dead: false, isPc: false }, testClock())).toEqual([]);
   });
 });
 

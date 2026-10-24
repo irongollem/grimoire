@@ -18,6 +18,7 @@ const person = (n: string, bornYear: number | null, name = n): KinPerson => ({
   key: npc(n),
   name,
   bornYear,
+  diedYear: null,
   dead: false,
   isPc: false,
 });

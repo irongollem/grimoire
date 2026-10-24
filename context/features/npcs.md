@@ -139,12 +139,15 @@ lets the buttons wrap and keeps the page's own name (see the note in
 | Species       | Text input            | Free-text, e.g. "Half-Elf", "Tiefling"                              |
 | Alignment     | Select                | 10 D&D alignments + Unaligned                                       |
 | Age (description) | Text input        | What a date cannot say ("Ancient"); replaced on the sheet by a birth date |
-| Born          | `BirthDateInput`      | Year, then optional month and day in the campaign calendar (#1086)  |
+| Born          | `CalendarDateInput`   | Year, then optional month and day in the campaign calendar (#1086)  |
+| Died          | `CalendarDateInput`   | Shown only while status is Dead; hiding it keeps what was typed     |
 | Occupation    | Text input            |                                                                     |
 | Location      | EntityCombobox        | Hierarchical location tree                                          |
 | Factions      | `NpcFactionsSection`  | Shown only on existing NPCs; manages faction memberships with roles |
 
 **Birth dates and ages** (#1086): `npcs.born_year` / `born_month` / `born_day` (all nullable; a month always comes with a day, and a year with it) hold a birth date in the campaign's calendar. `src/lib/calendar/age.ts` derives whole years against the campaign's today (`ageOn`), so the age moves when the DM advances the date, and `displayAge` is the one rule every surface uses: a birth year the calendar can place wins over the free-text `age`, which stays for "ancient" and the like. The phone sheet and the detail modal show the computed age, with the full birth date in a tooltip. Age is DM-only in `get_player_visible_npcs` (returned as null), and the birth columns are not in the projection either, so players see neither.
+
+**Death dates** (24 Oct 2026, migration `20261024062101`): `npcs.died_year` / `died_month` / `died_day`, the same shape as the birth date, plus a check that a death is not before the birth year. Status `dead` still decides whether someone is dead; the date only says when, so a date left on a living NPC is ignored. A dead NPC is never aged against today: `displayAge` measures to the death date, or falls back to the free-text age. The modal reads "Died 12 Ches 1491, aged 63", the phone quick fact "Age at death", and a family tree card "1428 – 1491". DM-only, like the birth date.
 
 **NPC Connections** (`NpcRelationsSection`) is embedded between Identity and the tab bar. It shows the NPC's peer relationships, allows adding new ones (target NPC + relationship type + optional notes), and inline deletion. Each entry links to the other NPC's sheet.
 
@@ -171,6 +174,10 @@ All fields are nullable; empty fields are hidden in view mode.
 #### Relations Tab (view mode only)
 
 `NpcRelationsTab.vue`, rendered by both hosts — the desktop sheet's Relations tab and the mobile sheet's Relations accordion — so the two cannot drift (the phone had, down to NPC connections alone). Three sections, each owning its own CRUD so nothing needs the edit form: **NPC connections** (`NpcRelationsSection`), **Factions** (`NpcFactionsSection` — faction name links to the faction, role editable in place, non-Active status badged) and **Favours owed** (`NpcFavorsSection`). Connections to the party's characters are not here: they are on **With the party** (below), where the player who reads them is named. Factions live here rather than under the portrait: a membership is a relation with a role and a status, not a tag. See the Web section for the graph alternative.
+
+**One slip for every connection** (24 Oct 2026). Family rows (`KinRow`), NPC connections, faction memberships and the AI's suggestions all render through `ConnectionSlip` (`components/common/entity/`): a thumbnail, a torn paper slip, the name, tags, notes, and a `...` menu. Only the tags and details differ (a relationship type's coloured tag, a faction role picker, a family meta line). The maintainer asked for this after seeing the four designs side by side on a phone; do not give one kind its own card again.
+
+**Family trees** (#1083). Kin lives in `kin_links`, separate from bonds. The NPC sheet's Family block lists it; `/family/:key` draws the tree (`FamilyTree.vue`, laid out by `lib/kinship/layout.ts`) at every width. The phone draws the same tree with smaller cards (`PHONE_GEOMETRY` in `treeGeometry.ts`) and opens on the centred person at no smaller than 0.8 scale; a finger drag pans even when it starts on a card. It used to show one strip per generation with no lines, which the maintainer found did not read as a tree (24 Oct 2026). A House faction has a Lineage tab, a descent rule, a line of succession, a succession custom and a **seat** (`factions.seat_location_id`, a place in the Atlas, shown in the house header and facts; a player sees it only when they can already see that place).
 
 #### Suggested connections (#910)
 

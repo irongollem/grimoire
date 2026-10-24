@@ -158,6 +158,10 @@ export interface Npc {
   born_year: number | null;
   born_month: number | null;
   born_day: number | null;
+  /** Death date, DM-only like the birth date; `status` still says who is dead. */
+  died_year: number | null;
+  died_month: number | null;
+  died_day: number | null;
   occupation: string | null;
   location_id: string | null;
   appearance: string | null;
@@ -203,7 +207,7 @@ export type NpcListRow = Omit<Npc, (typeof NPC_LIST_HEAVY_COLUMNS)[number]>;
 
 /** Every `npcs` column except the heavy ones; a typed list so a renamed column fails the build. */
 export const NPC_LIST_COLUMNS = [
-  "id", "user_id", "campaign_id", "name", "race", "alignment", "age", "born_year", "born_month", "born_day", "occupation", "location_id",
+  "id", "user_id", "campaign_id", "name", "race", "alignment", "age", "born_year", "born_month", "born_day", "died_year", "died_month", "died_day", "occupation", "location_id",
   "status", "relationship", "portrait_url", "portrait_focal_point", "cutout_url", "stat_block", "disguise_name",
   "disguise_portrait_url", "disguise_portrait_focal_point", "is_revealed", "tags", "linked_monster_id",
   "scriptorium_doc_id", "player_visible_to", "player_visible_fields", "ai_provenance", "unmasked_at",
@@ -228,7 +232,7 @@ export type PlayerNpc = Omit<Npc, "name"> & {
 export type NpcInsert = Omit<
   Npc,
   "id" | "user_id" | "created_at" | "updated_at" | "unmasked_at" | "location_id" | "linked_monster_id"
-  | "born_year" | "born_month" | "born_day"
+  | "born_year" | "born_month" | "born_day" | "died_year" | "died_month" | "died_day"
 > & {
   location_id?: string | null;
   linked_monster_id?: string | null;
@@ -236,6 +240,10 @@ export type NpcInsert = Omit<
   born_year?: number | null;
   born_month?: number | null;
   born_day?: number | null;
+  /** Omit to take the column default of null: no death date. */
+  died_year?: number | null;
+  died_month?: number | null;
+  died_day?: number | null;
 };
 export type NpcUpdate = Partial<NpcInsert>;
 

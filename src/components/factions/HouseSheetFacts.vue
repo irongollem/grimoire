@@ -4,6 +4,12 @@
       <span class="text-eyebrow font-semibold text-muted-foreground">Descent</span>
       <p class="text-body text-foreground">{{ HOUSE_DESCENT_WORDS[faction.descent ?? "either"] }}</p>
     </div>
+    <div v-if="seat">
+      <span class="text-eyebrow font-semibold text-muted-foreground">Seat</span>
+      <p class="text-body">
+        <RouterLink :to="`/locations?at=${seat.id}`" class="text-primary hover:underline">{{ seat.name }}</RouterLink>
+      </p>
+    </div>
     <div v-if="heirView">
       <span class="text-eyebrow font-semibold text-muted-foreground">Heir</span>
       <p class="text-body">
@@ -22,6 +28,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useFactionNpcs, useFactionPartyMembers } from "@/composables/factions/useFactions";
+import { useLocationNames } from "@/composables/locations/useLocations";
 import { useDmKinGraph } from "@/composables/kinship/useKinGraph";
 import { heirOf, lineFromRows, memberRows } from "@/lib/kinship/succession";
 import type { Faction } from "@/types/faction.types";
@@ -39,6 +46,13 @@ const HOUSE_DESCENT_WORDS: Record<HouseDescent, string> = {
 const source = useDmKinGraph();
 const npcs = useFactionNpcs(() => faction.id);
 const pcs = useFactionPartyMembers(() => faction.id);
+
+const seatNames = useLocationNames(() => (faction.seat_location_id ? [faction.seat_location_id] : []));
+const seat = computed(() => {
+  const id = faction.seat_location_id;
+  const name = id ? seatNames.value.get(id) : undefined;
+  return id && name ? { id, name } : null;
+});
 
 // The dead keep their rank on the row but do not inherit.
 const heirView = computed(() => {

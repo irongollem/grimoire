@@ -60,7 +60,7 @@ const initial = computed(() => person.name.trim().charAt(0).toUpperCase() || "?"
 
 // Only a birth year is stored, so the dead show it without an end year. A source with no
 // birth years (a player's) falls back to the subtitle rather than showing nothing.
-const life = computed(() => (person.bornYear === null ? person.subtitle : kinLifeMeta(person, clock.value).join(" · ")));
+const life = computed(() => (person.bornYear === null && person.diedYear === null ? person.subtitle : kinLifeMeta(person, clock.value).join(" · ")));
 const meta = computed(() => [life.value, marriedIn ? "married in" : null].filter(Boolean).join(" · "));
 const ariaLabel = computed(() => [person.name, person.dead ? "dead" : null, meta.value || null].filter(Boolean).join(", "));
 </script>

@@ -65,6 +65,10 @@ vi.mock("@/composables/notes/useEntityMentionItems", () => ({
   useEntityMentionItems: () => ({ mentionItems: { value: [] } }),
 }));
 
+vi.mock("@/composables/locations/useLocations", () => ({
+  useLocationTree: () => ({ locationOptions: { value: [{ id: "loc-1", name: "Thornkeep", depth: 0 }] } }),
+}));
+
 const toastSuccess = vi.fn();
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({
@@ -193,6 +197,35 @@ describe("FactionEditor — descent (#1083)", () => {
     await findButton(w, "Save")!.trigger("click");
     expect(updateFaction).toHaveBeenLastCalledWith(
       expect.objectContaining({ update: expect.objectContaining({ descent: null }) }),
+    );
+  });
+});
+
+describe("FactionEditor — seat", () => {
+  const combos = (w: ReturnType<typeof mountEditor>) => w.findAllComponents({ name: "EntityCombobox" });
+  const seatBox = (w: ReturnType<typeof mountEditor>) => combos(w).find((c) => c.attributes("placeholder") === "No seat");
+
+  it("shows Seat only for a House", async () => {
+    const w = mountEditor(faction({ faction_type: "Guild" }));
+    expect(seatBox(w)).toBeUndefined();
+    combos(w)[0]?.vm.$emit("update:modelValue", "House");
+    await w.vm.$nextTick();
+    expect(seatBox(w)).toBeTruthy();
+  });
+
+  it("sends the seat for a House and null once the type changes", async () => {
+    const w = mountEditor(faction({ faction_type: "House", descent: "either", seat_location_id: null }));
+    seatBox(w)!.vm.$emit("update:modelValue", "loc-1");
+    await w.vm.$nextTick();
+    await findButton(w, "Save")!.trigger("click");
+    expect(updateFaction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ seat_location_id: "loc-1" }) }),
+    );
+    combos(w)[0]?.vm.$emit("update:modelValue", "Guild");
+    await w.vm.$nextTick();
+    await findButton(w, "Save")!.trigger("click");
+    expect(updateFaction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ seat_location_id: null }) }),
     );
   });
 });

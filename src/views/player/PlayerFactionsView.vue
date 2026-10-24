@@ -101,6 +101,7 @@
               <p v-if="selected.faction_type || selected.alignment" class="text-caption text-muted-foreground italic">
                 {{ [selected.faction_type, selected.alignment].filter(Boolean).join(' · ') }}
               </p>
+              <p v-if="seatName" class="text-caption text-muted-foreground italic" data-testid="house-seat">seat: {{ seatName }}</p>
               <RelationshipMark v-if="selected.party_standing !== 'unknown'" :relationship="selected.party_standing" class="mt-1" />
             </div>
             <AppButton
@@ -188,6 +189,7 @@ import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { IconClose, IconShield } from '@/lib/icons';
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs, usePlayerFactionPartyMembers } from "@/composables/factions/useFactions";
+import { useSharedLocations } from "@/composables/locations/useLocations";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -284,6 +286,13 @@ const factionKey = (faction: { id: string }) => faction.id;
 const FACTION_ROW_PX = 82;
 
 // A House the party has discovered also shows its Lineage, from the people on their ledger.
+// A seat shows only when the player can already see the place; the id alone says nothing.
+const visiblePlaces = useSharedLocations();
+const seatName = computed(() => {
+  const id = selected.value?.seat_location_id;
+  return id ? (visiblePlaces.data.value?.find((l) => l.id === id)?.name ?? null) : null;
+});
+
 const DETAIL_TABS = [
   { id: "about", label: "About" },
   { id: "lineage", label: "Lineage" },

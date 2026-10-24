@@ -16,7 +16,7 @@ export function testClock(year = 1495): KinClock {
 }
 
 export function person(id: string, name: string, bornYear: number | null, extra: Partial<KinPersonView> = {}): KinPersonView {
-  return { key: k(id), name, bornYear, dead: false, isPc: false, portraitUrl: null, subtitle: null, to: `/npcs/${id}`, ...extra };
+  return { key: k(id), name, bornYear, diedYear: null, dead: false, isPc: false, portraitUrl: null, subtitle: null, to: `/npcs/${id}`, ...extra };
 }
 
 export function edge(id: string, from: string, to: string, kind: KinKind, extra: Partial<KinEdgeInput> = {}): KinEdgeInput {

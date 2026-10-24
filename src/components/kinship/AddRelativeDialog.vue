@@ -242,7 +242,7 @@ async function createNpc(name: string) {
     const key = personKey("npc", npc.id);
     justCreated.value = [
       ...justCreated.value,
-      { key, name: npc.name, bornYear: null, dead: false, isPc: false, portraitUrl: null, subtitle: null, to: `/npcs/${npc.id}` },
+      { key, name: npc.name, bornYear: null, diedYear: null, dead: false, isPc: false, portraitUrl: null, subtitle: null, to: `/npcs/${npc.id}` },
     ];
     other.value = key;
   } catch (e) {

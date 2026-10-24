@@ -4,7 +4,7 @@ import { buildKinGraph, type KinPerson } from "@/lib/kinship/graph";
 import type { PersonKey } from "@/types/kinship.types";
 
 const k = (n: string): PersonKey => `npc:${n}`;
-const p = (n: string, bornYear: number | null): KinPerson => ({ key: k(n), name: n, bornYear, dead: false, isPc: false });
+const p = (n: string, bornYear: number | null): KinPerson => ({ key: k(n), name: n, bornYear, diedYear: null, dead: false, isPc: false });
 const parent = (id: string, a: string, b: string) => ({
   id,
   from: k(a),

@@ -7,6 +7,9 @@ import { ordinalWithinYear } from "./dayMath";
  * optionally, `born_month` + `born_day`; the age is derived against the
  * campaign's today so it moves when the DM advances the calendar. The
  * free-text `age` column stays for what a date cannot say ("ancient").
+ *
+ * A dead NPC (`status` "dead") is never aged against today: with a death date
+ * the age is the age at death, without one the free-text age stands.
  */
 
 export interface BirthDate {
@@ -15,12 +18,32 @@ export interface BirthDate {
   day: number | null;
 }
 
-/** The four columns an NPC / party member carries; every one may be absent. */
+/** The columns an NPC / party member carries; every one may be absent. */
 export interface AgedRow {
   age?: string | null;
+  status?: string | null;
   born_year?: number | null;
   born_month?: number | null;
   born_day?: number | null;
+  died_year?: number | null;
+  died_month?: number | null;
+  died_day?: number | null;
+}
+
+/** Whether the row is a dead NPC; party members carry no status. */
+export function isDeadRow(row: AgedRow): boolean {
+  return row.status === "dead";
+}
+
+/** The row's death date, or null when it has no death year. */
+export function deathOf(row: AgedRow): BirthDate | null {
+  if (!isInt(row.died_year)) return null;
+  const hasDay = isInt(row.died_month) && isInt(row.died_day);
+  return {
+    year: row.died_year,
+    month: hasDay ? (row.died_month ?? null) : null,
+    day: hasDay ? (row.died_day ?? null) : null,
+  };
 }
 
 function isInt(n: unknown): n is number {
@@ -74,7 +97,8 @@ export function formatBirthDate(adapter: CalendarAdapter, born: BirthDate): stri
 /**
  * What every surface shows for "Age": the computed age when the row has a
  * birth year the calendar can place (the date wins over the free text),
- * otherwise the free-text age, otherwise null.
+ * otherwise the free-text age, otherwise null. A dead row is measured to its
+ * death date, and never to today.
  */
 export function displayAge(
   adapter: CalendarAdapter,
@@ -83,7 +107,17 @@ export function displayAge(
 ): string | null {
   const born = birthOf(row);
   if (born) {
-    const years = ageOn(adapter, born, today);
+    const died = isDeadRow(row) ? deathOf(row) : null;
+    let years: number | null = null;
+    if (!isDeadRow(row)) {
+      years = ageOn(adapter, born, today);
+    } else if (died) {
+      // A death with no month cannot place a birthday: the year difference stands.
+      years =
+        died.month !== null && died.day !== null
+          ? ageOn(adapter, born, { year: died.year, month: died.month, day: died.day })
+          : ageOn(adapter, { year: born.year, month: null, day: null }, { year: died.year, month: 0, day: 0 });
+    }
     if (years !== null) return String(years);
   }
   const text = row.age?.trim();
@@ -94,4 +128,10 @@ export function displayAge(
 export function displayBirth(adapter: CalendarAdapter, row: AgedRow): string | null {
   const born = birthOf(row);
   return born ? formatBirthDate(adapter, born) : null;
+}
+
+/** The full death date for a tooltip, or null when the row is not dead or has none. */
+export function displayDeath(adapter: CalendarAdapter, row: AgedRow): string | null {
+  const died = isDeadRow(row) ? deathOf(row) : null;
+  return died ? formatBirthDate(adapter, died) : null;
 }
