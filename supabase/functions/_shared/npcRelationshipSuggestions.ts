@@ -34,7 +34,7 @@ export const NPC_RELATIONSHIP_TYPES = [
 export type SuggestedRelationshipType = (typeof NPC_RELATIONSHIP_TYPES)[number];
 
 export const MAX_NOTES_CHARS = 300;
-export const MAX_SUGGESTIONS = 6;
+export const MAX_SUGGESTIONS = 12;
 export const MAX_SET_ASIDE = 6;
 
 export interface NpcSuggestion {

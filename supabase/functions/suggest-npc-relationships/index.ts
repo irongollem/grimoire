@@ -291,6 +291,24 @@ serve(withCors(async (req: Request) => {
     const npcNameById = new Map(campaignNpcs.map((n) => [n.id, n.name]));
     const factionNameById = new Map(campaignFactions.map((f) => [f.id, f.name]));
 
+    // Name every tie and membership by id. The candidate reads above hold only the most recently edited NPCs and
+    // factions, so a tie to an older one went unnamed, was never excluded, and the model offered it again.
+    const tiedNpcIds = [...new Set((relsRes.data ?? []).map((r) => (r.npc_id === npc_id ? r.related_npc_id : r.npc_id) as string))]
+      .filter((id) => !npcNameById.has(id));
+    const memberIds = [...new Set((memberRes.data ?? []).map((m) => m.faction_id as string))].filter((id) => !factionNameById.has(id));
+    const [tiedNpcs, memberFactions] = await Promise.all([
+      tiedNpcIds.length > 0
+        ? admin.from("npcs").select("id, name").eq("campaign_id", campaign_id).in("id", tiedNpcIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+      memberIds.length > 0
+        ? admin.from("factions").select("id, name").eq("campaign_id", campaign_id).in("id", memberIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+    ]);
+    if (tiedNpcs.error) throw new Error(tiedNpcs.error.message);
+    if (memberFactions.error) throw new Error(memberFactions.error.message);
+    for (const n of tiedNpcs.data ?? []) npcNameById.set(n.id, n.name);
+    for (const f of memberFactions.data ?? []) factionNameById.set(f.id, f.name);
+
     const existingTies = (relsRes.data ?? []).map((r) => {
       const sourceIsFrom = r.npc_id === npc_id;
       const otherId = sourceIsFrom ? r.related_npc_id : r.npc_id;
@@ -609,7 +627,7 @@ serve(withCors(async (req: Request) => {
         model: textModel,
         system: systemContent,
         user: userContent,
-        maxTokens: 1200,
+        maxTokens: 3000,
       });
     } catch (e) {
       await releaseCredits(admin, reservation.ids);
