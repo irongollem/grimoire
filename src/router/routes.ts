@@ -228,6 +228,13 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/player/PlayerCraftingView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Workshop" },
   },
+  // fullscreenMobile: the workbench draws its own phone header (back link, recipe name).
+  {
+    path: "/play/crafting/:recipeId",
+    name: "play-crafting-workbench",
+    component: () => import("@/views/player/PlayerWorkbenchView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Workbench", fullscreenMobile: true },
+  },
   {
     path: "/play/downtime",
     name: "play-downtime",

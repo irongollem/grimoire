@@ -6,6 +6,8 @@ import type { SaveKey } from "@/types/party.types";
 export interface DisciplineConfig {
   id: CraftingDiscipline;
   label: string;
+  /** Past participle for a finished craft: the modal's "Forged!". */
+  doneVerb: string;
   icon: Component;
   /** All accepted tools — first entry is the primary (used for display). Multiple entries
    *  mean the player can use any of them for proficiency/inventory checks. */
@@ -20,6 +22,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "alchemy",
     label: "Alchemy",
+    doneVerb: "Distilled",
     icon: IconCraftAlchemy,
     tools: ["Alchemist's Supplies"],
     ability: "int",
@@ -30,6 +33,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "smithing",
     label: "Smithing",
+    doneVerb: "Forged",
     icon: IconCraftSmithing,
     tools: ["Smith's Tools"],
     ability: "str",
@@ -40,6 +44,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "leathercraft",
     label: "Leathercraft",
+    doneVerb: "Stitched",
     icon: IconCraftLeathercraft,
     tools: ["Leatherworker's Tools", "Cobbler's Tools"],
     ability: "dex",
@@ -50,6 +55,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "woodcraft",
     label: "Woodcraft",
+    doneVerb: "Carved",
     icon: IconCraftWoodcraft,
     tools: ["Woodcarver's Tools", "Carpenter's Tools", "Shipwright's Tools"],
     ability: "dex",
@@ -60,6 +66,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "jewelcrafting",
     label: "Jewel Crafting",
+    doneVerb: "Set",
     icon: IconCraftJewelcrafting,
     tools: ["Jeweler's Tools", "Gemcutter's Tools"],
     ability: "dex",
@@ -70,6 +77,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "herbalism",
     label: "Herbalism",
+    doneVerb: "Prepared",
     icon: IconCraftHerbalism,
     tools: ["Herbalism Kit"],
     ability: "wis",
@@ -80,6 +88,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "poisoncraft",
     label: "Poisoncraft",
+    doneVerb: "Distilled",
     icon: IconCraftPoisoncraft,
     tools: ["Poisoner's Kit"],
     ability: "int",
@@ -90,6 +99,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "tinkering",
     label: "Tinkering",
+    doneVerb: "Assembled",
     icon: IconCraftTinkering,
     tools: ["Tinker's Tools", "Glassblower's Tools"],
     ability: "int",
@@ -100,6 +110,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "cooking",
     label: "Cooking",
+    doneVerb: "Cooked",
     icon: IconCraftCooking,
     tools: ["Cook's Utensils"],
     ability: "wis",
@@ -110,6 +121,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "scribing",
     label: "Scribing",
+    doneVerb: "Inscribed",
     icon: IconCraftScribing,
     tools: ["Calligrapher's Supplies", "Bookbinder's Tools", "Scribe's Supplies", "Cartographer's Tools"],
     ability: "int",
@@ -120,6 +132,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "forgery",
     label: "Forgery",
+    doneVerb: "Forged",
     // No forgery glyph exists yet in CRAFTING_GLYPHS (generated from a 14-discipline
     // art sheet) — reusing the scribing glyph as a deliberate placeholder until one
     // is generated. Do not hand-edit craftingGlyphs.generated.ts to add one.
@@ -133,6 +146,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "brewing",
     label: "Brewing",
+    doneVerb: "Brewed",
     icon: IconCraftBrewing,
     tools: ["Brewer's Supplies"],
     ability: "wis",
@@ -143,6 +157,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "weaving",
     label: "Weaving",
+    doneVerb: "Woven",
     icon: IconCraftWeaving,
     tools: ["Weaver's Tools", "Tailor's Tools"],
     ability: "dex",
@@ -153,6 +168,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "masonry",
     label: "Masonry",
+    doneVerb: "Hewn",
     icon: IconCraftMasonry,
     tools: ["Mason's Tools"],
     ability: "str",
@@ -163,6 +179,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "painting",
     label: "Painting",
+    doneVerb: "Painted",
     icon: IconCraftPainting,
     tools: ["Painter's Supplies"],
     ability: "dex",

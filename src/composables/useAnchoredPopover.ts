@@ -64,16 +64,22 @@ export function useAnchoredPopover(
     document.removeEventListener("keydown", onKeydown);
   }
 
-  watch(isOpen, async (open) => {
-    if (open) {
-      floatingStyle.value = { ...floatingStyle.value, visibility: "hidden" };
-      await nextTick();
-      reposition();
-      attach();
-    } else {
-      detach();
-    }
-  });
+  // Immediate: a panel can mount already open (the crafting workbench mounts its picker when a dish
+  // is chosen). Without it the first open never positions and the panel stays hidden at 0,0.
+  watch(
+    isOpen,
+    async (open) => {
+      if (open) {
+        floatingStyle.value = { ...floatingStyle.value, visibility: "hidden" };
+        await nextTick();
+        reposition();
+        attach();
+      } else {
+        detach();
+      }
+    },
+    { immediate: true },
+  );
 
   onBeforeUnmount(detach);
 

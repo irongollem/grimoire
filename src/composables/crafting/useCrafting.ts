@@ -433,6 +433,13 @@ export function useReplaceModifiers() {
 
 // ── Crafting attempt ─────────────────────────────────────────────────────────
 
+/**
+ * Rolls a craft and applies what it came to. The outcome decides what is spent:
+ * success spends every ingredient (`ingredientConsumption`) and makes the outputs;
+ * a critical failure (natural 1, or a miss by 5 or more) spends only the primary
+ * ingredient (`primaryConsumption`) and returns it as "Ruined: <name>"; a failure
+ * spends nothing and writes nothing, since only the time is lost.
+ */
 export function useAttemptCraft() {
   const queryClient = useQueryClient();
   const { promptRoll } = usePromptedRoll();
@@ -444,8 +451,10 @@ export function useAttemptCraft() {
       /** Resolved names for each output (ref id → display name) — the ref may
        *  be either item_id or library_item_id, see inventoryItemRef. */
       outputItemNames: Record<string, string>;
-      /** party_inventory rows to consume, each with the quantity the recipe uses */
+      /** party_inventory rows a SUCCESS consumes, each with the quantity the recipe uses */
       ingredientConsumption: { id: string; qty: number }[];
+      /** What a critical failure consumes: only the primary ingredient (slot 0). */
+      primaryConsumption: { id: string; qty: number }[];
       /** primary ingredient's inventory id — ruined on critical fail */
       primaryIngredientInventoryId: string;
       /** primary ingredient's carried_by (for re-adding as ruined). Carries both
@@ -472,6 +481,7 @@ export function useAttemptCraft() {
         outputs,
         outputItemNames,
         ingredientConsumption,
+        primaryConsumption,
         primaryInventoryItem,
         modifierBonuses,
         abilityMod,
@@ -509,7 +519,15 @@ export function useAttemptCraft() {
             : diff <= -5 ? "ruin"
               : "fail";
 
-      // 2 + 3. Consume ingredients AND create the output/ruined item in one
+      // What each outcome spends (maintainer's rule, 24 Oct 2026): a success
+      // spends every ingredient, a critical failure only the primary one (and
+      // returns it ruined), a plain failure nothing at all, only the time.
+      // A plain failure therefore has nothing to write and makes no request.
+      if (outcome === "fail") {
+        return { roll, roll2, total, diff, outcome, hasDisadvantage: !hasTools };
+      }
+
+      // Consume ingredients AND create the output/ruined item in one
       // atomic RPC (craft_apply) — see migration 20260613000002. Previously
       // these were two separate requests; a failure between them destroyed the
       // ingredients with nothing created.
@@ -542,7 +560,7 @@ export function useAttemptCraft() {
           : null;
 
       const { error } = await supabase.rpc("craft_apply", {
-        p_ingredients: ingredientConsumption,
+        p_ingredients: outcome === "success" ? ingredientConsumption : primaryConsumption,
         p_outcome: outcome,
         p_success_rows: successRows,
         p_ruined_row: ruinedRow,
@@ -554,7 +572,7 @@ export function useAttemptCraft() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["party-inventory"] });
     },
-    // No onError toast here: CraftAttemptDialog already surfaces failures inline
+    // No onError toast here: useCraftAttempt already surfaces failures inline
     // via attemptError. A toast would be redundant double-feedback.
   });
 }

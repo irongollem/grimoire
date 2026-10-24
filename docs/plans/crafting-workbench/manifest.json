@@ -1,0 +1,1375 @@
+{
+  "story": "#1080 Player crafting: the workbench",
+  "design": "https://claude.ai/artifact/UqWvTWXNLKzFCTNG3GoUsi",
+  "updated": "2026-10-19",
+  "status": "All 54 painted 19 Oct 2026 (rounds ran back to back). Cut and composed by art-955/workbench/cut.py; reviewed on its check sheets.",
+  "contract": {
+    "common": "Three-quarter overhead view: the surface seen from 55 degrees above horizontal, square to the viewer with no turn, near-orthographic with no wide-angle convergence; long objects lie left to right. Moderately muted, true-to-material colour with at most one selective accent. No people, no hands, no lettering, no labels, no numbers, no frames, panels or insets.",
+    "kinds": {
+      "material": {
+        "role": "The material resting in a dish on the workbench.",
+        "light": "Soft neutral key light from the upper left (about 10 o'clock, 45 degrees up) with a faint cool fill from the right; no coloured scene light, no hard cast shadows, no rim glow, restrained highlights.",
+        "paint": {
+          "size": "1024x1024",
+          "background": "flat pure white #FFFFFF, no floor, no ground plane, no cast or contact shadow"
+        },
+        "composition": "A single small heap or arrangement of the material that would fill a shallow 20 cm dish, centred; at most 72% of the canvas wide and 60% high, at least 10% white margin on every side; its base rests on an implied flat surface at 80% of the way down the canvas. Scale is set by the dish, not by real-world size: a heap of gems and a stack of billets both fill it.",
+        "negatives": "no dish, bowl, plate, tray, table, cloth or surface under it; no background scene; no shadow; no text; no second subject; not cropped",
+        "ship": {
+          "format": "webp",
+          "alpha": true,
+          "trim": "content box plus 4%",
+          "longSide": 384,
+          "quality": 85
+        },
+        "display": {
+          "desktop": "75 CSS px wide in a 170 px dish",
+          "phone": "37 CSS px wide in an 84 px dish"
+        },
+        "anchor": "lowest opaque pixel at the dish opening's (cx, cy + floor x ry); width 44% of the dish; its lowest quarter darkened in the file. Grounding is a contact line only (maintainer's pick, 24 Oct 2026): the object's own silhouette, 85% black, nudged down 3% of its width and blurred 1% of it, drawn behind the object so only a sliver shows along its real bottom edge. The same rule grounds a material in its dish and a dish on the bench. No ellipse, halo or cast shadow: each read as the object hovering.",
+        "reference": "Once mat-ingot-iron is accepted, attach it (flattened onto white) as the camera and light reference for every later material."
+      },
+      "receptacle": {
+        "role": "The dish each ingredient sits in; one picture is shared by every slot on a bench.",
+        "light": "Soft neutral key light from the upper left (about 10 o'clock, 45 degrees up) with a faint cool fill from the right; no coloured scene light, no hard cast shadows, no rim glow, restrained highlights.",
+        "paint": {
+          "size": "1024x1024",
+          "background": "flat pure white #FFFFFF, no floor, no ground plane, no cast or contact shadow; clear glass on a transparent layer instead"
+        },
+        "composition": "One empty vessel, centred, its rim ellipse about 80% of the canvas wide; the inner floor clearly visible so its ellipse can be measured. Nothing inside it.",
+        "negatives": "nothing inside the vessel; no table or surface; no shadow; no text; no second vessel; not cropped",
+        "ship": {
+          "format": "webp",
+          "alpha": true,
+          "width": 512,
+          "quality": 85,
+          "measure": "the opening (inner edge of the rim) as normalised cx, cy, rx, ry of the delivered picture, stored as `opening` on the asset"
+        },
+        "display": {
+          "desktop": "170 x 140 CSS px",
+          "phone": "84 x 69 CSS px"
+        },
+        "anchor": "the opening ellipse: a material's lowest opaque pixel sits at (cx, cy + floor x ry), floor tuned per dish and kept inside the opening (in a deep bowl the front inner wall is hidden behind the lip, so a lower base disappears behind the outer wall); width 44% of the dish. The page then draws the dish's front lip (outside the opening, below its centre line) over the material. Grounding is a contact line only (maintainer's pick, 24 Oct 2026): the object's own silhouette, 85% black, nudged down 3% of its width and blurred 1% of it, drawn behind the object so only a sliver shows along its real bottom edge. The same rule grounds a material in its dish and a dish on the bench. No ellipse, halo or cast shadow: each read as the object hovering.",
+        "reference": "Attach mat-ingot-iron (flattened onto white) for camera and light once it is accepted."
+      },
+      "workspace": {
+        "role": "The discipline's bench behind the dishes.",
+        "light": "The apparatus in the top band carries the one warm local light. The bench top below is lit softly and evenly from the upper left, matching the sprites that will rest on it, with no warm cast across it and no hard shadows.",
+        "paint": {
+          "size": "1536x1024",
+          "background": "opaque painted scene"
+        },
+        "composition": "The craft's apparatus and its one warm local light source sit in the top 42% of the picture. The lower 58% is an empty bench top seen from the same 55 degree view: evenly lit, quiet, low detail and low contrast, with nothing on it across the central 80% of its width; the bench's front edge shows in the last 14%. Set in the collection's cold northern world (frost, cold blues, greys and muted browns) with the one warm light kept in the top band.",
+        "negatives": "no dishes, bowls, ingredients, tools or clutter on the lower bench top; no people; no text; no strong vignette over the bench; no dramatic spotlight on the bench",
+        "ship": {
+          "format": "webp",
+          "alpha": false,
+          "widths": [
+            1536,
+            768
+          ],
+          "quality": 78
+        },
+        "display": {
+          "desktop": "920 x 613 CSS px with dishes laid along 52-74% of its height",
+          "phone": "the top band only, cropped to 390 x 150 CSS px"
+        },
+        "anchor": "dish row centred horizontally at 63% of the height"
+      },
+      "fx": {
+        "role": "Optional overlay while the dice are out.",
+        "light": "Self-lit effect only.",
+        "paint": {
+          "size": "1024x1024",
+          "background": "flat pure black #000000; blended onto the bench with screen mode, not cut"
+        },
+        "composition": "The effect alone, centred, soft-edged, at least 15% black margin.",
+        "negatives": "no objects, no surface, no text",
+        "ship": {
+          "format": "webp",
+          "alpha": false,
+          "width": 512,
+          "quality": 80
+        },
+        "display": {
+          "desktop": "about 300 CSS px, over the apparatus",
+          "phone": "not shown"
+        },
+        "anchor": "centre"
+      }
+    },
+    "acceptance": {
+      "material": "One material; no dish or surface; no text; on pure white inside the margins; camera and light match the ingot reference; recognisable at 50 px; no white fringe once cut, checked on #20160f and on #faf6ee.",
+      "receptacle": "Empty; square to the viewer at the same angle; rim about 80% of the width; inner floor visible and measurable; clean cut.",
+      "workspace": "Central 80% of the lower 58% empty and quiet; apparatus and warm light in the top band; no people or text; iron dishes laid on it in the mock read as resting on it, not floating.",
+      "fx": "Reads as the effect on a dark bench at 300 px, nothing else in frame."
+    },
+    "retry": "At most once, and only for a clear failure: wrong subject, cropped, text, something in a dish, a surface under a sprite, or the wrong canvas shape. Never for style."
+  },
+  "tintRule": "A tint is a CSS filter the page applies to the base sprite (hue, saturation, brightness). Tinted variants are not separate pictures.",
+  "assets": [
+    {
+      "id": "mat-ingot-iron",
+      "kind": "material",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "smithing",
+        "tinkering",
+        "jewelcrafting",
+        "leathercraft",
+        "woodcraft",
+        "masonry"
+      ],
+      "tags": [
+        "ingot",
+        "iron",
+        "steel",
+        "silver",
+        "metal"
+      ],
+      "tints": {
+        "silver": "brightness 1.25, saturate 0.6",
+        "steel": "brightness 1.1"
+      },
+      "subject": "Three hand-cast iron ingots stacked in a small pyramid, dark grey with a soft hammered sheen.",
+      "notes": "The camera and light reference for every later picture; paint it first."
+    },
+    {
+      "id": "ws-forge",
+      "kind": "workspace",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "smithing"
+      ],
+      "subject": "A blacksmith's forge corner in a cold northern smithy: a heavy anvil on a banded wooden stump at top centre, a brick forge with glowing coals at top left as the one warm light, a quench tub with a skin of ice at top right, tongs and a hammer at the edges of the top band. Below, a broad plank workbench top of dark oiled wood with iron corner straps, completely clear."
+    },
+    {
+      "id": "rc-iron-dish",
+      "kind": "receptacle",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "smithing"
+      ],
+      "subject": "A shallow, round, hand-hammered dark iron dish with a low rolled rim and a faintly dimpled floor.",
+      "opening": {
+        "cx": 0.5,
+        "cy": 0.43,
+        "rx": 0.46,
+        "ry": 0.36,
+        "floor": 0.672
+      }
+    },
+    {
+      "id": "mat-ingot-gold",
+      "kind": "material",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "smithing",
+        "jewelcrafting",
+        "forgery"
+      ],
+      "tags": [
+        "gold"
+      ],
+      "subject": "Two small cast gold ingots, one resting across the other, a warm muted gold rather than a bright yellow."
+    },
+    {
+      "id": "mat-ore",
+      "kind": "material",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "smithing",
+        "tinkering",
+        "alchemy"
+      ],
+      "tags": [
+        "ore",
+        "mineral"
+      ],
+      "tints": {
+        "gold": "sepia 0.5, hue toward yellow",
+        "silver": "saturate 0.3, brightness 1.15"
+      },
+      "subject": "A small heap of rough grey-brown iron ore chunks with rusty streaks and matte broken faces."
+    },
+    {
+      "id": "mat-scrap",
+      "kind": "material",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "smithing",
+        "leathercraft",
+        "tinkering",
+        "alchemy"
+      ],
+      "tags": [
+        "scrap",
+        "metal"
+      ],
+      "subject": "A small heap of scrap iron: a few bent nails, a broken hinge and short offcuts of strap iron."
+    },
+    {
+      "id": "mat-wood",
+      "kind": "material",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "woodcraft",
+        "smithing",
+        "tinkering"
+      ],
+      "tags": [
+        "wood"
+      ],
+      "subject": "Three short split billets of pale wood, bark on one side, stacked two below and one above."
+    },
+    {
+      "id": "mat-cloth",
+      "kind": "material",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "weaving",
+        "smithing",
+        "herbalism",
+        "woodcraft",
+        "alchemy"
+      ],
+      "tags": [
+        "cloth",
+        "canvas"
+      ],
+      "subject": "A small, neatly folded stack of plain undyed linen cloth."
+    },
+    {
+      "id": "mat-leather",
+      "kind": "material",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "leathercraft",
+        "scribing",
+        "smithing"
+      ],
+      "tags": [
+        "leather"
+      ],
+      "subject": "A loose coil of tanned brown leather strips with stitched edges."
+    },
+    {
+      "id": "mat-charcoal",
+      "kind": "material",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "alchemy",
+        "scribing",
+        "painting",
+        "smithing"
+      ],
+      "tags": [
+        "charcoal"
+      ],
+      "subject": "A small heap of black charcoal lumps with matte, cracked surfaces."
+    },
+    {
+      "id": "mat-bundle",
+      "kind": "material",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "all"
+      ],
+      "tags": [],
+      "subject": "A small bundle wrapped in plain undyed cloth and tied with a cross of twine, its contents unseen.",
+      "notes": "The neutral fallback for any item no tag or type maps; must read as deliberate, never as missing art."
+    },
+    {
+      "id": "mat-ruined",
+      "kind": "material",
+      "phase": 1,
+      "priority": "essential",
+      "disciplines": [
+        "all"
+      ],
+      "tags": [],
+      "subject": "A small charred, cracked lump of blackened slag and ash with a single faint ember-red crack, clearly ruined.",
+      "notes": "Shown in the primary dish after a critical failure."
+    },
+    {
+      "id": "ws-laboratory",
+      "kind": "workspace",
+      "phase": 2,
+      "priority": "essential",
+      "disciplines": [
+        "alchemy",
+        "poisoncraft"
+      ],
+      "subject": "An alchemist's laboratory by a frost-rimmed window: a copper alembic over a small brazier at top centre as the one warm light, glass retorts and stoppered bottles of several dark colours on a shelf behind. Below, a pale slate bench top with a scrubbed surface, completely clear."
+    },
+    {
+      "id": "rc-glass-dish",
+      "kind": "receptacle",
+      "phase": 2,
+      "priority": "essential",
+      "disciplines": [
+        "alchemy",
+        "poisoncraft"
+      ],
+      "subject": "A shallow, round, thick clear glass dish with a faint green tint and a rolled rim.",
+      "opening": {
+        "cx": 0.5,
+        "cy": 0.365,
+        "rx": 0.45,
+        "ry": 0.295,
+        "floor": 0.95
+      },
+      "source": "native-alpha/rc-glass-dish.png",
+      "notes": "Redrawn 24 Oct 2026 on a transparent layer: clear glass keeps partial alpha, so it is never white-keyed."
+    },
+    {
+      "id": "mat-flask",
+      "kind": "material",
+      "phase": 2,
+      "priority": "essential",
+      "disciplines": [
+        "alchemy",
+        "poisoncraft",
+        "herbalism",
+        "cooking",
+        "brewing",
+        "painting",
+        "woodcraft",
+        "scribing"
+      ],
+      "tags": [
+        "water",
+        "solvent",
+        "oil",
+        "drink",
+        "alcohol",
+        "wine",
+        "ale",
+        "must",
+        "poison",
+        "venom"
+      ],
+      "tints": {
+        "oil": "amber",
+        "wine": "deep red",
+        "ale": "brown",
+        "poison": "sickly green",
+        "venom": "yellow-green"
+      },
+      "subject": "A small stoppered round-bellied glass flask with a cork, half-filled with clear water, lying slightly tilted.",
+      "source": "native-alpha/mat-flask.png",
+      "notes": "Redrawn 24 Oct 2026 on a transparent layer: clear glass keeps partial alpha, so it is never white-keyed."
+    },
+    {
+      "id": "mat-powder",
+      "kind": "material",
+      "phase": 2,
+      "priority": "essential",
+      "disciplines": [
+        "alchemy",
+        "cooking",
+        "tinkering",
+        "leathercraft"
+      ],
+      "tags": [
+        "salt",
+        "saltpetre",
+        "brimstone",
+        "sand",
+        "spice"
+      ],
+      "tints": {
+        "brimstone": "sulphur yellow",
+        "sand": "tan",
+        "spice": "rust brown"
+      },
+      "subject": "A small conical heap of fine white powder with a few grains spilled at its foot.",
+      "cut": {
+        "threshold": 12
+      }
+    },
+    {
+      "id": "mat-herb",
+      "kind": "material",
+      "phase": 2,
+      "priority": "essential",
+      "disciplines": [
+        "herbalism",
+        "poisoncraft",
+        "cooking",
+        "alchemy",
+        "scribing"
+      ],
+      "tags": [
+        "herb",
+        "healing",
+        "plant",
+        "seaweed"
+      ],
+      "tints": {
+        "seaweed": "dark olive"
+      },
+      "subject": "A small bundle of fresh green herb sprigs tied with a thread."
+    },
+    {
+      "id": "mat-mushroom",
+      "kind": "material",
+      "phase": 2,
+      "priority": "essential",
+      "disciplines": [
+        "poisoncraft",
+        "cooking",
+        "alchemy"
+      ],
+      "tags": [
+        "mushroom",
+        "phosphorescent"
+      ],
+      "tints": {
+        "phosphorescent": "pale green with a soft glow filter"
+      },
+      "subject": "A small cluster of pale brown wild mushrooms with gills just showing."
+    },
+    {
+      "id": "mat-resin",
+      "kind": "material",
+      "phase": 2,
+      "priority": "essential",
+      "disciplines": [
+        "alchemy",
+        "painting"
+      ],
+      "tags": [
+        "resin"
+      ],
+      "subject": "A few translucent amber resin lumps."
+    },
+    {
+      "id": "mat-clay",
+      "kind": "material",
+      "phase": 2,
+      "priority": "essential",
+      "disciplines": [
+        "masonry",
+        "tinkering",
+        "alchemy"
+      ],
+      "tags": [
+        "clay"
+      ],
+      "subject": "A smooth lump of grey-red potter's clay with finger marks."
+    },
+    {
+      "id": "mat-fiber",
+      "kind": "material",
+      "phase": 2,
+      "priority": "essential",
+      "disciplines": [
+        "weaving",
+        "woodcraft",
+        "leathercraft",
+        "alchemy"
+      ],
+      "tags": [
+        "fiber",
+        "wool",
+        "silk"
+      ],
+      "tints": {
+        "silk": "brightness 1.2, saturate 0.5"
+      },
+      "subject": "A loose skein of undyed spun fibre."
+    },
+    {
+      "id": "mat-crystal",
+      "kind": "material",
+      "phase": 2,
+      "priority": "essential",
+      "disciplines": [
+        "alchemy",
+        "homebrew"
+      ],
+      "tags": [
+        "crystal",
+        "arcane",
+        "magic"
+      ],
+      "subject": "A small cluster of pale blue crystal shards with faceted ends, quiet and matte rather than glittering."
+    },
+    {
+      "id": "ws-finebench",
+      "kind": "workspace",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "jewelcrafting",
+        "tinkering"
+      ],
+      "subject": "A jeweller's and tinker's fine bench: a brass lamp with a magnifying lens at top centre as the one warm light, a bench pin, a tiny anvil, a small vise and trays of brass gears at the edges of the top band. Below, a dark walnut bench top with a soft felt inlay, completely clear."
+    },
+    {
+      "id": "ws-tannery",
+      "kind": "workspace",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "leathercraft"
+      ],
+      "subject": "A leatherworker's bench: hides hanging on a rack and a lantern at top, a round knife, awls and a stitching pony at the edges of the top band. Below, a worn leather-covered cutting board top, completely clear."
+    },
+    {
+      "id": "ws-woodshop",
+      "kind": "workspace",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "woodcraft"
+      ],
+      "subject": "A woodworker's shop: a bench vise, saws on a wall rack and an oil lamp at top, a plane with a few curls of shavings at one edge of the top band. Below, a scarred hardwood bench top, completely clear."
+    },
+    {
+      "id": "ws-kitchen",
+      "kind": "workspace",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "cooking"
+      ],
+      "subject": "A farmhouse kitchen hearth: an iron pot hanging over a low fire at top centre as the one warm light, a chopping board with a knife and a row of spice jars at the edges of the top band. Below, a thick butcher-block table top, completely clear."
+    },
+    {
+      "id": "ws-desk",
+      "kind": "workspace",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "scribing",
+        "forgery",
+        "painting"
+      ],
+      "subject": "A scribe's slanted writing desk: a candle as the one warm light, an inkwell with quills, wax seals, a painter's palette and a jar of brushes along the top band. Below, a smooth dark wood desk surface, completely clear."
+    },
+    {
+      "id": "ws-herbalist",
+      "kind": "workspace",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "herbalism"
+      ],
+      "subject": "A herbalist's workroom: bundles of herbs drying on a rack, a stone mortar and pestle and a small iron kettle over a candle warmer at top. Below, a pale scrubbed pine table top, completely clear."
+    },
+    {
+      "id": "ws-brewhouse",
+      "kind": "workspace",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "brewing"
+      ],
+      "subject": "A cellar brewhouse: a copper mash kettle over a low fire at top centre as the one warm light, oak barrels and a funnel behind. Below, a heavy oak trestle top with faint rings, completely clear."
+    },
+    {
+      "id": "ws-loom",
+      "kind": "workspace",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "weaving"
+      ],
+      "subject": "A weaver's room: a small upright loom with half-woven cloth at top centre, a spindle, baskets of yarn and a hanging lantern at the sides. Below, a smooth pale ash table top, completely clear."
+    },
+    {
+      "id": "ws-stoneyard",
+      "kind": "workspace",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "masonry"
+      ],
+      "subject": "A mason's yard under a timber roof with snow beyond: a banker block with mallet and chisels at top centre, stacked dressed stone blocks and a brazier as the one warm light behind. Below, a broad flat stone working slab, completely clear."
+    },
+    {
+      "id": "rc-velvet-tray",
+      "kind": "receptacle",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "jewelcrafting",
+        "tinkering"
+      ],
+      "subject": "A shallow round jeweller's tray lined with deep blue velvet, with a thin brass rim.",
+      "opening": {
+        "cx": 0.5,
+        "cy": 0.41,
+        "rx": 0.46,
+        "ry": 0.37,
+        "floor": 0.68
+      }
+    },
+    {
+      "id": "rc-cloth-mat",
+      "kind": "receptacle",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "leathercraft",
+        "weaving"
+      ],
+      "subject": "A round mat of thick undyed felt lying flat, its edge slightly raised.",
+      "notes": "Flat: the page draws no front rim over the material.",
+      "opening": {
+        "cx": 0.5,
+        "cy": 0.43,
+        "rx": 0.46,
+        "ry": 0.37,
+        "floor": 0.68
+      }
+    },
+    {
+      "id": "rc-wooden-tray",
+      "kind": "receptacle",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "woodcraft",
+        "scribing",
+        "forgery",
+        "painting",
+        "masonry"
+      ],
+      "subject": "A shallow round tray of dark oiled wood with a low raised edge.",
+      "opening": {
+        "cx": 0.5,
+        "cy": 0.43,
+        "rx": 0.45,
+        "ry": 0.35,
+        "floor": 0.664
+      }
+    },
+    {
+      "id": "rc-wooden-bowl",
+      "kind": "receptacle",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "herbalism",
+        "cooking",
+        "brewing"
+      ],
+      "subject": "A shallow round turned bowl of pale beech wood.",
+      "opening": {
+        "cx": 0.505,
+        "cy": 0.39,
+        "rx": 0.455,
+        "ry": 0.33,
+        "floor": 0.712
+      }
+    },
+    {
+      "id": "mat-gem-rough",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "jewelcrafting"
+      ],
+      "tags": [
+        "gem",
+        "rough",
+        "agate",
+        "moss agate",
+        "bloodstone",
+        "onyx",
+        "amethyst",
+        "topaz",
+        "emerald",
+        "ruby",
+        "diamond",
+        "sapphire"
+      ],
+      "tints": {
+        "ruby": "red",
+        "sapphire": "blue",
+        "emerald": "green",
+        "amethyst": "violet",
+        "topaz": "honey yellow",
+        "onyx": "near black",
+        "bloodstone": "dark green",
+        "agate": "banded brown",
+        "moss agate": "pale green",
+        "diamond": "none"
+      },
+      "subject": "A small heap of rough uncut gemstones, clear and pale, with matte unpolished faces and a few bright fracture edges."
+    },
+    {
+      "id": "mat-hide",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "leathercraft",
+        "weaving"
+      ],
+      "tags": [
+        "hide",
+        "fur"
+      ],
+      "subject": "A folded raw hide with grey-brown fur on the visible side."
+    },
+    {
+      "id": "mat-stone",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "masonry",
+        "tinkering"
+      ],
+      "tags": [
+        "stone",
+        "flint"
+      ],
+      "subject": "Two small dressed grey stone blocks with a dark flint nodule beside them."
+    },
+    {
+      "id": "mat-grain",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "cooking",
+        "brewing"
+      ],
+      "tags": [
+        "grain"
+      ],
+      "subject": "A small heap of golden wheat grain with two ears of wheat laid across it."
+    },
+    {
+      "id": "mat-meat",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "cooking"
+      ],
+      "tags": [
+        "meat"
+      ],
+      "subject": "A raw cut of dark red meat with a strip of fat, tied with butcher's string."
+    },
+    {
+      "id": "mat-fish",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "cooking"
+      ],
+      "tags": [
+        "fish"
+      ],
+      "subject": "Two small silver river fish laid side by side."
+    },
+    {
+      "id": "mat-vegetables",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "cooking"
+      ],
+      "tags": [
+        "vegetable"
+      ],
+      "subject": "A small pile of root vegetables: two carrots, an onion and a turnip."
+    },
+    {
+      "id": "mat-fruit",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "cooking",
+        "brewing"
+      ],
+      "tags": [
+        "fruit"
+      ],
+      "subject": "A small pile of red apples and dark berries."
+    },
+    {
+      "id": "mat-honey",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "brewing",
+        "cooking"
+      ],
+      "tags": [
+        "honey",
+        "sweetener"
+      ],
+      "subject": "A small glazed clay honey pot with a wooden dipper resting in it, honey on its lip."
+    },
+    {
+      "id": "mat-bone",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "woodcraft",
+        "herbalism",
+        "tinkering"
+      ],
+      "tags": [
+        "bone"
+      ],
+      "subject": "A few clean pale animal bones."
+    },
+    {
+      "id": "mat-feather",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "woodcraft",
+        "scribing"
+      ],
+      "tags": [
+        "feather"
+      ],
+      "subject": "A small fan of grey goose feathers."
+    },
+    {
+      "id": "mat-parchment",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "scribing",
+        "forgery",
+        "painting"
+      ],
+      "tags": [
+        "parchment"
+      ],
+      "subject": "A small stack of blank cream parchment sheets with one curled corner."
+    },
+    {
+      "id": "mat-ink",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "scribing",
+        "forgery",
+        "painting"
+      ],
+      "tags": [
+        "ink"
+      ],
+      "subject": "A small squat glass inkpot of black ink with its cork beside it."
+    },
+    {
+      "id": "mat-wax",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "forgery",
+        "scribing"
+      ],
+      "tags": [
+        "wax"
+      ],
+      "subject": "Three sticks of deep red sealing wax beside a small block of pale beeswax."
+    },
+    {
+      "id": "mat-dye",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "painting",
+        "weaving"
+      ],
+      "tags": [
+        "dye"
+      ],
+      "tints": {
+        "blue": "blue",
+        "black": "near black",
+        "red": "red",
+        "green": "green",
+        "yellow": "yellow"
+      },
+      "subject": "Three cakes of dry ochre pigment in small shallow clay pans."
+    },
+    {
+      "id": "mat-bread",
+      "kind": "material",
+      "phase": 3,
+      "priority": "essential",
+      "disciplines": [
+        "brewing",
+        "cooking"
+      ],
+      "tags": [
+        "bread",
+        "food"
+      ],
+      "subject": "A round loaf of brown bread with one torn end."
+    },
+    {
+      "id": "fx-steam",
+      "kind": "fx",
+      "phase": 3,
+      "priority": "optional",
+      "disciplines": [
+        "cooking",
+        "brewing",
+        "herbalism"
+      ],
+      "subject": "Soft wisps of pale steam rising and curling."
+    },
+    {
+      "id": "fx-sparks",
+      "kind": "fx",
+      "phase": 3,
+      "priority": "optional",
+      "disciplines": [
+        "smithing"
+      ],
+      "subject": "A small burst of orange forge sparks flying upward."
+    },
+    {
+      "id": "mat-ingot-copper",
+      "kind": "material",
+      "phase": 3,
+      "priority": "optional",
+      "disciplines": [
+        "smithing",
+        "tinkering"
+      ],
+      "tags": [
+        "copper",
+        "bronze"
+      ],
+      "subject": "Three cast copper ingots stacked in a small pyramid, a warm muted copper."
+    }
+  ],
+  "tagMap": {
+    "rule": "Evaluate in order; the first entry whose match tags are all on the item (or on the requirement, when nothing is held) picks the sprite. A colour or stone tag on the item selects a tint from that sprite's tints. No entry matches: item type (potion -> mat-flask, provision -> mat-vegetables, otherwise mat-bundle).",
+    "order": [
+      {
+        "match": [
+          "ore"
+        ],
+        "sprite": "mat-ore"
+      },
+      {
+        "match": [
+          "gem"
+        ],
+        "sprite": "mat-gem-rough"
+      },
+      {
+        "match": [
+          "rough"
+        ],
+        "sprite": "mat-gem-rough"
+      },
+      {
+        "match": [
+          "gold"
+        ],
+        "sprite": "mat-ingot-gold"
+      },
+      {
+        "match": [
+          "copper"
+        ],
+        "sprite": "mat-ingot-copper",
+        "fallback": "mat-ingot-iron"
+      },
+      {
+        "match": [
+          "ingot"
+        ],
+        "sprite": "mat-ingot-iron"
+      },
+      {
+        "match": [
+          "silver"
+        ],
+        "sprite": "mat-ingot-iron",
+        "tint": "silver"
+      },
+      {
+        "match": [
+          "iron"
+        ],
+        "sprite": "mat-ingot-iron"
+      },
+      {
+        "match": [
+          "scrap"
+        ],
+        "sprite": "mat-scrap"
+      },
+      {
+        "match": [
+          "metal"
+        ],
+        "sprite": "mat-scrap"
+      },
+      {
+        "match": [
+          "crystal"
+        ],
+        "sprite": "mat-crystal"
+      },
+      {
+        "match": [
+          "leather"
+        ],
+        "sprite": "mat-leather"
+      },
+      {
+        "match": [
+          "hide"
+        ],
+        "sprite": "mat-hide"
+      },
+      {
+        "match": [
+          "fur"
+        ],
+        "sprite": "mat-hide"
+      },
+      {
+        "match": [
+          "wool"
+        ],
+        "sprite": "mat-fiber"
+      },
+      {
+        "match": [
+          "silk"
+        ],
+        "sprite": "mat-fiber",
+        "tint": "silk"
+      },
+      {
+        "match": [
+          "fiber"
+        ],
+        "sprite": "mat-fiber"
+      },
+      {
+        "match": [
+          "cloth"
+        ],
+        "sprite": "mat-cloth"
+      },
+      {
+        "match": [
+          "canvas"
+        ],
+        "sprite": "mat-cloth"
+      },
+      {
+        "match": [
+          "wood"
+        ],
+        "sprite": "mat-wood"
+      },
+      {
+        "match": [
+          "bone"
+        ],
+        "sprite": "mat-bone"
+      },
+      {
+        "match": [
+          "feather"
+        ],
+        "sprite": "mat-feather"
+      },
+      {
+        "match": [
+          "charcoal"
+        ],
+        "sprite": "mat-charcoal"
+      },
+      {
+        "match": [
+          "stone"
+        ],
+        "sprite": "mat-stone"
+      },
+      {
+        "match": [
+          "flint"
+        ],
+        "sprite": "mat-stone"
+      },
+      {
+        "match": [
+          "clay"
+        ],
+        "sprite": "mat-clay"
+      },
+      {
+        "match": [
+          "resin"
+        ],
+        "sprite": "mat-resin"
+      },
+      {
+        "match": [
+          "brimstone"
+        ],
+        "sprite": "mat-powder",
+        "tint": "brimstone"
+      },
+      {
+        "match": [
+          "saltpetre"
+        ],
+        "sprite": "mat-powder"
+      },
+      {
+        "match": [
+          "salt"
+        ],
+        "sprite": "mat-powder"
+      },
+      {
+        "match": [
+          "sand"
+        ],
+        "sprite": "mat-powder",
+        "tint": "sand"
+      },
+      {
+        "match": [
+          "spice"
+        ],
+        "sprite": "mat-powder",
+        "tint": "spice"
+      },
+      {
+        "match": [
+          "mushroom"
+        ],
+        "sprite": "mat-mushroom"
+      },
+      {
+        "match": [
+          "phosphorescent"
+        ],
+        "sprite": "mat-mushroom",
+        "tint": "phosphorescent"
+      },
+      {
+        "match": [
+          "seaweed"
+        ],
+        "sprite": "mat-herb",
+        "tint": "seaweed"
+      },
+      {
+        "match": [
+          "herb"
+        ],
+        "sprite": "mat-herb"
+      },
+      {
+        "match": [
+          "healing"
+        ],
+        "sprite": "mat-herb"
+      },
+      {
+        "match": [
+          "plant"
+        ],
+        "sprite": "mat-herb"
+      },
+      {
+        "match": [
+          "honey"
+        ],
+        "sprite": "mat-honey"
+      },
+      {
+        "match": [
+          "sweetener"
+        ],
+        "sprite": "mat-honey"
+      },
+      {
+        "match": [
+          "grain"
+        ],
+        "sprite": "mat-grain"
+      },
+      {
+        "match": [
+          "meat"
+        ],
+        "sprite": "mat-meat"
+      },
+      {
+        "match": [
+          "fish"
+        ],
+        "sprite": "mat-fish"
+      },
+      {
+        "match": [
+          "vegetable"
+        ],
+        "sprite": "mat-vegetables"
+      },
+      {
+        "match": [
+          "fruit"
+        ],
+        "sprite": "mat-fruit"
+      },
+      {
+        "match": [
+          "bread"
+        ],
+        "sprite": "mat-bread"
+      },
+      {
+        "match": [
+          "parchment"
+        ],
+        "sprite": "mat-parchment"
+      },
+      {
+        "match": [
+          "ink"
+        ],
+        "sprite": "mat-ink"
+      },
+      {
+        "match": [
+          "wax"
+        ],
+        "sprite": "mat-wax"
+      },
+      {
+        "match": [
+          "dye"
+        ],
+        "sprite": "mat-dye"
+      },
+      {
+        "match": [
+          "poison"
+        ],
+        "sprite": "mat-flask",
+        "tint": "poison"
+      },
+      {
+        "match": [
+          "venom"
+        ],
+        "sprite": "mat-flask",
+        "tint": "venom"
+      },
+      {
+        "match": [
+          "oil"
+        ],
+        "sprite": "mat-flask",
+        "tint": "oil"
+      },
+      {
+        "match": [
+          "wine"
+        ],
+        "sprite": "mat-flask",
+        "tint": "wine"
+      },
+      {
+        "match": [
+          "ale"
+        ],
+        "sprite": "mat-flask",
+        "tint": "ale"
+      },
+      {
+        "match": [
+          "must"
+        ],
+        "sprite": "mat-flask",
+        "tint": "wine"
+      },
+      {
+        "match": [
+          "alcohol"
+        ],
+        "sprite": "mat-flask",
+        "tint": "ale"
+      },
+      {
+        "match": [
+          "solvent"
+        ],
+        "sprite": "mat-flask"
+      },
+      {
+        "match": [
+          "water"
+        ],
+        "sprite": "mat-flask"
+      },
+      {
+        "match": [
+          "drink"
+        ],
+        "sprite": "mat-flask"
+      },
+      {
+        "match": [
+          "food"
+        ],
+        "sprite": "mat-bread"
+      },
+      {
+        "match": [
+          "mineral"
+        ],
+        "sprite": "mat-ore"
+      }
+    ],
+    "describingTags": [
+      "material",
+      "large",
+      "raw",
+      "blue",
+      "black"
+    ]
+  },
+  "cutRule": "Default: only near-white connected to the canvas edge is background (threshold 34 of 255 from white), so white inside a subject survives. `cut.threshold` overrides the distance for near-white subjects. An asset with `source` was painted on a transparent layer and is taken as it is."
+}

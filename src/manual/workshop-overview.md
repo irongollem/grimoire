@@ -37,9 +37,15 @@ Herbalism, Poisoncraft, and Forgery key off kits rather than a named artisan's t
 
 ## Recipes and DC
 
-Each recipe has a **Crafting DC** that the player rolls against using the discipline's ability score. On a success the listed outputs are added to the player's backpack; on a failure or a critical failure the ingredients are still consumed (a critical failure additionally ruins the *primary* ingredient; see below).
+Each recipe has a **Crafting DC** that the player rolls against using the discipline's ability score. Only a success spends the ingredients: the listed outputs are added to the player's backpack and every ingredient is used up. A failure costs nothing but the time, and a critical failure ruins just the *primary* ingredient (see below).
 
 **Crafting time** is listed in minutes, hours, or days and represents active work, not passive waiting.
+
+## When a craft goes wrong
+
+A roll that misses the DC by less than 5 is a **failure**: the hours are gone, but the player keeps every ingredient, so nothing needs refunding. A failure can still leave the materials a little worse for the effort. Grimoire doesn't track that; if you rule it so, tick **Poor ingredients** on the next attempt for the -2.
+
+A **natural 1**, or a total 5 or more below the DC, is a **critical failure**. The first ingredient on the recipe, the *primary* one, is ruined: it leaves the pack and comes back as "Ruined: *its name*". Every other ingredient is untouched. After either result the player can press **Try again** as long as they still hold what the recipe needs.
 
 ## Generating a recipe with AI
 

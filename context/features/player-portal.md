@@ -70,7 +70,7 @@ All nav items defined in `src/lib/playerNav.ts` (`ALL_PLAYER_NAV`), 14 tabs in d
 | `/play/inventory` | Inventory | Paper doll, containers, coin purse, carry weight                                |
 | `/play/calendar`  | Calendar  | Current in-game date; upcoming/confirmed session dates                         |
 | `/play/party`     | People    | Your company (party strip) + the People ledger (#987)                           |
-| `/play/crafting`  | Workshop  | DM-shared crafting recipes with ingredient inventory check (hidden when the `crafting` optional rule is off) |
+| `/play/crafting`  | Workshop  | DM-shared crafting recipes with ingredient inventory check (hidden when the `crafting` optional rule is off); each opens its workbench at `/play/crafting/:recipeId` |
 | `/play/downtime`  | Interlude | Downtime activities between sessions (hidden when the `downtime` optional rule is off) |
 | `/play/atlas`     | Atlas     | Shared locations with maps, pins, NPCs, and store wares                         |
 | `/play/bestiary`  | Bestiary  | Monsters the player has encountered; Wild Forms tab for Druids/Rangers          |
@@ -492,9 +492,9 @@ Shows crafting recipes the DM has shared with the player. Recipes are organised 
 - Name, DC, crafting time, output items
 - Proficiency/tool availability indicators (LOCKED, NO TOOLS, DISADV badges)
 - Ingredient list with owned-count vs required-count, green/red availability icons
-- "Attempt Craft" button (disabled until all ingredients are owned and requirements met)
+- "Open workbench" button (always enabled; the workbench says what is missing or locked)
 
-Clicking "Attempt Craft" opens `CraftAttemptDialog` which runs the ability check roll (with proficiency bonus, workspace bonuses, tool disadvantage if applicable) and applies success/failure outcomes.
+"Open workbench" goes to `/play/crafting/:recipeId` (`PlayerWorkbenchView`): the discipline's illustrated bench with a dish per ingredient, a ledger with every rule, the choice of which stack each dish uses, and the attempt and its outcome. Full detail in `items-spells-crafting.md` → "The workbench".
 
 ### Champions
 
