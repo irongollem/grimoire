@@ -89,16 +89,29 @@ describe("FamilyTree", () => {
     expect(w.text()).toContain("Fit");
   });
 
-  it("draws strips per generation on a phone, with no lines", async () => {
+  it("draws the same tree on a phone: lines, compact cards, a two-line axis", async () => {
     mobile.value = true;
     const w = mountTree();
-    expect(w.find("svg").exists()).toBe(false);
-    const headings = w.findAll("h3").map((h) => h.text());
-    expect(headings.some((h) => h.startsWith("Grandparents"))).toBe(true);
-    expect(headings.some((h) => h.startsWith("Parents"))).toBe(true);
-    expect(headings.some((h) => h.startsWith("Brenna's generation"))).toBe(true);
-    await w.findAll(".kin")[0]?.trigger("click");
+    expect(w.find("svg").exists()).toBe(true);
+    expect(w.findAll("svg path").length).toBeGreaterThan(0);
+    expect(w.findAll("h3")).toHaveLength(0);
+    const cards = w.findAllComponents({ name: "KinCard" });
+    expect(cards).toHaveLength(7);
+    expect(cards.every((c) => c.attributes("data-compact") !== undefined)).toBe(true);
+    expect(w.find("span.uppercase br").exists()).toBe(true);
+    expect(w.text()).toContain("Fit");
+    expect(w.find("[aria-label='Zoom in']").exists()).toBe(true);
+    await cards[0]?.trigger("click");
     expect(w.emitted("select")).toHaveLength(1);
+    mobile.value = false;
+  });
+
+  it("sizes the phone's cards from the phone geometry", () => {
+    mobile.value = true;
+    const w = mountTree();
+    const box = w.findComponent({ name: "KinCard" }).element.parentElement as HTMLElement;
+    expect(box.style.width).toBe("9rem");
+    expect(box.style.height).toBe("3rem");
     mobile.value = false;
   });
 

@@ -5,7 +5,7 @@ import KinCard from "./KinCard.vue";
 import type { KinPersonView } from "@/composables/kinship/useKinGraph";
 
 const person = (over: Partial<KinPersonView> = {}): KinPersonView => ({
-  key: "npc:a", name: "Maera Thane", bornYear: 1431, dead: false, isPc: false, portraitUrl: null, subtitle: "Smith", to: null, ...over,
+  key: "npc:a", name: "Maera Thane", bornYear: 1431, diedYear: null, dead: false, isPc: false, portraitUrl: null, subtitle: "Smith", to: null, ...over,
 });
 
 function card(props: { person: KinPersonView } & Record<string, unknown>) {

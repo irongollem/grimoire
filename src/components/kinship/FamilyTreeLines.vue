@@ -31,39 +31,35 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { TreeLayout } from "@/lib/kinship/layout";
-import {
-  AXIS_REM,
-  CARD_H_REM,
-  CARD_REM,
-  ROW_PITCH_REM,
-  cardLeft,
-  cardTop,
-  rowTop,
-} from "./treeGeometry";
+import { geometryHelpers, type TreeGeometry } from "./treeGeometry";
 
-const { layout, width, height } = defineProps<{ layout: TreeLayout; width: number; height: number }>();
+const { layout, width, height, geometry } = defineProps<{ layout: TreeLayout; width: number; height: number; geometry: TreeGeometry }>();
 
 const DASH = "4 3";
-const X = (units: number): number => AXIS_REM + units * CARD_REM;
+const X = (units: number): number => geometry.axis + units * geometry.card;
+
+const help = computed(() => geometryHelpers(geometry));
 
 const marriageLines = computed(() =>
   layout.marriages.map((m) => ({
     x1: X(m.x1),
     x2: X(m.x2),
-    y: rowTop(m.row) + CARD_H_REM / 2,
+    y: help.value.rowTop(m.row) + geometry.cardH / 2,
     former: m.former,
   })),
 );
 
 const descentLines = computed(() => {
+  const { rowTop, cardLeft, cardTop } = help.value;
+  const { cardH, card: cardW, rowPitch } = geometry;
   const byId = new Map(layout.cards.map((c) => [c.id, c]));
   return layout.descents.map((d) => {
     const ax = X(d.anchorX);
     const parentRowTop = rowTop(d.row);
     // A couple's anchor hangs in the gap between them, so it leaves from the marriage line.
-    const inCard = layout.cards.some((c) => c.row === d.row && ax >= cardLeft(c.x) && ax <= cardLeft(c.x) + CARD_REM);
-    const startY = inCard ? parentRowTop + CARD_H_REM : parentRowTop + CARD_H_REM / 2 + 0.15;
-    const barY = parentRowTop + CARD_H_REM + (ROW_PITCH_REM - CARD_H_REM) / 2;
+    const inCard = layout.cards.some((c) => c.row === d.row && ax >= cardLeft(c.x) && ax <= cardLeft(c.x) + cardW);
+    const startY = inCard ? parentRowTop + cardH : parentRowTop + cardH / 2 + 0.15;
+    const barY = parentRowTop + cardH + (rowPitch - cardH) / 2;
     const xs = d.children.map((c) => X(c.x));
     const left = Math.min(ax, ...xs);
     const right = Math.max(ax, ...xs);

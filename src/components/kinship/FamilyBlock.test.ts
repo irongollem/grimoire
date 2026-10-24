@@ -72,6 +72,12 @@ describe("FamilyBlock", () => {
     expect(w.text()).toContain("Open tree");
   });
 
+  it("draws each relative as a slip, spaced like the other connection lists", () => {
+    const w = mountBlock({ person: k("me") });
+    expect(w.findAll("li .torn")).toHaveLength(w.findAll("li").length);
+    expect(w.find("ul").classes()).toContain("gap-2");
+  });
+
   it("offers Remove link on a stored link but no menu on a derived sibling", () => {
     const w = mountBlock({ person: k("me") });
     const rows = w.findAll("li");

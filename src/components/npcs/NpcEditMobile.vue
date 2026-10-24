@@ -100,6 +100,10 @@
           :born-year="form.born_year ?? null"
           :born-month="form.born_month ?? null"
           :born-day="form.born_day ?? null"
+          :dead="form.status === 'dead'"
+          :died-year="form.died_year ?? null"
+          :died-month="form.died_month ?? null"
+          :died-day="form.died_day ?? null"
           :occupation="form.occupation"
           :location-id="form.location_id"
           :location-options="locationOptions"
@@ -109,6 +113,7 @@
           @update:alignment="form.alignment = $event"
           @update:age="form.age = $event"
           @update:birth="Object.assign(form, $event)"
+          @update:death="Object.assign(form, $event)"
           @update:occupation="form.occupation = $event"
           @update:location-id="form.location_id = $event"
         />

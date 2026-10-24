@@ -53,7 +53,7 @@
     <template v-if="hasAnyQuickFact" #facts>
       <QuickFact label="Location" :value="locationName" class="bg-card" />
       <QuickFact label="Alignment" :value="npc.alignment" class="bg-card" />
-      <QuickFact label="Age" :value="shownAge" :title="birthTitle ? `Born ${birthTitle}` : undefined" class="bg-card" />
+      <QuickFact :label="isDeadRow(npc) ? 'Age at death' : 'Age'" :value="shownAge" :title="ageTitle" class="bg-card" />
       <QuickFact label="Faction" :value="factionLine" class="bg-card" />
     </template>
 
@@ -209,7 +209,7 @@ import {
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
-import { displayAge, displayBirth } from "@/lib/calendar/age";
+import { displayAge, displayBirth, displayDeath, isDeadRow } from "@/lib/calendar/age";
 import { NPC_RELATIONSHIP_LABELS, type Npc, type NpcListRow } from "@/types/npc.types";
 
 const { npc } = defineProps<{
@@ -261,6 +261,12 @@ const shownAge = computed(() =>
   }),
 );
 const birthTitle = computed(() => displayBirth(calendar.adapter, npc));
+const deathTitle = computed(() => displayDeath(calendar.adapter, npc));
+const ageTitle = computed(() =>
+  [birthTitle.value ? `Born ${birthTitle.value}` : null, deathTitle.value ? `Died ${deathTitle.value}` : null]
+    .filter(Boolean)
+    .join(" · ") || undefined,
+);
 
 const hasAnyQuickFact = computed(
   () => !!(locationName.value || npc.alignment || shownAge.value || factionLine.value),

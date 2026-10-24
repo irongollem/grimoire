@@ -35,9 +35,10 @@
       <div v-if="isOwner" class="p-4 space-y-3">
         <div>
           <label class="field-label">Born</label>
-          <BirthDateInput
-            :model-value="{ born_year: form.born_year, born_month: form.born_month, born_day: form.born_day }"
-            @update:model-value="Object.assign(form, $event); scheduleAutoSave()"
+          <CalendarDateInput
+            label="Birth"
+            :model-value="{ year: form.born_year, month: form.born_month, day: form.born_day }"
+            @update:model-value="Object.assign(form, { born_year: $event.year, born_month: $event.month, born_day: $event.day }); scheduleAutoSave()"
           />
           <p class="mt-1 text-label text-muted-foreground">A birth date replaces the age description on the sheet.</p>
         </div>
@@ -292,7 +293,7 @@ import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import BirthDateInput from "@/components/common/controls/BirthDateInput.vue";
+import CalendarDateInput from "@/components/common/controls/CalendarDateInput.vue";
 import { displayAge, displayBirth } from "@/lib/calendar/age";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";

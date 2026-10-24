@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   visibleKin: vi.fn(),
 }));
 
-const house = { id: "h1", name: "House Thane", faction_type: "House", emblem_url: null, tags: [], description: null };
+const house: Record<string, unknown> = { id: "h1", name: "House Thane", faction_type: "House", emblem_url: null, tags: [], description: null };
 
 vi.mock("@/composables/kinship/useKinGraph", () => ({ usePlayerKinGraph: mocks.graph }));
 vi.mock("@/composables/kinship/usePlayerKin", () => ({
@@ -21,6 +21,9 @@ vi.mock("@/composables/factions/useFactions", () => ({
   usePartyMemberFactions: () => ({ data: ref([]) }),
   usePlayerFactionNpcs: () => ({ data: ref([]) }),
   usePlayerFactionPartyMembers: () => ({ data: ref([]) }),
+}));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useSharedLocations: () => ({ data: ref([{ id: "loc-1", name: "Thornkeep" }]) }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useSharedNpcs: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/rules/useSpecies", () => ({ useSpeciesNames: () => () => "" }));
@@ -42,6 +45,18 @@ describe("PlayerFactionsView", () => {
     setActivePinia(createPinia());
     mocks.graph.mockReset();
     mocks.visibleKin.mockReset().mockReturnValue({ data: ref({ links: [], houses: [{ faction_id: "h1", members: ["npc:a"] }] }) });
+  });
+
+  it("shows the seat only when the player can see the place", async () => {
+    house.seat_location_id = "loc-1";
+    let w = mount(PlayerFactionsView, { global: { stubs } });
+    await w.find(".cursor-pointer").trigger("click");
+    expect(w.find("[data-testid='house-seat']").text()).toBe("seat: Thornkeep");
+    house.seat_location_id = "hidden";
+    w = mount(PlayerFactionsView, { global: { stubs } });
+    await w.find(".cursor-pointer").trigger("click");
+    expect(w.find("[data-testid='house-seat']").exists()).toBe(false);
+    delete house.seat_location_id;
   });
 
   it("reads the houses from the player kin read and never builds the whole kin graph", async () => {

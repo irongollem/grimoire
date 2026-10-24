@@ -70,6 +70,16 @@
         </AppSelect>
       </div>
 
+      <!-- Seat: the place a House rules from -->
+      <div v-if="form.faction_type === 'House'" class="space-y-1.5">
+        <label class="text-eyebrow font-semibold text-muted-foreground">Seat</label>
+        <EntityCombobox
+          v-model="seatStr"
+          :options="locationOptions"
+          placeholder="No seat"
+        />
+      </div>
+
       <!-- Alignment -->
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Alignment</label>
@@ -214,6 +224,7 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
+import { useLocationTree } from "@/composables/locations/useLocations";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 
 const props = defineProps<{
@@ -241,13 +252,20 @@ const factionTypeStr = computed({
   get: () => form.value.faction_type ?? "",
   set: (v) => {
     form.value.faction_type = v || null;
-    if (v !== "House") form.value.descent = null;
+    if (v !== "House") {
+      form.value.seat_location_id = null;
+      form.value.descent = null;
+    }
     else form.value.descent ??= "either";
   },
 });
 const descentStr = computed({
   get: () => form.value.descent ?? "either",
   set: (v: HouseDescent) => { form.value.descent = v; },
+});
+const seatStr = computed({
+  get: () => form.value.seat_location_id ?? "",
+  set: (v) => { form.value.seat_location_id = v || null; },
 });
 const alignmentStr = computed({
   get: () => form.value.alignment ?? "",
@@ -283,6 +301,8 @@ const { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded } = useCopyEntity
 // list is always the DM's — see NoteEditor.vue for the same call.
 const { mentionItems: entityMentionItems } = useEntityMentionItems();
 
+const { locationOptions } = useLocationTree();
+
 const form = ref({
   name: "",
   faction_type: null as string | null,
@@ -290,6 +310,7 @@ const form = ref({
   emblem_url: "" as string,
   alignment: null as string | null,
   descent: null as HouseDescent | null,
+  seat_location_id: null as string | null,
   party_standing: "unknown" as NpcRelationship,
   player_visible_to: [] as string[],
   ai_provenance: null as AiProvenance | null,
@@ -305,6 +326,7 @@ watch(
     form.value.emblem_url = f.emblem_url ?? "";
     form.value.alignment = f.alignment;
     form.value.descent = f.descent;
+    form.value.seat_location_id = f.seat_location_id;
     form.value.party_standing = f.party_standing;
     form.value.player_visible_to = f.player_visible_to ?? [];
     form.value.ai_provenance = f.ai_provenance ?? null;
@@ -334,6 +356,7 @@ async function handleSave() {
       emblem_url: form.value.emblem_url || null,
       alignment: form.value.alignment,
       descent: form.value.faction_type === "House" ? (form.value.descent ?? "either") : null,
+      seat_location_id: form.value.faction_type === "House" ? form.value.seat_location_id : null,
       party_standing: form.value.party_standing,
       player_visible_to: form.value.player_visible_to,
       tags: tags.value,

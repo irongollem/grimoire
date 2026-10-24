@@ -58,9 +58,9 @@ const clock = useKinClock();
 const dead = computed(() => person.dead);
 const initial = computed(() => person.name.trim().charAt(0).toUpperCase() || "?");
 
-// Only a birth year is stored, so the dead show it without an end year. A source with no
-// birth years (a player's) falls back to the subtitle rather than showing nothing.
-const life = computed(() => (person.bornYear === null ? person.subtitle : kinLifeMeta(person, clock.value).join(" · ")));
+// The years when there are any to show ("1428 – 1491", "born 1462 · 33"); otherwise, as for a
+// player's source, which has no dates, the subtitle rather than nothing.
+const life = computed(() => kinLifeMeta(person, clock.value).join(" · ") || person.subtitle);
 const meta = computed(() => [life.value, marriedIn ? "married in" : null].filter(Boolean).join(" · "));
 const ariaLabel = computed(() => [person.name, person.dead ? "dead" : null, meta.value || null].filter(Boolean).join(", "));
 </script>

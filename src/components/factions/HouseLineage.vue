@@ -8,7 +8,13 @@
       <!-- The page header above already carries the house's name. -->
       <div class="min-w-0 flex-1">
         <p class="text-label uppercase text-muted-foreground">Factions · House</p>
-        <p v-if="head" class="text-body italic text-muted-foreground">head: {{ head }}</p>
+        <p v-if="head || seat" class="text-body italic text-muted-foreground">
+          <template v-if="head">head: {{ head }}</template>
+          <template v-if="head && seat"> · </template>
+          <template v-if="seat">
+            seat: <RouterLink :to="`/locations?at=${seat.id}`" class="text-primary hover:underline">{{ seat.name }}</RouterLink>
+          </template>
+        </p>
       </div>
     </header>
 
@@ -74,7 +80,7 @@
 <script setup lang="ts">
 /** A House's Lineage tab (frames 04 and 04b): its people drawn as a tree, and the line of succession set on it. */
 import { computed, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import HouseLineageKey from "@/components/factions/HouseLineageKey.vue";
@@ -83,6 +89,7 @@ import FamilyTree from "@/components/kinship/FamilyTree.vue";
 import FamilyTreeToolbar from "@/components/kinship/FamilyTreeToolbar.vue";
 import { useFactionNpcs, useFactionPartyMembers } from "@/composables/factions/useFactions";
 import { useSetHouseSuccession } from "@/composables/factions/useHouseSuccession";
+import { useLocationNames } from "@/composables/locations/useLocations";
 import { useDmKinGraph } from "@/composables/kinship/useKinGraph";
 import { useToast } from "@/composables/useToast";
 import { IconClose, IconShield } from "@/lib/icons";
@@ -112,6 +119,13 @@ const head = computed(() => {
   const npc = npcRows.data.value?.find((r) => r.role === "Head of house");
   if (npc) return npc.npc.name;
   return pcRows.data.value?.find((r) => r.role === "Head of house")?.party_member.name ?? null;
+});
+
+const seatNames = useLocationNames(() => (faction.seat_location_id ? [faction.seat_location_id] : []));
+const seat = computed(() => {
+  const id = faction.seat_location_id;
+  const name = id ? seatNames.value.get(id) : undefined;
+  return id && name ? { id, name } : null;
 });
 
 // ?focus=<PersonKey> arrives from a person's sheet or tree.

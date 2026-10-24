@@ -10,10 +10,14 @@ export interface KinClock {
 
 /**
  * The one place a kin person's birth and age are worked out, so the list and
- * the tree cannot disagree. Only a birth year is stored, so the dead show it
- * without an age; the caller adds "dead" where the surface wants the word.
+ * the tree cannot disagree. The dead show their years and no age: "1428 – 1491"
+ * with both, "born 1428" or "died 1491" with one. The caller adds "dead" where
+ * the surface wants the word and the years do not already say it.
  */
 export function kinLifeMeta(person: KinPerson, clock: KinClock): string[] {
+  if (person.dead && person.diedYear !== null) {
+    return [person.bornYear === null ? `died ${person.diedYear}` : `${person.bornYear} \u2013 ${person.diedYear}`];
+  }
   if (person.bornYear === null) return [];
   const out = [`born ${person.bornYear}`];
   if (!person.dead) {

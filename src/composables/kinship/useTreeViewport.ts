@@ -16,6 +16,9 @@ interface Pt {
   y: number;
 }
 
+/** How far a finger must travel, in px, before a press on a card becomes a pan. */
+const TOUCH_PAN_SLOP = 6;
+
 /** Whether a pointerdown began on something that handles its own clicks (a card, a button). */
 function onControl(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest("button, a, input") !== null;
@@ -38,6 +41,8 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
   let swallowClick = false;
   const pointers = new Map<number, Pt>();
   let pinchDistance = 0;
+  // Touch presses that began on a card: tracked, but not captured until they move past the slop, so a tap still clicks.
+  const pending = new Map<number, { pt: Pt; el: Element | null }>();
 
   const clamp = (s: number): number => Math.min(maxScale, Math.max(minScale, s));
 
@@ -59,6 +64,15 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
     y.value = Math.max(0, (h - ch * s) / 2);
   }
 
+  /** Scale to `s` and put the point (px, py) of the content (w x h of the container) in the middle of the container. */
+  function centreOn(px: number, py: number, w: number, h: number, s: number): void {
+    if (w <= 0 || h <= 0) return;
+    const next = clamp(s);
+    scale.value = next;
+    x.value = w / 2 - px * next;
+    y.value = h / 2 - py * next;
+  }
+
   function localPoint(e: { clientX: number; clientY: number }, el: Element): Pt {
     const r = el.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -66,6 +80,12 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
 
   function onPointerDown(e: PointerEvent): void {
     const forced = opts.forcePan?.(e) ?? false;
+    const touchOnControl = !forced && e.pointerType === "touch" && onControl(e.target);
+    if (touchOnControl) {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      pending.set(e.pointerId, { pt: { x: e.clientX, y: e.clientY }, el: e.currentTarget as Element | null });
+      return;
+    }
     if (!forced && onControl(e.target)) return;
     if (forced) {
       // A middle press would start the browser's autoscroll, and a Space-drag over a card must not become its click.
@@ -88,6 +108,22 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
     if (!prev) return;
     const next = { x: e.clientX, y: e.clientY };
     pointers.set(e.pointerId, next);
+    const held = pending.get(e.pointerId);
+    if (held) {
+      if (Math.hypot(next.x - held.pt.x, next.y - held.pt.y) <= TOUCH_PAN_SLOP) return;
+      // Past the slop this is a pan, not a tap: take the finger and drop the click that would follow.
+      pending.delete(e.pointerId);
+      held.el?.setPointerCapture?.(e.pointerId);
+      dragging.value = true;
+      swallowClick = true;
+      if (pointers.size === 2) pinchDistance = distance();
+      // Pan from where the finger started, so the first move does not lose the slop.
+      if (pointers.size === 1) {
+        x.value += next.x - held.pt.x;
+        y.value += next.y - held.pt.y;
+      }
+      return;
+    }
     if (pointers.size >= 2) {
       const d = distance();
       if (pinchDistance > 0 && d > 0 && e.currentTarget instanceof Element) {
@@ -106,6 +142,7 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
 
   function onPointerUp(e: PointerEvent): void {
     pointers.delete(e.pointerId);
+    pending.delete(e.pointerId);
     pinchDistance = 0;
     if (pointers.size === 0) dragging.value = false;
     // The click that follows a Space-drag fires right after pointerup; clear the flag once it has passed.
@@ -134,5 +171,5 @@ export function useTreeViewport(opts: TreeViewportOptions = {}) {
     transformOrigin: "0 0",
   }));
 
-  return { x, y, scale, dragging, stageStyle, zoomBy, fit, onPointerDown, onPointerMove, onPointerUp, onClickCapture, onWheel };
+  return { x, y, scale, dragging, stageStyle, zoomBy, fit, centreOn, onPointerDown, onPointerMove, onPointerUp, onClickCapture, onWheel };
 }

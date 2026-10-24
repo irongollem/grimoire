@@ -109,6 +109,8 @@ export interface Faction {
   descent: HouseDescent | null;
   /** A House's succession custom in the DM's words: shown on the house page and read by the AI, never enforced. */
   succession_note: string;
+  /** A House's seat: the place it rules from. Null on every other type; a player reads it only when they can already see the place. */
+  seat_location_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -127,11 +129,12 @@ export interface Faction {
  */
 export type FactionInsert = Omit<
   Faction,
-  "id" | "user_id" | "created_at" | "updated_at" | "party_standing" | "descent" | "succession_note"
+  "id" | "user_id" | "created_at" | "updated_at" | "party_standing" | "descent" | "succession_note" | "seat_location_id"
 > & {
   party_standing?: NpcRelationship;
   descent?: HouseDescent | null;
   succession_note?: string;
+  seat_location_id?: string | null;
 };
 
 export interface FactionNpc {

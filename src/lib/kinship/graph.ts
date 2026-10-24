@@ -5,6 +5,8 @@ export interface KinPerson {
   key: PersonKey;
   name: string;
   bornYear: number | null;
+  /** DM-only: the player source never carries a death year. */
+  diedYear: number | null;
   dead: boolean;
   isPc: boolean;
 }

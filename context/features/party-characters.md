@@ -152,7 +152,7 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 ### Persona Tab
 
 - **Alignment** dropdown (9-alignment list, blank for none) + **Deity** free-text field with an autocomplete dropdown against the deities compendium
-- **Born** (`BirthDateInput`: year, optional month and day in the campaign calendar) and **Age (description)**, **Gender**, **Pronouns** fields. `party_members.born_year/month/day` (#1086) give a computed age via `src/lib/calendar/age.ts` (`displayAge`), which wins over the free-text age wherever a character's age is shown (the player's lore tab); the free text stays for "ancient". The player character wizard and the player's own lore tab edit the same three columns
+- **Born** (`CalendarDateInput`: year, optional month and day in the campaign calendar) and **Age (description)**, **Gender**, **Pronouns** fields. `party_members.born_year/month/day` (#1086) give a computed age via `src/lib/calendar/age.ts` (`displayAge`), which wins over the free-text age wherever a character's age is shown (the player's lore tab); the free text stays for "ancient". The player character wizard and the player's own lore tab edit the same three columns
 - **Physical Description**, **Personality Traits**, **Ideals**, **Bonds**, **Flaws** — rich-text (Tiptap) fields
 
 There is no Location tab or free-text equipment fields on this form. A member's position is set via `LocationResidents` on the location itself, calendar travel events, or "Rejoin the party" (see "Member Locations" above) — never edited directly in `PartyMemberForm`.

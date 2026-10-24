@@ -36,6 +36,9 @@ vi.mock("@/composables/factions/useHouseSuccession", () => ({
   useSetHouseSuccession: () => ({ mutateAsync: mocks.setLine }),
 }));
 vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }) }));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useLocationNames: () => computed(() => new Map([["loc-1", "Thornkeep"]])),
+}));
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ success: mocks.toastSuccess, error: vi.fn(), fromError: String }),
 }));
@@ -75,6 +78,13 @@ describe("HouseLineage", () => {
     const w = mountIt();
     expect(w.text()).toContain("head: aldous");
     expect(names(w)).toContain("Brenna");
+  });
+
+  it("names the seat after the head, linked to the place, and hides it when absent", () => {
+    const w = mountIt({ ...house(), seat_location_id: "loc-1" });
+    expect(w.text()).toMatch(/head: aldous\s+·\s+seat: Thornkeep/);
+    expect(w.findComponent(RouterLinkStub).props("to")).toBe("/locations?at=loc-1");
+    expect(mountIt().text()).not.toContain("seat:");
   });
 
   it("seeds leave out the expelled and defected", () => {

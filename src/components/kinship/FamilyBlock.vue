@@ -36,7 +36,7 @@
           <h3 class="text-eyebrow text-muted-foreground">{{ group.title }}</h3>
           <span v-if="group.caption" class="text-caption italic text-muted-foreground">{{ group.caption }}</span>
         </div>
-        <ul class="divide-y divide-dotted divide-border">
+        <ul class="mt-1 flex flex-col gap-2">
           <KinRow v-for="r in group.rows" :key="r.key" :row="r" :player="player" @remove="removeLink" />
         </ul>
       </div>

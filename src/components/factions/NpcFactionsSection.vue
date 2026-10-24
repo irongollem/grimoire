@@ -1,42 +1,55 @@
 <template>
-  <EntityLinkSection
-    v-model="newFactionId"
-    :entries="entries ?? []"
-    :options="availableFactions"
-    layout="chip"
-    empty="No faction memberships yet."
-    placeholder="Add faction…"
-    :adding="adding"
-    remove-label="faction membership"
-    :entry-class="(e) => (e.status && e.status !== 'Active' ? 'opacity-60' : undefined)"
-    @add="add"
-    @remove="remove"
-  >
-    <template #entry="{ entry }">
-      <div v-if="entry.faction.emblem_url" class="h-4 w-4 shrink-0">
-        <FocalImage :src="entry.faction.emblem_url" alt="" format="token" class="w-full h-full" />
-      </div>
-      <RouterLink :to="`/factions/${entry.faction.id}`" class="text-caption-sm font-semibold text-foreground hover:text-primary transition-colors">
-        {{ entry.faction.name }}
-      </RouterLink>
-      <AppSelect
-        :model-value="entry.role ?? 'Member'"
-        tone="bare"
-        size="caption"
-        weight="normal"
-        class="cursor-pointer"
-        @update:model-value="updateRole(entry, $event)"
+  <div class="flex flex-col gap-2">
+    <div v-if="entries?.length" class="flex flex-col gap-2">
+      <ConnectionSlip
+        v-for="entry in entries"
+        :key="entry.id"
+        :name="entry.faction.name"
+        :image="entry.faction.emblem_url"
+        image-format="token"
+        :to="`/factions/${entry.faction.id}`"
+        :tags="statusTags(entry)"
+        :class="isActive(entry) ? undefined : 'opacity-60'"
       >
-        <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
-      </AppSelect>
-      <!-- Status badge — shown when not Active -->
-      <span
-        v-if="entry.status && entry.status !== 'Active'"
-        class="text-caption-sm font-semibold italic"
-        :style="{ color: NPC_FACTION_STATUS_COLORS[entry.status as NpcFactionStatus] }"
-      >{{ entry.status }}</span>
-    </template>
-  </EntityLinkSection>
+        <template #tags>
+          <AppSelect
+            :model-value="entry.role ?? 'Member'"
+            tone="bare"
+            size="caption"
+            weight="normal"
+            class="cursor-pointer"
+            @update:model-value="updateRole(entry, $event)"
+          >
+            <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
+          </AppSelect>
+        </template>
+        <template #actions>
+          <OverflowMenu
+            variant="ghost"
+            :label="`More actions for ${entry.faction.name}`"
+            :items="MENU"
+            size="icon-sm"
+            @select="remove(entry)"
+          />
+        </template>
+      </ConnectionSlip>
+    </div>
+    <p v-else class="text-caption text-muted-foreground italic">No faction memberships yet.</p>
+
+    <div class="flex items-center gap-2">
+      <EntityCombobox v-model="newFactionId" :options="availableFactions" placeholder="Add faction…" />
+      <AppButton
+        variant="primary"
+        size="sm"
+        :icon="IconAdd"
+        icon-size="xs"
+        label="Add"
+        class="shrink-0"
+        :disabled="!newFactionId || adding"
+        @click="add"
+      />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -50,13 +63,18 @@ import {
 } from "@/composables/factions/useFactions";
 import { NPC_FACTION_ROLES, NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } from "@/types/faction.types";
 import type { FactionNpc, Faction } from "@/types/faction.types";
-import EntityLinkSection from "@/components/common/entity/EntityLinkSection.vue";
-import FocalImage from "@/components/common/media/FocalImage.vue";
+import ConnectionSlip, { type ConnectionTag } from "@/components/common/entity/ConnectionSlip.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
+import { IconAdd } from "@/lib/icons";
 
 const props = defineProps<{ npcId: string }>();
 
 type NpcFactionEntry = FactionNpc & { faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url"> };
+
+const MENU: OverflowMenuEntry[] = [{ key: "remove", label: "Remove from faction", danger: true }];
 
 const { data: entries }    = useNpcFactions(props.npcId);
 const { data: allFactions } = useAllFactions();
@@ -81,6 +99,15 @@ async function add() {
   } finally {
     adding.value = false;
   }
+}
+
+function isActive(e: NpcFactionEntry): boolean {
+  return !e.status || e.status === "Active";
+}
+
+/** A membership that is not Active says so, in the status's own colour. */
+function statusTags(e: NpcFactionEntry): ConnectionTag[] {
+  return isActive(e) ? [] : [{ label: e.status, color: NPC_FACTION_STATUS_COLORS[e.status as NpcFactionStatus] }];
 }
 
 async function updateRole(e: NpcFactionEntry, role: string) {

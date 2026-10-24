@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarAdapter } from "@/types/calendar.types";
-import { ageOn, displayAge, displayBirth, formatBirthDate } from "./age";
+import { ageOn, deathOf, displayAge, displayBirth, displayDeath, formatBirthDate } from "./age";
 
 const ADAPTER: CalendarAdapter = {
   id: "test",
@@ -73,5 +73,31 @@ describe("displayBirth", () => {
   it("is null without a birth year", () => {
     expect(displayBirth(ADAPTER, { age: "x" })).toBeNull();
     expect(displayBirth(ADAPTER, { born_year: 1400, born_month: 1, born_day: 2 })).toBe("2 M1 1400 TE");
+  });
+});
+
+describe("a dead row", () => {
+  const dead = { status: "dead", born_year: 1400 };
+  it("is aged to its death date, not to today", () => {
+    expect(displayAge(ADAPTER, { ...dead, died_year: 1430, died_month: 2, died_day: 10 }, today)).toBe("30");
+    expect(displayAge(ADAPTER, { ...dead, born_month: 2, born_day: 11, died_year: 1430, died_month: 2, died_day: 10 }, today)).toBe("29");
+  });
+  it("uses the year difference when only the death year is known", () => {
+    expect(displayAge(ADAPTER, { ...dead, born_month: 2, born_day: 11, died_year: 1430 }, today)).toBe("30");
+  });
+  it("is never aged against today without a death date", () => {
+    expect(displayAge(ADAPTER, dead, today)).toBeNull();
+    expect(displayAge(ADAPTER, { ...dead, age: "ancient" }, today)).toBe("ancient");
+  });
+  it("ignores a death date while the row is alive", () => {
+    expect(displayAge(ADAPTER, { status: "alive", born_year: 1400, died_year: 1430 }, today)).toBe("48");
+  });
+  it("falls back to the free text when the death precedes the birth", () => {
+    expect(displayAge(ADAPTER, { ...dead, age: "unknown", died_year: 1390 }, today)).toBe("unknown");
+  });
+  it("shows the death date only for a dead row", () => {
+    expect(displayDeath(ADAPTER, { ...dead, died_year: 1430, died_month: 2, died_day: 5 })).toBe("5 M2 1430 TE");
+    expect(displayDeath(ADAPTER, { status: "alive", died_year: 1430 })).toBeNull();
+    expect(deathOf({ died_year: 1430, died_month: 2 })).toEqual({ year: 1430, month: null, day: null });
   });
 });

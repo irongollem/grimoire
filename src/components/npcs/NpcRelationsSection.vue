@@ -142,61 +142,39 @@
     >
       No relationships recorded yet.
     </div>
-    <div class="space-y-2">
-      <div
+    <div v-if="relations.length > 0" class="flex flex-col gap-2">
+      <ConnectionSlip
         v-for="rel in relations"
         :key="rel.id"
-        class="flex items-start gap-3 p-2.5 rounded-lg border border-border bg-card group"
+        :name="otherNpcName(rel)"
+        :image="npcById[otherNpcId(rel)]?.portrait_url ?? null"
+        :tags="[{ label: typeLabel(rel), color: typeColor(rel) }]"
+        :notes="rel.notes"
+        opens
+        @open="peek(otherNpcId(rel))"
       >
-        <!-- Type badge -->
-        <span
-          class="shrink-0 mt-0.5 px-2 py-0.5 rounded text-label font-bold"
-          :style="{
-            backgroundColor: `color-mix(in oklab, ${typeColor(rel)} 13%, transparent)`,
-            color: typeColor(rel),
-          }"
-        >
-          {{ typeLabel(rel) }}
-        </span>
-
-        <!-- NPC name + notes -->
-        <div class="flex-1 min-w-0">
-          <!-- Opens the connection in the NPC modal (with a back arrow) rather than leaving this NPC. -->
-          <button
-            type="button"
-            class="text-left text-heading-sm font-semibold text-foreground hover:text-primary transition-colors"
-            @click="peek(otherNpcId(rel))"
-          >
-            {{ otherNpcName(rel) }}
-          </button>
-          <p
-            v-if="rel.notes"
-            class="text-caption text-muted-foreground mt-0.5 wrap-break-word whitespace-normal"
-          >
-            {{ rel.notes }}
-          </p>
-        </div>
-
-        <!-- Delete -->
-        <AppButton
-          variant="ghost"
-          tone="danger"
-          size="inline-xs"
-          class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-all"
-          :icon="IconClose"
-          @click="removeRelation(rel.id)"
-        />
-      </div>
+        <template #actions>
+          <OverflowMenu
+            variant="ghost"
+            :label="`More actions for ${otherNpcName(rel)}`"
+            :items="MENU"
+            size="icon-sm"
+            @select="removeRelation(rel.id)"
+          />
+        </template>
+      </ConnectionSlip>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconClose, IconGenerate } from '@/lib/icons';
+import { IconAdd, IconGenerate } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import ConnectionSlip from "@/components/common/entity/ConnectionSlip.vue";
+import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import NpcRelationSuggestions from "@/components/npcs/NpcRelationSuggestions.vue";
@@ -234,6 +212,7 @@ import type { NpcRelationshipType, NpcRelation } from "@/types/npc.types";
 const props = defineProps<{ npcId: string }>();
 
 const peek = useOpenNpc();
+const MENU: OverflowMenuEntry[] = [{ key: "remove", label: "Remove connection", danger: true }];
 const { data: relationsRaw } = useNpcRelations(props.npcId);
 const { data: allNpcs } = useNpcs();
 const { mutateAsync: createRelation, isPending: isSaving } =
