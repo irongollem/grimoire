@@ -30,7 +30,7 @@ decided answer, not that every number is small.
 | AI prompt text | `image_generation_jobs.prompt`, `ai_generation_jobs.request_json` | **90 days**, cleared in place | `scrub-stale-ai-prompt-content` (`20260804000005`) |
 | AI image jobs that produced nothing | `image_generation_jobs` where `status <> 'ready'` or no image | **90 days** | `private.purge_expired_retention()` |
 | AI generation job receipts | `ai_generation_jobs` | **365 days** | `private.purge_expired_retention()` |
-| Support | `bug_reports` screenshot / row | **90 / 365 days** | `purge-bug-report-data` (`20260809000002`) |
+| Support | `bug_reports` screenshot / row | **90 / 365 days**; the report text only until its issue is filed | `purge-bug-report-data` (`20260809000002`); text cleared by `create-bug-report` (`20261025225737`) |
 | Security telemetry | `abuse_guard_trips` | **180 days** | `private.purge_expired_retention()` |
 | Rate-limit counters | `rate_limit_events` | **25 hours** | `purge-rate-limit-events` (`20260621000008`) |
 | Invite tokens | `app_invites`, `campaign_invites` | **90 days** after the token stops working | `private.purge_expired_retention()` |

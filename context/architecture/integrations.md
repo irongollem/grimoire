@@ -230,7 +230,12 @@ Supabase's own SMTP config, outside this repo.
 - **Bug reports**: `create-bug-report` edge function files issues on
   `irongollem/grimoire` with a fine-grained PAT (issues:write) stored
   encrypted in `platform_api_keys`. The repo is public, so no
-  reporter-identifying data goes into issue bodies.
+  reporter-identifying data goes into issue bodies. The report is stored on
+  `bug_reports` before GitHub is called, text included, so an expired token
+  leaves it waiting in Admin → Reports (with the reason, in the admin-only
+  `bug_report_filings`) to be filed again, and the reporter is thanked rather
+  than asked to retry. Each filing claims that row first, so a double click
+  cannot open two issues.
 - **CI/CD**: see [release-pipeline.md](release-pipeline.md).
 
 ## Inbound surface (who calls *us*)

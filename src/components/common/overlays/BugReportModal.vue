@@ -27,8 +27,16 @@
       <p
         class="text-body text-muted-foreground max-w-xs leading-relaxed"
       >
-        Thank you: issue #{{ issueNumber }} has been filed and the
-        development team will look into it.
+        <template v-if="issueNumber !== null">
+          Thank you: issue #{{ issueNumber }} has been filed and the
+          development team will look into it.
+        </template>
+        <!-- Saved, but GitHub did not take it yet: the report waits in Admin →
+             Reports. Asking the reporter to try again would only file it twice. -->
+        <template v-else>
+          Thank you: your report has been saved and the development team
+          will look into it.
+        </template>
       </p>
       <AppButton variant="subtle" size="sm" label="Close" class="mt-2" @click="close" />
     </div>
@@ -380,7 +388,11 @@ async function submit() {
       { body },
     );
     if (fnError) throw new Error(await edgeErrorMessage(fnError));
-    issueNumber.value = (data as { issueNumber: number })?.issueNumber ?? null;
+    // 201 carries the new issue; 202 means stored and waiting to be filed.
+    // Any 2xx means the report is stored, so a reply without a number still
+    // lands on the thank-you: an error here would ask for a second copy.
+    const filed = (data as { issueNumber?: unknown } | null)?.issueNumber;
+    issueNumber.value = typeof filed === "number" ? filed : null;
     submitted.value = true;
   } catch (e) {
     error.value = "Something went wrong. Please try again.";

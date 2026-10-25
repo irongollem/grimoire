@@ -3,7 +3,8 @@
     <p class="text-caption text-muted-foreground italic">
       In-app bug reports and feature requests. The GitHub issue carries no
       reporter and no screenshot; both are here (#633, #634). Screenshots are
-      kept 90 days, reports 365.
+      kept 90 days, reports 365. A report GitHub refused keeps its text here
+      until it is filed.
     </p>
 
     <div v-if="reportsQuery.isPending.value" class="text-muted-foreground text-body">
@@ -45,8 +46,12 @@
             :label="`#${report.issue_number}`"
             :icon-right="IconExternalLink"
           />
-          <!-- The GitHub call failed or the follow-up link lost its race with a
-               cold start; the report itself is intact. -->
+          <!-- Not filed: GitHub refused it (an expired token, an outage) and
+               the text waits below; or, on rows from before the text was
+               kept, there is nothing left to file. -->
+          <span v-else-if="report.has_report_text" class="text-caption text-ink-caution">
+            Not filed yet
+          </span>
           <span v-else class="text-caption text-muted-foreground italic">
             No issue linked
           </span>
@@ -58,6 +63,55 @@
           <span class="text-caption text-muted-foreground ml-auto">
             {{ formatDate(report.created_at) }}
           </span>
+        </div>
+
+        <div v-if="report.issue_number === null && report.has_report_text" class="space-y-2">
+          <p
+            v-if="filingNote(report.bug_report_filings)"
+            class="text-caption"
+            :class="report.bug_report_filings?.uncertain ? 'text-ink-caution' : 'text-destructive'"
+          >
+            {{ filingNote(report.bug_report_filings) }}
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <!-- "File anyway" when GitHub may already hold it: the function
+                 refuses that one without force, and the label says why. -->
+            <AppButton
+              :variant="report.bug_report_filings?.uncertain ? 'outline' : 'primary'"
+              size="xs"
+              :icon="IconSend"
+              :label="report.bug_report_filings?.uncertain ? 'File anyway' : 'File on GitHub'"
+              :loading="refile.isPending.value && refile.variables.value?.id === report.id"
+              :disabled="refile.isPending.value"
+              @click="fileOnGitHub(report.id, report.bug_report_filings?.uncertain === true)"
+            />
+            <AppButton
+              variant="subtle"
+              size="xs"
+              :icon="IconDocument"
+              :label="textOpenId === report.id ? 'Hide report' : 'Show report'"
+              @click="textOpenId = textOpenId === report.id ? null : report.id"
+            />
+          </div>
+          <div
+            v-if="textOpenId === report.id"
+            class="rounded-md border border-border bg-muted/40 p-2"
+          >
+            <p v-if="textQuery.isPending.value" class="text-caption text-muted-foreground">
+              Loading the report…
+            </p>
+            <p v-else-if="textQuery.isError.value" class="text-caption text-destructive">
+              Failed to load the report.
+            </p>
+            <!-- Plain interpolation, never rendered: the reporter's text is
+                 untrusted. -->
+            <dl v-else-if="textQuery.data.value" class="space-y-1.5">
+              <template v-for="field in reportFields(report.kind, textQuery.data.value)" :key="field.label">
+                <dt class="text-caption-sm text-muted-foreground">{{ field.label }}</dt>
+                <dd class="whitespace-pre-wrap wrap-break-word text-caption text-foreground">{{ field.value }}</dd>
+              </template>
+            </dl>
+          </div>
         </div>
 
         <AppButton
@@ -111,9 +165,18 @@
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { IconBug, IconExternalLink, IconImage, IconLightbulb } from "@/lib/icons";
-import { useAdminBugReports, useAdminBugReportScreenshot } from "@/composables/admin/useAdminBugReports";
+import { IconBug, IconDocument, IconExternalLink, IconImage, IconLightbulb, IconSend } from "@/lib/icons";
+import {
+  useAdminBugReports,
+  useAdminBugReportScreenshot,
+  useAdminBugReportText,
+  useRefileBugReport,
+  type AdminBugReport,
+  type BugReportFiling,
+  type BugReportText,
+} from "@/composables/admin/useAdminBugReports";
 import { useAdminUsers } from "@/composables/admin/useAdminUsers";
+import { useToast } from "@/composables/useToast";
 
 const reportsQuery = useAdminBugReports();
 const usersQuery = useAdminUsers();
@@ -125,6 +188,50 @@ const screenshotQuery = useAdminBugReportScreenshot(expandedId);
 
 function toggle(id: string) {
   expandedId.value = expandedId.value === id ? null : id;
+}
+
+const textOpenId = ref<string | null>(null);
+const textQuery = useAdminBugReportText(textOpenId);
+const refile = useRefileBugReport();
+const toast = useToast();
+
+/** A filing in flight says so; otherwise the reason the last one failed. */
+function filingNote(filing: BugReportFiling | null): string | null {
+  if (filing === null) return null;
+  if (filing.claimed_at !== null) {
+    return `Being filed since ${new Date(filing.claimed_at).toLocaleTimeString()}.`;
+  }
+  return filing.error;
+}
+
+const FIELD_LABELS: Record<AdminBugReport["kind"], [keyof BugReportText, string][]> = {
+  bug: [
+    ["where", "Where in the app"],
+    ["action", "What they were doing"],
+    ["expected", "What they expected"],
+    ["actual", "What actually happened"],
+  ],
+  feature: [
+    ["summary", "What they'd like to see"],
+    ["problem", "What problem it solves"],
+    ["where", "Where in the app"],
+  ],
+};
+
+function reportFields(kind: AdminBugReport["kind"], text: BugReportText): { label: string; value: string }[] {
+  return FIELD_LABELS[kind].flatMap(([key, label]) => {
+    const value = text[key];
+    return value === undefined || value.trim() === "" ? [] : [{ label, value }];
+  });
+}
+
+// The function records a failure on the filing too, so the list shows the new
+// reason after the refetch; the toast is what says the click did something.
+function fileOnGitHub(id: string, force: boolean) {
+  refile.mutate({ id, force }, {
+    onSuccess: (issueNumber) => toast.success(`Filed as #${issueNumber}.`),
+    onError: (e) => toast.error(toast.fromError(e, "Could not file the report.")),
+  });
 }
 
 const usersById = computed(() => {

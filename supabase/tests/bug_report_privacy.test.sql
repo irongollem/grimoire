@@ -11,7 +11,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(18);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -110,6 +110,55 @@ select is(
   0,
   'retention deletes the reporter-to-issue link after 365 days'
 );
+
+-- ── The text stays only until GitHub has it (20261025225737) ───────────────
+-- A report GitHub refused keeps what the reporter typed so it can be filed
+-- again; once an issue is linked the issue is the record, and a copy here
+-- would be the reporter's words kept for no purpose.
+select lives_ok($$
+  insert into public.bug_reports (id, user_id, kind, report_text)
+  values ('69000000-0000-4000-8000-000000000013', '69000000-0000-4000-8000-000000000002', 'bug',
+          '{"where": "Soundboard", "action": "a", "expected": "b", "actual": "c"}');
+  insert into public.bug_report_filings (report_id, error)
+  values ('69000000-0000-4000-8000-000000000013', 'GitHub refused the token');
+$$, 'a report waiting to be filed keeps its text, and its filing its reason');
+
+select throws_ok($$
+  update public.bug_reports set issue_number = 9004 where id = '69000000-0000-4000-8000-000000000013'
+$$, '23514', null, 'linking an issue without clearing the stored text is refused');
+
+-- Why a filing failed is about our GitHub token, not the reporter: it lives
+-- where neither their read nor their export reaches.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"69000000-0000-4000-8000-000000000002","role":"authenticated"}', true);
+
+select is(
+  (select report_text ->> 'action' from public.bug_reports where id = '69000000-0000-4000-8000-000000000013'),
+  'a',
+  'the reporter can read their own words'
+);
+
+select is(
+  (select count(*)::int from public.bug_report_filings),
+  0,
+  'the reporter cannot see why their report is waiting'
+);
+
+select throws_ok($$
+  update public.bug_report_filings set claimed_at = now()
+$$, '42501', null, 'a client cannot claim a filing');
+
+select set_config('request.jwt.claims',
+  '{"sub":"69000000-0000-4000-8000-000000000003","role":"authenticated","app_metadata":{"role":"admin"}}', true);
+
+select is(
+  (select error from public.bug_report_filings where report_id = '69000000-0000-4000-8000-000000000013'),
+  'GitHub refused the token',
+  'the admin can see why a report is waiting'
+);
+
+reset role;
 
 -- ── Erasure reaches the report, per §2's "authored or owns" category ───────
 delete from auth.users where id = '69000000-0000-4000-8000-000000000001';

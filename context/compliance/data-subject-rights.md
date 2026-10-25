@@ -158,6 +158,16 @@ Three positions worth not re-deriving:
    outlived the account that produced it. On the row, the FK cascade covers it.
    Any future user-generated file that is *not* stored under `{userId}/` has the
    same hole; the storage path is load-bearing for §3 step 3.
+4. **The report's text is on the row only until GitHub has it** (`20261025225737`).
+   It used to live only in the issue, so a refused filing (an expired token) lost
+   what the reporter wrote. `bug_reports.report_text` now holds the fields they
+   typed, and the update that links the issue clears it; a check constraint
+   states that a linked row holds no text. The reporter can read it (their own
+   words), under the same RLS, cascade and 365-day retention as the rest of the
+   row. Why a report is still waiting is kept apart, in `bug_report_filings`:
+   it describes our GitHub token, not the reporter, so it has no user id (the
+   export never reaches it) and only the admin can read it. A waiting report is
+   filed from Admin → Reports.
 
 ## 4b. Identity — the email is not a name
 
@@ -538,7 +548,7 @@ would reach it only by coincidence of matching the address.
 | Admin UI | `src/components/admin/AdminUsersTab.vue` |
 | Invariant tests | `supabase/tests/ai_compliance_regressions.test.sql` |
 | Bug-report table, retention job, bucket lockdown (§4a) | `supabase/migrations/20260809000002_bug_report_privacy.sql` |
-| What reaches the public issue | `supabase/functions/create-bug-report/index.ts` |
+| What reaches the public issue | `supabase/functions/create-bug-report/issue.ts` |
 | Maintainer's view of reporter + screenshot | `src/components/admin/AdminReportsTab.vue` |
 | §4a invariant tests (RLS, retention, cascade) | `supabase/tests/bug_report_privacy.test.sql` |
 | Identity defaults + membership name chains (§4b) | `supabase/migrations/20260809143243_stop_deriving_identity_from_email.sql` |

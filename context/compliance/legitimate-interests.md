@@ -250,7 +250,9 @@ rather than protective, which is worth saying rather than glossing.*
   split: what the user wrote goes to the public repository, while their identity
   and screenshot stay in our database and the issue refers to them by number
   rather than by name. The policy warns, in terms, that the text reaches the
-  open internet. **Not overridden.**
+  open internet. Until the issue exists the text waits on the row, so a filing
+  GitHub refuses is not lost, and it is cleared once the issue holds it
+  (`20261025225737`). **Not overridden.**
 - **The failure this design already had.** #634 found the screenshots stored
   with no `{userId}/` prefix, so `delete-account` could never find them — a
   retention and erasure promise silently broken by a storage layout, not by a
