@@ -176,6 +176,8 @@ function loadWorker(options: {
   precache?: string[];
   mutable?: string[];
   seed?: Record<string, Record<string, string>>;
+  /** A Date header for seeded entries, by path: when the install saved them. */
+  seedDates?: Record<string, Date>;
   fetchMock?: ReturnType<typeof vi.fn>;
   /** `__ASSET_CDN_ORIGIN__` — "" (the default) reproduces "no CDN configured". */
   assetCdnOrigin?: string;
@@ -185,7 +187,12 @@ function loadWorker(options: {
   for (const [name, entries] of Object.entries(options.seed ?? {})) {
     // Content type must follow the path: the worker validates MIME on every
     // executable asset, so a seeded .js served as image/webp is rejected.
-    stores.set(name, new Map(Object.entries(entries).map(([k, v]) => [k, response(v, contentTypeFor(k))])));
+    stores.set(name, new Map(Object.entries(entries).map(([k, v]) => {
+      const saved = response(v, contentTypeFor(k));
+      const date = options.seedDates?.[k];
+      if (date) saved.headers.set("date", date.toUTCString());
+      return [k, saved];
+    })));
   }
   const keyOf = (req: Request | string) =>
     typeof req === "string" ? req : new URL(req.url, ORIGIN).pathname;
@@ -425,6 +432,72 @@ describe("service-worker navigation", () => {
     await runFetch("/assets/app-DXiZtau7.js");
 
     expect(stores.has("grimoire-test")).toBe(false);
+  });
+
+  // DUNGEON-GRIMOIRE-V: a phone that had not opened the app since before 5 Oct booted that build on
+  // 25 Oct, against data a later migration had reshaped, and crashed. A shell over a week old asks first.
+  describe("a shell saved more than a week ago", () => {
+    const old = { "/index.html": new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) };
+
+    it("boots the network's current build", async () => {
+      const { runFetch, fetchMock } = loadWorker({
+        seed: { "grimoire-test": { "/index.html": "old shell" } },
+        seedDates: old,
+      });
+
+      const { result } = await runFetch("/play", "navigate");
+
+      expect(await result!.text()).toBe("fresh");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("boots the saved shell offline", async () => {
+      const fetchMock = vi.fn(async () => {
+        throw new TypeError("offline");
+      });
+      const { runFetch } = loadWorker({ seed: { "grimoire-test": { "/index.html": "old shell" } }, seedDates: old, fetchMock });
+
+      const { result } = await runFetch("/play", "navigate");
+
+      expect(await result!.text()).toBe("old shell");
+    });
+
+    it("boots the saved shell when the network answers with an error", async () => {
+      const fetchMock = vi.fn(async () => new Response("down", { status: 503 }));
+      const { runFetch } = loadWorker({ seed: { "grimoire-test": { "/index.html": "old shell" } }, seedDates: old, fetchMock });
+
+      const { result } = await runFetch("/play", "navigate");
+
+      expect(await result!.text()).toBe("old shell");
+    });
+
+    it("boots the saved shell when the network is too slow", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout"] });
+      try {
+        const fetchMock = vi.fn(() => new Promise<Response>(() => {}));
+        const { runFetch } = loadWorker({ seed: { "grimoire-test": { "/index.html": "old shell" } }, seedDates: old, fetchMock });
+
+        const pending = runFetch("/play", "navigate");
+        await vi.advanceTimersByTimeAsync(3000);
+        const { result } = await pending;
+
+        expect(await result!.text()).toBe("old shell");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  it("serves a shell saved yesterday without asking the network", async () => {
+    const { runFetch, fetchMock } = loadWorker({
+      seed: { "grimoire-test": { "/index.html": "shell" } },
+      seedDates: { "/index.html": new Date(Date.now() - 24 * 60 * 60 * 1000) },
+    });
+
+    const { result } = await runFetch("/play", "navigate");
+
+    expect(await result!.text()).toBe("shell");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("returns an error response when no shell is cached and the network throws", async () => {
