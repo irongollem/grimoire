@@ -49,8 +49,10 @@ interface SpotifyPlayer {
   addListener(event: "not_ready", cb: (data: { device_id: string }) => void): void;
   addListener(event: "player_state_changed", cb: (state: SpotifyState | null) => void): void;
   addListener(event: "authentication_error", cb: (data: { message: string }) => void): void;
+  addListener(event: "initialization_error" | "account_error" | "playback_error", cb: (data: { message: string }) => void): void;
   addListener(event: string, cb: (data: unknown) => void): void;
   getCurrentState(): Promise<SpotifyState | null>;
+  activateElement(): Promise<void>;
   setVolume(volume: number): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
@@ -233,6 +235,20 @@ export const useSpotifyStore = defineStore("spotify", () => {
       _applyState(state);
     });
 
+    // The SDK reports these and nothing else does: an initialization_error is
+    // usually a browser without the EME support Spotify's DRM needs, a
+    // playback_error a track that failed to load. Unheard, they left a card
+    // that simply stayed silent (#1098).
+    sdkPlayer.addListener("initialization_error", ({ message }) => {
+      playError.value = `Spotify's player could not start in this browser: ${message}`;
+    });
+    sdkPlayer.addListener("account_error", ({ message }) => {
+      playError.value = `Spotify refused this account: ${message}`;
+    });
+    sdkPlayer.addListener("playback_error", ({ message }) => {
+      playError.value = `Spotify could not play this: ${message}`;
+    });
+
     sdkPlayer.addListener("authentication_error", async () => {
       isReady.value = false;
       // Force-refresh once before nuking the session — Spotify can emit this
@@ -307,9 +323,42 @@ export const useSpotifyStore = defineStore("spotify", () => {
 
   // ── Playback controls ──────────────────────────────────────────────────
 
+  /**
+   * Autoplay-restricted browsers (Safari, and every browser on iOS, which must
+   * use WebKit) only let the SDK's media element play if it was activated by
+   * the tap itself. Otherwise playback starts and is paused a second later
+   * (#1098). Callers run this before their first await, while still inside
+   * the click's synchronous path; it is a no-op where autoplay is allowed.
+   */
+  function _activateFromGesture() {
+    // Best effort: a refusal here shows up as the pause it exists to prevent,
+    // and the player state reports that.
+    sdkPlayer?.activateElement().catch(() => undefined);
+  }
+
+  function _playRequest(token: string, device: string, body: object): Promise<Response> {
+    return spotifyFetch(
+      `https://api.spotify.com/v1/me/player/play?device_id=${device}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+    );
+  }
+
   /** Play a sound card's file_url (open.spotify.com URL or spotify: URI). */
   async function play(fileUrl: string) {
-    if (!deviceId.value) return;
+    _activateFromGesture();
+    const device = deviceId.value;
+    if (!device) {
+      // Returning silently made a tap before the SDK was ready look broken.
+      playError.value = "Spotify's player is still connecting. Try again in a moment.";
+      return;
+    }
 
     try {
       const uri = urlToUri(fileUrl) ?? fileUrl;
@@ -320,17 +369,24 @@ export const useSpotifyStore = defineStore("spotify", () => {
         ? { context_uri: uri }
         : { uris: [uri] };
 
-      const res = await spotifyFetch(
-        `https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`,
-        {
+      let res = await _playRequest(token, device, body);
+
+      // 404 "Device not found": Spotify has lost track of this browser's
+      // device, which happens when the audio route changes under it (a
+      // Bluetooth headset connecting, #1098) or a backgrounded tab is
+      // suspended. Transferring playback to it registers it again; then the
+      // play is worth one more try.
+      if (res.status === 404) {
+        const transfer = await spotifyFetch("https://api.spotify.com/v1/me/player", {
           method: "PUT",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(body),
-        },
-      );
+          body: JSON.stringify({ device_ids: [device], play: false }),
+        });
+        if (transfer.ok) res = await _playRequest(token, device, body);
+      }
 
       if (!res.ok) {
         let msg = `Spotify error ${res.status}`;
@@ -358,6 +414,7 @@ export const useSpotifyStore = defineStore("spotify", () => {
   }
 
   async function resume() {
+    _activateFromGesture();
     await sdkPlayer?.resume();
     isPlaying.value = true;
     _startTick();

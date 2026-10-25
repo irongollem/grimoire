@@ -29,7 +29,7 @@ const spotifyStore = useSpotifyStore();
 
 /**
  * Turn Spotify's wording into the action that actually resolves it. These are
- * the two failures whose fix lives entirely outside this codebase, so saying
+ * the failures whose fix lives entirely outside this codebase, so saying
  * only what went wrong leaves the DM with nowhere to go.
  */
 const hint = computed<string | null>(() => {
@@ -38,6 +38,11 @@ const hint = computed<string | null>(() => {
 
   if (err.includes("Not allowed")) {
     return "Close the Spotify desktop app and try again.";
+  }
+  if (err.includes("Device not found")) {
+    // The store has already re-registered the device and retried once; what
+    // is left is a player that has gone for good, and only a new one helps.
+    return "Spotify lost this browser's player. Reload the page to start a new one.";
   }
   if (err.includes("403") || err.includes("Development mode")) {
     // Ordered by how often each is actually the cause. The API/SDK declaration

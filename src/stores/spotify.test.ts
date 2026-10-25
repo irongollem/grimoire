@@ -77,3 +77,55 @@ describe("network-level Spotify failures", () => {
     await expect(store.fetchAccount()).rejects.toThrow("x is not a function");
   });
 });
+
+describe("play recovery (#1098)", () => {
+  const response = (status: number, body: unknown = {}) =>
+    new Response(status === 204 ? null : JSON.stringify(body), { status });
+
+  it("says the player is still connecting instead of doing nothing", async () => {
+    const store = useSpotifyStore();
+
+    await store.play("https://open.spotify.com/track/abc123");
+
+    expect(store.playError).toContain("still connecting");
+    expect(mockSpotifyFetch).not.toHaveBeenCalled();
+  });
+
+  it("re-registers a lost device and retries the play once", async () => {
+    const store = useSpotifyStore();
+    store.deviceId = "device-1";
+    mockSpotifyFetch
+      .mockResolvedValueOnce(response(404, { error: { message: "Device not found" } }))
+      .mockResolvedValueOnce(response(204))
+      .mockResolvedValueOnce(response(204));
+
+    await store.play("https://open.spotify.com/track/abc123");
+
+    const urls = mockSpotifyFetch.mock.calls.map(([url]) => url);
+    expect(urls).toEqual([
+      "https://api.spotify.com/v1/me/player/play?device_id=device-1",
+      "https://api.spotify.com/v1/me/player",
+      "https://api.spotify.com/v1/me/player/play?device_id=device-1",
+    ]);
+    expect(JSON.parse(mockSpotifyFetch.mock.calls[1][1]?.body as string)).toEqual({
+      device_ids: ["device-1"],
+      play: false,
+    });
+    expect(store.playError).toBeNull();
+    expect(store.lastPlayedUrl).toBe("https://open.spotify.com/track/abc123");
+  });
+
+  it("reports Device not found when the device cannot be re-registered", async () => {
+    const store = useSpotifyStore();
+    store.deviceId = "device-1";
+    mockSpotifyFetch.mockImplementation(async () =>
+      response(404, { error: { message: "Device not found" } }),
+    );
+
+    await store.play("https://open.spotify.com/track/abc123");
+
+    expect(mockSpotifyFetch).toHaveBeenCalledTimes(2);
+    expect(store.playError).toBe("Device not found");
+    expect(store.lastPlayedUrl).toBeNull();
+  });
+});

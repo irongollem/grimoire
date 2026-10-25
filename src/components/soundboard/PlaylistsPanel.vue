@@ -71,6 +71,7 @@
           :sound="sound"
           :show-delete="true"
           mode="arrange"
+          @delete="handleDeleteSpotify"
         />
       </div>
     </section>
@@ -93,10 +94,11 @@
 import { ref, computed, watch } from "vue";
 import { PLAYLIST_NOUNS } from "@/lib/audio/playlistPeers";
 import { usePlaylists, useDeletePlaylist, usePlaylistsTracks } from "@/composables/soundboard/useSoundboardPlaylists";
-import { useSounds } from "@/composables/soundboard/useSounds";
+import { useSounds, useDeleteSound } from "@/composables/soundboard/useSounds";
 import { useSoundboardStore } from "@/stores/soundboard";
+import { useSpotifyStore } from "@/stores/spotify";
 import { useQuota } from "@/composables/billing/useQuota";
-import type { SoundboardPlaylist, PlaylistType } from "@/types/sound.types";
+import type { Sound, SoundboardPlaylist, PlaylistType } from "@/types/sound.types";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import PlaylistCard from "./PlaylistCard.vue";
@@ -204,5 +206,16 @@ function handleDelete(id: string) {
   if (store.activeMusicPlaylist?.playlistId === id) store.stopMusicPlaylist();
   store.stopAmbientPlaylist(id);
   deletePlaylist(id);
+}
+
+// The cards above show a delete button, and for a long time nothing listened
+// to it (#1098). Stop the track first if it is the one playing, as deleting a
+// playlist stops that playlist.
+const { mutate: deleteSound } = useDeleteSound();
+const spotifyStore = useSpotifyStore();
+
+function handleDeleteSpotify(sound: Sound) {
+  if (spotifyStore.isPlaying && spotifyStore.lastPlayedUrl === sound.file_url) void spotifyStore.pause();
+  deleteSound(sound);
 }
 </script>
