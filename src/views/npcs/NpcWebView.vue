@@ -5,7 +5,7 @@
       v-model:search-query="npcsUi.npcWebSearch"
       v-model:show-pcs="npcsUi.npcWebShowPcs"
       v-model:location-filter="npcsUi.npcWebFilterLocation"
-      v-model:type-filter="npcsUi.npcWebFilterType"
+      v-model:type-filter="typeFilterModel"
       v-model:focus-faction="npcsUi.npcWebFocusFaction"
       v-model:relationship-filter="npcsUi.npcWebFilterRelationship"
       :location-options="locationOptions"
@@ -248,7 +248,7 @@
             :label-b="linkLabelB"
             :is-saving="isSavingLink"
             :can-delete="!!editingLinkRelId || !!editingLinkPcNoteId"
-            :type-options="typeOptions"
+            :type-options="linkTypeOptions"
             @cancel="cancelLink"
             @save="saveLink"
             @delete="deleteLinkRel"
@@ -262,7 +262,7 @@
             :editing-rel-id="editingRelId"
             :edit-rel-type="editRelType"
             :edit-rel-notes="editRelNotes"
-            :type-options="typeOptions"
+            :type-options="panelTypeOptions"
             @close="clearSelection"
             @start-edit-rel="startEditRel"
             @save-edit-rel="saveEditRel"
@@ -312,12 +312,16 @@ import { useIsTouch } from "@/composables/useBreakpoint";
 import { prefersReducedMotion } from "@/lib/motion";
 import { useNpcsUiStore } from "@/stores/ui/npcs";
 import {
+  NPC_DIRECTED_LEADS,
+  NPC_RELATIONSHIP_FILTER_OPTIONS,
   NPC_RELATIONSHIP_LABELS,
-  NPC_RELATIONSHIP_TYPE_LABELS,
   NPC_RELATIONSHIP_TYPE_VAR,
   NPC_RELATIONSHIP_INVERSE,
+  npcRelationLabel,
+  npcRelationOptions,
 } from "@/types/npc.types";
 import type { NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
+import type { NpcWebTypeFilter } from "@/stores/ui/npcs";
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 // In a domain UI store (Filter State Pattern), so opening an NPC from the web and
@@ -327,7 +331,17 @@ const npcsUi = useNpcsUiStore();
 const router = useRouter();
 const isTouch = useIsTouch();
 
-const typeOptions = Object.entries(NPC_RELATIONSHIP_TYPE_LABELS) as [NpcRelationshipType, string][];
+// A directed pair (superior and subordinate) is one relation, so the filter offers it once, by its leading end.
+const typeOptions = NPC_RELATIONSHIP_FILTER_OPTIONS;
+const typeFilterModel = computed<NpcWebTypeFilter>({
+  get: () => {
+    const t = npcsUi.npcWebFilterType;
+    const inverse = (NPC_RELATIONSHIP_INVERSE as Record<string, NpcRelationshipType | undefined>)[t];
+    // A filter saved on the led end ("subordinate") shows as its pair; the graph matches either end anyway.
+    return inverse && inverse in NPC_DIRECTED_LEADS ? inverse : t;
+  },
+  set: (v) => { npcsUi.npcWebFilterType = v; },
+});
 const { locationOptions, getDescendantIds } = useLocationTree();
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -869,6 +883,11 @@ const panelPc = computed(() => {
 });
 
 const speciesNameOf = useSpeciesNames(() => (panelPc.value ? [panelPc.value] : []));
+/** Pickers worded for whose the connection is: the panel's NPC, or the link's first end ("Ulkora's subordinate"). */
+const panelTypeOptions = computed(() => npcRelationOptions(panelNpc.value?.name));
+// An NPC-to-character note has no stored direction, so its types stay plain.
+const linkTypeOptions = computed(() => npcRelationOptions(isNpcNpcLink.value ? linkLabelA.value : null));
+
 const panelVisible = computed(() => linkFormVisible.value || !!panelNpc.value || !!panelPc.value);
 
 const panelNpcConnections = computed(() => {
@@ -888,7 +907,7 @@ const panelNpcConnections = computed(() => {
         isSource,
         otherId,
         name: npcById.value[otherId]?.name ?? "Unknown",
-        typeLabel: NPC_RELATIONSHIP_TYPE_LABELS[effectiveType] ?? rawType,
+        typeLabel: npcRelationLabel(effectiveType, panelNpc.value?.name),
         effectiveType,
         color: resolveVar(NPC_RELATIONSHIP_TYPE_VAR[effectiveType], "#6b7280"),
         notes: r.notes ?? "",

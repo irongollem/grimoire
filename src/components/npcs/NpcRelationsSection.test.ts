@@ -55,6 +55,8 @@ describe("NpcRelationsSection: changing a connection's type", () => {
     const w = mount(NpcRelationsSection, { props: { npcId: "a" } });
     const select = w.find("select");
     expect((select.element as HTMLSelectElement).value).toBe("superior");
+    // On Ulkora's sheet, Gunvald's card says whose superior he is.
+    expect(select.findAll("option").find((o) => o.element.value === "superior")?.text()).toBe("Ulkora's superior");
     await select.setValue("subordinate");
     await flushPromises();
     expect(updateRelation).toHaveBeenCalledWith({ id: "r1", update: { relationship_type: "subordinate" } });
