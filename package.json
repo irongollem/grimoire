@@ -179,6 +179,9 @@
     },
     "pagedjs": {
       "@babel/polyfill": "npm:core-js@^3.50.0"
+    },
+    "satori": {
+      "fflate": "0.7.5"
     }
   },
   "engines": {
