@@ -55,7 +55,7 @@ These decisions are locked. The reasoning is preserved here so future agents und
 - One bucket for both. `tile-packs` is private and holds users' own packs; flipping it public to serve shared content would expose every one of them, and a single prefix bug in a mixed bucket is a data exposure rather than a display glitch.
 - A hardcoded pack list. `BUNDLED_PACKS` in `MapWorkbench.vue` was exactly that until #889 S6 deleted it. A constant shadowing the table is the legacy path CLAUDE.md's rule 1 forbids, and it meant adding a pack needed a deploy.
 - Keying shared objects by the pack's slug. Every registry bucket's bytes are read back through the CDN Worker, which consults neither storage RLS nor the bucket's `public` flag — so bytes are world-readable by URL and confidentiality comes from the path being unguessable. A library pack is authored in the open, tiles landing weeks before publication, so a name-derived path would put an unannounced pack one guess away. The row's uuid costs nothing and survives a rename.
-- Public object URLs for *private* packs — a guessable URL must not bypass ownership or campaign membership.
+- Public object URLs for _private_ packs — a guessable URL must not bypass ownership or campaign membership.
 
 ### The library lane (#889)
 
@@ -63,13 +63,13 @@ An app admin authors a shared pack from Admin → Content, through the same gene
 
 **Generation is free but accounted.** No credits are reserved or spent, yet every call still goes through `recordFreeGeneration`, so the real provider cost stays visible to cost reporting and `get_credit_calibration_hints`. Free to the admin is not free to us, and a cost nobody can see is one the calibration hints will quietly recommend cutting.
 
-**Publishing is a server-validated transition, not a column write.** `publish_library_pack` refuses an incomplete pack: RLS cannot make that check, and a published pack with missing slots breaks the Cartographer for every DM who picks it. So `library_tile_packs.status` is a *publication* gate — `draft`/`published`/`archived` — and never carries the user lane's `ready`/`failed`. A published pack cannot be deleted either; its `PackRef` is referenced by maps in every DM's campaign, so unpublishing is the retirement path.
+**Publishing is a server-validated transition, not a column write.** `publish_library_pack` refuses an incomplete pack: RLS cannot make that check, and a published pack with missing slots breaks the Cartographer for every DM who picks it. So `library_tile_packs.status` is a _publication_ gate — `draft`/`published`/`archived` — and never carries the user lane's `ready`/`failed`. A published pack cannot be deleted either; its `PackRef` is referenced by maps in every DM's campaign, so unpublishing is the retirement path.
 
 **That gate asks about bytes, and until #900 it asked about declarations — which is not the same question.** It originally ran `validatePack`, which reports a slot present the moment the manifest names it with a URL; whether anything was ever stored at that URL never enters into it. The ten packs migrated by #889 S7 declare their full slot lists and hold no images at all, so `validatePack(...).valid` was `true` for every one of them and all twelve went out `published`. Measured against production on 21 Sep 2026, five DMs in six were being offered packs that drew nothing but procedural placeholders.
 
-The gate is now `hasCompleteArt` (`src/cartographer/packCoverage.ts`): every *required* slot must carry a positive `byteSize`. `validatePack` is still called and its findings still ride along with a refusal — a duplicate slot or a non-WebP url is the likeliest reason a slot the admin thinks they filled is not being counted — but its boolean is no longer the gate. Migration `20260921000230` returned the ten artless packs to `draft`; `wood-interior` keeps its publication, being incomplete against its own declaration rather than empty.
+The gate is now `hasCompleteArt` (`src/cartographer/packCoverage.ts`): every _required_ slot must carry a positive `byteSize`. `validatePack` is still called and its findings still ride along with a refusal — a duplicate slot or a non-WebP url is the likeliest reason a slot the admin thinks they filled is not being counted — but its boolean is no longer the gate. Migration `20260921000230` returned the ten artless packs to `draft`; `wood-interior` keeps its publication, being incomplete against its own declaration rather than empty.
 
-**`packCoverage.ts` is the single answer to "what does this pack actually have".** It is read by the publish gate, by `generate_library_pack`'s slot selection and by all three admin components. Two notions of missing coexist deliberately: *undeclared* (the manifest omits the slot — what `validatePack` and `createGenerationPlan`'s default `missingSlots()` see) and *undrawn* (declared, no bytes — what everything in the admin lane means). Confusing them is what shipped the empty packs.
+**`packCoverage.ts` is the single answer to "what does this pack actually have".** It is read by the publish gate, by `generate_library_pack`'s slot selection and by all three admin components. Two notions of missing coexist deliberately: _undeclared_ (the manifest omits the slot — what `validatePack` and `createGenerationPlan`'s default `missingSlots()` see) and _undrawn_ (declared, no bytes — what everything in the admin lane means). Confusing them is what shipped the empty packs.
 
 ### One drawing module (#1065)
 
@@ -103,9 +103,9 @@ Each row in Admin → Content opens an editor: the pack's name, description, lic
 
 **Uploading a tile is an edge action, not a client storage write.** `library-tile-packs` is declared `clientWrites: false, adminPrefixes: []` in `_shared/storage-policy.ts` and carries a select policy only — no browser holds a write path to this bucket, admin or otherwise. `upload_library_tile` is `completeSlot` minus the generation half: validate 128×128 WebP, upload at `${prefix}/${slotRelativePath(slot)}`, patch the manifest slot's `byteSize`. It deliberately does **not** write `ai_provenance`: `completeSlot` sets it on every normalize because everything that path writes is model output, and claiming provenance for a human-drawn tile would be a false Art 50 attestation, not a completeness fix. A pack keeps whatever provenance its generated tiles earned.
 
-One consequence worth knowing when replacing a tile: the bytes land at the *same* CDN path, because the path is derived from the slot's identity and not its contents. The slot grid stamps a cache-busting query on anything it uploads in-session; `byteSize` alone would not do, since two different 128×128 WebPs can encode to the same length.
+One consequence worth knowing when replacing a tile: the bytes land at the _same_ CDN path, because the path is derived from the slot's identity and not its contents. The slot grid stamps a cache-busting query on anything it uploads in-session; `byteSize` alone would not do, since two different 128×128 WebPs can encode to the same length.
 
-**Ten of the twelve migrated packs shipped no art, and that was the pre-existing state, faithfully carried over.** Only `wood-interior` (24 tiles) and `celestial-observatory` (29) have real WebPs; the rest declare their full slot list and rely on `packLoader.ts` drawing procedural placeholder tiles from the manifest's `palette`. Filling them in is what the admin lane is *for*, one pack at a time, with no code change — and since #900 they are `draft`, so the picker stops offering them until they have art. The 53 tiles that do exist were produced before the generator learned to mark its output, so `scripts/seed-library-tile-packs.ts` embeds the XMP provenance packet as it uploads them (EPIC #611); `wood-interior` records `provider`/`model` as `unknown` because no record of how it was made survives, and the Art 50 obligation is to disclose *that* an image is AI-generated, not to invent a model id.
+**Ten of the twelve migrated packs shipped no art, and that was the pre-existing state, faithfully carried over.** Only `wood-interior` (24 tiles) and `celestial-observatory` (29) have real WebPs; the rest declare their full slot list and rely on `packLoader.ts` drawing procedural placeholder tiles from the manifest's `palette`. Filling them in is what the admin lane is _for_, one pack at a time, with no code change — and since #900 they are `draft`, so the picker stops offering them until they have art. The 53 tiles that do exist were produced before the generator learned to mark its output, so `scripts/seed-library-tile-packs.ts` embeds the XMP provenance packet as it uploads them (EPIC #611); `wood-interior` records `provider`/`model` as `unknown` because no record of how it was made survives, and the Art 50 obligation is to disclose _that_ an image is AI-generated, not to invent a model id.
 
 The project is on **Supabase Pro tier** (250 GB egress/mo); tile-pack bandwidth is a non-issue.
 
@@ -125,7 +125,7 @@ Project-wide policy. The pack loader **rejects any non-`.webp` asset**. Exports 
 
 **Why both?**
 
-- **Edge walls** keep playable floor space intact — a "10×10 room" *is* 10×10 walkable squares, with walls on the perimeter edges. Matches DnD 5e grid semantics and how Foundry/Roll20/Dungeondraft model walls.
+- **Edge walls** keep playable floor space intact — a "10×10 room" _is_ 10×10 walkable squares, with walls on the perimeter edges. Matches DnD 5e grid semantics and how Foundry/Roll20/Dungeondraft model walls.
 - **Solid blocks** preserve builder agency over wall thickness. A curtain divider and a sand-filled battlement should not be forced into the same visual mass; the builder picks. Solid blocks also model castle keeps, mountain passes, narrow corridors carved through rock — anywhere the wall has volume.
 
 **Rejected:**
@@ -143,7 +143,7 @@ Doors live on edges (replacing the wall segment on that edge), exactly as in rea
 
 ### Data preserved for future VTT
 
-**Chosen:** even though the current focus is *image creation*, map data is stored as structured cell records. Each cell can carry first-class links to Grimoire entities (traps, encounters, features, notes, NPC spawns). This is the **USP** vs. Dungeondraft / Inkarnate — those export images; Cartographer exports images **and** keeps the navigable data behind them.
+**Chosen:** even though the current focus is _image creation_, map data is stored as structured cell records. Each cell can carry first-class links to Grimoire entities (traps, encounters, features, notes, NPC spawns). This is the **USP** vs. Dungeondraft / Inkarnate — those export images; Cartographer exports images **and** keeps the navigable data behind them.
 
 ---
 
@@ -166,51 +166,51 @@ A tile pack is a versioned bundle of WebP assets keyed against a strongly-typed 
 
 The schema is at **version 4**. Three kinds of category exist: `random` (interchangeable variants, a min and a max), `directional` (a fixed set of sides, optionally `variantsPerSide`) and `optional` (zero up to a max). The table below is generated from `TILE_PACK_SCHEMA`; the code is the source of truth, so re-read `packSchema.ts` rather than trusting this copy after a bump.
 
-| Category | Required | Shape |
-| --- | --- | --- |
-| `floor` | required | 8 to 64 variants (64 so a continuous floor can be cut 8×8) |
-| `wallSegmentH` | required | 2 to 6 variants |
-| `wallSegmentV` | required | 2 to 6 variants (rotation-derived from H) |
-| `wallJoint` | optional | directional: L_NE, L_SE, L_SW, L_NW, T_N, T_E, T_S, T_W, CROSS |
-| `doorwayH` | required | 1 to 3 variants: the opening and its frame, in the wall band |
-| `doorwayV` | required | 1 to 3 variants (rotation-derived from `doorwayH`) |
-| `doorLeaf` | required | 1 to 3 variants: the door alone, never squashed |
-| `solidBlock` | required | 4 to 12 variants |
-| `stairsUp`, `stairsDown` | optional | directional: N, E, S, W |
-| `curbH`, `curbV` | optional | 0 to 6 variants: a low ledge on an edge between terrain and floor |
-| `curbPost` | optional | 0 to 2 variants: where a curb meets a wall or turns |
-| `terrainWater` | optional | 0 to 64 variants: a continuous texture (water, sludge, lava, a stream) |
-| `edgeGrateH`, `edgeGrateV` | optional | 0 to 3 variants each: bars across an opening in a wall |
-| `edgeSluiceH`, `edgeSluiceV` | optional | 0 to 3 variants each: a gate in a wall |
-| `wallDecal` | optional | 0 to 8 variants: a pipe mouth, a rat hole, a carving, drawn over a wall |
-| `rubble`, `debris` | optional | 0 to 4 variants each |
-| `objectChest`, `objectBarrel`, `objectTable`, `objectStatue`, `objectPillar`, `objectBrazier` | optional | 0 to 4 variants each |
-| `hazard*` (twelve, `hazardGeneric` included) | optional | 0 to 4 variants each; see Schema v3 |
-| `feature*` (eleven, `featureGeneric` included) | optional | 0 to 4 variants each; see Schema v3 |
+| Category                                                                                      | Required | Shape                                                                   |
+| --------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------- |
+| `floor`                                                                                       | required | 8 to 64 variants (64 so a continuous floor can be cut 8×8)              |
+| `wallSegmentH`                                                                                | required | 2 to 6 variants                                                         |
+| `wallSegmentV`                                                                                | required | 2 to 6 variants (rotation-derived from H)                               |
+| `wallJoint`                                                                                   | optional | directional: L_NE, L_SE, L_SW, L_NW, T_N, T_E, T_S, T_W, CROSS          |
+| `doorwayH`                                                                                    | required | 1 to 3 variants: the opening and its frame, in the wall band            |
+| `doorwayV`                                                                                    | required | 1 to 3 variants (rotation-derived from `doorwayH`)                      |
+| `doorLeaf`                                                                                    | required | 1 to 3 variants: the door alone, never squashed                         |
+| `solidBlock`                                                                                  | required | 4 to 12 variants                                                        |
+| `stairsUp`, `stairsDown`                                                                      | optional | directional: N, E, S, W                                                 |
+| `curbH`, `curbV`                                                                              | optional | 0 to 6 variants: a low ledge on an edge between terrain and floor       |
+| `curbPost`                                                                                    | optional | 0 to 2 variants: where a curb meets a wall or turns                     |
+| `terrainWater`                                                                                | optional | 0 to 64 variants: a continuous texture (water, sludge, lava, a stream)  |
+| `edgeGrateH`, `edgeGrateV`                                                                    | optional | 0 to 3 variants each: bars across an opening in a wall                  |
+| `edgeSluiceH`, `edgeSluiceV`                                                                  | optional | 0 to 3 variants each: a gate in a wall                                  |
+| `wallDecal`                                                                                   | optional | 0 to 8 variants: a pipe mouth, a rat hole, a carving, drawn over a wall |
+| `rubble`, `debris`                                                                            | optional | 0 to 4 variants each                                                    |
+| `objectChest`, `objectBarrel`, `objectTable`, `objectStatue`, `objectPillar`, `objectBrazier` | optional | 0 to 4 variants each                                                    |
+| `hazard*` (twelve, `hazardGeneric` included)                                                  | optional | 0 to 4 variants each; see Schema v3                                     |
+| `feature*` (eleven, `featureGeneric` included)                                                | optional | 0 to 4 variants each; see Schema v3                                     |
 
 The required set is floor 8, wall H 2 and V 2, doorway H 1 and V 1, door leaf 1 and solid block 4: **19 slots**, of which three are rotations of another (`wallSegmentV` ×2 and `doorwayV`), so **16 renders** are drawn by hand or by the generator. `REQUIRED_CATEGORIES` is derived from the table, never listed.
 
 ```ts
 export interface TilePackManifest {
-  pack_id: string              // e.g. "stone-dungeon"
-  name: string
-  description: string
-  pack_version: number         // bumped per pack release
-  schema_version: number       // matches TILE_PACK_SCHEMA.version at author time
-  base_tile_size: 128          // source resolution; always 128
-  assets: Partial<Record<PackCategory, AssetSlot[]>>
-  palette?: Partial<Record<PackCategory, [number, number, number]>>  // placeholder colours
-  continuous?: Partial<Record<PackCategory, number>>   // schema 4: a texture's period, in cells
-  labels?: Partial<Record<PackCategory, string[]>>     // schema 4: a name per variant
-  doorLeaf?: { hingeX: number; hingeY: number; openDegrees: number }  // schema 4
+  pack_id: string; // e.g. "stone-dungeon"
+  name: string;
+  description: string;
+  pack_version: number; // bumped per pack release
+  schema_version: number; // matches TILE_PACK_SCHEMA.version at author time
+  base_tile_size: 128; // source resolution; always 128
+  assets: Partial<Record<PackCategory, AssetSlot[]>>;
+  palette?: Partial<Record<PackCategory, [number, number, number]>>; // placeholder colours
+  continuous?: Partial<Record<PackCategory, number>>; // schema 4: a texture's period, in cells
+  labels?: Partial<Record<PackCategory, string[]>>; // schema 4: a name per variant
+  doorLeaf?: { hingeX: number; hingeY: number; openDegrees: number }; // schema 4
 }
 
 export interface AssetSlot {
-  side?: string                // for directional categories
-  variant: number              // 0-indexed
-  url: string                  // relative to pack root or full URL
-  byteSize?: number            // for budget warnings
-  rev?: number                 // ms epoch of the last write; the CDN cache key (see AssetSlot.rev)
+  side?: string; // for directional categories
+  variant: number; // 0-indexed
+  url: string; // relative to pack root or full URL
+  byteSize?: number; // for budget warnings
+  rev?: number; // ms epoch of the last write; the CDN cache key (see AssetSlot.rev)
 }
 ```
 
@@ -404,86 +404,86 @@ Maps are **user-scoped** (not campaign-scoped) — they are private DM artifacts
 ### TypeScript types (`src/types/dungeonMap.types.ts`)
 
 ```ts
-export type CellKey = `${number},${number}`   // "x,y" — e.g. "12,7" or "-3,5"
+export type CellKey = `${number},${number}`; // "x,y" — e.g. "12,7" or "-3,5"
 
 // A pack-attributed tile reference used wherever a cell or edge picks artwork.
 export interface PackRef {
-  pack_id: string
-  pack_version: number
-  variant: number
-  rotation?: number                // degrees about the cell centre; only the object layer uses it
+  pack_id: string;
+  pack_version: number;
+  variant: number;
+  rotation?: number; // degrees about the cell centre; only the object layer uses it
 }
 
 // An edge segment (wall, door, grate or sluice) owned by a cell on its N or W side
 // (south/east edges are owned by the cell to the north/west — "NW ownership").
 export interface EdgeSeg extends PackRef {
-  type: 'wall' | 'doorClosed' | 'doorOpen' | 'grate' | 'sluice'
-  decal?: number            // a `wallDecal` variant; on type 'wall' only (#1065)
+  type: "wall" | "doorClosed" | "doorOpen" | "grate" | "sluice";
+  decal?: number; // a `wallDecal` variant; on type 'wall' only (#1065)
 }
 
 // Floor layer: a cell carries an optional floor tile + optional N/W edge walls.
 // A cell may have walls without a floor (e.g. exterior side of a room boundary).
 export interface FloorCell {
-  floor?: PackRef           // the floor tile under foot
-  wallN?: EdgeSeg           // segment on this cell's north edge
-  wallW?: EdgeSeg           // segment on this cell's west edge
+  floor?: PackRef; // the floor tile under foot
+  wallN?: EdgeSeg; // segment on this cell's north edge
+  wallW?: EdgeSeg; // segment on this cell's west edge
 }
 
 // SolidBlock layer: full-cell thick walls (sand-filled battlement, mountain rock).
 // One entry = one cell of solid mass. Coexists with edge walls — DM picks the tool.
-export type SolidCell = PackRef
+export type SolidCell = PackRef;
 
 // Object layer: chests, statues, braziers, decorative overlays.
 export interface ObjectCell extends PackRef {
-  category: 'rubble' | 'debris' | 'stairsUp' | 'stairsDown' | string
-  side?: string             // for directional object categories
+  category: "rubble" | "debris" | "stairsUp" | "stairsDown" | string;
+  side?: string; // for directional object categories
 }
 
 export interface AnnotationCell {
-  text?: string             // e.g. "Throne Room"
-  icon?: string             // e.g. "skull" / "treasure"
-  color?: string            // hex
+  text?: string; // e.g. "Throne Room"
+  icon?: string; // e.g. "skull" / "treasure"
+  color?: string; // hex
 }
 
 export interface DungeonMap {
-  id: string
-  user_id: string
-  name: string
-  description: string | null
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
   layers: {
-    floor:       Record<CellKey, FloorCell>
-    solidBlock:  Record<CellKey, SolidCell>
-    terrain:     Record<CellKey, TerrainCell>        // = PackRef, the pack's `terrainWater` (#1065)
-    object:      Record<CellKey, ObjectCell>
-    annotation:  Record<CellKey, AnnotationCell>
-    dressing:    Record<string, DressingPlacement>   // keyed by placement uuid (#1062)
-    area:        Record<CellKey, AreaCell>           // brushed areas, a coverage mask per cell
-  }
-  metadata: Record<CellKey, CellMetadata>      // entity links (see below)
-  default_pack_id: string | null
-  tags: string[]
-  notes: TiptapDoc | null
-  created_at: string
-  updated_at: string
+    floor: Record<CellKey, FloorCell>;
+    solidBlock: Record<CellKey, SolidCell>;
+    terrain: Record<CellKey, TerrainCell>; // = PackRef, the pack's `terrainWater` (#1065)
+    object: Record<CellKey, ObjectCell>;
+    annotation: Record<CellKey, AnnotationCell>;
+    dressing: Record<string, DressingPlacement>; // keyed by placement uuid (#1062)
+    area: Record<CellKey, AreaCell>; // brushed areas, a coverage mask per cell
+  };
+  metadata: Record<CellKey, CellMetadata>; // entity links (see below)
+  default_pack_id: string | null;
+  tags: string[];
+  notes: TiptapDoc | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // One Dressing prop on the map (#1062). Not cell-keyed: a prop spans cells and overlaps others.
 export interface DressingPlacement {
-  prop_id: string    // library_dressing.id
-  x: number          // anchor cell: top-left of the footprint as turned to the nearest quarter
-  y: number
-  rotation: number   // degrees 0-359, clockwise about that footprint's centre
-  z: number          // stacking order, higher on top (jsonb loses key order)
+  prop_id: string; // library_dressing.id
+  x: number; // anchor cell: top-left of the footprint as turned to the nearest quarter
+  y: number;
+  rotation: number; // degrees 0-359, clockwise about that footprint's centre
+  z: number; // stacking order, higher on top (jsonb loses key order)
 }
 
 export interface CellMetadata {
   // First-class Grimoire entity links — the USP
-  trap_id?: string
-  feature_id?: string
-  encounter_id?: string
-  note_id?: string
-  npc_spawn_ids?: string[]
-  monster_spawn_ids?: string[]
+  trap_id?: string;
+  feature_id?: string;
+  encounter_id?: string;
+  note_id?: string;
+  npc_spawn_ids?: string[];
+  monster_spawn_ids?: string[];
 }
 ```
 
@@ -510,14 +510,14 @@ Whether a token can move from cell A to cell B is **derived** at query time, nev
 ```ts
 function blocksMovement(map: DungeonMap, from: CellKey, to: CellKey): boolean {
   // Adjacent cells. Check if a wall/closed-door sits on the edge between them.
-  const edge = edgeBetween(from, to)         // returns the canonical owner + which side
-  const ownerCell = map.layers.floor[edge.owner]
-  const seg = edge.axis === 'horizontal' ? ownerCell?.wallN : ownerCell?.wallW
-  if (seg && seg.type !== 'doorOpen') return true
+  const edge = edgeBetween(from, to); // returns the canonical owner + which side
+  const ownerCell = map.layers.floor[edge.owner];
+  const seg = edge.axis === "horizontal" ? ownerCell?.wallN : ownerCell?.wallW;
+  if (seg && seg.type !== "doorOpen") return true;
 
   // Solid blocks block movement into the cell at all.
-  if (map.layers.solidBlock[to]) return true
-  return false
+  if (map.layers.solidBlock[to]) return true;
+  return false;
 }
 ```
 
@@ -558,7 +558,7 @@ A cell whose `pack_id` is no longer available (pack deleted, never loaded) rende
 Three things that are easy to get wrong here, all of which cost something real:
 
 - **The FK is `NO ACTION`, deliberately.** `CASCADE` destroys a map the DM spent an evening drawing as a side effect of deleting the campaign it happened to be scoped to; `SET NULL` silently promotes campaign-exclusive work to universal. So the app asks, and `NO ACTION` is what guarantees it asked — any delete path skipping `delete_campaign_with_homebrew` fails loudly instead of quietly picking one of the two wrong answers.
-- **That guarantee only holds while the counting layer knows the same table set as the function.** `campaignHomebrewDisposition.ts` must list `maps`, or a campaign whose only scoped content is maps reports "no homebrew", the picker never appears, and `DangerZoneTab` sends its default — which is `delete`. The FK cannot save that case, because the function *does* delete the rows.
+- **That guarantee only holds while the counting layer knows the same table set as the function.** `campaignHomebrewDisposition.ts` must list `maps`, or a campaign whose only scoped content is maps reports "no homebrew", the picker never appears, and `DangerZoneTab` sends its default — which is `delete`. The FK cannot save that case, because the function _does_ delete the rows.
 - **The query key is the table name verbatim** (`dungeon_maps`, not `dungeon-maps`). `useDeleteCampaign` invalidates generically over `Object.values(HOMEBREW_TABLES)`, so a hyphenated key invalidates a cache nothing reads and the map list goes stale after any disposition.
 
 **Transfer is a separate flow and deliberately excludes maps.** `TransferOwnershipPanel` hand-picks monsters and traps for its "what moves with the campaign" summary; its copy states that Cartographer maps stay with the outgoing DM. Adding `maps` to `HOMEBREW_TABLES` does not change that, and should not. Note the consequence tracked in #801: a scoped map whose campaign is transferred keeps pointing at a campaign its owner no longer owns.
@@ -575,7 +575,7 @@ An optional `site` prop (a `MapStackSource`, see world-building.md's map stack) 
 
 **The tool runs in the Atlas too, and the Plan is one of its layers (epic #884, wave 4).** With a `site` prop the workbench shows a **Drawing / Plan** layer selector, and the Atlas's Build mode mounts it as the map area — so a DM shapes a site where they are standing instead of leaving for `/cartographer` and coming back. `?publishTo=` is gone with that round trip; the Layers panel's Review opens the publish plan in place.
 
-- **The Plan rail and options** (`CartographerPlanOptions.vue`, the rail built in `MapWorkbench.vue`, `usePlanPalette.ts`, `usePlanCanvasTools.ts`) writes `location_map_regions` and `location_doors` through the Atlas's own composables: **Space** and **Zone** trace with brush / pen / template, **Door** snaps to a cell edge and derives its endpoints from the regions either side, and **Claim** flood-fills a region of the *Drawing's* floor and makes it a traced space: the one gesture that pays for both layers living in one tool, because it stops the DM re-tracing by hand what they just drew.
+- **The Plan rail and options** (`CartographerPlanOptions.vue`, the rail built in `MapWorkbench.vue`, `usePlanPalette.ts`, `usePlanCanvasTools.ts`) writes `location_map_regions` and `location_doors` through the Atlas's own composables: **Space** and **Zone** trace with brush / pen / template, **Door** snaps to a cell edge and derives its endpoints from the regions either side, and **Claim** flood-fills a region of the _Drawing's_ floor and makes it a traced space: the one gesture that pays for both layers living in one tool, because it stops the DM re-tracing by hand what they just drew.
 - **Build opens on the layer the DM came to use (issue #878, item 3).** A site whose stack already has a Drawing or a Picture (`hasAnyMapLayer`, `mapStack.ts`) starts `MapWorkbench` on Plan; a site with nothing drawn yet starts on Drawing, since there's no image to trace over. Read once at setup, not watched — once the DM switches layers by hand, that choice stands for the rest of the session. The standalone `/cartographer/:id` route (no `site` prop) always starts on Drawing. Before this, Build opened on Drawing unconditionally, which was half of why a DM who traced rooms could not find Pen or Shape at all (the other half was the switcher itself — next bullet).
 - **The "Trace with" switcher (Brush/Pen/Shape) is reachable at every width.** It used to be `hidden lg:block`: Pen and the Circle/Octagon/Hex template shapes were real and working, but below Tailwind's `lg` breakpoint (1024px) there was no control to reach them at all. The Door/Claim hint text is in the options slip at every width too, and the plan tools are the rail's icons (with tooltips and accessible names) at every width.
 - **A site with no drawing is fully editable**: the Plan is drawn on the tile grid, not on the Drawing's pixels, so `map: null` traces exactly as well. A scan or a blank grid is a first-class site.
@@ -615,26 +615,26 @@ The maintainer's words: "When building a map, you want to maximise the amount of
 
 The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer/MapWorkbench.vue`; that array is the source of truth for which tools exist and for the rail's clusters. Tool ids did not change, only labels: "Floor brush" is **Tiles**, "Solid block" is **Rock**, "Annotate" is **Label**, "Link entity" is **Link**, "Room template" is **Room**, "Wrap walls" is **Wrap** ("We now have two tools we call brush").
 
-| Cluster | Tool          | Hotkey | Layer       | Notes                                                  |
-| ------- | ------------- | ------ | ----------- | ------------------------------------------------------ |
-| Look    | Select        | `V` (Esc returns to it) | none | The default tool on open. Click selects a cell for the options slip's read-only summary; drag pans, exactly like Pan: a DM's first tap never paints. |
-| Look    | Pan           | `H`    | none        | Drag to move the map. Space+drag or the middle button pans with any tool, on either layer; Shift never pans. Space and the zoom keys act only while the pointer is over the map or focus is inside the workbench, so the Atlas page around it keeps them. |
-| Floor   | Brush         | `B`    | floor       | Paints round brushed areas (`layers.area`), not cell by cell. Shift+click draws a straight stroke from where the last one ended; Shift+drag snaps to 45°. |
-| Floor   | Tiles         | `I`    | floor       | Paints floor cells with a random variant. Shift+click draws a straight run from the last painted cell; Shift+drag snaps to 45°. |
-| Floor   | Rectangle     | `R`    | floor       | Drag to fill a rect with floor. Shift = square. The options slip has a Walls toggle (on by default) that wraps the perimeter in walls. |
-| Floor   | Line          | `L`    | floor       | Drag to draw a single-tile-wide line of floor. Shift = 45° steps. |
-| Floor   | Room          | `M`    | floor       | Stamps a whole room shape (circle, octagon, hex).      |
-| Floor   | Fill          | `F`    | floor       | Flood-fill contiguous floor cells.                     |
-| Floor   | Water         | `A`    | terrain     | Paints terrain (the pack's `terrainWater`) with the floor brush's shapes; see "Terrain and curbs". Shift behaves as on Tiles. |
-| Floor   | Rock          | `S`    | solidBlock  | Full-cell thick walls (battlement, mountain rock). Shift behaves as on Tiles. |
-| Walls   | Wall          | `W`    | floor.edges | Edge-hover targeting; the options slip picks Wall, Grate, Sluice or Decal ("Wall kinds and decals"). Shift+click runs a straight wall from the last one; Shift+drag stays on one grid line. |
-| Walls   | Door          | `D`    | floor.edges | Replaces wall on an edge; toggles open/closed.         |
-| Walls   | Wrap          | `X`    | floor.edges | One-shot: walls every floor-region edge facing void.   |
-| Things  | Place         | `O` or `G` | object, dressing | One tool for the set's objects (chests, statues, braziers, stairs, rubble, debris) and the Dressing books' props (#1062); see "Place tool" below. |
-| Notes   | Label         | `T`    | annotation  | Text labels; also what names a Space.                  |
-| Notes   | Link          | `K`    | metadata    | Attach a trap / encounter / feature / note to a cell.  |
-| Notes   | Space         | `P`    | structure   | See the next section.                                  |
-| Eraser  | Eraser        | `E`    | active      | Removes from the active layer / edge.                  |
+| Cluster | Tool      | Hotkey                  | Layer            | Notes                                                                                                                                                                                                                                                     |
+| ------- | --------- | ----------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Look    | Select    | `V` (Esc returns to it) | none             | The default tool on open. Click selects a cell for the options slip's read-only summary; drag pans, exactly like Pan: a DM's first tap never paints.                                                                                                      |
+| Look    | Pan       | `H`                     | none             | Drag to move the map. Space+drag or the middle button pans with any tool, on either layer; Shift never pans. Space and the zoom keys act only while the pointer is over the map or focus is inside the workbench, so the Atlas page around it keeps them. |
+| Floor   | Brush     | `B`                     | floor            | Paints round brushed areas (`layers.area`), not cell by cell. Shift+click draws a straight stroke from where the last one ended; Shift+drag snaps to 45°.                                                                                                 |
+| Floor   | Tiles     | `I`                     | floor            | Paints floor cells with a random variant. Shift+click draws a straight run from the last painted cell; Shift+drag snaps to 45°.                                                                                                                           |
+| Floor   | Rectangle | `R`                     | floor            | Drag to fill a rect with floor. Shift = square. The options slip has a Walls toggle (on by default) that wraps the perimeter in walls.                                                                                                                    |
+| Floor   | Line      | `L`                     | floor            | Drag to draw a single-tile-wide line of floor. Shift = 45° steps.                                                                                                                                                                                         |
+| Floor   | Room      | `M`                     | floor            | Stamps a whole room shape (circle, octagon, hex).                                                                                                                                                                                                         |
+| Floor   | Fill      | `F`                     | floor            | Flood-fill contiguous floor cells.                                                                                                                                                                                                                        |
+| Floor   | Water     | `A`                     | terrain          | Paints terrain (the pack's `terrainWater`) with the floor brush's shapes; see "Terrain and curbs". Shift behaves as on Tiles.                                                                                                                             |
+| Floor   | Rock      | `S`                     | solidBlock       | Full-cell thick walls (battlement, mountain rock). Shift behaves as on Tiles.                                                                                                                                                                             |
+| Walls   | Wall      | `W`                     | floor.edges      | Edge-hover targeting; the options slip picks Wall, Grate, Sluice or Decal ("Wall kinds and decals"). Shift+click runs a straight wall from the last one; Shift+drag stays on one grid line.                                                               |
+| Walls   | Door      | `D`                     | floor.edges      | Replaces wall on an edge; toggles open/closed.                                                                                                                                                                                                            |
+| Walls   | Wrap      | `X`                     | floor.edges      | One-shot: walls every floor-region edge facing void.                                                                                                                                                                                                      |
+| Things  | Place     | `O` or `G`              | object, dressing | One tool for the set's objects (chests, statues, braziers, stairs, rubble, debris) and the Dressing books' props (#1062); see "Place tool" below.                                                                                                         |
+| Notes   | Label     | `T`                     | annotation       | Text labels; also what names a Space.                                                                                                                                                                                                                     |
+| Notes   | Link      | `K`                     | metadata         | Attach a trap / encounter / feature / note to a cell.                                                                                                                                                                                                     |
+| Notes   | Space     | `P`                     | structure        | See the next section.                                                                                                                                                                                                                                     |
+| Eraser  | Eraser    | `E`                     | active           | Removes from the active layer / edge.                                                                                                                                                                                                                     |
 
 #### Place tool (#1073 story 11, merging the Object stamp and Dressing)
 
@@ -661,7 +661,7 @@ The prop gestures live in `useDressingTool.ts`, wired from `useMapCanvasEditor.t
 - **Wall targeting**: when the cursor is within 25% of a cell edge, that edge highlights as a thick coloured strip. Click places a wall on it. Drag along multiple edges to lay a continuous run; a drag locks to one direction. `Shift`+click runs a straight wall from the last wall point to the grid vertex nearest the pointer, along whichever axis is longer, as one undo step; `Shift` while dragging also keeps the stroke on the row or column it began on. A Shift+click and the drag that follows it are one stroke and one undo step. On the cell tools and the Brush, Shift+drag fixes its 45° ray once the pointer has moved off the start and holds it until Shift is let go. To wall in a whole room use Wrap (`X`) or the Rectangle's Walls toggle.
 - **Door tool**: hovers the same way as the wall brush. Click on a wall edge converts it to `doorClosed`. Click an existing door toggles `doorClosed` ↔ `doorOpen`, which swings the leaf (see Wall Rendering). Right-click removes the door, leaving the wall. The tool did not change with schema 4.
 - **Rock vs. Wall**: these are two different tools by design. Wall gives you a thin wall on an edge (a curtain, a partition, a worked-stone room boundary). Rock gives you a thick wall in a cell (a sand-filled battlement, mountain rock, a 5 ft slab of masonry). The DM picks based on the dungeon's mass.
-- **Rectangle**: fills the area with floor *and*, with the options slip's Walls toggle on (the default, state `rectWalls` in `MapWorkbench.vue`), wraps the perimeter in walls — the most common "make a room" gesture. Shift makes the drag a square (`squareCorner`).
+- **Rectangle**: fills the area with floor _and_, with the options slip's Walls toggle on (the default, state `rectWalls` in `MapWorkbench.vue`), wraps the perimeter in walls — the most common "make a room" gesture. Shift makes the drag a square (`squareCorner`).
 - **Shift draws straight** (#1096): the draw modifier, as in Photoshop and Figma. It lives in `useStraightStrokes.ts`, which remembers where each family of tool last ended: the Brush (fractional cells), the cell painters Tiles, Water and Rock (whole cells) and the Wall (a grid vertex). Shift+click joins to that point, so clicking a room's corners in turn draws its walls; Shift while dragging snaps to 45° (`snapToAngle`, `snapCellToAngle`) from where the stroke began, or from the joined point. The remembered point is forgotten when the tool changes, when a map is loaded, and on Escape; undo and redo keep it. Alt still inverts each of them, so Alt+Shift erases a straight cut. The Line tool snaps its end to 45° the same way.
 - **Alt inverts a painting tool**: the same modifier idea the Plan's Door tool already used for Alt+click-to-delete (`usePlanCanvasTools.ts`). Holding Alt while a Drawing tool would paint erases what it paints instead, as one undoable stroke: floor → `eraseCell`, brush → `applyDiscs(..., "erase")`, solid → `eraseSolidAt`, Place → `eraseObjectAt`, wall → `eraseWallAtCellEdge`, door → `removeDoorAtEdge` (same function RMB already used), rect/line/template → erase the cells the shape covers. Select/Pan/Fill/Wrap/Label/Link/Eraser/Space have no inverse and ignore Alt. Alt is a separate, additive modifier, never a pan trigger (see "Canvas behaviour" for what pans). The options slip's title appends " · erase" while Alt is held over an invertible tool; Alt state is tracked at the window level (`altHeld` in `useMapCanvasEditor.ts`) so the slip reacts even with the pointer sitting still, cleared on blur so alt-tabbing away never leaves it stuck.
 
@@ -669,10 +669,10 @@ The prop gestures live in `useDressingTool.ts`, wired from `useMapCanvasEditor.t
 
 This tool doesn't paint pixels: it claims or annotates what the drawing **means**. `src/cartographer/tools.ts` tags it `group: "structure"` in the `Tool` union (the rail's clusters are `TOOLS`' `group` in `MapWorkbench.vue`) so `CartographerToolRail.vue` draws it in the Notes cluster beside Label and Link. A sibling Zone tool shipped alongside it in #868 and was retired by #884 (wave 4): see "The Cartographer's own zone layer is retired" under Editor UX above; zoning is now authored directly as a Plan region in the Atlas, never derived from the Drawing.
 
-| Tool         | Hotkey | Layer     | Behaviour                                                                 |
-| ------------ | ------ | --------- | -------------------------------------------------------------------------- |
-| Space        | `p`    | (derived) | Click a floor region to select the derived space under the cursor. Doesn't write anything: it drives the Spaces drawer's room-level inspector (name, ways out, linked entities). `s` was already taken by Rock, so Space took `p` instead of the design frame's literal key. |
-| Link         | `k`    | `metadata`| Moved into the structure group in #868 (previously grouped with the paint tools): same trap/feature/encounter/note pickers as before, now in the options slip. |
+| Tool  | Hotkey | Layer      | Behaviour                                                                                                                                                                                                                                                                    |
+| ----- | ------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Space | `p`    | (derived)  | Click a floor region to select the derived space under the cursor. Doesn't write anything: it drives the Spaces drawer's room-level inspector (name, ways out, linked entities). `s` was already taken by Rock, so Space took `p` instead of the design frame's literal key. |
+| Link  | `k`    | `metadata` | Moved into the structure group in #868 (previously grouped with the paint tools): same trap/feature/encounter/note pickers as before, now in the options slip.                                                                                                               |
 
 Nothing the Structure tool touches is derived structure itself — the derivation (`deriveStructure`, below) recomputes live from `layers`/`metadata` on every change, so there is no separate structure document to keep in sync.
 
@@ -680,8 +680,8 @@ Nothing the Structure tool touches is derived structure itself — the derivatio
 
 `deriveStructure(map)` is the one function everything downstream of the Cartographer reads through — the published Atlas never reads a raw `DungeonMap` layer set directly. It returns a `DerivedStructure`: `spaces`, `ways`, `stairs`, `links` (zones were dropped from this return by #884 — see above).
 
-- **Spaces** — a flood fill over open floor cells (a floor tile, not a `solidBlock`), but **not** `floodFill.ts`'s fill: this one is edge-aware. It cuts at *every* edge segment — wall, closed door, **and open door/arch** — because a door has to be able to sit "between two regions" at all. An open arch still cuts the fill and becomes a `kind: "arch"` way out; the two rooms it joins stay two regions exactly as a closed door would. A space's `name` comes from the first annotation text found on any of its cells, in canonical (y-then-x) order — the same scan order the rename UI targets, so renaming a space always edits the cell its name already came from rather than adding a second annotation.
-- **Ways** — a `doorClosed`/`doorOpen` edge with open floor and two *different* derived spaces on either side. `doorClosed` → `kind: "door"`, `doorOpen` → `kind: "arch"`. A door edge whose two sides land in the same space (another route already joins them) is internal, not a way out, and is skipped.
+- **Spaces** — a flood fill over open floor cells (a floor tile, not a `solidBlock`), but **not** `floodFill.ts`'s fill: this one is edge-aware. It cuts at _every_ edge segment — wall, closed door, **and open door/arch** — because a door has to be able to sit "between two regions" at all. An open arch still cuts the fill and becomes a `kind: "arch"` way out; the two rooms it joins stay two regions exactly as a closed door would. A space's `name` comes from the first annotation text found on any of its cells, in canonical (y-then-x) order — the same scan order the rename UI targets, so renaming a space always edits the cell its name already came from rather than adding a second annotation.
+- **Ways** — a `doorClosed`/`doorOpen` edge with open floor and two _different_ derived spaces on either side. `doorClosed` → `kind: "door"`, `doorOpen` → `kind: "arch"`. A door edge whose two sides land in the same space (another route already joins them) is internal, not a way out, and is skipped.
 - **Stairs** — `stairsUp`/`stairsDown` object-layer cells. A stair's far end is **never guessed**: `spaceKey` is the space containing the cell (or `null` if no space claims it), but there is no attempt to infer which room/level it leads to — that stays `unresolved-stair` in the publish plan until the DM picks a target in the review modal.
 - **Links** — every cell whose `CellMetadata` is non-empty, each tagged with the space (if any) containing it.
 
@@ -737,7 +737,7 @@ A `decal` on a wall edge is a `wallDecal` variant drawn over the ordinary wall s
 
 Where two perpendicular wall edges meet at a grid intersection, the segments simply abut. Each segment's art is designed to terminate cleanly at the cell boundary, so two meeting walls visually form an L-corner without any special corner asset. T-junctions and crosses work the same way (three or four segments meeting at an intersection).
 
-For higher visual quality, packs may *optionally* ship `wallJoint` art (L corners × 4, T-junctions × 4, cross). The renderer detects the 4-cell intersection state and overlays a joint tile when:
+For higher visual quality, packs may _optionally_ ship `wallJoint` art (L corners × 4, T-junctions × 4, cross). The renderer detects the 4-cell intersection state and overlays a joint tile when:
 
 1. The pack has a matching joint variant, AND
 2. Two or more wall segments meet at the intersection.
@@ -773,12 +773,12 @@ The **Water tool** (`H`) paints and erases terrain with the Tiles tool's shapes.
 
 Shadows are drawn by the app at render time from the silhouettes of what stands up, not painted into the art. The light is top-left, so a shadow falls down and to the right. Everything is a fraction of `tilePx` (`SHADOW` in `drawMap.ts`), so the look holds at any zoom and in the 128 px bake.
 
-| Class | What is in it | Occlusion | Cast |
-| --- | --- | --- | --- |
-| raised | solid rock, wall edges, joints | yes | long (0.11 across, 0.14 down of a tile) |
-| low | curbs and their posts | yes | short, a third of raised |
-| standing | `object*` stamps and standing Dressing props | yes | short, a third of raised |
-| flat | rubble, debris, hazard and feature glyphs, flat Dressing props | yes | none |
+| Class    | What is in it                                                  | Occlusion | Cast                                    |
+| -------- | -------------------------------------------------------------- | --------- | --------------------------------------- |
+| raised   | solid rock, wall edges, joints                                 | yes       | long (0.11 across, 0.14 down of a tile) |
+| low      | curbs and their posts                                          | yes       | short, a third of raised                |
+| standing | `object*` stamps and standing Dressing props                   | yes       | short, a third of raised                |
+| flat     | rubble, debris, hazard and feature glyphs, flat Dressing props | yes       | none                                    |
 
 **Occlusion** is the tight dark contact line where a thing meets the floor (no offset, a blur of about 4 px at 128 px per cell). **Cast** is the offset, softer shadow. Flat things get occlusion only because an offset shadow makes a flat thing look lifted off the floor (`isFlatCategory`: `rubble`, `debris`, `hazard*`, `feature*`; a Dressing prop is flat when its `library_dressing.flat` is true). Two stairs break the pattern on purpose: **a stair up** rises to the walls' height, so it is drawn above both shadow passes; **a stair down** is a hollow, drawn before the shadows, whose top and left inner edges darken (`SHADOW.hollow`); the fade is laid only over the stair's own pixels (drawn into a cell canvas and faded `source-atop`), so a stair painted with a ragged natural outline keeps its shape, and without canvases the stair draws without it. Flat things are drawn above the shadow layer, not under it: the layer holds their own occlusion, a blurred copy of their whole silhouette, which drawn over them greys them out instead of rimming them. The cost is that a wall's cast shadow does not fall across a heap of rubble.
 
@@ -795,7 +795,7 @@ The Select summary names a decorated wall "Wall (decal)", and a grate or sluice 
 
 ### Stamps (#1065)
 
-`stampCategories.ts` owns what the Place tool (`O`) can stamp as an object: the six `object*` categories plus `stairsUp`, `stairsDown`, `rubble` and `debris` (`STAMP_CATEGORIES`). The stairs and the two litter categories existed in the schema and the renderer, but no UI could place them before schema 4. The catalogue shows the pack's own name for a stamp (`stampLabel`: the first of `labels[category]`, else the schema's plain name with `object` dropped), so a forest reads "Old tree"; each variant is named by `variantLabel` (the pack's label for it, else "<Type> n"). **Stairs pick their side from the stamp's rotation** (`stairSide`: 0 degrees north, 90 east, 180 south, 270 west, unturned is north), and draw the art for that side; they never found their art before.
+`stampCategories.ts` owns what the Place tool (`O`) can stamp as an object: the six `object*` categories plus `stairsUp`, `stairsDown`, `rubble` and `debris` (`STAMP_CATEGORIES`). The stairs and the two litter categories existed in the schema and the renderer, but no UI could place them before schema 4. The catalogue shows the pack's own name for a stamp (`stampLabel`: the first of `labels[category]`, else the schema's plain name with `object` dropped), so a forest reads "Old tree"; each variant is named by `variantLabel` (the pack's label for it, else `<Type> n`). **Stairs pick their side from the stamp's rotation** (`stairSide`: 0 degrees north, 90 east, 180 south, 270 west, unturned is north), and draw the art for that side; they never found their art before.
 
 ### When rendering recomputes
 
@@ -885,23 +885,23 @@ On a location detail page, if `source_map_id` is set, show an **Edit map in Cart
 
 ```ts
 async function bakeMap(map: DungeonMap, options: BakeOptions): Promise<Blob> {
-  const bbox = computeBoundingBox(map)          // min/max x,y of any painted cell
-  const padded = expandBBox(bbox, options.paddingCells ?? 3)
-  const tileSize = 128
-  const width = (padded.maxX - padded.minX + 1) * tileSize
-  const height = (padded.maxY - padded.minY + 1) * tileSize
+  const bbox = computeBoundingBox(map); // min/max x,y of any painted cell
+  const padded = expandBBox(bbox, options.paddingCells ?? 3);
+  const tileSize = 128;
+  const width = (padded.maxX - padded.minX + 1) * tileSize;
+  const height = (padded.maxY - padded.minY + 1) * tileSize;
 
-  const canvas = new OffscreenCanvas(width, height)
-  const ctx = canvas.getContext('2d')!
-  ctx.fillStyle = '#000'
-  ctx.fillRect(0, 0, width, height)
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, width, height);
 
-  for (const layer of ['floor', 'wall', 'object'] as const) {
-    await drawLayer(ctx, map.layers[layer], padded, tileSize)
+  for (const layer of ["floor", "wall", "object"] as const) {
+    await drawLayer(ctx, map.layers[layer], padded, tileSize);
   }
-  if (options.brandFrame) await drawBrandFrame(ctx, width, height)
+  if (options.brandFrame) await drawBrandFrame(ctx, width, height);
 
-  return await canvas.convertToBlob({ type: 'image/webp', quality: 0.9 })
+  return await canvas.convertToBlob({ type: "image/webp", quality: 0.9 });
 }
 ```
 
@@ -1026,10 +1026,10 @@ Adds organic and curved shapes beyond the rectilinear M1–M5 toolkit. Pack sche
 
 #### Tools (as built)
 
-| Tool | Hotkey | Behaviour |
-| --- | --- | --- |
-| Room | `m` | Click center, drag to size. Three shapes: **Circle**, **Octagon**, **Hex**. Fills floor + auto-wraps walls around the perimeter. |
-| Brush | `b` | Drag to paint a round brushed area (see Brushed areas). Replaced the noise-driven cave brush. |
+| Tool           | Hotkey        | Behaviour                                                                                                                                   |
+| -------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Room           | `m`           | Click center, drag to size. Three shapes: **Circle**, **Octagon**, **Hex**. Fills floor + auto-wraps walls around the perimeter.            |
+| Brush          | `b`           | Drag to paint a round brushed area (see Brushed areas). Replaced the noise-driven cave brush.                                               |
 | Stamp rotation | Q/E + `[`/`]` | Existing 90° rotation, now joined by `[` / `]` for ±1° fine rotation. `PackRef.rotation` widened from a literal union to arbitrary degrees. |
 
 #### Schema v2
@@ -1061,7 +1061,7 @@ The library repaint (#891) delivers each set as sprite sheets cut into tiles, an
 
 **It is the first non-additive bump.** `doorClosedH/V` and `doorOpenH/V` are gone, replaced by `doorwayH/V` and `doorLeaf`, with no alias and no upgrade shim (CLAUDE.md rule 1). A schema 3 manifest therefore loads with its four door slots as extras and draws placeholder doors until the pack is repainted; the required set changed with it (19 slots, 16 renders). Production had no custom user packs and 8 maps, so the migration is that every library pack is repainted at schema 4 (#891) and its new version published in Admin; maps follow at once, because a map resolves a pack by id to its published version (see Pack versioning). Placeholder doors are the visible symptom of a pack whose published version is still older than schema 4.
 
-**This ends the "older packs are silent" assumption.** The Schema v3 note below is true of that bump: it added only optional categories, so an older pack was still complete and warning would have been noise. `validatePack` still warns only when a pack is *newer* than the runtime, but a silent older pack is no longer a compatible one. Its required set can be missing the new required categories, which the required-category check reports as missing slots. The warning rule has not changed; what changed is that "older is fine" stopped being a guarantee, so do not infer it from the silence.
+**This ends the "older packs are silent" assumption.** The Schema v3 note below is true of that bump: it added only optional categories, so an older pack was still complete and warning would have been noise. `validatePack` still warns only when a pack is _newer_ than the runtime, but a silent older pack is no longer a compatible one. Its required set can be missing the new required categories, which the required-category check reports as missing slots. The warning rule has not changed; what changed is that "older is fine" stopped being a guarantee, so do not infer it from the silence.
 
 **Custom uploads.** `register_upload` in the tile-pack edge function demanded `schema_version === 2` until #1065, which means no custom pack could have been uploaded since schema 3. It now compares against `TILE_PACK_SCHEMA.version`, never a literal.
 
@@ -1072,7 +1072,7 @@ The library repaint (#891) delivers each set as sprite sheets cut into tiles, an
 valid and simply falls back.
 
 **A trap does not point at a pack asset.** `traps.hazard_glyph` and
-`dungeon_features.feature_glyph` say what the thing *is* — pit, pressure plate,
+`dungeon_features.feature_glyph` say what the thing _is_ — pit, pressure plate,
 falling block — and the renderer decides how to draw that under whichever pack
 is loaded, the same separation `location_type` → colour uses. Pointing a content
 row at a pack category would make the trap undrawable the moment a DM loads a
@@ -1089,14 +1089,14 @@ still draw something rather than leaving an empty cell.
 
 **The placeholder matters more than the art here.** Most packs will have no
 hazard tiles for a long time, so the procedural placeholder is what a DM
-actually sees, and a pit must be distinguishable from a boulder *as a
-placeholder*. `hazardPlaceholders.ts` and `featurePlaceholders.ts` give each
+actually sees, and a pit must be distinguishable from a boulder _as a
+placeholder_. `hazardPlaceholders.ts` and `featurePlaceholders.ts` give each
 glyph its own silhouette, and their tests assert the drawing trace is unique
 across categories even under an identical colour — shape-only distinctness,
 which is the property that was asked for.
 
 **The version warning changed with this bump.** `validatePack` now warns only
-when a pack is *newer* than the runtime. A pack older than the runtime is
+when a pack is _newer_ than the runtime. A pack older than the runtime is
 silent: up to this bump every change had added only optional categories, and
 the required-category check already catches a genuinely incomplete pack.
 Without this, v3 would have made every existing v2 pack start warning, which
@@ -1204,27 +1204,29 @@ that prices, shows or runs a generation ships without the prop.
 
 The Layers panel's Drawing row (`MapLayersPanel.vue`, `AtlasSiteMapMode.vue`) offers **Style with AI** whenever a site has a Drawing — the same `CartographerAiStyleModal`, opened with the save target fixed to the site being edited rather than picked. Two things differ from the standalone flow above, both driven by an optional `site` option on `useMapExport`:
 
-- **Input.** Both entry points fit their render to the campaign's resolved provider before sending — `fitStyleInputCanvas` (`src/cartographer/bake.ts`), given a `provider: "openai" | "gemini"` the client resolves the way `style-map` will (`useCampaignProviders().imageProvider`, which runs the server's own `chooseImageProvider` from `_shared/providerChoice.ts`: the DM's Quick/Detailed pick, moved to their own key and then to an offered provider when the admin has switched the pick off). Until provider_config loads it is null, the price is null too (the modal's `requireCredits` refuses it), and `onGenerateStyle` will not bake: an input fitted to a guessed provider is one `style-map` would answer with a 400. **"openai"** is flexible: the styler renders on its own model setting, `provider_config.map_style_model` (Admin → Providers → Map styler model; `gpt-image-2.5-sunburst` in production, because flare treated the input as a loose sketch; empty falls back to `image_model`), and every `gpt-image-2.5-*` model accepts any size that's a multiple of 16 per edge, an aspect ratio between 1:3 and 3:1, and a total of 655,360–8,294,400 px — `padToStyleAspect` pads into that window and `chooseStyleImageSize` spends the full 2560×1440 pixel budget at the map's own clamped aspect (sites are increasingly played fullscreen on a TV built into the table, so resolution is worth spending in full; cost stays flat via the credit charge regardless). **"gemini"** accepts only ten fixed aspect ratios instead (`@edge-shared/geminiAspect.ts`'s `GEMINI_ASPECT_RATIOS`), so its input pads to the *exact* nearest one (`nearestGeminiAspect`) rather than clamping into a range, then is still sized by the same pixel budget. The client always treats a plain `"openai"` campaign as flexible since it can't see which model the admin actually configured; `style-map` re-validates by the resolved *model* (only `gpt-image-2.5-*` accepts a flexible size), so an admin who points plain "openai" at an older model gets a clear 400 before any charge rather than a mismatched request reaching the provider. In Build, `bakeAiStyleInput` (`src/cartographer/aiStyleInput.ts`) composites what the DM actually sees before fitting: the site's Picture underneath, placed by `placePicture` at the position `MapStackImage.vue` already draws it, with a *transparent* live bake of the Drawing (`bakeMap` with `transparent: true`) on top. The Plan and the runtime-only layers (tokens, fog) never go into this image. Falls back to `bakeMapForAI`'s plain Drawing-only bake (also fitted) when there is no Picture yet, or it has no calibration to place it by. `liveDrawingCalibration()` computes the calibration the Drawing's *current* bake would carry if published right now, so the Picture is placed correctly mid-edit and its `origin_cell_x/y` survive into the fitted calibration below. `style-map/index.ts` derives the size it requests from the uploaded image's own PNG header (`_shared/imageSize.ts`'s `readPngDimensions`), never a client field, and re-validates before the rate limit and credit reservation: `isValidGeminiAspectRatio` for Gemini, a `gpt-image-2.5-*` model check (`_shared/openaiImageModel.ts`'s `isFlexibleOpenAiModel`) followed by `isValidStyleImageSize` for OpenAI. Gemini's actual output resolution stays the admin's `imageSize` quality knob regardless of what was sent.
+- **Input.** Both entry points fit their render to the campaign's resolved provider before sending — `fitStyleInputCanvas` (`src/cartographer/bake.ts`), given a `provider: "openai" | "gemini"` the client resolves the way `style-map` will (`useCampaignProviders().imageProvider`, which runs the server's own `chooseImageProvider` from `_shared/providerChoice.ts`: the DM's Quick/Detailed pick, moved to their own key and then to an offered provider when the admin has switched the pick off). Until provider_config loads it is null, the price is null too (the modal's `requireCredits` refuses it), and `onGenerateStyle` will not bake: an input fitted to a guessed provider is one `style-map` would answer with a 400. **"openai"** is flexible: the styler renders on its own model setting, `provider_config.map_style_model` (Admin → Providers → Map styler model; `gpt-image-2.5-sunburst` in production, because flare treated the input as a loose sketch; empty falls back to `image_model`), and every `gpt-image-2.5-*` model accepts any size that's a multiple of 16 per edge, an aspect ratio between 1:3 and 3:1, and a total of 655,360–8,294,400 px — `padToStyleAspect` pads into that window and `chooseStyleImageSize` spends the full 2560×1440 pixel budget at the map's own clamped aspect (sites are increasingly played fullscreen on a TV built into the table, so resolution is worth spending in full; cost stays flat via the credit charge regardless). **"gemini"** accepts only ten fixed aspect ratios instead (`@edge-shared/geminiAspect.ts`'s `GEMINI_ASPECT_RATIOS`), so its input pads to the _exact_ nearest one (`nearestGeminiAspect`) rather than clamping into a range, then is still sized by the same pixel budget. The client always treats a plain `"openai"` campaign as flexible since it can't see which model the admin actually configured; `style-map` re-validates by the resolved _model_ (only `gpt-image-2.5-*` accepts a flexible size), so an admin who points plain "openai" at an older model gets a clear 400 before any charge rather than a mismatched request reaching the provider. In Build, `bakeAiStyleInput` (`src/cartographer/aiStyleInput.ts`) composites what the DM actually sees before fitting: the site's Picture underneath, placed by `placePicture` at the position `MapStackImage.vue` already draws it, with a _transparent_ live bake of the Drawing (`bakeMap` with `transparent: true`) on top. The Plan and the runtime-only layers (tokens, fog) never go into this image. Falls back to `bakeMapForAI`'s plain Drawing-only bake (also fitted) when there is no Picture yet, or it has no calibration to place it by. `liveDrawingCalibration()` computes the calibration the Drawing's _current_ bake would carry if published right now, so the Picture is placed correctly mid-edit and its `origin_cell_x/y` survive into the fitted calibration below. `style-map/index.ts` derives the size it requests from the uploaded image's own PNG header (`_shared/imageSize.ts`'s `readPngDimensions`), never a client field, and re-validates before the rate limit and credit reservation: `isValidGeminiAspectRatio` for Gemini, a `gpt-image-2.5-*` model check (`_shared/openaiImageModel.ts`'s `isFlexibleOpenAiModel`) followed by `isValidStyleImageSize` for OpenAI. Gemini's actual output resolution stays the admin's `imageSize` quality knob regardless of what was sent.
 - **Cost and BYOK.** `styleCost` and `styleByok` used to assume OpenAI unconditionally (`mapImageMultiplierFor("openai")`, `!!decryptedOpenAiKey`) — wrong the moment a campaign's `image_provider` was actually Gemini, whose multiplier is 0.5 in production: the DM would see OpenAI's price and a BYOK campaign with only a Gemini key would show as not-BYOK. Both now read the same `imageProviderKey` the sizing above resolves.
-- **Output.** Saving calls `useSaveStyledSitePicture` (`useLocations.ts`) instead of `useUpdateLocationPicture` — one atomic `locations` update: `map_url` = the styled render, `grid_calibration` = a best-guess derived from the padding geometry (below), and `map_layer_url`, `map_layer_calibration`, `source_map_id` and `map_published_rev` all set to `null` in the same write. This is the "bubbles down" the site-workbench epic (#884, decision 1) describes: the render replaces the Picture, and the Drawing that used to sit on top of it is *unlinked*, not deleted — the `dungeon_maps` row survives untouched as an ordinary, standalone map in the Cartographer, so the DM can reopen it (or start a fresh one), draw corrections over the new Picture, and republish later, which puts tiles back on top. `map_published_rev` is cleared alongside `source_map_id` since a rev number for a Drawing the location no longer points at can only read as stale.
+- **Output.** Saving calls `useSaveStyledSitePicture` (`useLocations.ts`) instead of `useUpdateLocationPicture` — one atomic `locations` update: `map_url` = the styled render, `grid_calibration` = a best-guess derived from the padding geometry (below), and `map_layer_url`, `map_layer_calibration`, `source_map_id` and `map_published_rev` all set to `null` in the same write. This is the "bubbles down" the site-workbench epic (#884, decision 1) describes: the render replaces the Picture, and the Drawing that used to sit on top of it is _unlinked_, not deleted — the `dungeon_maps` row survives untouched as an ordinary, standalone map in the Cartographer, so the DM can reopen it (or start a fresh one), draw corrections over the new Picture, and republish later, which puts tiles back on top. `map_published_rev` is cleared alongside `source_map_id` since a rev number for a Drawing the location no longer points at can only read as stale.
 
-**`grid_calibration` is derived, not skipped, and fitting to a known shape per provider is what makes that safe.** Whichever pad function applies (`padToStyleAspect` for OpenAI, or `padToAspect` given `nearestGeminiAspect`'s exact ratio for Gemini), the render is padded, never cropped, at the *same* pixel scale — no rescale, only a border on whichever axis is short — then `chooseStyleImageSize` decides the actual send resolution for either. The pad step's geometry carries `cellsPerImageWidth` (grows by exactly the ratio the padding step grew the canvas by — a later resize to the send resolution can't change this, since it's a ratio a uniform-per-axis resize leaves unchanged) and `originXPct`/`originYPct` (where the un-padded content used to start). Since `style-map` derives the size it requests from this same sent image's own header — and for Gemini, that header's aspect is already exactly one of the ten ratios the model can render, so its own re-bucketing (`sizeToAspect`) picks the identical bucket back — the request always matches what was sent, so the geometry computed *before* sending is exactly as valid against whatever comes back, with nothing to measure to calibrate from. `styledPictureCalibration()` (`aiStyleInput.ts`) builds the calibration from that geometry plus `liveDrawingCalibration`'s `origin_cell_x/y` (padding shifts *where* image cell (0,0) sits, never *which map cell* it is), and a `grid_opacity` of `DEFAULT_GRID_OPACITY`. This is a first guess, not a guarantee: the model can still shrink or grow the grid a little in its own render — `useMapExport.ts`'s `warnIfStyleResultSizeDrifted` decodes the actual returned image and logs a console warning if its dimensions differ from the request by more than a couple of pixels, purely as a debugging signal. The fix either way is "Calibrate stays the safety net" below.
+**`grid_calibration` is derived, not skipped, and fitting to a known shape per provider is what makes that safe.** Whichever pad function applies (`padToStyleAspect` for OpenAI, or `padToAspect` given `nearestGeminiAspect`'s exact ratio for Gemini), the render is padded, never cropped, at the _same_ pixel scale — no rescale, only a border on whichever axis is short — then `chooseStyleImageSize` decides the actual send resolution for either. The pad step's geometry carries `cellsPerImageWidth` (grows by exactly the ratio the padding step grew the canvas by — a later resize to the send resolution can't change this, since it's a ratio a uniform-per-axis resize leaves unchanged) and `originXPct`/`originYPct` (where the un-padded content used to start). Since `style-map` derives the size it requests from this same sent image's own header — and for Gemini, that header's aspect is already exactly one of the ten ratios the model can render, so its own re-bucketing (`sizeToAspect`) picks the identical bucket back — the request always matches what was sent, so the geometry computed _before_ sending is exactly as valid against whatever comes back, with nothing to measure to calibrate from. `styledPictureCalibration()` (`aiStyleInput.ts`) builds the calibration from that geometry plus `liveDrawingCalibration`'s `origin_cell_x/y` (padding shifts _where_ image cell (0,0) sits, never _which map cell_ it is), and a `grid_opacity` of `DEFAULT_GRID_OPACITY`. This is a first guess, not a guarantee: the model can still shrink or grow the grid a little in its own render — `useMapExport.ts`'s `warnIfStyleResultSizeDrifted` decodes the actual returned image and logs a console warning if its dimensions differ from the request by more than a couple of pixels, purely as a debugging signal. The fix either way is "Calibrate stays the safety net" below.
 
-**Calibrate stays the safety net, and reopens seeded from the guess.** `MapLayersPanel.vue`'s Picture row shows its "Calibrate"/"Re-calibrate" button unconditionally whenever `stack.picture` exists (`:label="stack.picture.calibration ? 'Re-calibrate' : 'Calibrate'"`), never disabled or hidden by *how* the calibration got there — a flattened Picture reads as "Calibrated N cells wide" exactly like a DM-measured scan. `GridCalibrationDialog.vue`'s `onImageLoad` seeds its two drag handles from `existing` (whatever calibration is already on the location) rather than the dialog's own hardcoded default, so the DM's very first drag starts from the AI's guess and corrects it, rather than starting over from nothing.
+**Calibrate stays the safety net, and reopens seeded from the guess.** `MapLayersPanel.vue`'s Picture row shows its "Calibrate"/"Re-calibrate" button unconditionally whenever `stack.picture` exists (`:label="stack.picture.calibration ? 'Re-calibrate' : 'Calibrate'"`), never disabled or hidden by _how_ the calibration got there — a flattened Picture reads as "Calibrated N cells wide" exactly like a DM-measured scan. `GridCalibrationDialog.vue`'s `onImageLoad` seeds its two drag handles from `existing` (whatever calibration is already on the location) rather than the dialog's own hardcoded default, so the DM's very first drag starts from the AI's guess and corrects it, rather than starting over from nothing.
 
-**Recalibrating moves the grid over the image, never the Plan under it.** `location_map_regions.cells` (`useLocationMapRegions.ts`'s `useUpdateLocationMapRegion`, and its create sibling) is a jsonb array of abstract `CellKey` integers with no `grid_calibration` reference anywhere in that file — a region's cells never change when a calibration does. What changes is `mapStack.ts`'s `frameCalibration` (`primary.calibration`, and `primary` is the Picture once the Drawing is unlinked), which is what `cellRectInImageFractions` (`gridCalibration.ts`) reads to decide *where on the image* a given, unchanged cell key draws — so Calibrate genuinely repositions the grid over the picture, and every trace/door/placement keyed by cell number stays exactly where it was. `useUpdateLocationGridCalibration` (`useLocations.ts`) touches only the `locations.grid_calibration` column — no region, door or `dungeon_maps` row is written by a calibration save, so a correction drawing in progress is untouched by it too.
+**Recalibrating moves the grid over the image, never the Plan under it.** `location_map_regions.cells` (`useLocationMapRegions.ts`'s `useUpdateLocationMapRegion`, and its create sibling) is a jsonb array of abstract `CellKey` integers with no `grid_calibration` reference anywhere in that file — a region's cells never change when a calibration does. What changes is `mapStack.ts`'s `frameCalibration` (`primary.calibration`, and `primary` is the Picture once the Drawing is unlinked), which is what `cellRectInImageFractions` (`gridCalibration.ts`) reads to decide _where on the image_ a given, unchanged cell key draws — so Calibrate genuinely repositions the grid over the picture, and every trace/door/placement keyed by cell number stays exactly where it was. `useUpdateLocationGridCalibration` (`useLocations.ts`) touches only the `locations.grid_calibration` column — no region, door or `dungeon_maps` row is written by a calibration save, so a correction drawing in progress is untouched by it too.
 
-**The next "Start drawing" lines up with the calibrated Picture, verified by reading the code rather than assumed.** `useOpenSiteDrawing.ts` creates a brand-new, empty `dungeon_maps` row and points `source_map_id` at it — nothing carries over from the unlinked one. `MapWorkbench.vue`'s reference-ghost layer (`buildReferenceImage`, its own "Reference layer" section) draws the site's Picture beneath the canvas keyed *only* on `site.grid_calibration` and the Picture's own natural size — never on `source_map_id`, `map_layer_url/calibration`, or anything about a specific prior Drawing. So the calibration this save just wrote already lines up any Drawing linked to the site afterward — fresh or not — as an aligned reference underneath, and corrections drawn there land in the same absolute cell space the styled render occupied. The loop (style, draw corrections aligned to the ghost, style again, Calibrate if it drifted) is usable immediately; Calibrate is a correction available at any point in it, not a required step before it starts.
+**The next "Start drawing" lines up with the calibrated Picture, verified by reading the code rather than assumed.** `useOpenSiteDrawing.ts` creates a brand-new, empty `dungeon_maps` row and points `source_map_id` at it — nothing carries over from the unlinked one. `MapWorkbench.vue`'s reference-ghost layer (`buildReferenceImage`, its own "Reference layer" section) draws the site's Picture beneath the canvas keyed _only_ on `site.grid_calibration` and the Picture's own natural size — never on `source_map_id`, `map_layer_url/calibration`, or anything about a specific prior Drawing. So the calibration this save just wrote already lines up any Drawing linked to the site afterward — fresh or not — as an aligned reference underneath, and corrections drawn there land in the same absolute cell space the styled render occupied. The loop (style, draw corrections aligned to the ghost, style again, Calibrate if it drifted) is usable immediately; Calibrate is a correction available at any point in it, not a required step before it starts.
 
-**A styled Picture can still end up invisible under its own Drawing, in the ordinary (not-yet-flattened) stack — reported rather than changed.** `buildMapStack()` always picks `primary = drawing ?? picture` (`mapStack.ts`), and `MapStackImage.vue`'s `showsUnderlyingPicture` only lets the Picture show through where the *primary* Drawing is transparent. The Drawing's transparent bake (`{ transparent: true }`) only skips the initial opaque ground fill in `renderToCanvas` — every painted floor, wall, solid-block, object and annotation tile still draws its own opaque pixels regardless of that flag. So on a site whose Drawing already covers most of its extent, a styled Picture saved *without* going through the flatten above (there is no such path left in this codebase, but the display mechanics are the same fact this section is recording) would only show in the bake's padding margin and any unpainted interior cells — everywhere there is real floor/wall/object art, the Drawing keeps covering it. This is exactly why the flatten unlinks the Drawing rather than leaving both layers in place: without it, "Style with AI" would appear to do nothing.
+**A styled Picture can still end up invisible under its own Drawing, in the ordinary (not-yet-flattened) stack — reported rather than changed.** `buildMapStack()` always picks `primary = drawing ?? picture` (`mapStack.ts`), and `MapStackImage.vue`'s `showsUnderlyingPicture` only lets the Picture show through where the _primary_ Drawing is transparent. The Drawing's transparent bake (`{ transparent: true }`) only skips the initial opaque ground fill in `renderToCanvas` — every painted floor, wall, solid-block, object and annotation tile still draws its own opaque pixels regardless of that flag. So on a site whose Drawing already covers most of its extent, a styled Picture saved _without_ going through the flatten above (there is no such path left in this codebase, but the display mechanics are the same fact this section is recording) would only show in the bake's padding margin and any unpainted interior cells — everywhere there is real floor/wall/object art, the Drawing keeps covering it. This is exactly why the flatten unlinks the Drawing rather than leaving both layers in place: without it, "Style with AI" would appear to do nothing.
 
-**Confirmation before generating, not after.** `CartographerAiStyleModal`'s Generate button asks a plain-language question first, only when `fixedTargetLabel` is set: *"The styled map replaces this site's picture. Your tile drawing is set aside, it stays in the Cartographer, so you can draw fixes on top and style again. Check that the grid still lines up; the AI can drift a little, and Calibrate fixes it."* This runs before credits are spent, not as a surprise on the later Save click.
+**Confirmation before generating, not after.** `CartographerAiStyleModal`'s Generate button asks a plain-language question first, only when `fixedTargetLabel` is set: _"The styled map replaces this site's picture. Your tile drawing is set aside, it stays in the Cartographer, so you can draw fixes on top and style again. Check that the grid still lines up; the AI can drift a little, and Calibrate fixes it."_ This runs before credits are spent, not as a surprise on the later Save click.
 
 #### Prompt composition
 
 ```ts
 // Edge function builds: name + description + presetPrompt + userSuffix + watermark
-[mapName, mapDescription, presetPrompt, suffix, WATERMARK_SUFFIX].filter(Boolean).join(", ")
+[mapName, mapDescription, presetPrompt, suffix, WATERMARK_SUFFIX]
+  .filter(Boolean)
+  .join(", ");
 ```
 
 `DungeonMap` has no `theme` field — `name` + `description` are used instead.
@@ -1264,7 +1266,7 @@ The Layers panel's Drawing row (`MapLayersPanel.vue`, `AtlasSiteMapMode.vue`) of
 
 Replaces M5's Save to Atlas outright — see the "Atlas Integration" section above for the full write-order and matching-rule description, and "Structure tool group" above for the Space tool and the derivation module. **The Space/Zone pair described below was narrowed to Space alone by epic #884 (wave 4, 14–15 Sep 2026)** — zoning moved to the Atlas Plan, authored directly as a `region_role: "zone"` region rather than derived from the Drawing. Summary (as originally shipped):
 
-- The Cartographer derived *structure* (spaces, ways out, stairs, zones, links) from the drawing, live, via `deriveStructure()` — never stored separately, always recomputed off `layers`/`metadata`. Zones were dropped from that return by #884; the function now returns `spaces`, `ways`, `stairs`, `links`.
+- The Cartographer derived _structure_ (spaces, ways out, stairs, zones, links) from the drawing, live, via `deriveStructure()` — never stored separately, always recomputed off `layers`/`metadata`. Zones were dropped from that return by #884; the function now returns `spaces`, `ways`, `stairs`, `links`.
 - Two new tools (`space` hotkey `p`, `zone` hotkey `z`) and `link` moved into the same "structure" tool group. The Zone tool no longer exists — see above.
 - Publish to Atlas replaces the location-picker-and-overwrite flow with a review modal that bakes the picture and reconciles rooms, bound regions, ways out and placements against it — matched by cell signature / edge key / cell, never blindly overwritten, and never deleting what it can't match (orphaned instead).
 - `dungeon_maps.rev` (bumped by trigger on any `layers`/`metadata` change) and `locations.map_published_rev` (which rev a site last received) replace a bare `updated_at` timestamp as "is this place stale" — surfaced as "N regions changed since last publish" in the editor's status bar and "N behind" in the Structure panel's Published-to list.
@@ -1274,32 +1276,32 @@ Done = a DM can redraw a dungeon, publish again, and trust that hand-named rooms
 
 #### As-built files (#868, Cartographer-side)
 
-| Path | Purpose |
-| --- | --- |
-| [src/cartographer/structure.ts](../../src/cartographer/structure.ts) | `deriveSpaces`/`deriveWays`/`deriveStairs`/`deriveLinks`/`deriveStructure`, `structureDelta` (`deriveZones` shipped here and was removed by #884) |
-| [src/cartographer/structure.types.ts](../../src/cartographer/structure.types.ts) | `DerivedSpace`/`DerivedWay`/`DerivedStair`/`DerivedLink`/`DerivedStructure` contract (`DerivedZone` shipped here and was removed by #884) |
-| [src/cartographer/cellSignature.ts](../../src/cartographer/cellSignature.ts) | `canonicalCells`, `cellSignature` (64-bit FNV-1a) |
-| [src/lib/locations/publish.ts](../../src/lib/locations/publish.ts) | `planPublish` — the reconciliation planner (matching, held/orphan/reanchor rules) |
-| [src/lib/locations/publish.test.ts](../../src/lib/locations/publish.test.ts) | 611-line TDD suite for the planner |
-| [src/composables/cartographer/useMapPublish.ts](../../src/composables/cartographer/useMapPublish.ts) | Reactive publish state + `publish()` write path |
-| [src/composables/cartographer/usePublishedSites.ts](../../src/composables/cartographer/usePublishedSites.ts) | Which Atlas locations a map backs (`source_map_id` reverse lookup) |
-| [src/composables/cartographer/useCartographerStructure.ts](../../src/composables/cartographer/useCartographerStructure.ts) | Live structure, Structure-panel read models |
-| [src/composables/cartographer/useCartographerStructureTools.ts](../../src/composables/cartographer/useCartographerStructureTools.ts) | Pointer wiring for the Space tool |
-| [src/composables/locations/useSitePlacements.ts](../../src/composables/locations/useSitePlacements.ts) | Every trap/feature placement across a site's spaces, one query |
-| [src/components/cartographer/CartographerStructurePanel.vue](../../src/components/cartographer/CartographerStructurePanel.vue) | The Spaces drawer's content: space list, room inspector, Published-to list |
-| [src/components/cartographer/CartographerBar.vue](../../src/components/cartographer/CartographerBar.vue) | The 3rem bar: tile set, light, Spaces, settings, undo/redo, save state, host slots |
-| [src/components/cartographer/CartographerToolRail.vue](../../src/components/cartographer/CartographerToolRail.vue) | The icon rail, Drawing and Plan |
-| [src/components/cartographer/CartographerToolOptions.vue](../../src/components/cartographer/CartographerToolOptions.vue) | The active tool's options slip (the inspector's per-tool sections) |
-| [src/components/cartographer/CartographerPlanOptions.vue](../../src/components/cartographer/CartographerPlanOptions.vue) | The Plan layer's options slip |
-| [src/components/cartographer/CartographerOptionsSlip.vue](../../src/components/cartographer/CartographerOptionsSlip.vue) | The slip frame both options components share |
-| [src/components/cartographer/CartographerDrawer.vue](../../src/components/cartographer/CartographerDrawer.vue) | The right drawer (a `MobileSheet` below `lg`) |
-| [src/components/cartographer/CartographerPopover.vue](../../src/components/cartographer/CartographerPopover.vue) | The body-level popover the bar's menus use |
-| [src/components/cartographer/CartographerPublishModal.vue](../../src/components/cartographer/CartographerPublishModal.vue) | The Publish to Atlas review modal shell |
-| [src/components/cartographer/PublishPlanPreview.vue](../../src/components/cartographer/PublishPlanPreview.vue) | The plan rendered as a picture |
-| [src/components/cartographer/PublishPlanRows.vue](../../src/components/cartographer/PublishPlanRows.vue) | The plan rendered as rows, grouped by change kind |
-| [supabase/migrations/20260908215640_a_region_has_a_role.sql](../../supabase/migrations/20260908215640_a_region_has_a_role.sql) | `location_map_regions.region_role`, `zone_kind`, `zone_payload`, `derived_from`, `cell_signature`, pen `vertices` |
-| [supabase/migrations/20260908215641_a_way_out_has_a_kind_and_may_join_two_spaces.sql](../../supabase/migrations/20260908215641_a_way_out_has_a_kind_and_may_join_two_spaces.sql) | `location_doors.door_kind`, `source_edge_key` (now `edge_key`, #884), `dungeon_feature_id` |
-| [supabase/migrations/20260908215643_the_publish_remembers_what_it_wrote.sql](../../supabase/migrations/20260908215643_the_publish_remembers_what_it_wrote.sql) | `dungeon_maps.rev` + trigger, `locations.map_published_rev`, `location_placements.source_cell_key` |
+| Path                                                                                                                                                                             | Purpose                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [src/cartographer/structure.ts](../../src/cartographer/structure.ts)                                                                                                             | `deriveSpaces`/`deriveWays`/`deriveStairs`/`deriveLinks`/`deriveStructure`, `structureDelta` (`deriveZones` shipped here and was removed by #884) |
+| [src/cartographer/structure.types.ts](../../src/cartographer/structure.types.ts)                                                                                                 | `DerivedSpace`/`DerivedWay`/`DerivedStair`/`DerivedLink`/`DerivedStructure` contract (`DerivedZone` shipped here and was removed by #884)         |
+| [src/cartographer/cellSignature.ts](../../src/cartographer/cellSignature.ts)                                                                                                     | `canonicalCells`, `cellSignature` (64-bit FNV-1a)                                                                                                 |
+| [src/lib/locations/publish.ts](../../src/lib/locations/publish.ts)                                                                                                               | `planPublish` — the reconciliation planner (matching, held/orphan/reanchor rules)                                                                 |
+| [src/lib/locations/publish.test.ts](../../src/lib/locations/publish.test.ts)                                                                                                     | 611-line TDD suite for the planner                                                                                                                |
+| [src/composables/cartographer/useMapPublish.ts](../../src/composables/cartographer/useMapPublish.ts)                                                                             | Reactive publish state + `publish()` write path                                                                                                   |
+| [src/composables/cartographer/usePublishedSites.ts](../../src/composables/cartographer/usePublishedSites.ts)                                                                     | Which Atlas locations a map backs (`source_map_id` reverse lookup)                                                                                |
+| [src/composables/cartographer/useCartographerStructure.ts](../../src/composables/cartographer/useCartographerStructure.ts)                                                       | Live structure, Structure-panel read models                                                                                                       |
+| [src/composables/cartographer/useCartographerStructureTools.ts](../../src/composables/cartographer/useCartographerStructureTools.ts)                                             | Pointer wiring for the Space tool                                                                                                                 |
+| [src/composables/locations/useSitePlacements.ts](../../src/composables/locations/useSitePlacements.ts)                                                                           | Every trap/feature placement across a site's spaces, one query                                                                                    |
+| [src/components/cartographer/CartographerStructurePanel.vue](../../src/components/cartographer/CartographerStructurePanel.vue)                                                   | The Spaces drawer's content: space list, room inspector, Published-to list                                                                        |
+| [src/components/cartographer/CartographerBar.vue](../../src/components/cartographer/CartographerBar.vue)                                                                         | The 3rem bar: tile set, light, Spaces, settings, undo/redo, save state, host slots                                                                |
+| [src/components/cartographer/CartographerToolRail.vue](../../src/components/cartographer/CartographerToolRail.vue)                                                               | The icon rail, Drawing and Plan                                                                                                                   |
+| [src/components/cartographer/CartographerToolOptions.vue](../../src/components/cartographer/CartographerToolOptions.vue)                                                         | The active tool's options slip (the inspector's per-tool sections)                                                                                |
+| [src/components/cartographer/CartographerPlanOptions.vue](../../src/components/cartographer/CartographerPlanOptions.vue)                                                         | The Plan layer's options slip                                                                                                                     |
+| [src/components/cartographer/CartographerOptionsSlip.vue](../../src/components/cartographer/CartographerOptionsSlip.vue)                                                         | The slip frame both options components share                                                                                                      |
+| [src/components/cartographer/CartographerDrawer.vue](../../src/components/cartographer/CartographerDrawer.vue)                                                                   | The right drawer (a `MobileSheet` below `lg`)                                                                                                     |
+| [src/components/cartographer/CartographerPopover.vue](../../src/components/cartographer/CartographerPopover.vue)                                                                 | The body-level popover the bar's menus use                                                                                                        |
+| [src/components/cartographer/CartographerPublishModal.vue](../../src/components/cartographer/CartographerPublishModal.vue)                                                       | The Publish to Atlas review modal shell                                                                                                           |
+| [src/components/cartographer/PublishPlanPreview.vue](../../src/components/cartographer/PublishPlanPreview.vue)                                                                   | The plan rendered as a picture                                                                                                                    |
+| [src/components/cartographer/PublishPlanRows.vue](../../src/components/cartographer/PublishPlanRows.vue)                                                                         | The plan rendered as rows, grouped by change kind                                                                                                 |
+| [supabase/migrations/20260908215640_a_region_has_a_role.sql](../../supabase/migrations/20260908215640_a_region_has_a_role.sql)                                                   | `location_map_regions.region_role`, `zone_kind`, `zone_payload`, `derived_from`, `cell_signature`, pen `vertices`                                 |
+| [supabase/migrations/20260908215641_a_way_out_has_a_kind_and_may_join_two_spaces.sql](../../supabase/migrations/20260908215641_a_way_out_has_a_kind_and_may_join_two_spaces.sql) | `location_doors.door_kind`, `source_edge_key` (now `edge_key`, #884), `dungeon_feature_id`                                                        |
+| [supabase/migrations/20260908215643_the_publish_remembers_what_it_wrote.sql](../../supabase/migrations/20260908215643_the_publish_remembers_what_it_wrote.sql)                   | `dungeon_maps.rev` + trigger, `locations.map_published_rev`, `location_placements.source_cell_key`                                                |
 
 **Deleted:** `CartographerSaveAtlasModal.vue` (the old location-picker modal) — no legacy path kept.
 
@@ -1309,19 +1311,19 @@ A shared library of top-down props a DM places on any map, whatever pack it uses
 
 #### As-built files
 
-| Path | Purpose |
-| --- | --- |
-| [supabase/migrations/20261014102253_dressing_library.sql](../../supabase/migrations/20261014102253_dressing_library.sql) | `library_dressing`, the `grimoire-dressing` source, `get_library_dressing_sources()`, `dressing_images_srd_*` storage policies, the `layers` column default |
-| [supabase/migrations/20261014102255_dressing_library_content.sql](../../supabase/migrations/20261014102255_dressing_library_content.sql) | The first catalog: 62 props, no art yet |
-| [supabase/tests/dressing_library.test.sql](../../supabase/tests/dressing_library.test.sql) | Read for all, admin writes, footprint and group checks, the book listing, the layer default |
-| [src/types/dressing.types.ts](../../src/types/dressing.types.ts) | `LibraryDressing`, `DRESSING_GROUPS` |
-| [src/cartographer/dressing.ts](../../src/cartographer/dressing.ts) | Footprints, rotated bounds, hit testing by `z`, drawing and the placeholder (no vue) |
-| [src/cartographer/dressingImages.ts](../../src/cartographer/dressingImages.ts) | The pack-independent image loader, cached by url, and the catalog builder |
-| [src/cartographer/paintOps.ts](../../src/cartographer/paintOps.ts) | `placeDressing` / `moveDressing` / `rotateDressing` / `removeDressing` |
-| [src/composables/cartographer/useLibraryDressing.ts](../../src/composables/cartographer/useLibraryDressing.ts) | The offered props (enabled books), every prop (resolution), and the live catalog |
-| [src/composables/cartographer/useDressingTool.ts](../../src/composables/cartographer/useDressingTool.ts) | Place, select, drag, turn, delete, erase, ghost |
-| [src/components/cartographer/CartographerPlaceCatalog.vue](../../src/components/cartographer/CartographerPlaceCatalog.vue) | The Place drawer's content (with `CartographerPlaceTile`, `PackTileThumb`, `PlaceItemThumb`) |
-| [src/components/cartographer/RotationControl.vue](../../src/components/cartographer/RotationControl.vue) | The rotate row, shared by the Place slip |
+| Path                                                                                                                                     | Purpose                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [supabase/migrations/20261014102253_dressing_library.sql](../../supabase/migrations/20261014102253_dressing_library.sql)                 | `library_dressing`, the `grimoire-dressing` source, `get_library_dressing_sources()`, `dressing_images_srd_*` storage policies, the `layers` column default |
+| [supabase/migrations/20261014102255_dressing_library_content.sql](../../supabase/migrations/20261014102255_dressing_library_content.sql) | The first catalog: 62 props, no art yet                                                                                                                     |
+| [supabase/tests/dressing_library.test.sql](../../supabase/tests/dressing_library.test.sql)                                               | Read for all, admin writes, footprint and group checks, the book listing, the layer default                                                                 |
+| [src/types/dressing.types.ts](../../src/types/dressing.types.ts)                                                                         | `LibraryDressing`, `DRESSING_GROUPS`                                                                                                                        |
+| [src/cartographer/dressing.ts](../../src/cartographer/dressing.ts)                                                                       | Footprints, rotated bounds, hit testing by `z`, drawing and the placeholder (no vue)                                                                        |
+| [src/cartographer/dressingImages.ts](../../src/cartographer/dressingImages.ts)                                                           | The pack-independent image loader, cached by url, and the catalog builder                                                                                   |
+| [src/cartographer/paintOps.ts](../../src/cartographer/paintOps.ts)                                                                       | `placeDressing` / `moveDressing` / `rotateDressing` / `removeDressing`                                                                                      |
+| [src/composables/cartographer/useLibraryDressing.ts](../../src/composables/cartographer/useLibraryDressing.ts)                           | The offered props (enabled books), every prop (resolution), and the live catalog                                                                            |
+| [src/composables/cartographer/useDressingTool.ts](../../src/composables/cartographer/useDressingTool.ts)                                 | Place, select, drag, turn, delete, erase, ghost                                                                                                             |
+| [src/components/cartographer/CartographerPlaceCatalog.vue](../../src/components/cartographer/CartographerPlaceCatalog.vue)               | The Place drawer's content (with `CartographerPlaceTile`, `PackTileThumb`, `PlaceItemThumb`)                                                                |
+| [src/components/cartographer/RotationControl.vue](../../src/components/cartographer/RotationControl.vue)                                 | The rotate row, shared by the Place slip                                                                                                                    |
 
 The art is made outside the app and published with `scripts/generate-library-art.ts`, kind `dressing`: transparent WebP at 256 px per cell (a 2x1 table is 512x256), seen from directly above, no cast shadow past the footprint, neutral enough to sit on any pack. Publish refuses a picture whose size does not match its row's footprint, and makes no focal guess (a prop is never cropped). The bucket joined every registry: `buckets.ts`, `STORAGE_WRITE_POLICY`, `dev-buckets.data.ts`, `IMAGE_COLUMNS`, `IMAGE_REFERENCES`, `LIBRARY_TABLES`, `move-library-art-to-srd.ts` and the R2 checklist in `infra/README.md`.
 
@@ -1363,7 +1365,7 @@ Plus `manifest.json` describing the pack (the `TilePackManifest` serialised).
 
 Historical prompt example (the #772 compiler now produces the authoritative per-slot prompt):
 
-> *"Top-down view of a stone dungeon floor tile, seamless tileable on all four edges, perpendicular grid alignment, no light source bias, subtle wear and cracks, dark grey weathered flagstones, no characters, no text, no shadows extending past the tile bounds. Preserve clear shapes when reduced to 128×128. Variant 3 — vary crack patterns from previous variants."*
+> _"Top-down view of a stone dungeon floor tile, seamless tileable on all four edges, perpendicular grid alignment, no light source bias, subtle wear and cracks, dark grey weathered flagstones, no characters, no text, no shadows extending past the tile bounds. Preserve clear shapes when reduced to 128×128. Variant 3 — vary crack patterns from previous variants."_
 
 The shared style guide:
 
@@ -1409,19 +1411,19 @@ This appendix tracks where the implementation actually lives so future agents do
 
 ### Files created in M1
 
-| Path | Purpose |
-| --- | --- |
-| [supabase/migrations/20260511000005_dungeon_maps_cartographer.sql](../../supabase/migrations/20260511000005_dungeon_maps_cartographer.sql) | `dungeon_maps` table + `locations.source_map_id` FK |
-| [src/types/dungeonMap.types.ts](../../src/types/dungeonMap.types.ts) | `DungeonMap`, `FloorCell`, `SolidCell`, `EdgeSeg`, `CellKey` helpers |
-| [src/cartographer/packSchema.ts](../../src/cartographer/packSchema.ts) | `TILE_PACK_SCHEMA`, `PackCategory`, `TilePackManifest`, `REQUIRED_CATEGORIES` |
-| [src/cartographer/validatePack.ts](../../src/cartographer/validatePack.ts) | `validatePack()` → `{ valid, missing, extras, warnings }` |
-| [src/cartographer/placeholderTile.ts](../../src/cartographer/placeholderTile.ts) | Procedural placeholder tiles (used when WebP asset missing or load fails) |
-| [src/cartographer/packLoader.ts](../../src/cartographer/packLoader.ts) | `loadPack(manifestUrl)` → `TilePackRuntime` with `getTile(category, variant, side?)` |
-| [public/cartographer/stone-dungeon/v1/manifest.json](../../public/cartographer/stone-dungeon/v1/manifest.json) | Starter pack manifest (declares full M1+M2 slot list) |
-| [public/cartographer/stone-dungeon/v1/README.md](../../public/cartographer/stone-dungeon/v1/README.md) | Asset list + generation guidelines for the AI pipeline |
-| [src/composables/cartographer/useDungeonMaps.ts](../../src/composables/cartographer/useDungeonMaps.ts) | `useDungeonMaps`, `useDungeonMap`, `useCreate/Update/DeleteDungeonMap` |
-| [src/views/cartographer/CartographerListView.vue](../../src/views/cartographer/CartographerListView.vue) | `/cartographer` list view with filter state |
-| [src/views/cartographer/CartographerEditorView.vue](../../src/views/cartographer/CartographerEditorView.vue) | `/cartographer/new` + `/cartographer/:id` editor (bar + rail + canvas + options slip + drawer) |
+| Path                                                                                                                                       | Purpose                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| [supabase/migrations/20260511000005_dungeon_maps_cartographer.sql](../../supabase/migrations/20260511000005_dungeon_maps_cartographer.sql) | `dungeon_maps` table + `locations.source_map_id` FK                                            |
+| [src/types/dungeonMap.types.ts](../../src/types/dungeonMap.types.ts)                                                                       | `DungeonMap`, `FloorCell`, `SolidCell`, `EdgeSeg`, `CellKey` helpers                           |
+| [src/cartographer/packSchema.ts](../../src/cartographer/packSchema.ts)                                                                     | `TILE_PACK_SCHEMA`, `PackCategory`, `TilePackManifest`, `REQUIRED_CATEGORIES`                  |
+| [src/cartographer/validatePack.ts](../../src/cartographer/validatePack.ts)                                                                 | `validatePack()` → `{ valid, missing, extras, warnings }`                                      |
+| [src/cartographer/placeholderTile.ts](../../src/cartographer/placeholderTile.ts)                                                           | Procedural placeholder tiles (used when WebP asset missing or load fails)                      |
+| [src/cartographer/packLoader.ts](../../src/cartographer/packLoader.ts)                                                                     | `loadPack(manifestUrl)` → `TilePackRuntime` with `getTile(category, variant, side?)`           |
+| [public/cartographer/stone-dungeon/v1/manifest.json](../../public/cartographer/stone-dungeon/v1/manifest.json)                             | Starter pack manifest (declares full M1+M2 slot list)                                          |
+| [public/cartographer/stone-dungeon/v1/README.md](../../public/cartographer/stone-dungeon/v1/README.md)                                     | Asset list + generation guidelines for the AI pipeline                                         |
+| [src/composables/cartographer/useDungeonMaps.ts](../../src/composables/cartographer/useDungeonMaps.ts)                                     | `useDungeonMaps`, `useDungeonMap`, `useCreate/Update/DeleteDungeonMap`                         |
+| [src/views/cartographer/CartographerListView.vue](../../src/views/cartographer/CartographerListView.vue)                                   | `/cartographer` list view with filter state                                                    |
+| [src/views/cartographer/CartographerEditorView.vue](../../src/views/cartographer/CartographerEditorView.vue)                               | `/cartographer/new` + `/cartographer/:id` editor (bar + rail + canvas + options slip + drawer) |
 
 ### Files modified in M1
 
@@ -1478,17 +1480,17 @@ The migration file is in place but **not yet applied to the remote Supabase proj
 
 ### New files added in M2
 
-| Path | Purpose |
-| --- | --- |
-| [src/cartographer/edges.ts](../../src/cartographer/edges.ts) | `canonicaliseEdge` — NW ownership rule |
-| [src/cartographer/edges.test.ts](../../src/cartographer/edges.test.ts) | TDD: NW ownership + edge helpers |
-| [src/cartographer/edgeHover.ts](../../src/cartographer/edgeHover.ts) | `detectHoveredEdge` — pointer → edge snap |
-| [src/cartographer/edgeHover.test.ts](../../src/cartographer/edgeHover.test.ts) | TDD: edge-hover threshold maths |
-| [src/cartographer/commandStack.ts](../../src/cartographer/commandStack.ts) | `CommandStack` + `CompoundCommand` |
-| [src/cartographer/commandStack.test.ts](../../src/cartographer/commandStack.test.ts) | TDD: undo/redo stack |
-| [src/cartographer/floodFill.ts](../../src/cartographer/floodFill.ts) | `floodFill` + `boundaryEdges` |
-| [src/cartographer/floodFill.test.ts](../../src/cartographer/floodFill.test.ts) | TDD: flood-fill + boundary-edge |
-| [vitest.config.ts](../../vitest.config.ts) | Vitest config: happy-dom for component/view/composable tests, plain Node elsewhere |
+| Path                                                                                 | Purpose                                                                            |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| [src/cartographer/edges.ts](../../src/cartographer/edges.ts)                         | `canonicaliseEdge` — NW ownership rule                                             |
+| [src/cartographer/edges.test.ts](../../src/cartographer/edges.test.ts)               | TDD: NW ownership + edge helpers                                                   |
+| [src/cartographer/edgeHover.ts](../../src/cartographer/edgeHover.ts)                 | `detectHoveredEdge` — pointer → edge snap                                          |
+| [src/cartographer/edgeHover.test.ts](../../src/cartographer/edgeHover.test.ts)       | TDD: edge-hover threshold maths                                                    |
+| [src/cartographer/commandStack.ts](../../src/cartographer/commandStack.ts)           | `CommandStack` + `CompoundCommand`                                                 |
+| [src/cartographer/commandStack.test.ts](../../src/cartographer/commandStack.test.ts) | TDD: undo/redo stack                                                               |
+| [src/cartographer/floodFill.ts](../../src/cartographer/floodFill.ts)                 | `floodFill` + `boundaryEdges`                                                      |
+| [src/cartographer/floodFill.test.ts](../../src/cartographer/floodFill.test.ts)       | TDD: flood-fill + boundary-edge                                                    |
+| [vitest.config.ts](../../vitest.config.ts)                                           | Vitest config: happy-dom for component/view/composable tests, plain Node elsewhere |
 
 ### Wood Interior pack (post-M2)
 
@@ -1496,8 +1498,8 @@ A second bundled pack, `wood-interior`, ships alongside `stone-dungeon`. Real We
 
 **Multi-pack bug fixes landed alongside this pack:**
 
-- `paintCell` guard now checks `pack_id` *and* `variant` — previously skipped overpainting when variant number matched even across packs.
-- `paintWallAtCellEdge` guard now allows overpainting if the existing wall belongs to a *different* pack (allows restyling a dungeon).
+- `paintCell` guard now checks `pack_id` _and_ `variant` — previously skipped overpainting when variant number matched even across packs.
+- `paintWallAtCellEdge` guard now allows overpainting if the existing wall belongs to a _different_ pack (allows restyling a dungeon).
 - Corner joint `thickness` corrected to `tilePx * (35/128)` to match extracted art strip width (was `0.18 × tilePx`).
 - Corner joint pack detection now checks all four adjacent walls instead of just the SE pair, so corners don't flicker to `currentPackId` when the active pack changes.
 - `wallJoint` generic tile lookup: renderer tries directional side-keyed tile first, then generic variant-0 (no side field), then procedural square. Packs only need `"wallJoint": [{ "variant": 0 }]` for uniform corners.
@@ -1515,9 +1517,9 @@ A second bundled pack, `wood-interior`, ships alongside `stone-dungeon`. Real We
 
 ### New files added in M4
 
-| Path | Purpose |
-| --- | --- |
-| *(no new files — all changes in existing files)* | |
+| Path                                             | Purpose |
+| ------------------------------------------------ | ------- |
+| _(no new files — all changes in existing files)_ |         |
 
 ### Modified in M4
 
@@ -1549,8 +1551,8 @@ A second bundled pack, `wood-interior`, ships alongside `stone-dungeon`. Real We
 
 ### New files added in M5
 
-| Path | Purpose |
-| --- | --- |
+| Path                                                       | Purpose                                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------------------ |
 | [src/cartographer/bake.ts](../../src/cartographer/bake.ts) | `bakeMap()` + `bakeMapAsPng()` — offline OffscreenCanvas composite |
 
 ### Modified in M5
