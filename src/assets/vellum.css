@@ -855,22 +855,18 @@
    combobox lists), with an offset underleaf and no blur. The field hooks are
    data-field* rather than data-size, which AppButton's Cinzel rule owns. */
 :root[data-theme="vellum"] {
-  --vl-slip-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23faf6ee' stroke='%23cfc3ad' stroke-width='1' filter='url%28%23r%29'/%3E%3C/svg%3E");
+  --vl-slip-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='130%25' height='130%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G' result='p'/%3E%3CfeOffset in='p' dx='3' dy='5' result='o'/%3E%3CfeFlood flood-color='%23e2d6bf'/%3E%3CfeComposite in2='o' operator='in' result='u'/%3E%3CfeOffset in='p' dy='1' result='d'/%3E%3CfeGaussianBlur in='d' stdDeviation='0.75' result='b'/%3E%3CfeFlood flood-color='%232b2019' flood-opacity='0.16'/%3E%3CfeComposite in2='b' operator='in' result='c'/%3E%3CfeMerge%3E%3CfeMergeNode in='u'/%3E%3CfeMergeNode in='c'/%3E%3CfeMergeNode in='p'/%3E%3C/feMerge%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23faf6ee' stroke='%23cfc3ad' stroke-width='1' filter='url%28%23r%29'/%3E%3C/svg%3E");
   --vl-field-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23faf6ee' stroke='%238a7d6c' stroke-width='1' filter='url%28%23r%29'/%3E%3C/svg%3E");
   --vl-field-frame-focus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23faf6ee' stroke='%232b2019' stroke-width='1.5' filter='url%28%23r%29'/%3E%3C/svg%3E");
   --vl-field-frame-invalid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23faf6ee' stroke='%23a3301d' stroke-width='1.5' filter='url%28%23r%29'/%3E%3C/svg%3E");
-  --vl-underleaf: #e2d6bf;
-  --vl-contact: rgb(43 32 25 / 0.16);
   --vl-hand-ink: #4a3628;
   --vl-line: #8a7d6c;
 }
 :root[data-theme="vellum-dark"] {
-  --vl-slip-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23261e18' stroke='%233d3228' stroke-width='1' filter='url%28%23r%29'/%3E%3C/svg%3E");
+  --vl-slip-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='130%25' height='130%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G' result='p'/%3E%3CfeOffset in='p' dx='3' dy='5' result='o'/%3E%3CfeFlood flood-color='%230f0b09'/%3E%3CfeComposite in2='o' operator='in' result='u'/%3E%3CfeOffset in='p' dy='1' result='d'/%3E%3CfeGaussianBlur in='d' stdDeviation='0.75' result='b'/%3E%3CfeFlood flood-color='%23000000' flood-opacity='0.45'/%3E%3CfeComposite in2='b' operator='in' result='c'/%3E%3CfeMerge%3E%3CfeMergeNode in='u'/%3E%3CfeMergeNode in='c'/%3E%3CfeMergeNode in='p'/%3E%3C/feMerge%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23261e18' stroke='%233d3228' stroke-width='1' filter='url%28%23r%29'/%3E%3C/svg%3E");
   --vl-field-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23261e18' stroke='%2396846a' stroke-width='1' filter='url%28%23r%29'/%3E%3C/svg%3E");
   --vl-field-frame-focus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23261e18' stroke='%23eadfca' stroke-width='1.5' filter='url%28%23r%29'/%3E%3C/svg%3E");
   --vl-field-frame-invalid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cfilter id='r' x='-10%25' y='-10%25' width='120%25' height='120%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045 0.07' numOctaves='3' seed='11'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='6' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='5' y='5' width='62' height='62' fill='%23261e18' stroke='%23ec7a61' stroke-width='1.5' filter='url%28%23r%29'/%3E%3C/svg%3E");
-  --vl-underleaf: #0f0b09;
-  --vl-contact: rgb(0 0 0 / 0.45);
   --vl-hand-ink: #dccbb0;
   --vl-line: #96846a;
 }
@@ -958,7 +954,13 @@
 }
 
 /* Floating slip. Outset 7px so a full-width hovered row never pokes past the
-   torn line. Nothing animates here. */
+   torn line. Nothing animates here.
+   The underleaf and the contact shadow are drawn inside --vl-slip-frame, not
+   with `filter: drop-shadow`. A slip is often the element that scrolls (a
+   combobox list), and iOS Safari does not repaint rows scrolled into a
+   filtered scroller until the page itself moves: they stayed blank (25 Oct
+   2026). The filter also shadowed every line of text in the slip. Do not put
+   a filter back on [data-slip]. */
 :root[data-theme^="vellum"] [data-slip] {
   border-color: transparent;
   border-radius: 0;
@@ -966,5 +968,5 @@
   background: none;
   backdrop-filter: none;
   border-image: var(--vl-slip-frame) 12 fill / 0.75rem / 0.4375rem round;
-  filter: drop-shadow(3px 5px 0 var(--vl-underleaf)) drop-shadow(0 1px 1.5px var(--vl-contact));
+  filter: none;
 }
