@@ -43,6 +43,15 @@
           label="Experiment"
           :to="{ name: 'play-crafting-experiment', params: { discipline: activeDiscipline.id } }"
         />
+        <AppButton
+          v-if="inventAvailable"
+          variant="subtle"
+          size="sm"
+          class="order-last"
+          :icon="IconWand"
+          label="Invent"
+          :to="{ name: 'play-crafting-invent', params: { discipline: activeDiscipline.id } }"
+        />
         <p class="min-w-0 flex-1 basis-80 text-body text-muted-foreground italic">
           {{ activeDiscipline.description }}
           <span class="not-italic ml-1">
@@ -195,11 +204,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
-import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView, IconSearch } from '@/lib/icons';
+import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView, IconSearch, IconWand } from '@/lib/icons';
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines";
 import type { DisciplineConfig } from "@/lib/crafting/disciplines";
+import { useInventionAvailable } from "@/composables/crafting/useCraftInventions";
 import { usePlayerCrafting } from "@/composables/crafting/usePlayerCrafting";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -210,6 +220,7 @@ import { useCraftingUiStore } from "@/stores/ui/crafting";
 import type { CraftingRecipe, CraftingDiscipline } from "@/types/crafting.types";
 
 const craftingUi = useCraftingUiStore();
+const inventAvailable = useInventionAvailable();
 const { recipes, member, outputsFor, itemName, artFor, hasProficiency, hasTools, slotsFor } = usePlayerCrafting();
 
 // Only disciplines that have at least one accessible recipe

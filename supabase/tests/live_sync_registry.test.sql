@@ -70,7 +70,7 @@ insert into live_sync_doorbell (name) values
   ('dungeon_features'),
   -- Campaign content (#1033 wave 2).
   ('monsters'), ('spells'), ('species'), ('custom_classes'), ('custom_subclasses'),
-  ('class_features'), ('rules'), ('traps'), ('crafting_recipes'),
+  ('class_features'), ('rules'), ('traps'), ('crafting_recipes'), ('crafting_inventions'),
   ('crafting_recipe_ingredients'), ('crafting_recipe_outputs'),
   ('crafting_recipe_modifiers'), ('campaign_enabled_sources'), ('campaign_tile_packs'),
   ('sounds'), ('soundboard_pages'), ('soundboard_playlists'),

@@ -130,6 +130,25 @@ registerOptionalRule({
   defaultEnabled: true,
 });
 
+// ── AI invention (experiment bench, #1103) ────────────────────────────────────
+// Read server-side by craft_invention_context and the invent-recipe edge function from
+// campaign_rules; no row means on, with value_multiple 2.
+registerOptionalRule({
+  key: "crafting_ai_invention",
+  name: "AI invention",
+  summary:
+    "Players can ask an AI what their materials could make, or describe an invention; you approve every draft.",
+  description:
+    "On the experiment bench a player can ask what the materials they laid out could make, or describe something they want to build. An AI drafts the item, its rules, its value and a recipe. Nothing exists in the campaign until **you approve it**.\n\n" +
+    "**Rarity and value are paid for in materials.** An invention is never rarer than its rarest ingredient, and is worth at most the **value multiple** times what its ingredients are worth. Set the multiple below: an invention may be worth at most this many times its materials. Its effects must also fit what its rarity allows in the Dungeon Master's Guide.\n\n" +
+    "Each draft reaches you in the Workshop. Approve it and the recipe (and any new item or material) is created and shared with the character, or send it back with a note and the player can revise it. It needs AI turned on for the campaign, and the asking player spends one AI credit per draft.",
+  dmOnly: true,
+  defaultEnabled: true,
+  config: [
+    { key: "value_multiple", label: "Worth at most this many times its materials", type: "number", default: 2, min: 1, max: 5, unit: "times" },
+  ],
+});
+
 // ── The Interlude (downtime activities) ───────────────────────────────────────
 registerOptionalRule({
   key: "downtime",

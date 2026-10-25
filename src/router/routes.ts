@@ -237,6 +237,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Experiment", fullscreenMobile: true },
   },
   {
+    path: "/play/crafting/invent/:discipline",
+    name: "play-crafting-invent",
+    component: () => import("@/views/player/PlayerInventView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Inventor's notebook", fullscreenMobile: true },
+  },
+  {
     path: "/play/crafting/:recipeId",
     name: "play-crafting-workbench",
     component: () => import("@/views/player/PlayerWorkbenchView.vue"),

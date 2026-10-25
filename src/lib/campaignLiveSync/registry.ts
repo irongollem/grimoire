@@ -244,6 +244,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["rules", ["rules"]],
   ["traps", ["traps"]],
   ["crafting_recipes", ["crafting-recipes", "craftable-output-items"]],
+  ["crafting_inventions", ["crafting-inventions"]],
   ["crafting_recipe_ingredients", ["crafting-ingredients"]],
   ["crafting_recipe_outputs", ["crafting-outputs", "craftable-output-items"]],
   ["crafting_recipe_modifiers", ["crafting-modifiers"]],

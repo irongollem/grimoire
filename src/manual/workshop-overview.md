@@ -88,6 +88,19 @@ A player can also find a recipe they were never shown. On a discipline's tab in 
 - **No match** costs an hour that is stated, not tracked. Nothing is ever used up by experimenting.
 - **Near-miss hints.** When a set is one ingredient short of a discoverable recipe, or has one item too many, the player is told they are close, never what is missing. Switch this off with the **Near-miss hints** rule in Campaign Settings, under Rules.
 
+## Inventing something new
+
+A player who wants something no recipe covers can **Invent** it. The button sits beside Experiment on each craft's tab in the Workshop, and opens the inventor's notebook for that craft. It is available when the **AI invention** rule is on and AI is enabled for the campaign. There are two ways in:
+
+- **Describe it.** In the notebook the player writes what they want to make. The AI drafts a recipe and the item it makes.
+- **Ask the bench.** After an experiment that finds nothing, or comes close, the player can press **Ask what these could make**. The AI looks at the materials laid out and suggests what they could become, or says that nothing comes to mind.
+
+Rarity and value are paid for in materials. A draft can never be worth more than the materials it asks for, and an item is never rarer than the rarest ingredient. Magic needs rare materials and real skill: a magic recipe asks for a high DC and proficiency with the craft's tools, and takes days to make. A mundane item stays cheap and quick.
+
+- **The DM approves every draft.** The player reviews the draft, can **Revise** it with a short note (a new draft, paid again), then **Send to your DM**. Nothing is created until you approve it. You can send it back with a note, and the player revises it. When you approve, the recipe is shared with that character, and any new item or material is added to the campaign.
+- **The rules check the draft first.** Anything the AI invents is held to the craft's item types and to a power budget for its rarity. Where the description carries effects the rules did not recognise, you are warned in the draft.
+- **It costs credits.** Each draft and each revision costs one credit, paid by the player who asks. Sending, withdrawing and clearing are free.
+
 ## Item vault integration
 
 Importing items in the **Vault** seeds provisions including crafting ingredients and outputs: rough gems, ore, herbs, and other crafting materials. Importing items before importing recipes isn't required, but it means players will already have something to pick up and spend.

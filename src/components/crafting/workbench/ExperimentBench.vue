@@ -70,8 +70,13 @@
       :result="result"
       :discipline="discipline"
       :chat-notice="chatNotice"
+      :can-invent="inventAvailable && !previewing"
+      :inventing="inventions.materialsPending.value"
+      :invent-cost="inventCost"
+      :invent-message="inventMessage"
       @close="onClose"
       @attempt="onAttempt"
+      @invent="onInvent"
     />
   </div>
 </template>
@@ -86,6 +91,9 @@ import ExperimentPack from "@/components/crafting/workbench/ExperimentPack.vue";
 import ExperimentSlot from "@/components/crafting/workbench/ExperimentSlot.vue";
 import WorkbenchBenchFrame from "@/components/crafting/workbench/WorkbenchBenchFrame.vue";
 import { useCraftExperiment } from "@/composables/crafting/useCraftExperiment";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
+import { INVENTION_COST_KEY, useCraftInventions, useInventionAvailable } from "@/composables/crafting/useCraftInventions";
 import type { PlayerCrafting } from "@/composables/crafting/usePlayerCrafting";
 import { useAbove } from "@/composables/useBreakpoint";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -144,14 +152,39 @@ watch(laidOut, clearError);
 const appUi = useAppUiStore();
 const previewing = computed(() => appUi.dmPreviewMode);
 
+// The rows the last experiment laid out, so "what could these make?" asks about exactly that set.
+const lastRowIds = ref<string[]>([]);
+const inventAvailable = useInventionAvailable();
+const inventions = useCraftInventions();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
+const inventCost = computed(() => costOf(INVENTION_COST_KEY));
+const inventNote = ref<string | null>(null);
+const inventMessage = computed(() => inventions.materialsError.value ?? inventNote.value);
+
 function onExperiment() {
-  void experiment(
-    disciplineId,
-    entries.value.map((e) => e.row.id),
-  );
+  inventNote.value = null;
+  inventions.resetMaterials();
+  lastRowIds.value = entries.value.map((e) => e.row.id);
+  void experiment(disciplineId, lastRowIds.value);
+}
+
+async function onInvent() {
+  if (!requireCredits(inventCost.value, false)) return;
+  inventNote.value = null;
+  const out = await inventions.inventFromMaterials(member.id, disciplineId, lastRowIds.value);
+  if (!out) return;
+  if (out.kind === "nothing") {
+    inventNote.value = `Nothing comes to mind: ${out.reason}`;
+    return;
+  }
+  dismiss();
+  void router.push({ name: "play-crafting-invent", params: { discipline: disciplineId }, query: { draft: out.invention.id } });
 }
 
 function onClose() {
+  inventNote.value = null;
+  inventions.resetMaterials();
   dismiss();
 }
 

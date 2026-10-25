@@ -38,6 +38,8 @@
       <ListLayoutToggle v-model="layout" />
     </template>
 
+    <InventionApprovalQueue v-if="auth.isDM" />
+
     <!-- Discipline tabs (body content) -->
     <div class="flex flex-wrap gap-1 mb-6 rounded-md border border-border p-1 bg-muted w-fit max-w-full overflow-x-auto">
       <SegmentedControl
@@ -177,6 +179,7 @@ import { IconAdd, IconDelete, IconDownload, IconGenerate, IconListView, IconNavW
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import InventionApprovalQueue from "@/components/crafting/invention/InventionApprovalQueue.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
