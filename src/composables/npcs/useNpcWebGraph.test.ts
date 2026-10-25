@@ -67,3 +67,27 @@ describe("useNpcWebGraph kin edges", () => {
     expect(Object.keys(graphEdges.value)).toEqual([]);
   });
 });
+
+describe("useNpcWebGraph directed bonds", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+  const typed = (a: string, b: string, relationship_type: string) =>
+    ({ npc_id: a, related_npc_id: b, relationship_type }) as unknown as NpcRelation;
+
+  it("points from the superior to the subordinate, whichever end the row was written from", () => {
+    // "b is a's superior" and "a is b's subordinate" are the same fact, and draw the same arrow.
+    for (const row of [typed("a", "b", "superior"), typed("b", "a", "subordinate")]) {
+      const { graphEdges } = graph({ relations: () => [row] });
+      expect(Object.values(graphEdges.value)[0]).toMatchObject({ source: "npc:b", target: "npc:a", arrow: true, label: "superior" });
+    }
+  });
+
+  it("points from the mentor to the apprentice", () => {
+    const { graphEdges } = graph({ relations: () => [typed("a", "b", "apprentice")] });
+    expect(Object.values(graphEdges.value)[0]).toMatchObject({ source: "npc:a", target: "npc:b", arrow: true, label: "mentor" });
+  });
+
+  it("leaves a symmetric bond without an arrow", () => {
+    const { graphEdges } = graph({ relations: () => [bond("a", "b")] });
+    expect(Object.values(graphEdges.value)[0].arrow).toBeUndefined();
+  });
+});

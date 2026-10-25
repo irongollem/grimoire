@@ -58,7 +58,7 @@ import ConnectionSlip, { type ConnectionTag } from "@/components/common/entity/C
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
-import { NPC_RELATIONSHIP_TYPE_LABELS, NPC_RELATIONSHIP_TYPE_VAR } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_TYPE_VAR, npcRelationLabel } from "@/types/npc.types";
 import type { ResolvedSuggestion } from "@/ai/useNpcRelationshipSuggestions";
 import type { SetAsideKin, SuggestedKinRelation } from "@edge-shared/npcRelationshipSuggestions.ts";
 
@@ -76,7 +76,7 @@ function capitalised(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-defineProps<{
+const { sourceName } = defineProps<{
   suggestions: ResolvedSuggestion[];
   /** Kin claims the server refused, shown as one muted line each. */
   setAside: SetAsideKin[];
@@ -113,7 +113,7 @@ function tagsOf(s: ResolvedSuggestion): ConnectionTag[] {
 function badge(s: ResolvedSuggestion): { label: string; color: string } {
   if (s.kind === "npc") {
     return {
-      label: NPC_RELATIONSHIP_TYPE_LABELS[s.relationship_type],
+      label: npcRelationLabel(s.relationship_type, sourceName),
       color: NPC_RELATIONSHIP_TYPE_VAR[s.relationship_type],
     };
   }

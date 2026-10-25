@@ -57,6 +57,45 @@ export const NPC_RELATIONSHIP_INVERSE: Record<NpcRelationshipType, NpcRelationsh
   former_enemy:  "former_enemy",
 };
 
+/**
+ * The directed bonds, by the end that leads: a superior over a subordinate, a mentor over an apprentice. Each
+ * pair is one relation read from either end, like a parent and a child, so it shares one colour, is worded with
+ * whose it is ("Ulkora's subordinate"), and is drawn on the web as one arrow from the leading end.
+ */
+export const NPC_DIRECTED_LEADS: Partial<Record<NpcRelationshipType, NpcRelationshipType>> = {
+  superior: "subordinate",
+  mentor: "apprentice",
+};
+
+/** True for either end of a directed bond. */
+export function isDirectedRelation(type: NpcRelationshipType): boolean {
+  return type in NPC_DIRECTED_LEADS || NPC_RELATIONSHIP_INVERSE[type] in NPC_DIRECTED_LEADS;
+}
+
+/**
+ * How a type reads on the card of the person it describes. `owner` is whose they are: on Ulkora's sheet,
+ * Gunvald's card reads "Ulkora's subordinate". Symmetric types need no owner ("Friend").
+ */
+export function npcRelationLabel(type: NpcRelationshipType, owner: string | null | undefined): string {
+  const label = NPC_RELATIONSHIP_TYPE_LABELS[type] ?? type;
+  return owner && isDirectedRelation(type) ? `${owner}'s ${label.toLowerCase()}` : label;
+}
+
+/** Picker options with each directed type worded for `owner`. */
+export function npcRelationOptions(owner: string | null | undefined): [NpcRelationshipType, string][] {
+  return (Object.keys(NPC_RELATIONSHIP_TYPE_LABELS) as NpcRelationshipType[]).map((t) => [t, npcRelationLabel(t, owner)]);
+}
+
+/** Filter options: a directed pair is one relation, so it is one option, keyed by its leading end. */
+export const NPC_RELATIONSHIP_FILTER_OPTIONS: [NpcRelationshipType, string][] = (
+  Object.keys(NPC_RELATIONSHIP_TYPE_LABELS) as NpcRelationshipType[]
+)
+  .filter((t) => !isDirectedRelation(t) || t in NPC_DIRECTED_LEADS)
+  .map((t) => {
+    const led = NPC_DIRECTED_LEADS[t];
+    return [t, led ? `${NPC_RELATIONSHIP_TYPE_LABELS[t]} / ${NPC_RELATIONSHIP_TYPE_LABELS[led].toLowerCase()}` : NPC_RELATIONSHIP_TYPE_LABELS[t]];
+  });
+
 export const NPC_RELATIONSHIP_TYPE_BG: Record<NpcRelationshipType, string> = {
   chosen_family:    "bg-relation-chosen-family",
   friend:           "bg-relation-friend",
@@ -100,9 +139,9 @@ export const NPC_RELATIONSHIP_TYPE_VAR: Record<NpcRelationshipType, string> = {
   rival:            "var(--relation-rival)",
   enemy:            "var(--relation-enemy)",
   mentor:           "var(--relation-mentor)",
-  apprentice:       "var(--relation-apprentice)",
+  apprentice:       "var(--relation-mentor)",      // one relation with mentor: one colour
   lover:            "var(--relation-lover)",
-  subordinate:      "var(--relation-subordinate)",
+  subordinate:      "var(--relation-superior)",    // one relation with superior: one colour
   superior:         "var(--relation-superior)",
   contact:          "var(--relation-contact)",
   former_ally:      "var(--relation-former-ally)",

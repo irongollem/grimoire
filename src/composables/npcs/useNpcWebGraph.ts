@@ -8,7 +8,12 @@ import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
 import { kinWebEdges, webPairKey } from "@/lib/kinship/webEdge";
 import { NPC_WEB_KIN_FILTER, useNpcsUiStore } from "@/stores/ui/npcs";
 import type { KinLink } from "@/types/kinship.types";
-import { NPC_RELATIONSHIP_INVERSE, NPC_RELATIONSHIP_TYPE_VAR } from "@/types/npc.types";
+import {
+  NPC_DIRECTED_LEADS,
+  NPC_RELATIONSHIP_INVERSE,
+  NPC_RELATIONSHIP_TYPE_LABELS,
+  NPC_RELATIONSHIP_TYPE_VAR,
+} from "@/types/npc.types";
 import type { NpcListRow, NpcPcNote, NpcRelation, NpcRelationshipType } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -79,7 +84,10 @@ export interface NpcWebEdge {
   target: string;
   edgeColor: string;
   dashed: boolean;
-  /** Kin lines only: a parent line points at the child, and every kin line carries its word. */
+  /**
+   * A parent line points at the child and every kin line carries its word; a directed bond is drawn the same
+   * way, from the superior or mentor to the one they lead, worded "superior" or "mentor".
+   */
   arrow?: boolean;
   label?: string;
 }
@@ -222,11 +230,16 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       const b = `npc:${rel.related_npc_id}`;
       const key = webPairKey(a, b);
       if (!edges[key]) {
+        // The row's type is what b is to a. A leading type (superior, mentor) means b leads a; its inverse means a leads b.
+        const bLeads = rawType in NPC_DIRECTED_LEADS;
+        const aLeads = NPC_RELATIONSHIP_INVERSE[rawType] in NPC_DIRECTED_LEADS;
+        const leadType = bLeads ? rawType : aLeads ? NPC_RELATIONSHIP_INVERSE[rawType] : null;
         edges[key] = {
-          source: a,
-          target: b,
+          source: aLeads ? a : bLeads ? b : a,
+          target: aLeads ? b : bLeads ? a : b,
           edgeColor: edgeColor(resolveVar(NPC_RELATIONSHIP_TYPE_VAR[rawType], "#6b7280"), a, b),
           dashed: false,
+          ...(leadType ? { arrow: true, label: NPC_RELATIONSHIP_TYPE_LABELS[leadType].toLowerCase() } : {}),
         };
       }
     }
@@ -334,7 +347,7 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       },
       marker: {
         source: { type: "none" },
-        // Only a parent line points: from the parent to the child.
+        // A parent line points from the parent to the child; a directed bond from the one who leads.
         target: { type: ([e]) => ((e as unknown as { arrow?: boolean }).arrow ? "arrow" : "none") },
       },
       label: {

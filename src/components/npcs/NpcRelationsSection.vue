@@ -218,9 +218,9 @@ import {
 } from "@/ai/useNpcRelationshipSuggestions";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import {
-  NPC_RELATIONSHIP_TYPE_LABELS,
   NPC_RELATIONSHIP_TYPE_VAR,
   NPC_RELATIONSHIP_INVERSE,
+  npcRelationOptions,
 } from "@/types/npc.types";
 import type { NpcRelationshipType, NpcRelation } from "@/types/npc.types";
 
@@ -247,13 +247,8 @@ const otherNpcs = computed(() =>
   (allNpcs.value ?? []).filter((n) => n.id !== props.npcId),
 );
 
-const typeOptions = computed(
-  () =>
-    Object.entries(NPC_RELATIONSHIP_TYPE_LABELS) as [
-      NpcRelationshipType,
-      string,
-    ][],
-);
+// A directed type is worded as whose it is: on Ulkora's sheet, "Ulkora's subordinate".
+const typeOptions = computed(() => npcRelationOptions(npcById.value[props.npcId]?.name));
 
 // Return the effective relationship type from *this* NPC's perspective.
 // If this NPC is the related_npc_id (i.e. it's on the receiving end), flip to the inverse.
