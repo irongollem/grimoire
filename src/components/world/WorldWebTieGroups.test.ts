@@ -18,11 +18,11 @@ function mountGroups(editable: boolean) {
 }
 
 describe("WorldWebTieGroups", () => {
-  it("answers in words: what the others are to the subject, over the ones who are", () => {
+  it("answers in words read from the subject, over the ones they name", () => {
     const text = mountGroups(false).text();
-    expect(text).toContain("Worships The Drowned Lady");
+    expect(text).toContain("Worshipped by");
     expect(text).toContain("Brenna Ashe");
-    expect(text).toContain("Serves The Drowned Lady");
+    expect(text).toContain("Served by");
     expect(text).toContain("Sister Ama");
   });
 

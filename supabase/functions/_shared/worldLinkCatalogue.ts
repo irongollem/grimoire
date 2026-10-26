@@ -143,7 +143,7 @@ export const WORLD_LINK_PAIRS: readonly LinkPair[] = [
     to: ["faction"],
     // Every person-to-faction tie is a membership; its roles already say Patron, Adversary, Infiltrator.
     types: [],
-    records: [{ key: "member_of", forward: "member of", reverse: "member", home: "membership", common: true }],
+    records: [{ key: "member_of", forward: "member of", reverse: "includes", home: "membership", common: true }],
   },
   {
     pair: "person_location",
@@ -164,7 +164,7 @@ export const WORLD_LINK_PAIRS: readonly LinkPair[] = [
     ],
     records: [
       { key: "lives_in", forward: "lives in", reverse: "home of", home: "npc_home", fromKinds: ["npc"], single: true, common: true },
-      { key: "is_at", forward: "is at", reverse: "where", home: "pc_place", fromKinds: ["party_member"], single: true },
+      { key: "is_at", forward: "is at", reverse: "hosts", home: "pc_place", fromKinds: ["party_member"], single: true },
       { key: "keeps", forward: "keeps", reverse: "kept by", home: "keeper", fromKinds: ["npc"] },
     ],
   },
@@ -175,7 +175,7 @@ export const WORLD_LINK_PAIRS: readonly LinkPair[] = [
     types: [
       dir("worships", "worships", "worshipped by", "faith", true),
       dir("serves", "serves", "served by", "faith", true),
-      dir("champion_of", "champion of", "champion", "faith"),
+      dir("champion_of", "champion of", "championed by", "faith"),
       dir("chosen_of", "chosen of", "has chosen", "faith"),
       dir("blessed_by", "blessed by", "has blessed", "faith"),
       dir("cursed_by", "cursed by", "has cursed", "enmity", true),
@@ -295,8 +295,8 @@ export const WORLD_LINK_PAIRS: readonly LinkPair[] = [
     from: ["location"],
     to: ["deity"],
     types: [
-      dir("sacred_to", "sacred to", "holy site", "faith", true),
-      dir("shrine_to", "shrine to", "shrine", "faith", true),
+      dir("sacred_to", "sacred to", "holy at", "faith", true),
+      dir("shrine_to", "shrine to", "enshrined at", "faith", true),
       dir("blessed_by", "blessed by", "has blessed", "faith"),
       dir("cursed_by", "cursed by", "has cursed", "enmity"),
       dir("forsaken_by", "forsaken by", "has forsaken", "enmity"),
@@ -309,7 +309,7 @@ export const WORLD_LINK_PAIRS: readonly LinkPair[] = [
     types: [
       dir("kept_at", "kept at", "keeps", "holding", true),
       dir("hidden_at", "hidden at", "hides", "holding", true),
-      dir("lost_at", "lost at", "where was lost", "holding"),
+      dir("lost_at", "lost at", "site of the loss of", "holding"),
       dir("forged_at", "forged at", "forge of", "holding"),
     ],
     records: [{ key: "sold_at", forward: "sold at", reverse: "sells", home: "store" }],
@@ -319,7 +319,7 @@ export const WORLD_LINK_PAIRS: readonly LinkPair[] = [
     from: ["item"],
     to: ["deity"],
     types: [
-      dir("relic_of", "relic of", "relic", "faith", true),
+      dir("relic_of", "relic of", "has the relic", "faith", true),
       dir("blessed_by", "blessed by", "has blessed", "faith"),
       dir("cursed_by", "cursed by", "has cursed", "enmity"),
     ],

@@ -45,7 +45,7 @@ describe("connections of a book entry", () => {
   it("reads the same tie in the other direction from the far page", () => {
     const model = buildBookModel(snapshot(ties));
     expect(model.connectionsOf("lady")[0]!.lines[0]!.word).toBe("worshipped by");
-    expect(model.connectionsOf("thane")[0]!.lines[0]!.word).toBe("member");
+    expect(model.connectionsOf("thane")[0]!.lines[0]!.word).toBe("includes");
     expect(model.connectionsOf("ama")[0]!.lines[0]!.word).toBe("parent of");
   });
 

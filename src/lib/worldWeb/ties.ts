@@ -142,7 +142,8 @@ export function groupTies(ties: readonly WorldTie[], subject: string): TieGroup[
     const item: TieItem = subjectIsFrom
       ? { tie, key: toKey(tie), name: tie.to_name, image: tie.to_image, kind: tie.to_kind }
       : { tie, key: fromKey(tie), name: tie.from_name, image: tie.from_image, kind: tie.from_kind };
-    const word = tieWord(tie, subjectIsFrom ? "to" : "from");
+    // Worded from the subject, as a sheet words its Connections: "carries", "worshipped by".
+    const word = tieWord(tie, subjectIsFrom ? "from" : "to");
     const list = groups.get(word);
     if (list) list.push(item);
     else groups.set(word, [item]);

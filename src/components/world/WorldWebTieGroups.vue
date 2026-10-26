@@ -8,7 +8,7 @@
   <div class="flex flex-col gap-4">
     <section v-for="group in groups" :key="group.word" class="flex flex-col gap-1">
       <h3 class="text-label font-bold uppercase text-muted-foreground">
-        {{ capitalise(group.word) }} {{ subjectName }}
+        {{ capitalise(group.word) }}
         <span class="font-normal">({{ group.items.length }})</span>
       </h3>
 

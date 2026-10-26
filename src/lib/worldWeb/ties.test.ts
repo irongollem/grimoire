@@ -70,18 +70,18 @@ describe("groupTies", () => {
     tie({ row_id: "5", type: "friend", from_id: "brenna", to_kind: "npc", to_id: "ama", to_name: "Sister Ama" }),
   ];
 
-  it("groups what others are to the subject by the word they read, largest first", () => {
+  it("groups the subject's ties by the word read from the subject, largest first", () => {
     const groups = groupTies(ties, "deity:lady");
     expect(groups.map((g) => [g.word, g.items.map((i) => i.name)])).toEqual([
-      ["worships", ["Brenna Ashe", "Sister Ama"]],
-      ["opposes", ["Toll-men"]],
-      ["serves", ["Ilse"]],
+      ["worshipped by", ["Brenna Ashe", "Sister Ama"]],
+      ["opposed by", ["Toll-men"]],
+      ["served by", ["Ilse"]],
     ]);
   });
 
-  it("reads a tie the subject holds outward in the other direction", () => {
+  it("reads a tie the subject holds outward with its own word", () => {
     const groups = groupTies(ties, "npc:brenna");
-    expect(groups.find((g) => g.word === "worshipped by")?.items[0]).toMatchObject({ key: "deity:lady", kind: "deity" });
+    expect(groups.find((g) => g.word === "worships")?.items[0]).toMatchObject({ key: "deity:lady", kind: "deity" });
     expect(groups.find((g) => g.word === "friend of")?.items[0]?.name).toBe("Sister Ama");
   });
 
