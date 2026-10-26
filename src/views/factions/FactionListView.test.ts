@@ -74,7 +74,7 @@ vi.mock("@/composables/billing/useCreateGate", () => ({
 const mutateAsync = vi.fn().mockResolvedValue({ moved: 0 });
 vi.mock("@/composables/campaign/useBulkCampaignScope", () => ({
   useBulkCampaignScope: () => ({ mutateAsync, isPending: ref(false) }),
-  // faction_deities has a NOT NULL campaign_id (#885) — the real function
+  // world_links has a NOT NULL campaign_id (#1084) — the real function
   // returns false for "factions" for exactly this reason; pinned here rather
   // than re-derived so this file breaks if FactionListView stops calling it.
   bulkScopeAllowsGeneral: (table: string) => table !== "factions",
@@ -255,13 +255,13 @@ describe("FactionListView — bulk selection (#885)", () => {
     expect(call.ids).toEqual(["f1"]);
   });
 
-  // faction_deities carries a NOT NULL campaign_id, so a general move can
+  // world_links carries a NOT NULL campaign_id, so a general move can
   // never fully succeed for a faction — bulkScopeAllowsGeneral("factions") is
   // false, and FactionListView wires that straight to BulkScopeBar's
   // allowGeneralScope (#885). "Make available in all campaigns" is therefore
   // never offered here at all, rather than being offered and left to fail
   // against the database.
-  it("never offers 'Make available in all campaigns' — a faction's deity links can't follow it there", async () => {
+  it("never offers 'Make available in all campaigns' — a faction's links can't follow it there", async () => {
     factionsData.value = [faction({ id: "f1" })];
     const wrapper = mountView();
     await toggleSelecting(wrapper);

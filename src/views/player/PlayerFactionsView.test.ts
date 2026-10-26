@@ -38,6 +38,7 @@ const stubs = {
   HousePlayerLineage: { template: "<div data-testid='lineage' />" },
   PageHeader: true,
   PlayerNotesWidget: true,
+  PlayerConnectionsList: true,
 };
 
 describe("PlayerFactionsView", () => {

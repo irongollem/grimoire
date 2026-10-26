@@ -36,7 +36,7 @@ import {
   type ImportRowOutcome,
   type ImportRunReport,
 } from "./importPlan";
-import type { EntityLinkLists, EntityLinks, QuestSpinePayload } from "./normalize";
+import type { EntityLinks, QuestSpinePayload } from "./normalize";
 import type { ImportDecision } from "./entityMatching";
 import { normalizeEntityName } from "./entityName";
 import { isSiteType, LOCATION_TYPE_TIER } from "@/lib/locations/tiers";
@@ -79,7 +79,6 @@ export interface RunImportKindDeps {
  *  `buildImportPlan`'s own doc comment), so there is nothing here to defer. */
 export interface RunImportKindLinkedEntity {
   links: EntityLinks;
-  linkLists: EntityLinkLists;
   questSpine?: QuestSpinePayload;
   /** The exact row handed to `deps.insertRow` — the sweep's only way to reach
    *  a mapped field that isn't part of `EntityLinks`, e.g. an encounter's
@@ -185,7 +184,6 @@ export async function runImportKind<K extends ImportEntityKind>(
     if (planned) {
       linkedEntities.set(outcome.ref, {
         links: planned.links,
-        linkLists: planned.linkLists,
         questSpine: planned.questSpine,
         row: planned.row as Record<string, unknown>,
       });
@@ -461,7 +459,6 @@ export async function runLocationsImportKind(
     if (planned) {
       linkedEntities.set(outcome.ref, {
         links: planned.links,
-        linkLists: planned.linkLists,
         questSpine: planned.questSpine,
         row: planned.row as Record<string, unknown>,
       });

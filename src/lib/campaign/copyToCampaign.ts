@@ -33,8 +33,8 @@ import type { BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope
  *
  * The eight tables above only point outward, at other tables, so a strictly
  * per-row planner was enough. NPCs and factions point at each other, mostly
- * through join tables (npc_relationships, faction_relations, faction_npcs,
- * faction_locations, faction_items, faction_deities) rather than columns, so
+ * through join tables (world_links, kin_links, npc_inventory, faction_npcs)
+ * rather than columns, so
  * copying more than one at a time needs to see the whole batch, not one row.
  *
  * The nearest prior art is src/lib/locations/cloneLevel.ts, which expresses a
@@ -63,8 +63,15 @@ import type { BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope
  * join table's two columns ARE the membership, so either one failing drops
  * the row (rule 3).
  *
- * Three tables never travel with a copy, because they record what happened at
- * a table rather than what the table is: npc_pc_notes, player_npc_ratings,
+ * A world link (#1084) is the one join table whose two ends are both identity
+ * and neither may fall back to rule 2: it travels only when **both** ends are in
+ * this batch, so a link from a copied NPC to a faction, place or item that stayed
+ * behind is left out and named. A link also holds `campaign_id` NOT NULL and
+ * names party members of its source campaign, so it never reaches the general
+ * scope and its `player_visible_to` is cleared.
+ *
+ * Two tables never travel with a copy, because they record what happened at
+ * a table rather than what the table is: player_npc_ratings,
  * npc_favors -- the same "never state or loot" line
  * cloneLevel.ts draws for a cloned level's rooms. faction_party_members never
  * travels either: a party belongs to a campaign, not to a copy of one.
@@ -562,20 +569,43 @@ export function buildCopyPlan(
 // summary this whole section implements.
 
 /**
- * The seven join tables a batch of NPCs/factions may carry membership or
+ * The join tables a batch of NPCs/factions may carry membership or
  * relationship rows from. Deliberately not a `BulkScopeTable` member — nothing
  * ever selects a join row directly to copy; it only ever rides along with the
  * entity rows its columns name.
  */
-export type CopyJoinTable =
-  | "npc_relationships"
-  | "kin_links"
-  | "npc_inventory"
-  | "faction_npcs"
-  | "faction_locations"
-  | "faction_items"
-  | "faction_deities"
-  | "faction_relations";
+export type CopyJoinTable = "world_links" | "kin_links" | "npc_inventory" | "faction_npcs";
+
+/** A world link's end kinds (`LinkKind`), each with the column that holds that kind's id on a given side. */
+const WORLD_LINK_KINDS = ["npc", "party_member", "faction", "location", "deity", "item"] as const;
+type WorldLinkKindName = (typeof WORLD_LINK_KINDS)[number];
+
+/** Table that holds each link-end kind, as `joinRowReferencedIds` keys it. A party member is not looked up:
+ *  this path copies none, so a link with a PC end is left out and named "a player character". */
+const WORLD_LINK_END_TABLE: Record<Exclude<WorldLinkKindName, "party_member">, string> = {
+  npc: "npcs",
+  faction: "factions",
+  location: "locations",
+  deity: "deities",
+  item: "items",
+};
+
+interface WorldLinkEnd {
+  kind: WorldLinkKindName;
+  id: string;
+}
+
+function isWorldLinkKind(value: unknown): value is WorldLinkKindName {
+  return WORLD_LINK_KINDS.some((k) => k === value);
+}
+
+/** One side of a `world_links` row: its kind and the id in whichever `<side>_<kind>_id` column is set. */
+function worldLinkEnd(row: Record<string, unknown>, side: "from" | "to"): WorldLinkEnd | null {
+  const kind = row[`${side}_kind`];
+  if (!isWorldLinkKind(kind)) return null;
+  const id = row[`${side}_${kind}_id`];
+  return isNonEmptyString(id) ? { kind, id } : null;
+}
 
 /**
  * Join tables whose own `campaign_id` is **NOT NULL** in the database, keyed to
@@ -596,34 +626,31 @@ export type CopyJoinTable =
  *  - **move** (`bulkUpdateCampaignScope`) carries these rows along with their
  *    owner, and the general target is not offered for an entity that has any.
  *
- * The other four join tables (`faction_npcs`, `faction_locations`,
- * `faction_items`, `faction_relations`) carry no `campaign_id` at all — they
- * are scoped transitively through the faction — and `npc_relationships` has
- * one that is nullable, so it can legitimately go general. Verified against
- * production, not inferred from the migrations.
+ * The other join table, `faction_npcs`, carries no `campaign_id` at all — it
+ * is scoped transitively through the faction.
  */
 export const JOIN_TABLES_REQUIRING_CAMPAIGN: Readonly<Partial<Record<CopyJoinTable, string>>> = {
-  // Family trees (#1083): a link is campaign_id NOT NULL, unlike a bond.
+  // Family trees (#1083): a link is campaign_id NOT NULL.
   kin_links: "from_npc_id",
+  // World links (#1084): campaign_id NOT NULL too. Two ends hang a link off an entity; the from end names it here.
+  world_links: "from_id",
   npc_inventory: "npc_id",
-  faction_deities: "faction_id",
 };
 
 /**
  * Which join tables a batch containing this entity table might carry rows
  * from, and which column(s) to filter on: `.in(column, sourceIds)` for each
  * of `matchColumns`, where `sourceIds` are the batch's own rows for `entity`.
- * `faction_npcs` and `faction_relations` each list two match columns because a
- * source id on either side of the join still names a row this batch's copies
- * need to carry (a faction's own membership row, or its relation to another
- * faction in the same batch). The composable de-duplicates rows fetched twice
- * when a batch copies NPCs and factions together — `faction_npcs` is reachable
- * from both sides.
+ * `world_links` lists two match columns because a source id on either end of a
+ * link still names a link this batch's copies may need to carry (the planner
+ * keeps only those whose other end is in the batch too). The composable
+ * de-duplicates rows fetched twice — a link between two copied rows is reachable
+ * from both ends, and `faction_npcs` from both sides.
  */
 export const JOIN_TABLES_FOR_ENTITY: Record<"npcs" | "factions", { table: CopyJoinTable; matchColumns: string[] }[]> =
   {
     npcs: [
-      { table: "npc_relationships", matchColumns: ["npc_id", "related_npc_id"] },
+      { table: "world_links", matchColumns: ["from_npc_id", "to_npc_id"] },
       // Kin carries NPC-to-NPC links only: this path copies no party members, so a link with a PC end is
       // reported as left out (a PC's family stays in the campaign the PC belongs to).
       { table: "kin_links", matchColumns: ["from_npc_id", "to_npc_id"] },
@@ -632,10 +659,7 @@ export const JOIN_TABLES_FOR_ENTITY: Record<"npcs" | "factions", { table: CopyJo
     ],
     factions: [
       { table: "faction_npcs", matchColumns: ["faction_id"] },
-      { table: "faction_locations", matchColumns: ["faction_id"] },
-      { table: "faction_items", matchColumns: ["faction_id"] },
-      { table: "faction_deities", matchColumns: ["faction_id"] },
-      { table: "faction_relations", matchColumns: ["faction_id", "target_faction_id"] },
+      { table: "world_links", matchColumns: ["from_faction_id", "to_faction_id"] },
     ],
   };
 
@@ -648,7 +672,7 @@ export const JOIN_TABLES_FOR_ENTITY: Record<"npcs" | "factions", { table: CopyJo
  * didn't select to copy), and that row still needs a `ReferencedRow` behind it
  * for the visibility rule (rule 2) to resolve.
  *
- * `library_item_id` (`npc_inventory`, `faction_items`) is deliberately absent
+ * `library_item_id` (`npc_inventory`) is deliberately absent
  * — shared content, never dangles, never looked up, same as
  * `libraryReferencedIds` above.
  */
@@ -659,10 +683,14 @@ export function joinRowReferencedIds(table: CopyJoinTable, row: Record<string, u
     out[key] = out[key] ? [...out[key], id] : [id];
   };
   switch (table) {
-    case "npc_relationships":
-      add("npcs", row.npc_id);
-      add("npcs", row.related_npc_id);
+    case "world_links": {
+      // Looked up only to name a link that is left out; a party member is never looked up.
+      for (const side of ["from", "to"] as const) {
+        const end = worldLinkEnd(row, side);
+        if (end && end.kind !== "party_member") add(WORLD_LINK_END_TABLE[end.kind], end.id);
+      }
       return out;
+    }
     case "kin_links":
       add("npcs", row.from_npc_id);
       add("npcs", row.to_npc_id);
@@ -674,22 +702,6 @@ export function joinRowReferencedIds(table: CopyJoinTable, row: Record<string, u
     case "faction_npcs":
       add("factions", row.faction_id);
       add("npcs", row.npc_id);
-      return out;
-    case "faction_locations":
-      add("factions", row.faction_id);
-      add("locations", row.location_id);
-      return out;
-    case "faction_items":
-      add("factions", row.faction_id);
-      add("items", row.item_id);
-      return out;
-    case "faction_deities":
-      add("factions", row.faction_id);
-      add("deities", row.deity_id);
-      return out;
-    case "faction_relations":
-      add("factions", row.faction_id);
-      add("factions", row.target_faction_id);
       return out;
   }
 }
@@ -730,6 +742,15 @@ function kinLinkName(row: Record<string, unknown>, referenced: ReadonlyMap<strin
   return `${end(row.from_npc_id)} and ${end(row.to_npc_id)}`;
 }
 
+/** "Brenna and the Ashen Court" for a world link, "a player character" for a PC end (not looked up here). */
+function worldLinkName(row: Record<string, unknown>, referenced: ReadonlyMap<string, ReferencedRow>): string {
+  const name = (side: "from" | "to"): string => {
+    const end = worldLinkEnd(row, side);
+    return end && end.kind !== "party_member" ? referenceName(end.id, referenced) : "a player character";
+  };
+  return `${name("from")} and ${name("to")}`;
+}
+
 /**
  * The row-level drop `buildJoinRowPayload` returns for a `JOIN_TABLES_REQUIRING_CAMPAIGN`
  * table meeting a general-scope target ("All campaigns", `targetCampaignId`
@@ -741,7 +762,7 @@ function kinLinkName(row: Record<string, unknown>, referenced: ReadonlyMap<strin
  * `23502` Postgres would have raised.
  */
 function generalScopeDrop(
-  table: "kin_links" | "npc_inventory" | "faction_deities",
+  table: "kin_links" | "npc_inventory" | "world_links",
   row: Record<string, unknown>,
   referenced: ReadonlyMap<string, ReferencedRow>,
 ): JoinRowResult {
@@ -778,17 +799,13 @@ function generalScopeDrop(
       ],
     };
   }
-  // faction_deities carries no name of its own beyond the deity it links —
-  // name it by that when we can resolve it, same as resolveRowIdentity would.
-  const deityId = row.deity_id;
-  const name = isNonEmptyString(deityId) ? referenceName(deityId, referenced) : "a linked deity";
   return {
     payload: null,
     dropped: [
       {
-        label: "Faction deities",
-        name,
-        entryNoun: { singular: "deity", plural: "deities" },
+        label: "World links",
+        name: worldLinkName(row, referenced),
+        entryNoun: { singular: "world link", plural: "world links" },
         removedEntries: true,
         reason: "needs-campaign",
       },
@@ -820,7 +837,7 @@ function buildJoinRowPayload(
   // this reach Postgres would leave the already-committed entity copies
   // behind a raw not-null-violation on the join insert.
   if (targetCampaignId === null && JOIN_TABLES_REQUIRING_CAMPAIGN[table] !== undefined) {
-    return generalScopeDrop(table as "kin_links" | "npc_inventory" | "faction_deities", row, referenced);
+    return generalScopeDrop(table as "kin_links" | "npc_inventory" | "world_links", row, referenced);
   }
 
   const payload: Record<string, unknown> = { ...row };
@@ -869,16 +886,30 @@ function buildJoinRowPayload(
   }
 
   switch (table) {
-    case "npc_relationships": {
-      const resolved = dropRow(
-        ["npc_id", "related_npc_id"],
-        "NPC relationships",
-        { singular: "relationship", plural: "relationships" },
-      );
-      if (!resolved) return { payload: null, dropped };
+    case "world_links": {
+      // Both ends are identity and only the batch's own mint can satisfy them: a link to something that stayed
+      // behind would span two campaigns, which the database refuses, so it is left out and named.
+      const from = worldLinkEnd(row, "from");
+      const to = worldLinkEnd(row, "to");
+      const fromCopy = from ? idMap.get(from.id) : undefined;
+      const toCopy = to ? idMap.get(to.id) : undefined;
+      if (!from || !to || fromCopy === undefined || toCopy === undefined) {
+        dropped.push({
+          label: "World links",
+          name: worldLinkName(row, referenced),
+          entryNoun: { singular: "world link", plural: "world links" },
+          removedEntries: true,
+        });
+        return { payload: null, dropped };
+      }
+      // from_id / to_id are generated; the rest of the row travels as it is.
+      delete payload.from_id;
+      delete payload.to_id;
       payload.campaign_id = targetCampaignId;
-      payload.npc_id = resolved.npc_id;
-      payload.related_npc_id = resolved.related_npc_id;
+      payload[`from_${from.kind}_id`] = fromCopy;
+      payload[`to_${to.kind}_id`] = toCopy;
+      // It names the source campaign's party members, which the copy does not have.
+      payload.player_visible_to = [];
       return { payload, dropped };
     }
     case "kin_links": {
@@ -911,8 +942,8 @@ function buildJoinRowPayload(
       payload.campaign_id = targetCampaignId;
       payload.npc_id = resolved.npc_id;
       // item_id is a scalar reference, not the row's second endpoint — an
-      // inventory entry has its own name/quantity (unlike faction_items
-      // below, which has no identity beyond the item it names), so a
+      // inventory entry has its own name/quantity (unlike a
+      // world link, which has no identity beyond its two ends), so a
       // dangling link clears the field (rule 2) rather than dropping the
       // entry. library_item_id, shared content, always travels — the spread
       // above already carried it through untouched, and is never looked up.
@@ -941,52 +972,6 @@ function buildJoinRowPayload(
       if (!resolved) return { payload: null, dropped };
       payload.faction_id = resolved.faction_id;
       payload.npc_id = resolved.npc_id;
-      return { payload, dropped };
-    }
-    case "faction_locations": {
-      const resolved = dropRow(["faction_id", "location_id"], "Faction locations", {
-        singular: "location",
-        plural: "locations",
-      });
-      if (!resolved) return { payload: null, dropped };
-      payload.faction_id = resolved.faction_id;
-      payload.location_id = resolved.location_id;
-      return { payload, dropped };
-    }
-    case "faction_items": {
-      // Mirrors ItemRefColumns (src/lib/itemRef.ts): at most one of item_id /
-      // library_item_id is ever set. Unlike npc_inventory, a faction_items row
-      // carries no name of its own beyond the item it names, so a dangling
-      // item_id drops the whole row (rule 3) rather than clearing the field.
-      // A library_item_id, if that is the one set instead, always travels —
-      // the spread above already carried it through, and item_id being empty
-      // here is not itself a failure, so it is not one of the columns checked.
-      const columns = isNonEmptyString(row.item_id) ? ["faction_id", "item_id"] : ["faction_id"];
-      const resolved = dropRow(columns, "Faction items", { singular: "item", plural: "items" });
-      if (!resolved) return { payload: null, dropped };
-      payload.faction_id = resolved.faction_id;
-      if (columns.includes("item_id")) payload.item_id = resolved.item_id;
-      return { payload, dropped };
-    }
-    case "faction_deities": {
-      const resolved = dropRow(["faction_id", "deity_id"], "Faction deities", {
-        singular: "deity",
-        plural: "deities",
-      });
-      if (!resolved) return { payload: null, dropped };
-      payload.campaign_id = targetCampaignId;
-      payload.faction_id = resolved.faction_id;
-      payload.deity_id = resolved.deity_id;
-      return { payload, dropped };
-    }
-    case "faction_relations": {
-      const resolved = dropRow(["faction_id", "target_faction_id"], "Faction relations", {
-        singular: "relation",
-        plural: "relations",
-      });
-      if (!resolved) return { payload: null, dropped };
-      payload.faction_id = resolved.faction_id;
-      payload.target_faction_id = resolved.target_faction_id;
       return { payload, dropped };
     }
   }

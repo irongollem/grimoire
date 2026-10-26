@@ -29,7 +29,7 @@ const ALLOWED: Record<string, string> = {
   "src/components/npcs/NpcEditMobile.vue": "full-screen mobile editor root",
   "src/components/monsters/MonsterEditMobile.vue": "full-screen mobile editor root",
   "src/components/common/entity/EntitySheetMobile.vue": "the phone read sheets' page body",
-  "src/components/npcs/NpcWebTopBar.vue": "page-edge top bar of the NPC web view",
+  "src/components/world/WorldWebTopBar.vue": "page-edge top bar of the World web view",
   "src/components/common/list/ListPageLayout.vue": "sticky page header of a list page",
   "src/components/common/list/PageHeader.vue": "page header chrome",
   "src/components/common/feedback/RouteSkeleton.vue": "stands in for the page while a route loads",

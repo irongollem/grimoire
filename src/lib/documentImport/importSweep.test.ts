@@ -50,6 +50,7 @@ function fakeDeps(overrides: Partial<ImportSweepDeps> = {}): ImportSweepDeps {
     insertQuestRefs: vi.fn(async () => {}),
     updateQuestParent: vi.fn(async () => {}),
     insertKinLinks: vi.fn(async () => {}),
+    insertWorldLinks: vi.fn(async () => {}),
     persistImportedCounts: vi.fn(async () => {}),
     markComplete: vi.fn(async () => {}),
     ...overrides,
@@ -182,13 +183,19 @@ describe("runImportSweep", () => {
     });
   });
 
-  it("resolves a faction's location_names into one join_insert per name", async () => {
+  it("writes a faction's places as world links from the faction, one per name", async () => {
     const deps = fakeDeps();
     await runImportSweep(
       IMPORT_ROW,
       input({
         entitiesByKind: {
-          factions: [usable("f1", { name: "The Ashen Circle", location_names: ["Dock Ward", "The Sunken Temple"] })],
+          factions: [
+            usable("f1", {
+              name: "The Ashen Circle",
+              location_names: ["Dock Ward", "The Sunken Temple"],
+              controlled_location_names: ["Dock Ward"],
+            }),
+          ],
           locations: [usable("l1", { name: "Dock Ward" }), usable("l2", { name: "The Sunken Temple" })],
         },
         decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
@@ -199,12 +206,14 @@ describe("runImportSweep", () => {
       deps,
     );
 
-    const joinInserts = rowsOf(deps.applyLinkResolutions as (rows: Extract<LinkResolution, { status: "resolved" }>[]) => Promise<void>)
-      .filter((r) => r.apply.kind === "join_insert" && r.apply.table === "faction_locations");
-    expect(joinInserts).toHaveLength(2);
+    expect(rowsOf(deps.insertWorldLinks)).toEqual([
+      expect.objectContaining({ campaign_id: CAMPAIGN_ID, from_kind: "faction", to_kind: "location", type: "operates_in", from_faction_id: "factions-1", to_location_id: "locations-1" }),
+      expect.objectContaining({ type: "operates_in", from_faction_id: "factions-1", to_location_id: "locations-2" }),
+      expect.objectContaining({ type: "controls", from_faction_id: "factions-1", to_location_id: "locations-1" }),
+    ]);
   });
 
-  it("gives a faction the DM linked to the places the page puts it in — join rows are additive", async () => {
+  it("gives a faction the DM linked to the places the page puts it in, as additive links", async () => {
     const deps = fakeDeps();
     await runImportSweep(
       IMPORT_ROW,
@@ -221,10 +230,37 @@ describe("runImportSweep", () => {
       deps,
     );
 
-    const joinInserts = rowsOf(deps.applyLinkResolutions as (rows: Extract<LinkResolution, { status: "resolved" }>[]) => Promise<void>)
-      .filter((r) => r.apply.kind === "join_insert" && r.apply.table === "faction_locations");
-    expect(joinInserts).toHaveLength(1);
-    expect(joinInserts[0]!.sourceId).toBe("fac-existing");
+    expect(rowsOf(deps.insertWorldLinks)).toEqual([
+      expect.objectContaining({ type: "operates_in", from_faction_id: "fac-existing", to_location_id: "locations-1" }),
+    ]);
+  });
+
+  it("stores an NPC's bond in the catalogue's direction and names a place that is missing", async () => {
+    const deps = fakeDeps();
+    const report = await runImportSweep(
+      IMPORT_ROW,
+      input({
+        entitiesByKind: {
+          npcs: [
+            usable("n1", { name: "Tam", bonds: [{ name: "Orsik", type: "mentor" }, { name: "Nobody", type: "friend" }] }),
+            usable("n2", { name: "Orsik" }),
+          ],
+          factions: [usable("f1", { name: "The Watch", location_names: ["Atlantis"], stances: [{ name: "The Ledger", stance: "hostile" }] }), usable("f2", { name: "The Ledger" })],
+        },
+        decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+          ["npcs", new Map([["n1", CREATE], ["n2", CREATE]])],
+          ["factions", new Map([["f1", CREATE], ["f2", CREATE]])],
+        ]),
+      }),
+      deps,
+    );
+
+    expect(rowsOf(deps.insertWorldLinks)).toEqual([
+      // npcs-2 is Orsik, the mentor, so the link is stored from him.
+      expect.objectContaining({ from_kind: "npc", to_kind: "npc", type: "mentor_of", from_npc_id: "npcs-2", to_npc_id: "npcs-1" }),
+      expect.objectContaining({ from_kind: "faction", to_kind: "faction", type: "hostile", from_faction_id: "factions-1", to_faction_id: "factions-2" }),
+    ]);
+    expect(report.unresolvedLinks).toEqual(['NPC "Tam" → person "Nobody"', 'Faction "The Watch" → location "Atlantis"']);
   });
 
   describe("quest beats: location + attachments", () => {
@@ -914,7 +950,7 @@ describe("runImportSweep", () => {
       );
 
       expect(deps.applyLinkResolutions).toHaveBeenCalledTimes(1);
-      expect(rowsOf(deps.applyLinkResolutions)).toHaveLength(3);
+      expect(rowsOf(deps.applyLinkResolutions)).toHaveLength(2);
     });
   });
 

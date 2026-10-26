@@ -62,6 +62,8 @@ import type {
   ExtractedMonster,
   ExtractedStatBlock,
   ExtractedNpc,
+  ExtractedFactionStance,
+  ExtractedNpcBond,
   ExtractedNpcKin,
   ExtractedPayloadMap,
   ExtractedQuest,
@@ -146,17 +148,21 @@ export interface EntityKinLinks {
 }
 
 /**
- * A raw-name field that resolves to more than one row, unlike every field in
- * `EntityLinks` above (one name, one FK). Kept as its own small type rather
- * than widening `EntityLinks` to `string | string[]` per field, since every
- * consumer of `EntityLinks` (the scalar `resolveLinks`) would otherwise have
- * to branch on which shape a given field actually is.
+ * World Web ties (#1084) the page states for an NPC or a faction. Like `kin`,
+ * they ride in `links` at runtime but are not `EntityLinks` fields: each entry
+ * writes a `world_links` row with a catalogue type, which a column or a join
+ * row cannot describe. The sweep's own pass (`importSweepWorldLinks.ts`) reads
+ * them.
  */
-export interface EntityLinkLists {
-  /** Faction → the locations it holds/operates from, by name — one
-   *  `faction_locations` join row per name (see `resolveLinkLists`,
-   *  importPlan.ts). */
+export interface EntityWorldLinks {
+  /** NPC → bonds with other people, by name. */
+  bonds?: ExtractedNpcBond[];
+  /** Faction → the places it operates from, by name. */
   location_names?: string[];
+  /** Faction → the places it controls, by name. */
+  controlled_location_names?: string[];
+  /** Faction → its stance toward other factions, by name. */
+  stances?: ExtractedFactionStance[];
 }
 
 /**
@@ -192,10 +198,7 @@ export interface QuestSpinePayload {
 
 export interface MappedEntity<K extends ImportEntityKind = ImportEntityKind> {
   row: ImportRowMap[K];
-  links: EntityLinks & EntityKinLinks;
-  /** Only ever populated for factions (`location_names`) today — see
-   *  `EntityLinkLists`'s own doc comment for why this isn't folded into `links`. */
-  linkLists?: EntityLinkLists;
+  links: EntityLinks & EntityKinLinks & EntityWorldLinks;
   questSpine?: QuestSpinePayload;
 }
 
@@ -423,6 +426,7 @@ export function mapExtractedNpc(
       faction_name: payload.faction_name,
       npc_location_name: payload.location_name,
       ...(payload.kin && payload.kin.length > 0 ? { kin: payload.kin } : {}),
+      ...(payload.bonds && payload.bonds.length > 0 ? { bonds: payload.bonds } : {}),
     },
   };
 }
@@ -716,7 +720,16 @@ export function mapExtractedFaction(
     tags: [], // schema default '{}'; not extracted
     ai_provenance: provenance,
   };
-  return { row, links: {}, linkLists: { location_names: payload.location_names } };
+  return {
+    row,
+    links: {
+      ...(payload.location_names && payload.location_names.length > 0 ? { location_names: payload.location_names } : {}),
+      ...(payload.controlled_location_names && payload.controlled_location_names.length > 0
+        ? { controlled_location_names: payload.controlled_location_names }
+        : {}),
+      ...(payload.stances && payload.stances.length > 0 ? { stances: payload.stances } : {}),
+    },
+  };
 }
 
 // ── Encounters ───────────────────────────────────────────────────────────────

@@ -12,6 +12,8 @@ import {
   assertBundleCarriesCharacterEditions,
   BUNDLE_FORMAT_VERSION,
   buildIdMap,
+  bundleLinkRows,
+  bundledLinks,
   remapCharacterClassForImport,
   remapCharacterSpellForImport,
   remapCustomClassForImport,
@@ -439,5 +441,55 @@ describe("assertBundleCarriesCharacterEditions", () => {
       custom_classes: [{ id: "cust-1" }],
     });
     expect(() => assertBundleCarriesCharacterEditions(bundle)).toThrow(/file is incomplete/);
+  });
+});
+
+describe("world links in a bundle (#1084)", () => {
+  const link = (id: string, from: [string, string], to: [string, string]) => ({
+    id,
+    user_id: "u",
+    campaign_id: "c",
+    from_kind: from[0],
+    [`from_${from[0]}_id`]: from[1],
+    to_kind: to[0],
+    [`to_${to[0]}_id`]: to[1],
+    from_id: from[1],
+    to_id: to[1],
+    type: "ally",
+    note: "",
+    told: "",
+    player_visible_to: ["pm-1"],
+    ai_provenance: null,
+  });
+
+  it("exports a link once, only when both ends are bundled, without owner or audience", () => {
+    const inBundle = (kind: string, id: string) => kind === "npc" && id !== "npc-out";
+    const both = link("l-1", ["npc", "a"], ["npc", "b"]);
+    const out = bundledLinks([both, both, link("l-2", ["npc", "a"], ["npc", "npc-out"])], inBundle);
+    expect(out).toHaveLength(1);
+    expect(out[0]).not.toHaveProperty("user_id");
+    expect(out[0]).not.toHaveProperty("from_id");
+    expect(out[0].player_visible_to).toEqual([]);
+  });
+
+  it("imports links remapped, with an empty audience, and drops one whose end type was not imported", () => {
+    const bundle = emptyBundle({
+      npcs: [{ id: "a" }, { id: "b" }],
+      factions: [{ id: "f" }],
+      world_links: [link("l-1", ["npc", "a"], ["npc", "b"]), link("l-2", ["npc", "a"], ["faction", "f"])],
+    });
+    const idMap = buildIdMap(bundle);
+    const rows = bundleLinkRows(bundle, idMap, new Set(["npc"]), "camp", "me");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ from_npc_id: idMap.get("a"), to_npc_id: idMap.get("b"), campaign_id: "camp", user_id: "me", player_visible_to: [] });
+  });
+
+  it("turns a bundle's old tie tables into links", () => {
+    const bundle = emptyBundle({
+      npcs: [{ id: "a" }, { id: "b" }],
+      npc_relationships: [{ id: "r", npc_id: "a", related_npc_id: "b", relationship_type: "enemy", notes: null }],
+    });
+    const rows = bundleLinkRows(bundle, buildIdMap(bundle), new Set(["npc"]), "camp", "me");
+    expect(rows.map((r) => r.type)).toEqual(["enemy"]);
   });
 });

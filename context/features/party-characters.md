@@ -1099,7 +1099,7 @@ On opening an NPC lightbox the player sees:
 
 - Visible fields only
 - Their per-NPC relationship rating (1–5 stars, editable locally)
-- "Your Connection" — the DM-authored PC-specific note for this NPC (from `npc_pc_notes` table)
+- "Your Connection" — the DM-authored PC-specific note for this NPC (the `told` line of the `world_links` row between this NPC and the character, #1084)
 - Personal player notes widget (write your own observations)
 
 NPC filter controls:

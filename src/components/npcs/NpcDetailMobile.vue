@@ -81,7 +81,7 @@
     </AccordionSection>
 
     <AccordionSection v-model:open="openSections.relations" title="Relations">
-      <NpcRelationsTab :npc-id="npc.id" />
+      <NpcRelationsTab :npc-id="npc.id" :npc-name="npc.name" />
     </AccordionSection>
 
     <AccordionSection v-model:open="openSections.combat" title="Combat">

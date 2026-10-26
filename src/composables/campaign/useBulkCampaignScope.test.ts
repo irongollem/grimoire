@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   // kin_links rows the move finds for an NPC end, and what it deleted.
   kinRows: [] as { id: string; from_npc_id: string | null; to_npc_id: string | null }[],
   kinDeleted: [] as string[],
+  // world_links rows the move finds for an end, and what it deleted.
+  linkRows: [] as { id: string; from_id: string; to_id: string; from_npc_id: string | null; to_npc_id: string | null; from_faction_id: string | null; to_faction_id: string | null }[],
+  linkDeleted: [] as string[],
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -18,12 +21,17 @@ vi.mock("@/lib/supabase", () => ({
     from: (table: string) => ({
       select: (_cols: string) => ({
         in: (col: string, ids: string[]) =>
-          Promise.resolve({ data: mocks.kinRows.filter((r) => ids.includes(r[col as "from_npc_id" | "to_npc_id"] as string)), error: null }),
+          table === "world_links"
+            ? Promise.resolve({
+                data: mocks.linkRows.filter((r) => ids.includes(r[col as "from_npc_id" | "to_npc_id" | "from_faction_id" | "to_faction_id"] as string)),
+                error: null,
+              })
+            : Promise.resolve({ data: mocks.kinRows.filter((r) => ids.includes(r[col as "from_npc_id" | "to_npc_id"] as string)), error: null }),
       }),
       delete: () => ({
         in: (_col: string, ids: string[]) => ({
           select: () => {
-            mocks.kinDeleted.push(...ids);
+            (table === "world_links" ? mocks.linkDeleted : mocks.kinDeleted).push(...ids);
             return Promise.resolve({ data: ids.map((id) => ({ id })), error: null });
           },
         }),
@@ -65,6 +73,8 @@ describe("useBulkCampaignScope", () => {
     mocks.responses = [];
     mocks.kinRows = [];
     mocks.kinDeleted = [];
+    mocks.linkRows = [];
+    mocks.linkDeleted = [];
   });
 
   it("chunks a 450-id call into three requests of 200/200/50 and sums moved", async () => {
@@ -133,12 +143,12 @@ describe("useBulkCampaignScope", () => {
 
   // ── Children follow their owner (#885) ──────────────────────────────────
 
-  it("moves an NPC's npc_relationships and npc_inventory rows along with it, matching npc_id only", async () => {
+  it("moves an NPC's npc_inventory rows along with it", async () => {
     const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
     await result.mutateAsync({ table: "npcs", ids: ["npc-1", "npc-2"], campaignId: "camp-2" });
 
     const childCalls = mocks.calls.filter((c) => c.table !== "npcs");
-    expect(childCalls.map((c) => c.table)).toEqual(["npc_relationships", "npc_inventory"]);
+    expect(childCalls.map((c) => c.table)).toEqual(["npc_inventory"]);
     for (const call of childCalls) {
       expect(call.update).toEqual({ campaign_id: "camp-2" });
       expect(call.ids).toEqual(["npc-1", "npc-2"]);
@@ -146,16 +156,56 @@ describe("useBulkCampaignScope", () => {
     unmount();
   });
 
-  it("does NOT match npc_relationships on related_npc_id — only the owning npc_id column is filtered", async () => {
+  it("re-stamps a world link whose two ends both moved, and deletes one that would span two campaigns", async () => {
+    const link = (id: string, from: string, to: string) => ({
+      id,
+      from_id: from,
+      to_id: to,
+      from_npc_id: from,
+      to_npc_id: to,
+      from_faction_id: null,
+      to_faction_id: null,
+    });
+    mocks.linkRows = [
+      link("both", "npc-1", "npc-2"),
+      link("left-behind", "npc-1", "fac-9"),
+      link("to-pc", "npc-9", "npc-2"),
+    ];
     const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
-    await result.mutateAsync({ table: "npcs", ids: ["npc-1"], campaignId: "camp-2" });
+    const outcome = await result.mutateAsync({ table: "npcs", ids: ["npc-1", "npc-2"], campaignId: "camp-2" });
 
-    // The mock's `in` doesn't record the column name, only the ids — but the
-    // call count and table list already pin "one npc_relationships update per
-    // move", which is only possible if it is a single `.in("npc_id", ids)`
-    // rather than two calls (one per column).
-    const relCalls = mocks.calls.filter((c) => c.table === "npc_relationships");
-    expect(relCalls).toHaveLength(1);
+    expect(outcome.worldLinksRemoved).toBe(2);
+    expect(mocks.linkDeleted.sort()).toEqual(["left-behind", "to-pc"]);
+    const linkUpdates = mocks.calls.filter((c) => c.table === "world_links");
+    expect(linkUpdates).toEqual([{ table: "world_links", update: { campaign_id: "camp-2" }, ids: ["both"] }]);
+    unmount();
+  });
+
+  it("keeps a link between two moved factions and drops one to an NPC that stayed", async () => {
+    mocks.linkRows = [
+      { id: "pair", from_id: "fac-1", to_id: "fac-2", from_npc_id: null, to_npc_id: null, from_faction_id: "fac-1", to_faction_id: "fac-2" },
+      { id: "to-npc", from_id: "fac-1", to_id: "npc-1", from_npc_id: null, to_npc_id: "npc-1", from_faction_id: "fac-1", to_faction_id: null },
+    ];
+    const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
+    const outcome = await result.mutateAsync({ table: "factions", ids: ["fac-1", "fac-2"], campaignId: "camp-2" });
+
+    expect(outcome.worldLinksRemoved).toBe(1);
+    expect(mocks.linkDeleted).toEqual(["to-npc"]);
+    expect(mocks.calls.filter((c) => c.table === "world_links")).toEqual([
+      { table: "world_links", update: { campaign_id: "camp-2" }, ids: ["pair"] },
+    ]);
+    unmount();
+  });
+
+  it("deletes every world link of an entity moved to the general scope, which holds none", async () => {
+    mocks.linkRows = [
+      { id: "pair", from_id: "fac-1", to_id: "fac-2", from_npc_id: null, to_npc_id: null, from_faction_id: "fac-1", to_faction_id: "fac-2" },
+    ];
+    const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
+    await result.mutateAsync({ table: "factions", ids: ["fac-1", "fac-2"], campaignId: null });
+
+    expect(mocks.linkDeleted).toEqual(["pair"]);
+    expect(mocks.calls.some((c) => c.table === "world_links")).toBe(false);
     unmount();
   });
 
@@ -185,15 +235,6 @@ describe("useBulkCampaignScope", () => {
     unmount();
   });
 
-  it("moves a faction's faction_deities rows along with it", async () => {
-    const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
-    await result.mutateAsync({ table: "factions", ids: ["fac-1"], campaignId: "camp-2" });
-
-    const childCalls = mocks.calls.filter((c) => c.table !== "factions");
-    expect(childCalls).toEqual([{ table: "faction_deities", update: { campaign_id: "camp-2" }, ids: ["fac-1"] }]);
-    unmount();
-  });
-
   it("touches no join table for a table with no campaign-scoped children", async () => {
     const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
     await result.mutateAsync({ table: "items", ids: ["item-1"], campaignId: "camp-2" });
@@ -205,7 +246,7 @@ describe("useBulkCampaignScope", () => {
   it("stamps the full entity move count on the error when a child-table update fails", async () => {
     const boom = new Error("child update failed");
     // First call is the entity update (npcs) — succeeds. Second is
-    // npc_relationships — fails.
+    // npc_inventory — fails.
     mocks.responses = [
       undefined,
       { data: null, error: boom },
@@ -232,11 +273,11 @@ describe("useBulkCampaignScope", () => {
 });
 
 describe("bulkScopeAllowsGeneral", () => {
-  it("is false for npcs (npc_inventory has a NOT NULL campaign_id)", () => {
+  it("is false for npcs (npc_inventory and world links have a NOT NULL campaign_id)", () => {
     expect(bulkScopeAllowsGeneral("npcs")).toBe(false);
   });
 
-  it("is false for factions (faction_deities has a NOT NULL campaign_id)", () => {
+  it("is false for factions (a world link has a NOT NULL campaign_id)", () => {
     expect(bulkScopeAllowsGeneral("factions")).toBe(false);
   });
 

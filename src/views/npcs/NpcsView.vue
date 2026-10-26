@@ -11,7 +11,7 @@
 
     <template #actions>
       <ListActionButton :icon="IconLayers" label="Sets" to="/npcs/sets" />
-      <ListActionButton :icon="IconNetwork" label="Web" to="/npcs/web" />
+      <ListActionButton :icon="IconNetwork" label="Web" to="/web" />
       <ListActionButton
         v-if="hasSetting"
         :icon="IconPopulate"
@@ -283,7 +283,7 @@
           variant="menu"
           size="body"
           block
-          to="/npcs/web"
+          to="/web"
           label="Web"
           @click="overflowOpen = false"
         >

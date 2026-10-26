@@ -66,12 +66,6 @@
       <p v-else class="text-body text-muted-foreground italic">
         No description recorded for this faction.
       </p>
-
-      <!-- Patron Deities -->
-      <div class="border-t border-border pt-4">
-        <p class="text-eyebrow font-semibold text-muted-foreground mb-2">Patron Deities</p>
-        <FactionDeitiesSection :faction-id="faction.id" />
-      </div>
     </div>
   </div>
 </template>
@@ -88,7 +82,6 @@ import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import HouseSheetFacts from "@/components/factions/HouseSheetFacts.vue";
-import FactionDeitiesSection from "@/components/factions/FactionDeitiesSection.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ faction: Faction }>();

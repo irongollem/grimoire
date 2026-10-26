@@ -9,6 +9,7 @@
 
 import { OPEN_BOOK_CHAPTERS, type OpenBookChapter, type OpenBookDeity, type OpenBookPerson, type OpenBookPlace, type OpenBookSession, type OpenBookSnapshot } from "@/types/openBook.types";
 import { parseStoredContent } from "@/lib/tiptap/viewerRender";
+import { connectionsFromTies, readTies, type BookConnectionGroup } from "@/lib/openBook/connections";
 
 export interface ChapterMeta {
   numeral: string;
@@ -65,6 +66,8 @@ export interface BookModel {
   deitiesOf(pantheonId: string): OpenBookDeity[];
   /** Entries whose rich text cites `id` through a mention, in book order. */
   backlinks(id: string): BookEntryRef[];
+  /** The ties of an entry read from its own side, grouped as on the sheet; empty for a release without `ties`. */
+  connectionsOf(id: string): BookConnectionGroup[];
   index: BookIndexGroup[];
 }
 
@@ -272,6 +275,8 @@ export function buildBookModel(snapshot: OpenBookSnapshot): BookModel {
       entries: [...list].sort((a, b) => indexSortKey(a.title).localeCompare(indexSortKey(b.title))),
     }));
 
+  const connectionsOf = connectionsFromTies(readTies(snapshot), byId);
+
   return {
     snapshot,
     chapters,
@@ -295,6 +300,7 @@ export function buildBookModel(snapshot: OpenBookSnapshot): BookModel {
     peopleAt: (placeId) => peopleByPlace.get(placeId) ?? [],
     deitiesOf: (pantheonId) => deitiesByPantheon.get(pantheonId) ?? [],
     backlinks: (id) => cited.get(id) ?? [],
+    connectionsOf,
     index,
   };
 }

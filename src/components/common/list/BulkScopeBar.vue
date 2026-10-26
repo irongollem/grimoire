@@ -76,9 +76,9 @@
  *
  * **`allowGeneralScope` narrows the pair to one option, and that is a
  * different kind of exception again (#885).** NPCs and factions carry
- * campaign-scoped children — `npc_inventory`, `faction_deities` — whose own
+ * campaign-scoped rows — `npc_inventory`, `world_links` — whose own
  * `campaign_id` is **NOT NULL**. There is no such thing as an inventory line
- * or a deity link belonging to every campaign at once, so "Make available in
+ * or a world link belonging to every campaign at once, so "Make available in
  * all campaigns" cannot be offered for those two lists: not because the
  * entity row itself couldn't take a null `campaign_id`, but because a row it
  * owns cannot. This is not a third scope and does not touch the no-picker

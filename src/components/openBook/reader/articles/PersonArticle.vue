@@ -8,6 +8,7 @@ import type { BookModel } from "@/lib/openBook/bookModel";
 import type { OpenBookPerson } from "@/types/openBook.types";
 import { humanize, standingOf, statusLabel } from "@/lib/openBook/articleData";
 import ArticleAttr from "./ArticleAttr.vue";
+import ArticleConnections from "./ArticleConnections.vue";
 import ArticleEntryLink from "./ArticleEntryLink.vue";
 import ArticlePlate from "./ArticlePlate.vue";
 import ArticleRefList from "./ArticleRefList.vue";
@@ -51,6 +52,7 @@ const hasFacts = computed(
       </ArticleAttr>
       <ArticleAttr v-if="status" label="Status">{{ status }}</ArticleAttr>
     </div>
+    <ArticleConnections :model="model" :id="person.id" />
     <ArticleRefList :model="model" title="In the Chronicle" :items="sessions" />
     <ArticleRefList :model="model" title="Mentioned in" :items="elsewhere" />
   </article>

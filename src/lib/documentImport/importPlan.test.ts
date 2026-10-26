@@ -2,11 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildImportPlan,
   buildImportRunReport,
-  resolveLinkLists,
   resolveLinks,
   type ImportRowOutcome,
   type LinkedRow,
-  type LinkedRowList,
   type PlannedInsert,
 } from "./importPlan";
 import { ENTITY_MAPPERS } from "./normalize";
@@ -368,50 +366,5 @@ describe("resolveLinks", () => {
         apply: { kind: "fk_update", table: "locations", column: "npc_owner_id" },
       },
     ]);
-  });
-});
-
-describe("resolveLinkLists", () => {
-  it("resolves each name in a faction's location_names to its own join_insert", () => {
-    const rows: LinkedRowList[] = [{ id: "faction-1", linkLists: { location_names: ["Dock Ward", "The Thieves' Den"] } }];
-    const result = resolveLinkLists("factions", rows, {
-      locations: [{ id: "loc-1", name: "Dock Ward" }, { id: "loc-2", name: "The Thieves' Den" }],
-    });
-
-    expect(result).toEqual([
-      {
-        status: "resolved",
-        sourceId: "faction-1",
-        field: "location_names",
-        name: "Dock Ward",
-        targetId: "loc-1",
-        apply: { kind: "join_insert", table: "faction_locations", sourceColumn: "faction_id", targetColumn: "location_id" },
-      },
-      {
-        status: "resolved",
-        sourceId: "faction-1",
-        field: "location_names",
-        name: "The Thieves' Den",
-        targetId: "loc-2",
-        apply: { kind: "join_insert", table: "faction_locations", sourceColumn: "faction_id", targetColumn: "location_id" },
-      },
-    ]);
-  });
-
-  it("reports one unresolved name per miss, without dropping the rest of the list", () => {
-    const rows: LinkedRowList[] = [{ id: "faction-1", linkLists: { location_names: ["Dock Ward", "Nowhere"] } }];
-    const result = resolveLinkLists("factions", rows, { locations: [{ id: "loc-1", name: "Dock Ward" }] });
-
-    expect(result).toContainEqual({ status: "resolved", sourceId: "faction-1", field: "location_names", name: "Dock Ward", targetId: "loc-1", apply: expect.anything() });
-    expect(result).toContainEqual({ status: "unresolved", sourceId: "faction-1", field: "location_names", name: "Nowhere" });
-  });
-
-  it("skips a row with no location_names captured", () => {
-    const rows: LinkedRowList[] = [{ id: "faction-1", linkLists: {} }];
-    expect(resolveLinkLists("factions", rows, {})).toEqual([]);
-  });
-
-  it("returns an empty array for a kind with no link-list fields at all", () => {
-    expect(resolveLinkLists("npcs", [{ id: "npc-1", linkLists: {} }], {})).toEqual([]);
   });
 });

@@ -3,6 +3,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useInvalidateQuota } from "@/composables/billing/useQuota";
 import { queueEmbeddings, type EmbedManyEntity } from "@/lib/queueEmbeddings";
 import { chunkArray } from "@/lib/utils";
+import { CONNECTIONS_KEY } from "@/lib/campaignLiveSync/registry";
 import { BULK_SCOPE_QUERY_KEY, type BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
 import {
   buildCopyPlan,
@@ -34,8 +35,7 @@ import {
  * ## Batch copying npcs/factions (#885)
  *
  * Those two tables reference each other mostly through join tables
- * (`npc_relationships`, `npc_inventory`, `faction_npcs`, `faction_locations`,
- * `faction_items`, `faction_deities`, `faction_relations`), so a copy of them
+ * (`world_links`, `kin_links`, `npc_inventory`, `faction_npcs`), so a copy of them
  * has to see the whole selection at once rather than planning row by row —
  * see `copyToCampaign.ts`'s "Copying a batch" doc for the three rules this
  * follows. This module's job in that story is unchanged in kind, only in
@@ -429,7 +429,7 @@ async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaig
  *  inserted at least one row into it — mirrors `BULK_SCOPE_QUERY_KEY` above,
  *  but a join table can be read from either endpoint (a faction's own member
  *  list AND an NPC's own faction list), so some entries carry two keys.
- *  Sourced from useNpcRelations.ts, useNpcInventory.ts and useFactions.ts —
+ *  Sourced from useNpcInventory.ts, useFactions.ts and the connections registry —
  *  copied rather than imported for the same reason `BULK_SCOPE_QUERY_KEY`'s
  *  own docstring gives: importing the owning composables here would pull
  *  faction and NPC detail machinery into every page that can bulk-copy
@@ -438,14 +438,10 @@ async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaig
  *  entities it copied, and invalidating the collection is the same trade the
  *  eight-table `BULK_SCOPE_QUERY_KEY` invalidation already makes. */
 const JOIN_TABLE_QUERY_KEYS: Record<CopyJoinTable, string[]> = {
-  npc_relationships: ["npc_relationships"],
+  world_links: [CONNECTIONS_KEY],
   kin_links: ["kin_links"],
   npc_inventory: ["npc-inventory"],
   faction_npcs: ["faction-npcs", "npc-factions"],
-  faction_locations: ["faction-locations"],
-  faction_items: ["faction-items"],
-  faction_deities: ["faction-deities", "deity-factions"],
-  faction_relations: ["faction-relations"],
 };
 
 export function useCopyToCampaign() {

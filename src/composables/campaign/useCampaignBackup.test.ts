@@ -344,8 +344,9 @@ describe("executeImport kin links (#1083)", () => {
       ],
     });
     await executeImport(backup, "Restored");
-    const bonds = inserted.find((i) => i.table === "npc_relationships")!.rows;
-    expect(bonds.map((r) => r.relationship_type)).toEqual(["ally"]);
+    expect(inserted.some((i) => i.table === "npc_relationships")).toBe(false);
+    const links = inserted.find((i) => i.table === "world_links")!.rows;
+    expect(links.map((l) => l.type)).toEqual(["ally"]);
     const kin = inserted.find((i) => i.table === "kin_links")!.rows;
     expect(kin.map((k) => [k.kind, k.needs_sorting, k.note])).toEqual([
       ["relative", true, "cousins"],
@@ -360,5 +361,64 @@ describe("executeImport kin links (#1083)", () => {
     }) as unknown as GrimoireBackup;
     await executeImport(old, "Restored");
     expect(inserted.some((i) => i.table === "kin_links")).toBe(false);
+  });
+});
+
+describe("executeImport world links (#1084)", () => {
+  beforeEach(() => {
+    inserted.length = 0;
+  });
+
+  const npcs = [{ id: "npc-1", name: "Bram" }, { id: "npc-2", name: "Wren" }];
+  const link = (id: string, to: [string, string]) => ({
+    id,
+    campaign_id: "old-camp",
+    user_id: "x",
+    from_kind: "npc",
+    from_npc_id: "npc-1",
+    to_kind: to[0],
+    [`to_${to[0]}_id`]: to[1],
+    type: "ally",
+    note: "n",
+    told: "",
+    player_visible_to: ["pm-1", "pm-gone"],
+    ai_provenance: null,
+    from_id: "npc-1",
+    to_id: to[1],
+  });
+
+  it("remaps both ends onto the restored rows and the audience onto the restored party", async () => {
+    const backup = backupWith({ party_members: [member], npcs, world_links: [link("l-1", ["npc", "npc-2"]), link("l-2", ["party_member", "pm-1"])] });
+    await executeImport(backup, "Restored");
+    const tables = inserted.map((i) => i.table);
+    expect(tables.indexOf("factions")).toBeLessThan(tables.indexOf("world_links"));
+    const [n1, n2] = inserted.find((i) => i.table === "npcs")!.rows;
+    const pm = inserted.find((i) => i.table === "party_members")!.rows[0];
+    const [a, b] = inserted.find((i) => i.table === "world_links")!.rows;
+    expect(a).toMatchObject({ from_npc_id: n1.id, to_npc_id: n2.id, user_id: "restorer", type: "ally" });
+    expect(a.id).not.toBe("l-1");
+    expect(a).not.toHaveProperty("from_id");
+    expect(b).toMatchObject({ to_party_member_id: pm.id, player_visible_to: [pm.id, "pm-gone"] });
+  });
+
+  it("drops a link whose end did not restore", async () => {
+    const backup = backupWith({ npcs, world_links: [link("l-1", ["npc", "npc-gone"]), link("l-2", ["npc", "npc-2"])] });
+    await executeImport(backup, "Restored");
+    const rows = inserted.find((i) => i.table === "world_links")!.rows;
+    expect(rows).toHaveLength(1);
+  });
+
+  it("turns the old tie tables of an earlier backup into links", async () => {
+    const backup = backupWith({
+      npcs,
+      factions: [{ id: "f-1", name: "Guild" }],
+      locations: [{ id: "loc-1", name: "Keep", parent_id: null }],
+      npc_relationships: [{ id: "r-1", npc_id: "npc-1", related_npc_id: "npc-2", relationship_type: "rival", notes: "feud" }],
+      faction_locations: [{ id: "fl-1", faction_id: "f-1", location_id: "loc-1" }],
+    });
+    await executeImport(backup, "Restored");
+    const rows = inserted.find((i) => i.table === "world_links")!.rows;
+    expect(rows.map((r) => r.type).sort()).toEqual(["operates_in", "rival"]);
+    expect(inserted.some((i) => i.table === "faction_locations" || i.table === "npc_relationships")).toBe(false);
   });
 });

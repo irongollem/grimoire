@@ -100,6 +100,8 @@
       <p v-else class="text-caption text-muted-foreground italic">No one here yet.</p>
     </div>
 
+    <PlayerConnectionsList kind="location" :id="loc.id" />
+
     <PlayerNotesWidget
       entity-type="location"
       :entity-id="loc.id"
@@ -118,6 +120,7 @@ import PlayerNoticeBoardPreview from "@/components/player/noticeBoard/PlayerNoti
 import { usePlayerNoticeBoards } from "@/composables/noticeBoards/usePlayerNoticeBoards";
 import { useReadItems } from "@/composables/player/useReadItems";
 import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
+import PlayerConnectionsList from "@/components/player/people/PlayerConnectionsList.vue";
 import LocationMap from "@/components/locations/map/LocationMap.vue";
 import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";

@@ -163,6 +163,7 @@ Two parts: **Your company**, a slim strip of the party, and **People**, the ledg
 - **The ledger**: one row per person, grouped by the sort (by place, by the day you met them, or flat for rating and name). Status shows only when it is not "alive"; the dead are struck through with a greyed portrait. A **Portraits** toggle shows the same groups as cards.
 - **Toolbar**: search, a one-tap sort with a direction toggle, and filters (relationship, status, place): inline from `md`, a "Sort and filter" sheet with live counts on a phone.
 - **Opening a person**: the lightbox on phones; from `lg` (tablets in landscape) the ledger sits beside the person's page.
+- **Connections you know of** (`PlayerConnectionsList`, #1084): the ties of a person, faction or place that the viewer's character knows, read through `get_player_connections` (`usePlayerConnections`; players never read `world_links`). One component, placed after the facts and before the player's notes on the person's page, the faction detail and the place detail. Each row is a `ConnectionSlip` with the catalogue word and the DM's `told` line, grouped people, factions, places, deities, items, quests. There is no player deity page yet.
 
 ## Quest Log (Player)
 

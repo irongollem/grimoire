@@ -33,7 +33,9 @@ vi.mock("@/stores/campaign", () => ({
 vi.mock("@/composables/factions/useFactions", () => ({
   useCreateFaction: () => ({ mutateAsync: mocks.createFaction }),
   useAddFactionNpc: () => ({ mutateAsync: vi.fn() }),
-  useAddFactionLocation: () => ({ mutateAsync: vi.fn() }),
+}));
+vi.mock("@/composables/connections/useConnections", () => ({
+  useCreateConnection: () => ({ mutateAsync: vi.fn() }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocationTree: () => ({ locationOptions: ref([]) }) }));

@@ -5,6 +5,7 @@ import type { BookModel } from "@/lib/openBook/bookModel";
 import type { OpenBookDeity } from "@/types/openBook.types";
 import BookRichText from "../BookRichText.vue";
 import ArticleAttr from "./ArticleAttr.vue";
+import ArticleConnections from "./ArticleConnections.vue";
 import ArticleEntryLink from "./ArticleEntryLink.vue";
 import ArticlePlate from "./ArticlePlate.vue";
 
@@ -47,5 +48,6 @@ const hasFacts = computed(
     <div v-if="deity.description" class="book-prose book-dropcap">
       <BookRichText :content="deity.description" :model="model" />
     </div>
+    <ArticleConnections :model="model" :id="deity.id" />
   </article>
 </template>

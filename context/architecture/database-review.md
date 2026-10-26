@@ -37,7 +37,7 @@ Scale of the schema: about 176 tables in `public`, 628 indexes, 387 foreign keys
 - `quest_beat_edges (campaign_id, quest_id, source_beat_id)` and `(..., target_beat_id)`; `quest_beat_attachments (beat_id, campaign_id, quest_id)`; `quest_beat_edge_gates (campaign_id, edge_id, quest_id)`
 - `quest_consequences` on `target_quest_id`, `on_objective_id`, `target_npc_id`, `entry_beat_id`
 
-*Matter: shared-library parents.* `library_items` is replaced by the Open5e import path; a delete of a library item must scan `crafting_recipe_ingredients`, `crafting_recipe_outputs`, `faction_items`, `store_items`, `npc_inventory`, `party_inventory` by `library_item_id`. Those child tables are small, so this is correctness-safe and cost-minor.
+*Matter: shared-library parents.* `library_items` is replaced by the Open5e import path; a delete of a library item must scan `crafting_recipe_ingredients`, `crafting_recipe_outputs`, `store_items`, `npc_inventory`, `party_inventory` by `library_item_id`. Those child tables are small, so this is correctness-safe and cost-minor.
 
 *Do not matter (SET NULL to rarely-deleted parents, audit columns).* `quest_consequence_events.*` (calendar_event_id, message_id, journal_entry_id, favor_id, milestone_id, ...), `npc_favors.source_event_id`, `party_milestones.source_event_id`, `library_tile_packs.content_source_key`, `quests.entry_beat_id`.
 
@@ -93,7 +93,7 @@ All five tables are tiny to small, so the saving is small in absolute terms. Thi
 
 **Prefix-redundant (a non-unique index whose columns lead another index).** Worth a human look rather than a bulk drop, because a narrower index can win on size for scans that need only the leading column:
 
-- Strictly covered by a unique constraint on the same leading column: `campaign_members_campaign_idx` (by `(campaign_id, user_id)`), `npc_pc_notes_npc_idx`, `session_availability_proposal_idx`, `character_classes_member_idx`, `store_items_location_id_idx`, `class_option_texts_campaign_class_idx`, `location_doors_from_idx`, `character_content_reviews_party_member_idx`.
+- Strictly covered by a unique constraint on the same leading column: `campaign_members_campaign_idx` (by `(campaign_id, user_id)`), `session_availability_proposal_idx`, `character_classes_member_idx`, `store_items_location_id_idx`, `class_option_texts_campaign_class_idx`, `location_doors_from_idx`, `character_content_reviews_party_member_idx`.
 - Covered by another non-unique composite: `npcs_user_idx` (by `npcs_relationship_idx` and `npcs_status_idx`), `calendar_events_user_idx` (by `calendar_events_year_idx`), `notes_user_id_idx` (by `notes_category_idx`), `scriptorium_docs_user_idx` (by `scriptorium_docs_type_idx`). Here the single-column index is smaller and may serve RLS `user_id = ...` scans better; keep unless size matters.
 
 `campaign_members_campaign_idx` deserves a specific note: `campaign_members` is the hot table and receives a write for every join and role change; the unique `(campaign_id, user_id)` index fully replaces it.

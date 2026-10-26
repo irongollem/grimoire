@@ -8,7 +8,7 @@ The feature comprises four main surfaces:
 
 - **NPC List** (`/npcs`) — filterable card grid
 - **NPC Detail Sheet** (`/npcs/:id`) — the sheet as a modal over the grid on tablet and up, a full-screen takeover on phones; `?edit=true` is the full editor at every width
-- **Relationship Web** (`/npcs/web`) — interactive force-directed graph of all NPC connections
+- **World web** (`/web`) — every tie in the campaign as a graph, focus on one node, group by faction, place or deity; the Relationship Web it replaced drew only people
 - **NPC Generator** — slide-in panel (accessible from the list header) for quick-create and AI generation
 
 Players access shared NPCs through the **Player Portal** at `/play/party` under the "People" section.
@@ -60,7 +60,7 @@ When an NPC becomes visible to a player for the first time while a **session is 
 
 ### Header Actions
 
-- **Web** — navigates to the Relationship Web
+- **Web** — navigates to the World web (`/web`)
 - **Populate Setting** — shown only when the active campaign has a recognised setting (e.g. Faerûn). Bulk-inserts seed NPCs from the setting's Hall of Heroes list, deduplicating by name. Reports how many were added or whether already up to date. Also back-fills portrait URLs for existing NPCs that previously had none.
 - **Generate** — opens the NPC Generator panel
 - **Select** (#885) — toggles bulk-selection mode (`NpcList.vue` owns `useBulkSelection`, mirroring `MonsterList.vue`; `NpcsView.vue` only holds a template ref and toggles it, same split as monsters). Selecting shows `BulkScopeBar` with "Move to campaign" and "Copy to campaign…" — every NPC row is selectable (no library/shared-content concept for NPCs, unlike monsters). `npcs` carries the `enforce_quota` trigger, so a copy past quota reopens the same `showPaywall` the list already mounts for its own create-gate. **"Make available in all campaigns" is not offered here** (`bulkScopeAllowsGeneral("npcs")` is false, `useBulkCampaignScope.ts`): `npc_inventory.campaign_id` is NOT NULL, so a general move could never carry an NPC's inventory. A move to a specific campaign carries an NPC's `npc_relationships` and `npc_inventory` rows along with it (matched on the owning `npc_id` only — a relationship's `related_npc_id` end is left wherever it already was, same as the Atlas already tolerates for a cross-campaign parent).
@@ -143,13 +143,12 @@ lets the buttons wrap and keeps the page's own name (see the note in
 | Died          | `CalendarDateInput`   | Shown only while status is Dead; hiding it keeps what was typed     |
 | Occupation    | Text input            |                                                                     |
 | Location      | EntityCombobox        | Hierarchical location tree                                          |
-| Factions      | `NpcFactionsSection`  | Shown only on existing NPCs; manages faction memberships with roles |
 
 **Birth dates and ages** (#1086): `npcs.born_year` / `born_month` / `born_day` (all nullable; a month always comes with a day, and a year with it) hold a birth date in the campaign's calendar. `src/lib/calendar/age.ts` derives whole years against the campaign's today (`ageOn`), so the age moves when the DM advances the date, and `displayAge` is the one rule every surface uses: a birth year the calendar can place wins over the free-text `age`, which stays for "ancient" and the like. The phone sheet and the detail modal show the computed age, with the full birth date in a tooltip. Age is DM-only in `get_player_visible_npcs` (returned as null), and the birth columns are not in the projection either, so players see neither.
 
 **Death dates** (24 Oct 2026, migration `20261024062101`): `npcs.died_year` / `died_month` / `died_day`, the same shape as the birth date, plus a check that a death is not before the birth year. Status `dead` still decides whether someone is dead; the date only says when, so a date left on a living NPC is ignored. A dead NPC is never aged against today: `displayAge` measures to the death date, or falls back to the free-text age. The modal reads "Died 12 Ches 1491, aged 63", the phone quick fact "Age at death", and a family tree card "1428 – 1491". DM-only, like the birth date.
 
-**NPC Connections** (`NpcRelationsSection`) is embedded between Identity and the tab bar. It shows the NPC's peer relationships, allows adding new ones (target NPC + relationship type + optional notes), and inline deletion. Each entry links to the other NPC's sheet.
+**Connections** (`ConnectionsSection`, `src/components/connections/`) is embedded between Identity and the tab bar of the edit form (and in the phone edit form's Connections card). It is the same block as the Relations tab's, below; factions are in it, so the Identity section has no Factions field any more.
 
 ### Tab Bar
 
@@ -173,31 +172,33 @@ All fields are nullable; empty fields are hidden in view mode.
 
 #### Relations Tab (view mode only)
 
-`NpcRelationsTab.vue`, rendered by both hosts — the desktop sheet's Relations tab and the mobile sheet's Relations accordion — so the two cannot drift (the phone had, down to NPC connections alone). Three sections, each owning its own CRUD so nothing needs the edit form: **NPC connections** (`NpcRelationsSection`), **Factions** (`NpcFactionsSection` — faction name links to the faction, role editable in place, non-Active status badged) and **Favours owed** (`NpcFavorsSection`). Connections to the party's characters are not here: they are on **With the party** (below), where the player who reads them is named. Factions live here rather than under the portrait: a membership is a relation with a role and a status, not a tag. See the Web section for the graph alternative.
+`NpcRelationsTab.vue`, rendered by both hosts (the desktop sheet's Relations tab and the mobile sheet's Relations accordion) so the two cannot drift. Three parts, each owning its own CRUD so nothing needs the edit form: the **Family** block (kin, above), the **Connections** block (`ConnectionsSection`) and **Favours owed** (`NpcFavorsSection`). Connections to the party's characters are not here: they are on **With the party** (below), where the player who reads them is named. See the Web section for the graph alternative.
 
-**Directed bonds read like parent and child** (25 Oct 2026). Superior and subordinate, and mentor and apprentice, are one relation read from either end, but they used to show as two unrelated types: a bare "Subordinate" tag that did not say whose, two colours, and an undirected line on the web. Now a directed type is worded for whose it is (`npcRelationLabel`: on Ulkora's sheet Gunvald's card reads "Ulkora's subordinate", and every picker words its options the same way), each pair shares one colour, the web draws one arrow from the superior or mentor to the one they lead with the word "superior" or "mentor" (as a parent line does), and the filter offers each pair once. `NPC_DIRECTED_LEADS` in `src/types/npc.types.ts` is the list. The maintainer's ask: "it's 1 relation with a direction but it feels like 2 without a direction".
+**The Connections block** (#1084) is one component, mounted in the same place on every sheet (an NPC's Relations tab, a character's page, a faction, a place, a deity, an item), props `{ subject: WorldRef; subjectName }`. It reads `useConnections(kind, id)` and groups the rows by the other end's kind in one order everywhere: people, factions, places, deities, items, quests; an empty group is not drawn. Each row is a `ConnectionSlip`: thumbnail (the initial stands in when there is no picture), the name (an NPC opens in place, the rest link to their sheet), the **type word as an in-place picker** (`ConnectionTypePicker`: common types first, the rest behind "more..." with a filter, a record type labelled with where choosing it moves the tie, a one-valued record saying what it replaces; choosing calls `useRetypeConnection`, so nothing is re-added), a dashed marker naming a record's home (membership, home, inventory, store, seat, patron, quest), the DM note, the told line, and a "who knows" eye (`AudienceRevealControl`, links only; a record is known as its record already is). A membership keeps its role as a select in the row, without Leader and Head of house when the faction already has a head (`useFactionHeaded`), and a status that is not Active is badged and dims the row. The `...` menu edits a link's note and told line in place (`ConnectionNotesEditor`, autosaving), opens a record's home when it is another page, and removes. A long list of records that a section already lists (a place's residents, a faction's roster, past five) folds into one line pointing at that section ("14 people live here, People in the Area"). The header holds Suggest (`ConnectionSuggestions`), "In the web" (`/web?focus=<kind>:<id>`) and "Add connection".
 
-**One slip for every connection** (24 Oct 2026). Family rows (`KinRow`), NPC connections, faction memberships and the AI's suggestions all render through `ConnectionSlip` (`components/common/entity/`): a thumbnail, a torn paper slip, the name, tags, notes, and a `...` menu. Only the tags and details differ (a relationship type's coloured tag, a faction role picker, a family meta line). The maintainer asked for this after seeing the four designs side by side on a phone; do not give one kind its own card again.
+**Add a connection** (`AddConnectionDialog`): the left side is `WorldEntityPicker` (the global search), the right side offers the types the two kinds can hold as chips (`typeChoices`), the sentence read both ways ("Brenna owes Harl", "on Harl's sheet: creditor of Brenna"), and either a link's note, told line and who knows (nobody by default) or a record's own fields (a membership's role; "Moves Brenna's home from X to Y" for a one-valued record). Kin is not written here: choosing a kin type opens the existing Add relative dialog at that relation, and `AddConnectionKinNote` says "X is already Y's sister" when the two are kin. The retired pieces are `NpcRelationsSection`, `NpcFactionsSection`, `useNpcRelations` and the `npc_relationships` table's types; Family stays its own block.
+
+**Directed bonds read like parent and child** (25 Oct 2026). Superior and subordinate, and mentor and apprentice, are one relation read from either end. The catalogue now carries both words ("mentor of" / "apprentice of", `connectionWord(row, subjectKind)`), the picker offers each direction from the sheet on screen, each pair shares one colour, and the web draws one arrow from the leading end. The maintainer's ask: "it's 1 relation with a direction but it feels like 2 without a direction".
+
+**One slip for every connection** (24 Oct 2026). Family rows (`KinRow`), every row of the Connections block (links and records alike) and the AI's suggestions all render through `ConnectionSlip` (`components/common/entity/`): a thumbnail, a torn paper slip, the name, tags, notes, and a `...` menu. Only the tags and details differ (a relationship type's coloured tag, a faction role picker, a family meta line). The maintainer asked for this after seeing the four designs side by side on a phone; do not give one kind its own card again.
 
 **Family trees** (#1083). Kin lives in `kin_links`, separate from bonds. The NPC sheet's Family block lists it; `/family/:key` draws the tree (`FamilyTree.vue`, laid out by `lib/kinship/layout.ts`) at every width. The phone draws the same tree with smaller cards (`PHONE_GEOMETRY` in `treeGeometry.ts`) and opens on the centred person at no smaller than 0.8 scale; a finger drag pans even when it starts on a card. It used to show one strip per generation with no lines, which the maintainer found did not read as a tree (24 Oct 2026). A House faction has a Lineage tab, a descent rule, a line of succession, a succession custom and a **seat** (`factions.seat_location_id`, a place in the Atlas, shown in the house header and facts; a player sees it only when they can already see that place).
 
-#### Suggested connections (#910)
+#### Suggested connections (#910, widened by #1084)
 
-The **Suggest** button in `NpcRelationsSection.vue` (shown only when AI is enabled for the campaign) opens a steer box and proposes ties between this NPC and the rest of the campaign: other NPCs and factions. **Nothing is written until the DM accepts a proposal**; `NpcRelationSuggestions.vue` lists them one by one with Accept and Dismiss, plus Dismiss all.
+The suggester is not NPC-only any more: **Suggest** sits on the Connections block of any sheet (NPC, character, faction, place, deity, item) and is `src/components/connections/ConnectionSuggestions.vue`, props `{ subject: WorldRef; subjectName }`. It shows only when AI is enabled for the campaign, opens a steer box ("Steer the suggestions"), and lists proposals one by one as connection slips with Accept and Dismiss, plus Dismiss all and one muted "Set aside" line per refused claim. **Nothing is written until the DM accepts a proposal.**
 
-_Server path only:_ `supabase/functions/suggest-npc-relationships/index.ts` (client: `src/ai/useNpcRelationshipSuggestions.ts`). It is not a `generate-entity-text` key because the candidate blocks come from service-role reads the browser cannot make. Flow: auth, frozen/child gate, **DM-role gate via `isCampaignDm` (`_shared/campaignAccess.ts`)**, rate limit, `reserveCredits`, candidate gathering, model call, `sanitizeSuggestions`, `recordGeneration` (refunds with `releaseCredits` on any failure). Ledger reason `npc_relationship_suggestion` (1 credit), prompt row `npc_relationships`.
+_Server path only:_ `supabase/functions/suggest-connections/index.ts` (candidate reads in `gather.ts`; client: `src/ai/useConnectionSuggestions.ts`). Body `{ campaign_id, subject_kind, subject_id, prompt? }`. It is not a `generate-entity-text` key because the candidate blocks come from service-role reads the browser cannot make. Flow: auth, frozen/child gate, **DM-role gate via `isCampaignDm` (`_shared/campaignAccess.ts`)**, rate limit, `reserveCredits`, candidate gathering, model call, `sanitizeSuggestions`, `recordGeneration` (refunds with `releaseCredits` on any failure). Ledger reason and price row `npc_relationship_suggestion` (1 credit, kept from the NPC-only days so the calibration history stays in one piece); prompt row `connections`. The prompt row holds the editorial rules; the output shape and the list of valid types per kind are built in code (`outputShape`, `typeGuide`) from the catalogue, so the model is offered exactly what the check accepts.
 
-_The DM-role gate is the point:_ the function reads every NPC and faction in the campaign with the admin client, so whatever reaches the prompt can come back in the answer. A campaign member who is a player must not get DM-only material, so membership is not enough; `isCampaignDm` admits the owner and `campaign_members.role = 'dm'` only, and fails closed on a read error. Every other DM tool that reads campaign content with the admin client (`generate-quest`, `generate-roll-table`, `generate-complication`, `generate-npc-voice`, `generate-chronicle-text`, `quest-designer-turn`, `draft-scriptorium-document`) uses the same helper, tested in `campaignAccess.test.ts`.
+_The DM-role gate is the point:_ the function reads the campaign with the admin client, so whatever reaches the prompt can come back in the answer. A campaign member who is a player must not get DM-only material, so membership is not enough; `isCampaignDm` admits the owner and `campaign_members.role = 'dm'` only, and fails closed on a read error. Every other DM tool that reads campaign content with the admin client (`generate-quest`, `generate-roll-table`, `generate-complication`, `generate-npc-voice`, `generate-chronicle-text`, `quest-designer-turn`, `draft-scriptorium-document`) uses the same helper, tested in `campaignAccess.test.ts`.
 
-_Candidates come from two places on purpose._ Semantic retrieval (`retrieveCampaignEntities`) ranks entities against the NPC, but it is an enhancement that can be down or empty (nothing embedded yet), so a bounded direct read of the campaign's other NPCs (40) and factions (30) always rides along. The response reports `grounded` so the client knows which it got. The model may only name candidates.
+_Candidates come from two places on purpose._ Semantic retrieval (`retrieveCampaignEntities`) ranks NPCs, places and factions against the subject, but it is an enhancement that can be down or empty (nothing embedded yet), so a bounded direct read of every kind the subject can be tied to always rides along: NPCs 40, factions 30, places 30, deities 20, items 30, characters 30 (name and birth year only). The response reports `grounded` so the client knows which it got. The model may only name candidates. Each candidate line carries what grounds a tie: an NPC's place and memberships with role and status, a faction's head and seat, a place's controlling factions (`controls`, `based_in`, `operates_in` links), an item's carrier. The subject's existing ties (its `world_links` both ways, memberships, kin, and the records in its own columns: home, seat, keeper, patron deity) are serialised from its side so the model does not repeat them.
 
-_Validation_ (`_shared/npcRelationshipSuggestions.ts`, shared with the client so the relationship enum has one source, `NPC_RELATIONSHIP_TYPES`): `sanitizeSuggestions` drops names that are not candidates, ties that already exist, types outside the enum and duplicates, caps at twelve, and bounds notes (300). A faction suggestion's role is held to `SUGGESTED_FACTION_ROLES` (mirror of `NPC_FACTION_ROLES`, held equal by `src/types/factionRoleMirror.test.ts`), matched without regard to case, anything else becoming Associate: the membership's role picker offers only that list, and a free-text role was saved and then showed blank. A Leader or Head of house is not offered for a faction that already has one. The client then maps names back to ids (`resolveSuggestionTargets`) and drops any that stopped resolving while the request was in flight.
+_Output_ (`_shared/connectionSuggestions.ts`): `{ suggestions, setAside, grounded, ai_provenance }`. A suggestion is one of `link { target_kind, target_name, type, subject_is_from, notes }` (`type` a catalogue key for that pair; `subject_is_from` says which end the subject is stored as), `membership { target_kind, target_name, role, notes }` (person and faction, either as the subject; role from `SUGGESTED_FACTION_ROLES`, mirror of `NPC_FACTION_ROLES`, held equal by `src/types/factionRoleMirror.test.ts`) or `kin { target_name, target_type, relation, parent_role, notes }` (a person subject only; `relation` is what the target is to the subject; mirror of `KIN_RELATIONS`, held equal by `src/types/kinshipEnumMirror.test.ts`). The server attaches `target_id` to each, from the candidates it showed, so the client writes by id.
 
-_Places and offices (24 Oct 2026)._ Each candidate NPC line carries where they are and their faction memberships with role and status (`npc|name|occupation|born|in Bryn Shander; Town of Bryn Shander (Leader)`), each faction line who heads it (`|headed by Leader Duvessa Shane`), and the source's own place and memberships ride in its profile. Without them the model offered one town's speaker the leadership of another and paired faction-mates as strangers. The role list covers ties short of membership and hidden ones (Envoy, Patron, Supplier, Sympathiser, Supplicant, Secret member, Infiltrator, Unwitting pawn, Adversary), which is what the model kept inventing roles for.
+_Validation_ (`sanitizeSuggestions`): drops names that are not candidates, the subject itself, types the catalogue does not hold for that pair or direction (two possible directions must be stated; one is implied and a contradicting statement drops the suggestion; a faction's stance is always the subject's own), ties that already exist, duplicates, and a membership to a faction the person already belongs to; caps at twelve and bounds notes (300). A role outside the list becomes Associate; a Leader or Head of house is dropped for a faction that already has one. _Set aside_ (muted lines, charged nothing if they are all there is): a parent claim whose birth years contradict it ("Pip was born five years after Wren"), a sibling the shared parents already imply, an item someone carries said to be "kept at" or "hidden at" a place ("Brenna carries it"), and a symmetric tie that already exists the other way. A set-aside line reads `Set aside: "<claim>". <Reason>.`
 
-_Kin (#1083)._ Family is not a bond, so the suggester proposes it as a third variant, `kind: "kin"`, with `relation` (what the target is to this NPC: parent, child, spouse, former spouse, sibling, relative), an optional `parent_role` and the evidence in `notes`. The campaign's PCs are kin candidates too (`pc|name|born`, name and birth year only, nothing else of a character reaches the prompt). The function reads the source's birth year, the candidates' birth years and `kin_links`, and serialises existing bonds and kin from the source's side ("Corwin Ashe - their father"). `sanitizeSuggestions` returns `{ suggestions, setAside }`: it drops a pair a kin link already joins, and sets aside, with a reason in plain words, a parent claim whose birth years contradict it ("Pip was born five years after Wren") and a sibling the shared parents already imply ("already siblings through Brenna"). The panel shows set-aside claims as one muted line each. Bonded NPCs stay candidates, since the same person can also be kin.
-
-_Accepting_ a bond creates the `npc_relationships` row (or faction membership with a role) with the response's `ai_provenance`; accepting kin writes a `kin_links` row through `kinInsertFor`, with the target as the subject. The composable is deliberately not registered with `registerAiGenerator`: it produces no entity to navigate to, so the floating badge would have nothing to offer. It still respects `isAnyAiGenerating`.
+_Accepting_ maps the suggestion to the picker's `TypeChoice` for the pair, read from the subject (`typeChoices`), and calls `useCreateConnection` with the suggestion's `ai_provenance`, so a link, a membership with a role or a kin link each land in their own home. The composable is deliberately not registered with `registerAiGenerator`: it produces no entity to navigate to, so the floating badge would have nothing to offer. It still respects `isAnyAiGenerating`. A new NPC's "known associate" in the NPC generator is written the same way, from the new NPC's side.
 
 #### Combat Tab
 
@@ -281,14 +282,14 @@ When an NPC is shared with at least one player, a panel appears at the top of th
 `NpcPartyTab.vue`: what each player character knows about this NPC, in one place. A tab on the desktop sheet (second, after Lore) and an accordion on the phone (`NpcDetailMobile`), so both hosts render the same component.
 
 - One row per character (`NpcPartyRow.vue`): portrait, class and level, **when they met** (`npc_reveals`, read by `useNpcReveals`, "Met · 4 October" or "Not met"), and the share toggle. The toggle is `useNpcReveal`'s adapter, the same one the header's reveal popover uses, so a share here seeds the visible fields and announces in a running session exactly as the popover does.
-- **Their connection** (`npc_pc_notes`): a relationship type and a note, labelled "Wren reads this", because that player sees it on their People page as "Your connection". It saves itself (`useAutosave`); a blank note is never created and clearing one deletes the row.
+- **Their connection** (the `world_links` row between this NPC and that character, read by `useConnections("npc", id)`): a type picked in place and a line labelled "Wren reads this", because that player sees it on their People page as "Your connection". The type picker offers every link type two people can hold (`typeChoices("npc", "party_member")`, kin excluded): a symmetric type once, a directed one both ways. The first type chosen creates the link (`useCreateConnection`), later ones retype it (`useRetypeConnection`). The line is the link's `told`, saved by `useAutosave`; a line written before any type files under "contact". Choosing a type or writing a line adds that character to the link's `player_visible_to`. Clearing the line keeps the link; removing it is the row menu's "Remove connection". The old `npc_pc_notes` table is gone.
 - Beside the rows: the disguise (`NpcDisguisePanel`, cover face and "Reveal true self" / "Put the disguise back on", through `useNpcReveal.setRevealed`) and the fields a share shows (`RevealedFieldsPanel`).
 
 Connection notes used to live twice over, a box at the top of the edit form that only appeared once the NPC was already shared and "Party connections" in the Relations tab, and neither said the player reads them; the maintainer had never used them. Both homes and `NpcPcNotesSection` are gone, so this is the only one. `npc_reveals` rows are written by triggers in the same transaction as `npcs` / `locations` updates, and `npc_reveals` rings the campaign doorbell itself, so the DM's "when they met" refetches on that ring.
 
 ### Memory (#1019)
 
-`NpcMemoryTab.vue`: what this NPC and the party have told each other, as a ledger of short lines. A tab on the desktop sheet (after With the party) and an accordion on the phone (`NpcDetailMobile`), one component in both. It answers "what did Bram already admit last session?", which nothing else recorded: `npc_reveals` says when they met, `npc_pc_notes` is the player-readable connection note, and the DM note is free prose.
+`NpcMemoryTab.vue`: what this NPC and the party have told each other, as a ledger of short lines. A tab on the desktop sheet (after With the party) and an accordion on the phone (`NpcDetailMobile`), one component in both. It answers "what did Bram already admit last session?", which nothing else recorded: `npc_reveals` says when they met, the NPC to character link's `told` is the player-readable connection line, and the DM note is free prose.
 
 - **Table** `npc_memories` (migration `20261012105632`): `kind` (`revealed` NPC to party, `learned` party to NPC, `promise`, `deceived` a lie told and believed either way, `attitude`, `event`; the list lives in `_shared/npcMemories.ts` because the edge function formats them too), `body` (1 to 1000 characters, trimmed), `session_id`, `party_member_ids` (who was there; empty means not recorded), `player_visible_to`, `user_id` (the writer, `on delete set null` so a co-DM leaving does not take the history), `ai_provenance`. Editable by the DM (typos, re-filing), so it has `updated_at`.
 - **The campaign comes from the NPC.** `private.normalize_npc_memory()` (before insert or update) sets `campaign_id` from `npc_id`, keeps only ids of that campaign's party members in both arrays (so a stale or foreign id can never let another campaign's player read a line) and keeps the original author on an update. It is `SECURITY DEFINER` because `npcs` is readable by its owner only, which would otherwise refuse a co-DM writing about another DM's NPC; it decides nothing, and RLS judges the row against the campaign it derived.
@@ -306,7 +307,7 @@ The read-only sheet uses a two-column layout (portrait column fixed 208 px, cont
 
 Left column: portrait (portrait format), status + relationship badges, tags, and an alter-ego line stating which face is showing. The toggle itself is not repeated here — it is the "SEEN AS" section of the reveal control in `NpcDetailModal`'s own header, which saves immediately and fires the chat event while a session is running.
 
-Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / With the party / Inventory / Relations / Combat / Voice tabs. With the party is described above. The Relations tab is `NpcRelationsTab` (see above): NPC connections, factions and favours, all visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
+Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / With the party / Inventory / Relations / Combat / Voice tabs. With the party is described above. The Relations tab is `NpcRelationsTab` (see above): Family, the Connections block and favours, all visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
 
 ### Alter Ego / Disguise System
 
@@ -358,125 +359,26 @@ inventory drop falls back to the DM's own sender name. Never the true name.
 
 ---
 
-## Relationship Web
+## World Web
 
-Route: `/npcs/web`
+Routes: `/web` (DM) and `/play/web` (player). It replaced the Relationship Web at `/npcs/web` (#1084), which drew only the ties between people. The NPC list's **Web** button and overflow entry go to `/web`. The full feature is a manual page, `src/manual/worldbuilding-web.md`; this section keeps the decisions the code does not say.
 
-A full-viewport force-directed graph rendered with `v-network-graph` (VNetworkGraph) using ForceLayout. Nodes are positioned automatically with dragging pinned by the user.
+**Data.** One read, `get_world_ties(p_campaign_id)` (DM) or `get_player_world_ties(p_campaign_id, p_preview_member_id)` (player), through `composables/world/useWorldTies.ts`. Both return one row per tie, `from` end to `to` end, whatever its home (`source`: link, kin, membership, npc_home, pc_place, keeper, seat, patron_deity, inventory, store, quest). The words come from the catalogue (`connectionWord`, `connectionFamily`); a tie read from its `from` end is the catalogue's `forward`, from its `to` end `reverse`. The player read never returns the DM's note. People with no ties are still drawn for the DM, from `useNpcs` and `useParty`.
 
-### Nodes
+**Links are lines, records group.** At rest the web draws links and kin. Records (membership, homes, patron deity, carries, seat, stores, quests) are never lines at rest, for the reason the old web gave for leaving factions out: a twelve-member guild drawn as a hub is a twelve-spoke star, force layouts give hubs enormous influence, and the stars push the real relationships to the rim. It is also a category error: "rival of" is a relation, "member of" is an attribute. So a faction, place, deity, item or quest is a node only when it has a link (`lib/worldWeb/model.ts`), and a person is always a node. At production volume a campaign has hundreds of places; none is drawn unless it has a link.
 
-- **NPC nodes**: coloured circles sized 18 px radius, colour = relationship colour, resolved from the `--relationship-*` ramp by `npcRelationshipCanvasColor()` (hostile red, unfriendly orange, indifferent grey, friendly teal, helpful green, unknown purple). Labels shown.
-- **PC nodes** (togglable): larger circles (22 px radius), amber/gold, labelled with the party member's name — and wearing their portrait when they have one, cropped round on the focal point via `FocalImage` in a `foreignObject`. Party only: a campaign holds a handful of PCs and several hundred NPCs, and fetching every NPC portrait to draw it at 36px is a lot of network for very little picture. The gold shows through while the image loads or when a member has no portrait.
+**Group by** (`lib/worldWeb/groups.ts`) gathers a faction's members, a place's residents (NPC homes and PCs there) or a deity's faithful (patron deity, or a person or faction tied in faith) in a hull and pulls them together, one group at a time. The hull is `lib/worldWeb/hull.ts` unchanged: one shape per run of members who sit near each other, a lone member gets none, fill plus a thick round-joined stroke so two members are a capsule and one a disc. The pull is `groupClusteringForce`, and it keeps the rest-distance rule that was measured on the old web: only members further than `GROUP_GATHER_RADIUS` (190) from the centre are pulled, and only by the excess. Without a rest length the force collapses members until `forceCollide` stops it, which put co-members closer than people with an actual relationship (118 against 147). The ordering it has to produce is people who know each other, then the same group, then unrelated. The group's own node is held on the hull's outline by `groupFenceForce`, straight above the members, so its links leave from the fence.
 
-### Edges
+**Faction badges** (`lib/worldWeb/badges.ts`) stay: up to three emblems on a person, then `+N`, active memberships first, former ones faded. They are built from the membership ties, so no separate faction query is needed.
 
-- **NPC–NPC**: solid line, coloured by the relationship type from the 13-type bond taxonomy (`NPC_RELATIONSHIP_TYPE_LABELS`; family and sibling are `kin_links` since #1083): chosen_family, friend, ally, rival, enemy, mentor, apprentice, lover, subordinate, superior, contact, former_ally, former_enemy. Each type has its own `--relation-*` token. `chosen_family` stays a bond: it is chosen, not kin.
-- **NPC–PC**: dashed line, coloured by the note's relationship type.
+**Focus** (`lib/worldWeb/focus.ts`, `WorldWebFocus.vue`) is not the force layout. It is laid out by hand in rings: the centre, everything one step away with the reason read from that node's own end ("worships", "patron deity"), and with 2 steps a faded second ring. Records draw as dashed spokes here, so "who worships her" has an answer. Ring one is capped at 48 and ring two at 72, and the picture says when ties are left out; the panel lists all of them (`groupTies`, which words each group as "Worships The Drowned Lady"). A tap on a node moves the focus and extends the trail. Ties between two first-ring nodes are not drawn, so the picture reads as a sentence. A phone and a player open focus-first: the ring plus the same ties as a list of 44px rows, with **Whole web** for the pan-and-zoom graph. `?focus=<kind>:<id>` opens on a node.
 
-Only one edge is drawn per pair regardless of directionality (the inverse type is computed on read).
+**Connect…** replaces shift-click, which a tablet cannot do: choose Connect… on a node, tap another node or find anyone (`WorldEntityPicker`), then pick the type from `typeChoices(subjectKind, otherKind)`, common types first. Writes go through `useCreateConnection`, retyping through `useRetypeConnection`, removal through `useRemoveConnection` and the player-facing line through `useUpdateLink`, so a membership or a home is written to the record that already holds it. A quest's ties are edited on the quest.
 
-### Factions on the web
+**Colour.** A line is coloured by the catalogue family of its type, `--link-bond`, `--link-enmity`, `--link-faith`, `--link-place`, `--link-holding`, `--link-stance`, `--link-record`, defined in `theme.css` and both Vellum themes with lightness differences, not hue alone. Kin keeps `--relation-family`. NPC nodes are still coloured by attitude to the party through `npcRelationshipCanvasColor`.
 
-Factions are **not nodes**, and that is a decision rather than an omission. A
-twelve-member guild drawn as a hub is a twelve-spoke star, and force layouts give
-hubs enormous influence — the stars dominate the layout and push the NPC-to-NPC
-edges, the actual subject of the view, out to the rim. Multi-membership
-multiplies it. It is also a category error: "Froya and Grynsk are rivals" is a
-relation, "Froya is in the Harbormasters" is an attribute, and drawing both as
-lines makes them look like the same kind of fact.
+**Filters** live in `stores/ui/world.ts` (`useWorldUiStore`): search, the kinds switched off, the group, and the tie family. A graph is not a list, but its filters are filters: opening a sheet from the web and coming back keeps them.
 
-So membership appears two ways instead:
-
-- **Badges on the node** (`lib/npcWeb/factions.ts`). Up to three faction emblems
-  upper-right of each node, then `+N`. The emblem carries membership rather than
-  a colour, because fill already means attitude-to-party and a campaign can hold
-  twenty factions against roughly seven distinguishable hues; a faction with no
-  `emblem_url` falls back to its initial. Active memberships sort ahead of former
-  ones so the three that survive the cap describe the NPC now; Retired/Defected/
-  Expelled render faded rather than dropped. Pointing at a badge opens it to the
-  size of the node and names the faction and role — nodes hold a constant screen
-  size, so zooming can never make a badge bigger, and at rest it can only say
-  "there is an allegiance here". Clicking one opens the faction; on touch the
-  first tap opens the badge and the second follows it.
-- **A focused hull** (`lib/npcWeb/hull.ts`). The faction picker draws a boundary
-  around one faction's members and dims everyone else — node, label and badges
-  together. One faction at a time on purpose: NPCs sit in several at once, so
-  every boundary at once is overlapping blobs that read worse than none. Drawn
-  under the edges so it reads as ground; fill plus a thick round-joined stroke,
-  which rounds the corners and makes the degenerate cases work without special
-  casing — two members become a capsule, one becomes a disc.
-
-  A convex hull can enclose a non-member who happens to stand among members. The
-  dimming is what disambiguates that, and it is why the fade has to reach the
-  labels and badges too rather than just the circles.
-
-  While a faction is focused each member is captioned with how they belong —
-  "Leader", "Agent · Expelled" — from `membershipCaption`, shared with the badge
-  tooltip so one membership cannot describe itself two ways on one screen. A
-  plain member gets no caption: everyone inside the fence is a member, and it is
-  the unremarkable ones staying quiet that lets "Leader" and "Expelled" carry.
-
-`ForceLayout` gets a same-faction pull (`lib/npcWeb/factionClustering.ts`) so
-membership has some bearing on where someone ends up — without it the graph
-listens only to NPC-to-NPC edges, and a faction's members can sit in opposite
-corners for ever, which is a fact the data already knows and the picture throws
-away. It reads its groups through a getter on every tick, because
-`createSimulation` runs once at activation and membership arrives from its own
-query after that.
-
-**It pulls to a neighbourhood, not to a point.** Only members further than
-`FACTION_GATHER_RADIUS` (190) from their faction's centre are pulled, and only
-by the excess. That rest distance is the design: without one the force is a
-spring with zero rest length, and it collapses members onto each other until
-`forceCollide` physically stops it. Measured, that put co-members _closer_ than
-people with an actual relationship (118 vs 147) — a shared banner reading as a
-stronger tie than knowing someone. Lowering the strength did not help and could
-not, since strength changes how fast a spring closes, not where it stops.
-
-The ordering it has to produce, and does (measured on the fixture at 137 / 166 /
-175):
-
-    people who know each other  <  same faction  <  unrelated
-
-Faction-to-faction relations are **not** shown here. That is a subject in its own
-right and belongs on the Factions screen; this view's subject is people.
-
-### Filters and Controls
-
-The legend is **derived** from `NPC_RELATIONSHIP_LABELS` and the ramp tokens, never
-listed by hand. It used to be three literal pairs (Ally #2563eb / Neutral #6b7280 /
-Enemy #dc2626) — the pre-5e enum that `20260519000001` replaced. The graph moved with
-the migration and the key under it did not, so for every release since it named three
-groups that could no longer appear and coloured them with hexes nothing was painting.
-
-| Control                    | Behaviour                                                                            |
-| -------------------------- | ------------------------------------------------------------------------------------ |
-| Search input               | Filters nodes by NPC name or disguise name; selected/linked nodes are pinned visible |
-| Party Members toggle       | Shows/hides PC nodes and their edges                                                 |
-| Location dropdown          | `EntityCombobox`, not a select — a campaign carries hundreds of locations. Shows only NPCs there (including descendants) |
-| Relationship type dropdown | Shows only edges of that type (considering inverse); a directed pair is one option ("Superior / subordinate"). Distinct from the legend: this narrows the _edges_ by what two people are to each other, the legend narrows the _people_ by how they regard the party |
-| Legend                     | One swatch per relationship, built from `NPC_RELATIONSHIP_LABELS` + the ramp tokens. **Clickable**: shows only NPCs of that attitude, click again to release. Unselected swatches fade, the same grammar the faction focus uses |
-| Clear                      | Appears when any of the four is active; calls `resetNpcWebFilters()`                 |
-
-All four live in `useNpcsUiStore` (`npcWebSearch`, `npcWebShowPcs`, `npcWebFilterLocation`, `npcWebFilterType`) and survive navigating to an NPC sheet and back (#723). A graph is not a list, which is why the Filter State Pattern audit skipped it — but the filters are filters, so it gets the same treatment. `NpcWebTopBar` stays prop/emit-driven (the view owns where the state lives) and bridges to the `ListSearchInput` / `ListFilterSelect` v-models with local writable computeds.
-
-### Side Panel
-
-Clicking a node opens a sliding panel on the right (absolute overlay — the graph SVG never resizes).
-
-**NPC panel**: portrait thumbnail, name, occupation, species, relationship + status badges, a shift-click hint, an "Open Sheet" button, and a CONNECTIONS list for that NPC. Each connection row shows a type badge and the other NPC's name; clicking a row enters inline editing (type selector + notes field + save/cancel/delete).
-
-**PC panel**: portrait, name, Party Member badge, class + species + level, "Open Sheet" button (links to `/party/:id`).
-
-**New / edit connection form**: triggered by:
-
-1. Clicking an existing edge — pre-fills type and notes from the stored relation.
-2. Shift+clicking a second node after selecting the first — creates a new connection between the two nodes. Works for NPC–NPC and NPC–PC pairs.
-
-The form shows both node names, a relationship type selector, and an optional notes field. For NPC–NPC the relationship type uses the full 13-type taxonomy; for NPC–PC it uses the same taxonomy. The inverse type is automatically stored on the correct side.
-
----
 
 ## NPC Generator
 
@@ -547,7 +449,7 @@ Sort, view and filters live in `usePlayerUiStore` (`playerPeopleSortBy` / `SortD
 
 `npc_reveals` (migration `20261005220422`) holds one row per (NPC, party member): the first moment that member could see the NPC, whether it was shared with them directly or through its location's "share linked NPCs". Since `20261006072853` each row also carries `session_id` (the session open when it was written, else the next one started; see [`sessions.md`](sessions.md)) and `approximate`, and the DM may move a reveal to another session (`update` of `session_id` alone). The player's ledger labels sessions through `get_player_sessions`. Triggers on `npcs` and `locations` are its only writers; `on conflict do nothing` keeps the first moment, so unsharing and sharing again does not move it. A player reads only their own rows, the DM the whole campaign's (for preview). Reveals that existed before the table were backfilled with the NPC's `created_at`, the closest evidence left. `useSharedNpcs` is the projection alone, one request. Only the People page needs the moments, so `useMyNpcRevealMoments` (in `useNpcReveals.ts`) reads them separately, scoped to the campaign and the viewer's member (the previewed one in DM preview, the linked one otherwise), and `PlayerPartyView` sets `revealed_at` on its NPCs via `withRevealMoments`. The query key sits under `player-npcs`, so the `npcs_player` and `locations_player` doorbells refresh it with the projection. Other surfaces that render `PlayerNpcProfile` (lightboxes) get no `revealed_at`, so they show no "met" date.
 
-**Opening a person** (`PlayerNpcProfile`, shared by the lightbox and the pane): name and stars, relationship mark and status word, species · occupation, Met and Where, **Your connection** (the DM's note for this character, `useMyNpcPcNote`, shown only when written; the DM writes it on **With the party**), and the player's notes (`PlayerNotesWidget`). Below `lg` it opens in `PlayerNpcLightbox`; from `lg` the ledger sits beside `PeopleDetailPane`, a plate plus the profile. The selection sticks once made and falls back to the first visible person only when the selected one leaves the list. `?npc=<id>` opens a person.
+**Opening a person** (`PlayerNpcProfile`, shared by the lightbox and the pane): name and stars, relationship mark and status word, species · occupation, Met and Where, **Your connection** (the revealed link between this NPC and the viewer's own character, found in `get_player_connections` by `findMyConnection`: the linked party member, or the previewed one; shown as a `ConnectionSlip` with the catalogue word and the `told` line, only when one is revealed to them; the DM writes it on **With the party**), **Connections you know of** (`PlayerConnectionsList`, the other revealed ties grouped people, factions, places, deities, items, quests; never a count of hidden ones), an **In the web** link to `/play/web?focus=npc:<id>`, and the player's notes (`PlayerNotesWidget`). Below `lg` it opens in `PlayerNpcLightbox`; from `lg` the ledger sits beside `PeopleDetailPane`, a plate plus the profile. The selection sticks once made and falls back to the first visible person only when the selected one leaves the list. `?npc=<id>` opens a person.
 
 ### NPCs in Other Player Portal Views
 
@@ -564,7 +466,7 @@ Sort, view and filters live in `usePlayerUiStore` (`playerPeopleSortBy` / `SortD
 - **Field-level player visibility**: rather than showing all-or-nothing, the DM controls exactly which of 7 fields are visible per NPC (portrait, name, status, species, occupation, relationship, location). This allows mysteries — an NPC can be "known" (portrait shown, location shown) but still anonymous (name hidden).
 - **Alter-ego / disguise system**: NPCs can have a parallel identity (separate name, portrait, focal point). The DM toggles `is_revealed` from the "SEEN AS" section of the reveal control, which is on every NPC surface — list card, sheet header, mobile bars, editor; a chat event fires automatically when the reveal happens during a session.
 - **Per-PC connection notes**: the DM can write individual notes for each party member's relationship with an NPC. Each player sees only their own note in the portal lightbox, creating personalised backstory.
-- **Relationship Web with inline editing**: a force-directed graph of all NPC connections. Edges are clickable to edit/delete. Shift+click creates new connections directly on the graph without leaving the view.
+- **World web with inline editing**: a force-directed graph of every tie in the campaign. Lines are clickable to retype or remove; Connect… on a node ties it to another without leaving the view.
 - **13-type directional relationship taxonomy** with automatic inverse type: storing "Mentor" from NPC A's side automatically reads as "Apprentice" from NPC B's side.
 - **AI NPC generation with alter-ego support**: one generation call can produce both a true-form portrait and a disguise portrait. Generation runs in background so the DM can dismiss the panel and continue working.
 - **Setting population**: Faerûn campaigns can bulk-insert canonical NPCs (Hall of Heroes) in one click, with name-based deduplication and portrait back-fill.

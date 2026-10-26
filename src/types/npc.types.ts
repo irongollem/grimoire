@@ -1,6 +1,6 @@
 import type { AiProvenance } from "@/ai/provenance";
 import type { MonsterStatBlock } from "@/types/monster.types";
-import type { SuggestedRelationshipType } from "@edge-shared/npcRelationshipSuggestions.ts";
+import type { SuggestedRelationshipType } from "@edge-shared/connectionSuggestions.ts";
 
 export type NpcStatus = "alive" | "dead" | "missing" | "unknown";
 export type NpcRelationship =
@@ -38,131 +38,6 @@ export const NPC_RELATIONSHIP_TYPE_LABELS: Record<NpcRelationshipType, string> =
   former_ally:   "Former Ally",
   former_enemy:  "Former Enemy",
 };
-
-// When displaying a relationship from the *other* NPC's perspective, use the inverse type.
-// Symmetric types map to themselves.
-export const NPC_RELATIONSHIP_INVERSE: Record<NpcRelationshipType, NpcRelationshipType> = {
-  chosen_family: "chosen_family",    // symmetric
-  friend:        "friend",
-  ally:          "ally",
-  rival:         "rival",
-  enemy:         "enemy",
-  mentor:        "apprentice",
-  apprentice:    "mentor",
-  lover:         "lover",
-  subordinate:   "superior",
-  superior:      "subordinate",
-  contact:       "contact",
-  former_ally:   "former_ally",
-  former_enemy:  "former_enemy",
-};
-
-/**
- * The directed bonds, by the end that leads: a superior over a subordinate, a mentor over an apprentice. Each
- * pair is one relation read from either end, like a parent and a child, so it shares one colour, is worded with
- * whose it is ("Ulkora's subordinate"), and is drawn on the web as one arrow from the leading end.
- */
-export const NPC_DIRECTED_LEADS: Partial<Record<NpcRelationshipType, NpcRelationshipType>> = {
-  superior: "subordinate",
-  mentor: "apprentice",
-};
-
-/** True for either end of a directed bond. */
-export function isDirectedRelation(type: NpcRelationshipType): boolean {
-  return type in NPC_DIRECTED_LEADS || NPC_RELATIONSHIP_INVERSE[type] in NPC_DIRECTED_LEADS;
-}
-
-/**
- * How a type reads on the card of the person it describes. `owner` is whose they are: on Ulkora's sheet,
- * Gunvald's card reads "Ulkora's subordinate". Symmetric types need no owner ("Friend").
- */
-export function npcRelationLabel(type: NpcRelationshipType, owner: string | null | undefined): string {
-  const label = NPC_RELATIONSHIP_TYPE_LABELS[type] ?? type;
-  return owner && isDirectedRelation(type) ? `${owner}'s ${label.toLowerCase()}` : label;
-}
-
-/** Picker options with each directed type worded for `owner`. */
-export function npcRelationOptions(owner: string | null | undefined): [NpcRelationshipType, string][] {
-  return (Object.keys(NPC_RELATIONSHIP_TYPE_LABELS) as NpcRelationshipType[]).map((t) => [t, npcRelationLabel(t, owner)]);
-}
-
-/** Filter options: a directed pair is one relation, so it is one option, keyed by its leading end. */
-export const NPC_RELATIONSHIP_FILTER_OPTIONS: [NpcRelationshipType, string][] = (
-  Object.keys(NPC_RELATIONSHIP_TYPE_LABELS) as NpcRelationshipType[]
-)
-  .filter((t) => !isDirectedRelation(t) || t in NPC_DIRECTED_LEADS)
-  .map((t) => {
-    const led = NPC_DIRECTED_LEADS[t];
-    return [t, led ? `${NPC_RELATIONSHIP_TYPE_LABELS[t]} / ${NPC_RELATIONSHIP_TYPE_LABELS[led].toLowerCase()}` : NPC_RELATIONSHIP_TYPE_LABELS[t]];
-  });
-
-export const NPC_RELATIONSHIP_TYPE_BG: Record<NpcRelationshipType, string> = {
-  chosen_family:    "bg-relation-chosen-family",
-  friend:           "bg-relation-friend",
-  ally:             "bg-relation-ally",
-  rival:            "bg-relation-rival",
-  enemy:            "bg-relation-enemy",
-  mentor:           "bg-relation-mentor",
-  apprentice:       "bg-relation-apprentice",
-  lover:            "bg-relation-lover",
-  subordinate:      "bg-relation-subordinate",
-  superior:         "bg-relation-superior",
-  contact:          "bg-relation-contact",
-  former_ally:      "bg-relation-former-ally",
-  former_enemy:     "bg-relation-former-enemy",
-};
-
-/** Text-colour classes for the same ramp. */
-export const NPC_RELATIONSHIP_TYPE_TEXT: Record<NpcRelationshipType, string> = {
-  chosen_family:    "text-relation-chosen-family",
-  friend:           "text-relation-friend",
-  ally:             "text-relation-ally",
-  rival:            "text-relation-rival",
-  enemy:            "text-relation-enemy",
-  mentor:           "text-relation-mentor",
-  apprentice:       "text-relation-apprentice",
-  lover:            "text-relation-lover",
-  subordinate:      "text-relation-subordinate",
-  superior:         "text-relation-superior",
-  contact:          "text-relation-contact",
-  former_ally:      "text-relation-former-ally",
-  former_enemy:     "text-relation-former-enemy",
-};
-
-/** The same ramp as `var()` values, for borders, gradients and canvas — places
- *  a utility class cannot reach. Tint with `color-mix`, never by appending a
- *  hex alpha: that only ever worked on a hex literal. */
-export const NPC_RELATIONSHIP_TYPE_VAR: Record<NpcRelationshipType, string> = {
-  chosen_family:    "var(--relation-chosen-family)",
-  friend:           "var(--relation-friend)",
-  ally:             "var(--relation-ally)",
-  rival:            "var(--relation-rival)",
-  enemy:            "var(--relation-enemy)",
-  mentor:           "var(--relation-mentor)",
-  apprentice:       "var(--relation-mentor)",      // one relation with mentor: one colour
-  lover:            "var(--relation-lover)",
-  subordinate:      "var(--relation-superior)",    // one relation with superior: one colour
-  superior:         "var(--relation-superior)",
-  contact:          "var(--relation-contact)",
-  former_ally:      "var(--relation-former-ally)",
-  former_enemy:     "var(--relation-former-enemy)",
-};
-
-export interface NpcRelation {
-  id: string;
-  user_id: string;
-  campaign_id: string | null;
-  npc_id: string;
-  related_npc_id: string;
-  relationship_type: NpcRelationshipType;
-  notes: string | null;
-  ai_provenance?: AiProvenance | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export type NpcRelationInsert = Omit<NpcRelation, "id" | "user_id" | "created_at" | "updated_at">;
-export type NpcRelationUpdate = Partial<NpcRelationInsert>;
 
 export interface SpellcastingEntry {
   frequency: string; // e.g. "at will", "3/day each", "1st level (4 slots)"

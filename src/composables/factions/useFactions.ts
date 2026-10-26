@@ -12,20 +12,12 @@ import type {
   Faction,
   FactionInsert,
   FactionNpc,
-  FactionLocation,
-  FactionItem,
-  FactionRelation,
   FactionPartyMember,
-  FactionDeity,
 } from "@/types/faction.types";
 import type { Npc } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
-import type { Location } from "@/types/location.types";
-import type { Item } from "@/types/item.types";
-import type { Deity } from "@/types/deity.types";
-import { normalizeLibraryItem } from "@/composables/items/useItems";
-import type { ItemRefColumns } from "@/lib/itemRef";
 import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
+import { HEAD_ROLES } from "@/types/faction.types";
 
 // ── Factions CRUD ──────────────────────────────────────────────────────────────
 
@@ -435,328 +427,6 @@ export function useRemoveFactionNpc() {
   });
 }
 
-// ── Faction Deities ────────────────────────────────────────────────────────────
-
-export type FactionDeityWithDeity = FactionDeity & {
-  deity: Pick<Deity, "id" | "name" | "titles" | "alignment" | "domains" | "portrait_url">;
-};
-
-export function useFactionDeities(factionId: string) {
-  return useQuery({
-    queryKey: ["faction-deities", factionId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("faction_deities")
-        .select("*, deity:deities(id, name, titles, alignment, domains, portrait_url)")
-        .eq("faction_id", factionId)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data as FactionDeityWithDeity[];
-    },
-    enabled: !!factionId,
-  });
-}
-
-export function useDeityFactions(deityId: string) {
-  return useQuery({
-    queryKey: ["deity-factions", deityId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("faction_deities")
-        .select("*, faction:factions(id, name, faction_type, emblem_url)")
-        .eq("deity_id", deityId)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data as (FactionDeity & {
-        faction: Pick<Faction, "id" | "name" | "faction_type" | "emblem_url">;
-      })[];
-    },
-    enabled: !!deityId,
-  });
-}
-
-export function useAddFactionDeity() {
-  const qc = useQueryClient();
-  const campaign = useCampaignStore();
-  return useMutation({
-    mutationFn: async (payload: { faction_id: string; deity_id: string }) => {
-      const user = getCurrentUser();
-      const { error } = await supabase.from("faction_deities").insert({
-        ...payload,
-        user_id: user!.id,
-        campaign_id: campaign.activeCampaignId!,
-      });
-      if (error) throw error;
-    },
-    onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ["faction-deities", vars.faction_id] });
-      qc.invalidateQueries({ queryKey: ["deity-factions", vars.deity_id] });
-    },
-  });
-}
-
-export function useRemoveFactionDeity() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      id,
-      faction_id: _f,
-      deity_id: _d,
-    }: {
-      id: string;
-      faction_id: string;
-      deity_id: string;
-    }) => {
-      const { error } = await supabase.from("faction_deities").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ["faction-deities", vars.faction_id] });
-      qc.invalidateQueries({ queryKey: ["deity-factions", vars.deity_id] });
-    },
-  });
-}
-
-// ── Faction Locations ──────────────────────────────────────────────────────────
-
-export interface FactionLocationWithLocation extends FactionLocation {
-  location: Pick<Location, "id" | "name" | "location_type">;
-}
-
-export function useFactionLocations(factionId: string) {
-  return useQuery({
-    queryKey: ["faction-locations", factionId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("faction_locations")
-        .select("*, location:locations(id, name, location_type)")
-        .eq("faction_id", factionId)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data as FactionLocationWithLocation[];
-    },
-    enabled: !!factionId,
-  });
-}
-
-export function useAddFactionLocation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (payload: {
-      faction_id: string;
-      location_id: string;
-      notes?: string;
-    }) => {
-      const user = getCurrentUser();
-      const { error } = await supabase
-        .from("faction_locations")
-        .insert({ ...payload, user_id: user!.id });
-      if (error) throw error;
-    },
-    onSuccess: (_d, vars) =>
-      qc.invalidateQueries({
-        queryKey: ["faction-locations", vars.faction_id],
-      }),
-  });
-}
-
-export function useRemoveFactionLocation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      id,
-      faction_id: _f,
-    }: {
-      id: string;
-      faction_id: string;
-    }) => {
-      const { error } = await supabase
-        .from("faction_locations")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: (_d, vars) =>
-      qc.invalidateQueries({
-        queryKey: ["faction-locations", vars.faction_id],
-      }),
-  });
-}
-
-// ── Faction Items ──────────────────────────────────────────────────────────────
-
-/** `item` is a subset — never the full `dm_notes`/`description` row — resolved
- *  from whichever of `items`/`library_items` the row actually references
- *  (#819: a faction can now hold shared content, not just a vault item). */
-export interface FactionItemWithItem extends FactionItem {
-  item: Pick<Item, "id" | "name" | "item_type" | "rarity">;
-}
-
-type ItemPreview = Pick<Item, "id" | "name" | "item_type" | "rarity">;
-interface RawFactionItemRow extends FactionItem {
-  item: ItemPreview | null;
-  library_item: ItemPreview | null;
-}
-
-// Both FKs are ON DELETE CASCADE, so a row referencing either can't outlive
-// its target — this is defensive only, never the expected case in practice.
-const UNRESOLVED_ITEM_PREVIEW: ItemPreview = { id: "", name: "???", item_type: "gear", rarity: "mundane" };
-
-export function useFactionItems(factionId: string) {
-  return useQuery({
-    queryKey: ["faction-items", factionId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("faction_items")
-        .select("*, item:items(id, name, item_type, rarity), library_item:library_items(id, name, item_type, rarity)")
-        .eq("faction_id", factionId)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return (data as unknown as RawFactionItemRow[]).map(({ library_item, ...row }) => ({
-        ...row,
-        item: row.item ?? (library_item ? normalizeLibraryItem(library_item) : UNRESOLVED_ITEM_PREVIEW),
-      })) as FactionItemWithItem[];
-    },
-    enabled: !!factionId,
-  });
-}
-
-export function useAddFactionItem() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (
-      payload: ItemRefColumns & {
-        faction_id: string;
-        notes?: string;
-      },
-    ) => {
-      const user = getCurrentUser();
-      const { error } = await supabase
-        .from("faction_items")
-        .insert({ ...payload, user_id: user!.id });
-      if (error) throw error;
-    },
-    onSuccess: (_d, vars) =>
-      qc.invalidateQueries({ queryKey: ["faction-items", vars.faction_id] }),
-  });
-}
-
-export function useRemoveFactionItem() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      id,
-      faction_id: _f,
-    }: {
-      id: string;
-      faction_id: string;
-    }) => {
-      const { error } = await supabase
-        .from("faction_items")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: (_d, vars) =>
-      qc.invalidateQueries({ queryKey: ["faction-items", vars.faction_id] }),
-  });
-}
-
-// ── Faction Relations (directional) ───────────────────────────────────────────
-
-export interface FactionRelationWithFactions extends FactionRelation {
-  source_faction: Pick<Faction, "id" | "name">;
-  target_faction: Pick<Faction, "id" | "name">;
-}
-
-/** All relations where this faction is source OR target */
-export function useFactionRelations(factionId: string) {
-  return useQuery({
-    queryKey: ["faction-relations", factionId],
-    queryFn: async () => {
-      const [out, inc] = await Promise.all([
-        supabase
-          .from("faction_relations")
-          .select(
-            "*, source_faction:factions!faction_id(id, name), target_faction:factions!target_faction_id(id, name)",
-          )
-          .eq("faction_id", factionId),
-        supabase
-          .from("faction_relations")
-          .select(
-            "*, source_faction:factions!faction_id(id, name), target_faction:factions!target_faction_id(id, name)",
-          )
-          .eq("target_faction_id", factionId),
-      ]);
-      if (out.error) throw out.error;
-      if (inc.error) throw inc.error;
-      return {
-        outgoing: out.data as FactionRelationWithFactions[],
-        incoming: inc.data as FactionRelationWithFactions[],
-      };
-    },
-    enabled: !!factionId,
-  });
-}
-
-export function useUpsertFactionRelation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (payload: {
-      faction_id: string;
-      target_faction_id: string;
-      relation_type: string;
-      notes?: string;
-    }) => {
-      const user = getCurrentUser();
-      const { error } = await supabase
-        .from("faction_relations")
-        .upsert(
-          { ...payload, user_id: user!.id },
-          { onConflict: "faction_id,target_faction_id" },
-        );
-      if (error) throw error;
-    },
-    onSuccess: (_d, vars) => {
-      qc.invalidateQueries({
-        queryKey: ["faction-relations", vars.faction_id],
-      });
-      qc.invalidateQueries({
-        queryKey: ["faction-relations", vars.target_faction_id],
-      });
-    },
-  });
-}
-
-export function useDeleteFactionRelation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      id,
-      faction_id: _f,
-      target_faction_id: _t,
-    }: {
-      id: string;
-      faction_id: string;
-      target_faction_id: string;
-    }) => {
-      const { error } = await supabase
-        .from("faction_relations")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: (_d, vars) => {
-      qc.invalidateQueries({
-        queryKey: ["faction-relations", vars.faction_id],
-      });
-      qc.invalidateQueries({
-        queryKey: ["faction-relations", vars.target_faction_id],
-      });
-    },
-  });
-}
-
 // ── Faction Party Members ──────────────────────────────────────────────────────
 
 export interface FactionPartyMemberWithMember extends FactionPartyMember {
@@ -939,5 +609,19 @@ export function usePopulateFactions() {
       return (inserted ?? []).length;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["factions"] }),
+  });
+}
+
+/**
+ * Whether a faction already has a head, NPC or character: a Leader or a Head of
+ * house. The Connections block does not offer those roles to a second member
+ * (#1084), so a faction cannot end up with two.
+ */
+export function useFactionHeaded(factionId: MaybeRefOrGetter<string>) {
+  const npcs = useFactionNpcs(factionId);
+  const pcs = useFactionPartyMembers(factionId);
+  return computed(() => {
+    const rows = [...(npcs.data.value ?? []), ...(pcs.data.value ?? [])];
+    return rows.some((m) => m.role !== null && HEAD_ROLES.includes(m.role));
   });
 }

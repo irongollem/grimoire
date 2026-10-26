@@ -239,6 +239,8 @@ export interface OpenBookSnapshot {
    * table can read: characters, people under their cover, places, factions. An id missing here stays unnamed.
    */
   names: Record<string, string>;
+  /** Ties between two entries of the release (#1084); absent from releases made before it. Read through `readTies`. */
+  ties?: unknown;
 }
 
 /** What `preview_open_book` returns: the snapshot plus its counts. */

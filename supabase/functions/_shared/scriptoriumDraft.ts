@@ -16,6 +16,7 @@
  */
 
 import { toPlainText } from "./ai-prompt.ts";
+import { pairFor } from "./worldLinkCatalogue.ts";
 
 // ── Request ──────────────────────────────────────────────────────────────────
 
@@ -163,8 +164,27 @@ export interface FactionMember {
   /** The NPC's own location is shared with players AND has "share linked NPCs" on. */
   locationSharesNpcs: boolean;
 }
-export interface FactionHolding { location: DraftLocation; notes: string | null }
-export interface FactionRelationRow { target: DraftFaction; relation_type: string; notes: string | null }
+/** A faction's tie to a place, `word` read from the faction ("controls", "base of"). */
+export interface FactionHolding { location: DraftLocation; word: string; notes: string | null }
+/** A faction's tie to another faction, `word` read from the subject ("allied with", "seen as a rival by"). */
+export interface FactionRelationRow { target: DraftFaction; word: string; notes: string | null }
+
+/**
+ * The words a World Web link (#1084) reads as from a faction's side: the
+ * catalogue's `forward` when the faction is the link's `from` end, `reverse`
+ * when it is the `to` end. Null when the catalogue holds no such type for the
+ * pair, so a stray row can never put a raw key in front of the model.
+ */
+export function factionLinkWord(
+  otherKind: "location" | "faction",
+  type: string,
+  factionIsFrom: boolean,
+): string | null {
+  const pair = pairFor("faction", otherKind);
+  const def = pair?.pair.types.find((t) => t.key === type);
+  if (!def) return null;
+  return factionIsFrom ? def.forward : def.reverse;
+}
 
 /**
  * The player projection (`get_player_visible_npcs`, latest definition in
@@ -299,12 +319,12 @@ export function buildFactionBlock(
     shownMembers.length ? `Members:\n${shownMembers.map((m) => `- ${npcLabel(m, audience)}`).join("\n")}` : null,
     shownHoldings.length
       ? `Holdings:\n${shownHoldings
-        .map((h) => `- ${h.location.name}${dm && h.notes ? `: ${clip(h.notes, 200)}` : ""}`)
+        .map((h) => `- ${h.word} ${h.location.name}${dm && h.notes ? `: ${clip(h.notes, 200)}` : ""}`)
         .join("\n")}`
       : null,
     shownRelations.length
       ? `Relations with other factions:\n${shownRelations
-        .map((r) => `- ${r.relation_type} ${r.target.name}${dm && r.notes ? `: ${clip(r.notes, 200)}` : ""}`)
+        .map((r) => `- ${r.word} ${r.target.name}${dm && r.notes ? `: ${clip(r.notes, 200)}` : ""}`)
         .join("\n")}`
       : null,
   ]).join("\n");

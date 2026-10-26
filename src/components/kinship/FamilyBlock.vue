@@ -37,7 +37,16 @@
           <span v-if="group.caption" class="text-caption italic text-muted-foreground">{{ group.caption }}</span>
         </div>
         <ul class="mt-1 flex flex-col gap-2">
-          <KinRow v-for="r in group.rows" :key="r.key" :row="r" :player="player" @remove="removeLink" />
+          <KinRow
+            v-for="r in group.rows"
+            :key="r.key"
+            :row="r"
+            :player="player"
+            :picker="pickerFor(r)"
+            @remove="removeLink"
+            @retype-kin="retypeKin"
+            @retype-bond="retypeBond"
+          />
         </ul>
       </div>
     </div>
@@ -52,13 +61,25 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import AddRelativeDialog from "@/components/kinship/AddRelativeDialog.vue";
 import KinRow from "@/components/kinship/KinRow.vue";
-import { buildFamilyGroups, type FamilyRow } from "@/components/kinship/familyRows";
+import {
+  bondChoices,
+  buildFamilyGroups,
+  kinAsConnection,
+  kinOptions,
+  kinRetypePatch,
+  retypedSentence,
+  type FamilyRow,
+  type KinOption,
+} from "@/components/kinship/familyRows";
+import { useRetypeConnection } from "@/composables/connections/useConnections";
 import { useKinClock } from "@/composables/kinship/useKinClock";
-import { useDeleteKinLink } from "@/composables/kinship/useKinLinks";
+import { useDeleteKinLink, useUpdateKinLink } from "@/composables/kinship/useKinLinks";
 import { useDmKinGraph, usePlayerKinGraph, type KinGraphSource } from "@/composables/kinship/useKinGraph";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { IconAddUser, IconNetwork } from "@/lib/icons";
+import { parsePersonKey } from "@/lib/kinship/keys";
+import type { TypeChoice } from "@/lib/worldLinks/connections";
 import type { PersonKey } from "@/types/kinship.types";
 
 /**
@@ -81,6 +102,8 @@ const clock = useKinClock();
 const { confirm } = useConfirm();
 const toast = useToast();
 const deleteLink = useDeleteKinLink();
+const updateLink = useUpdateKinLink();
+const retype = useRetypeConnection();
 
 const addOpen = ref(false);
 
@@ -91,6 +114,44 @@ const groups = computed(() =>
 const treeTo = computed(() =>
   player ? { name: "play-family-tree", params: { key: person } } : { name: "family-tree", params: { key: person } },
 );
+
+const subjectName = computed(() => source.people.value.get(person)?.name ?? "They");
+
+/** What a row's word can be changed to; the DM's rows only, and a derived sibling has no link to change. */
+function pickerFor(row: FamilyRow) {
+  if (player || !row.link) return null;
+  return { kin: kinOptions(source.graph.value, person, row), bonds: bondChoices(person, row.key) };
+}
+
+/** kin to kin: one update of the row in place, so its pair, note and adoption survive. */
+async function retypeKin(row: FamilyRow, option: KinOption) {
+  if (!row.link) return;
+  try {
+    await updateLink.mutateAsync({
+      id: row.link.id,
+      patch: kinRetypePatch(row.link, person, row.key, option, notes.value.get(row.link.id) ?? ""),
+    });
+    toast.success(retypedSentence(row.person.name, subjectName.value, option));
+  } catch (e) {
+    toast.error(toast.fromError(e, "Could not change the relation. Please try again."));
+  }
+}
+
+/** kin to bond: the bond is written, then the kin row removed (the retype mutation orders them so a failure loses nothing). */
+async function retypeBond(row: FamilyRow, choice: TypeChoice) {
+  if (!row.link) return;
+  const { type } = parsePersonKey(person);
+  try {
+    await retype.mutateAsync({
+      connection: kinAsConnection(row.link, person, row, notes.value.get(row.link.id) ?? ""),
+      subject: { kind: type === "npc" ? "npc" : "party_member", id: parsePersonKey(person).id },
+      choice,
+    });
+    toast.success(`${row.person.name} is now a bond (${choice.word}), under Connections.`);
+  } catch (e) {
+    toast.error(toast.fromError(e, "Could not move the tie. Please try again."));
+  }
+}
 
 async function removeLink(row: FamilyRow) {
   if (!row.link) return;

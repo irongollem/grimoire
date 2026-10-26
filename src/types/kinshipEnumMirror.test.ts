@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SUGGESTED_KIN_RELATIONS } from "@edge-shared/npcRelationshipSuggestions.ts";
+import { SUGGESTED_KIN_RELATIONS } from "@edge-shared/connectionSuggestions.ts";
 import { KIN_RELATIONS } from "@/types/kinship.types";
 
 // Edge code cannot import from src/, so the suggester keeps its own copy.

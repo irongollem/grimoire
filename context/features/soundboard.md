@@ -327,6 +327,6 @@ Encounters and locations are wired (see **Themed audio** above). Still open:
 ### Not phased
 
 - **`useReplacePlaylistTracks` deletes and re-inserts the whole track list on every save** rather than diffing.
-- **Other shortcuts have not migrated to the registry.** `GlobalSearch` and the soundboard dialogs have; `ImageLightbox`, `RollModePicker`, `NpcWebView` and the cartographer editor still open their own `document` listeners, so the registry cannot see those combos and the cheat sheet cannot list them.
+- **Other shortcuts have not migrated to the registry.** `GlobalSearch` and the soundboard dialogs have; `ImageLightbox`, `RollModePicker` and the cartographer editor still open their own `document` listeners, so the registry cannot see those combos and the cheat sheet cannot list them.
 
 See the issue for the full plan and per-gap file references.

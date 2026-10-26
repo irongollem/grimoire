@@ -24,39 +24,36 @@ import { JOIN_TABLES_REQUIRING_CAMPAIGN, type CopyJoinTable } from "@/lib/campai
  *
  * Two entity tables — `npcs` and `factions` — have campaign-scoped join-table
  * children whose own `campaign_id` does not follow the parent row for free:
- * `kin_links` (see `moveKinLinks`), `npc_relationships`, `npc_inventory` (both owned by `npc_id`) and
- * `faction_deities` (owned by `faction_id`). `CHILD_TABLES` below names them;
- * `moveChildRows` re-stamps each one's `campaign_id` after every entity chunk
- * has landed. The other four join tables `copyToCampaign.ts` knows about
- * (`faction_npcs`, `faction_locations`, `faction_items`, `faction_relations`)
- * carry no `campaign_id` at all — they are scoped transitively through the
- * faction — so a faction move needs to touch nothing on them.
+ * `kin_links` (see `moveKinLinks`), `world_links` (see `moveWorldLinks`), and `npc_inventory`
+ * (owned by `npc_id`). `CHILD_TABLES` below names the owned one;
+ * `moveChildRows` re-stamps its `campaign_id` after every entity chunk
+ * has landed. The remaining join table `copyToCampaign.ts` knows about
+ * (`faction_npcs`) carries no `campaign_id` at all — it is scoped
+ * transitively through the faction — so a faction move needs to touch nothing
+ * on it.
  *
- * `npc_relationships` names two NPCs (`npc_id`, `related_npc_id`) but the
- * child move matches on `npc_id` only. A relationship row is *that NPC's*
- * relationship — the same ownership `useNpcRelations.ts` assumes when it
- * creates one — so it follows the NPC that owns it. If the other end stayed
- * behind in the old campaign, the relationship now spans two campaigns; that
- * is the same situation the Atlas already tolerates for a cross-campaign
- * parent, not a new kind of inconsistency this move introduces. Rewriting
- * both ends by unioning `npc_id`/`related_npc_id` was the alternative and is
- * wrong: it would move a relationship the DM never selected — one belonging
- * to some *other* NPC that merely happens to be related to a moved one —
- * out from under that NPC's own campaign.
+ * A world link (#1084) has two ends and a `campaign_id` of its own, and the
+ * database refuses one whose ends are not all in that campaign. So, like a
+ * family link, it cannot follow one end alone: a link whose two ends both moved
+ * is re-stamped, and every other link of a moved NPC or faction (the other end
+ * stayed, is a different kind of thing, or is a player character) would now
+ * span two campaigns, so it is deleted and counted. The general scope holds no
+ * link at all (`campaign_id` is NOT NULL), which is why
+ * `bulkScopeAllowsGeneral` is false for both tables.
  *
- * Two of the three child tables (`npc_inventory`, `faction_deities`) have a
- * **NOT NULL** `campaign_id` — see `JOIN_TABLES_REQUIRING_CAMPAIGN` in
- * `copyToCampaign.ts`, imported rather than re-declared here so the fact has
- * one source. That is the reasoning `bulkScopeAllowsGeneral` below turns into
- * a prop the UI can act on: a general ("every campaign") move of an NPC or
- * faction cannot carry those children, because there is no such thing as an
- * inventory line or a deity link belonging to every campaign at once. The
- * client never relaxes that constraint — it stops offering the move instead.
+ * `npc_inventory` has a **NOT NULL** `campaign_id` too — see
+ * `JOIN_TABLES_REQUIRING_CAMPAIGN` in `copyToCampaign.ts`, imported rather than
+ * re-declared here so the fact has one source. That is the reasoning
+ * `bulkScopeAllowsGeneral` below turns into a prop the UI can act on: a general
+ * ("every campaign") move of an NPC or faction cannot carry those rows, because
+ * there is no such thing as an inventory line or a link belonging to every
+ * campaign at once. The client never relaxes that constraint — it stops
+ * offering the move instead.
  *
  * A failure partway through `moveChildRows` means every entity row in this
  * batch has already fully moved (the entity loop above only reaches here
- * once it has completed without error), but that batch's relationships,
- * inventory or deity links may now be split between the old and new
+ * once it has completed without error), but that batch's links or
+ * inventory may now be split between the old and new
  * `campaign_id`. Re-running the same move is the recovery: the entity update
  * is a no-op for rows already at the target, and `moveChildRows` matches by
  * owner id regardless of a child row's current `campaign_id`, so it simply
@@ -122,19 +119,20 @@ export interface BulkScopeInput {
 
 /** One campaign-scoped join table that rides along with a moved entity, and
  *  the column naming the entity it hangs off. See the module docstring's
- *  "Children follow their owner" section for which tables are here and why
- *  `npc_relationships` matches `npc_id` only, never `related_npc_id`. */
+ *  "Children follow their owner" section for which tables are here. */
 interface ChildTable {
   table: CopyJoinTable;
   ownerColumn: string;
 }
 
 const CHILD_TABLES: Partial<Record<BulkScopeTable, readonly ChildTable[]>> = {
-  npcs: [
-    { table: "npc_relationships", ownerColumn: "npc_id" },
-    { table: "npc_inventory", ownerColumn: "npc_id" },
-  ],
-  factions: [{ table: "faction_deities", ownerColumn: "faction_id" }],
+  npcs: [{ table: "npc_inventory", ownerColumn: "npc_id" }],
+};
+
+/** The tables whose rows can be an end of a world link, with the two columns that hold that end. */
+const LINK_END_COLUMNS: Partial<Record<BulkScopeTable, readonly ["from_npc_id" | "from_faction_id", "to_npc_id" | "to_faction_id"]>> = {
+  npcs: ["from_npc_id", "to_npc_id"],
+  factions: ["from_faction_id", "to_faction_id"],
 };
 
 /**
@@ -147,6 +145,8 @@ const CHILD_TABLES: Partial<Record<BulkScopeTable, readonly ChildTable[]>> = {
  * reasoning at every call site.
  */
 export function bulkScopeAllowsGeneral(table: BulkScopeTable): boolean {
+  // A world link holds campaign_id NOT NULL (JOIN_TABLES_REQUIRING_CAMPAIGN), and an NPC or faction can be one end.
+  if (table in LINK_END_COLUMNS) return false;
   const children = CHILD_TABLES[table];
   if (!children) return true;
   return !children.some((child) => child.table in JOIN_TABLES_REQUIRING_CAMPAIGN);
@@ -189,6 +189,41 @@ async function moveKinLinks(ownerIds: readonly string[], campaignId: string | nu
   return drop.length;
 }
 
+/**
+ * World links (#1084) join two things of one campaign, so they follow the same rule family links do: a link whose
+ * two ends both moved is re-stamped, and every other link of a moved NPC or faction would now span two campaigns,
+ * which the database refuses, so it is deleted. Returns how many were deleted.
+ */
+async function moveWorldLinks(table: BulkScopeTable, ownerIds: readonly string[], campaignId: string | null): Promise<number> {
+  const endColumns = LINK_END_COLUMNS[table];
+  if (!endColumns) return 0;
+  const moved = new Set(ownerIds);
+  const links = new Map<string, { id: string; from: string; to: string }>();
+  for (const column of endColumns) {
+    for (const chunk of chunkArray(ownerIds, CHUNK_SIZE)) {
+      const { data, error } = await supabase.from("world_links").select("id, from_id, to_id").in(column, [...chunk]);
+      if (error) throw error;
+      for (const row of data) links.set(row.id, { id: row.id, from: row.from_id, to: row.to_id });
+    }
+  }
+  const keep: string[] = [];
+  const drop: string[] = [];
+  for (const link of links.values()) {
+    const together = moved.has(link.from) && moved.has(link.to);
+    (together && campaignId !== null ? keep : drop).push(link.id);
+  }
+  // Delete first: a stray cross-campaign link must be gone before the survivors are re-stamped.
+  for (const chunk of chunkArray(drop, CHUNK_SIZE)) {
+    const { error } = await supabase.from("world_links").delete().in("id", [...chunk]).select("id");
+    if (error) throw error;
+  }
+  for (const chunk of chunkArray(keep, CHUNK_SIZE)) {
+    const { error } = await supabase.from("world_links").update({ campaign_id: campaignId }).in("id", [...chunk]).select("id");
+    if (error) throw error;
+  }
+  return drop.length;
+}
+
 /** Re-stamps `campaignId` on every campaign-scoped join table `table`'s moved
  *  rows own, chunked the same way the entity update above is. A no-op for the
  *  eight tables with no entry in `CHILD_TABLES`. */
@@ -196,12 +231,12 @@ async function moveChildRows(
   table: BulkScopeTable,
   ownerIds: readonly string[],
   campaignId: string | null,
-): Promise<number> {
-  const children = CHILD_TABLES[table];
-  if (!children || !ownerIds.length) return 0;
-  // The family links removed (see moveKinLinks), so the move can say so rather than lose them quietly.
+): Promise<{ familyLinksRemoved: number; worldLinksRemoved: number }> {
+  if (!ownerIds.length) return { familyLinksRemoved: 0, worldLinksRemoved: 0 };
+  // The links removed (see moveKinLinks, moveWorldLinks), so the move can say so rather than lose them quietly.
   const familyLinksRemoved = table === "npcs" ? await moveKinLinks(ownerIds, campaignId) : 0;
-  for (const child of children) {
+  const worldLinksRemoved = await moveWorldLinks(table, ownerIds, campaignId);
+  for (const child of CHILD_TABLES[table] ?? []) {
     for (const chunk of chunkArray(ownerIds, CHUNK_SIZE)) {
       const { error } = await supabase
         .from(child.table)
@@ -211,13 +246,15 @@ async function moveChildRows(
       if (error) throw error;
     }
   }
-  return familyLinksRemoved;
+  return { familyLinksRemoved, worldLinksRemoved };
 }
 
 export interface BulkScopeResult {
   moved: number;
   /** Family links (#1083) of a moved NPC to someone who stayed behind: a family belongs to one campaign. */
   familyLinksRemoved: number;
+  /** World links (#1084) of a moved NPC or faction to something that stayed behind: a link cannot cross campaigns. */
+  worldLinksRemoved: number;
 }
 
 async function bulkUpdateCampaignScope({ table, ids, campaignId }: BulkScopeInput): Promise<BulkScopeResult> {
@@ -243,9 +280,9 @@ async function bulkUpdateCampaignScope({ table, ids, campaignId }: BulkScopeInpu
     movedIds.push(...(data ?? []).map((row) => row.id as string));
   }
 
-  let familyLinksRemoved = 0;
+  let removed = { familyLinksRemoved: 0, worldLinksRemoved: 0 };
   try {
-    familyLinksRemoved = await moveChildRows(table, movedIds, campaignId);
+    removed = await moveChildRows(table, movedIds, campaignId);
   } catch (error) {
     // Every entity row already moved by this point (the loop above only
     // exits without throwing once every chunk has landed) — see "Children
@@ -255,7 +292,7 @@ async function bulkUpdateCampaignScope({ table, ids, campaignId }: BulkScopeInpu
     throw error;
   }
 
-  return { moved: movedIds.length, familyLinksRemoved };
+  return { moved: movedIds.length, ...removed };
 }
 
 export function useBulkCampaignScope(): UseMutationReturnType<

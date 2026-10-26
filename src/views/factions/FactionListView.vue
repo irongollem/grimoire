@@ -229,8 +229,8 @@ const generatorsUi = useGeneratorUiStore();
 const campaign = useCampaignStore();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
-// faction_deities has a NOT NULL campaign_id (#885) — a general move can
-// never carry a faction's deity links, so the bar never offers it here. See
+// world_links has a NOT NULL campaign_id (#1084) — a general move can
+// never carry a faction's links, so the bar never offers it here. See
 // bulkScopeAllowsGeneral's docstring and BulkScopeBar's allowGeneralScope.
 const allowGeneralScope = bulkScopeAllowsGeneral("factions");
 const { data: factions, isLoading } = useAllFactions();

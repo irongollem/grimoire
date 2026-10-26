@@ -2,25 +2,17 @@
   <!--
     Everything that ties this NPC to someone else, in one place for both hosts:
     the desktop sheet's Relations tab and the mobile sheet's Relations accordion.
-    They used to list their sections separately, and the phone had drifted down
-    to NPC connections alone — no factions or favours. What each player character
-    knows lives on the "With the party" tab, not here.
+    What each player character knows lives on the "With the party" tab, not here.
 
-    Factions are a first-class relation here, not a chip under the portrait: that
-    column is for at-a-glance tags, and a membership carries a role and a status
-    the DM edits in place.
+    Kin is the Family block above; every other tie, factions included, is the one
+    Connections block (#1084), where a membership keeps its role and status.
   -->
   <div class="space-y-4">
     <!-- Kin first (#1083): parents, spouse, siblings and children, above the bonds that are not blood. -->
     <FamilyBlock :person="personKey('npc', npcId)" />
 
-    <NpcRelationsSection :npc-id="npcId" />
-
-    <section class="w-full">
-      <div class="text-heading-sm font-bold text-foreground mb-1">Factions</div>
-      <div class="gold-divider mb-3" />
-      <NpcFactionsSection :npc-id="npcId" />
-    </section>
+    <!-- One block for people, factions, places, deities, items and quests (#1084). -->
+    <ConnectionsSection :subject="{ kind: 'npc', id: npcId }" :subject-name="npcName" />
 
     <!-- What this NPC owes the party (#853, npc_favors) — written by the
          owe_favor quest consequence, or added here by hand. -->
@@ -31,9 +23,8 @@
 <script setup lang="ts">
 import FamilyBlock from "@/components/kinship/FamilyBlock.vue";
 import { personKey } from "@/lib/kinship/keys";
-import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
-import NpcFactionsSection from "@/components/factions/NpcFactionsSection.vue";
+import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import NpcFavorsSection from "@/components/npcs/NpcFavorsSection.vue";
 
-const { npcId } = defineProps<{ npcId: string }>();
+const { npcId, npcName } = defineProps<{ npcId: string; npcName: string }>();
 </script>

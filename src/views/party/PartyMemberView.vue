@@ -31,6 +31,9 @@
       @level-up="editOpen = true"
     />
 
+    <!-- Everything this character is tied to, factions and patron deity included (#1084). -->
+    <ConnectionsSection v-if="member" :subject="{ kind: 'party_member', id: member.id }" :subject-name="member.name" />
+
     <!-- Distinct from the character's own "Notes" above, which players read. -->
     <DmNoteBox v-if="member" type="party_member" :id="member.id" :label="member.name" />
 
@@ -67,6 +70,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import SetDownDialog from "@/components/memorials/SetDownDialog.vue";
 import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
+import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 

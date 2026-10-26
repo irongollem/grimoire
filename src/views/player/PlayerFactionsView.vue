@@ -170,6 +170,9 @@
               </div>
             </div>
 
+            <!-- After the facts, before the player's notes. -->
+            <PlayerConnectionsList kind="faction" :id="selected.id" />
+
             <!-- Notes -->
             <PlayerNotesWidget entity-type="faction" :entity-id="selected.id" placeholder="Your thoughts on this faction…" />
           </div>
@@ -198,6 +201,7 @@ import type { Faction } from "@/types/faction.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
+import PlayerConnectionsList from "@/components/player/people/PlayerConnectionsList.vue";
 import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";

@@ -23,7 +23,19 @@
  * exactly the case the old per-kind resolution could never have handled.
  */
 
-import { SUGGESTED_KIN_RELATIONS } from "../_shared/npcRelationshipSuggestions.ts";
+import { SUGGESTED_KIN_RELATIONS } from "../_shared/connectionSuggestions.ts";
+import { pairFor } from "../_shared/worldLinkCatalogue.ts";
+
+// The bond and stance words the model may use, held to the World Web catalogue
+// (#1084): a stance is a faction_faction link type, and each bond is a
+// person_person type, or the named person's side of a directed one (a "mentor"
+// is `mentor_of` stored from the named person, an "apprentice" from this NPC).
+// src/lib/documentImport/importSweepWorldLinks.ts maps them to stored links.
+const STANCE_TYPES = (pairFor("faction", "faction")?.pair.types ?? []).map((t) => t.key);
+const BOND_TYPES = [
+  "friend", "ally", "lover", "contact", "rival", "enemy", "chosen_family", "former_ally", "former_enemy",
+  "mentor", "apprentice", "superior", "subordinate", "employer", "employee", "patron", "protege",
+] as const;
 
 // ── Extraction JSON Schema ───────────────────────────────────────────────────
 //
@@ -151,6 +163,16 @@ const MONSTER_DATA = obj({
   stat_block: STAT_BLOCK_SCHEMA,
 });
 
+const NPC_BOND = obj({
+  name: { type: "string" },
+  type: { type: "string", enum: [...BOND_TYPES] },
+});
+
+const FACTION_STANCE = obj({
+  name: { type: "string" },
+  stance: { type: "string", enum: STANCE_TYPES },
+});
+
 const NPC_DATA = obj({
   name: { type: "string" },
   race: NULLABLE_STRING,
@@ -182,6 +204,12 @@ const NPC_DATA = obj({
       name: { type: "string" },
       relation: { type: "string", enum: [...SUGGESTED_KIN_RELATIONS] },
     }),
+  },
+  bonds: {
+    type: ["array", "null"],
+    description:
+      "Ties to other named people that are not family, each with what that person is to this NPC. For \"Orsik, the smith's old mentor\", the smith's entry is { name: Orsik, type: \"mentor\" }; the named person is the mentor, employer, patron or superior for those four. Only ties the page states; null if none.",
+    items: NPC_BOND,
   },
 });
 
@@ -303,9 +331,17 @@ const FACTION_DATA = obj({
   faction_type: NULLABLE_STRING,
   alignment: NULLABLE_STRING,
   description: NULLABLE_STRING,
-  // Locations this faction holds/operates from → one faction_locations row
-  // per name, resolved in the sweep's linking phase.
+  // Locations this faction operates from → one `operates_in` world link per
+  // name, resolved in the sweep's linking phase.
   location_names: NULLABLE_STRING_ARRAY,
+  // Locations it rules or holds by force → one `controls` world link per name.
+  controlled_location_names: NULLABLE_STRING_ARRAY,
+  stances: {
+    type: ["array", "null"],
+    description:
+      "How this faction regards other named factions of the page (allied, friendly, neutral, suspicious, rival, hostile, secret_ally, secret_enemy). The stance is this faction's own view; null if none.",
+    items: FACTION_STANCE,
+  },
 });
 
 // A room's occupants, when they add up to a fight (#840). Mirrors

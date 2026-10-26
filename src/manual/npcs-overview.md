@@ -37,7 +37,7 @@ A **Clear** button appears once any filter is active. Filters persist for the se
 ### Header actions
 
 - **Sets**: opens [NPC Sets](#npc-sets).
-- **Web**: opens the [NPC Relationship Web](#npc-relationship-web).
+- **Web**: opens the [World Web](#world-web).
 - **Populate Setting**: shown only for campaigns using a recognised published setting (e.g. Forgotten Realms). Bulk-inserts that setting's canonical NPCs, skipping any already added by name, and reports how many were added.
 - **Generate**: opens the [NPC Generator](#npc-generator).
 - **Select**: turns on bulk-selection mode, letting you move or copy selected NPCs to another campaign.
@@ -121,7 +121,7 @@ Players never see an NPC by default. Once you share one (see [NPC Visibility Con
 ## Related
 
 - [NPC Visibility Controls](#npc-visibility-controls)
-- [NPC Relationship Web](#npc-relationship-web)
+- [World Web](#world-web)
 - [NPC Sets](#npc-sets)
 - [NPC Generator](#npc-generator)
 - [Factions](#factions)

@@ -61,7 +61,6 @@ import type {
 import type { LocationType } from "@/types/location.types";
 import {
   ENTITY_MAPPERS,
-  type EntityLinkLists,
   type EntityLinks,
   type ImportRowMap,
   type MappedEntity,
@@ -82,9 +81,6 @@ export interface PlannedInsert<K extends ImportEntityKind = ImportEntityKind> {
   ref: string;
   row: ImportRowMap[K];
   links: EntityLinks;
-  /** See `EntityLinkLists`'s own doc comment — a raw-name field resolving to
-   *  more than one row (today: only a faction's `location_names`). */
-  linkLists: EntityLinkLists;
   questSpine?: QuestSpinePayload;
 }
 
@@ -175,8 +171,8 @@ export function buildImportPlan<K extends ImportEntityKind>(
   return entities
     .filter((entity) => decisions.get(entity.ref)?.action === "create")
     .map((entity) => {
-      const { row, links, linkLists, questSpine } = mapEntity(kind, entity.data, campaignId, provenance, sourceTitle, currentYear);
-      return { ref: entity.ref, row, links, linkLists: linkLists ?? {}, questSpine };
+      const { row, links, questSpine } = mapEntity(kind, entity.data, campaignId, provenance, sourceTitle, currentYear);
+      return { ref: entity.ref, row, links, questSpine };
     });
 }
 
@@ -328,13 +324,7 @@ const LINK_TARGETS = {
   },
 } as const satisfies Record<keyof EntityLinks, LinkTarget>;
 
-/**
- * `field` is a plain `string` rather than `keyof EntityLinks` because
- * `resolveLinkLists` below reports through this same shape for a
- * `keyof EntityLinkLists` field — the two never collide in practice (checked
- * by each of `LINK_TARGETS`/`LINK_LIST_TARGETS`'s own `satisfies`), and every
- * consumer of `field` only ever displays it, never branches on it.
- */
+/** `field` is only ever displayed, never branched on, so it stays a plain `string`. */
 export type LinkResolution =
   | { status: "resolved"; sourceId: string; field: string; name: string; targetId: string; apply: LinkApplication }
   | { status: "unresolved"; sourceId: string; field: string; name: string };
@@ -392,64 +382,6 @@ export function resolveLinks(
           ? { status: "resolved", sourceId: row.id, field, name, targetId: match.id, apply: target.apply }
           : { status: "unresolved", sourceId: row.id, field, name },
       );
-    }
-  }
-  return results;
-}
-
-// ── Link-list resolution (a raw-name field naming several rows) ─────────────
-
-/** Every raw-name-*list* field `EntityLinkLists` (normalize.ts) can carry.
- *  Same exhaustiveness idiom as `LINK_TARGETS` above. */
-const LINK_LIST_TARGETS = {
-  location_names: {
-    sourceKind: "factions",
-    targetKind: "locations",
-    apply: { kind: "join_insert", table: "faction_locations", sourceColumn: "faction_id", targetColumn: "location_id" },
-  },
-} as const satisfies Record<keyof EntityLinkLists, LinkTarget>;
-
-/** One already-inserted row's captured link-lists, keyed by its real id —
- *  the list-field counterpart of `LinkedRow`. */
-export interface LinkedRowList {
-  id: string;
-  linkLists: EntityLinkLists;
-}
-
-/**
- * The list-field counterpart of `resolveLinks`: each name in the array gets
- * its own `LinkResolution`, since a faction naming three locations needs
- * three `faction_locations` rows, not one. `applyLinkResolutions` (the
- * composable) already knows how to apply a `join_insert` — this function
- * changes nothing about how a resolution is *applied*, only how it's found,
- * so no new apply path was needed to add this field.
- */
-export function resolveLinkLists(
-  sourceKind: ImportEntityKind,
-  rows: readonly LinkedRowList[],
-  lookups: Partial<Record<ImportEntityKind, readonly NameLookupRow[]>>,
-): LinkResolution[] {
-  const fields = (Object.keys(LINK_LIST_TARGETS) as (keyof EntityLinkLists)[]).filter(
-    (field) => LINK_LIST_TARGETS[field].sourceKind === sourceKind,
-  );
-  if (fields.length === 0) return [];
-
-  const results: LinkResolution[] = [];
-  for (const row of rows) {
-    for (const field of fields) {
-      const names = row.linkLists[field];
-      if (names === undefined) continue;
-
-      const target = LINK_LIST_TARGETS[field];
-      const candidates = lookups[target.targetKind] ?? [];
-      for (const name of names) {
-        const match = findByName(candidates, name);
-        results.push(
-          match
-            ? { status: "resolved", sourceId: row.id, field, name, targetId: match.id, apply: target.apply }
-            : { status: "unresolved", sourceId: row.id, field, name },
-        );
-      }
     }
   }
   return results;

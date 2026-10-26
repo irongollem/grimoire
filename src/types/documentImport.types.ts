@@ -140,6 +140,36 @@ export interface ExtractedMonster {
   stat_block?: ExtractedStatBlock;
 }
 
+/**
+ * What a bond's NAMED person is to the NPC the entry sits on. Mostly the World
+ * Web person-to-person link keys (#1084); the directed ones are worded from the
+ * named person's side, so "Orsik, the smith's mentor" on the smith is
+ * `{ name: "Orsik", type: "mentor" }`, which the sweep stores as `mentor_of`
+ * from Orsik.
+ */
+export const EXTRACTED_BOND_TYPES = [
+  "friend", "ally", "lover", "contact", "rival", "enemy", "chosen_family", "former_ally", "former_enemy",
+  "mentor", "apprentice", "superior", "subordinate", "employer", "employee", "patron", "protege",
+] as const;
+export type ExtractedBondType = (typeof EXTRACTED_BOND_TYPES)[number];
+
+/** A non-family tie the page states for an NPC, to another person of the same document. */
+export interface ExtractedNpcBond {
+  name: string;
+  type: ExtractedBondType;
+}
+
+/** A faction's stance toward another faction of the document, held by this faction for itself. */
+export const EXTRACTED_STANCES = [
+  "allied", "friendly", "neutral", "suspicious", "rival", "hostile", "secret_ally", "secret_enemy",
+] as const;
+export type ExtractedStance = (typeof EXTRACTED_STANCES)[number];
+
+export interface ExtractedFactionStance {
+  name: string;
+  stance: ExtractedStance;
+}
+
 /** A family tie the page states for an NPC. `relation` is what the NAMED person is to this NPC. */
 export interface ExtractedNpcKin {
   name: string;
@@ -174,6 +204,11 @@ export interface ExtractedNpc {
    * `{ name: "Baron Vargas Vallakovich", relation: "parent" }`.
    */
   kin?: ExtractedNpcKin[];
+  /**
+   * Non-family ties to other people the page names (friends, rivals, a mentor),
+   * written as `world_links` (#1084) with the type the named person is to this NPC.
+   */
+  bonds?: ExtractedNpcBond[];
 }
 
 export interface ExtractedLocation {
@@ -369,9 +404,13 @@ export interface ExtractedFaction {
   faction_type?: string;
   alignment?: string;
   description?: string;
-  /** Locations this faction holds/operates from, resolved against this same
-   *  document's `locations` → one `faction_locations` join row per name. */
+  /** Locations this faction operates from, resolved against this same
+   *  document's `locations` → one `operates_in` world link per name. */
   location_names?: string[];
+  /** Locations this faction controls → one `controls` world link per name. */
+  controlled_location_names?: string[];
+  /** This faction's stance toward other factions of the document → one stance link per name. */
+  stances?: ExtractedFactionStance[];
 }
 
 /**

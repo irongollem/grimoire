@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFamilyGroups, lifeMeta, surnameOf } from "@/components/kinship/familyRows";
+import { bondChoices, buildFamilyGroups, kinAsConnection, kinOptions, kinRetypePatch, lifeMeta, surnameOf } from "@/components/kinship/familyRows";
 import { buildKinGraph } from "@/lib/kinship/graph";
 import { edge, k, person, testClock } from "@/components/kinship/testGraph";
 
@@ -42,7 +42,8 @@ describe("buildFamilyGroups", () => {
     const parents = groups[0].rows;
     expect(parents.map((r) => r.person.name)).toEqual(["Old Bren Thane", "Maera Thane"]);
     expect(parents[0].meta).toEqual(["born 1428", "dead", "adoptive"]);
-    expect(parents[1].meta).toEqual(["born 1431", "64", "mother"]);
+    expect(parents[1].meta).toEqual(["born 1431", "64"]);
+    expect(parents[1].word).toBe("mother");
   });
 
   it("draws current spouses before former ones, with a door for one who has a family", () => {
@@ -50,7 +51,7 @@ describe("buildFamilyGroups", () => {
     expect(spouses.map((r) => r.person.name)).toEqual(["Corwin Ashe", "Harl Voss"]);
     expect(spouses[0].door).toBe("Ashe");
     expect(spouses[1].door).toBeNull();
-    expect(spouses[1].meta).toContain("former");
+    expect(spouses[1].word).toBe("former spouse");
   });
 
   it("captions derived siblings and gives them no link to remove", () => {
@@ -61,8 +62,8 @@ describe("buildFamilyGroups", () => {
   });
 
   it("labels a relative with the link note", () => {
-    expect(groups[4].rows[0].meta).toEqual(["cousin"]);
-    expect(buildFamilyGroups(graph, map, k("me"), testClock())[4].rows[0].meta).toEqual(["relative"]);
+    expect(groups[4].rows[0].word).toBe("cousin");
+    expect(buildFamilyGroups(graph, map, k("me"), testClock())[4].rows[0].word).toBe("relative");
   });
 });
 
@@ -80,5 +81,70 @@ describe("surnameOf", () => {
   it("takes the last word", () => {
     expect(surnameOf("Corwin Ashe")).toBe("Ashe");
     expect(surnameOf("Hale")).toBe("Hale");
+  });
+});
+
+describe("changing a relation in place", () => {
+  const groups = buildFamilyGroups(graph, map, k("me"), testClock(), new Map([["9", "cousin"]]));
+  const rowFor = (key: string) => groups.flatMap((g) => g.rows).find((r) => r.key === k(key))!;
+
+  it("gives each row its word and relation", () => {
+    expect(rowFor("mum").word).toBe("mother");
+    expect(rowFor("old").word).toBe("parent");
+    expect(rowFor("ex").word).toBe("former spouse");
+    expect(rowFor("cuz").word).toBe("cousin");
+    expect(rowFor("kid").relation).toBe("child");
+  });
+
+  it("marks the current relation and leaves a clean choice unspoken", () => {
+    const opts = kinOptions(graph, k("me"), rowFor("mum"));
+    expect(opts.find((o) => o.current)?.id).toBe("parent:mother");
+    expect(opts.find((o) => o.id === "spouse")).toMatchObject({ problem: null, blocked: false });
+  });
+
+  it("speaks the dates and blocks a loop or an implied sibling", () => {
+    const kid = kinOptions(graph, k("me"), rowFor("kid"));
+    expect(kid.find((o) => o.id === "parent")?.problem).toBe("Wren Ashe was born 24 years after Brenna Ashe.");
+    expect(kid.find((o) => o.id === "parent")?.blocked).toBe(false);
+    // Hub's father Gar is also a parent line above Corwin; making Corwin Brenna's parent loops nothing,
+    // but making Brenna's own child Wren her parent while Wren is nobody's ancestor does not either: a loop needs an ancestor.
+    const loop = buildKinGraph(people, [...edges, edge("11", "kid", "cuz", "parent")]);
+    const cycleRows = buildFamilyGroups(loop, map, k("cuz"), testClock());
+    const meRow = cycleRows.flatMap((g) => g.rows).find((r) => r.key === k("me"));
+    expect(meRow).toBeDefined();
+    const brenna = kinOptions(loop, k("cuz"), meRow!);
+    expect(brenna.find((o) => o.id === "child")?.blocked).toBe(true);
+  });
+
+  it("writes the pair the other way round when parent becomes child, keeping adoption", () => {
+    const old = rowFor("old");
+    const opts = kinOptions(graph, k("me"), old);
+    const child = opts.find((o) => o.id === "child")!;
+    const patch = kinRetypePatch(old.link!, k("me"), old.key, child, "");
+    expect(patch).toMatchObject({ kind: "parent", from_npc_id: "me", to_npc_id: "old", adoptive: true, parent_role: null });
+  });
+
+  it("clears a relative's note word when it leaves relative, and keeps a free note otherwise", () => {
+    const cuz = rowFor("cuz");
+    const sib = kinOptions(graph, k("me"), cuz).find((o) => o.id === "sibling")!;
+    expect(kinRetypePatch(cuz.link!, k("me"), cuz.key, sib, "cousin").note).toBe("");
+    const mum = rowFor("mum");
+    const spouse = kinOptions(graph, k("me"), mum).find((o) => o.id === "spouse")!;
+    expect(kinRetypePatch(mum.link!, k("me"), mum.key, spouse, "dear").note).toBe("dear");
+  });
+
+  it("adapts a kin row to the Connection the retype mutation reads", () => {
+    const kid = rowFor("kid");
+    expect(kinAsConnection(kid.link!, k("me"), kid, "")).toMatchObject({
+      source: "kin", row_id: "8", type: "parent_of", outward: true, other_kind: "npc", other_id: "kid", other_name: "Wren Ashe", note: null,
+    });
+    const mum = rowFor("mum");
+    expect(kinAsConnection(mum.link!, k("me"), mum, "dear")).toMatchObject({ outward: false, note: "dear" });
+  });
+
+  it("offers bonds only, never a record home", () => {
+    const bonds = bondChoices(k("me"), k("mum"));
+    expect(bonds.length).toBeGreaterThan(0);
+    expect(bonds.every((c) => !c.home)).toBe(true);
   });
 });

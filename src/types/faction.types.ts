@@ -58,6 +58,9 @@ export const NPC_FACTION_ROLES = [
 
 export type NpcFactionRole = (typeof NPC_FACTION_ROLES)[number];
 
+/** The roles that name a faction's head; one holder at a time. */
+export const HEAD_ROLES: readonly string[] = ["Leader", "Head of house"];
+
 export const NPC_FACTION_STATUSES = [
   "Active",
   "Retired",
@@ -74,23 +77,6 @@ export const NPC_FACTION_STATUS_COLORS: Record<NpcFactionStatus, string> = {
   Expelled: "#ef4444",
   Deceased: "#6b7280",
 };
-
-export const RELATION_TYPES = [
-  { value: "allied", label: "Allied", color: "#22c55e" },
-  { value: "friendly", label: "Friendly", color: "#86efac" },
-  { value: "neutral", label: "Neutral", color: "#94a3b8" },
-  { value: "suspicious", label: "Suspicious", color: "#f59e0b" },
-  { value: "rival", label: "Rival", color: "#f97316" },
-  { value: "hostile", label: "Hostile", color: "#ef4444" },
-  { value: "secret_ally", label: "Secret Ally", color: "#8b5cf6" },
-  { value: "secret_enemy", label: "Secret Enemy", color: "#ec4899" },
-] as const;
-
-export type RelationType = (typeof RELATION_TYPES)[number]["value"];
-
-export function relationMeta(type: string) {
-  return RELATION_TYPES.find((r) => r.value === type) ?? RELATION_TYPES[2];
-}
 
 export interface Faction {
   id: string;
@@ -159,34 +145,6 @@ export interface FactionNpc {
   succession_rank: number | null;
 }
 
-export interface FactionDeity {
-  id: string;
-  faction_id: string;
-  deity_id: string;
-  user_id: string;
-  campaign_id: string;
-  created_at: string;
-}
-
-export interface FactionLocation {
-  id: string;
-  faction_id: string;
-  location_id: string;
-  notes: string | null;
-  user_id: string;
-}
-
-export interface FactionItem {
-  id: string;
-  faction_id: string;
-  // At most one of these is set — a DB check constraint enforces it. Resolve
-  // through `src/lib/itemRef.ts`, never by reading a column directly.
-  item_id: string | null; // the owner's own items row (uuid)
-  library_item_id: string | null; // shared library content (text id) — #819
-  notes: string | null;
-  user_id: string;
-}
-
 export interface FactionPartyMember {
   id: string;
   faction_id: string;
@@ -196,17 +154,6 @@ export interface FactionPartyMember {
   user_id: string;
   /** Place in a House's line of succession (#1083): 1 is the heir; null is not in the line. */
   succession_rank: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface FactionRelation {
-  id: string;
-  faction_id: string;
-  target_faction_id: string;
-  relation_type: RelationType;
-  notes: string | null;
-  user_id: string;
   created_at: string;
   updated_at: string;
 }

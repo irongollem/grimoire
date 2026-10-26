@@ -2,6 +2,7 @@ import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import NpcGeneratorPanel from "./NpcGeneratorPanel.vue";
+import NpcGeneratorForm from "./NpcGeneratorForm.vue";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 
@@ -10,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   generate: vi.fn(),
   push: vi.fn(),
   createKin: vi.fn(),
+  createConnection: vi.fn(),
 }));
 
 // The NPC and character rows the family prompt reads, and the URL the panel is opened from.
@@ -81,7 +83,7 @@ vi.mock("@/composables/factions/useFactions", () => ({
   useAllFactions: () => ({ data: ref([]) }),
   useAddFactionNpc: () => ({ mutateAsync: vi.fn() }),
 }));
-vi.mock("@/composables/factions/useNpcRelations", () => ({ useCreateNpcRelation: () => ({ mutateAsync: vi.fn() }) }));
+vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.createConnection }) }));
 vi.mock("@/ai/useNpcGeneration", () => ({
   useNpcGeneration: () => ({
     isGenerating: ref(false),
@@ -247,5 +249,52 @@ describe("NpcGeneratorPanel — family tie from the Add relative link", () => {
       ["parent", brenna, "wren"],
       ["parent", corwin, "wren"],
     ]);
+  });
+});
+
+describe("NpcGeneratorPanel: the known associate becomes a connection", () => {
+  const harl = "00000000-0000-4000-8000-0000000000aa";
+
+  beforeEach(() => {
+    mocks.createNpc.mockReset();
+    mocks.createConnection.mockReset();
+    mocks.push.mockReset();
+    campaignState.isAiEnabled = true;
+    canCreateNpc.value = true;
+    fixtures.npcs = [{ id: harl, name: "Harl", born_year: null }];
+    fixtures.pcs = [];
+    fixtures.query = {};
+    mocks.createNpc.mockResolvedValue({ id: "wren" });
+    mocks.createConnection.mockResolvedValue(undefined);
+  });
+
+  async function quickCreateWith(relationship: string) {
+    const wrapper = mountPanel();
+    wrapper.findComponent(NpcGeneratorForm).vm.$emit("update:quickForm", {
+      ...wrapper.findComponent(NpcGeneratorForm).props("quickForm"),
+      related_npc_id: harl,
+      related_npc_relationship: relationship,
+    });
+    await wrapper.findAll("button").find((b) => b.text().includes("Quick Create NPC"))!.trigger("click");
+    await vi.waitFor(() => expect(mocks.createConnection).toHaveBeenCalledTimes(1));
+    return mocks.createConnection.mock.calls[0][0];
+  }
+
+  it("writes a symmetric bond from the new NPC", async () => {
+    const input = await quickCreateWith("friend");
+    expect(input).toMatchObject({
+      subject: { kind: "npc", id: "wren" },
+      other: { kind: "npc", id: harl, name: "Harl" },
+      choice: { key: "friend", subjectIsFrom: true },
+    });
+  });
+
+  it("reads a directed bond as what the associate is to the new NPC", async () => {
+    // "Mentor": Harl is Wren's mentor, so Wren is the apprentice end of mentor_of.
+    expect((await quickCreateWith("mentor")).choice).toMatchObject({ key: "mentor_of", subjectIsFrom: false });
+  });
+
+  it("and the other way round", async () => {
+    expect((await quickCreateWith("subordinate")).choice).toMatchObject({ key: "superior_of", subjectIsFrom: true });
   });
 });

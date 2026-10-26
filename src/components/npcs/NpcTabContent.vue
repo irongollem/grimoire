@@ -28,7 +28,7 @@
     </div>
 
     <!-- Relations tab -->
-    <NpcRelationsTab v-else-if="activeTab === 'relations'" :npc-id="npc.id" />
+    <NpcRelationsTab v-else-if="activeTab === 'relations'" :npc-id="npc.id" :npc-name="npc.name" />
 
     <!-- Combat tab -->
     <div v-else-if="activeTab === 'combat'" class="space-y-4">

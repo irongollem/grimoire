@@ -581,7 +581,10 @@ reported in `unresolvedLinks` with the database's reason, never swallowed.
 | --- | --- | --- |
 | `location_name` | `ExtractedNpc` | `npcs.location_id` (fk_update) |
 | `owner_npc_name` | `ExtractedLocation` | `locations.npc_owner_id` (fk_update) |
-| `location_names` | `ExtractedFaction` | one `faction_locations` row per name (join_insert) |
+| `location_names` | `ExtractedFaction` | one `world_links` row per name, type `operates_in`, stored from the faction |
+| `controlled_location_names` | `ExtractedFaction` | one `world_links` row per name, type `controls` |
+| `stances` | `ExtractedFaction` | one `world_links` faction-to-faction stance per named faction, held by this faction |
+| `bonds` | `ExtractedNpc` | one `world_links` person-to-person link per named NPC |
 | `location_name` | a quest beat | `quest_beats.staged_at_location_id` |
 | `npc_names` / `faction_names` / `encounter_names` | a quest beat | one `quest_beat_attachments` row per name (`attachment_type: "npc"/"faction"/"encounter"`) |
 | `monster_names` | a quest beat | a `quest_beat_attachments` row (`attachment_type: "monster"`) — **campaign rows only**, see below |
@@ -591,11 +594,11 @@ reported in `unresolvedLinks` with the database's reason, never swallowed.
 
 **Family (#1083).** `ExtractedNpc.kin` is a list of `{ name, relation }` where `relation` is what the NAMED person is to this NPC ("the Baron's son, Izek" puts `{ Baron, parent }` on Izek). It rides in `links.kin` but is not a `LINK_TARGETS` field, because it writes `kin_links`, not a column or a join row: `importSweepKin.ts` (`planNpcKin`) resolves each name against the sweep-wide NPC lookup, makes the named person the subject of `kinInsertFor`, and keeps one link per pair (a page states a tie from both ends). Names that match nobody are skipped silently and counted in `ImportSweepReport.unresolvedKin`, with any pair the database refuses; the NPC itself always lands. The review card shows the entries as "Baron Vargas (parent)".
 
+**World Web ties (#1084).** `bonds`, `location_names`, `controlled_location_names` and `stances` ride in `links` beside `kin` and are not `LINK_TARGETS` fields, because each writes a `world_links` row with a catalogue type (`worldLinkCatalogue.ts`). `importSweepWorldLinks.ts` (`planWorldLinks`) resolves each name against the sweep-wide lookups and builds the rows with `linkInsert`, in the direction the catalogue stores them. A bond's `type` is what the NAMED person is to the NPC, so "Orsik, the smith's mentor" (`mentor`) is stored as `mentor_of` from Orsik, and `apprentice` is `mentor_of` from the NPC; `superior`/`subordinate` map to `superior_of`, `employer`/`employee` to `employer_of`, `patron`/`protege` to `patron_of`; the symmetric words (`friend`, `ally`, `lover`, `contact`, `rival`, `enemy`, `chosen_family`, `former_ally`, `former_enemy`) keep their names. A stance word is a `faction_faction` type, held by the faction that states it, one per ordered pair. Words outside the lists are mapped to the nearest one (a short alias table) or dropped, never inserted raw. A pair a page states from both ends is written once. Names that match nobody are listed in `unresolvedLinks`; a link the database refuses (often one already there) costs only itself. Person-to-deity and other pairs are not extracted, because deities are not an import kind. The extraction schema describes the new fields itself; the prompt row (a migration) does not name them yet.
+
 The two new scalar fields (`npc_location_name` internally, to avoid colliding
 with quest's own `location_name` in `LINK_TARGETS` — same reason
-`encounter_location_name` exists; `owner_npc_name`) and the one new list field
-(`location_names`, resolved by `resolveLinkLists`, importPlan.ts's new
-counterpart to `resolveLinks` for a raw-name field that names *several* rows)
+`encounter_location_name` exists; `owner_npc_name`)
 go through the exact same `EntityLinks`/`LINK_TARGETS` machinery every
 pre-existing link already used — #893 only moved *when* that machinery runs,
 not what it is. A beat's six cross-entity fields are new territory, since
@@ -624,10 +627,10 @@ also has no `"quest"`/`"spell"` member, so a beat's or the sweep's own
 quest/spell references never produce a `quest_refs` row at all — that table
 only ever names npc/location/monster/item/encounter/faction.
 
-**A row the DM linked still gets the page's join rows.** A faction linked to an
-existing one gets its `location_names` as `faction_locations` rows, exactly like
-a created faction. Join rows are additive (the pair is unique, so a place it
-already holds is a no-op). Scalar FKs on a *linked* row (`npcs.location_id`,
+**A row the DM linked still gets the page's ties.** A faction linked to an
+existing one gets its places and stances as `world_links` rows, exactly like
+a created faction. Links are additive (a pair is unique per type, so one it
+already holds is refused by the database and costs only itself). Scalar FKs on a *linked* row (`npcs.location_id`,
 `locations.npc_owner_id`, …) are deliberately **not** written: that would
 overwrite what the DM set on their own row.
 

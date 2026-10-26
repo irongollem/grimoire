@@ -148,10 +148,9 @@
         No lore recorded for this deity.
       </p>
 
-      <!-- Worshipping factions -->
+      <!-- Who worships, serves or opposes this deity, and its holy sites and relics (#1084). -->
       <div class="border-t border-border pt-4">
-        <p class="text-eyebrow font-semibold text-muted-foreground mb-2">Worshipping Factions</p>
-        <DeityFactionsSection :deity-id="deity.id" />
+        <ConnectionsSection :subject="{ kind: 'deity', id: deity.id }" :subject-name="deity.name" />
       </div>
     </div>
   </div>
@@ -165,7 +164,7 @@ import { RouterLink } from "vue-router";
 import type { Deity, Pantheon } from "@/types/deity.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
-import DeityFactionsSection from "@/components/deities/DeityFactionsSection.vue";
+import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{

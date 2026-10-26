@@ -51,4 +51,9 @@ describe("prepareSectionHtml", () => {
     const row = `<div class="book-ref"><span class="book-name">Nobody</span></div>`;
     expect(prepareSectionHtml(row, ctx, { pageRefs: true })).not.toContain("pb-pg");
   });
+
+  it("gives each connection line a page-number link, wherever it sits", () => {
+    const row = `<div class="book-conn"><span class="book-conn-text"><a class="book-xref" href="/w/saltreach/atlas/def">D</a></span><span class="book-conn-lead"></span></div>`;
+    expect(prepareSectionHtml(row, ctx)).toContain('<a class="pb-pg" href="#e-def"></a>');
+  });
 });

@@ -269,6 +269,14 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Battle Map", fillsMain: true },
   },
   {
+    // What the player's character knows of the world's ties, focus-first (#1084).
+    path: "/play/web",
+    name: "play-web",
+    component: () => import("@/views/world/PlayerWorldWebView.vue"),
+    // fillsMain: the web draws its own frame edge to edge, as the battle map does.
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "World Web", fillsMain: true },
+  },
+  {
     path: "/play/factions",
     name: "play-factions",
     component: () => import("@/views/player/PlayerFactionsView.vue"),
@@ -490,10 +498,11 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "New NPC", fullscreenMobile: true },
   },
   {
-    path: "/npcs/web",
-    name: "npc-web",
-    component: () => import("@/views/npcs/NpcWebView.vue"),
-    meta: { requiresAuth: true, title: "Relationship Web" },
+    // The World web (#1084) replaced the Relationship Web at /npcs/web: every tie in the campaign, not only the ones between people.
+    path: "/web",
+    name: "world-web",
+    component: () => import("@/views/world/WorldWebView.vue"),
+    meta: { requiresAuth: true, title: "World Web" },
   },
   {
     // The one-off review of links from before family trees (#1083): which way each old "Family" link goes.

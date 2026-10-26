@@ -12,7 +12,7 @@
 // nulls out FKs to entities that did not travel in the subset). Merging those
 // would obscure two distinct flows. Only the primitives below are shared.
 
-import { NPC_RELATIONSHIP_TYPES } from "@edge-shared/npcRelationshipSuggestions";
+import { NPC_RELATIONSHIP_TYPES } from "@edge-shared/connectionSuggestions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;

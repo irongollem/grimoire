@@ -216,6 +216,8 @@ they actually wrote.
 
 **View mode** (`/vault/:id` without `?edit=true`) — renders `ItemSheet`, a clean reading layout with tabbed identified/mundane art, a stat block panel (type, rarity, weight, cost, damage, armor class, attunement, charges, properties), linked spells list, and the rich text description.
 
+**Connections replace Held By** (#1084). The DM-only "Held By" chips (`useItemHolders`, gone) are the item's Connections block (`ConnectionsSection`, subject kind `item`, see [npcs.md](npcs.md)). Who carries the item is still read from the inventories and stores, as Held By read it: an NPC's or character's pack is an `inventory` record ("carried by", with the dashed `inventory` marker) and a shop shelf is a `store` record ("sold at"); everything else (who seeks it, whose relic it is, where it is kept) is a link. The block shows for vault items only, since a shared library item has a text id and no row to tie to, and never in the player view. "Contained In" (loot tables) is unchanged.
+
 **Header actions on existing items:**
 
 - View mode — "Hand out…" dropdown (`ItemSendMenu`) — "Add to Party Stash" (party-wide shared inventory), "Assign to Player" (sends directly to a player character's backpack) or "Drop in Chat" (posts it to the campaign feed as a drop the party can claim) — and "Edit", which enters edit mode. Labelled "Hand out…" rather than "Send to…" since #895: this menu puts the item in front of the table, while "Send to…" means sending the record elsewhere everywhere else in the app.

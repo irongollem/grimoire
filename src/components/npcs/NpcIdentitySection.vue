@@ -93,10 +93,6 @@
           </template>
         </EntityCombobox>
       </div>
-      <div v-if="npcId" class="sm:col-span-2">
-        <label class="field-label">Factions</label>
-        <NpcFactionsSection :npc-id="npcId" />
-      </div>
     </div>
   </section>
 </template>
@@ -104,7 +100,6 @@
 <script setup lang="ts">
 import CalendarDateInput from '@/components/common/controls/CalendarDateInput.vue'
 import EntityCombobox from '@/components/common/controls/EntityCombobox.vue'
-import NpcFactionsSection from '@/components/factions/NpcFactionsSection.vue'
 import type { LocationSummary } from '@/types/location.types'
 
 type LocationOption = LocationSummary & { depth: number }
@@ -116,7 +111,6 @@ const ALIGNMENTS = [
 ]
 
 const {
-  npcId = null,
   name,
   disguiseName = null,
   race = null,
@@ -133,7 +127,6 @@ const {
   locationId = null,
   locationOptions,
 } = defineProps<{
-  npcId?: string | null
   name: string
   disguiseName?: string | null
   race?: string | null

@@ -12,6 +12,8 @@ import type { SpeciesSpeed, SpeciesSubrace } from "@/types/species.types";
 import { withWalkSpeed } from "@/rules/speciesStats";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { downloadBlob } from "@/lib/downloadBlob";
+import { legacyTiesToLinks, linkEnd, remapLinkEnds } from "@/lib/campaign/worldLinkTransfer";
+import type { LinkKind } from "@edge-shared/worldLinkCatalogue.ts";
 import {
   sortByHierarchy,
   buildIdMapFromArrays,
@@ -70,6 +72,11 @@ export interface GrimoireBundle {
   allows_mixed_rulesets?: boolean;
   // Campaign-scoped
   npcs?: Row[];
+  /** Links between the bundled things (#1084): NPC bonds, faction stances, places, holdings. Only a link with both
+   *  ends in the bundle travels, and its audience is cleared. Absent from a bundle written before the World Web,
+   *  which carried its ties in `npc_relationships`, `faction_locations`, `faction_items` and `faction_relations`. */
+  world_links?: Row[];
+  /** Pre-World-Web tie tables, read only to turn them into links (`legacyTiesToLinks`); never written. */
   npc_relationships?: Row[];
   /** Family links between the bundled NPCs (#1083). A bundle carries no party members' kin: a PC stays in its campaign. */
   kin_links?: Row[];
@@ -77,6 +84,7 @@ export interface GrimoireBundle {
   store_items?: Row[];
   factions?: Row[];
   faction_npcs?: Row[];
+  /** Pre-World-Web tie tables, read only by `legacyTiesToLinks`; never written. */
   faction_locations?: Row[];
   faction_items?: Row[];
   faction_relations?: Row[];
@@ -187,6 +195,64 @@ function stripCampaignRow(row: Row): Row {
   return copy;
 }
 
+/**
+ * The links of `found` (a link is found once from each of its ends, so it can repeat) whose two ends both satisfy
+ * `bundled`, once each and without the columns the importer owns: the generated `from_id` / `to_id`, the owner,
+ * the campaign and the audience (the exporter's party does not exist in the importer's account).
+ */
+export function bundledLinks(found: Row[], bundled: (kind: LinkKind, id: string) => boolean): Row[] {
+  const seen = new Set<string>();
+  const links: Row[] = [];
+  for (const link of found) {
+    const id = link.id as string;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const from = linkEnd(link, "from");
+    const to = linkEnd(link, "to");
+    if (!from || !to || !bundled(from.kind, from.id) || !bundled(to.kind, to.id)) continue;
+    const copy = stripCampaignRow(link);
+    delete copy.from_id;
+    delete copy.to_id;
+    links.push(copy);
+  }
+  return links;
+}
+
+/**
+ * A bundle's links as rows for the importer's campaign: both ends remapped onto the rows this import created,
+ * and a link whose end was not imported (its type left out of `imported`, or not in the file) dropped, since a
+ * link cannot point outside its campaign. A bundle from before the World Web has its old tie tables turned into
+ * links first. The audience is empty: the exporter's party does not exist here.
+ */
+export function bundleLinkRows(bundle: GrimoireBundle, idMap: IdMap, imported: ReadonlySet<LinkKind>, campaignId: string, userId: string): Row[] {
+  const links = [
+    ...(bundle.world_links ?? []),
+    ...legacyTiesToLinks({
+      npc_relationships: bundle.npc_relationships,
+      faction_locations: bundle.faction_locations,
+      faction_items: bundle.faction_items,
+      faction_relations: bundle.faction_relations,
+    }),
+  ];
+  const rows: Row[] = [];
+  for (const link of links) {
+    const ends = remapLinkEnds(link, (kind, id) => (imported.has(kind) ? idMap.get(id) ?? null : null));
+    if (!ends) continue;
+    rows.push({
+      ...ends,
+      id: idMap.get(link.id as string) ?? crypto.randomUUID(),
+      campaign_id: campaignId,
+      user_id: userId,
+      type: link.type,
+      note: link.note,
+      told: link.told,
+      player_visible_to: [],
+      ai_provenance: link.ai_provenance,
+    });
+  }
+  return rows;
+}
+
 function stripLibraryRow(row: Row): Row {
   const copy = { ...row };
   for (const f of LIBRARY_STRIP) delete copy[f];
@@ -243,7 +309,6 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
       const npcs = await fetchByIds("npcs", ids);
       bundle.npcs = npcs.map(stripCampaignRow);
       entityCounts.npcs = npcs.length;
-      bundle.npc_relationships = (await qByIds("npc_relationships", "npc_id", ids)).map(stripCampaignRow);
       // Only links with both ends in the selection travel: the other end would have no row to point at.
       const inSelection = new Set(ids);
       const kin = [
@@ -273,16 +338,7 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
       const factions = await fetchByIds("factions", ids);
       bundle.factions = factions.map(stripCampaignRow);
       entityCounts.factions = factions.length;
-      const [fnpcs, flocs, fitems, frels] = await Promise.all([
-        qByIds("faction_npcs", "faction_id", ids),
-        qByIds("faction_locations", "faction_id", ids),
-        qByIds("faction_items", "faction_id", ids),
-        qByIds("faction_relations", "faction_id", ids),
-      ]);
-      bundle.faction_npcs = fnpcs.map(stripCampaignRow);
-      bundle.faction_locations = flocs.map(stripCampaignRow);
-      bundle.faction_items = fitems.map(stripCampaignRow);
-      bundle.faction_relations = frels.map(stripCampaignRow);
+      bundle.faction_npcs = (await qByIds("faction_npcs", "faction_id", ids)).map(stripCampaignRow);
     })(),
 
     selection.has("quests") && (async () => {
@@ -384,6 +440,23 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
     })(),
 
   ].filter(Boolean));
+
+  // ── World links (#1084) ────────────────────────────────────────────────────
+  // Only links with both ends in the bundle travel: the other end would have no row to point at.
+  const bundled: Record<LinkKind, Set<string>> = {
+    npc: new Set((bundle.npcs ?? []).map((row) => row.id as string)),
+    party_member: new Set((bundle.party_members ?? []).map((row) => row.id as string)),
+    faction: new Set((bundle.factions ?? []).map((row) => row.id as string)),
+    location: new Set((bundle.locations ?? []).map((row) => row.id as string)),
+    deity: new Set(),
+    item: new Set((bundle.items ?? []).map((row) => row.id as string)),
+  };
+  const found: Row[] = [];
+  for (const kind of Object.keys(bundled) as LinkKind[]) {
+    const ids = [...bundled[kind]];
+    found.push(...(await qByIds("world_links", `from_${kind}_id`, ids)), ...(await qByIds("world_links", `to_${kind}_id`, ids)));
+  }
+  bundle.world_links = bundledLinks(found, (kind, id) => bundled[kind].has(id));
 
   // ── Dependency safety net ──────────────────────────────────────────────────
   // Characters reference species, spells, and custom class definitions. Pull in
@@ -498,10 +571,9 @@ async function downloadBundle(bundle: GrimoireBundle): Promise<void> {
 
 export function buildIdMap(bundle: GrimoireBundle): IdMap {
   return buildIdMapFromArrays([
-    bundle.npcs, bundle.npc_relationships, bundle.kin_links,
+    bundle.npcs, bundle.kin_links, bundle.world_links,
     bundle.locations, bundle.store_items,
-    bundle.factions, bundle.faction_npcs, bundle.faction_locations,
-    bundle.faction_items, bundle.faction_relations,
+    bundle.factions, bundle.faction_npcs,
     bundle.quests, bundle.quest_objectives, bundle.quest_refs,
     bundle.notes, bundle.encounters, bundle.calendar_events,
     bundle.party_members, bundle.character_classes, bundle.character_spells,
@@ -818,7 +890,7 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
       player_visible_to: [],
       linked_monster_id: rLib(npc.linked_monster_id, idMap),
     })));
-    // A bundle from before family trees keeps kin as `family` / `sibling` bonds, which the bond table refuses.
+    // A bundle from before family trees keeps kin as `family` / `sibling` bonds, which are kin now.
     const legacy = splitLegacyKin(bundle.kin_links ?? [], bundle.npc_relationships ?? [], []);
     const kinRows = legacy.kin
       .map((link) => ({
@@ -830,16 +902,6 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
         to_npc_id: rCamp(link.to_npc_id, idMap),
       }))
       .filter((link) => link.from_npc_id !== null && link.to_npc_id !== null);
-    if (legacy.bonds.length) {
-      await batchInsert("npc_relationships", legacy.bonds.map((rel) => ({
-        ...rel,
-        id: idMap.get(rel.id as string) ?? crypto.randomUUID(),
-        campaign_id: campaignId,
-        user_id: userId,
-        npc_id: rCamp(rel.npc_id, idMap),
-        related_npc_id: rCamp(rel.related_npc_id, idMap),
-      })));
-    }
     if (kinRows.length) await batchInsert("kin_links", kinRows);
   }
 
@@ -851,32 +913,12 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
       user_id: userId,
       player_visible_to: [],
     })));
-    await Promise.all([
-      bundle.faction_npcs?.length
-        ? batchInsert("faction_npcs", bundle.faction_npcs.map((fn) => ({
-            ...fn, id: idMap.get(fn.id as string) ?? crypto.randomUUID(), user_id: userId,
-            faction_id: rCamp(fn.faction_id, idMap), npc_id: rCamp(fn.npc_id, idMap),
-          }))) : Promise.resolve(),
-      bundle.faction_locations?.length
-        ? batchInsert("faction_locations", bundle.faction_locations.map((fl) => ({
-            ...fl, id: idMap.get(fl.id as string) ?? crypto.randomUUID(), user_id: userId,
-            faction_id: rCamp(fl.faction_id, idMap), location_id: rCamp(fl.location_id, idMap),
-          }))) : Promise.resolve(),
-      bundle.faction_items?.length
-        ? batchInsert("faction_items", bundle.faction_items.map((fi) => ({
-            ...fi, id: idMap.get(fi.id as string) ?? crypto.randomUUID(), user_id: userId,
-            faction_id: rCamp(fi.faction_id, idMap),
-            // item_id: rLib so importer's library items are preserved
-            // library_item_id kept as-is via the spread (#819) — same reasoning
-            // as store_items above: it's a stable id, not an importer-owned uuid.
-          }))) : Promise.resolve(),
-      bundle.faction_relations?.length
-        ? batchInsert("faction_relations", bundle.faction_relations.map((fr) => ({
-            ...fr, id: idMap.get(fr.id as string) ?? crypto.randomUUID(), user_id: userId,
-            faction_id: rCamp(fr.faction_id, idMap),
-            target_faction_id: rCamp(fr.target_faction_id, idMap),
-          }))) : Promise.resolve(),
-    ]);
+    if (bundle.faction_npcs?.length) {
+      await batchInsert("faction_npcs", bundle.faction_npcs.map((fn) => ({
+        ...fn, id: idMap.get(fn.id as string) ?? crypto.randomUUID(), user_id: userId,
+        faction_id: rCamp(fn.faction_id, idMap), npc_id: rCamp(fn.npc_id, idMap),
+      })));
+    }
   }
 
   if (includeTypes.has("quests") && bundle.quests?.length) {
@@ -980,6 +1022,19 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
       bundle.scriptorium_documents.map((doc) => remapScriptoriumDocumentForImport(doc, idMap, userId)),
     );
   }
+
+  // World links (#1084) go last: their ends are the NPCs, characters, factions, places and items above.
+  const importedKinds = new Set<LinkKind>();
+  for (const [kind, key] of [
+    ["npc", "npcs"],
+    ["party_member", "party_members"],
+    ["faction", "factions"],
+    ["location", "locations"],
+    ["item", "items"],
+  ] as const) {
+    if (includeTypes.has(key)) importedKinds.add(kind);
+  }
+  await batchInsert("world_links", bundleLinkRows(bundle, idMap, importedKinds, campaignId, userId));
 
   return { newCampaign };
 }

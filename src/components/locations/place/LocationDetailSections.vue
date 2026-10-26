@@ -205,6 +205,10 @@
       </div>
     </section>
 
+    <!-- Connections (#1084): after Members, before Mentioned in. A long list of residents is one line
+         here that points at People in the Area. Keyed by place like the backlinks below. -->
+    <ConnectionsSection :key="`connections-${location.id}`" :subject="{ kind: 'location', id: location.id }" :subject-name="location.name" />
+
     <!-- Keyed by place: the pane reuses this instance across selections, and
          the section must wait to be scrolled to again for each new place. -->
     <EntityBacklinks :key="location.id" :entity-id="location.id" lazy />
@@ -216,6 +220,7 @@ import { computed, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
+import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/place/LocationDoors.vue";
 import LocationLootPanel from "@/components/locations/place/LocationLootPanel.vue";

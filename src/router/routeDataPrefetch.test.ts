@@ -49,7 +49,7 @@ describe("prefetchRouteData", () => {
   it("does not treat the NPC sub-pages as records", () => {
     signIn("dm", "c1");
     const { client, prefetchQuery } = fakeClient();
-    for (const path of ["/npcs/new", "/npcs/web", "/npcs/sets", "/npcs/n1/edit"]) prefetchRouteData(client, path);
+    for (const path of ["/npcs/new", "/npcs/sets", "/npcs/n1/edit"]) prefetchRouteData(client, path);
     expect(prefetchQuery).not.toHaveBeenCalled();
   });
 

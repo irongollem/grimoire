@@ -1,7 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { useCampaignStore } from "@/stores/campaign";
-import { connectionsQueryKey, fetchConnections } from "@/lib/worldLinks/connections";
+import { connectionsQueryKey, fetchConnections } from "@/lib/worldLinks/connectionsQuery";
 import type { Connection, ConnectionSource } from "@/types/connections.types";
 
 /** The two things in search that open to the people they hold. */

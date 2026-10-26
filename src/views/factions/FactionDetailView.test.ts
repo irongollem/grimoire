@@ -25,9 +25,7 @@ const stubs = {
   HouseLineage: { template: "<div data-testid='lineage' />" },
   FactionMembersSection: true,
   FactionPartyMembersSection: true,
-  FactionRelationsSection: true,
-  FactionLocationsSection: true,
-  FactionItemsSection: true,
+  ConnectionsSection: true,
   DmNoteBox: true,
   EntityBacklinks: true,
 };

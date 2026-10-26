@@ -731,7 +731,7 @@ describe("mapExtractedFaction", () => {
   });
 
   it("maps a name-only payload to a valid row with schema defaults", () => {
-    const { row, linkLists } = mapExtractedFaction({ name: "The Unnamed" }, CAMPAIGN_ID, PROVENANCE);
+    const { row, links } = mapExtractedFaction({ name: "The Unnamed" }, CAMPAIGN_ID, PROVENANCE);
 
     expect(row.faction_type).toBeNull();
     expect(row.description).toBeNull();
@@ -739,16 +739,34 @@ describe("mapExtractedFaction", () => {
     expect(row.alignment).toBeNull();
     expect(row.player_visible_to).toEqual([]);
     expect(row.tags).toEqual([]);
-    expect(linkLists).toEqual({ location_names: undefined });
+    expect(links).toEqual({});
   });
 
-  it("defers a faction's held locations as linkLists.location_names, never faction_locations rows here", () => {
-    const { linkLists } = mapExtractedFaction(
-      { name: "The Ashen Circle", location_names: ["Dock Ward", "The Sunken Temple"] },
+  it("defers a faction's places and stances in links, never world_links rows here", () => {
+    const { links } = mapExtractedFaction(
+      {
+        name: "The Ashen Circle",
+        location_names: ["Dock Ward", "The Sunken Temple"],
+        controlled_location_names: ["Dock Ward"],
+        stances: [{ name: "The Watch", stance: "hostile" }],
+      },
       CAMPAIGN_ID,
       PROVENANCE,
     );
-    expect(linkLists).toEqual({ location_names: ["Dock Ward", "The Sunken Temple"] });
+    expect(links).toEqual({
+      location_names: ["Dock Ward", "The Sunken Temple"],
+      controlled_location_names: ["Dock Ward"],
+      stances: [{ name: "The Watch", stance: "hostile" }],
+    });
+  });
+
+  it("defers an NPC's bonds in links", () => {
+    const { links } = mapExtractedNpc(
+      { name: "Tam", bonds: [{ name: "Orsik", type: "mentor" }] },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(links).toMatchObject({ bonds: [{ name: "Orsik", type: "mentor" }] });
   });
 
   it("caps an over-limit description on a word boundary", () => {

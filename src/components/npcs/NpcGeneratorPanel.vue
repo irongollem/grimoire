@@ -76,7 +76,8 @@ import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllFactions, useAddFactionNpc } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useCreateNpcRelation } from "@/composables/factions/useNpcRelations";
+import { useCreateConnection } from "@/composables/connections/useConnections";
+import { typeChoices } from "@/lib/worldLinks/connections";
 import NpcGeneratorForm from "@/components/npcs/NpcGeneratorForm.vue";
 import type { QuickForm } from "@/components/npcs/NpcGeneratorForm.vue";
 
@@ -117,7 +118,7 @@ const { locationOptions } = useLocationTree(panelOpen);
 const { data: factions } = useAllFactions(panelOpen);
 const { mutateAsync: addFactionNpc } = useAddFactionNpc();
 const { data: npcs } = useNpcs(panelOpen);
-const { mutateAsync: createNpcRelation } = useCreateNpcRelation();
+const { mutateAsync: createConnection } = useCreateConnection();
 const { mutateAsync: createKinLink } = useCreateKinLink();
 const { data: party } = useParty(panelOpen);
 
@@ -343,6 +344,26 @@ function onUpdateQuickForm(value: QuickForm) {
   Object.assign(quickForm, value);
 }
 
+/**
+ * The catalogue type for each bond the associate picker offers, read from the NEW NPC: the picker says what the
+ * associate is to them ("mentor": the associate is their mentor), so the new NPC is the apprentice, the `to` end.
+ */
+const BOND_CHOICE: Record<NpcRelationshipType, { key: string; subjectIsFrom: boolean }> = {
+  chosen_family: { key: "chosen_family", subjectIsFrom: true },
+  friend: { key: "friend", subjectIsFrom: true },
+  ally: { key: "ally", subjectIsFrom: true },
+  rival: { key: "rival", subjectIsFrom: true },
+  enemy: { key: "enemy", subjectIsFrom: true },
+  lover: { key: "lover", subjectIsFrom: true },
+  contact: { key: "contact", subjectIsFrom: true },
+  former_ally: { key: "former_ally", subjectIsFrom: true },
+  former_enemy: { key: "former_enemy", subjectIsFrom: true },
+  mentor: { key: "mentor_of", subjectIsFrom: false },
+  apprentice: { key: "mentor_of", subjectIsFrom: true },
+  superior: { key: "superior_of", subjectIsFrom: false },
+  subordinate: { key: "superior_of", subjectIsFrom: true },
+};
+
 async function applyPostCreate(npcId: string) {
   if (quickForm.faction_id) {
     await addFactionNpc({
@@ -365,11 +386,16 @@ async function applyPostCreate(npcId: string) {
       await createKinLink(kinInsertFor(subject, quickForm.related_npc_kin, other));
     }
   } else if (quickForm.related_npc_id) {
-    await createNpcRelation({
-      npc_id: npcId,
-      related_npc_id: quickForm.related_npc_id,
-      relationship_type: quickForm.related_npc_relationship,
-      notes: null,
+    const bond = BOND_CHOICE[quickForm.related_npc_relationship];
+    const choice = typeChoices("npc", "npc").find((c) => !c.home && c.key === bond.key && c.subjectIsFrom === bond.subjectIsFrom);
+    if (!choice) throw new Error(`No connection type "${bond.key}" between two people`);
+    const other = npcs.value?.find((n) => n.id === quickForm.related_npc_id);
+    if (!other) throw new Error("The associate is no longer in this campaign");
+    // The new NPC is the subject: "Wren's mentor is Brenna" stores the mentor tie from Brenna.
+    await createConnection({
+      subject: { kind: "npc", id: npcId },
+      other: { kind: "npc", id: other.id, name: other.name },
+      choice,
     });
   }
 }

@@ -1,7 +1,7 @@
 <template>
   <!--
     What each player character knows about this NPC, in one place: whether they
-    can see it, when they met, and the connection note they read as "Your
+    can see it, when they met, and the connection line they read as "Your
     connection". Sharing goes through useNpcReveal, the same adapter as the
     header's reveal popover, so a share here seeds fields and announces alike.
   -->
@@ -39,7 +39,7 @@
           :member="member"
           :shared="adapter.isMemberVisible(member.id)"
           :met-at="reveals?.get(member.id) ?? null"
-          :note="notesByMember.get(member.id) ?? null"
+          :connection="connectionByMember.get(member.id) ?? null"
           @toggle="adapter.toggleMember(member.id)"
         />
       </ul>
@@ -52,7 +52,7 @@ import { computed } from "vue";
 import RevealedFieldsPanel from "@/components/common/reveal/RevealedFieldsPanel.vue";
 import NpcDisguisePanel from "@/components/npcs/NpcDisguisePanel.vue";
 import NpcPartyRow from "@/components/npcs/NpcPartyRow.vue";
-import { useNpcPcNotes } from "@/composables/npcs/useNpcPcNotes";
+import { useConnections } from "@/composables/connections/useConnections";
 import { useNpcReveal } from "@/composables/npcs/useNpcReveal";
 import { useNpcReveals } from "@/composables/npcs/useNpcReveals";
 import { useParty } from "@/composables/party/useParty";
@@ -63,11 +63,19 @@ const { npc } = defineProps<{ npc: NpcListRow }>();
 
 const npcId = computed(() => npc.id);
 const { data: party } = useParty();
-const { data: notes } = useNpcPcNotes(npcId);
+const { data: connections } = useConnections("npc", npcId);
 const { data: reveals } = useNpcReveals(npcId);
 const { visibleTo, fields, isRevealed, hasDisguise, adapter, setFields, setRevealed } = useNpcReveal(() => npc);
 
 const members = computed(() => party.value ?? []);
-const notesByMember = computed(() => new Map((notes.value ?? []).map((n) => [n.party_member_id, n])));
+// One link per character: the tie this NPC holds towards them, from the NPC's side.
+const connectionByMember = computed(
+  () =>
+    new Map(
+      (connections.value ?? [])
+        .filter((c) => c.source === "link" && c.other_kind === "party_member")
+        .map((c) => [c.other_id, c] as const),
+    ),
+);
 const sharedCount = computed(() => members.value.filter((m) => visibleTo.value.includes(m.id)).length);
 </script>

@@ -176,7 +176,7 @@ import { IconNavNpcs } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
-import { useNpcPcNotesByPartyMember } from "@/composables/npcs/useNpcPcNotes";
+import { useCampaignLinks } from "@/composables/connections/useConnections";
 import { useAllLocations, useLocationTree } from "@/composables/locations/useLocations";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
@@ -240,9 +240,18 @@ const skeletonVariant = computed(() => {
   return isMobile.value ? "gallery" : "grid";
 });
 
-const { data: connectedNpcIds } = useNpcPcNotesByPartyMember(
-  computed(() => props.partyMemberFilter),
-);
+// An NPC is connected to a PC when a world link joins them, in either direction.
+const { data: campaignLinks } = useCampaignLinks();
+const connectedNpcIds = computed(() => {
+  const pc = props.partyMemberFilter;
+  const ids = new Set<string>();
+  if (!pc) return ids;
+  for (const l of campaignLinks.value ?? []) {
+    if (l.from_kind === "npc" && l.to_kind === "party_member" && l.to_id === pc) ids.add(l.from_id);
+    else if (l.to_kind === "npc" && l.from_kind === "party_member" && l.from_id === pc) ids.add(l.to_id);
+  }
+  return ids;
+});
 const { data: allLocations } = useAllLocations();
 const { locationOptions, getDescendantIds } = useLocationTree();
 
@@ -287,7 +296,7 @@ const filtered = computed(() => {
     list = list.filter((n) => n.location_id && locationIds.has(n.location_id));
   }
   if (props.partyMemberFilter) {
-    const ids = connectedNpcIds.value ?? new Set<string>();
+    const ids = connectedNpcIds.value;
     list = list.filter((n) => ids.has(n.id));
   }
   if (props.sortBy === "location") {

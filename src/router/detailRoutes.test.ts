@@ -7,7 +7,7 @@ import { routes } from "./routes";
  * grid (#743). Nesting puts a dynamic segment in the same position as the
  * static siblings each list already had — Vue Router scores static above
  * dynamic so the siblings still win, but that is a property of the router
- * rather than of this file. If it ever stopped holding, `/npcs/web` would
+ * rather than of this file. If it ever stopped holding, `/npcs/sets` would
  * quietly render the sheet for an NPC whose id is the string "web".
  *
  * Quests left this list with epic #850: a quest is a full page with three
@@ -23,7 +23,6 @@ const NESTED_LISTS = [
     // spread overload, which a readonly tuple does not satisfy.
     siblings: [
       { path: "/npcs/new", name: "npc-new" },
-      { path: "/npcs/web", name: "npc-web" },
       { path: "/npcs/sets", name: "npc-sets" },
     ],
   },

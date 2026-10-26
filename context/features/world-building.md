@@ -47,7 +47,7 @@ It was extracted because a now-removed full-page sheet (`LocationSheet.vue`, see
 
 The map itself — and the room-shapes list that rides alongside it — is deliberately **not** one of these six: #807 removed the `SiteMapView` panel this section used to list here, because it rendered `map_url` a second time. Map placement genuinely differs per caller (the Atlas pane's mode toggle, the run surface's composed layout), so `LocationMap.vue` — the caller-owned composite — carries the regions canvas and `SiteMapRegionList` with it instead. See "Clickable rooms on a site's map" below.
 
-**The trigger for extracting, when it comes:** a *third* near-identical "list of typed relations with an `EntityCombobox` add-box" panel. Two is a coincidence of shared idiom; three is a recipe. Extracting at two would produce a slot-heavy component configured differently at each of its two call sites — the over-abstraction the granularity rule is not aiming at.
+**The trigger for extracting came (#1084).** A *third* near-identical "list of typed relations with an `EntityCombobox` add-box" panel (NPC connections, faction relations, faction locations and items, deity factions, the Held By chips) was the signal, and the answer was not a slot-heavy panel configured per caller but one `ConnectionsSection` with one data layer (`useConnections`) and one catalogue of types. `LocationDetailSections` mounts it after Currently Here and before Mentioned in; a place's residents past five fold into one line pointing at People in the Area. The same block is on an NPC, a character, a faction, a deity and an item, so a new tie kind is a catalogue row, not another panel.
 
 `hasSubstance` is `defineExpose`d so a caller can tell "this place is genuinely empty" from "merely childless". It deliberately excludes the always-present editing panels (Rooms, Prepared Here, Ways out) — those make the *body* unconditional, and folding them in would have retired that message everywhere. It also excludes a room's `related_location_ids` specifically, since Ways out replaces that section there (see below) and a stray link set before the place became a room must not claim substance the body no longer renders. The Atlas pane pairs `hasSubstance` with its child-group count, because *Nothing inside X yet* is wrong above a tavern's stocked store — a venue has no sub-places by nature.
 
@@ -475,7 +475,7 @@ Route: `/factions` (list), `/factions/new`, `/factions/:id`, `/factions/:id?edit
 - "Populate Setting" button — bulk-inserts seed factions for the active campaign's setting (only shown when the campaign has a recognised `calendar_id` with faction seed data); idempotent, deduplicates by name
 - Responsive grid (1–3 columns) of `EntityListRow` (`src/components/common/entity/EntityListRow.vue`) — the shared horizontal row: 3rem emblem tile (or a fallback icon), truncating name, subtitle, tags (`maxTags`, default 3), an `#actions` slot at the trailing edge, and the chevron. `PantheonListView` is the same component with a different fallback icon and subtitle; the two had each written the same forty lines and had already drifted (one passed `render-width` to `FocalImage`, the other did not)
 - The row's reveal goes in `#actions` as the `inline` form, **not** `overlay`, and lands in the trailing group beside the chevron. `overlay` is the dark-scrim chip and the scrim is only correct on top of artwork — on a faction row there is none behind it, so it read as a black square on parchment and its gold "shared" state disappeared into its own backdrop. On the title line it was also vertically adrift from the chevron and, being `shrink-0` beside a `truncate` name, cost the longer names a word. The controls and chevron are one group so the pair spends a single `gap-3`; split into two row children the extra gap came straight back out of the names
-- **Bulk selection (#885)** — "Select" `ListActionButton` toggles selection mode; each row wraps in `BulkSelectableCard` (`corner="top-left"`, over the emblem tile rather than the trailing reveal/chevron group). `BulkScopeBar` then offers "Move to campaign" and "Copy to campaign…", wired via `useBulkSelection` + `useMoveToCampaignFlow` + `useCopyToCampaignFlow` — the same composables and shapes `MonsterList.vue`/`NpcList.vue` use, all owned inline in `FactionListView.vue` (no separate `FactionList.vue` child component exists, unlike monsters/NPCs). `factions` carries the `enforce_quota` trigger, so a copy past quota reopens the same `showPaywall` ref the list's own "New Faction" create-gate uses. **"Make available in all campaigns" is not offered here** (`bulkScopeAllowsGeneral("factions")` is false, `useBulkCampaignScope.ts`): `faction_deities.campaign_id` is NOT NULL, so a general move could never carry a faction's deity links. A move to a specific campaign carries a faction's `faction_deities` rows along with it; the other four faction join tables (members, locations, items, inter-faction relations) carry no `campaign_id` of their own — they're scoped transitively through the faction — so nothing needs updating on them.
+- **Bulk selection (#885)** — "Select" `ListActionButton` toggles selection mode; each row wraps in `BulkSelectableCard` (`corner="top-left"`, over the emblem tile rather than the trailing reveal/chevron group). `BulkScopeBar` then offers "Move to campaign" and "Copy to campaign…", wired via `useBulkSelection` + `useMoveToCampaignFlow` + `useCopyToCampaignFlow` — the same composables and shapes `MonsterList.vue`/`NpcList.vue` use, all owned inline in `FactionListView.vue` (no separate `FactionList.vue` child component exists, unlike monsters/NPCs). `factions` carries the `enforce_quota` trigger, so a copy past quota reopens the same `showPaywall` ref the list's own "New Faction" create-gate uses. **"Make available in all campaigns" is not offered here** (`bulkScopeAllowsGeneral("factions")` is false, `useBulkCampaignScope.ts`): a faction's ties to deities, places and items are `world_links` rows with a `campaign_id` NOT NULL, so a general move could never carry them. A move to a specific campaign carries them along; the faction junction tables that remain (members, party members) carry no `campaign_id` of their own, they are scoped transitively through the faction, so nothing needs updating on them.
 
 **Faction editor** (`FactionEditor.vue`) — two-column layout:
 *Left column:* emblem image (square, click to upload, `faction-images` bucket), type selector (`EntityCombobox`), alignment selector (9 standard alignments), reveal control (`AudienceRevealControl`), tags (`TagInput`)
@@ -486,9 +486,7 @@ Shows the sheet or editor (via `?edit=true`), then below it always-visible sub-s
 
 - **FactionMembersSection** — NPC members. Combobox to add NPCs; each row shows NPC portrait thumbnail, name, occupation, role (Leader/Officer/Enforcer/Member/Initiate/Associate/Agent/Informant/Unknown), status (Active/Retired/Defected/Expelled/Deceased with colour badge). Role and status are inline-editable. Remove button per row.
 - **FactionPartyMembersSection** — PC members (party characters). Same structure; role-editable.
-- **FactionRelationsSection** — Directional inter-faction relations. Outgoing and incoming relations shown separately. Relation types: Allied, Friendly, Neutral, Suspicious, Rival, Hostile, Secret Ally, Secret Enemy (each with colour). Upsert on `(faction_id, target_faction_id)` unique constraint — adding the same relation again updates it.
-- **FactionLocationsSection** — Associated locations (with optional notes per link). Combobox + add button; remove per row.
-- **FactionItemsSection** — Associated items (with optional notes per link). Same pattern.
+- **ConnectionsSection** (#1084) — one block replaces the old Relations, Locations, Items and Patron Deities panels (and the sheet's Patron Deities strip). It is the same component every sheet mounts (see "The Connections block" in [npcs.md](npcs.md)), here with the faction as subject: other factions (a stance is held by each side for itself, so the other side's stance rides along on the same row, and the pair is `exclusive`: one tie per direction), places (controls, based in, operates in; the seat is a record), deities (worships, serves, opposes), items (holds, seeks) and people. The roster is the two sections above, so a roster past five members is one line in the block that points at **Members**. Stances read in the faction's own words ("allied with", "seen as a rival by"); the old colour list (`RELATION_TYPES`) is gone and a stance takes its family colour, `--link-stance`.
 - **DM notes box** (`DmNoteBox`) — the DM's one private note on the faction, on its page and in the docked scratchpad. It replaced `EntityNotesPanel`, which also let a DM write a note the party could read; those "party notes" were folded into the private note (the maintainer's call, 6 Oct 2026). See [dm-notes.md](dm-notes.md).
 
 ### Player View
@@ -705,8 +703,7 @@ No migration reassigns the small number of locations that already carried a null
 | `status` | string | Active, Retired, Defected, Expelled, Deceased                                     |
 
 **Only the faction's DM may write a junction row** — `private.can_edit_faction(faction_id)`
-on INSERT and UPDATE across `faction_party_members`, `faction_npcs`, `faction_items`,
-`faction_locations` and `faction_relations` (`20260828211656`). The helper resolves the
+on INSERT and UPDATE across `faction_party_members` and `faction_npcs` (`20260828211656`; it also covered `faction_items`, `faction_locations` and `faction_relations`, which #1084 moved into `world_links`). The helper resolves the
 campaign through the parent faction and mirrors the predicate `factions_update` already
 uses: campaign DM, or owner of a global (`campaign_id is null`) faction.
 
@@ -718,24 +715,18 @@ ownership alone, that made the read predicate satisfiable by a row the reader co
 any player could enrol their own character into any faction in any campaign and read the
 faction, its NPCs and its whole PC roster, bypassing `player_visible_to` entirely.
 
-These five tables carry no `campaign_id` of their own — they resolve it through
+These tables carry no `campaign_id` of their own — they resolve it through
 `faction_id` — which is why the campaign-scoped write sweep of `20260828201935` did not
-reach them. `faction_deities` is the exception that shows the intended shape: it has a real
-`campaign_id` and has been gated on `private.is_campaign_dm` since it was created.
+reach them. `world_links` is the shape that replaced `faction_deities`: a real
+`campaign_id`, gated on the campaign's DM.
 
 Regression cover: `supabase/tests/faction_link_boundary.test.sql`, ending in a structural
-assertion over every `faction_*` junction write policy — so a sixth junction table cannot
+assertion over every `faction_*` junction write policy — so a new junction table cannot
 ship with the loose shape.
 
-### FactionRelation (`faction_relations` table)
+### Faction stances (`world_links`, pair `faction_faction`)
 
-| Field               | Type                              | Notes                                                                            |
-| ------------------- | --------------------------------- | -------------------------------------------------------------------------------- |
-| `faction_id`        | uuid                              | Source faction                                                                   |
-| `target_faction_id` | uuid                              | Target faction                                                                   |
-| `relation_type`     | enum                              | allied, friendly, neutral, suspicious, rival, hostile, secret_ally, secret_enemy |
-| `notes`             | string                            | Optional notes on the relation                                                   |
-| Unique constraint   | `(faction_id, target_faction_id)` | Upsert on conflict                                                               |
+The `faction_relations` table is gone (#1084). A stance is a `world_links` row from one faction to another with a type from the catalogue (allied, friendly, neutral, suspicious, rival, hostile, secret_ally, secret_enemy), stored once per direction because each side holds its own stance. The pair is `exclusive`, so at most one stance exists per ordered pair of factions, and changing it is retyping the row in the Connections block, not adding a second. Faction-to-place, faction-to-deity and faction-to-item ties are `world_links` rows of the same shape (`faction_locations`, `faction_deities` and `faction_items` are gone), except a House's seat, which stays `factions.seat_location_id` and is read as a record.
 
 ## Secret blocks in descriptions (#932)
 

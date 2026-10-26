@@ -80,6 +80,6 @@ Favours (on the Relations tab) aren't player-visible at all: they're your own bo
 ## Related
 
 - [NPC Tracker: Overview](#npc-tracker-overview)
-- [NPC Relationship Web](#npc-relationship-web)
+- [World Web](#world-web)
 - [Atlas: Locations](#atlas-locations)
 - [Player Portal: Overview](#player-portal-overview)

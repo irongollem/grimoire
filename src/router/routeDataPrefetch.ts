@@ -65,7 +65,7 @@ type PrefetchOne = (queryClient: QueryClient, campaignId: string, id: string) =>
 interface DetailData {
   /** The path's single segment after the prefix. */
   prefix: string;
-  /** Segments that share the prefix but are not records (`/npcs/web`). */
+  /** Segments that share the prefix but are not records (`/npcs/sets`). */
   reserved: readonly string[];
   reads: readonly PrefetchOne[];
 }
@@ -80,7 +80,7 @@ interface DetailData {
 const DM_DETAIL_DATA: readonly DetailData[] = [
   {
     prefix: "/npcs/",
-    reserved: ["new", "web", "sets"],
+    reserved: ["new", "sets"],
     reads: [
       (qc, _campaignId, id) => qc.prefetchQuery(npcQuery(id)),
       (qc, _campaignId, id) => {

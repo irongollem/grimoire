@@ -6,6 +6,7 @@ import {
   buildNpcBlock,
   buildSessionBlock,
   clip,
+  factionLinkWord,
   CONTEXT_CHAR_LIMIT,
   isValidKindSubject,
   parseDraftOutput,
@@ -87,8 +88,8 @@ describe("context blocks", () => {
       faction("f1", "Tide Guild", true),
       [{ npc, role: "Leader", status: "active", locationSharesNpcs: false },
         { npc: hidden, role: "Spy", status: "active", locationSharesNpcs: false }],
-      [{ location: loc(true), notes: "secret vault" }],
-      [{ target: faction("f2", "Black Ledger", false), relation_type: "enemy", notes: null }],
+      [{ location: loc(true), word: "controls", notes: "secret vault" }],
+      [{ target: faction("f2", "Black Ledger", false), word: "hostile to", notes: null }],
       "players",
     );
     expect(text).toContain("Mara Voss");
@@ -96,6 +97,25 @@ describe("context blocks", () => {
     expect(text).toContain("Saltgate");
     expect(text).not.toContain("secret vault");
     expect(text).not.toContain("Black Ledger");
+  });
+  it("words a faction's holdings and stances from its own side", () => {
+    const text = buildFactionBlock(
+      faction("f1", "Tide Guild", true),
+      [],
+      [{ location: loc(true), word: "controls", notes: null }],
+      [{ target: faction("f2", "Black Ledger", true), word: "seen as a rival by", notes: null }],
+      "players",
+    );
+    expect(text).toContain("- controls Saltgate");
+    expect(text).toContain("- seen as a rival by Black Ledger");
+  });
+  it("reads a link from the faction's end with the catalogue's words", () => {
+    expect(factionLinkWord("location", "controls", true)).toBe("controls");
+    expect(factionLinkWord("location", "controls", false)).toBe("controlled by");
+    expect(factionLinkWord("faction", "rival", true)).toBe("rival of");
+    expect(factionLinkWord("faction", "rival", false)).toBe("seen as a rival by");
+    expect(factionLinkWord("faction", "no_such_type", true)).toBeNull();
+    expect(factionLinkWord("location", "rival", true)).toBeNull();
   });
   it("shows a disguised NPC under its disguise to players, never the true name or backstory", () => {
     const disguised: DraftNpc = { ...npc, disguise_name: "Old Tobias", is_revealed: false };

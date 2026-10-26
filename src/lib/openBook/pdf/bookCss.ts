@@ -178,6 +178,7 @@ const BOOK_CSS = `
 /* Index */
 .pb-pg { color: #5f5347; font-family: Cinzel, Georgia, serif; font-size: 0.8125rem; }
 .pb-pg::after { content: attr(data-pg); }
+.pb .book-conn .pb-pg[data-pg]::after { content: "p. " attr(data-pg); }
 .pb .pb-index-section .book-ref { grid-template-columns: 1fr auto 2rem; align-items: baseline; }
 .pb .pb-index-section .book-ref .pb-pg { text-align: right; }
 .pb .pb-index-section .book-ref-note { font-family: ${SANS}; font-size: 0.75rem; }

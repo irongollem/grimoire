@@ -1,4 +1,5 @@
 import {
+  IconNetwork,
   IconNavAtlas,
   IconNavBestiary,
   IconNavCalendar,
@@ -167,6 +168,13 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/deities",
         icon: IconNavPantheon,
         description: "Gods, deities & divine lore",
+        requiresCampaign: true,
+      },
+      {
+        label: "Web",
+        to: "/web",
+        icon: IconNetwork,
+        description: "Who is tied to what",
         requiresCampaign: true,
       },
       {

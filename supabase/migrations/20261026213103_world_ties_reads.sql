@@ -6,8 +6,9 @@
 -- One shape for both readers, so the web and the player pages describe a tie with the same catalogue words.
 
 -- ── 1. The DM's web: every tie of a campaign ──────────────────────────────────
--- Invoker: each table's own RLS decides, so this hands a DM exactly what the sheets already show them. Kin is included
--- here (the web draws it at rest) though `get_connections` leaves it to the Family block.
+-- Invoker: each table's own RLS decides, so this hands a DM exactly what the sheets already show them, the DM's own note
+-- on a link or kin link included (the web edits it). Kin is included here (the web draws it at rest) though
+-- `get_connections` leaves it to the Family block.
 create function public.get_world_ties(p_campaign_id uuid)
 returns table (
   source text,
@@ -21,6 +22,7 @@ returns table (
   to_id uuid,
   to_name text,
   to_image text,
+  note text,
   told text,
   player_visible_to uuid[],
   role text,
@@ -31,58 +33,58 @@ stable
 security invoker
 set search_path = ''
 as $$
-  with ties (source, row_id, type, from_kind, from_id, to_kind, to_id, told, player_visible_to, role, status) as (
-    select 'link', l.id, l.type, l.from_kind, l.from_id, l.to_kind, l.to_id, l.told, l.player_visible_to, null, null
+  with ties (source, row_id, type, from_kind, from_id, to_kind, to_id, note, told, player_visible_to, role, status) as (
+    select 'link', l.id, l.type, l.from_kind, l.from_id, l.to_kind, l.to_id, l.note, l.told, l.player_visible_to, null, null
       from public.world_links l where l.campaign_id = p_campaign_id
     union all
     select 'kin', k.id, k.kind || '_of',
            case when k.from_npc_id is not null then 'npc' else 'party_member' end,
            coalesce(k.from_npc_id, k.from_party_member_id),
            case when k.to_npc_id is not null then 'npc' else 'party_member' end,
-           coalesce(k.to_npc_id, k.to_party_member_id), null, null, k.parent_role, null
+           coalesce(k.to_npc_id, k.to_party_member_id), nullif(k.note, ''), null, null, k.parent_role, null
       from public.kin_links k where k.campaign_id = p_campaign_id
     union all
-    select 'membership', m.id, 'member_of', 'npc', m.npc_id, 'faction', m.faction_id, null, null, m.role, m.status
+    select 'membership', m.id, 'member_of', 'npc', m.npc_id, 'faction', m.faction_id, null, null, null, m.role, m.status
       from public.faction_npcs m join public.factions f on f.id = m.faction_id where f.campaign_id = p_campaign_id
     union all
-    select 'membership', m.id, 'member_of', 'party_member', m.party_member_id, 'faction', m.faction_id, null, null,
+    select 'membership', m.id, 'member_of', 'party_member', m.party_member_id, 'faction', m.faction_id, null, null, null,
            m.role, m.status
       from public.faction_party_members m join public.factions f on f.id = m.faction_id
      where f.campaign_id = p_campaign_id
     union all
-    select 'npc_home', n.id, 'lives_in', 'npc', n.id, 'location', n.location_id, null, null, null, null
+    select 'npc_home', n.id, 'lives_in', 'npc', n.id, 'location', n.location_id, null, null, null, null, null
       from public.npcs n where n.campaign_id = p_campaign_id and n.location_id is not null
     union all
-    select 'pc_place', pm.id, 'is_at', 'party_member', pm.id, 'location', pm.current_location_id, null, null, null, null
+    select 'pc_place', pm.id, 'is_at', 'party_member', pm.id, 'location', pm.current_location_id, null, null, null, null, null
       from public.party_members pm where pm.campaign_id = p_campaign_id and pm.current_location_id is not null
     union all
-    select 'keeper', lo.id, 'keeps', 'npc', lo.npc_owner_id, 'location', lo.id, null, null, null, null
+    select 'keeper', lo.id, 'keeps', 'npc', lo.npc_owner_id, 'location', lo.id, null, null, null, null, null
       from public.locations lo where lo.campaign_id = p_campaign_id and lo.npc_owner_id is not null
     union all
-    select 'seat', f.id, 'seat', 'faction', f.id, 'location', f.seat_location_id, null, null, null, null
+    select 'seat', f.id, 'seat', 'faction', f.id, 'location', f.seat_location_id, null, null, null, null, null
       from public.factions f where f.campaign_id = p_campaign_id and f.seat_location_id is not null
     union all
-    select 'patron_deity', pm.id, 'patron_deity', 'party_member', pm.id, 'deity', pm.deity_id, null, null, null, null
+    select 'patron_deity', pm.id, 'patron_deity', 'party_member', pm.id, 'deity', pm.deity_id, null, null, null, null, null
       from public.party_members pm where pm.campaign_id = p_campaign_id and pm.deity_id is not null
     union all
-    select 'inventory', i.id, 'carries', 'npc', i.npc_id, 'item', i.item_id, null, null, null, null
+    select 'inventory', i.id, 'carries', 'npc', i.npc_id, 'item', i.item_id, null, null, null, null, null
       from public.npc_inventory i where i.campaign_id = p_campaign_id and i.item_id is not null
     union all
-    select 'inventory', i.id, 'carries', 'party_member', i.carried_by, 'item', i.item_id, null, null, null, null
+    select 'inventory', i.id, 'carries', 'party_member', i.carried_by, 'item', i.item_id, null, null, null, null, null
       from public.party_inventory i
      where i.campaign_id = p_campaign_id and i.item_id is not null and i.carried_by is not null
     union all
-    select 'store', s.id, 'sold_at', 'item', s.item_id, 'location', s.location_id, null, null, null, null
+    select 'store', s.id, 'sold_at', 'item', s.item_id, 'location', s.location_id, null, null, null, null, null
       from public.store_items s join public.locations lo on lo.id = s.location_id
      where lo.campaign_id = p_campaign_id and s.item_id is not null
     union all
-    select 'quest', q.id, 'quest_giver', 'quest', q.id, 'npc', q.giver_npc_id, null, null, null, q.status::text
+    select 'quest', q.id, 'quest_giver', 'quest', q.id, 'npc', q.giver_npc_id, null, null, null, null, q.status::text
       from public.quests q where q.campaign_id = p_campaign_id and q.giver_npc_id is not null
     union all
-    select 'quest', q.id, 'quest_place', 'quest', q.id, 'location', q.location_id, null, null, null, q.status::text
+    select 'quest', q.id, 'quest_place', 'quest', q.id, 'location', q.location_id, null, null, null, null, q.status::text
       from public.quests q where q.campaign_id = p_campaign_id and q.location_id is not null
     union all
-    select 'quest', r.id, 'quest_ref', 'quest', q.id, r.ref_type, r.ref_id::uuid, null, null, null, q.status::text
+    select 'quest', r.id, 'quest_ref', 'quest', q.id, r.ref_type, r.ref_id::uuid, null, null, null, null, q.status::text
       from public.quest_refs r join public.quests q on q.id = r.quest_id
      where q.campaign_id = p_campaign_id and r.ref_type in ('npc', 'location', 'faction', 'item')
        and r.ref_id is distinct from q.giver_npc_id::text and r.ref_id is distinct from q.location_id::text
@@ -107,7 +109,7 @@ as $$
     select 'quest', q.id, q.title, null from public.quests q where q.campaign_id = p_campaign_id
   )
   select t.source, t.row_id, t.type, t.from_kind, t.from_id, a.name, a.image, t.to_kind, t.to_id, b.name, b.image,
-         t.told, t.player_visible_to, t.role, t.status
+         t.note, t.told, t.player_visible_to, t.role, t.status
     from ties t
     join names a on a.kind = t.from_kind and a.id = t.from_id
     join names b on b.kind = t.to_kind and b.id = t.to_id

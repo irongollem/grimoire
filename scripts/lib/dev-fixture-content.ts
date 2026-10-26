@@ -114,44 +114,65 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
     ),
 
     /**
-     * The relationship web's actual subject: ties between the people.
+     * The world web's actual subject (#1084): free ties between the people, the party and the factions.
      *
      * Without these the fixture's eight NPCs are eight unconnected nodes, and a
      * force layout with nothing to pull on spreads them past the edges of the
-     * viewport — so `/npcs/web` reviewed on the mandated account showed an empty
-     * canvas and read as broken when it was merely empty. Every edge-coloured
-     * thing on that screen (the 15-type taxonomy, the inverse-type filter, the
-     * dashed PC links) was unreachable.
+     * viewport, so the web reviewed on the mandated account showed an empty
+     * canvas and read as broken when it was merely empty.
      *
      * Paired by row number for the same reason the memberships below are: the
      * NPCs are cloned from whichever campaign is richest on this machine, so
      * their names cannot be known here.
      *
-     * The types are spread across the taxonomy's families — blood, affinity,
-     * hierarchy, hostility — rather than repeating one, because they map to
-     * distinct `--relation-*` colours and a single-type web cannot show whether
-     * those colours are distinguishable from each other.
+     * The types are spread across the catalogue's families (bond, enmity, hierarchy) rather than
+     * repeating one, because they map to distinct colours and a single-type web cannot show whether
+     * those colours are distinguishable. The PC ties carry what that player reads (`told`) and are
+     * revealed to that character; the faction stance is the one tie that is not about a person.
+     * One statement, one table: the seed is skipped once the campaign has any link.
      */
-    "npc relationships": seed(
-      "npc_relationships",
+    "world links": seed(
+      "world_links",
       `with n as (
          select id, row_number() over (order by name) rn
            from public.npcs where campaign_id = ${campaign}
+       ), p as (
+         select id, row_number() over (order by sort_order) rn
+           from public.party_members where campaign_id = ${campaign}
+       ), f as (
+         select id, row_number() over (order by name) rn
+           from public.factions where campaign_id = ${campaign}
        ), m(a, b, type) as (
-         values (1, 2, 'chosen_family'), (1, 3, 'rival'), (2, 4, 'mentor'),
-                (4, 5, 'apprentice'), (3, 6, 'enemy'), (5, 6, 'ally'),
+         values (1, 2, 'chosen_family'), (1, 3, 'rival'), (4, 2, 'mentor_of'),
+                (4, 5, 'mentor_of'), (3, 6, 'enemy'), (5, 6, 'ally'),
                 (6, 7, 'contact'), (7, 8, 'former_ally'), (2, 8, 'lover')
+       ), bonds as (
+         insert into public.world_links
+           (user_id, campaign_id, from_kind, from_npc_id, to_kind, to_npc_id, type)
+         select ${owner}, ${campaign}, 'npc', a.id, 'npc', b.id, m.type
+           from m join n a on a.rn = m.a join n b on b.rn = m.b
+         returning 1
+       ), pc(nrn, prn, type, told) as (
+         values (1, 1, 'ally', 'Vouched for us at the gate.'),
+                (3, 2, 'enemy', 'Blames her for the fire, and is not wrong.'),
+                (5, 3, 'contact', 'Sells information, and to whoever asks.')
+       ), pcs as (
+         insert into public.world_links
+           (user_id, campaign_id, from_kind, from_npc_id, to_kind, to_party_member_id, type, told, player_visible_to)
+         select ${owner}, ${campaign}, 'npc', n.id, 'party_member', p.id, pc.type, pc.told, array[p.id]
+           from pc join n on n.rn = pc.nrn join p on p.rn = pc.prn
+         returning 1
        )
-       insert into public.npc_relationships
-         (user_id, campaign_id, npc_id, related_npc_id, relationship_type)
-       select ${owner}, ${campaign}, a.id, b.id, m.type
-         from m join n a on a.rn = m.a join n b on b.rn = m.b;`,
+       insert into public.world_links
+         (user_id, campaign_id, from_kind, from_faction_id, to_kind, to_faction_id, type, note)
+       select ${owner}, ${campaign}, 'faction', a.id, 'faction', b.id, 'rival', 'Compete over the same tithes.'
+         from f a join f b on a.rn = 1 and b.rn = 2;`,
     ),
 
     /**
      * A small family for the Lineage tab and the family tree (#1083): a married couple, two children,
-     * one child married, and a PC who is also their child. Kin is not a bond, so it lives in kin_links
-     * (a `sibling` bond row is refused now). Paired by row number like the bonds above.
+     * one child married, and a PC who is also their child. Kin is not a free tie, so it lives in kin_links.
+     * Paired by row number like the links above.
      */
     "family tree": seed(
       "kin_links",
@@ -176,26 +197,6 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
        select ${owner}, ${campaign}, n.id, p.id, 'parent', m.role
          from (values (1, 1, 'father'), (2, 1, 'mother')) as m(nrn, prn, role)
          join n on n.rn = m.nrn join p on p.rn = m.prn;`,
-    ),
-
-    /** The dashed half of the web — what the party has to do with any of them. */
-    "npc-pc ties": seed(
-      "npc_pc_notes",
-      `with n as (
-         select id, row_number() over (order by name) rn
-           from public.npcs where campaign_id = ${campaign}
-       ), p as (
-         select id, row_number() over (order by sort_order) rn
-           from public.party_members where campaign_id = ${campaign}
-       ), m(nrn, prn, type, note) as (
-         values (1, 1, 'ally', 'Vouched for us at the gate.'),
-                (3, 2, 'enemy', 'Blames her for the fire, and is not wrong.'),
-                (5, 3, 'contact', 'Sells information, and to whoever asks.')
-       )
-       insert into public.npc_pc_notes
-         (user_id, campaign_id, npc_id, party_member_id, relationship_type, notes)
-       select ${owner}, ${campaign}, n.id, p.id, m.type, m.note
-         from m join n on n.rn = m.nrn join p on p.rn = m.prn;`,
     ),
 
     /**

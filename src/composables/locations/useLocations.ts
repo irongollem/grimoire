@@ -213,7 +213,7 @@ async function updateLocation(id: string, update: LocationUpdate): Promise<Locat
 
 async function deleteLocation(id: string): Promise<void> {
   // Delete the location row FIRST. Its foreign keys handle the rest: quests and
-  // npcs location_id are ON DELETE SET NULL, child locations / faction_locations
+  // npcs location_id are ON DELETE SET NULL, child locations / world_links
   // / calendar_events cascade. Only after the delete succeeds do we run the
   // irreversible cleanup — previously quest_refs were wiped and quests delinked
   // BEFORE the delete, so a failed delete destroyed those references while the

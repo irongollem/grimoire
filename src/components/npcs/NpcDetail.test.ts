@@ -150,7 +150,7 @@ function mountDetail(npcProp: Npc | null, { mobile = false }: { mobile?: boolean
         NpcGenerateDialog: true,
         NpcSidebar: true,
         NpcIdentitySection: true,
-        NpcRelationsSection: true,
+        ConnectionsSection: true,
         NpcLoreTab: true,
         NpcInventorySection: true,
         TabBar: true,

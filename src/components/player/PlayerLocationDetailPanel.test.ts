@@ -46,6 +46,7 @@ function panel(over: Record<string, unknown>) {
         LocationMap: true,
         PlayerStoreWares: true,
         PlayerNotesWidget: true,
+        PlayerConnectionsList: true,
         RichTextViewer: true,
         PlayerNoticeBoardPreview: { props: ["board"], template: '<a data-board-card>{{ board.name }}</a>' },
       },

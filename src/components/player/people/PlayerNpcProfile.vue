@@ -28,19 +28,22 @@
     </div>
     </div>
 
-    <!-- The DM's per-PC relation note shows a skeleton while loading, so players
-         don't close the dialog thinking there is no note. -->
-    <div v-if="pcNote || pcNoteLoading" class="overflow-hidden rounded-lg border border-primary/20 bg-primary/5">
-      <div class="border-b border-primary/20 px-3 py-2">
-        <p class="text-label font-semibold text-primary/70">YOUR CONNECTION</p>
-      </div>
-      <div class="px-3 py-2.5">
-        <RichTextViewer v-if="pcNote" :content="pcNote" />
-        <div v-else class="h-3 w-2/3 animate-pulse rounded bg-muted/40" />
-      </div>
-    </div>
+    <!-- The tie to the viewer's own character: the catalogue's word and what the DM told them. -->
+    <section v-if="mine" class="space-y-1.5" data-testid="your-connection">
+      <p class="text-label-lg font-semibold text-muted-foreground">Your connection</p>
+      <ConnectionSlip
+        :name="mine.other_name"
+        :image="mine.other_image"
+        pc
+        :tags="[{ label: connectionWord(mine, 'npc') }]"
+        :notes="toldText(mine.told)"
+      />
+    </section>
+    <div v-else-if="connectionsLoading" class="h-3 w-2/3 animate-pulse rounded bg-muted/40" />
     <!-- Only kin the player knows of; nothing at all when there are none (#1083). -->
     <FamilyBlock :person="personKey('npc', npc.id)" player title="Kin you know of" framed />
+    <PlayerConnectionsList kind="npc" :id="npc.id" :skip-other-id="myMemberId" />
+    <AppButton variant="ghost" size="inline-xs" label="In the web" :to="{ path: '/play/web', query: { focus: `npc:${npc.id}` } }" />
     <PlayerNpcMemories :npc-id="npc.id" />
     <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Your observations about this character…" />
   </div>
@@ -52,11 +55,15 @@ import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import FamilyBlock from "@/components/kinship/FamilyBlock.vue";
 import { personKey } from "@/lib/kinship/keys";
 import PlayerNpcMemories from "@/components/player/people/PlayerNpcMemories.vue";
-import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { formatMetDate } from "@/components/player/people/peopleParty";
 import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
 import NpcRatingStars from "@/components/player/NpcRatingStars.vue";
-import { useMyNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ConnectionSlip from "@/components/common/entity/ConnectionSlip.vue";
+import PlayerConnectionsList from "@/components/player/people/PlayerConnectionsList.vue";
+import { toldText } from "@/components/player/people/toldText";
+import { findMyConnection, usePlayerConnections, useViewerMemberId } from "@/composables/connections/usePlayerConnections";
+import { connectionWord } from "@/lib/worldLinks/connections";
 import { useMyNpcRevealMoments } from "@/composables/npcs/useNpcReveals";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { statusWord } from "@/lib/npcs/peopleLedger";
@@ -64,8 +71,8 @@ import type { PlayerNpc } from "@/types/npc.types";
 
 /**
  * A person's page for the player: name, rating, how they regard the party, what
- * they are, when and where they were met, the DM's note for this character when
- * there is one, and the player's own notes. The lightbox (phones) and the
+ * they are, when and where they were met, the tie to the viewer's own character, the
+ * other ties they know of, and the player's own notes. The lightbox (phones) and the
  * People page's side pane (tablets and up) both wear it.
  */
 const { npc, place = null } = defineProps<{
@@ -93,5 +100,7 @@ const met = computed(() => {
 });
 
 const npcId = computed(() => npc.id);
-const { data: pcNote, isLoading: pcNoteLoading } = useMyNpcPcNote(npcId);
+const myMemberId = useViewerMemberId();
+const { data: connections, isLoading: connectionsLoading } = usePlayerConnections("npc", npcId);
+const mine = computed(() => findMyConnection(connections.value ?? [], myMemberId.value));
 </script>

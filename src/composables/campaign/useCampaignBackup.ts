@@ -12,6 +12,7 @@ import {
   remapOrNull,
   type IdMap,
 } from "@/lib/campaign/campaignSerialization";
+import { legacyTiesToLinks, remapLinkEnds } from "@/lib/campaign/worldLinkTransfer";
 import { restoreSessions } from "@/lib/campaign/backupSessions";
 import { remapMentionIds as rMention } from "@/lib/campaign/mentionRemap";
 import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCampaigns";
@@ -39,15 +40,20 @@ export interface GrimoireBackup {
   campaign_sessions?: Row[];
   calendar_events: Row[];
   npcs: Row[];
-  npc_relationships: Row[];
-  npc_pc_notes: Row[];
   npc_inventory: Row[];
   factions: Row[];
   faction_npcs: Row[];
-  faction_locations: Row[];
-  faction_items: Row[];
   faction_party_members: Row[];
-  faction_relations: Row[];
+  /** Every free tie of the campaign (#1084): NPC bonds, PC connections, faction stances, places, holdings. Absent
+   *  from a backup taken before the World Web, which carried them in the five arrays below. */
+  world_links?: Row[];
+  /** The tie tables a backup taken before the World Web carries instead of `world_links`. Read only to turn
+   *  them into links (`legacyTiesToLinks`); never written. */
+  npc_relationships?: Row[];
+  npc_pc_notes?: Row[];
+  faction_locations?: Row[];
+  faction_items?: Row[];
+  faction_relations?: Row[];
   locations: Row[];
   store_items: Row[];
   quests: Row[];
@@ -200,9 +206,8 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     partyInventory,
     trackerState,
     pinnedForms,
-    npcPcNotes,
     npcInventory,
-    npcRelationships,
+    worldLinks,
     chroniclerImages,
     entityNotes,
     scriptoriumDocuments,
@@ -234,9 +239,8 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByCampaign("party_inventory", campaignId),
     qByCampaign("party_member_tracker_state", campaignId),
     qByCampaign("pinned_forms", campaignId),
-    qByCampaign("npc_pc_notes", campaignId),
     qByCampaign("npc_inventory", campaignId),
-    qByCampaign("npc_relationships", campaignId),
+    qByCampaign("world_links", campaignId),
     qByCampaign("chronicler_images", campaignId),
     qByCampaign("entity_notes", campaignId),
     qByCampaign("scriptorium_documents", campaignId),
@@ -256,10 +260,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     characterClasses,
     characterSpells,
     factionNpcs,
-    factionLocations,
-    factionItems,
     factionPartyMembers,
-    factionRelations,
     questObjectives,
     questRefs,
     questClocks,
@@ -273,10 +274,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByIds("character_classes", "party_member_id", pmIds),
     qByIds("character_spells", "party_member_id", pmIds),
     qByIds("faction_npcs", "faction_id", factionIds),
-    qByIds("faction_locations", "faction_id", factionIds),
-    qByIds("faction_items", "faction_id", factionIds),
     qByIds("faction_party_members", "faction_id", factionIds),
-    qByIds("faction_relations", "faction_id", factionIds),
     qByIds("quest_objectives", "quest_id", questIds),
     qByIds("quest_refs", "quest_id", questIds),
     qByIds("quest_clocks", "quest_id", questIds),
@@ -317,6 +315,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     scriptorium_documents: scriptoriumDocuments.length,
     npc_memories: npcMemories.length,
     kin_links: kinLinks.length,
+    world_links: worldLinks.length,
     calendar_events: calendarEvents.length,
     npcs: npcs.length,
     factions: factions.length,
@@ -350,15 +349,11 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     campaign_sessions: campaignSessions,
     calendar_events: calendarEvents,
     npcs,
-    npc_relationships: npcRelationships,
-    npc_pc_notes: npcPcNotes,
     npc_inventory: npcInventory,
     factions,
     faction_npcs: factionNpcs,
-    faction_locations: factionLocations,
-    faction_items: factionItems,
     faction_party_members: factionPartyMembers,
-    faction_relations: factionRelations,
+    world_links: worldLinks,
     locations,
     store_items: storeItems,
     quests,
@@ -422,15 +417,10 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.campaign_sessions ?? [],
     backup.calendar_events,
     backup.npcs,
-    backup.npc_relationships,
-    backup.npc_pc_notes,
     backup.npc_inventory,
     backup.factions,
     backup.faction_npcs,
-    backup.faction_locations,
-    backup.faction_items,
     backup.faction_party_members,
-    backup.faction_relations,
     backup.locations,
     backup.store_items,
     backup.quests,
@@ -457,6 +447,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.scriptorium_documents ?? [],
     backup.npc_memories ?? [],
     backup.kin_links ?? [],
+    backup.world_links ?? [],
   ];
 
   return buildIdMapFromArrays(entityArrays);
@@ -475,6 +466,55 @@ async function batchInsert(table: string, rows: Row[], omit: string[] = []): Pro
     const { error } = await (supabase.from(table as never) as ReturnType<typeof supabase.from>).insert(batch as never);
     if (error) throw new Error(`Insert into ${table} failed: ${error.message}`);
   }
+}
+
+/**
+ * The world links of a backup, ready to insert into the new campaign. An end restores when it is a row the backup
+ * carries (an NPC, character, faction or place, remapped onto its copy) or a general item or deity of the
+ * account (`campaign_id` null, kept as it is). A link to an item or deity scoped to the old campaign points at
+ * something the backup does not carry, and a link cannot point outside its campaign, so it is left out with the
+ * links whose other end did not come over.
+ */
+async function restoredWorldLinks(links: Row[], idMap: IdMap, campaignId: string, userId: string): Promise<Row[]> {
+  const general = {
+    item: await generalIds("items", links, "item"),
+    deity: await generalIds("deities", links, "deity"),
+  };
+  const rows: Row[] = [];
+  for (const link of links) {
+    const ends = remapLinkEnds(link, (kind, id) => {
+      if (kind === "item" || kind === "deity") return general[kind].has(id) ? id : null;
+      return idMap.get(id) ?? null;
+    });
+    if (!ends) continue;
+    rows.push({
+      ...ends,
+      id: r(link.id, idMap),
+      campaign_id: campaignId,
+      user_id: userId,
+      type: link.type,
+      note: rMention(link.note, idMap),
+      told: rMention(link.told, idMap),
+      player_visible_to: rArr(link.player_visible_to, idMap),
+      ai_provenance: link.ai_provenance,
+      ...(typeof link.created_at === "string" ? { created_at: link.created_at } : {}),
+    });
+  }
+  return rows;
+}
+
+/** Of the items or deities the links name as one end, the ids that belong to no campaign (so are the account's). */
+async function generalIds(table: "items" | "deities", links: Row[], kind: "item" | "deity"): Promise<Set<string>> {
+  const wanted = new Set<string>();
+  for (const link of links) {
+    for (const side of ["from", "to"] as const) {
+      if (link[`${side}_kind`] === kind && typeof link[`${side}_${kind}_id`] === "string") wanted.add(link[`${side}_${kind}_id`] as string);
+    }
+  }
+  if (wanted.size === 0) return new Set();
+  const { data, error } = await supabase.from(table).select("id").is("campaign_id", null).in("id", [...wanted]);
+  if (error) throw error;
+  return new Set(data.map((row) => row.id));
 }
 
 export async function executeImport(
@@ -843,33 +883,10 @@ export async function executeImport(
       })),
     );
 
-    // 20. NPC relations and cross-links
-    // A backup from before family trees keeps kin in the bond tables as `family` / `sibling`, which the
-    // bond tables now refuse: those rows are restored as kin links instead (see splitLegacyKin).
-    const legacy = splitLegacyKin(backup.kin_links ?? [], backup.npc_relationships, backup.npc_pc_notes);
-    await batchInsert(
-      "npc_relationships",
-      legacy.bonds.map((rel) => ({
-        ...rel,
-        id: r(rel.id, idMap),
-        campaign_id: newCampaignId,
-        user_id: userId,
-        npc_id: r(rel.npc_id, idMap),
-        related_npc_id: r(rel.related_npc_id, idMap),
-      })),
-    );
-    await batchInsert(
-      "npc_pc_notes",
-      legacy.pcNotes.map((note) => ({
-        ...note,
-        id: r(note.id, idMap),
-        campaign_id: newCampaignId,
-        user_id: userId,
-        npc_id: r(note.npc_id, idMap),
-        party_member_id: r(note.party_member_id, idMap),
-        notes: rMention(note.notes, idMap),
-      })),
-    );
+    // 20. Cross-links
+    // A backup from before family trees keeps kin in the bond tables as `family` / `sibling`: those rows are
+    // restored as kin links (see splitLegacyKin), and the rest of the bonds become world links below.
+    const legacy = splitLegacyKin(backup.kin_links ?? [], backup.npc_relationships ?? [], backup.npc_pc_notes ?? []);
     // Family trees (#1083): after the NPCs and the party members both ends point at.
     await batchInsert(
       "kin_links",
@@ -883,6 +900,26 @@ export async function executeImport(
         to_npc_id: r(link.to_npc_id, idMap),
         to_party_member_id: r(link.to_party_member_id, idMap),
       })),
+    );
+    // World links (#1084): after the NPCs, party members, factions and places they join. A backup from before the
+    // World Web carries its ties in the old tables, which become links first (legacyTiesToLinks).
+    await batchInsert(
+      "world_links",
+      await restoredWorldLinks(
+        [
+          ...(backup.world_links ?? []),
+          ...legacyTiesToLinks({
+            npc_relationships: legacy.bonds,
+            npc_pc_notes: legacy.pcNotes,
+            faction_relations: backup.faction_relations,
+            faction_locations: backup.faction_locations,
+            faction_items: backup.faction_items,
+          }),
+        ],
+        idMap,
+        newCampaignId,
+        userId,
+      ),
     );
     // NPC memories (#1019): after the NPCs, the party and the session log they
     // point at. The audience arrays are remapped onto the restored party; the
@@ -928,26 +965,6 @@ export async function executeImport(
       })),
     );
     await batchInsert(
-      "faction_locations",
-      backup.faction_locations.map((fl) => ({
-        ...fl,
-        id: r(fl.id, idMap),
-        user_id: userId,
-        faction_id: r(fl.faction_id, idMap),
-        location_id: r(fl.location_id, idMap),
-      })),
-    );
-    await batchInsert(
-      "faction_items",
-      backup.faction_items.map((fi) => ({
-        ...fi,
-        id: r(fi.id, idMap),
-        user_id: userId,
-        faction_id: r(fi.faction_id, idMap),
-        // item_id kept as-is (user-library ref)
-      })),
-    );
-    await batchInsert(
       "faction_party_members",
       backup.faction_party_members.map((fpm) => ({
         ...fpm,
@@ -955,16 +972,6 @@ export async function executeImport(
         user_id: userId,
         faction_id: r(fpm.faction_id, idMap),
         party_member_id: r(fpm.party_member_id, idMap),
-      })),
-    );
-    await batchInsert(
-      "faction_relations",
-      backup.faction_relations.map((fr) => ({
-        ...fr,
-        id: r(fr.id, idMap),
-        user_id: userId,
-        faction_id: r(fr.faction_id, idMap),
-        target_faction_id: r(fr.target_faction_id, idMap),
       })),
     );
 

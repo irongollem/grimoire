@@ -33,6 +33,10 @@ A campaign released as a public, read-only book at `/w/<slug>` (#1085). The DM d
 - **Turning.** `BookTurn` owns the animation. The fold geometry is pure (`curl.ts`): the outer bottom corner lifts first, a tilted fold crosses the page with the next verso mirrored over it. A corner can be dragged; released past halfway it clicks the existing dog-ear, so the reader's own turn path runs. Reduced motion cross-fades.
 - **Web and PDF page numbers differ.** The web book paginates to the reader's screen; the PDF is A5.
 
+## Connections (#1084)
+
+A release snapshot may carry `ties`: every tie between two entries that are both in the release and that the whole party knows (links by reveal; memberships, shared homes, seats and kin as records). `lib/openBook/connections.ts` narrows the key (a release made before it has none, which reads as no ties) and `BookModel.connectionsOf(id)` returns an entry's ties from its own side, grouped people, factions, places, deities, each line a catalogue word (`connectionWord`) plus the far page. `ArticleConnections` prints the block on place, folk, faction and deity pages (right after the facts on a folk page, which has no prose); a `told` line follows the name in italics, the DM's note never ships. Page numbers exist only in the PDF: `prepareSectionHtml` gives each `.book-conn` line a `.pb-pg` link and `applyFolios` fills in the far page's folio; the web reader prints the link and a dotted leader without a number, since web pages follow the reader's screen.
+
 ## Owner preview
 
 "Preview the book" sets a per-tab sessionStorage marker `{slug, campaignId}` and opens the real reader at `/w/<slug>`. While it is set, `usePublicOpenBook` reads `preview_open_book` through the owner's session and dresses it as the next release. A banner says so and sets `noindex`. A refusal ends the preview and falls back to the public read. Without the marker, the public read never sends the session.

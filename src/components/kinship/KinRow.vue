@@ -10,6 +10,10 @@
       :meta="row.meta.join(' · ')"
       @open="peek(parsePersonKey(row.key).id)"
     >
+      <template #tags>
+        <KinRelationPicker v-if="picker" :row="row" :kin="picker.kin" :bonds="picker.bonds" @kin="(o) => emit('retype-kin', row, o)" @bond="(c) => emit('retype-bond', row, c)" />
+        <span v-else class="rounded bg-muted px-1.5 py-0.5 text-label font-semibold text-muted-foreground" data-testid="kin-word-static">{{ row.word }}</span>
+      </template>
       <template v-if="row.door" #meta>
         <span v-if="row.meta.length" aria-hidden="true">·</span>
         <RouterLink :to="doorTo" class="inline-flex items-center gap-0.5 text-primary underline underline-offset-2 hover:opacity-80">
@@ -38,10 +42,21 @@ import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overla
 import { IconChevronRight } from "@/lib/icons";
 import { parsePersonKey } from "@/lib/kinship/keys";
 import { useOpenNpc } from "@/composables/npcs/useNpcPeek";
-import type { FamilyRow } from "@/components/kinship/familyRows";
+import KinRelationPicker from "@/components/kinship/KinRelationPicker.vue";
+import type { FamilyRow, KinOption } from "@/components/kinship/familyRows";
+import type { TypeChoice } from "@/lib/worldLinks/connections";
 
-const { row, player = false } = defineProps<{ row: FamilyRow; player?: boolean }>();
-const emit = defineEmits<{ remove: [row: FamilyRow] }>();
+/** `picker` is what the row can be changed to; absent for a player's row and for a derived sibling, which has no link to change. */
+const { row, player = false, picker = null } = defineProps<{
+  row: FamilyRow;
+  player?: boolean;
+  picker?: { kin: readonly KinOption[]; bonds: readonly TypeChoice[] } | null;
+}>();
+const emit = defineEmits<{
+  remove: [row: FamilyRow];
+  "retype-kin": [row: FamilyRow, option: KinOption];
+  "retype-bond": [row: FamilyRow, choice: TypeChoice];
+}>();
 
 const MENU: OverflowMenuEntry[] = [{ key: "remove", label: "Remove link", danger: true }];
 

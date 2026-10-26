@@ -111,4 +111,27 @@ describe("AlmanacPage and IndexPage", () => {
     expect(w.findAll(".book-index-letter").map((l) => l.text())).toContain("H");
     expect(w.find("a[href$='/atlas/town']").exists()).toBe(true);
   });
+
+  it("prints a person's connections after the facts, with the far page and a told gloss", async () => {
+    const model = buildBookModel({
+      ...snapshot,
+      ties: [
+        { source: "link", type: "worships", from_kind: "npc", from_id: "maren", to_kind: "deity", to_id: "orla", told: "Rings her bell." },
+        { source: "membership", type: "member_of", from_kind: "npc", from_id: "maren", to_kind: "faction", to_id: "brine", told: null },
+      ],
+    } as OpenBookSnapshot);
+    const w = await mountWith(model, BookArticle, { entry: model.byId.get("maren")! });
+    expect(w.text()).toContain("Connections");
+    const lines = w.findAll(".book-conn");
+    expect(lines).toHaveLength(2);
+    expect(w.find(".book-conn a[href$='/pantheon/orla']").exists()).toBe(true);
+    expect(w.text()).toContain("worships");
+    expect(w.find(".book-conn-told").text()).toBe("Rings her bell.");
+    expect(w.html().indexOf("book-attrs")).toBeLessThan(w.html().indexOf("book-conns"));
+  });
+
+  it("prints no connections block for a release made before ties existed", async () => {
+    const w = await article("maren");
+    expect(w.find(".book-conns").exists()).toBe(false);
+  });
 });

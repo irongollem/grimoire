@@ -463,7 +463,7 @@ write a row stamped with their own id and **someone else's campaign_id**.
 That was reachable, not theoretical. `ImportBundleModal.vue` is mounted at
 `App.vue:12` with no role check and opens from the OS `.grimoire` file handler
 anywhere in the app, including `/play/*`; `useWorldBundle.executeImport()` then
-batch-inserts into `locations`, `npcs`, `npc_relationships`, `monsters` and `items`
+batch-inserts into `locations`, `npcs`, `world_links`, `monsters` and `items`
 at `campaign_id = activeCampaignId` — for a player, the DM's campaign. And the
 injected rows were visible to others, because `npcs_player_select` keys on
 `player_visible_to` and `calendar_events_player_select` on

@@ -2,14 +2,17 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 import NpcPartyRow from "./NpcPartyRow.vue";
-import type { Npc, NpcPcNote } from "@/types/npc.types";
+import type { Npc } from "@/types/npc.types";
+import type { Connection } from "@/types/connections.types";
 import type { PartyMember } from "@/types/party.types";
 
-const mocks = vi.hoisted(() => ({ upsert: vi.fn(), remove: vi.fn() }));
+const mocks = vi.hoisted(() => ({ create: vi.fn(), retype: vi.fn(), update: vi.fn(), remove: vi.fn() }));
 
-vi.mock("@/composables/npcs/useNpcPcNotes", () => ({
-  useUpsertNpcPcNote: () => ({ mutateAsync: mocks.upsert }),
-  useDeleteNpcPcNote: () => ({ mutateAsync: mocks.remove }),
+vi.mock("@/composables/connections/useConnections", () => ({
+  useCreateConnection: () => ({ mutateAsync: mocks.create, isPending: { value: false } }),
+  useRetypeConnection: () => ({ mutateAsync: mocks.retype, isPending: { value: false } }),
+  useUpdateLink: () => ({ mutateAsync: mocks.update }),
+  useRemoveConnection: () => ({ mutateAsync: mocks.remove }),
 }));
 
 // A plain textarea stands in for the Tiptap editor, which needs a real DOM.
@@ -22,20 +25,25 @@ const EditorStub = defineComponent({
 const npc = { id: "npc-1", name: "Maera" } as Npc;
 const member = { id: "pm-1", name: "Wren Ashdown", class: "Wizard", level: 5, portrait_url: null } as PartyMember;
 
-function mountRow(props: { shared?: boolean; metAt?: string | null; note?: NpcPcNote | null } = {}) {
+function mountRow(props: { shared?: boolean; metAt?: string | null; connection?: Connection | null } = {}) {
   return mount(NpcPartyRow, {
     props: { npc, member, shared: false, ...props },
     global: { stubs: { RichTextEditor: EditorStub, FocalImage: true } },
   });
 }
 
+const link = (over: Partial<Connection> = {}): Connection => ({
+  source: "link", row_id: "link-1", type: "ally", outward: true, other_kind: "party_member", other_id: "pm-1",
+  other_name: "Wren Ashdown", other_image: null, note: null, told: "Old friend", player_visible_to: null,
+  ai_provenance: null, role: null, status: null, ...over,
+});
+
 const thisYearOnFourthOctober = new Date(new Date().getFullYear(), 9, 4, 12).toISOString();
 
 describe("NpcPartyRow", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    mocks.upsert.mockReset().mockResolvedValue(undefined);
-    mocks.remove.mockReset().mockResolvedValue(undefined);
+    for (const m of Object.values(mocks)) m.mockReset().mockResolvedValue(undefined);
   });
   afterEach(() => vi.useRealTimers());
 
@@ -75,35 +83,71 @@ describe("NpcPartyRow", () => {
     expect(row.text()).toContain("Wren reads this");
   });
 
-  it("never upserts a blank note", async () => {
+  it("never creates a link from a blank line", async () => {
     const row = mountRow();
     await row.findAll("button").find((b) => b.text() === "+ Wren's connection")!.trigger("click");
-    await row.get("select").setValue("rival");
     await vi.advanceTimersByTimeAsync(11_000);
-    expect(mocks.upsert).not.toHaveBeenCalled();
-    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
-  it("saves what the DM writes once they pause", async () => {
+  it("creates the link on the first type chosen, revealed to that character", async () => {
+    const row = mountRow();
+    await row.findAll("button").find((b) => b.text() === "+ Wren's connection")!.trigger("click");
+    await row.get("select").setValue("rival:from");
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: { kind: "npc", id: "npc-1" },
+        other: expect.objectContaining({ kind: "party_member", id: "pm-1" }),
+        choice: expect.objectContaining({ key: "rival" }),
+        playerVisibleTo: ["pm-1"],
+      }),
+    );
+  });
+
+  it("retypes in place after the link exists and tells that player", async () => {
+    const row = mountRow({ connection: link({ player_visible_to: [] }) });
+    await row.get("select").setValue("friend:from");
+    await flushPromises();
+    expect(mocks.retype).toHaveBeenCalledWith(
+      expect.objectContaining({ connection: expect.objectContaining({ row_id: "link-1" }), choice: expect.objectContaining({ key: "friend" }) }),
+    );
+    expect(mocks.update).toHaveBeenCalledWith({ id: "link-1", playerVisibleTo: ["pm-1"] });
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("offers a directed type both ways and a symmetric one once", () => {
+    const values = mountRow({ connection: link() }).findAll("option").map((o) => o.attributes("value"));
+    expect(values).toContain("mentor_of:from");
+    expect(values).toContain("mentor_of:to");
+    expect(values.filter((v) => v?.startsWith("friend:"))).toEqual(["friend:from"]);
+  });
+
+  it("files a line written before any type under the default type", async () => {
     const row = mountRow();
     await row.findAll("button").find((b) => b.text() === "+ Wren's connection")!.trigger("click");
     await row.get('[data-testid="editor"]').setValue("Owes Wren a life debt");
     await vi.advanceTimersByTimeAsync(2_500);
     await flushPromises();
-    expect(mocks.upsert).toHaveBeenCalledWith({
-      partyMemberId: "pm-1",
-      relationshipType: "contact",
-      notes: "Owes Wren a life debt",
-    });
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ choice: expect.objectContaining({ key: "contact" }), told: "Owes Wren a life debt", playerVisibleTo: ["pm-1"] }),
+    );
   });
 
-  it("deletes the row when an existing note is cleared", async () => {
-    const note = { id: "note-1", party_member_id: "pm-1", relationship_type: "ally", notes: "Old friend" } as NpcPcNote;
-    const row = mountRow({ note });
+  it("saves an edited line onto the existing link", async () => {
+    const row = mountRow({ connection: link({ player_visible_to: ["pm-1"] }) });
+    await row.get('[data-testid="editor"]').setValue("Changed");
+    await vi.advanceTimersByTimeAsync(2_500);
+    await flushPromises();
+    expect(mocks.update).toHaveBeenCalledWith({ id: "link-1", told: "Changed", playerVisibleTo: ["pm-1"] });
+  });
+
+  it("keeps the link when the line is cleared", async () => {
+    const row = mountRow({ connection: link({ player_visible_to: ["pm-1"] }) });
     await row.get('[data-testid="editor"]').setValue("");
     await vi.advanceTimersByTimeAsync(2_500);
     await flushPromises();
-    expect(mocks.remove).toHaveBeenCalledWith("note-1");
-    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.update).toHaveBeenCalledWith({ id: "link-1", told: "", playerVisibleTo: ["pm-1"] });
+    expect(mocks.remove).not.toHaveBeenCalled();
   });
 });

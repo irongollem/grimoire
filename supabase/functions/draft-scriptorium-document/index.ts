@@ -31,6 +31,7 @@ import {
   buildLocationBlock,
   buildNpcBlock,
   buildSessionBlock,
+  factionLinkWord,
   parseDraftOutput,
   sessionNoteAllowed,
   subjectRefusal,
@@ -159,17 +160,40 @@ async function gatherContext(req: DraftRequest): Promise<string> {
     const factionRefusal = subjectRefusal(audience, "faction", faction as DraftFaction);
     if (factionRefusal) throw new DraftError(422, factionRefusal);
 
-    const [npcLinks, locLinks, relLinks] = await Promise.all([
+    // The faction's ties to places and to other factions, from both ends: a
+    // link is stored once, so another faction's stance toward this one sits on
+    // its own row and reads "seen as a rival by" from here.
+    const linkColumns = "from_kind, to_kind, type, note, from_faction_id, to_faction_id, from_location_id, to_location_id";
+    const [npcLinks, outLinks, inLinks] = await Promise.all([
       admin.from("faction_npcs").select("npc_id, role, status").eq("faction_id", subjectId),
-      admin.from("faction_locations").select("location_id, notes").eq("faction_id", subjectId),
-      admin.from("faction_relations").select("target_faction_id, relation_type, notes").eq("faction_id", subjectId),
+      admin.from("world_links").select(linkColumns).eq("campaign_id", campaignId).eq("from_faction_id", subjectId)
+        .in("to_kind", ["location", "faction"]),
+      admin.from("world_links").select(linkColumns).eq("campaign_id", campaignId).eq("to_faction_id", subjectId)
+        .eq("from_kind", "faction"),
     ]);
-    for (const res of [npcLinks, locLinks, relLinks]) {
+    for (const res of [npcLinks, outLinks, inLinks]) {
       if (res.error) throw new Error(res.error.message);
     }
+    interface FactionTie {
+      kind: "location" | "faction";
+      otherId: string;
+      word: string;
+      note: string | null;
+    }
+    const ties: FactionTie[] = [];
+    for (const [rows, factionIsFrom] of [[outLinks.data, true], [inLinks.data, false]] as const) {
+      for (const row of rows ?? []) {
+        const kind = (factionIsFrom ? row.to_kind : row.from_kind) as "location" | "faction";
+        const otherId = (factionIsFrom
+          ? (kind === "location" ? row.to_location_id : row.to_faction_id)
+          : row.from_faction_id) as string | null;
+        const word = factionLinkWord(kind, row.type as string, factionIsFrom);
+        if (otherId && word) ties.push({ kind, otherId, word, note: row.note as string | null });
+      }
+    }
     const npcIds = (npcLinks.data ?? []).map((l) => l.npc_id as string);
-    const locIds = (locLinks.data ?? []).map((l) => l.location_id as string);
-    const targetIds = (relLinks.data ?? []).map((l) => l.target_faction_id as string);
+    const locIds = ties.filter((t) => t.kind === "location").map((t) => t.otherId);
+    const targetIds = ties.filter((t) => t.kind === "faction").map((t) => t.otherId);
 
     const [npcs, locations, targets] = await Promise.all([
       npcIds.length ? admin.from("npcs").select(NPC_COLUMNS).in("id", npcIds).eq("campaign_id", campaignId) : { data: [], error: null },
@@ -199,14 +223,15 @@ async function gatherContext(req: DraftRequest): Promise<string> {
       }
     }
     const holdings: FactionHolding[] = [];
-    for (const l of locLinks.data ?? []) {
-      const loc = locById.get(l.location_id as string);
-      if (loc) holdings.push({ location: loc, notes: l.notes as string | null });
-    }
     const relations: FactionRelationRow[] = [];
-    for (const l of relLinks.data ?? []) {
-      const target = factionById.get(l.target_faction_id as string);
-      if (target) relations.push({ target, relation_type: l.relation_type as string, notes: l.notes as string | null });
+    for (const tie of ties) {
+      if (tie.kind === "location") {
+        const location = locById.get(tie.otherId);
+        if (location) holdings.push({ location, word: tie.word, notes: tie.note });
+      } else {
+        const target = factionById.get(tie.otherId);
+        if (target) relations.push({ target, word: tie.word, notes: tie.note });
+      }
     }
     return assembleContext([buildFactionBlock(faction as DraftFaction, members, holdings, relations, audience)]);
   }

@@ -1,5 +1,6 @@
 import type { Component } from "vue";
 import {
+  IconNetwork,
   IconNavAtlas,
   IconNavBestiary,
   IconNavCalendar,
@@ -52,6 +53,8 @@ export const ALL_PLAYER_NAV: PlayerNavItem[] = [
   { id: "bestiary", to: "/play/bestiary", label: "Bestiary", icon: IconNavBestiary },
   { id: "rules", to: "/play/rules", label: "Reliquary", icon: IconNavReliquary },
   { id: "factions", to: "/play/factions", label: "Factions", icon: IconNavFactions },
+  // What the character knows of the world's ties, focus-first (#1084).
+  { id: "web", to: "/play/web", label: "World web", icon: IconNetwork },
   // The cross-campaign character pool (#730). Last by default so it lives in
   // the More sheet for players mid-campaign; for a player with no campaign
   // membership it is the only tab (see usePlayerNavPrefs). Reuses the DM

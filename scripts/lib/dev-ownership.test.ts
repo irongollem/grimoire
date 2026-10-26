@@ -69,33 +69,33 @@ describe("pruneForeignRows", () => {
   it("drops a row that points at a row that was not kept", () => {
     const tables: Record<string, Rows> = {
       party_members: [{ id: "pc1" }],
-      npc_relationships: [
-        { id: "r1", pc_id: "pc1" },
-        { id: "r2", pc_id: "player-pc" },
+      world_links: [
+        { id: "r1", to_party_member_id: "pc1" },
+        { id: "r2", to_party_member_id: "player-pc" },
       ],
     };
-    const report = pruneForeignRows(tables, [rule({ table: "npc_relationships", column: "pc_id", refTable: "party_members" })]);
-    expect(tables.npc_relationships.map((r) => r.id)).toEqual(["r1"]);
-    expect(report.pruned).toEqual({ npc_relationships: 1 });
+    const report = pruneForeignRows(tables, [rule({ table: "world_links", column: "to_party_member_id", refTable: "party_members" })]);
+    expect(tables.world_links.map((r) => r.id)).toEqual(["r1"]);
+    expect(report.pruned).toEqual({ world_links: 1 });
   });
 
   it("repeats until stable: dropping a parent strands its children", () => {
     const tables: Record<string, Rows> = {
       factions: [{ id: "f1", leader_id: "gone" }],
-      faction_items: [{ id: "i1", faction_id: "f1" }],
+      faction_banners: [{ id: "i1", faction_id: "f1" }],
       faction_notes: [{ id: "n1", item_id: "i1" }],
       npcs: [],
     };
     const report = pruneForeignRows(tables, [
       // Listed child-first on purpose: one pass in this order would miss the grandchild.
-      rule({ table: "faction_notes", column: "item_id", refTable: "faction_items" }),
-      rule({ table: "faction_items", column: "faction_id", refTable: "factions" }),
+      rule({ table: "faction_notes", column: "item_id", refTable: "faction_banners" }),
+      rule({ table: "faction_banners", column: "faction_id", refTable: "factions" }),
       rule({ table: "factions", column: "leader_id", refTable: "npcs" }),
     ]);
     expect(tables.factions).toEqual([]);
-    expect(tables.faction_items).toEqual([]);
+    expect(tables.faction_banners).toEqual([]);
     expect(tables.faction_notes).toEqual([]);
-    expect(report.pruned).toEqual({ factions: 1, faction_items: 1, faction_notes: 1 });
+    expect(report.pruned).toEqual({ factions: 1, faction_banners: 1, faction_notes: 1 });
   });
 
   it("follows a required self-reference down a tree", () => {

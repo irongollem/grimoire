@@ -2,8 +2,8 @@ import type { AiProvenance } from "@/ai/provenance";
 
 /**
  * Family trees (#1083). Kin is its own record, `kin_links` (migration
- * 20261022113302), separate from the bond tables (`npc_relationships`,
- * `npc_pc_notes`): a bond says how two people feel about each other, kin says
+ * 20261022113302), separate from world links (`world_links`, #1084):
+ * a link says how two people feel about each other, kin says
  * who is whose parent, spouse or sibling, and joins any two people in a
  * campaign, NPC or PC.
  */

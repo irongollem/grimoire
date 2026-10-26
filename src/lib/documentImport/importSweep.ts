@@ -60,6 +60,7 @@ import type { EntityMatchSource, ImportDecision } from "./entityMatching";
 import { getEntityKindEntry } from "./entityKinds";
 import { normalizeEntityName } from "./entityName";
 import { planNpcKin, type KinWrite } from "./importSweepKin";
+import { planWorldLinks, type WorldLinkWrite } from "./importSweepWorldLinks";
 import { writeBatchIsolatingFailures } from "@/lib/batchWrite";
 import {
   buildSiteRoomIndex,
@@ -74,11 +75,9 @@ import {
 } from "./importSweepLinking";
 import {
   mapEntity,
-  resolveLinkLists,
   resolveLinks,
   type ImportRunReport,
   type LinkedRow,
-  type LinkedRowList,
   type LinkResolution,
   type NameLookupRow,
 } from "./importPlan";
@@ -239,6 +238,8 @@ export interface ImportSweepDeps {
   updateQuestParent: (questId: string, parentQuestId: string) => Promise<void>;
   /** Family the page named, as `kin_links` rows. One request; the sweep retries row by row only if it is refused. */
   insertKinLinks: (links: KinWrite[]) => Promise<void>;
+  /** Ties the page named, as `world_links` rows (#1084). One request; the sweep retries row by row only if it is refused. */
+  insertWorldLinks: (links: WorldLinkWrite[]) => Promise<void>;
   /** Persists the *complete*, accumulated `imported_counts` so far — called
    *  after every kind that had anything to import, so a crash mid-sweep
    *  resumes from the last kind that finished rather than from scratch. */
@@ -363,7 +364,6 @@ const LINK_FIELD_LABELS: Record<string, string> = {
   encounter_location_name: "location",
   npc_location_name: "location",
   owner_npc_name: "owner NPC",
-  location_names: "location",
 };
 
 function formatUnresolvedLink(
@@ -377,10 +377,12 @@ function formatUnresolvedLink(
   return `${sourceLabel} "${sourceName}" → ${targetLabel} "${resolution.name}"`;
 }
 
-// ── The scalar/list link source kinds (mirrors LINK_TARGETS/LINK_LIST_TARGETS) ─
+// ── The scalar link source kinds (mirrors LINK_TARGETS) ─────────────────────
 
 const LINK_SOURCE_KINDS: readonly ImportEntityKind[] = ["npcs", "locations", "quests", "encounters"];
-const LINK_LIST_SOURCE_KINDS: readonly ImportEntityKind[] = ["factions"];
+
+/** Kinds whose rows carry World Web ties (`EntityWorldLinks`), also when the DM linked to an existing row. */
+const WORLD_LINK_SOURCE_KINDS: readonly ImportEntityKind[] = ["factions"];
 
 // `QuestBeatContext`/`EncounterCombatantContext` — the per-quest/per-encounter
 // state carried from the importing phase to the linking one — are defined in
@@ -418,7 +420,6 @@ export async function runImportSweep(
   const registry: SweepRegistry = {};
   const displayNameById = new Map<string, string>();
   const linkedRowsByKind: Partial<Record<ImportEntityKind, LinkedRow[]>> = {};
-  const linkListRowsByKind: Partial<Record<ImportEntityKind, LinkedRowList[]>> = {};
   const questContexts: QuestBeatContext[] = [];
   const encounterContexts: EncounterCombatantContext[] = [];
   const sweepRefs = new Set<string>(); // `${refType}:${refId}`, deduped
@@ -497,7 +498,6 @@ export async function runImportSweep(
 
     const displayField = getEntityKindEntry(kind).displayField;
     const linkedRows: LinkedRow[] = [];
-    const linkListRows: LinkedRowList[] = [];
     for (const [ref, id] of result.insertedIds) {
       const entity = entities.find((e) => e.ref === ref);
       const rawName = entity ? (entity.data as unknown as Record<string, unknown>)[displayField] : undefined;
@@ -506,26 +506,25 @@ export async function runImportSweep(
       const meta: RunImportKindLinkedEntity | undefined = result.linkedEntities.get(ref);
       if (meta) {
         linkedRows.push({ id, links: meta.links });
-        linkListRows.push({ id, linkLists: meta.linkLists });
       }
     }
-    // A row the DM LINKED to still carries the page's join-table facts — the
+    // A row the DM LINKED to still carries the page's World Web ties: the
     // Council of Speakers holds the Upper Gallery whether the faction is new
-    // or one they already had. Join rows are additive (the pair is unique, so
-    // a place it already holds is a no-op), unlike a scalar FK, which would
-    // overwrite what the DM set on their own row — those stay untouched.
-    if (LINK_LIST_SOURCE_KINDS.includes(kind)) {
+    // or one they already had. A link is additive (one already there is
+    // refused by the database and costs only itself), unlike a scalar FK,
+    // which would overwrite what the DM set on their own row, so those stay
+    // untouched.
+    if (WORLD_LINK_SOURCE_KINDS.includes(kind)) {
       for (const entity of entities) {
         const decision = kindDecisions.get(entity.ref);
         if (decision?.action !== "link" || decision.candidate.source !== "campaign") continue;
         // `data` is the sanitized extraction for this very kind (see the
         // #33014 note on `mapEntity`) — the cast restates that, it adds nothing.
-        const { linkLists } = mapEntity(kind, entity.data as unknown as ExtractedPayloadMap[typeof kind], campaignId, provenance);
-        if (linkLists) linkListRows.push({ id: decision.candidate.targetId, linkLists });
+        const { links } = mapEntity(kind, entity.data as unknown as ExtractedPayloadMap[typeof kind], campaignId, provenance);
+        linkedRows.push({ id: decision.candidate.targetId, links });
       }
     }
     linkedRowsByKind[kind] = linkedRows;
-    linkListRowsByKind[kind] = linkListRows;
 
     if (kind !== "quests" && kind !== "spells") {
       const refType = QUEST_REF_TYPE_BY_KIND[kind];
@@ -612,17 +611,6 @@ export async function runImportSweep(
     }
   }
 
-  for (const kind of LINK_LIST_SOURCE_KINDS) {
-    const rows = linkListRowsByKind[kind] ?? [];
-    for (const resolution of resolveLinkLists(kind, rows, plainLookups)) {
-      if (resolution.status === "unresolved") {
-        unresolvedLinks.push(formatUnresolvedLink(kind, resolution, displayNameById));
-        continue;
-      }
-      resolvedLinks.push(resolution);
-    }
-  }
-
   if (resolvedLinks.length > 0) {
     try {
       await deps.applyLinkResolutions(resolvedLinks);
@@ -630,6 +618,23 @@ export async function runImportSweep(
       // Best-effort: see the file header on every other write in this pass.
     }
   }
+
+  // World Web ties the page names (a mentor, a rival faction, a place a faction
+  // controls), resolved against the same sweep-wide lookups and written as
+  // world_links in the catalogue's stored direction.
+  const plannedWorldLinks = planWorldLinks(
+    linkedRowsByKind.npcs ?? [],
+    linkedRowsByKind.factions ?? [],
+    { npcs: plainLookups.npcs ?? [], factions: plainLookups.factions ?? [], locations: plainLookups.locations ?? [] },
+    campaignId,
+    provenance,
+  );
+  for (const miss of plannedWorldLinks.unresolved) {
+    const sourceName = displayNameById.get(miss.sourceId) ?? miss.sourceId;
+    unresolvedLinks.push(`${getEntityKindEntry(miss.sourceKind).labelSingular} "${sourceName}" → ${miss.targetLabel} "${miss.name}"`);
+  }
+  // Best-effort: a refused link (often one already there) costs only itself.
+  await writeBatchIsolatingFailures(plannedWorldLinks.writes, (batch) => deps.insertWorldLinks(batch));
 
   // Family the page names ("the Baron's son"): resolved against the same
   // sweep-wide NPC lookup as every other name, written as kin_links.

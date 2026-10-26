@@ -79,7 +79,6 @@
 
         <!-- Identity -->
         <NpcIdentitySection
-          :npc-id="npc?.id ?? null"
           :name="form.name"
           :disguise-name="form.disguise_name"
           :race="form.race"
@@ -106,8 +105,8 @@
           @update:location-id="form.location_id = $event"
         />
 
-        <!-- NPC Connections (was Relationships) -->
-        <NpcRelationsSection v-if="npc?.id" :npc-id="npc.id" />
+        <!-- Everything this NPC is tied to, factions included (#1084). -->
+        <ConnectionsSection v-if="npc?.id" :subject="{ kind: 'npc', id: npc.id }" :subject-name="form.name" />
 
         <!-- Tab bar: Lore | Inventory | Combat -->
         <div>
@@ -248,7 +247,7 @@ import { useCreateScriptoriumDocument } from '@/composables/scriptorium/useScrip
 import { formatNpcForScriptorium } from '@/lib/scriptorium/scriptoriumImport'
 import { buildEntityEmbedDocumentContent } from '@/lib/scriptorium/entityEmbeds'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
-import NpcRelationsSection from '@/components/npcs/NpcRelationsSection.vue'
+import ConnectionsSection from '@/components/connections/ConnectionsSection.vue'
 import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
 import NpcLoreTab from '@/components/npcs/NpcLoreTab.vue'
 import NpcIdentitySection from '@/components/npcs/NpcIdentitySection.vue'

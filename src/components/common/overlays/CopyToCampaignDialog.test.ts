@@ -375,7 +375,7 @@ describe("CopyToCampaignDialog — confirm", () => {
       referenced: new Map(),
       userId: "user-1",
     });
-    const linkPayloads = { npc_relationships: [{ npc_id: "new-1", related_npc_id: "new-2" }] };
+    const linkPayloads = { world_links: [{ from_npc_id: "new-1", to_npc_id: "new-2" }] };
     mocks.planCopyFor.mockReturnValue({ payloads: [{ id: "new-1" }, { id: "new-2" }], linkPayloads, dropped: [] });
     mocks.mutateAsync.mockResolvedValue({ copied: 2, linked: 1, dropped: [], needsSources: null });
     const wrapper = openDialog({ table: "npcs", ids: ["n1", "n2"], label: "NPC" });

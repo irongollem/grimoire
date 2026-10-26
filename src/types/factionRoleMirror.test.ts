@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SUGGESTED_FACTION_ROLES } from "@edge-shared/npcRelationshipSuggestions.ts";
+import { SUGGESTED_FACTION_ROLES } from "@edge-shared/connectionSuggestions.ts";
 import { NPC_FACTION_ROLES } from "@/types/faction.types";
 
 // Edge code cannot import from src/, so the suggester keeps its own copy.

@@ -78,5 +78,14 @@ export function prepareSectionHtml(html: string, ctx: LinkContext, opts: { pageR
       row.appendChild(ref);
     });
   }
+  // A connection line ends in the far page's number, filled in once the pages are cut (`applyFolios`).
+  doc.querySelectorAll(".book-conn").forEach((row) => {
+    const href = row.querySelector("a")?.getAttribute("href");
+    if (!href?.startsWith("#")) return;
+    const ref = doc.createElement("a");
+    ref.className = "pb-pg";
+    ref.setAttribute("href", href);
+    row.appendChild(ref);
+  });
   return doc.body.innerHTML;
 }

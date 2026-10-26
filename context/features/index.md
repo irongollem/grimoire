@@ -17,7 +17,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | [campaign-notes-calendar.md](campaign-notes-calendar.md) | Dashboard, Session Notes, Player Journal, Faerûn Calendar, timeline, AI Chronicler image gen                                                     |
 | [world-building.md](world-building.md)                   | Atlas/Locations (19 types, hierarchical), Factions + relations, Pantheons & Deities, shared AI retrieval grounding, campaign search by meaning |
 | [quests.md](quests.md)                                   | Quests: the beat/objective model, story-flow graph, run cockpit, runtime cursor + RPCs, player journal, threads and parallel routes (#850), and staging a beat at a site (#868)      |
-| [npcs.md](npcs.md)                                       | NPC list, full detail sheet, force-directed Relationship Web, NPC Generator, player visibility                                                   |
+| [npcs.md](npcs.md)                                       | NPC list, full detail sheet, the World web (see the World Web section), NPC Generator, player visibility                                                   |
 | [party-characters.md](party-characters.md)               | Party Tracker, full D&D 5e character sheet, Character Codex, class features, subclass features and feats (#976), Hall of Heroes, shapeshifter disguise      |
 | [combat-encounters.md](combat-encounters.md)             | Bestiary (monster builder + discovery), Encounter Builder, live Encounter Runner, player combat view                                             |
 | [items-spells-crafting.md](items-spells-crafting.md)     | Item Vault, player Paper Doll inventory, Spellbook, Workshop recipes + player crafting                                                           |
@@ -179,7 +179,7 @@ a heading never appears over an empty grid.
 ### Characters & Party
 
 - **NPC Tracker** — card grid list with 5-filter system; full detail sheet (identity, lore, inventory, combat tabs); stat block with template/bestiary import; Scriptorium export; promote-to-monster
-- **NPC Relationship Web** — force-directed graph; 13 relationship types with directional inverses; shift+click to create edges on graph; DM-managed with player-facing visibility controls
+- **World web** — every tie in the campaign as a graph at `/web` (and `/play/web` for players); focus rings, group by faction/place/deity, Connect… to tie two nodes; see npcs.md
 - **NPC Generator** — quick-create (faction + associate auto-wired); AI generation with optional alter-ego portrait (2× credits); setting population bulk-import
 - **Party Tracker** — initiative tracker; HP tracking (temp HP absorbs first); conditions, exhaustion, named curses; death saves; companions; inline party inventory with Vault combobox
 - **Character Sheet** — full D&D 5e stats; Wild Shape (CR filtering, stat block override, Circle of Moon); health visibility modes (strategic numeric vs. immersive prose); level-up wizard; 2024 background ASI (+2/+1 or +1/+1/+1) + Origin feat

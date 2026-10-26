@@ -1,5 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FamilyBlock from "./FamilyBlock.vue";
 import { edge, k, person, sourceOf } from "./testGraph";
 import type { PersonKey } from "@/types/kinship.types";
@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   dm: null as unknown,
   player: null as unknown,
   deleted: [] as string[],
+  updated: [] as { id: string; patch: Record<string, unknown> }[],
+  retyped: [] as Record<string, unknown>[],
   confirm: vi.fn(),
 }));
 
@@ -17,6 +19,10 @@ vi.mock("@/composables/kinship/useKinGraph", () => ({
 }));
 vi.mock("@/composables/kinship/useKinLinks", () => ({
   useDeleteKinLink: () => ({ mutateAsync: async (id: string) => void mocks.deleted.push(id) }),
+  useUpdateKinLink: () => ({ mutateAsync: async (v: { id: string; patch: Record<string, unknown> }) => void mocks.updated.push(v) }),
+}));
+vi.mock("@/composables/connections/useConnections", () => ({
+  useRetypeConnection: () => ({ mutateAsync: async (v: Record<string, unknown>) => void mocks.retyped.push(v) }),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ todayYear: 1495, isAiEnabled: false }) }));
@@ -40,8 +46,10 @@ const edges = [
   edge("4", "me", "kid", "parent"),
 ];
 
+const mounted: { unmount: () => void }[] = [];
+
 function mountBlock(props: { person: PersonKey; player?: boolean }) {
-  return mount(FamilyBlock, {
+  const w = mount(FamilyBlock, {
     props,
     attachTo: document.body,
     global: {
@@ -51,12 +59,20 @@ function mountBlock(props: { person: PersonKey; player?: boolean }) {
       },
     },
   });
+  mounted.push(w);
+  return w;
 }
+
+afterEach(() => {
+  for (const w of mounted.splice(0)) w.unmount();
+});
 
 beforeEach(() => {
   mocks.dm = sourceOf(people, edges);
   mocks.player = sourceOf(people, edges);
   mocks.deleted.length = 0;
+  mocks.updated.length = 0;
+  mocks.retyped.length = 0;
   mocks.confirm.mockReset();
   document.body.innerHTML = "";
 });
@@ -119,5 +135,85 @@ describe("FamilyBlock", () => {
     expect(w.text()).toContain("Parents");
     expect(w.text()).not.toContain("Add relative");
     expect(w.find("button[aria-label^='More actions']").exists()).toBe(false);
+  });
+
+  describe("changing a relation in place", () => {
+    const rowOf = (w: ReturnType<typeof mountBlock>, name: string) => w.findAll("li").find((r) => r.text().includes(name))!;
+    const option = (id: string) => document.body.querySelector<HTMLButtonElement>(`[data-kin-option='${id}']`)!;
+
+    it("makes the word a picker on a stored link and plain text on a derived sibling or a player's row", () => {
+      const w = mountBlock({ person: k("me") });
+      expect(rowOf(w, "Maera").find("[data-testid='kin-word']").text()).toBe("parent");
+      expect(rowOf(w, "Tomas").find("[data-testid='kin-word']").exists()).toBe(false);
+      expect(rowOf(w, "Tomas").find("[data-testid='kin-word-static']").text()).toBe("sibling");
+      const p = mountBlock({ person: k("me"), player: true });
+      expect(p.find("[data-testid='kin-word']").exists()).toBe(false);
+    });
+
+    it("updates the row once, in place, and keeps what it still means", async () => {
+      const w = mountBlock({ person: k("me") });
+      await rowOf(w, "Maera").find("[data-testid='kin-word']").trigger("click");
+      option("spouse").click();
+      await flushPromises();
+      expect(mocks.updated).toHaveLength(1);
+      expect(mocks.updated[0].id).toBe("2");
+      expect(mocks.updated[0].patch).toMatchObject({ kind: "spouse", parent_role: null, adoptive: false, from_npc_id: "me", to_npc_id: "mum" });
+      expect(mocks.deleted).toEqual([]);
+    });
+
+    it("does nothing when the current relation is chosen again", async () => {
+      const w = mountBlock({ person: k("me") });
+      await rowOf(w, "Maera").find("[data-testid='kin-word']").trigger("click");
+      option("parent").click();
+      await flushPromises();
+      expect(mocks.updated).toEqual([]);
+    });
+
+    it("speaks the birth-year check inline on a choice it contradicts", async () => {
+      const w = mountBlock({ person: k("me") });
+      await rowOf(w, "Wren").find("[data-testid='kin-word']").trigger("click");
+      const problems = [...document.body.querySelectorAll("[data-testid='kin-problem']")].map((p) => p.textContent);
+      // Father, Mother and Parent are the same claim, so each says it.
+      expect(problems).toEqual(Array(3).fill("Wren was born 24 years after Brenna."));
+    });
+
+    it("moves a kin row to a bond through the retype mutation", async () => {
+      const w = mountBlock({ person: k("me") });
+      await rowOf(w, "Wren").find("[data-testid='kin-word']").trigger("click");
+      const bond = document.body.querySelector<HTMLButtonElement>("[data-bond-option]")!;
+      expect(bond).toBeTruthy();
+      bond.click();
+      await flushPromises();
+      expect(mocks.retyped).toHaveLength(1);
+      expect(mocks.retyped[0]).toMatchObject({
+        connection: { source: "kin", row_id: "4", type: "parent_of", outward: true, other_id: "kid" },
+        subject: { kind: "npc", id: "me" },
+      });
+    });
+
+    it("walks the list with the arrows and closes on Escape, handing focus back to the word", async () => {
+      const w = mountBlock({ person: k("me") });
+      const word = rowOf(w, "Maera").find("[data-testid='kin-word']");
+      await word.trigger("click");
+      await flushPromises();
+      const panel = document.body.querySelector("[data-testid='kin-picker']")!;
+      expect(panel.hasAttribute("data-slip")).toBe(true);
+      expect(document.activeElement).toBe(option("parent"));
+      const press = (key: string) => panel.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+      press("ArrowDown");
+      expect(document.activeElement).toBe(option("child"));
+      press("ArrowUp");
+      press("ArrowUp");
+      expect(document.activeElement).toBe(option("parent:mother"));
+      press("Home");
+      expect(document.activeElement).toBe(option("parent:father"));
+      press("ArrowUp");
+      const last = [...document.body.querySelectorAll("[data-testid='kin-picker'] button")].at(-1);
+      expect(document.activeElement).toBe(last);
+      press("Escape");
+      await flushPromises();
+      expect(document.body.querySelector("[data-testid='kin-picker']")).toBeNull();
+      expect(document.activeElement).toBe(word.element);
+    });
   });
 });

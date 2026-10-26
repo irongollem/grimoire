@@ -160,6 +160,13 @@
   --color-relation-contact: var(--relation-contact);
   --color-relation-former-ally: var(--relation-former-ally);
   --color-relation-former-enemy: var(--relation-former-enemy);
+  --color-link-bond: var(--link-bond);
+  --color-link-enmity: var(--link-enmity);
+  --color-link-faith: var(--link-faith);
+  --color-link-place: var(--link-place);
+  --color-link-holding: var(--link-holding);
+  --color-link-stance: var(--link-stance);
+  --color-link-record: var(--link-record);
   --color-trap-mechanical: var(--trap-mechanical);
   --color-trap-magical: var(--trap-magical);
   --color-trap-hybrid: var(--trap-hybrid);
@@ -379,6 +386,16 @@
   --relation-contact: #64748b;
   --relation-former-ally: #92400e;
   --relation-former-enemy: #7f1d1d;
+
+  /* World web: one colour per family of tie (#1084). Lightness differs across the
+     seven, not hue alone: enmity is the darkest, holding the lightest. */
+  --link-bond: #3a7bbf;
+  --link-enmity: #8c1d2c;
+  --link-faith: #9468c4;
+  --link-place: #2e8b57;
+  --link-holding: #d49a1a;
+  --link-stance: #5b6670;
+  --link-record: #9a9183;
 
   /* TRAP_TYPE_BG */
   --trap-mechanical: #b45309;

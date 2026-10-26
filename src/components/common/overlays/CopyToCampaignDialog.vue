@@ -122,7 +122,7 @@
  *
  * **npcs/factions batches (#885).** `table`/`ids` are already generic over
  * all ten bulk-scope tables, so this component needed no shape change for
- * the two that now carry join rows (npc relationships, faction membership,
+ * the two that now carry join rows (world links, faction membership,
  * …) — `planCopyFor` branches internally and hands back the same
  * `{ payloads, linkPayloads, dropped }` shape either way (`linkPayloads` is
  * always `{}` for the other eight). The dropped-reference preview below

@@ -58,16 +58,20 @@ export function useMoveToCampaignFlow(options: MoveToCampaignFlowOptions): MoveT
     const ids = pruneTo(selectableIds());
     if (!ids.length) return;
     try {
-      const { moved, familyLinksRemoved } = await bulkScope.mutateAsync({ table, ids, campaignId });
+      const { moved, familyLinksRemoved, worldLinksRemoved } = await bulkScope.mutateAsync({ table, ids, campaignId });
       const phrase = pluralizeCount(moved, noun, nounPlural);
       // A family belongs to one campaign, so links to people who stayed behind cannot travel; say so.
       const family = familyLinksRemoved
         ? ` ${pluralizeCount(familyLinksRemoved, "family link", "family links")} to people who stayed behind ${familyLinksRemoved === 1 ? "was" : "were"} removed.`
         : "";
+      // A world link cannot span two campaigns either.
+      const links = worldLinksRemoved
+        ? ` ${pluralizeCount(worldLinksRemoved, "link", "links")} to things that stayed behind ${worldLinksRemoved === 1 ? "was" : "were"} removed.`
+        : "";
       toast.success(
         (campaignId
           ? `Moved ${phrase} to ${campaignName() ?? "the campaign"}.`
-          : `${phrase} ${moved === 1 ? "is" : "are"} now available in all campaigns.`) + family,
+          : `${phrase} ${moved === 1 ? "is" : "are"} now available in all campaigns.`) + family + links,
       );
       stop();
     } catch (e) {

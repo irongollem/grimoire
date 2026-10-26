@@ -17,7 +17,7 @@ import { isUuid } from "@/lib/library/contentIdentity";
 import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { GROUP_ORDER, mergeSearchGroups, type SearchGroup, type SearchHit } from "@/lib/search/mergeSearchHits";
-import { connectionsQueryKey, fetchConnections } from "@/lib/worldLinks/connections";
+import { connectionsQueryKey, fetchConnections } from "@/lib/worldLinks/connectionsQuery";
 import { parseTieQuery, rowMatchesTie, type TieQuery } from "@/lib/worldLinks/tieQuery";
 import type { Connection } from "@/types/connections.types";
 import type { LinkKind } from "@edge-shared/worldLinkCatalogue.ts";

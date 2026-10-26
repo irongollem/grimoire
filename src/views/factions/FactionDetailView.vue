@@ -36,12 +36,10 @@
             <FactionMembersSection :faction-id="faction.id" />
             <FactionPartyMembersSection :faction-id="faction.id" />
           </div>
+          <!-- One block replaces Relations, Locations, Items and Patron Deities (#1084);
+               the roster above stays, and the block points at it. -->
           <div class="border-t border-border pt-6">
-            <FactionRelationsSection :faction-id="faction.id" />
-          </div>
-          <div class="border-t border-border pt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <FactionLocationsSection :faction-id="faction.id" />
-            <FactionItemsSection :faction-id="faction.id" />
+            <ConnectionsSection :subject="{ kind: 'faction', id: faction.id }" :subject-name="faction.name" />
           </div>
           <div class="border-t border-border pt-6">
             <DmNoteBox type="faction" :id="faction.id" :label="faction.name" />
@@ -65,9 +63,7 @@ import FactionEditor from "@/components/factions/FactionEditor.vue";
 import FactionSheet from "@/components/factions/FactionSheet.vue";
 import FactionMembersSection from "@/components/factions/FactionMembersSection.vue";
 import FactionPartyMembersSection from "@/components/factions/FactionPartyMembersSection.vue";
-import FactionLocationsSection from "@/components/factions/FactionLocationsSection.vue";
-import FactionItemsSection from "@/components/factions/FactionItemsSection.vue";
-import FactionRelationsSection from "@/components/factions/FactionRelationsSection.vue";
+import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import HouseLineage from "@/components/factions/HouseLineage.vue";

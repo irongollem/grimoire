@@ -6,6 +6,7 @@ import type { BookModel } from "@/lib/openBook/bookModel";
 import type { OpenBookPlace } from "@/types/openBook.types";
 import { placePlate, placeTypeLabel, readPins } from "@/lib/openBook/articleData";
 import BookRichText from "../BookRichText.vue";
+import ArticleConnections from "./ArticleConnections.vue";
 import ArticlePlate from "./ArticlePlate.vue";
 import ArticleRefList from "./ArticleRefList.vue";
 
@@ -61,6 +62,7 @@ function pinTarget(childId: string) {
     </header>
     <p v-if="place.player_summary" class="book-lede">{{ place.player_summary }}</p>
     <div v-if="place.description" class="book-prose book-dropcap"><BookRichText :content="place.description" :model="model" /></div>
+    <ArticleConnections :model="model" :id="place.id" />
     <div class="book-refs-grid">
       <ArticleRefList :model="model" title="Places within" :items="within" />
       <ArticleRefList :model="model" title="Folk met here" :items="folk" />

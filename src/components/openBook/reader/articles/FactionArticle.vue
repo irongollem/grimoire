@@ -6,6 +6,7 @@ import type { OpenBookFaction } from "@/types/openBook.types";
 import { humanize } from "@/lib/openBook/articleData";
 import BookRichText from "../BookRichText.vue";
 import ArticleAttr from "./ArticleAttr.vue";
+import ArticleConnections from "./ArticleConnections.vue";
 import ArticlePlate from "./ArticlePlate.vue";
 
 const { model, faction } = defineProps<{ model: BookModel; faction: OpenBookFaction }>();
@@ -34,5 +35,6 @@ const hasFacts = computed(() => kind.value || faction.alignment || faction.desce
     <div v-if="faction.description" class="book-prose book-dropcap">
       <BookRichText :content="faction.description" :model="model" />
     </div>
+    <ArticleConnections :model="model" :id="faction.id" />
   </article>
 </template>

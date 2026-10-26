@@ -145,7 +145,7 @@ describe("runImportKind", () => {
     expect(result.report.rows[0]).toEqual({ ref: "a", status: "failed", message: "boom" });
   });
 
-  it("captures links/linkLists/questSpine only for a 'create'-decided (planned) entity", async () => {
+  it("captures links/questSpine only for a 'create'-decided (planned) entity", async () => {
     const npc: ExtractedNpc = { name: "Reyes", faction_name: "The Watch", location_name: "The Rusty Anchor" };
     const entities = [entity("a", npc)];
     const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: "npc-1" }));
@@ -158,7 +158,6 @@ describe("runImportKind", () => {
 
     const captured = result.linkedEntities.get("a");
     expect(captured?.links).toEqual({ faction_name: "The Watch", npc_location_name: "The Rusty Anchor" });
-    expect(captured?.linkLists).toEqual({});
     expect(captured?.questSpine).toBeUndefined();
     expect(captured?.row).toMatchObject({ name: "Reyes" });
   });

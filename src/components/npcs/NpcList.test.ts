@@ -69,8 +69,8 @@ vi.mock("@/composables/npcs/useNpcs", () => ({
 // The intent directive needs a router and a query client the grid tests do not mount.
 vi.mock("@/composables/usePrefetchOnIntent", () => ({ usePrefetchOnIntent: () => ({}) }));
 
-vi.mock("@/composables/npcs/useNpcPcNotes", () => ({
-  useNpcPcNotesByPartyMember: () => ({ data: ref(new Set<string>()) }),
+vi.mock("@/composables/connections/useConnections", () => ({
+  useCampaignLinks: () => ({ data: ref([]) }),
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({

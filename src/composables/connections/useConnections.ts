@@ -12,9 +12,11 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { CONNECTIONS_KEY, KIN_LINKS_KEY } from "@/lib/campaignLiveSync/registry";
 import { queueEmbeddingsInBackground, type EmbedManyEntity } from "@/lib/queueEmbeddings";
-import { connectionsQueryKey, fetchConnections, linkInsert, type TypeChoice } from "@/lib/worldLinks/connections";
+import { linkInsert, type TypeChoice } from "@/lib/worldLinks/connections";
+import { connectionsQueryKey, fetchConnections } from "@/lib/worldLinks/connectionsQuery";
 import { endColumns, kinInsertFor, personKey } from "@/lib/kinship/keys";
 import type { Connection, ConnectionSource, WorldLink, WorldRef } from "@/types/connections.types";
+import type { AiProvenance } from "@/ai/provenance";
 import type { KinKind, PersonKey } from "@/types/kinship.types";
 
 export { CONNECTIONS_KEY };
@@ -32,8 +34,10 @@ export interface CreateConnectionInput {
   playerVisibleTo?: string[];
   /** A membership's role; "Member" when absent. */
   role?: string;
+  /** A kin parent's role, father or mother, when it is known. */
+  parentRole?: "father" | "mother";
   /** Set when the tie came from an accepted AI suggestion (links, memberships and kin record it). */
-  aiProvenance?: Record<string, unknown>;
+  aiProvenance?: AiProvenance;
 }
 
 export interface UpdateLinkInput {
@@ -214,13 +218,12 @@ async function writeTie(input: CreateConnectionInput): Promise<void> {
       return;
     }
     case "kin": {
-      const row = kinInsertFor(personKeyOf(from), kinKindFor(choice.key), personKeyOf(to), { note: input.note });
-      const { error } = await supabase.from("kin_links").insert({
-        ...row,
-        campaign_id: campaignId,
-        user_id: userId,
+      const row = kinInsertFor(personKeyOf(from), kinKindFor(choice.key), personKeyOf(to), {
+        ...(input.note !== undefined ? { note: input.note } : {}),
+        ...(input.parentRole !== undefined ? { parent_role: input.parentRole } : {}),
         ...(input.aiProvenance !== undefined ? { ai_provenance: input.aiProvenance } : {}),
       });
+      const { error } = await supabase.from("kin_links").insert({ ...row, campaign_id: campaignId, user_id: userId });
       if (error) throw error;
       return;
     }
@@ -397,8 +400,13 @@ export function useRetypeConnection() {
 
       if (connection.source === "kin" && choice.home === "kin") {
         const { from, to } = ends(subject, other, choice);
-        const row = kinInsertFor(personKeyOf(from), kinKindFor(choice.key), personKeyOf(to));
-        const patch = { ...endColumns(personKeyOf(from), personKeyOf(to)), kind: row.kind, parent_role: row.parent_role ?? null, adoptive: row.adoptive ?? false };
+        const kind = kinKindFor(choice.key);
+        // A parent stays a parent across a flip of direction, so it keeps whether it was adoptive and, as the
+        // world read carries it in `role`, whether a father or a mother; leaving parenthood clears both.
+        const patch =
+          kind === "parent"
+            ? { ...endColumns(personKeyOf(from), personKeyOf(to)), kind, parent_role: connection.role }
+            : { ...endColumns(personKeyOf(from), personKeyOf(to)), kind, parent_role: null, adoptive: false };
         const { error } = await supabase.from("kin_links").update(patch).eq("id", connection.row_id);
         if (error) throw error;
         return;

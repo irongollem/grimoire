@@ -40,13 +40,16 @@
       <template v-if="editing">
         <div class="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
           <AppSelect
-            v-model="draft.relationshipType"
+            :model-value="selectedChoice"
             tone="filled"
             size="xs"
             class="font-semibold uppercase text-primary"
             :aria-label="`${firstName}'s relationship to ${npc.name}`"
+            :disabled="choosing"
+            @update:model-value="choose($event)"
           >
-            <option v-for="[key, label] in typeOptions" :key="key" :value="key">{{ label }}</option>
+            <option v-if="!connection" value="" disabled>Their connection…</option>
+            <option v-for="c in choices" :key="choiceValue(c)" :value="choiceValue(c)">{{ c.word }}</option>
           </AppSelect>
           <span class="text-caption italic text-muted-foreground">{{ firstName }} reads this</span>
           <AutosaveStatus
@@ -55,10 +58,18 @@
             :error="saveError"
             paused-label="Saves once you write something"
           />
+          <OverflowMenu
+            v-if="connection"
+            variant="ghost"
+            :label="`More actions for ${firstName}'s connection`"
+            :items="MENU"
+            size="icon-sm"
+            @select="removeConnection"
+          />
         </div>
         <RichTextEditor
           :key="revision"
-          v-model="draft.notes"
+          v-model="draft.told"
           :placeholder="`How does ${firstName} know them…`"
           size="sm"
           :sticky-toolbar="false"
@@ -81,30 +92,51 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
-import { useDeleteNpcPcNote, useUpsertNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
+import {
+  useCreateConnection,
+  useRemoveConnection,
+  useRetypeConnection,
+  useUpdateLink,
+} from "@/composables/connections/useConnections";
 import { isBlankNote } from "@/composables/notes/useMyEntityNote";
 import { useAutosave } from "@/composables/useAutosave";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
-import type { NpcListRow, NpcPcNote, NpcRelationshipType } from "@/types/npc.types";
+import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
+import type { Connection } from "@/types/connections.types";
+import type { NpcListRow } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 
-const { npc, member, shared, metAt = null, note = null } = defineProps<{
+const { npc, member, shared, metAt = null, connection = null } = defineProps<{
   npc: NpcListRow;
   member: PartyMember;
   shared: boolean;
   /** ISO timestamp this character first met the NPC; null when they have not. */
   metAt?: string | null;
-  note?: NpcPcNote | null;
+  /** The `world_links` tie between this NPC and this character, read from the NPC's side. */
+  connection?: Connection | null;
 }>();
 
 const emit = defineEmits<{ (e: "toggle"): void }>();
 
-const typeOptions = Object.entries(NPC_RELATIONSHIP_TYPE_LABELS) as [NpcRelationshipType, string][];
+const MENU: OverflowMenuEntry[] = [{ key: "remove", label: "Remove connection", danger: true }];
+/** The type a told line files under when the DM writes one before choosing a type. */
+const DEFAULT_TYPE = "contact";
+
+// Every link type two people can hold; a record type (kin) has its own home on the kin tab.
+const choices = typeChoices("npc", "party_member").filter((c) => c.home === undefined);
+const choiceValue = (c: Pick<TypeChoice, "key" | "subjectIsFrom">) => `${c.key}:${c.subjectIsFrom ? "from" : "to"}`;
+const choiceOf = (value: string): TypeChoice => {
+  const found = choices.find((c) => choiceValue(c) === value);
+  if (!found) throw new Error(`"${value}" is not a type an NPC can hold towards a character`);
+  return found;
+};
 
 const firstName = computed(() => member.name.trim().split(/\s+/)[0] ?? member.name);
 const subtitle = computed(() => [member.class, `Level ${member.level}`].filter(Boolean).join(" · "));
+const subject = computed(() => ({ kind: "npc" as const, id: npc.id }));
+const other = computed(() => ({ kind: "party_member" as const, id: member.id, name: member.name }));
 
 // ── When they met ─────────────────────────────────────────────────────────────
 const metLabel = computed(() => {
@@ -119,45 +151,82 @@ const metLabel = computed(() => {
   return `Met · ${text}`;
 });
 
-// ── The connection, saving itself ─────────────────────────────────────────────
-interface ConnectionDraft {
-  relationshipType: NpcRelationshipType;
-  notes: string | null;
-}
+// ── The connection: a type picked in place, a told line saving itself ─────────
+const create = useCreateConnection();
+const retype = useRetypeConnection();
+const update = useUpdateLink();
+const remove = useRemoveConnection();
 
-const fromNote = (row: NpcPcNote | null): ConnectionDraft => ({
-  relationshipType: row?.relationship_type ?? "contact",
-  notes: row?.notes ?? null,
-});
+const choosing = computed(() => create.isPending.value || retype.isPending.value);
+const selectedChoice = computed(() =>
+  connection ? choiceValue({ key: connection.type, subjectIsFrom: connection.outward }) : "",
+);
 
-const draft = reactive<ConnectionDraft>(fromNote(note));
-const editing = ref(note !== null);
+/** Whoever the link is revealed to, plus this character: writing to or typing a link tells its player. */
+const revealedTo = (row: Connection | null): string[] => {
+  const known = row?.player_visible_to ?? [];
+  return known.includes(member.id) ? known : [...known, member.id];
+};
 
-const upsert = useUpsertNpcPcNote(npc.id);
-const remove = useDeleteNpcPcNote(npc.id);
-
-async function save(snapshot: ConnectionDraft) {
-  const notes = snapshot.notes;
-  if (notes === null || isBlankNote(notes)) {
-    // Clearing a note removes the connection; a row that never existed stays unwritten.
-    if (note) await remove.mutateAsync(note.id);
+async function choose(value: string) {
+  if (value === "" || value === selectedChoice.value) return;
+  const choice = choiceOf(value);
+  if (!connection) {
+    await create.mutateAsync({
+      subject: subject.value,
+      other: other.value,
+      choice,
+      told: told(draft.told),
+      playerVisibleTo: [member.id],
+    });
     return;
   }
-  await upsert.mutateAsync({
-    partyMemberId: member.id,
-    relationshipType: snapshot.relationshipType,
-    notes,
-  });
+  await retype.mutateAsync({ connection, subject: subject.value, choice });
+  if (!(connection.player_visible_to ?? []).includes(member.id)) {
+    await update.mutateAsync({ id: connection.row_id, playerVisibleTo: revealedTo(connection) });
+  }
+}
+
+async function removeConnection() {
+  if (!connection) return;
+  await remove.mutateAsync({ connection, subject: subject.value });
+  editing.value = false;
+}
+
+interface ToldDraft {
+  told: string | null;
+}
+
+const told = (value: string | null): string => (value === null || isBlankNote(value) ? "" : value);
+const fromConnection = (row: Connection | null): ToldDraft => ({ told: row?.told ? row.told : null });
+
+const draft = reactive<ToldDraft>(fromConnection(connection));
+const editing = ref(connection !== null);
+
+async function save(snapshot: ToldDraft) {
+  const line = told(snapshot.told);
+  if (!connection) {
+    // A line written before any type was chosen files under the default type; a blank one writes nothing.
+    if (line === "") return;
+    await create.mutateAsync({
+      subject: subject.value,
+      other: other.value,
+      choice: choiceOf(choiceValue({ key: DEFAULT_TYPE, subjectIsFrom: true })),
+      told: line,
+      playerVisibleTo: [member.id],
+    });
+    return;
+  }
+  // Clearing the line keeps the link; removing it is the menu's job.
+  await update.mutateAsync({ id: connection.row_id, told: line, playerVisibleTo: revealedTo(connection) });
 }
 
 const autosave = useAutosave({
   draft,
-  initial: () => fromNote(note),
-  equal: (a, b) =>
-    a.relationshipType === b.relationshipType
-    && (a.notes === b.notes || (isBlankNote(a.notes) && isBlankNote(b.notes))),
+  initial: () => fromConnection(connection),
+  equal: (a, b) => a.told === b.told || (isBlankNote(a.told) && isBlankNote(b.told)),
   save,
-  canSave: () => note !== null || !isBlankNote(draft.notes),
+  canSave: () => connection !== null || !isBlankNote(draft.told),
   errorMessage: "Could not save the connection",
 });
 const { status, saveError } = autosave;
@@ -166,11 +235,11 @@ const { status, saveError } = autosave;
 // here (another device, a refetch) needs a new key to reach it.
 const revision = ref(0);
 watch(
-  () => note,
+  () => connection,
   (row) => {
     if (autosave.dirty.value || autosave.saving.value) return;
-    const next = fromNote(row);
-    if (next.notes !== draft.notes) revision.value++;
+    const next = fromConnection(row);
+    if (next.told !== draft.told) revision.value++;
     autosave.reset(next);
     editing.value = row !== null || editing.value;
   },

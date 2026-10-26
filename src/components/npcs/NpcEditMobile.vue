@@ -91,7 +91,6 @@
       <!-- Identity card -->
       <section class="rounded-xl border border-border bg-card p-4">
         <NpcIdentitySection
-          :npc-id="npc?.id ?? null"
           :name="form.name"
           :disguise-name="form.disguise_name"
           :race="form.race"
@@ -172,9 +171,9 @@
 
       <DmNoteBox v-if="npc?.id" type="npc" :id="npc.id" :label="npc.name" />
 
-      <!-- Relations card (existing NPCs only) -->
+      <!-- Connections card (existing NPCs only; factions are in it, #1084) -->
       <section v-if="npc?.id" class="rounded-xl border border-border bg-card p-4">
-        <NpcRelationsSection :npc-id="npc.id" />
+        <ConnectionsSection :subject="{ kind: 'npc', id: npc.id }" :subject-name="npc.name" />
       </section>
 
       <!-- Stat Block card -->
@@ -327,7 +326,7 @@ import StatBlockEditor from "@/components/common/statblock/StatBlockEditor.vue";
 import NpcIdentitySection from "./NpcIdentitySection.vue";
 import RelationshipWheel from "@/components/common/entity/RelationshipWheel.vue";
 import NpcLoreTab from "./NpcLoreTab.vue";
-import NpcRelationsSection from "./NpcRelationsSection.vue";
+import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import AccordionSection from "@/components/common/AccordionSection.vue";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
 import { NPC_ART_VARIANTS, type NpcArtTab } from "./npcArtTabs";

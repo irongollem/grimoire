@@ -61,6 +61,7 @@ vi.mock("@/composables/billing/useQuota", () => ({ useInvalidateQuota: () => moc
 
 const { useCopyToCampaign, loadCopySources, planCopyFor, resolveUnenabledSources } = await import("./useCopyToCampaign");
 const { BULK_SCOPE_QUERY_KEY } = await import("./useBulkCampaignScope");
+const { CONNECTIONS_KEY } = await import("@/lib/campaignLiveSync/registry");
 
 function withQueryClient<T>(setup: () => T): { result: T; queryClient: QueryClient; unmount: () => void } {
   let result!: T;
@@ -187,21 +188,29 @@ describe("loadCopySources + planCopyFor — npcs/factions batches (#885)", () =>
       { id: "n1", name: "Aric", campaign_id: "camp-a" },
       { id: "n2", name: "Bel", campaign_id: "camp-a" },
     ]);
-    // npc_relationships is queried once per match column (npc_id,
-    // related_npc_id) — the SAME row names n1 as npc_id and n2 as
-    // related_npc_id, so it comes back from both queries.
-    const rel = { id: "rel-1", npc_id: "n1", related_npc_id: "n2", campaign_id: "camp-a", label: "Allies" };
-    queueSelect("npc_relationships", [rel]);
-    queueSelect("npc_relationships", [rel]);
+    // world_links is queried once per match column (from_npc_id,
+    // to_npc_id) — the SAME row names n1 as its from end and n2 as its
+    // to end, so it comes back from both queries.
+    const rel = {
+      id: "rel-1",
+      campaign_id: "camp-a",
+      from_kind: "npc",
+      from_npc_id: "n1",
+      to_kind: "npc",
+      to_npc_id: "n2",
+      type: "ally",
+    };
+    queueSelect("world_links", [rel]);
+    queueSelect("world_links", [rel]);
     queueSelect("npc_inventory", []);
     queueSelect("faction_npcs", []);
 
     const sources = await loadCopySources({ table: "npcs", ids: ["n1", "n2"] });
 
-    expect(sources.joinRows).toEqual([{ table: "npc_relationships", row: rel }]);
-    expect(mocks.selectCalls.filter((c) => c.table === "npc_relationships").map((c) => c.column)).toEqual([
-      "npc_id",
-      "related_npc_id",
+    expect(sources.joinRows).toEqual([{ table: "world_links", row: rel }]);
+    expect(mocks.selectCalls.filter((c) => c.table === "world_links").map((c) => c.column)).toEqual([
+      "from_npc_id",
+      "to_npc_id",
     ]);
   });
 
@@ -215,8 +224,8 @@ describe("loadCopySources + planCopyFor — npcs/factions batches (#885)", () =>
   it("resolves what a join row points at OUTSIDE the batch, not just what the entity rows themselves reference", async () => {
     const npcRow = { id: "n1", name: "Aric", campaign_id: null };
     queueSelect("npcs", [npcRow]); // source rows fetch
-    queueSelect("npc_relationships", []); // npc_id
-    queueSelect("npc_relationships", []); // related_npc_id
+    queueSelect("world_links", []); // from_npc_id
+    queueSelect("world_links", []); // to_npc_id
     queueSelect("npc_inventory", []);
     // n1 belongs to a faction that is NOT part of this (npcs-only) batch.
     queueSelect("faction_npcs", [{ id: "fn-1", faction_id: "fac-outside", npc_id: "n1" }]);
@@ -235,15 +244,23 @@ describe("loadCopySources + planCopyFor — npcs/factions batches (#885)", () =>
     });
   });
 
-  it("plans a batch of npcs via buildCopySetPlan: mints ids and rewrites the relationship's endpoints to them", async () => {
+  it("plans a batch of npcs via buildCopySetPlan: mints ids and rewrites the link's ends to them", async () => {
     queueSelect("npcs", [
       { id: "n1", name: "Aric", campaign_id: "camp-a" },
       { id: "n2", name: "Bel", campaign_id: "camp-a" },
     ]);
-    queueSelect("npc_relationships", [
-      { id: "rel-1", npc_id: "n1", related_npc_id: "n2", campaign_id: "camp-a", label: "Allies" },
+    queueSelect("world_links", [
+      {
+        id: "rel-1",
+        campaign_id: "camp-a",
+        from_kind: "npc",
+        from_npc_id: "n1",
+        to_kind: "npc",
+        to_npc_id: "n2",
+        type: "ally",
+      },
     ]);
-    queueSelect("npc_relationships", []);
+    queueSelect("world_links", []);
     queueSelect("npc_inventory", []);
     queueSelect("faction_npcs", []);
 
@@ -258,10 +275,33 @@ describe("loadCopySources + planCopyFor — npcs/factions batches (#885)", () =>
     expect(p1.id).not.toBe("n1");
     expect(p2.id).not.toBe("n2");
 
-    expect(plan.linkPayloads.npc_relationships).toHaveLength(1);
-    const [relPayload] = plan.linkPayloads.npc_relationships!;
-    expect(relPayload.npc_id).toBe(p1.id);
-    expect(relPayload.related_npc_id).toBe(p2.id);
+    expect(plan.linkPayloads.world_links).toHaveLength(1);
+    const [relPayload] = plan.linkPayloads.world_links!;
+    expect(relPayload.from_npc_id).toBe(p1.id);
+    expect(relPayload.to_npc_id).toBe(p2.id);
+  });
+
+  it("leaves out a link whose other end is not in the batch", async () => {
+    queueSelect("npcs", [{ id: "n1", name: "Aric", campaign_id: "camp-a" }]);
+    queueSelect("world_links", [
+      {
+        id: "rel-1",
+        campaign_id: "camp-a",
+        from_kind: "npc",
+        from_npc_id: "n1",
+        to_kind: "faction",
+        to_faction_id: "fac-behind",
+        type: "sworn_to",
+      },
+    ]);
+    queueSelect("world_links", []);
+    queueSelect("factions", [{ id: "fac-behind", name: "The Harpers", campaign_id: "camp-a" }]);
+
+    const sources = await loadCopySources({ table: "npcs", ids: ["n1"] });
+    const plan = planCopyFor(sources, "camp-target");
+
+    expect(plan.linkPayloads.world_links).toBeUndefined();
+    expect(plan.dropped.map((d) => d.label)).toEqual(["World links"]);
   });
 
   it("keeps the eight original tables on the per-row buildCopyPlan path — linkPayloads is always {}", async () => {
@@ -414,17 +454,17 @@ describe("useCopyToCampaign — npcs/factions batches (#885)", () => {
   it("inserts the entity rows before the join rows and reports both counts", async () => {
     mocks.insertResponses = [
       { data: [{ id: "new-n1" }, { id: "new-n2" }], error: null }, // npcs insert
-      { data: [{ id: "new-rel-1" }], error: null }, // npc_relationships insert
+      { data: [{ id: "new-rel-1" }], error: null }, // world_links insert
     ];
     const { result, unmount } = withQueryClient(() => useCopyToCampaign());
     const payloads = [{ id: "new-n1", name: "Aric" }, { id: "new-n2", name: "Bel" }];
-    const linkPayloads = { npc_relationships: [{ npc_id: "new-n1", related_npc_id: "new-n2" }] };
+    const linkPayloads = { world_links: [{ from_npc_id: "new-n1", to_npc_id: "new-n2" }] };
 
     const outcome = await result.mutateAsync({ table: "npcs", payloads, linkPayloads, dropped: [], needsSources: null });
 
     // The order matters: a join row names an entity's minted id, so it must
     // not be written before that entity actually exists.
-    expect(mocks.insertCalls.map((c) => c.table)).toEqual(["npcs", "npc_relationships"]);
+    expect(mocks.insertCalls.map((c) => c.table)).toEqual(["npcs", "world_links"]);
     expect(outcome).toEqual({ copied: 2, linked: 1, dropped: [], needsSources: null });
     unmount();
   });
@@ -432,7 +472,7 @@ describe("useCopyToCampaign — npcs/factions batches (#885)", () => {
   it("never reaches the join-row insert when the entity insert itself fails", async () => {
     mocks.insertResponses = [{ data: null, error: new Error("insert failed") }];
     const { result, unmount } = withQueryClient(() => useCopyToCampaign());
-    const linkPayloads = { npc_relationships: [{ npc_id: "new-n1", related_npc_id: "new-n2" }] };
+    const linkPayloads = { world_links: [{ from_npc_id: "new-n1", to_npc_id: "new-n2" }] };
 
     await expect(
       result.mutateAsync({ table: "npcs", payloads: [{ id: "new-n1" }], linkPayloads, dropped: [], needsSources: null }),
@@ -448,12 +488,12 @@ describe("useCopyToCampaign — npcs/factions batches (#885)", () => {
     mocks.insertResponses = [
       { data: [{ id: "new-f1" }], error: null }, // factions insert
       { data: [{ id: "new-fn-1" }, { id: "new-fn-2" }], error: null }, // faction_npcs
-      { data: [{ id: "new-fd-1" }], error: null }, // faction_deities
+      { data: [{ id: "new-wl-1" }], error: null }, // world_links
     ];
     const { result, unmount } = withQueryClient(() => useCopyToCampaign());
     const linkPayloads = {
       faction_npcs: [{ faction_id: "new-f1", npc_id: "n1" }, { faction_id: "new-f1", npc_id: "n2" }],
-      faction_deities: [{ faction_id: "new-f1", deity_id: "d1" }],
+      world_links: [{ from_faction_id: "new-f1", to_deity_id: "d1" }],
     };
 
     const outcome = await result.mutateAsync({
@@ -508,11 +548,11 @@ describe("useCopyToCampaign — npcs/factions batches (#885)", () => {
     // faction_npcs is present as a key but empty — a batch can plan a join
     // table with nothing surviving in it (every row dropped) — so its query
     // must NOT be invalidated on the strength of the key merely existing.
-    const linkPayloads = { npc_relationships: [{ npc_id: "a", related_npc_id: "b" }], faction_npcs: [] };
+    const linkPayloads = { world_links: [{ from_npc_id: "a", to_npc_id: "b" }], faction_npcs: [] };
 
     await result.mutateAsync({ table: "npcs", payloads: [{}], linkPayloads, dropped: [], needsSources: null });
 
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["npc_relationships"] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: [CONNECTIONS_KEY] });
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["faction-npcs"] });
     unmount();
   });

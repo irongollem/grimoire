@@ -57,7 +57,9 @@
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { useCreateFaction, useAddFactionNpc, useAddFactionLocation } from "@/composables/factions/useFactions";
+import { useCreateFaction, useAddFactionNpc } from "@/composables/factions/useFactions";
+import { useCreateConnection } from "@/composables/connections/useConnections";
+import { typeChoices } from "@/lib/worldLinks/connections";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
@@ -73,9 +75,16 @@ import { useLocationTree } from "@/composables/locations/useLocations";
 
 const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
+
+// The headquarters is a "based in" tie from the new faction to the place (#1084).
+const BASED_IN = (() => {
+  const choice = typeChoices("faction", "location").find((c) => c.key === "based_in" && c.subjectIsFrom);
+  if (!choice) throw new Error("the catalogue has no faction to place 'based in' type");
+  return choice;
+})();
 const { mutateAsync: createFaction }    = useCreateFaction();
 const { mutateAsync: addFactionNpc }    = useAddFactionNpc();
-const { mutateAsync: addFactionLocation } = useAddFactionLocation();
+const { mutateAsync: createConnection } = useCreateConnection();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useFactionGeneration();
 
 // Mounted on every DM page — only fetch the dropdown data once the panel opens.
@@ -155,7 +164,11 @@ async function generateAndCreate() {
       ? addFactionNpc({ faction_id: faction.id, npc_id: leaderNpcId.value, role: "Leader" })
       : Promise.resolve(),
     headquartersLocationId.value
-      ? addFactionLocation({ faction_id: faction.id, location_id: headquartersLocationId.value })
+      ? createConnection({
+          subject: { kind: "faction", id: faction.id },
+          other: { kind: "location", id: headquartersLocationId.value, name: "" },
+          choice: BASED_IN,
+        })
       : Promise.resolve(),
   ]);
 
