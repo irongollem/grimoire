@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between">
       <span class="text-label-lg font-semibold text-muted-foreground">LOADOUT</span>
       <RouterLink
-        to="/play/inventory"
+        :to="inventoryLink"
         class="flex items-center gap-1 text-label text-primary hover:opacity-80 transition-opacity"
       >
         <IconInventory class="h-3 w-3" />
@@ -39,13 +39,14 @@
       </span>
     </div>
     <p v-else class="text-caption text-muted-foreground italic">
-      Nothing equipped. <RouterLink to="/play/inventory" class="text-primary hover:opacity-80">Equip items in inventory →</RouterLink>
+      Nothing equipped. <RouterLink :to="inventoryLink" class="text-primary hover:opacity-80">Equip items in inventory →</RouterLink>
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, inject } from "vue";
+import { INVENTORY_LINK, DEFAULT_INVENTORY_LINK } from "@/components/player/inventoryLink";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconClose, IconInventory } from '@/lib/icons';
@@ -53,6 +54,8 @@ import { usePartyInventory, useUpdateInventoryItem } from "@/composables/items/u
 import type { PartyInventoryItem, InventorySlot } from "@/types/inventory.types";
 
 const props = defineProps<{ memberId: string }>();
+const inventoryLink = inject(INVENTORY_LINK, DEFAULT_INVENTORY_LINK);
+
 
 const { data: inventory } = usePartyInventory();
 const { mutateAsync: updateItem, isPending: isUnequipping } = useUpdateInventoryItem();

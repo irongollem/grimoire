@@ -6,7 +6,7 @@
     </p>
     <AcBreakdownList :breakdown="breakdown" />
     <div class="flex flex-wrap items-center gap-2">
-      <AppButton to="/play/inventory" variant="subtle" size="xs" label="Open inventory" />
+      <AppButton :to="inventoryLink" variant="subtle" size="xs" label="Open inventory" />
       <AppButton variant="subtle" size="xs" label="Got it" :loading="clearing" @click="clear" />
     </div>
   </CautionNotice>
@@ -21,7 +21,8 @@
  * "Got it" clears the old number for good. Where the two already agree there is
  * nothing to tell, so the old number is cleared without a word.
  */
-import { computed, ref, watch } from "vue";
+import { computed, inject, ref, watch } from "vue";
+import { INVENTORY_LINK, DEFAULT_INVENTORY_LINK } from "@/components/player/inventoryLink";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CautionNotice from "@/components/common/feedback/CautionNotice.vue";
 import AcBreakdownList from "@/components/player/AcBreakdownList.vue";
@@ -32,6 +33,7 @@ import type { PartyMember } from "@/types/party.types";
 
 const { member } = defineProps<{ member: PartyMember }>();
 
+const inventoryLink = inject(INVENTORY_LINK, DEFAULT_INVENTORY_LINK);
 const toast = useToast();
 const { acBreakdownFor, previousAcFor, isReady } = useArmorClass();
 const { mutateAsync: updateMember } = useUpdatePartyMember();

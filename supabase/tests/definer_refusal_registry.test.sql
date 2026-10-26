@@ -110,6 +110,8 @@ insert into definer_registry (name, kind, reason) values
   ('get_prompt_screening_hints', 'refuses', null),
   ('get_quest_runtime_context', 'refuses', null),
   ('get_user_ledger', 'refuses', null),
+  ('give_coins', 'refuses', null),
+  ('give_inventory_item', 'refuses', null),
   ('grab_item_drop', 'refuses', null),
   ('join_campaign_via_invite', 'refuses', null),
   ('load_demo_campaign', 'self', 'copies the demo into a campaign the caller owns'),

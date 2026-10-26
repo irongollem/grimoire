@@ -27,8 +27,10 @@
         :item="container"
         :as-container="true"
         :move-targets="containerMoveTargets"
+        :give-targets="giveTargets"
         @remove="$emit('remove-container')"
         @move="(location, containerId) => $emit('move', container!, location, containerId)"
+        @give="(to, qty) => $emit('give', container!, to, qty)"
         @toggle-container="$emit('use-as-item', container!)"
       />
     </div>
@@ -81,6 +83,7 @@
           :weight-per-unit="weightForItem(item)"
           :has-content="hasContent(item)"
           :can-hold-items="canHoldItems(item)"
+          :give-targets="giveTargets"
           @remove="(id) => $emit('remove', id)"
           @adjust-qty="(item, d) => $emit('adjust-qty', item, d)"
           @drop-to-chat="(item) => $emit('drop-to-chat', item)"
@@ -88,6 +91,7 @@
           @sell-item="(item) => $emit('sell-item', item)"
           @split-stack="(item) => $emit('split-stack', item)"
           @move="(item, loc, cid) => $emit('move', item, loc, cid)"
+          @give="(item, to, qty) => $emit('give', item, to, qty)"
           @use-as-container="(item) => $emit('use-as-container', item)"
         />
       </VueDraggable>
@@ -106,7 +110,7 @@ import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.ty
 import type { Item, ItemIndexEntry } from "@/types/item.types";
 import { formatWeightLb, parseWeightLb } from "@/lib/utils";
 import ItemRow from "./ItemRow.vue";
-import ItemRowMenu, { type MoveTarget } from "./ItemRowMenu.vue";
+import ItemRowMenu, { type GiveTarget, type MoveTarget } from "./ItemRowMenu.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
@@ -126,6 +130,8 @@ const props = defineProps<{
   containerId?: string;
   sellable?: boolean;
   weight?: number;
+  /** Other party members rows (and the container itself) can be handed to. */
+  giveTargets?: GiveTarget[];
 }>();
 
 const emit = defineEmits<{
@@ -140,6 +146,7 @@ const emit = defineEmits<{
   'open-detail': [item: PartyInventoryItem];
   'sell-item': [item: PartyInventoryItem];
   'split-stack': [item: PartyInventoryItem];
+  give: [item: PartyInventoryItem, toMemberId: string, quantity: number | null];
   reorder: [items: PartyInventoryItem[]];
 }>();
 

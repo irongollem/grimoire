@@ -28,6 +28,7 @@
     <PlayerCharacterView
       :member-id="id"
       hide-player-actions
+      show-inventory
       @level-up="editOpen = true"
     />
 

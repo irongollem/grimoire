@@ -92,7 +92,7 @@
       </div>
     </div>
 
-    <PartyInventoryInline :party="party ?? []" />
+    <PartyPacks :party="party ?? []" />
 
     <!-- Companion form modal -->
     <CompanionForm
@@ -128,7 +128,7 @@ import { IconNavParty } from "@/lib/icons";
 import CompanionCard from "./CompanionCard.vue";
 import CompanionForm from "./CompanionForm.vue";
 import PartyTrackerRow from "./PartyTrackerRow.vue";
-import PartyInventoryInline from "./PartyInventoryInline.vue";
+import PartyPacks from "./PartyPacks.vue";
 import PartyXpAward from "./PartyXpAward.vue";
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";

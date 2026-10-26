@@ -25,7 +25,7 @@
       <RouterLink
         v-for="row in rows"
         :key="row.invId"
-        :to="row.carrierId ? `/play/inventory?memberId=${row.carrierId}` : '/party'"
+        :to="row.carrierId ? `/party/${row.carrierId}?tab=inventory` : '/party'"
         class="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors group"
       >
         <div class="min-w-0 flex-1">
@@ -76,13 +76,10 @@ import DashboardWidget from "../DashboardWidget.vue";
  * inv?.curse_revealed`), so even the one shared component that renders curse
  * text agrees a hidden curse never reaches a player render.
  *
- * A row links to `/play/inventory?memberId=<id>` for a carried item — the
- * established DM-managing-a-specific-character deep link (see the router
- * guard's `dmManagingMember` in `router/index.ts`, and the same pattern in
- * `useCharacterCreationForm.ts` and `PlayerLevelUpView.vue`) — since that view
- * is the only place the reveal toggle lives. An unassigned or orphaned row has
- * no member to deep-link to, so it falls back to `/party`, where the party
- * stash is visible.
+ * A row links to the carrier's Inventory tab (`/party/<id>?tab=inventory`) for a
+ * carried item, since that tab is the only place the reveal toggle lives. An
+ * unassigned or orphaned row has no member to deep-link to, so it falls back to
+ * `/party`, where the party stash is visible.
  */
 const { data: inventory } = usePartyInventory();
 const { data: party } = useParty();

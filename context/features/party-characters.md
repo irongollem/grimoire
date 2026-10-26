@@ -72,16 +72,22 @@ A `combat_ready` boolean (default true) toggles per companion via a "With Party"
 
 **Companion notes live in `entity_notes`** (`entity_type = 'companion'`), like every other entity's. The DM's note is the always-open `DmNoteBox` on the companion editor (and in the docked scratchpad, see [dm-notes.md](dm-notes.md)); the old `EntityNotesPanel`, whose "party notes" the party could read, is gone and those notes were folded into the DM's private note (6 Oct 2026). Players keep theirs in the lightbox's `PlayerNotesWidget`. A private note is private by RLS on `entity_notes`, which is why this is the only place for a DM secret about a companion: every campaign member can select the full `companions` row. The table used to carry `notes` and `party_notes` columns that no screen showed; migration `20260926155338` moved their content into `entity_notes` and dropped them, along with the unused RPC `update_companion_party_notes`.
 
-### Party Inventory
+### Inventory tab on the member page
 
-A shared **Party Inventory** section below the party cards tracks items carried by the group rather than individual characters. Items can be:
+`/party/:id` mounts `PlayerCharacterView` with `show-inventory`, which adds an Inventory tab (between Combat and Lore) drawing `CharacterInventory` for that character: paper doll, purse, carry weight, belt, backpack and containers, with the DM's identify and curse-reveal controls. The tab is kept in `?tab=`, so `/party/<id>?tab=inventory` deep-links (the cursed-items widget uses it). The party stash is not repeated there.
 
-- Added via a combobox that searches the Vault (item catalog) or allows custom names
-- Assigned to a specific party member as the carrier
-- Quantity-adjusted with +/− controls
-- Attuned (ATT toggle)
-- Dropped to the campaign chat (removes from inventory and announces to all players)
-- Linked items show a rarity colour dot and type label
+### Packs
+
+The Party page ends with a **Packs** section (`PartyPacks`), every pack in the campaign side by side: the party stash first (rows with no carrier), then one column per character in the party's order. Six or fewer columns share the width; more scroll sideways inside the section. Below the `sm` breakpoint the columns stack into collapsible packs, the stash open and the rest closed.
+
+- **Column head**: portrait or initials, name and one line, "47.5 / 120 lb · ✦ 2/3 · 41 gp" (carried weight over capacity, attuned of 3, gold). The head links to `/party/<id>?tab=inventory`. The stash head reads "carried by nobody · N things".
+- **Column body**: in the character's own order, under small sub-heads: Worn, Belt, Backpack, each container by name, Stored elsewhere (`packSections` in `src/lib/inventory/pack.ts`). A row shows a rarity dot, name, `×N`, `✦` when attuned, and a dashed "DM" mark when the party does not know it (unidentified, or cursed and not revealed). The DM always sees the true name.
+- **Search and chips**: the box matches item name and notes (tiptap notes read as plain text) across every location, case-insensitive substring; the chips Attuned, Magic (catalogue rarity above common) and Cursed narrow further. Filters live in `usePartyUiStore`. While one is active an "answer" strip lists one line per distinct name with the total and where each one is, columns keep their places, a pack with no match fades and says "N things hidden", and a matching pack shows its matches plus "N more hidden". The logic is pure, in `src/lib/inventory/packSearch.ts`. The cursed test is `isCursedItem` in `src/lib/dashboard/cursedItems.ts`, shared with the Cursed items widget.
+- **Row menu**: Give to (the stash and every member but the carrier; a stack asks how many), Count − / +, Attune, Drop in chat, Open in the carrier's pack, Remove. Dragging a row onto another column gives it whole (off on phones).
+- **Giving** goes through `give_inventory_item` (`useGiveInventoryItem`) and lands in the receiver's backpack, unequipped and unattuned, a container's contents following it. The DM may write every row, so count, attune and remove are plain updates. Players give from their own Inventory through the same function; they can write only their own pack and the stash.
+- **Add item** (header button): a vault search or custom name, quantity, notes, "Who gets it" (stash first, then each member), Drop in Chat, and a "Create in Vault" link.
+
+Nothing here polls: the inventory, party and gold refresh from the campaign doorbell.
 
 ### Shapeshifter Disguise Badge
 

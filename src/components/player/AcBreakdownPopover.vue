@@ -20,13 +20,14 @@
         In {{ beastForm }} form your Armor Class is the beast's. Your own, {{ breakdown.total }}, comes back when you change back.
       </p>
       <AcBreakdownList :breakdown="breakdown" />
-      <AppButton to="/play/inventory" variant="link" size="inline" class="mt-2" label="Open inventory" @click="open = false" />
+      <AppButton :to="inventoryLink" variant="link" size="inline" class="mt-2" label="Open inventory" @click="open = false" />
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, inject } from "vue";
+import { INVENTORY_LINK, DEFAULT_INVENTORY_LINK } from "@/components/player/inventoryLink";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AcBreakdownList from "@/components/player/AcBreakdownList.vue";
@@ -39,6 +40,7 @@ defineProps<{
   beastForm?: string | null;
 }>();
 
+const inventoryLink = inject(INVENTORY_LINK, DEFAULT_INVENTORY_LINK);
 const open = ref(false);
 const trigger = ref<HTMLElement | null>(null);
 const { floatingRef, floatingStyle } = useAnchoredPopover(trigger, open, () => (open.value = false));

@@ -205,7 +205,7 @@ export function useInventoryMutations({
         // ignored here. A library-sourced row keeps its reference in
         // `library_item_id`, so passing the raw column dropped it and the claim
         // landed as unlinked free text. Third instance of the same miss; the
-        // other two were in PartyInventoryInline and NpcInventorySection.
+        // other two were in the Party page's inventory strip (now Packs) and NpcInventorySection.
         ref,
         inv.quantity,
         linkedItem?.rarity ?? null,

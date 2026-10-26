@@ -71,6 +71,32 @@
         />
       </template>
 
+      <template v-if="giveTargets?.length">
+        <p class="px-3 pt-2 pb-1 text-label text-muted-foreground border-t border-border mt-1">Give to</p>
+        <!-- A stack asks how many first; a single thing or a container goes whole. -->
+        <GiveCountPicker
+          v-if="giving"
+          class="px-3 pb-2"
+          :name="item.name"
+          :quantity="item.quantity"
+          :target-name="giving.name"
+          @confirm="confirmGive"
+          @back="giving = null"
+        />
+        <template v-else>
+          <AppButton
+            v-for="target in giveTargets"
+            :key="target.id"
+            variant="menu"
+            size="sm"
+            block
+            class="rounded-none"
+            :label="target.name"
+            @click="give(target)"
+          />
+        </template>
+      </template>
+
       <AppButton
         variant="menu"
         tone="danger"
@@ -101,6 +127,7 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariants";
+import GiveCountPicker from "@/components/inventory/GiveCountPicker.vue";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import {
   IconArrowUp,
@@ -120,7 +147,12 @@ export interface MoveTarget {
   containerId: string | null;
 }
 
-const { item, moveTargets, inlineActions } = defineProps<{
+export interface GiveTarget {
+  id: string;
+  name: string;
+}
+
+const { item, moveTargets, inlineActions, giveTargets, asContainer } = defineProps<{
   item: PartyInventoryItem;
   sellable?: boolean;
   moveTargets: MoveTarget[];
@@ -130,6 +162,8 @@ const { item, moveTargets, inlineActions } = defineProps<{
   asContainer?: boolean;
   /** A plain item that can hold things: offers to use it as a container. */
   canHoldItems?: boolean;
+  /** Other party members this row can be handed to; none hides the "Give to" group. */
+  giveTargets?: GiveTarget[];
 }>();
 
 const emit = defineEmits<{
@@ -138,6 +172,8 @@ const emit = defineEmits<{
   "sell-item": [];
   remove: [];
   move: [location: InventoryLocation | "stash", containerId: string | null];
+  /** `quantity` is null for the whole row. */
+  give: [toMemberId: string, quantity: number | null];
   "toggle-container": [];
 }>();
 
@@ -161,6 +197,26 @@ function pick(action: "drop-to-chat" | "split-stack" | "sell-item" | "remove") {
 function toggleContainer() {
   open.value = false;
   emit("toggle-container");
+}
+
+// Only a stack of plain things asks how many; a container goes whole, contents with it.
+const giving = ref<GiveTarget | null>(null);
+
+function give(target: GiveTarget) {
+  if (item.quantity > 1 && !asContainer && !item.is_container) {
+    giving.value = target;
+    return;
+  }
+  open.value = false;
+  emit("give", target.id, null);
+}
+
+function confirmGive(quantity: number | null) {
+  const target = giving.value;
+  if (!target) return;
+  open.value = false;
+  giving.value = null;
+  emit("give", target.id, quantity);
 }
 
 function move(target: MoveTarget) {

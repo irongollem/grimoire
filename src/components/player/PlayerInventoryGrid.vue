@@ -67,6 +67,8 @@
       :resolved-member-id="resolvedMemberId ?? null"
       @add="(name, itemId) => $emit('add-to-location', 'backpack', null, name, itemId)"
       @move="(item, loc, cid) => $emit('move', item, loc, cid)"
+      @give="(item, to, qty) => $emit('give', item, to, qty)"
+      :give-targets="giveTargets"
       @remove="(id) => $emit('remove', id)"
       @adjust-qty="(item, delta) => $emit('adjust-qty', item, delta)"
       @drop-to-chat="(inv) => $emit('drop-to-chat', inv)"
@@ -91,6 +93,8 @@
       class="mt-2"
       @add="(name, itemId) => $emit('add-to-location', 'belt', null, name, itemId)"
       @move="(item, loc, cid) => $emit('move', item, loc, cid)"
+      @give="(item, to, qty) => $emit('give', item, to, qty)"
+      :give-targets="giveTargets"
       @remove="(id) => $emit('remove', id)"
       @adjust-qty="(item, delta) => $emit('adjust-qty', item, delta)"
       @drop-to-chat="(inv) => $emit('drop-to-chat', inv)"
@@ -119,6 +123,8 @@
       class="mt-2"
       @add="(name, itemId) => $emit('add-to-location', 'container', c.id, name, itemId)"
       @move="(item, loc, cid) => $emit('move', item, loc, cid)"
+      @give="(item, to, qty) => $emit('give', item, to, qty)"
+      :give-targets="giveTargets"
       @remove="(id) => $emit('remove', id)"
       @remove-container="$emit('remove', c.id)"
       @use-as-item="(inv) => $emit('use-as-item', inv)"
@@ -161,6 +167,8 @@
           @open-detail="(item) => $emit('open-detail', item)"
           @sell-item="(item) => $emit('sell-item', item)"
           @move="(item, loc, cid) => $emit('move', item, loc, cid)"
+          @give="(item, to, qty) => $emit('give', item, to, qty)"
+          :give-targets="giveTargets"
           @use-as-container="(inv) => $emit('promote-container', inv)"
         />
       </VueDraggable>
@@ -171,7 +179,7 @@
   </div>
 
   <!-- ═══ PARTY STASH ═══ -->
-  <div>
+  <div v-if="showStash">
     <p class="text-label-lg font-semibold text-muted-foreground mb-2">
       Party Stash
     </p>
@@ -198,6 +206,8 @@
           @split-stack="(inv) => $emit('split-stack', inv)"
           @open-detail="(item) => $emit('open-detail', item)"
           @move="(item, loc, cid) => $emit('move', item, loc, cid)"
+          @give="(item, to, qty) => $emit('give', item, to, qty)"
+          :give-targets="giveTargets"
         />
       </VueDraggable>
       <p v-if="!localStashItems.length" class="px-4 py-3 text-body text-muted-foreground italic">
@@ -228,6 +238,7 @@ const {
   customContainers,
   storedItems,
   partyStash,
+  showStash,
   partyMembers,
   allContainers,
   allItems,
@@ -247,6 +258,8 @@ const {
   customContainers: PartyInventoryItem[];
   storedItems: PartyInventoryItem[];
   partyStash: PartyInventoryItem[];
+  /** False on the DM's character tab: the stash is the party's and lives on the Party page. */
+  showStash: boolean;
   partyMembers: PartyMember[];
   allContainers: PartyInventoryItem[];
   allItems: Item[];
@@ -273,6 +286,11 @@ function hasContent(inv: PartyInventoryItem): boolean {
   return ref !== null && contentRefs.value.has(ref);
 }
 
+/** Everyone else at the table; the stash is already a Move target, so it is not repeated. */
+const giveTargets = computed(() =>
+  partyMembers.filter((m) => m.id !== resolvedMemberId).map((m) => ({ id: m.id, name: m.name })),
+);
+
 interface SortAddEvent { newIndex?: number; }
 
 const emit = defineEmits<{
@@ -283,6 +301,7 @@ const emit = defineEmits<{
   'use-as-item': [container: PartyInventoryItem];
   'add-to-location': [location: InventoryLocation, containerId: string | null, name: string, itemId: string | null];
   'move': [item: PartyInventoryItem, location: InventoryLocation | 'stash', containerId: string | null];
+  'give': [item: PartyInventoryItem, toMemberId: string, quantity: number | null];
   'remove': [id: string];
   'adjust-qty': [item: PartyInventoryItem, delta: number];
   'drop-to-chat': [inv: PartyInventoryItem];

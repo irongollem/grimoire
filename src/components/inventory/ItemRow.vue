@@ -120,11 +120,13 @@
         :move-targets="moveTargets"
         :inline-actions="true"
         :can-hold-items="canHoldItems"
+        :give-targets="giveTargets"
         @drop-to-chat="$emit('drop-to-chat', item)"
         @split-stack="$emit('split-stack', item)"
         @sell-item="$emit('sell-item', item)"
         @remove="$emit('remove', item.id)"
         @move="(location, containerId) => $emit('move', item, location, containerId)"
+        @give="(to, qty) => $emit('give', item, to, qty)"
         @toggle-container="$emit('use-as-container', item)"
       />
     </div>
@@ -136,7 +138,7 @@ import QualityBadge from "@/components/inventory/QualityBadge.vue";
 import { computed } from "vue";
 import { IconAdd, IconArrowUp, IconDelete, IconDocument, IconDrag, IconMinus, IconScissors, IconShop } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
-import ItemRowMenu, { type MoveTarget } from "./ItemRowMenu.vue";
+import ItemRowMenu, { type GiveTarget, type MoveTarget } from "./ItemRowMenu.vue";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { InventoryLocation, PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
@@ -152,6 +154,8 @@ const props = defineProps<{
   hasContent?: boolean;
   /** The item can hold things (a bag, a chest): its menu offers to use it as a container. */
   canHoldItems?: boolean;
+  /** Other party members the row's menu can hand it to. */
+  giveTargets?: GiveTarget[];
 }>();
 
 defineEmits<{
@@ -163,6 +167,7 @@ defineEmits<{
   'split-stack': [item: PartyInventoryItem];
   'move': [item: PartyInventoryItem, location: InventoryLocation | 'stash', containerId: string | null];
   'use-as-container': [item: PartyInventoryItem];
+  'give': [item: PartyInventoryItem, toMemberId: string, quantity: number | null];
 }>();
 
 function fmtW(v: number): string {

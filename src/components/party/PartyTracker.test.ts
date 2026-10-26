@@ -31,7 +31,7 @@ vi.mock("@/composables/party/useParty", () => ({
   // Real refs, not plain `{ value }` objects: PartyTracker's template reads
   // `party`/`isError` directly, relying on <script setup>'s automatic
   // ref-unwrapping — a non-ref mock renders truthy-object nonsense instead
-  // (and fails the `PartyInventoryInline :party="..."` array prop check).
+  // (and fails the `PartyPacks :party="..."` array prop check).
   useParty: () => ({
     data: ref(mocks.partyData),
     isError: ref(mocks.partyIsError),
@@ -67,7 +67,7 @@ const globalStubs = {
   PartyXpAward: true,
   CompanionCard: true,
   CompanionForm: true,
-  PartyInventoryInline: true,
+  PartyPacks: true,
 };
 
 describe("PartyTracker", () => {

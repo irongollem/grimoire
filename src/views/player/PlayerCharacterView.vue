@@ -126,6 +126,13 @@
         @roll="onChildRoll"
       />
 
+      <!-- Inventory (DM only: the player has it in their nav) -->
+      <CharacterInventory
+        v-else-if="activeTab === 'inventory'"
+        :member-id="resolvedMemberId ?? null"
+        :show-stash="false"
+      />
+
       <!-- Lore -->
       <PlayerLoreTab
         v-else-if="activeTab === 'lore'"
@@ -164,7 +171,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent, watch, onBeforeUnmount } from "vue";
+import { ref, computed, defineAsyncComponent, watch, onBeforeUnmount, provide } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { INVENTORY_LINK, DEFAULT_INVENTORY_LINK } from "@/components/player/inventoryLink";
 import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
 import { scrollParentOf } from "@/lib/scrollParent";
 import { useAuthStore } from "@/stores/auth";
@@ -206,11 +215,17 @@ import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 const PlayerCombatTab = lazyPanel(() => import("@/components/player/PlayerCombatTab.vue"));
 const PlayerFeaturesTab = lazyPanel(() => import("@/components/player/PlayerFeaturesTab.vue"));
 const PlayerAppearanceSection = defineAsyncComponent(() => import("@/components/player/PlayerAppearanceSection.vue"));
+const CharacterInventory = lazyPanel(() => import("@/components/inventory/CharacterInventory.vue"));
 const PlayerLoreTab = lazyPanel(() => import("@/components/player/PlayerLoreTab.vue"));
 const PlayerWildShapeTab = lazyPanel(() => import("@/components/player/PlayerWildShapeTab.vue"));
 const SetDownDialog = defineAsyncComponent(() => import("@/components/memorials/SetDownDialog.vue"));
 
-const props = defineProps<{ memberId?: string; hidePlayerActions?: boolean }>();
+const props = defineProps<{
+  memberId?: string;
+  hidePlayerActions?: boolean;
+  /** The DM's character page: adds an Inventory tab and points "open inventory" links at it. */
+  showInventory?: boolean;
+}>();
 const emit = defineEmits<{ (e: "level-up"): void }>();
 
 const auth = useAuthStore();
@@ -321,17 +336,35 @@ const ALL_TABS = [
   { id: "skills",    label: "Skills"    },
   { id: "features",  label: "Features"  },
   { id: "combat",    label: "Combat"    },
+  { id: "inventory", label: "Inventory" },
   { id: "lore",      label: "Lore"      },
   { id: "wildshape", label: "Wild Shape" },
 ] as const;
 type TabId = (typeof ALL_TABS)[number]["id"];
-const activeTab = ref<TabId>("skills");
 const isPhone = useBelow("sm");
 
 // Wild Shape tab is only visible for Druids (or if somehow wildshaped)
 const visibleTabs = computed(() =>
-  ALL_TABS.filter((t) => t.id !== "wildshape" || isDruid.value || !!activeWildshape.value),
+  ALL_TABS.filter((t) => {
+    if (t.id === "inventory") return !!props.showInventory;
+    return t.id !== "wildshape" || isDruid.value || !!activeWildshape.value;
+  }),
 );
+// The tab lives in ?tab= so /party/<id>?tab=inventory deep-links, and so the sheet's
+// "open inventory" links can switch it. Read each time, never copied, so a followed link
+// changes the tab.
+const route = useRoute();
+const router = useRouter();
+const activeTab = computed<TabId>({
+  get() {
+    const asked = route.query.tab;
+    return visibleTabs.value.find((t) => t.id === asked)?.id ?? "skills";
+  },
+  set(tab) {
+    void router.replace({ query: { ...route.query, tab } });
+  },
+});
+provide(INVENTORY_LINK, props.showInventory ? { query: { tab: "inventory" } } : DEFAULT_INVENTORY_LINK);
 const tabOptions = computed(() => visibleTabs.value.map((t) => ({ value: t.id, label: t.label })));
 
 // ── Hit points strip ──────────────────────────────────────────────────────────

@@ -32,6 +32,19 @@ export interface CursedItemRow {
 }
 
 /**
+ * Whether the catalogue entry behind a row is cursed: it carries curse text. A row with no
+ * entry (free-text loot) can never be. The one definition the widget and the Packs filter share.
+ */
+export function isCursedItem(item: Pick<Item, "curse_description"> | undefined): boolean {
+  return !!item?.curse_description;
+}
+
+/** Cursed, and the DM has not told the party yet. */
+export function isHiddenCurse(inv: Pick<PartyInventoryItem, "curse_revealed">, item: Pick<Item, "curse_description"> | undefined): boolean {
+  return !inv.curse_revealed && isCursedItem(item);
+}
+
+/**
  * Every inventory row that is cursed and whose curse the party has not been
  * told about, joined against the roster and the vault catalogue.
  *
@@ -57,11 +70,7 @@ export function buildCursedItems(
   const itemsById = new Map(items.map((item) => [item.id, item] as const));
 
   return inventory
-    .filter((inv) => {
-      if (inv.curse_revealed) return false;
-      const vaultItem = inv.item_id ? itemsById.get(inv.item_id) : undefined;
-      return !!vaultItem?.curse_description;
-    })
+    .filter((inv) => isHiddenCurse(inv, inv.item_id ? itemsById.get(inv.item_id) : undefined))
     .map((inv) => {
       const member = inv.carried_by ? membersById.get(inv.carried_by) : undefined;
       return {
