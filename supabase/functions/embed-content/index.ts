@@ -7,6 +7,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { buildFactionEmbedText, buildItemEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, buildQuestEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
+import { loadTieExtras, type TieExtras, type TieSubjectKind } from "../_shared/embedTies.ts";
 import { upsertEmbeddingsInChunks } from "../_shared/embeddingUpsert.ts";
 import { authorizeRows, campaignIdsToCheck, parseManyIds, type OwnedRow } from "../_shared/embedMany.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
@@ -113,17 +114,25 @@ interface EntityConfig {
    * same reason embed-monsters' TARGET_CONFIG routes both its targets
    * through one shared row shape rather than typing `build` per-target.
    */
-  build: (row: Record<string, unknown>) => string;
+  build: (row: Record<string, unknown>, ties?: TieExtras) => string;
+  /**
+   * Set for the kinds whose text carries World Web ties (#1084). Every caller
+   * of `build` goes through `buildTexts`, which loads the ties first, so the
+   * single, many, audit and batch paths cannot build different text for one row.
+   */
+  tieKind?: TieSubjectKind;
 }
 
 const ENTITIES: Record<EntityKind, EntityConfig> = {
   npc: {
     table: "npcs",
-    select: "id, user_id, updated_at, name, race, occupation, alignment, tags, appearance, personality, backstory",
+    select: "id, user_id, updated_at, location_id, name, race, occupation, alignment, tags, appearance, personality, backstory",
+    tieKind: "npc",
     sideTable: "npc_embeddings",
     idColumn: "npc_id",
-    build: (row) =>
+    build: (row, ties) =>
       buildNpcEmbedText({
+        ...ties,
         name: row.name as string,
         race: (row.race as string | null) ?? null,
         occupation: (row.occupation as string | null) ?? null,
@@ -136,11 +145,13 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
   },
   faction: {
     table: "factions",
-    select: "id, user_id, updated_at, name, faction_type, alignment, tags, description",
+    select: "id, user_id, updated_at, seat_location_id, name, faction_type, alignment, tags, description",
+    tieKind: "faction",
     sideTable: "faction_embeddings",
     idColumn: "faction_id",
-    build: (row) =>
+    build: (row, ties) =>
       buildFactionEmbedText({
+        ...ties,
         name: row.name as string,
         faction_type: (row.faction_type as string | null) ?? null,
         alignment: (row.alignment as string | null) ?? null,
@@ -151,10 +162,12 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
   location: {
     table: "locations",
     select: "id, user_id, updated_at, name, location_type, tags, player_summary, description",
+    tieKind: "location",
     sideTable: "location_embeddings",
     idColumn: "location_id",
-    build: (row) =>
+    build: (row, ties) =>
       buildLocationEmbedText({
+        ...ties,
         name: row.name as string,
         location_type: row.location_type as string,
         tags: row.tags as string[],
@@ -184,7 +197,8 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
     select: "id, user_id, updated_at, name, item_type, rarity, subtype, requires_attunement, attunement_requirements, cost, tags, description",
     sideTable: "item_embeddings",
     idColumn: "item_id",
-    build: (row) => buildItemEmbedText(toEmbeddableItem(row)),
+    tieKind: "item",
+    build: (row, ties) => buildItemEmbedText({ ...toEmbeddableItem(row), ties: ties?.ties }),
   },
   // Shared content: no user_id, so batch-only (see supportsSingle). 1,717 rows
   // today, changed only by an admin import, so a nightly-ish backfill is the
@@ -246,6 +260,29 @@ function toEmbeddableItem(row: Record<string, unknown>): Parameters<typeof build
     tags: row.tags as string[],
     description: (row.description as string | null) ?? null,
   };
+}
+
+/**
+ * Embed text for every row, id -> text, with World Web ties loaded in bulk for
+ * the kinds that carry them. The one door to `config.build`: the stale scan,
+ * single, many and audit all come through here, so a row has exactly one text
+ * whichever path asks (the backfill finds a row stale only if it hashes what
+ * embed-on-write would have written).
+ */
+async function buildTexts(config: EntityConfig, rows: readonly Record<string, unknown>[]): Promise<Map<string, string>> {
+  const ties = config.tieKind
+    ? await loadTieExtras(admin, config.tieKind, rows.map((r) => ({
+        id: r.id as string,
+        location_id: (r.location_id as string | null | undefined) ?? null,
+        seat_location_id: (r.seat_location_id as string | null | undefined) ?? null,
+      })))
+    : null;
+  const texts = new Map<string, string>();
+  for (const row of rows) {
+    const id = row.id as string;
+    texts.set(id, config.build(row, ties?.get(id)));
+  }
+  return texts;
 }
 
 const DEFAULT_BATCH_LIMIT = 100;
@@ -332,11 +369,12 @@ async function findStaleCandidates(
   const config = ENTITIES[kind];
   const [rows, storedById] = await Promise.all([fetchAllSourceRows(config), fetchAllStoredMeta(config)]);
 
+  const texts = await buildTexts(config, rows);
   const stale: Candidate[] = [];
   for (const row of rows) {
-    const text = config.build(row);
-    const hash = await entityEmbedHash(text);
     const id = row.id as string;
+    const text = texts.get(id)!;
+    const hash = await entityEmbedHash(text);
     const stored = storedById.get(id) ?? null;
     if (isEmbeddingStale(stored, { sourceHash: hash, model: provider.model })) {
       stale.push({ id, text, hash });
@@ -534,7 +572,7 @@ async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown
   const provider = await resolvePlatformProvider();
   if (provider instanceof Response) return provider;
 
-  const text = config.build(row);
+  const text = (await buildTexts(config, [row])).get(id)!;
   const hash = await entityEmbedHash(text);
 
   const { data: existingData, error: existingError } = await admin
@@ -661,8 +699,9 @@ async function handleMany(req: Request, body: { entity?: unknown; ids?: unknown 
   }
 
   const stale: Candidate[] = [];
+  const texts = await buildTexts(config, allowed);
   for (const row of allowed) {
-    const text = config.build(row);
+    const text = texts.get(row.id)!;
     const hash = await entityEmbedHash(text);
     if (isEmbeddingStale(storedById.get(row.id) ?? null, { sourceHash: hash, model: provider.model })) {
       stale.push({ id: row.id, text, hash });
@@ -767,8 +806,9 @@ async function auditKind(kind: EntityKind, campaignId: string, userId: string, m
   const config = ENTITIES[kind];
   const rows = await fetchCampaignRows(config, campaignId, userId);
   const stored = await fetchStoredMetaFor(config, rows.map((r) => r.id as string));
+  const texts = await buildTexts(config, rows);
   const fresh = await Promise.all(
-    rows.map(async (row) => ({ id: row.id as string, hash: await entityEmbedHash(config.build(row)) })),
+    rows.map(async (row) => ({ id: row.id as string, hash: await entityEmbedHash(texts.get(row.id as string)!) })),
   );
   return { kind, ...classifyEmbeddings(fresh, stored, model) };
 }

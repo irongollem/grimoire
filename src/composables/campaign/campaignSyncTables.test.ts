@@ -16,6 +16,7 @@ import {
   PLAYER_NOTES_KEY,
   PLAYER_NPCS_KEY,
   PLAYER_KIN_KEY,
+  CONNECTIONS_KEY,
   THREADS_KEY,
 } from "@/lib/campaignLiveSync/registry";
 
@@ -102,7 +103,7 @@ describe("live sync registries", () => {
       expect.arrayContaining(["characterSpells", "characterSpellsDetails"]),
     );
     // A deleted or departed character leaves every member's party lists.
-    expect(SIGNAL_KEYS.get("party_members")).toEqual(["party", "my-characters", "offered-characters"]);
+    expect(SIGNAL_KEYS.get("party_members")).toEqual(["party", "my-characters", "offered-characters", CONNECTIONS_KEY]);
   });
 
   it("tells players to re-read the running session and the session labels", () => {
@@ -128,8 +129,8 @@ describe("live sync registries", () => {
     // A store row and an inventory row both carry only an item_id; the name comes
     // from get_player_visible_items. Refresh one without the other and the panel
     // lists "Unknown item" — the bug that started this (#811).
-    expect(SIGNAL_KEYS.get("store_items")).toEqual(["store-items", "items"]);
-    expect(SIGNAL_KEYS.get("party_inventory")).toEqual(["party-inventory", "items"]);
+    expect(SIGNAL_KEYS.get("store_items")).toEqual(["store-items", "items", CONNECTIONS_KEY]);
+    expect(SIGNAL_KEYS.get("party_inventory")).toEqual(["party-inventory", "items", CONNECTIONS_KEY]);
   });
 
   it("tells players to re-read the projections that replaced their notes and factions reads", () => {
@@ -161,8 +162,8 @@ describe("live sync registries", () => {
     // A co-DM's or a second device's edit rings `<table>_player`; this tab must
     // refresh its own `npcs` root as well as the players' projection.
     expect(SIGNAL_KEYS.get("npcs_player")).toEqual(["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY]);
-    expect(SIGNAL_KEYS.get("npcs")).toEqual(["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY]);
-    expect(SIGNAL_KEYS.get("factions")).toEqual(["factions", PLAYER_FACTIONS_KEY, CAMPAIGN_SECRETS_KEY]);
+    expect(SIGNAL_KEYS.get("npcs")).toEqual(["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY]);
+    expect(SIGNAL_KEYS.get("factions")).toEqual(["factions", PLAYER_FACTIONS_KEY, CAMPAIGN_SECRETS_KEY, CONNECTIONS_KEY]);
     expect(SIGNAL_KEYS.get("notes")).toEqual(["notes", PLAYER_NOTES_KEY, CAMPAIGN_SECRETS_KEY]);
     for (const signal of ["locations", "items", "puzzle_rooms"]) {
       expect(SIGNAL_KEYS.get(signal)).toContain(CAMPAIGN_SECRETS_KEY);

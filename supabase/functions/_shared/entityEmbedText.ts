@@ -30,6 +30,7 @@
 
 import { toPlainText } from "./ai-prompt.ts";
 import { collapseWhitespace, sha256Hex, truncateAtWordBoundary } from "./embedTextUtil.ts";
+import { linkTypeFor, type LinkKind } from "./worldLinkCatalogue.ts";
 
 // Keeps every embedded free-text field bounded and matches the same
 // ~150 token/field cost estimate monsterEmbedText.ts's DESCRIPTION_CHAR_LIMIT
@@ -110,6 +111,113 @@ function buildNoteContentClause(content: string | null): string {
   return truncateAtWordBoundary(plain, NOTE_CONTENT_CHAR_LIMIT);
 }
 
+
+// ── Ties (World Web, #1084) ───────────────────────────────────────────────
+// Meaning search should know where a person lives, what they belong to and
+// who they are tied to: "the toll man at the ford" has to find Harl. Ties are
+// appended as short clauses; an entity with none builds exactly the text it
+// built before, so only rows that gain a tie get a new source_hash.
+
+/** At most this many ties (and memberships) reach one entity's text, so a hub NPC cannot swamp its own vector. */
+export const TIE_LIMIT = 12;
+
+/** One `world_links` row, reduced to what wording a tie needs. */
+export interface TieLink {
+  from_kind: LinkKind;
+  from_id: string;
+  to_kind: LinkKind;
+  to_id: string;
+  type: string;
+}
+
+/** Key into the `names` map `tieSentences` reads: the far end's kind and id. */
+export function tieNameKey(kind: LinkKind, id: string): string {
+  return `${kind}:${id}`;
+}
+
+/** Plain code-unit order: stable across runtimes, unlike locale-aware compare, which the hash must not depend on. */
+function byCodeUnit(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * Words a subject's links from the subject's own side, using the catalogue:
+ * "rival of Harl the Toll-man", "worships The Drowned Lady". A link stored
+ * from the subject reads `forward`, one stored to the subject reads `reverse`.
+ * Links of an unknown type, or whose far end has no name, are dropped rather
+ * than guessed at. Sorted, de-duplicated and capped at TIE_LIMIT so the same
+ * links always give the same text, whatever order the database returned them.
+ */
+export function tieSentences(
+  subjectKind: LinkKind,
+  subjectId: string,
+  links: readonly TieLink[],
+  names: ReadonlyMap<string, string>,
+): string[] {
+  const sentences = new Set<string>();
+  for (const link of links) {
+    const subjectIsFrom = link.from_kind === subjectKind && link.from_id === subjectId;
+    const subjectIsTo = link.to_kind === subjectKind && link.to_id === subjectId;
+    if (!subjectIsFrom && !subjectIsTo) continue;
+    const def = linkTypeFor(link.from_kind, link.to_kind, link.type);
+    if (!def) continue;
+    const farName = subjectIsFrom
+      ? names.get(tieNameKey(link.to_kind, link.to_id))
+      : names.get(tieNameKey(link.from_kind, link.from_id));
+    const far = farName ? collapseWhitespace(farName) : "";
+    if (!far) continue;
+    sentences.add(`${subjectIsFrom ? def.forward : def.reverse} ${far}`);
+  }
+  return [...sentences].sort(byCodeUnit).slice(0, TIE_LIMIT);
+}
+
+export interface EmbeddableMembership {
+  faction: string;
+  role: string | null;
+}
+
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** "Lives in Fordwatch." */
+function buildHomeClause(home: string | null | undefined): string {
+  const normalized = normalizeField(home ?? null);
+  return normalized ? `Lives in ${normalized}.` : "";
+}
+
+/** "Member of The Iron Concord (captain), The Ferrymen." */
+function buildMembershipsClause(memberships: readonly EmbeddableMembership[] | undefined): string {
+  if (!memberships) return "";
+  const parts = new Set<string>();
+  for (const m of memberships) {
+    const faction = normalizeField(m.faction);
+    if (!faction) continue;
+    const role = normalizeField(m.role);
+    parts.add(role ? `${faction} (${role})` : faction);
+  }
+  if (parts.size === 0) return "";
+  return `Member of ${[...parts].sort(byCodeUnit).slice(0, TIE_LIMIT).join(", ")}.`;
+}
+
+/** "Rival of Harl the Toll-man, worships The Drowned Lady." Sentences arrive already worded; re-sorted and capped here so a hand-built list is deterministic too. */
+function buildTiesClause(ties: readonly string[] | undefined): string {
+  if (!ties) return "";
+  const cleaned = [...new Set(ties.map(collapseWhitespace).filter((t) => t.length > 0))]
+    .sort(byCodeUnit)
+    .slice(0, TIE_LIMIT);
+  return cleaned.length > 0 ? `${capitalise(cleaned.join(", "))}.` : "";
+}
+
+/** "Seat of A, B.": the factions whose seat a place is. */
+function buildNamedListClause(prefix: string, names: readonly string[] | undefined): string {
+  if (!names) return "";
+  const cleaned = [...new Set(names.map(collapseWhitespace).filter((n) => n.length > 0))]
+    .sort(byCodeUnit)
+    .slice(0, TIE_LIMIT);
+  return cleaned.length > 0 ? `${prefix} ${cleaned.join(", ")}.` : "";
+}
+
 // ── NPC ───────────────────────────────────────────────────────────────────
 
 export interface EmbeddableNpc {
@@ -121,6 +229,12 @@ export interface EmbeddableNpc {
   appearance: string | null;
   personality: string | null;
   backstory: string | null;
+  /** Home place name (npcs.location_id). */
+  home?: string | null;
+  /** Factions the NPC belongs to, with their role (faction_npcs). */
+  memberships?: EmbeddableMembership[];
+  /** Ties worded from the NPC's side by `tieSentences`. */
+  ties?: string[];
   // `notes` is deliberately NOT a field on this interface. It's session
   // scratch space (DM reminders, "ask player about X next week"), not part
   // of the NPC's identity — embedding it would pull the retrieval vector
@@ -153,6 +267,10 @@ export function buildNpcEmbedText(npc: EmbeddableNpc): string {
   const tagsClause = buildTagsClause(npc.tags);
   if (tagsClause) clauses.push(tagsClause);
 
+  for (const clause of [buildHomeClause(npc.home), buildMembershipsClause(npc.memberships), buildTiesClause(npc.ties)]) {
+    if (clause) clauses.push(clause);
+  }
+
   const appearance = buildRichTextClause(npc.appearance);
   if (appearance) clauses.push(appearance);
 
@@ -173,6 +291,9 @@ export interface EmbeddableFaction {
   alignment: string | null;
   tags: string[];
   description: string | null;
+  /** Name of the seat place (factions.seat_location_id). */
+  seat?: string | null;
+  ties?: string[];
 }
 
 /**
@@ -199,6 +320,12 @@ export function buildFactionEmbedText(faction: EmbeddableFaction): string {
   const tagsClause = buildTagsClause(faction.tags);
   if (tagsClause) clauses.push(tagsClause);
 
+  const seat = normalizeField(faction.seat ?? null);
+  if (seat) clauses.push(`Seated at ${seat}.`);
+
+  const ties = buildTiesClause(faction.ties);
+  if (ties) clauses.push(ties);
+
   const description = buildRichTextClause(faction.description);
   if (description) clauses.push(description);
 
@@ -215,6 +342,10 @@ export interface EmbeddableLocation {
   tags: string[];
   player_summary: string | null;
   description: string | null;
+  /** Names of the factions whose seat this place is (factions.seat_location_id). */
+  seatOf?: string[];
+  /** Ties worded from the place's side, which carries who controls it ("controlled by ..."). */
+  ties?: string[];
   // `notes` is deliberately NOT a field on this interface. It's a dead
   // column: LocationEditor hardcodes it to null on every save, so a live
   // location's `notes` is never anything a DM actually wrote.
@@ -245,6 +376,12 @@ export function buildLocationEmbedText(location: EmbeddableLocation): string {
 
   const tagsClause = buildTagsClause(location.tags);
   if (tagsClause) clauses.push(tagsClause);
+
+  const seatOf = buildNamedListClause("Seat of", location.seatOf);
+  if (seatOf) clauses.push(seatOf);
+
+  const ties = buildTiesClause(location.ties);
+  if (ties) clauses.push(ties);
 
   const playerSummary = buildPlainTextClause(location.player_summary);
   if (playerSummary) clauses.push(playerSummary);
@@ -320,6 +457,8 @@ export interface EmbeddableItem {
   cost: string | null;
   tags: string[];
   description: string | null;
+  /** Ties worded from the item's side. Homebrew items only: shared library items have none. */
+  ties?: string[];
   // `dm_notes` is deliberately NOT a field here. It's DM-only scratch that
   // library_items does not even have a column for -- including it would make
   // a custom item's vector drift away from its shared twin's for reasons that
@@ -390,6 +529,9 @@ export function buildItemEmbedText(item: EmbeddableItem): string {
 
   const tagsClause = buildTagsClause(item.tags);
   if (tagsClause) clauses.push(tagsClause);
+
+  const ties = buildTiesClause(item.ties);
+  if (ties) clauses.push(ties);
 
   const description = buildPlainTextClause(item.description);
   if (description) clauses.push(description);

@@ -154,12 +154,16 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   // The table's own name still rings on a delete, which the `_player` signal
   // does not cover, so it refreshes the players' projection as well.
   notes: ["notes", PLAYER_NOTES_KEY, CAMPAIGN_SECRETS_KEY],
-  factions: ["factions", PLAYER_FACTIONS_KEY, CAMPAIGN_SECRETS_KEY],
-  locations: ["locations", CAMPAIGN_SECRETS_KEY],
+  factions: ["factions", PLAYER_FACTIONS_KEY, CAMPAIGN_SECRETS_KEY, CONNECTIONS_KEY],
+  locations: ["locations", CAMPAIGN_SECRETS_KEY, CONNECTIONS_KEY],
   // A recipe card names and pictures its items through get_craftable_output_items.
   items: ["items", CAMPAIGN_SECRETS_KEY, "craftable-output-items"],
   puzzle_rooms: ["puzzle_rooms", CAMPAIGN_SECRETS_KEY],
-  npcs: ["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY],
+  npcs: ["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY],
+  // get_connections (#1084) reads these as ties: a quest's giver and place, an NPC's pack. A rename also
+  // reaches every sheet that names the other end.
+  quests: ["quests", CONNECTIONS_KEY],
+  npc_inventory: ["npc-inventory", CONNECTIONS_KEY],
   // The DM's editor and the players' view read the same two tables; a player
   // taking a pin also rings it, which is how the DM watches a notice come down.
   notice_boards: [NOTICE_BOARDS_KEY, PLAYER_NOTICE_BOARDS_KEY],
@@ -215,7 +219,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["character_caretakers", [CHARACTER_CARETAKERS_KEY, WHILE_AWAY_KEY]],
   ["player_npc_ratings", ["player_npc_ratings"]],
   ["npc_favors", ["npc_favors"]],
-  ["faction_party_members", ["faction-party-members", "party-member-factions", "player-faction-party-members", PLAYER_FACTIONS_KEY, PLAYER_KIN_KEY]],
+  ["faction_party_members", ["faction-party-members", "party-member-factions", "player-faction-party-members", PLAYER_FACTIONS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY]],
   ["party_member_tracker_state", ["tracker_state"]],
   // A pinned form widens get_player_visible_monsters (Wild Shape candidates).
   ["pinned_forms", ["pinned-forms", "monsters"]],
@@ -260,7 +264,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["faction_deities", ["faction-deities", "deity-factions"]],
   ["faction_locations", ["faction-locations"]],
   ["faction_items", ["faction-items"]],
-  ["faction_npcs", ["faction-npcs", "player-faction-npcs", "npc-factions", PLAYER_KIN_KEY]],
+  ["faction_npcs", ["faction-npcs", "player-faction-npcs", "npc-factions", PLAYER_KIN_KEY, CONNECTIONS_KEY]],
   ["faction_relations", ["faction-relations"]],
   // A place's map: the DM's site views, and the players' site state.
   ["location_doors", ["location-doors", "site-doors", "player-visible-site-state"]],
@@ -273,14 +277,14 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["quest_consequences", ["quest_consequences", QUEST_BOARD_KEY, RUNTIME_CONTEXT_KEY]],
   // Also the encounter's quest links, the encounters list's quest filter and
   // the quest filter's entity options.
-  ["quest_refs", ["quest_refs", "encounter_quests", "encounter_quest_links", "quest_filter_entities", BEATS_KEY, TRANSITIONS_KEY]],
+  ["quest_refs", ["quest_refs", "encounter_quests", "encounter_quest_links", "quest_filter_entities", BEATS_KEY, TRANSITIONS_KEY, CONNECTIONS_KEY]],
   // The rest (#1033 wave 3). What stays off the doorbell on purpose is listed
   // with its reason in live_sync_registry.test.sql (live_sync_exempt), which
   // fails on any campaign table that is neither ringing nor exempt.
   ["spell_change_windows", ["spellChangeWindows"]],
   ["npc_relationships", ["npc_relationships"]],
   // Family trees (#1083). Players cannot read the table; the ring tells them to re-read their kin projection.
-  ["kin_links", [KIN_LINKS_KEY, PLAYER_KIN_KEY]],
+  ["kin_links", [KIN_LINKS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY]],
   // World Web (#1084). Players cannot read the table; their projection hangs off the same root.
   ["world_links", [CONNECTIONS_KEY]],
   // Open Book (#1085). Owner-only tables; a release also changes the book row (its live release).
@@ -291,7 +295,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // One user's own favourites, for their other devices.
   ["player_favourites", ["player_favourites"]],
   // Inserts, updates, deletes, and a character leaving the campaign (#1026).
-  ["party_members", ["party", "my-characters", "offered-characters"]],
+  ["party_members", ["party", "my-characters", "offered-characters", CONNECTIONS_KEY]],
   // Players cannot read this table, so the ring tells them to re-read their
   // projection. The DM's own copy is a store that `useCampaignLiveSync`
   // re-reads, not a query.
@@ -326,12 +330,12 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // item leaving the party's inventory leaves the player-visible projection
   // with it, and a newly claimed or crafted item only becomes RLS-visible to a
   // player once its party_inventory row exists.
-  ["party_inventory", ["party-inventory", "items"]],
+  ["party_inventory", ["party-inventory", "items", CONNECTIONS_KEY]],
   // `store_items` (#811) has no
   // campaign_id, so it is on no channel for any event; and its rows carry only
   // an item_id, with the name behind it living in the player-visible
   // projection — refresh both, or a shop stocked mid-session lists "Unknown item".
-  ["store_items", ["store-items", "items"]],
+  ["store_items", ["store-items", "items", CONNECTIONS_KEY]],
   // A fight's session label feeds the session log's facts and learned moments.
   ["encounter_state", ["session-facts", "session-learned"]],
   // A shared handout (#970). Documents ring instead of subscribing: they are

@@ -7,6 +7,10 @@ import {
   buildItemEmbedText,
   buildQuestEmbedText,
   entityEmbedHash,
+  TIE_LIMIT,
+  tieNameKey,
+  tieSentences,
+  type TieLink,
   type EmbeddableNpc,
   type EmbeddableFaction,
   type EmbeddableLocation,
@@ -645,5 +649,106 @@ describe("buildQuestEmbedText", () => {
     const c = await entityEmbedHash(buildQuestEmbedText(makeQuest({ summary: "Different." })));
     expect(a).toBe(b);
     expect(a).not.toBe(c);
+  });
+});
+
+// ── Ties (World Web, #1084) ───────────────────────────────────────────────
+
+
+describe("tieSentences", () => {
+  const names = new Map([
+    [tieNameKey("npc", "harl"), "Harl the Toll-man"],
+    [tieNameKey("npc", "brenna"), "Brenna"],
+    [tieNameKey("deity", "lady"), "The Drowned Lady"],
+    [tieNameKey("faction", "concord"), "The Iron Concord"],
+  ]);
+
+  it("words a link from the side the subject stands on", () => {
+    const links: TieLink[] = [
+      { from_kind: "npc", from_id: "brenna", to_kind: "deity", to_id: "lady", type: "worships" },
+      { from_kind: "npc", from_id: "brenna", to_kind: "npc", to_id: "harl", type: "rival" },
+      { from_kind: "npc", from_id: "harl", to_kind: "npc", to_id: "brenna", type: "mentor_of" },
+    ];
+    expect(tieSentences("npc", "brenna", links, names)).toEqual([
+      "apprentice of Harl the Toll-man",
+      "rival of Harl the Toll-man",
+      "worships The Drowned Lady",
+    ]);
+    expect(tieSentences("npc", "harl", links, names)).toEqual(["mentor of Brenna", "rival of Brenna"]);
+  });
+
+  it("is independent of the order links arrive in", () => {
+    const a: TieLink = { from_kind: "npc", from_id: "brenna", to_kind: "deity", to_id: "lady", type: "worships" };
+    const b: TieLink = { from_kind: "npc", from_id: "brenna", to_kind: "npc", to_id: "harl", type: "rival" };
+    expect(tieSentences("npc", "brenna", [a, b], names)).toEqual(tieSentences("npc", "brenna", [b, a], names));
+  });
+
+  it("drops unknown types, unnamed far ends and links the subject is not on", () => {
+    const links: TieLink[] = [
+      { from_kind: "npc", from_id: "brenna", to_kind: "npc", to_id: "harl", type: "no_such_type" },
+      { from_kind: "npc", from_id: "brenna", to_kind: "npc", to_id: "ghost", type: "rival" },
+      { from_kind: "npc", from_id: "x", to_kind: "npc", to_id: "harl", type: "rival" },
+    ];
+    expect(tieSentences("npc", "brenna", links, names)).toEqual([]);
+  });
+
+  it("caps the list", () => {
+    const many = new Map<string, string>();
+    const links: TieLink[] = [];
+    for (let i = 0; i < 30; i++) {
+      many.set(tieNameKey("npc", `n${i}`), `Person ${String(i).padStart(2, "0")}`);
+      links.push({ from_kind: "npc", from_id: "hub", to_kind: "npc", to_id: `n${i}`, type: "friend" });
+    }
+    expect(tieSentences("npc", "hub", links, many)).toHaveLength(TIE_LIMIT);
+  });
+});
+
+describe("tie clauses", () => {
+  it("adds home, membership and ties to an NPC, between the tags and the prose", () => {
+    const text = buildNpcEmbedText(
+      makeNpc({
+        name: "Brenna",
+        home: "Fordwatch",
+        memberships: [{ faction: "The Iron Concord", role: "captain" }, { faction: "The Ferrymen", role: null }],
+        ties: ["worships The Drowned Lady", "rival of Harl the Toll-man"],
+      }),
+    );
+    expect(text).toBe(
+      "Brenna. Dwarf blacksmith, Lawful Good. gruff, reliable. Lives in Fordwatch. " +
+        "Member of The Ferrymen, The Iron Concord (captain). " +
+        "Rival of Harl the Toll-man, worships The Drowned Lady. " +
+        "Broad-shouldered with soot-stained hands. Short-tempered but fiercely loyal. Fled the mines after the cave-in.",
+    );
+  });
+
+  it("changes nothing for an entity with no ties", () => {
+    expect(buildNpcEmbedText(makeNpc({ home: null, memberships: [], ties: [] }))).toBe(buildNpcEmbedText(makeNpc()));
+  });
+
+  it("is deterministic in the order ties are given", () => {
+    const one = buildNpcEmbedText(makeNpc({ ties: ["b one", "a two"] }));
+    const two = buildNpcEmbedText(makeNpc({ ties: ["a two", "b one"] }));
+    expect(entityEmbedHash(one)).toEqual(entityEmbedHash(two));
+    expect(one).toBe(two);
+  });
+
+  it("gives a faction its seat and ties, a location its seat-of and ties, an item its ties", () => {
+    const faction = buildFactionEmbedText({
+      name: "The Iron Concord", faction_type: null, alignment: null, tags: [], description: null,
+      seat: "Fordwatch", ties: ["controls The Rusty Anchor"],
+    });
+    expect(faction).toBe("The Iron Concord. Seated at Fordwatch. Controls The Rusty Anchor.");
+
+    const location = buildLocationEmbedText({
+      name: "Fordwatch", location_type: "town", tags: [], player_summary: null, description: null,
+      seatOf: ["The Iron Concord"], ties: ["controlled by The Ferrymen"],
+    });
+    expect(location).toBe("Fordwatch. town. Seat of The Iron Concord. Controlled by The Ferrymen.");
+
+    const item = buildItemEmbedText({
+      name: "Toll Ledger", item_type: "Wondrous item", rarity: "Common", subtype: null, requires_attunement: false,
+      attunement_requirements: null, cost: null, tags: [], description: null, ties: ["blessed by The Drowned Lady"],
+    });
+    expect(item).toContain("Blessed by The Drowned Lady.");
   });
 });
