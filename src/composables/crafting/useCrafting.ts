@@ -489,6 +489,8 @@ export function useAttemptCraft() {
       /** player has the physical tool in inventory */
       hasTools: boolean;
       partyMemberId: string;
+      /** Called once the roll exists (after a physical roll is entered), before the result is saved. */
+      onRolled?: () => void;
     }): Promise<CraftingAttemptResult> => {
       const {
         recipe,
@@ -502,6 +504,7 @@ export function useAttemptCraft() {
         profBonus,
         hasTools,
         partyMemberId,
+        onRolled,
       } = params;
 
       // 1. Roll — disadvantage if no physical tool
@@ -516,6 +519,7 @@ export function useAttemptCraft() {
         silent: true,
       });
       if (!rollResult) throw new Error("Roll cancelled");
+      onRolled?.();
       const kept = rollResult.breakdown.find((d) => !d.dropped)!;
       const dropped = rollResult.breakdown.find((d) => d.dropped);
       const roll = kept.val;

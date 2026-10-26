@@ -27,6 +27,14 @@
         :model-value="diceAudioEnabled"
         @update:model-value="setDiceAudio($event)"
       />
+      <SettingsToggleRow
+        label="Workshop sounds"
+        description="The crafting bench makes a sound while you work, and again when the attempt succeeds or fails."
+        :model-value="workshopSoundsEnabled"
+        @update:model-value="setWorkshopSounds($event)"
+      />
+      <!-- Dice sounds are synthesized, so only the Ogg workshop sounds need this. -->
+      <AudioFormatNotice />
     </div>
   </SettingsSection>
 
@@ -66,7 +74,9 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SettingsSection from "@/components/common/settings/SettingsSection.vue";
 import SettingsToggleRow from "@/components/common/settings/SettingsToggleRow.vue";
+import AudioFormatNotice from "@/components/common/feedback/AudioFormatNotice.vue";
 import { usePlayerCombatPrefs } from "@/composables/player/usePlayerCombatPrefs";
+import { useWorkshopPrefs } from "@/composables/crafting/useWorkshopPrefs";
 import { useDicePrefs } from "@/composables/dice/useDicePrefs";
 import { useChildAccount } from "@/composables/account/useChildAccount";
 import {
@@ -79,6 +89,7 @@ import {
 const { isChild } = useChildAccount();
 const { turnAudioEnabled, setTurnAudio } = usePlayerCombatPrefs();
 const { diceAudioEnabled, setDiceAudio, diceMode, setDiceMode } = useDicePrefs();
+const { workshopSoundsEnabled, setWorkshopSounds } = useWorkshopPrefs();
 
 const { data: emailPrefs } = useNotificationPreferences();
 const { mutate: updatePrefs } = useUpdateNotificationPreferences();

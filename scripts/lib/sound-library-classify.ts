@@ -123,6 +123,11 @@ export function libraryStoragePath(slug: string): string {
 }
 
 /** Public URL for an object in a public bucket. */
-export function libraryPublicUrl(supabaseUrl: string, storagePath: string): string {
-  return `${supabaseUrl.replace(/\/+$/, "")}/storage/v1/object/public/sounds/${storagePath}`;
+/**
+ * The URL a catalogue row serves its file from: the asset CDN, as every library
+ * row has since #577 moved object reads behind it. A Supabase storage URL here
+ * would bypass the CDN for this row alone.
+ */
+export function libraryPublicUrl(cdnBase: string, storagePath: string): string {
+  return `${cdnBase.replace(/\/+$/, "")}/sounds/${storagePath}`;
 }

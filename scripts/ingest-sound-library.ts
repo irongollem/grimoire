@@ -21,7 +21,15 @@
  * after adding files to the manifest only does the new work.
  *
  * Usage:
- *   npx tsx --env-file=.env.local scripts/ingest-sound-library.ts [--dry-run] [--skip-upload]
+ *   npx tsx --env-file=.env.local scripts/ingest-sound-library.ts [--dry-run] [--skip-upload] [--only <id-prefix>]
+ *
+ * `--cdn-base https://cdn.example.com` (or VITE_ASSET_CDN_URL) is the asset CDN
+ * the rows' file_url points at; the script refuses to run without one, as the
+ * other library publishing scripts do.
+ *
+ * `--only crafting/` ingests just the records whose id starts with that prefix,
+ * so adding a dozen sounds does not re-push the whole library. Each record
+ * keeps its sort_order from its place in the full manifest.
  *
  * `--skip-upload` re-writes only the catalogue rows. Useful when the audio is
  * already in the bucket and a classification rule changed — re-pushing 180 MB
@@ -57,6 +65,23 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const DRY_RUN = process.argv.includes("--dry-run");
 const SKIP_UPLOAD = process.argv.includes("--skip-upload");
+/** Required even for a dry run, so the rows a dry run reports are the rows a real run writes. */
+function cdnBaseOrExit(): string {
+  const flag = process.argv.indexOf("--cdn-base");
+  const value = (flag >= 0 ? process.argv[flag + 1] : process.env.VITE_ASSET_CDN_URL)?.trim();
+  if (!value) {
+    console.error("Refusing to run without a CDN base: set VITE_ASSET_CDN_URL or pass --cdn-base.");
+    process.exit(1);
+  }
+  return value;
+}
+const CDN_BASE = cdnBaseOrExit();
+const ONLY_FLAG = process.argv.indexOf("--only");
+const ONLY_PREFIX = ONLY_FLAG >= 0 ? process.argv[ONLY_FLAG + 1] : null;
+if (ONLY_FLAG >= 0 && (!ONLY_PREFIX || ONLY_PREFIX.startsWith("--"))) {
+  console.error("--only needs an id prefix, e.g. --only crafting/");
+  process.exit(1);
+}
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error(
@@ -200,7 +225,7 @@ function resolveRecord(record: ManifestRecord, index: number): Resolved {
       // does not exist.
       attribution: record.attribution_required ? nullable(record.attribution) : null,
       storage_path: storagePath,
-      file_url: libraryPublicUrl(SUPABASE_URL!, storagePath),
+      file_url: libraryPublicUrl(CDN_BASE, storagePath),
       duration_seconds: Number(duration.toFixed(3)),
       tags: libraryTags(record.category),
       is_loopable: isLoopable(slug, record.title),
@@ -234,12 +259,14 @@ async function mapWithConcurrency<T>(
 async function run(): Promise<void> {
   const manifest: ManifestRecord[] = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
   console.log(`Manifest: ${manifest.length} record(s) from ${MANIFEST_PATH}`);
+  if (ONLY_PREFIX !== null) console.log(`Only ids starting with "${ONLY_PREFIX}".`);
   if (DRY_RUN) console.log("DRY RUN — nothing will be uploaded or written.\n");
 
   const uploads: { row: CatalogueRow; bytes: Uint8Array }[] = [];
   const skipped: { slug: string; reason: string }[] = [];
 
   manifest.forEach((record, index) => {
+    if (ONLY_PREFIX !== null && !record.id.startsWith(ONLY_PREFIX)) return;
     const resolved = resolveRecord(record, index);
     if (resolved.kind === "skip") {
       skipped.push({ slug: record.id, reason: resolved.reason });

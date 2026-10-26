@@ -103,6 +103,9 @@
          delay the feature exists to remove. -->
     <NowRail class="-mx-3 rounded-none sm:mx-0 sm:rounded-lg sm:border sm:border-border" />
 
+    <!-- Ogg Vorbis is the library's format; iOS before 18.4 cannot play it. -->
+    <AudioFormatNotice class="mt-3" />
+
     <!-- Filters, under the playback block. Present on every tab — the row
          vanishing when you switch to Scenes shifted the whole page, and a
          scene list you cannot search is a scene list you scroll. -->
@@ -354,6 +357,7 @@ import { useSoundboardHotkeys } from "@/composables/soundboard/useSoundboardHotk
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
 import type { PadSize, Sound } from "@/types/sound.types";
+import AudioFormatNotice from "@/components/common/feedback/AudioFormatNotice.vue";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";

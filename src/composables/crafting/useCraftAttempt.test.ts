@@ -5,6 +5,13 @@ const sendMessage = vi.fn();
 vi.mock("@/composables/crafting/useCrafting", () => ({ useAttemptCraft: () => ({ mutateAsync: attemptCraft }) }));
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendMessage }) }));
 vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
+const playOutcomeSting = vi.fn();
+const playWorkSound = vi.fn();
+vi.mock("@/lib/crafting/workbenchAudio", async (orig) => ({
+  ...(await orig<typeof import("@/lib/crafting/workbenchAudio")>()),
+  playOutcomeSting: (s: string) => playOutcomeSting(s),
+  playWorkSound: (d: string) => playWorkSound(d),
+}));
 
 import { useCraftAttempt } from "./useCraftAttempt";
 import { buildIngredientSlots } from "@/lib/crafting/ingredients";
@@ -106,5 +113,22 @@ describe("useCraftAttempt", () => {
     sendMessage.mockResolvedValue(undefined);
     await setup().attempt();
     expect(sendMessage.mock.calls.at(-1)?.[0]).toContain("came out Fine");
+  });
+
+  it.each([
+    ["success", "success"],
+    ["fail", "failure"],
+    ["ruin", "critical"],
+  ])("plays the %s outcome as the %s sting, and the work sound when the roll is made", async (outcome, sting) => {
+    attemptCraft.mockImplementation(async (p: { onRolled: () => void }) => {
+      p.onRolled();
+      return { roll: 10, total: 12, diff: 2, outcome, hasDisadvantage: false };
+    });
+    sendMessage.mockResolvedValue(undefined);
+    playOutcomeSting.mockClear();
+    const a = setup();
+    await a.attempt();
+    expect(playWorkSound).toHaveBeenCalledWith("smithing");
+    expect(playOutcomeSting).toHaveBeenCalledWith(sting);
   });
 });

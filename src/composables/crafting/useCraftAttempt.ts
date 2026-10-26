@@ -1,6 +1,7 @@
 import { computed, ref, toValue, type MaybeRefOrGetter } from "vue";
 import { useAttemptCraft } from "@/composables/crafting/useCrafting";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { playOutcomeSting, playWorkSound, stingForOutcome } from "@/lib/crafting/workbenchAudio";
 import { getDiscipline } from "@/lib/crafting/disciplines";
 import { craftChatMessage, outputDisplayNames } from "@/lib/crafting/craftMessage";
 import { planConsumption, resolveItemName, rowDisplayName, type IngredientSlot } from "@/lib/crafting/ingredients";
@@ -152,9 +153,14 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
         profBonus: effectiveProfBonus.value,
         hasTools: toValue(inputs.hasTools),
         partyMemberId: member.id,
+        // The work sound starts when the roll is made: at once with the dice tool, and only
+        // after the player has entered their result with physical dice.
+        onRolled: () => playWorkSound(recipe.discipline),
       });
 
       result.value = res;
+      // Same moment the bench starts its outcome effect (WorkbenchPlay watches this result).
+      playOutcomeSting(stingForOutcome(res.outcome));
 
       const msg = craftChatMessage({
         memberName: member.name,

@@ -88,15 +88,15 @@ describe("libraryStoragePath", () => {
 });
 
 describe("libraryPublicUrl", () => {
-  it("builds the public object URL", () => {
-    expect(libraryPublicUrl("https://x.supabase.co", "library/rain/a.ogg")).toBe(
-      "https://x.supabase.co/storage/v1/object/public/sounds/library/rain/a.ogg",
+  it("builds the CDN URL the library serves from", () => {
+    expect(libraryPublicUrl("https://cdn.example.test", "library/rain/a.ogg")).toBe(
+      "https://cdn.example.test/sounds/library/rain/a.ogg",
     );
   });
 
-  it("tolerates a trailing slash on the project URL", () => {
-    expect(libraryPublicUrl("https://x.supabase.co/", "library/rain/a.ogg")).toBe(
-      "https://x.supabase.co/storage/v1/object/public/sounds/library/rain/a.ogg",
+  it("tolerates a trailing slash on the CDN base", () => {
+    expect(libraryPublicUrl("https://cdn.example.test/", "library/rain/a.ogg")).toBe(
+      "https://cdn.example.test/sounds/library/rain/a.ogg",
     );
   });
 });

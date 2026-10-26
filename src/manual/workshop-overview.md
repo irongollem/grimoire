@@ -107,6 +107,10 @@ Rarity and value are paid for in materials. A draft can never be worth more than
 - **The rules check the draft first.** Anything the AI invents is held to the craft's item types and to a power budget for its rarity. Where the description carries effects the rules did not recognise, you are warned in the draft.
 - **It costs credits.** Each draft and each revision costs one credit, paid by the player who asks. Sending, withdrawing and clearing are free.
 
+## Sounds
+
+Each bench makes the sound of its craft while you roll, a hammer on the anvil, a pot on the boil, a loom at work, and a short sting tells you how it went. Players can turn them off with **Workshop sounds** in their settings, beside the dice sounds. On an iPhone or iPad older than iOS 18.4 the sounds cannot play, and the setting says so.
+
 ## Item vault integration
 
 Importing items in the **Vault** seeds provisions including crafting ingredients and outputs: rough gems, ore, herbs, and other crafting materials. Importing items before importing recipes isn't required, but it means players will already have something to pick up and spend.
