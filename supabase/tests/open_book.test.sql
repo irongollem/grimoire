@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(40);
 
 -- open_book (20261023230210, #1085): the owner releases a frozen snapshot of what the whole party can read.
 -- Proven here: only the owner reaches the book, its releases and its two functions; a release needs Pro; anon
@@ -77,6 +77,19 @@ insert into public.notes (id, user_id, campaign_id, title, category, content, pl
 insert into public.deities (id, user_id, campaign_id, name, description, player_visible_to) values
   ('10850000-0000-4000-8000-000000000050', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'Orla',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Saint of the drowned"}]},{"type":"secretBlock","content":[{"type":"paragraph","content":[{"type":"text","text":"OB-DEITY-SECRET"}]}]}]}',
+   array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
+
+-- World Web (#1084): Maren worships Orla and the whole party knows it; she is friends with the pilgrim, which only
+-- Ada has been told; and she is rivals with someone only Ada knows, which the table cannot read at all.
+insert into public.world_links (user_id, campaign_id, from_kind, from_npc_id, to_kind, to_deity_id, type, told, note, player_visible_to) values
+  ('10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'npc', '10850000-0000-4000-8000-000000000030',
+   'deity', '10850000-0000-4000-8000-000000000050', 'worships', 'Lights a candle at every tide.', 'OB-TIE-DM-NOTE',
+   array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
+insert into public.world_links (user_id, campaign_id, from_kind, from_npc_id, to_kind, to_npc_id, type, told, player_visible_to) values
+  ('10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'npc', '10850000-0000-4000-8000-000000000030',
+   'npc', '10850000-0000-4000-8000-000000000032', 'friend', 'OB-TIE-ADA-ONLY', array['10850000-0000-4000-8000-000000000020']::uuid[]),
+  ('10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'npc', '10850000-0000-4000-8000-000000000030',
+   'npc', '10850000-0000-4000-8000-000000000031', 'rival', 'OB-TIE-UNSEEN-END',
    array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
 
 insert into public.calendar_events (id, user_id, campaign_id, title, event_type, player_visible, harptos_year, harptos_month, harptos_day) values
@@ -165,8 +178,17 @@ select ok(
   (select count(*) = 2 from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'lore')),
   'a mention with no id is skipped, not an error that stops the preview');
 select ok(
-  public.preview_open_book('10850000-0000-4000-8000-000000000010')::text !~ '(OB-SECRET-BACKSTORY|OB-True-Name|OB-SECRET-BLOCK|OB-DM-LOCATION-NOTE|OB-DEITY-SECRET|OB-HIDDEN-EVENT|OB-Only-Ada-Knows|OB-Taken-Out|OB-Taken-Place)',
+  public.preview_open_book('10850000-0000-4000-8000-000000000010')::text !~ '(OB-SECRET-BACKSTORY|OB-True-Name|OB-SECRET-BLOCK|OB-DM-LOCATION-NOTE|OB-DEITY-SECRET|OB-HIDDEN-EVENT|OB-Only-Ada-Knows|OB-Taken-Out|OB-Taken-Place|OB-TIE-DM-NOTE|OB-TIE-ADA-ONLY|OB-TIE-UNSEEN-END)',
   'nothing the table cannot read appears anywhere in the snapshot');
+select results_eq(
+  $$ select t->>'type' || ':' || (t->>'told') from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'ties') t
+      where t->>'source' = 'link' $$,
+  $$ values ('worships:Lights a candle at every tide.') $$,
+  'the book carries a tie the whole party knows between two of its entries, with its told line');
+select is_empty(
+  $$ select 1 from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'ties') t
+      where t->>'to_id' = '10850000-0000-4000-8000-000000000031' or t->>'from_id' = '10850000-0000-4000-8000-000000000031' $$,
+  'never a tie to someone outside the book');
 select is(
   public.preview_open_book('10850000-0000-4000-8000-000000000010')->'names'->'10850000-0000-4000-8000-000000000041',
   null,
