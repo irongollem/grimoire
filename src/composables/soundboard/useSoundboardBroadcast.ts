@@ -1,4 +1,4 @@
-import { ref, watch } from "vue";
+import { readonly, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useSoundboardStore } from "@/stores/soundboard";
@@ -23,6 +23,14 @@ import type { SoundboardBroadcastState } from "@/types/sound.types";
 // Module-level so the widget toggle and any other surface see the same flag.
 const broadcasting = ref(false);
 const broadcastError = ref<string | null>(null);
+
+/**
+ * The sharing flag alone, for surfaces that only need to know whether it is on.
+ * `useSoundboardBroadcast()` registers a push watcher per call, so reading the
+ * flag through it from every pad on the board multiplied each push by the
+ * number of pads.
+ */
+export const isBroadcasting = readonly(broadcasting);
 
 export function useSoundboardBroadcast() {
   const store = useSoundboardStore();

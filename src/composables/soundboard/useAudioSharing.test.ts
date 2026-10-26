@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const broadcasting = ref(false);
 const store = { isCasting: false };
-vi.mock("./useSoundboardBroadcast", () => ({ useSoundboardBroadcast: () => ({ broadcasting }) }));
+vi.mock("./useSoundboardBroadcast", () => ({ isBroadcasting: broadcasting }));
 vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => store }));
 
 const { useAudioSharing } = await import("./useAudioSharing");
