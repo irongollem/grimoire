@@ -24,8 +24,8 @@
       :class="[pc ? 'border-primary ring-1 ring-primary' : 'border-border', dead && 'opacity-60']"
       aria-hidden="true"
     >
-      <FocalImage v-if="image && imageFormat === 'token'" :src="image" alt="" format="token" class="size-full" />
-      <img v-else-if="image" :src="image" alt="" class="size-full object-cover" loading="lazy" />
+      <!-- Through FocalImage both ways: it maps a stored URL to the asset CDN, which a bare <img> would miss. -->
+      <FocalImage v-if="image" :src="image" alt="" :format="imageFormat === 'token' ? 'token' : 'square'" class="size-full" />
       <template v-else>{{ initial }}</template>
     </span>
 

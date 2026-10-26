@@ -6,6 +6,7 @@
       block
       placeholder="Find a person, place, faction, god or item…"
       aria-label="Find something to connect"
+      autofocus
     />
     <div v-if="chips.length > 1" class="flex flex-wrap gap-1" role="group" aria-label="Kind">
       <AppButton size="xs" :active="chosenKind === null" label="All" @click="chosenKind = null" />

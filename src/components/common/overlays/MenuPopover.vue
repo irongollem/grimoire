@@ -32,6 +32,7 @@
  */
 import { nextTick, ref } from "vue";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
+import { useHotkeys } from "@/composables/useHotkeys";
 
 defineOptions({ inheritAttrs: false });
 defineProps<{ label: string }>();
@@ -62,12 +63,17 @@ function close(refocus: boolean) {
   if (refocus) triggerRef.value?.querySelector("button")?.focus();
 }
 
+/**
+ * Escape goes through the hotkey registry's overlay layer, as RevealControl's does, rather than the panel's own
+ * keydown: inside a modal the modal's Escape is registered there too, and the most recent registration answers, so
+ * the first Escape closes this list and only the next one the sheet. Enabled only while open.
+ */
+useHotkeys(
+  () => [{ combo: "escape", description: "Close the list", hidden: true, handler: () => close(true) }],
+  { layer: "overlay", enabled: () => open.value },
+);
+
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === "Escape") {
-    e.preventDefault();
-    close(true);
-    return;
-  }
   const all = items();
   if (all.length === 0) return;
   const at = all.indexOf(document.activeElement as HTMLButtonElement);

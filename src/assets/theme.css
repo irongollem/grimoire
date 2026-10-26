@@ -361,7 +361,7 @@
   /* World web: one colour per family of tie (#1084). Lightness differs across the
      seven, not hue alone: enmity is the darkest, holding the lightest. */
   --link-bond: #3a7bbf;
-  --link-enmity: #8c1d2c;
+  --link-enmity: #c0432c;
   --link-faith: #9468c4;
   --link-place: #2e8b57;
   --link-holding: #d49a1a;

@@ -14,7 +14,7 @@
         <h2 class="text-heading-sm font-bold leading-tight text-foreground">{{ entity.name }}</h2>
         <p class="text-caption text-muted-foreground">{{ kindNoun(entity.kind) }}</p>
       </div>
-      <AppButton variant="ghost" size="icon-sm" :icon="IconClose" label="Close" @click="emit('close')" />
+      <AppButton variant="ghost" size="icon-sm" :icon="IconClose" aria-label="Close" @click="emit('close')" />
     </div>
 
     <div class="flex flex-wrap gap-2 px-4 pb-3">

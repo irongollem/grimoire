@@ -15,7 +15,7 @@
       Reading…
     </div>
     <p v-else-if="isError" class="py-2 text-caption text-muted-foreground">Couldn't read who is here.</p>
-    <p v-else-if="count === 0" class="py-2 text-caption text-muted-foreground">{{ emptyLabel }}</p>
+    <p v-else-if="shownCount === 0" class="py-2 text-caption text-muted-foreground">{{ emptyLabel }}</p>
     <template v-else>
       <!-- A local ref on purpose: a drill-in's filter dies with its list, like a picker's search. -->
       <AppInput v-model="filter" size="caption" class="my-1.5" :placeholder="`Filter ${nounPlural}…`" :aria-label="`Filter ${nounPlural}`" />
@@ -67,17 +67,26 @@ const emit = defineEmits<{ navigate: []; pick: [ref: { kind: PersonKind; id: str
 
 const open = ref(false);
 const filter = ref("");
-const { filtered, count, isLoading, isError } = useConnectionDrillIn(() => ({ kind, id }), open, filter);
+const { people, filtered, count, isLoading, isError } = useConnectionDrillIn(() => ({ kind, id }), open, filter);
 
-const visible = computed(() => filtered.value.filter((p) => !(exclude && p.other_kind === exclude.kind && p.other_id === exclude.id)));
+const isExcluded = (p: Connection) => !!exclude && p.other_kind === exclude.kind && p.other_id === exclude.id;
+const visible = computed(() => filtered.value.filter((p) => !isExcluded(p)));
+/** The count a picker shows leaves out the one it is choosing for: "1 person here" over an empty list reads as a fault. */
+const shownCount = computed(() =>
+  count.value === null || people.value === undefined ? null : count.value - people.value.filter(isExcluded).length,
+);
 const nounPlural = computed(() => (kind === "location" ? "people" : "members"));
-const emptyLabel = computed(() => (kind === "location" ? "No one is here." : "No members."));
+const emptyLabel = computed(() => {
+  if (exclude) return kind === "location" ? "No one else is here." : "No other members.";
+  return kind === "location" ? "No one is here." : "No members.";
+});
 
 /** "People here" until the first read answers, then "3 people here". */
 const toggleLabel = computed(() => {
-  if (count.value === null) return kind === "location" ? "People here" : "Members";
-  if (kind === "location") return count.value === 1 ? "1 person here" : `${count.value} people here`;
-  return count.value === 1 ? "1 member" : `${count.value} members`;
+  const n = shownCount.value;
+  if (n === null) return kind === "location" ? "People here" : "Members";
+  if (kind === "location") return n === 1 ? "1 person here" : `${n} people here`;
+  return n === 1 ? "1 member" : `${n} members`;
 });
 
 function personRoute(person: Connection): string {

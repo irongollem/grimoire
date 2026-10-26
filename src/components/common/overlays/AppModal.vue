@@ -327,7 +327,7 @@ function onEnter(el: Element, done: () => void) {
   focusOnClose = (document.activeElement as HTMLElement | null) ?? null;
   const { backdrop, panel } = parts(el);
   if (!backdrop || !panel || !canAnimate(el)) {
-    panel?.focus();
+    if (panel) focusInside(panel);
     done();
     return;
   }
@@ -357,7 +357,17 @@ function onEnter(el: Element, done: () => void) {
     done,
   );
 
-  panel.focus();
+  focusInside(panel);
+}
+
+/**
+ * The panel takes focus on open so a screen reader announces the dialog, unless
+ * the dialog names a field to start in (`autofocus`): a dialog whose first job is
+ * a search starts in it. Taking the panel regardless used to leave every
+ * `autofocus` field inside a modal unfocused.
+ */
+function focusInside(panel: HTMLElement) {
+  (panel.querySelector<HTMLElement>("[autofocus]") ?? panel).focus();
 }
 
 function onLeave(el: Element, done: () => void) {

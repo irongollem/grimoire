@@ -125,7 +125,7 @@
             <h2 class="text-heading-sm font-bold leading-tight text-foreground">
               {{ nameOf(edgeSelection.subject) }} and {{ nameOf(edgeSelection.other) }}
             </h2>
-            <AppButton variant="ghost" size="icon-sm" :icon="IconClose" label="Close" @click="clearSelection" />
+            <AppButton variant="ghost" size="icon-sm" :icon="IconClose" aria-label="Close" @click="clearSelection" />
           </div>
           <WorldWebTieGroups
             :groups="edgeGroups"

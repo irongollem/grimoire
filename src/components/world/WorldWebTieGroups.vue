@@ -35,7 +35,7 @@
             size="icon-sm"
             :icon="IconEdit"
             :active="editing === rowKey(item.tie)"
-            :label="`Edit how ${item.name} is tied`"
+            :aria-label="`Edit how ${item.name} is tied`"
             class="min-h-11 min-w-11"
             @click="editing = editing === rowKey(item.tie) ? null : rowKey(item.tie)"
           />

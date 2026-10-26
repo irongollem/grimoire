@@ -8,7 +8,7 @@
       <h2 class="text-heading-sm font-bold leading-tight text-foreground">
         Connect {{ fromName }}<template v-if="target"> to {{ target.name }}</template>
       </h2>
-      <AppButton variant="ghost" size="icon-sm" :icon="IconClose" label="Cancel connecting" @click="emit('cancel')" />
+      <AppButton variant="ghost" size="icon-sm" :icon="IconClose" aria-label="Cancel connecting" @click="emit('cancel')" />
     </div>
 
     <template v-if="!target">
