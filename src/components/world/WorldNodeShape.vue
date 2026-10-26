@@ -22,8 +22,9 @@
         :stroke="kind === 'party_member' ? 'var(--primary)' : 'var(--border)'"
         :stroke-width="kind === 'party_member' ? 3 : 1.5"
       />
+      <!-- At rest an NPC stays a plain circle (hundreds of them); the focus view asks for the portrait. -->
       <foreignObject
-        v-if="kind === 'party_member' && image"
+        v-if="image && (kind === 'party_member' || portrait)"
         :x="-size"
         :y="-size"
         :width="size * 2"
@@ -39,16 +40,15 @@
     <!-- Faction: a shield, carrying the emblem. -->
     <template v-else-if="kind === 'faction'">
       <path :d="shieldPath" style="fill: var(--card)" stroke="var(--foreground)" stroke-width="2" stroke-linejoin="round" />
-      <image
-        v-if="image"
-        :href="image"
-        :x="-size * 0.62"
-        :y="-size * 0.62"
-        :width="size * 1.24"
-        :height="size * 1.24"
-        preserveAspectRatio="xMidYMid slice"
-        class="pointer-events-none"
-      />
+      <template v-if="image">
+        <foreignObject :x="-size" :y="-size * 0.9" :width="size * 2" :height="size * 2" class="pointer-events-none">
+          <!-- The emblem fills the shield: the outline is cut out of the picture, not a square set inside it. -->
+          <div class="h-full w-full" :style="{ clipPath: `path('${shieldClip}')` }">
+            <FocalImage :src="image" :focal-point="focalPoint" format="token" :alt="name" />
+          </div>
+        </foreignObject>
+        <path :d="shieldPath" fill="none" stroke="var(--foreground)" stroke-width="2" stroke-linejoin="round" />
+      </template>
       <text v-else text-anchor="middle" dominant-baseline="central" :font-size="size * 0.9" class="fill-muted-foreground font-semibold pointer-events-none">{{ initial }}</text>
     </template>
 
@@ -61,8 +61,20 @@
     <!-- Deity: a ringed disc. -->
     <template v-else-if="kind === 'deity'">
       <circle :r="size" style="fill: var(--card)" stroke="var(--link-faith)" stroke-width="2.5" />
+      <foreignObject
+        v-if="image"
+        :x="-size * 0.68"
+        :y="-size * 0.68"
+        :width="size * 1.36"
+        :height="size * 1.36"
+        class="pointer-events-none"
+      >
+        <div class="h-full w-full overflow-hidden rounded-full">
+          <FocalImage :src="image" :focal-point="focalPoint" format="token" :alt="name" />
+        </div>
+      </foreignObject>
       <circle :r="size * 0.68" fill="none" stroke="var(--link-faith)" stroke-width="1.25" />
-      <text text-anchor="middle" dominant-baseline="central" :font-size="size * 0.8" class="fill-muted-foreground font-semibold pointer-events-none">{{ initial }}</text>
+      <text v-if="!image" text-anchor="middle" dominant-baseline="central" :font-size="size * 0.8" class="fill-muted-foreground font-semibold pointer-events-none">{{ initial }}</text>
     </template>
 
     <!-- Item: a diamond, smaller than the rest. -->
@@ -83,7 +95,7 @@ import { computed } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import type { WebKind } from "@/lib/worldWeb/kinds";
 
-const { kind, name, size = 18, scale = 1, fill, image = null, focalPoint, selected = false, faded = false } = defineProps<{
+const { kind, name, size = 18, scale = 1, fill, image = null, focalPoint, selected = false, faded = false, portrait = false } = defineProps<{
   kind: WebKind;
   name: string;
   /** Radius in screen pixels. */
@@ -95,6 +107,8 @@ const { kind, name, size = 18, scale = 1, fill, image = null, focalPoint, select
   focalPoint?: { x: number; y: number };
   selected?: boolean;
   faded?: boolean;
+  /** Draw an NPC's portrait too (the focus view); at rest in the whole web an NPC is a plain circle. */
+  portrait?: boolean;
 }>();
 
 const initial = computed(() => name.trim().charAt(0).toUpperCase() || "?");
@@ -102,6 +116,14 @@ const initial = computed(() => name.trim().charAt(0).toUpperCase() || "?");
 const shieldPath = computed(() => {
   const r = size;
   return `M ${-r} ${-r * 0.9} L ${r} ${-r * 0.9} L ${r} ${r * 0.1} Q ${r} ${r * 0.85} 0 ${r * 1.1} Q ${-r} ${r * 0.85} ${-r} ${r * 0.1} Z`;
+});
+
+/** The shield outline again in the coordinates of its bounding box (the emblem's container), for a CSS clip. */
+const shieldClip = computed(() => {
+  const r = size;
+  const x = (v: number) => (v + r).toFixed(2);
+  const y = (v: number) => (v + r * 0.9).toFixed(2);
+  return `M ${x(-r)} ${y(-r * 0.9)} L ${x(r)} ${y(-r * 0.9)} L ${x(r)} ${y(r * 0.1)} Q ${x(r)} ${y(r * 0.85)} ${x(0)} ${y(r * 1.1)} Q ${x(-r)} ${y(r * 0.85)} ${x(-r)} ${y(r * 0.1)} Z`;
 });
 
 const pinPath = computed(() => {

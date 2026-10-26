@@ -12,8 +12,10 @@ const mocks = vi.hoisted(() => ({
   kinRows: [] as { id: string; from_npc_id: string | null; to_npc_id: string | null }[],
   kinDeleted: [] as string[],
   // world_links rows the move finds for an end, and what it deleted.
-  linkRows: [] as { id: string; from_id: string; to_id: string; from_npc_id: string | null; to_npc_id: string | null; from_faction_id: string | null; to_faction_id: string | null }[],
+  linkRows: [] as { id: string; from_id: string; to_id: string; from_kind?: string; to_kind?: string; from_npc_id: string | null; to_npc_id: string | null; from_faction_id: string | null; to_faction_id: string | null }[],
   linkDeleted: [] as string[],
+  // campaign_id of an end that stayed behind, by id; an id not listed belongs to the old campaign.
+  endCampaign: {} as Record<string, string | null>,
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -21,7 +23,12 @@ vi.mock("@/lib/supabase", () => ({
     from: (table: string) => ({
       select: (_cols: string) => ({
         in: (col: string, ids: string[]) =>
-          table === "world_links"
+          col === "id" && table !== "world_links"
+            ? Promise.resolve({
+                data: ids.map((id) => ({ id, campaign_id: id in mocks.endCampaign ? mocks.endCampaign[id] : "camp-old" })),
+                error: null,
+              })
+            : table === "world_links"
             ? Promise.resolve({
                 data: mocks.linkRows.filter((r) => ids.includes(r[col as "from_npc_id" | "to_npc_id" | "from_faction_id" | "to_faction_id"] as string)),
                 error: null,
@@ -75,6 +82,7 @@ describe("useBulkCampaignScope", () => {
     mocks.kinDeleted = [];
     mocks.linkRows = [];
     mocks.linkDeleted = [];
+    mocks.endCampaign = {};
   });
 
   it("chunks a 450-id call into three requests of 200/200/50 and sums moved", async () => {
@@ -161,6 +169,8 @@ describe("useBulkCampaignScope", () => {
       id,
       from_id: from,
       to_id: to,
+      from_kind: "npc",
+      to_kind: "npc",
       from_npc_id: from,
       to_npc_id: to,
       from_faction_id: null,
@@ -183,8 +193,8 @@ describe("useBulkCampaignScope", () => {
 
   it("keeps a link between two moved factions and drops one to an NPC that stayed", async () => {
     mocks.linkRows = [
-      { id: "pair", from_id: "fac-1", to_id: "fac-2", from_npc_id: null, to_npc_id: null, from_faction_id: "fac-1", to_faction_id: "fac-2" },
-      { id: "to-npc", from_id: "fac-1", to_id: "npc-1", from_npc_id: null, to_npc_id: "npc-1", from_faction_id: "fac-1", to_faction_id: null },
+      { id: "pair", from_id: "fac-1", to_id: "fac-2", from_kind: "faction", to_kind: "faction", from_npc_id: null, to_npc_id: null, from_faction_id: "fac-1", to_faction_id: "fac-2" },
+      { id: "to-npc", from_id: "fac-1", to_id: "npc-1", from_kind: "faction", to_kind: "npc", from_npc_id: null, to_npc_id: "npc-1", from_faction_id: "fac-1", to_faction_id: null },
     ];
     const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
     const outcome = await result.mutateAsync({ table: "factions", ids: ["fac-1", "fac-2"], campaignId: "camp-2" });
@@ -197,9 +207,28 @@ describe("useBulkCampaignScope", () => {
     unmount();
   });
 
+  it("keeps a link from a moved NPC to a general item, deity or place, and to one already in the target campaign", async () => {
+    mocks.linkRows = [
+      { id: "to-item", from_id: "npc-1", to_id: "item-1", from_kind: "npc", to_kind: "item", from_npc_id: "npc-1", to_npc_id: null, from_faction_id: null, to_faction_id: null },
+      { id: "to-deity", from_id: "npc-1", to_id: "deity-1", from_kind: "npc", to_kind: "deity", from_npc_id: "npc-1", to_npc_id: null, from_faction_id: null, to_faction_id: null },
+      { id: "to-there", from_id: "npc-1", to_id: "loc-2", from_kind: "npc", to_kind: "location", from_npc_id: "npc-1", to_npc_id: null, from_faction_id: null, to_faction_id: null },
+      { id: "to-old", from_id: "npc-1", to_id: "loc-1", from_kind: "npc", to_kind: "location", from_npc_id: "npc-1", to_npc_id: null, from_faction_id: null, to_faction_id: null },
+    ];
+    mocks.endCampaign = { "item-1": null, "deity-1": null, "loc-2": "camp-2" };
+    const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
+    const outcome = await result.mutateAsync({ table: "npcs", ids: ["npc-1"], campaignId: "camp-2" });
+
+    expect(outcome.worldLinksRemoved).toBe(1);
+    expect(mocks.linkDeleted).toEqual(["to-old"]);
+    expect(mocks.calls.filter((c) => c.table === "world_links")).toEqual([
+      { table: "world_links", update: { campaign_id: "camp-2" }, ids: ["to-item", "to-deity", "to-there"] },
+    ]);
+    unmount();
+  });
+
   it("deletes every world link of an entity moved to the general scope, which holds none", async () => {
     mocks.linkRows = [
-      { id: "pair", from_id: "fac-1", to_id: "fac-2", from_npc_id: null, to_npc_id: null, from_faction_id: "fac-1", to_faction_id: "fac-2" },
+      { id: "pair", from_id: "fac-1", to_id: "fac-2", from_kind: "faction", to_kind: "faction", from_npc_id: null, to_npc_id: null, from_faction_id: "fac-1", to_faction_id: "fac-2" },
     ];
     const { result, unmount } = withQueryClient(() => useBulkCampaignScope());
     await result.mutateAsync({ table: "factions", ids: ["fac-1", "fac-2"], campaignId: null });

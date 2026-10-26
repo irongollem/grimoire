@@ -168,6 +168,9 @@ describe("live sync registries", () => {
     for (const signal of ["locations", "items", "puzzle_rooms"]) {
       expect(SIGNAL_KEYS.get(signal)).toContain(CAMPAIGN_SECRETS_KEY);
     }
+    // An item or a deity is a node of the web (#1084): a rename reaches every sheet that names it.
+    expect(SIGNAL_KEYS.get("items")).toEqual(["items", CAMPAIGN_SECRETS_KEY, "craftable-output-items", CONNECTIONS_KEY]);
+    expect(SIGNAL_KEYS.get("deities")).toEqual(["deities", CONNECTIONS_KEY]);
   });
 
   it("refreshes the projection roots for the projection signals", () => {

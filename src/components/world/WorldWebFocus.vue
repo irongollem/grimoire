@@ -53,6 +53,7 @@
         :focal-point="focalPoints[node.key]"
         :selected="node.key === connectFrom"
         :faded="node.ring === 2"
+        portrait
       />
       <text
         :y="sizeOf(node) + 15"

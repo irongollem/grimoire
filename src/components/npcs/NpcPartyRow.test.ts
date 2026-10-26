@@ -25,7 +25,7 @@ const EditorStub = defineComponent({
 const npc = { id: "npc-1", name: "Maera" } as Npc;
 const member = { id: "pm-1", name: "Wren Ashdown", class: "Wizard", level: 5, portrait_url: null } as PartyMember;
 
-function mountRow(props: { shared?: boolean; metAt?: string | null; connection?: Connection | null } = {}) {
+function mountRow(props: { shared?: boolean; metAt?: string | null; connection?: Connection | null; others?: Connection[] } = {}) {
   return mount(NpcPartyRow, {
     props: { npc, member, shared: false, ...props },
     global: { stubs: { RichTextEditor: EditorStub, FocalImage: true } },
@@ -114,6 +114,22 @@ describe("NpcPartyRow", () => {
     );
     expect(mocks.update).toHaveBeenCalledWith({ id: "link-1", playerVisibleTo: ["pm-1"] });
     expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("lists every further link between them as its own retypable chip and hides the types already held", async () => {
+    const row = mountRow({ connection: link(), others: [link({ row_id: "link-2", type: "rival", told: null })] });
+    const chip = row.get('[data-testid="party-row-others"] select');
+    expect(chip.attributes("aria-label")).toContain("Another connection");
+    const main = row.findAll("select")[0]!.findAll("option").map((o) => o.attributes("value"));
+    expect(main.some((v) => v?.startsWith("rival:"))).toBe(false);
+    expect(main).toContain("ally:from");
+    const chipValues = chip.findAll("option").map((o) => o.attributes("value"));
+    expect(chipValues.some((v) => v?.startsWith("ally:"))).toBe(false);
+    await chip.setValue("friend:from");
+    await flushPromises();
+    expect(mocks.retype).toHaveBeenCalledWith(
+      expect.objectContaining({ connection: expect.objectContaining({ row_id: "link-2" }), choice: expect.objectContaining({ key: "friend" }) }),
+    );
   });
 
   it("offers a directed type both ways and a symmetric one once", () => {

@@ -157,7 +157,9 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   factions: ["factions", PLAYER_FACTIONS_KEY, CAMPAIGN_SECRETS_KEY, CONNECTIONS_KEY],
   locations: ["locations", CAMPAIGN_SECRETS_KEY, CONNECTIONS_KEY],
   // A recipe card names and pictures its items through get_craftable_output_items.
-  items: ["items", CAMPAIGN_SECRETS_KEY, "craftable-output-items"],
+  items: ["items", CAMPAIGN_SECRETS_KEY, "craftable-output-items", CONNECTIONS_KEY],
+  // A deity is a node of the web: a rename or a new portrait reaches every sheet that names it.
+  deities: ["deities", CONNECTIONS_KEY],
   puzzle_rooms: ["puzzle_rooms", CAMPAIGN_SECRETS_KEY],
   npcs: ["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY],
   // get_connections (#1084) reads these as ties: a quest's giver and place, an NPC's pack. A rename also

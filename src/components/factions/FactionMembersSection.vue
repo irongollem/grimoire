@@ -13,7 +13,10 @@
         :role="m.role ?? null"
         :status="m.status ?? null"
         @update:role="updateRole(m, $event)"
+        :visible-to="m.player_visible_to"
+        :member-name="m.npc.name"
         @update:status="updateStatus(m, $event)"
+        @update:visible-to="updateAudience(m, $event)"
         @remove="removeMember(m)"
       >
         <template #name>
@@ -54,7 +57,10 @@
           :fallback-icon="IconUser"
           :role="m.role ?? null"
           :status="m.status ?? null"
+          :visible-to="m.player_visible_to"
+          :member-name="m.npc.name"
           @update:status="updateStatus(m, $event)"
+          @update:visible-to="updateAudience(m, $event)"
           @remove="removeMember(m)"
         >
           <template #name>
@@ -103,6 +109,7 @@ import {
   useUpdateFactionNpcRole,
   useUpdateFactionNpcStatus,
   useRemoveFactionNpc,
+  useUpdateFactionNpcAudience,
   type FactionNpcWithNpc,
 } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -118,6 +125,7 @@ const addMut       = useAddFactionNpc();
 const updateRoleMut   = useUpdateFactionNpcRole();
 const updateStatusMut = useUpdateFactionNpcStatus();
 const removeMut    = useRemoveFactionNpc();
+const audienceMut = useUpdateFactionNpcAudience();
 
 const activeMembers = computed(() => (members.value ?? []).filter((m) => !m.status || m.status === "Active"));
 const formerMembers = computed(() => (members.value ?? []).filter((m) => m.status && m.status !== "Active"));
@@ -148,6 +156,10 @@ async function updateRole(m: FactionNpcWithNpc, role: string) {
 
 async function updateStatus(m: FactionNpcWithNpc, status: string) {
   await updateStatusMut.mutateAsync({ id: m.id, status, faction_id: m.faction_id, npc_id: m.npc_id });
+}
+
+async function updateAudience(m: FactionNpcWithNpc, playerVisibleTo: string[]) {
+  await audienceMut.mutateAsync({ id: m.id, playerVisibleTo, faction_id: m.faction_id, npc_id: m.npc_id });
 }
 
 async function removeMember(m: FactionNpcWithNpc) {

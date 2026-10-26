@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   retype: vi.fn(),
   remove: vi.fn(),
   updateLink: vi.fn(),
+  audience: vi.fn(),
   npcRole: vi.fn(),
   pcRole: vi.fn(),
   toastError: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("@/composables/connections/useConnections", () => ({
   useRetypeConnection: () => ({ mutateAsync: mocks.retype }),
   useRemoveConnection: () => ({ mutateAsync: mocks.remove }),
   useUpdateLink: () => ({ mutateAsync: mocks.updateLink }),
+  useUpdateTieAudience: () => ({ mutateAsync: mocks.audience }),
   useCreateConnection: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
 }));
 vi.mock("@/composables/factions/useFactions", () => ({
@@ -122,6 +124,13 @@ describe("ConnectionsSection", () => {
 
   it("shows the who-knows control on a link only", () => {
     rows.value = [conn({})];
+    expect(render().find("[data-testid='who-knows']").exists()).toBe(true);
+  });
+
+  it("gives a membership the who-knows control too, when the read carries its audience", () => {
+    rows.value = [
+      conn({ source: "membership", row_id: "m1", other_kind: "faction", other_id: "f1", type: "member_of", role: "Member", note: null, told: null, player_visible_to: [] }),
+    ];
     expect(render().find("[data-testid='who-knows']").exists()).toBe(true);
   });
 

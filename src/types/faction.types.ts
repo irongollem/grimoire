@@ -143,6 +143,8 @@ export interface FactionNpc {
   user_id: string;
   /** Place in a House's line of succession (#1083): 1 is the heir; null is not in the line. */
   succession_rank: number | null;
+  /** party_members ids this membership is revealed to; a character in the faction reads it regardless. */
+  player_visible_to: string[];
 }
 
 export interface FactionPartyMember {
@@ -154,6 +156,8 @@ export interface FactionPartyMember {
   user_id: string;
   /** Place in a House's line of succession (#1083): 1 is the heir; null is not in the line. */
   succession_rank: number | null;
+  /** party_members ids this membership is revealed to; the character in it reads it regardless. */
+  player_visible_to: string[];
   created_at: string;
   updated_at: string;
 }

@@ -36,6 +36,12 @@ const NESTED_LISTS = [
 
 const router = createRouter({ history: createMemoryHistory(), routes });
 
+it("redirects the old web address to the World Web", async () => {
+  const r = createRouter({ history: createMemoryHistory(), routes });
+  await r.push("/npcs/web");
+  expect(r.currentRoute.value.path).toBe("/web");
+});
+
 describe.each(NESTED_LISTS)("$label detail route", ({ list, detail, siblings }) => {
   it("resolves the list itself", () => {
     expect(router.resolve(list.path).name).toBe(list.name);

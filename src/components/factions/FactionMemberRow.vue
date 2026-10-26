@@ -50,6 +50,15 @@
       <option v-for="s in NPC_FACTION_STATUSES" :key="s" :value="s">{{ s }}</option>
     </AppSelect>
 
+    <!-- Who knows this one belongs (a character in the faction always does). -->
+    <AudienceRevealControl
+      v-if="visibleTo"
+      form="inline"
+      :visible-to="visibleTo"
+      :name="`${memberName} in the faction`"
+      @change="(next) => emit('update:visibleTo', next)"
+    />
+
     <AppButton
       variant="ghost"
       tone="danger"
@@ -65,6 +74,7 @@ import { type Component, computed } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import {
   NPC_FACTION_ROLES,
   NPC_FACTION_STATUSES,
@@ -72,7 +82,7 @@ import {
   type NpcFactionStatus,
 } from "@/types/faction.types";
 
-const { readonlyRole = false, former = false, role, status } = defineProps<{
+const { readonlyRole = false, former = false, role, status, visibleTo, memberName = "Member" } = defineProps<{
   portraitUrl: string | null;
   portraitFocalPoint?: { x: number; y: number } | null;
   fallbackIcon: Component;
@@ -82,11 +92,16 @@ const { readonlyRole = false, former = false, role, status } = defineProps<{
   former?: boolean;
   /** When true, the role is shown as read-only text instead of a select. */
   readonlyRole?: boolean;
+  /** party_members ids the membership is revealed to; absent hides the control. */
+  visibleTo?: string[];
+  /** The member's name, for the reveal control's title. */
+  memberName?: string;
 }>();
 
 const emit = defineEmits<{
   (e: "update:role", value: string): void;
   (e: "update:status", value: string): void;
+  (e: "update:visibleTo", value: string[]): void;
   (e: "remove"): void;
 }>();
 

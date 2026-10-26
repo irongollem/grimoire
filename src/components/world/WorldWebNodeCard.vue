@@ -8,6 +8,7 @@
           :size="17"
           :fill="fill"
           :image="entity.image"
+          portrait
         />
       </svg>
       <div class="min-w-0 flex-1">

@@ -485,7 +485,7 @@ Route: `/factions` (list), `/factions/new`, `/factions/:id`, `/factions/:id?edit
 Shows the sheet or editor (via `?edit=true`), then below it always-visible sub-sections (rendered even in edit mode):
 
 - **FactionMembersSection** — NPC members. Combobox to add NPCs; each row shows NPC portrait thumbnail, name, occupation, role (Leader/Officer/Enforcer/Member/Initiate/Associate/Agent/Informant/Unknown), status (Active/Retired/Defected/Expelled/Deceased with colour badge). Role and status are inline-editable. Remove button per row.
-- **FactionPartyMembersSection** — PC members (party characters). Same structure; role-editable.
+- **FactionPartyMembersSection** — PC members (party characters). Same structure; role-editable. Both sections carry a "who knows" eye per row (the membership's own `player_visible_to`).
 - **ConnectionsSection** (#1084) — one block replaces the old Relations, Locations, Items and Patron Deities panels (and the sheet's Patron Deities strip). It is the same component every sheet mounts (see "The Connections block" in [npcs.md](npcs.md)), here with the faction as subject: other factions (a stance is held by each side for itself, so the other side's stance rides along on the same row, and the pair is `exclusive`: one tie per direction), places (controls, based in, operates in; the seat is a record), deities (worships, serves, opposes), items (holds, seeks) and people. The roster is the two sections above, so a roster past five members is one line in the block that points at **Members**. Stances read in the faction's own words ("allied with", "seen as a rival by"); the old colour list (`RELATION_TYPES`) is gone and a stance takes its family colour, `--link-stance`.
 - **DM notes box** (`DmNoteBox`) — the DM's one private note on the faction, on its page and in the docked scratchpad. It replaced `EntityNotesPanel`, which also let a DM write a note the party could read; those "party notes" were folded into the private note (the maintainer's call, 6 Oct 2026). See [dm-notes.md](dm-notes.md).
 
@@ -701,6 +701,9 @@ No migration reassigns the small number of locations that already carried a null
 | -------- | ------ | --------------------------------------------------------------------------------- |
 | `role`   | string | Leader, Officer, Enforcer, Member, Initiate, Associate, Agent, Informant, Unknown |
 | `status` | string | Active, Retired, Defected, Expelled, Deceased                                     |
+| `player_visible_to` | uuid[] | Party member ids the membership is revealed to; default empty |
+
+**A membership has its own reveal.** A player reads a membership when it is revealed to their character (`player_visible_to`) or when their own character is in that faction (as before). The DM sets it where members are managed (the "who knows" eye on each row of `FactionMembersSection` and `FactionPartyMembersSection`, through `useUpdateFactionNpcAudience` / `useUpdateFactionPartyMemberAudience`) and on the membership row of any Connections block (`useUpdateTieAudience`, which writes `world_links`, `faction_npcs` or `faction_party_members` by the connection's source). `get_connections` returns the membership's audience in its `player_visible_to` column.
 
 **Only the faction's DM may write a junction row** — `private.can_edit_faction(faction_id)`
 on INSERT and UPDATE across `faction_party_members` and `faction_npcs` (`20260828211656`; it also covered `faction_items`, `faction_locations` and `faction_relations`, which #1084 moved into `world_links`). The helper resolves the

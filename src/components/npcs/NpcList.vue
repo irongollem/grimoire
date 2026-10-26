@@ -176,7 +176,7 @@ import { IconNavNpcs } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
-import { useCampaignLinks } from "@/composables/connections/useConnections";
+import { useCampaignLinkEnds } from "@/composables/connections/useConnections";
 import { useAllLocations, useLocationTree } from "@/composables/locations/useLocations";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
@@ -241,7 +241,8 @@ const skeletonVariant = computed(() => {
 });
 
 // An NPC is connected to a PC when a world link joins them, in either direction.
-const { data: campaignLinks } = useCampaignLinks();
+// Read only while the party-member filter has a value: the list itself needs no links.
+const { data: campaignLinks } = useCampaignLinkEnds(() => props.partyMemberFilter !== "");
 const connectedNpcIds = computed(() => {
   const pc = props.partyMemberFilter;
   const ids = new Set<string>();

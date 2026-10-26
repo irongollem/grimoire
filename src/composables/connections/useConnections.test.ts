@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defineComponent, h, reactive } from "vue";
+import { defineComponent, h, reactive, ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import type { TypeChoice } from "@/lib/worldLinks/connections";
@@ -15,6 +15,7 @@ interface Op {
 const mocks = vi.hoisted(() => ({
   ops: [] as { table: string; verb: string; values?: Record<string, unknown>; eqs: [string, unknown][] }[],
   failOn: null as string | null,
+  held: [] as { id: string }[],
   embed: vi.fn(),
 }));
 const store = reactive({ activeCampaignId: "camp-1" as string | null });
@@ -30,11 +31,13 @@ vi.mock("@/lib/supabase", () => ({
       mocks.ops.push(op);
       const result = () => {
         const error = mocks.failOn === `${op.verb}:${table}` ? new Error("boom") : null;
-        return { data: error ? null : op.table === "items" ? { name: "Moon Blade" } : [], error };
+        const rows = op.table === "world_links" && op.verb === "select" ? mocks.held : [];
+        return { data: error ? null : op.table === "items" ? { name: "Moon Blade" } : rows, error };
       };
       const chain: Record<string, unknown> = {
         select: () => chain,
         order: () => chain,
+        limit: () => chain,
         single: () => Promise.resolve(result()),
         insert: (values: Record<string, unknown>) => {
           op.verb = "insert";
@@ -111,6 +114,7 @@ const conn = (over: Partial<Connection>): Connection => ({
 beforeEach(() => {
   mocks.ops = [];
   mocks.failOn = null;
+  mocks.held = [];
   mocks.embed.mockClear();
   store.activeCampaignId = "camp-1";
 });
@@ -132,8 +136,76 @@ describe("useCampaignLinks", () => {
   });
 });
 
+describe("useUpdateTieAudience", () => {
+  it("writes a link's audience to world_links and a membership's to the table of its person", async () => {
+    const { result, unmount } = withQueryClient(() => api.useUpdateTieAudience());
+    await result.mutateAsync({ connection: conn({}), subject: npc, playerVisibleTo: ["pc1"] });
+    await result.mutateAsync({
+      connection: conn({ source: "membership", row_id: "m-1", other_kind: "faction", other_id: "f1" }),
+      subject: npc,
+      playerVisibleTo: ["pc1"],
+    });
+    await result.mutateAsync({
+      connection: conn({ source: "membership", row_id: "m-2", other_kind: "npc", other_id: "n9" }),
+      subject: { kind: "faction", id: "f1" },
+      playerVisibleTo: [],
+    });
+    await result.mutateAsync({
+      connection: conn({ source: "membership", row_id: "m-3", other_kind: "party_member", other_id: "p9" }),
+      subject: { kind: "faction", id: "f1" },
+      playerVisibleTo: [],
+    });
+    expect(writes().map((w) => [w.table, w.values, w.eqs])).toEqual([
+      ["world_links", { player_visible_to: ["pc1"] }, [["id", "row-1"]]],
+      ["faction_npcs", { player_visible_to: ["pc1"] }, [["id", "m-1"]]],
+      ["faction_npcs", { player_visible_to: [] }, [["id", "m-2"]]],
+      ["faction_party_members", { player_visible_to: [] }, [["id", "m-3"]]],
+    ]);
+    await expect(result.mutateAsync({ connection: conn({ source: "kin" }), subject: npc, playerVisibleTo: [] })).rejects.toThrow();
+    unmount();
+  });
+});
+
+describe("useCampaignLinkEnds", () => {
+  it("reads nothing while disabled, then only the ends of the campaign's links", async () => {
+    const enabled = ref(false);
+    const { unmount } = withQueryClient(() => api.useCampaignLinkEnds(enabled));
+    await flushPromises();
+    expect(mocks.ops).toEqual([]);
+    enabled.value = true;
+    await flushPromises();
+    expect(mocks.ops[0]).toMatchObject({ table: "world_links", eqs: [["campaign_id", "camp-1"]] });
+    unmount();
+  });
+});
+
 describe("useCreateConnection", () => {
   const other = { kind: "location", id: "l1", name: "Harrow" } as const;
+
+  it("changes the type of a faction's existing stance instead of inserting a second one", async () => {
+    mocks.held = [{ id: "stance-1" }];
+    const { result, unmount } = withQueryClient(() => api.useCreateConnection());
+    await result.mutateAsync({
+      subject: { kind: "faction", id: "f1" },
+      other: { kind: "faction", id: "f2", name: "Toll-men" },
+      choice: choice({ key: "rival", exclusive: true, pair: "faction_faction" }),
+    });
+    expect(writes()).toEqual([
+      expect.objectContaining({ table: "world_links", verb: "update", values: { type: "rival" }, eqs: [["id", "stance-1"]] }),
+    ]);
+    unmount();
+  });
+
+  it("inserts a stance when the faction holds none towards that one", async () => {
+    const { result, unmount } = withQueryClient(() => api.useCreateConnection());
+    await result.mutateAsync({
+      subject: { kind: "faction", id: "f1" },
+      other: { kind: "faction", id: "f2", name: "Toll-men" },
+      choice: choice({ key: "rival", exclusive: true, pair: "faction_faction" }),
+    });
+    expect(writes().map((w) => w.verb)).toEqual(["insert"]);
+    unmount();
+  });
 
   it("writes a plain link in the stored direction with its note, told line and visibility", async () => {
     const { result, unmount } = withQueryClient(() => api.useCreateConnection());

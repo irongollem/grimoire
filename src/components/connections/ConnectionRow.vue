@@ -49,9 +49,9 @@
 
       <template #actions>
         <div class="flex items-center">
-          <!-- The eye says who knows. A link starts with nobody; a record is known as its record already is. -->
+          <!-- The eye says who knows. A link or a membership starts with nobody; another record is known as its record already is. -->
           <AudienceRevealControl
-            v-if="connection.source === 'link' && connection.player_visible_to"
+            v-if="(connection.source === 'link' || connection.source === 'membership') && connection.player_visible_to"
             form="inline"
             :visible-to="connection.player_visible_to"
             :name="`${subjectName} and ${connection.other_name}`"
@@ -90,7 +90,7 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import ConnectionSlip, { type ConnectionTag } from "@/components/common/entity/ConnectionSlip.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
-import { useRemoveConnection, useRetypeConnection, useUpdateLink } from "@/composables/connections/useConnections";
+import { useRemoveConnection, useRetypeConnection, useUpdateTieAudience } from "@/composables/connections/useConnections";
 import {
   useFactionHeaded,
   useUpdateFactionNpcRole,
@@ -116,7 +116,7 @@ const toast = useToast();
 const peek = useOpenNpc();
 const retypeMutation = useRetypeConnection();
 const removeMutation = useRemoveConnection();
-const updateLink = useUpdateLink();
+const updateAudience = useUpdateTieAudience();
 const updateNpcRole = useUpdateFactionNpcRole();
 const updatePcRole = useUpdateFactionPartyMemberRole();
 
@@ -178,7 +178,7 @@ const statusTags = computed<ConnectionTag[]>(() =>
 // ── Who knows, the menu ────────────────────────────────────────────────────────
 async function setWhoKnows(next: string[]) {
   try {
-    await updateLink.mutateAsync({ id: connection.row_id, playerVisibleTo: next });
+    await updateAudience.mutateAsync({ connection, subject, playerVisibleTo: next });
   } catch (e) {
     toast.error(toast.fromError(e, "Could not change who knows. Please try again."));
   }

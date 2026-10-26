@@ -80,7 +80,7 @@ interface DetailData {
 const DM_DETAIL_DATA: readonly DetailData[] = [
   {
     prefix: "/npcs/",
-    reserved: ["new", "sets"],
+    reserved: ["new", "sets", "web"],
     reads: [
       (qc, _campaignId, id) => qc.prefetchQuery(npcQuery(id)),
       (qc, _campaignId, id) => {

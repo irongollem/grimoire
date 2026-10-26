@@ -225,10 +225,12 @@ export function bundledLinks(found: Row[], bundled: (kind: LinkKind, id: string)
  * links first. The audience is empty: the exporter's party does not exist here.
  */
 export function bundleLinkRows(bundle: GrimoireBundle, idMap: IdMap, imported: ReadonlySet<LinkKind>, campaignId: string, userId: string): Row[] {
+  // `family` / `sibling` bonds are kin (written as kin links elsewhere), not world links.
+  const legacy = splitLegacyKin(bundle.kin_links ?? [], bundle.npc_relationships ?? [], []);
   const links = [
     ...(bundle.world_links ?? []),
     ...legacyTiesToLinks({
-      npc_relationships: bundle.npc_relationships,
+      npc_relationships: legacy.bonds,
       faction_locations: bundle.faction_locations,
       faction_items: bundle.faction_items,
       faction_relations: bundle.faction_relations,

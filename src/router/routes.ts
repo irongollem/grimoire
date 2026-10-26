@@ -504,6 +504,8 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/world/WorldWebView.vue"),
     meta: { requiresAuth: true, title: "World Web" },
   },
+  // The old address of the web: a bookmark or link still lands on it, not on an NPC called "web".
+  { path: "/npcs/web", redirect: "/web" },
   {
     // The one-off review of links from before family trees (#1083): which way each old "Family" link goes.
     path: "/npcs/family-links",

@@ -70,7 +70,7 @@ vi.mock("@/composables/npcs/useNpcs", () => ({
 vi.mock("@/composables/usePrefetchOnIntent", () => ({ usePrefetchOnIntent: () => ({}) }));
 
 vi.mock("@/composables/connections/useConnections", () => ({
-  useCampaignLinks: () => ({ data: ref([]) }),
+  useCampaignLinkEnds: () => ({ data: ref([]) }),
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({

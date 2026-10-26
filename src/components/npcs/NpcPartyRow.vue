@@ -49,7 +49,7 @@
             @update:model-value="choose($event)"
           >
             <option v-if="!connection" value="" disabled>Their connection…</option>
-            <option v-for="c in choices" :key="choiceValue(c)" :value="choiceValue(c)">{{ c.word }}</option>
+            <option v-for="c in choicesFor(connection)" :key="choiceValue(c)" :value="choiceValue(c)">{{ c.word }}</option>
           </AppSelect>
           <span class="text-caption italic text-muted-foreground">{{ firstName }} reads this</span>
           <AutosaveStatus
@@ -67,6 +67,28 @@
             @select="removeConnection"
           />
         </div>
+        <ul v-if="others.length" class="mb-1.5 flex flex-wrap items-center gap-2" data-testid="party-row-others">
+          <li v-for="extra in others" :key="extra.row_id" class="flex items-center gap-1">
+            <AppSelect
+              :model-value="choiceValue({ key: extra.type, subjectIsFrom: extra.outward })"
+              tone="filled"
+              size="xs"
+              class="font-semibold uppercase text-primary"
+              :aria-label="`Another connection between ${firstName} and ${npc.name}`"
+              :disabled="choosing"
+              @update:model-value="rechoose(extra, $event)"
+            >
+              <option v-for="c in choicesFor(extra)" :key="choiceValue(c)" :value="choiceValue(c)">{{ c.word }}</option>
+            </AppSelect>
+            <AppButton
+              variant="ghost"
+              size="icon-sm"
+              :icon="IconClose"
+              :label="`Remove this connection with ${firstName}`"
+              @click="remove.mutateAsync({ connection: extra, subject })"
+            />
+          </li>
+        </ul>
         <RichTextEditor
           :key="revision"
           v-model="draft.told"
@@ -102,13 +124,14 @@ import {
 } from "@/composables/connections/useConnections";
 import { isBlankNote } from "@/composables/notes/useMyEntityNote";
 import { useAutosave } from "@/composables/useAutosave";
+import { IconClose } from "@/lib/icons";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
 import type { Connection } from "@/types/connections.types";
 import type { NpcListRow } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 
-const { npc, member, shared, metAt = null, connection = null } = defineProps<{
+const { npc, member, shared, metAt = null, connection = null, others = [] } = defineProps<{
   npc: NpcListRow;
   member: PartyMember;
   shared: boolean;
@@ -116,6 +139,8 @@ const { npc, member, shared, metAt = null, connection = null } = defineProps<{
   metAt?: string | null;
   /** The `world_links` tie between this NPC and this character, read from the NPC's side. */
   connection?: Connection | null;
+  /** Any further links between them, each a type of its own; the told line belongs to `connection` alone. */
+  others?: Connection[];
 }>();
 
 const emit = defineEmits<{ (e: "toggle"): void }>();
@@ -132,6 +157,17 @@ const choiceOf = (value: string): TypeChoice => {
   if (!found) throw new Error(`"${value}" is not a type an NPC can hold towards a character`);
   return found;
 };
+
+/** The types a link can be set to: not one the pair already holds as another link (the table keeps one per type). */
+function choicesFor(row: Connection | null): TypeChoice[] {
+  const taken = new Set([connection, ...others].filter((c): c is Connection => c !== null && c !== row).map((c) => c.type));
+  return choices.filter((c) => !taken.has(c.key));
+}
+
+async function rechoose(row: Connection, value: string) {
+  if (value === choiceValue({ key: row.type, subjectIsFrom: row.outward })) return;
+  await retype.mutateAsync({ connection: row, subject: subject.value, choice: choiceOf(value) });
+}
 
 const firstName = computed(() => member.name.trim().split(/\s+/)[0] ?? member.name);
 const subtitle = computed(() => [member.class, `Level ${member.level}`].filter(Boolean).join(" · "));

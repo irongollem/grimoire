@@ -189,28 +189,70 @@ async function moveKinLinks(ownerIds: readonly string[], campaignId: string | nu
   return drop.length;
 }
 
+/** The table each kind of link end lives in, to read which campaign an end that stayed behind belongs to. */
+const END_TABLE = {
+  npc: "npcs",
+  party_member: "party_members",
+  faction: "factions",
+  location: "locations",
+  deity: "deities",
+  item: "items",
+} as const;
+type EndKind = keyof typeof END_TABLE;
+
 /**
- * World links (#1084) join two things of one campaign, so they follow the same rule family links do: a link whose
- * two ends both moved is re-stamped, and every other link of a moved NPC or faction would now span two campaigns,
- * which the database refuses, so it is deleted. Returns how many were deleted.
+ * World links (#1084) join two things of one campaign. A link of a moved NPC or faction keeps (and is re-stamped
+ * to the target campaign) when every end that did not move can live there: it is general (`campaign_id` null, an
+ * item, deity or place available everywhere) or already in the target campaign. An end that belongs to the old
+ * campaign and stays behind would make the link span two campaigns, which the database refuses, so that link is
+ * deleted; moving to the general scope keeps none, since a link holds a campaign. Returns how many were deleted.
  */
 async function moveWorldLinks(table: BulkScopeTable, ownerIds: readonly string[], campaignId: string | null): Promise<number> {
   const endColumns = LINK_END_COLUMNS[table];
   if (!endColumns) return 0;
   const moved = new Set(ownerIds);
-  const links = new Map<string, { id: string; from: string; to: string }>();
+  type Found = { id: string; from: string; to: string; fromKind: EndKind; toKind: EndKind };
+  const links = new Map<string, Found>();
   for (const column of endColumns) {
     for (const chunk of chunkArray(ownerIds, CHUNK_SIZE)) {
-      const { data, error } = await supabase.from("world_links").select("id, from_id, to_id").in(column, [...chunk]);
+      const { data, error } = await supabase
+        .from("world_links")
+        .select("id, from_id, to_id, from_kind, to_kind")
+        .in(column, [...chunk]);
       if (error) throw error;
-      for (const row of data) links.set(row.id, { id: row.id, from: row.from_id, to: row.to_id });
+      for (const row of data) {
+        links.set(row.id, { id: row.id, from: row.from_id, to: row.to_id, fromKind: row.from_kind as EndKind, toKind: row.to_kind as EndKind });
+      }
     }
   }
+  // The campaign of every end that stays where it is, read once per table.
+  const staying = new Map<EndKind, Set<string>>();
+  for (const link of links.values()) {
+    for (const [kind, id] of [[link.fromKind, link.from], [link.toKind, link.to]] as const) {
+      if (moved.has(id)) continue;
+      staying.set(kind, (staying.get(kind) ?? new Set<string>()).add(id));
+    }
+  }
+  const endCampaign = new Map<string, string | null>();
+  for (const [kind, ids] of staying) {
+    for (const chunk of chunkArray([...ids], CHUNK_SIZE)) {
+      const { data, error } = await supabase.from(END_TABLE[kind]).select("id, campaign_id").in("id", [...chunk]);
+      if (error) throw error;
+      for (const row of data) endCampaign.set(row.id, row.campaign_id);
+    }
+  }
+  const canLiveInTarget = (id: string): boolean => {
+    if (moved.has(id)) return true;
+    // An end that cannot be read is not known to be general: the link goes rather than span two campaigns.
+    if (!endCampaign.has(id)) return false;
+    const home = endCampaign.get(id);
+    return home === null || home === campaignId;
+  };
   const keep: string[] = [];
   const drop: string[] = [];
   for (const link of links.values()) {
-    const together = moved.has(link.from) && moved.has(link.to);
-    (together && campaignId !== null ? keep : drop).push(link.id);
+    const fits = campaignId !== null && canLiveInTarget(link.from) && canLiveInTarget(link.to);
+    (fits ? keep : drop).push(link.id);
   }
   // Delete first: a stray cross-campaign link must be gone before the survivors are re-stamped.
   for (const chunk of chunkArray(drop, CHUNK_SIZE)) {

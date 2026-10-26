@@ -39,7 +39,8 @@
           :member="member"
           :shared="adapter.isMemberVisible(member.id)"
           :met-at="reveals?.get(member.id) ?? null"
-          :connection="connectionByMember.get(member.id) ?? null"
+          :connection="connectionsByMember.get(member.id)?.[0] ?? null"
+          :others="connectionsByMember.get(member.id)?.slice(1) ?? []"
           @toggle="adapter.toggleMember(member.id)"
         />
       </ul>
@@ -57,6 +58,7 @@ import { useNpcReveal } from "@/composables/npcs/useNpcReveal";
 import { useNpcReveals } from "@/composables/npcs/useNpcReveals";
 import { useParty } from "@/composables/party/useParty";
 import { NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
+import type { Connection } from "@/types/connections.types";
 import type { NpcListRow } from "@/types/npc.types";
 
 const { npc } = defineProps<{ npc: NpcListRow }>();
@@ -68,14 +70,15 @@ const { data: reveals } = useNpcReveals(npcId);
 const { visibleTo, fields, isRevealed, hasDisguise, adapter, setFields, setRevealed } = useNpcReveal(() => npc);
 
 const members = computed(() => party.value ?? []);
-// One link per character: the tie this NPC holds towards them, from the NPC's side.
-const connectionByMember = computed(
-  () =>
-    new Map(
-      (connections.value ?? [])
-        .filter((c) => c.source === "link" && c.other_kind === "party_member")
-        .map((c) => [c.other_id, c] as const),
-    ),
-);
+// Every link per character (a world link may hold several types between one NPC and one PC): the ties this
+// NPC holds towards them, from the NPC's side. The first is the row's main connection, the rest its chips.
+const connectionsByMember = computed(() => {
+  const byMember = new Map<string, Connection[]>();
+  for (const c of connections.value ?? []) {
+    if (c.source !== "link" || c.other_kind !== "party_member") continue;
+    byMember.set(c.other_id, [...(byMember.get(c.other_id) ?? []), c]);
+  }
+  return byMember;
+});
 const sharedCount = computed(() => members.value.filter((m) => visibleTo.value.includes(m.id)).length);
 </script>

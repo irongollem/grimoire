@@ -149,6 +149,31 @@ export function useCampaignLinks() {
   });
 }
 
+/** The two ends of a link, all a "who is tied to whom" test needs. */
+export type LinkEnds = Pick<WorldLink, "from_kind" | "from_id" | "to_kind" | "to_id">;
+
+/**
+ * Only the ends of every link in the campaign, read while `enabled` holds: a list filter that asks "is this one
+ * tied to that one" needs the ends, and only once the filter has a value.
+ */
+export function useCampaignLinkEnds(enabled: MaybeRefOrGetter<boolean>) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [CONNECTIONS_KEY, "campaign-ends", campaignId.value] as const),
+    queryFn: async ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("useCampaignLinkEnds fetched without a campaign");
+      const { data, error } = await supabase
+        .from("world_links")
+        .select("from_kind, from_id, to_kind, to_id")
+        .eq("campaign_id", cid);
+      if (error) throw error;
+      return data as LinkEnds[];
+    },
+    enabled: computed(() => toValue(enabled) && !!campaignId.value),
+  });
+}
+
 // ── Writes: the shape of each home ────────────────────────────────────────────
 
 const KIN_KIND_OF: Record<string, KinKind> = {
@@ -193,6 +218,26 @@ async function writeTie(input: CreateConnectionInput): Promise<void> {
   const { from, to } = ends(subject, other, choice);
 
   if (!choice.home) {
+    if (choice.exclusive) {
+      // A stance is one per direction (unique index world_links_one_stance): a second one changes the type of the
+      // first, keeping its note, told line and who knows.
+      const { data: held, error: heldError } = await supabase
+        .from("world_links")
+        .select("id")
+        .eq("campaign_id", campaignId)
+        .eq("from_kind", from.kind)
+        .eq("from_id", from.id)
+        .eq("to_kind", to.kind)
+        .eq("to_id", to.id)
+        .limit(1);
+      if (heldError) throw heldError;
+      const existing = (held as { id: string }[] | null)?.[0];
+      if (existing) {
+        const { error } = await supabase.from("world_links").update({ type: choice.key }).eq("id", existing.id);
+        if (error) throw error;
+        return;
+      }
+    }
     const { error } = await supabase.from("world_links").insert({
       ...linkInsert(subject, other, choice),
       campaign_id: campaignId,
@@ -357,6 +402,38 @@ export function useUpdateLink() {
       if (error) throw error;
     },
     onSuccess: () => invalidateFor(qc, "link"),
+  });
+}
+
+export interface UpdateTieAudienceInput {
+  connection: Connection;
+  subject: WorldRef;
+  playerVisibleTo: string[];
+}
+
+/**
+ * Who knows about a tie, wherever it lives: a link's own audience, or a membership's (each membership row has its
+ * own reveal, `faction_npcs` / `faction_party_members`). Other records are known as their record already is.
+ */
+export function useUpdateTieAudience() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ connection, subject, playerVisibleTo }: UpdateTieAudienceInput): Promise<void> => {
+      if (connection.source === "link") {
+        const { error } = await supabase.from("world_links").update({ player_visible_to: playerVisibleTo }).eq("id", connection.row_id);
+        if (error) throw error;
+        return;
+      }
+      if (connection.source === "membership") {
+        const personKind = subject.kind === "faction" ? connection.other_kind : subject.kind;
+        const table = personKind === "npc" ? "faction_npcs" : "faction_party_members";
+        const { error } = await supabase.from(table).update({ player_visible_to: playerVisibleTo }).eq("id", connection.row_id);
+        if (error) throw error;
+        return;
+      }
+      throw new Error(`a ${connection.source} tie has no audience of its own`);
+    },
+    onSuccess: (_d, { connection }) => invalidateFor(qc, connection.source),
   });
 }
 

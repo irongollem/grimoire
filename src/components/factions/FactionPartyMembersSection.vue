@@ -13,7 +13,10 @@
         :role="m.role ?? null"
         :status="m.status ?? null"
         @update:role="updateRole(m, $event)"
+        :visible-to="m.player_visible_to"
+        :member-name="m.party_member.name"
         @update:status="updateStatus(m, $event)"
+        @update:visible-to="updateAudience(m, $event)"
         @remove="removeMember(m)"
       >
         <template #name>
@@ -54,7 +57,10 @@
           :fallback-icon="IconSword"
           :role="m.role ?? null"
           :status="m.status ?? null"
+          :visible-to="m.player_visible_to"
+          :member-name="m.party_member.name"
           @update:status="updateStatus(m, $event)"
+          @update:visible-to="updateAudience(m, $event)"
           @remove="removeMember(m)"
         >
           <template #name>
@@ -101,6 +107,7 @@ import {
   useUpdateFactionPartyMemberRole,
   useUpdateFactionPartyMemberStatus,
   useRemoveFactionPartyMember,
+  useUpdateFactionPartyMemberAudience,
   type FactionPartyMemberWithMember,
 } from "@/composables/factions/useFactions";
 import { useParty } from "@/composables/party/useParty";
@@ -140,6 +147,7 @@ const addMut          = useAddFactionPartyMember();
 const updateRoleMut   = useUpdateFactionPartyMemberRole();
 const updateStatusMut = useUpdateFactionPartyMemberStatus();
 const removeMut       = useRemoveFactionPartyMember();
+const audienceMut = useUpdateFactionPartyMemberAudience();
 
 const activeMembers = computed(() => (members.value ?? []).filter((m) => !m.status || m.status === "Active"));
 const formerMembers = computed(() => (members.value ?? []).filter((m) => m.status && m.status !== "Active"));
@@ -171,6 +179,10 @@ async function updateRole(m: FactionPartyMemberWithMember, role: string) {
 
 async function updateStatus(m: FactionPartyMemberWithMember, status: string) {
   await updateStatusMut.mutateAsync({ id: m.id, status, faction_id: m.faction_id, party_member_id: m.party_member_id });
+}
+
+async function updateAudience(m: FactionPartyMemberWithMember, playerVisibleTo: string[]) {
+  await audienceMut.mutateAsync({ id: m.id, playerVisibleTo, faction_id: m.faction_id, party_member_id: m.party_member_id });
 }
 
 async function removeMember(m: FactionPartyMemberWithMember) {

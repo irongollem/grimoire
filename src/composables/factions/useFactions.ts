@@ -485,6 +485,36 @@ export function useAddFactionPartyMember() {
   });
 }
 
+/** Who is told that this NPC belongs to the faction (party_members ids). */
+export function useUpdateFactionNpcAudience() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, playerVisibleTo }: { id: string; playerVisibleTo: string[]; faction_id: string; npc_id: string }) => {
+      const { error } = await supabase.from("faction_npcs").update({ player_visible_to: playerVisibleTo }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["faction-npcs", vars.faction_id] });
+      qc.invalidateQueries({ queryKey: ["npc-factions", vars.npc_id] });
+    },
+  });
+}
+
+/** Who is told that this character belongs to the faction (party_members ids). */
+export function useUpdateFactionPartyMemberAudience() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, playerVisibleTo }: { id: string; playerVisibleTo: string[]; faction_id: string; party_member_id: string }) => {
+      const { error } = await supabase.from("faction_party_members").update({ player_visible_to: playerVisibleTo }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["faction-party-members", vars.faction_id] });
+      qc.invalidateQueries({ queryKey: ["party-member-factions", vars.party_member_id] });
+    },
+  });
+}
+
 export function useUpdateFactionPartyMemberRole() {
   const qc = useQueryClient();
   return useMutation({

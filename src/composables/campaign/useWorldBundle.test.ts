@@ -492,4 +492,13 @@ describe("world links in a bundle (#1084)", () => {
     const rows = bundleLinkRows(bundle, buildIdMap(bundle), new Set(["npc"]), "camp", "me");
     expect(rows.map((r) => r.type)).toEqual(["enemy"]);
   });
+
+  it("does not turn a legacy family bond into a contact link as well as a kin link", () => {
+    const bundle = emptyBundle({
+      npcs: [{ id: "a" }, { id: "b" }],
+      npc_relationships: [{ id: "r", npc_id: "a", related_npc_id: "b", relationship_type: "family", notes: null }],
+    });
+    const rows = bundleLinkRows(bundle, buildIdMap(bundle), new Set(["npc"]), "camp", "me");
+    expect(rows).toEqual([]);
+  });
 });
