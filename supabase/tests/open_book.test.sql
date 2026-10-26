@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(40);
+select plan(41);
 
 -- open_book (20261023230210, #1085): the owner releases a frozen snapshot of what the whole party can read.
 -- Proven here: only the owner reaches the book, its releases and its two functions; a release needs Pro; anon
@@ -91,6 +91,10 @@ insert into public.world_links (user_id, campaign_id, from_kind, from_npc_id, to
   ('10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'npc', '10850000-0000-4000-8000-000000000030',
    'npc', '10850000-0000-4000-8000-000000000031', 'rival', 'OB-TIE-UNSEEN-END',
    array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
+-- Maren is the pilgrim's mother; the pilgrim is a disguise, so who his mother is stays out of the book.
+insert into public.kin_links (user_id, campaign_id, from_npc_id, to_npc_id, kind, parent_role) values
+  ('10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', '10850000-0000-4000-8000-000000000030',
+   '10850000-0000-4000-8000-000000000032', 'parent', 'mother');
 
 insert into public.calendar_events (id, user_id, campaign_id, title, event_type, player_visible, harptos_year, harptos_month, harptos_day) values
   ('10850000-0000-4000-8000-000000000060', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'Feast of Orla', 'campaign', true, 312, 3, 14),
@@ -189,6 +193,10 @@ select is_empty(
   $$ select 1 from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'ties') t
       where t->>'to_id' = '10850000-0000-4000-8000-000000000031' or t->>'from_id' = '10850000-0000-4000-8000-000000000031' $$,
   'never a tie to someone outside the book');
+select is_empty(
+  $$ select 1 from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'ties') t
+      where t->>'source' = 'kin' $$,
+  'a disguised person''s family stays out of the book while the cover holds');
 select is(
   public.preview_open_book('10850000-0000-4000-8000-000000000010')->'names'->'10850000-0000-4000-8000-000000000041',
   null,

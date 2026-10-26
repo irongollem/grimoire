@@ -25,6 +25,7 @@ declare
   v_cited uuid[];
   v_entry_ids uuid[];
   v_ties jsonb := '[]'::jsonb;
+  v_concealed uuid[];
 begin
   select * into v_book from public.open_books where campaign_id = p_campaign_id;
   if not found then
@@ -282,7 +283,8 @@ begin
 
   -- World Web (#1084): the ties between two entries that are both in the book, as cross-references. The book
   -- never runs ahead of the table: a link only once the whole party knows it, a record by the rule the player
-  -- projection already applies (a covert membership stays the DM's; a home only where the NPC's location is shared).
+  -- projection already applies (a covert membership, or one of a disguised NPC, stays the DM's; a home only where the
+  -- NPC's location is shared).
   -- A tie to anything not in this release is left out, so a reader can follow every one to its page.
   select coalesce(array_agg(distinct x.id), '{}'::uuid[]) into v_entry_ids
     from (
@@ -291,6 +293,12 @@ begin
       union all select (e->>'id')::uuid from jsonb_array_elements(v_factions) e
       union all select (e->>'id')::uuid from jsonb_array_elements(v_deities) e
     ) x;
+
+  -- A disguised NPC is in the book under the cover; the true one's allegiances and family stay out until it falls.
+  select coalesce(array_agg(n.id), '{}'::uuid[]) into v_concealed
+    from public.npcs n
+   where n.campaign_id = p_campaign_id and not n.is_revealed
+     and (n.disguise_name is not null or n.disguise_portrait_url is not null);
 
   select coalesce(jsonb_agg(jsonb_build_object(
            'source', t.source, 'type', t.type,
@@ -306,7 +314,8 @@ begin
       select 'membership', 'member_of', 'npc', m.npc_id, 'faction', m.faction_id, null
         from public.faction_npcs m join public.factions f on f.id = m.faction_id
        where f.campaign_id = p_campaign_id
-         and coalesce(m.role, '') not in ('Secret member', 'Infiltrator', 'Unwitting pawn')
+         and not private.is_covert_role(m.role)
+         and m.npc_id <> all (v_concealed)
       union all
       select 'npc_home', 'lives_in', 'npc', n.id, 'location', n.location_id, null
         from public.npcs n
@@ -318,6 +327,7 @@ begin
       select 'kin', k.kind || '_of', 'npc', k.from_npc_id, 'npc', k.to_npc_id, null
         from public.kin_links k
        where k.campaign_id = p_campaign_id and k.from_npc_id is not null and k.to_npc_id is not null
+         and k.from_npc_id <> all (v_concealed) and k.to_npc_id <> all (v_concealed)
     ) t
    where t.from_id = any (v_entry_ids) and t.to_id = any (v_entry_ids);
 

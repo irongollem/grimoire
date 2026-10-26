@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(25);
 
 -- world_links (20261026212025, #1084): one table for every free tie between two things in a campaign. A type outside
 -- its pair is refused by the catalogue; a symmetric type is stored once whichever way round it is written; a faction
@@ -49,10 +49,21 @@ insert into public.factions (id, user_id, campaign_id, name, player_visible_to) 
   ('10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000010', 'House Thane',
    array['10840000-0000-4000-8000-000000000020']::uuid[]),
   ('10840000-0000-4000-8000-000000000041', '10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000010', 'Toll-men', '{}');
--- Brenna is House Thane's heir, openly; Sister Ama is its secret member, which is the secret.
+-- Brenna is House Thane's heir, openly; Sister Ama is its secret member (typed loosely, as free text is), which is the
+-- secret; the Grey Pilgrim is Corwin in disguise, and Corwin's place in the house is his own secret while the cover holds.
+insert into public.npcs (id, user_id, campaign_id, name, disguise_name, player_visible_to, player_visible_fields) values
+  ('10840000-0000-4000-8000-000000000033', '10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000010', 'Corwin Ashe',
+   'The Grey Pilgrim', array['10840000-0000-4000-8000-000000000020']::uuid[], array['name']);
 insert into public.faction_npcs (user_id, faction_id, npc_id, role) values
   ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000030', 'Heir'),
-  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000032', 'Secret member');
+  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000032', ' SECRET member'),
+  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000033', 'Married in');
+-- Mira, another character, is sworn to House Thane; that is hers to tell, not Dorn's to read.
+insert into public.party_members (id, user_id, campaign_id, name, ruleset) values
+  ('10840000-0000-4000-8000-000000000021', '10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000010', 'Mira', '2014');
+insert into public.faction_party_members (user_id, faction_id, party_member_id, role) values
+  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000021', 'Member'),
+  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000020', 'Ally');
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -167,13 +178,27 @@ $$, 'nothing about someone Dorn does not know, not even that a tie exists');
 select is_empty($$
   select 1 from public.get_player_world_ties('10840000-0000-4000-8000-000000000010')
    where from_name = 'Sister Ama' and source = 'membership'
-$$, 'a covert membership stays the DM''s though both ends are known');
+$$, 'a covert membership stays the DM''s though both ends are known, however its role is typed');
+
+select is_empty($$
+  select 1 from public.get_player_world_ties('10840000-0000-4000-8000-000000000010')
+   where from_id = '10840000-0000-4000-8000-000000000033' and source = 'membership'
+$$, 'a disguised NPC''s true allegiances stay the DM''s while the cover holds');
+
+select results_eq($$
+  select from_name from public.get_player_world_ties('10840000-0000-4000-8000-000000000010')
+   where source = 'membership' and from_kind = 'party_member'
+$$, $$ values ('Dorn Vale') $$,
+'a character reads their own memberships, not another character''s');
 
 select set_config('request.jwt.claim.sub', '10840000-0000-4000-8000-000000000004', true);
 select is_empty($$ select 1 from public.get_connections('npc', '10840000-0000-4000-8000-000000000030') $$,
   'another campaign''s DM reads none of Brenna''s connections');
 select throws_ok($$ select * from public.get_player_world_ties('10840000-0000-4000-8000-000000000010') $$,
   '42501', null, 'a stranger cannot read what a campaign''s players know');
+select throws_ok($$ select * from public.get_player_world_ties('10840000-0000-4000-8000-000000000011',
+  '10840000-0000-4000-8000-000000000020') $$,
+  '22023', null, 'a DM cannot preview a character from another campaign');
 select throws_ok($$ select * from public.get_player_connections('10840000-0000-4000-8000-000000000010', 'npc',
   '10840000-0000-4000-8000-000000000030') $$, '42501', null, 'nor one thing''s ties');
 select throws_ok($$

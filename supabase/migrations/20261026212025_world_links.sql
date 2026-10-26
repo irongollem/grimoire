@@ -333,6 +333,12 @@ create trigger world_links_normalize
   before insert or update on public.world_links
   for each row execute procedure private.world_links_normalize();
 
+-- Who wrote a link stays who wrote it: a co-DM cannot re-attribute one (and so have it vanish with someone's account).
+create trigger world_links_guard_content_author
+  before update on public.world_links
+  for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_content_author();
+
 create trigger zz_same_campaign_refs
   before insert or update of from_npc_id, from_party_member_id, from_faction_id, from_location_id, from_deity_id,
     from_item_id, to_npc_id, to_party_member_id, to_faction_id, to_location_id, to_deity_id, to_item_id, campaign_id

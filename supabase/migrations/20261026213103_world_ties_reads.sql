@@ -84,10 +84,12 @@ as $$
     select 'quest', q.id, 'quest_place', 'quest', q.id, 'location', q.location_id, null, null, null, null, q.status::text
       from public.quests q where q.campaign_id = p_campaign_id and q.location_id is not null
     union all
-    select 'quest', r.id, 'quest_ref', 'quest', q.id, r.ref_type, r.ref_id::uuid, null, null, null, null, q.status::text
+    select 'quest', r.id, 'quest_ref', 'quest', q.id, r.ref_type, case when r.ref_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then r.ref_id::uuid end, null, null, null, null, q.status::text
       from public.quest_refs r join public.quests q on q.id = r.quest_id
      where q.campaign_id = p_campaign_id and r.ref_type in ('npc', 'location', 'faction', 'item')
        and r.ref_id is distinct from q.giver_npc_id::text and r.ref_id is distinct from q.location_id::text
+       -- A shared-library ref holds a text slug, not a row of this campaign: it names nothing a tie can reach.
+       and r.ref_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
   ),
   names (kind, id, name, image) as (
     select 'npc', n.id, n.name, n.portrait_url from public.npcs n where n.campaign_id = p_campaign_id
@@ -123,12 +125,23 @@ grant execute on function public.get_world_ties(uuid) to authenticated, service_
 -- and, for a link, when the DM has revealed that link to them. Names come from the players' own projections, so a
 -- disguised NPC appears under the name the party knows. A link's DM note is never returned; its `told` line is.
 --
--- Records follow the rule each already has, restated with both ends visible: a membership shows unless its role is
--- covert (a secret member, an infiltrator, an unwitting pawn: knowing it is the secret); an NPC's home only where the
+-- Records follow the rule each already has, restated with both ends visible: an NPC's membership shows unless its role
+-- is covert (private.is_covert_role) or the NPC is still under a disguise, and a PC's only to that PC; an NPC's home only where the
 -- projection shares the NPC's location; a seat only where the factions projection shares it; a pack's contents only
 -- for a PC (an NPC's inventory is the DM's); a store's stock only where the place shares its inventory.
 --
 -- Internal: runs inside the definer wrappers below, which authorize and pick the character. No client role may call it.
+-- A covert role is one whose being known is the secret: a secret member, an infiltrator, an unwitting pawn. Roles are
+-- free text, so the comparison ignores case and surrounding space. Total: a null role is not covert.
+create function private.is_covert_role(p_role text)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(lower(btrim(p_role)) in ('secret member', 'infiltrator', 'unwitting pawn'), false);
+$$;
+
 create function private.player_world_ties(p_campaign_id uuid, p_member uuid, p_preview uuid)
 returns table (
   source text,
@@ -195,12 +208,18 @@ as $$
     union all
     select 'membership', m.id, 'member_of', 'npc', m.npc_id, 'faction', m.faction_id, null, m.role, m.status
       from public.faction_npcs m join seen_factions f on f.id = m.faction_id
-     where coalesce(m.role, '') not in ('Secret member', 'Infiltrator', 'Unwitting pawn')
+     where not private.is_covert_role(m.role)
+       -- A disguised NPC is seen under the cover; the true one's allegiances stay the DM's until the cover falls.
+       and not exists (select 1 from public.npcs n
+                        where n.id = m.npc_id and not n.is_revealed
+                          and (n.disguise_name is not null or n.disguise_portrait_url is not null))
     union all
     select 'membership', m.id, 'member_of', 'party_member', m.party_member_id, 'faction', m.faction_id, null, m.role,
            m.status
       from public.faction_party_members m join seen_factions f on f.id = m.faction_id
-     where coalesce(m.role, '') not in ('Secret member', 'Infiltrator', 'Unwitting pawn')
+     -- A character's own allegiances only: another PC's membership is theirs to tell, as the RLS on
+     -- faction_party_members has always had it.
+     where m.party_member_id = p_member
     union all
     select 'npc_home', n.id, 'lives_in', 'npc', n.id, 'location', n.location_id, null, null, null
       from seen_npcs n where n.location_id is not null
@@ -231,10 +250,12 @@ as $$
     select 'quest', q.id, 'quest_place', 'quest', q.id, 'location', q.location_id, null, null, q.status::text
       from public.quests q where q.campaign_id = p_campaign_id and q.location_id is not null
     union all
-    select 'quest', r.id, 'quest_ref', 'quest', q.id, r.ref_type, r.ref_id::uuid, null, null, q.status::text
+    select 'quest', r.id, 'quest_ref', 'quest', q.id, r.ref_type, case when r.ref_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then r.ref_id::uuid end, null, null, q.status::text
       from public.quest_refs r join public.quests q on q.id = r.quest_id
      where q.campaign_id = p_campaign_id and r.is_player_visible and r.ref_type in ('npc', 'location', 'faction', 'item')
        and r.ref_id is distinct from q.giver_npc_id::text and r.ref_id is distinct from q.location_id::text
+       -- A shared-library ref holds a text slug, not a row of this campaign: it names nothing a tie can reach.
+       and r.ref_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
   )
   -- Both ends must be seen; the joins are the rule.
   select t.source, t.row_id, t.type, t.from_kind, t.from_id, a.name, a.image, t.to_kind, t.to_id, b.name, b.image,
@@ -262,6 +283,12 @@ begin
     raise exception 'Not a member of this campaign' using errcode = '42501';
   end if;
   if v_dm then
+    -- A DM previews one of this campaign's characters, never a character from elsewhere.
+    if p_preview_member_id is not null and not exists (
+      select 1 from public.party_members pm where pm.id = p_preview_member_id and pm.campaign_id = p_campaign_id
+    ) then
+      raise exception 'Not a character of this campaign' using errcode = '22023';
+    end if;
     return p_preview_member_id;
   end if;
   return (select cm.party_member_id from public.campaign_members cm

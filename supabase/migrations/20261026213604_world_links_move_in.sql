@@ -14,34 +14,51 @@
 --                         so nothing claims more than the DM wrote. Locations and items were DM-only; a faction's
 --                         deity was readable by anyone who could see the faction or the deity, so it is revealed to
 --                         those characters (the player read still asks for both ends).
--- Two old rows can become one link (a symmetric bond written once each way): their notes are kept together.
+-- Two old rows can become one link (a symmetric bond written once each way): they are collapsed first, notes kept.
 -- The moved rows do not ring the campaign: they are not news to anyone. A row whose end no longer exists (only a
 -- restored local dump can hold one; the foreign keys forbid it) points at nothing and is left behind.
 
 alter table public.world_links disable trigger world_links_signal_insert;
 
 -- ── 1. Bonds between NPCs ─────────────────────────────────────────────────────
+-- Old rows are collapsed to one per link before the insert: a friendship written once each way, or "mentor" from one
+-- side and "apprentice" from the other, is one link, and one INSERT may not touch the same row twice. The ends are put
+-- in the order world_links_normalize gives a symmetric type (id as text, ascending; both ends are NPCs), so the
+-- trigger has nothing left to swap. Every distinct note is kept, earliest first.
+with mapped as (
+  select r.id, r.user_id, r.campaign_id, r.created_at, r.ai_provenance,
+         coalesce(btrim(r.notes), '') as note,
+         case r.relationship_type
+           when 'mentor' then 'mentor_of' when 'apprentice' then 'mentor_of'
+           when 'superior' then 'superior_of' when 'subordinate' then 'superior_of'
+           else r.relationship_type end as type,
+         case when r.relationship_type in ('mentor', 'superior') then r.related_npc_id else r.npc_id end as a,
+         case when r.relationship_type in ('mentor', 'superior') then r.npc_id else r.related_npc_id end as b
+    from public.npc_relationships r
+   where r.campaign_id is not null
+     and exists (select 1 from public.npcs x where x.id = r.npc_id)
+     and exists (select 1 from public.npcs x where x.id = r.related_npc_id)
+),
+keyed as (
+  select m.*,
+         case when m.type in ('mentor_of', 'superior_of') or m.a::text < m.b::text then m.a else m.b end as f,
+         case when m.type in ('mentor_of', 'superior_of') or m.a::text < m.b::text then m.b else m.a end as t
+    from mapped m
+),
+notes as (
+  select k.campaign_id, k.f, k.t, k.type, k.note, min(k.created_at) as first_at
+    from keyed k where k.note <> ''
+   group by k.campaign_id, k.f, k.t, k.type, k.note
+)
 insert into public.world_links (user_id, campaign_id, from_kind, from_npc_id, to_kind, to_npc_id, type, note,
                                 ai_provenance, created_at)
-select r.user_id, r.campaign_id, 'npc',
-       case when r.relationship_type in ('mentor', 'superior') then r.related_npc_id else r.npc_id end,
-       'npc',
-       case when r.relationship_type in ('mentor', 'superior') then r.npc_id else r.related_npc_id end,
-       case r.relationship_type
-         when 'mentor' then 'mentor_of' when 'apprentice' then 'mentor_of'
-         when 'superior' then 'superior_of' when 'subordinate' then 'superior_of'
-         else r.relationship_type end,
-       coalesce(btrim(r.notes), ''), r.ai_provenance, r.created_at
-  from public.npc_relationships r
- where r.campaign_id is not null
-   and exists (select 1 from public.npcs x where x.id = r.npc_id)
-   and exists (select 1 from public.npcs x where x.id = r.related_npc_id)
- order by r.created_at, r.id
-on conflict (from_id, to_id, type) do update
-  set note = case
-    when excluded.note = '' or position(excluded.note in world_links.note) > 0 then world_links.note
-    when world_links.note = '' then excluded.note
-    else world_links.note || ' / ' || excluded.note end;
+select (array_agg(k.user_id order by k.created_at, k.id))[1], k.campaign_id, 'npc', k.f, 'npc', k.t, k.type,
+       coalesce((select string_agg(n.note, ' / ' order by n.first_at, n.note) from notes n
+                  where n.campaign_id = k.campaign_id and n.f = k.f and n.t = k.t and n.type = k.type), ''),
+       (array_agg(k.ai_provenance order by k.created_at, k.id))[1],
+       min(k.created_at)
+  from keyed k
+ group by k.campaign_id, k.f, k.t, k.type;
 
 -- ── 2. An NPC's bond with a PC ────────────────────────────────────────────────
 -- The old type described the NPC to the PC ("your mentor"), as the player read it.
@@ -61,11 +78,8 @@ select n.user_id, n.campaign_id,
        btrim(n.notes), array[n.party_member_id], n.created_at
   from public.npc_pc_notes n
  where exists (select 1 from public.npcs x where x.id = n.npc_id)
-   and exists (select 1 from public.party_members x where x.id = n.party_member_id)
- order by n.created_at, n.id
-on conflict (from_id, to_id, type) do update
-  set told = case when world_links.told = '' then excluded.told else world_links.told end,
-      player_visible_to = (select array_agg(distinct v) from unnest(world_links.player_visible_to || excluded.player_visible_to) v);
+   and exists (select 1 from public.party_members x where x.id = n.party_member_id);
+-- npc_pc_notes held one row per NPC and PC (npc_pc_notes_npc_id_party_member_id_key), so no two rows meet here.
 
 -- ── 3. Faction stances ────────────────────────────────────────────────────────
 insert into public.world_links (user_id, campaign_id, from_kind, from_faction_id, to_kind, to_faction_id, type, note,
