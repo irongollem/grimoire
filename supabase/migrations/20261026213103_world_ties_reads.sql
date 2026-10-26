@@ -44,11 +44,12 @@ as $$
            coalesce(k.to_npc_id, k.to_party_member_id), nullif(k.note, ''), null, null, k.parent_role, null
       from public.kin_links k where k.campaign_id = p_campaign_id
     union all
-    select 'membership', m.id, 'member_of', 'npc', m.npc_id, 'faction', m.faction_id, null, null, null, m.role, m.status
+    select 'membership', m.id, 'member_of', 'npc', m.npc_id, 'faction', m.faction_id, null, null, m.player_visible_to,
+           m.role, m.status
       from public.faction_npcs m join public.factions f on f.id = m.faction_id where f.campaign_id = p_campaign_id
     union all
-    select 'membership', m.id, 'member_of', 'party_member', m.party_member_id, 'faction', m.faction_id, null, null, null,
-           m.role, m.status
+    select 'membership', m.id, 'member_of', 'party_member', m.party_member_id, 'faction', m.faction_id, null, null,
+           m.player_visible_to, m.role, m.status
       from public.faction_party_members m join public.factions f on f.id = m.faction_id
      where f.campaign_id = p_campaign_id
     union all
@@ -125,22 +126,25 @@ grant execute on function public.get_world_ties(uuid) to authenticated, service_
 -- and, for a link, when the DM has revealed that link to them. Names come from the players' own projections, so a
 -- disguised NPC appears under the name the party knows. A link's DM note is never returned; its `told` line is.
 --
--- Records follow the rule each already has, restated with both ends visible: an NPC's membership shows unless its role
--- is covert (private.is_covert_role) or the NPC is still under a disguise, and a PC's only to that PC; an NPC's home only where the
+-- Records follow the rule each already has, restated with both ends visible: a membership once the DM has revealed it
+-- to the character (its own player_visible_to), or to anyone in that faction, who has always read its roster, and never
+-- a disguised NPC's while the cover holds; a PC's own membership to that PC; an NPC's home only where the
 -- projection shares the NPC's location; a seat only where the factions projection shares it; a pack's contents only
 -- for a PC (an NPC's inventory is the DM's); a store's stock only where the place shares its inventory.
 --
 -- Internal: runs inside the definer wrappers below, which authorize and pick the character. No client role may call it.
--- A covert role is one whose being known is the secret: a secret member, an infiltrator, an unwitting pawn. Roles are
--- free text, so the comparison ignores case and surrounding space. Total: a null role is not covert.
-create function private.is_covert_role(p_role text)
+-- Whether a character is in a faction: the members have always read its roster. Total: false for no character.
+create function private.in_faction(p_faction_id uuid, p_member uuid)
 returns boolean
 language sql
-immutable
+stable
 set search_path = ''
 as $$
-  select coalesce(lower(btrim(p_role)) in ('secret member', 'infiltrator', 'unwitting pawn'), false);
+  select coalesce(p_member is not null and exists (
+    select 1 from public.faction_party_members o where o.faction_id = p_faction_id and o.party_member_id = p_member
+  ), false);
 $$;
+revoke execute on function private.in_faction(uuid, uuid) from public, anon, authenticated;
 
 create function private.player_world_ties(p_campaign_id uuid, p_member uuid, p_preview uuid)
 returns table (
@@ -208,7 +212,7 @@ as $$
     union all
     select 'membership', m.id, 'member_of', 'npc', m.npc_id, 'faction', m.faction_id, null, m.role, m.status
       from public.faction_npcs m join seen_factions f on f.id = m.faction_id
-     where not private.is_covert_role(m.role)
+     where (p_member = any (m.player_visible_to) or private.in_faction(m.faction_id, p_member))
        -- A disguised NPC is seen under the cover; the true one's allegiances stay the DM's until the cover falls.
        and not exists (select 1 from public.npcs n
                         where n.id = m.npc_id and not n.is_revealed
@@ -217,9 +221,8 @@ as $$
     select 'membership', m.id, 'member_of', 'party_member', m.party_member_id, 'faction', m.faction_id, null, m.role,
            m.status
       from public.faction_party_members m join seen_factions f on f.id = m.faction_id
-     -- A character's own allegiances only: another PC's membership is theirs to tell, as the RLS on
-     -- faction_party_members has always had it.
-     where m.party_member_id = p_member
+     where m.party_member_id = p_member or p_member = any (m.player_visible_to)
+        or private.in_faction(m.faction_id, p_member)
     union all
     select 'npc_home', n.id, 'lives_in', 'npc', n.id, 'location', n.location_id, null, null, null
       from seen_npcs n where n.location_id is not null

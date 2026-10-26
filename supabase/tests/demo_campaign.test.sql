@@ -15,7 +15,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(72);
+select plan(73);
 
 -- ── Structure ───────────────────────────────────────────────────────────────
 
@@ -222,6 +222,10 @@ insert into public.factions (id, user_id, campaign_id, name) values
    '91200000-0000-4000-8000-000000000010', 'The Crew');
 insert into public.faction_npcs (user_id, faction_id, npc_id) values
   ('91200000-0000-4000-8000-000000000001', '91200000-0000-4000-8000-000000000060', '91200000-0000-4000-8000-000000000030');
+-- A world link (#1084): its generated end columns once made every copy fail (20261026232619).
+insert into public.world_links (user_id, campaign_id, from_kind, from_faction_id, to_kind, to_location_id, type) values
+  ('91200000-0000-4000-8000-000000000001', '91200000-0000-4000-8000-000000000010', 'faction',
+   '91200000-0000-4000-8000-000000000060', 'location', '91200000-0000-4000-8000-000000000020', 'controls');
 
 insert into public.soundboard_pages (id, user_id, campaign_id, name) values
   ('91200000-0000-4000-8000-000000000070', '91200000-0000-4000-8000-000000000001',
@@ -401,6 +405,14 @@ set local role authenticated;
 set local request.jwt.claims to '{"sub":"91200000-0000-4000-8000-000000000002","role":"authenticated"}';
 
 select lives_ok($$ select public.load_demo_campaign() $$, 'a Free newcomer loads the demo');
+
+select is(
+  (select count(*)::int from public.world_links l join public.campaigns c on c.id = l.campaign_id
+    where c.user_id = '91200000-0000-4000-8000-000000000002' and l.type = 'controls'
+      and l.from_faction_id <> '91200000-0000-4000-8000-000000000060'),
+  1,
+  'the demo''s world links come along, pointing at the copies'
+);
 
 select is(
   (select count(*)::int from public.campaigns where user_id = '91200000-0000-4000-8000-000000000002' and demo_source is not null),

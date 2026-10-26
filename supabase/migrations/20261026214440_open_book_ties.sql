@@ -283,8 +283,8 @@ begin
 
   -- World Web (#1084): the ties between two entries that are both in the book, as cross-references. The book
   -- never runs ahead of the table: a link only once the whole party knows it, a record by the rule the player
-  -- projection already applies (a covert membership, or one of a disguised NPC, stays the DM's; a home only where the
-  -- NPC's location is shared).
+  -- projection already applies (a membership once the whole party knows it, never a disguised NPC's; a home only where
+  -- the NPC's location is shared).
   -- A tie to anything not in this release is left out, so a reader can follow every one to its page.
   select coalesce(array_agg(distinct x.id), '{}'::uuid[]) into v_entry_ids
     from (
@@ -314,7 +314,7 @@ begin
       select 'membership', 'member_of', 'npc', m.npc_id, 'faction', m.faction_id, null
         from public.faction_npcs m join public.factions f on f.id = m.faction_id
        where f.campaign_id = p_campaign_id
-         and not private.is_covert_role(m.role)
+         and private.open_book_whole_party(m.player_visible_to, v_party)
          and m.npc_id <> all (v_concealed)
       union all
       select 'npc_home', 'lives_in', 'npc', n.id, 'location', n.location_id, null

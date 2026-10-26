@@ -375,12 +375,26 @@ create trigger world_links_signal_delete after delete on public.world_links
 
 insert into private.demo_campaign_tables (table_name, tier, copy, reason) values ('world_links', 1, true, null);
 
+-- ── 2b. A membership has its own reveal ──────────────────────────────────────
+-- Knowing a faction is not knowing who is in it, though over a campaign the party learns that too. So a membership
+-- carries the party reveal links and every entity carry, and the players' reads honour it (20261026213103). It starts
+-- revealed to exactly the characters who can read it today: the ones in that faction, whose own membership has always
+-- let them read its roster (faction_npcs_select, faction_party_members_select).
+alter table public.faction_npcs add column player_visible_to uuid[] not null default '{}';
+alter table public.faction_party_members add column player_visible_to uuid[] not null default '{}';
+update public.faction_npcs m
+   set player_visible_to = coalesce((select array_agg(o.party_member_id) from public.faction_party_members o
+                                      where o.faction_id = m.faction_id), '{}');
+update public.faction_party_members m
+   set player_visible_to = coalesce((select array_agg(o.party_member_id) from public.faction_party_members o
+                                      where o.faction_id = m.faction_id), '{}');
+
 -- ── 3. One read for a sheet: links and records together ───────────────────────
 -- Every tie of one thing, from its own side: `outward` is true when the thing is the tie's `from` end, so the client
 -- reads `forward` or `reverse` from the catalogue. Invoker, so each table's own RLS decides what comes back; a row
 -- whose far end the caller cannot read is dropped rather than shown nameless. Players read their own projection.
--- `p_campaign_id` narrows ties that carry a campaign (links, inventories) for a thing that lives outside any one
--- campaign, a vault item.
+-- `p_campaign_id` narrows ties that carry a campaign (links, inventories, residents, shelves, quests) for a thing
+-- that lives outside any one campaign: a vault item or a general place is shown with this campaign's ties only.
 create function public.get_connections(p_kind text, p_id uuid, p_campaign_id uuid default null)
 returns table (
   source text,
@@ -415,24 +429,27 @@ as $$
       from public.world_links l where l.to_kind = p_kind and l.to_id = p_id
     -- Membership.
     union all
-    select 'membership', m.id, 'member_of', true, 'faction', m.faction_id, null, null, null, m.role, m.status, null, null
+    select 'membership', m.id, 'member_of', true, 'faction', m.faction_id, null, null, m.player_visible_to, m.role,
+           m.status, null, null
       from public.faction_npcs m where p_kind = 'npc' and m.npc_id = p_id
     union all
-    select 'membership', m.id, 'member_of', true, 'faction', m.faction_id, null, null, null, m.role, m.status, null, null
+    select 'membership', m.id, 'member_of', true, 'faction', m.faction_id, null, null, m.player_visible_to, m.role,
+           m.status, null, null
       from public.faction_party_members m where p_kind = 'party_member' and m.party_member_id = p_id
     union all
-    select 'membership', m.id, 'member_of', false, 'npc', m.npc_id, null, null, null, m.role, m.status, null, null
+    select 'membership', m.id, 'member_of', false, 'npc', m.npc_id, null, null, m.player_visible_to, m.role, m.status,
+           null, null
       from public.faction_npcs m where p_kind = 'faction' and m.faction_id = p_id
     union all
-    select 'membership', m.id, 'member_of', false, 'party_member', m.party_member_id, null, null, null, m.role,
-           m.status, null, null
+    select 'membership', m.id, 'member_of', false, 'party_member', m.party_member_id, null, null, m.player_visible_to,
+           m.role, m.status, null, null
       from public.faction_party_members m where p_kind = 'faction' and m.faction_id = p_id
     -- An NPC's home.
     union all
     select 'npc_home', n.id, 'lives_in', true, 'location', n.location_id, null, null, null, null, null, null, null
       from public.npcs n where p_kind = 'npc' and n.id = p_id and n.location_id is not null
     union all
-    select 'npc_home', n.id, 'lives_in', false, 'npc', n.id, null, null, null, null, null, null, null
+    select 'npc_home', n.id, 'lives_in', false, 'npc', n.id, null, null, null, null, null, null, n.campaign_id
       from public.npcs n where p_kind = 'location' and n.location_id = p_id
     -- A PC's place.
     union all
@@ -441,7 +458,8 @@ as $$
       from public.party_members pm
      where p_kind = 'party_member' and pm.id = p_id and pm.current_location_id is not null
     union all
-    select 'pc_place', pm.id, 'is_at', false, 'party_member', pm.id, null, null, null, null, null, null, null
+    select 'pc_place', pm.id, 'is_at', false, 'party_member', pm.id, null, null, null, null, null, null,
+           pm.campaign_id
       from public.party_members pm where p_kind = 'location' and pm.current_location_id = p_id
     -- A venue's keeper.
     union all
@@ -482,20 +500,25 @@ as $$
       from public.party_inventory i where p_kind = 'item' and i.item_id = p_id and i.carried_by is not null
     -- What a store sells.
     union all
-    select 'store', s.id, 'sold_at', true, 'location', s.location_id, null, null, null, null, null, null, null
+    select 'store', s.id, 'sold_at', true, 'location', s.location_id, null, null, null, null, null, null,
+           (select lo.campaign_id from public.locations lo where lo.id = s.location_id)
       from public.store_items s where p_kind = 'item' and s.item_id = p_id
     union all
-    select 'store', s.id, 'sold_at', false, 'item', s.item_id, null, null, null, null, null, null, null
+    select 'store', s.id, 'sold_at', false, 'item', s.item_id, null, null, null, null, null, null,
+           (select lo.campaign_id from public.locations lo where lo.id = s.location_id)
       from public.store_items s where p_kind = 'location' and s.location_id = p_id and s.item_id is not null
     -- A quest's own records, read from the thing's side (the quest is always the `from`).
     union all
-    select 'quest', q.id, 'quest_giver', false, 'quest', q.id, null, null, null, null, q.status::text, null, null
+    select 'quest', q.id, 'quest_giver', false, 'quest', q.id, null, null, null, null, q.status::text, null,
+           q.campaign_id
       from public.quests q where p_kind = 'npc' and q.giver_npc_id = p_id
     union all
-    select 'quest', q.id, 'quest_place', false, 'quest', q.id, null, null, null, null, q.status::text, null, null
+    select 'quest', q.id, 'quest_place', false, 'quest', q.id, null, null, null, null, q.status::text, null,
+           q.campaign_id
       from public.quests q where p_kind = 'location' and q.location_id = p_id
     union all
-    select 'quest', r.id, 'quest_ref', false, 'quest', r.quest_id, null, null, null, null, q.status::text, null, null
+    select 'quest', r.id, 'quest_ref', false, 'quest', r.quest_id, null, null, null, null, q.status::text, null,
+           q.campaign_id
       from public.quest_refs r
       join public.quests q on q.id = r.quest_id
      where r.ref_type = p_kind and r.ref_id = p_id::text

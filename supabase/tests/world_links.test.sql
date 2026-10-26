@@ -49,21 +49,24 @@ insert into public.factions (id, user_id, campaign_id, name, player_visible_to) 
   ('10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000010', 'House Thane',
    array['10840000-0000-4000-8000-000000000020']::uuid[]),
   ('10840000-0000-4000-8000-000000000041', '10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000010', 'Toll-men', '{}');
--- Brenna is House Thane's heir, openly; Sister Ama is its secret member (typed loosely, as free text is), which is the
--- secret; the Grey Pilgrim is Corwin in disguise, and Corwin's place in the house is his own secret while the cover holds.
+-- A membership has its own reveal. Dorn has been told Brenna is House Thane's heir; not that Sister Ama is its secret
+-- member; and though told of Corwin's place in the house, Corwin is the Grey Pilgrim in disguise, so it stays hidden
+-- while the cover holds.
 insert into public.npcs (id, user_id, campaign_id, name, disguise_name, player_visible_to, player_visible_fields) values
   ('10840000-0000-4000-8000-000000000033', '10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000010', 'Corwin Ashe',
    'The Grey Pilgrim', array['10840000-0000-4000-8000-000000000020']::uuid[], array['name']);
-insert into public.faction_npcs (user_id, faction_id, npc_id, role) values
-  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000030', 'Heir'),
-  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000032', ' SECRET member'),
-  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000033', 'Married in');
--- Mira, another character, is sworn to House Thane; that is hers to tell, not Dorn's to read.
+insert into public.faction_npcs (user_id, faction_id, npc_id, role, player_visible_to) values
+  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000030', 'Heir',
+   array['10840000-0000-4000-8000-000000000020']::uuid[]),
+  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000032', 'Secret member', '{}'),
+  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000033', 'Married in',
+   array['10840000-0000-4000-8000-000000000020']::uuid[]);
+-- Mira, another character, is sworn to House Thane, which nobody has told Dorn; Dorn himself runs with the Toll-men.
 insert into public.party_members (id, user_id, campaign_id, name, ruleset) values
   ('10840000-0000-4000-8000-000000000021', '10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000010', 'Mira', '2014');
 insert into public.faction_party_members (user_id, faction_id, party_member_id, role) values
   ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000021', 'Member'),
-  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000040', '10840000-0000-4000-8000-000000000020', 'Ally');
+  ('10840000-0000-4000-8000-000000000001', '10840000-0000-4000-8000-000000000041', '10840000-0000-4000-8000-000000000020', 'Ally');
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -172,13 +175,13 @@ $$, 'a player never reads the DM''s note');
 
 select is_empty($$
   select 1 from public.get_player_world_ties('10840000-0000-4000-8000-000000000010')
-   where from_name = 'Harl' or to_name = 'Harl' or from_name = 'Toll-men' or to_name = 'Toll-men'
+   where from_name = 'Harl' or to_name = 'Harl'
 $$, 'nothing about someone Dorn does not know, not even that a tie exists');
 
 select is_empty($$
   select 1 from public.get_player_world_ties('10840000-0000-4000-8000-000000000010')
    where from_name = 'Sister Ama' and source = 'membership'
-$$, 'a covert membership stays the DM''s though both ends are known, however its role is typed');
+$$, 'a membership the DM has not revealed stays theirs, though both ends are known');
 
 select is_empty($$
   select 1 from public.get_player_world_ties('10840000-0000-4000-8000-000000000010')

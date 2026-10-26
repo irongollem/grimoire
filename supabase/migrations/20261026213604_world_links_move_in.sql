@@ -748,15 +748,16 @@ begin
      and npc_id is not null
      and v_npcs ? npc_id::text;
 
-  -- World Web (#1084): a tie's ends follow the copies, either end, and so do kin links.
-  update public.world_links set from_npc_id = (v_npcs->>from_npc_id::text)::uuid
-   where campaign_id = p_campaign_id and v_npcs ? from_npc_id::text;
-  update public.world_links set to_npc_id = (v_npcs->>to_npc_id::text)::uuid
-   where campaign_id = p_campaign_id and v_npcs ? to_npc_id::text;
-  update public.kin_links set from_npc_id = (v_npcs->>from_npc_id::text)::uuid
-   where campaign_id = p_campaign_id and v_npcs ? from_npc_id::text;
-  update public.kin_links set to_npc_id = (v_npcs->>to_npc_id::text)::uuid
-   where campaign_id = p_campaign_id and v_npcs ? to_npc_id::text;
+  -- World Web (#1084): a tie's ends follow the copies, either end, and so do kin links. Both ends move in one
+  -- statement: world_links_normalize may reorder a symmetric link's ends, so a second statement could miss the other.
+  update public.world_links
+     set from_npc_id = coalesce((v_npcs->>from_npc_id::text)::uuid, from_npc_id),
+         to_npc_id = coalesce((v_npcs->>to_npc_id::text)::uuid, to_npc_id)
+   where campaign_id = p_campaign_id and (v_npcs ? from_npc_id::text or v_npcs ? to_npc_id::text);
+  update public.kin_links
+     set from_npc_id = coalesce((v_npcs->>from_npc_id::text)::uuid, from_npc_id),
+         to_npc_id = coalesce((v_npcs->>to_npc_id::text)::uuid, to_npc_id)
+   where campaign_id = p_campaign_id and (v_npcs ? from_npc_id::text or v_npcs ? to_npc_id::text);
 
   update public.npcs
      set location_id = (v_locations->>location_id::text)::uuid
@@ -812,15 +813,15 @@ begin
      and co.item_id is not null
      and v_items ? co.item_id::text;
 
-  update public.world_links set from_item_id = (v_items->>from_item_id::text)::uuid
-   where campaign_id = p_campaign_id and v_items ? from_item_id::text;
-  update public.world_links set to_item_id = (v_items->>to_item_id::text)::uuid
-   where campaign_id = p_campaign_id and v_items ? to_item_id::text;
+  update public.world_links
+     set from_item_id = coalesce((v_items->>from_item_id::text)::uuid, from_item_id),
+         to_item_id = coalesce((v_items->>to_item_id::text)::uuid, to_item_id)
+   where campaign_id = p_campaign_id and (v_items ? from_item_id::text or v_items ? to_item_id::text);
 
-  update public.world_links set from_location_id = (v_locations->>from_location_id::text)::uuid
-   where campaign_id = p_campaign_id and v_locations ? from_location_id::text;
-  update public.world_links set to_location_id = (v_locations->>to_location_id::text)::uuid
-   where campaign_id = p_campaign_id and v_locations ? to_location_id::text;
+  update public.world_links
+     set from_location_id = coalesce((v_locations->>from_location_id::text)::uuid, from_location_id),
+         to_location_id = coalesce((v_locations->>to_location_id::text)::uuid, to_location_id)
+   where campaign_id = p_campaign_id and (v_locations ? from_location_id::text or v_locations ? to_location_id::text);
 
   update public.faction_npcs fn
      set npc_id = (v_npcs->>fn.npc_id::text)::uuid
@@ -829,10 +830,10 @@ begin
      and f.campaign_id = p_campaign_id
      and v_npcs ? fn.npc_id::text;
 
-  update public.world_links set from_faction_id = (v_factions->>from_faction_id::text)::uuid
-   where campaign_id = p_campaign_id and v_factions ? from_faction_id::text;
-  update public.world_links set to_faction_id = (v_factions->>to_faction_id::text)::uuid
-   where campaign_id = p_campaign_id and v_factions ? to_faction_id::text;
+  update public.world_links
+     set from_faction_id = coalesce((v_factions->>from_faction_id::text)::uuid, from_faction_id),
+         to_faction_id = coalesce((v_factions->>to_faction_id::text)::uuid, to_faction_id)
+   where campaign_id = p_campaign_id and (v_factions ? from_faction_id::text or v_factions ? to_faction_id::text);
 
   update public.store_items si
      set item_id = (v_items->>si.item_id::text)::uuid
