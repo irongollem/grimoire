@@ -222,7 +222,9 @@
         </dd>
       </div>
     </dl>
-    <p v-if="sensesText" class="basis-full text-caption text-muted-foreground">
+    <!-- Below everything on a narrow header; beside the stat boxes once the row stops
+         wrapping, where a full basis would squeeze the name column to nothing. -->
+    <p v-if="sensesText" class="basis-full text-caption text-muted-foreground @3xl:basis-auto @3xl:max-w-48 @3xl:pt-1">
       <span class="font-semibold">Senses:</span> {{ sensesText }}
     </p>
   </div>
