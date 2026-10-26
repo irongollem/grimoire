@@ -6,50 +6,33 @@
     of" are two choices a person can see, not a direction to work out.
   -->
   <div class="flex min-w-0 flex-col gap-2">
-    <div class="flex flex-wrap gap-1.5" role="group" :aria-label="label">
+    <AppInput v-if="showRest" v-model="query" type="search" block size="body" placeholder="Search types…" aria-label="Search types" />
+    <div class="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto" role="group" :aria-label="label">
       <AppButton
-        v-for="choice in common"
+        v-for="choice in shown"
         :key="choiceKey(choice)"
         variant="chip"
         size="md"
         :active="isCurrent(choice)"
         :disabled="busy"
+        :data-choice="choiceKey(choice)"
         @click="emit('pick', choice)"
       >
         <span class="inline-block h-2 w-2 rounded-full" :style="{ backgroundColor: familyVar(choice) }" aria-hidden="true" />
         {{ choice.word }}
       </AppButton>
+      <p v-if="!shown.length" class="text-caption italic text-muted-foreground">No type matches "{{ query }}".</p>
     </div>
-
-    <template v-if="rest.length">
-      <AppButton
-        v-if="common.length"
-        variant="link"
-        size="inline-caption"
-        :icon-right="open ? IconChevronUp : IconChevronDown"
-        :label="open ? 'Fewer types' : `More… (${rest.length})`"
-        class="self-start"
-        @click="open = !open"
-      />
-      <div v-if="showRest" class="flex flex-col gap-2">
-        <AppInput v-model="query" type="search" block size="body" placeholder="Search types…" aria-label="Search types" />
-        <div class="flex max-h-48 flex-wrap gap-1.5 overflow-y-auto">
-          <AppButton
-            v-for="choice in shownRest"
-            :key="choiceKey(choice)"
-            variant="chip"
-            size="md"
-            :active="isCurrent(choice)"
-            :disabled="busy"
-            @click="emit('pick', choice)"
-          >
-            <span class="inline-block h-2 w-2 rounded-full" :style="{ backgroundColor: familyVar(choice) }" aria-hidden="true" />
-            {{ choice.word }}
-          </AppButton>
-          <p v-if="!shownRest.length" class="text-caption italic text-muted-foreground">No type matches "{{ query }}".</p>
-        </div>
-      </div>
-    </template>
+    <AppButton
+      v-if="rest.length && common.length"
+      variant="link"
+      size="inline-caption"
+      :icon-right="open ? IconChevronUp : IconChevronDown"
+      :label="open ? 'Fewer types' : `More… (${rest.length})`"
+      class="self-start"
+      data-testid="more-types"
+      @click="open = !open"
+    />
   </div>
 </template>
 
@@ -78,9 +61,11 @@ const query = ref("");
 
 const common = computed(() => choices.filter((c) => c.common));
 const rest = computed(() => choices.filter((c) => !c.common));
-const shownRest = computed(() => {
+/** One list of chips: the common ones, then the rest once opened, narrowed by the search. */
+const shown = computed(() => {
+  const list = showRest.value ? [...common.value, ...rest.value] : common.value;
   const q = query.value.trim().toLowerCase();
-  return q ? rest.value.filter((c) => c.word.toLowerCase().includes(q)) : rest.value;
+  return q ? list.filter((c) => c.word.toLowerCase().includes(q)) : list;
 });
 
 function choiceKey(choice: TypeChoice): string {

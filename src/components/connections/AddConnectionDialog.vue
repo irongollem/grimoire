@@ -23,30 +23,9 @@
         <div v-else class="flex flex-col gap-3">
           <div>
             <span class="field-label">How is {{ subjectName }} tied to {{ other.name }}?</span>
-            <div class="flex flex-wrap gap-1" role="group" aria-label="Type">
-              <AppButton
-                v-for="c in visibleChoices"
-                :key="choiceKey(c)"
-                size="sm"
-                :active="choice !== null && choiceKey(choice) === choiceKey(c)"
-                :label="c.word"
-                :data-choice="choiceKey(c)"
-                @click="choice = c"
-              />
-              <AppButton v-if="!showMore && split.more.length > 0" size="sm" label="more…" data-testid="more-types" @click="showMore = true" />
-            </div>
-            <AppInput
-              v-if="showMore"
-              v-model="typeFilter"
-              type="search"
-              size="caption"
-              block
-              class="mt-2"
-              placeholder="Find a type…"
-              aria-label="Find a type"
-            />
+            <TypeChoiceChips :key="other.id" :choices="choices" :current="choice" label="Type" @pick="choice = $event" />
             <p v-if="choices.length === 0" class="text-caption italic text-muted-foreground">
-              Nothing ties a {{ KIND_NOUN[subject.kind] }} to a {{ KIND_NOUN[other.kind] }} yet.
+              Nothing ties a {{ kindNoun(subject.kind).toLowerCase() }} to a {{ kindNoun(other.kind).toLowerCase() }} yet.
             </p>
             <p v-if="alreadyWords.length > 0" class="mt-1 text-caption italic text-muted-foreground" data-testid="already">
               Already: {{ alreadyWords.join(", ") }}. A second type is a second link.
@@ -163,6 +142,7 @@ import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import WorldEntityPicker from "@/components/common/entity/WorldEntityPicker.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
+import TypeChoiceChips from "@/components/connections/TypeChoiceChips.vue";
 import AddConnectionKinNote from "@/components/connections/AddConnectionKinNote.vue";
 import AddRelativeDialog from "@/components/kinship/AddRelativeDialog.vue";
 import {
@@ -170,11 +150,11 @@ import {
   kinRelationFor,
   offeredRoles,
   oppositeWord,
-  splitChoices,
 } from "@/components/connections/connectionRows";
 import { useCreateConnection, type NamedRef } from "@/composables/connections/useConnections";
 import { useFactionHeaded } from "@/composables/factions/useFactions";
 import { useToast } from "@/composables/useToast";
+import { kindNoun } from "@/lib/worldWeb/kinds";
 import { IconNetwork } from "@/lib/icons";
 import { personKey } from "@/lib/kinship/keys";
 import { connectionWord, typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
@@ -190,14 +170,6 @@ const { open, subject, subjectName, connections } = defineProps<{
 }>();
 const emit = defineEmits<{ close: [] }>();
 
-const KIND_NOUN: Record<WorldRef["kind"], string> = {
-  npc: "person",
-  party_member: "character",
-  faction: "faction",
-  location: "place",
-  deity: "deity",
-  item: "item",
-};
 const COMMON_ROLES: readonly string[] = ["Leader", "Officer", "Member", "Initiate", "Patron"];
 
 const toast = useToast();
@@ -207,8 +179,6 @@ const toldId = useId();
 
 const other = ref<NamedRef | null>(null);
 const choice = ref<TypeChoice | null>(null);
-const showMore = ref(false);
-const typeFilter = ref("");
 const note = ref("");
 const told = ref("");
 const visibleTo = ref<string[]>([]);
@@ -219,8 +189,6 @@ const relation = ref<KinRelation>("relative");
 function reset() {
   other.value = null;
   choice.value = null;
-  showMore.value = false;
-  typeFilter.value = "";
   note.value = "";
   told.value = "";
   visibleTo.value = [];
@@ -231,20 +199,9 @@ watch(() => open, (now) => { if (now) reset(); });
 function onPick(picked: NamedRef) {
   other.value = picked;
   choice.value = null;
-  showMore.value = false;
-  typeFilter.value = "";
 }
 
 const choices = computed(() => (other.value ? typeChoices(subject.kind, other.value.kind) : []));
-const split = computed(() => splitChoices(choices.value));
-const visibleChoices = computed(() => {
-  const q = typeFilter.value.trim().toLowerCase();
-  const list = showMore.value ? choices.value : split.value.common;
-  return q ? list.filter((c) => c.word.toLowerCase().includes(q)) : list;
-});
-function choiceKey(c: TypeChoice): string {
-  return `${c.key}:${c.subjectIsFrom}:${c.home ?? "link"}`;
-}
 
 const isPersonPair = computed(
   () => (subject.kind === "npc" || subject.kind === "party_member") && (other.value?.kind === "npc" || other.value?.kind === "party_member"),
@@ -262,7 +219,7 @@ const opposite = computed(() => (other.value && choice.value ? oppositeWord(subj
 
 // ── A membership's role ────────────────────────────────────────────────────────
 const factionId = computed(() => {
-  if (choice.value?.home !== "membership" || !other.value) return "";
+  if (choice.value?.home !== "membership" || !other.value) return null;
   return subject.kind === "faction" ? subject.id : other.value.id;
 });
 const headed = useFactionHeaded(factionId);

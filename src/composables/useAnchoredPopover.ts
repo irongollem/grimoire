@@ -11,7 +11,7 @@ import { computeAnchoredPosition } from "@/lib/floatingPosition";
  * and Escape.
  */
 export function useAnchoredPopover(
-  // `Element`, not `HTMLElement`: the relationship web anchors to an SVG node
+  // `Element`, not `HTMLElement`: the world web anchors to an SVG node
   // inside the graph, and everything used here — getBoundingClientRect,
   // contains — is on Element. Widening a parameter breaks no existing caller.
   triggerRef: Ref<Element | null>,

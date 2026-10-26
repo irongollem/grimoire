@@ -5,20 +5,11 @@
  * the row and the tests agree on all of it.
  */
 import type { ConnectionKind, LinkKind } from "@edge-shared/worldLinkCatalogue.ts";
-import { CONNECTION_GROUP_ORDER, groupFor, typeChoices, type ConnectionGroup, type TypeChoice } from "@/lib/worldLinks/connections";
-import { placeRoute } from "@/lib/locations/placeRoute";
+import { CONNECTION_GROUP_TITLES, groupByKind, peopleOf, typeChoices, type ConnectionGroup, type TypeChoice } from "@/lib/worldLinks/connections";
+import { dmSheetPath } from "@/lib/worldWeb/kinds";
 import { HEAD_ROLES, NPC_FACTION_ROLES } from "@/types/faction.types";
 import type { KinRelation } from "@/types/kinship.types";
 import type { Connection, ConnectionSource, WorldRef } from "@/types/connections.types";
-
-export const GROUP_TITLE: Record<ConnectionGroup, string> = {
-  people: "People",
-  factions: "Factions",
-  places: "Places",
-  deities: "Deities",
-  items: "Items",
-  quests: "Quests",
-};
 
 /** The dashed word beside a record's type: where the tie is kept. */
 export const HOME_LABEL: Record<Exclude<ConnectionSource, "link">, string> = {
@@ -84,62 +75,29 @@ function rowKey(c: Connection): string {
  * faction's roster ("Members"). Returns the summary and the rows it replaced.
  */
 function collapsed(subject: WorldRef, rows: Connection[]): { summary: BlockEntry; folded: Set<Connection> } | null {
+  if (subject.kind !== "location" && subject.kind !== "faction") return null;
+  const people = peopleOf(subject.kind, rows);
+  if (people.length <= COLLAPSE_AT) return null;
   if (subject.kind === "location") {
-    const homes = rows.filter((c) => c.source === "npc_home");
-    if (homes.length <= COLLAPSE_AT) return null;
     return {
-      summary: { kind: "summary", key: "summary:residents", text: `${homes.length} people live here`, points: "People in the Area", home: HOME_LABEL.npc_home },
-      folded: new Set(homes),
+      summary: { kind: "summary", key: "summary:residents", text: `${people.length} people live here`, points: "People in the Area", home: HOME_LABEL.npc_home },
+      folded: new Set(people),
     };
   }
-  if (subject.kind === "faction") {
-    const members = rows.filter((c) => c.source === "membership");
-    if (members.length <= COLLAPSE_AT) return null;
-    const party = members.filter((c) => c.other_kind === "party_member").length;
-    const text = party > 0 ? `${members.length} members, ${party} of the party` : `${members.length} members`;
-    return { summary: { kind: "summary", key: "summary:members", text, points: "Members", home: HOME_LABEL.membership }, folded: new Set(members) };
-  }
-  return null;
+  const party = people.filter((c) => c.other_kind === "party_member").length;
+  const text = party > 0 ? `${people.length} members, ${party} of the party` : `${people.length} members`;
+  return { summary: { kind: "summary", key: "summary:members", text, points: "Members", home: HOME_LABEL.membership }, folded: new Set(people) };
 }
 
 /** Rows grouped by the other end's kind, in the order every sheet uses; an empty group is absent. */
 export function groupConnections(subject: WorldRef, connections: readonly Connection[]): BlockGroup[] {
-  const byGroup = new Map<ConnectionGroup, Connection[]>();
-  for (const c of connections) {
-    const g = groupFor(c.other_kind);
-    byGroup.set(g, [...(byGroup.get(g) ?? []), c]);
-  }
-  const out: BlockGroup[] = [];
-  for (const group of CONNECTION_GROUP_ORDER) {
-    const rows = byGroup.get(group);
-    if (!rows?.length) continue;
+  return groupByKind(connections, (c) => c.other_kind).map(({ group, items: rows }) => {
     const fold = collapsed(subject, rows);
     const entries: BlockEntry[] = [];
     if (fold) entries.push(fold.summary);
     for (const c of rows) if (!fold?.folded.has(c)) entries.push({ kind: "row", key: rowKey(c), connection: c });
-    out.push({ group, title: GROUP_TITLE[group], entries });
-  }
-  return out;
-}
-
-/** Where a name goes. An NPC opens in place (the caller checks `kind`), so it has no route here. */
-export function connectionRoute(kind: ConnectionKind, id: string): string | null {
-  switch (kind) {
-    case "npc":
-      return null;
-    case "party_member":
-      return `/party/${id}`;
-    case "faction":
-      return `/factions/${id}`;
-    case "location":
-      return placeRoute(id);
-    case "deity":
-      return `/deities/${id}`;
-    case "item":
-      return `/vault/${id}`;
-    case "quest":
-      return `/quests/${id}`;
-  }
+    return { group, title: CONNECTION_GROUP_TITLES[group], entries };
+  });
 }
 
 /**
@@ -152,7 +110,7 @@ export function homeRoute(c: Connection, subject: WorldRef): string | null {
   const owner: ConnectionKind = ownerKind(c, subject.kind);
   if (owner === subject.kind) return null;
   const other = c.other_kind;
-  if (owner === other) return connectionRoute(other, c.other_id) ?? `/npcs/${c.other_id}`;
+  if (owner === other) return dmSheetPath({ kind: other, id: c.other_id });
   return null;
 }
 

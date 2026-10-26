@@ -5,7 +5,7 @@ import NpcGeneratorPanel from "./NpcGeneratorPanel.vue";
 import NpcGeneratorForm from "./NpcGeneratorForm.vue";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-
+import { ASSOCIATE_CHOICES } from "@/lib/npcGenerator/associate";
 const mocks = vi.hoisted(() => ({
   createNpc: vi.fn(),
   generate: vi.fn(),
@@ -268,12 +268,12 @@ describe("NpcGeneratorPanel: the known associate becomes a connection", () => {
     mocks.createConnection.mockResolvedValue(undefined);
   });
 
-  async function quickCreateWith(relationship: string) {
+  async function quickCreateWith(key: string, subjectIsFrom = true) {
     const wrapper = mountPanel();
     wrapper.findComponent(NpcGeneratorForm).vm.$emit("update:quickForm", {
       ...wrapper.findComponent(NpcGeneratorForm).props("quickForm"),
       related_npc_id: harl,
-      related_npc_relationship: relationship,
+      related_npc_tie: ASSOCIATE_CHOICES.find((c) => c.key === key && c.subjectIsFrom === subjectIsFrom),
     });
     await wrapper.findAll("button").find((b) => b.text().includes("Quick Create NPC"))!.trigger("click");
     await vi.waitFor(() => expect(mocks.createConnection).toHaveBeenCalledTimes(1));
@@ -289,12 +289,13 @@ describe("NpcGeneratorPanel: the known associate becomes a connection", () => {
     });
   });
 
-  it("reads a directed bond as what the associate is to the new NPC", async () => {
-    // "Mentor": Harl is Wren's mentor, so Wren is the apprentice end of mentor_of.
-    expect((await quickCreateWith("mentor")).choice).toMatchObject({ key: "mentor_of", subjectIsFrom: false });
+  it("passes a directed tie as it reads from the new NPC", async () => {
+    // "Apprentice of": Wren is the apprentice, so the stored mentor tie runs from Harl.
+    const input = await quickCreateWith("mentor_of", false);
+    expect(input.choice).toMatchObject({ key: "mentor_of", subjectIsFrom: false, word: "apprentice of" });
   });
 
   it("and the other way round", async () => {
-    expect((await quickCreateWith("subordinate")).choice).toMatchObject({ key: "superior_of", subjectIsFrom: true });
+    expect((await quickCreateWith("superior_of")).choice).toMatchObject({ key: "superior_of", subjectIsFrom: true });
   });
 });

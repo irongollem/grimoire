@@ -24,7 +24,7 @@
       </p>
       <template v-else>
         <p class="text-label-lg font-semibold text-foreground">{{ fromName }} is…</p>
-        <WorldWebTypePicker :choices="choices" :busy="busy" @pick="emit('pick', $event)" />
+        <TypeChoiceChips :choices="choices" :busy="busy" @pick="emit('pick', $event)" />
         <p class="text-caption text-muted-foreground">…{{ target.name }}.</p>
       </template>
       <AppButton variant="subtle" size="sm" label="Pick someone else" class="self-start" @click="emit('target', null)" />
@@ -36,7 +36,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import WorldEntityPicker from "@/components/common/entity/WorldEntityPicker.vue";
-import WorldWebTypePicker from "@/components/world/WorldWebTypePicker.vue";
+import TypeChoiceChips from "@/components/connections/TypeChoiceChips.vue";
 import { IconClose } from "@/lib/icons";
 import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
 import { isLinkKind, parseNodeKey } from "@/lib/worldWeb/kinds";

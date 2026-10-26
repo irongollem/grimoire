@@ -2,8 +2,8 @@
  * A tie as the web reads it (#1084): one row of `get_world_ties` or
  * `get_player_world_ties`, from one end to the other, whatever its home.
  */
-import { QUEST_RECORDS, type LinkFamily } from "@edge-shared/worldLinkCatalogue.ts";
-import { connectionFamily, connectionWord } from "@/lib/worldLinks/connections";
+import { wordFor, type LinkFamily } from "@edge-shared/worldLinkCatalogue.ts";
+import { connectionFamily } from "@/lib/worldLinks/connections";
 import type { Connection, ConnectionSource } from "@/types/connections.types";
 import { isLinkKind, nodeKey, type WebKind } from "./kinds";
 
@@ -71,15 +71,8 @@ export function isLine(tie: WorldTie): boolean {
  * records rather than a pair of the catalogue.
  */
 export function tieWord(tie: WorldTie, end: "from" | "to"): string {
-  if (tie.from_kind === "quest" || tie.to_kind === "quest") {
-    const def = QUEST_RECORDS.find((r) => r.key === tie.type);
-    if (!def) return tie.type.replaceAll("_", " ");
-    return end === "from" ? def.forward : def.reverse;
-  }
-  if (!isLinkKind(tie.from_kind) || !isLinkKind(tie.to_kind)) return tie.type.replaceAll("_", " ");
-  return end === "from"
-    ? connectionWord({ type: tie.type, outward: true, other_kind: tie.to_kind }, tie.from_kind)
-    : connectionWord({ type: tie.type, outward: false, other_kind: tie.from_kind }, tie.to_kind);
+  const outward = end === "from";
+  return wordFor(outward ? tie.from_kind : tie.to_kind, outward ? tie.to_kind : tie.from_kind, tie.type, outward);
 }
 
 /** The word a tie reads as from the end whose node key is `key`. */

@@ -36,7 +36,7 @@
       <template v-if="mode === 'web'">
         <!-- Group by: records gather in a hull instead of drawing as spokes. -->
         <div class="flex flex-wrap items-center gap-1.5">
-          <span class="text-label font-bold uppercase tracking-wide text-muted-foreground">Group by</span>
+          <span class="text-label font-bold uppercase text-muted-foreground">Group by</span>
           <SegmentedControl
             :model-value="ui.worldWebGroupKind"
             :options="GROUP_OPTIONS"

@@ -7,18 +7,14 @@
   -->
   <div class="flex flex-col gap-4">
     <section v-for="group in groups" :key="group.word" class="flex flex-col gap-1">
-      <h3 class="text-label font-bold uppercase tracking-wide text-muted-foreground">
+      <h3 class="text-label font-bold uppercase text-muted-foreground">
         {{ capitalise(group.word) }} {{ subjectName }}
         <span class="font-normal">({{ group.items.length }})</span>
       </h3>
 
       <template v-for="item in group.items" :key="rowKey(item.tie)">
         <div class="flex items-stretch gap-1">
-          <button
-            type="button"
-            class="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md px-1.5 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none"
-            @click="emit('node', item.key)"
-          >
+          <AppButton variant="menu" size="md" block class="min-h-11 min-w-0 flex-1 gap-2.5 px-1.5" @click="emit('node', item.key)">
             <svg width="30" height="30" viewBox="-15 -15 30 30" class="shrink-0" aria-hidden="true">
               <WorldNodeShape :kind="item.kind" :name="item.name" :size="11" :image="item.image" />
             </svg>
@@ -32,7 +28,7 @@
               :title="TIE_FAMILY_LABELS[tieFamily(item.tie)]"
               aria-hidden="true"
             />
-          </button>
+          </AppButton>
           <AppButton
             v-if="editable && isEditableTie(item.tie)"
             variant="ghost"
@@ -53,7 +49,7 @@
             <p class="text-label-lg font-semibold text-foreground">
               {{ subjectName }} is
             </p>
-            <WorldWebTypePicker
+            <TypeChoiceChips
               :choices="choicesFor(item)"
               :current="{ key: item.tie.type, subjectIsFrom: fromKey(item.tie) === subjectKey }"
               :busy="busy"
@@ -110,7 +106,7 @@ import { ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import WorldNodeShape from "@/components/world/WorldNodeShape.vue";
-import WorldWebTypePicker from "@/components/world/WorldWebTypePicker.vue";
+import TypeChoiceChips from "@/components/connections/TypeChoiceChips.vue";
 import { FAMILY_TOKEN } from "@/composables/world/useWorldWebGraph";
 import { IconDelete, IconEdit } from "@/lib/icons";
 import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";

@@ -182,7 +182,7 @@ async function choose(value: string) {
     return;
   }
   await retype.mutateAsync({ connection, subject: subject.value, choice });
-  if (!(connection.player_visible_to ?? []).includes(member.id)) {
+  if (connection.player_visible_to?.includes(member.id) !== true) {
     await update.mutateAsync({ id: connection.row_id, playerVisibleTo: revealedTo(connection) });
   }
 }

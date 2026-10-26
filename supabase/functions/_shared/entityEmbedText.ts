@@ -30,7 +30,7 @@
 
 import { toPlainText } from "./ai-prompt.ts";
 import { collapseWhitespace, sha256Hex, truncateAtWordBoundary } from "./embedTextUtil.ts";
-import { linkTypeFor, type LinkKind } from "./worldLinkCatalogue.ts";
+import { typeDefFor, wordFor, type LinkKind } from "./worldLinkCatalogue.ts";
 
 // Keeps every embedded free-text field bounded and matches the same
 // ~150 token/field cost estimate monsterEmbedText.ts's DESCRIPTION_CHAR_LIMIT
@@ -159,14 +159,14 @@ export function tieSentences(
     const subjectIsFrom = link.from_kind === subjectKind && link.from_id === subjectId;
     const subjectIsTo = link.to_kind === subjectKind && link.to_id === subjectId;
     if (!subjectIsFrom && !subjectIsTo) continue;
-    const def = linkTypeFor(link.from_kind, link.to_kind, link.type);
-    if (!def) continue;
+    const otherKind = subjectIsFrom ? link.to_kind : link.from_kind;
+    if (!typeDefFor(subjectKind, otherKind, link.type)) continue;
     const farName = subjectIsFrom
       ? names.get(tieNameKey(link.to_kind, link.to_id))
       : names.get(tieNameKey(link.from_kind, link.from_id));
     const far = farName ? collapseWhitespace(farName) : "";
     if (!far) continue;
-    sentences.add(`${subjectIsFrom ? def.forward : def.reverse} ${far}`);
+    sentences.add(`${wordFor(subjectKind, otherKind, link.type, subjectIsFrom)} ${far}`);
   }
   return [...sentences].sort(byCodeUnit).slice(0, TIE_LIMIT);
 }

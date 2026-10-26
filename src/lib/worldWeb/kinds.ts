@@ -5,6 +5,7 @@
  * `party_member`, and a quest is a kind that only ever appears through its own
  * records.
  */
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { LINK_KINDS, type ConnectionKind, type LinkKind } from "@edge-shared/worldLinkCatalogue.ts";
 
 export type WebKind = ConnectionKind;
@@ -73,7 +74,7 @@ export function isGroupKind(kind: string): kind is GroupKind {
   return (GROUP_KINDS as readonly string[]).includes(kind);
 }
 
-/** Where a node's sheet lives for the DM. A place opens in the Atlas tree. */
+/** Where a node's sheet lives for the DM, wherever a name links to it. A place opens in the Atlas tree. */
 export function dmSheetPath(ref: NodeRef): string {
   switch (ref.kind) {
     case "npc":
@@ -83,7 +84,7 @@ export function dmSheetPath(ref: NodeRef): string {
     case "faction":
       return `/factions/${ref.id}`;
     case "location":
-      return `/locations?at=${ref.id}`;
+      return placeRoute(ref.id);
     case "deity":
       return `/deities/${ref.id}`;
     case "item":

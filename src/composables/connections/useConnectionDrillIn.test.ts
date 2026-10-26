@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({ rpc: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ supabase: { rpc: mocks.rpc } }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 
-import { peopleOf, personMatches, useConnectionDrillIn } from "./useConnectionDrillIn";
+import { peopleOf } from "@/lib/worldLinks/connections";
+import { personMatches, useConnectionDrillIn } from "./useConnectionDrillIn";
 
 const row = (over: Partial<Connection>): Connection => ({
   source: "npc_home", row_id: "r", type: "lives_in", outward: false, other_kind: "npc", other_id: "n1", other_name: "Harl",

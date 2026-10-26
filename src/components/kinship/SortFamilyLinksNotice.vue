@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 /**
- * Shown on the NPC list and the Relationship Web while any old "Family" link is
+ * Shown on the NPC list and the World web while any old "Family" link is
  * still waiting to be sorted (#1083, frame 05). "Later" hides it for this
  * session only, so it comes back until the work is done.
  */

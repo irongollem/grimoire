@@ -353,6 +353,88 @@ export function linkTypeFor(fromKind: LinkKind, toKind: LinkKind, key: string): 
   return found.pair.types.find((t) => t.key === key) ?? null;
 }
 
+/** Every type def with this key, link or record, for the pair joining these kinds; quest records for a quest. */
+export function typeDefFor(kindA: ConnectionKind, kindB: ConnectionKind, key: string): LinkTypeDef | RecordTypeDef | null {
+  if (kindA === "quest" || kindB === "quest") return QUEST_RECORDS.find((r) => r.key === key) ?? null;
+  const found = pairFor(kindA, kindB);
+  if (!found) return null;
+  return found.pair.types.find((t) => t.key === key) ?? found.pair.records?.find((r) => r.key === key) ?? null;
+}
+
+/**
+ * The word a tie reads as from the thing on screen ("worships", "worshipped by").
+ * `subjectKind` is the kind of the thing whose sheet it is and `outward` is
+ * whether it is the stored `from` end. An unknown type reads as its key.
+ */
+export function wordFor(subjectKind: ConnectionKind, otherKind: ConnectionKind, type: string, outward: boolean): string {
+  const def = typeDefFor(subjectKind, otherKind, type);
+  if (!def) return type.replaceAll("_", " ");
+  return outward ? def.forward : def.reverse;
+}
+
+/** One choice in a type picker between the thing on screen and another. */
+export interface TypeChoice {
+  /** The catalogue key; with `home` it names a record type rather than a link. */
+  key: string;
+  /** Read from the thing on screen: "worships", or "apprentice of" when the screen is the `to` end. */
+  word: string;
+  /** Whether the thing on screen is stored as the `from` end. */
+  subjectIsFrom: boolean;
+  family: LinkFamily;
+  common: boolean;
+  /** The catalogue pair this type belongs to. */
+  pair: string;
+  /** The pair holds at most one link per ordered pair of things (a faction's stance). */
+  exclusive?: true;
+  /** Set for a record type: where choosing it writes. */
+  home?: RecordTypeDef["home"];
+  /** A record holding one value for its `from` end: choosing it replaces the old one. */
+  single?: boolean;
+}
+
+/**
+ * Every type the thing on screen (`subject`) can hold towards `other`, read from
+ * the subject. For two people an asymmetric type is offered both ways ("mentor of"
+ * and "apprentice of") because either can be the stored `from`.
+ */
+export function typeChoices(subject: LinkKind, other: LinkKind): TypeChoice[] {
+  const choices: TypeChoice[] = [];
+  for (const pair of WORLD_LINK_PAIRS) {
+    const forward = pair.from.includes(subject) && pair.to.includes(other);
+    const backward = pair.from.includes(other) && pair.to.includes(subject);
+    if (!forward && !backward) continue;
+    const base = { pair: pair.pair, ...(pair.exclusive ? { exclusive: true as const } : {}) };
+    for (const t of pair.types) {
+      if (forward) choices.push({ key: t.key, word: t.forward, subjectIsFrom: true, family: t.family, common: t.common === true, ...base });
+      // A symmetric type reads the same from either end, so it is offered once.
+      if (backward && !(forward && t.symmetric)) {
+        choices.push({ key: t.key, word: t.reverse, subjectIsFrom: false, family: t.family, common: t.common === true, ...base });
+      }
+    }
+    for (const r of pair.records ?? []) {
+      const directions = [forward ? true : null, backward && !(forward && r.forward === r.reverse) ? false : null]
+        .filter((d): d is boolean => d !== null);
+      for (const subjectIsFrom of directions) {
+        const fromKind = subjectIsFrom ? subject : other;
+        const toKind = subjectIsFrom ? other : subject;
+        if (r.fromKinds && !r.fromKinds.includes(fromKind)) continue;
+        if (r.toKinds && !r.toKinds.includes(toKind)) continue;
+        choices.push({
+          key: r.key,
+          word: subjectIsFrom ? r.forward : r.reverse,
+          subjectIsFrom,
+          family: "record",
+          common: r.common === true,
+          home: r.home,
+          ...(r.single ? { single: true } : {}),
+          ...base,
+        });
+      }
+    }
+  }
+  return choices;
+}
+
 /**
  * The (from_kind, to_kind, type) triples the database accepts, one per kind
  * combination. The person pairs expand to both NPC and PC ends, which is what

@@ -120,17 +120,17 @@
           @cancel="cancelConnect"
         />
 
-        <div v-else-if="edgeTies" class="flex flex-col gap-3 p-4">
+        <div v-else-if="edgeSelection" class="flex flex-col gap-3 p-4">
           <div class="flex items-start justify-between gap-2">
             <h2 class="text-heading-sm font-bold leading-tight text-foreground">
-              {{ nameOf(edgeSubject) }} and {{ nameOf(edgeOther) }}
+              {{ nameOf(edgeSelection.subject) }} and {{ nameOf(edgeSelection.other) }}
             </h2>
             <AppButton variant="ghost" size="icon-sm" :icon="IconClose" label="Close" @click="clearSelection" />
           </div>
           <WorldWebTieGroups
             :groups="edgeGroups"
-            :subject-key="edgeSubject"
-            :subject-name="nameOf(edgeSubject)"
+            :subject-key="edgeSelection.subject"
+            :subject-name="nameOf(edgeSelection.subject)"
             :editable="!readonly"
             :busy="editing.busy.value"
             @node="onNodeTap"
@@ -372,9 +372,6 @@ watch(
 
 // ── Selection, edges and the panel ──────────────────────────────────────────
 
-const edgeTies = computed(() => edgeSelection.value?.ties ?? null);
-const edgeSubject = computed(() => edgeSelection.value?.subject ?? "");
-const edgeOther = computed(() => edgeSelection.value?.other ?? "");
 const edgeGroups = computed(() => (edgeSelection.value ? groupTies(edgeSelection.value.ties, edgeSelection.value.subject) : []));
 
 const panelEntity = computed(() => {

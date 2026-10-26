@@ -168,11 +168,11 @@
         </optgroup>
         <optgroup v-if="!relatedPc" label="Bond">
           <option
-            v-for="[type, label] in Object.entries(NPC_RELATIONSHIP_TYPE_LABELS)"
-            :key="type"
-            :value="`bond:${type}`"
+            v-for="choice in ASSOCIATE_CHOICES"
+            :key="associateId(choice)"
+            :value="`bond:${associateId(choice)}`"
           >
-            {{ label }}
+            {{ choice.word }}
           </option>
         </optgroup>
       </AppSelect>
@@ -259,8 +259,9 @@ import { computed, watch } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { IconGenerate } from "@/lib/icons";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
-import type { NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
-import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
+import type { NpcRelationship } from "@/types/npc.types";
+import { ASSOCIATE_CHOICES, associateById, associateId } from "@/lib/npcGenerator/associate";
+import type { TypeChoice } from "@/lib/worldLinks/connections";
 import { NPC_FACTION_ROLES } from "@/types/faction.types";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
@@ -296,7 +297,8 @@ export interface QuickForm {
   faction_id: string | null;
   faction_role: string;
   related_npc_id: string | null;
-  related_npc_relationship: NpcRelationshipType;
+  /** What the new NPC is to the associate when the tie is a bond. Exclusive with kin. */
+  related_npc_tie: TypeChoice;
   /** What the new NPC is to the associate when the tie is family. Exclusive with a bond. */
   related_npc_kin: GeneratorKinRelation | null;
   /** A character as the associate (arrives by link; the combobox lists NPCs). */
@@ -372,15 +374,18 @@ const relationModel = computed<string>({
   get: () =>
     quickForm.related_npc_kin
       ? `kin:${quickForm.related_npc_kin}`
-      : `bond:${quickForm.related_npc_relationship}`,
+      : `bond:${associateId(quickForm.related_npc_tie)}`,
   set: (value) => {
-    const [group, rest] = value.split(":");
+    const at = value.indexOf(":");
+    const group = value.slice(0, at);
+    const rest = value.slice(at + 1);
     if (group === "kin" && isGeneratorKin(rest)) {
       if (rest !== "child") resetSecondParent();
       patchMany(rest === "child" ? { related_npc_kin: rest } : { related_npc_kin: rest, second_parent: null });
     } else {
       resetSecondParent();
-      patchMany({ related_npc_kin: null, related_npc_relationship: rest as NpcRelationshipType, second_parent: null });
+      const tie = associateById(rest);
+      patchMany({ related_npc_kin: null, ...(tie ? { related_npc_tie: tie } : {}), second_parent: null });
     }
   },
 });

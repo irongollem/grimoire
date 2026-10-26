@@ -1,6 +1,5 @@
 import type { AiProvenance } from "@/ai/provenance";
 import type { MonsterStatBlock } from "@/types/monster.types";
-import type { SuggestedRelationshipType } from "@edge-shared/connectionSuggestions.ts";
 
 export type NpcStatus = "alive" | "dead" | "missing" | "unknown";
 export type NpcRelationship =
@@ -18,25 +17,6 @@ export const NPC_RELATIONSHIP_LABELS: Record<NpcRelationship, string> = {
   friendly:     "Friendly",
   helpful:      "Helpful",
   unknown:      "Unknown",
-};
-
-// Derived from the edge-function list so the suggester and the UI cannot drift.
-export type NpcRelationshipType = SuggestedRelationshipType;
-
-export const NPC_RELATIONSHIP_TYPE_LABELS: Record<NpcRelationshipType, string> = {
-  chosen_family: "Chosen family",
-  friend:        "Friend",
-  ally:          "Ally",
-  rival:         "Rival",
-  enemy:         "Enemy",
-  mentor:        "Mentor",
-  apprentice:    "Apprentice",
-  lover:         "Lover",
-  subordinate:   "Subordinate",
-  superior:      "Superior",
-  contact:       "Contact",
-  former_ally:   "Former Ally",
-  former_enemy:  "Former Enemy",
 };
 
 export interface SpellcastingEntry {
@@ -160,22 +140,6 @@ export type NpcInsert = Omit<
   died_day?: number | null;
 };
 export type NpcUpdate = Partial<NpcInsert>;
-
-// ── Per-PC relation notes ─────────────────────────────────────────────────────
-
-export interface NpcPcNote {
-  id: string;
-  user_id: string;
-  campaign_id: string;
-  npc_id: string;
-  party_member_id: string;
-  relationship_type: NpcRelationshipType;
-  notes: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export type NpcPcNoteUpsert = Pick<NpcPcNote, "campaign_id" | "npc_id" | "party_member_id" | "relationship_type" | "notes">;
 
 // ── Hall of Heroes ─────────────────────────────────────────────────────────────
 

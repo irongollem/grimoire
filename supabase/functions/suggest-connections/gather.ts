@@ -3,7 +3,7 @@ import { toPlainText } from "../_shared/ai-prompt.ts";
 import { truncateAtWordBoundary } from "../_shared/embedTextUtil.ts";
 import type { CandidateEntity } from "../_shared/campaignEntityRetrieval.ts";
 import { HEAD_ROLES, connectableKinds, type ExistingLink, type SuggestionContext } from "../_shared/connectionSuggestions.ts";
-import { LINK_KINDS, PERSON_KINDS, pairFor, type LinkKind } from "../_shared/worldLinkCatalogue.ts";
+import { LINK_KINDS, PERSON_KINDS, wordFor, type LinkKind } from "../_shared/worldLinkCatalogue.ts";
 import { promptAge, type DatePoint } from "../_shared/npcAge.ts";
 
 /**
@@ -498,8 +498,7 @@ export async function gatherConnections(admin: SupabaseClient, args: GatherArgs)
     const n = nameOf(l.kind, l.id);
     if (!n) continue;
     existingLinks.push({ kind: l.kind, name: n, type: l.type, outward: l.outward });
-    const def = pairFor(subject.kind, l.kind)?.pair.types.find((t) => t.key === l.type);
-    const word = def ? (l.outward ? def.forward : def.reverse) : l.type.replaceAll("_", " ");
+    const word = wordFor(subject.kind, l.kind, l.type, l.outward);
     existingLines.push(`${word}: ${n} (${l.kind === "party_member" ? "player character" : l.kind})`);
   }
   for (const m of memberships) {

@@ -1,26 +1,15 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { useCampaignStore } from "@/stores/campaign";
+import { peopleOf } from "@/lib/worldLinks/connections";
 import { connectionsQueryKey, fetchConnections } from "@/lib/worldLinks/connectionsQuery";
-import type { Connection, ConnectionSource } from "@/types/connections.types";
+import type { Connection } from "@/types/connections.types";
 
 /** The two things in search that open to the people they hold. */
 export type DrillInKind = "location" | "faction";
 
-/** Which record homes hold a thing's people: a place's residents and the PCs there, a faction's members. */
-const PEOPLE_SOURCES: Record<DrillInKind, readonly ConnectionSource[]> = {
-  location: ["npc_home", "pc_place"],
-  faction: ["membership"],
-};
-
 export function isDrillInKind(kind: string): kind is DrillInKind {
   return kind === "location" || kind === "faction";
-}
-
-/** The people rows of a place or faction, out of its connections. */
-export function peopleOf(kind: DrillInKind, connections: readonly Connection[]): Connection[] {
-  const sources = PEOPLE_SOURCES[kind];
-  return connections.filter((c) => sources.includes(c.source) && (c.other_kind === "npc" || c.other_kind === "party_member"));
 }
 
 /** Whether a person row matches what was typed in the drill-in's filter: name, or the role they hold. */

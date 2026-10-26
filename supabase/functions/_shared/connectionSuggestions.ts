@@ -16,39 +16,17 @@
 import {
   LINK_KINDS,
   PERSON_KINDS,
+  typeChoices,
   WORLD_LINK_PAIRS,
   type LinkKind,
   type LinkPair,
   type LinkTypeDef,
+  type TypeChoice,
 } from "./worldLinkCatalogue.ts";
-
-/**
- * The bond words the NPC generator's "known associate" picker and the campaign
- * import still speak (`NpcRelationshipType` in src/types/npc.types.ts). They are
- * not what the suggester returns any more (it returns catalogue keys); they stay
- * here only because those two callers read them from this module.
- */
-export const NPC_RELATIONSHIP_TYPES = [
-  "chosen_family",
-  "friend",
-  "ally",
-  "rival",
-  "enemy",
-  "lover",
-  "mentor",
-  "apprentice",
-  "subordinate",
-  "superior",
-  "contact",
-  "former_ally",
-  "former_enemy",
-] as const;
-
-export type SuggestedRelationshipType = (typeof NPC_RELATIONSHIP_TYPES)[number];
 
 export const MAX_NOTES_CHARS = 300;
 export const MAX_SUGGESTIONS = 12;
-export const MAX_SET_ASIDE = 6;
+const MAX_SET_ASIDE = 6;
 
 /**
  * The roles a faction membership can hold. Mirrors `NPC_FACTION_ROLES` in
@@ -78,7 +56,7 @@ export const SUGGESTED_FACTION_ROLES = [
   "Adversary",
   "Unknown",
 ] as const;
-export type SuggestedFactionRole = (typeof SUGGESTED_FACTION_ROLES)[number];
+type SuggestedFactionRole = (typeof SUGGESTED_FACTION_ROLES)[number];
 
 /** The roles that head a faction: a faction already headed is not offered a second head. */
 export const HEAD_ROLES: readonly SuggestedFactionRole[] = ["Leader", "Head of house"];
@@ -92,7 +70,7 @@ export const SUGGESTED_KIN_RELATIONS = ["parent", "child", "spouse", "former_spo
 export type SuggestedKinRelation = (typeof SUGGESTED_KIN_RELATIONS)[number];
 
 /** A typed link from the catalogue. `type` is the catalogue key; `subject_is_from` says which end the subject is stored as. */
-export interface LinkSuggestion {
+interface LinkSuggestion {
   kind: "link";
   target_kind: LinkKind;
   target_name: string;
@@ -181,27 +159,18 @@ export interface LinkOption {
   subjectIsFrom: boolean;
 }
 
-function directionsFor(pair: LinkPair, subject: LinkKind, target: LinkKind, type: LinkTypeDef): boolean[] {
-  const forward = pair.from.includes(subject) && pair.to.includes(target);
-  const backward = pair.from.includes(target) && pair.to.includes(subject);
-  const out: boolean[] = [];
-  if (forward) out.push(true);
-  // A symmetric type reads the same from either end, so it is offered once; a stance is each side's own.
-  if (backward && !(forward && type.symmetric) && !pair.exclusive) out.push(false);
-  return out;
+/**
+ * The picker's choices without the records, and without the backward end of an
+ * exclusive pair: a stance is each side's own, so the model is only offered the
+ * subject's.
+ */
+function linkChoices(subject: LinkKind, target: LinkKind): TypeChoice[] {
+  return typeChoices(subject, target).filter((c) => c.home === undefined && !(c.exclusive && !c.subjectIsFrom));
 }
 
 /** The link types a subject of `subject` kind can hold towards `target` kind, with their direction and wording. */
 export function linkOptions(subject: LinkKind, target: LinkKind): LinkOption[] {
-  const out: LinkOption[] = [];
-  for (const pair of WORLD_LINK_PAIRS) {
-    for (const t of pair.types) {
-      for (const subjectIsFrom of directionsFor(pair, subject, target, t)) {
-        out.push({ key: t.key, word: subjectIsFrom ? t.forward : t.reverse, subjectIsFrom });
-      }
-    }
-  }
-  return out;
+  return linkChoices(subject, target).map((c) => ({ key: c.key, word: c.word, subjectIsFrom: c.subjectIsFrom }));
 }
 
 /** Every kind a subject can be tied to: a link pair or a membership joins them. */
@@ -301,19 +270,18 @@ function resolveDirection(
   key: string,
   declared: unknown,
 ): { def: LinkTypeDef; pair: LinkPair; subjectIsFrom: boolean } | null {
-  for (const pair of WORLD_LINK_PAIRS) {
-    const def = pair.types.find((t) => t.key === key);
-    if (!def) continue;
-    const dirs = directionsFor(pair, subject, target, def);
-    if (dirs.length === 0) continue;
-    if (dirs.length === 1) {
-      if (typeof declared === "boolean" && declared !== dirs[0]) return null;
-      return { def, pair, subjectIsFrom: dirs[0] };
-    }
-    if (typeof declared !== "boolean") return null;
-    return { def, pair, subjectIsFrom: declared };
+  const options = linkChoices(subject, target).filter((o) => o.key === key);
+  // The first pair that holds the type decides, as the catalogue lists them.
+  const pair = WORLD_LINK_PAIRS.find((p) => p.pair === options[0]?.pair);
+  const def = pair?.types.find((t) => t.key === key);
+  if (!pair || !def) return null;
+  const dirs = options.filter((o) => o.pair === pair.pair).map((o) => o.subjectIsFrom);
+  if (dirs.length === 1) {
+    if (typeof declared === "boolean" && declared !== dirs[0]) return null;
+    return { def, pair, subjectIsFrom: dirs[0] };
   }
-  return null;
+  if (typeof declared !== "boolean") return null;
+  return { def, pair, subjectIsFrom: declared };
 }
 
 /**

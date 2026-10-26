@@ -188,10 +188,11 @@ export interface FactionNpcWithNpc extends FactionNpc {
   >;
 }
 
-export function useFactionNpcs(factionId: MaybeRefOrGetter<string>) {
+export function useFactionNpcs(factionId: MaybeRefOrGetter<string | null>) {
   return useQuery({
     queryKey: computed(() => ["faction-npcs", toValue(factionId)] as const),
     queryFn: async ({ queryKey: [, id] }) => {
+      if (id === null) throw new Error("No faction to read the roster of");
       const { data, error } = await supabase
         .from("faction_npcs")
         .select("*, npc:npcs(id, name, occupation, race, status, portrait_url, portrait_focal_point)")
@@ -250,7 +251,7 @@ export function usePlayerFactionNpcs(factionId: Ref<string>, enabled: Ref<boolea
  * Every faction membership in the campaign, in one query per side.
  *
  * The per-entity `useFactionNpcs` / `useNpcFactions` above answer "who is in
- * this faction" and "what is this NPC in"; the relationship web needs the whole
+ * this faction" and "what is this NPC in"; the world web needs the whole
  * grid at once to badge every node, and doing that through the per-entity hooks
  * would be one request per NPC.
  *
@@ -433,10 +434,11 @@ export interface FactionPartyMemberWithMember extends FactionPartyMember {
   party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url" | "portrait_focal_point" | "ruleset" | "campaign_id">;
 }
 
-export function useFactionPartyMembers(factionId: MaybeRefOrGetter<string>) {
+export function useFactionPartyMembers(factionId: MaybeRefOrGetter<string | null>) {
   return useQuery({
     queryKey: computed(() => ["faction-party-members", toValue(factionId)] as const),
     queryFn: async ({ queryKey: [, id] }) => {
+      if (id === null) throw new Error("No faction to read the roster of");
       const { data, error } = await supabase
         .from("faction_party_members")
         .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url, portrait_focal_point, ruleset, campaign_id)")
@@ -617,7 +619,7 @@ export function usePopulateFactions() {
  * house. The Connections block does not offer those roles to a second member
  * (#1084), so a faction cannot end up with two.
  */
-export function useFactionHeaded(factionId: MaybeRefOrGetter<string>) {
+export function useFactionHeaded(factionId: MaybeRefOrGetter<string | null>) {
   const npcs = useFactionNpcs(factionId);
   const pcs = useFactionPartyMembers(factionId);
   return computed(() => {

@@ -12,11 +12,15 @@
 // nulls out FKs to entities that did not travel in the subset). Merging those
 // would obscure two distinct flows. Only the primitives below are shared.
 
-import { NPC_RELATIONSHIP_TYPES } from "@edge-shared/connectionSuggestions";
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 export type IdMap = Map<string, string>;
+
+/** The bond words an old backup's NPC ties used; anything else became a contact (20261022113302). */
+const OLD_BOND_WORDS: ReadonlySet<unknown> = new Set([
+  "chosen_family", "friend", "ally", "rival", "enemy", "lover", "mentor", "apprentice",
+  "subordinate", "superior", "contact", "former_ally", "former_enemy",
+]);
 
 /**
  * Sort rows so parents come before children (topological order over a
@@ -147,8 +151,7 @@ export function splitLegacyKin(
     kin.push(link);
   };
   // The bond tables refuse any type outside today's list (20261022113302); the migration made such a row a contact.
-  const bondType = (type: unknown): unknown =>
-    (NPC_RELATIONSHIP_TYPES as readonly unknown[]).includes(type) ? type : "contact";
+  const bondType = (type: unknown): unknown => (OLD_BOND_WORDS.has(type) ? type : "contact");
   const bonds: Row[] = [];
   for (const rel of relationships) {
     if (!LEGACY_KIN_TYPES.has(rel.relationship_type)) {

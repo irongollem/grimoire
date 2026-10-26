@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_NOTES_CHARS,
   MAX_SUGGESTIONS,
-  NPC_RELATIONSHIP_TYPES,
   connectableKinds,
   linkOptions,
   sanitizeSuggestions,
@@ -317,14 +316,6 @@ describe("sanitizeSuggestions kin", () => {
     expect(sanitizeSuggestions([kin("Tamsin", "sibling", { target_type: "pc" })], pc).suggestions).toEqual([]);
     const place: SuggestionContext = { ...kinCtx, subjectKind: "location" };
     expect(sanitizeSuggestions([kin("Brenna Ashe", "parent")], place).suggestions).toEqual([]);
-  });
-});
-
-describe("the legacy bond list", () => {
-  it("is still the 13 bond words the generator and the import read, none of them kin", () => {
-    expect(NPC_RELATIONSHIP_TYPES).toHaveLength(13);
-    expect(NPC_RELATIONSHIP_TYPES).not.toContain("family");
-    expect(NPC_RELATIONSHIP_TYPES).not.toContain("sibling");
   });
 });
 

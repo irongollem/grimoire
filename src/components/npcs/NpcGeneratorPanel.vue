@@ -57,8 +57,8 @@ import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { PORTRAIT_SIZE_BY_PROVIDER } from "@/composables/ai/useProviderConfig";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { getNpcTemplate } from "@/data/npcTemplates";
-import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
-import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
+import type { NpcInsert, NpcRelationship } from "@/types/npc.types";
+import { DEFAULT_ASSOCIATE } from "@/lib/npcGenerator/associate";
 import { useParty } from "@/composables/party/useParty";
 import { useCreateKinLink } from "@/composables/kinship/useKinLinks";
 import { kinInsertFor, parsePersonKey, personKey } from "@/lib/kinship/keys";
@@ -77,7 +77,6 @@ import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllFactions, useAddFactionNpc } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useCreateConnection } from "@/composables/connections/useConnections";
-import { typeChoices } from "@/lib/worldLinks/connections";
 import NpcGeneratorForm from "@/components/npcs/NpcGeneratorForm.vue";
 import type { QuickForm } from "@/components/npcs/NpcGeneratorForm.vue";
 
@@ -207,8 +206,7 @@ function buildAiPrompt(): string {
   } else if (quickForm.related_npc_id) {
     const npc = npcs.value?.find((n) => n.id === quickForm.related_npc_id);
     if (npc) {
-      const relLabel = NPC_RELATIONSHIP_TYPE_LABELS[quickForm.related_npc_relationship];
-      constraints.push(`Known associate: ${npc.name} (${relLabel})`);
+      constraints.push(`Known associate: ${npc.name} (this NPC is ${quickForm.related_npc_tie.word} ${npc.name})`);
     }
   }
   if (constraints.length) {
@@ -309,7 +307,7 @@ const quickForm = reactive<QuickForm>({
   faction_id: null,
   faction_role: "Member",
   related_npc_id: null,
-  related_npc_relationship: "contact" as NpcRelationshipType,
+  related_npc_tie: DEFAULT_ASSOCIATE,
   related_npc_kin: null,
   related_pc_id: null,
   second_parent: null,
@@ -344,26 +342,6 @@ function onUpdateQuickForm(value: QuickForm) {
   Object.assign(quickForm, value);
 }
 
-/**
- * The catalogue type for each bond the associate picker offers, read from the NEW NPC: the picker says what the
- * associate is to them ("mentor": the associate is their mentor), so the new NPC is the apprentice, the `to` end.
- */
-const BOND_CHOICE: Record<NpcRelationshipType, { key: string; subjectIsFrom: boolean }> = {
-  chosen_family: { key: "chosen_family", subjectIsFrom: true },
-  friend: { key: "friend", subjectIsFrom: true },
-  ally: { key: "ally", subjectIsFrom: true },
-  rival: { key: "rival", subjectIsFrom: true },
-  enemy: { key: "enemy", subjectIsFrom: true },
-  lover: { key: "lover", subjectIsFrom: true },
-  contact: { key: "contact", subjectIsFrom: true },
-  former_ally: { key: "former_ally", subjectIsFrom: true },
-  former_enemy: { key: "former_enemy", subjectIsFrom: true },
-  mentor: { key: "mentor_of", subjectIsFrom: false },
-  apprentice: { key: "mentor_of", subjectIsFrom: true },
-  superior: { key: "superior_of", subjectIsFrom: false },
-  subordinate: { key: "superior_of", subjectIsFrom: true },
-};
-
 async function applyPostCreate(npcId: string) {
   if (quickForm.faction_id) {
     await addFactionNpc({
@@ -386,16 +364,13 @@ async function applyPostCreate(npcId: string) {
       await createKinLink(kinInsertFor(subject, quickForm.related_npc_kin, other));
     }
   } else if (quickForm.related_npc_id) {
-    const bond = BOND_CHOICE[quickForm.related_npc_relationship];
-    const choice = typeChoices("npc", "npc").find((c) => !c.home && c.key === bond.key && c.subjectIsFrom === bond.subjectIsFrom);
-    if (!choice) throw new Error(`No connection type "${bond.key}" between two people`);
     const other = npcs.value?.find((n) => n.id === quickForm.related_npc_id);
     if (!other) throw new Error("The associate is no longer in this campaign");
-    // The new NPC is the subject: "Wren's mentor is Brenna" stores the mentor tie from Brenna.
+    // The new NPC is the subject, and the choice is read from it: "Wren is apprentice of Brenna".
     await createConnection({
       subject: { kind: "npc", id: npcId },
       other: { kind: "npc", id: other.id, name: other.name },
-      choice,
+      choice: quickForm.related_npc_tie,
     });
   }
 }

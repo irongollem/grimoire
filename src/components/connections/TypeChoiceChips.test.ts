@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
-import WorldWebTypePicker from "./WorldWebTypePicker.vue";
+import TypeChoiceChips from "./TypeChoiceChips.vue";
 import { typeChoices } from "@/lib/worldLinks/connections";
 
 const choices = typeChoices("npc", "deity");
 
-function mountPicker(props: Partial<InstanceType<typeof WorldWebTypePicker>["$props"]> = {}) {
-  return mount(WorldWebTypePicker, { props: { choices, ...props } });
+function mountPicker(props: Partial<InstanceType<typeof TypeChoiceChips>["$props"]> = {}) {
+  return mount(TypeChoiceChips, { props: { choices, ...props } });
 }
 
-describe("WorldWebTypePicker", () => {
+describe("TypeChoiceChips", () => {
   it("offers a pair's common types as chips and keeps the rest behind more", () => {
     const w = mountPicker();
     const words = w.findAll("button").map((b) => b.text());

@@ -7,7 +7,7 @@
  */
 
 import type { LinkKind } from "@edge-shared/worldLinkCatalogue.ts";
-import { CONNECTION_GROUP_ORDER, connectionWord, groupFor, type ConnectionGroup } from "@/lib/worldLinks/connections";
+import { CONNECTION_GROUP_TITLES, connectionWord, groupByKind, type ConnectionGroup } from "@/lib/worldLinks/connections";
 import type { BookEntryKind, BookEntryRef } from "@/lib/openBook/bookModel";
 import type { OpenBookSnapshot } from "@/types/openBook.types";
 
@@ -30,20 +30,6 @@ const KIND_OF_ENTRY: Partial<Record<BookEntryKind, LinkKind>> = {
 };
 
 const BOOK_LINK_KINDS: readonly LinkKind[] = ["location", "npc", "faction", "deity"];
-
-/** The groups a book prints, in the sheet's order. */
-const BOOK_GROUPS: readonly ConnectionGroup[] = CONNECTION_GROUP_ORDER.filter(
-  (g) => g === "people" || g === "factions" || g === "places" || g === "deities",
-);
-
-export const CONNECTION_GROUP_TITLES: Record<ConnectionGroup, string> = {
-  people: "People",
-  factions: "Factions",
-  places: "Places",
-  deities: "Deities",
-  items: "Items",
-  quests: "Quests",
-};
 
 function isBookKind(value: unknown): value is LinkKind {
   return typeof value === "string" && (BOOK_LINK_KINDS as readonly string[]).includes(value);
@@ -92,7 +78,7 @@ export interface BookConnectionGroup {
 }
 
 interface GroupedLine extends BookConnection {
-  group: ConnectionGroup;
+  kind: LinkKind;
 }
 
 /** Ties filed under the entry at each end, so a page reads its own with one call. Ties to an entry the book lacks are dropped. */
@@ -113,7 +99,7 @@ export function connectionsFromTies(
     seen.add(key);
     const word = connectionWord({ type: tie.type, outward, other_kind: otherKind }, selfKind);
     const list = perEntry.get(selfId) ?? [];
-    list.push({ entry: other, word, told: tie.told, group: groupFor(otherKind) });
+    list.push({ entry: other, word, told: tie.told, kind: otherKind });
     perEntry.set(selfId, list);
   };
 
@@ -128,14 +114,12 @@ export function connectionsFromTies(
   return (id) => {
     const lines = perEntry.get(id);
     if (!lines) return [];
-    const groups: BookConnectionGroup[] = [];
-    for (const group of BOOK_GROUPS) {
-      const inGroup = lines
-        .filter((l) => l.group === group)
+    return groupByKind(lines, (l) => l.kind).map(({ group, items }) => ({
+      group,
+      title: CONNECTION_GROUP_TITLES[group],
+      lines: items
         .map(({ entry, word, told }) => ({ entry, word, told }))
-        .sort((a, b) => a.word.localeCompare(b.word) || a.entry.title.localeCompare(b.entry.title));
-      if (inGroup.length > 0) groups.push({ group, title: CONNECTION_GROUP_TITLES[group], lines: inGroup });
-    }
-    return groups;
+        .sort((a, b) => a.word.localeCompare(b.word) || a.entry.title.localeCompare(b.entry.title)),
+    }));
   };
 }

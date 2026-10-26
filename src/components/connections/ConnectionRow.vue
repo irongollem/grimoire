@@ -80,7 +80,6 @@ import { useRouter } from "vue-router";
 import ConnectionNotesEditor from "@/components/connections/ConnectionNotesEditor.vue";
 import ConnectionTypePicker from "@/components/connections/ConnectionTypePicker.vue";
 import {
-  connectionRoute,
   HOME_LABEL,
   homeRoute,
   isCurrentChoice,
@@ -99,6 +98,7 @@ import {
 } from "@/composables/factions/useFactions";
 import { useOpenNpc } from "@/composables/npcs/useNpcPeek";
 import { useToast } from "@/composables/useToast";
+import { dmSheetPath } from "@/lib/worldWeb/kinds";
 import { connectionFamily, connectionWord, typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
 import { NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } from "@/types/faction.types";
 import type { Connection, WorldRef } from "@/types/connections.types";
@@ -124,7 +124,8 @@ const editing = ref(false);
 
 const word = computed(() => connectionWord(connection, subject.kind));
 const color = computed(() => `var(--link-${connectionFamily(connection, subject.kind)})`);
-const to = computed(() => connectionRoute(connection.other_kind, connection.other_id));
+/** An NPC opens in place (the slip peeks it), so only the other kinds link out. */
+const to = computed(() => (connection.other_kind === "npc" ? null : dmSheetPath({ kind: connection.other_kind, id: connection.other_id })));
 const told = computed(() => (connection.told ? `Told: “${connection.told}”` : null));
 
 /** A quest's ties are written on the quest, so its word is not a picker. */
@@ -148,7 +149,7 @@ async function retype(choice: TypeChoice) {
 
 // ── Membership: the role is edited in place, as on the faction roster ──────────
 const ends = computed(() => membershipEnds(connection, subject));
-const headed = useFactionHeaded(() => ends.value?.factionId ?? "");
+const headed = useFactionHeaded(() => ends.value?.factionId ?? null);
 const roles = computed(() => offeredRoles(headed.value, connection.role));
 const roleHolder = computed(() => (subject.kind === "faction" ? connection.other_name : subjectName));
 

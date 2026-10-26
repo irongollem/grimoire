@@ -87,6 +87,7 @@ const choice = (over: Partial<TypeChoice> & Pick<TypeChoice, "key">): TypeChoice
   subjectIsFrom: true,
   family: "bond",
   common: false,
+  pair: "person_person",
   ...over,
 });
 const conn = (over: Partial<Connection>): Connection => ({

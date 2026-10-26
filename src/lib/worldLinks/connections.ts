@@ -6,21 +6,31 @@
  * database read lives in `connectionsQuery.ts`.
  */
 import {
-  pairFor,
-  QUEST_RECORDS,
-  WORLD_LINK_PAIRS,
+  typeChoices,
+  typeDefFor,
+  wordFor,
   type ConnectionKind,
   type LinkFamily,
   type LinkKind,
-  type LinkTypeDef,
-  type RecordTypeDef,
+  type TypeChoice,
 } from "@edge-shared/worldLinkCatalogue.ts";
-import type { Connection, WorldLink, WorldRef } from "@/types/connections.types";
+import type { Connection, ConnectionSource, WorldLink, WorldRef } from "@/types/connections.types";
 
+export { typeChoices, type TypeChoice };
 
 /** The order a sheet groups its connections in, everywhere (#1084 decision 5). */
 export const CONNECTION_GROUP_ORDER: readonly ConnectionGroup[] = ["people", "factions", "places", "deities", "items", "quests"];
 export type ConnectionGroup = "people" | "factions" | "places" | "deities" | "items" | "quests";
+
+/** What a group is called wherever it is printed: a sheet, a book, a player's list. */
+export const CONNECTION_GROUP_TITLES: Record<ConnectionGroup, string> = {
+  people: "People",
+  factions: "Factions",
+  places: "Places",
+  deities: "Deities",
+  items: "Items",
+  quests: "Quests",
+};
 
 export function groupFor(kind: ConnectionKind): ConnectionGroup {
   switch (kind) {
@@ -40,12 +50,22 @@ export function groupFor(kind: ConnectionKind): ConnectionGroup {
   }
 }
 
-/** Every type def with this key, link or record, for the pair joining these kinds; quest records for a quest. */
-function defFor(kindA: ConnectionKind, kindB: ConnectionKind, key: string): LinkTypeDef | RecordTypeDef | null {
-  if (kindA === "quest" || kindB === "quest") return QUEST_RECORDS.find((r) => r.key === key) ?? null;
-  const found = pairFor(kindA, kindB);
-  if (!found) return null;
-  return found.pair.types.find((t) => t.key === key) ?? found.pair.records?.find((r) => r.key === key) ?? null;
+/** Items grouped by the kind of their far end, in the order every sheet uses; an empty group is absent. */
+export function groupByKind<T>(items: readonly T[], kindOf: (item: T) => ConnectionKind): { group: ConnectionGroup; items: T[] }[] {
+  return CONNECTION_GROUP_ORDER.map((group) => ({ group, items: items.filter((item) => groupFor(kindOf(item)) === group) }))
+    .filter((g) => g.items.length > 0);
+}
+
+/** Which record homes hold a place's or a faction's people: a place's residents and the PCs there, a faction's members. */
+const PEOPLE_SOURCES: Record<"location" | "faction", readonly ConnectionSource[]> = {
+  location: ["npc_home", "pc_place"],
+  faction: ["membership"],
+};
+
+/** The people rows of a place or faction, out of its connections. */
+export function peopleOf(kind: "location" | "faction", connections: readonly Connection[]): Connection[] {
+  const sources = PEOPLE_SOURCES[kind];
+  return connections.filter((c) => sources.includes(c.source) && (c.other_kind === "npc" || c.other_kind === "party_member"));
 }
 
 /**
@@ -53,73 +73,14 @@ function defFor(kindA: ConnectionKind, kindB: ConnectionKind, key: string): Link
  * `subjectKind` is the kind of the thing whose sheet it is.
  */
 export function connectionWord(row: Pick<Connection, "type" | "outward" | "other_kind">, subjectKind: LinkKind): string {
-  const def = row.outward ? defFor(subjectKind, row.other_kind, row.type) : defFor(row.other_kind, subjectKind, row.type);
-  if (!def) return row.type.replaceAll("_", " ");
-  return row.outward ? def.forward : def.reverse;
+  return wordFor(subjectKind, row.other_kind, row.type, row.outward);
 }
 
 /** A link type's family (its colour); records are their own family. */
 export function connectionFamily(row: Pick<Connection, "source" | "type" | "outward" | "other_kind">, subjectKind: LinkKind): LinkFamily {
   if (row.source !== "link") return "record";
-  const def = row.outward ? defFor(subjectKind, row.other_kind, row.type) : defFor(row.other_kind, subjectKind, row.type);
+  const def = typeDefFor(subjectKind, row.other_kind, row.type);
   return def && "family" in def ? def.family : "bond";
-}
-
-/** One choice in a type picker between the thing on screen and another. */
-export interface TypeChoice {
-  /** The catalogue key; with `home` it names a record type rather than a link. */
-  key: string;
-  /** Read from the thing on screen: "worships", or "apprentice of" when the screen is the `to` end. */
-  word: string;
-  /** Whether the thing on screen is stored as the `from` end. */
-  subjectIsFrom: boolean;
-  family: LinkFamily;
-  common: boolean;
-  /** Set for a record type: where choosing it writes. */
-  home?: RecordTypeDef["home"];
-  /** A record holding one value for its `from` end: choosing it replaces the old one. */
-  single?: boolean;
-}
-
-/**
- * Every type the thing on screen (`subject`) can hold towards `other`, read from
- * the subject. For two people an asymmetric type is offered both ways ("mentor of"
- * and "apprentice of") because either can be the stored `from`.
- */
-export function typeChoices(subject: LinkKind, other: LinkKind): TypeChoice[] {
-  const choices: TypeChoice[] = [];
-  for (const pair of WORLD_LINK_PAIRS) {
-    const forward = pair.from.includes(subject) && pair.to.includes(other);
-    const backward = pair.from.includes(other) && pair.to.includes(subject);
-    if (!forward && !backward) continue;
-    for (const t of pair.types) {
-      if (forward) choices.push({ key: t.key, word: t.forward, subjectIsFrom: true, family: t.family, common: t.common === true });
-      // A symmetric type reads the same from either end, so it is offered once.
-      if (backward && !(forward && t.symmetric)) {
-        choices.push({ key: t.key, word: t.reverse, subjectIsFrom: false, family: t.family, common: t.common === true });
-      }
-    }
-    for (const r of pair.records ?? []) {
-      const directions = [forward ? true : null, backward && !(forward && r.forward === r.reverse) ? false : null]
-        .filter((d): d is boolean => d !== null);
-      for (const subjectIsFrom of directions) {
-        const fromKind = subjectIsFrom ? subject : other;
-        const toKind = subjectIsFrom ? other : subject;
-        if (r.fromKinds && !r.fromKinds.includes(fromKind)) continue;
-        if (r.toKinds && !r.toKinds.includes(toKind)) continue;
-        choices.push({
-          key: r.key,
-          word: subjectIsFrom ? r.forward : r.reverse,
-          subjectIsFrom,
-          family: "record",
-          common: r.common === true,
-          home: r.home,
-          ...(r.single ? { single: true } : {}),
-        });
-      }
-    }
-  }
-  return choices;
 }
 
 const END_COLUMN: Record<LinkKind, string> = {

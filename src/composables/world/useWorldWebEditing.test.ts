@@ -25,7 +25,7 @@ vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ success: mocks.success, error: mocks.error, fromError: (e: unknown, f: string) => (e instanceof Error ? e.message : f) }),
 }));
 
-const choice: TypeChoice = { key: "worships", word: "worships", subjectIsFrom: true, family: "faith", common: true };
+const choice: TypeChoice = { key: "worships", word: "worships", subjectIsFrom: true, family: "faith", common: true, pair: "person_deity" };
 
 describe("useWorldWebEditing", () => {
   beforeEach(() => {

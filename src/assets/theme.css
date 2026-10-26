@@ -145,21 +145,6 @@
   --color-rarity-very-rare: var(--rarity-very-rare);
   --color-rarity-legendary: var(--rarity-legendary);
   --color-rarity-artifact: var(--rarity-artifact);
-  --color-relation-family: var(--relation-family);
-  --color-relation-sibling: var(--relation-sibling);
-  --color-relation-chosen-family: var(--relation-chosen-family);
-  --color-relation-friend: var(--relation-friend);
-  --color-relation-ally: var(--relation-ally);
-  --color-relation-rival: var(--relation-rival);
-  --color-relation-enemy: var(--relation-enemy);
-  --color-relation-mentor: var(--relation-mentor);
-  --color-relation-apprentice: var(--relation-apprentice);
-  --color-relation-lover: var(--relation-lover);
-  --color-relation-subordinate: var(--relation-subordinate);
-  --color-relation-superior: var(--relation-superior);
-  --color-relation-contact: var(--relation-contact);
-  --color-relation-former-ally: var(--relation-former-ally);
-  --color-relation-former-enemy: var(--relation-former-enemy);
   --color-link-bond: var(--link-bond);
   --color-link-enmity: var(--link-enmity);
   --color-link-faith: var(--link-faith);
@@ -370,22 +355,8 @@
   --rarity-artifact: #f87171;
 
 
-  /* NPC_RELATIONSHIP_TYPE_BG */
+  /* World web: kin line colour */
   --relation-family: #7c3aed;
-  --relation-sibling: #a855f7;
-  --relation-chosen-family: #c084fc;
-  --relation-friend: #059669;
-  --relation-ally: #2563eb;
-  --relation-rival: #d97706;
-  --relation-enemy: #dc2626;
-  --relation-mentor: #0891b2;
-  --relation-apprentice: #6366f1;
-  --relation-lover: #db2777;
-  --relation-subordinate: #6b7280;
-  --relation-superior: #374151;
-  --relation-contact: #64748b;
-  --relation-former-ally: #92400e;
-  --relation-former-enemy: #7f1d1d;
 
   /* World web: one colour per family of tie (#1084). Lightness differs across the
      seven, not hue alone: enmity is the darkest, holding the lightest. */
