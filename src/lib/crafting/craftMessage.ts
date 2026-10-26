@@ -9,12 +9,24 @@ export function outcomeLabel(outcome: Outcome): string {
   return "Failure";
 }
 
-export function outcomeDetail(outcome: Outcome, outputNames: readonly string[], fine = false): string {
-  if (outcome === "success") return `${outputNames.join(", ")} added to your backpack${fine ? ", and it came out Fine" : ""}.`;
+/**
+ * What an outcome did, in a sentence. `primaryTouched` is false when the plan consumed nothing:
+ * a failure then costs only the time, and a critical failure has nothing to ruin.
+ */
+export function outcomeDetail(
+  outcome: Outcome,
+  outputNames: readonly string[],
+  opts: { fine?: boolean; primaryTouched: boolean },
+): string {
+  if (outcome === "success") return `${outputNames.join(", ")} added to your backpack${opts.fine ? ", and it came out Fine" : ""}.`;
   if (outcome === "ruin") {
-    return "The primary ingredient was ruined and returned to your inventory as wreckage. Your other ingredients are untouched.";
+    return opts.primaryTouched
+      ? "The primary ingredient was ruined and returned to your inventory as wreckage. Your other ingredients are untouched."
+      : "The attempt went badly wrong. The time is lost, but there was nothing to ruin.";
   }
-  return "The attempt failed. The time is lost and your primary ingredient is a step worse.";
+  return opts.primaryTouched
+    ? "The attempt failed. The time is lost and your primary ingredient is a step worse."
+    : "The attempt failed. The time is lost.";
 }
 
 /** Display names of what a recipe makes ("2× Healing Potion"); "item" is label text, not data. */
@@ -43,6 +55,8 @@ export interface CraftMessageInput {
   outputNames: readonly string[];
   /** The roll beat the DC by FINE_RESULT_MARGIN, so the outputs are Fine. */
   fine?: boolean;
+  /** False when the plan consumed nothing, so a failure touched no ingredient. */
+  primaryTouched: boolean;
 }
 
 /** The line posted to the campaign chat after a craft. */
@@ -56,8 +70,9 @@ export function craftChatMessage(i: CraftMessageInput): string {
   if (modSum !== 0) msg += ` ${modSum >= 0 ? "+" : ""}${modSum} (modifiers)`;
   msg += ` = **${res.total}** vs DC ${i.dc}`;
   if (res.outcome === "success") msg += `\n✅ **Success!** ${i.outputNames.join(", ")} crafted${i.fine ? ", and it came out Fine" : ""}.`;
-  else if (res.outcome === "ruin") msg += `\n💀 **Critical failure!** Primary ingredient ruined; the rest kept.`;
-  else msg += `\n❌ **Failed.** Time lost; the primary ingredient is a step worse.`;
+  else if (res.outcome === "ruin") {
+    msg += i.primaryTouched ? `\n💀 **Critical failure!** Primary ingredient ruined; the rest kept.` : `\n💀 **Critical failure!** Time lost; nothing to ruin.`;
+  } else msg += i.primaryTouched ? `\n❌ **Failed.** Time lost; the primary ingredient is a step worse.` : `\n❌ **Failed.** Time lost.`;
   return msg;
 }
 

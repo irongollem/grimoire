@@ -314,10 +314,13 @@ serve(withCors(async (req: Request) => {
       edited: false,
     };
 
+    // A revision has answered the DM's send-back note (it went to the model above), so the note
+    // goes with it: left on, every later revision would apply it again and the DM's queue would
+    // show it beside a draft that already addressed it.
     const write = revising
       ? admin
         .from("crafting_inventions")
-        .update({ draft: verdict.draft, ai_provenance, revision: revising.revision + 1 })
+        .update({ draft: verdict.draft, ai_provenance, revision: revising.revision + 1, dm_note: null })
         .eq("id", revising.id)
         .eq("status", "draft")
         .select("*")

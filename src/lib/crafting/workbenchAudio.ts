@@ -17,6 +17,7 @@ import {
   type WorkbenchSound,
   type WorkbenchSting,
 } from "@/data/workbenchSounds";
+import { canPlayOggVorbis } from "@/lib/audio/oggSupport";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { getPublicUrl } from "@/lib/storage/urls";
@@ -42,9 +43,13 @@ function playOnce(url: string, gain: number): void {
   try {
     const audio = new Audio(url);
     audio.volume = Math.min(1, Math.max(0, gain));
-    audio.addEventListener("error", () => reportHandledError(new Error("workbench sound failed to load"), "workbench-audio", { url }));
-    // Autoplay can be blocked until the first gesture; the promise rejects then.
-    void audio.play().catch((e: unknown) => reportHandledError(e, "workbench-audio", { url }));
+    // One report per failure: a file that will not load also rejects play(), so no "error"
+    // listener beside it. Autoplay blocked until the first gesture (NotAllowedError) or a play
+    // cut short (AbortError) is the browser's ordinary behaviour, not a fault.
+    void audio.play().catch((e: unknown) => {
+      if (e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "AbortError")) return;
+      reportHandledError(e, "workbench-audio", { url });
+    });
   } catch (e) {
     reportHandledError(e, "workbench-audio", { url });
   }
@@ -53,6 +58,8 @@ function playOnce(url: string, gain: number): void {
 function play(sound: WorkbenchSound): void {
   if (sound.slug === null) return;
   if (!getWorkshopSoundsEnabled()) return;
+  // The library is Ogg (#1111); a device that cannot decode it is told so by AudioFormatNotice.
+  if (!canPlayOggVorbis()) return;
   const url = getPublicUrl("sounds", `library/${sound.slug}.ogg`);
   const gain = sound.gain === undefined ? 1 : sound.gain;
   const times = sound.repeat === undefined ? 1 : sound.repeat;

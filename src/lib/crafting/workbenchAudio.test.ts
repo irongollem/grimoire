@@ -4,6 +4,8 @@ const play = vi.fn(() => Promise.resolve());
 const created: string[] = [];
 vi.mock("@/lib/storage/urls", () => ({ getPublicUrl: (b: string, p: string) => `https://cdn/${b}/${p}` }));
 vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
+const canPlayOgg = vi.fn(() => true);
+vi.mock("@/lib/audio/oggSupport", () => ({ canPlayOggVorbis: () => canPlayOgg() }));
 
 import { WORKBENCH_DISCIPLINE_SOUNDS, WORKBENCH_STINGS, WORKBENCH_WORK_SOUNDS } from "@/data/workbenchSounds";
 import {
@@ -20,6 +22,7 @@ const realSuccess = { ...WORKBENCH_STINGS.success };
 
 beforeEach(() => {
   play.mockClear();
+  canPlayOgg.mockReturnValue(true);
   created.length = 0;
   setWorkshopSoundsEnabled(true);
   vi.stubGlobal(
@@ -29,7 +32,6 @@ beforeEach(() => {
       constructor(url: string) {
         created.push(url);
       }
-      addEventListener() {}
       play = play;
     },
   );
@@ -55,6 +57,24 @@ describe("workbenchAudio", () => {
     setWorkshopSoundsEnabled(false);
     playOutcomeSting("success");
     expect(play).not.toHaveBeenCalled();
+  });
+
+  it("plays nothing on a device that cannot decode Ogg", () => {
+    WORKBENCH_STINGS.success = { slug: "chime" };
+    canPlayOgg.mockReturnValue(false);
+    playOutcomeSting("success");
+    expect(play).not.toHaveBeenCalled();
+  });
+
+  it("does not report a play blocked by autoplay rules", async () => {
+    const { reportHandledError } = await import("@/lib/observability/sentry");
+    vi.mocked(reportHandledError).mockClear();
+    play.mockImplementationOnce(() => Promise.reject(new DOMException("blocked", "NotAllowedError")));
+    WORKBENCH_STINGS.success = { slug: "chime" };
+    playOutcomeSting("success");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(reportHandledError).not.toHaveBeenCalled();
   });
 
   it("plays the library file and repeats a short hit", () => {

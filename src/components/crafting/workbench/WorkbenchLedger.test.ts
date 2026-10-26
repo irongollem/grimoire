@@ -37,6 +37,7 @@ function mountLedger(over: Record<string, unknown> = {}) {
       qualityLine: null,
       fine: false,
       degradeLine: null,
+      primaryTouched: true,
       ...over,
     },
     global: { stubs: { FocalImage: true, RouterLink: { template: "<a><slot /></a>" } } },

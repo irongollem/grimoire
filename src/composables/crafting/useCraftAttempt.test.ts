@@ -14,17 +14,21 @@ vi.mock("@/lib/crafting/workbenchAudio", async (orig) => ({
 }));
 
 import { useCraftAttempt } from "./useCraftAttempt";
-import { buildIngredientSlots } from "@/lib/crafting/ingredients";
+import { ref, type MaybeRefOrGetter } from "vue";
+import { buildIngredientSlots, type IngredientSlot } from "@/lib/crafting/ingredients";
 import type { CraftingRecipe } from "@/types/crafting.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 
-function setup(quality: PartyInventoryItem["quality"] = "standard") {
-  const slots = buildIngredientSlots(
+function slotsOf(quality: PartyInventoryItem["quality"]) {
+  return buildIngredientSlots(
     [{ item_id: null, library_item_id: "iron", tags: null, quantity: 1 }],
     [{ id: "r1", library_item_id: "iron", item_id: null, quantity: 2, name: "Iron", carried_by: "m", campaign_id: "c", quality } as PartyInventoryItem],
     [],
   );
+}
+
+function setup(quality: PartyInventoryItem["quality"] = "standard", slots: MaybeRefOrGetter<IngredientSlot[]> = slotsOf(quality)) {
   return useCraftAttempt({
     recipe: { name: "Nail", dc: 10, discipline: "smithing" } as unknown as CraftingRecipe,
     outputs: [],
@@ -106,6 +110,17 @@ describe("useCraftAttempt", () => {
     expect(a.qualityModifier.value).toBe(-2);
     a.reset();
     expect(a.qualityModifier.value).toBe(-2); // live inventory still reads poor
+  });
+
+  it("lets go of the rolled quality when the attempt errors, so the next roll reads the new stack", async () => {
+    attemptCraft.mockRejectedValue(new Error("network"));
+    const slots = ref(slotsOf("poor"));
+    const a = setup("poor", slots);
+    await a.attempt();
+    expect(a.attemptError.value).toBe("network");
+    slots.value = slotsOf("fine");
+    expect(a.qualityModifier.value).toBe(1);
+    expect(a.qualityLine.value).toBe("Fine iron");
   });
 
   it("says a Fine result in the chat line", async () => {

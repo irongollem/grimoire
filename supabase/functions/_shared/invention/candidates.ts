@@ -59,8 +59,8 @@ export function acceptsAsMaterial(row: CandidateRow): boolean {
 }
 
 /**
- * Dedupes by name (first wins, so callers pass custom rows before library
- * rows), filters, caps, and keys "<prefix>1".."<prefix>N". The key is all the
+ * Filters, dedupes the accepted rows by name (first wins, so callers pass custom
+ * rows before library rows), caps, and keys "<prefix>1".."<prefix>N". The key is all the
  * model ever sees of an item's identity.
  */
 export function keyCandidates(
@@ -73,10 +73,12 @@ export function keyCandidates(
   const out: InventionCandidate[] = [];
   for (const row of rows) {
     if (out.length >= cap) break;
+    // Filter before the name is claimed: a rejected custom row must not hide an acceptable
+    // library row of the same name.
+    if (!accept(row)) continue;
     const name = row.name.trim().toLowerCase();
     if (seen.has(name)) continue;
     seen.add(name);
-    if (!accept(row)) continue;
     out.push({
       key: `${prefix}${out.length + 1}`,
       ref: row.source === "custom" ? { item_id: row.id } : { library_item_id: row.id },

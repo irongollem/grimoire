@@ -429,5 +429,33 @@ begin
 end;
 $function$;
 
--- Last: nothing reads the flag any more.
-alter table public.party_inventory drop column is_ruined;
+-- ── is_ruined stays one release, as a mirror of quality ─────────────────────
+-- Nothing in this release reads or writes it. It is NOT dropped here because migrations apply on
+-- push while the frontend deploys separately: the bundle already in every open tab inserts
+-- `is_ruined: false` from about fifteen inventory paths (seeding, sending, claims, the stash), and
+-- would get an unknown-column error on each until reloaded. So for one release the trigger keeps it
+-- an echo of quality rather than a second answer: an old client's `is_ruined: true` on a copied
+-- row becomes 'ruined', and every row's flag is rewritten from quality on every write, so an old
+-- client reading it still sees the truth. The drop is its own migration once this release is live (#1113).
+create function private.party_inventory_is_ruined_mirror()
+returns trigger
+language plpgsql
+set search_path to ''
+as $$
+begin
+  if tg_op = 'INSERT' and new.is_ruined and new.quality = 'standard' then
+    new.quality := 'ruined';
+  end if;
+  new.is_ruined := new.quality = 'ruined';
+  return new;
+end;
+$$;
+
+revoke execute on function private.party_inventory_is_ruined_mirror() from public, anon, authenticated;
+
+create trigger party_inventory_is_ruined_mirror
+  before insert or update on public.party_inventory
+  for each row execute procedure private.party_inventory_is_ruined_mirror();
+
+comment on column public.party_inventory.is_ruined is
+  'Deprecated by quality (#1102): a mirror of quality = ''ruined'' kept one release for clients loaded before it; read quality.';

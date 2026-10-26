@@ -69,6 +69,7 @@
         :quality-line="attempt.qualityLine.value"
         :fine="fine"
         :degrade-line="degradeLine"
+        :primary-touched="wreckageName !== null"
         :attempt-error="attempt.attemptError.value"
         :chat-notice="attempt.chatNotice.value"
         @attempt="onAttempt"

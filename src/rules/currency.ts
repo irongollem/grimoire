@@ -20,16 +20,24 @@ export function fromCP(totalCp: number): { pp: number; gp: number; ep: number; s
   return { pp, gp, ep: 0, sp, cp: totalCp };
 }
 
-/** Parse freeform price text like "5 gp", "1 gp 5 sp", "150 gold" into structured coins. */
+/**
+ * Parse freeform price text like "5 gp", "1 gp 5 sp", "150 gold" or "1,500 gp" into structured
+ * coins. Thousands separators are part of the number: library costs ("1,500 gp" plate) and
+ * invented items' costs are written with them.
+ */
 export function parseCoinText(text: string): Record<CoinKey, number> {
   const t = text.toLowerCase();
-  const match = (pattern: RegExp) => { const m = t.match(pattern); return m ? parseInt(m[1]) : 0; };
+  const match = (pattern: RegExp) => {
+    const m = t.match(pattern);
+    return m ? parseInt(m[1].replace(/,/g, ""), 10) : 0;
+  };
+  const n = String.raw`(\d{1,3}(?:,\d{3})+|\d+)`;
   return {
-    pp: match(/(\d+)\s*pp/),
-    gp: match(/(\d+)\s*(?:gp|gold)/),
-    ep: match(/(\d+)\s*ep/),
-    sp: match(/(\d+)\s*(?:sp|silver)/),
-    cp: match(/(\d+)\s*(?:cp|copper)/),
+    pp: match(new RegExp(`${n}\\s*pp`)),
+    gp: match(new RegExp(`${n}\\s*(?:gp|gold)`)),
+    ep: match(new RegExp(`${n}\\s*ep`)),
+    sp: match(new RegExp(`${n}\\s*(?:sp|silver)`)),
+    cp: match(new RegExp(`${n}\\s*(?:cp|copper)`)),
   };
 }
 

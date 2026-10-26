@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { requireAdmin } from "../_shared/requireAdmin.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { validateScreenshot } from "./screenshot.ts";
 import { labelsFor, parseReportText, renderIssue, type ReportKind, type ReportText } from "./issue.ts";
@@ -219,10 +220,10 @@ Deno.serve(withCors(async (req: Request) => {
   const body = payload as Record<string, unknown>;
 
   if ("refile" in body) {
-    // `app_metadata` is server-controlled and signed into the JWT, so this is
-    // the same test as `private.is_app_admin()`, and false when the key is
-    // absent rather than NULL.
-    if (user.app_metadata?.role !== "admin") return new Response("Forbidden", { status: 403 });
+    // Through the shared gate, so the admin test is defined once for every
+    // admin-only edge path (it is false, not NULL, when the claim is absent).
+    const gate = await requireAdmin(req);
+    if (gate instanceof Response) return gate;
     if (typeof body.refile !== "string" || !UUID.test(body.refile)) {
       return new Response("Invalid report id", { status: 400 });
     }

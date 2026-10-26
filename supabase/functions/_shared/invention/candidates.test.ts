@@ -53,6 +53,14 @@ describe("keyCandidates", () => {
     expect(out[0].ref).toEqual({ item_id: "c1" });
     expect(out[1].name).toBe("Gear A");
   });
+  it("lets a rejected custom row leave its name to an acceptable library row", () => {
+    const rows = [
+      row({ name: "Lantern", id: "c1", item_type: "wondrous_item" }),
+      row({ name: "Lantern", id: "srd_lantern", source: "library" }),
+    ];
+    const out = keyCandidates(rows, (r) => r.item_type === "gear", "o");
+    expect(out.map((c) => c.ref)).toEqual([{ library_item_id: "srd_lantern" }]);
+  });
   it("makes a library ref for library rows", () => {
     const [c] = keyCandidates([row({ name: "Rope", source: "library", id: "srd_rope" })], () => true, "m");
     expect(c.key).toBe("m1");

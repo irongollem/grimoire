@@ -174,6 +174,7 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
         modifierBonuses: modifierBonuses.value,
         outputNames: outputNames.value,
         fine: isFineResult(res.outcome, res.diff),
+        primaryTouched: primary !== null,
       });
       // The attempt already happened, so a failed post must not read as a failed craft:
       // it surfaces inline (no toast here, on purpose) and the result stays on screen.
@@ -182,6 +183,8 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
         chatNotice.value = "Your craft went through, but the result could not be posted to the chat.";
       });
     } catch (err) {
+      // No result to hold the roll beside, and the player may now lay out other rows.
+      rolledQuality.value = null;
       attemptError.value = err instanceof Error ? err.message : "An unexpected error occurred.";
     } finally {
       attempting.value = false;

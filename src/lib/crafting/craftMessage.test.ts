@@ -12,6 +12,7 @@ const base: CraftMessageInput = {
   profBonus: 3,
   modifierBonuses: [],
   outputNames: ["2× Healing Potion"],
+  primaryTouched: true,
 };
 
 describe("craftChatMessage", () => {
@@ -37,7 +38,13 @@ describe("craftChatMessage", () => {
   it("says a Fine result came out Fine", () => {
     expect(craftChatMessage({ ...base, fine: true })).toContain("2× Healing Potion crafted, and it came out Fine.");
     expect(craftChatMessage(base)).not.toContain("Fine");
-    expect(outcomeDetail("success", ["A"], true)).toBe("A added to your backpack, and it came out Fine.");
+    expect(outcomeDetail("success", ["A"], { fine: true, primaryTouched: true })).toBe("A added to your backpack, and it came out Fine.");
+  });
+  it("claims no ingredient damage when the attempt consumed nothing", () => {
+    const fail = { roll: 5, total: 10, outcome: "fail" as const, hasDisadvantage: false };
+    const ruin = { roll: 1, total: 6, outcome: "ruin" as const, hasDisadvantage: false };
+    expect(craftChatMessage({ ...base, primaryTouched: false, result: fail })).toMatch(/❌ \*\*Failed\.\*\* Time lost\.$/);
+    expect(craftChatMessage({ ...base, primaryTouched: false, result: ruin })).toMatch(/Time lost; nothing to ruin\.$/);
   });
   it("omits the modifiers part when they sum to zero", () => {
     expect(craftChatMessage({ ...base, modifierBonuses: [2, -2] })).not.toContain("(modifiers)");
@@ -51,9 +58,12 @@ describe("outcome text", () => {
     expect(outcomeLabel("fail")).toBe("Failure");
   });
   it("details", () => {
-    expect(outcomeDetail("success", ["A", "2× B"])).toBe("A, 2× B added to your backpack.");
-    expect(outcomeDetail("ruin", [])).toBe("The primary ingredient was ruined and returned to your inventory as wreckage. Your other ingredients are untouched.");
-    expect(outcomeDetail("fail", [])).toBe("The attempt failed. The time is lost and your primary ingredient is a step worse.");
+    const touched = { primaryTouched: true };
+    expect(outcomeDetail("success", ["A", "2× B"], touched)).toBe("A, 2× B added to your backpack.");
+    expect(outcomeDetail("ruin", [], touched)).toBe("The primary ingredient was ruined and returned to your inventory as wreckage. Your other ingredients are untouched.");
+    expect(outcomeDetail("fail", [], touched)).toBe("The attempt failed. The time is lost and your primary ingredient is a step worse.");
+    expect(outcomeDetail("fail", [], { primaryTouched: false })).toBe("The attempt failed. The time is lost.");
+    expect(outcomeDetail("ruin", [], { primaryTouched: false })).toBe("The attempt went badly wrong. The time is lost, but there was nothing to ruin.");
   });
   it("output names fall back to item and prefix quantities", () => {
     const outs = [

@@ -111,7 +111,7 @@ import type { CraftingAttemptResult, CraftingModifier, CraftingRecipe } from "@/
 
 const {
   recipe, discipline, modifiers, slots, abilityMod, profBonus, hasProficiency, hasTools, modifierBonuses,
-  selectedModifiers, canAttempt, attempting, result, outputNames, recipeArt, short, qualityMod, qualityLine, fine, degradeLine,
+  selectedModifiers, canAttempt, attempting, result, outputNames, recipeArt, short, qualityMod, qualityLine, fine, degradeLine, primaryTouched,
 } = defineProps<{
   recipe: CraftingRecipe;
   discipline: DisciplineConfig;
@@ -138,6 +138,8 @@ const {
   fine: boolean;
   /** What a failure did to the primary ingredient ("Your Iron Ingot is now Poor."). */
   degradeLine: string | null;
+  /** False when the attempt consumed nothing, so no ingredient was degraded or ruined. */
+  primaryTouched: boolean;
   attemptError: string | null;
   chatNotice: string | null;
 }>();
@@ -171,6 +173,6 @@ const blockedReason = computed(() => {
 const title = computed(() => (!result ? "" : result.outcome === "success" ? "Success" : result.outcome === "ruin" ? "Critical failure" : "Failed"));
 const tone = computed(() => (!result ? "" : result.outcome === "success" ? "text-tone-success" : result.outcome === "ruin" ? "text-destructive" : "text-muted-foreground"));
 const outcomeIcon = computed(() => (result?.outcome === "success" ? IconCheckCircle : IconCloseCircle));
-const detail = computed(() => (result ? [outcomeDetail(result.outcome, outputNames, fine), result.outcome === "fail" ? degradeLine : null].filter(Boolean).join(" ") : ""));
+const detail = computed(() => (result ? [outcomeDetail(result.outcome, outputNames, { fine, primaryTouched }), result.outcome === "fail" ? degradeLine : null].filter(Boolean).join(" ") : ""));
 const rolledText = computed(() => (result ? rolledLine(result, totalBonus.value, recipe.dc) : ""));
 </script>
