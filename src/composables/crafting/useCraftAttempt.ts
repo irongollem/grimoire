@@ -4,6 +4,7 @@ import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages"
 import { getDiscipline } from "@/lib/crafting/disciplines";
 import { craftChatMessage, outputDisplayNames } from "@/lib/crafting/craftMessage";
 import { planConsumption, resolveItemName, rowDisplayName, type IngredientSlot } from "@/lib/crafting/ingredients";
+import { isFineResult, qualityNote, spentQualityModifier, spentRows } from "@/lib/crafting/qualityRules";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { reportHandledError } from "@/lib/observability/sentry";
 import type {
@@ -14,8 +15,6 @@ import type {
 } from "@/types/crafting.types";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
-
-export const POOR_INGREDIENTS_PENALTY = -2;
 
 export interface CraftAttemptInputs {
   recipe: MaybeRefOrGetter<CraftingRecipe>;
@@ -44,7 +43,6 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
   const chatNotice = ref<string | null>(null);
   const selectedModifiers = ref<Set<number>>(new Set());
   const workspaceEnabled = ref(false);
-  const poorIngredientsEnabled = ref(false);
   /** slot index → inventory row id the player chose to use first */
   const preferred = ref<Record<number, string>>({});
 
@@ -63,16 +61,26 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
     selectedModifiers.value = new Set(selectedModifiers.value);
   }
 
+  const plan = computed(() => planConsumption(toValue(inputs.slots), preferred.value));
+
+  // The roll reads the rows the plan would spend. A critical failure spends only the primary, but
+  // the roll comes first, so the whole plan counts.
+  const spent = computed(() => spentRows(toValue(inputs.slots), plan.value.consumption));
+  // Held from the moment of the attempt until reset: the spent rows leave (or change quality in)
+  // the inventory, and the roll shown beside the result must still be the roll that was made.
+  const rolledQuality = ref<{ modifier: number; line: string | null } | null>(null);
+  const qualityModifier = computed(() => rolledQuality.value?.modifier ?? spentQualityModifier(spent.value));
+  /** "Poor leather, fine ingots", or null when every spent row is standard. */
+  const qualityLine = computed(() => (rolledQuality.value ? rolledQuality.value.line : qualityNote(spent.value)));
+
   const modifierBonuses = computed(() => {
     const mods = toValue(inputs.modifiers);
     // A ticked index can outlive its modifier when the DM edits the recipe mid-session.
     const bonuses = [...selectedModifiers.value].flatMap((idx) => (mods[idx] ? [mods[idx].bonus] : []));
     if (workspaceEnabled.value) bonuses.push(toValue(inputs.workspaceBonus));
-    if (poorIngredientsEnabled.value) bonuses.push(POOR_INGREDIENTS_PENALTY);
+    if (qualityModifier.value !== 0) bonuses.push(qualityModifier.value);
     return bonuses;
   });
-
-  const plan = computed(() => planConsumption(toValue(inputs.slots), preferred.value));
 
   /** The recipe's own gates: it may demand tool proficiency, or the tools in the pack. */
   const locked = computed(() => {
@@ -100,6 +108,7 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
     attempting.value = true;
     attemptError.value = null;
     chatNotice.value = null;
+    rolledQuality.value = { modifier: qualityModifier.value, line: qualityLine.value };
 
     const { consumption, primaryConsumption, primary } = plan.value;
     const recipe = toValue(inputs.recipe);
@@ -128,6 +137,7 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
         // Null when the recipe consumes nothing: there is no item to ruin.
         primaryInventoryItem: primary
           ? {
+              id: primary.id,
               // Both columns as they really are, so the ruined row keeps a
               // library reference instead of losing it.
               item_id: primary.item_id,
@@ -157,6 +167,7 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
         profBonus: profBonus.value,
         modifierBonuses: modifierBonuses.value,
         outputNames: outputNames.value,
+        fine: isFineResult(res.outcome, res.diff),
       });
       // The attempt already happened, so a failed post must not read as a failed craft:
       // it surfaces inline (no toast here, on purpose) and the result stays on screen.
@@ -178,6 +189,7 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
    */
   function reset() {
     result.value = null;
+    rolledQuality.value = null;
     attemptError.value = null;
     chatNotice.value = null;
   }
@@ -185,7 +197,6 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
   return {
     selectedModifiers,
     workspaceEnabled,
-    poorIngredientsEnabled,
     preferred,
     attempting,
     result,
@@ -195,6 +206,8 @@ export function useCraftAttempt(inputs: CraftAttemptInputs) {
     abilityMod,
     profBonus,
     modifierBonuses,
+    qualityModifier,
+    qualityLine,
     outputNames,
     plan,
     locked,

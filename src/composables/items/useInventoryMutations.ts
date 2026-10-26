@@ -209,6 +209,7 @@ export function useInventoryMutations({
         ref,
         inv.quantity,
         linkedItem?.rarity ?? null,
+        { quality: inv.quality },
       );
     } catch (e) {
       reportChatFailure(e, "drop the item to the chat");
@@ -244,7 +245,7 @@ export function useInventoryMutations({
       slot: inv.slot,
       is_container: inv.is_container,
       container_id: inv.container_id,
-      is_ruined: inv.is_ruined,
+      quality: inv.quality,
       is_attuned: false,
       is_equipped: inv.is_equipped,
       notes: inv.notes,
@@ -275,7 +276,6 @@ export function useInventoryMutations({
       is_attuned: false,
       is_equipped: false,
       notes: null,
-      is_ruined: false,
       // A player adding their own item already knows what it is. Items the DM hands
       // out still arrive unidentified.
       is_identified: true,
@@ -299,7 +299,6 @@ export function useInventoryMutations({
         is_attuned: false,
         is_equipped: false,
         notes: null,
-        is_ruined: false,
         is_identified: true,
       });
       // Each bundle part is matched by name in the slim list, then read in full.
@@ -326,7 +325,6 @@ export function useInventoryMutations({
             is_attuned: false,
             is_equipped: false,
             notes: null,
-            is_ruined: false,
             is_identified: true,
           };
         }),
@@ -344,7 +342,6 @@ export function useInventoryMutations({
         is_attuned: false,
         is_equipped: false,
         notes: null,
-        is_ruined: false,
         // Self-added: identified, see addToLocation.
         is_identified: true,
       });

@@ -16,6 +16,7 @@ import type {
   CraftingAttemptResult,
 } from "@/types/crafting.types";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
+import { isFineResult } from "@/lib/crafting/qualityRules";
 import { inventoryItemRef } from "@/lib/itemRef";
 import type { StarterRecipeDef } from "@/data/starterRecipes";
 import { WORKSHOP_LIBRARY_EQUIVALENTS } from "@/data/workshopLibraryEquivalents";
@@ -451,8 +452,9 @@ export function useReplaceModifiers() {
  * Rolls a craft and applies what it came to. The outcome decides what is spent:
  * success spends every ingredient (`ingredientConsumption`) and makes the outputs;
  * a critical failure (natural 1, or a miss by 5 or more) spends only the primary
- * ingredient (`primaryConsumption`) and returns it as "Ruined: <name>"; a failure
- * spends nothing and writes nothing, since only the time is lost.
+ * ingredient (`primaryConsumption`) and returns it as a Ruined row of the same
+ * name; a failure spends nothing but takes the primary ingredient one quality step down
+ * (#1102). A success that beats the DC by FINE_RESULT_MARGIN makes Fine outputs.
  */
 export function useAttemptCraft() {
   const queryClient = useQueryClient();
@@ -480,7 +482,7 @@ export function useAttemptCraft() {
        * satisfied that with a `!`, so such a recipe crashed on the first
        * dereference instead of crafting.
        */
-      primaryInventoryItem: { item_id: string | null; library_item_id: string | null; name: string; carried_by: string | null; campaign_id: string } | null;
+      primaryInventoryItem: { id: string; item_id: string | null; library_item_id: string | null; name: string; carried_by: string | null; campaign_id: string } | null;
       modifierBonuses: number[];
       abilityMod: number;
       profBonus: number;
@@ -531,11 +533,13 @@ export function useAttemptCraft() {
             : diff <= -5 ? "ruin"
               : "fail";
 
-      // What each outcome spends (maintainer's rule, 24 Oct 2026): a success
-      // spends every ingredient, a critical failure only the primary one (and
-      // returns it ruined), a plain failure nothing at all, only the time.
-      // A plain failure therefore has nothing to write and makes no request.
-      if (outcome === "fail") {
+      // What each outcome does (maintainer's rules, 24 and 26 Oct 2026): a success spends every
+      // ingredient, a critical failure only the primary one (returned ruined), a plain failure
+      // spends nothing and drops the primary one quality step.
+      // A failure degrades the primary ingredient one step (craft_apply splits the stack when only
+      // part of it is used). With nothing consumed there is no primary and nothing to write.
+      const primaryTake = primaryInventoryItem ? primaryConsumption.find((c) => c.id === primaryInventoryItem.id) : undefined;
+      if (outcome === "fail" && !(primaryInventoryItem && primaryTake)) {
         return { roll, roll2, total, diff, outcome, hasDisadvantage: !hasTools };
       }
 
@@ -543,6 +547,7 @@ export function useAttemptCraft() {
       // atomic RPC (craft_apply) — see migration 20260613000002. Previously
       // these were two separate requests; a failure between them destroyed the
       // ingredients with nothing created.
+      const fine = isFineResult(outcome, diff);
       const successRows =
         outcome === "success"
           ? outputs.map((output) => {
@@ -554,6 +559,8 @@ export function useAttemptCraft() {
                 name: ref ? (outputItemNames[ref] ?? "") : "",
                 quantity: output.quantity,
                 carried_by: partyMemberId,
+                // Standard is the column default, so only Fine is sent.
+                ...(fine ? { quality: "fine" } : {}),
               };
             })
           : [];
@@ -566,16 +573,17 @@ export function useAttemptCraft() {
               campaign_id: primaryInventoryItem.campaign_id,
               item_id: primaryInventoryItem.item_id,
               library_item_id: primaryInventoryItem.library_item_id,
-              name: `Ruined: ${primaryInventoryItem.name}`,
+              name: primaryInventoryItem.name,
               carried_by: primaryInventoryItem.carried_by,
             }
           : null;
 
       const { error } = await supabase.rpc("craft_apply", {
-        p_ingredients: outcome === "success" ? ingredientConsumption : primaryConsumption,
+        p_ingredients: outcome === "success" ? ingredientConsumption : outcome === "ruin" ? primaryConsumption : null,
         p_outcome: outcome,
         p_success_rows: successRows,
         p_ruined_row: ruinedRow,
+        p_degrade: outcome === "fail" && primaryInventoryItem && primaryTake ? { id: primaryInventoryItem.id, qty: primaryTake.qty } : null,
       });
       if (error) throw error;
 

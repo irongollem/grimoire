@@ -8,7 +8,7 @@
         type="button"
         class="text-body text-foreground line-clamp-2 sm:line-clamp-1 break-words text-left hover:text-primary transition-colors w-full"
         @click="$emit('open-detail', item)"
-      >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 text-label text-primary/70" title="Attuned">✦</span></button>
+      >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 text-label text-primary/70" title="Attuned">✦</span><QualityBadge :quality="item.quality" size="sm" class="ml-1.5 align-middle" /></button>
       <p v-if="item.notes" class="text-caption text-muted-foreground italic truncate">{{ tiptapToPlainText(item.notes) }}</p>
       <p v-if="unitWeight > 0" class="sm:hidden text-label text-muted-foreground/60">
         {{ fmtW(unitWeight) }}<template v-if="item.quantity > 1"> ({{ fmtW(totalWeight) }})</template> lb.
@@ -132,6 +132,7 @@
 </template>
 
 <script setup lang="ts">
+import QualityBadge from "@/components/inventory/QualityBadge.vue";
 import { computed } from "vue";
 import { IconAdd, IconArrowUp, IconDelete, IconDocument, IconDrag, IconMinus, IconScissors, IconShop } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";

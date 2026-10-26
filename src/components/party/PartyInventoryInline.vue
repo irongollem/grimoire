@@ -120,6 +120,7 @@
               class="text-body text-foreground leading-tight truncate hover:text-primary transition-colors"
             >{{ item.name }}</RouterLink>
             <p v-else class="text-body text-foreground leading-tight truncate">{{ item.name }}</p>
+            <QualityBadge :quality="item.quality" size="sm" />
             <span
               v-if="catalogFor(item)"
               class="hidden sm:inline text-caption-sm text-muted-foreground/60 shrink-0"
@@ -182,6 +183,7 @@
 </template>
 
 <script setup lang="ts">
+import QualityBadge from "@/components/inventory/QualityBadge.vue";
 import { ref, computed, reactive, nextTick, watch } from "vue";
 import { useRouter } from "vue-router";
 import { IconArrowUp, IconDelete, IconExternalLink, IconInventory } from '@/lib/icons';
@@ -201,6 +203,7 @@ import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages"
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import type { PartyMember } from "@/types/party.types";
 import { inventoryItemRef, itemRefColumns, type ItemRefColumns } from "@/lib/itemRef";
+import type { ItemQuality } from "@/types/inventory.types";
 
 const { party } = defineProps<{ party: PartyMember[] }>();
 
@@ -303,7 +306,6 @@ async function submitAddItem() {
     slot: null,
     is_container: false,
     container_id: null,
-    is_ruined: false,
     is_identified: !vaultItem || vaultItem.rarity === 'mundane',
   });
   if (campaign.activeCampaignId)
@@ -339,13 +341,13 @@ function catalogFor(row: ItemRefColumns): Item | undefined {
   return ref ? catalogItemMap.value.get(ref) : undefined;
 }
 
-async function dropInventoryItemToChat(item: { id: string; name: string; quantity: number } & ItemRefColumns) {
+async function dropInventoryItemToChat(item: { id: string; name: string; quantity: number; quality: ItemQuality } & ItemRefColumns) {
   const linked = item.item_id ? catalogItemMap.value.get(item.item_id) : undefined;
   // The resolved reference, so a library item does not arrive in chat as
   // unlinked free text.
   // Post first, remove after: a failed post must not cost the party the item.
   try {
-    await sendItemDrop(item.name, inventoryItemRef(item), item.quantity, linked?.rarity ?? null);
+    await sendItemDrop(item.name, inventoryItemRef(item), item.quantity, linked?.rarity ?? null, { quality: item.quality });
   } catch (e) {
     reportChatFailure(e, "drop the item to the chat");
     return;

@@ -4,7 +4,7 @@ import { reactive, ref } from "vue";
 import ItemDetailPanel from "./ItemDetailPanel.vue";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 
-const mocks = vi.hoisted(() => ({ updateItem: vi.fn() }));
+const mocks = vi.hoisted(() => ({ updateItem: vi.fn(), isDM: false }));
 
 vi.mock("@/composables/items/usePartyInventory", () => ({
   useUpdateInventoryItem: () => ({ mutateAsync: mocks.updateItem }),
@@ -30,7 +30,7 @@ vi.mock("pinia", async (importOriginal) => ({
   }),
 }));
 vi.mock("@/stores/auth", () => ({
-  useAuthStore: () => reactive({ isDM: false, linkedPartyMemberId: "pm-1" }),
+  useAuthStore: () => reactive({ isDM: mocks.isDM, linkedPartyMemberId: "pm-1" }),
 }));
 vi.mock("@/stores/ui/app", () => ({
   useAppUiStore: () => reactive({ dmPreviewMode: false, dmPreviewPartyMemberId: null }),
@@ -59,7 +59,7 @@ function makeInv(overrides: Partial<PartyInventoryItem> = {}): PartyInventoryIte
     current_charges: null,
     updated_at: "",
     is_identified: true,
-    is_ruined: false,
+    quality: "standard",
     sort_order: 0,
     curse_revealed: false,
     ...overrides,
@@ -84,6 +84,7 @@ function editor(wrapper: VueWrapper) {
 }
 
 beforeEach(() => {
+  mocks.isDM = false;
   mocks.updateItem.mockReset();
   mocks.updateItem.mockResolvedValue(undefined);
 });
@@ -226,5 +227,23 @@ describe("ItemDetailPanel actions row", () => {
     const w = mountWith(makeInv(), sword);
     await findButton(w, "Drop to chat").trigger("click");
     expect(w.emitted("dropToChat")).toHaveLength(1);
+  });
+});
+
+describe("ItemDetailPanel quality (#1102)", () => {
+  it("lets the DM change a row's quality, writing it through the update", async () => {
+    mocks.isDM = true;
+    const wrapper = mountPanel(makeInv({ id: "inv-9" }));
+    const select = wrapper.findComponent({ name: "AppSelect" });
+    expect(select.exists()).toBe(true);
+    select.vm.$emit("update:modelValue", "fine");
+    await flushPromises();
+    expect(mocks.updateItem).toHaveBeenCalledWith({ id: "inv-9", update: { quality: "fine" } });
+  });
+
+  it("shows a player the badge but no control", () => {
+    const wrapper = mountPanel(makeInv({ quality: "fine" }));
+    expect(wrapper.findComponent({ name: "AppSelect" }).exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "QualityBadge" }).props("quality")).toBe("fine");
   });
 });

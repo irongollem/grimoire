@@ -112,7 +112,7 @@ export function usePlayerCrafting(options: { recipeIds?: MaybeRefOrGetter<string
     return tools.some((tool) => {
       const canonical = canonicalToolName(tool) ?? tool;
       return myInventory.value.some(
-        (inv) => inv.name.toLowerCase().includes(canonical.toLowerCase()) && !inv.is_ruined,
+        (inv) => inv.name.toLowerCase().includes(canonical.toLowerCase()) && inv.quality !== "ruined",
       );
     });
   }

@@ -8,7 +8,7 @@ function inv(id: string, over: Partial<PartyInventoryItem> = {}): PartyInventory
     id, campaign_id: "c", user_id: "u", item_id: null, library_item_id: null, name: id, quantity: 1,
     carried_by: "m", location: "backpack", slot: null, is_container: false, container_id: null,
     is_attuned: false, is_equipped: false, notes: null, current_charges: null, updated_at: "",
-    is_identified: true, is_ruined: false, sort_order: 0, curse_revealed: false, ...over,
+    is_identified: true, quality: "standard", sort_order: 0, curse_revealed: false, ...over,
   } as PartyInventoryItem;
 }
 function item(id: string, name: string, tags: string[] = []): Item {
@@ -19,7 +19,7 @@ const items = [item("iron", "Iron Ingot", ["metal"]), item("sword", "Sword", ["m
 
 describe("ineligibility", () => {
   it("ranks ruined over equipped over container", () => {
-    expect(ineligibility(inv("a", { is_ruined: true, is_equipped: true, is_container: true }))).toBe("ruined");
+    expect(ineligibility(inv("a", { quality: "ruined", is_equipped: true, is_container: true }))).toBe("ruined");
     expect(ineligibility(inv("a", { is_equipped: true, is_container: true }))).toBe("equipped");
     expect(ineligibility(inv("a", { is_container: true }))).toBe("container");
     expect(ineligibility(inv("a"))).toBeNull();
@@ -67,7 +67,7 @@ describe("buildIngredientSlots", () => {
       [{ item_id: null, library_item_id: "iron", tags: null, quantity: 2 }],
       [
         inv("eq", { library_item_id: "iron", quantity: 9, is_equipped: true }),
-        inv("ru", { library_item_id: "iron", quantity: 9, is_ruined: true }),
+        inv("ru", { library_item_id: "iron", quantity: 9, quality: "ruined" }),
         inv("ct", { library_item_id: "iron", quantity: 9, is_container: true }),
         inv("ok", { library_item_id: "iron", quantity: 1 }),
       ],

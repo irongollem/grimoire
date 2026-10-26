@@ -11,7 +11,11 @@
         <div class="wo-frame h-36 w-48 overflow-hidden rounded-lg border-2 bg-muted">
           <FocalImage :src="recipeArt?.url ?? null" :alt="recipeName" format="landscape" :focal-point="recipeArt?.focalPoint ?? null" :placeholder="placeholderUrl('item')" />
         </div>
-        <p class="text-body font-semibold text-foreground">{{ outputText }}, in your pack</p>
+        <p class="flex flex-wrap items-center justify-center gap-2 text-body font-semibold text-foreground">
+          <QualityBadge v-if="fine" quality="fine" />
+          <span>{{ outputText }}, in your pack</span>
+        </p>
+        <p v-if="fine" class="text-caption text-muted-foreground">The roll beat the DC by 10 or more, so it came out Fine.</p>
       </template>
 
       <template v-else>
@@ -27,7 +31,7 @@
 
         <template v-if="outcome === 'fail'">
           <p class="text-body text-foreground">Nothing was used up. {{ timeSentence }}</p>
-          <p class="text-caption text-muted-foreground">Your materials may be the worse for it; your DM can rule that with Poor ingredients.</p>
+          <p v-if="degradeLine" class="text-body font-semibold text-foreground">{{ degradeLine }}</p>
         </template>
 
         <section v-if="lost.length > 0" class="w-full text-left" aria-label="Lost">
@@ -45,7 +49,8 @@
           <p class="mb-1.5 text-eyebrow text-muted-foreground">Returned as wreckage</p>
           <div class="flex items-center gap-3">
             <WorkbenchThumb :sprite="{ sprite: WORKBENCH_RUINED_SPRITE, filter: null }" look="plain" />
-            <span class="min-w-0 flex-1 truncate text-body text-foreground">Ruined: {{ wreckageName }}</span>
+            <span class="min-w-0 flex-1 truncate text-body text-foreground">{{ wreckageName }}</span>
+            <QualityBadge quality="ruined" />
           </div>
         </section>
         <p v-if="outcome === 'ruin'" class="text-body text-foreground">Everything else is untouched.</p>
@@ -72,6 +77,7 @@ import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
+import QualityBadge from "@/components/inventory/QualityBadge.vue";
 import WorkbenchThumb from "@/components/crafting/workbench/WorkbenchThumb.vue";
 import { WORKBENCH_RUINED_SPRITE } from "@/data/workbenchArt";
 import type { DisciplineConfig } from "@/lib/crafting/disciplines";
@@ -81,7 +87,7 @@ import type { RecipeArt } from "@/lib/crafting/recipeArt";
 import type { LostMaterial } from "@/lib/crafting/workbench/slotMaterial";
 import type { CraftingAttemptResult } from "@/types/crafting.types";
 
-const { open, outcome, discipline, recipeName, recipeArt, outputText, lost, wreckageName, rolledText, craftingTime, craftingTimeUnit, canRetry } = defineProps<{
+const { open, outcome, discipline, recipeName, recipeArt, outputText, lost, wreckageName, fine, degradeLine, rolledText, craftingTime, craftingTimeUnit, canRetry } = defineProps<{
   open: boolean;
   outcome: CraftingAttemptResult["outcome"];
   discipline: Pick<DisciplineConfig, "label" | "doneVerb">;
@@ -93,6 +99,10 @@ const { open, outcome, discipline, recipeName, recipeArt, outputText, lost, wrec
   lost: readonly LostMaterial[];
   /** The primary ingredient's name, which comes back ruined on a critical failure. */
   wreckageName: string | null;
+  /** The roll beat the DC by 10 or more, so the output is Fine. */
+  fine: boolean;
+  /** What a failure did to the primary ingredient ("Your Iron Ingot is now Poor."); null otherwise. */
+  degradeLine: string | null;
   /** The roll, written out the way the ledger writes it. */
   rolledText: string;
   /** The recipe's time, which a failed attempt still costs. */

@@ -30,6 +30,7 @@
 
           <!-- What it is, in one line -->
           <div class="min-w-0 self-center space-y-1">
+            <QualityBadge :quality="inv.quality" />
             <p v-if="summaryLine" class="text-body font-semibold text-foreground">{{ summaryLine }}</p>
             <p v-if="vaultItem?.requires_attunement && localIdentified" class="text-caption text-muted-foreground">
               {{ vaultItem.attunement_requirements ? `Requires attunement ${vaultItem.attunement_requirements}` : "Requires attunement" }}
@@ -251,6 +252,29 @@
               <RichTextViewer :content="vaultItem.curse_description" />
             </div>
 
+            <!-- Quality (DM only, any row) -->
+            <div
+              v-if="isRealDm"
+              class="rounded-lg border border-border bg-card/50 p-3 flex items-center justify-between gap-3"
+            >
+              <div class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-label-lg font-semibold text-muted-foreground uppercase">Quality</span>
+                <span class="text-caption text-muted-foreground italic">
+                  {{ qualityHint }}
+                </span>
+              </div>
+              <AppSelect
+                :model-value="inv.quality"
+                tone="default"
+                size="caption"
+                weight="normal"
+                aria-label="Item quality"
+                @update:model-value="setQuality"
+              >
+                <option v-for="q in ITEM_QUALITIES" :key="q" :value="q">{{ QUALITY_LABELS[q] }}</option>
+              </AppSelect>
+            </div>
+
             <!-- Identification status (DM only, magic items) -->
             <div
               v-if="canIdentify && inv && vaultItem && vaultItem.rarity !== 'mundane'"
@@ -382,6 +406,9 @@ import { COINS, parseCoinText } from "@/rules/currency";
 import type { CoinKey } from "@/types/downtime.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import QualityBadge from "@/components/inventory/QualityBadge.vue";
+import { ITEM_QUALITIES, QUALITY_LABELS, QUALITY_MODIFIER } from "@/lib/items/quality";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
@@ -405,7 +432,7 @@ import { parseExpression, parsedToCounts } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
 import { SCHOOL_BG } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
-import type { InventorySlot, PartyInventoryItem } from "@/types/inventory.types";
+import type { InventorySlot, ItemQuality, PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 
 const props = defineProps<{
@@ -487,6 +514,18 @@ async function updateInventoryItem(args: Parameters<typeof updateInventoryItemRa
   }
 }
 const isUpdating = ref(false);
+
+/** The roll modifiers come from the same table the craft uses, so the hint cannot drift from it. */
+const qualityHint = `${ITEM_QUALITIES.flatMap((q) => {
+  const mod = QUALITY_MODIFIER[q];
+  if (mod === null || mod === 0) return [];
+  return [`${QUALITY_LABELS[q]} ${mod < 0 ? "−" : "+"}${Math.abs(mod)}`];
+}).join(", ")} to crafting rolls; ruined stock can't be used.`;
+
+async function setQuality(value: ItemQuality | null | undefined) {
+  if (!props.inv || !value || value === props.inv.quality) return;
+  await updateInventoryItem({ id: props.inv.id, update: { quality: value } });
+}
 
 const isTogglingCurse = ref(false);
 async function toggleCurseReveal() {

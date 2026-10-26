@@ -60,4 +60,14 @@ describe("WorkbenchSlot", () => {
     await w.get("button").trigger("click");
     expect(w.emitted("open")?.[0]?.[0]).toBeInstanceOf(HTMLButtonElement);
   });
+
+  it("shows the quality of the row that will be used, and nothing for standard", () => {
+    const inv = (quality: string) => ({ inv: { id: "r", name: "Leather", quantity: 2, quality }, item: null, reason: null });
+    const mountUsed = (quality: string) =>
+      mount(WorkbenchSlot, {
+        props: { slot: slot(), total: 1, variant: "row", state: "ready", art: benchArtFor("smithing"), material: { sprite: "mat-ingot-iron", filter: null }, used: inv(quality) as never },
+      });
+    expect(mountUsed("poor").find("[data-quality=poor]").exists()).toBe(true);
+    expect(mountUsed("standard").find("[data-quality]").exists()).toBe(false);
+  });
 });

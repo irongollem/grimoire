@@ -49,7 +49,6 @@
 
       <WorkbenchLedger
         v-model:workspace="attempt.workspaceEnabled.value"
-        v-model:poor="attempt.poorIngredientsEnabled.value"
         :recipe="recipe"
         :discipline="discipline"
         :modifiers="modifiers"
@@ -66,6 +65,10 @@
         :output-names="attempt.outputNames.value"
         :recipe-art="recipeArt"
         :short="attempt.plan.value.short"
+        :quality-mod="attempt.qualityModifier.value"
+        :quality-line="attempt.qualityLine.value"
+        :fine="fine"
+        :degrade-line="degradeLine"
         :attempt-error="attempt.attemptError.value"
         :chat-notice="attempt.chatNotice.value"
         @attempt="onAttempt"
@@ -84,6 +87,8 @@
       :output-text="attempt.outputNames.value.join(', ')"
       :lost="lost"
       :wreckage-name="wreckageName"
+      :fine="fine"
+      :degrade-line="degradeLine"
       :rolled-text="rolledText"
       :crafting-time="recipe.crafting_time"
       :crafting-time-unit="recipe.crafting_time_unit"
@@ -120,6 +125,7 @@ import WorkbenchSlot from "@/components/crafting/workbench/WorkbenchSlot.vue";
 import WorkbenchSlotPicker from "@/components/crafting/workbench/WorkbenchSlotPicker.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { craftBonus, rolledLine } from "@/lib/crafting/craftMessage";
+import { degradeSentence, isFineResult } from "@/lib/crafting/qualityRules";
 import { getDiscipline } from "@/lib/crafting/disciplines";
 import { planConsumption, rowDisplayName, type IngredientSlot } from "@/lib/crafting/ingredients";
 import { benchArtFor } from "@/lib/crafting/workbench/art";
@@ -207,6 +213,16 @@ const wreckageName = computed(() => {
   const primary = outcome.value ? planConsumption(shownSlots.value, attempt.preferred.value).primary : null;
   // Named as the ruined row is named, so the modal and the inventory agree.
   return primary ? rowDisplayName(primary, allItems.value) : null;
+});
+const fine = computed(() => {
+  const res = attempt.result.value;
+  return res ? isFineResult(res.outcome, res.diff) : false;
+});
+// A failure drops the primary ingredient one step; the frozen slots still hold the quality it had.
+const degradeLine = computed(() => {
+  if (outcome.value !== "fail") return null;
+  const primary = planConsumption(shownSlots.value, attempt.preferred.value).primary;
+  return primary ? degradeSentence(rowDisplayName(primary, allItems.value), primary.quality) : null;
 });
 const rolledText = computed(() => {
   const res = attempt.result.value;

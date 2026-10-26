@@ -422,7 +422,7 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
       carried_by: partyMemberId,
       location: 'backpack', slot: null,
       is_container: false, container_id: null,
-      is_attuned: false, is_equipped: false, notes: null, is_ruined: false,
+      is_attuned: false, is_equipped: false, notes: null,
       is_identified: !vendorVaultItem || vendorVaultItem.rarity === 'mundane',
     }) : Promise.resolve(),
   ]);
@@ -562,7 +562,6 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
       is_attuned: false,
       is_equipped: false,
       notes: null,
-      is_ruined: false,
       is_identified: atom.item_rarity === 'mundane',
     });
   }

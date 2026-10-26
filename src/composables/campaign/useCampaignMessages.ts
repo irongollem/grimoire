@@ -9,6 +9,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useSpeaker } from "@/composables/party/useSpeaker";
 import type { Speaker } from "@/lib/player/speaker";
+import type { ItemQuality } from "@/types/inventory.types";
 import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata, LootChestMetadata, SpeakerMetadata } from "@/types/chat.types";
 import { formatCoinParts } from "@/rules/currency";
 import type { RollResult } from "@/lib/dice/dice";
@@ -528,6 +529,14 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
+  interface ItemDropOptions {
+    senderName?: string;
+    imageUrl?: string | null;
+    description?: string | null;
+    isContainer?: boolean;
+    quality?: ItemQuality;
+  }
+
   /**
    * `itemId` is a catalogue *reference*, not necessarily a vault uuid — pass
    * `inventoryItemRef(row)` for an inventory row rather than `row.item_id`,
@@ -535,13 +544,15 @@ export function useCampaignMessages() {
    * `itemRefColumns` puts it in whichever column it belongs to, the same way
    * every other write path does.
    */
-  async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, senderName?: string, imageUrl?: string | null, description?: string | null, isContainer?: boolean) {
+  async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, opts: ItemDropOptions = {}) {
+    const { senderName, imageUrl, description, isContainer, quality } = opts;
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
     const speaker = senderName === undefined ? currentSpeaker() : speakerForName(senderName);
     const metadata: ItemDropMetadata = {
       ...itemRefColumns(itemId), item_name: itemName, item_rarity: rarity, quantity,
       is_container: isContainer ?? false,
+      ...(quality ? { quality } : {}),
       quantity_remaining: quantity,
       claims: [],
       image_url: imageUrl ?? null,

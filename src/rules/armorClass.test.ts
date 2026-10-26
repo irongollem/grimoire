@@ -267,7 +267,7 @@ describe("wornGearByMember", () => {
   function inv(over: Partial<PartyInventoryItem>): PartyInventoryItem {
     return {
       id: "inv-1", item_id: "i1", library_item_id: null, carried_by: "pm-1", location: "equipped", slot: "body",
-      is_attuned: false, is_ruined: false, ...over,
+      is_attuned: false, quality: "standard", ...over,
     } as PartyInventoryItem;
   }
 
@@ -280,7 +280,7 @@ describe("wornGearByMember", () => {
   it("skips packed, ruined, uncarried and unresolvable rows", () => {
     const items = [item({ id: "i1" })];
     expect(wornGearByMember([inv({ location: "backpack", slot: null })], items)).toEqual({});
-    expect(wornGearByMember([inv({ is_ruined: true })], items)).toEqual({});
+    expect(wornGearByMember([inv({ quality: "ruined" })], items)).toEqual({});
     expect(wornGearByMember([inv({ carried_by: null })], items)).toEqual({});
     expect(wornGearByMember([inv({ item_id: "missing" })], items)).toEqual({});
   });

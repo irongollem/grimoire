@@ -96,7 +96,7 @@ function inv(overrides: Partial<PartyInventoryItem> = {}): PartyInventoryItem {
     current_charges: null,
     updated_at: "",
     is_identified: true,
-    is_ruined: false,
+    quality: "standard",
     sort_order: 0,
     curse_revealed: false,
     ...overrides,

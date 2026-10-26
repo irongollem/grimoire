@@ -1,3 +1,5 @@
+import type { ItemQuality } from "@/types/inventory.types";
+
 export type MessageType = "chat" | "roll" | "system" | "item_drop" | "currency_drop" | "vendor_offer" | "player_offer" | "loot_chest" | "dm_roll";
 
 export interface RollMetadata {
@@ -45,6 +47,8 @@ export interface ItemDropMetadata {
   library_item_id?: string | null;
   item_name: string;
   item_rarity: string | null;
+  /** The dropped row's quality (#1102); `claim_item_drop` / `grab_item_drop` carry it onto the new row. Absent = standard. */
+  quality?: ItemQuality;
   /** Container flag captured from the sender's item at drop time. Absent on
    *  legacy messages — the claimer falls back to its vault cache. */
   is_container?: boolean;

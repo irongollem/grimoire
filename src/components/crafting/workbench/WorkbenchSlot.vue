@@ -13,7 +13,10 @@
       {{ SLOT_STATE_WORD[state] }}
       <span v-if="slot.index === 0" class="ml-auto text-muted-foreground">Primary</span>
     </span>
-    <span class="mt-0.5 block truncate text-label-lg font-semibold text-foreground">{{ displayName }}</span>
+    <span class="mt-0.5 flex items-center gap-1.5">
+      <span class="truncate text-label-lg font-semibold text-foreground">{{ displayName }}</span>
+      <QualityBadge v-if="used" :quality="used.inv.quality" size="sm" />
+    </span>
     <span v-if="requirementLine" class="block truncate text-caption text-muted-foreground">{{ requirementLine }}</span>
     <span class="block truncate text-caption text-muted-foreground">{{ countLine }}</span>
     <template #trailing>
@@ -24,6 +27,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import QualityBadge from "@/components/inventory/QualityBadge.vue";
 import WorkbenchDishButton from "@/components/crafting/workbench/WorkbenchDishButton.vue";
 import { WORKBENCH_SPRITES } from "@/data/workbenchArt";
 import { IconChevronRight, IconCheckCircle, IconCloseCircle, IconMinus } from "@/lib/icons";

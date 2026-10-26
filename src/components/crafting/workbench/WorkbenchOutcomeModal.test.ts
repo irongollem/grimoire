@@ -24,6 +24,8 @@ function open(outcome: CraftingAttemptResult["outcome"], over: Record<string, un
       craftingTimeUnit: "hours",
       canRetry: true,
       wreckageName: "Iron Ingot",
+      fine: false,
+      degradeLine: null,
       rolledText: "Rolled 14 + 3 = 17 against DC 15",
       ...over,
     },
@@ -52,11 +54,17 @@ describe("WorkbenchOutcomeModal", () => {
     expect(text()).not.toContain("Lost");
   });
 
+  it("says a high roll came out Fine", () => {
+    open("success", { fine: true });
+    expect(document.body.querySelector("[data-quality=fine]")).not.toBeNull();
+    expect(text()).toContain("so it came out Fine");
+  });
+
   it("says a failure used nothing up, only the time, and lists no loss", () => {
-    open("fail", { lost: [] });
+    open("fail", { lost: [], degradeLine: "Your Iron Ingot is now Poor." });
     expect(document.body.querySelector("h2")?.textContent?.trim()).toBe("The attempt failed");
+    expect(text()).toContain("Your Iron Ingot is now Poor.");
     expect(text()).toContain("Nothing was used up. The 8 hours are spent.");
-    expect(text()).toContain("Your materials may be the worse for it; your DM can rule that with Poor ingredients.");
     expect(document.body.querySelectorAll("li")).toHaveLength(0);
     expect(text()).not.toContain("Lost");
     expect(text()).not.toContain("wreckage");
@@ -73,7 +81,9 @@ describe("WorkbenchOutcomeModal", () => {
     const rows = [...document.body.querySelectorAll("li")].map((li) => li.textContent?.replace(/\s+/g, " ").trim());
     expect(rows).toEqual(["Iron Ingot×2"]);
     expect(text()).toContain("Returned as wreckage");
-    expect(text()).toContain("Ruined: Iron Ingot");
+    expect(text()).toContain("Iron Ingot");
+    expect(text()).not.toContain("Ruined: ");
+    expect(document.body.querySelector("[data-quality=ruined]")?.textContent).toBe("Ruined");
     expect(text()).toContain("Everything else is untouched.");
   });
 

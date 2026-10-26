@@ -24,7 +24,7 @@ function inv(overrides: Partial<PartyInventoryItem> & { id: string }): PartyInve
     current_charges: null,
     updated_at: "2026-08-01T00:00:00Z",
     is_identified: true,
-    is_ruined: false,
+    quality: "standard",
     sort_order: 0,
     curse_revealed: overrides.curse_revealed ?? false,
     ...overrides,

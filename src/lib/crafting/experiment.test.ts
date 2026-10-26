@@ -41,12 +41,12 @@ describe("experimentChatMessage", () => {
 
 describe("experimentPack and experimentEntries", () => {
   const row = (o: Partial<PartyInventoryItem>) =>
-    ({ id: "r", name: "Iron", quantity: 1, library_item_id: null, item_id: "i1", is_ruined: false, is_equipped: false, is_container: false, ...o }) as PartyInventoryItem;
+    ({ id: "r", name: "Iron", quantity: 1, library_item_id: null, item_id: "i1", quality: "standard", is_equipped: false, is_container: false, ...o }) as PartyInventoryItem;
 
   it("offers only rows a craft could spend", () => {
     const pack = experimentPack([
       row({ id: "ok" }),
-      row({ id: "ruined", is_ruined: true }),
+      row({ id: "ruined", quality: "ruined" }),
       row({ id: "worn", is_equipped: true }),
       row({ id: "bag", is_container: true }),
     ]);

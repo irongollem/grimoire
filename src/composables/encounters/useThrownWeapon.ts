@@ -35,10 +35,13 @@ export function useThrownWeapon() {
         inventoryItemRef(inv),
         1,
         item?.rarity ?? "mundane",
-        senderName,
-        item?.image_url ?? null,
-        item?.description ?? null,
-        false,
+        {
+          senderName,
+          imageUrl: item?.image_url ?? null,
+          description: item?.description ?? null,
+          isContainer: false,
+          quality: inv.quality,
+        },
       );
     } catch (e) {
       reportChatFailure(e, "drop the thrown weapon to the chat");

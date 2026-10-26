@@ -831,6 +831,9 @@ export async function executeImport(
       sortedInventory.map((inv) => ({
         ...inv,
         id: r(inv.id, idMap),
+        // A backup exported before #1102 carries is_ruined and no quality: translate it, real data rather than a legacy path.
+        quality: inv.quality ?? (inv.is_ruined ? "ruined" : "standard"),
+        is_ruined: undefined,
         campaign_id: newCampaignId,
         user_id: userId,
         carried_by: r(inv.carried_by, idMap),

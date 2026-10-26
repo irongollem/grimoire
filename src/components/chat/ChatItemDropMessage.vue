@@ -43,6 +43,7 @@
             class="text-label text-ink-caution/70 ml-1"
           >({{ meta.quantity_remaining }} left)</span>
         </component>
+        <QualityBadge v-if="meta.quality" :quality="meta.quality" size="sm" />
         <span
           v-if="meta.item_rarity"
           class="text-caption-sm text-muted-foreground capitalize "
@@ -183,6 +184,7 @@
 import { computed } from 'vue';
 import { IconChevronDown, IconLoot } from '@/lib/icons';
 import ChatItemDropDetails from '@/components/chat/ChatItemDropDetails.vue';
+import QualityBadge from '@/components/inventory/QualityBadge.vue';
 import AppButton from '@/components/common/controls/AppButton.vue';
 import EntityCombobox from '@/components/common/controls/EntityCombobox.vue';
 import { inventoryItemRef } from '@/lib/itemRef';

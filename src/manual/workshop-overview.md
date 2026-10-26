@@ -43,9 +43,15 @@ Each recipe has a **Crafting DC** that the player rolls against using the discip
 
 ## When a craft goes wrong
 
-A roll that misses the DC by less than 5 is a **failure**: the hours are gone, but the player keeps every ingredient, so nothing needs refunding. A failure can still leave the materials a little worse for the effort. Grimoire doesn't track that; if you rule it so, tick **Poor ingredients** on the next attempt for the -2.
+A roll that misses the DC by less than 5 is a **failure**: the hours are gone and nothing is used up, but the *primary* ingredient (the first one on the recipe) drops one quality step, for example from Standard to Poor. Only the units the recipe would have used are affected; the rest of the stack keeps its quality.
 
-A **natural 1**, or a total 5 or more below the DC, is a **critical failure**. The first ingredient on the recipe, the *primary* one, is ruined: it leaves the pack and comes back as "Ruined: *its name*". Every other ingredient is untouched. After either result the player can press **Try again** as long as they still hold what the recipe needs.
+A **natural 1**, or a total 5 or more below the DC, is a **critical failure**. The primary ingredient is spent and comes back as a Ruined item of the same name. Every other ingredient is untouched. After either result the player can press **Try again** as long as they still hold what the recipe needs.
+
+## Ingredient quality
+
+Every stack in the pack has a quality: Ruined, Poor, Standard, Fine or Masterwork. Standard is the usual case and shows no marker. The stacks a craft will spend add to the roll: Poor is -2, Fine is +1 and Masterwork is +2. When the stacks differ, the roll uses their average, weighted by how many units are spent and rounded toward the worse. The bench lists the materials behind it in "Your situation", for example "Poor leather, fine ingots", and says nothing when everything is Standard. The player chooses which stack to use first in the ingredient picker.
+
+A roll that beats the DC by 10 or more makes a **Fine** result: every item the recipe makes comes out Fine. Masterwork is never crafted by a roll; it comes from the DM or from loot. A Ruined stack can never be used in a craft. When the world says the leather is poor, the DM changes that stack's quality.
 
 ## Generating a recipe with AI
 

@@ -396,7 +396,6 @@ async function grantEquipment() {
         is_attuned: false,
         is_equipped: false,
         notes: null,
-        is_ruined: false,
       });
     }
     lootboxOpen.value = false;

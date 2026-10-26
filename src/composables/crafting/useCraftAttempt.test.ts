@@ -12,10 +12,10 @@ import type { CraftingRecipe } from "@/types/crafting.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 
-function setup() {
+function setup(quality: PartyInventoryItem["quality"] = "standard") {
   const slots = buildIngredientSlots(
     [{ item_id: null, library_item_id: "iron", tags: null, quantity: 1 }],
-    [{ id: "r1", library_item_id: "iron", item_id: null, quantity: 2, name: "Iron", carried_by: "m", campaign_id: "c" } as PartyInventoryItem],
+    [{ id: "r1", library_item_id: "iron", item_id: null, quantity: 2, name: "Iron", carried_by: "m", campaign_id: "c", quality } as PartyInventoryItem],
     [],
   );
   return useCraftAttempt({
@@ -62,7 +62,6 @@ describe("useCraftAttempt", () => {
     attemptCraft.mockResolvedValue({ roll: 3, total: 5, diff: -5, outcome: "ruin", hasDisadvantage: false });
     sendMessage.mockRejectedValue(new Error("x"));
     const a = setup();
-    a.poorIngredientsEnabled.value = true;
     a.preferred.value = { 0: "r1" };
     await a.attempt();
     expect(a.result.value?.outcome).toBe("ruin");
@@ -71,8 +70,41 @@ describe("useCraftAttempt", () => {
     expect(a.result.value).toBeNull();
     expect(a.attemptError.value).toBeNull();
     expect(a.chatNotice.value).toBeNull();
-    expect(a.poorIngredientsEnabled.value).toBe(true);
     expect(a.preferred.value).toEqual({ 0: "r1" });
     expect(a.canAttempt.value).toBe(true);
+  });
+
+  it("feeds the quality of the spent stack into the roll and names it", () => {
+    const poor = setup("poor");
+    expect(poor.qualityModifier.value).toBe(-2);
+    expect(poor.qualityLine.value).toBe("Poor iron");
+    expect(poor.modifierBonuses.value).toEqual([-2]);
+    const fine = setup("fine");
+    expect(fine.modifierBonuses.value).toEqual([1]);
+  });
+
+  it("adds nothing for standard stock", () => {
+    const a = setup("standard");
+    expect(a.qualityModifier.value).toBe(0);
+    expect(a.qualityLine.value).toBeNull();
+    expect(a.modifierBonuses.value).toEqual([]);
+  });
+
+  it("keeps the rolled quality after the attempt and hands the primary row's id to the mutation", async () => {
+    attemptCraft.mockResolvedValue({ roll: 10, total: 5, diff: -5, outcome: "fail", hasDisadvantage: false });
+    sendMessage.mockResolvedValue(undefined);
+    const a = setup("poor");
+    await a.attempt();
+    expect(attemptCraft.mock.calls.at(-1)?.[0].primaryInventoryItem.id).toBe("r1");
+    expect(a.qualityModifier.value).toBe(-2);
+    a.reset();
+    expect(a.qualityModifier.value).toBe(-2); // live inventory still reads poor
+  });
+
+  it("says a Fine result in the chat line", async () => {
+    attemptCraft.mockResolvedValue({ roll: 20, total: 30, diff: 20, outcome: "success", hasDisadvantage: false });
+    sendMessage.mockResolvedValue(undefined);
+    await setup().attempt();
+    expect(sendMessage.mock.calls.at(-1)?.[0]).toContain("came out Fine");
   });
 });

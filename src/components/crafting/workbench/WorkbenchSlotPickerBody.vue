@@ -30,7 +30,10 @@
         />
         <img :src="thumb(c).src" :style="{ filter: thumb(c).filter ?? undefined }" alt="" class="h-10 w-10 shrink-0 object-contain" draggable="false" />
         <span class="min-w-0 flex-1">
-          <span class="block truncate text-label-lg font-semibold text-foreground">{{ c.inv.name }}</span>
+          <span class="flex items-center gap-1.5">
+            <span class="truncate text-label-lg font-semibold text-foreground">{{ c.inv.name }}</span>
+            <QualityBadge :quality="c.inv.quality" size="sm" />
+          </span>
           <span class="block text-caption text-muted-foreground">
             {{ c.inv.carried_by === memberId ? `Carried by ${memberName}` : "Party stash" }}
           </span>
@@ -45,7 +48,10 @@
       <p class="text-eyebrow text-muted-foreground">Matching, but never used</p>
       <ul class="mt-1 flex flex-col gap-1">
         <li v-for="c in blocked" :key="c.inv.id" class="flex items-baseline justify-between gap-2 text-caption text-muted-foreground">
-          <span class="truncate">{{ c.inv.name }} ×{{ c.inv.quantity }}</span>
+          <span class="flex min-w-0 items-center gap-1.5">
+            <span class="truncate">{{ c.inv.name }} ×{{ c.inv.quantity }}</span>
+            <QualityBadge :quality="c.inv.quality" size="sm" />
+          </span>
           <span class="shrink-0 italic">{{ c.reason ? REASON_WORDS[c.reason] : "" }}</span>
         </li>
       </ul>
@@ -58,6 +64,7 @@
 <script setup lang="ts">
 import { computed, onMounted, useId } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import QualityBadge from "@/components/inventory/QualityBadge.vue";
 import { IconCheckCircle } from "@/lib/icons";
 import type { Ineligibility, IngredientSlot, SlotCandidate } from "@/lib/crafting/ingredients";
 import { spriteSrc } from "@/lib/crafting/workbench/art";

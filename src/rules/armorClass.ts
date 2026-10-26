@@ -195,7 +195,7 @@ export function wornGearByMember(
     // `inventoryItemRef`, not `item_id`: gear picked from the shared library is
     // referenced by `library_item_id` and never counted otherwise (#956).
     const ref = inventoryItemRef(inv);
-    if (!inv.carried_by || !ref || inv.is_ruined) continue;
+    if (!inv.carried_by || !ref || inv.quality === "ruined") continue;
     const item = itemById.get(ref);
     if (!item) continue;
     const equipped = inv.location === "equipped";

@@ -19,6 +19,9 @@ export type InventoryLocation =
   | "container"
   | "stored";
 
+/** A row's condition (#1102), worst to best. Crafting reads it through `src/lib/items/quality.ts`. */
+export type ItemQuality = "ruined" | "poor" | "standard" | "fine" | "masterwork";
+
 export interface PartyInventoryItem {
   id: string;
   campaign_id: string;
@@ -41,15 +44,15 @@ export interface PartyInventoryItem {
   current_charges: number | null; // remaining charges; null = full (use Item.charges as max)
   updated_at: string;
   is_identified: boolean; // false = players see only mundane_description
-  is_ruined: boolean;
+  quality: ItemQuality; // #1102: replaced the ruined flag; "ruined" rows can never be spent
   sort_order: number;
   curse_revealed: boolean; // DM-toggled: players only see curse_description when true
 }
 
 export type PartyInventoryInsert = Omit<
   PartyInventoryItem,
-  "id" | "user_id" | "updated_at" | "current_charges" | "sort_order" | "is_identified" | "curse_revealed"
-> & { current_charges?: number | null; sort_order?: number; is_identified?: boolean; curse_revealed?: boolean };
+  "id" | "user_id" | "updated_at" | "current_charges" | "sort_order" | "is_identified" | "curse_revealed" | "quality"
+> & { quality?: ItemQuality; current_charges?: number | null; sort_order?: number; is_identified?: boolean; curse_revealed?: boolean };
 export type PartyInventoryUpdate = Partial<
   Pick<
     PartyInventoryItem,
@@ -67,5 +70,6 @@ export type PartyInventoryUpdate = Partial<
     | "current_charges"
     | "sort_order"
     | "curse_revealed"
+    | "quality"
   >
 >;

@@ -23,7 +23,7 @@ function makeItem(overrides: Partial<PartyInventoryItem> = {}): PartyInventoryIt
     current_charges: null,
     updated_at: "",
     is_identified: true,
-    is_ruined: false,
+    quality: "standard",
     sort_order: 0,
     curse_revealed: false,
     ...overrides,
@@ -139,5 +139,14 @@ describe("ItemRow", () => {
       expect(wrapper.emitted("move")).toEqual([[item, "belt", null]]);
       wrapper.unmount();
     });
+  });
+
+  it("shows a quality badge for fine stock and nothing for standard", () => {
+    expect(mountRow(makeItem({ quality: "fine" })).find('[data-quality="fine"]').text()).toBe("Fine");
+    expect(mountRow(makeItem({ quality: "standard" })).find("[data-quality]").exists()).toBe(false);
+  });
+
+  it("reads a ruined row as ruined", () => {
+    expect(mountRow(makeItem({ quality: "ruined" })).find('[data-quality="ruined"]').exists()).toBe(true);
   });
 });

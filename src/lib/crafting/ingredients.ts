@@ -13,7 +13,7 @@ export type Ineligibility = "ruined" | "equipped" | "container";
  * then consumed less than the recipe needs.
  */
 export function ineligibility(inv: PartyInventoryItem): Ineligibility | null {
-  if (inv.is_ruined) return "ruined";
+  if (inv.quality === "ruined") return "ruined";
   if (inv.is_equipped) return "equipped";
   if (inv.is_container) return "container";
   return null;

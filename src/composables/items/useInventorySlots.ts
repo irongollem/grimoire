@@ -116,7 +116,7 @@ export function useInventorySlots({
           is_attuned: false,
           is_equipped: true,
           notes: item.notes,
-          is_ruined: item.is_ruined,
+          quality: item.quality,
           is_identified: item.is_identified,
         });
       } catch (e) {

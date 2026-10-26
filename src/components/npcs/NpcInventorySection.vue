@@ -123,7 +123,7 @@ async function dropToChat(item: NpcInventoryItem) {
   // reference in the other column, and reading the raw one dropped it.
   // Post first, remove after: a failed post must not cost the NPC the item.
   try {
-    await sendItemDrop(item.name, inventoryItemRef(item), item.quantity, null, props.npcName ?? undefined);
+    await sendItemDrop(item.name, inventoryItemRef(item), item.quantity, null, { senderName: props.npcName ?? undefined });
   } catch (e) {
     reportChatFailure(e, "drop the item to the chat");
     return;

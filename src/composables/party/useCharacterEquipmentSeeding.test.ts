@@ -28,14 +28,14 @@ describe("partitionBundleEntries", () => {
         carried_by: CARRIER, location: "backpack",
         slot: null, is_container: false, container_id: null,
         is_attuned: false, is_equipped: false, notes: null,
-        current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+        current_charges: null, is_identified: true, sort_order: 0,
       },
       {
         item_id: "22222222-2222-4222-8222-222222222222", library_item_id: null, name: "Javelin", quantity: 4,
         carried_by: CARRIER, location: "backpack",
         slot: null, is_container: false, container_id: null,
         is_attuned: false, is_equipped: false, notes: null,
-        current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+        current_charges: null, is_identified: true, sort_order: 0,
       },
     ]);
   });

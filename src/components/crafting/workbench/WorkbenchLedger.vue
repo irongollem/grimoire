@@ -33,10 +33,12 @@
         <span>{{ discipline.workspaceLabel }}</span>
         <span class="ml-auto shrink-0 font-semibold text-primary">+{{ discipline.workspaceBonus }}</span>
       </AppCheckbox>
-      <AppCheckbox v-model="poorIngredientsEnabled" :disabled="done" label-layout="row">
-        <span>Poor ingredients</span>
-        <span class="ml-auto shrink-0 font-semibold text-destructive">{{ POOR_INGREDIENTS_PENALTY }}</span>
-      </AppCheckbox>
+      <!-- Read-only: the quality of the stacks the plan spends, set by the player's choice in the picker. -->
+      <!-- Shown whenever a spent row is not standard, even at ±0: Fine and Poor stock can cancel out, and a missing line would read as quality not counting. -->
+      <p v-if="qualityLine" class="flex items-baseline gap-2 text-body text-foreground" data-testid="quality-line">
+        <span>{{ qualityLine }}</span>
+        <span class="ml-auto shrink-0 font-semibold" :class="qualityMod < 0 ? 'text-destructive' : qualityMod > 0 ? 'text-primary' : 'text-muted-foreground'">{{ qualityMod < 0 ? "\u2212" : qualityMod > 0 ? "+" : "\u00b1" }}{{ Math.abs(qualityMod) }}</span>
+      </p>
       <AppCheckbox
         v-for="(mod, idx) in modifiers"
         :key="idx"
@@ -64,7 +66,7 @@
         :disabled="!canAttempt"
         @click="emit('attempt')"
       />
-      <p class="text-caption text-muted-foreground">A success spends every ingredient. A failure costs only the time; a critical failure ruins the primary ingredient.</p>
+      <p class="text-caption text-muted-foreground">A success spends every ingredient. A failure costs the time and makes the primary ingredient one step worse; a critical failure ruins it.</p>
     </template>
 
     <div v-else class="flex flex-col gap-2">
@@ -99,7 +101,6 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
-import { POOR_INGREDIENTS_PENALTY } from "@/composables/crafting/useCraftAttempt";
 import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconWarning } from "@/lib/icons";
 import type { DisciplineConfig } from "@/lib/crafting/disciplines";
 import { craftBonus, outcomeDetail, rolledLine, signed } from "@/lib/crafting/craftMessage";
@@ -110,7 +111,7 @@ import type { CraftingAttemptResult, CraftingModifier, CraftingRecipe } from "@/
 
 const {
   recipe, discipline, modifiers, slots, abilityMod, profBonus, hasProficiency, hasTools, modifierBonuses,
-  selectedModifiers, canAttempt, attempting, result, outputNames, recipeArt, short,
+  selectedModifiers, canAttempt, attempting, result, outputNames, recipeArt, short, qualityMod, qualityLine, fine, degradeLine,
 } = defineProps<{
   recipe: CraftingRecipe;
   discipline: DisciplineConfig;
@@ -129,13 +130,20 @@ const {
   recipeArt: RecipeArt | null;
   /** A stack shared by two slots cannot fill both. */
   short: boolean;
+  /** The roll modifier from the quality of the stacks the plan spends. */
+  qualityMod: number;
+  /** "Poor leather, fine ingots": the non-standard materials behind it; null when all are standard. */
+  qualityLine: string | null;
+  /** The roll beat the DC by 10 or more, so the outputs are Fine. */
+  fine: boolean;
+  /** What a failure did to the primary ingredient ("Your Iron Ingot is now Poor."). */
+  degradeLine: string | null;
   attemptError: string | null;
   chatNotice: string | null;
 }>();
 
 const emit = defineEmits<{ attempt: []; retry: []; toggleModifier: [idx: number] }>();
 const workspaceEnabled = defineModel<boolean>("workspace", { required: true });
-const poorIngredientsEnabled = defineModel<boolean>("poor", { required: true });
 
 const done = computed(() => result !== null);
 const ability = computed(() => discipline.ability.toUpperCase());
@@ -163,6 +171,6 @@ const blockedReason = computed(() => {
 const title = computed(() => (!result ? "" : result.outcome === "success" ? "Success" : result.outcome === "ruin" ? "Critical failure" : "Failed"));
 const tone = computed(() => (!result ? "" : result.outcome === "success" ? "text-tone-success" : result.outcome === "ruin" ? "text-destructive" : "text-muted-foreground"));
 const outcomeIcon = computed(() => (result?.outcome === "success" ? IconCheckCircle : IconCloseCircle));
-const detail = computed(() => (result ? outcomeDetail(result.outcome, outputNames) : ""));
+const detail = computed(() => (result ? [outcomeDetail(result.outcome, outputNames, fine), result.outcome === "fail" ? degradeLine : null].filter(Boolean).join(" ") : ""));
 const rolledText = computed(() => (result ? rolledLine(result, totalBonus.value, recipe.dc) : ""));
 </script>

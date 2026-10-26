@@ -28,7 +28,7 @@ function buildPlainEquipmentRow(
     carried_by: carrierId, location: "backpack",
     slot: null, is_container: false, container_id: null,
     is_attuned: false, is_equipped: false, notes: null,
-    current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+    current_charges: null, is_identified: true, sort_order: 0,
   };
 }
 
@@ -164,7 +164,7 @@ async function insertPack(
     carried_by: carrierId, location: "backpack",
     slot: null, is_container: true, container_id: null,
     is_attuned: false, is_equipped: false, notes: null,
-    current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+    current_charges: null, is_identified: true, sort_order: 0,
   };
   const { data, error } = await supabase
     .from("party_inventory")
@@ -182,7 +182,7 @@ async function insertPack(
       carried_by: carrierId, location: "container" as const,
       slot: null, is_container: false, container_id: packId,
       is_attuned: false, is_equipped: false, notes: null,
-      current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+      current_charges: null, is_identified: true, sort_order: 0,
     })),
     campaignId,
     written,

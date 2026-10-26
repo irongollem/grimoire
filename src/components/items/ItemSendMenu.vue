@@ -78,6 +78,22 @@
 
       <div class="border-t border-border/50 my-1" />
 
+      <!-- Quality the item arrives at (stash, player or chat drop) -->
+      <div class="flex items-center justify-between gap-2 px-3 py-1.5">
+        <span class="text-caption text-muted-foreground">Quality</span>
+        <AppSelect
+          v-model="quality"
+          tone="default"
+          size="caption"
+          weight="normal"
+          aria-label="Quality to hand out"
+        >
+          <option v-for="q in ITEM_QUALITIES" :key="q" :value="q">{{ QUALITY_LABELS[q] }}</option>
+        </AppSelect>
+      </div>
+
+      <div class="border-t border-border/50 my-1" />
+
       <!-- Drop in chat -->
       <AppButton
         variant="menu"
@@ -107,6 +123,9 @@
 import { ref } from "vue";
 import { IconArchive, IconChevronDown, IconChevronRight, IconComment, IconHand, IconUser } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import { ITEM_QUALITIES, QUALITY_LABELS } from "@/lib/items/quality";
+import type { ItemQuality } from "@/types/inventory.types";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
@@ -130,6 +149,7 @@ const isAddingToStash = ref(false);
 const assigningTo = ref<string | null>(null);
 const isDroppingInChat = ref(false);
 const confirmation = ref("");
+const quality = ref<ItemQuality>("standard");
 
 function showConfirmation(msg: string) {
   confirmation.value = msg;
@@ -168,7 +188,7 @@ async function addToStash() {
       is_attuned: false,
       is_equipped: false,
       notes: null,
-      is_ruined: false,
+      quality: quality.value,
       is_identified: props.item.rarity === 'mundane',
     });
     open.value = false;
@@ -193,7 +213,7 @@ async function assignToPlayer(member: PartyMember) {
       is_attuned: false,
       is_equipped: false,
       notes: null,
-      is_ruined: false,
+      quality: quality.value,
       is_identified: props.item.rarity === 'mundane',
     });
     open.value = false;
@@ -220,10 +240,12 @@ async function dropInChat() {
       props.item.id,
       1,
       props.item.rarity,
-      undefined,
-      imageUrl,
-      description,
-      props.item.tags?.includes("container") ?? false,
+      {
+        imageUrl,
+        description,
+        isContainer: props.item.tags?.includes("container") ?? false,
+        quality: quality.value,
+      },
     );
     open.value = false;
     appUi.openChat();
