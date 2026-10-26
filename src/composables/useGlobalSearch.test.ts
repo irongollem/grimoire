@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   byTable: {} as Record<string, { data: unknown[] | null; error: unknown }>,
   report: vi.fn(),
   invoke: vi.fn(),
+  rpc: vi.fn(),
   fetchArt: vi.fn(),
   isDM: true,
   isPro: true,
@@ -42,6 +43,7 @@ function chain(table: string): unknown {
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: (table: string) => { mocks.from(table); return chain(table); },
+    rpc: mocks.rpc,
     functions: { invoke: mocks.invoke },
   },
   getCurrentUser: () => ({ id: "user-1" }),
@@ -86,9 +88,9 @@ function mount<T>(setup: () => T): T {
   return out;
 }
 
-/** Ten tables per search: notes, npcs, monsters, library_monsters, spells,
- *  library_spells, items, locations, quests, factions. */
-const TABLES_PER_SEARCH = 10;
+/** Twelve tables per search: notes, npcs, party_members, monsters, library_monsters,
+ *  spells, library_spells, items, locations, quests, factions, deities. */
+const TABLES_PER_SEARCH = 12;
 
 describe("useGlobalSearch", () => {
   beforeEach(() => {
@@ -99,6 +101,8 @@ describe("useGlobalSearch", () => {
     mocks.byTable = {};
     mocks.report.mockReset();
     mocks.invoke.mockReset();
+    mocks.rpc.mockReset();
+    mocks.rpc.mockResolvedValue({ data: [], error: null });
     mocks.fetchArt.mockReset();
     mocks.fetchArt.mockResolvedValue({});
     mocks.invoke.mockResolvedValue({ data: { hits: [] }, error: null });
@@ -204,6 +208,119 @@ describe("useGlobalSearch", () => {
     const group = search.data.value?.groups.find((g) => g.type === "faction");
     expect(group?.label).toBe("Factions");
     expect(group?.items[0]).toMatchObject({ route: "/factions/f1", matchedBy: "name" });
+  });
+
+  describe("people, party and gods (#1084)", () => {
+    it("says what an NPC does and where, reading the home place through the named foreign key", async () => {
+      mocks.byTable = {
+        npcs: { data: [{ id: "n1", name: "Harl", disguise_name: null, occupation: "Ferryman", location: { name: "Low Crossing" } }], error: null },
+      };
+      const search = await run();
+      const npc = search.data.value?.groups.find((g) => g.type === "npc")?.items[0];
+      expect(npc).toMatchObject({ name: "Harl", detail: "Ferryman · Low Crossing", kind: "npc" });
+      const select = mocks.calls.find((c) => c.table === "npcs" && c.method === "select");
+      expect(String(select?.args[0])).toContain("locations!npcs_location_id_fkey(name)");
+    });
+
+    it("leaves the detail off when an NPC has neither a trade nor a home", async () => {
+      mocks.byTable = { npcs: { data: [{ id: "n1", name: "Harl", disguise_name: null, occupation: null, location: null }], error: null } };
+      const search = await run();
+      expect(search.data.value?.groups.find((g) => g.type === "npc")?.items[0].detail).toBeNull();
+    });
+
+    it("finds party members and deities as their own groups with routes and details", async () => {
+      mocks.byTable = {
+        party_members: { data: [{ id: "p1", name: "Goblin Slayer", class: "Fighter", level: 3 }], error: null },
+        deities: { data: [{ id: "d1", name: "Goblin Mother", titles: "Queen of Warrens", domains: ["Trickery"] }], error: null },
+      };
+      const groups = (await run()).data.value?.groups;
+      expect(groups?.find((g) => g.type === "party_member")?.items[0]).toMatchObject({ route: "/party/p1", detail: "Fighter · level 3", kind: "party_member" });
+      expect(groups?.find((g) => g.type === "deity")?.items[0]).toMatchObject({ route: "/deities/d1", detail: "Queen of Warrens · Trickery" });
+      expect(groups?.map((g) => g.type)).toEqual(["party_member", "deity"]);
+    });
+
+    it("keeps the new groups when meaning hits are merged in", async () => {
+      mocks.byTable = {
+        npcs: { data: [{ id: "n1", name: "Goblin Bob", disguise_name: null, occupation: null, location: null }], error: null },
+        deities: { data: [{ id: "d1", name: "Goblin Mother", titles: null, domains: [] }], error: null },
+      };
+      mocks.invoke.mockResolvedValue({ data: { hits: [{ kind: "location", id: "l1", name: "Warrens", descriptor: "dark", distance: 0.2 }] }, error: null });
+      const query = ref("goblin");
+      const search = mount(() => useGlobalSearch(query));
+      await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS * 2);
+      expect(search.data.value?.groups.map((g) => g.type)).toEqual(["npc", "location", "deity"]);
+    });
+
+    it("limits the read to the kinds asked for, and leaves ties off", async () => {
+      const query = ref("who worships goblin");
+      mount(() => useGlobalSearch(query, { kinds: ["faction", "location"] }));
+      await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS * 2);
+      expect([...new Set(mocks.from.mock.calls.map((c) => c[0]))].sort()).toEqual(["factions", "locations"]);
+      expect(mocks.rpc).not.toHaveBeenCalled();
+    });
+
+    it("drops meaning hits of kinds that were not asked for", async () => {
+      mocks.byTable = { factions: { data: [{ id: "f1", name: "Goblin Court" }], error: null } };
+      mocks.invoke.mockResolvedValue({ data: { hits: [{ kind: "npc", id: "n9", name: "Gob", descriptor: "x", distance: 0.1 }] }, error: null });
+      const query = ref("goblin");
+      const search = mount(() => useGlobalSearch(query, { kinds: ["faction"] }));
+      await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS * 2);
+      expect(search.data.value?.groups.map((g) => g.type)).toEqual(["faction"]);
+    });
+  });
+
+  describe("ties by words (#1084)", () => {
+    const connection = (over: Record<string, unknown>) => ({
+      source: "link", row_id: "r", type: "worships", outward: false, other_kind: "npc", other_id: "n1", other_name: "Brenna",
+      other_image: null, note: null, told: null, player_visible_to: null, ai_provenance: null, role: null, status: null, ...over,
+    });
+
+    async function ask(text: string) {
+      const query = ref(text);
+      const search = mount(() => useGlobalSearch(query));
+      await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS * 2);
+      return search;
+    }
+
+    it("lists the far ends of the tie the words name, first, each reading towards the name", async () => {
+      mocks.byTable = { deities: { data: [{ id: "d1", name: "The Drowned Lady", titles: null, domains: [] }], error: null } };
+      mocks.rpc.mockResolvedValue({
+        data: [
+          connection({}),
+          connection({ row_id: "r2", type: "serves", other_id: "n2", other_name: "Not Worship" }),
+          connection({ row_id: "r3", outward: true, other_id: "n3", other_name: "Wrong Way" }),
+        ],
+        error: null,
+      });
+      const groups = (await ask("who worships the drowned lady")).data.value?.groups;
+      expect(mocks.rpc).toHaveBeenCalledWith("get_connections", { p_kind: "deity", p_id: "d1", p_campaign_id: "campaign-1" });
+      expect(groups?.[0]).toMatchObject({ type: "ties", label: "Ties" });
+      expect(groups?.[0].items).toEqual([
+        expect.objectContaining({ id: "n1", name: "Brenna", kind: "npc", route: "/npcs/n1", tie: "worships The Drowned Lady" }),
+      ]);
+    });
+
+    it("answers from records too: the members of a faction", async () => {
+      mocks.byTable = { factions: { data: [{ id: "f1", name: "The Toll-men" }], error: null } };
+      mocks.rpc.mockResolvedValue({
+        data: [connection({ source: "membership", type: "member_of", other_name: "Harl", other_id: "n5", role: "Captain" })],
+        error: null,
+      });
+      const groups = (await ask("members of the toll-men")).data.value?.groups;
+      expect(groups?.[0].items[0]).toMatchObject({ name: "Harl", tie: "member of The Toll-men" });
+    });
+
+    it("sends no tie reads for an ordinary query, and survives a failed one", async () => {
+      await ask("goblin");
+      expect(mocks.rpc).not.toHaveBeenCalled();
+
+      mocks.byTable = { deities: { data: [{ id: "d1", name: "Lady", titles: null, domains: [] }], error: null } };
+      mocks.rpc.mockResolvedValue({ data: null, error: { message: "denied" } });
+      const search = await ask("who worships lady");
+      expect(search.data.value?.groups.some((g) => g.type === "ties")).toBe(false);
+      expect(search.data.value?.groups.some((g) => g.type === "deity")).toBe(true);
+      expect(mocks.report).toHaveBeenCalledWith(expect.anything(), "global-search", { group: "Ties" });
+    });
   });
 
   describe("library gating", () => {

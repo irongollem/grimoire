@@ -8,6 +8,24 @@ vi.mock("@/components/common/media/FocalImage.vue", () => ({
   default: { props: ["src", "alt", "focalPoint", "renderWidth", "format"], template: '<img data-testid="thumb" :src="src" :alt="alt" />' },
 }));
 
+const mocks = vi.hoisted(() => ({ people: [] as unknown[], count: null as number | null }));
+vi.mock("@/composables/connections/useConnectionDrillIn", async (importOriginal) => {
+  const { computed, ref } = await import("vue");
+  return {
+    ...(await importOriginal<typeof import("@/composables/connections/useConnectionDrillIn")>()),
+    useConnectionDrillIn: (_subject: unknown, open: { value: boolean } | (() => boolean), filter: { value: string }) => {
+      void open;
+      return {
+        people: computed(() => mocks.people),
+        filtered: computed(() => (mocks.people as { other_name: string }[]).filter((p) => p.other_name.toLowerCase().includes(filter.value.toLowerCase()))),
+        count: computed(() => mocks.count),
+        isLoading: ref(false),
+        isError: ref(false),
+      };
+    },
+  };
+});
+
 const router = createRouter({ history: createMemoryHistory(), routes: [{ path: "/:p(.*)*", component: { template: "<div />" } }] });
 
 const groups: SearchGroup[] = [
@@ -68,12 +86,73 @@ describe("SearchResultList", () => {
     expect(full.text()).toContain("Searching by meaning…");
     expect(full.text()).toContain("Couldn't search Quests.");
     expect(full.text()).toContain("Pro searches by meaning");
-    await full.find("button").trigger("click");
+    await full.find("button[aria-label=\"Don't show this again\"]").trigger("click");
     expect(full.emitted("dismissUpsell")).toHaveLength(1);
 
     const bare = render({ groups: [], isSemanticPending: true, failedMessage: "x", showProUpsell: true });
     expect(bare.text()).not.toContain("Searching by meaning…");
     expect(bare.text()).toContain("Pro searches by meaning");
+  });
+
+  it("shows a detail line, and a tie's own words instead", () => {
+    const wrapper = render({
+      groups: [
+        { type: "npc", label: "NPCs", items: [{ id: "n1", name: "Harl", route: "/npcs/n1", matchedBy: "name", detail: "Ferryman · Low Crossing" }] },
+        { type: "ties", label: "Ties", items: [{ id: "n2", name: "Brenna", kind: "npc", route: "/npcs/n2", matchedBy: "name", tie: "worships The Drowned Lady", detail: "ignored" }] },
+      ],
+    });
+    const rows = wrapper.findAll("a");
+    expect(rows[0].text()).toContain("Ferryman · Low Crossing");
+    expect(rows[1].text()).toContain("worships The Drowned Lady");
+    expect(rows[1].text()).not.toContain("ignored");
+    expect(wrapper.text()).toContain("Ties");
+    // A tie's far end is an NPC, so it wears the NPC plate.
+    expect(rows[1].text()).toContain("B");
+  });
+
+  it("opens a place to its people in place, filters them, and navigates from there", async () => {
+    mocks.people = [
+      { row_id: "r1", other_kind: "npc", other_id: "p1", other_name: "Harl", role: null },
+      { row_id: "r2", other_kind: "party_member", other_id: "p2", other_name: "Brenna", role: null },
+    ];
+    mocks.count = 2;
+    const wrapper = render();
+    const toggle = wrapper.findAll("button").find((b) => b.text().includes("2 people here"));
+    expect(toggle).toBeDefined();
+    expect(wrapper.text()).not.toContain("Harl");
+    await toggle?.trigger("click");
+    expect(wrapper.text()).toContain("Harl");
+    expect(wrapper.text()).toContain("Brenna");
+
+    await wrapper.find("input").setValue("bren");
+    expect(wrapper.text()).not.toContain("Harl");
+
+    const person = wrapper.findAll("a").find((a) => a.text().includes("Brenna"));
+    expect(person?.attributes("href")).toBe("/party/p2");
+    await person?.trigger("click");
+    expect(wrapper.emitted("navigate")).toHaveLength(1);
+  });
+
+  it("says 'Members' on a faction until it has been read", () => {
+    mocks.count = null;
+    const wrapper = render({ groups: [{ type: "faction", label: "Factions", items: [{ id: "f1", name: "Toll-men", route: "/factions/f1", matchedBy: "name" }] }] });
+    expect(wrapper.text()).toContain("Members");
+  });
+
+  it("in picker mode emits pick for a row and for a drilled-in person, and follows no link", async () => {
+    mocks.people = [{ row_id: "r1", other_kind: "npc", other_id: "p1", other_name: "Harl", role: "Ferryman" }];
+    mocks.count = 1;
+    const wrapper = render({ selectable: true });
+    expect(wrapper.findAll("a")).toHaveLength(0);
+    const first = wrapper.findAll("button").find((b) => b.text().includes("Floss"));
+    await first?.trigger("click");
+    await wrapper.findAll("button").find((b) => b.text().includes("1 person here"))?.trigger("click");
+    await wrapper.findAll("button").find((b) => b.text().includes("Harl"))?.trigger("click");
+    expect(wrapper.emitted("pick")).toEqual([
+      [{ kind: "npc", id: "n1", name: "Floss" }],
+      [{ kind: "npc", id: "p1", name: "Harl" }],
+    ]);
+    expect(wrapper.emitted("navigate")).toBeUndefined();
   });
 
   it("announces a followed row", async () => {

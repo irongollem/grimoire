@@ -1,7 +1,7 @@
-import { computed, type Ref } from "vue";
+import { computed, toValue, type MaybeRefOrGetter, type Ref } from "vue";
 import { refDebounced, useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
-import { useQuery } from "@tanstack/vue-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
 import { orFilterValue } from "@/lib/postgrestFilter";
@@ -16,7 +16,11 @@ import type { RulesetKey } from "@/types/ruleset.types";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
 import { reportHandledError } from "@/lib/observability/sentry";
-import { mergeSearchGroups, type SearchGroup } from "@/lib/search/mergeSearchHits";
+import { GROUP_ORDER, mergeSearchGroups, type SearchGroup, type SearchHit } from "@/lib/search/mergeSearchHits";
+import { connectionsQueryKey, fetchConnections } from "@/lib/worldLinks/connections";
+import { parseTieQuery, rowMatchesTie, type TieQuery } from "@/lib/worldLinks/tieQuery";
+import type { Connection } from "@/types/connections.types";
+import type { LinkKind } from "@edge-shared/worldLinkCatalogue.ts";
 import type { CampaignSearchHit, CampaignSearchResponse } from "@edge-shared/campaignSearch.ts";
 
 export type { SearchGroup, SearchHit } from "@/lib/search/mergeSearchHits";
@@ -28,6 +32,45 @@ export interface SearchResult {
 }
 
 const LIMIT = 5;
+
+/** The kinds of thing a search row can stand for. `kind` on a row is one of these. */
+export const SEARCH_KINDS = [
+  "npc", "party_member", "monster", "note", "spell", "item", "location", "faction", "deity", "quest",
+] as const;
+export type SearchKind = (typeof SEARCH_KINDS)[number];
+
+/** The id of the group "who worships X" answers go in; it is not a kind. */
+export const TIES_GROUP = "ties";
+
+export interface GlobalSearchOptions {
+  /**
+   * Search only these kinds (the connection picker). Reads for the others are
+   * not sent, meaning hits of the others are dropped, and the Ties group is
+   * off. Omit, or null, for the whole campaign.
+   */
+  kinds?: MaybeRefOrGetter<readonly SearchKind[] | null | undefined>;
+}
+
+/** Where a row of one kind opens. */
+export function searchRoute(kind: SearchKind, id: string): string {
+  switch (kind) {
+    case "npc": return `/npcs/${id}`;
+    case "party_member": return `/party/${id}`;
+    case "monster": return `/monsters/${id}`;
+    case "note": return `/notes/${id}`;
+    case "spell": return `/spells/${id}`;
+    case "item": return `/vault/${id}`;
+    case "location": return placeRoute(id);
+    case "faction": return `/factions/${id}`;
+    case "deity": return `/deities/${id}`;
+    case "quest": return `/quests/${id}`;
+  }
+}
+
+/** Kinds whose rows can be the subject of a tie query: the ones that hold links. */
+const TIE_SUBJECT_KINDS = ["npc", "party_member", "faction", "location", "deity", "item"] as const satisfies readonly LinkKind[];
+const TIE_SUBJECT_LIMIT = 3;
+const TIE_ROW_LIMIT = 8;
 
 /** The picture a result row wears: only NPCs and bestiary entries have one. */
 export interface SearchThumbnail {
@@ -94,8 +137,103 @@ interface SearchScope {
   buildRuleset: RulesetKey;
 }
 
-async function searchAll(query: string, campaignId: string | null, ownerId: string | null, scope: SearchScope): Promise<SearchResult> {
-  const noRows = { data: [] as { id: string; name: string }[], error: null };
+/** What `searchAll` needs besides the query: which kinds to read, and how to read a thing's connections. */
+interface SearchPlan {
+  /** Null reads everything and answers tie questions. */
+  kinds: ReadonlySet<SearchKind> | null;
+  connections: (kind: LinkKind, id: string) => Promise<Connection[]>;
+}
+
+/** What every read answers with; the rows are cast where each group is built. */
+interface SearchRead {
+  data: unknown[] | null;
+  error: unknown;
+}
+
+type NpcSearchRow = {
+  id: string; name: string; disguise_name: string | null; occupation: string | null;
+  // `npcs` and `locations` reference each other twice, so the embed names its FK.
+  location: { name: string } | null;
+};
+type PartySearchRow = { id: string; name: string; class: string | null; level: number | null };
+type DeitySearchRow = { id: string; name: string; titles: string | null; domains: string[] | null };
+
+function joinDetail(parts: (string | null | undefined)[]): string | null {
+  const kept = parts.map((p) => p?.trim()).filter((p): p is string => p !== undefined && p !== "");
+  return kept.length > 0 ? kept.join(" · ") : null;
+}
+
+/** An NPC's line: what they do, and where. */
+export function npcDetail(row: Pick<NpcSearchRow, "occupation" | "location">): string | null {
+  return joinDetail([row.occupation, row.location?.name]);
+}
+
+/** The names that tie questions ask about, across the kinds that hold links. */
+async function findTieSubjects(name: string, campaignId: string, ownerId: string | null, userId: string):
+Promise<{ kind: LinkKind; id: string; name: string }[]> {
+  const q = `%${name}%`;
+  const reads = await Promise.all([
+    supabase.from("npcs").select("id, name").eq("campaign_id", campaignId).ilike("name", q).limit(TIE_SUBJECT_LIMIT),
+    supabase.from("party_members").select("id, name").eq("campaign_id", campaignId).ilike("name", q).limit(TIE_SUBJECT_LIMIT),
+    supabase.from("factions").select("id, name").eq("campaign_id", campaignId).ilike("name", q).limit(TIE_SUBJECT_LIMIT),
+    supabase.from("locations").select("id, name").or(campaignScopeFilter(campaignId, userId, ownerId)).ilike("name", q).limit(TIE_SUBJECT_LIMIT),
+    supabase.from("deities").select("id, name").eq("campaign_id", campaignId).ilike("name", q).limit(TIE_SUBJECT_LIMIT),
+    supabase.from("items").select("id, name").or(campaignScopeFilter(campaignId, userId, ownerId)).ilike("name", q).limit(TIE_SUBJECT_LIMIT),
+  ]);
+  const out: { kind: LinkKind; id: string; name: string }[] = [];
+  reads.forEach((res, i) => {
+    if (res.error) {
+      reportHandledError(res.error, "global-search", { group: "Ties" });
+      return;
+    }
+    for (const row of res.data as { id: string; name: string }[]) out.push({ kind: TIE_SUBJECT_KINDS[i], id: row.id, name: row.name });
+  });
+  const needle = name.toLowerCase();
+  const rank = (n: string) => (n.toLowerCase() === needle ? 0 : n.toLowerCase().startsWith(needle) ? 1 : 2);
+  return out.sort((a, b) => rank(a.name) - rank(b.name) || a.name.length - b.name.length);
+}
+
+/**
+ * The "Ties" group (#1084): the far ends of the tie a query names, around the
+ * best name hit and at most two more. A failure is reported and costs the group,
+ * never the search.
+ */
+async function searchTies(
+  tie: TieQuery, campaignId: string, ownerId: string | null, userId: string, plan: SearchPlan,
+): Promise<SearchGroup | null> {
+  try {
+    const subjects = (await findTieSubjects(tie.name, campaignId, ownerId, userId)).slice(0, 3);
+    const items: SearchHit[] = [];
+    const seen = new Set<string>();
+    const answers = await Promise.all(subjects.map((s) => plan.connections(s.kind, s.id)));
+    subjects.forEach((subject, i) => {
+      for (const row of answers[i]) {
+        const word = rowMatchesTie(row, tie.words);
+        const key = `${row.other_kind}:${row.other_id}`;
+        if (!word || seen.has(key)) continue;
+        seen.add(key);
+        items.push({
+          id: row.other_id,
+          name: row.other_name,
+          route: searchRoute(row.other_kind, row.other_id),
+          kind: row.other_kind,
+          tie: `${word.word} ${subject.name}`,
+          matchedBy: "name",
+        });
+      }
+    });
+    return items.length > 0 ? { type: TIES_GROUP, label: "Ties", items: items.slice(0, TIE_ROW_LIMIT) } : null;
+  } catch (e) {
+    reportHandledError(e, "global-search", { group: "Ties" });
+    return null;
+  }
+}
+
+async function searchAll(query: string, campaignId: string | null, ownerId: string | null, scope: SearchScope, plan: SearchPlan): Promise<SearchResult> {
+  const noRows: SearchRead = { data: [], error: null };
+  const wants = (kind: SearchKind) => plan.kinds === null || plan.kinds.has(kind);
+  const skip = (kind: SearchKind, read: () => PromiseLike<SearchRead>): PromiseLike<SearchRead> =>
+    wants(kind) ? read() : Promise.resolve(noRows);
   const user = getCurrentUser();
   if (!user) throw new Error("global search ran without a signed-in user");
   const q = `%${query}%`;
@@ -103,6 +241,7 @@ async function searchAll(query: string, campaignId: string | null, ownerId: stri
   const [
     notesRes,
     npcsRes,
+    partyRes,
     monstersRes,
     libraryMonstersRes,
     spellsRes,
@@ -111,57 +250,68 @@ async function searchAll(query: string, campaignId: string | null, ownerId: stri
     locationsRes,
     questsRes,
     factionsRes,
+    deitiesRes,
   ] = await Promise.all([
-    campaignId
+    skip("note", () => campaignId
       ? supabase.from("notes").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)
-      : Promise.resolve({ data: [] as { id: string; title: string }[], error: null }),
-    campaignId
-      ? supabase.from("npcs").select("id, name, disguise_name").eq("campaign_id", campaignId).or(`name.ilike.${orFilterValue(q)},disguise_name.ilike.${orFilterValue(q)}`).limit(LIMIT)
-      : Promise.resolve({ data: [] as { id: string; name: string; disguise_name: string | null }[], error: null }),
+      : Promise.resolve({ data: [] as { id: string; title: string }[], error: null })),
+    skip("npc", () => campaignId
+      ? supabase.from("npcs")
+        .select("id, name, disguise_name, occupation, location:locations!npcs_location_id_fkey(name)")
+        .eq("campaign_id", campaignId).or(`name.ilike.${orFilterValue(q)},disguise_name.ilike.${orFilterValue(q)}`).limit(LIMIT)
+      : Promise.resolve({ data: [] as NpcSearchRow[], error: null })),
+    skip("party_member", () => campaignId
+      ? supabase.from("party_members").select("id, name, class, level").eq("campaign_id", campaignId).ilike("name", q).limit(LIMIT)
+      : Promise.resolve({ data: [] as PartySearchRow[], error: null })),
     // Custom monsters and items: this campaign's own plus the DM's globals, the
     // scope their list views use, so one campaign's material stays out of another's.
-    supabase.from("monsters").select("id, name").ilike("name", q).not("open5e_import", "eq", true)
+    skip("monster", () => supabase.from("monsters").select("id, name").ilike("name", q).not("open5e_import", "eq", true)
       .or(campaignScopeFilter(campaignId, user.id, ownerId))
-      .or(`ruleset.is.null,ruleset.eq.${scope.tableRuleset}`).limit(LIMIT),
-    scope.slugs.length === 0
+      .or(`ruleset.is.null,ruleset.eq.${scope.tableRuleset}`).limit(LIMIT)),
+    scope.slugs.length === 0 || !wants("monster")
       ? Promise.resolve(noRows)
       : supabase.from("library_monsters").select("id, name").ilike("name", q)
         .in("source", scope.slugs).eq("ruleset", scope.tableRuleset).limit(LIMIT),
-    supabase.from("spells").select("id, name").ilike("name", q).not("open5e_import", "eq", true)
-      .or(`ruleset.is.null,ruleset.eq.${scope.buildRuleset}`).limit(LIMIT),
-    scope.slugs.length === 0
+    skip("spell", () => supabase.from("spells").select("id, name").ilike("name", q).not("open5e_import", "eq", true)
+      .or(`ruleset.is.null,ruleset.eq.${scope.buildRuleset}`).limit(LIMIT)),
+    scope.slugs.length === 0 || !wants("spell")
       ? Promise.resolve(noRows)
       : supabase.from("library_spells").select("id, name").ilike("name", q)
         .in("source", scope.slugs).eq("ruleset", scope.buildRuleset).limit(LIMIT),
-    supabase.from("items").select("id, name").ilike("name", q).or(campaignScopeFilter(campaignId, user.id, ownerId)).limit(LIMIT),
+    skip("item", () => supabase.from("items").select("id, name").ilike("name", q).or(campaignScopeFilter(campaignId, user.id, ownerId)).limit(LIMIT)),
     // `.or` rather than `.eq` — a location with campaign_id null is meant to
     // be visible in every campaign (#596), same as items/spells/species below.
-    campaignId
+    skip("location", () => campaignId
       ? supabase.from("locations").select("id, name").or(campaignScopeFilter(campaignId, user.id, ownerId)).ilike("name", q).limit(LIMIT)
-      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
-    campaignId
+      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null })),
+    skip("quest", () => campaignId
       ? supabase.from("quests").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)
-      : Promise.resolve({ data: [] as { id: string; title: string }[], error: null }),
-    campaignId
+      : Promise.resolve({ data: [] as { id: string; title: string }[], error: null })),
+    skip("faction", () => campaignId
       ? supabase.from("factions").select("id, name").eq("campaign_id", campaignId).ilike("name", q).limit(LIMIT)
-      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null })),
+    skip("deity", () => campaignId
+      ? supabase.from("deities").select("id, name, titles, domains").eq("campaign_id", campaignId).ilike("name", q).limit(LIMIT)
+      : Promise.resolve({ data: [] as DeitySearchRow[], error: null })),
   ]);
 
   // One failing table must not blank the others. Each failure goes to Sentry
   // and its group label is handed back so the UI can say what was not searched;
   // only when every read failed is the search itself down, and that throws.
   const reads = [
-    { label: "Notes", res: notesRes },
-    { label: "NPCs", res: npcsRes },
-    { label: "Bestiary", res: monstersRes },
-    { label: "Bestiary", res: libraryMonstersRes },
-    { label: "Spells", res: spellsRes },
-    { label: "Spells", res: librarySpellsRes },
-    { label: "Vault", res: itemsRes },
-    { label: "Locations", res: locationsRes },
-    { label: "Quests", res: questsRes },
-    { label: "Factions", res: factionsRes },
-  ];
+    { kind: "note", label: "Notes", res: notesRes },
+    { kind: "npc", label: "NPCs", res: npcsRes },
+    { kind: "party_member", label: "Party", res: partyRes },
+    { kind: "monster", label: "Bestiary", res: monstersRes },
+    { kind: "monster", label: "Bestiary", res: libraryMonstersRes },
+    { kind: "spell", label: "Spells", res: spellsRes },
+    { kind: "spell", label: "Spells", res: librarySpellsRes },
+    { kind: "item", label: "Vault", res: itemsRes },
+    { kind: "location", label: "Locations", res: locationsRes },
+    { kind: "quest", label: "Quests", res: questsRes },
+    { kind: "faction", label: "Factions", res: factionsRes },
+    { kind: "deity", label: "Deities", res: deitiesRes },
+  ].filter((r) => wants(r.kind as SearchKind));
   const failedReads = reads.filter((r) => r.res.error);
   for (const { label, res } of failedReads) reportHandledError(res.error, "global-search", { group: label });
   if (failedReads.length === reads.length && failedReads[0]?.res.error) throw failedReads[0].res.error;
@@ -171,10 +321,22 @@ async function searchAll(query: string, campaignId: string | null, ownerId: stri
     {
       type: "npc",
       label: "NPCs",
-      items: ((npcsRes.data ?? []) as { id: string; name: string; disguise_name: string | null }[]).map((r) => ({
+      items: ((npcsRes.data ?? []) as NpcSearchRow[]).map((r) => ({
         id: r.id,
         name: r.disguise_name ? `${r.name} (${r.disguise_name})` : r.name,
         route: `/npcs/${r.id}`,
+        detail: npcDetail(r),
+        matchedBy: "name" as const,
+      })),
+    },
+    {
+      type: "party_member",
+      label: "Party",
+      items: ((partyRes.data ?? []) as PartySearchRow[]).map((r) => ({
+        id: r.id,
+        name: r.name,
+        route: searchRoute("party_member", r.id),
+        detail: joinDetail([r.class, r.level === null ? null : `level ${r.level}`]),
         matchedBy: "name" as const,
       })),
     },
@@ -245,6 +407,17 @@ async function searchAll(query: string, campaignId: string | null, ownerId: stri
       })),
     },
     {
+      type: "deity",
+      label: "Deities",
+      items: ((deitiesRes.data ?? []) as DeitySearchRow[]).map((r) => ({
+        id: r.id,
+        name: r.name,
+        route: searchRoute("deity", r.id),
+        detail: joinDetail([r.titles, r.domains && r.domains.length > 0 ? r.domains.join(", ") : null]),
+        matchedBy: "name" as const,
+      })),
+    },
+    {
       type: "quest",
       label: "Quests",
       items: ((questsRes.data ?? []) as { id: string; title: string }[]).map((r) => ({
@@ -256,7 +429,12 @@ async function searchAll(query: string, campaignId: string | null, ownerId: stri
     },
   ];
 
-  return { groups: groups.filter((g) => g.items.length > 0), failedGroups };
+  // Tie questions ("who worships the drowned lady") are asked of the whole
+  // campaign only, never of a picker limited to some kinds.
+  const tie = plan.kinds === null && campaignId ? parseTieQuery(query) : null;
+  const ties = tie && campaignId ? await searchTies(tie, campaignId, ownerId, user.id, plan) : null;
+
+  return { groups: [...(ties ? [ties] : []), ...groups.filter((g) => g.items.length > 0)], failedGroups };
 }
 
 /** How long typing must pause before a search goes out. One search is nine
@@ -300,7 +478,45 @@ async function searchByMeaning(query: string, campaignId: string): Promise<Campa
   }
 }
 
-export function useGlobalSearch(query: Ref<string>) {
+/** Groups the semantic merge does not know: it would drop them, so they are set aside and put back. */
+const MERGE_KNOWN: ReadonlySet<string> = new Set(GROUP_ORDER);
+
+function insertRelative(groups: SearchGroup[], extra: SearchGroup, after: string | null, before: string | null): void {
+  const afterAt = after === null ? -1 : groups.findIndex((g) => g.type === after);
+  const beforeAt = before === null ? -1 : groups.findIndex((g) => g.type === before);
+  if (afterAt >= 0) groups.splice(afterAt + 1, 0, extra);
+  else if (beforeAt >= 0) groups.splice(beforeAt, 0, extra);
+  else groups.push(extra);
+}
+
+/**
+ * Folds the by-meaning hits into the keyword groups. Ties lead; people of the
+ * party follow NPCs; deities sit ahead of quests. `mergeSearchGroups` only knows
+ * the original eight kinds, so the newer groups ride around it.
+ */
+export function mergeAllGroups(keyword: SearchGroup[], semantic: readonly CampaignSearchHit[]): SearchGroup[] {
+  const ties = keyword.find((g) => g.type === TIES_GROUP);
+  const party = keyword.find((g) => g.type === "party_member");
+  const deities = keyword.find((g) => g.type === "deity");
+  const merged = mergeSearchGroups(keyword.filter((g) => MERGE_KNOWN.has(g.type)), semantic);
+  if (party) insertRelative(merged, party, "npc", null);
+  if (deities) insertRelative(merged, deities, null, "quest");
+  return ties ? [ties, ...merged] : merged;
+}
+
+function withKinds(groups: SearchGroup[], kinds: ReadonlySet<SearchKind> | null): SearchGroup[] {
+  const kept = kinds === null ? groups : groups.filter((g) => g.type === TIES_GROUP || kinds.has(g.type as SearchKind));
+  // A row's kind is its group's unless it says otherwise (a tie names its far end's).
+  return kept.map((g) => ({ ...g, items: g.items.map((item) => (item.kind ? item : { ...item, kind: g.type })) }));
+}
+
+export function useGlobalSearch(query: Ref<string>, options: GlobalSearchOptions = {}) {
+  const queryClient = useQueryClient();
+  const kindsKey = computed(() => {
+    const kinds = toValue(options.kinds);
+    return kinds ? [...new Set(kinds)].sort() : null;
+  });
+  const kindSet = computed<ReadonlySet<SearchKind> | null>(() => (kindsKey.value ? new Set(kindsKey.value) : null));
   const campaign = useCampaignStore();
   const auth = useAuthStore();
   const { isPro, isLoading: subscriptionLoading } = useSubscription();
@@ -320,11 +536,15 @@ export function useGlobalSearch(query: Ref<string>) {
 
   const result = useQuery({
     queryKey: computed(
-      () => ["global-search", settled.value, campaignId.value, ownerId.value, slugs.value, tableRuleset.value, buildRuleset.value] as const,
+      () => ["global-search", settled.value, campaignId.value, ownerId.value, slugs.value, tableRuleset.value, buildRuleset.value, kindsKey.value] as const,
     ),
     queryFn: ({ queryKey: [, search, activeCampaignId, owner, enabledSlugs, table, build] }) => {
       if (enabledSlugs === null) throw new Error("global search ran before the enabled sources loaded");
-      return searchAll(search, activeCampaignId, owner, { slugs: enabledSlugs, tableRuleset: table, buildRuleset: build });
+      return searchAll(
+        search, activeCampaignId, owner,
+        { slugs: enabledSlugs, tableRuleset: table, buildRuleset: build },
+        { kinds: kindSet.value, connections: (kind, id) => readConnections(queryClient, kind, id, activeCampaignId) },
+      );
     },
     // A cached read, so waiting for the enabled books is short; searching
     // before they are known would leak disabled books' rows.
@@ -362,7 +582,7 @@ export function useGlobalSearch(query: Ref<string>) {
   const data = computed<SearchResult | undefined>(() => {
     const keyword = result.data.value;
     if (!keyword) return keyword;
-    return { ...keyword, groups: mergeSearchGroups(keyword.groups, semanticHits.value) };
+    return { ...keyword, groups: withKinds(mergeAllGroups(keyword.groups, semanticHits.value), kindSet.value) };
   });
 
   // Still typing counts as searching: the results on screen are for a term
@@ -398,10 +618,9 @@ export function useGlobalSearch(query: Ref<string>) {
   // here is reported and costs the rows their picture, never the search.
   const thumbnailIds = computed(() => {
     const groups = data.value?.groups;
-    const idsOf = (type: string): string[] => {
-      const group = groups?.find((g) => g.type === type);
-      return group ? group.items.map((item) => item.id).sort() : [];
-    };
+    // Rows by the kind they stand for, so a tie's far end gets its face too.
+    const idsOf = (kind: string): string[] =>
+      [...new Set((groups ?? []).flatMap((g) => g.items.filter((item) => item.kind === kind).map((item) => item.id)))].sort();
     return { npcs: idsOf("npc"), monsters: idsOf("monster") };
   });
   const thumbnailQuery = useQuery({
@@ -428,6 +647,15 @@ export function useGlobalSearch(query: Ref<string>) {
   });
 
   return { ...result, data, isFetching, isSemanticPending, showProUpsell, dismissProUpsell, thumbnails };
+}
+
+/** A thing's connections through the cache a sheet shares, so a tie question does not refetch what is open. */
+function readConnections(queryClient: QueryClient, kind: LinkKind, id: string, campaignId: string | null): Promise<Connection[]> {
+  return queryClient.fetchQuery({
+    queryKey: connectionsQueryKey(kind, id, campaignId),
+    queryFn: () => fetchConnections(kind, id, campaignId),
+    staleTime: 30_000,
+  });
 }
 
 /** "Quests", "Quests and Locations", "Notes, Quests and Locations". */

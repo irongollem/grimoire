@@ -9,6 +9,12 @@ export interface SearchHit {
   route: string;
   descriptor?: string | null;
   matchedBy: "name" | "meaning";
+  /** What the thing is or does in a line: an NPC's occupation and where they live. Name hits only. */
+  detail?: string | null;
+  /** The entity kind the row stands for. Defaults to its group's type; a "Ties" row carries its far end's. */
+  kind?: string;
+  /** "Ties" rows only: how the row reads towards the name asked about ("worships The Drowned Lady"). */
+  tie?: string;
 }
 
 export interface SearchGroup {
