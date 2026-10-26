@@ -96,6 +96,14 @@ $$;
 
 -- Drafts i1 (library output), i2 (new item + new material): Pat's. i3: Pat's, to be deleted.
 -- i4: Pat's, already with the DM. i5: Quinn's, so Pat can be shown not to see it.
+-- The drafts name two shared-library items. The local stack holds them once the library is synced; CI's fresh
+-- database does not, and the approval rightly refuses an item it cannot find, so the test brings its own.
+insert into public.library_items (id, name, item_type, rarity, source, source_document_key, source_record_key) values
+  ('srd_a5e_aegis_of_the_eternal_moon', 'Aegis of the Eternal Moon', 'armor', 'very_rare', 'a5e', 'a5e-test', 'aegis-test'),
+  ('srd_a5e_aerodite_the_autumn_queen_s_true_name', 'Aerodite the Autumn Queen''s True Name', 'wondrous_item', 'uncommon',
+   'a5e', 'a5e-test', 'aerodite-test')
+on conflict (id) do nothing;
+
 insert into public.crafting_inventions (id, campaign_id, party_member_id, user_id, discipline, mode, wish, draft, status, ai_provenance) values
   ('11030000-0000-4000-8000-0000000000f1', '11030000-0000-4000-8000-0000000000c1', '11030000-0000-4000-8000-0000000000e2', '11030000-0000-4000-8000-000000000002', 'smithing', 'idea', 'A moonlit aegis', pg_temp.draft(false), 'draft', '{"model":"test"}'),
   ('11030000-0000-4000-8000-0000000000f2', '11030000-0000-4000-8000-0000000000c1', '11030000-0000-4000-8000-0000000000e2', '11030000-0000-4000-8000-000000000002', 'tinkering', 'idea', 'A singing bird', pg_temp.draft(true), 'draft', '{"model":"test"}'),
