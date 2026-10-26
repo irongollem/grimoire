@@ -58,7 +58,7 @@
           label-weight="normal"
           label-tone="foreground"
           label="Share music with remote players"
-          hint="Music only, and only for this session. It switches itself off again next time. Each player still presses Join on their own device, because a browser will not start audio without them and nobody's speakers should come alive on someone else's click. For remote tables: several devices in one room playing the same track sound worse than one."
+          hint="Music only, and only for this session. Spotify is not included: it plays on your device only. It switches itself off again next time. Each player still presses Join on their own device, because a browser will not start audio without them and nobody's speakers should come alive on someone else's click. For remote tables: several devices in one room playing the same track sound worse than one."
           :model-value="broadcasting"
           @update:model-value="setBroadcasting"
         />

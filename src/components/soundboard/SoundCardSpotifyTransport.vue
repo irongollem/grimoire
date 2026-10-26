@@ -15,6 +15,7 @@
   >
     <IconMusicNote class="h-3.5 w-3.5 text-ink-success/70 shrink-0" />
     <p class="text-caption text-muted-foreground italic flex-1">Connect Spotify to play</p>
+    <SpotifyLocalOnlyInfo />
     <AppButton
       variant="link"
       tone="success"
@@ -46,9 +47,9 @@
 
     <!-- Spotify playback controls -->
     <div class="flex items-center gap-2">
-      <!-- Previous (only when active) -->
+      <!-- Previous (only when active, and only a playlist or album has one) -->
       <AppButton
-        v-if="isActive"
+        v-if="isActive && isCollection"
         variant="ghost"
         size="icon-2xs"
         icon-size="xs"
@@ -64,10 +65,11 @@
         shape="pill"
         size="icon-xs"
         class="shrink-0"
+        :class="sharing ? 'opacity-60' : ''"
         :active="isActive && spotifyStore.isPlaying"
         :tone="isActive && spotifyStore.isPlaying ? 'success' : undefined"
         :disabled="!spotifyStore.isReady"
-        :tooltip="!spotifyStore.isReady ? 'Spotify connecting…' : isActive && spotifyStore.isPlaying ? 'Pause' : 'Play'"
+        :tooltip="!spotifyStore.isReady ? 'Spotify connecting…' : isActive && spotifyStore.isPlaying ? 'Pause' : sharing ? 'Play on this device only' : 'Play'"
         @click="toggleSpotify"
       >
         <template #icon>
@@ -76,9 +78,9 @@
         </template>
       </AppButton>
 
-      <!-- Next (only when active) -->
+      <!-- Next (only when active, and only a playlist or album has one) -->
       <AppButton
-        v-if="isActive"
+        v-if="isActive && isCollection"
         variant="ghost"
         size="icon-2xs"
         icon-size="xs"
@@ -97,6 +99,8 @@
         :model-value="spotifyStore.volume"
         @update:model-value="spotifyStore.setVolume($event)"
       />
+
+      <SpotifyLocalOnlyInfo />
     </div>
 
     <!-- Spotify progress bar (only when this card is active) -->
@@ -128,6 +132,7 @@
       </button>
       <!-- IconShuffle -->
       <AppButton
+        v-if="isCollection"
         variant="ghost"
         size="icon-2xs"
         icon-size="xs"
@@ -156,7 +161,10 @@ import { computed } from "vue";
 import { IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import VolumeSlider from "./VolumeSlider.vue";
+import SpotifyLocalOnlyInfo from "./SpotifyLocalOnlyInfo.vue";
+import { useAudioSharing } from "@/composables/soundboard/useAudioSharing";
 import { useSpotifyStore } from "@/stores/spotify";
+import { isSpotifyCollection } from "@/lib/audio/spotifyAuth";
 import { useSoundPlayback } from "@/composables/soundboard/useSoundPlayback";
 import type { Sound } from "@/types/sound.types";
 
@@ -165,10 +173,16 @@ const { sound } = defineProps<{
 }>();
 
 const spotifyStore = useSpotifyStore();
+// Dimmed, not disabled: at a mixed table the room still hears it.
+const sharing = useAudioSharing();
 
 // "Active" (this card drives the player) and the play/pause decision are shared
 // with the audio transport and the command palette — see useSoundPlayback.
 const { isPlaying: isActive, toggle: toggleSpotify } = useSoundPlayback(() => sound);
+
+// A single track is a track: nothing before or after it to skip to, nothing to
+// shuffle, and repeat means only "this track again".
+const isCollection = computed(() => isSpotifyCollection(sound.file_url));
 
 const spotifyProgressPercent = computed(() => {
   if (!spotifyStore.durationMs) return 0;
@@ -194,6 +208,10 @@ const repeatTitle = computed(() => {
 });
 
 function cycleRepeat() {
+  if (!isCollection.value) {
+    spotifyStore.setRepeat(spotifyStore.repeatMode === 2 ? 0 : 2);
+    return;
+  }
   const next = ((spotifyStore.repeatMode + 1) % 3) as 0 | 1 | 2;
   spotifyStore.setRepeat(next);
 }

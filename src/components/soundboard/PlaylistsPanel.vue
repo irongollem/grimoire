@@ -52,10 +52,9 @@
     </div>
 
     <!--
-      Spotify lives here rather than among the pads. It is music by definition,
-      and its transport belongs to Spotify's own SDK — no waveform, no layering,
-      nothing the fire grid knows how to do. Keeping it out leaves that grid one
-      uniform kind of thing.
+      Spotify playlists and albums live here rather than among the pads: each
+      is a running order of its own, driven by Spotify's SDK. A single Spotify
+      track is a sound and sits on the board instead.
     -->
     <section v-if="playlistType === 'music' && spotifySounds.length > 0" class="space-y-2 pt-2">
       <div class="flex items-center gap-2 border-t border-border/50 pt-3">
@@ -97,6 +96,7 @@ import { usePlaylists, useDeletePlaylist, usePlaylistsTracks } from "@/composabl
 import { useSounds, useDeleteSound } from "@/composables/soundboard/useSounds";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
+import { isSpotifyCollection } from "@/lib/audio/spotifyAuth";
 import { useQuota } from "@/composables/billing/useQuota";
 import type { Sound, SoundboardPlaylist, PlaylistType } from "@/types/sound.types";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
@@ -127,17 +127,20 @@ const noun = computed(() => PLAYLIST_NOUNS[playlistType]);
 const { data: allSounds } = useSounds();
 
 /**
- * Spotify sounds on this page.
+ * Spotify playlists and albums on this page. Single tracks are on the board.
  *
  * Page-filtered like the sounds grid is. Showing every campaign's Spotify
- * tracks while the rest of the board is scoped to Chapter 3 would make the
+ * playlists while the rest of the board is scoped to Chapter 3 would make the
  * page tabs look broken.
  */
 const spotifySounds = computed(() => {
   const list = allSounds.value;
   if (list === undefined) return [];
   return list.filter(
-    (s) => s.source_type === "spotify" && (pageId === null || s.page_id === pageId),
+    (s) =>
+      s.source_type === "spotify" &&
+      isSpotifyCollection(s.file_url) &&
+      (pageId === null || s.page_id === pageId),
   );
 });
 

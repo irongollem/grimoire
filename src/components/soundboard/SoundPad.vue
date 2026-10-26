@@ -16,9 +16,9 @@
               : 'border-border bg-card hover:border-border/80',
           ]
         : ['min-h-11', isPlaying ? CATEGORY_TINT[sound.category] : 'hover:bg-muted/40'],
-      blockedReason === null ? '' : 'opacity-60',
+      blockedReason === null && !localOnly ? '' : 'opacity-60',
     ]"
-    :title="blockedReason ?? undefined"
+    :title="blockedReason ?? (localOnly ? 'Plays on this device only: not shared with players or a cast speaker' : undefined)"
     @click="handleClick"
     @pointerdown="gesture.onPointerdown"
     @pointermove="gesture.onPointermove"
@@ -132,6 +132,7 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSoundPlayback } from "@/composables/soundboard/useSoundPlayback";
 import { usePadLoopGesture } from "@/composables/soundboard/usePadLoopGesture";
+import { useAudioSharing } from "@/composables/soundboard/useAudioSharing";
 import {
   CATEGORY_BORDER,
   CATEGORY_SPINE,
@@ -186,19 +187,22 @@ const store = useSoundboardStore();
 // twice should give you two thunderclaps, not stop the first one. `toggle` is
 // transport semantics and pauses whatever is audible regardless of category —
 // correct for a play/pause button, wrong for the thing you hit mid-sentence.
-const { isPlaying, blockedReason, trigger: fire } = useSoundPlayback(() => sound);
+const { isSpotify, isPlaying, isLooping, toggleLoop, blockedReason, trigger: fire } = useSoundPlayback(() => sound);
+// A Spotify pad dims while audio is shared or cast, because it will not go
+// along. Dimmed, not disabled: at a mixed table the room still hears it.
+const sharing = useAudioSharing();
+const localOnly = computed(() => isSpotify.value && sharing.value);
 const { triggerForSound } = useActiveAudioTriggers();
 
 const trigger = computed(() => triggerForSound(sound.id));
 const state = computed(() => store.getState(sound.id));
-const isLooping = computed(() => state.value.isLooping);
 
 // The pad has exactly one visible gesture — tap to fire. Loop rides on top of
 // it rather than adding a control that would compete with "aim and hit": a
 // double-tap/double-click, or a long-press/right-click for anyone who can't
 // land two taps in a row. See usePadLoopGesture for why neither path needs to
 // suppress the pad's own tap action.
-const gesture = usePadLoopGesture({ onToggleLoop: () => store.toggleLoop(sound.id) });
+const gesture = usePadLoopGesture({ onToggleLoop: toggleLoop });
 
 function handleClick(): void {
   if (gesture.onClick()) fire();

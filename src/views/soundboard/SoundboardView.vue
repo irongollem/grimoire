@@ -350,6 +350,7 @@ import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/sound
 import { railTransition } from "@/lib/motion";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
+import { isSpotifyCollection } from "@/lib/audio/spotifyAuth";
 import { useAuthStore } from "@/stores/auth";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { useQuota } from "@/composables/billing/useQuota";
@@ -494,10 +495,12 @@ const searchPlaceholder = computed(() => {
 });
 
 const filtered = computed(() => {
-  // Spotify is a different animal: no waveform, no layering, a transport that
-  // belongs to Spotify's own SDK. It lives with the music, not among the pads,
-  // so the fire grid stays one uniform kind of thing.
-  let list = (sounds.value ?? []).filter((s) => s.source_type !== "spotify");
+  // A Spotify playlist or album runs its own running order, so it lives with
+  // the playlists. A single track is a sound like any other and stays on the
+  // board: DMs want "this one song" on a pad, the way they would an upload.
+  let list = (sounds.value ?? []).filter(
+    (s) => s.source_type !== "spotify" || !isSpotifyCollection(s.file_url),
+  );
 
   // Filter by active page (null = "All", shows everything)
   if (soundboardUi.soundboardActivePage !== null) {
@@ -646,6 +649,11 @@ function persistOrder() {
 // ── Delete ────────────────────────────────────────────────────────────────
 
 async function handleDelete(sound: Sound) {
+  // A Spotify track on the board plays through Spotify's player, not the
+  // store, so releasing the sound alone would leave it playing.
+  if (sound.source_type === "spotify" && spotifyStore.isPlaying && spotifyStore.lastPlayedUrl === sound.file_url) {
+    void spotifyStore.pause();
+  }
   await deleteSound(sound);
   soundboardStore.releaseSound(sound.id);
 }

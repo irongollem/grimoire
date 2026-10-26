@@ -264,9 +264,13 @@ export async function getValidToken(clientId: string, forceRefresh = false): Pro
 
 // ── URI helpers ───────────────────────────────────────────────────────────
 
-/** Convert an open.spotify.com URL to a Spotify URI, e.g. spotify:track:xxx */
+/**
+ * Convert an open.spotify.com URL to a Spotify URI, e.g. spotify:track:xxx.
+ * Share links from a localised Spotify carry a locale segment
+ * (`open.spotify.com/intl-nl/track/…`), so that is allowed before the type.
+ */
 export function urlToUri(url: string): string | null {
-  const m = url.match(/open\.spotify\.com\/(track|playlist|album|episode)\/([a-zA-Z0-9]+)/);
+  const m = url.match(/open\.spotify\.com\/(?:intl-[a-zA-Z-]+\/)?(track|playlist|album|episode)\/([a-zA-Z0-9]+)/);
   if (!m) return null;
   return `spotify:${m[1]}:${m[2]}`;
 }
@@ -274,4 +278,14 @@ export function urlToUri(url: string): string | null {
 /** True for playlist/album contexts (not single tracks). */
 export function isContextUri(uri: string): boolean {
   return uri.startsWith("spotify:playlist:") || uri.startsWith("spotify:album:");
+}
+
+/**
+ * True when a Spotify sound's file_url is a playlist or album, false for a
+ * single track or episode. A track is a sound like any other and sits on the
+ * board as a pad; a collection runs its own running order and lives with the
+ * playlists.
+ */
+export function isSpotifyCollection(fileUrl: string): boolean {
+  return isContextUri(urlToUri(fileUrl) ?? fileUrl);
 }

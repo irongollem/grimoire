@@ -117,6 +117,10 @@ export function useSoundTrigger(): (sound: Sound) => void {
 export interface SoundPlayback {
   isSpotify: ComputedRef<boolean>;
   isPlaying: ComputedRef<boolean>;
+  /** Spotify has no per-sound loop: a Spotify sound loops by putting the
+   *  player on repeat-track while it is the one loaded. */
+  isLooping: ComputedRef<boolean>;
+  toggleLoop: () => void;
   blockedReason: ComputedRef<string | null>;
   action: ComputedRef<PlaybackAction>;
   toggle: () => void;
@@ -137,6 +141,20 @@ export function useSoundPlayback(sound: MaybeRefOrGetter<Sound>): SoundPlayback 
   return {
     isSpotify: computed(() => toValue(sound).source_type === "spotify"),
     isPlaying: computed(() => isAudible(toValue(sound))),
+    isLooping: computed(() => {
+      const s = toValue(sound);
+      return s.source_type === "spotify"
+        ? spotifyStore.lastPlayedUrl === s.file_url && spotifyStore.repeatMode === 2
+        : soundboardStore.getState(s.id).isLooping;
+    }),
+    // Spotify's repeat is player-wide. A loop gesture on a pad that is not the
+    // one loaded still sets it, because that gesture also fires the pad, so the
+    // end state is this track playing on repeat.
+    toggleLoop: () => {
+      const s = toValue(sound);
+      if (s.source_type === "spotify") void spotifyStore.setRepeat(spotifyStore.repeatMode === 2 ? 0 : 2);
+      else soundboardStore.toggleLoop(s.id);
+    },
     blockedReason: computed(() => blocked(toValue(sound))),
     action: computed(() => action(toValue(sound))),
     toggle: () => toggleSound(toValue(sound)),

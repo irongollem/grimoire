@@ -62,15 +62,15 @@ describe("PlaylistsPanel create request", () => {
 
 // The "From Spotify" cards show a delete button that nothing listened to (#1098).
 describe("PlaylistsPanel Spotify delete", () => {
-  const track = {
+  const playlist = {
     id: "sound-1",
     source_type: "spotify",
     page_id: null,
-    file_url: "https://open.spotify.com/track/abc123",
+    file_url: "https://open.spotify.com/playlist/abc123",
   } as Sound;
 
   beforeEach(() => {
-    sounds.value = [track];
+    sounds.value = [playlist];
     deleteSound.mockClear();
     spotify.pause.mockClear();
   });
@@ -79,20 +79,36 @@ describe("PlaylistsPanel Spotify delete", () => {
     spotify.isPlaying = false;
     const wrapper = mountPanel(false);
 
-    wrapper.findComponent({ name: "SoundCard" }).vm.$emit("delete", track);
+    wrapper.findComponent({ name: "SoundCard" }).vm.$emit("delete", playlist);
 
-    expect(deleteSound).toHaveBeenCalledWith(track);
+    expect(deleteSound).toHaveBeenCalledWith(playlist);
     expect(spotify.pause).not.toHaveBeenCalled();
   });
 
-  it("stops the track first when it is the one playing", () => {
+  it("stops it first when it is the one playing", () => {
     spotify.isPlaying = true;
-    spotify.lastPlayedUrl = track.file_url;
+    spotify.lastPlayedUrl = playlist.file_url;
     const wrapper = mountPanel(false);
 
-    wrapper.findComponent({ name: "SoundCard" }).vm.$emit("delete", track);
+    wrapper.findComponent({ name: "SoundCard" }).vm.$emit("delete", playlist);
 
     expect(spotify.pause).toHaveBeenCalled();
-    expect(deleteSound).toHaveBeenCalledWith(track);
+    expect(deleteSound).toHaveBeenCalledWith(playlist);
+  });
+});
+
+// A single Spotify track is a sound and sits on the board; only playlists and
+// albums are listed here.
+describe("PlaylistsPanel From Spotify", () => {
+  it("lists playlists and albums but not single tracks", () => {
+    sounds.value = [
+      { id: "p", source_type: "spotify", page_id: null, file_url: "https://open.spotify.com/playlist/p1" },
+      { id: "a", source_type: "spotify", page_id: null, file_url: "https://open.spotify.com/album/a1" },
+      { id: "t", source_type: "spotify", page_id: null, file_url: "https://open.spotify.com/track/t1" },
+    ] as Sound[];
+    const wrapper = mountPanel(false);
+
+    const shown = wrapper.findAllComponents({ name: "SoundCard" }).map((c) => (c.props("sound") as Sound).id);
+    expect(shown).toEqual(["p", "a"]);
   });
 });

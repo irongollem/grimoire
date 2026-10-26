@@ -52,9 +52,10 @@
                 v-if="spotifyStore.albumArtUrl"
                 :src="spotifyStore.albumArtUrl"
                 class="h-7 w-7 rounded shrink-0 object-cover"
+                :class="sharing ? 'opacity-60' : ''"
                 alt=""
               />
-              <div class="flex-1 min-w-0">
+              <div class="flex-1 min-w-0" :class="sharing ? 'opacity-60' : ''">
                 <p class="text-caption font-medium text-foreground truncate">
                   {{ spotifyStore.trackName }}
                 </p>
@@ -62,6 +63,9 @@
                   {{ spotifyStore.artistName }}
                 </p>
               </div>
+              <!-- The Cast button above and shared audio mirror Grimoire's own
+                   playlist, never this track, so say so here. -->
+              <SpotifyLocalOnlyInfo />
               <!-- Volume -->
               <VolumeSlider
                 accent="green"
@@ -82,7 +86,8 @@
                 variant="ghost"
                 size="inline-xs"
                 class="shrink-0"
-                :tooltip="spotifyStore.isPlaying ? 'Pause' : 'Resume'"
+                :class="sharing ? 'opacity-60' : ''"
+                :tooltip="spotifyStore.isPlaying ? 'Pause' : sharing ? 'Resume on this device only' : 'Resume'"
                 @click="spotifyStore.isPlaying ? spotifyStore.pause() : spotifyStore.resume()"
               >
                 <template #icon>
@@ -332,6 +337,8 @@ import SoundboardMixer from "./SoundboardMixer.vue";
 import CausedByChip from "./CausedByChip.vue";
 import { useActiveAudioTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
 import SpotifyErrorBanner from "./SpotifyErrorBanner.vue";
+import SpotifyLocalOnlyInfo from "./SpotifyLocalOnlyInfo.vue";
+import { useAudioSharing } from "@/composables/soundboard/useAudioSharing";
 
 import CastButton from "./CastButton.vue";
 
@@ -401,6 +408,8 @@ function onLeave(el: Element, done: () => void) {
 }
 const { musicTrigger, triggerForPlaylist } = useActiveAudioTriggers();
 const spotifyStore = useSpotifyStore();
+// Spotify dims while audio is shared or cast: it will not go along.
+const sharing = useAudioSharing();
 // Names for the playing list, which only the open panel shows (#999). The
 // widget is mounted on every DM page; playback itself never reads this query.
 const { data: sounds } = useSounds(() => store.widgetOpen);

@@ -17,6 +17,7 @@ const soundboardStore = {
   play: vi.fn(),
   pause: vi.fn(),
   restart: vi.fn(),
+  toggleLoop: vi.fn(),
   stop: vi.fn(),
 };
 
@@ -24,14 +25,16 @@ const spotifyStore = {
   isReady: true,
   isPlaying: false,
   lastPlayedUrl: null as string | null,
+  repeatMode: 0 as 0 | 1 | 2,
   play: vi.fn(),
   pause: vi.fn(),
+  setRepeat: vi.fn(),
 };
 
 vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => soundboardStore }));
 vi.mock("@/stores/spotify", () => ({ useSpotifyStore: () => spotifyStore }));
 
-const { useSoundTrigger, useSoundToggle, useActionCheck } = await import("./useSoundPlayback");
+const { useSoundTrigger, useSoundToggle, useActionCheck, useSoundPlayback } = await import("./useSoundPlayback");
 
 function sound(over: Partial<Sound> = {}): Sound {
   return {
@@ -56,6 +59,7 @@ beforeEach(() => {
   setAudible(false);
   spotifyStore.isPlaying = false;
   spotifyStore.lastPlayedUrl = null;
+  spotifyStore.repeatMode = 0;
 });
 
 describe("what the next press does", () => {
@@ -128,5 +132,35 @@ describe("useSoundToggle — transport semantics", () => {
 
     expect(soundboardStore.pause).toHaveBeenCalledTimes(1);
     expect(soundboardStore.restart).not.toHaveBeenCalled();
+  });
+});
+
+describe("loop — a Spotify track on the board loops like any pad", () => {
+  const track = () => sound({ source_type: "spotify", category: "music", file_url: "spotify:track:1" });
+
+  it("puts Spotify on repeat-track, since it has no per-sound loop", () => {
+    useSoundPlayback(track).toggleLoop();
+    expect(spotifyStore.setRepeat).toHaveBeenCalledWith(2);
+    expect(soundboardStore.toggleLoop).not.toHaveBeenCalled();
+  });
+
+  it("turns repeat off again from repeat-track", () => {
+    spotifyStore.repeatMode = 2;
+    useSoundPlayback(track).toggleLoop();
+    expect(spotifyStore.setRepeat).toHaveBeenCalledWith(0);
+  });
+
+  it("reads as looping only while it is the track loaded", () => {
+    // Repeat is player-wide: another pad's repeat must not light this one.
+    spotifyStore.repeatMode = 2;
+    expect(useSoundPlayback(track).isLooping.value).toBe(false);
+    spotifyStore.lastPlayedUrl = "spotify:track:1";
+    expect(useSoundPlayback(track).isLooping.value).toBe(true);
+  });
+
+  it("leaves an audio sound's loop to the soundboard store", () => {
+    useSoundPlayback(() => sound()).toggleLoop();
+    expect(soundboardStore.toggleLoop).toHaveBeenCalledWith("s1");
+    expect(spotifyStore.setRepeat).not.toHaveBeenCalled();
   });
 });

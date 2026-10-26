@@ -128,9 +128,12 @@
         <p v-if="form.external_url && !isValidSpotifyUrl" class="text-caption text-destructive">
           Paste a Spotify track, playlist, album, or episode URL.
         </p>
-        <p v-else class="text-caption text-muted-foreground">
-          Paste a track, playlist, album, or episode link from Spotify.
-        </p>
+        <div v-else class="flex items-center gap-1">
+          <p class="text-caption text-muted-foreground">
+            Paste a track, playlist, album, or episode link from Spotify.
+          </p>
+          <SpotifyLocalOnlyInfo />
+        </div>
       </div>
 
       <!-- AI Generate -->
@@ -322,6 +325,7 @@ import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue"
 import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
 import { useCreateSound, useSoundUpload } from "@/composables/soundboard/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
+import { urlToUri } from "@/lib/audio/spotifyAuth";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useCampaignStore } from "@/stores/campaign";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
@@ -347,6 +351,7 @@ import { useMusicGeneration } from "@/ai/useMusicGeneration";
 import { currentLoadingQuote, startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import SoundProviderBrowser from "@/components/soundboard/SoundProviderBrowser.vue";
+import SpotifyLocalOnlyInfo from "@/components/soundboard/SpotifyLocalOnlyInfo.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import type { SoundCategory } from "@/types/sound.types";
@@ -528,9 +533,7 @@ onUnmounted(() => {
 
 // ── Spotify tab ───────────────────────────────────────────────────────────
 
-const isValidSpotifyUrl = computed(() =>
-  /open\.spotify\.com\/(track|playlist|album|episode)\/[a-zA-Z0-9]+/.test(form.value.external_url),
-);
+const isValidSpotifyUrl = computed(() => urlToUri(form.value.external_url) !== null);
 
 // ── Generate tab ──────────────────────────────────────────────────────────
 

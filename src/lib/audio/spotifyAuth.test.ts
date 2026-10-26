@@ -4,6 +4,7 @@ import {
   buildAuthUrl,
   exchangeCode,
   getValidToken,
+  isSpotifyCollection,
   readSpotifyError,
   spotifyFetch,
   SpotifyUnreachableError,
@@ -137,5 +138,19 @@ describe("Spotify OAuth state", () => {
       "Spotify login state did not match",
     );
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("isSpotifyCollection", () => {
+  it("is false for a single track or episode, which sit on the board as pads", () => {
+    expect(isSpotifyCollection("https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=abc")).toBe(false);
+    expect(isSpotifyCollection("https://open.spotify.com/episode/0Q86acNRm6V9GYx55SXKwf")).toBe(false);
+    expect(isSpotifyCollection("spotify:track:4uLU6hMCjMI75M1A2tKUQC")).toBe(false);
+  });
+
+  it("is true for a playlist or album, which keep their own running order", () => {
+    expect(isSpotifyCollection("https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M")).toBe(true);
+    expect(isSpotifyCollection("https://open.spotify.com/intl-nl/album/1DFixLWuPkv3KT3TnV35m3")).toBe(true);
+    expect(isSpotifyCollection("spotify:album:1DFixLWuPkv3KT3TnV35m3")).toBe(true);
   });
 });
