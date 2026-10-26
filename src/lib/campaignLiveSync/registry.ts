@@ -22,6 +22,8 @@ export const WHILE_AWAY_KEY = "while-away";
 export const CAMPAIGN_SECRETS_KEY = "campaign-secrets";
 /** Root of the kin link queries (#1083), and of the players' kin projection that the same ring refreshes. */
 export const KIN_LINKS_KEY = "kin_links";
+/** Every connections read (#1084): a sheet's Connections block, the world web and the players' projection. */
+export const CONNECTIONS_KEY = "connections";
 export const PLAYER_KIN_KEY = "player-kin";
 /** The Open Book (#1085): the owner's settings, its releases and the per-entry choices. */
 export const OPEN_BOOK_KEY = "open-book";
@@ -279,6 +281,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["npc_relationships", ["npc_relationships"]],
   // Family trees (#1083). Players cannot read the table; the ring tells them to re-read their kin projection.
   ["kin_links", [KIN_LINKS_KEY, PLAYER_KIN_KEY]],
+  // World Web (#1084). Players cannot read the table; their projection hangs off the same root.
+  ["world_links", [CONNECTIONS_KEY]],
   // Open Book (#1085). Owner-only tables; a release also changes the book row (its live release).
   ["open_books", [OPEN_BOOK_KEY]],
   ["open_book_releases", [OPEN_BOOK_RELEASES_KEY, OPEN_BOOK_KEY]],
